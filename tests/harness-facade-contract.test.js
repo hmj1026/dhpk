@@ -574,8 +574,8 @@ test('CLI exposes the harness help contract', () => {
 // Consolidated source suite: harness-workflow-config.
 {
 
-  // RED-first guard for the migration boundary: CI/release invoke the public
-  // facade while retaining the legacy distribution compatibility checks.
+  // Daily CI keeps deterministic source/package checks; consumer readiness
+  // remains available through the public facade and the release workflow.
 
   const fs = require('node:fs');
   const path = require('node:path');
@@ -595,9 +595,13 @@ test('CLI exposes the harness help contract', () => {
     return next === -1 ? rest : rest.slice(0, next + 1);
   }
 
-  test('CI invokes the harness facade and keeps compatibility adapters', () => {
+  test('daily CI omits research and consumer-readiness probes while retaining package checks', () => {
     const workflow = read('.github/workflows/ci.yml');
-    assert.match(workflow, /bin\/dhpk harness/);
+    const preflight = jobBlock(workflow, 'preflight');
+    assert.doesNotMatch(preflight, /node scripts\/ci\/context-budget\.js\b/);
+    assert.doesNotMatch(preflight, /node scripts\/ci\/subagent-context-budget\.js\b/);
+    assert.doesNotMatch(preflight, /bin\/dhpk harness preflight\b/);
+    assert.match(preflight, /scripts\/validate\/validate-harness\.sh/);
     assert.match(workflow, /scripts\/ci\/verify-platform-packages\.js/);
     assert.doesNotMatch(workflow, /bin\/dhpk distribution/);
   });
@@ -617,7 +621,17 @@ test('CLI exposes the harness help contract', () => {
     assert.match(tests, /DHPK_TEST_SOURCE_COMMIT:\s*\$\{\{\s*github\.sha\s*\}\}/);
     assert.match(tests, /DHPK_TEST_HEAD_SHA:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\}\}/);
     assert.match(tests, /DHPK_TEST_TIMING_FILE:\s*\$\{\{\s*runner\.temp\s*\}\}\/dhpk-test-timing\.json/);
-    assert.match(tests, /DHPK_CI_PLAN/);
+    for (const consumer of [preflight, tests, validate]) {
+      assert.match(consumer, /actions\/download-artifact@[0-9a-f]{40}/);
+      assert.match(consumer, /dhpk-ci-plan-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
+      assert.match(consumer, /fs\.readFileSync/);
+      assert.doesNotMatch(consumer, /DHPK_CI_PLAN|needs\.plan\.outputs\.plan|process\.env\.PLAN/);
+    }
+    assert.doesNotMatch(workflow, /mapfile[^\n]*<\s*</);
+    const plan = jobBlock(workflow, 'plan');
+    assert.match(plan, /--out "\$RUNNER_TEMP\/ci-plan\.json" --github-output "\$GITHUB_OUTPUT"/);
+    assert.match(plan, /actions\/upload-artifact@[0-9a-f]{40}/);
+    assert.doesNotMatch(plan, /outputs\.plan|JSON\.parse\(process\.argv/);
     assert.match(tests, /testFiles/);
     assert.match(tests, /--shard-count\s+4/);
 
@@ -628,7 +642,7 @@ test('CLI exposes the harness help contract', () => {
     assert.match(validate, /needs\.tests\.result/);
     assert.match(validate, /actions\/setup-node@[0-9a-f]{40}\s+#\s*v7\.0\.0/);
     assert.match(validate, /node-version:\s*['"]?24/);
-    assert.match(validate, /verifyCiResults\(JSON\.parse\(process\.env\.PLAN\)/);
+    assert.match(validate, /verifyCiResults\(plan,/);
     assert.match(validate, /--count \"\$count\"/);
     assert.match(validate, /node scripts\/ci\/verify-test-shards\.js/);
     assert.match(validate, /if \[ "\$\{\{\s*needs\.plan\.outputs\.mode\s*\}\}" = "selected" \]; then count=1; fi/);
@@ -636,7 +650,12 @@ test('CLI exposes the harness help contract', () => {
     assert.match(validate, /name: Download selected test timing evidence[\s\S]*if: needs\.plan\.outputs\.mode == 'selected'[\s\S]*name: dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-0[\s\S]*path: \$\{\{ runner\.temp \}\}\/dhpk-test-shards\/dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-0/);
     assert.match(workflow, /Validate bounded generated companions/);
     assert.match(workflow, /generatedChecks/);
-    assert.match(workflow, /claude-profile:minimal\|claude-profile:full\|claude-profile:compat-v1/);
+    assert.match(workflow, /claude-marketplace\) node scripts\/ci\/gen-claude-marketplace-package\.js --check/);
+    assert.doesNotMatch(workflow, /claude-profile:|gen-claude-profile-bundles/);
+    const packageScripts = JSON.parse(read('package.json')).scripts;
+    assert.strictEqual(packageScripts['check:profiles'], undefined);
+    assert.match(packageScripts['check:generated'], /check:marketplace/);
+    assert.doesNotMatch(packageScripts['check:generated'], /check:profiles/);
     assert.match(workflow, /CHANGELOG_ARGS=\(\)/);
     assert.match(workflow, /--diff-base\s+"origin\/\$BASE_REF"\s+--base-ref\s+"\$BASE_REF"/);
     assert.strictEqual(

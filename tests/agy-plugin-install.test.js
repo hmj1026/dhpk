@@ -673,17 +673,17 @@ const { test, run, assert } = require('./_lib/tinytest');
       '',
     ];
     if (includeHarnessReference) {
-      fs.mkdirSync(path.join(root, 'skills', 'harness-govern'), { recursive: true });
-      fs.writeFileSync(path.join(root, 'skills', 'harness-govern', 'SKILL.md'), [
+      fs.mkdirSync(path.join(root, 'skills', 'harness-setup'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'skills', 'harness-setup', 'SKILL.md'), [
         '---',
-        'name: harness-govern',
+        'name: harness-setup',
         'description: Harness governance skill',
         '---',
         '',
         '# Harness Revise',
         '',
       ].join('\n'));
-      skillLines.push('Use @skills/harness-govern/references/harness-directory-contract.md when resolving a harness.');
+      skillLines.push('Use @skills/harness-setup/references/harness-directory-contract.md when resolving a harness.');
     }
     fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), `${skillLines.join('\n')}\n`);
     const inventory = {
@@ -692,11 +692,11 @@ const { test, run, assert } = require('./_lib/tinytest');
       skills: [
         { id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] },
         ...(includeHarnessReference
-          ? [{ id: 'harness-govern', path: 'skills/harness-govern', surfaces: ['agy-plugin'] }]
+          ? [{ id: 'harness-setup', path: 'skills/harness-setup', surfaces: ['agy-plugin'] }]
           : []),
       ],
       modules: [],
-      surface_membership: { 'agy-plugin': ['sample', ...(includeHarnessReference ? ['harness-govern'] : [])] },
+      surface_membership: { 'agy-plugin': ['sample', ...(includeHarnessReference ? ['harness-setup'] : [])] },
       agy_plugin: {
         agents: ['sample.md'],
         rules: ['rules/sample.md'],
@@ -818,8 +818,8 @@ const { test, run, assert } = require('./_lib/tinytest');
     try {
       materializeFixture(root, outDir, { includeHarnessReference: true });
       const projected = fs.readFileSync(path.join(outDir, 'skills', 'dhpk-sample', 'SKILL.md'), 'utf8');
-      assert.ok(projected.includes('harness-govern'));
-      assert.ok(!projected.includes('@skills/harness-govern/references/harness-directory-contract.md'));
+      assert.ok(projected.includes('harness-setup'));
+      assert.ok(!projected.includes('@skills/harness-setup/references/harness-directory-contract.md'));
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -962,7 +962,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       const inventory = writeFixture(root);
       fs.appendFileSync(
         path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'),
-        '\nUse @skills/harness-govern/references/harness-directory-contract.md when resolving a harness.\n',
+        '\nUse @skills/harness-setup/references/harness-directory-contract.md when resolving a harness.\n',
       );
       assert.throws(() => materializeAgyPluginPackage({
         root,
@@ -971,7 +971,7 @@ const { test, run, assert } = require('./_lib/tinytest');
         version: '0.39.0',
         sourceVersion: '0.39.0',
         sourceCommit: COMMIT,
-      }), /AGY skill reference target is not selected: harness-govern/);
+      }), /AGY skill reference target is not selected: harness-setup/);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

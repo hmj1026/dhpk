@@ -21,8 +21,8 @@ silently broaden a host's authority or invent a second installer.
 
 ## When NOT to Use
 
-- Harness health, budget, trimming, or cross-platform synchronization: use
-  `harness-govern` and its selected mode.
+- Harness scoring, budget analysis, trimming, or cross-platform synchronization:
+  these retired optional tools are outside the setup contract.
 - Application code, ordinary configuration edits, or credentials not covered by
   the host setup procedure.
 - A request that supplies a new `--host` selector. Host is detected from the

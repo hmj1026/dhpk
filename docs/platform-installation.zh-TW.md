@@ -17,7 +17,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 
 | Surface | 安裝 | 更新／移除 | 驗證 | 支援邊界 |
 |---|---|---|---|---|
-| Claude Code 預設 | `bash scripts/install.sh` → `dhpk@dhpk-profile-minimal` | 重跑 installer 或選擇明確的 compatibility package | Fresh-session `/dhpk:flow-guide help` | 結構檢查可通過；consumer discovery 在實際觀察前維持 `NOT_RUN` |
+| Claude Code 預設 | `bash scripts/install.sh` → `dhpk@dhpk` | 使用 receipt-owned update／rollback 路徑 | Fresh-session `/dhpk:flow-guide help` | 結構檢查可通過；consumer discovery 在實際觀察前維持 `NOT_RUN` |
 | Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
 | Codex legacy/native | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe | Experimental；只可在 disposable isolated `CODEX_HOME` 測試；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | OpenAI Public Plugin Directory（Codex 與 ChatGPT Work） | 公開 listing 出現後，在產品 Plugins Directory 搜尋 DHPK | 使用該產品的 plugin manager | 核准的公開 listing，以及每個 Host 的 fresh-session workflow probe | 目前僅為 candidate，狀態 `NOT_PUBLISHED`；local/repository marketplace 僅供開發 |
@@ -46,7 +46,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
 | Cursor project-local sync | Cursor project-local loader；schema-v3 receipt；最低 Cursor version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.cursor/.dhpk-installed.json`，並執行列出的 installer 測試；缺少 live Cursor client 不得視為 runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、已登入 Cursor session，以及 Linux 上已驗證的 bubblewrap；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI／sandbox 為 `UNAVAILABLE`／`BLOCKED`，discovery 另行記錄；只提供 API key 不接受 |
-| AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version`；已觀察 AGY 1.2.2 可從 canonical path 載入 | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list` 只列 import，隔離 HOME 的 `agy agents` 才是 native load；除非明確使用 `--agy-runtime-probe`，runtime 保持 `NOT_RUN` |
+| AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version`；已觀察 AGY 1.2.2 可從 canonical path 載入 | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list` 只列 import，隔離 HOME 的 `agy agents` 才是 native load；未執行適用且明確請求的 native probe 時，runtime 保持 `NOT_RUN` |
 
 ## Status vocabulary
 
@@ -61,7 +61,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 不可把 static manifest、marketplace entry、generated file 或 enabled flag
 直接轉成 runtime `PASS`。
 
-## Claude Code minimal profile（推薦）
+## Claude Code marketplace 安裝（推薦）
 
 Clean install 先預覽，再實體化預設 package：
 
@@ -81,11 +81,7 @@ bash scripts/install.sh --non-interactive --yes
 且未加 `--yes` 時不會安裝；`--hook-profile minimal|standard|strict` 指定 hook
 profile（預設 `standard`）。需要 `claude` CLI。
 
-`dhpk@dhpk-profile-minimal` 只暴露 `change-verdict`、`code-trace`、
-`flow-drive`、`flow-guide`。開啟 fresh Claude session 並執行
-`/dhpk:flow-guide help`；實際觀察前，runtime evidence 維持 `NOT_RUN`。
-Root marketplace 保留為 compatibility route，既有 receipt 在明確 migration
-前維持原 selection。
+`dhpk@dhpk` 是現有主 marketplace 套件，提供 shared catalog 的 15 個 common 入口與必要的 Host runtime/reference。開啟 fresh Claude session 並執行 `/dhpk:flow-guide help`；實際觀察前，runtime evidence 維持 `NOT_RUN`。安裝流程不建立另一個 common variant。
 
 Maintainer 可為開發檢視產生單一 optional capability：
 
@@ -217,9 +213,9 @@ activation defect 或明確
 native-acceptance request；package 不代表 native runtime evidence。本流程不授予
 apply、publication 或 retirement 權限，也不宣稱 cutover 已執行。
 
-### Standalone 選取與 profile 選取
+### Standalone 與 common 選取
 
-沒有明確選取的新安裝仍使用 inventory-owned 的 `minimal` profile。standalone
+新安裝使用 inventory-owned `common` 集合；公開 publication `--profile` 旗標會被拒絕。standalone
 request 是另一條獨立邊界：
 
 ```bash
@@ -328,19 +324,9 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 結果回報 `providerCheck: UNAVAILABLE`，project sync 仍可繼續。Installer 不會
 自動移除 global native plugin。
 
-Unified distribution/lifecycle installer 使用 inventory-owned `minimal` profile
-（inventory required_core_ids）。保留的 project-local Codex compatibility route 預設維持
-`compat-v1`；migration 時明確選 `minimal`，或加入 stable-ID overlay：
+Codex 新安裝使用 `common` 集合，可加入既有 `--skill <stable-id>` overlay。公開 `--profile` 選取已退休。
 
-```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile full --skill git-smart-commit
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal --skill bug-investigation --skill tdd
-```
-
-沒有 profile metadata 的既有 receipt 維持 `compat-v1`；切換到較小 profile 必須
-使用 `--migrate --update`。Receipt 會記錄 canonical/surface-emitted IDs 與 selection
-fingerprint；無法使用的 consumer probe 維持 non-pass evidence。
+歷史 named-profile receipt（`minimal`、`full`、`compat-v1`）的 plan、read、uninstall 與 recovery 保留 receipt 儲存的精確範圍，包含已退休 ID；update 在任何 mutation 前回報 `BLOCKED`。沒有 selection metadata 的舊 receipt 維持既有 structural migration 路徑。Current receipt 的普通 `--update` 不受這項歷史限制影響。
 
 既有 schema-v3 symlink projection 執行普通 `--update` 時，未變更且
 receipt-owned 的 agent link 會轉為實體檔，skill link 保持不變。retargeted、edited
@@ -366,7 +352,7 @@ source fingerprint 帶入 adoption。省略 `--copy`，installer 會沿用 recei
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
   --update \
-  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/flow-guide@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 adoption 只作用於指定 path，並會在 promotion 前建立可 rollback 的 backup；不會
@@ -808,9 +794,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --migrate -
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
 ```
 
-Cursor sync 同樣支援 profile 與 additive overlay flags。新安裝預設為 `minimal`；
-未標註舊 receipt 會維持 `compat-v1`，直到明確使用 `--migrate`。unknown、retired、
-deprecated、duplicate 或 surface 不相容 ID 會在修改 `.cursor/` 前拒絕。
+Cursor 新安裝同樣使用 `common`，支援既有 additive `--skill` overlay，拒絕公開 `--profile`。歷史 named-profile receipt 的 read、plan、uninstall、recovery 保留精確 stored scope，update 在 mutation 前 `BLOCKED`；未標註舊 receipt 使用既有 structural migration 路徑。新選取中的 unknown、retired、deprecated、duplicate 或 surface 不相容 ID 會在修改 `.cursor/` 前拒絕。
 
 `--force` 只繞過 project-root heuristic，不會繞過 receipt ownership 或 path
 safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
@@ -832,7 +816,7 @@ projection mode：
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
   --update \
-  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/flow-guide@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 Adoption 以 path 為範圍，並在 promotion 前建立可 rollback 的 backup。fingerprint
@@ -946,49 +930,13 @@ ownership、physical `.git` marker，以及有界的 same／changed／missing �
 checkout，之後才能 clean install。診斷不會自動 migration、adoption、覆寫或
 移除 foreign target。
 
-configured-platform validation 與 package validation 分開執行：
+安裝與必要資源由既有 [consumer-gate](../scripts/release/consumer-gate.js) 及 AGY adapter 驗證。可先產生唯讀 platform probe plan：
 
 ```bash
-python3 skills/harness-govern/scripts/multi_ai_sync.py \
-  --root . validate --targets agy --format json
-agy --version
-agy plugins list
-agy agents
+node scripts/release/consumer-platform-probe.js --platform agy-project --package-root plugins/dhpk-agy
 ```
 
-`agy plugins list` 只列出 import records。安裝在 canonical
-`~/.gemini/antigravity-cli/plugins/dhpk` 的 native receipt-owned package
-是由隔離 HOME 的 `agy agents` 發現，不能用 import JSON 裡出現 `dhpk` 當證明。
-validator 會把 package bind 到 inventory-owned consumer path。
-AGY 1.1.13 沒有 native filesystem plugin loader，所以隔離 HOME 的
-`agy agents` 會是空的；這組結果是 `SKIP_INCOMPATIBLE`，不是 package-shape
-`FAIL`。不要對 receipt-owned target 跑 `agy plugin install`：那不是 native
-registration 步驟，而且可能把 `plugin.json` 截成空檔。
-
-AGY runtime prerequisites 是 `agy` CLI、目前支援的 `bwrap` POSIX sandbox
-backend，以及明確指定的 `DHPK_AGY_HOST_HOME`，其中必須有 allowlisted
-login file。runtime probe 只把 allowlisted files 複製到 disposable HOME，
-以 read-only 方式 mount package，並只在 runtime invocation 開啟 network。
-缺少 login 是 `BLOCKED`；缺少 `agy` 或 `bwrap` 是 `UNAVAILABLE`；未明確使用
-`--agy-runtime-probe` 時 runtime 是 `NOT_RUN`。runtime diagnostics 有界且已
-redact，不記錄 host credential 內容。AGY free-form client output 會收斂為
-固定的 reason-class placeholder，因此不會保存 private path、prompt、tool
-payload 或 host overlay marker。
-
-報告分開記錄 package structure、plugin/agent discovery 與 Subagent runtime。
-若 `agy` 不在 `PATH`，discovery 是 `UNAVAILABLE`；未使用
-`--agy-runtime-probe` 時 runtime 是 `NOT_RUN`。CLI 可用時，opt-in probe
-有界且唯讀：
-
-```bash
-python3 skills/harness-govern/scripts/multi_ai_sync.py \
-  --root . validate --targets agy --agy-runtime-probe --format json
-```
-
-不可把 static manifest、`agy agents` listing 或 foreign-checkout 診斷升級成
-runtime `PASS`。
-rollback／uninstall 只移除符合 AGY provenance receipt 的檔案，並保留 plugin
-directory 內的 user-owned files。
+原生 discovery、模型及 Subagent runtime 只在改動對應整合或明確請求時執行；未執行維持 `NOT_RUN`，缺少能力維持 non-pass。安裝 receipt、static manifest 或 discovery listing 不能當作 runtime `PASS`。歷史 AGY 1.1.13 的 loader 限制與研究結果維持原證據狀態。rollback／uninstall 只移除 receipt-owned 且 fingerprint 相符的檔案，保留 user-owned 與 foreign content。
 
 ## Maintainer evidence
 

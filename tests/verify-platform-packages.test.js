@@ -30,7 +30,7 @@ test('subset reporting does not dereference absent Host surfaces', () => {
   assert.deepStrictEqual(report.errors, []);
 });
 
-test('an unprofiled generation materializes the common and surface-specific Host catalog', () => {
+test('default common receipts retain canonical IDs and the platform verifier replays them', () => {
   // Package generators reject symlinked ancestors; macOS exposes os.tmpdir() as /var.
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-unprofiled-platform-'));
   const sourceParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-unprofiled-source-'));
@@ -42,17 +42,55 @@ test('an unprofiled generation materializes the common and surface-specific Host
     });
     assert.strictEqual(checkedOut.status, 0, checkedOut.stdout + checkedOut.stderr);
     worktreeAdded = true;
-    for (const surface of ['agent-plugin', 'agy-plugin']) {
+    const version = JSON.parse(fs.readFileSync(path.join(sourceRoot, '.claude-plugin', 'plugin.json'), 'utf8')).version;
+    const commonIds = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'install-profiles.json'), 'utf8'))
+      .profiles.common.skillIds;
+    assert.strictEqual(commonIds.length, 15);
+    const verificationFailures = [];
+    for (const surface of ['agent-plugin', 'agy-plugin', 'codex-native']) {
       const output = path.join(root, surface);
       const result = spawnSync(path.join(sourceRoot, 'bin', 'dhpk'), [
-        'distribution', surface, 'generate', '--output', output, '--version', '0.48.3', '--json',
+        'distribution', surface, 'generate', '--output', output, '--version', version, '--json',
       ], { cwd: sourceRoot, encoding: 'utf8' });
       assert.strictEqual(result.status, 0, result.stdout + result.stderr);
       const report = JSON.parse(result.stdout);
-      assert.strictEqual(report.skillCount, 17, `${surface} must publish fifteen common entries and two Host-only entries`);
+      const expectedPhysicalCount = surface === 'codex-native' ? 19 : 17;
+      assert.strictEqual(report.skillCount, expectedPhysicalCount, `${surface} must retain its Host-only physical entries`);
       const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
-      assert.strictEqual(provenance.profileId, undefined, `${surface} must not narrow without an explicit --profile`);
+      assert.strictEqual(provenance.profileId, 'common', `${surface} must record the default common selection`);
+      assert.deepStrictEqual(provenance.selectedStableIds, commonIds, `${surface} must retain canonical public selection IDs`);
+      assert.deepStrictEqual(provenance.emittedStableIds, commonIds, `${surface} must not claim Host-only entries as public selection IDs`);
+
+      const packagePath = surface === 'agy-plugin' ? 'plugins/dhpk-agy' : surface === 'codex-native' ? 'plugins/dhpk' : null;
+      if (!packagePath) continue;
+      const tracked = path.join(sourceRoot, packagePath);
+      fs.rmSync(tracked, { recursive: true, force: true });
+      fs.cpSync(output, tracked, { recursive: true });
+      for (const args of [['config', 'user.email', 'test@example.invalid'], ['config', 'user.name', 'common-verifier-fixture']]) {
+        const configured = spawnSync('git', args, { cwd: sourceRoot, encoding: 'utf8' });
+        assert.strictEqual(configured.status, 0, configured.stdout + configured.stderr);
+      }
+      const added = spawnSync('git', ['add', packagePath], { cwd: sourceRoot, encoding: 'utf8' });
+      assert.strictEqual(added.status, 0, added.stdout + added.stderr);
+      const committed = spawnSync('git', ['commit', '--quiet', '-m', `refresh ${surface} common fixture`], { cwd: sourceRoot, encoding: 'utf8' });
+      assert.strictEqual(committed.status, 0, committed.stdout + committed.stderr);
+
+      const verified = spawnSync(process.execPath, [
+        path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
+        '--surface', surface, '--repo-root', sourceRoot,
+      ], { encoding: 'utf8' });
+      let verification;
+      try { verification = JSON.parse(verified.stdout); } catch (_) {
+        verificationFailures.push(`${surface}: verifier returned non-JSON output: ${verified.stdout}${verified.stderr}`);
+        continue;
+      }
+      const summary = verification.surfaces && verification.surfaces[surface];
+      if (!summary || summary.structural !== 'PASS' || summary.receipt !== 'PASS'
+        || summary.deterministic !== 'PASS' || (summary.errors || []).length > 0) {
+        verificationFailures.push(`${surface}: ${JSON.stringify(summary || verification)}${verified.stderr}`);
+      }
     }
+    assert.deepStrictEqual(verificationFailures, [], verificationFailures.join('\n'));
   } finally {
     if (worktreeAdded) spawnSync('git', ['worktree', 'remove', '--force', sourceRoot], { cwd: ROOT, encoding: 'utf8' });
     fs.rmSync(sourceParent, { recursive: true, force: true });

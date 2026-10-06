@@ -369,7 +369,7 @@ function makeConfiguredScopeRoot(markerPaths = []) {
     const source = path.join(ROOT, relative);
     const destination = path.join(root, relative);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.cpSync(source, destination, { recursive: true });
+    fs.cpSync(source, destination, { recursive: true, verbatimSymlinks: true });
   }
   return root;
 }
@@ -984,8 +984,15 @@ test('an authorized but unsupported AGY plugin-loader requirement stays blocked 
 });
 
 test('default installation acceptance passes configured contracts while runtime remains excluded', () => {
-  withConsumerGateBin((bin) => {
-    mkBinStub(bin, 'claude', `#!/bin/sh
+  const root = makeConfiguredScopeRoot([
+    '.claude-plugin', 'skills', 'agents', 'commands', 'modules',
+    'rules', 'cursor', 'scripts', 'manifests',
+    'plugins/dhpk-agent', 'plugins/dhpk-cursor', 'plugins/dhpk-agy',
+    'AGENTS.md',
+  ]);
+  try {
+    withConsumerGateBin((bin) => {
+      mkBinStub(bin, 'claude', `#!/bin/sh
 if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
@@ -993,22 +1000,31 @@ if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
 if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project","installPath":"'"$PWD"'"}]'; exit 0; fi
 exit 0
 `);
-    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
-    const stage = JSON.parse(res.stdout);
-    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
-    assert.strictEqual(stage.acceptance.verdict, 'PASS');
-    assert.strictEqual(res.status, 0);
-    assert.ok(stage.surfaceResults.every((result) => result.stage === 'CONSUMER'));
-    assert.ok(stage.surfaceResults.some((result) => result.surface === 'agent-plugin'));
-    assert.strictEqual(stage.surfaceResults.find((result) => result.surface === 'cursor-sync').status, 'NOT_RUN');
-    assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode === 0), JSON.stringify(stage));
-    assert.ok(stage.acceptance.excludedChecks.some((check) => (
-      check.surface === 'cursor-sync' && check.kind === 'native' && check.status === 'NOT_RUN'
-    )), JSON.stringify(stage.acceptance));
-    assert.ok(stage.acceptance.excludedChecks.some((check) => (
-      check.surface === 'codex-native' && check.status === 'NOT_CONFIGURED'
-    )), JSON.stringify(stage.acceptance));
-  });
+      const res = runCliAtRoot(root, { PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+      const stage = JSON.parse(res.stdout);
+      assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+      assert.strictEqual(stage.acceptance.verdict, 'PASS');
+      assert.strictEqual(res.status, 0);
+      const expectedSurfaces = ['claude', 'cursor-sync', 'agent-plugin', 'cursor-plugin', 'agy-plugin'];
+      assert.deepStrictEqual(stage.surfaceResults.map((row) => row.surface), expectedSurfaces);
+      assert.deepStrictEqual(stage.acceptance.requiredChecks.map((check) => check.surface), expectedSurfaces);
+      assert.ok(stage.acceptance.requiredChecks.every((check) => check.kind === 'installation' && check.status === 'PASS'));
+      assert.ok(stage.surfaceResults.every((result) => result.stage === 'CONSUMER'));
+      assert.ok(stage.surfaceResults.some((result) => result.surface === 'agent-plugin'));
+      assert.strictEqual(stage.surfaceResults.find((result) => result.surface === 'cursor-sync').status, 'NOT_RUN');
+      assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode === 0), JSON.stringify(stage));
+      assert.ok(stage.acceptance.excludedChecks.some((check) => (
+        check.surface === 'cursor-sync' && check.kind === 'native' && check.status === 'NOT_RUN'
+      )), JSON.stringify(stage.acceptance));
+      for (const surface of ['codex-sync', 'codex-native']) {
+        assert.ok(stage.acceptance.excludedChecks.some((check) => (
+          check.surface === surface && check.status === 'NOT_CONFIGURED'
+        )), JSON.stringify(stage.acceptance));
+      }
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('routes the portable Agent Plugin package through its dedicated probe', () => {

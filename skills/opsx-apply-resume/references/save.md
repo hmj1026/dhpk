@@ -38,7 +38,7 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
    List unstaged changes and ask whether to include them. If skipped or the
    optional `smart-commit` capability is unavailable, record
    `commit: SKIPPED` or `commit: UNAVAILABLE` and continue from the live tree.
-2. **Optional precommit gate.** Run `precommit-fast` only when the operator or
+2. **Optional precommit gate.** Run `precommit --fast` only when the operator or
    project enables it. `PASS` continues. `FAIL` reports details and asks
    whether to save; a confirmed continuation records `precommit: FAILED`.
    A refusal stops without writing a handoff.

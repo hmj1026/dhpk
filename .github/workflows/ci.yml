@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       mode: ${{ steps.plan.outputs.mode }}
-      plan: ${{ steps.plan.outputs.plan }}
+      surfaces: ${{ steps.plan.outputs.surfaces }}
       shards: ${{ steps.plan.outputs.shards }}
       macos: ${{ steps.plan.outputs.macos }}
     steps:
@@ -34,11 +34,14 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           CHECKOUT_SHA: ${{ github.sha }}
         run: |
-          plan="$(node scripts/ci/ci-plan.js plan --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA" --checkout-sha "$CHECKOUT_SHA" --base-ref "$BASE_REF")"
-          echo "plan=$plan" >> "$GITHUB_OUTPUT"
-          echo "mode=$(node -e 'console.log(JSON.parse(process.argv[1]).mode)' "$plan")" >> "$GITHUB_OUTPUT"
-          echo "shards=$(node -e 'console.log(JSON.stringify([...Array(JSON.parse(process.argv[1]).shardCount).keys()]))' "$plan")" >> "$GITHUB_OUTPUT"
-          echo "macos=$(node -p 'JSON.parse(process.argv[1]).requiredJobs.includes("macos-installer")' "$plan")" >> "$GITHUB_OUTPUT"
+          node scripts/ci/ci-plan.js plan --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA" --checkout-sha "$CHECKOUT_SHA" --base-ref "$BASE_REF" --out "$RUNNER_TEMP/ci-plan.json" --github-output "$GITHUB_OUTPUT"
+      - name: Upload complete CI plan
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ci-plan.json
+          if-no-files-found: error
+          retention-days: 14
 
   preflight:
     name: Preflight
@@ -56,6 +59,12 @@ jobs:
           node-version: '24'
       - uses: ./.github/actions/setup-dhpk-test-env
         if: needs.plan.outputs.mode != 'light'
+
+      - name: Download complete CI plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dhpk-ci-plan
 
       - name: Validate workflow syntax
         if: needs.plan.outputs.mode == 'full'
@@ -95,28 +104,13 @@ jobs:
         run: node scripts/ci/sync-skill-resources.js --check
       - name: Validate source references
         run: node scripts/ci/validate-references.js
-      # Public facade smoke check. Exit 2 is an explicit non-pass evidence
-      # state (for example an unavailable local consumer), not a shell error;
-      # deterministic failures and usage errors still fail CI.
-      - name: Harness facade preflight
-        if: needs.plan.outputs.mode == 'full'
-        run: |
-          set +e
-          bin/dhpk harness preflight --json
-          status=$?
-          set -e
-          case "$status" in
-            0|2) exit 0 ;;
-            *) exit "$status" ;;
-          esac
       - name: Validate retained distribution packages
-        if: needs.plan.outputs.mode != 'light' || contains(needs.plan.outputs.plan, '"agent-plugin"') || contains(needs.plan.outputs.plan, '"cursor-plugin"') || contains(needs.plan.outputs.plan, '"codex-native"') || contains(needs.plan.outputs.plan, '"agy-plugin"')
-        env:
-          DHPK_CI_PLAN: ${{ needs.plan.outputs.plan }}
+        if: needs.plan.outputs.mode != 'light' || needs.plan.outputs.surfaces != '[]'
         run: |
           args=()
           if [ "${{ needs.plan.outputs.mode }}" != "full" ]; then
-            mapfile -t surfaces < <(node -e 'for (const surface of JSON.parse(process.env.DHPK_CI_PLAN).packageSurfaces || []) console.log(surface)' )
+            node -e 'const fs = require("node:fs"); const path = require("node:path"); for (const surface of JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "dhpk-ci-plan/ci-plan.json"), "utf8")).packageSurfaces) console.log(surface)' > "$RUNNER_TEMP/ci-package-surfaces.txt"
+            mapfile -t surfaces < "$RUNNER_TEMP/ci-package-surfaces.txt"
             if [ "${#surfaces[@]}" -eq 0 ]; then
               echo "No package surfaces selected; skipping package verifier."
               exit 0
@@ -126,17 +120,12 @@ jobs:
           node scripts/ci/verify-platform-packages.js "${args[@]}"
       - name: Validate bounded generated companions
         if: needs.plan.outputs.mode == 'light'
-        env:
-          DHPK_CI_PLAN: ${{ needs.plan.outputs.plan }}
         run: |
-          checks=( $(node -e 'for (const check of JSON.parse(process.env.DHPK_CI_PLAN).generatedChecks || []) console.log(check)' ) )
+          node -e 'const fs = require("node:fs"); const path = require("node:path"); for (const check of JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "dhpk-ci-plan/ci-plan.json"), "utf8")).generatedChecks) console.log(check)' > "$RUNNER_TEMP/ci-generated-checks.txt"
+          mapfile -t checks < "$RUNNER_TEMP/ci-generated-checks.txt"
           for check in "${checks[@]}"; do
             case "$check" in
               claude-marketplace) node scripts/ci/gen-claude-marketplace-package.js --check ;;
-              claude-profile:minimal|claude-profile:full|claude-profile:compat-v1)
-                profile="${check#claude-profile:}"
-                node scripts/ci/gen-claude-profile-bundles.js --profile "$profile" --check
-                ;;
               *) echo "Unknown generated companion check: $check" >&2; exit 64 ;;
             esac
           done
@@ -149,27 +138,9 @@ jobs:
       - name: No-drift Claude marketplace package check
         if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/gen-claude-marketplace-package.js --check
-      - name: No-drift Claude profile bundles check
-        if: needs.plan.outputs.mode == 'full'
-        run: |
-          for profile in minimal full compat-v1; do
-            node scripts/ci/gen-claude-profile-bundles.js --profile "$profile" --check
-          done
       - name: Validate invocation policy
         if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-invocation-policy.js
-
-      - name: Validate default discovery aggregate budget
-        if: needs.plan.outputs.mode == 'full'
-        run: node scripts/ci/context-budget.js --aggregate
-        continue-on-error: true
-
-      # Agent-spawn context ledger: static estimates are separate from runtime
-      # token telemetry, which is supplied by the host when available.
-      - name: Validate subagent context ledger
-        if: needs.plan.outputs.mode == 'full'
-        run: node scripts/ci/subagent-context-budget.js
-        continue-on-error: true
 
       # Count SSOT: README / manifest exact claims must match reality.
       - name: Catalog count check
@@ -210,6 +181,12 @@ jobs:
 
       - uses: ./.github/actions/setup-dhpk-test-env
 
+      - name: Download complete CI plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dhpk-ci-plan
+
       - name: Run bounded repository test shard
         env:
           DHPK_BOUNDED_REQUIRE_CGROUP: '1'
@@ -223,10 +200,10 @@ jobs:
           DHPK_TEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           DHPK_TEST_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
           DHPK_TEST_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          DHPK_CI_PLAN: ${{ needs.plan.outputs.plan }}
         run: |
           if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then
-            mapfile -t selected_files < <(node -e 'for (const file of JSON.parse(process.env.DHPK_CI_PLAN).testFiles) console.log(`tests/${file}`)')
+            node -e 'const fs = require("node:fs"); const path = require("node:path"); for (const file of JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "dhpk-ci-plan/ci-plan.json"), "utf8")).testFiles) console.log("tests/" + file)' > "$RUNNER_TEMP/ci-selected-tests.txt"
+            mapfile -t selected_files < "$RUNNER_TEMP/ci-selected-tests.txt"
             ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js "${selected_files[@]}"
           else
             ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js --shard-index ${{ matrix.shard }} --shard-count 4
@@ -262,10 +239,15 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Download complete CI plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dhpk-ci-plan
+
       - name: Verify plan-bound required jobs
         if: always()
         env:
-          PLAN: ${{ needs.plan.outputs.plan }}
           PREFLIGHT_RESULT: ${{ needs.preflight.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
           MACOS_RESULT: ${{ needs.macos-installer.result }}
@@ -277,8 +259,11 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           node - <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
           const { verifyCiResults } = require('./scripts/lib/ci-plan');
-          const result = verifyCiResults(JSON.parse(process.env.PLAN), {
+          const plan = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'dhpk-ci-plan/ci-plan.json'), 'utf8'));
+          const result = verifyCiResults(plan, {
             preflight: process.env.PREFLIGHT_RESULT, tests: process.env.TESTS_RESULT,
             'macos-installer': process.env.MACOS_RESULT, 'release-rehearsal': process.env.RELEASE_RESULT,
             lint: process.env.LINT_RESULT, validate: 'success',
@@ -303,11 +288,8 @@ jobs:
 
       - name: Verify shard coverage and timing evidence
         if: needs.plan.outputs.mode != 'light'
-        env:
-          PLAN: ${{ needs.plan.outputs.plan }}
         run: |
-          plan_file="$RUNNER_TEMP/ci-plan.json"
-          printf '%s' "$PLAN" > "$plan_file"
+          plan_file="$RUNNER_TEMP/dhpk-ci-plan/ci-plan.json"
           count=4
           if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then count=1; fi
           args=(--directory "$RUNNER_TEMP/dhpk-test-shards" --count "$count" --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --checkout-sha '${{ github.sha }}' --head-sha '${{ github.event.pull_request.head.sha }}' --summary "$GITHUB_STEP_SUMMARY")

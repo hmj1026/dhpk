@@ -4,7 +4,7 @@ Operational detail for `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Imple
 
 ## Orchestrator posture
 
-The main session is the high-capability owner of the requested outcome. Its implement-phase job is **decide → assign ownership → verify**. Choose inline work, a worker, or independent parallel scopes from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit. Task and file counts alone do not trigger delegation. Unattended goal sessions (`dhpk-opsx-apply-goal`) bind the selected project policy during their orientation step; the emitted `/goal` condition carries only the compact roster line and the self-locating policy pointer.
+The main session is the high-capability owner of the requested outcome. Its implement-phase job is **decide → assign ownership → verify**. Choose inline work, a worker, or independent parallel scopes from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit. Task and file counts alone do not trigger delegation. Confirmed implementation workflows bind the selected project policy during orientation and carry the applicable roster and policy pointer.
 
 Apply the canonical `Decision: CLEAR | REASONER_REQUIRED | HUMAN_REQUIRED |
 BLOCKED` contract in `rules/execution-policy.md` before selecting a writer. A
@@ -171,7 +171,7 @@ Worker dispatch never weakens a gate. `fast-worker` always reports its complete 
 
 ## Verify worker output before accepting (implement phase)
 
-When a `fast-worker` (or `deep-reasoner` → `fast-worker`) dispatch returns, before marking the task complete the orchestrator (a) re-surfaces the worker's verification line (`<command> → PASS|FAIL`) and complete assigned-scope edited-file list plus out-of-scope observations into the conversation, so the goal loop's conversation-only Haiku evaluator can see the evidence; (b) in parallel mode, cross-checks the assigned list against path-scoped `git status --short -- <assigned files>` / `git diff --name-only -- <assigned files>` and investigates any mismatch; (c) after all workers in the batch finish, performs the one whole-tree shared-state reconciliation described above; (d) derives the recommended reviewers from the edited-file list; (e) on a worker FAIL, out-of-scope write, or 3-attempt escalation, does NOT mark the task complete and re-scopes or re-dispatches `deep-reasoner` for a corrected fix-spec. This is a lightweight cross-check — the full test-suite re-run stays the `dhpk-opsx-apply-goal` Part 3 end-gate, not a per-task step. Wait on the dispatched worker's completion notification; do not poll marker files or sleep-loop awaiting agent results — this does not restrict the deterministic-completion-signal polling sanctioned by §No block-polling a running worker below (polling an observable artifact such as a DB row baseline for a mutating worker remains permitted).
+When a `fast-worker` (or `deep-reasoner` → `fast-worker`) dispatch returns, before marking the task complete the orchestrator (a) re-surfaces the worker's verification line (`<command> → PASS|FAIL`) and complete assigned-scope edited-file list plus out-of-scope observations into the conversation, so completion can be assessed from the reported evidence; (b) in parallel mode, cross-checks the assigned list against path-scoped `git status --short -- <assigned files>` / `git diff --name-only -- <assigned files>` and investigates any mismatch; (c) after all workers in the batch finish, performs the one whole-tree shared-state reconciliation described above; (d) derives the recommended reviewers from the edited-file list; (e) on a worker FAIL, out-of-scope write, or 3-attempt escalation, does NOT mark the task complete and re-scopes or re-dispatches `deep-reasoner` for a corrected fix-spec. This is a scoped cross-check. The confirmed implementation owner selects the applicable final verification from the project runner and change scope; this check does not require a full suite for each task. Wait on the dispatched worker's completion notification; do not poll marker files or sleep-loop awaiting agent results — this does not restrict the deterministic-completion-signal polling sanctioned by §No block-polling a running worker below (polling an observable artifact such as a DB row baseline for a mutating worker remains permitted).
 
 ## Repository Discovery Gate and explicit hard rules
 
@@ -181,7 +181,7 @@ Treat first-seen query/repository patterns as discovery triggers, including
 framework-internal hacks that resemble a repository boundary, and resolve them
 before dispatch rather than rationalizing an explicit-rule deferral.
 
-Anti-rationalization handling is mandatory here. If the reason for bypassing a rule sounds like "disproportionate", "approved design already chose this", "small enough to defer", "no human is available", or another cost-based deferral, load `${POLICY_BUNDLE_ROOT}/rules/anti-rationalization.md` before proceeding. The outcome is one of two states: comply with the explicit hard rule, or stop and record a human-approved exception. In unattended goal mode, no human being present is never implicit approval; default to compliance, and if compliance is genuinely blocked, halt and report via the hard-rule escalation artifact named by `dhpk-opsx-apply-goal`.
+Anti-rationalization handling is mandatory here. If the reason for bypassing a rule sounds like "disproportionate", "approved design already chose this", "small enough to defer", "no human is available", or another cost-based deferral, load `${POLICY_BUNDLE_ROOT}/rules/anti-rationalization.md` before proceeding. The outcome is one of two states: comply with the explicit hard rule, or stop and record a human-approved exception. In unattended implementation, human absence never grants approval; default to compliance. If compliance is blocked, halt and record the conflict and required human decision. For a resumable OpenSpec change, retain that decision in `.hard-rule-escalation.md`; `opsx-apply-resume` and its context loader read this artifact before routine carry-forward, without restarting a retired goal loop.
 
 ## Phase scoping (implement phase only)
 
@@ -204,10 +204,9 @@ Before dispatching `fast-worker` to apply a conclusion contract, confirm it carr
 
 ## Kill switch
 
-`orchestration_dispatch=off` restores pre-change implementation behavior
-exactly: inline implementation, no implementation-worker/reasoner dispatch
-prohibition, and no `dhpk-opsx-apply-goal` directive line (see that skill's
-wiring). It does not create planner or worker obligations from task/file counts.
+`orchestration_dispatch=off` permits inline implementation without the
+implementation-worker/reasoner dispatch restriction. It does not create
+planner or worker obligations from task/file counts.
 Explicit consultation requests, actual prerequisites, authorization, project
 acceptance, and applicable verification continue under their owning contracts.
 

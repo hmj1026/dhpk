@@ -11,10 +11,9 @@ const LIGHT_REQUIRED = Object.freeze(['preflight', 'validate', 'lint']);
 const FULL_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'macos-installer', 'lint']);
 const SELECTED_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'lint']);
 const PACKAGE_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
-const FULL_GENERATED_CHECKS = Object.freeze(['claude-marketplace', 'claude-profile:minimal', 'claude-profile:full', 'claude-profile:compat-v1']);
-// Light plans skip the full validate job, so they run every generated companion
-// check: canonical docs/content edits feed the generated packages even when the
-// PR does not touch generated/ itself (#865/#870 drift). All four take ~2s.
+const FULL_GENERATED_CHECKS = Object.freeze(['claude-marketplace']);
+// Light plans skip the full validate job, so they check the retained generated
+// Claude marketplace package when canonical docs/content edits may affect it.
 const LIGHT_GENERATED_CHECKS = Object.freeze([...FULL_GENERATED_CHECKS].sort());
 const RESOURCE_COMPANIONS = Object.freeze([
   'manifests/skill-resource-copies.json',
@@ -34,7 +33,7 @@ function isCanonicalProse(file) {
 
 function categoryFor(file) {
   if (isCanonicalProse(file)) return 'content';
-  if (/^(?:skills\/(?:dhpk-agy-fast-worker|dhpk-cli-transport|dhpk-session-usage-audit)\/scripts|modules\/[^/]+\/scripts)\//i.test(file)) return 'script';
+  if (/^(?:skills\/(?:dhpk-agy-fast-worker|dhpk-cli-transport)\/scripts|modules\/[^/]+\/scripts)\//i.test(file)) return 'script';
   if (/^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex)\/.*\.(?:json|ya?ml|toml)$/i.test(file)) return 'metadata';
   if (/^(?:\.github\/actions|scripts\/hooks|scripts\/install|install)/i.test(file)) return 'installer';
   if (/^(?:scripts|bin|tests)\//i.test(file)) return 'script';
@@ -45,7 +44,7 @@ function categoryFor(file) {
 // These are intentionally coarse owner groups. They are an allowlist of
 // existing public suites, rather than a per-script dependency graph.
 const OWNER_GROUPS = Object.freeze([
-  { name: 'hooks', paths: [/^scripts\/hooks\/(?!_lib\/)/i], tests: ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-audit-integrity-fixtures.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'session-usage-audit.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js'] },
+  { name: 'hooks', paths: [/^scripts\/hooks\/(?!_lib\/)/i], tests: ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js'] },
   {
     name: 'installer',
     paths: [/^scripts\/install\//i, /^scripts\/install\.sh$/i, /^scripts\/dhpk-install\.js$/i, /^scripts\/hooks\/install-/i, /^scripts\/lib\/dhpk-install-lifecycle\.js$/i],
@@ -53,8 +52,8 @@ const OWNER_GROUPS = Object.freeze([
   },
   {
     name: 'resource',
-    paths: [/^scripts\/lib\/skill-resource-sync\.js$/i, /^scripts\/ci\/sync-skill-resources\.js$/i, /^skills\/(?:dhpk-agy-fast-worker|dhpk-cli-transport|dhpk-session-usage-audit)\/scripts\//i, /^modules\/[^/]+\/scripts\//i],
-    tests: ['modules.test.js', 'run-agy.test.js', 'run-cli-transport.test.js', 'session-usage-audit.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js'],
+    paths: [/^scripts\/lib\/skill-resource-sync\.js$/i, /^scripts\/ci\/sync-skill-resources\.js$/i, /^skills\/(?:dhpk-agy-fast-worker|dhpk-cli-transport)\/scripts\//i, /^modules\/[^/]+\/scripts\//i],
+    tests: ['modules.test.js', 'run-agy.test.js', 'run-cli-transport.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js'],
   },
   {
     name: 'manifest',
@@ -143,14 +142,6 @@ function companionRoutingForFiles(files) {
       generatedChecks.add('claude-marketplace');
       hasCompanion = true;
       companion = true;
-    }
-    for (const profile of ['minimal', 'full', 'compat-v1']) {
-      const root = `generated/claude-profiles/${profile}/package`;
-      if (file === `${root}/bundle-receipt.json` || (file.startsWith(`${root}/`) && file.endsWith('.md'))) {
-        generatedChecks.add(`claude-profile:${profile}`);
-        hasCompanion = true;
-        companion = true;
-      }
     }
     if (RESOURCE_COMPANIONS.includes(file)) {
       companion = true;

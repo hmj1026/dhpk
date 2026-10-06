@@ -107,8 +107,8 @@ test('physicalSkillTree fails closed on symlinks and a missing SKILL.md', () => 
   }
 });
 
-test('Claude profile bundles publish each selected Skill as its complete physical tree', () => {
-  const bundle = compileProfile('minimal');
+test('the common Claude bundle publishes each selected Skill as its complete physical tree', () => {
+  const bundle = compileProfile('common');
   const destinations = new Set(bundle.outputs.map((output) => output.destination));
   const inventory = readManifest('distribution-inventory.json');
   for (const id of bundle.selection.selectedStableIds) {
@@ -121,8 +121,8 @@ test('Claude profile bundles publish each selected Skill as its complete physica
   }
 });
 
-test('published trees never carry descriptors, ignored bytecode, or a closure receipt field', () => {
-  const bundle = compileProfile('full');
+test('published common trees never carry descriptors, ignored bytecode, or a closure receipt field', () => {
+  const bundle = compileProfile('common');
   for (const output of bundle.outputs) {
     assert.ok(!/(?:^|\/)skill-package\.json$/.test(output.destination), `descriptor published: ${output.destination}`);
     assert.ok(!/(?:^|\/)__pycache__\/|\.pyc$/.test(output.destination), `bytecode published: ${output.destination}`);
@@ -180,10 +180,31 @@ test('no canonical Skill directory carries a retired skill-package.json descript
   assert.deepStrictEqual(found, []);
 });
 
-test('every resource a retired descriptor declared remains physically local to its Skill', () => {
+const APPROVED_DESCRIPTOR_RETIREMENTS = Object.freeze({
+  'opsx-apply-goal': Object.freeze({ retiredIn: '0.65.0', reasonCode: 'optional-tool-retirement' }),
+  'harness-audit': Object.freeze({ retiredIn: '0.65.0', reasonCode: 'optional-tool-retirement' }),
+});
+
+test('every required resource in the retained descriptor ledger remains physically local', () => {
   const snapshot = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'skill-package-descriptor-snapshot.json'), 'utf8'));
+  const inventory = readManifest('distribution-inventory.json');
+  const retirements = new Map(inventory.retired_skills.map((entry) => [entry.id, entry]));
+  const retiredSnapshotIds = Object.keys(snapshot.skills)
+    .filter((id) => Object.prototype.hasOwnProperty.call(APPROVED_DESCRIPTOR_RETIREMENTS, id))
+    .sort();
+  assert.deepStrictEqual(retiredSnapshotIds, Object.keys(APPROVED_DESCRIPTOR_RETIREMENTS).sort(),
+    'the historical ledger must retain both explicitly approved retired owners');
+  for (const [id, expected] of Object.entries(APPROVED_DESCRIPTOR_RETIREMENTS)) {
+    const retirement = retirements.get(id);
+    assert.ok(retirement, `${id} must be present in the distribution retirement ledger`);
+    assert.strictEqual(retirement.retiredIn, expected.retiredIn, `${id} retirement version changed`);
+    assert.strictEqual(retirement.reasonCode, expected.reasonCode, `${id} retirement reason changed`);
+    assert.ok(!inventory.skills.some((entry) => entry.id === id), `${id} must not remain an active Skill`);
+  }
+
   const missing = [];
   for (const [id, record] of Object.entries(snapshot.skills)) {
+    if (Object.prototype.hasOwnProperty.call(APPROVED_DESCRIPTOR_RETIREMENTS, id)) continue;
     for (const resource of record.resources) {
       if (!resource.required) continue;
       const target = path.join(ROOT, record.path, resource.path);
@@ -230,7 +251,7 @@ test('the shared-copy map stays repository-only and is never a consumer prerequi
     if (fs.existsSync(skills)) scan(skills);
   }
   assert.deepStrictEqual(readers, [], 'no Skill may load or invoke the authoring copy map');
-  for (const output of compileProfile('full').outputs) {
+  for (const output of compileProfile('common').outputs) {
     assert.ok(!/skill-resources\.json|skill-resource-copies\.json|sync-skill-resources/.test(output.destination),
       `copy-map metadata published: ${output.destination}`);
   }
@@ -247,7 +268,7 @@ test('migrated script paths are removed without forwarding shims', () => {
     'scripts/opsx-apply-resume/post-obs.sh',
   ];
   assert.deepStrictEqual(retired.filter((relative) => fs.existsSync(path.join(ROOT, relative))), []);
-  const destinations = new Set(compileProfile('full').outputs.map((output) => output.destination));
+  const destinations = new Set(compileProfile('common').outputs.map((output) => output.destination));
   assert.deepStrictEqual(retired.filter((relative) => destinations.has(relative)), []);
 });
 

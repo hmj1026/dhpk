@@ -12,12 +12,11 @@
 `/dhpk:<name>`；Codex 先用 `$flow-guide help`，再使用查到的
 `$<public-name>`。
 
-## 四項預設能力
+## 預設集合與常用入口
 
-Claude 的乾淨 `minimal` 安裝只公開 `flow-guide`、`code-trace`、
-`flow-drive` 與 `change-verdict`。`git-smart-commit`、完整 TDD、project
-audit、prompt optimization 與 stack-specific skills 都是明確選裝，不會被
-偷偷加回預設。
+`manifests/install-profiles.json` 的 `common` collection 是唯一主要安裝預設。
+`flow-guide`、`code-trace`、`flow-drive` 與 `change-verdict` 是常用入口，
+不代表完整集合清單。Host 支援、集合內容與選裝方式請見[平台安裝 SSOT](./platform-installation.zh-TW.md)。
 
 ## 30 秒選入口
 
@@ -30,21 +29,19 @@ audit、prompt optimization 與 stack-specific skills 都是明確選裝，不�
 | 還沒有 proposal 或 OpenSpec artifacts | 外部 `$openspec-propose`，再依流程使用 `/opsx:apply` | proposal authoring 不屬於 `flow-drive` |
 | 要分組 Git commit | `$git-smart-commit` | `git-smart-commit` stable ID 與 public name 保持不變；需要明確 Git authority |
 
-## 八個 portable family
+## Portable family
 
 family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 collision-safe 的
 `dhpk-*` 名稱。每個 family 只保留一個窄入口，mode/selector 由 usage card 揭露。
 
 | Family | 何時使用 | 可用 action / selector | 不負責 |
 |---|---|---|---|
-| [`skill-scope`](../skills/skill-scope/SKILL.md) | 稽核、比較或盤點技能治理 | `health`、`judge`、`stocktake`、`scout` | 不直接 author skill |
 | [`flow-guide`](../skills/flow-guide/SKILL.md) | 需要 usage、路由、政策、下一步或收尾建議 | `help`、`route`、`rules`、`next`、`close` | 不執行 explicit-only target |
 | [`flow-drive`](../skills/flow-drive/SKILL.md) | specification、目標與 acceptance 已確認 | 無 mode；confirmed change/spec | 不分類、選 route、author proposal 或 release |
 | [`change-verdict`](../skills/change-verdict/SKILL.md) | 對 code、PR、security、tests、docs 或 risk 做唯讀判斷 | `code`、`pr`、`security`、`tests`、`docs`、`risk` | 不代替修復或 commit |
 | [`code-trace`](../skills/code-trace/SKILL.md) | 探索程式、診斷、查歷史或選工具 | `explore`、`diagnose`、`history`、`select-tool` | 不在未確認根因時直接修復 |
 | [`laravel`](../skills/laravel/SKILL.md) | Laravel 版本相容性與實作指引 | `5.4`、`6`、`7`、`8`、`9`、`10`、`11`、`mix` | 不再使用版本 note skill 名稱 |
 | [`phpunit`](../skills/phpunit/SKILL.md) | PHPUnit 版本與測試相容性 | `9`、`10`、`11` | 不再使用版本 note skill 名稱 |
-| [`harness-govern`](../skills/harness-govern/SKILL.md) | harness 健康、預算、補齊、修訂或同步 | `health`、`budget`、`fill`、`revise`、`sync` | 不拆回五個窄 predecessor |
 
 ## 已確認 implementation 的參數
 
@@ -83,8 +80,7 @@ Git、release、setup、review 與其他 slash command 的完整清單在
 
 - `git-smart-commit` 保留原 stable ID/public name；`agy-commit` 退役，不產生 alias。
 - Laravel/PHPUnit version note 名稱改由 family selector 承接。
-- `claude-health`、`harness-budget`、`harness-fill`、`harness-revise`、
-  `multi-ai-sync` 改由 `harness-govern` modes 承接。
+- Harness governance 與專用技能 scoring／stocktake 已退役；基本套件不提供這些獨立入口。
 - `feasibility-study`、`tech-spec`、`create-request` 不再是 dhpk discovery
   skill；提案交給外部 `$openspec-propose`，方案比較見
   [`feasibility comparison guidance`](./agent-guidance/feasibility-comparison.md)。
@@ -99,23 +95,19 @@ Git、release、setup、review 與其他 slash command 的完整清單在
 | Host | 第一個檢查 | 邊界 |
 |---|---|---|
 | Claude Code | `/dhpk:flow-guide help` | 推薦以 `bash scripts/install.sh` 安裝，完成後重開 session |
-| Codex CLI | `$flow-guide help` | 只列實際 Codex surface；`change-verdict` 目前是 `not-codex-invokable`，不是 alias |
+| Codex CLI | `$flow-guide help` | 列出已安裝的 Codex surface，包含 common 的 `change-verdict` 入口 |
 | Cursor | reload 後確認 Agent Plugin 或 project-local projection discovery | 安裝不等於 runtime；缺 client 時記 `NOT_RUN`、`BLOCKED` 或 `UNAVAILABLE` |
 | AGY | receipt-owned 安裝後執行 `agy agents` | native load 與 runtime 分開；沒有 probe 就不宣稱直接 skill 語法 |
 
 Codex 可先執行 `install-codex-skills.sh --plan --json --skill <stable-id>`
-預覽選裝，再以同一 `--skill` 套用 install/update。Claude standalone package
-使用 `node scripts/ci/gen-claude-profile-bundles.js --standalone <stable-id>`；
-這是 checkout/development route，generic `dhpk-install` writer 仍回
-`BLOCKED`／`NOT_IMPLEMENTED`。Cursor 與 AGY 依各自 inventory-selected package，
-沒有實作的動態單技能寫入不可寫成可用功能。
+預覽選裝，再以同一 `--skill` 套用 install/update。Claude 使用
+`/dhpk:flow-guide help` 尋找可用入口；目前安裝與選裝路徑請見[平台安裝 SSOT](./platform-installation.zh-TW.md)。
+Cursor 與 AGY 依各自 inventory-selected package；未實作的動態單技能寫入不可寫成可用功能。
 
-## Profile 與證據
+## 安裝選擇與證據
 
-預設 profile 是 `minimal`，只選上述四項能力；`full` 與 `compat-v1` 仍是明確
-選裝。profile 目前選了哪些 ID 請執行
-`node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan` 查詢，
-已產生 package 的選取清單見其 `provenance.json`（`selectedSkillIds`）；Cursor
-native overlay 共用 Agent Plugin skills。Local usage card 或 catalogue 只證明
-metadata 已產生，不代表 skill runtime、測試、deployment、commit 或 release 已完成；
-交接時分開標示 `PASS`、`BLOCKED`、`NOT_RUN`、`UNAVAILABLE`。
+`common` collection 是唯一主要安裝預設。舊 `minimal`、`full` 與 `compat-v1`
+選擇只保留作為歷史 receipt metadata，不是發布選項。Host 路徑與 receipt 證據
+請見[平台安裝 SSOT](./platform-installation.zh-TW.md)。Local usage card 或 catalogue
+只證明 metadata 已產生，不代表 skill runtime、測試、deployment、commit 或 release
+已完成；交接時分開標示 `PASS`、`BLOCKED`、`NOT_RUN`、`UNAVAILABLE`。

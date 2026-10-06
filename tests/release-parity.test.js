@@ -60,18 +60,12 @@ function allAtVersion(version) {
     'plugins/dhpk-cursor/.cursor-plugin/plugin.json': version,
     'plugins/dhpk-cursor/provenance.json': version,
     'generated/claude-marketplace/package/.claude-plugin/plugin.json': version,
-    'generated/claude-profiles/minimal/package/plugin.json': version,
-    'generated/claude-profiles/full/package/plugin.json': version,
-    'generated/claude-profiles/compat-v1/package/plugin.json': version,
   };
 }
 
-test('checkParity fails when a tracked Claude profile manifest lags the target', () => {
+test('checkParity fails when a tracked Claude package manifest lags the target', () => {
   for (const rel of [
     'generated/claude-marketplace/package/.claude-plugin/plugin.json',
-    'generated/claude-profiles/minimal/package/plugin.json',
-    'generated/claude-profiles/full/package/plugin.json',
-    'generated/claude-profiles/compat-v1/package/plugin.json',
   ]) {
     withRepo({
       versions: { ...allAtVersion('1.2.3'), [rel]: '1.2.2' },
@@ -85,7 +79,24 @@ test('checkParity fails when a tracked Claude profile manifest lags the target',
   }
 });
 
-test('MANIFEST_PATHS lists every version-bearing manifest, including native package provenance', () => {
+test('checkParity ignores leftover manifests from retired Claude profile outputs', () => {
+  withRepo({
+    versions: allAtVersion('1.2.3'),
+    changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
+    agyDocVersion: '1.2.3',
+  }, (root) => {
+    for (const profile of ['minimal', 'full', 'compat-v1']) {
+      const rel = `generated/claude-profiles/${profile}/package/plugin.json`;
+      const target = path.join(root, rel);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, JSON.stringify({ version: '0.9.0' }));
+    }
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, true, JSON.stringify(result.errors));
+  });
+});
+
+test('MANIFEST_PATHS lists retained version-bearing manifests, including native package provenance', () => {
   const originalPaths = [...MANIFEST_PATHS];
   const expectedPaths = [
     '.agents/plugins/marketplace.json',
@@ -100,9 +111,6 @@ test('MANIFEST_PATHS lists every version-bearing manifest, including native pack
     'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
     'plugins/dhpk-cursor/provenance.json',
     'generated/claude-marketplace/package/.claude-plugin/plugin.json',
-    'generated/claude-profiles/minimal/package/plugin.json',
-    'generated/claude-profiles/full/package/plugin.json',
-    'generated/claude-profiles/compat-v1/package/plugin.json',
     'package.json',
   ];
   assert.deepStrictEqual([...MANIFEST_PATHS].sort(), [...expectedPaths].sort());

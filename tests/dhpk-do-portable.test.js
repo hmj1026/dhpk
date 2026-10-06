@@ -37,12 +37,9 @@ const TOP_LEVEL_KEYS = Object.freeze([
 const TARGET_KEYS = Object.freeze(['id', 'publicName', 'invocationClass', 'command']);
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-// Current route-table order is independently locked. The confirmed-spec
-// implementation route is intentionally more specific than the unattended
-// session route and therefore comes first.
+// Current retained route-table order is independently locked.
 const EXPECTED_TYPED_ROUTES = Object.freeze([
   { label: 'confirmed specification implementation', kind: 'skill', id: 'flow-drive' },
-  { label: 'unattended OpenSpec goal session', kind: 'skill', id: 'dhpk-opsx-apply-goal' },
   { label: 'adaptive dev workflow (python build)', kind: 'skill', id: 'flow-guide' },
   { label: 'adaptive dev workflow (rust build)', kind: 'skill', id: 'flow-guide' },
   { label: 'adaptive dev workflow (bug)', kind: 'skill', id: 'flow-guide' },
@@ -187,7 +184,7 @@ test('[2.1] route-result schema is v3 with a closed shape and only a go option',
   for (const state of AVAILABILITY) assert.ok(schemaMentions(schema, state));
 });
 
-test('[2.1] route table remains typed and preserves the ordered 23-rule intent map', () => {
+test('[2.1] route table remains typed and preserves the ordered retained intent map', () => {
   const table = JSON.parse(read(TABLE));
   assert.strictEqual(table.schema, 'dhpk.route-table.v2');
   assert.strictEqual(table.rules.length, EXPECTED_TYPED_ROUTES.length);
@@ -216,6 +213,14 @@ test('[2.2] flow-guide parser and matcher files exist at the owning path', () =>
   mustExist(MATCHER, '2.2');
   assert.strictEqual(fs.existsSync(path.join(DRIVE, 'scripts', 'route-result.js')), false);
   assert.strictEqual(fs.existsSync(path.join(DRIVE, 'references', 'route-table.json')), false);
+});
+
+test('retired unattended goal requests have no deterministic route', () => {
+  for (const query of ['please run an unattended OpenSpec goal session', '無人值守 openspec']) {
+    const result = spawnSync('bash', [MATCHER, query], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(result.stdout.trim(), 'NO_MATCH');
+  }
 });
 
 test('[2.2] retired routing controls are stripped and fail closed', () => {

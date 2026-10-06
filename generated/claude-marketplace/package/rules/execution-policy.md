@@ -41,7 +41,7 @@ chain.
 
 ## Classification-first context loading
 
-Determine the workflow type (Small change / Bug / Feature / Architecture) from the user request BEFORE loading heavy references (profiles, scope docs, legacy analysis, investigation scaffolding). Load only the references the chosen workflow needs; expand incrementally if the classification changes. Upfront loading burns context budget on paths not taken. (`flow-guide`, `harness-govern`)
+Determine the workflow type (Small change / Bug / Feature / Architecture) from the user request BEFORE loading heavy references (profiles, scope docs, legacy analysis, investigation scaffolding). Load only the references the chosen workflow needs; expand incrementally if the classification changes. Upfront loading burns context budget on paths not taken. (`flow-guide`)
 
 ### Change classification & OpenSpec routing (SSOT)
 
@@ -201,9 +201,9 @@ The CLI-backed Codex/AGY roles use the same normalized project-over-global confi
 
 ## Implementation dispatch
 
-SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream routes (`flow-guide`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind the safety kernel and the selected route reference during orientation; the emitted `/goal` condition carries only the compact roster line and self-locating pointers, never these elaborations.
+SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Retained implementation workflows reference this table rather than restating it. Bind the safety kernel and selected route reference during orientation.
 
-Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
+When implementation dispatch is enabled through `DHPK_ORCHESTRATION_DISPATCH=on`, the runtime edit-batch gate applies: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
 
 **Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Completion requires a terminal lifecycle result; a message or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`; this rule intentionally does not duplicate the dispatch table.
 
@@ -469,7 +469,7 @@ native-first fallback contract after confirmed no side effects; safety, task,
 and timeout failures remain `RESULT: BLOCKED` or on their existing recovery
 path — never silently switched.
 
-**Orchestrator posture**: implement-phase work defaults to **decide → assign ownership → verify**. Choose inline, a worker, or independent parallel scopes from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit; task and file counts alone do not decide. Keep one cohesive change wave together instead of slicing it to influence routing. Verify runtime premises with the applicable E2E lane or a scratch executable probe. The orientation step binds unattended goals to the kernel and selected route reference. Full routing, premise, verification, waiting, and plan-brief rules: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
+**Orchestrator posture**: implement-phase work defaults to **decide → assign ownership → verify**. Choose inline, a worker, or independent parallel scopes from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit; task and file counts alone do not decide. Keep one cohesive change wave together instead of slicing it to influence routing. Verify runtime premises with the applicable E2E lane or a scratch executable probe. Implementation orientation binds the confirmed work to the kernel and selected route reference. Full routing, premise, verification, waiting, and plan-brief rules: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
 
 **Repository Discovery Gate**: before finalizing new DB, SQL, query-builder, criteria, model-persistence, or repository-like code, inspect and follow the established persistence boundary. Explicit project hard rules cannot be deferred; compliance is required unless the human records a human-approved exception. Full mechanics: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
 
@@ -645,7 +645,7 @@ the task explicitly requires changing deployment topology.
 
 ## Deterministic first, judgment second
 
-For audit / setup / inventory / generation work, separate fact-collection from interpretation: **collect** deterministically (scripts / Grep / Glob, no judgment, baseline first) → **gate** (present facts; confirm before destructive or multi-file outcomes) → **judge** (AI evaluation last). **Tool output is immutable** — forward stdout verbatim, never hand-construct contract output (e.g. `deploy-list` schema=v1); a tool failure stops-and-reports, never simulates. Full detail: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/deterministic-first.md`. (skill-scope, flow-guide, change-verdict, deploy-list)
+For audit / setup / inventory / generation work, separate fact-collection from interpretation: **collect** deterministically (scripts / Grep / Glob, no judgment, baseline first) → **gate** (present facts; confirm before destructive or multi-file outcomes) → **judge** (AI evaluation last). **Tool output is immutable** — forward stdout verbatim, never hand-construct contract output (e.g. `deploy-list` schema=v1); a tool failure stops-and-reports, never simulates. Full detail: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/deterministic-first.md`. (flow-guide, change-verdict, deploy-list)
 
 ## Self-check (before reply)
 

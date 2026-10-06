@@ -14,11 +14,33 @@ function value(args, name, required = true) {
 function main(argv = process.argv.slice(2)) {
   const command = argv[0] || 'plan';
   if (command === 'plan') {
+    const outputPath = value(argv, '--out', false);
+    const githubOutputPath = value(argv, '--github-output', false);
+    if (githubOutputPath && !outputPath) {
+      throw new Error('--github-output requires --out so full plan data stays in a file');
+    }
     const plan = createCiPlan({
       root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
       checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
     });
-    process.stdout.write(`${JSON.stringify(plan)}\n`);
+    const serializedPlan = `${JSON.stringify(plan)}\n`;
+    if (outputPath) {
+      fs.writeFileSync(outputPath, serializedPlan);
+      if (githubOutputPath) {
+        const shards = Array.from({ length: plan.shardCount || 0 }, (_, index) => index);
+        const macos = plan.requiredJobs.includes('macos-installer');
+        const surfaces = plan.packageSurfaces || [];
+        fs.appendFileSync(githubOutputPath, [
+          `mode=${plan.mode}`,
+          `shards=${JSON.stringify(shards)}`,
+          `macos=${macos}`,
+          `surfaces=${JSON.stringify(surfaces)}`,
+          '',
+        ].join('\n'));
+      }
+    } else {
+      process.stdout.write(serializedPlan);
+    }
     return 0;
   }
   if (command === 'validate') {

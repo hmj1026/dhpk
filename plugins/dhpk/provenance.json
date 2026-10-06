@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "4a2a6f48ad54e603bbaeb1f437e7f63b7c15fb77",
-  "generatedFromCommit": "4a2a6f48ad54e603bbaeb1f437e7f63b7c15fb77",
-  "generatedFromTree": "7faf419c8da21f7fded4bd1dc243d1b1fef3d29c",
-  "inventoryDigest": "092f68006094a57ad0975c6d29707b4cbc8dfa4ec1aa664ca06dee7e6eb0a0da",
-  "inventoryRevision": "sha256:d5b3e1c91e4bed42b97b4124ad00b6833f5645870172ff6090451630beda53e4",
+  "sourceCommit": "a9a60b8323019df49a1e74155ff34e62934866b2",
+  "generatedFromCommit": "a9a60b8323019df49a1e74155ff34e62934866b2",
+  "generatedFromTree": "dce8fe8cf6bba9340198083993701a38aa80de3d",
+  "inventoryDigest": "67f4fffa109a9ee491d77fe58d81076449c675531f50afc844a01af0e8bfb2ac",
+  "inventoryRevision": "sha256:a3945c392dcc3b5914d993c865a012282b789ee73bb345ff4c77a724550a4bdf",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "change-verdict",
@@ -21,15 +21,12 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "harness-audit",
-    "harness-govern",
     "opsx-load-context",
     "opsx-post-obs",
     "precommit",
     "proposal-analyze",
     "release-creator",
     "repo-verify",
-    "skill-scope",
     "tdd",
     "ui-ux-verify",
     "update-docs"
@@ -47,13 +44,10 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "harness-audit",
-    "harness-govern",
     "precommit",
     "proposal-analyze",
     "release-creator",
     "repo-verify",
-    "skill-scope",
     "tdd-workflow",
     "ui-ux-verify",
     "update-docs"
@@ -69,15 +63,12 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "harness-audit",
-    "harness-govern",
     "opsx-load-context",
     "opsx-post-obs",
     "precommit",
     "proposal-analyze",
     "release-creator",
     "repo-verify",
-    "skill-scope",
     "tdd",
     "ui-ux-verify",
     "update-docs"
@@ -95,13 +86,10 @@
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
-    "harness-audit",
-    "harness-govern",
     "precommit",
     "proposal-analyze",
     "release-creator",
     "repo-verify",
-    "skill-scope",
     "tdd-workflow",
     "ui-ux-verify",
     "update-docs"
@@ -111,7 +99,7 @@
     "cli-transport"
   ],
   "marketplacePublication": {
-    "selectionDigest": "eb367fad6a7525ca68ef4e3348123442dfa54e8a9feea5b02ec60872b756f092",
+    "selectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
     "publicEntryIds": [
       "change-verdict",
       "code-trace",
@@ -132,15 +120,12 @@
     "hostOnlyIds": [
       "cli-dispatch-context",
       "cli-transport",
-      "harness-audit",
-      "harness-govern",
       "opsx-load-context",
-      "opsx-post-obs",
-      "skill-scope"
+      "opsx-post-obs"
     ]
   },
   "bundledContentProvenance": {
-    "selectionDigest": "eb367fad6a7525ca68ef4e3348123442dfa54e8a9feea5b02ec60872b756f092",
+    "selectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
     "entryIds": [
       "change-verdict",
       "cli-dispatch-context",
@@ -152,15 +137,12 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "harness-audit",
-      "harness-govern",
       "opsx-load-context",
       "opsx-post-obs",
       "precommit",
       "proposal-analyze",
       "release-creator",
       "repo-verify",
-      "skill-scope",
       "tdd",
       "ui-ux-verify",
       "update-docs"
@@ -217,7 +199,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "d80b2a6711819b51efc702192231dc5669f3a3f4"
+        "originalGitBlobDigest": "648f707cecfa11aaf226e17b406ed1fe6fc776e2"
       },
       {
         "ownerId": "change-verdict",
@@ -301,7 +283,7 @@
         "ownerId": "change-verdict",
         "source": "skills/dhpk-project-audit/scripts/audit.js",
         "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/audit.js",
-        "originalGitBlobDigest": "00bf932123e2582965dbe172ba0c5bb704451d65"
+        "originalGitBlobDigest": "4d5c9e207910ba7343ff8bf452f31ef56c5868b0"
       },
       {
         "ownerId": "change-verdict",
@@ -553,7 +535,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "a9297156363598a9eec175abb9b7032d23b9eee1"
+        "originalGitBlobDigest": "229af1c496c627bbf2c0920bbec2973c168f9237"
       },
       {
         "ownerId": "code-trace",
@@ -577,7 +559,7 @@
         "ownerId": "code-trace",
         "source": "rules/execution-policy.md",
         "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "code-trace",
@@ -847,7 +829,7 @@
         "ownerId": "flow-drive",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "flow-drive",
@@ -1453,13 +1435,13 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "c231c48856ec0b9ed6a589036cff3233100c672c"
+        "originalGitBlobDigest": "cce25cc6372fe2c3c96b794b5383f20221e15d20"
       },
       {
         "ownerId": "flow-drive",
@@ -1513,19 +1495,19 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
-        "originalGitBlobDigest": "23f63809d43fb33627bd0823ca43ec40d1f4db38"
+        "originalGitBlobDigest": "c8976faf86822e08d046b4fbfa39cf08d7adf4aa"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "0d66babe3d8630e80a43e466380dc8f580af74af"
+        "originalGitBlobDigest": "c1cd8199d3456ad933ac26772c9c7fe681e77828"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "1c4f18d5976d14af204060596d679300d1a8c628"
+        "originalGitBlobDigest": "9d773688770cab02dadc4212835e8e1a506c75b0"
       },
       {
         "ownerId": "flow-drive",
@@ -1729,7 +1711,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "flow-guide",
@@ -1753,7 +1735,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "81f091687a9c269552f2ff97471c353aa784cdb2"
+        "originalGitBlobDigest": "eba26ddb9e8006a36d580fb1c383c56b865b666a"
       },
       {
         "ownerId": "flow-guide",
@@ -1777,7 +1759,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/deterministic-first.md",
         "destination": "skills/flow-guide/references/deterministic-first.md",
-        "originalGitBlobDigest": "23f63809d43fb33627bd0823ca43ec40d1f4db38"
+        "originalGitBlobDigest": "c8976faf86822e08d046b4fbfa39cf08d7adf4aa"
       },
       {
         "ownerId": "flow-guide",
@@ -1819,13 +1801,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "c231c48856ec0b9ed6a589036cff3233100c672c"
+        "originalGitBlobDigest": "cce25cc6372fe2c3c96b794b5383f20221e15d20"
       },
       {
         "ownerId": "flow-guide",
@@ -1879,19 +1861,19 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
-        "originalGitBlobDigest": "23f63809d43fb33627bd0823ca43ec40d1f4db38"
+        "originalGitBlobDigest": "c8976faf86822e08d046b4fbfa39cf08d7adf4aa"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "0d66babe3d8630e80a43e466380dc8f580af74af"
+        "originalGitBlobDigest": "c1cd8199d3456ad933ac26772c9c7fe681e77828"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "1c4f18d5976d14af204060596d679300d1a8c628"
+        "originalGitBlobDigest": "9d773688770cab02dadc4212835e8e1a506c75b0"
       },
       {
         "ownerId": "flow-guide",
@@ -1921,13 +1903,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "0d66babe3d8630e80a43e466380dc8f580af74af"
+        "originalGitBlobDigest": "c1cd8199d3456ad933ac26772c9c7fe681e77828"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "1c4f18d5976d14af204060596d679300d1a8c628"
+        "originalGitBlobDigest": "9d773688770cab02dadc4212835e8e1a506c75b0"
       },
       {
         "ownerId": "flow-guide",
@@ -1981,7 +1963,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/route-table.json",
         "destination": "skills/flow-guide/references/route-table.json",
-        "originalGitBlobDigest": "2ffa65f1a11b47d039fc54f3a69f36f2a2558f5b"
+        "originalGitBlobDigest": "15c3cb49066eda7f34eec1fd2de7a83e00bdf42e"
       },
       {
         "ownerId": "flow-guide",
@@ -2083,7 +2065,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/analyze.js",
         "destination": "skills/flow-guide/scripts/analyze.js",
-        "originalGitBlobDigest": "b229f3b95de6b795c71fb60d5700270f657ed7bc"
+        "originalGitBlobDigest": "123506e793371855a90e16098e54f7ee412335de"
       },
       {
         "ownerId": "flow-guide",
@@ -2158,292 +2140,10 @@
         "originalGitBlobDigest": "7b0d96aa07b0ef0200b4b1ab88cfc8e787dcf1ad"
       },
       {
-        "ownerId": "harness-audit",
-        "source": "skills/harness-audit/SKILL.md",
-        "destination": "skills/harness-audit/SKILL.md",
-        "originalGitBlobDigest": "efb42a50510f44467835adffad82178b2c35397f"
-      },
-      {
-        "ownerId": "harness-audit",
-        "source": "skills/harness-audit/agents/openai.yaml",
-        "destination": "skills/harness-audit/agents/openai.yaml",
-        "originalGitBlobDigest": "8dafc3f1105f206f6c25fd92ac5368713af71d03"
-      },
-      {
-        "ownerId": "harness-audit",
-        "source": "skills/harness-audit/references/workflow.md",
-        "destination": "skills/harness-audit/references/workflow.md",
-        "originalGitBlobDigest": "8ebb0378d0828bfbb8e30616cc39b257c013a550"
-      },
-      {
-        "ownerId": "harness-audit",
-        "source": "skills/harness-audit/scripts/harness-audit.js",
-        "destination": "skills/harness-audit/scripts/harness-audit.js",
-        "originalGitBlobDigest": "30f4ecf9c6bd5620725f9862004fe3157bb328c8"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/SKILL.md",
-        "destination": "skills/harness-govern/SKILL.md",
-        "originalGitBlobDigest": "9f3686588db3d77a30776a257b64311bac3b5172"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/agents/openai.yaml",
-        "destination": "skills/harness-govern/agents/openai.yaml",
-        "originalGitBlobDigest": "767c4ffd591680e9896e84b6c1a9bca7727b94b9"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "docs/subagent-prompt-template.md",
-        "destination": "skills/harness-govern/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "e6509bb6c732e69f23f045ba5be61e12e3cc77d3"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "rules/execution-policy-kernel.md",
-        "destination": "skills/harness-govern/references/_dependencies/rules/execution-policy-kernel.md",
-        "originalGitBlobDigest": "7bf78f3596badace1823b2ab25bbd975c24b56b3"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "rules/execution-policy.md",
-        "destination": "skills/harness-govern/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/best-practices.md",
-        "destination": "skills/harness-govern/references/best-practices.md",
-        "originalGitBlobDigest": "b70a294e87f457fe959ec77e0a13c9cbfdb3d31d"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/budget-workflow.md",
-        "destination": "skills/harness-govern/references/budget-workflow.md",
-        "originalGitBlobDigest": "d5f5aed24e4eacb59f848278f151c7e06b483b89"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/capability-sources.md",
-        "destination": "skills/harness-govern/references/capability-sources.md",
-        "originalGitBlobDigest": "f5a8d017a6ab1a3ef72c1ef4094192961f288c24"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/execution-contract.md",
-        "destination": "skills/harness-govern/references/execution-contract.md",
-        "originalGitBlobDigest": "a74c5111d04baea76f68985ce68e789bbf0ba3ab"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/fill-workflow.md",
-        "destination": "skills/harness-govern/references/fill-workflow.md",
-        "originalGitBlobDigest": "932051de3caab48720ec79c0dd4acec50aec604b"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/frontmatter-templates.md",
-        "destination": "skills/harness-govern/references/frontmatter-templates.md",
-        "originalGitBlobDigest": "b3554558993d1d54b11e7375a5fa18c7c80644bc"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/harness-directory-contract.md",
-        "destination": "skills/harness-govern/references/harness-directory-contract.md",
-        "originalGitBlobDigest": "15aac95fb74e7140d30ff925c3c883da92dcfe08"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/health-workflow.md",
-        "destination": "skills/harness-govern/references/health-workflow.md",
-        "originalGitBlobDigest": "f70e7d7d74e37e37ea81896ed92aad27b499982c"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/hygiene-checks.md",
-        "destination": "skills/harness-govern/references/hygiene-checks.md",
-        "originalGitBlobDigest": "fadadd698c5d710a4aa21fe168aa46caac27089c"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/improvement-todo.md",
-        "destination": "skills/harness-govern/references/improvement-todo.md",
-        "originalGitBlobDigest": "e2806bae34de3f5a1956ee45de2d731264088f8c"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/platform-mapping.md",
-        "destination": "skills/harness-govern/references/platform-mapping.md",
-        "originalGitBlobDigest": "993668e8512bf682669af4f491b07df9453ee1a7"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/plugin-sync.md",
-        "destination": "skills/harness-govern/references/plugin-sync.md",
-        "originalGitBlobDigest": "f3060f2334a1fb06143e7c03fe04d2950b5fd8f9"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/revise-workflow.md",
-        "destination": "skills/harness-govern/references/revise-workflow.md",
-        "originalGitBlobDigest": "039ccac070616b7f80b631e4920a8953ede4047a"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/risk-policy.md",
-        "destination": "skills/harness-govern/references/risk-policy.md",
-        "originalGitBlobDigest": "afcaff495ed9e91f05e5676a0339725960bfddd6"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/runtime-entrypoints.md",
-        "destination": "skills/harness-govern/references/runtime-entrypoints.md",
-        "originalGitBlobDigest": "112e60344fffc3feac3bb16634ccb4ea21b907b2"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/source-conflicts.json",
-        "destination": "skills/harness-govern/references/source-conflicts.json",
-        "originalGitBlobDigest": "046955d4b9cdd4a5e628876ee021d8cfc5cef348"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/sync-workflow.md",
-        "destination": "skills/harness-govern/references/sync-workflow.md",
-        "originalGitBlobDigest": "8b154e6d3bfde7fde830b1f022d06699c9b51d44"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/references/usage-examples.md",
-        "destination": "skills/harness-govern/references/usage-examples.md",
-        "originalGitBlobDigest": "299480c01e306a874cf16c0ac3b3d9278a57b1bd"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/harness-inventory.sh",
-        "destination": "skills/harness-govern/scripts/harness-inventory.sh",
-        "originalGitBlobDigest": "f52cf658c5475a61a57d32952c0793efe0da67d3"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/harness-scenarios.sh",
-        "destination": "skills/harness-govern/scripts/harness-scenarios.sh",
-        "originalGitBlobDigest": "0c59077c86709aeb309bef02ab0645db5cc9201d"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync.py",
-        "originalGitBlobDigest": "7222a6c404cf1d364e8611dc5574aaa836228615"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/__init__.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/__init__.py",
-        "originalGitBlobDigest": "8911643e5c04dfba8a441fba9500eb3abb1cb00c"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/agent_sync.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/agent_sync.py",
-        "originalGitBlobDigest": "cf0252611306b20c42588502da543cb47285d287"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync.py",
-        "originalGitBlobDigest": "6bbac584fd6a971eb14634642f316703c16805b1"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync_v2.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync_v2.py",
-        "originalGitBlobDigest": "05c3a04088423f7df4f582b35658511bc5b2ebb1"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/cli.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/cli.py",
-        "originalGitBlobDigest": "e6e042e871f3618f5604bb75a5f451c17989eeed"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/constants.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/constants.py",
-        "originalGitBlobDigest": "580b915399c623c64a88b528bce6c49ac411dd1d"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/cursor_project_local.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/cursor_project_local.py",
-        "originalGitBlobDigest": "6c74d5ad1b7016cbace8df4a81e22ad8e8938621"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/mapping.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/mapping.py",
-        "originalGitBlobDigest": "e6e0e3b10c0a4fee7a5bc90776b3fddf09c1dee4"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/sources.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/sources.py",
-        "originalGitBlobDigest": "2236668fc3a8a12923d9e8b506f66f07b43e34aa"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/utils.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/utils.py",
-        "originalGitBlobDigest": "2f9e3fa0ee6a5a772eb42f779aaf71162b159274"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/validation.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/validation.py",
-        "originalGitBlobDigest": "a2c73f33f3498872e1c7df65498d481fa526c39b"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/__init__.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/__init__.py",
-        "originalGitBlobDigest": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/LICENSE",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/LICENSE",
-        "originalGitBlobDigest": "e859590f886cd78344206af1a8ccb3080d4385e0"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/__init__.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/__init__.py",
-        "originalGitBlobDigest": "4e0c894988b175f625612db761f43894999fcab7"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_parser.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_parser.py",
-        "originalGitBlobDigest": "d6faf2a4679e2d8d7ccea8309106734c14c3edc4"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_re.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_re.py",
-        "originalGitBlobDigest": "3883fdd9c9069c3655321da77d16499506b49958"
-      },
-      {
-        "ownerId": "harness-govern",
-        "source": "skills/harness-govern/scripts/test-harness.sh",
-        "destination": "skills/harness-govern/scripts/test-harness.sh",
-        "originalGitBlobDigest": "51b6c00e6b7245bd97d750de4272ae1185faf31b"
-      },
-      {
         "ownerId": "opsx-load-context",
         "source": "skills/dhpk-opsx-load-context/SKILL.md",
         "destination": "skills/dhpk-opsx-load-context/SKILL.md",
-        "originalGitBlobDigest": "d8bcb486598e7918f7d55d38c21d6d659ad1d859"
+        "originalGitBlobDigest": "ac6f58399b928c9f1f687f403bd2dd2230081dbc"
       },
       {
         "ownerId": "opsx-load-context",
@@ -2467,7 +2167,7 @@
         "ownerId": "opsx-post-obs",
         "source": "skills/dhpk-opsx-post-observation/SKILL.md",
         "destination": "skills/dhpk-opsx-post-observation/SKILL.md",
-        "originalGitBlobDigest": "1117e5d109b6447677575e276201c1afdfef7fc5"
+        "originalGitBlobDigest": "54d4d0a8999389cb0f3bad7981c18202c5fc412a"
       },
       {
         "ownerId": "opsx-post-obs",
@@ -2852,72 +2552,6 @@
         "source": "skills/repo-verify/scripts/verify-runner.js",
         "destination": "skills/repo-verify/scripts/verify-runner.js",
         "originalGitBlobDigest": "300ffe0d8792730d5baabc6d6c8748701fd9299c"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/SKILL.md",
-        "destination": "skills/skill-scope/SKILL.md",
-        "originalGitBlobDigest": "a3825b60501adf2384dca2160679bf70d681079e"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/agents/openai.yaml",
-        "destination": "skills/skill-scope/agents/openai.yaml",
-        "originalGitBlobDigest": "3f60c37a1d6cef6942423dc16e45c2d0866bc37e"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/references/judge-failure-patterns.md",
-        "destination": "skills/skill-scope/references/judge-failure-patterns.md",
-        "originalGitBlobDigest": "8f57273873b8f2f19ccbaf6cf5276cdb0a712a65"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/references/judge-philosophy.md",
-        "destination": "skills/skill-scope/references/judge-philosophy.md",
-        "originalGitBlobDigest": "3bacfe7c7894cdc09bdd54b044a3f73d1642a532"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/references/judge-scoring-rubric.md",
-        "destination": "skills/skill-scope/references/judge-scoring-rubric.md",
-        "originalGitBlobDigest": "fb0b13b24879543338157361768ff8b08302a683"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/references/routing-signature-guide.md",
-        "destination": "skills/skill-scope/references/routing-signature-guide.md",
-        "originalGitBlobDigest": "10b3fd905dbc254fd2548a25746bf4dbbff8c19b"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/scripts/quick-diff.sh",
-        "destination": "skills/skill-scope/scripts/quick-diff.sh",
-        "originalGitBlobDigest": "dc1c1cda632ceae5144cf485e262ae1f43dd3eb4"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/scripts/save-results.sh",
-        "destination": "skills/skill-scope/scripts/save-results.sh",
-        "originalGitBlobDigest": "4a407ed656c3fe9c9ae9cdeaf754256a2a0ba11b"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/scripts/scan.sh",
-        "destination": "skills/skill-scope/scripts/scan.sh",
-        "originalGitBlobDigest": "63705728eeb3b8aed5020af427888ac087e13049"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/scripts/skill-lint.js",
-        "destination": "skills/skill-scope/scripts/skill-lint.js",
-        "originalGitBlobDigest": "8994f15c6a969374629b4e6f75e98370d1bb7fe3"
-      },
-      {
-        "ownerId": "skill-scope",
-        "source": "skills/skill-scope/scripts/stocktake-runtime.js",
-        "destination": "skills/skill-scope/scripts/stocktake-runtime.js",
-        "originalGitBlobDigest": "9f9513b624a13a1a98456959243f66de64acc43d"
       },
       {
         "ownerId": "tdd",
@@ -5467,335 +5101,6 @@
         "kind": "entry"
       },
       {
-        "ownerId": "harness-audit",
-        "skillId": "harness-audit",
-        "sourcePath": "skills/harness-audit/SKILL.md",
-        "destination": "skills/harness-audit/SKILL.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-audit",
-        "skillId": "harness-audit",
-        "sourcePath": "skills/harness-audit/agents/openai.yaml",
-        "destination": "skills/harness-audit/agents/openai.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-audit",
-        "skillId": "harness-audit",
-        "sourcePath": "skills/harness-audit/references/workflow.md",
-        "destination": "skills/harness-audit/references/workflow.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-audit",
-        "skillId": "harness-audit",
-        "sourcePath": "skills/harness-audit/scripts/harness-audit.js",
-        "destination": "skills/harness-audit/scripts/harness-audit.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/SKILL.md",
-        "destination": "skills/harness-govern/SKILL.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/agents/openai.yaml",
-        "destination": "skills/harness-govern/agents/openai.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "docs/subagent-prompt-template.md",
-        "destination": "skills/harness-govern/references/_dependencies/docs/subagent-prompt-template.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "rules/execution-policy-kernel.md",
-        "destination": "skills/harness-govern/references/_dependencies/rules/execution-policy-kernel.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "rules/execution-policy.md",
-        "destination": "skills/harness-govern/references/_dependencies/rules/execution-policy.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/best-practices.md",
-        "destination": "skills/harness-govern/references/best-practices.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/budget-workflow.md",
-        "destination": "skills/harness-govern/references/budget-workflow.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/capability-sources.md",
-        "destination": "skills/harness-govern/references/capability-sources.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/execution-contract.md",
-        "destination": "skills/harness-govern/references/execution-contract.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/fill-workflow.md",
-        "destination": "skills/harness-govern/references/fill-workflow.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/frontmatter-templates.md",
-        "destination": "skills/harness-govern/references/frontmatter-templates.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/harness-directory-contract.md",
-        "destination": "skills/harness-govern/references/harness-directory-contract.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/health-workflow.md",
-        "destination": "skills/harness-govern/references/health-workflow.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/hygiene-checks.md",
-        "destination": "skills/harness-govern/references/hygiene-checks.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/improvement-todo.md",
-        "destination": "skills/harness-govern/references/improvement-todo.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/platform-mapping.md",
-        "destination": "skills/harness-govern/references/platform-mapping.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/plugin-sync.md",
-        "destination": "skills/harness-govern/references/plugin-sync.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/revise-workflow.md",
-        "destination": "skills/harness-govern/references/revise-workflow.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/risk-policy.md",
-        "destination": "skills/harness-govern/references/risk-policy.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/runtime-entrypoints.md",
-        "destination": "skills/harness-govern/references/runtime-entrypoints.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/source-conflicts.json",
-        "destination": "skills/harness-govern/references/source-conflicts.json",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/sync-workflow.md",
-        "destination": "skills/harness-govern/references/sync-workflow.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/references/usage-examples.md",
-        "destination": "skills/harness-govern/references/usage-examples.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/harness-inventory.sh",
-        "destination": "skills/harness-govern/scripts/harness-inventory.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/harness-scenarios.sh",
-        "destination": "skills/harness-govern/scripts/harness-scenarios.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/__init__.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/__init__.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/agent_sync.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/agent_sync.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync_v2.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync_v2.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/cli.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/cli.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/constants.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/constants.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/cursor_project_local.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/cursor_project_local.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/mapping.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/mapping.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/sources.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/sources.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/utils.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/utils.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/validation.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/validation.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/__init__.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/__init__.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/LICENSE",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/LICENSE",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/__init__.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/__init__.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_parser.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_parser.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_re.py",
-        "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_re.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "harness-govern",
-        "skillId": "harness-govern",
-        "sourcePath": "skills/harness-govern/scripts/test-harness.sh",
-        "destination": "skills/harness-govern/scripts/test-harness.sh",
-        "kind": "entry"
-      },
-      {
         "ownerId": "precommit",
         "skillId": "precommit",
         "sourcePath": "skills/precommit/SKILL.md",
@@ -6230,83 +5535,6 @@
         "kind": "entry"
       },
       {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/SKILL.md",
-        "destination": "skills/skill-scope/SKILL.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/agents/openai.yaml",
-        "destination": "skills/skill-scope/agents/openai.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/references/judge-failure-patterns.md",
-        "destination": "skills/skill-scope/references/judge-failure-patterns.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/references/judge-philosophy.md",
-        "destination": "skills/skill-scope/references/judge-philosophy.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/references/judge-scoring-rubric.md",
-        "destination": "skills/skill-scope/references/judge-scoring-rubric.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/references/routing-signature-guide.md",
-        "destination": "skills/skill-scope/references/routing-signature-guide.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/scripts/quick-diff.sh",
-        "destination": "skills/skill-scope/scripts/quick-diff.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/scripts/save-results.sh",
-        "destination": "skills/skill-scope/scripts/save-results.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/scripts/scan.sh",
-        "destination": "skills/skill-scope/scripts/scan.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/scripts/skill-lint.js",
-        "destination": "skills/skill-scope/scripts/skill-lint.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "skill-scope",
-        "skillId": "skill-scope",
-        "sourcePath": "skills/skill-scope/scripts/stocktake-runtime.js",
-        "destination": "skills/skill-scope/scripts/stocktake-runtime.js",
-        "kind": "entry"
-      },
-      {
         "ownerId": "tdd",
         "skillId": "tdd",
         "sourcePath": "skills/tdd-workflow/SKILL.md",
@@ -6575,38 +5803,33 @@
     ]
   },
   "fingerprints": {
-    "change-verdict": "e8e0ce23594aefd5f74e86f6fce09e782a1b7339dbf6272998c80acc14952700",
-    "code-trace": "a0d1ff6d9dc8f15e55fb8fc112da2fab5d1794a8214144a81f44a019e081daec",
+    "change-verdict": "527bba10033638a15608097b7ae2dfa32d8b41b8628eb75169157e2a4c803dbc",
+    "code-trace": "363aa49ee5299b4a7d4e14d4f18aa6e2ea82876e556e75a92d3dcfe95ca8fa8d",
     "create-pr": "d078019e7dab7f3bec033df6231b97c631c5ad4827e9f2ee26122bbbefe4fa93",
     "dep-audit": "59268ef33dc7abb1d4f4d135893aa8aa0fb58d96a3096f4fede12b6cdea108fd",
     "dhpk-cli-dispatch-context": "edabe26d5b77dc0cdac63fe829e9ee557e2c57495e59f7f6c959fc60e3c12454",
     "dhpk-cli-transport": "12926e258a9c40c274f4ea1789d0fb8b69cf45c2d4f329aa0b359eb611aa6502",
-    "dhpk-opsx-load-context": "8fcbc041f1f1bf6cc015cc8ed13b5d7f1520f63d533138be9bd9704ba83e3acf",
-    "dhpk-opsx-post-observation": "23d7f375b49110c3d4c66a8fe596dd9403f1ec7bcac83f20469f4ec4135bd50f",
-    "flow-drive": "b7270c3340b150559063d646af26b56d30c722b24ecf9275b7d87410fc8bc600",
-    "flow-guide": "05d1ae0ebc8ee8a6f4658b61c04bc2c275eb600731f5fa0639d8388d01fdd8e4",
+    "dhpk-opsx-load-context": "dc312cf37a15a7d4b4b9bdef9e2f0e6fc6f1b71c9ac3e5df18e119476a184415",
+    "dhpk-opsx-post-observation": "a5683c62da6ea8a25e3e45706078917d5b170b5298eaf1168ee9874323aeb970",
+    "flow-drive": "3519b28f8b611573d5edcb858c2b317cc13c2e1f6e01b781712932c0556932b6",
+    "flow-guide": "dafc142d26bb62fda2c4248ab478103b0cf5d9e7c1a49d5c89a2263c64e15775",
     "git-smart-commit": "6ba0613a9271fcfe68ab8f3fc55a1e6c85ef7368355b16d256a0b1447cf37967",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
-    "harness-audit": "31eb5483b6e5abdb162121739087ee596542680106792238fdb2696e1f3955a3",
-    "harness-govern": "0ab4e9cac490ede3da4e670b314de39de890770998c73d7a2ce21eb9c1df71ef",
     "precommit": "46311444e480082877e7784e715968c90a20a0237a4eb58ab939bae0f7e8e777",
     "proposal-analyze": "e8921cb440426d8a96306b09a7affdb060248e7bbaf60abde749114d454b3818",
     "release-creator": "e2dd86197a7461ed8493e36673db6a602d0acb9eb79442539c8205d1b19e9c63",
     "repo-verify": "ad199643d8b917bc0211f806bb9eeaac265d758bd549d330d0723bdb1cab8c8a",
-    "skill-scope": "ac388ce9b1ee983676aeb3135c426ec87ecb0d81ebe9c93e53cc9af351b44246",
     "tdd-workflow": "ba9778af043d3c9fb675a1aaf7669b59ebfae7fd54de135c03b7326722af517f",
     "ui-ux-verify": "a116cb22d82d85de9bc89862cdd585f3f7505a3ea4edb5dc1be803e6e696eb9a",
     "update-docs": "0897ee969a5ebee4ed4b9d98b6fe01f1f7bb5404156e4c2a3aa1ec6e58d3d024"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "927a7925475a9bbdcb6eb654de2cc4a3bc67a1a0218870c1994efae66b4e718b",
+    "planId": "ec72f5acafd3112e0182bd36b2eb359d65a0e45136e4708bd692b35fcc867133",
     "scope": "project",
-    "profileId": "compat-v1",
+    "profileId": "common",
     "selectedStableIds": [
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-trace",
       "create-pr",
       "dep-audit",
@@ -6614,15 +5837,10 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "harness-audit",
-      "harness-govern",
-      "opsx-load-context",
-      "opsx-post-obs",
       "precommit",
       "proposal-analyze",
       "release-creator",
       "repo-verify",
-      "skill-scope",
       "tdd",
       "ui-ux-verify",
       "update-docs"
@@ -6630,8 +5848,6 @@
     "supportClosure": {
       "stableIds": [
         "change-verdict",
-        "cli-dispatch-context",
-        "cli-transport",
         "code-trace",
         "create-pr",
         "dep-audit",
@@ -6639,15 +5855,10 @@
         "flow-guide",
         "git-smart-commit",
         "git-worktree",
-        "harness-audit",
-        "harness-govern",
-        "opsx-load-context",
-        "opsx-post-obs",
         "precommit",
         "proposal-analyze",
         "release-creator",
         "repo-verify",
-        "skill-scope",
         "tdd",
         "ui-ux-verify",
         "update-docs"
@@ -6660,10 +5871,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "927a7925475a9bbdcb6eb654de2cc4a3bc67a1a0218870c1994efae66b4e718b",
-      "inventory": "092f68006094a57ad0975c6d29707b4cbc8dfa4ec1aa664ca06dee7e6eb0a0da"
+      "plan": "ec72f5acafd3112e0182bd36b2eb359d65a0e45136e4708bd692b35fcc867133",
+      "inventory": "67f4fffa109a9ee491d77fe58d81076449c675531f50afc844a01af0e8bfb2ac"
     },
-    "rollbackIdentity": "838f3013d0e1e86373b64212a0feaf57be687a3a9629e453d993c0a95a87288e"
+    "rollbackIdentity": "4ed9dc4f811161296c11aac7f8e4add3b68f643c64584cf6b53aa0847804d7d2"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
@@ -7398,183 +6609,6 @@
         }
       ]
     },
-    "harness-audit": {
-      "display_name": "Harness Audit",
-      "summary": "Audit repository harness health with a deterministic scorecard",
-      "syntax": "$harness-audit [<scope>] [--format=<format>] [--root=<path>]",
-      "input_kind": "action-first",
-      "invocation_class": "implicit-eligible",
-      "effect_authority": "read-only",
-      "inputs": [
-        {
-          "id": "scope",
-          "syntax": "<scope>",
-          "value_kind": "enum",
-          "required": false,
-          "summary": "Harness area to inspect",
-          "default": "repo",
-          "enum_values": [
-            "repo",
-            "hooks",
-            "skills",
-            "commands",
-            "agents"
-          ],
-          "applies_to": [
-            "audit"
-          ]
-        }
-      ],
-      "actions": [
-        {
-          "id": "audit",
-          "summary": "Run the deterministic harness audit",
-          "syntax": "$harness-audit [<scope>]",
-          "input_kind": "action-first",
-          "effect_authority": "read-only"
-        }
-      ],
-      "options": [
-        {
-          "id": "format",
-          "syntax": "--format=<format>",
-          "value_kind": "enum",
-          "required": false,
-          "summary": "Output format",
-          "default": "text",
-          "enum_values": [
-            "text",
-            "json"
-          ]
-        },
-        {
-          "id": "root",
-          "syntax": "--root=<path>",
-          "value_kind": "string",
-          "required": false,
-          "summary": "Consumer repository root"
-        }
-      ],
-      "examples": [
-        {
-          "prompt": "$harness-audit skills --format=json",
-          "summary": "Use harness audit with its declared interface"
-        }
-      ]
-    },
-    "harness-govern": {
-      "display_name": "Harness Govern",
-      "summary": "Govern harness health, budget, filling, revision, and sync",
-      "syntax": "$harness-govern <health|budget|fill|revise|sync> [options]",
-      "input_kind": "action-first",
-      "inputs": [
-        {
-          "id": "mode",
-          "syntax": "<health|budget|fill|revise|sync>",
-          "value_kind": "enum",
-          "required": true,
-          "summary": "Choose one harness governance mode",
-          "enum_values": [
-            "health",
-            "budget",
-            "fill",
-            "revise",
-            "sync"
-          ]
-        }
-      ],
-      "invocation_class": "explicit-only",
-      "effect_authority": "external-write",
-      "actions": [
-        {
-          "id": "health",
-          "summary": "Check harness structure and optionally fix safe issues",
-          "syntax": "$harness-govern health [options]",
-          "input_kind": "none",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "budget",
-          "summary": "Measure harness context cost and ranked savings",
-          "syntax": "$harness-govern budget [options]",
-          "input_kind": "none",
-          "effect_authority": "read-only"
-        },
-        {
-          "id": "fill",
-          "summary": "Preview or apply missing harness layers",
-          "syntax": "$harness-govern fill [options]",
-          "input_kind": "none",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "revise",
-          "summary": "Review and revise an active harness",
-          "syntax": "$harness-govern revise [options]",
-          "input_kind": "none",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "sync",
-          "summary": "Plan or apply cross-platform harness synchronization",
-          "syntax": "$harness-govern sync [options]",
-          "input_kind": "none",
-          "effect_authority": "external-write"
-        }
-      ],
-      "options": [
-        {
-          "id": "dir",
-          "syntax": "--dir=<path>",
-          "value_kind": "string",
-          "required": false,
-          "summary": "Select the harness directory"
-        },
-        {
-          "id": "dry-run",
-          "syntax": "--dry-run",
-          "value_kind": "boolean",
-          "required": false,
-          "default": false,
-          "summary": "Preview changes without writing",
-          "applies_to": [
-            "health",
-            "budget",
-            "fill",
-            "revise",
-            "sync"
-          ]
-        },
-        {
-          "id": "fix-safe",
-          "syntax": "--fix-safe",
-          "value_kind": "boolean",
-          "required": false,
-          "default": false,
-          "summary": "Apply only approved safe health fixes",
-          "applies_to": [
-            "health"
-          ]
-        },
-        {
-          "id": "fix",
-          "syntax": "--fix",
-          "value_kind": "boolean",
-          "required": false,
-          "default": false,
-          "summary": "Apply the selected health fixes",
-          "applies_to": [
-            "health"
-          ]
-        }
-      ],
-      "examples": [
-        {
-          "prompt": "$harness-govern health --dry-run",
-          "summary": "Inspect harness health without changing files"
-        }
-      ]
-    },
     "precommit": {
       "display_name": "Precommit",
       "summary": "Run the packaged deterministic pre-commit pipeline",
@@ -7740,78 +6774,6 @@
         }
       ]
     },
-    "skill-scope": {
-      "display_name": "Skill Scope",
-      "summary": "Route skill governance to one focused mode with evidence",
-      "syntax": "$skill-scope <health|judge|stocktake|scout>",
-      "input_kind": "action-first",
-      "inputs": [
-        {
-          "id": "mode",
-          "syntax": "<health|judge|stocktake|scout>",
-          "value_kind": "enum",
-          "required": true,
-          "summary": "Choose one skill governance mode",
-          "enum_values": [
-            "health",
-            "judge",
-            "stocktake",
-            "scout"
-          ]
-        },
-        {
-          "id": "target",
-          "syntax": "<target>",
-          "value_kind": "string",
-          "required": false,
-          "summary": "Select the skill or capability to inspect",
-          "applies_to": [
-            "health",
-            "judge",
-            "scout"
-          ]
-        }
-      ],
-      "invocation_class": "implicit-eligible",
-      "effect_authority": "delegate",
-      "actions": [
-        {
-          "id": "health",
-          "summary": "Check one skill or package structure",
-          "syntax": "$skill-scope health <skill>",
-          "input_kind": "identifier",
-          "effect_authority": "delegate"
-        },
-        {
-          "id": "judge",
-          "summary": "Score one skill or package quality",
-          "syntax": "$skill-scope judge <skill>",
-          "input_kind": "identifier",
-          "effect_authority": "delegate"
-        },
-        {
-          "id": "stocktake",
-          "summary": "Audit installed consumer skills and commands",
-          "syntax": "$skill-scope stocktake",
-          "input_kind": "none",
-          "effect_authority": "delegate"
-        },
-        {
-          "id": "scout",
-          "summary": "Search for an existing skill or capability",
-          "syntax": "$skill-scope scout <capability>",
-          "input_kind": "free-text",
-          "effect_authority": "delegate"
-        }
-      ],
-      "options": [],
-      "examples": [
-        {
-          "prompt": "$skill-scope health flow-guide",
-          "summary": "Run a focused health check for one skill"
-        }
-      ]
-    },
     "tdd": {
       "display_name": "TDD",
       "summary": "Drive behavior-first tests through a minimal red-green loop",
@@ -7954,16 +6916,69 @@
     "flow-guide": "5300a6121dae6a264abe9859a10cc42504b034b4908f06ca3343b2f88a7cd369",
     "git-smart-commit": "bf7f04db7306d231b79a4e95374595c27fd56c8cd665f04394085a23af15b9f5",
     "git-worktree": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689",
-    "harness-audit": "c332dbc616714f42745d0cfcddc112b0452ec09ecf7f8b09c9cefb7549dda7f1",
-    "harness-govern": "34ce3d263ed23aa924ae39a95916f45d7b7054cac3cc48ad515b90173f065989",
     "precommit": "920521f2abafda14ea87a7e44569f5bb5aec2b4b245bff78d43271b5d54ea699",
     "proposal-analyze": "89e3a151663d1389f14f9c10b547d09fb58dee3ab10a126491f546f0070f5e33",
     "release-creator": "7e3c907d8a22657cdfb8f3ba4f4962b13368f6621905bf23e9b8210ef8ae0e8c",
     "repo-verify": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb",
-    "skill-scope": "e17a0ce771f9d79a874c482c9e968878e86ce9f7ac6a094a89db8151cb3c7017",
     "tdd": "2b0cd39febeefaa18ff9fd70c8e0c9d068136599c488a35b3e06afa07eb20c6d",
     "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd",
     "update-docs": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
   },
-  "externalSkillPackagesFingerprint": "3415fbb3be9c7095e796bab2ac6c87d96e26bfa8c90a89cf9fc1d63cbbbc664c"
+  "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "profileId": "common",
+  "selectedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "update-docs",
+    "precommit",
+    "dep-audit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "canonicalSelectedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "update-docs",
+    "precommit",
+    "dep-audit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "emittedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "update-docs",
+    "precommit",
+    "dep-audit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "compatibilityMode": "profile",
+  "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
+  "selectionFingerprint": "50b90c85985ba8b87a7d71e5af8cf111b0217a838a77a33006a5379b529e66fe",
+  "surfaceSelectionFingerprint": "64981dc42e7de8bb5ce855e8aa9135b35cd6f940a609c7a672d59fbbf56bf5cf"
 }

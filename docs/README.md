@@ -56,8 +56,10 @@ and installation are owned by the external tool.
   [Codex skill usage](codex-skill-usage.md), [portable commands](portable-command-skills.md),
   and [harness workflow](harness-workflow.md).
 - Development and verification: [testing governance](testing-governance.md),
-  [worker-context benchmark](worker-context-benchmark.md),
-  [hook extensions](hook-extension.md), and [subagent prompts](subagent-prompt-template.md).
+  [hook extensions](hook-extension.md), and
+  [subagent prompts](subagent-prompt-template.md).
+- Research and optional diagnostics:
+  [worker-context benchmark](worker-context-benchmark.md).
 - Distribution and migration: [distribution surfaces](distribution-surfaces.md),
   [release artifacts](release-artifact-contract.md),
   [skill platform migration](skill-platform-migration.md), and

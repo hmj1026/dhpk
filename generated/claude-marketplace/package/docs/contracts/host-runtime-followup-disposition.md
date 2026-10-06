@@ -5,6 +5,37 @@ of the twelve historical tasks from the three ignored OpenSpec follow-ups. It
 does not claim that any task was executed or completed. The source plans remain
 local provenance; this tracked contract is the fresh-checkout policy source.
 
+## Current engineering scope under #888
+
+[#888](https://github.com/hmj1026/dhpk/issues/888) consolidates the engineering
+work from [#886](https://github.com/hmj1026/dhpk/issues/886#issuecomment-6007991007)
+and [#887](https://github.com/hmj1026/dhpk/issues/887#issuecomment-6007991325).
+Their closure records consolidation, not completion of historical native
+observations or a live consumer migration.
+
+The current package contract uses the shared common catalog, the existing main
+Claude marketplace identity, and the skills-only OpenAI submission route.
+Cursor and AGY remain supported with lower priority. Source, installation,
+ownership, necessary-resource, and deterministic package checks provide the
+engineering checkpoint. Native/model/GUI observations are conditional on a
+corresponding integration change or explicit request; context and planner
+comparisons remain separately requested research. The historical strict
+eight-row baseline and every `FAIL`, `PARTIAL`, or `NOT_RUN` result retain their
+original scope and status.
+
+No named live consumer, predecessor/successor installation, or successor
+publication is supplied by this consolidation. Cutover and removal therefore
+remain deferred to a separately authorized owner; no generic live migration
+executor is introduced. Historical named-profile receipts retain exact stored
+scope for read, plan, uninstall, and recovery, and updates are `BLOCKED` before
+mutation. Unannotated older receipts keep their existing structural migration
+route. Protected local copies are preserved rather than counted as fresh
+package membership.
+
+The register and ignored follow-up task lists below remain historical
+provenance. Current implementation progress and applicable verification are
+recorded on #888; this disposition does not mark those historical tasks done.
+
 ## Decision vocabulary
 
 `RETAINED` remains an owned task; `CONDITIONAL` is required only for its named

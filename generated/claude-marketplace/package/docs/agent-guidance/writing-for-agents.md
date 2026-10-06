@@ -42,5 +42,11 @@ than copying it into this repository.
   retained sourced material and use existing OpenSpec tasks for review decisions;
   do not create a separate disposition report or restate per-stack traps here.
 
-Run Markdownlint, the strict frontmatter/invocation validators, route and
-distribution checks, and the focused contract test before claiming completion.
+## Verification
+
+Follow [testing governance](../testing-governance.md) for the route that
+matches the changed behavior and any affected distribution surface. Review
+Markdown content and links directly; run metadata, invocation, route,
+distribution, or contract validators only when their machine-readable
+contract or surface is affected. Release acceptance remains in the
+[plugin development contract](plugin-development.md#release-acceptance).

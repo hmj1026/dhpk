@@ -75,6 +75,11 @@ function fakePlugin() {
       surfaces: ['cursor-sync', 'cursor-plugin'],
       legacy_names: [],
     }],
+    profile_policy: {
+      version: 'dhpk.capability-bundle-selection.v1',
+      required_core_ids: ['portable'],
+      profiles: { common: { selection: 'declared-common', compatibilityMode: 'profile' } },
+    },
     supporting_assets: [
       {
         id: 'cursor-trap',
@@ -134,9 +139,27 @@ function fakePlugin() {
     schema: 'dhpk.profile-projection-sets.v1',
     hostSurfaces: { cursor: 'cursor-sync' },
     profiles: {
-      minimal: { cursor: ['portable'] },
+      common: { cursor: ['portable'] },
     },
   }, null, 2)}\n`);
+  return plugin;
+}
+
+function dependencyFixturePlugin() {
+  const plugin = fakePlugin();
+  const inventoryPath = path.join(plugin, 'manifests', 'distribution-inventory.json');
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+  inventory.skills.push({ id: 'code-trace', name: 'code-trace', path: 'skills/code-trace', lifecycle: 'promoted', surfaces: ['cursor-sync', 'cursor-plugin'], legacy_names: [] });
+  inventory.internal_runtime_skills = { 'codex-native': [], 'cursor-sync': [] };
+  inventory.project_agent_projection.profiles['portable-core'].stable_ids.push('code-trace');
+  write(path.join(plugin, 'manifests', 'install-profiles.json'), `${JSON.stringify({ version: 1, profiles: { common: { modules: [], skillIds: ['portable'], commandIds: [], compatibilityMode: 'profile' } } })}\n`);
+  write(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  const skill = '---\nname: code-trace\ndescription: dependency fixture\n---\n# Code trace\n';
+  write(path.join(plugin, 'skills', 'code-trace', 'SKILL.md'), skill);
+  write(path.join(plugin, 'cursor', 'skills', 'code-trace', 'SKILL.md'), skill);
+  write(path.join(plugin, 'cursor', 'commands', 'trace-fixture.md'), '# Trace\nRead skills/code-trace/SKILL.md\n');
+  write(path.join(plugin, 'cursor', 'agents', 'trace-reviewer.md'), '---\nname: trace-reviewer\ndescription: fixture reviewer\nmodel: inherit\nreadonly: true\n---\nRead skills/code-trace/SKILL.md\n');
+  write(path.join(plugin, 'cursor', 'agents', 'ui-ux-verifier.md'), '---\nname: ui-ux-verifier\ndescription: external dependency fixture\nmodel: inherit\nreadonly: true\n---\nRead ~/.agents/skills/playwright-cli/SKILL.md and .claude/skills/openspec-new-change/SKILL.md\n');
   return plugin;
 }
 
@@ -681,26 +704,27 @@ test('--plan --json does not warn when hash cache version matches local packages
   }
 });
 
-test('default minimal Cursor install keeps command and agent skill-path dependencies closed', () => {
+test('default common Cursor install keeps command and agent skill-path dependencies closed', () => {
   const scratch = projectRoot();
+  const plugin = dependencyFixturePlugin();
   try {
     const planned = runInstaller(
       scratch,
       ['--copy', '--plan', '--json', '--force'],
-      REPO,
+      plugin,
       undefined,
       ROOT_INSTALL_TIMEOUT_MS,
     );
     const report = JSON.parse(planned.stdout);
     const excluded = report.excluded || [];
-    const ghostCommand = excluded.find((item) => item.kind === 'commands' && item.name === 'harness-govern.md');
-    const ghostAgent = excluded.find((item) => item.kind === 'agents' && item.name === 'harness-reviser.md');
+    const ghostCommand = excluded.find((item) => item.kind === 'commands' && item.name === 'trace-fixture.md');
+    const ghostAgent = excluded.find((item) => item.kind === 'agents' && item.name === 'trace-reviewer.md');
     assert.ok(ghostCommand, planned.stdout);
     assert.strictEqual(ghostCommand.reason, 'unmet-skill-dependency');
-    assert.ok(ghostCommand.missing.includes('harness-govern'), JSON.stringify(ghostCommand));
+    assert.ok(ghostCommand.missing.includes('code-trace'), JSON.stringify(ghostCommand));
     assert.ok(ghostAgent, planned.stdout);
     assert.strictEqual(ghostAgent.reason, 'unmet-skill-dependency');
-    assert.ok(ghostAgent.missing.includes('harness-govern'), JSON.stringify(ghostAgent));
+    assert.ok(ghostAgent.missing.includes('code-trace'), JSON.stringify(ghostAgent));
     assert.ok(
       !excluded.some((item) => item.kind === 'agents' && item.name === 'ui-ux-verifier.md'),
       'external skill paths must not exclude ui-ux-verifier.md',
@@ -709,66 +733,71 @@ test('default minimal Cursor install keeps command and agent skill-path dependen
     const human = runInstaller(
       scratch,
       ['--copy', '--plan', '--force'],
-      REPO,
+      plugin,
       undefined,
       ROOT_INSTALL_TIMEOUT_MS,
     );
-    assert.match(`${human.stdout}\n${human.stderr}`, /excluded: commands\/harness-govern\.md/);
+    assert.match(`${human.stdout}\n${human.stderr}`, /excluded: commands\/trace-fixture\.md/);
     assert.match(`${human.stdout}\n${human.stderr}`, /reason=unmet-skill-dependency/);
-    assert.match(`${human.stdout}\n${human.stderr}`, /missing=harness-govern/);
+    assert.match(`${human.stdout}\n${human.stderr}`, /missing=code-trace/);
 
     const installed = runInstaller(
       scratch,
       ['--copy', '--force'],
-      REPO,
+      plugin,
       undefined,
       ROOT_INSTALL_TIMEOUT_MS,
     );
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
     const cursor = path.join(scratch, '.cursor');
-    assert.ok(!fs.existsSync(path.join(cursor, 'commands', 'harness-govern.md')));
-    assert.ok(!fs.existsSync(path.join(cursor, 'agents', 'harness-reviser.md')));
-    assert.ok(fs.existsSync(path.join(cursor, 'commands', 'verify.md')));
-    const flowGuide = path.join(cursor, 'skills', 'flow-guide');
+    assert.ok(!fs.existsSync(path.join(cursor, 'commands', 'trace-fixture.md')));
+    assert.ok(!fs.existsSync(path.join(cursor, 'agents', 'trace-reviewer.md')));
+    assert.ok(fs.existsSync(path.join(cursor, 'commands', 'review.md')));
+    assert.ok(fs.existsSync(path.join(cursor, 'agents', 'ui-ux-verifier.md')), 'external-only dependency agent must remain installed');
+    const flowGuide = path.join(cursor, 'skills', 'dhpk-portable');
     assert.ok(fs.lstatSync(flowGuide).isSymbolicLink());
-    assert.strictEqual(fs.readlinkSync(flowGuide), '../../.agents/skills/flow-guide');
-    assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'flow-guide', 'SKILL.md')));
+    assert.strictEqual(fs.readlinkSync(flowGuide), '../../.agents/skills/dhpk-portable');
+    assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-portable', 'SKILL.md')));
     const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'native-link');
     assertProjectedDependencyClosure(scratch);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
   }
 });
 
-test('a profile that includes harness-govern projects the gated command and agent', () => {
+test('an explicit skill overlay that includes code-trace projects the gated command and agent', () => {
   const scratch = projectRoot();
+  const plugin = dependencyFixturePlugin();
   try {
     const res = runInstaller(
       scratch,
-      ['--copy', '--force', '--profile', 'minimal', '--skill', 'harness-govern'],
-      REPO,
+      ['--copy', '--force', '--skill', 'code-trace'],
+      plugin,
       undefined,
       ROOT_INSTALL_TIMEOUT_MS,
     );
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     const cursor = path.join(scratch, '.cursor');
-    assert.ok(fs.existsSync(path.join(cursor, 'skills', 'harness-govern')));
-    assert.ok(fs.existsSync(path.join(cursor, 'commands', 'harness-govern.md')));
-    assert.ok(fs.existsSync(path.join(cursor, 'agents', 'harness-reviser.md')));
+    assert.ok(fs.existsSync(path.join(cursor, 'skills', 'code-trace')));
+    assert.ok(fs.existsSync(path.join(cursor, 'commands', 'trace-fixture.md')));
+    assert.ok(fs.existsSync(path.join(cursor, 'agents', 'trace-reviewer.md')));
     assertProjectedDependencyClosure(scratch);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
   }
 });
 
 test('--update removes unchanged excluded commands and keeps modified ones', () => {
   const scratch = projectRoot();
+  const plugin = dependencyFixturePlugin();
   try {
     const installed = runInstaller(
       scratch,
       ['--copy', '--force'],
-      REPO,
+      plugin,
       undefined,
       ROOT_INSTALL_TIMEOUT_MS,
     );
@@ -776,35 +805,35 @@ test('--update removes unchanged excluded commands and keeps modified ones', () 
     const cursor = path.join(scratch, '.cursor');
     const receiptPath = path.join(cursor, '.dhpk-installed.json');
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    assert.strictEqual(receipt.profileId, 'minimal');
+    assert.strictEqual(receipt.profileId, 'common');
 
-    const unchangedSource = path.join(REPO, 'cursor', 'commands', 'harness-govern.md');
-    const unchangedDest = path.join(cursor, 'commands', 'harness-govern.md');
+    const unchangedSource = path.join(plugin, 'cursor', 'commands', 'trace-fixture.md');
+    const unchangedDest = path.join(cursor, 'commands', 'trace-fixture.md');
     fs.copyFileSync(unchangedSource, unchangedDest);
-    copyManagedEntry(receipt, 'commands', 'harness-govern.md', unchangedSource, unchangedDest);
+    copyManagedEntry(receipt, 'commands', 'trace-fixture.md', unchangedSource, unchangedDest);
 
-    const modifiedSource = path.join(REPO, 'cursor', 'agents', 'harness-reviser.md');
-    const modifiedDest = path.join(cursor, 'agents', 'harness-reviser.md');
+    const modifiedSource = path.join(plugin, 'cursor', 'agents', 'trace-reviewer.md');
+    const modifiedDest = path.join(cursor, 'agents', 'trace-reviewer.md');
     fs.copyFileSync(modifiedSource, modifiedDest);
-    copyManagedEntry(receipt, 'agents', 'harness-reviser.md', modifiedSource, modifiedDest);
+    copyManagedEntry(receipt, 'agents', 'trace-reviewer.md', modifiedSource, modifiedDest);
     fs.appendFileSync(modifiedDest, '\nuser edit\n');
     fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
 
     const planned = runInstaller(
       scratch,
       ['--copy', '--update', '--plan', '--json', '--force'],
-      REPO,
+      plugin,
       undefined,
       ROOT_INSTALL_TIMEOUT_MS,
     );
     const report = JSON.parse(planned.stdout);
     const excludedCommand = (report.excluded || []).find(
-      (item) => item.kind === 'commands' && item.name === 'harness-govern.md',
+      (item) => item.kind === 'commands' && item.name === 'trace-fixture.md',
     );
     assert.ok(excludedCommand, planned.stdout);
     assert.strictEqual(excludedCommand.reason, 'unmet-skill-dependency');
-    const retiredUnchanged = (report.retired || []).find((item) => item.path === 'commands/harness-govern.md');
-    const retiredModified = (report.retired || []).find((item) => item.path === 'agents/harness-reviser.md');
+    const retiredUnchanged = (report.retired || []).find((item) => item.path === 'commands/trace-fixture.md');
+    const retiredModified = (report.retired || []).find((item) => item.path === 'agents/trace-reviewer.md');
     assert.ok(retiredUnchanged, planned.stdout);
     assert.strictEqual(retiredUnchanged.reason, 'unchanged-receipt-owned');
     assert.ok(retiredModified, planned.stdout);
@@ -813,21 +842,22 @@ test('--update removes unchanged excluded commands and keeps modified ones', () 
     const updated = runInstaller(
       scratch,
       ['--copy', '--update', '--force'],
-      REPO,
+      plugin,
       undefined,
       ROOT_INSTALL_TIMEOUT_MS,
     );
     assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
-    assert.match(`${updated.stdout}\n${updated.stderr}`, /orphaned preserved: agents\/harness-reviser\.md/);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /orphaned preserved: agents\/trace-reviewer\.md/);
     assert.ok(!fs.existsSync(unchangedDest), 'unchanged excluded command must be pruned');
     assert.ok(fs.existsSync(modifiedDest), 'modified excluded agent must be preserved');
     assert.match(fs.readFileSync(modifiedDest, 'utf8'), /user edit/);
     const nextReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    assert.ok(!nextReceipt.managed_entries.commands['harness-govern.md']);
-    assert.ok(nextReceipt.managed_entries.agents['harness-reviser.md']);
-    assert.strictEqual(nextReceipt.managed_entries.agents['harness-reviser.md'].orphaned, true);
+    assert.ok(!nextReceipt.managed_entries.commands['trace-fixture.md']);
+    assert.ok(nextReceipt.managed_entries.agents['trace-reviewer.md']);
+    assert.strictEqual(nextReceipt.managed_entries.agents['trace-reviewer.md'].orphaned, true);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
   }
 });
 

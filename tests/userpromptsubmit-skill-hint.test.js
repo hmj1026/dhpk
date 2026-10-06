@@ -196,13 +196,14 @@ test('minimal hook_profile suppresses the hint even for a matching prompt', () =
   assert.strictEqual(res.stdout.trim(), '', `expected no hint under minimal profile, got: ${res.stdout}`);
 });
 
+test('retired unattended goal requests emit no skill hint', () => {
+  const res = runHookAgainstRealRoutes('please run an unattended OpenSpec goal session');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout.trim(), '');
+});
+
 test('real explicit-only routes emit exact commands without Skill-tool advice', () => {
   const cases = [
-    [
-      'please run an unattended OpenSpec goal session',
-      'dhpk-opsx-apply-goal',
-      '[skill-hint] This prompt looks like a unattended OpenSpec goal session task — run /dhpk:dhpk-opsx-apply-goal directly; do not call the generic Skill tool.',
-    ],
     [
       'please create a PR for this branch',
       'create-pr',

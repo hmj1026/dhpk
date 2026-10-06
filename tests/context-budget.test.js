@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -57,7 +58,7 @@ test('budget report is deterministic and identifies out-of-budget fixture entrie
   assert.match(output, /fixture/);
 });
 
-test('aggregate default discovery budget reports the curated count and reduction', () => {
+test('aggregate budget preserves an explicit selection and reports its reduction', () => {
   const report = inspectAggregateDiscoveryContext({
     root: ROOT,
     inventory: {
@@ -74,11 +75,34 @@ test('aggregate default discovery budget reports the curated count and reduction
     minReductionPercent: 70,
   });
   assert.strictEqual(report.ok, true, JSON.stringify(report));
+  assert.deepStrictEqual(report.selectedStableIds, ['one', 'two']);
   assert.strictEqual(report.entries, 1);
   assert.strictEqual(report.tokens, 5);
   assert.strictEqual(report.baseline.entries, 10);
   assert.strictEqual(report.baseline.tokens, 100);
   assert.ok(report.reductionPercent >= 70);
+});
+
+test('aggregate default selection uses current install-profiles common skill IDs', () => {
+  const inventory = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'manifests', 'distribution-inventory.json'),
+    'utf8',
+  ));
+  const installProfiles = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'manifests', 'install-profiles.json'),
+    'utf8',
+  ));
+  const discoveryBudgets = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'manifests', 'discovery-budgets.json'),
+    'utf8',
+  ));
+  const commonIds = installProfiles.profiles.common.skillIds;
+  const report = inspectAggregateDiscoveryContext({ root: ROOT, inventory });
+
+  assert.strictEqual(report.profileId, 'common');
+  assert.strictEqual(discoveryBudgets.aggregate.profile, 'common');
+  assert.deepStrictEqual(report.selectedStableIds, commonIds);
+  assert.strictEqual(report.selectedEntries, 15);
 });
 
 test('aggregate budget excludes explicit-only entries and fails closed on count/reduction ceilings', () => {
@@ -128,20 +152,17 @@ test('aggregate budget reports invalid configuration and missing visible measure
   assert.ok(codes.includes('MISSING_AGGREGATE_MEASUREMENT'));
 });
 
-test('aggregate CLI emits a reproducible JSON report and CI wires the gate', () => {
+test('aggregate CLI emits a JSON report with an exit code matching its verdict', () => {
   const result = spawnSync(process.execPath, [
     path.join(ROOT, 'scripts', 'ci', 'context-budget.js'), '--aggregate', '--json',
   ], { cwd: ROOT, encoding: 'utf8' });
-  assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.ifError(result.error);
   const report = JSON.parse(result.stdout);
   assert.strictEqual(report.schema, 'dhpk.aggregate-discovery-report.v1');
-  assert.strictEqual(report.profileId, 'minimal');
-  assert.strictEqual(report.baseline.entries, 63);
-  assert.strictEqual(report.baseline.tokens, 5704);
-  assert.ok(report.entries <= 15);
-  assert.ok(report.reductionPercent >= 70);
-  const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
-  assert.ok(workflow.includes('node scripts/ci/context-budget.js --aggregate'));
+  assert.strictEqual(report.profileId, 'common');
+  assert.strictEqual(report.selectedEntries, 15);
+  assert.strictEqual(typeof report.ok, 'boolean');
+  assert.strictEqual(result.status, report.ok ? 0 : 1, result.stderr);
 });
 
 // Consolidated source suite: discovery-budget-parity-separation.
@@ -386,17 +407,28 @@ test('aggregate CLI emits a reproducible JSON report and CI wires the gate', () 
   });
 
   test('legacy context-budget CLI keeps its summary headings and exit behavior', () => {
-    const result = spawnSync(process.execPath, [CONTEXT_BUDGET_CLI], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    });
-    assert.strictEqual(result.status, 1);
+    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-context-stdout-'));
+    const preload = path.join(temporary, 'delayed-stdout.cjs');
+    fs.writeFileSync(preload, 'const write = process.stdout.write.bind(process.stdout);\nprocess.stdout.write = (...args) => { setImmediate(() => write(...args)); return true; };\n');
+    let result;
+    try {
+      result = spawnSync(process.execPath, ['--require', preload, CONTEXT_BUDGET_CLI, '--json'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+      });
+    } finally {
+      fs.rmSync(temporary, { recursive: true, force: true });
+    }
+    assert.ifError(result.error);
+    assert.ok(result.stdout.length > 0, 'the CLI must drain pending stdout before terminating');
     const lines = result.stdout.trim().split('\n');
+    const report = JSON.parse(lines[lines.length - 1]);
+    const hasFailure = report.violations.length > 0 || report.configurationErrors.length > 0;
+    assert.strictEqual(result.status, hasFailure ? 1 : 0, result.stderr);
     // Counts follow the live inventory; the legacy contract is the heading shape.
     assert.match(lines[0], /^discovery-visible entries: \d+$/);
     assert.match(lines[1], /^optional discovery-visible entries: \d+$/);
-    assert.match(lines[2], /^budget violations: [1-9]\d*$/);
-    assert.ok(lines.some((line) => line.startsWith('FAIL ')));
+    assert.match(lines[2], /^budget violations: \d+$/);
   });
 }
 

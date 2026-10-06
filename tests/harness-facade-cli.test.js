@@ -840,29 +840,73 @@ test('generation records post-generation DIRTY binding and blocks a previous-rec
 });
 
 test('release JSON preserves the gate-configured acceptance scope at the public boundary', () => {
+  const cursorRow = {
+    surface: 'cursor-sync',
+    producerSurface: 'cursor-sync',
+    status: 'NOT_RUN',
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    adapter: { id: 'cursor-sync-installer', version: '1.0.0' },
+    commands: [],
+    environment: { network: 'disabled' },
+    artifacts: [],
+    diagnostics: [],
+    reasons: [],
+    checkedClaims: ['consumer-route'],
+    installationEvidence: { status: 'PASS' },
+    runtimeEvidence: { status: 'NOT_RUN', reason: 'Cursor runtime was not selected.' },
+  };
+  const gateEvidence = restrictedClaudeGateEvidence({
+    additionalRows: [cursorRow],
+    additionalChecks: [{
+      id: 'install.cursor-sync',
+      surface: 'cursor-sync',
+      kind: 'installation',
+      reason: 'The selected Cursor installation contract passed.',
+      status: 'PASS',
+      evidenceRef: 'surfaceResults.cursor-sync.installationEvidence',
+    }],
+    additionalExclusions: [{
+      id: 'runtime.cursor-sync',
+      surface: 'cursor-sync',
+      kind: 'native',
+      reason: 'Cursor runtime was not selected.',
+      status: 'NOT_RUN',
+      evidenceRef: 'surfaceResults.cursor-sync.runtimeEvidence',
+    }],
+  });
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory, ['.claude-plugin']);
+  const gateArgsFile = path.join(root, 'gate-args.json');
   const receiptRoot = temporaryReceiptRoot();
   try {
-    const result = invoke(['release', '--task-id', 'facade-release-surfaces', '--json'], {
+    const result = invokeAt(root, ['release', '--task-id', 'facade-release-surfaces', '--json'], {
+      CI: 'false',
+      DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '0',
+      GATE_ARGS_FILE: gateArgsFile,
+      GATE_EXIT_BY_VERDICT: '1',
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
       PATH: NODE_BASH_ONLY_PATH,
     }, RELEASE_INVOKE_TIMEOUT_MS);
     const payload = parseSingleJson(result.stdout);
-    assert.ok(['dhpk.harness.result.v1', 'dhpk.harness.result.v2'].includes(payload.schema));
-    assert.strictEqual(result.status, payload.exitCode);
-    if (payload.acceptance) {
-      const selectedByGate = payload.acceptance.requiredChecks
-        .filter((check) => check.id.startsWith('install.'))
-        .map((check) => check.surface);
-      assert.deepStrictEqual([...payload.requiredSurfaces].sort(), [...selectedByGate].sort());
-    } else {
-      assert.strictEqual(payload.outcome, 'PUBLISHED_UNHEALTHY');
-      assert.match(payload.diagnostics.join('\n'), /configured consumer evidence failed closed/i);
-      assert.deepStrictEqual(
-        payload.surfaceResults.map((entry) => entry.surface).sort(),
-        [...payload.requiredSurfaces].sort(),
-      );
-    }
-    assert.ok(payload.requiredSurfaces.length < 7, 'the configured scope should not be inferred from the inventory');
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    assert.strictEqual(payload.exitCode, 1);
+    assert.strictEqual(payload.outcome, 'BLOCKED');
+    assert.strictEqual(payload.acceptance.verdict, 'BLOCKED');
+    assert.deepStrictEqual(payload.requiredSurfaces, ['claude-core', 'cursor-sync']);
+    assert.deepStrictEqual(payload.requiredRuntimeSurfaces, ['claude-core']);
+    assert.deepStrictEqual(payload.acceptance.requiredChecks.map((check) => check.id), [
+      'install.claude-core', 'install.cursor-sync',
+    ]);
+    assert.deepStrictEqual(payload.acceptance.requiredChecks.map((check) => check.status), ['BLOCKED', 'PASS']);
+    assert.strictEqual(payload.acceptance.requiredChecks[0].evidenceRef, 'surfaceResults.claude-core.installationEvidence');
+    assert.strictEqual(payload.surfaceResults.find((row) => row.surface === 'claude-core').producerSurface, 'claude');
+    const gateArgs = JSON.parse(fs.readFileSync(gateArgsFile, 'utf8'));
+    assert.strictEqual(gateArgs[gateArgs.indexOf('--repo-root') + 1], root);
+    assert.ok(gateArgs.includes('--skip-claude-reinstall'));
+    assert.ok(!gateArgs.includes('--surface'));
+    assert.ok(!gateArgs.includes('--requirements'));
     assert.ok(payload.requiredRuntimeSurfaces.every((surface) => payload.requiredSurfaces.includes(surface)));
     assert.strictEqual(payload.surfaceResults.length, payload.requiredSurfaces.length);
     assert.deepStrictEqual(
@@ -880,10 +924,11 @@ test('release JSON preserves the gate-configured acceptance scope at the public 
     const event = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'events', '0001.json'), 'utf8'));
     assert.strictEqual(attempt.outcome, payload.outcome);
     assert.deepStrictEqual(attempt.requiredRuntimeSurfaces, payload.requiredRuntimeSurfaces);
-    assert.strictEqual(attempt.artifacts.length, payload.surfaceResults.length);
-    assert.strictEqual(event.artifacts.length, payload.surfaceResults.length);
+    assert.strictEqual(attempt.artifacts.length, 2);
+    assert.strictEqual(event.artifacts.length, 2);
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

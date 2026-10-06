@@ -49,7 +49,9 @@ test('Markdown table column validation remains enabled', () => {
 test('repository tests follow the authoritative light, selected, and full CI plan', () => {
   assert.match(testsJob, /fail-fast:\s*false/);
   assert.match(testsJob, /shard:\s*\$\{\{\s*fromJSON\(needs\.plan\.outputs\.shards\)\s*\}\}/);
-  assert.match(testsJob, /DHPK_CI_PLAN/);
+  assert.match(testsJob, /dhpk-ci-plan-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
+  assert.match(testsJob, /fs\.readFileSync/);
+  assert.doesNotMatch(testsJob, /DHPK_CI_PLAN|needs\.plan\.outputs\.plan/);
   assert.match(testsJob, /if \[ "\$\{\{\s*needs\.plan\.outputs\.mode\s*\}\}" = "selected" \]/);
   assert.match(testsJob, /testFiles/);
   assert.match(testsJob, /--shard-count\s+4/);

@@ -369,7 +369,6 @@ test('native structural verification returns stage-bound evidence instead of a l
 
     assert.deepStrictEqual(publicationView.errors, []);
     assert.strictEqual(expectedPublicIds.length, 15);
-    assert.strictEqual(expectedHostOnlyIds.length, 7);
     assert.deepStrictEqual(result.errors, []);
     assert.ok(result.ok);
     assert.deepStrictEqual(candidateSkillNames.sort(), expectedNames);
@@ -907,11 +906,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
         && inventoryById.get(entry.id).surfaces.includes('codex-native')).map((entry) => entry.id).sort();
       const expectedIds = [...commonIds, ...hostOnlyIds].sort();
-      assert.strictEqual(provenance.selectedSkillIds.length, 22);
-      assert.strictEqual(provenance.selectedSkillNames.length, 22);
       assert.deepStrictEqual(provenance.runtimeSupportStableIds, ['cli-dispatch-context', 'cli-transport']);
-      assert.strictEqual(provenance.materializedSkillIds.length, 22);
-      assert.strictEqual(provenance.materializedSkillNames.length, 22);
       assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);
       assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, hostOnlyIds);
       assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);
@@ -1073,7 +1068,6 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
 
       assert.ok(verified.ok, verified.errors.join('\n'));
       assert.strictEqual(commonIds.length, 15);
-      assert.strictEqual(hostOnlyIds.length, 7);
       assert.deepStrictEqual(actualNames, expectedIds.map((id) => inventoryById.get(id).name).sort());
       assert.deepStrictEqual(generated.skillIds, expectedIds);
       assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);

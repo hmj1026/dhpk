@@ -47,60 +47,23 @@ test('next-step analyzer uses the exported resolveFeature API and emits JSON', (
   }
 });
 
-test('stocktake scan records only files named SKILL.md', () => {
-  const globalDir = tempDir('dhpk-task4-global-skills-');
-  const projectDir = tempDir('dhpk-task4-project-skills-');
+test('next-step analyzer does not require retired skill quality lint', () => {
+  const repo = initRepo();
   try {
-    writeFile(path.join(globalDir, 'alpha', 'SKILL.md'), '---\nname: alpha\ndescription: alpha\n---\n');
-    writeFile(path.join(globalDir, 'alpha', 'README.md'), '# supporting documentation\n');
-    writeFile(path.join(globalDir, 'alpha', 'references', 'notes.md'), '# reference\n');
-    writeFile(path.join(projectDir, 'beta', 'SKILL.md'), '---\nname: beta\ndescription: beta\n---\n');
-    writeFile(path.join(projectDir, 'beta', 'guide.md'), '# guide\n');
-    const script = path.join(ROOT, 'skills', 'skill-scope', 'scripts', 'scan.sh');
-    const res = spawnSync('bash', [script], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        SKILL_STOCKTAKE_GLOBAL_DIR: globalDir,
-        SKILL_STOCKTAKE_PROJECT_DIR: projectDir,
-        SKILL_STOCKTAKE_OBSERVATIONS: path.join(projectDir, 'observations.jsonl'),
-      },
+    writeFile(path.join(repo, 'skills', 'sample', 'SKILL.md'), '# sample\n');
+    assert.strictEqual(spawnSync('git', ['add', '.'], { cwd: repo }).status, 0);
+    assert.strictEqual(spawnSync('git', ['commit', '-qm', 'fixture'], { cwd: repo }).status, 0);
+    writeFile(path.join(repo, 'skills', 'sample', 'SKILL.md'), '# changed sample\n');
+    const script = path.join(ROOT, 'skills', 'flow-guide', 'scripts', 'analyze.js');
+    const res = spawnSync('node', [script, '--json'], {
+      cwd: repo, encoding: 'utf8', env: { ...process.env, PLUGIN_ROOT: ROOT },
     });
     assert.strictEqual(res.status, 0, res.stderr);
     const output = JSON.parse(res.stdout);
-    assert.deepStrictEqual(output.skills.map((skill) => skill.name).sort(), ['alpha', 'beta']);
-    assert.ok(output.skills.every((skill) => skill.path.endsWith('/SKILL.md')));
+    assert.ok(!output.findings.some((finding) => finding.id === 'skill-lint-needed'));
+    assert.ok(!output.next_actions.some((action) => JSON.stringify(action).includes('skill-scope')));
   } finally {
-    fs.rmSync(globalDir, { recursive: true, force: true });
-    fs.rmSync(projectDir, { recursive: true, force: true });
-  }
-});
-
-test('stocktake quick diff records only files named SKILL.md', () => {
-  const skillsDir = tempDir('dhpk-task4-quick-skills-');
-  const results = path.join(skillsDir, 'results.json');
-  try {
-    const skillFile = path.join(skillsDir, 'alpha', 'SKILL.md');
-    writeFile(skillFile, '---\nname: alpha\ndescription: alpha\n---\n');
-    writeFile(path.join(skillsDir, 'alpha', 'references', 'notes.md'), '# reference\n');
-    fs.mkdirSync(path.join(skillsDir, 'project'), { recursive: true });
-    writeFile(results, JSON.stringify({ evaluated_at: '2000-01-01T00:00:00Z', skills: [] }));
-    const script = path.join(ROOT, 'skills', 'skill-scope', 'scripts', 'quick-diff.sh');
-    const res = spawnSync('bash', [script, results], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        SKILL_STOCKTAKE_GLOBAL_DIR: skillsDir,
-        SKILL_STOCKTAKE_PROJECT_DIR: path.join(skillsDir, 'project'),
-      },
-    });
-    assert.strictEqual(res.status, 0, res.stderr);
-    const output = JSON.parse(res.stdout);
-    assert.deepStrictEqual(output.map((entry) => entry.path), [skillFile]);
-  } finally {
-    fs.rmSync(skillsDir, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
   }
 });
 
@@ -241,15 +204,6 @@ test('pr hygiene does not infer squash from the current HEAD message', () => {
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
-});
-
-test('prompt optimization declares its research tools in allowed-tools metadata', () => {
-  const root = path.join(ROOT, 'skills', 'dhpk-prompt-optimize');
-  const skill = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8');
-  assert.match(skill, /allowed-tools:[^\n]*mcp__context7__resolve-library-id/i);
-  assert.match(skill, /allowed-tools:[^\n]*mcp__context7__query-docs/i);
-  assert.match(skill, /allowed-tools:[^\n]*WebFetch/i);
-  assert.match(skill, /allowed-tools:[^\n]*WebSearch/i);
 });
 
 // Consolidated source suite: task4-consolidation.

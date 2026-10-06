@@ -27,14 +27,12 @@ are finite and disclosed by the family package.
 
 | Public skill | Stable ID | Interface |
 | --- | --- | --- |
-| [skill-scope](skill-scope/SKILL.md) | `skill-scope` | `health`, `judge`, `stocktake`, `scout` |
 | [flow-guide](flow-guide/SKILL.md) | `flow-guide` | `help`, `route`, `rules`, `next`, `close` |
 | [flow-drive](flow-drive/SKILL.md) | `flow-drive` | confirmed specification or change; no mode |
 | [change-verdict](change-verdict/SKILL.md) | `change-verdict` | `code`, `pr`, `security`, `tests`, `docs`, `risk` |
 | [code-trace](code-trace/SKILL.md) | `code-trace` | `explore`, `diagnose`, `history`, `select-tool` |
 | [laravel](laravel/SKILL.md) | `laravel` | selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, `mix` |
 | [phpunit](phpunit/SKILL.md) | `phpunit` | selectors `9`, `10`, `11` |
-| [harness-govern](harness-govern/SKILL.md) | `harness-govern` | `health`, `budget`, `fill`, `revise`, `sync` |
 
 `git-smart-commit` remains a standalone capability with its existing public
 name. It is not replaced by a new commit family.
@@ -51,7 +49,6 @@ front doors. Invoke the public name directly from Codex.
 | [dep-audit](dep-audit/SKILL.md) | `dep-audit` | Evidence-only dependency security audit |
 | [doc-refactor](doc-refactor/SKILL.md) | `doc-refactor` | Bounded Markdown refactoring |
 | [git-worktree](git-worktree/SKILL.md) | `git-worktree` | Safe native Git worktree lifecycle |
-| [harness-audit](harness-audit/SKILL.md) | `harness-audit` | Deterministic harness scorecard |
 | [harness-setup](harness-setup/SKILL.md) | `harness-setup` | Explicit harness setup and host assets |
 | [merge-prep](merge-prep/SKILL.md) | `merge-prep` | Read-only branch merge analysis |
 | [opsx-apply-resume](opsx-apply-resume/SKILL.md) | `opsx-apply-resume` | OpenSpec apply handoff and resume |
@@ -75,26 +72,16 @@ front doors. Invoke the public name directly from Codex.
 | [dhpk-deploy-list](dhpk-deploy-list/SKILL.md) | `deploy-list` | Deployment file-list and checklist |
 | [dhpk-feature-verify](dhpk-feature-verify/SKILL.md) | `feature-verify` | Read-only post-deploy verification |
 | [git-smart-commit](git-smart-commit/SKILL.md) | `git-smart-commit` | Group and execute cohesive Git commits |
-| [dhpk-gitnexus-cli](dhpk-gitnexus-cli/SKILL.md) | `gitnexus-cli` | GitNexus index and wiki operations |
-| [dhpk-gitnexus-debugging](dhpk-gitnexus-debugging/SKILL.md) | `gitnexus-debugging` | GitNexus-assisted bug tracing |
-| [dhpk-gitnexus-exploring](dhpk-gitnexus-exploring/SKILL.md) | `gitnexus-exploring` | GitNexus architecture exploration |
-| [dhpk-gitnexus-guide](dhpk-gitnexus-guide/SKILL.md) | `gitnexus-guide` | GitNexus tools and schema guidance |
-| [dhpk-gitnexus-impact-analysis](dhpk-gitnexus-impact-analysis/SKILL.md) | `gitnexus-impact-analysis` | Pre-edit blast-radius analysis |
-| [dhpk-gitnexus-refactoring](dhpk-gitnexus-refactoring/SKILL.md) | `gitnexus-refactoring` | Safe rename, extraction, and restructuring |
 | [dhpk-issue-analyze](dhpk-issue-analyze/SKILL.md) | `issue-analyze` | GitHub issue and review-thread triage |
 | [dhpk-laravel-package-author](dhpk-laravel-package-author/SKILL.md) | `laravel-package-author` | Laravel package publication patterns |
 | [dhpk-laravel-testbench-matrix](dhpk-laravel-testbench-matrix/SKILL.md) | `laravel-testbench-matrix` | Laravel package Testbench matrix |
 | [module-design](module-design/SKILL.md) | `software-architecture` | Architecture boundaries and deep-module design |
-| [dhpk-opsx-apply-goal](dhpk-opsx-apply-goal/SKILL.md) | `opsx-apply-goal` | Bounded long-running OpenSpec apply goal |
 | [dhpk-opsx-load-context](dhpk-opsx-load-context/SKILL.md) | `opsx-load-context` | Resume context loading |
 | [dhpk-opsx-post-observation](dhpk-opsx-post-observation/SKILL.md) | `opsx-post-obs` | Save-phase observation posting |
 | [dhpk-polyfill-version-matrix-audit](dhpk-polyfill-version-matrix-audit/SKILL.md) | `polyfill-version-matrix-audit` | Cross-version polyfill coverage audit |
 | [dhpk-project-audit](dhpk-project-audit/SKILL.md) | `project-audit` | Deterministic project health audit |
-| [dhpk-project-setup](dhpk-project-setup/SKILL.md) | `project-setup` | First-time project harness setup |
-| [dhpk-prompt-optimize](dhpk-prompt-optimize/SKILL.md) | `prompt-optimize` | Prompt completeness and effort guidance |
 | [release-creator](release-creator/SKILL.md) | `release-creator` | Release preparation workflow |
 | [dhpk-repo-intake](dhpk-repo-intake/SKILL.md) | `repo-intake` | Repository inventory onboarding |
-| [dhpk-session-usage-audit](dhpk-session-usage-audit/SKILL.md) | `session-usage-audit` | Session evidence and usage audit |
 | [tdd-workflow](tdd-workflow/SKILL.md) | `tdd` | Behavior-first test workflow |
 
 ## Optional module and transport skills

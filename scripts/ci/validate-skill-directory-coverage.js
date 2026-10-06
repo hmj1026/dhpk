@@ -15,7 +15,6 @@ const { registerLocalToolFixtures } = require('../../tests/_lib/skill-local-tool
 const { registerFlowFamilyFixtures } = require('../../tests/_lib/skill-flow-family-fixtures');
 const { registerSetupFixtures } = require('../../tests/_lib/skill-setup-family-fixtures');
 const { registerFlowEntryFixtures } = require('../../tests/_lib/skill-flow-entry-fixtures');
-const { registerGoalRuntimeFixtures } = require('../../tests/_lib/skill-goal-runtime-fixtures');
 const { registerRemainingFixtures } = require('../../tests/_lib/skill-remaining-entry-fixtures');
 
 if (process.argv.length !== 3 || process.argv[2] !== '--check') {
@@ -34,7 +33,6 @@ if (process.argv.length !== 3 || process.argv[2] !== '--check') {
     registerFlowFamilyFixtures();
     registerSetupFixtures();
     registerFlowEntryFixtures();
-    registerGoalRuntimeFixtures();
     registerRemainingFixtures();
     const result = validateSkillDirectoryCoverage({
       root,

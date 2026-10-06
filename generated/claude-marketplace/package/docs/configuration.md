@@ -4,13 +4,11 @@
 
 dhpk exposes **76 active `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
 
-The default Claude discovery artifact is the materialized `minimal` profile,
-derived from `manifests/distribution-inventory.json`; it is not an unfiltered
-scan of the source `skills/` directory. It publishes exactly `change-verdict`,
-`code-trace`, `flow-drive`, and `flow-guide`. `full` and `compat-v1` are explicit opt-in profile
-artifacts. Agent Plugin and Cursor publication memberships are unchanged. See
-[`docs/platform-installation.md`](./platform-installation.md) for the profile
-selection and receipt rules.
+The `common` collection in `manifests/install-profiles.json` is the sole main
+installation default. Former `minimal`, `full`, and `compat-v1` selections are
+historical receipt metadata, not publication choices. Module presets remain
+separate. See [`docs/platform-installation.md`](./platform-installation.md) for
+host-specific selection and receipt rules.
 
 ## Where to set a value
 
@@ -98,10 +96,10 @@ Legacy `fast_worker_*`, provider-specific model keys, and provider-bound Role
 aliases remain accepted only at the compatibility boundary and are recorded as
 translation evidence.
 
-The project-local Codex clean-install profile remains `compat-v1` for backward
-compatibility. The unified distribution/lifecycle default is `minimal` and
-contains the new four-capability public set. These skill-installation profiles
-are independent from Model default/fallback pairs.
+Former skill-bundle selections, including `compat-v1`, remain only as historical
+receipt metadata. The current main installation default is the `common`
+collection in `manifests/install-profiles.json`. These skill-installation
+selections are independent from Model default/fallback pairs.
 
 ## Core dispatch & review
 
@@ -136,7 +134,7 @@ for the selection rule.
 | `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
-| `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes, plus `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive; applicable verification gates remain active, and planner applicability follows missing outcomes or an explicit consult request rather than task count. |
+| `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive; applicable verification gates remain active, and planner applicability follows missing outcomes or an explicit consult request rather than task count. |
 | `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for cross-Agent candidates during automatic fast-worker selection. `false` keeps `auto` on the current Host's native/default path; `true` allows declared cross-Agent fallback candidates to be checked. An explicit `--worker=<target>` remains directional and does not open other target Agents. |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:flow-drive --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used by `auto` when `cross_provider=true`; rejected candidates and reasons are recorded. With the opt-in disabled, external entries are suppressed and not probed. Invalid values warn once per session and use the shipped order. |

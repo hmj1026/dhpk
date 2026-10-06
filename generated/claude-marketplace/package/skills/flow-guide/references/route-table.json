@@ -12,14 +12,6 @@
       }
     },
     {
-      "pattern": "(unattended|auto[- ]?run|goal +session|overnight|hands?[- ]?off).{0,30}(implement|change|openspec|opsx|session|run)|(無人值守|自動跑完|過夜跑|掛著跑).{0,20}(實作|變更|openspec|opsx)?",
-      "label": "unattended OpenSpec goal session",
-      "target": {
-        "kind": "skill",
-        "id": "dhpk-opsx-apply-goal"
-      }
-    },
-    {
       "pattern": "fix\\s+(mypy|ruff|pytest(-asyncio)?)|(修復|修正).{0,8}(mypy|ruff|pytest(-asyncio)?)",
       "label": "adaptive dev workflow (python build)",
       "target": {

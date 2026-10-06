@@ -771,6 +771,7 @@ test('CI plan falls back to full for unknown, and release-base paths', () => {
   const release = classifyChangedPaths([{ status: 'M', path: 'skills/example/SKILL.md' }], { baseRef: 'main' });
   assert.strictEqual(release.mode, 'full');
   assert.ok(release.requiredJobs.includes('release-rehearsal'));
+  assert.deepStrictEqual(release.generatedChecks, []);
 });
 
 test('aggregate accepts only explicitly skipped jobs and requires plan-bound evidence', () => {
@@ -795,6 +796,85 @@ test('public CI plan CLI classifies content, metadata, mixed, deletion, and rena
     assert.deepStrictEqual(rename.plan.changes[0].files.slice().sort(), ['skills/demo/SKILL.md', 'docs/guide.md'].sort());
   } finally {
     for (const fixture of [content, metadata, mixed, deletion, rename]) fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('CI plan CLI writes full plans to artifacts and keeps routing outputs bounded', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-transport-'));
+  const planPath = path.join(root, 'ci-plan.json');
+  const githubOutputPath = path.join(root, 'github-output');
+  const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
+  try {
+    git('init', '-q');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Test');
+    git('config', 'commit.gpgsign', 'false');
+
+    const retiredOutput = path.join(root, 'generated', 'claude-marketplace', 'package', 'modules', 'retired-output');
+    fs.mkdirSync(retiredOutput, { recursive: true });
+    for (let index = 0; index < 3000; index += 1) {
+      const name = `retired-${String(index).padStart(4, '0')}.json`;
+      fs.writeFileSync(path.join(retiredOutput, name), '{"retired":true}\n');
+    }
+    fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'tests', 'fixture.test.js'), '// fixture\n');
+    fs.writeFileSync(path.join(root, 'plugin.json'), '{"name":"dhpk"}\n');
+    git('add', '-A');
+    git('commit', '--no-verify', '-m', 'base');
+    const baseSha = git('rev-parse', 'HEAD');
+
+    fs.writeFileSync(path.join(root, 'plugin.json'), '{"name":"dhpk","version":"next"}\n');
+    fs.rmSync(retiredOutput, { recursive: true, force: true });
+    git('add', '-A');
+    git('commit', '--no-verify', '-m', 'retire generated files');
+    const headSha = git('rev-parse', 'HEAD');
+    const checkoutSha = headSha;
+    fs.writeFileSync(githubOutputPath, '');
+
+    const result = spawnSync(process.execPath, [
+      path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'plan',
+      '--base-sha', baseSha,
+      '--head-sha', headSha,
+      '--checkout-sha', checkoutSha,
+      '--base-ref', 'develop',
+      '--out', planPath,
+      '--github-output', githubOutputPath,
+    ], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.ok(fs.existsSync(planPath), 'the complete plan must be written to the artifact file');
+    assert.strictEqual(result.stdout, '', 'file output must not also print the full plan');
+
+    const planJson = fs.readFileSync(planPath, 'utf8');
+    const plan = JSON.parse(planJson);
+    const planBytes = Buffer.byteLength(planJson);
+    assert.ok(
+      planBytes > 131072,
+      `fixture plan is ${planBytes} bytes with ${plan.files.length} paths (${plan.reason}: ${plan.diffError || 'no diff error'}); it must exceed 128 KiB`,
+    );
+    assert.strictEqual(plan.mode, 'full');
+    assert.strictEqual(plan.shardCount, 4);
+    assert.deepStrictEqual(plan.packageSurfaces, ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
+    assert.ok(plan.requiredJobs.includes('macos-installer'));
+    assert.deepStrictEqual(fs.readFileSync(githubOutputPath, 'utf8').trim().split('\n'), [
+      'mode=full',
+      'shards=[0,1,2,3]',
+      'macos=true',
+      'surfaces=["agent-plugin","cursor-plugin","codex-native","agy-plugin"]',
+    ]);
+    assert.ok(fs.statSync(githubOutputPath).size < 1024, 'job outputs must contain only bounded routing metadata');
+
+    const validated = spawnSync(process.execPath, [
+      path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'validate',
+      '--plan', planPath,
+      '--base-sha', baseSha,
+      '--head-sha', headSha,
+      '--checkout-sha', checkoutSha,
+      '--base-ref', 'develop',
+    ], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(validated.status, 0, validated.stderr);
+    assert.match(validated.stdout, /PASS: CI plan is valid/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
@@ -826,13 +906,13 @@ test('public CI plan selects existing owner suites and enables macOS only for in
     fs.mkdirSync(path.join(root, 'scripts', 'hooks'), { recursive: true });
     fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
     fs.writeFileSync(path.join(root, 'scripts', 'hooks', 'sample.sh'), 'old\n');
-    for (const owner of ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-audit-integrity-fixtures.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'session-usage-audit.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']) {
+    for (const owner of ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']) {
       fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
     }
   }, (root) => fs.writeFileSync(path.join(root, 'scripts', 'hooks', 'sample.sh'), 'new\n'));
   try {
     assert.strictEqual(fixture.plan.mode, 'selected');
-    assert.deepStrictEqual(fixture.plan.testFiles, ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-audit-integrity-fixtures.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'session-usage-audit.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']);
+    assert.deepStrictEqual(fixture.plan.testFiles, ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']);
     assert.strictEqual(fixture.plan.shardCount, 1);
     assert.ok(fixture.plan.skippedJobs.includes('macos-installer'));
     const runner = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), 'tests/utils.test.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
@@ -847,7 +927,7 @@ test('known resource families select their existing owner suites', () => {
     fs.mkdirSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts'), { recursive: true });
     fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
     fs.writeFileSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh'), 'old\n');
-    for (const owner of ['modules.test.js', 'run-agy.test.js', 'run-cli-transport.test.js', 'session-usage-audit.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js']) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
+    for (const owner of ['modules.test.js', 'run-agy.test.js', 'run-cli-transport.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js']) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
   }, (root) => fs.writeFileSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh'), 'new\n'));
   try { assert.strictEqual(fixture.plan.mode, 'selected'); assert.ok(fixture.plan.testFiles.includes('run-agy.test.js')); }
   finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
@@ -860,14 +940,28 @@ test('selected package changes carry only their affected platform surfaces', () 
   assert.deepStrictEqual(packageSurfacesForFiles(['scripts/ci/verify-platform-packages.js']), ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
 });
 
-test('testCiPlan_lightDocsOnlyChange_runsEveryGeneratedCompanionCheck', () => {
+test('light docs-only CI checks the retained Claude marketplace package', () => {
   const fixture = gitFixture((root) => {
     fs.mkdirSync(path.join(root, 'docs', 'contracts'), { recursive: true });
     fs.writeFileSync(path.join(root, 'docs', 'contracts', 'licensing.md'), 'old\n');
   }, (root) => fs.rmSync(path.join(root, 'docs', 'contracts', 'licensing.md')));
   try {
     assert.strictEqual(fixture.plan.mode, 'light');
-    assert.deepStrictEqual(fixture.plan.generatedChecks, ['claude-marketplace', 'claude-profile:compat-v1', 'claude-profile:full', 'claude-profile:minimal']);
+    assert.deepStrictEqual(fixture.plan.generatedChecks, ['claude-marketplace']);
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
+test('release-base CI checks the retained Claude marketplace package', () => {
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
+    fs.writeFileSync(path.join(root, 'tests', 'example.test.js'), '// fixture owner\n');
+  }, (root) => fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'new\n'), 'main');
+  try {
+    assert.strictEqual(fixture.plan.mode, 'full');
+    assert.ok(fixture.plan.requiredJobs.includes('release-rehearsal'));
+    assert.deepStrictEqual(fixture.plan.generatedChecks, ['claude-marketplace']);
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
@@ -876,11 +970,10 @@ test('canonical content with owned evidence companions stays light and carries e
     ['plugins/dhpk-agent/skills/demo/SKILL.md', ['agent-plugin']],
     ['plugins/dhpk-agent/provenance.json', ['agent-plugin']],
     ['generated/claude-marketplace/package/docs/README.md', []],
-    ['generated/claude-profiles/minimal/package/bundle-receipt.json', []],
     ['manifests/skill-resource-copies.json', []],
     ['generated/claude-marketplace/package/manifests/skill-resource-copies.json', []],
   ];
-  const generatedChecks = ['claude-marketplace', 'claude-profile:compat-v1', 'claude-profile:full', 'claude-profile:minimal'];
+  const generatedChecks = ['claude-marketplace'];
   for (const [companion, packageSurfaces] of cases) {
     const fixture = gitFixture((root) => {
       fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
@@ -904,6 +997,26 @@ test('canonical content with owned evidence companions stays light and carries e
       assert.strictEqual(aggregate.ok, true, aggregate.errors.join('; '));
     } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
   }
+});
+
+test('retired profile output changes fail closed to full CI', () => {
+  const companion = 'generated/claude-profiles/minimal/package/bundle-receipt.json';
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
+    fs.writeFileSync(path.join(root, 'tests', 'example.test.js'), '// fixture owner\n');
+    fs.mkdirSync(path.dirname(path.join(root, companion)), { recursive: true });
+    fs.writeFileSync(path.join(root, companion), 'old\n');
+  }, (root) => {
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'new\n');
+    fs.writeFileSync(path.join(root, companion), 'new\n');
+  });
+  try {
+    assert.strictEqual(fixture.plan.mode, 'full');
+    assert.strictEqual(fixture.plan.reason, 'generated-companion-without-canonical');
+    assert.deepStrictEqual(fixture.plan.generatedChecks, ['claude-marketplace']);
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
 test('unknown or generated-only companions fail closed to full CI', () => {

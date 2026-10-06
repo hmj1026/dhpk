@@ -858,10 +858,10 @@ function buildAgentPluginProjection(options = {}) {
   assertProjectionDestination(resolvedRoot, resolvedOut, 'Agent Plugin');
 
   const allowlist = inventory.portable_frontmatter && inventory.portable_frontmatter.allowlist;
-  const hostPublication = !profileSelection && selectionMode !== 'legacy'
-    ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'agent-plugin' })
+  const hostPublication = selectionMode !== 'legacy'
+    ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'agent-plugin', profileSelection })
     : null;
-  const selection = selectionMode === 'legacy' || hostPublication ? null : compileDistribution({
+  const selection = selectionMode === 'legacy' || (hostPublication && !profileSelection) ? null : compileDistribution({
     inventory,
     surface: 'agent-plugin',
     profileSelection,
@@ -1185,7 +1185,7 @@ function buildAgentPluginProjection(options = {}) {
     selectionPolicy: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
       ? selection.value.selectionPolicy
       : undefined,
-    selectionEntries: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
+    selectionEntries: selection && selection.ok && selection.value.selectionPolicy
       ? (selection.value.selectionEntries || selection.value.entries)
       : undefined,
     profileSelection,

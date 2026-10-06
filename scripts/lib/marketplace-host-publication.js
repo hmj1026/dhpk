@@ -45,10 +45,33 @@ function readSelection(root) {
   }
 }
 
-function loadMarketplaceHostPublication({ root, inventory, hostSurface } = {}) {
+function hasValues(value) {
+  if (Array.isArray(value)) return value.length > 0;
+  return value !== undefined && value !== null && value !== '';
+}
+
+function isPlainCommonProfile(profileSelection) {
+  if (!profileSelection) return true;
+  return profileSelection.profileId === 'common'
+    && profileSelection.selectionMode === 'profile'
+    && !hasValues(profileSelection.overlayStableIds)
+    && !hasValues(profileSelection.moduleClosure);
+}
+
+function sameUniqueIdSet(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+  const leftIds = new Set(left);
+  const rightIds = new Set(right);
+  return leftIds.size === left.length
+    && rightIds.size === right.length
+    && left.every((id) => rightIds.has(id));
+}
+
+function loadMarketplaceHostPublication({ root, inventory, hostSurface, profileSelection = null } = {}) {
   if (typeof hostSurface !== 'string' || hostSurface.length === 0) {
     throw new Error('marketplace host surface is required');
   }
+  if (!isPlainCommonProfile(profileSelection)) return null;
   const selection = readSelection(root);
   if (selection === null) return null;
   // Many package-unit fixtures point at the repository root while supplying a
@@ -63,6 +86,12 @@ function loadMarketplaceHostPublication({ root, inventory, hostSurface } = {}) {
   const view = compileMarketplacePublicationView({ inventory, selection, hostSurface });
   if (view.errors.length > 0) {
     throw new Error(`marketplace publication selection is invalid: ${view.errors.join('; ')}`);
+  }
+  if (profileSelection) {
+    const publicEntryIds = view.publicEntries.map((entry) => entry.id);
+    if (!sameUniqueIdSet(profileSelection.selectedStableIds, publicEntryIds)) {
+      throw new Error('common profile selection does not match marketplace public entries');
+    }
   }
   return view;
 }

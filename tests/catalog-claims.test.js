@@ -203,6 +203,23 @@ const PROJECTION_SETS_REL = path.join('manifests', 'profile-projection-sets.json
 // Kept independent of HOST_SURFACES in the library on purpose: the test is the
 // oracle for which Hosts and surfaces the manifest must cover.
 const PROJECTION_HOSTS = ['codex-sync', 'cursor'];
+const COMMON_PROJECTION_SKILLS = Object.freeze([
+  'change-verdict',
+  'code-trace',
+  'create-pr',
+  'dep-audit',
+  'flow-drive',
+  'flow-guide',
+  'git-smart-commit',
+  'git-worktree',
+  'precommit',
+  'proposal-analyze',
+  'release-creator',
+  'repo-verify',
+  'tdd',
+  'ui-ux-verify',
+  'update-docs',
+]);
 
 function readProjectionSets(base) {
   return JSON.parse(fs.readFileSync(path.join(base, PROJECTION_SETS_REL), 'utf8'));
@@ -234,9 +251,19 @@ test('every install profile declares a projection set for the cursor and codex-s
   }
 });
 
-test('the minimal profile projects the same four core skills into Cursor as before', () => {
-  const declared = readProjectionSets(ROOT).profiles.minimal;
-  assert.deepStrictEqual(declared.cursor, ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide']);
+test('the common profile projects the exact 15 core skills into Cursor and Codex-sync', () => {
+  const declared = readProjectionSets(ROOT).profiles.common;
+  for (const host of PROJECTION_HOSTS) {
+    assert.deepStrictEqual(declared[host], COMMON_PROJECTION_SKILLS,
+      `common.${host} must project the exact common skill set`);
+  }
+
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const skillsById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
+  for (const id of declared['codex-sync']) {
+    assert.ok(skillsById.get(id)?.surfaces.includes('codex-sync'),
+      `common.codex-sync lists '${id}' without an active codex-sync surface`);
+  }
 });
 
 test('a projection set only lists skills whose inventory entry names that Host surface', () => {
@@ -255,21 +282,21 @@ test('a projection set only lists skills whose inventory entry names that Host s
 
 test('a stale projection set fails --check and names the profile and surface', () => {
   withProjectionSets((manifest) => {
-    manifest.profiles.minimal.cursor = manifest.profiles.minimal.cursor.filter((id) => id !== 'code-trace');
+    manifest.profiles.common.cursor = manifest.profiles.common.cursor.filter((id) => id !== 'code-trace');
   }, () => {
     const { status, out } = runCheck(repo);
     assert.strictEqual(status, 1, `drifted projection set must fail --check, got:\n${out}`);
-    assert.match(out, /profile 'minimal' Host 'cursor' \(surface 'cursor-sync'\).*missing: code-trace/);
+    assert.match(out, /profile 'common' Host 'cursor' \(surface 'cursor-sync'\).*missing: code-trace/);
   });
 });
 
 test('an extra ID in a projection set fails --check', () => {
   withProjectionSets((manifest) => {
-    manifest.profiles.full['codex-sync'] = [...manifest.profiles.full['codex-sync'], 'zz-not-a-skill'].sort();
+    manifest.profiles.common['codex-sync'] = [...manifest.profiles.common['codex-sync'], 'zz-not-a-skill'].sort();
   }, () => {
     const { status, out } = runCheck(repo);
     assert.strictEqual(status, 1, `extra projection ID must fail --check, got:\n${out}`);
-    assert.match(out, /profile 'full' Host 'codex-sync' \(surface 'codex-sync'\).*unexpected: zz-not-a-skill/);
+    assert.match(out, /profile 'common' Host 'codex-sync' \(surface 'codex-sync'\).*unexpected: zz-not-a-skill/);
   });
 });
 
@@ -309,7 +336,7 @@ test('an unparseable projection manifest fails --check with a descriptive error'
 
 test('--write repairs a stale projection set and a second --write changes nothing', () => {
   withProjectionSets((manifest) => {
-    manifest.profiles.minimal.cursor = [];
+    manifest.profiles.common.cursor = [];
   }, (fp, original) => {
     assert.strictEqual(runCatalog(repo, '--write').status, 0);
     const repaired = fs.readFileSync(fp, 'utf8');

@@ -7,9 +7,10 @@ const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { materializeAgentPluginPackage } = require('../scripts/lib/agent-plugin-package');
-const { materializeNativePackage } = require('../scripts/lib/codex-native-package');
+const { materializeNativePackage, verifyNativePackage } = require('../scripts/lib/codex-native-package');
 const { materializeCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 const { materializeAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
+const { resolveCapabilitySelection } = require('../scripts/lib/capability-bundle-selection');
 const claude = require('../scripts/ci/gen-claude-marketplace-package');
 const { loadMarketplaceHostPublication } = require('../scripts/lib/marketplace-host-publication');
 
@@ -17,6 +18,8 @@ const ROOT = path.resolve(__dirname, '..');
 const readJson = (relative) => JSON.parse(fs.readFileSync(path.join(ROOT, relative), 'utf8'));
 const INVENTORY = readJson('manifests/distribution-inventory.json');
 const SELECTION = readJson('manifests/marketplace-selection.json');
+const PROFILES = readJson('manifests/install-profiles.json');
+const MODULE_CATALOG = readJson('manifests/module-catalog.json');
 const COMMON_IDS = [
   'change-verdict', 'code-trace', 'create-pr', 'dep-audit', 'flow-drive',
   'flow-guide', 'git-smart-commit', 'git-worktree', 'precommit',
@@ -24,11 +27,11 @@ const COMMON_IDS = [
   'ui-ux-verify', 'update-docs',
 ];
 const HOSTS = [
-  { name: 'Agent', surface: 'agent-plugin', hostOnlyCount: 2, generate: materializeAgentPluginPackage },
-  { name: 'Codex', surface: 'codex-native', hostOnlyCount: 7, generate: materializeNativePackage },
-  { name: 'Cursor', surface: 'cursor-plugin', hostOnlyCount: 2, generate: materializeCursorPackage },
-  { name: 'AGY', surface: 'agy-plugin', hostOnlyCount: 2, generate: materializeAgyPluginPackage },
-  { name: 'Claude', surface: 'claude-core', hostOnlyCount: 15, generate: (options) => claude.materialize({ root: options.root, out: options.outDir }) },
+  { name: 'Agent', surface: 'agent-plugin', generate: materializeAgentPluginPackage },
+  { name: 'Codex', surface: 'codex-native', generate: materializeNativePackage },
+  { name: 'Cursor', surface: 'cursor-plugin', generate: materializeCursorPackage },
+  { name: 'AGY', surface: 'agy-plugin', generate: materializeAgyPluginPackage },
+  { name: 'Claude', surface: 'claude-core', generate: (options) => claude.materialize({ root: options.root, out: options.outDir }) },
 ];
 const inventoryById = new Map(INVENTORY.skills.map((skill) => [skill.id, skill]));
 const CHILDREN = SELECTION.skills.filter((row) => row.selection === 'common' && row.kind !== 'entry');
@@ -79,7 +82,7 @@ function fixture() {
   return { temp, root, outDir };
 }
 
-function generate(host, state) {
+function generate(host, state, profileSelection = null) {
   if (host.name !== 'AGY') fs.mkdirSync(state.outDir, { recursive: true });
   return host.generate({
     root: state.root,
@@ -88,7 +91,26 @@ function generate(host, state) {
     version: '1.2.3',
     sourceVersion: '1.2.3',
     sourceCommit: host.name === 'AGY' ? 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' : 'fixture-source',
+    ...(profileSelection ? { profileSelection } : {}),
   });
+}
+
+function resolveProfileSelection(overrides = {}) {
+  return resolveCapabilitySelection({
+    inventory: INVENTORY,
+    profiles: PROFILES,
+    moduleCatalog: MODULE_CATALOG,
+    ...overrides,
+  });
+}
+
+function commonProfileSelection() {
+  const result = resolveProfileSelection();
+  assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.strictEqual(result.value.profileId, 'common');
+  assert.strictEqual(result.value.selectedStableIds.length, COMMON_IDS.length);
+  assert.deepStrictEqual(result.value.moduleClosure, []);
+  return result.value;
 }
 
 function withFixture(fn) {
@@ -130,7 +152,6 @@ for (const host of HOSTS) {
   test(`${host.name} default generation publishes 15 common owners and only its supported Host-only identities`, () => withFixture((state) => {
     generate(host, state);
     const hostOnly = expectedHostOnly(host);
-    assert.strictEqual(hostOnly.length, host.hostOnlyCount, 'accepted Host-only count changed');
     const commonNames = COMMON_IDS.map((id) => inventoryById.get(id).name).sort();
     assert.strictEqual(commonNames.length, 15);
     if (host.name === 'Cursor') {
@@ -194,6 +215,97 @@ for (const host of HOSTS) {
     assert.deepStrictEqual(after, before, 'failed child validation must preserve the previous owned package bytes');
   }));
 }
+
+test('common profile selection preserves Host publication identities and folded common content', () => withFixture((state) => {
+  const profileSelection = commonProfileSelection();
+  const commonNames = COMMON_IDS.map((id) => inventoryById.get(id).name).sort();
+  const outputs = new Map();
+  for (const host of HOSTS.filter((candidate) => candidate.name !== 'Claude')) {
+    const hostState = { ...state, outDir: path.join(state.temp, `${host.surface}-common-package`) };
+    generate(host, hostState, profileSelection);
+    outputs.set(host.name, hostState.outDir);
+
+    const hostOnlyNames = expectedHostOnly(host).map((skill) => skill.name).sort();
+    const expectedNames = host.name === 'Cursor'
+      ? hostOnlyNames
+      : [...commonNames, ...hostOnlyNames].sort();
+    assert.deepStrictEqual(rootSkillNames(hostState.outDir), expectedNames, `${host.name} common publication entries`);
+
+    const commonRoot = host.name === 'Cursor' ? outputs.get('Agent') : hostState.outDir;
+    const childEntrypoints = filesUnder(commonRoot).filter((relative) => /^skills\/[^/]+\/references\/[^/]+\/SKILL\.md$/.test(relative));
+    assert.strictEqual(childEntrypoints.length, 45, `${host.name} common publication retains every folded child`);
+
+    if (host.name === 'Cursor') {
+      const receipt = readReceipt(hostState.outDir);
+      assert.deepStrictEqual(receipt.sharedSkillIds.slice().sort(), COMMON_IDS.slice().sort());
+      assert.strictEqual(receipt.sharedSkillSurface, 'agent-plugin');
+    }
+  }
+}));
+
+test('Codex verifies the same common selection used to publish Host-only catalog entries', () => withFixture((state) => {
+  const host = HOSTS.find((candidate) => candidate.name === 'Codex');
+  const profileSelection = commonProfileSelection();
+  generate(host, state, profileSelection);
+
+  const hostOnlyIds = expectedHostOnly(host).map((skill) => skill.id).sort();
+  const receipt = readReceipt(state.outDir);
+  assert.deepStrictEqual(receipt.selectedSkillIds.slice().sort(), [...COMMON_IDS, ...hostOnlyIds].sort());
+  assert.deepStrictEqual(receipt.marketplacePublication.publicEntryIds, COMMON_IDS.slice().sort());
+  assert.deepStrictEqual(receipt.marketplacePublication.hostOnlyIds, hostOnlyIds);
+  assert.deepStrictEqual(receipt.selectedStableIds.slice().sort(), COMMON_IDS.slice().sort());
+  assert.deepStrictEqual(receipt.emittedStableIds.slice().sort(), COMMON_IDS.slice().sort());
+
+  const result = verifyNativePackage({
+    packageRoot: state.outDir,
+    inventory: INVENTORY,
+    sourceRoot: state.root,
+    profileSelection,
+    stage: 'structural',
+  });
+  assert.strictEqual(result.ok, true, result.errors.join('; '));
+}));
+
+test('common publication fails closed when its canonical selected IDs drift from public entries', () => withFixture((state) => {
+  const profiles = JSON.parse(JSON.stringify(PROFILES));
+  profiles.profiles.common.skillIds = profiles.profiles.common.skillIds.filter((id) => id !== 'create-pr');
+  const resolved = resolveProfileSelection({ profiles });
+  assert.strictEqual(resolved.ok, true, resolved.error && resolved.error.message);
+  assert.strictEqual(resolved.value.selectedStableIds.length, COMMON_IDS.length - 1);
+  assert.throws(() => loadMarketplaceHostPublication({
+    root: state.root,
+    inventory: INVENTORY,
+    hostSurface: 'codex-native',
+    profileSelection: resolved.value,
+  }), /common.*(match|entry|selection)|(?:match|entry|selection).*common/i);
+}));
+
+test('standalone, overlay, non-common and module-closure selections skip catalog loading', () => withFixture((state) => {
+  const selectionPath = path.join(state.root, 'manifests/marketplace-selection.json');
+  write(selectionPath, '{ invalid JSON');
+  const common = commonProfileSelection();
+  const standalone = resolveProfileSelection({ standaloneSkillIds: ['flow-guide'] });
+  const overlay = resolveProfileSelection({ overlayStableIds: ['create-pr'] });
+  const nonCommon = resolveProfileSelection({ profileId: 'php-only' });
+  for (const resolved of [standalone, overlay, nonCommon]) {
+    assert.strictEqual(resolved.ok, true, resolved.error && resolved.error.message);
+  }
+  const commonWithModuleClosure = { ...common, moduleClosure: ['php-5.6'] };
+  const nonPublications = [
+    standalone.value,
+    overlay.value,
+    nonCommon.value,
+    commonWithModuleClosure,
+  ];
+  for (const profileSelection of nonPublications) {
+    assert.strictEqual(loadMarketplaceHostPublication({
+      root: state.root,
+      inventory: INVENTORY,
+      hostSurface: 'codex-native',
+      profileSelection,
+    }), null);
+  }
+}));
 
 test('rejects an oversized selection manifest before reading its content', () => withFixture((state) => {
   const selectionPath = path.join(state.root, 'manifests/marketplace-selection.json');

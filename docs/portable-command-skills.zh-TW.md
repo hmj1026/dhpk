@@ -14,23 +14,23 @@ Codex 使用 `$<public-name>` 呼叫已安裝的 skill；Claude 原有的
 | `smart-commit` | `$git-smart-commit` |
 | `create-release` | `$release-creator` |
 | `matrix-cell-onboard` | `$matrix-cell-onboard` |
-| `codex-test-gen` | `$tdd-workflow test-generation <target>` |
-| `check-coverage` | `$change-verdict --mode tests --coverage` |
-| `precommit-fast` | `$precommit --fast` |
 | `ts-check-status` | `$js-static-check-strategy status --path <directory>` |
 
-其他通用流程直接使用 command 原名：`create-pr`、`git-worktree`、
+退休 aliases 不再提供入口；請直接使用目前的 portable skill。
+
+其他通用流程直接使用目前的 command 名稱：`create-pr`、`git-worktree`、
 `merge-prep`、`pr-summary`、`project-brief`、`doc-refactor`、`update-docs`、
-`update-codemaps`、`precommit`、`dep-audit`、`harness-audit`、`review-pending`。既有 `flow-guide`、`flow-drive`、`harness-govern` 維持名稱。
+`update-codemaps`、`precommit`、`dep-audit`、`review-pending`。目前的
+`flow-guide` 與 `flow-drive` 維持名稱。
 
 提交、發布、matrix onboarding、TDD 與 JS 靜態檢查的五個既有 skills
 移除 `dhpk-` 前綴；stable ID 與 capability ID 保持不變。
 其他帶前綴的 skills 不受影響。改名紀錄提供診斷，不發布重複的別名 skill。
 
-用途決策清單以 ADR 記錄新增項目；原本 65 個 skills 的歷史基線保持不變，
-目前的決策覆蓋全部 81 個 skills。
+用途決策清單以 ADR 記錄 Skills 的新增；目前 active membership 以
+distribution inventory 為準。
 
-### Runner 與腳本遷移
+### 歷史 Runner 與腳本遷移
 
 下列獨占腳本路徑以 breaking cutover 移除，不發布相容 shim：
 
@@ -38,13 +38,11 @@ Codex 使用 `$<public-name>` 呼叫已安裝的 skill；Claude 原有的
 | --- | --- |
 | `scripts/precommit-runner.js` | `skills/precommit/scripts/` |
 | `scripts/verify-runner.js` | `skills/repo-verify/scripts/` |
-| `scripts/harness-audit.js` | `skills/harness-audit/scripts/` |
 | `scripts/opsx-apply-resume/*.sh` | `skills/opsx-apply-resume/scripts/` |
 
 setup installer 會把完整的本地 tree 複製到
 `.claude/dhpk/skills/precommit/scripts/`、
-`.claude/dhpk/skills/repo-verify/scripts/` 與
-`.claude/dhpk/skills/harness-audit/scripts/`，若 runner 旁有
+`.claude/dhpk/skills/repo-verify/scripts/`，若 runner 旁有
 `lib/runner-utils.js` helper 也一併複製。Skill 會自動從自己的目錄解析
 helper，不依賴 ambient dhpk checkout。resume helpers 由已安裝的
 `opsx-apply-resume` Skill 直接使用；setup installer 不再複製它們，也不會移除
@@ -74,7 +72,7 @@ receipt-aware 流程，不手動覆蓋整個目錄。
   其他 Skill。
 - 多個 Skill 共用的 helper 會複製進每個需要它的 Skill。dhpk 維護者以僅限
   repository 的工具同步這些副本；consumer 不需要執行任何同步或建置步驟。
-- Claude profile bundle 與 AGY package 現在會發布每個選取 Skill 的完整目錄；
+- Claude marketplace package 與 AGY package 會發布每個選取 Skill 的完整目錄；
   過去部分 Skill 只發布 `SKILL.md`。
 - 新的 package receipt 不再包含 `skillPackageClosure`；仍帶有此欄位的舊
   receipt 依然有效。

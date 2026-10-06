@@ -4,12 +4,10 @@
 
 dhpk 在 `.claude-plugin/plugin.json` 中暴露 **76 個 active `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
-Claude 的預設 discovery artifact 是由
-`manifests/distribution-inventory.json` 產生的實體化 `minimal` profile，並非
-直接掃描未過濾的 `skills/` 原始目錄。此 profile 只發布 `change-verdict`、
-`code-trace`、`flow-drive`、`flow-guide`；`full` 與 `compat-v1` 是明確 opt-in 的 profile
-artifact。Agent Plugin 與 Cursor 的發布 membership 維持不變。profile 選擇與
-receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installation.zh-TW.md)。
+`manifests/install-profiles.json` 的 `common` collection 是唯一主要安裝預設。
+舊 `minimal`、`full` 與 `compat-v1` 選擇只保留作為歷史 receipt metadata，不是
+發布選項。Module preset 仍是獨立設定。Host 選擇與 receipt 規則請見
+[`docs/platform-installation.zh-TW.md`](./platform-installation.zh-TW.md)。
 
 ## 在哪裡設定
 
@@ -105,7 +103,7 @@ mode 時預設為 `auto`。這不是 `userConfig` 設定，不會改變 `planner
 | `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | `agy models` 列出的任何模型 | 規範角色 `agy-worker` 派發時傳給 agy CLI 後端的模型顯示字串。Agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。舊別名：`agy_fast_worker_model`。 |
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
-| `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode，以及 `opsx-apply-goal`）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示；適用的 verification gates 仍有效，planner 是否適用依缺少的 outcome 或明確 consult request 決定，不依 task count。 |
+| `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示；適用的 verification gates 仍有效，planner 是否適用依缺少的 outcome 或明確 consult request 決定，不依 task count。 |
 | `cross_provider` | boolean | `false` | `true` \| `false` | 自動 fast-worker 選擇時開放外部候選的 opt-in。`false` 讓 `auto` 僅使用 native 並禁止外部探查；`true` 才依 `fast_worker_backend_order` 檢查。明確的 `--worker=<target>` 仍是定向選取，不會連帶開放其他 provider。 |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 只有在 `cross_provider=true` 時才依 `fast_worker_backend_order` 檢查外部可用性。`/dhpk:flow-drive --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | `cross_provider=true` 時供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。未 opt-in 時會抑制外部項目且不探查。值無效時每個 session 警告一次並使用 shipped 順序。 |

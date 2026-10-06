@@ -19,7 +19,7 @@ HELP=0
 
 usage() {
     cat <<'EOF'
-Usage: install-codex-project.sh --source-artifact DIR [--copy] [--update] [--migrate] [--uninstall] [--plan] [--json] [--profile ID] [--skill ID]... [--adopt TOKEN]... [--force]
+Usage: install-codex-project.sh --source-artifact DIR [--copy] [--update] [--migrate] [--uninstall] [--plan] [--json] [--skill ID]... [--adopt TOKEN]... [--force]
 
 Runs the Skill-local Codex projection installer against the explicit artifact.
 EOF
@@ -79,6 +79,9 @@ require_installer() {
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --profile|--profile=*)
+            printf '[%s] --profile has been retired; fresh installs use the common collection\n' "$ADAPTER_NAME" >&2
+            exit 64 ;;
         --source-artifact)
             [ "$#" -ge 2 ] || { usage >&2; exit 64; }
             SOURCE_ARTIFACT="$2"; shift 2 ;;

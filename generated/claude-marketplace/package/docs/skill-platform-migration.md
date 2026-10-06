@@ -10,29 +10,29 @@ installed.
 Current Codex/Cursor installation routes and rollback boundaries live in the
 [platform installation SSOT](./platform-installation.md).
 
-When moving to the minimal default profile, preview Claude with `bash scripts/install.sh
---dry-run`; use `scripts/hooks/install-codex-skills.sh`,
-`scripts/hooks/install-cursor-harness.sh`, or `node scripts/ci/install-agy-plugin.js
-plan` for the other hosts. A clean install selects the exact four-capability
-minimal profile. Existing receipts keep their recorded selection until explicit
-migration. Structural success never upgrades an unobserved consumer: record
-`NOT_RUN`, missing tooling as `UNAVAILABLE`, and failed prerequisites as
-`BLOCKED`. Generic `dhpk-install` writes remain `NOT_IMPLEMENTED`.
+The `common` collection in `manifests/install-profiles.json` is the sole main
+installation default. Former `minimal`, `full`, and `compat-v1` selections are
+historical receipt metadata, not publication choices. Existing receipts keep
+their recorded selection until explicit migration. Current Host procedures,
+support status, and lifecycle boundaries live in the [platform installation
+SSOT](./platform-installation.md). Structural success never upgrades an
+unobserved consumer: record `NOT_RUN`, missing tooling as `UNAVAILABLE`, and
+failed prerequisites as `BLOCKED`.
 
 ## Current contract
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 81 flat packages at `skills/<public-name>/` |
-| Public identity | 32 public names are unprefixed, including the eight capability families and the portable command skills; the other 49 first-party names retain `dhpk-*` |
+| Canonical source | Inventory-owned Skill packages at `skills/<public-name>/` |
+| Public identity | Stable IDs and public names are owned by the distribution inventory |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
-| Module projection | 37 relative symlinks under `modules/*/skills/` |
-| Codex project projection | 33 relative symlinks under `codex/skills/` (31 invokable plus two internal transport and dispatch-context runtimes) |
-| Codex native package | 33 physical packages under `plugins/dhpk/skills/`; zero symlinks |
+| Module projection | Inventory-selected relative symlinks under `modules/*/skills/` |
+| Codex project projection | Receipt-owned projections under `codex/skills/`, including internal transport and dispatch-context runtimes |
+| Codex native package | Inventory-selected physical packages under `plugins/dhpk/skills/`; no symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
-| Profile sizes | `minimal=4`, `full=55`, `compat-v1=62` before overlays; minimal is `change-verdict`, `code-trace`, `flow-drive`, `flow-guide` |
-| Agent/Cursor/AGY publication | Agent Plugin and AGY each select 52 stable IDs; Cursor native owns 4 overlay entries and shares Agent portable skills |
+| Main installation default | The `common` collection from `manifests/install-profiles.json`; legacy selections remain historical receipt metadata |
+| Host publication | Membership and required Host helpers are owned by the distribution inventory and projection manifests |
 
 Directory placement and README lists are not authoritative. The inventory
 owns stable ids, public names, lifecycle, modules, and publication surfaces;
@@ -64,7 +64,7 @@ Names are deliberately different across host surfaces:
 
 | Surface | Syntax | Example |
 |---|---|---|
-| Claude command | `/dhpk:<command>` | `/dhpk:harness-audit` |
+| Claude command | `/dhpk:<command>` | `/dhpk:precommit` |
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
 | Codex skill | `$<public-skill-name>` after discovery | `$change-verdict --mode code` |
 | Cursor generated command | generated host adapter | Cursor `do` command (`host=cursor`) |
@@ -222,15 +222,15 @@ In 0.65.0, `skill-forge` itself was retired (reason code
 `third-party-text-overlap`), so the `create-skill` and `rules-distill` rows now
 point to the model default instead of a family mode.
 
-## 0.54 capability families and retirement
+## 0.54 capability-family history and retirement
 
-The 0.54 release introduced nine portable families. Eight remain current:
-`skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`, `code-trace`,
-`laravel`, `phpunit`, and `harness-govern`. `skill-forge` was retired in 0.65.0. Every other active
-public name retains the `dhpk-` prefix; `manifests/distribution-inventory.json`
-is the source for the current skill list.
+The 0.54 release introduced nine portable families. The optional-tool
+retirement in 0.65 removed `skill-scope` and `harness-govern`; they are not
+current entry points. The table records release-time interfaces before that
+retirement. Current public names are owned by
+`manifests/distribution-inventory.json`.
 
-| Current family | Interface | Boundary |
+| 0.54 family | Interface | Boundary at that release |
 |---|---|---|
 | `skill-scope` | `health`, `judge`, `stocktake`, `scout` | explicit governance handoff |
 | `flow-guide` | `help`, `route`, `rules`, `next`, `close` | read-only guidance; `route --go` is one bounded handoff |
@@ -340,7 +340,7 @@ to the user scope, and `-y`/`--yes` is required when the update runs without a
 TTY (for example in CI).
 
 Start a fresh Claude session or run `/reload-plugins`. Confirm that
-`/dhpk:setup`, `/dhpk:flow-guide`, `/dhpk:flow-drive`, and `/dhpk:harness-govern` resolve. Project-local
+`/dhpk:setup`, `/dhpk:flow-guide`, `/dhpk:flow-drive`, and `/dhpk:change-verdict` resolve. Project-local
 copies of old dhpk skills are not updated by the marketplace; remove them only
 after confirming they are redundant and version controlled or otherwise
 recoverable.
@@ -382,12 +382,11 @@ bin/dhpk distribution codex-native verify --json
 node tests/run-all.js
 ```
 
-Expected topology is the inventory-owned canonical package count, 31 modules,
-and the inventory-owned Codex project/native entries (invokable skills plus
-internal transport and dispatch-context runtimes), with relative symlinks only
-in module/Codex projections and no symlinks in the native package. The nine
-MCP capability identities above are ledger rows only and are excluded from all
-active counts.
+The distribution validator checks inventory-owned canonical packages and
+project/native projections, including internal transport and dispatch-context
+runtimes. It also checks relative symlinks in module/Codex projections and the
+native package's physical-file policy. The nine MCP capability identities above
+are ledger rows only and are excluded from active publication.
 
 ## Third-party text overlap retirement (0.65.0)
 

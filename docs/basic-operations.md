@@ -14,12 +14,10 @@ This page walks through the operational lifecycle of dhpk: installing it, the da
 
 ## Decision ladder
 
-Clean installs expose exactly four default capabilities: `change-verdict`,
-`code-trace`, `flow-drive`, and `flow-guide`. Use `bash scripts/install.sh` for
-Claude, `scripts/hooks/install-codex-skills.sh` for Codex,
-`scripts/hooks/install-cursor-harness.sh` for Cursor, and
-`node scripts/ci/install-agy-plugin.js plan` before AGY installation. Static
-package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
+The `common` collection in `manifests/install-profiles.json` is the sole main
+installation default. Current Host routes, support status, and receipt handling
+are documented in the [platform installation SSOT](./platform-installation.md).
+Static package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
 `UNAVAILABLE` until the corresponding consumer is observed.
 
 Use this order for a fresh request: **inspect** the repository and session
@@ -96,10 +94,9 @@ Both surfaces read the same `.claude-plugin/marketplace.json` shipped in this re
 
 No clone needed. Fastest path for end users.
 
-The direct GitHub marketplace entry is the raw `dhpk@dhpk` compatibility
-surface. The measured, pre-discovery `minimal` artifact is produced by the
-interactive installer in Path B (or by the profile generator command below)
-until a release publishes that generated package as its marketplace source.
+The GitHub marketplace uses the selected common default collection. Current
+Claude install, update, migration, receipt, and collision procedures are owned
+by the [platform installation SSOT](./platform-installation.md).
 
 ```bash
 # Terminal
@@ -122,7 +119,7 @@ claude plugin install dhpk@dhpk \
   --config hook_profile=standard
 ```
 
-Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.6.0`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docker-setup.md).
+Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.6.0`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated module presets are in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docker-setup.md).
 
 After install, reconfigure any time from inside Claude Code:
 
@@ -143,13 +140,10 @@ claude plugin marketplace add ~/projects/dhpk
 bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
 ```
 
-With no stack modules selected, the script materializes the inventory-owned
-`minimal` profile, registers a local marketplace wrapper, and installs
-`dhpk@dhpk-profile-minimal`; selecting stack modules keeps the explicit raw
-compatibility route. The script walks stack/version selection, docker
-prerequisites, review-agent overrides, and hook profile, then runs
-`claude plugin install` for you. Append `--dry-run` to print the resolved
-commands without executing them.
+With no stack modules selected, the installer uses the selected common default
+collection. The [platform installation SSOT](./platform-installation.md) owns
+the current Host install/update/uninstall commands and receipt behavior; this
+guide keeps the local-clone route as a development entry point.
 
 Validate the local checkout with the source gates:
 
@@ -275,10 +269,8 @@ Use the skill groups below as a reusable decision ladder:
 | Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore\|diagnose\|history` |
 | Read-only verdict | `change-verdict` (`code\|pr\|security\|tests\|docs\|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
 | Delivery / implementation prep | `tdd-workflow`, `module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `tdd-workflow` + scoped verification |
-| OpenSpec session control | `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`, `dhpk-opsx-apply-goal` | Resume / handoff an OpenSpec edit sequence. | `dhpk-opsx-apply-goal <change-id>` for long-run, `dhpk-opsx-load-context` for resume |
-| Harness and platform hygiene | `harness-govern` (`health\|budget\|fill\|revise\|sync`) | Keep plugin/sync state clean and repeatable across environments. | `$harness-govern health --dry-run` (read-first) |
-| Skill governance | `skill-scope` | Audit and compare skill quality or usage | `skill-scope` for quick checks |
-| Git / release prep | `git-smart-commit`, `release-creator`, `dhpk-deploy-list`, `dhpk-project-setup` | Group commits, prepare release and deploy artifacts, set up repo policy. | `dhpk-project-setup` → `git-smart-commit` / `release-creator` |
+| OpenSpec session handoff | `opsx-apply-resume`, `dhpk-opsx-load-context`, `dhpk-opsx-post-observation` | Resume and save evidence for an existing change. | `opsx-apply-resume <change-id>` |
+| Git / release prep | `git-smart-commit`, `release-creator`, `dhpk-deploy-list` | Group commits and prepare release or deploy artifacts. | Explicitly invoke the selected owner. |
 
 ### Parameter quick reference
 
@@ -289,7 +281,6 @@ Use the skill groups below as a reusable decision ladder:
 | `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
 | `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `tdd-workflow` | `test-generation` `fast-worker` `standard` |
-| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm\|Nh>` `--min-coverage N` `--smoke\|--no-smoke` |
 | `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
 
 Use the lane first, then reduce flags: fewer inputs -> fewer routing misses and cleaner outputs.
@@ -433,37 +424,23 @@ runtime proof; see [`docs/harness-workflow.md`](./harness-workflow.md).
 
 <a id="6-unattended-openspec-session-large-uncertainty-on-ramp"></a>
 
-### Explicit long-running OpenSpec session
+### OpenSpec session retirement and handoff
 
-Use this only when an existing change should generate a bounded paste-ready
-`/goal` session:
-
-```text
-/dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
-```
-
-`<change-id>` is the directory name under `openspec/changes/`, not free text.
-`--turns N`, `--max-duration`, `--min-coverage`, `--smoke`,
-`--no-smoke`, and `--dry-run` constrain the generated session. Turn/time limits
-write `.resume-note.md`; human-only work is `[blocked: <reason>]`; hard-rule
-conflicts write `.hard-rule-escalation.md` with file:line evidence. The generated
-goal keeps the selector-resolved worker, applicable specialist reviewers, and
-completion gates; it never removes required gates to fit the roughly 4,000
-UTF-8-byte paste ceiling.
+The unattended goal generator is retired. External `/opsx:apply` remains unchanged.
+`opsx-apply-resume` retains save/resume for existing changes, and its context
+loader reads existing `.hard-rule-escalation.md` and `.resume-note.md` artifacts.
+This does not provide the former goal loop.
 
 ### Standalone assistance workflows
 
 ```text
 /dhpk:flow-guide route write E2E tests for the checkout flow
-/dhpk:harness-audit
-/dhpk:harness-govern
-/dhpk:harness-govern --fix
 ```
 
 E2E work is
 owned by `e2e-runner` and may write only specs, helpers, fixtures, and artifacts;
-application failures return a worker-ready fix spec. Harness audit is read-only;
-govern is read-only unless `--fix` is supplied. Structural changes also route
+application failures return a worker-ready fix spec. Dedicated harness audit
+and governance workflows are retired. Structural changes also route
 `doc-updater` to refresh codemaps and user-facing docs.
 
 ### Implementation dispatch
@@ -667,7 +644,7 @@ The root `package.json` is private and has zero dependencies. It offers two kind
 | | `npm run test:hooks` | Hook tests |
 | | `npm run test:one -- tests/<name>.test.js` | One test file |
 | Validate | `npm run validate` | Every CI validator (`validate:*`) |
-| | `npm run check:generated` | Generated manifest, marketplace, profile, skill-resource, and package drift checks |
+| | `npm run check:generated` | Generated manifest, marketplace, skill-resource, and package drift checks |
 | | `npm run check:portability` | Portability check |
 | | `npm run catalog:check` | `catalog.js --check all` |
 | | `npm run ci` | `validate` + `check:generated` + `catalog:check` + `test` |

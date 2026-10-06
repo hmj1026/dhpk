@@ -221,7 +221,7 @@ test('--install all copies hooks and scripts and writes the rules stub', () => {
     assert.ok(fs.existsSync(rulesStubPath(ctx.target)));
     assert.ok(!fs.existsSync(path.join(ctx.target, 'rules')));
     assert.ok(fs.existsSync(path.join(ctx.target, 'scripts', 'lib', 'runner.js')));
-    assert.ok(fs.existsSync(path.join(ctx.target, 'skills', 'harness-audit', 'scripts', 'harness-audit.js')));
+    assert.ok(!fs.existsSync(path.join(ctx.target, 'skills', 'harness-audit', 'scripts', 'harness-audit.js')));
   } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
 });
 
@@ -319,14 +319,13 @@ for (const group of ['scripts', 'all']) {
         ['precommit', 'scripts/lib/runner-utils.js'],
         ['repo-verify', 'scripts/verify-runner.js'],
         ['repo-verify', 'scripts/lib/runner-utils.js'],
-        ['harness-audit', 'scripts/harness-audit.js'],
       ]) {
         const target = path.join(ctx.target, 'skills', skill, relative);
         assert.ok(fs.existsSync(target), `missing Skill resource: ${target}`);
       }
       assert.ok((fs.statSync(path.join(ctx.target, 'skills', 'precommit', 'scripts', 'precommit-runner.js')).mode & 0o100) !== 0);
       assert.ok((fs.statSync(path.join(ctx.target, 'skills', 'repo-verify', 'scripts', 'verify-runner.js')).mode & 0o100) !== 0);
-      assert.ok((fs.statSync(path.join(ctx.target, 'skills', 'harness-audit', 'scripts', 'harness-audit.js')).mode & 0o100) !== 0);
+      assert.ok(!fs.existsSync(path.join(ctx.target, 'skills', 'harness-audit')));
       assert.ok(!fs.existsSync(path.join(ctx.target, 'scripts', 'harness-audit.js')),
         'clean installation must not distribute an old root harness-audit runner shim');
     } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
@@ -348,16 +347,15 @@ for (const group of ['scripts', 'all']) {
 }
 
 for (const group of ['scripts', 'all']) {
-  test(`--install ${group} preflights the required harness-audit runner before mutation`, () => {
+  test(`--install ${group} installs retained runners without the retired harness-audit package`, () => {
     const ctx = fixture();
     try {
-      fs.rmSync(path.join(ctx.source, 'skills', 'harness-audit', 'scripts', 'harness-audit.js'));
-      const before = fileSnapshot(ctx.target);
+      fs.rmSync(path.join(ctx.source, 'skills', 'harness-audit'), { recursive: true });
       const res = install(ctx, ['--install', group]);
-      assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
-      assert.match(`${res.stdout}\n${res.stderr}`, /missing|required|harness-audit/i);
-      assert.deepStrictEqual(fileSnapshot(ctx.target), before,
-        'missing required harness-audit runner must not mutate the target');
+      assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+      assert.ok(fs.existsSync(path.join(ctx.target, 'skills', 'precommit', 'scripts', 'precommit-runner.js')));
+      assert.ok(fs.existsSync(path.join(ctx.target, 'skills', 'repo-verify', 'scripts', 'verify-runner.js')));
+      assert.ok(!fs.existsSync(path.join(ctx.target, 'skills', 'harness-audit')));
     } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
   });
 }
