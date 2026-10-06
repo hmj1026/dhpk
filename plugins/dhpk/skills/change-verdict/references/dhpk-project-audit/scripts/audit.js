@@ -596,7 +596,7 @@ function buildNextActions(checks) {
     // Map specific checks to commands
     if (c.id === 'oss-readme') { action.command = qualifyCommand('/update-docs'); action.confidence = 0.8; }
     else if (c.id === 'robustness-ci') { action.confidence = 0.6; }
-    else if (c.id === 'robustness-test-ratio') { action.command = qualifyCommand('/codex-test-gen'); action.confidence = 0.7; }
+    else if (c.id === 'robustness-test-ratio') { action.command = qualifyCommand('/dhpk:tdd-workflow test-generation'); action.confidence = 0.7; }
     else if (c.id === 'runnability-manifest') { action.confidence = 0.9; }
     else { action.confidence = 0.5; }
     actions.push(action);

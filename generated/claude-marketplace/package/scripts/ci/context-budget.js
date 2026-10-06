@@ -244,7 +244,7 @@ function inspectAggregateDiscoveryContext({
   inventory,
   readDescription = null,
   selectedStableIds = null,
-  profileId = 'minimal',
+  profileId = 'common',
   surface = 'claude-core',
   budgets = null,
   baseline = null,
@@ -254,11 +254,17 @@ function inspectAggregateDiscoveryContext({
 } = {}) {
   const manifest = budgets ? { aggregate: budgets.aggregate, estimator: budgets.estimator } : loadDiscoveryBudgetManifest(root);
   const aggregate = manifest.aggregate || {};
-  const selected = new Set(Array.isArray(selectedStableIds)
-    ? selectedStableIds
-    : inventory && inventory.profile_policy && Array.isArray(inventory.profile_policy.required_core_ids)
-      ? inventory.profile_policy.required_core_ids
-      : []);
+  let defaultSelection = selectedStableIds;
+  if (!Array.isArray(defaultSelection)) {
+    const installProfilesPath = path.join(root, 'manifests', 'install-profiles.json');
+    const installProfiles = JSON.parse(fs.readFileSync(installProfilesPath, 'utf8'));
+    const commonProfile = installProfiles.profiles && installProfiles.profiles.common;
+    if (!commonProfile || !Array.isArray(commonProfile.skillIds)) {
+      throw new Error('install profiles must declare profiles.common.skillIds for aggregate discovery measurement');
+    }
+    defaultSelection = commonProfile.skillIds;
+  }
+  const selected = new Set(defaultSelection);
   const reader = readDescription || ((entry) => defaultReadDescription(root, entry));
   const skills = ((inventory && inventory.skills) || []).filter((skill) => {
     if (!selected.has(skill.id)) return false;

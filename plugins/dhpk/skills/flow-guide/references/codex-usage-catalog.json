@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:d5b3e1c91e4bed42b97b4124ad00b6833f5645870172ff6090451630beda53e4",
+  "sourceInventoryRevision": "sha256:15483ffa26ce92afe0e39a045cf96a28272a981e00e9024fa536d7bf729a4b53",
   "entries": [
     {
       "id": "change-verdict",
@@ -1041,7 +1041,7 @@
       "usageFingerprint": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
     }
   ],
-  "sourceSelectionDigest": "eb367fad6a7525ca68ef4e3348123442dfa54e8a9feea5b02ec60872b756f092",
+  "sourceSelectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
   "runtimeIndex": {
     "targets": {
       "agy-fast-worker": {
@@ -1170,62 +1170,6 @@
         "command": "$git-worktree [<operation>] [--branch=<name>] [--base=<ref>]",
         "codexInvokable": true
       },
-      "gitnexus-cli": {
-        "id": "gitnexus-cli",
-        "publicName": "dhpk-gitnexus-cli",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-cli <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-debugging": {
-        "id": "gitnexus-debugging",
-        "publicName": "dhpk-gitnexus-debugging",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-debugging <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-exploring": {
-        "id": "gitnexus-exploring",
-        "publicName": "dhpk-gitnexus-exploring",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-exploring <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-guide": {
-        "id": "gitnexus-guide",
-        "publicName": "dhpk-gitnexus-guide",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-guide <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-impact-analysis": {
-        "id": "gitnexus-impact-analysis",
-        "publicName": "dhpk-gitnexus-impact-analysis",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-impact-analysis <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-refactoring": {
-        "id": "gitnexus-refactoring",
-        "publicName": "dhpk-gitnexus-refactoring",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-refactoring <input>",
-        "codexInvokable": false
-      },
-      "harness-audit": {
-        "id": "harness-audit",
-        "publicName": "harness-audit",
-        "invocationClass": "implicit-eligible",
-        "command": "$harness-audit <input>",
-        "codexInvokable": false
-      },
-      "harness-govern": {
-        "id": "harness-govern",
-        "publicName": "harness-govern",
-        "invocationClass": "explicit-only",
-        "command": "$harness-govern <input>",
-        "codexInvokable": false
-      },
       "harness-setup": {
         "id": "harness-setup",
         "publicName": "harness-setup",
@@ -1338,13 +1282,6 @@
         "command": "$dhpk-openspec-artifact-guard <input>",
         "codexInvokable": false
       },
-      "opsx-apply-goal": {
-        "id": "opsx-apply-goal",
-        "publicName": "dhpk-opsx-apply-goal",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-opsx-apply-goal <input>",
-        "codexInvokable": false
-      },
       "opsx-apply-resume": {
         "id": "opsx-apply-resume",
         "publicName": "opsx-apply-resume",
@@ -1436,20 +1373,6 @@
         "command": "$project-brief <input>",
         "codexInvokable": false
       },
-      "project-setup": {
-        "id": "project-setup",
-        "publicName": "dhpk-project-setup",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-project-setup <input>",
-        "codexInvokable": false
-      },
-      "prompt-optimize": {
-        "id": "prompt-optimize",
-        "publicName": "dhpk-prompt-optimize",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-prompt-optimize <input>",
-        "codexInvokable": false
-      },
       "proposal-analyze": {
         "id": "proposal-analyze",
         "publicName": "proposal-analyze",
@@ -1518,20 +1441,6 @@
         "publicName": "review-pending",
         "invocationClass": "implicit-eligible",
         "command": "$review-pending <input>",
-        "codexInvokable": false
-      },
-      "session-usage-audit": {
-        "id": "session-usage-audit",
-        "publicName": "dhpk-session-usage-audit",
-        "invocationClass": "explicit-only",
-        "command": "$dhpk-session-usage-audit <input>",
-        "codexInvokable": false
-      },
-      "skill-scope": {
-        "id": "skill-scope",
-        "publicName": "skill-scope",
-        "invocationClass": "implicit-eligible",
-        "command": "$skill-scope <input>",
         "codexInvokable": false
       },
       "software-architecture": {
@@ -1789,6 +1698,10 @@
         "target": "flow-guide",
         "disposition": "retired"
       },
+      "dhpk-opsx-apply-goal": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
       "dhpk-phpunit": {
         "target": "phpunit",
         "disposition": "renamed"
@@ -1813,6 +1726,14 @@
         "target": "change-verdict",
         "disposition": "retired"
       },
+      "dhpk-project-setup": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-prompt-optimize": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
       "dhpk-release-creator": {
         "target": "release-creator",
         "disposition": "renamed"
@@ -1831,6 +1752,10 @@
       },
       "dhpk-security-review": {
         "target": "change-verdict",
+        "disposition": "retired"
+      },
+      "dhpk-session-usage-audit": {
+        "target": "flow-guide",
         "disposition": "retired"
       },
       "dhpk-skill-health-audit": {
@@ -1873,29 +1798,13 @@
         "target": "dhpk-feature-verify",
         "disposition": "legacy"
       },
-      "gitnexus-cli": {
-        "target": "dhpk-gitnexus-cli",
-        "disposition": "legacy"
+      "harness-audit": {
+        "target": "flow-guide",
+        "disposition": "retired"
       },
-      "gitnexus-debugging": {
-        "target": "dhpk-gitnexus-debugging",
-        "disposition": "legacy"
-      },
-      "gitnexus-exploring": {
-        "target": "dhpk-gitnexus-exploring",
-        "disposition": "legacy"
-      },
-      "gitnexus-guide": {
-        "target": "dhpk-gitnexus-guide",
-        "disposition": "legacy"
-      },
-      "gitnexus-impact-analysis": {
-        "target": "dhpk-gitnexus-impact-analysis",
-        "disposition": "legacy"
-      },
-      "gitnexus-refactoring": {
-        "target": "dhpk-gitnexus-refactoring",
-        "disposition": "legacy"
+      "harness-govern": {
+        "target": "flow-guide",
+        "disposition": "retired"
       },
       "ios-icon-gen": {
         "target": "dhpk-ios-icon-gen",
@@ -1941,10 +1850,6 @@
         "target": "dhpk-openspec-artifact-guard",
         "disposition": "legacy"
       },
-      "opsx-apply-goal": {
-        "target": "dhpk-opsx-apply-goal",
-        "disposition": "legacy"
-      },
       "opsx-load-context": {
         "target": "dhpk-opsx-load-context",
         "disposition": "legacy"
@@ -1977,14 +1882,6 @@
         "target": "dhpk-project-audit",
         "disposition": "legacy"
       },
-      "project-setup": {
-        "target": "dhpk-project-setup",
-        "disposition": "legacy"
-      },
-      "prompt-optimize": {
-        "target": "dhpk-prompt-optimize",
-        "disposition": "legacy"
-      },
       "pytest-async": {
         "target": "dhpk-pytest-async",
         "disposition": "legacy"
@@ -2009,11 +1906,11 @@
         "target": "dhpk-repo-intake",
         "disposition": "legacy"
       },
-      "session-usage-audit": {
-        "target": "dhpk-session-usage-audit",
-        "disposition": "legacy"
-      },
       "skill-forge": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "skill-scope": {
         "target": "flow-guide",
         "disposition": "retired"
       },

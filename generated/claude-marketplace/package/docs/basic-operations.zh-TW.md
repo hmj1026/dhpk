@@ -260,10 +260,8 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | 根因分析 | `code-trace` | 熟悉程式、追查回歸、看歷史變更 | `code-trace --mode explore\|diagnose\|history` |
 | 只讀審閱 | `change-verdict`（`code\|pr\|security\|tests\|docs\|risk`） | 審查既有 diff、PR、文件、安全與風險 | 單一 `--mode` |
 | 交付前置 | `tdd-workflow`、`module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `tdd-workflow` 做 RED |
-| OpenSpec 續作 | `dhpk-opsx-load-context`、`dhpk-opsx-post-observation`、`dhpk-opsx-apply-goal` | 續接 / 交付長時間 `/opsx:apply` 工作流 | 長跑用 `dhpk-opsx-apply-goal <change-id>`，續場景用 `dhpk-opsx-load-context` |
-| Harness / 平台 | `harness-govern`（`health\|budget\|fill\|revise\|sync`） | 同步跨 host 的 harness、plugin、版本與規格 | 先 `$harness-govern health --dry-run` |
-| 技能治理 | `skill-scope` | 稽核、比較 skill 品質 | 快速盤點用 `skill-scope` |
-| Git / 發版準備 | `git-smart-commit`、`release-creator`、`dhpk-deploy-list`、`dhpk-project-setup` | 大量變更分群提交、發版、部署檔清單、專案初始化 | `dhpk-project-setup` 後接 `git-smart-commit` / `release-creator` |
+| OpenSpec 續作 | `opsx-apply-resume`、`dhpk-opsx-load-context`、`dhpk-opsx-post-observation` | 儲存或續接既有 change 證據 | `opsx-apply-resume <change-id>` |
+| Git / 發版準備 | `git-smart-commit`、`release-creator`、`dhpk-deploy-list` | 分群提交、發版與部署檔清單 | 明確呼叫所選 owner |
 
 ### 參數速查
 
@@ -274,7 +272,6 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
 | `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `tdd-workflow` | `test-generation` `fast-worker` `standard` |
-| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm\|Nh>` `--min-coverage N` `--smoke\|--no-smoke` |
 | `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
 
 建議原則：先選對群組再補齊最少參數，路由與回呼會更穩定。
@@ -395,33 +392,21 @@ gate。dhpk 不會默默執行 formatter、lint、lockfile 或 Stop advisory scr
 `NOT_RUN`、`UNAVAILABLE` 或 `NO_SHIP`。Release 或 consumer 結果必須將 structural／package
 證據與 live runtime proof 分開；請看 [`docs/harness-workflow.md`](./harness-workflow.md)。
 
-### 明確的長時間 OpenSpec session
+### OpenSpec session 退役與續作
 
-只有既有 change 需要產生有界、可貼上的 `/goal` session 時才使用：
-
-```text
-/dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
-```
-
-`<change-id>` 是 `openspec/changes/` 下的 directory name，不是自由文字。
-`--turns N`、`--max-duration`、`--min-coverage`、`--smoke`、`--no-smoke` 與
-`--dry-run` 都可約束產生的 session。turn／time limit 會寫 `.resume-note.md`；human-only
-work 標為 `[blocked: <reason>]`；hard-rule conflict 會以 file:line evidence 寫入
-`.hard-rule-escalation.md`。Generated goal 保留 selector-resolved worker、適用的 specialist
-reviewer 與 completion gate，不會為了約 4,000 UTF-8-byte 的 paste ceiling 而刪除必要 gate。
+無人值守 goal 產生入口已退役。外部 `/opsx:apply` 不變；
+`opsx-apply-resume` 保留既有 change 的 save／resume，context loader 保留
+`.hard-rule-escalation.md` 與 `.resume-note.md` 的讀取。這不提供原有 goal loop。
 
 ### 獨立協助工作流
 
 ```text
 /dhpk:flow-guide route write E2E tests for the checkout flow
-/dhpk:harness-audit
-/dhpk:harness-govern
-/dhpk:harness-govern --fix
 ```
 
 E2E 工作由 `e2e-runner`
 負責，只能寫 spec、helper、fixture 與 artifact；application failure 會回傳 worker-ready
-fix spec。Harness audit 是 read-only；govern 只有在加上 `--fix` 時才會修改。Structural change
+fix spec。專用 harness audit 與治理工作流已退役。Structural change
 也會路由 `doc-updater` 更新 codemap 與使用者文件。
 
 ### Implementation dispatch

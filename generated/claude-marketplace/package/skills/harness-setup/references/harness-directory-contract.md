@@ -15,5 +15,6 @@ Normalize any environment hint through the same allowlist; never pass an
 arbitrary path through unchanged. Set `HARNESS_DIR` to the selected directory and derive the matching primary
 rule file (`CLAUDE.md` or `AGENTS.md`) before scanning. Never
 silently switch directories or treat a missing script directory as an empty
-harness. The owning implementation and deterministic examples live in
-`skills/harness-govern/SKILL.md` and its `scripts/` directory.
+harness. The retained setup owner is `harness-setup`; its package-local Host adapters
+define installation and inspection behavior. This directory contract does not
+provide the retired governance audit or scenario runners.

@@ -30,21 +30,19 @@ audit、prompt optimization 與 stack-specific skills 都是明確選裝，不�
 | 還沒有 proposal 或 OpenSpec artifacts | 外部 `$openspec-propose`，再依流程使用 `/opsx:apply` | proposal authoring 不屬於 `flow-drive` |
 | 要分組 Git commit | `$git-smart-commit` | `git-smart-commit` stable ID 與 public name 保持不變；需要明確 Git authority |
 
-## 八個 portable family
+##  portable family
 
 family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 collision-safe 的
 `dhpk-*` 名稱。每個 family 只保留一個窄入口，mode/selector 由 usage card 揭露。
 
 | Family | 何時使用 | 可用 action / selector | 不負責 |
 |---|---|---|---|
-| [`skill-scope`](../skills/skill-scope/SKILL.md) | 稽核、比較或盤點技能治理 | `health`、`judge`、`stocktake`、`scout` | 不直接 author skill |
 | [`flow-guide`](../skills/flow-guide/SKILL.md) | 需要 usage、路由、政策、下一步或收尾建議 | `help`、`route`、`rules`、`next`、`close` | 不執行 explicit-only target |
 | [`flow-drive`](../skills/flow-drive/SKILL.md) | specification、目標與 acceptance 已確認 | 無 mode；confirmed change/spec | 不分類、選 route、author proposal 或 release |
 | [`change-verdict`](../skills/change-verdict/SKILL.md) | 對 code、PR、security、tests、docs 或 risk 做唯讀判斷 | `code`、`pr`、`security`、`tests`、`docs`、`risk` | 不代替修復或 commit |
 | [`code-trace`](../skills/code-trace/SKILL.md) | 探索程式、診斷、查歷史或選工具 | `explore`、`diagnose`、`history`、`select-tool` | 不在未確認根因時直接修復 |
 | [`laravel`](../skills/flow-drive/references/laravel/SKILL.md) | Laravel 版本相容性與實作指引 | `5.4`、`6`、`7`、`8`、`9`、`10`、`11`、`mix` | 不再使用版本 note skill 名稱 |
 | [`phpunit`](../skills/tdd-workflow/references/phpunit/SKILL.md) | PHPUnit 版本與測試相容性 | `9`、`10`、`11` | 不再使用版本 note skill 名稱 |
-| [`harness-govern`](../skills/harness-govern/SKILL.md) | harness 健康、預算、補齊、修訂或同步 | `health`、`budget`、`fill`、`revise`、`sync` | 不拆回五個窄 predecessor |
 
 ## 已確認 implementation 的參數
 
@@ -83,8 +81,7 @@ Git、release、setup、review 與其他 slash command 的完整清單在
 
 - `git-smart-commit` 保留原 stable ID/public name；`agy-commit` 退役，不產生 alias。
 - Laravel/PHPUnit version note 名稱改由 family selector 承接。
-- `claude-health`、`harness-budget`、`harness-fill`、`harness-revise`、
-  `multi-ai-sync` 改由 `harness-govern` modes 承接。
+- Harness governance 與專用技能 scoring／stocktake 已退役；基本套件不提供這些獨立入口。
 - `feasibility-study`、`tech-spec`、`create-request` 不再是 dhpk discovery
   skill；提案交給外部 `$openspec-propose`，方案比較見
   [`feasibility comparison guidance`](./agent-guidance/feasibility-comparison.md)。

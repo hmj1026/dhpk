@@ -444,10 +444,10 @@ function compileNativePackage({
   const routingProjection = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
   const traversalBudget = createTraversalBudget(traversalOptions);
 
-  const hostPublication = !profileSelection && selectionMode !== 'legacy'
-    ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'codex-native' })
+  const hostPublication = selectionMode !== 'legacy'
+    ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'codex-native', profileSelection })
     : null;
-  const selection = selectionMode === 'legacy' || hostPublication
+  const selection = selectionMode === 'legacy' || (hostPublication && !profileSelection)
     ? null
     : compileDistribution({ inventory, surface: 'codex-native', profileSelection });
   if (selection && !selection.ok) throw new Error(selection.error.message);
@@ -631,7 +631,9 @@ function compileNativePackage({
       profileId: profileSelection.profileId || profileSelection.id,
       selectedStableIds: profileSelection.selectedStableIds,
       canonicalSelectedStableIds: profileSelection.selectedStableIds,
-      emittedStableIds: selectedSkillIds,
+      emittedStableIds: hostPublication && profileSelection
+        ? (profileSelection.emittedStableIds || profileSelection.selectedStableIds)
+        : selectedSkillIds,
       compatibilityMode: profileSelection.compatibilityMode || profileSelection.mode || null,
       selectionPolicyVersion: profileSelection.selectionPolicyVersion || null,
       selectionFingerprint: profileSelection.selectionFingerprint || null,
@@ -694,7 +696,7 @@ function compileNativePackage({
     selectionPolicy: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
       ? selection.value.selectionPolicy
       : undefined,
-    selectionEntries: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
+    selectionEntries: selection && selection.ok && selection.value.selectionPolicy
       ? (selection.value.selectionEntries || selection.value.entries).map((entry) => {
         const skill = (inventory.skills || []).find((candidate) => candidate.id === entry.stableId || candidate.id === entry.skillId);
         return skill ? {
@@ -708,8 +710,17 @@ function compileNativePackage({
         } : entry;
       })
       : undefined,
-    profileSelection: profileSelection ? { ...profileSelection, emittedStableIds: selectedSkillIds } : null,
-    emittedStableIds: profileSelection ? selectedSkillIds : undefined,
+    profileSelection: profileSelection ? {
+      ...profileSelection,
+      emittedStableIds: hostPublication
+        ? (profileSelection.emittedStableIds || profileSelection.selectedStableIds)
+        : selectedSkillIds,
+    } : null,
+    emittedStableIds: profileSelection
+      ? (hostPublication
+        ? (profileSelection.emittedStableIds || profileSelection.selectedStableIds)
+        : selectedSkillIds)
+      : undefined,
     selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
     surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
   });
@@ -904,8 +915,8 @@ function verifyNativePackage({
     };
   }
   const manifest = readNativeManifest(resolvedPackageRoot) || {};
-  const hostPublication = !profileSelection && sourceRoot
-    ? loadMarketplaceHostPublication({ root: sourceRoot, inventory, hostSurface: 'codex-native' })
+  const hostPublication = sourceRoot
+    ? loadMarketplaceHostPublication({ root: sourceRoot, inventory, hostSurface: 'codex-native', profileSelection })
     : null;
   const manifestSkillsField = typeof manifest.skills === 'string' ? manifest.skills : './skills/';
   const structural = validateNativeCandidate({ manifestSkillsField, packageRoot: resolvedPackageRoot });

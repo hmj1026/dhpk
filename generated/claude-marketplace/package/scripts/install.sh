@@ -6,7 +6,7 @@
 #   bash ~/projects/dhpk/scripts/install.sh --dry-run # print resolved command, do not execute
 #   bash ~/projects/dhpk/scripts/install.sh --print   # alias for --dry-run
 #   bash ~/projects/dhpk/scripts/install.sh --dry-run --non-interactive
-#                                  # no prompts: materialized minimal package profile; hook profile defaults to standard
+#                                  # no prompts: existing main Claude marketplace; hook profile defaults to standard
 #   bash ~/projects/dhpk/scripts/install.sh --non-interactive --yes
 #                                  # no prompts and auto-confirm "Run this now?"
 #   --non-interactive   skip every prompt (no preset, stack, docker, or review-agent choice)
@@ -19,11 +19,12 @@
 #   1. Prerequisite check
 #   2. Quick preset OR custom flow
 #   3. (Custom) stack multi-select → per-stack version → docker → review agents → hook profile
-#   4. Dry-run summary, then installs the materialized `minimal` profile for a
-#      clean default (or the compatibility root for an explicit module flow).
+#   4. Dry-run summary, then installs the existing main `dhpk@dhpk` package with
+#      any selected module configuration.
 #
 # All knowledge of available modules lives in manifests/module-catalog.json (SSOT).
-# Presets in manifests/install-profiles.json remain as fast paths.
+# Language/module presets in manifests/install-profiles.json remain as fast paths;
+# `common` is the main marketplace default rather than a selectable preset.
 
 set -u
 
@@ -31,11 +32,6 @@ PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CATALOG="$PLUGIN_ROOT/manifests/module-catalog.json"
 PROFILES="$PLUGIN_ROOT/manifests/install-profiles.json"
 DOCKER_DOC="$PLUGIN_ROOT/docs/docker-setup.md"
-PROFILE_GENERATOR="$PLUGIN_ROOT/scripts/ci/gen-claude-profile-bundles.js"
-PROFILE_ID="minimal"
-PROFILE_MARKETPLACE="dhpk-profile-minimal"
-PROFILE_OUTPUT_ROOT="${DHPK_CLAUDE_PROFILE_OUT:-$PLUGIN_ROOT/generated/claude-profiles/$PROFILE_ID}"
-PROFILE_PACKAGE_ROOT="$PROFILE_OUTPUT_ROOT/package"
 
 # shellcheck source=lib/install-prompts.sh
 source "$PLUGIN_ROOT/scripts/lib/install-prompts.sh"
@@ -54,6 +50,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --non-interactive) NON_INTERACTIVE=1; shift ;;
     --yes) ASSUME_YES=1; shift ;;
+    --profile|--profile=*)
+      echo "[install] --profile has been retired; fresh installs use the common collection" >&2
+      exit 64
+      ;;
     --hook-profile)
       if [[ $# -lt 2 || "$2" == --* || -z "$2" ]]; then
         echo "[install] ERROR hook-profile: --hook-profile requires a profile id (minimal|standard|strict); no installation started." >&2
@@ -193,7 +193,7 @@ PY
 dhpk_profile_ids() {
   local profiles_path="$1"
   if [[ $DHPK_PROMPTS_USE_JQ -eq 1 ]]; then
-    jq -r '.profiles | keys[]' "$profiles_path"
+    jq -r '.profiles | keys[] | select(. != "common")' "$profiles_path"
     return $?
   fi
   python3 - "$profiles_path" <<'PY'
@@ -204,6 +204,8 @@ try:
     with open(sys.argv[1], encoding="utf-8") as profile_file:
         profiles = json.load(profile_file)["profiles"]
     for name in profiles:
+        if name == "common":
+            continue
         print(name)
 except (OSError, AttributeError, TypeError, ValueError, KeyError, json.JSONDecodeError):
     sys.exit(1)
@@ -244,60 +246,6 @@ try:
 except (OSError, AttributeError, TypeError, ValueError, KeyError, json.JSONDecodeError):
     sys.exit(1)
 PY
-}
-
-# The checked-in profile generator is required for the default materialized
-# profile.  Explicit module/preset flows may still use the compatibility
-# marketplace route, but a missing generator or Node runtime must never make a
-# clean default silently broaden to the root compatibility package.
-dhpk_profile_generator_available() {
-  [[ -f "$PROFILE_GENERATOR" ]] && command -v node >/dev/null 2>&1
-}
-
-# Claude's plugin installer resolves profile packages through a marketplace.
-# The profile generator deliberately emits only the physical package, so add a
-# small local marketplace wrapper beside it before invoking the client.  The
-# wrapper name matches the receipt's consumerPluginId
-# (dhpk@dhpk-profile-minimal).
-dhpk_write_profile_marketplace() {
-  local output_root="$1"
-  local marketplace_root="$output_root/.claude-plugin"
-  if ! mkdir -p "$marketplace_root"; then
-    return 1
-  fi
-  printf '%s\n' \
-    '{' \
-    '  "$schema": "https://json.schemastore.org/claude-code-plugin-marketplace.json",' \
-    '  "name": "dhpk-profile-minimal",' \
-    '  "description": "Materialized dhpk Claude minimal profile.",' \
-    '  "owner": {' \
-    '    "name": "hmj1026",' \
-    '    "url": "https://github.com/hmj1026"' \
-    '  },' \
-    '  "plugins": [' \
-    '    {' \
-    '      "name": "dhpk",' \
-    '      "source": "./package",' \
-    '      "description": "Materialized dhpk Claude minimal profile package."' \
-    '    }' \
-    '  ]' \
-    '}' > "$marketplace_root/marketplace.json"
-}
-
-# Materialize and bind the default profile only after the user confirms an
-# actual install.  Dry-run stays side-effect free while still showing the
-# exact marketplace/install route that would be used.
-dhpk_materialize_profile() {
-  if ! dhpk_profile_generator_available; then
-    return 2
-  fi
-  if ! node "$PROFILE_GENERATOR" --profile "$PROFILE_ID" --out "$PROFILE_OUTPUT_ROOT" >/dev/null 2>&1; then
-    return 1
-  fi
-  if [[ ! -f "$PROFILE_PACKAGE_ROOT/plugin.json" || ! -f "$PROFILE_PACKAGE_ROOT/bundle-receipt.json" ]]; then
-    return 1
-  fi
-  dhpk_write_profile_marketplace "$PROFILE_OUTPUT_ROOT"
 }
 
 echo
@@ -532,18 +480,6 @@ else
   fi
 fi
 
-# An empty custom selection is the clean-install default and always targets the
-# finite materialized bundle. Profiles with selected stack modules continue
-# through the compatibility marketplace route because arbitrary module
-# combinations are not profile artifacts. If Node is unavailable, the actual
-# install fails closed after confirmation instead of broadening this route.
-USE_MATERIALIZED_PROFILE=0
-if [[ ${#SELECTED_MODULES[@]} -eq 0 \
-  && ( -z "$USE_PRESET" || "$USE_PRESET" == "$PROFILE_ID" ) \
-  && -f "$PROFILES" ]]; then
-  USE_MATERIALIZED_PROFILE=1
-fi
-
 # ──────────────────────────────────────────────────────────────────────
 # 4. Dry-run summary
 # ──────────────────────────────────────────────────────────────────────
@@ -553,18 +489,10 @@ echo "  modules           : ${SELECTED_MODULES[*]:-<none>}"
 echo "  docker_containers : ${DOCKER_CONTAINERS:-<none>}"
 echo "  review_agents     : ${REVIEW_AGENTS[*]:-<defaults>}"
 echo "  hook_profile      : $HOOK_PROFILE"
-if [[ $USE_MATERIALIZED_PROFILE -eq 1 ]]; then
-  echo "  claude_profile    : $PROFILE_ID (materialized)"
-  echo "  profile_artifact  : $PROFILE_PACKAGE_ROOT"
-  echo "  profile_marketplace: $PROFILE_MARKETPLACE"
-fi
+echo "  claude_plugin     : dhpk@dhpk (main marketplace)"
 echo
 
-if [[ $USE_MATERIALIZED_PROFILE -eq 1 ]]; then
-  CMD=(claude plugin install dhpk@"$PROFILE_MARKETPLACE")
-else
-  CMD=(claude plugin install dhpk@dhpk)
-fi
+CMD=(claude plugin install dhpk@dhpk)
 if [[ ${#SELECTED_MODULES[@]} -gt 0 ]]; then
   IFS=','; CMD+=(--config "modules=${SELECTED_MODULES[*]}"); IFS=$' \t\n'
 fi
@@ -577,9 +505,6 @@ fi
 CMD+=(--config "hook_profile=$HOOK_PROFILE")
 
 echo "Command to run:"
-if [[ $USE_MATERIALIZED_PROFILE -eq 1 ]]; then
-  echo "  claude plugin marketplace add $PROFILE_OUTPUT_ROOT --scope user"
-fi
 printf '  '
 for arg in "${CMD[@]}"; do
   if [[ "$arg" == *[!a-zA-Z0-9@_./=:,-]* ]]; then
@@ -591,9 +516,6 @@ done
 printf '\n\n'
 
 if [[ $DRY_RUN -eq 1 ]]; then
-  if [[ $USE_MATERIALIZED_PROFILE -eq 1 ]]; then
-    echo "(profile materialization deferred — dry-run is side-effect free.)"
-  fi
   echo "(--dry-run set — not executing.)"
   exit 0
 fi
@@ -608,20 +530,6 @@ if [[ $ASSUME_YES -eq 0 ]] && ! dhpk_yes_no "Run this now?" y; then
 fi
 
 echo
-if [[ $USE_MATERIALIZED_PROFILE -eq 1 ]]; then
-  if ! dhpk_profile_generator_available; then
-    echo "[install] ERROR profile-materialization: Node.js and the bundled profile generator are required for the default minimal profile; no installation started." >&2
-    exit 1
-  fi
-  if ! dhpk_materialize_profile; then
-    echo "[install] ERROR profile-materialization: unable to materialize the default Claude profile; no installation started." >&2
-    exit 1
-  fi
-  if ! claude plugin marketplace add "$PROFILE_OUTPUT_ROOT" --scope user; then
-    echo "[install] ERROR profile-marketplace: unable to register the materialized Claude profile; no installation started." >&2
-    exit 1
-  fi
-fi
 "${CMD[@]}"
 rc=$?
 

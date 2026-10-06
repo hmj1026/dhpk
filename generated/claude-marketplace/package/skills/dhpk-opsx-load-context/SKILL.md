@@ -1,6 +1,6 @@
 ---
 name: dhpk-opsx-load-context
-description: 'Load opsx-apply-resume Resume Phase context via a 3-tier fallback (claude-mem pinned obs → compact JSON → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use dhpk-opsx-post-observation) or goal generation (use dhpk-opsx-apply-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'
+description: 'Load opsx-apply-resume Resume Phase context via a 3-tier fallback (claude-mem pinned obs → compact JSON → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use dhpk-opsx-post-observation) or goal generation. Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'
 allowed-tools: Bash
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -16,7 +16,7 @@ not an ambient environment variable or repository-root lookup. Keep the consumer
 ## When NOT to Use
 
 - Saving / posting a session observation → use `dhpk-opsx-post-observation`
-- Generating a `/goal` condition for a fresh session → use `dhpk-opsx-apply-goal`
+- Generating a condition for a fresh unattended session.
 - Any phase other than `opsx-apply-resume` Resume Phase (Steps 1b–1d)
 
 ## Inputs
@@ -37,7 +37,7 @@ Work through tiers in order. Stop at the first successful tier and record `CONTE
 ### Pre-chain — Hard-rule escalation (highest priority — blocking human decision)
 
 **Condition**: An active change carries a `.hard-rule-escalation.md` written by
-`dhpk-opsx-apply-goal` because unattended implementation hit an explicit hard-rule
+a previous unattended session because implementation hit an explicit hard-rule
 conflict that could not be resolved without human input. Check this before
 routine carry-forward such as `.resume-note.md`.
 
@@ -58,7 +58,7 @@ Best-effort only: a malformed or unreadable escalation still blocks; report its 
 ### Pre-chain — Unattended stop resume note (checked after hard-rule escalation)
 
 **Condition**: An active change carries a `.resume-note.md` (written by
-`dhpk-opsx-apply-goal`'s Part 4 when an unattended session hit its turn or wall-clock
+a previous unattended session when it hit its turn or wall-clock
 limit). Check this before the tiers below — it is the freshest, most specific
 carry-forward for a resumed run.
 

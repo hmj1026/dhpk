@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "4a2a6f48ad54e603bbaeb1f437e7f63b7c15fb77",
-  "generatedFromCommit": "4a2a6f48ad54e603bbaeb1f437e7f63b7c15fb77",
-  "generatedFromTree": "7faf419c8da21f7fded4bd1dc243d1b1fef3d29c",
-  "inventoryDigest": "ecd2d4df3e4cd2db0bc7e5a244448edfe34ccf7fbb8b6a296693379335ec7726",
-  "inventoryRevision": "sha256:d5b3e1c91e4bed42b97b4124ad00b6833f5645870172ff6090451630beda53e4",
+  "sourceCommit": "511b4eccf68c35265e2986ccb9bc54adbecb5e82",
+  "generatedFromCommit": "511b4eccf68c35265e2986ccb9bc54adbecb5e82",
+  "generatedFromTree": "18ecf3a466a15c1beb445fc5fbaedd2376385baf",
+  "inventoryDigest": "576f52cd15b49a4ac8b80dacdd720ec93628ac0d7324972e8f7c57bfd3389eb4",
+  "inventoryRevision": "sha256:15483ffa26ce92afe0e39a045cf96a28272a981e00e9024fa536d7bf729a4b53",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -69,7 +69,7 @@
     "update-docs"
   ],
   "marketplacePublication": {
-    "selectionDigest": "eb367fad6a7525ca68ef4e3348123442dfa54e8a9feea5b02ec60872b756f092",
+    "selectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
     "publicEntryIds": [
       "change-verdict",
       "code-trace",
@@ -93,7 +93,7 @@
     ]
   },
   "bundledContentProvenance": {
-    "selectionDigest": "eb367fad6a7525ca68ef4e3348123442dfa54e8a9feea5b02ec60872b756f092",
+    "selectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
     "entryIds": [
       "change-verdict",
       "cli-dispatch-context",
@@ -165,7 +165,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "d80b2a6711819b51efc702192231dc5669f3a3f4"
+        "originalGitBlobDigest": "648f707cecfa11aaf226e17b406ed1fe6fc776e2"
       },
       {
         "ownerId": "change-verdict",
@@ -249,7 +249,7 @@
         "ownerId": "change-verdict",
         "source": "skills/dhpk-project-audit/scripts/audit.js",
         "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/audit.js",
-        "originalGitBlobDigest": "00bf932123e2582965dbe172ba0c5bb704451d65"
+        "originalGitBlobDigest": "4d5c9e207910ba7343ff8bf452f31ef56c5868b0"
       },
       {
         "ownerId": "change-verdict",
@@ -501,7 +501,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "a9297156363598a9eec175abb9b7032d23b9eee1"
+        "originalGitBlobDigest": "229af1c496c627bbf2c0920bbec2973c168f9237"
       },
       {
         "ownerId": "code-trace",
@@ -525,7 +525,7 @@
         "ownerId": "code-trace",
         "source": "rules/execution-policy.md",
         "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "code-trace",
@@ -795,7 +795,7 @@
         "ownerId": "flow-drive",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "flow-drive",
@@ -1401,13 +1401,13 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "c231c48856ec0b9ed6a589036cff3233100c672c"
+        "originalGitBlobDigest": "cce25cc6372fe2c3c96b794b5383f20221e15d20"
       },
       {
         "ownerId": "flow-drive",
@@ -1461,19 +1461,19 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
-        "originalGitBlobDigest": "23f63809d43fb33627bd0823ca43ec40d1f4db38"
+        "originalGitBlobDigest": "c8976faf86822e08d046b4fbfa39cf08d7adf4aa"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "0d66babe3d8630e80a43e466380dc8f580af74af"
+        "originalGitBlobDigest": "c1cd8199d3456ad933ac26772c9c7fe681e77828"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "1c4f18d5976d14af204060596d679300d1a8c628"
+        "originalGitBlobDigest": "9d773688770cab02dadc4212835e8e1a506c75b0"
       },
       {
         "ownerId": "flow-drive",
@@ -1677,7 +1677,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "flow-guide",
@@ -1701,7 +1701,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "81f091687a9c269552f2ff97471c353aa784cdb2"
+        "originalGitBlobDigest": "91ee03977af202c1b6ebfec8ab170618601b4d1b"
       },
       {
         "ownerId": "flow-guide",
@@ -1725,7 +1725,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/deterministic-first.md",
         "destination": "skills/flow-guide/references/deterministic-first.md",
-        "originalGitBlobDigest": "23f63809d43fb33627bd0823ca43ec40d1f4db38"
+        "originalGitBlobDigest": "c8976faf86822e08d046b4fbfa39cf08d7adf4aa"
       },
       {
         "ownerId": "flow-guide",
@@ -1767,13 +1767,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "66ea45c04043b0d790d8b7e9171b3028df860903"
+        "originalGitBlobDigest": "8ed48890e276fb51d3c3c0af1596a21447eae5ef"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "c231c48856ec0b9ed6a589036cff3233100c672c"
+        "originalGitBlobDigest": "cce25cc6372fe2c3c96b794b5383f20221e15d20"
       },
       {
         "ownerId": "flow-guide",
@@ -1827,19 +1827,19 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
-        "originalGitBlobDigest": "23f63809d43fb33627bd0823ca43ec40d1f4db38"
+        "originalGitBlobDigest": "c8976faf86822e08d046b4fbfa39cf08d7adf4aa"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "0d66babe3d8630e80a43e466380dc8f580af74af"
+        "originalGitBlobDigest": "c1cd8199d3456ad933ac26772c9c7fe681e77828"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "1c4f18d5976d14af204060596d679300d1a8c628"
+        "originalGitBlobDigest": "9d773688770cab02dadc4212835e8e1a506c75b0"
       },
       {
         "ownerId": "flow-guide",
@@ -1869,13 +1869,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "0d66babe3d8630e80a43e466380dc8f580af74af"
+        "originalGitBlobDigest": "c1cd8199d3456ad933ac26772c9c7fe681e77828"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "1c4f18d5976d14af204060596d679300d1a8c628"
+        "originalGitBlobDigest": "9d773688770cab02dadc4212835e8e1a506c75b0"
       },
       {
         "ownerId": "flow-guide",
@@ -1929,7 +1929,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/route-table.json",
         "destination": "skills/flow-guide/references/route-table.json",
-        "originalGitBlobDigest": "2ffa65f1a11b47d039fc54f3a69f36f2a2558f5b"
+        "originalGitBlobDigest": "15c3cb49066eda7f34eec1fd2de7a83e00bdf42e"
       },
       {
         "ownerId": "flow-guide",
@@ -2031,7 +2031,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/analyze.js",
         "destination": "skills/flow-guide/scripts/analyze.js",
-        "originalGitBlobDigest": "b229f3b95de6b795c71fb60d5700270f657ed7bc"
+        "originalGitBlobDigest": "123506e793371855a90e16098e54f7ee412335de"
       },
       {
         "ownerId": "flow-guide",
@@ -5680,14 +5680,14 @@
   "skippedSkills": [],
   "mcpServerNames": [],
   "fingerprints": {
-    "change-verdict": "ca922930847bfda5385ebe2318505c15699b3af1a72c3b7352c72ee5a1164df1",
-    "code-trace": "fb07168f28f2593a4275f80bbd5d1c03553175eb4f5596fc450bd6f26beff2cb",
+    "change-verdict": "74f5662259bb19f1ad052add8005c9fdb38c2729193986e455b1c737a430c6ce",
+    "code-trace": "02937a96ef5f5628f855734800e2c1d5e257d36056969a9cdd6e7e503216862f",
     "create-pr": "2297f0347449373bf68696c23b11d763d88c2152faf2528e5d0882c8847c4298",
     "dep-audit": "3c49d8b02465f55af14cb47c8949c05fb3771fc89f37f00ab2fe8b84a06b41a5",
     "dhpk-cli-dispatch-context": "e1b74ef2ed3142c8256abe491c637c694c2b0a307604b266ad0535a79ff0662a",
     "dhpk-cli-transport": "65506d2795a747d7e2d878d0301db03b7875370b2ec33e1c6dd70fa50909a482",
-    "flow-drive": "9186969583be9e9380ebd861e21d26abfa24866452c46e1534a1af491ec9e5fd",
-    "flow-guide": "08351a68948c3fe0e17bc196765f740eea5fdd6c10f099d5ab92c25aa4b32ad5",
+    "flow-drive": "823eb9e092fb5d13589d8dc2ea5cff15a4399a5d2128c7afa1cf828c9410135a",
+    "flow-guide": "3fa2b06880eca0f22b904132ca57a23094db264ed60374e618707364c3b62b58",
     "git-smart-commit": "4d2aa4f52a45e7a99bcee9e6b26165055c3c35f3104234cd3fbabca2f48be37c",
     "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
     "precommit": "64198cabda6f826b5b9c5d63e761256ba4ece088ff45582a0fba987718b9ca27",
@@ -5700,13 +5700,11 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "8f0e9e9da168abcd4d381b4b3a2eabebc837bb255c5e2bcb5900be34a500abff",
+    "planId": "7a3437d536eb53ffd99c717031967f188275633e1d1e42a2c8d09b0655a5c484",
     "scope": "project",
-    "profileId": "surface-default",
+    "profileId": "common",
     "selectedStableIds": [
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-trace",
       "create-pr",
       "dep-audit",
@@ -5725,8 +5723,6 @@
     "supportClosure": {
       "stableIds": [
         "change-verdict",
-        "cli-dispatch-context",
-        "cli-transport",
         "code-trace",
         "create-pr",
         "dep-audit",
@@ -5750,10 +5746,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "8f0e9e9da168abcd4d381b4b3a2eabebc837bb255c5e2bcb5900be34a500abff",
-      "inventory": "ecd2d4df3e4cd2db0bc7e5a244448edfe34ccf7fbb8b6a296693379335ec7726"
+      "plan": "7a3437d536eb53ffd99c717031967f188275633e1d1e42a2c8d09b0655a5c484",
+      "inventory": "576f52cd15b49a4ac8b80dacdd720ec93628ac0d7324972e8f7c57bfd3389eb4"
     },
-    "rollbackIdentity": "c40665fd233d403c4e858760593a6bc1ba16da3f7a941eda6dcbe3c7fdd0ad3c"
+    "rollbackIdentity": "5d8589d8160ef70e86eb7de4595a9995ac80f2a90799e2442ce186dabbe279c0"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6738,5 +6734,44 @@
     "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd",
     "update-docs": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
   },
-  "externalSkillPackagesFingerprint": "3415fbb3be9c7095e796bab2ac6c87d96e26bfa8c90a89cf9fc1d63cbbbc664c"
+  "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "profileId": "common",
+  "selectedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "update-docs",
+    "precommit",
+    "dep-audit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "emittedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "update-docs",
+    "precommit",
+    "dep-audit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "compatibilityMode": "profile",
+  "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
+  "selectionFingerprint": "50b90c85985ba8b87a7d71e5af8cf111b0217a838a77a33006a5379b529e66fe",
+  "surfaceSelectionFingerprint": "91bc6025d1923be7966680f3e37fb8f38192124134d4897e6c54e9de1f43a740"
 }

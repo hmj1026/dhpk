@@ -191,7 +191,6 @@ test('no selected name is a runtime alias', () => {
 test('every generated package lists skills under their inventory name, never an alias', () => {
   const inventoryNames = new Set(INVENTORY.skills.map((skill) => skill.name));
   const aliasSet = new Set(ALIASES);
-  let checked = 0;
   for (const { root: relative, surface, includeCommon } of PACKAGE_SKILL_CATALOGS) {
     const root = path.join(ROOT, relative);
     assert.ok(fs.existsSync(root), `${relative} must be generated`);
@@ -210,11 +209,9 @@ test('every generated package lists skills under their inventory name, never an 
       assert.ok(inventoryNames.has(name), `${relative}/${directory} is not an inventory name`);
       assert.ok(!aliasSet.has(name), `${relative}/${directory} is a runtime alias`);
       actualNames.push(name);
-      checked += 1;
     }
     assert.deepStrictEqual(actualNames.sort(), expectedNames, `${relative} must contain exactly its published catalog entries`);
   }
-  assert.strictEqual(checked, 88, 'generated common and Host-only entry roots must expose 88 direct Skill entrypoints');
 });
 
 test('an inventory ID missing from the selection fails closed', () => {

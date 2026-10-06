@@ -12,7 +12,6 @@ const ROOT = path.join(__dirname, '..', '..');
 const JSON_CLI_ENTRYPOINTS = Object.freeze([
   Object.freeze({ name: 'dhpk-install', path: 'scripts/dhpk-install.js' }),
   Object.freeze({ name: 'dhpk-harness', path: 'scripts/dhpk-harness.js' }),
-  Object.freeze({ name: 'skill-lint', path: 'skills/skill-scope/scripts/skill-lint.js' }),
   Object.freeze({ name: 'source-gate', path: 'scripts/release/source-gate.js' }),
 ]);
 

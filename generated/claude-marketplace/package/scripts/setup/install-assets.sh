@@ -523,11 +523,10 @@ PY
 
 check_pilot_resources() {
     local skill runner source_file
-    for skill in precommit repo-verify harness-audit; do
+    for skill in precommit repo-verify; do
         case "$skill" in
             precommit) runner="precommit-runner.js" ;;
             repo-verify) runner="verify-runner.js" ;;
-            harness-audit) runner="harness-audit.js" ;;
         esac
         for source_file in "$SOURCE/skills/$skill/scripts/$runner"; do
             if [ ! -f "$source_file" ]; then
@@ -538,9 +537,6 @@ check_pilot_resources() {
                 HAS_UNSAFE_PILOT_SOURCE=1
             fi
         done
-        if [ "$skill" = "harness-audit" ]; then
-            continue
-        fi
         source_file="$SOURCE/skills/$skill/scripts/lib/runner-utils.js"
         if [ ! -f "$source_file" ]; then
             echo "Missing required pilot Skill resource: $source_file" >&2
@@ -602,7 +598,6 @@ walk_groups() {
             walk_tree "$mode" "$SOURCE/scripts" "$TARGET/scripts"
             walk_tree "$mode" "$SOURCE/skills/precommit/scripts" "$TARGET/skills/precommit/scripts"
             walk_tree "$mode" "$SOURCE/skills/repo-verify/scripts" "$TARGET/skills/repo-verify/scripts"
-            walk_tree "$mode" "$SOURCE/skills/harness-audit/scripts" "$TARGET/skills/harness-audit/scripts"
             ;;
         all)
             walk_groups_for_all "$mode"
@@ -619,7 +614,6 @@ walk_groups_for_all() {
     walk_tree "$mode" "$SOURCE/scripts" "$TARGET/scripts"
     walk_tree "$mode" "$SOURCE/skills/precommit/scripts" "$TARGET/skills/precommit/scripts"
     walk_tree "$mode" "$SOURCE/skills/repo-verify/scripts" "$TARGET/skills/repo-verify/scripts"
-    walk_tree "$mode" "$SOURCE/skills/harness-audit/scripts" "$TARGET/skills/harness-audit/scripts"
 }
 
 if [ "$INSTALL" = "scripts" ] || [ "$INSTALL" = "all" ]; then

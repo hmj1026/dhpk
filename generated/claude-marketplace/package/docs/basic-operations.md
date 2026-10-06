@@ -275,10 +275,8 @@ Use the skill groups below as a reusable decision ladder:
 | Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore\|diagnose\|history` |
 | Read-only verdict | `change-verdict` (`code\|pr\|security\|tests\|docs\|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
 | Delivery / implementation prep | `tdd-workflow`, `module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `tdd-workflow` + scoped verification |
-| OpenSpec session control | `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`, `dhpk-opsx-apply-goal` | Resume / handoff an OpenSpec edit sequence. | `dhpk-opsx-apply-goal <change-id>` for long-run, `dhpk-opsx-load-context` for resume |
-| Harness and platform hygiene | `harness-govern` (`health\|budget\|fill\|revise\|sync`) | Keep plugin/sync state clean and repeatable across environments. | `$harness-govern health --dry-run` (read-first) |
-| Skill governance | `skill-scope` | Audit and compare skill quality or usage | `skill-scope` for quick checks |
-| Git / release prep | `git-smart-commit`, `release-creator`, `dhpk-deploy-list`, `dhpk-project-setup` | Group commits, prepare release and deploy artifacts, set up repo policy. | `dhpk-project-setup` → `git-smart-commit` / `release-creator` |
+| OpenSpec session handoff | `opsx-apply-resume`, `dhpk-opsx-load-context`, `dhpk-opsx-post-observation` | Resume and save evidence for an existing change. | `opsx-apply-resume <change-id>` |
+| Git / release prep | `git-smart-commit`, `release-creator`, `dhpk-deploy-list` | Group commits and prepare release or deploy artifacts. | Explicitly invoke the selected owner. |
 
 ### Parameter quick reference
 
@@ -289,7 +287,6 @@ Use the skill groups below as a reusable decision ladder:
 | `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
 | `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `tdd-workflow` | `test-generation` `fast-worker` `standard` |
-| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm\|Nh>` `--min-coverage N` `--smoke\|--no-smoke` |
 | `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
 
 Use the lane first, then reduce flags: fewer inputs -> fewer routing misses and cleaner outputs.
@@ -433,37 +430,23 @@ runtime proof; see [`docs/harness-workflow.md`](./harness-workflow.md).
 
 <a id="6-unattended-openspec-session-large-uncertainty-on-ramp"></a>
 
-### Explicit long-running OpenSpec session
+### OpenSpec session retirement and handoff
 
-Use this only when an existing change should generate a bounded paste-ready
-`/goal` session:
-
-```text
-/dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
-```
-
-`<change-id>` is the directory name under `openspec/changes/`, not free text.
-`--turns N`, `--max-duration`, `--min-coverage`, `--smoke`,
-`--no-smoke`, and `--dry-run` constrain the generated session. Turn/time limits
-write `.resume-note.md`; human-only work is `[blocked: <reason>]`; hard-rule
-conflicts write `.hard-rule-escalation.md` with file:line evidence. The generated
-goal keeps the selector-resolved worker, applicable specialist reviewers, and
-completion gates; it never removes required gates to fit the roughly 4,000
-UTF-8-byte paste ceiling.
+The unattended goal generator is retired. External `/opsx:apply` remains unchanged.
+`opsx-apply-resume` retains save/resume for existing changes, and its context
+loader reads existing `.hard-rule-escalation.md` and `.resume-note.md` artifacts.
+This does not provide the former goal loop.
 
 ### Standalone assistance workflows
 
 ```text
 /dhpk:flow-guide route write E2E tests for the checkout flow
-/dhpk:harness-audit
-/dhpk:harness-govern
-/dhpk:harness-govern --fix
 ```
 
 E2E work is
 owned by `e2e-runner` and may write only specs, helpers, fixtures, and artifacts;
-application failures return a worker-ready fix spec. Harness audit is read-only;
-govern is read-only unless `--fix` is supplied. Structural changes also route
+application failures return a worker-ready fix spec. Dedicated harness audit
+and governance workflows are retired. Structural changes also route
 `doc-updater` to refresh codemaps and user-facing docs.
 
 ### Implementation dispatch

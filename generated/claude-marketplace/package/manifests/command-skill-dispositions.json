@@ -1,65 +1,7 @@
 {
   "schema": "dhpk.command-skill-disposition.v3",
-  "source_revision": "sha256:d630c0a5a8baa2eb3fb2e41d7d73f1522b32fdc8e072f7121c700f96ece9d2f5",
+  "source_revision": "sha256:9d066a08acac94dbd84c25b45c539df711594bcba1a573e6ad1d0a114e4e4aa6",
   "commands": [
-    {
-      "id": "check-coverage",
-      "path": "commands/check-coverage.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:check-coverage",
-      "argument_contract": "[<target>]",
-      "authority": "read-only",
-      "skill_owner": "change-verdict",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $change-verdict Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/check-coverage.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/check-coverage.md"
-      ],
-      "resource": "skills/change-verdict/SKILL.md",
-      "forwarding": {
-        "action": "tests",
-        "prepend_args": [
-          "--mode",
-          "tests",
-          "--coverage"
-        ]
-      }
-    },
-    {
-      "id": "codex-test-gen",
-      "path": "commands/codex-test-gen.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:codex-test-gen",
-      "argument_contract": "<target>",
-      "authority": "workspace-write",
-      "skill_owner": "tdd",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $tdd-workflow Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/codex-test-gen.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/codex-test-gen.md"
-      ],
-      "resource": "skills/tdd-workflow/SKILL.md",
-      "forwarding": {
-        "action": "test-generation",
-        "prepend_args": [
-          "test-generation"
-        ]
-      }
-    },
     {
       "id": "create-pr",
       "path": "commands/create-pr.md",
@@ -237,137 +179,6 @@
       "resource": "skills/git-worktree/SKILL.md"
     },
     {
-      "id": "harness-audit",
-      "path": "commands/harness-audit.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:harness-audit",
-      "argument_contract": "[scope] [--format text|json] [--root <path>]",
-      "authority": "read-only",
-      "skill_owner": "harness-audit",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $harness-audit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/harness-audit.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/harness-audit.md"
-      ],
-      "resource": "skills/harness-audit/SKILL.md"
-    },
-    {
-      "id": "harness-govern",
-      "path": "commands/harness-govern.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:harness-govern",
-      "argument_contract": "<health|budget|fill|revise|sync> [options]",
-      "authority": "external-write",
-      "skill_owner": "harness-govern",
-      "disposition": "thin-front-door",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/harness-govern.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/harness-govern.md"
-      ],
-      "resource": "skills/harness-govern/SKILL.md",
-      "reason": "Canonical $harness-govern Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
-    },
-    {
-      "id": "install-hooks",
-      "path": "commands/install-hooks.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:install-hooks",
-      "argument_contract": "[--source-artifact <dir>] [--dry-run] [--force]",
-      "authority": "workspace-write",
-      "skill_owner": "harness-setup",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $harness-setup Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/install-hooks.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/install-hooks.md"
-      ],
-      "resource": "skills/harness-setup/SKILL.md",
-      "forwarding": {
-        "action": "setup",
-        "prepend_args": [
-          "--install",
-          "hooks"
-        ]
-      }
-    },
-    {
-      "id": "install-rules",
-      "path": "commands/install-rules.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:install-rules",
-      "argument_contract": "[--source-artifact <dir>] [--dry-run] [--force]",
-      "authority": "workspace-write",
-      "skill_owner": "harness-setup",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $harness-setup Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/install-rules.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/install-rules.md"
-      ],
-      "resource": "skills/harness-setup/SKILL.md",
-      "forwarding": {
-        "action": "setup",
-        "prepend_args": [
-          "--install",
-          "rules"
-        ]
-      }
-    },
-    {
-      "id": "install-scripts",
-      "path": "commands/install-scripts.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:install-scripts",
-      "argument_contract": "[--source-artifact <dir>] [--dry-run] [--force]",
-      "authority": "workspace-write",
-      "skill_owner": "harness-setup",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $harness-setup Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/install-scripts.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/install-scripts.md"
-      ],
-      "resource": "skills/harness-setup/SKILL.md",
-      "forwarding": {
-        "action": "setup",
-        "prepend_args": [
-          "--install",
-          "scripts"
-        ]
-      }
-    },
-    {
       "id": "matrix-cell-onboard",
       "path": "commands/matrix-cell-onboard.md",
       "host_surface": "claude-command",
@@ -454,34 +265,6 @@
         "commands/pr-summary.md"
       ],
       "resource": "skills/pr-summary/SKILL.md"
-    },
-    {
-      "id": "precommit-fast",
-      "path": "commands/precommit-fast.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:precommit-fast",
-      "argument_contract": "[--fast]",
-      "authority": "workspace-write",
-      "skill_owner": "precommit",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $precommit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/precommit-fast.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/precommit-fast.md"
-      ],
-      "resource": "skills/precommit/SKILL.md",
-      "forwarding": {
-        "action": "run",
-        "prepend_args": [
-          "--fast"
-        ]
-      }
     },
     {
       "id": "precommit",
@@ -970,7 +753,163 @@
         "host_smoke": "NOT_RUN",
         "consumer": "NOT_RUN"
       }
+    },
+    {
+      "id": "check-coverage",
+      "path": "commands/check-coverage.md",
+      "public_name": "/dhpk:check-coverage",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "change-verdict",
+        "public_name": "change-verdict"
+      },
+      "reason": "Deprecated forwarding alias retired under issue #888; invoke the retained canonical Skill directly.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "codex-test-gen",
+      "path": "commands/codex-test-gen.md",
+      "public_name": "/dhpk:codex-test-gen",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "tdd",
+        "public_name": "tdd-workflow"
+      },
+      "reason": "Deprecated forwarding alias retired under issue #888; invoke the retained canonical Skill directly.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "install-hooks",
+      "path": "commands/install-hooks.md",
+      "public_name": "/dhpk:install-hooks",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "harness-setup",
+        "public_name": "harness-setup"
+      },
+      "reason": "Deprecated forwarding alias retired under issue #888; invoke the retained canonical Skill directly.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "install-rules",
+      "path": "commands/install-rules.md",
+      "public_name": "/dhpk:install-rules",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "harness-setup",
+        "public_name": "harness-setup"
+      },
+      "reason": "Deprecated forwarding alias retired under issue #888; invoke the retained canonical Skill directly.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "install-scripts",
+      "path": "commands/install-scripts.md",
+      "public_name": "/dhpk:install-scripts",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "harness-setup",
+        "public_name": "harness-setup"
+      },
+      "reason": "Deprecated forwarding alias retired under issue #888; invoke the retained canonical Skill directly.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "precommit-fast",
+      "path": "commands/precommit-fast.md",
+      "public_name": "/dhpk:precommit-fast",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "precommit",
+        "public_name": "precommit"
+      },
+      "reason": "Deprecated forwarding alias retired under issue #888; invoke the retained canonical Skill directly.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "harness-audit",
+      "path": "commands/harness-audit.md",
+      "public_name": "/dhpk:harness-audit",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "model-default"
+      },
+      "reason": "Optional governance tool retired under issue #888; no replacement public tool is promised.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "harness-govern",
+      "path": "commands/harness-govern.md",
+      "public_name": "/dhpk:harness-govern",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "model-default"
+      },
+      "reason": "Optional governance tool retired under issue #888; no replacement public tool is promised.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
     }
   ],
-  "removed_source_revision": "sha256:0a9b8c8bc649180f886819ea79391b0ed7f8cee7e865404a6e670551c859528f"
+  "removed_source_revision": "sha256:1625b32e3cff65d8c55563978d30d0fcd3efc84afcddf3168e30eec75f6e91bb"
 }

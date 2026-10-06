@@ -30,7 +30,7 @@ needed.
 
 - Implement or fix a finding: use `flow-drive`.
 - Trace an unfamiliar code path: use `code-trace`.
-- Audit a skill: use `skill-scope`.
+- Specialized skill governance scoring or stocktake: the former audit capability is retired. For an existing skill document or change, select this skill's `docs` or `risk` mode within its declared scope.
 
 ## Procedure
 
