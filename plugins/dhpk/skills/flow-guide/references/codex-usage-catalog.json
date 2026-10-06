@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:a3945c392dcc3b5914d993c865a012282b789ee73bb345ff4c77a724550a4bdf",
+  "sourceInventoryRevision": "sha256:033da58eb56038ecf3a1266e0a8ef87748fc80e1428abdc9b7dd1c221aa1bcf1",
   "entries": [
     {
       "id": "change-verdict",
@@ -342,7 +342,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Implement a confirmed specification with bounded evidence",
-        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
@@ -433,7 +433,7 @@
           },
           {
             "id": "reasoner",
-            "syntax": "--reasoner=<provider>/<model>[:<effort>]",
+            "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
             "value_kind": "string",
             "required": false,
             "summary": "Request a bounded second opinion",
@@ -484,7 +484,7 @@
           }
         ]
       },
-      "usageFingerprint": "53c4c74b7daebee9c684e6662cf10d8a2f3f01884fb79b7433cb6e54778d0b1b"
+      "usageFingerprint": "e105064f7c17f0112dbe93a1d90a8eee95128348934678738d149a630820fdf6"
     },
     {
       "id": "flow-guide",
@@ -1146,7 +1146,7 @@
         "id": "flow-drive",
         "publicName": "flow-drive",
         "invocationClass": "explicit-only",
-        "command": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+        "command": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
         "codexInvokable": true
       },
       "flow-guide": {
@@ -1625,6 +1625,30 @@
       "dhpk-git-smart-commit": {
         "target": "git-smart-commit",
         "disposition": "renamed"
+      },
+      "dhpk-gitnexus-cli": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-debugging": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-exploring": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-guide": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-impact-analysis": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-refactoring": {
+        "target": "flow-guide",
+        "disposition": "retired"
       },
       "dhpk-harness-budget": {
         "target": "harness-govern",

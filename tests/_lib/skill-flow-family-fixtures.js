@@ -237,6 +237,12 @@ const DEFINITIONS = [
     testdriver: (context) => runApiDriver(context, dispatchDriver(DISPATCH_REQUEST)),
   }),
   definition({
+    id: 'flow-drive-cli-missing-packet',
+    entry: 'scripts/launch-dispatch.js',
+    args: ['--packet', '/missing/flow-drive-packet.json'],
+    expected: { status: 65, output: ['BLOCKED', 'packet'] },
+  }),
+  definition({
     id: 'flow-drive-dispatch-invalid-authority',
     entry: 'scripts/dispatch.js',
     expected: { status: 2, output: ['planner', 'workspace-write', 'authority'] },

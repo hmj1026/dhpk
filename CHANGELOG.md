@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## 0.65.1 — 2026-10-06 — Streamline workflow operations guides, enable Flow Drive Codex CLI dispatch from Claude Code, and fix installer retirement and Host binding reconciliation
+
+- **fix(installation)** — Bind native Host discovery to emitted skills while retaining legacy selected-only receipt compatibility.
+- **fix(flow-drive)** — Enable scoped Codex workers and read-only reasoners from the Claude Code parent session through the attested CLI runtime; prefer --reasoner=codex or --reasoner=codex/<model>:<effort>, retain codex-cli as a compatibility spelling, and validate access, model, effort, scope and the requested reasoner gate before launch.
+- **fix(distribution)** — Record the six removed GitNexus skills in the retirement ledger so ownership-aware upgrades remove unchanged stale projections and preserve conflicts.
+- **fix(codex-install)** — Allow retired Codex receipts to be archived after safely missing managed and orphaned destinations are reconciled, while preserving edited content and unsafe paths.
+- **docs(installation)** — Correct the AGY native plugin validation command in both installation guides and distinguish package structure from consumer project probes and runtime evidence.
+- **docs(documentation)** — Define public distribution, stable skill identity, workflow/reference, and discovery terms in the domain glossary without claiming publication.
+- **docs(workflow)** — Streamline operations guides into a standard 5-step development workflow, detail all 12 core workflow skill parameters and practical examples, and align skill inventories and install profile documentation with the 0.65.0 release reality.
+
 ## 0.65.0 — 2026-10-06 — Default to common plugin collection, remove Review Gate, retire third-party overlap and obsolete entries, and add session usage telemetry
 
 - **BREAKING(Plugin installation collection)** — Select the common collection by default and retire public minimal/full/compat-v1 profile options and their generated packages, CI checks and release ownership. Historical receipts remain readable for planning, uninstall and recovery; updating a legacy profile stops before mutation. Standalone skills, language/module presets and hook profiles remain available. Optional aggregate discovery measurement uses the common selection.

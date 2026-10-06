@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -372,6 +373,29 @@ test('uninstallNativeSharedSkills drops one Host and keeps skills the other Host
       selectedStableIds: ['other'],
       declaredSelection: true,
     });
+    const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const cursorBinding = {
+      ...receipt.hostBindings.cursor,
+      selectedStableIds: ['other', 'sample'],
+      emittedStableIds: ['sample'],
+    };
+    const { receiptFingerprint: previousFingerprint, ...payload } = receipt;
+    const hostBindings = { ...payload.hostBindings, cursor: cursorBinding };
+    const expanded = { ...payload, hostBindings, bindings: hostBindings };
+    const canonical = (value) => {
+      if (Array.isArray(value)) return value.map(canonical);
+      if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+      }
+      return value;
+    };
+    write(receiptPath, `${JSON.stringify({
+      ...expanded,
+      receiptFingerprint: crypto.createHash('sha256').update(JSON.stringify(canonical(expanded))).digest('hex'),
+    }, null, 2)}\n`);
+    const beforeUninstall = validateRelocatableAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(beforeUninstall.ok, true, (beforeUninstall.errors || []).join('\n'));
     write(path.join(projectRoot, '.agents', 'skills', 'foreign', 'README.md'), '# keep\n');
     const result = uninstallNativeSharedSkills({
       sourceRoot,
@@ -468,6 +492,7 @@ test('uninstallNativeSharedSkills rejects an unsupported Host', () => {
 {
 
   const fs = require('node:fs');
+const crypto = require('node:crypto');
   const os = require('node:os');
   const path = require('node:path');
   const { spawnSync } = require('node:child_process');

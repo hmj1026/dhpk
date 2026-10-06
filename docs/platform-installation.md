@@ -252,7 +252,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.65.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.65.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -966,7 +966,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.65.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.65.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1007,11 +1007,13 @@ evidence. A physical Git checkout without a matching AGY receipt is classified
 move, or retire that checkout before a clean install. The diagnostic never
 migrates, adopts, overwrites, or removes a foreign target.
 
-Use the existing [consumer-gate](../scripts/release/consumer-gate.js) and AGY adapter for installation and required-resource evidence. Produce a read-only platform probe plan with:
+Use the existing [consumer-gate](../scripts/release/consumer-gate.js) and AGY adapter for installation and required-resource evidence. Validate the generated AGY native plugin package structure with:
 
 ```bash
-node scripts/release/consumer-platform-probe.js --platform agy-project --package-root plugins/dhpk-agy
+bin/dhpk distribution agy-plugin validate --json
 ```
+
+This command reports deterministic package structure; native runtime remains `NOT_RUN`. The `agy-project` platform probe applies to a consumer project root containing a valid shared projection and receipt.
 
 Native discovery, model execution, and Subagent runtime run only for a corresponding integration change or explicit request. Unexecuted observations remain `NOT_RUN`, and missing capabilities remain non-pass. A receipt, static manifest, or discovery listing is not runtime `PASS`. Historical AGY 1.1.13 loader observations retain their recorded evidence state. Rollback/uninstall removes only unchanged receipt-owned files and preserves user-owned and foreign content.
 

@@ -93,7 +93,7 @@ proposals to the external `$openspec-propose` owner, while
 [feasibility comparison](./agent-guidance/feasibility-comparison.md) keeps
 options analysis separate from implementation.
 
-The `dhpk` prefix remains part of the Claude plugin namespace. The eight family
+The `dhpk` prefix remains part of the Claude plugin namespace. The six family
 names are intentionally unprefixed so users select a task-shaped capability
 without learning predecessor implementation names. `git-smart-commit` remains
 the standalone public commit owner; it is not renamed to or replaced by a

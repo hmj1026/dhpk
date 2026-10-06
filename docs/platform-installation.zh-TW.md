@@ -240,7 +240,7 @@ dependency 一律 fail closed。runtime-only support 只記錄為 support metada
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.65.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.65.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -890,7 +890,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.65.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.65.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -930,11 +930,13 @@ ownership、physical `.git` marker，以及有界的 same／changed／missing �
 checkout，之後才能 clean install。診斷不會自動 migration、adoption、覆寫或
 移除 foreign target。
 
-安裝與必要資源由既有 [consumer-gate](../scripts/release/consumer-gate.js) 及 AGY adapter 驗證。可先產生唯讀 platform probe plan：
+安裝與必要資源由既有 [consumer-gate](../scripts/release/consumer-gate.js) 及 AGY adapter 驗證。可使用下列指令驗證生成的 AGY native plugin package 結構：
 
 ```bash
-node scripts/release/consumer-platform-probe.js --platform agy-project --package-root plugins/dhpk-agy
+bin/dhpk distribution agy-plugin validate --json
 ```
+
+此指令回報 deterministic package structure，native runtime 維持 `NOT_RUN`。`agy-project` platform probe 適用於具有合法 shared projection 與 receipt 的 consumer project root。
 
 原生 discovery、模型及 Subagent runtime 只在改動對應整合或明確請求時執行；未執行維持 `NOT_RUN`，缺少能力維持 non-pass。安裝 receipt、static manifest 或 discovery listing 不能當作 runtime `PASS`。歷史 AGY 1.1.13 的 loader 限制與研究結果維持原證據狀態。rollback／uninstall 只移除 receipt-owned 且 fingerprint 相符的檔案，保留 user-owned 與 foreign content。
 

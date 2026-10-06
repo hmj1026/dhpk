@@ -2,7 +2,7 @@
 
 const HOSTS = Object.freeze(['claude-code', 'codex-cli', 'agy', 'cursor', 'claude', 'codex']);
 const ROLES = Object.freeze(['planner', 'reasoner', 'worker', 'reviewer']);
-const EFFORTS = Object.freeze(['low', 'medium', 'high', 'max']);
+const EFFORTS = Object.freeze(['low', 'medium', 'high', 'max', 'xhigh', 'ultra']);
 const TRANSPORTS = Object.freeze(['native-runtime', 'local-cli', 'app-server']);
 const DISPOSITIONS = Object.freeze(['advice', 'ready', 'explicit-required', 'blocked', 'unavailable']);
 const EVIDENCE_STATES = Object.freeze(['available', 'unavailable', 'not-run', 'blocked', 'not-configured']);

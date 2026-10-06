@@ -217,15 +217,17 @@ const { test, run, assert } = require('./_lib/tinytest');
 
   test('Codex Host adapter binds only that Host\'s selectedStableIds', () => {
     const hostBindings = bindings();
-    hostBindings.cursor.selectedStableIds = ['sample'];
+    hostBindings.cursor.selectedStableIds = ['emitted', 'selected-only'];
+    hostBindings.cursor.emittedStableIds = ['emitted'];
     hostBindings.codex.selectedStableIds = ['other'];
     const adapters = createProjectAgentProviderAdapters(hostBindings, {
       entries: [
-        { stableId: 'sample', name: 'dhpk-sample' },
+        { stableId: 'emitted', name: 'dhpk-emitted' },
+        { stableId: 'selected-only', name: 'dhpk-selected-only' },
         { stableId: 'other', name: 'dhpk-other' },
       ],
     });
-    assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries.map((entry) => entry.stableId), ['sample']);
+    assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries.map((entry) => entry.stableId), ['emitted']);
     assert.deepStrictEqual(adapters.forHost.codex.discovery.entries.map((entry) => entry.stableId), ['other']);
     assert.strictEqual(adapters.forHost.codex.discovery.destinationRoot, '.codex/skills');
   });
@@ -250,10 +252,16 @@ const { test, run, assert } = require('./_lib/tinytest');
 
   test('Host selection precedence and Codex discovery visibility are explicit', () => {
     assert.deepStrictEqual(policy.boundStableIds({
-      selectedStableIds: [],
+      selectedStableIds: ['selected-only'],
       emittedStableIds: ['emitted'],
       bindings: [{ stableId: 'bound' }],
+    }), ['emitted']);
+    assert.deepStrictEqual(policy.boundStableIds({
+      selectedStableIds: ['selected-only'],
+      emittedStableIds: [],
+      bindings: [{ stableId: 'bound' }],
     }), []);
+    assert.deepStrictEqual(policy.boundStableIds({ selectedStableIds: ['legacy-selected'] }), ['legacy-selected']);
     assert.deepStrictEqual(policy.boundStableIds({ emittedStableIds: ['b', 'a', 'b'] }), ['a', 'b']);
     assert.deepStrictEqual(policy.boundStableIds({ bindings: [{ stableId: 'b' }, null, { stableId: 'a' }] }), ['a', 'b']);
 
@@ -266,6 +274,36 @@ const { test, run, assert } = require('./_lib/tinytest');
       'visible',
       'default-visible',
     ]);
+  });
+
+  test('discovery adapters bind emitted subsets and preserve legacy selections', () => {
+    const entries = [
+      { stableId: 'emitted', name: 'dhpk-emitted' },
+      { stableId: 'selected-only', name: 'dhpk-selected-only' },
+    ];
+    for (const { cursorSelection, expected } of [
+      { cursorSelection: { selectedStableIds: ['selected-only', 'emitted'], emittedStableIds: ['emitted'] }, expected: ['emitted'] },
+      { cursorSelection: { selectedStableIds: ['selected-only'], emittedStableIds: [] }, expected: [] },
+      { cursorSelection: { selectedStableIds: ['selected-only'] }, expected: ['selected-only'] },
+    ]) {
+      const hostBindings = {
+        cursor: {
+          host: 'cursor', surface: 'cursor-plugin', shape: 'project-skill-directory',
+          transform: { id: 'cursor-project-skill', version: '1' }, ...cursorSelection,
+        },
+        codex: {
+          host: 'codex', surface: 'codex-sync', shape: 'project-skill-directory',
+          transform: { id: 'codex-project-skill', version: '1' }, selectedStableIds: ['selected-only'],
+        },
+      };
+      const before = JSON.stringify(hostBindings);
+      const adapters = createProjectAgentProviderAdapters(hostBindings, { entries });
+      assert.deepStrictEqual(policy.boundStableIds(hostBindings.cursor), expected);
+      assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries.map((entry) => entry.stableId), expected);
+      assert.deepStrictEqual(adapters.forHost.codex.discovery.entries.map((entry) => entry.stableId), ['selected-only']);
+      assert.strictEqual(JSON.stringify(hostBindings), before);
+    }
+    assert.deepStrictEqual(policy.selectedAdapterEntries(entries, {}), entries);
   });
 
   test('Host selection and preserved bindings return independent values', () => {
@@ -398,6 +436,46 @@ const { test, run, assert } = require('./_lib/tinytest');
       }),
       /Codex discovery bindings do not match the selected artifact/,
     );
+  });
+
+  test('Cursor receipt paths match emitted skills while Codex keeps its independent selection', () => {
+    const hostBindings = {
+      cursor: {
+        host: 'cursor', surface: 'cursor-plugin', shape: 'project-skill-directory',
+        transform: { id: 'cursor-project-skill', version: '1' },
+        selectedStableIds: ['emitted', 'selected-only'],
+        emittedStableIds: ['emitted'],
+        bindingShape: policy.NATIVE_LINK_SHAPE,
+      },
+      codex: {
+        host: 'codex', surface: 'codex-sync', shape: 'project-skill-directory',
+        transform: { id: 'codex-project-skill', version: '1' },
+        selectedStableIds: ['codex-only'],
+        bindingShape: policy.NATIVE_LINK_SHAPE,
+      },
+    };
+    const providers = createProjectAgentProviderAdapters(hostBindings, {
+      entries: [
+        { stableId: 'emitted', name: 'dhpk-emitted' },
+        { stableId: 'selected-only', name: 'dhpk-selected-only' },
+        { stableId: 'codex-only', name: 'dhpk-codex-only' },
+      ],
+    });
+    assert.deepStrictEqual(providers.forHost.cursor.discovery.entries.map((entry) => entry.stableId), ['emitted']);
+    assert.deepStrictEqual(providers.forHost.codex.discovery.entries.map((entry) => entry.stableId), ['codex-only']);
+
+    let stamped = policy.stampDiscoveryHost(hostBindings, {}, providers, {
+      hostId: 'cursor',
+      bindingShape: policy.NATIVE_LINK_SHAPE,
+    });
+    stamped = policy.stampDiscoveryHost(stamped.hostBindings, stamped.bindingPaths, providers, {
+      hostId: 'codex',
+      bindingShape: policy.NATIVE_LINK_SHAPE,
+    });
+    const receipt = { hostBindings: stamped.hostBindings, bindingPaths: stamped.bindingPaths };
+    assert.deepStrictEqual(receipt.bindingPaths.cursor.map((entry) => entry.path), ['.cursor/skills/dhpk-emitted']);
+    assert.deepStrictEqual(receipt.bindingPaths.codex.map((entry) => entry.path), ['.codex/skills/dhpk-codex-only']);
+    assert.doesNotThrow(() => policy.validateReceiptBindings(receipt, providers, receipt.bindingPaths));
   });
 }
 

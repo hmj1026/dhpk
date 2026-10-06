@@ -838,6 +838,7 @@
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml",
+        "references/parent-cli-dispatch.md",
         "references/execution-bundle/docs/subagent-prompt-template.md",
         "references/execution-bundle/manifests/host-profiles.json",
         "references/execution-bundle/manifests/provider-model-catalog.json",
@@ -856,6 +857,10 @@
         "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
       ],
       "executable_entries": [
+        {
+          "path": "scripts/launch-dispatch.js",
+          "fixture_ids": ["flow-drive-cli-missing-packet"]
+        },
         {
           "path": "scripts/invocation.js",
           "fixture_ids": [
@@ -881,6 +886,38 @@
         }
       ],
       "internal_helpers": [
+        {
+          "path": "references/cli-dispatch/scripts/launch-cli-dispatch.js",
+          "required_by": ["scripts/launch-dispatch.js"]
+        },
+        {
+          "path": "references/cli-dispatch/scripts/build-cli-dispatch-context.js",
+          "required_by": ["references/cli-dispatch/scripts/launch-cli-dispatch.js"]
+        },
+        {
+          "path": "references/cli-dispatch/scripts/cli-role-resolver.js",
+          "required_by": ["references/cli-dispatch/scripts/build-cli-dispatch-context.js", "scripts/dispatch.js"]
+        },
+        {
+          "path": "references/cli-dispatch/scripts/physical-file.js",
+          "required_by": ["references/cli-dispatch/scripts/launch-cli-dispatch.js"]
+        },
+        {
+          "path": "references/cli-dispatch/scripts/physical-file.py",
+          "required_by": ["references/cli-dispatch/scripts/physical-file.js"]
+        },
+        {
+          "path": "references/cli-dispatch/scripts/run-codex.sh",
+          "required_by": ["references/cli-dispatch/scripts/launch-cli-dispatch.js"]
+        },
+        {
+          "path": "references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py",
+          "required_by": ["references/cli-dispatch/scripts/run-codex.sh"]
+        },
+        {
+          "path": "references/cli-dispatch/scripts/cli-transport/run-cli-transport.py",
+          "required_by": ["references/cli-dispatch/scripts/run-codex.sh"]
+        },
         {
           "path": "references/execution-bundle/scripts/lib/dispatch-contract.js",
           "required_by": [
