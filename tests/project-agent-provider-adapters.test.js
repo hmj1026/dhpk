@@ -215,20 +215,24 @@ const { test, run, assert } = require('./_lib/tinytest');
     ]);
   });
 
-  test('Codex Host adapter binds only that Host\'s selectedStableIds', () => {
+  test('Claude, Codex, and Cursor Host adapters bind only their selectedStableIds', () => {
     const hostBindings = bindings();
     hostBindings.cursor.selectedStableIds = ['emitted', 'selected-only'];
     hostBindings.cursor.emittedStableIds = ['emitted'];
     hostBindings.codex.selectedStableIds = ['other'];
+    hostBindings.claude.selectedStableIds = ['claude-only'];
+    hostBindings.claude.emittedStableIds = ['claude-only'];
     const adapters = createProjectAgentProviderAdapters(hostBindings, {
       entries: [
         { stableId: 'emitted', name: 'dhpk-emitted' },
         { stableId: 'selected-only', name: 'dhpk-selected-only' },
         { stableId: 'other', name: 'dhpk-other' },
+        { stableId: 'claude-only', name: 'dhpk-claude-only' },
       ],
     });
     assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries.map((entry) => entry.stableId), ['emitted']);
     assert.deepStrictEqual(adapters.forHost.codex.discovery.entries.map((entry) => entry.stableId), ['other']);
+    assert.deepStrictEqual(adapters.forHost.claude.discovery.entries.map((entry) => entry.stableId), ['claude-only']);
     assert.strictEqual(adapters.forHost.codex.discovery.destinationRoot, '.codex/skills');
   });
 
