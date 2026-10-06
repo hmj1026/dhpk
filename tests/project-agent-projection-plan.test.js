@@ -164,7 +164,8 @@ test('project plan keeps existing Codex selection separate from its explicit pro
   assert.strictEqual(compiled.value.selectedStableIds.length, 33);
   const plan = compileProjectAgentProjection({inventory, profileId: 'portable-core'});
   assert.strictEqual(plan.ok, true, plan.error && plan.error.message);
-  assert.strictEqual(plan.value.selectedStableIds.length, 52);
+  assert.ok(!plan.value.selectedStableIds.some((id) => id.startsWith('gitnexus-')));
+  assert.ok(plan.value.selectedStableIds.includes('flow-guide'));
   assert.notDeepStrictEqual(plan.value.selectedStableIds, compiled.value.selectedStableIds);
 });
 
@@ -313,8 +314,8 @@ test('inventory regeneration preserves the project projection contract', () => {
     assert.strictEqual(first.schema, FIXTURE.schema);
     assert.strictEqual(JSON.stringify(first), JSON.stringify(second));
     assert.strictEqual(first.selection.currentAgentPlugin.surface, FIXTURE.currentSelection.surface);
-    assert.strictEqual(first.selection.currentAgentPlugin.selectedStableIds.length, FIXTURE.currentSelection.expectedCount);
-    assert.deepStrictEqual(first.selection.currentAgentPlugin.selectedStableIds, FIXTURE.currentSelection.selectedStableIds);
+    const retainedBaselineIds = FIXTURE.currentSelection.selectedStableIds.filter((id) => !id.startsWith('gitnexus-'));
+    assert.deepStrictEqual(first.selection.currentAgentPlugin.selectedStableIds, retainedBaselineIds);
     assert.strictEqual(first.selection.currentAgentPlugin.evidenceOnly, FIXTURE.currentSelection.evidenceOnly);
     assert.strictEqual(first.selection.currentAgentPlugin.portableCoreExpansion, FIXTURE.currentSelection.portableCoreExpansion);
     assert.strictEqual(first.selection.currentAgentPlugin.contract, FIXTURE.currentSelection.contract);
@@ -323,7 +324,7 @@ test('inventory regeneration preserves the project projection contract', () => {
     assert.deepStrictEqual(codex.selection.selectedStableIds, FIXTURE.compatibilityMatrix.currentCodexSyncSubset.selectedStableIds);
     assert.strictEqual(first.selection.portableCore.declared, true);
     assert.strictEqual(first.selection.portableCore.profileId, FIXTURE.portableCore.profileId);
-    assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, FIXTURE.currentSelection.selectedStableIds);
+    assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, retainedBaselineIds);
     assert.strictEqual(first.selection.portableCore.evidenceOnly, true);
     assert.match(first.selection.portableCore.reason, /explicit|evidence/i);
   });

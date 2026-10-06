@@ -20,9 +20,9 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 | Command | 用途 |
 |---------|------|
-| `/dhpk:codex-test-gen` | Explicit-only test generation adapter；review 已整併至 `change-verdict` 的 `tests` mode。 |
-| `/dhpk:check-coverage` | Explicit-only legacy alias for test coverage；不屬於 frozen eight-command family，也不計入其數字。 |
-| `/dhpk:precommit` / `/dhpk:precommit-fast` / `/dhpk:verify` | 提交前或完整驗證。 |
+| `/dhpk:tdd-workflow test-generation` | 使用保留的 TDD skill 產生測試；review 使用 `change-verdict` 的 `tests` mode。 |
+| `/dhpk:change-verdict --mode tests --coverage` | 使用保留的唯讀 review skill 檢查 coverage。 |
+| `/dhpk:precommit` / `/dhpk:verify` | 提交前或完整驗證。 |
 | `/dhpk:dep-audit` | 依賴安全風險稽核。 |
 | `/dhpk:review-pending` | 針對指定路徑或目前 diff 派遣 code-reviewer 進行建議性審查。 |
 
@@ -43,7 +43,6 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/dhpk:update-docs` / `/dhpk:update-codemaps` / `/dhpk:doc-refactor` | 更新、產生或精簡文件；`update-docs` 以實作證據與 writing-for-agents 契約為準。 |
 | `/dhpk:project-brief` | 將技術內容整理為 PM/CTO 摘要。 |
 | `/dhpk:setup` | 設定 plugin；用 `--install hooks\|rules\|scripts\|all` 安裝資產。 |
-| `/dhpk:install-hooks` / `/dhpk:install-rules` / `/dhpk:install-scripts` | 已棄用的一個 minor-release forwarding alias；新文件與新流程不得使用。 |
 
 ## 專用工具
 
@@ -57,13 +56,13 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 The former review aliases are retired without forwarding aliases. Use the
 read-only `change-verdict` skill with its `code`, `pr`, `security`, `tests`,
-`docs`, or `risk` mode. `codex-test-gen` remains an explicit-only,
-Codex-MCP-free generation adapter using the TDD workflow. The default Claude
+`docs`, or `risk` mode. Test generation uses the retained
+`tdd-workflow test-generation` capability. The default Claude
 discovery artifact is the materialized `minimal` profile; `full` and `compat-v1`
 are explicit opt-in artifacts. Minimal contains exactly `change-verdict`,
 `code-trace`, `flow-drive`, and `flow-guide`; use `flow-guide help <skill>` for
-output and stop-condition metadata. `check-coverage` remains an explicit-only
-compatibility alias outside that count.
+output and stop-condition metadata. Coverage review uses
+`change-verdict --mode tests --coverage`.
 
 For Codex usage discovery, run `$flow-guide help` or `$flow-guide help <skill>`;
 use `$flow-guide <help|route|rules|next|close>` for guidance and

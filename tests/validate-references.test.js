@@ -152,7 +152,7 @@ test('a whitelisted @rules ref is not flagged by the CLI', () => {
     const text = [
       'rule @rules/execution-policy.md',                       // resolves to rules/
       'consumer override @rules/dev-workflow-project.md',      // *-project.md convention
-      'command /dhpk:install-rules',                           // resolves to commands/
+      'command /dhpk:setup',                           // resolves to commands/
       'path ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md',  // resolves
       'placeholder ${CLAUDE_PLUGIN_ROOT}/rules/<file>.md',     // placeholder, skipped
     ].join('\n');

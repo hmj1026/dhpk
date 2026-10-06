@@ -1991,114 +1991,6 @@
       "name_style": "portable-skill"
     },
     {
-      "id": "gitnexus-cli",
-      "name": "dhpk-gitnexus-cli",
-      "path": "skills/dhpk-gitnexus-cli",
-      "capability_id": "dhpk.skill.gitnexus-cli",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-cli"
-      ]
-    },
-    {
-      "id": "gitnexus-debugging",
-      "name": "dhpk-gitnexus-debugging",
-      "path": "skills/dhpk-gitnexus-debugging",
-      "capability_id": "dhpk.skill.gitnexus-debugging",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-debugging"
-      ]
-    },
-    {
-      "id": "gitnexus-exploring",
-      "name": "dhpk-gitnexus-exploring",
-      "path": "skills/dhpk-gitnexus-exploring",
-      "capability_id": "dhpk.skill.gitnexus-exploring",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-exploring"
-      ]
-    },
-    {
-      "id": "gitnexus-guide",
-      "name": "dhpk-gitnexus-guide",
-      "path": "skills/dhpk-gitnexus-guide",
-      "capability_id": "dhpk.skill.gitnexus-guide",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-guide"
-      ]
-    },
-    {
-      "id": "gitnexus-impact-analysis",
-      "name": "dhpk-gitnexus-impact-analysis",
-      "path": "skills/dhpk-gitnexus-impact-analysis",
-      "capability_id": "dhpk.skill.gitnexus-impact-analysis",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-impact-analysis"
-      ]
-    },
-    {
-      "id": "gitnexus-refactoring",
-      "name": "dhpk-gitnexus-refactoring",
-      "path": "skills/dhpk-gitnexus-refactoring",
-      "capability_id": "dhpk.skill.gitnexus-refactoring",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-refactoring"
-      ]
-    },
-    {
       "id": "issue-analyze",
       "name": "dhpk-issue-analyze",
       "path": "skills/dhpk-issue-analyze",
@@ -4223,12 +4115,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "gitnexus-cli",
-      "gitnexus-debugging",
-      "gitnexus-exploring",
-      "gitnexus-guide",
-      "gitnexus-impact-analysis",
-      "gitnexus-refactoring",
       "harness-audit",
       "harness-govern",
       "issue-analyze",
@@ -4277,12 +4163,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "gitnexus-cli",
-      "gitnexus-debugging",
-      "gitnexus-exploring",
-      "gitnexus-guide",
-      "gitnexus-impact-analysis",
-      "gitnexus-refactoring",
       "harness-audit",
       "harness-govern",
       "harness-setup",
@@ -4334,12 +4214,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "gitnexus-cli",
-      "gitnexus-debugging",
-      "gitnexus-exploring",
-      "gitnexus-guide",
-      "gitnexus-impact-analysis",
-      "gitnexus-refactoring",
       "harness-audit",
       "harness-govern",
       "issue-analyze",
@@ -4388,12 +4262,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "gitnexus-cli",
-      "gitnexus-debugging",
-      "gitnexus-exploring",
-      "gitnexus-guide",
-      "gitnexus-impact-analysis",
-      "gitnexus-refactoring",
       "harness-audit",
       "harness-govern",
       "harness-setup",
@@ -5896,23 +5764,7 @@
       }
     }
   ],
-  "external_skill_packages": [
-    {
-      "id": "gitnexus",
-      "owner": "upstream",
-      "repository": "https://github.com/abhigyanpatwari/GitNexus",
-      "policy": "protect-existing",
-      "license_review": "open",
-      "stable_ids": [
-        "gitnexus-cli",
-        "gitnexus-debugging",
-        "gitnexus-exploring",
-        "gitnexus-guide",
-        "gitnexus-impact-analysis",
-        "gitnexus-refactoring"
-      ]
-    }
-  ],
+  "external_skill_packages": [],
   "renamed_skill_names": [
     {
       "id": "software-architecture",
@@ -6023,12 +5875,6 @@
           "flow-guide",
           "git-smart-commit",
           "git-worktree",
-          "gitnexus-cli",
-          "gitnexus-debugging",
-          "gitnexus-exploring",
-          "gitnexus-guide",
-          "gitnexus-impact-analysis",
-          "gitnexus-refactoring",
           "harness-audit",
           "harness-govern",
           "issue-analyze",

@@ -75,12 +75,6 @@ front doors. Invoke the public name directly from Codex.
 | [dhpk-deploy-list](dhpk-deploy-list/SKILL.md) | `deploy-list` | Deployment file-list and checklist |
 | [dhpk-feature-verify](dhpk-feature-verify/SKILL.md) | `feature-verify` | Read-only post-deploy verification |
 | [git-smart-commit](git-smart-commit/SKILL.md) | `git-smart-commit` | Group and execute cohesive Git commits |
-| [dhpk-gitnexus-cli](dhpk-gitnexus-cli/SKILL.md) | `gitnexus-cli` | GitNexus index and wiki operations |
-| [dhpk-gitnexus-debugging](dhpk-gitnexus-debugging/SKILL.md) | `gitnexus-debugging` | GitNexus-assisted bug tracing |
-| [dhpk-gitnexus-exploring](dhpk-gitnexus-exploring/SKILL.md) | `gitnexus-exploring` | GitNexus architecture exploration |
-| [dhpk-gitnexus-guide](dhpk-gitnexus-guide/SKILL.md) | `gitnexus-guide` | GitNexus tools and schema guidance |
-| [dhpk-gitnexus-impact-analysis](dhpk-gitnexus-impact-analysis/SKILL.md) | `gitnexus-impact-analysis` | Pre-edit blast-radius analysis |
-| [dhpk-gitnexus-refactoring](dhpk-gitnexus-refactoring/SKILL.md) | `gitnexus-refactoring` | Safe rename, extraction, and restructuring |
 | [dhpk-issue-analyze](dhpk-issue-analyze/SKILL.md) | `issue-analyze` | GitHub issue and review-thread triage |
 | [dhpk-laravel-package-author](dhpk-laravel-package-author/SKILL.md) | `laravel-package-author` | Laravel package publication patterns |
 | [dhpk-laravel-testbench-matrix](dhpk-laravel-testbench-matrix/SKILL.md) | `laravel-testbench-matrix` | Laravel package Testbench matrix |

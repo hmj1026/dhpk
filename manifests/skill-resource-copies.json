@@ -238,7 +238,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
       "skill_id": "opsx-apply-goal",
       "source": "skills/flow-guide/references/invocation-classification.md",
-      "sha256": "sha256:95d8da8edb53c5cf51205a468083dad6558d8b9bd3301baf045141a88e52190b",
+      "sha256": "sha256:6b3e68ab289e6d1fa84afe1df4c19eb42092c14c7507bd909b2ff0062c555bc5",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md": {
@@ -568,7 +568,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/invocation-classification.md",
-      "sha256": "sha256:95d8da8edb53c5cf51205a468083dad6558d8b9bd3301baf045141a88e52190b",
+      "sha256": "sha256:6b3e68ab289e6d1fa84afe1df4c19eb42092c14c7507bd909b2ff0062c555bc5",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md": {
@@ -694,7 +694,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/invocation-classification.md",
-      "sha256": "sha256:95d8da8edb53c5cf51205a468083dad6558d8b9bd3301baf045141a88e52190b",
+      "sha256": "sha256:6b3e68ab289e6d1fa84afe1df4c19eb42092c14c7507bd909b2ff0062c555bc5",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md": {

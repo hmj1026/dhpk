@@ -65,17 +65,16 @@ release, or write externally. This includes `matrix-cell-onboard` (a guided
 checklist for CI-matrix cells — no elevated tools, editing stays within the
 already-authorized library-authoring request).
 
-## Commands (`commands/*.md`) — 31 physical entries
+## Commands (`commands/*.md`)
 
-The active command surface is exactly the 31 physical files below. Host-only
-adapters remain physical command front doors and are not portable Skill aliases;
-the two thin front doors retain their owning Skill contracts.
+The active command surface is defined by the command disposition manifest.
+Host-only adapters retain their owning Skill contracts.
 
-`check-coverage`, `codex-test-gen`, `create-pr`, `create-release`, `deep-analyze`,
+`create-pr`, `create-release`, `deep-analyze`,
 `dep-audit`, `doc-refactor`, `flow-drive`, `flow-guide`, `git-worktree`,
-`harness-audit`, `harness-govern`, `install-hooks`, `install-rules`,
-`install-scripts`, `matrix-cell-onboard`, `merge-prep`, `opsx-apply-resume`,
-`pr-summary`, `precommit`, `precommit-fast`, `project-brief`, `review-pending`,
+`harness-audit`, `harness-govern`,
+`matrix-cell-onboard`, `merge-prep`, `opsx-apply-resume`,
+`pr-summary`, `precommit`, `project-brief`, `review-pending`,
 `setup`, `simplify`, `smart-commit`, `ui-ux-verify`,
 `update-codemaps`, `update-docs`, and `verify`.
 
@@ -87,9 +86,10 @@ only in its separate removed ledger; they are not active discovery routes.
 
 The capability-family change retires predecessor identities through the
 inventory-owned ledger. Runtime routing uses the family plus a mode, so a
-description or command must not recreate a retired alias. Keep the six
-GitNexus package skills outside this migration and resolve them through their
-own package contract. OpenSpec proposal authoring is owned by the external
+description or command must not recreate a retired alias. The bundled GitNexus
+wrappers are withdrawn; direct graph navigation remains available through
+`code-trace` and the repository GitNexus guidance. Upstream packages remain
+external and are never silently adopted. OpenSpec proposal authoring is owned by the external
 `openspec-propose` workflow, and operator session setup remains an explicit
 operator action.
 

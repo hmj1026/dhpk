@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:d5b3e1c91e4bed42b97b4124ad00b6833f5645870172ff6090451630beda53e4",
+  "sourceInventoryRevision": "sha256:adb3f61ef1143f91fb562d46571a736ad471bb2661cac6a8620c92bfc541a08b",
   "entries": [
     {
       "id": "change-verdict",
@@ -1041,7 +1041,7 @@
       "usageFingerprint": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
     }
   ],
-  "sourceSelectionDigest": "eb367fad6a7525ca68ef4e3348123442dfa54e8a9feea5b02ec60872b756f092",
+  "sourceSelectionDigest": "00fac9ef330d7c571705ece6f14f1c5cc786650c0c9f7595925df99ed0ff8ecb",
   "runtimeIndex": {
     "targets": {
       "agy-fast-worker": {
@@ -1169,48 +1169,6 @@
         "invocationClass": "explicit-only",
         "command": "$git-worktree [<operation>] [--branch=<name>] [--base=<ref>]",
         "codexInvokable": true
-      },
-      "gitnexus-cli": {
-        "id": "gitnexus-cli",
-        "publicName": "dhpk-gitnexus-cli",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-cli <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-debugging": {
-        "id": "gitnexus-debugging",
-        "publicName": "dhpk-gitnexus-debugging",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-debugging <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-exploring": {
-        "id": "gitnexus-exploring",
-        "publicName": "dhpk-gitnexus-exploring",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-exploring <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-guide": {
-        "id": "gitnexus-guide",
-        "publicName": "dhpk-gitnexus-guide",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-guide <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-impact-analysis": {
-        "id": "gitnexus-impact-analysis",
-        "publicName": "dhpk-gitnexus-impact-analysis",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-impact-analysis <input>",
-        "codexInvokable": false
-      },
-      "gitnexus-refactoring": {
-        "id": "gitnexus-refactoring",
-        "publicName": "dhpk-gitnexus-refactoring",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-gitnexus-refactoring <input>",
-        "codexInvokable": false
       },
       "harness-audit": {
         "id": "harness-audit",
@@ -1871,30 +1829,6 @@
       },
       "feature-verify": {
         "target": "dhpk-feature-verify",
-        "disposition": "legacy"
-      },
-      "gitnexus-cli": {
-        "target": "dhpk-gitnexus-cli",
-        "disposition": "legacy"
-      },
-      "gitnexus-debugging": {
-        "target": "dhpk-gitnexus-debugging",
-        "disposition": "legacy"
-      },
-      "gitnexus-exploring": {
-        "target": "dhpk-gitnexus-exploring",
-        "disposition": "legacy"
-      },
-      "gitnexus-guide": {
-        "target": "dhpk-gitnexus-guide",
-        "disposition": "legacy"
-      },
-      "gitnexus-impact-analysis": {
-        "target": "dhpk-gitnexus-impact-analysis",
-        "disposition": "legacy"
-      },
-      "gitnexus-refactoring": {
-        "target": "dhpk-gitnexus-refactoring",
         "disposition": "legacy"
       },
       "ios-icon-gen": {

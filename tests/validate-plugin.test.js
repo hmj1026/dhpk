@@ -454,9 +454,7 @@ test('single-quoted static shell source resolves successfully', () => {
       'precommit-fast.md', 'install-hooks.md', 'install-rules.md',
       'install-scripts.md', 'check-coverage.md', 'codex-test-gen.md',
     ]) {
-      const body = read(name);
-      assert.match(body, /Deprecated.*forward/i, `${name} must state its forwarding deprecation`);
-      assert.ok(body.split('\n').length <= 28, `${name} must remain a thin forwarding alias`);
+      assert.ok(!fs.existsSync(path.join(ROOT, 'commands', name)), `${name} must be retired`);
     }
     assert.ok(!fs.existsSync(path.join(ROOT, 'commands', 'zh-tw.md')), 'zh-tw must be retired');
   });
@@ -497,15 +495,11 @@ test('single-quoted static shell source resolves successfully', () => {
         assert.ok(!currentNames.has(name), `commands/${name}.md must remain retired`);
       }
       for (const name of FORWARDING_COMMANDS) {
-        const file = path.join(commandsDir, `${name}.md`);
-        assert.ok(currentNames.has(name), `commands/${name}.md must remain available`);
-        const body = fs.readFileSync(file, 'utf8');
-        assert.match(body, /dhpk-invocation-class:\s*explicit-only/, `${name}.md must declare explicit-only invocation`);
-        assert.match(body, /Deprecated.*forward/i, `${name}.md must remain a forwarding alias`);
+        assert.ok(!currentNames.has(name), `commands/${name}.md must remain retired`);
       }
     }
 
-    test('invocation inventory baseline distinguishes retired aliases from retained forwarding aliases', () => {
+    test('invocation inventory preserves history while current aliases remain retired', () => {
       const inventory = JSON.parse(fs.readFileSync(
         path.join(ROOT, 'tests', 'fixtures', 'invocation-inventory-baseline.json'), 'utf8'
       ));
@@ -525,15 +519,11 @@ test('single-quoted static shell source resolves successfully', () => {
       );
       fs.rmSync(path.join(mutatedCommands, 'do.md'));
 
-      const forwardingAlias = path.join(mutatedCommands, 'install-hooks.md');
-        const original = fs.readFileSync(forwardingAlias, 'utf8');
-      const withoutExplicitOnly = original.replace(/^[ \t]*dhpk-invocation-class:\s*explicit-only[ \t]*\r?\n/m, '');
-        assert.notStrictEqual(withoutExplicitOnly, original, 'mutation must remove explicit-only metadata');
-        fs.writeFileSync(forwardingAlias, withoutExplicitOnly);
-        assert.throws(
-          () => assertCurrentCommandSurface(mutatedCommands, inventory),
-          /install-hooks\.md must declare explicit-only invocation/
-        );
+      fs.writeFileSync(path.join(mutatedCommands, 'install-hooks.md'), '---\ndescription: retired installation alias\n---\nbody\n');
+      assert.throws(
+        () => assertCurrentCommandSurface(mutatedCommands, inventory),
+        /install-hooks\.md must remain retired/
+      );
       } finally {
         fs.rmSync(tmp, { recursive: true, force: true });
       }
