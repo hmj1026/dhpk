@@ -339,146 +339,411 @@ test('unconfigured Claude consumer probe stays non-pass and supplies resume evid
 
 // BEGIN lexical source block: tests/claude-user-config-probe.test.js
 {
-  const fs = require('node:fs');
-  const os = require('node:os');
-  const path = require('node:path');
-  const { test, assert } = require('./_lib/tinytest');
+  const INVENTORY_ARGS = ['plugin', 'list', '--json'];
+  const EXPECTED_VERSION = '2.1.292';
+  const CANDIDATE = { name: 'dhpk', version: '1.0.0', userConfig: { example: true } };
   const { runClaudeUserConfigProbe } = require('../scripts/release/claude-user-config-probe');
 
-  test('configured consumer probe stays non-pass without an exact details binding', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-probe-'));
-    const manifestPath = path.join(dir, 'plugin.json');
+  function writeManifest(root, manifest = CANDIDATE) {
+    const directory = path.join(root, '.claude-plugin');
+    fs.mkdirSync(directory, { recursive: true });
+    const manifestPath = path.join(directory, 'plugin.json');
+    fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+    return manifestPath;
+  }
+
+  function probeFixture() {
+    const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-inventory-')));
+    const candidatePath = path.join(directory, 'candidate', '.claude-plugin', 'plugin.json');
+    fs.mkdirSync(path.dirname(candidatePath), { recursive: true });
+    fs.writeFileSync(candidatePath, `${JSON.stringify(CANDIDATE)}\n`);
+    const inventory = [];
+    const calls = [];
+    let inventoryResult = null;
+    let versionResult = { status: 0, stdout: `claude ${EXPECTED_VERSION}` };
+    const runner = (_command, args) => {
+      calls.push([...args]);
+      if (args.length === 1 && args[0] === '--version') return versionResult;
+      if (JSON.stringify(args) === JSON.stringify(INVENTORY_ARGS)) {
+        return inventoryResult || { status: 0, stdout: JSON.stringify(inventory) };
+      }
+      // This is the real failure observed with Claude Code 2.1.291: the old
+      // details command rejects --json. Returning it keeps RED tied to the
+      // actual unsupported invocation until production switches to inventory.
+      return { status: 1, stdout: '', stderr: "error: unknown option '--json'\n" };
+    };
+    return {
+      directory,
+      candidatePath,
+      inventory,
+      calls,
+      setInventoryResult(value) { inventoryResult = value; },
+      setVersionResult(value) { versionResult = value; },
+      installed(label, manifest = CANDIDATE) {
+        const root = path.join(directory, label);
+        const manifestPath = writeManifest(root, manifest);
+        return { root, manifestPath };
+      },
+      record(root, overrides = {}) {
+        return {
+          id: 'dhpk@dhpk',
+          version: CANDIDATE.version,
+          folderVersion: CANDIDATE.version,
+          scope: 'user',
+          enabled: true,
+          installPath: root,
+          ...overrides,
+        };
+      },
+      run(overrides = {}) {
+        return runClaudeUserConfigProbe({
+          executable: 'claude',
+          manifestPath: candidatePath,
+          manifestFingerprint: digest(CANDIDATE),
+          version: EXPECTED_VERSION,
+          execute: true,
+          runner,
+          ...overrides,
+        });
+      },
+    };
+  }
+
+  function withProbe(callback) {
+    const fixture = probeFixture();
     try {
-      fs.writeFileSync(manifestPath, '{}\n');
-      const result = runClaudeUserConfigProbe({
-        manifestPath,
-        manifestFingerprint: 'a'.repeat(64),
-        version: '2.1.238',
-        execute: true,
-        runner: (command, args) => args[0] === '--version'
-          ? { status: 0, stdout: 'claude 2.1.238' }
-          : { status: 0, stdout: JSON.stringify({ name: 'dhpk' }) },
-      });
-      assert.strictEqual(result.status, 'FAIL');
-      assert.ok(result.resumeCommand);
+      callback(fixture);
     } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(fixture.directory, { recursive: true, force: true });
+    }
+  }
+
+  function assertInventoryInvocation(fixture) {
+    assert.deepStrictEqual(
+      fixture.calls.filter((args) => args[0] === 'plugin'),
+      [INVENTORY_ARGS],
+      'the probe must request Claude plugin inventory as JSON',
+    );
+  }
+
+  function withEnv(name, value, callback) {
+    const previous = process.env[name];
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+    try { callback(); } finally {
+      if (previous === undefined) delete process.env[name];
+      else process.env[name] = previous;
+    }
+  }
+  test('probe uses the JSON plugin inventory and verifies the installed manifest', () => {
+    withProbe((fixture) => {
+      const installed = fixture.installed('cache/dhpk/1.0.0');
+      const secondRoot = fixture.installed('other-cache/dhpk/1.0.0');
+      fixture.inventory.push(fixture.record(installed.root, {
+        // These undocumented details fields must never bind acceptance.
+        manifestFingerprint: 'f'.repeat(64),
+        userConfigFingerprint: 'e'.repeat(64),
+        privateMarker: 'inventory-raw-data-must-not-leak',
+      }), fixture.record(installed.root, { scope: 'managed' }), fixture.record(secondRoot.root));
+
+      const result = fixture.run();
+
+      assertInventoryInvocation(fixture);
+      assert.strictEqual(result.status, 'PASS');
+      assert.strictEqual(result.stage, 'installed-manifest');
+      assert.doesNotMatch(JSON.stringify(result), /context reduced|session context decreased|runtime PASS/i);
+      assert.doesNotMatch(JSON.stringify(result), /inventory-raw-data-must-not-leak|plugin\.json|dhpk\/1\.0\.0/);
+    });
+  });
+
+  test('project and local scopes require a project path containing cwd', () => {
+    const cases = [
+      { scope: 'project', projectPath: path.dirname(process.cwd()), expected: 'PASS' },
+      { scope: 'local', projectPath: path.dirname(process.cwd()), expected: 'PASS' },
+      { scope: 'project', projectPath: `${process.cwd()}-foreign`, expected: 'BLOCKED' },
+    ];
+    for (const entry of cases) {
+      withProbe((fixture) => {
+        const installed = fixture.installed(`project-${entry.scope}`);
+        fixture.inventory.push(fixture.record(installed.root, {
+          scope: entry.scope,
+          projectPath: entry.projectPath,
+        }));
+        const result = fixture.run();
+        assert.strictEqual(result.status, entry.expected, entry.scope);
+        assertInventoryInvocation(fixture);
+      });
     }
   });
 
-  test('probe rejects a stale local manifest even when the consumer reports a forged expected fingerprint', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-stale-'));
-    const manifestPath = path.join(dir, 'plugin.json');
-    try {
-      fs.writeFileSync(manifestPath, '{"name":"legacy"}\n');
-      const result = runClaudeUserConfigProbe({
-        manifestPath,
-        manifestFingerprint: 'b'.repeat(64),
-        version: '2.1.238',
-        execute: true,
-        runner: (command, args) => args[0] === '--version'
-          ? { status: 0, stdout: 'claude 2.1.238' }
-          : { status: 0, stdout: JSON.stringify({ manifestFingerprint: 'b'.repeat(64) }) },
-      });
-      assert.strictEqual(result.status, 'FAIL');
-      assert.match(result.reason, /fingerprint/i);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+  test('readFromFolder selects the loaded folder instead of a stale cache installPath', () => {
+    withProbe((fixture) => {
+      const staleManifest = { ...CANDIDATE, version: '0.9.0' };
+      const stale = fixture.installed('stale-cache', staleManifest);
+      const loaded = fixture.installed('loaded-folder');
+      fixture.inventory.push(fixture.record(stale.root, {
+        readFromFolder: loaded.root,
+      }));
+      const result = fixture.run();
+      assert.strictEqual(result.status, 'PASS');
+      assertInventoryInvocation(fixture);
+    });
   });
 
-  test('probe rejects a prefix-only Claude version and unrelated plugin details', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-version-'));
-    const manifestPath = path.join(dir, 'plugin.json');
-    try {
-      const manifest = { name: 'dhpk' };
-      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
-      const crypto = require('node:crypto');
-      const fingerprint = crypto.createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
-      const result = runClaudeUserConfigProbe({
-        manifestPath,
-        manifestFingerprint: fingerprint,
-        version: '2.1.23',
-        execute: true,
-        runner: (command, args) => args[0] === '--version'
-          ? { status: 0, stdout: 'claude 2.1.238' }
-          : { status: 0, stdout: JSON.stringify({ name: 'other-plugin', manifestFingerprint: fingerprint }) },
-      });
+  test('an invalid declared readFromFolder does not fall back to a valid cache path', () => {
+    withProbe((fixture) => {
+      const installed = fixture.installed('valid-cache');
+      fixture.inventory.push(fixture.record(installed.root, {
+        readFromFolder: 'relative/invalid-folder',
+      }));
+      const result = fixture.run();
       assert.strictEqual(result.status, 'BLOCKED');
-      assert.match(result.reason, /version/i);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+      assertInventoryInvocation(fixture);
+    });
   });
 
-  test('probe requires dhpk identity before accepting fingerprint details', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-identity-'));
-    const manifestPath = path.join(dir, 'plugin.json');
-    try {
-      const manifest = { name: 'dhpk' };
-      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
-      const crypto = require('node:crypto');
-      const fingerprint = crypto.createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
-      const result = runClaudeUserConfigProbe({
-        manifestPath,
-        manifestFingerprint: fingerprint,
-        version: '2.1.238',
-        execute: true,
-        runner: (command, args) => args[0] === '--version'
-          ? { status: 0, stdout: 'claude 2.1.238' }
-          : { status: 0, stdout: JSON.stringify({ name: 'other-plugin', manifestFingerprint: fingerprint }) },
-      });
-      assert.strictEqual(result.status, 'BLOCKED');
-      assert.match(result.reason, /identity/i);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  test('probe treats a prerelease suffix as a version mismatch', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-prerelease-'));
-    const manifestPath = path.join(dir, 'plugin.json');
-    try {
-      const manifest = { name: 'dhpk' };
-      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
-      const crypto = require('node:crypto');
-      const fingerprint = crypto.createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
-      const result = runClaudeUserConfigProbe({
-        manifestPath,
-        manifestFingerprint: fingerprint,
-        version: '2.1.2',
-        runner: () => ({ status: 0, stdout: 'claude 2.1.2-beta' }),
-      });
-      assert.strictEqual(result.status, 'BLOCKED');
-      assert.match(result.reason, /version/i);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  test('probe rejects conflicting consumer fingerprints', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-conflict-'));
-    const manifestPath = path.join(dir, 'plugin.json');
-    try {
-      const manifest = { name: 'dhpk' };
-      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
-      const crypto = require('node:crypto');
-      const fingerprint = crypto.createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
-      const other = 'c'.repeat(64);
-      const result = runClaudeUserConfigProbe({
-        manifestPath,
-        manifestFingerprint: fingerprint,
-        version: '2.1.238',
-        execute: true,
-        runner: (command, args) => args[0] === '--version'
-          ? { status: 0, stdout: 'claude 2.1.238' }
-          : { status: 0, stdout: JSON.stringify({ name: 'dhpk', manifestFingerprint: fingerprint, userConfigFingerprint: other }) },
-      });
+  test('each distinct applicable root must match the candidate manifest', () => {
+    withProbe((fixture) => {
+      const current = fixture.installed('first-current-root');
+      const staleManifest = { ...CANDIDATE, version: '0.9.0' };
+      const stale = fixture.installed('second-stale-root', staleManifest);
+      fixture.inventory.push(
+        fixture.record(current.root),
+        fixture.record(stale.root, { version: staleManifest.version, folderVersion: staleManifest.version }),
+      );
+      const result = fixture.run();
       assert.strictEqual(result.status, 'FAIL');
-      assert.match(result.reason, /conflicting/i);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
+      assertInventoryInvocation(fixture);
+    });
+  });
+
+  test('folderVersion and cache version can each bind an installed manifest version', () => {
+    for (const versionField of ['folderVersion', 'version']) {
+      withProbe((fixture) => {
+        const installed = fixture.installed(`version-${versionField}`);
+        const record = fixture.record(installed.root);
+        if (versionField === 'folderVersion') {
+          delete record.version;
+          record.readFromFolder = installed.root;
+        }
+        else delete record.folderVersion;
+        fixture.inventory.push(record);
+        const result = fixture.run();
+        assert.strictEqual(result.status, 'PASS', versionField);
+        assertInventoryInvocation(fixture);
+      });
     }
+  });
+
+  test('a stale cache or folder version fails even when the installed manifest bytes match', () => {
+    withProbe((fixture) => {
+      const installed = fixture.installed('stale-version-metadata');
+      fixture.inventory.push(fixture.record(installed.root, {
+        version: '0.9.0',
+        folderVersion: '0.9.0',
+      }));
+      const result = fixture.run();
+      assert.strictEqual(result.status, 'FAIL');
+      assertInventoryInvocation(fixture);
+    });
+  });
+
+  test('only an enabled exact dhpk identity satisfies the inventory requirement', () => {
+    const cases = [
+      { name: 'empty inventory' },
+      { name: 'disabled', overrides: { enabled: false } },
+      { name: 'unrelated identity', overrides: { id: 'other@publisher' } },
+    ];
+    for (const entry of cases) {
+      withProbe((fixture) => {
+        if (entry.overrides) {
+          const installed = fixture.installed(`no-match-${entry.name}`);
+          fixture.inventory.push(fixture.record(installed.root, entry.overrides));
+        }
+        const result = fixture.run();
+        assert.strictEqual(result.status, 'BLOCKED', entry.name);
+        assertInventoryInvocation(fixture);
+      });
+    }
+  });
+
+  test('unknown scopes and malformed matching records are blocked', () => {
+    const cases = [
+      { name: 'unknown scope', overrides: { scope: 'workspace' } },
+      { name: 'non-boolean enabled flag', overrides: { enabled: 'true' } },
+      { name: 'relative project path', overrides: { scope: 'project', projectPath: 'relative/project' } },
+    ];
+    for (const entry of cases) {
+      withProbe((fixture) => {
+        const installed = fixture.installed(`malformed-${entry.name.replaceAll(' ', '-')}`);
+        fixture.inventory.push(fixture.record(installed.root, entry.overrides));
+        const result = fixture.run();
+        assert.strictEqual(result.status, 'BLOCKED', entry.name);
+        assertInventoryInvocation(fixture);
+      });
+    }
+  });
+
+  test('plugin inventory load errors block and are not echoed into the result', () => {
+    withProbe((fixture) => {
+      const installed = fixture.installed('load-error');
+      fixture.inventory.push(fixture.record(installed.root, { errors: ['private-load-error-detail'] }));
+      const result = fixture.run();
+      assert.strictEqual(result.status, 'BLOCKED');
+      assert.doesNotMatch(JSON.stringify(result), /private-load-error-detail|load-error/);
+      assertInventoryInvocation(fixture);
+    });
+  });
+
+  test('missing or non-regular installed manifests are blocked', () => {
+    for (const kind of ['missing', 'directory']) {
+      withProbe((fixture) => {
+        const root = path.join(fixture.directory, `bad-manifest-${kind}`);
+        const manifestDirectory = path.join(root, '.claude-plugin');
+        fs.mkdirSync(manifestDirectory, { recursive: true });
+        if (kind === 'directory') fs.mkdirSync(path.join(manifestDirectory, 'plugin.json'));
+        fixture.inventory.push(fixture.record(root));
+        const result = fixture.run();
+        assert.strictEqual(result.status, 'BLOCKED', kind);
+        assertInventoryInvocation(fixture);
+      });
+    }
+  });
+
+  test('symlinked install roots, ancestors, and manifests are blocked', () => {
+    const cases = ['root', 'ancestor', 'manifest', 'traversal'];
+    for (const kind of cases) {
+      withProbe((fixture) => {
+        const real = fixture.installed(`real-${kind}`);
+        let installPath = real.root;
+        if (kind === 'root') {
+          installPath = path.join(fixture.directory, 'linked-root');
+          fs.symlinkSync(real.root, installPath, 'dir');
+        } else if (kind === 'ancestor') {
+          const linkParent = path.join(fixture.directory, 'linked-parent');
+          fs.symlinkSync(fixture.directory, linkParent, 'dir');
+          installPath = path.join(linkParent, path.basename(real.root));
+        } else if (kind === 'traversal') installPath = `${real.root}/../${path.basename(real.root)}`;
+        else {
+          const linkedManifest = path.join(real.root, '.claude-plugin', 'plugin.json');
+          fs.unlinkSync(linkedManifest);
+          const target = path.join(fixture.directory, 'outside-plugin.json');
+          fs.writeFileSync(target, `${JSON.stringify(CANDIDATE)}\n`);
+          fs.symlinkSync(target, linkedManifest);
+        }
+        fixture.inventory.push(fixture.record(installPath));
+        const result = fixture.run();
+        assert.strictEqual(result.status, 'BLOCKED', kind);
+        assertInventoryInvocation(fixture);
+      });
+    }
+  });
+  test('installed manifest identity and JSON content must match the candidate', () => {
+    const cases = [
+      { name: 'wrong plugin name', manifest: { ...CANDIDATE, name: 'other' }, expected: 'BLOCKED' },
+      { name: 'stale manifest content', manifest: { ...CANDIDATE, userConfig: { example: false } }, expected: 'FAIL' },
+      { name: 'invalid JSON', contents: '{invalid json', expected: 'FAIL' },
+    ];
+    for (const entry of cases) {
+      withProbe((fixture) => {
+        const root = path.join(fixture.directory, `manifest-${entry.name.replaceAll(' ', '-')}`);
+        const manifestDirectory = path.join(root, '.claude-plugin');
+        fs.mkdirSync(manifestDirectory, { recursive: true });
+        if (entry.contents !== undefined) fs.writeFileSync(path.join(manifestDirectory, 'plugin.json'), entry.contents);
+        else writeManifest(root, entry.manifest);
+        fixture.inventory.push(fixture.record(root, {
+          version: entry.manifest ? entry.manifest.version : CANDIDATE.version,
+          folderVersion: entry.manifest ? entry.manifest.version : CANDIDATE.version,
+        }));
+        const result = fixture.run();
+        assert.strictEqual(result.status, entry.expected, entry.name);
+        assertInventoryInvocation(fixture);
+      });
+    }
+  });
+
+  test('empty, invalid JSON, non-array, nonzero, and timed-out inventories are unavailable', () => {
+    const cases = [
+      { name: 'invalid JSON', result: { status: 0, stdout: '{invalid' } },
+      { name: 'non-array inventory', result: { status: 0, stdout: JSON.stringify({ plugins: [] }) } },
+      { name: 'nonzero inventory command', result: { status: 1, stdout: '', stderr: 'private-cli-diagnostic' } },
+      { name: 'inventory timeout', result: { status: null, error: { code: 'ETIMEDOUT' } } },
+    ];
+    for (const entry of cases) {
+      withProbe((fixture) => {
+        fixture.setInventoryResult(entry.result);
+        const result = fixture.run();
+        assert.strictEqual(result.status, 'UNAVAILABLE', entry.name);
+        assertInventoryInvocation(fixture);
+      });
+    }
+  });
+
+  test('missing executable permissions report NOT_CONFIGURED', () => {
+    for (const code of ['ENOENT', 'EACCES']) {
+      withProbe((fixture) => {
+        fixture.setVersionResult({ status: null, error: { code } });
+        const result = fixture.run();
+        assert.strictEqual(result.status, 'NOT_CONFIGURED', code);
+        assert.strictEqual(fixture.calls.some((args) => args[0] === 'plugin'), false);
+      });
+    }
+  });
+
+  test('local candidate tampering fails even if an inventory record could claim its fingerprint', () => {
+    withProbe((fixture) => {
+      const installed = fixture.installed('candidate-tamper');
+      fixture.inventory.push(fixture.record(installed.root, { manifestFingerprint: digest(CANDIDATE) }));
+      fs.writeFileSync(fixture.candidatePath, `${JSON.stringify({ ...CANDIDATE, userConfig: { example: false } })}\n`);
+      const result = fixture.run();
+      assert.strictEqual(result.status, 'FAIL');
+      assert.strictEqual(fixture.calls.some((args) => args[0] === 'plugin'), false);
+    });
+  });
+
+  test('exact Claude version matching rejects prefixes and prerelease suffixes', () => {
+    for (const observed of ['claude 2.1.2921', 'claude 2.1.292-beta']) {
+      withProbe((fixture) => {
+        fixture.setVersionResult({ status: 0, stdout: observed });
+        const result = fixture.run({ version: EXPECTED_VERSION });
+        assert.strictEqual(result.status, 'BLOCKED', observed);
+        assert.match(result.reason, /version/i);
+        assert.strictEqual(fixture.calls.some((args) => args[0] === 'plugin'), false);
+      });
+    }
+  });
+
+  test('explicit execution requires an exact Claude version', () => {
+    withProbe((fixture) => {
+      const installed = fixture.installed('exact-version-required');
+      fixture.inventory.push(fixture.record(installed.root));
+      const result = fixture.run({ version: undefined });
+      assert.strictEqual(result.status, 'BLOCKED');
+      assert.match(result.reason, /exact.*version|version.*required/i);
+      assert.strictEqual(fixture.calls.some((args) => args[0] === 'plugin'), false);
+    });
+  });
+
+  test('environment-requested execution requires and accepts an exact version', () => {
+    withProbe((fixture) => {
+      const installed = fixture.installed('env-execute');
+      fixture.inventory.push(fixture.record(installed.root));
+      withEnv('DHPK_CONSUMER_PROBE_EXECUTE', '1', () => {
+        const missingVersion = fixture.run({ execute: false, version: undefined });
+        assert.strictEqual(missingVersion.status, 'BLOCKED');
+        assert.strictEqual(fixture.calls.some((args) => args[0] === 'plugin'), false);
+      });
+    });
+
+    withProbe((fixture) => {
+      const installed = fixture.installed('env-execute-exact');
+      fixture.inventory.push(fixture.record(installed.root));
+      withEnv('DHPK_CONSUMER_PROBE_EXECUTE', '1', () => {
+        const result = fixture.run({ execute: false, version: EXPECTED_VERSION });
+        assert.strictEqual(result.status, 'PASS');
+        assertInventoryInvocation(fixture);
+      });
+    });
   });
 }
 // END lexical source block: tests/claude-user-config-probe.test.js

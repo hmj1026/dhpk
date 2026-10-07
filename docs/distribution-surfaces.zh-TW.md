@@ -222,9 +222,13 @@ node scripts/ci/gen-claude-user-config.js --check
 與已 characterize 的 `manifests/claude-user-config-legacy.json`。
 `claude-user-config` 類別與 skill discovery、profile bundle、agent、command 及
 runtime activation 分開量測；byte／word／token 的縮減只是 structural metadata
-evidence。若設定好的 Claude probe 無法把觀察到的 consumer 細節綁定到產生的
-manifest fingerprint，結果維持 `NOT_RUN`、`NOT_CONFIGURED`、`BLOCKED` 或
-`UNAVAILABLE` 並附 resume 指令，不宣稱任何實際的 context 縮減。
+evidence。Claude probe 使用 `claude plugin list --json`，將適用且已啟用的
+`dhpk@dhpk` 紀錄綁定到產生的 manifest fingerprint；無法綁定時維持非 PASS
+並附 resume 指令。probe 讀取各安裝位置的 `.claude-plugin/plugin.json`，優先
+使用已宣告的 `readFromFolder`，否則使用 `installPath`。相同 root 的重複紀錄
+只讀取一次；每個不同且適用的 root 都必須吻合。`PASS` 僅表示已安裝 manifest
+的綁定，不宣稱任何實際的 context 縮減。inventory 欄位依據
+[Claude plugin CLI reference](https://code.claude.com/docs/en/plugins/cli-reference#json-output)。
 
 ## Codex project sync
 
