@@ -4,10 +4,10 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.65.2",
-  "sourceCommit": "f33fba2d1bca38a0ad9d68cf3c0989e14b7fbb6a",
-  "generatedFromCommit": "f33fba2d1bca38a0ad9d68cf3c0989e14b7fbb6a",
-  "generatedFromTree": "b9b936244b1e86383537bf6e109bea74dbeec6d8",
+  "sourceVersion": "0.65.3",
+  "sourceCommit": "656e1c575d161c8c0710a87b321d4ea6ebc7aea5",
+  "generatedFromCommit": "656e1c575d161c8c0710a87b321d4ea6ebc7aea5",
+  "generatedFromTree": "16be978134b9f420a7008c521d75861bcdc156a8",
   "inventoryDigest": "eb350a62c84584494bc391401f0880d465dda07d7051a3e7db302d505cfa0471",
   "inventoryRevision": "sha256:033da58eb56038ecf3a1266e0a8ef87748fc80e1428abdc9b7dd1c221aa1bcf1",
   "generatorVersion": "1.0.0",
@@ -6160,7 +6160,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "3653f4cfd34ab6b54e7d8e35b0c6ef77e2f05ea3a67497296319ee0c950b073c",
+    "planId": "b9643f4da8b5babb9d280032ac0978ccecd7ba931511de07557f970be71428cf",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -6210,10 +6210,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "3653f4cfd34ab6b54e7d8e35b0c6ef77e2f05ea3a67497296319ee0c950b073c",
+      "plan": "b9643f4da8b5babb9d280032ac0978ccecd7ba931511de07557f970be71428cf",
       "inventory": "eb350a62c84584494bc391401f0880d465dda07d7051a3e7db302d505cfa0471"
     },
-    "rollbackIdentity": "94eeaaf1da639d9304c687705c025b4892549a0fb32b850662315be8691f7005"
+    "rollbackIdentity": "e240d061abfe7ea2f5f93d24fea0d8addf57fe1146c4be9768b0a2cd28e29a01"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -7203,5 +7203,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "071cd80529058364be8186ba727f327509a42d6cadf9293fbdb37851f533ce7d"
+  "planFingerprint": "d49a71cbce277089d4a3e866beddc11278b50a1d808d71fd04571813a69d35cd"
 }

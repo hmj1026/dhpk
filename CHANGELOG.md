@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.65.3 — 2026-10-07 — Support CLI help aliases, ignore transient marketplace artifacts, and bind Claude config probe to installed plugins inventory
+
+- **fix(agents-skills)** — Generation and validation CLIs support --help and -h without reading source inventories or changing projection files.
+- **fix(claude-user-config)** — Bind the Claude user-config probe through supported plugin list JSON and each effective installed manifest instead of unsupported plugin details JSON.
+- **fix(claude-marketplace)** — Package generation and drift checks ignore Python bytecode, `__pycache__`, OS metadata and cache-only parent directories while retaining payload and symlink validation.
+
 ## 0.65.2 — 2026-10-07 — Reconcile retired shared skills and profiles during uninstall, and restrict Claude discovery adapter to emitted skills
 
 - **fix(host-bindings)** — Keep Claude project discovery limited to its emitted skills when other Hosts share the projection.

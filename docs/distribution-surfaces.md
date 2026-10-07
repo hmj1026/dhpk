@@ -213,9 +213,14 @@ uses `--rollback` and the characterized
 category is measured separately from skill discovery, profile bundles, agents,
 commands, and runtime activation. Byte/word/token reduction is structural
 metadata evidence only. If the exact configured Claude probe cannot bind the
-observed consumer details to the generated manifest fingerprint, its result
-remains `NOT_RUN`, `NOT_CONFIGURED`, `BLOCKED`, or `UNAVAILABLE` with a resume
-command; no live context reduction is claimed.
+enabled `dhpk@dhpk` records from `claude plugin list --json` to the generated
+manifest fingerprint, its result remains non-pass with a resume command.
+The probe reads each applicable installation's `.claude-plugin/plugin.json`,
+using `readFromFolder` when declared and otherwise `installPath`. Duplicate
+records for one root are checked once; every distinct applicable root must
+match. `PASS` describes installed-manifest binding only; no live context
+reduction is claimed. Inventory fields follow the
+[Claude plugin CLI reference](https://code.claude.com/docs/en/plugins/cli-reference#json-output).
 
 ## Host limitation: directory roots, not per-skill filtering
 

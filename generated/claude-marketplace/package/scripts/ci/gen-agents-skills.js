@@ -9,6 +9,24 @@ const {
   rollbackAgentsSkillsProjection,
 } = require('../lib/agents-skills-package');
 
+function usage() {
+  return [
+    'Usage: node scripts/ci/gen-agents-skills.js [options] [out-dir]',
+    '  --repo-root <dir>     Canonical repository root (defaults to this checkout)',
+    '  --source-root <dir>   Override the canonical source root',
+    '  --project-root <dir>  Consumer project for installation or lifecycle actions',
+    '  --out-dir <dir>       Projection output directory (also accepted positionally)',
+    '  --profile <id>        Consumer selection profile',
+    '  --host <name>         Requested Host; repeat to select multiple Hosts',
+    '  --update              Allow canonical source updates',
+    '  --adopt               Adopt matching unmanaged entries',
+    '  --repair              Repair the consumer projection',
+    '  --uninstall           Uninstall owned entries; requires --project-root',
+    '  --rollback            Roll back the projection; requires --project-root',
+    '  -h, --help            Show this help without changing files',
+  ].join('\n');
+}
+
 function parseArgs(argv) {
   const args = {
     repoRoot: path.join(__dirname, '..', '..'),
@@ -24,7 +42,8 @@ function parseArgs(argv) {
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--repo-root') args.repoRoot = argv[++index];
+    if (arg === '--help' || arg === '-h') return { ...args, help: true };
+    else if (arg === '--repo-root') args.repoRoot = argv[++index];
     else if (arg === '--source-root') args.sourceRoot = argv[++index];
     else if (arg === '--project-root') args.projectRoot = argv[++index];
     else if (arg === '--out-dir') args.outDir = argv[++index];
@@ -48,6 +67,10 @@ function fail(message) {
 
 try {
   const args = parseArgs(process.argv.slice(2));
+  if (args.help) {
+    console.log(usage());
+    process.exit(0);
+  }
   const root = path.resolve(args.sourceRoot || args.repoRoot);
   const projectRoot = args.projectRoot ? path.resolve(args.projectRoot) : null;
   const outDir = args.outDir ? path.resolve(args.outDir) : (projectRoot ? null : path.join(root, '.agents', 'skills'));
