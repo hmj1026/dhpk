@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.65.2 — 2026-10-07 — Reconcile retired shared skills and profiles during uninstall, and restrict Claude discovery adapter to emitted skills
+
+- **fix(host-bindings)** — Keep Claude project discovery limited to its emitted skills when other Hosts share the projection.
+- **fix(codex-sync)** — Allow a fresh install after a retired profile is uninstalled while preserving verified orphaned files and their evidence.
+- **fix(installer)** — Reconcile retired shared skills and their Host bindings when uninstalling from an older project receipt.
+
 ## 0.65.1 — 2026-10-06 — Streamline workflow operations guides, enable Flow Drive Codex CLI dispatch from Claude Code, and fix installer retirement and Host binding reconciliation
 
 - **fix(installation)** — Bind native Host discovery to emitted skills while retaining legacy selected-only receipt compatibility.
