@@ -52,26 +52,51 @@ function isInside(root, candidate) {
   return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
+function isTransientEntry(name, entry) {
+  return (entry.isDirectory() && name === '__pycache__')
+    || (entry.isFile() && (name === '.DS_Store' || /\.py[co]$/.test(name)));
+}
+
+function validateTransientTree(source, root) {
+  const stat = fs.lstatSync(source);
+  if (stat.isSymbolicLink()) {
+    if (!isInside(root, fs.realpathSync(source))) {
+      throw new Error(`canonical Claude package symlink escapes the source root: ${source}`);
+    }
+  } else if (stat.isDirectory()) {
+    for (const entry of fs.readdirSync(source)) validateTransientTree(path.join(source, entry), root);
+  } else if (!stat.isFile()) {
+    throw new Error(`canonical Claude package source is not a regular file: ${source}`);
+  }
+}
+
 function copyPhysicalEntry(source, destination, root) {
   const relative = path.relative(root, source).split(path.sep).join('/');
   if (['docs/design', 'docs/evidence', 'docs/knowledge'].some((local) =>
-    relative === local || relative.startsWith(`${local}/`))) return;
+    relative === local || relative.startsWith(`${local}/`))) return false;
   const stat = fs.lstatSync(source);
   if (stat.isSymbolicLink()) {
     const resolved = fs.realpathSync(source);
     if (!isInside(root, resolved)) throw new Error(`canonical Claude package symlink escapes the source root: ${source}`);
     return copyPhysicalEntry(resolved, destination, root);
   }
+  if (isTransientEntry(path.basename(source), stat)) {
+    if (stat.isDirectory()) validateTransientTree(source, root);
+    return false;
+  }
   if (stat.isDirectory()) {
-    fs.mkdirSync(destination, { recursive: true });
-    for (const entry of fs.readdirSync(source)) {
-      copyPhysicalEntry(path.join(source, entry), path.join(destination, entry), root);
+    const copied = fs.readdirSync(source).map((entry) =>
+      copyPhysicalEntry(path.join(source, entry), path.join(destination, entry), root));
+    if (PACKAGE_PATHS.includes(relative) || copied.length === 0 || copied.some(Boolean)) {
+      fs.mkdirSync(destination, { recursive: true });
+      return true;
     }
-    return;
+    return false;
   }
   if (!stat.isFile()) throw new Error(`canonical Claude package source is not a regular file: ${source}`);
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.copyFileSync(source, destination);
+  return true;
 }
 
 function copyCanonicalTree(root, output) {
@@ -165,20 +190,25 @@ function assertSafeOutput(root, output) {
 function fingerprint(directory) {
   const hash = crypto.createHash('sha256');
   const walk = (current, relative = '') => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const entries = fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    const records = entries.flatMap((entry) => {
+      if (isTransientEntry(entry.name, entry)) return [];
       const child = path.join(current, entry.name);
       const childRelative = path.posix.join(relative, entry.name);
       if (entry.isDirectory()) {
-        hash.update(`D:${childRelative}\n`);
-        walk(child, childRelative);
+        const content = walk(child, childRelative);
+        return PACKAGE_PATHS.includes(childRelative) || content.retained
+          ? [`D:${childRelative}\n`, ...content.records] : [];
       } else if (entry.isFile()) {
-        hash.update(`F:${childRelative}:${crypto.createHash('sha256').update(fs.readFileSync(child)).digest('hex')}\n`);
+        return [`F:${childRelative}:${crypto.createHash('sha256').update(fs.readFileSync(child)).digest('hex')}\n`];
       } else {
         throw new Error(`Claude marketplace package contains an unsupported entry: ${childRelative}`);
       }
-    }
+    });
+    // Keep genuine empty directories; omit only branches emptied by filtering.
+    return { records, retained: entries.length === 0 || records.length > 0 };
   };
-  walk(directory);
+  for (const record of walk(directory).records) hash.update(record);
   return hash.digest('hex');
 }
 
@@ -223,6 +253,7 @@ function check({ root = ROOT, out = DEFAULT_OUTPUT } = {}) {
   try {
     copyCanonicalTree(root, temporary);
     assertPhysicalPackage(temporary);
+    assertPhysicalPackage(output);
     const expected = fingerprint(temporary);
     const actual = fingerprint(output);
     return expected === actual
