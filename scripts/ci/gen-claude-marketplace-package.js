@@ -57,6 +57,19 @@ function isTransientEntry(name, entry) {
     || (entry.isFile() && (name === '.DS_Store' || /\.py[co]$/.test(name)));
 }
 
+function validateTransientTree(source, root) {
+  const stat = fs.lstatSync(source);
+  if (stat.isSymbolicLink()) {
+    if (!isInside(root, fs.realpathSync(source))) {
+      throw new Error(`canonical Claude package symlink escapes the source root: ${source}`);
+    }
+  } else if (stat.isDirectory()) {
+    for (const entry of fs.readdirSync(source)) validateTransientTree(path.join(source, entry), root);
+  } else if (!stat.isFile()) {
+    throw new Error(`canonical Claude package source is not a regular file: ${source}`);
+  }
+}
+
 function copyPhysicalEntry(source, destination, root) {
   const relative = path.relative(root, source).split(path.sep).join('/');
   if (['docs/design', 'docs/evidence', 'docs/knowledge'].some((local) =>
@@ -67,7 +80,10 @@ function copyPhysicalEntry(source, destination, root) {
     if (!isInside(root, resolved)) throw new Error(`canonical Claude package symlink escapes the source root: ${source}`);
     return copyPhysicalEntry(resolved, destination, root);
   }
-  if (isTransientEntry(path.basename(source), stat)) return false;
+  if (isTransientEntry(path.basename(source), stat)) {
+    if (stat.isDirectory()) validateTransientTree(source, root);
+    return false;
+  }
   if (stat.isDirectory()) {
     const copied = fs.readdirSync(source).map((entry) =>
       copyPhysicalEntry(path.join(source, entry), path.join(destination, entry), root));

@@ -246,6 +246,11 @@ test('cache-like names cannot hide escaping source symlinks or output symlinks',
     fs.symlinkSync(external, sourceLink);
     assert.throws(() => GENERATOR.materialize(fixture), /symlink escapes/);
     fs.unlinkSync(sourceLink);
+    const sourceCache = path.join(fixture.root, 'scripts/__pycache__');
+    fs.mkdirSync(sourceCache);
+    fs.symlinkSync(external, path.join(sourceCache, 'unsafe.pyc'));
+    assert.throws(() => GENERATOR.materialize(fixture), /symlink escapes/);
+    fs.unlinkSync(path.join(sourceCache, 'unsafe.pyc'));
     GENERATOR.materialize(fixture);
     fs.symlinkSync(external, path.join(fixture.out, 'scripts/unsafe.pyc'));
     assert.throws(() => GENERATOR.check(fixture), /unsupported entry|symlink/);
