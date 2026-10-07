@@ -8,6 +8,7 @@ const { selectPortableSkills } = require('../scripts/lib/agent-plugin-package');
 
 const ROOT = path.join(__dirname, '..');
 const GENERATOR = path.join(ROOT, 'scripts', 'ci', 'gen-agents-skills.js');
+const VALIDATOR = path.join(ROOT, 'scripts', 'ci', 'validate-agents-skills.js');
 
 function expectedAgentPluginSkillIds() {
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
@@ -132,6 +133,121 @@ test('gen-agents-skills CLI projects non-Claude hosts beside a .claude/skills di
       'the alias exposes the shared artifact to Claude without per-skill bindings');
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+function cliHelpFixture(prefix) {
+  const root = fs.mkdtempSync(path.join(require('node:os').tmpdir(), prefix));
+  const sourceRoot = path.join(root, 'source-without-inventory');
+  const projectRoot = path.join(root, 'project');
+  fs.mkdirSync(sourceRoot);
+  fs.mkdirSync(projectRoot);
+  fs.writeFileSync(path.join(projectRoot, 'keep.txt'), 'preserve this project content\n');
+  return { root, sourceRoot, projectRoot };
+}
+
+function cliHelpFixtureSnapshot(fixture) {
+  return {
+    sourceEntries: fs.readdirSync(fixture.sourceRoot).sort(),
+    inventoryExists: fs.existsSync(path.join(fixture.sourceRoot, 'manifests', 'distribution-inventory.json')),
+    projectEntries: fs.readdirSync(fixture.projectRoot).sort(),
+    marker: fs.readFileSync(path.join(fixture.projectRoot, 'keep.txt'), 'utf8'),
+  };
+}
+
+function invokeCli(script, args, cwd) {
+  return spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' });
+}
+
+function assertCliHelpListsOptions(results, flags) {
+  for (const { flag, result } of results) {
+    const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+    assert.match(output, /usage:/i, `${flag} should print usage`);
+    for (const supportedFlag of flags) {
+      assert.ok(output.includes(supportedFlag), `${flag} help should list ${supportedFlag}`);
+    }
+    assert.ok(!output.includes('--target-dir'), `${flag} help should not list the stale --target-dir option`);
+  }
+}
+
+test('gen-agents-skills CLI help aliases succeed without inventory or lifecycle side effects', () => {
+  const fixture = cliHelpFixture('dhpk-gen-agents-skills-help-');
+  const before = cliHelpFixtureSnapshot(fixture);
+  try {
+    const results = ['--help', '-h'].map((flag) => ({
+      flag,
+      result: invokeCli(GENERATOR, [
+        '--source-root', fixture.sourceRoot,
+        '--project-root', fixture.projectRoot,
+        flag,
+      ], fixture.root),
+    }));
+    assert.deepStrictEqual(cliHelpFixtureSnapshot(fixture), before,
+      'help must leave the source and project trees unchanged');
+    assert.deepStrictEqual(results.map(({ result }) => result.status), [0, 0],
+      results.map(({ flag, result }) => `${flag}: ${result.stderr || result.stdout}`).join('\n'));
+    assertCliHelpListsOptions(results, [
+      '-h', '--help', '--repo-root', '--source-root', '--project-root', '--out-dir', '--profile', '--host',
+      '--update', '--adopt', '--repair', '--uninstall', '--rollback',
+    ]);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('validate-agents-skills CLI help aliases succeed without inventory or lifecycle side effects', () => {
+  const fixture = cliHelpFixture('dhpk-validate-agents-skills-help-');
+  const before = cliHelpFixtureSnapshot(fixture);
+  try {
+    const results = ['--help', '-h'].map((flag) => ({
+      flag,
+      result: invokeCli(VALIDATOR, [
+        '--source-root', fixture.sourceRoot,
+        '--project-root', fixture.projectRoot,
+        flag,
+      ], fixture.root),
+    }));
+    assert.deepStrictEqual(cliHelpFixtureSnapshot(fixture), before,
+      'help must leave the source and project trees unchanged');
+    assert.deepStrictEqual(results.map(({ result }) => result.status), [0, 0],
+      results.map(({ flag, result }) => `${flag}: ${result.stderr || result.stdout}`).join('\n'));
+    assertCliHelpListsOptions(results, [
+      '-h', '--help', '--repo-root', '--source-root', '--project-root', '--out-dir',
+    ]);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('gen-agents-skills CLI still exits nonzero for unknown options', () => {
+  const projectRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-gen-agents-skills-unknown-'));
+  try {
+    const result = invokeCli(GENERATOR, [
+      '--source-root', ROOT,
+      '--project-root', projectRoot,
+      '--profile', 'portable-core',
+      '--unknown-option',
+    ], ROOT);
+    assert.notStrictEqual(result.status, 0, `${result.stdout || ''}\n${result.stderr || ''}`);
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('validate-agents-skills CLI still exits nonzero for unknown options', () => {
+  const tempRoot = fs.mkdtempSync(path.join(ROOT, '.agents-skills-validator-unknown-'));
+  const outDir = path.join(tempRoot, 'projection');
+  try {
+    const generated = invokeCli(GENERATOR, ['--repo-root', ROOT, '--out-dir', outDir], ROOT);
+    assert.strictEqual(generated.status, 0, `${generated.stdout || ''}\n${generated.stderr || ''}`);
+    const result = invokeCli(VALIDATOR, [
+      '--repo-root', ROOT,
+      '--out-dir', outDir,
+      '--unknown-option',
+    ], ROOT);
+    assert.notStrictEqual(result.status, 0, `${result.stdout || ''}\n${result.stderr || ''}`);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
 
