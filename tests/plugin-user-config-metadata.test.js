@@ -611,7 +611,7 @@ test('unconfigured Claude consumer probe stays non-pass and supplies resume evid
   });
 
   test('symlinked install roots, ancestors, and manifests are blocked', () => {
-    const cases = ['root', 'ancestor', 'manifest'];
+    const cases = ['root', 'ancestor', 'manifest', 'traversal'];
     for (const kind of cases) {
       withProbe((fixture) => {
         const real = fixture.installed(`real-${kind}`);
@@ -623,7 +623,8 @@ test('unconfigured Claude consumer probe stays non-pass and supplies resume evid
           const linkParent = path.join(fixture.directory, 'linked-parent');
           fs.symlinkSync(fixture.directory, linkParent, 'dir');
           installPath = path.join(linkParent, path.basename(real.root));
-        } else {
+        } else if (kind === 'traversal') installPath = `${real.root}/../${path.basename(real.root)}`;
+        else {
           const linkedManifest = path.join(real.root, '.claude-plugin', 'plugin.json');
           fs.unlinkSync(linkedManifest);
           const target = path.join(fixture.directory, 'outside-plugin.json');
@@ -637,7 +638,6 @@ test('unconfigured Claude consumer probe stays non-pass and supplies resume evid
       });
     }
   });
-
   test('installed manifest identity and JSON content must match the candidate', () => {
     const cases = [
       { name: 'wrong plugin name', manifest: { ...CANDIDATE, name: 'other' }, expected: 'BLOCKED' },
