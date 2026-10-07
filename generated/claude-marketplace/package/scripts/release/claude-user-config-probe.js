@@ -52,9 +52,86 @@ function hasExactVersion(output, expected) {
   return new RegExp(`(?:^|\\D)${escaped}(?![0-9A-Za-z.-])`).test(String(output || ''));
 }
 
+function applicableRecords(inventory) {
+  if (!Array.isArray(inventory) || inventory.some((record) => !record || typeof record !== 'object' || Array.isArray(record))) {
+    return { status: 'UNAVAILABLE', reason: 'consumer inventory must be an array of plugin records' };
+  }
+  const records = [];
+  for (const record of inventory.filter((item) => item.id === 'dhpk@dhpk')) {
+    if (!['user', 'managed', 'project', 'local'].includes(record.scope) || typeof record.enabled !== 'boolean') {
+      return { status: 'BLOCKED', reason: 'dhpk inventory has an ambiguous scope or enabled state' };
+    }
+    if (['project', 'local'].includes(record.scope)) {
+      if (typeof record.projectPath !== 'string' || !path.isAbsolute(record.projectPath)) {
+        return { status: 'BLOCKED', reason: 'project inventory requires an absolute project path' };
+      }
+      const relative = path.relative(record.projectPath, process.cwd());
+      if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) continue;
+    }
+    if (!record.enabled) continue;
+    if (record.errors !== undefined && (!Array.isArray(record.errors) || record.errors.length > 0)) {
+      return { status: 'BLOCKED', reason: 'applicable dhpk installation has load errors' };
+    }
+    records.push(record);
+  }
+  return records.length ? { records } : { status: 'BLOCKED', reason: 'no applicable enabled dhpk plugin identity is installed' };
+}
+
+function installedManifest(record, manifests) {
+  const folder = Object.prototype.hasOwnProperty.call(record, 'readFromFolder');
+  const root = folder ? record.readFromFolder : record.installPath;
+  if (typeof root !== 'string' || !path.isAbsolute(root) || root.split(path.sep).includes('..')) {
+    return { status: 'BLOCKED', reason: 'effective installation path must be absolute' };
+  }
+  const manifestPath = path.join(root, '.claude-plugin/plugin.json');
+  const normalizedRoot = path.resolve(root);
+  let manifest = manifests.get(normalizedRoot);
+  let content;
+  if (!manifest) {
+    try {
+      if (!safeRegularPath(path.parse(root).root, manifestPath)
+        || !fs.lstatSync(root).isDirectory() || !fs.lstatSync(manifestPath).isFile()) {
+        return { status: 'BLOCKED', reason: 'installed manifest path must be physical and regular' };
+      }
+      content = fs.readFileSync(manifestPath, 'utf8');
+    } catch (_) { return { status: 'BLOCKED', reason: 'installed manifest cannot be read' }; }
+    try { manifest = JSON.parse(content); } catch (_) { return { status: 'FAIL', reason: 'installed manifest is invalid JSON' }; }
+  }
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest) || manifest.name !== 'dhpk') {
+    return { status: 'BLOCKED', reason: 'installed manifest does not identify dhpk' };
+  }
+  manifests.set(normalizedRoot, manifest);
+  const observedFingerprint = digest(manifest);
+  const observedVersion = folder ? record.folderVersion : record.version;
+  if (manifest.version !== undefined && observedVersion !== manifest.version) {
+    return { status: 'FAIL', reason: 'inventory version does not match the installed manifest', observedFingerprint };
+  }
+  return { root: normalizedRoot, observedFingerprint };
+}
+
+function bindInventory(inventory, manifestFingerprint) {
+  const selected = applicableRecords(inventory);
+  if (!selected.records) return selected;
+  const fingerprints = new Map();
+  const manifests = new Map();
+  for (const record of selected.records) {
+    const observed = installedManifest(record, manifests);
+    if (observed.status) return observed;
+    fingerprints.set(observed.root, observed.observedFingerprint);
+    if (observed.observedFingerprint !== manifestFingerprint) {
+      return { status: 'FAIL', reason: 'installed manifest fingerprint is stale',
+        expectedFingerprint: manifestFingerprint, observedFingerprint: observed.observedFingerprint };
+    }
+  }
+  return { status: 'PASS', reason: 'Claude inventory matched every effective installed manifest; no live context reduction claim is made',
+    manifestFingerprint, observedFingerprints: [...fingerprints.values()],
+    details: redacted(selected.records.map(({ id, scope, enabled, version, folderVersion }) => ({ id, scope, enabled, version, folderVersion }))) };
+}
+
 function runClaudeUserConfigProbe({ executable = 'claude', manifestPath, manifestFingerprint, version, execute = false, runner = spawnSync } = {}) {
   const command = safeCommand(executable);
-  const resumeCommand = `${command} plugin details dhpk@dhpk --json`;
+  const resumeCommand = `${command} plugin list --json`;
+  const executing = execute || process.env.DHPK_CONSUMER_PROBE_EXECUTE === '1';
   if (!manifestPath || !fs.existsSync(manifestPath)) {
     return { status: 'NOT_CONFIGURED', reason: 'manifest is unavailable', resumeCommand };
   }
@@ -77,7 +154,7 @@ function runClaudeUserConfigProbe({ executable = 'claude', manifestPath, manifes
     return { status: 'NOT_CONFIGURED', reason: 'configured Claude executable is unavailable', resumeCommand };
   }
   const observedVersion = String(versionResult.stdout || versionResult.stderr || '').trim();
-  if (execute && (!version || String(version).trim() === '')) {
+  if (executing && (!version || String(version).trim() === '')) {
     return { status: 'BLOCKED', reason: 'exact Claude version is required for an executing consumer probe', observedVersion: redacted(observedVersion), resumeCommand };
   }
   if (version && !hasExactVersion(observedVersion, version)) {
@@ -87,37 +164,18 @@ function runClaudeUserConfigProbe({ executable = 'claude', manifestPath, manifes
   if (observedManifestFingerprint !== manifestFingerprint) {
     return { status: 'FAIL', reason: 'manifest fingerprint does not match the generated candidate', expectedFingerprint: safeFingerprint(manifestFingerprint), observedManifestFingerprint: safeFingerprint(observedManifestFingerprint), resumeCommand };
   }
-  if (!execute && process.env.DHPK_CONSUMER_PROBE_EXECUTE !== '1') {
-    return { status: 'NOT_RUN', reason: 'Claude executable is present; exact plugin details observation was not requested', observedVersion: redacted(observedVersion), resumeCommand };
+  if (!executing) {
+    return { status: 'NOT_RUN', reason: 'Claude executable is present; installed-manifest observation was not requested', observedVersion: redacted(observedVersion), resumeCommand };
   }
-  const detail = runner(command, ['plugin', 'details', 'dhpk@dhpk', '--json'], { encoding: 'utf8', timeout: 10000 });
+  const detail = runner(command, ['plugin', 'list', '--json'], { encoding: 'utf8', timeout: 10000 });
   if (detail.error && (detail.error.code === 'ENOENT' || detail.error.code === 'EACCES')) return { status: 'NOT_CONFIGURED', reason: 'configured Claude executable is unavailable', resumeCommand };
-  if (detail.status !== 0) return { status: 'UNAVAILABLE', reason: `Claude plugin details exited ${detail.status}`, diagnostic: redacted(detail.stderr || ''), resumeCommand };
+  if (detail.error || detail.status !== 0) return { status: 'UNAVAILABLE', reason: `Claude plugin inventory exited ${detail.status}`, diagnostic: redacted(detail.stderr || ''), resumeCommand };
   const parsed = parseJson(detail.stdout);
   if (parsed.error) return { status: 'UNAVAILABLE', reason: parsed.error, resumeCommand };
-  const details = parsed.value;
-  const identity = details && (details.id || details.name || details.plugin || details.pluginId);
-  const identities = Array.isArray(identity) ? identity : [identity];
-  if (!identities.some((value) => value === 'dhpk' || value === 'dhpk@dhpk')) {
-    return { status: 'BLOCKED', reason: 'consumer details are not the dhpk plugin identity', details: redacted(details), resumeCommand };
-  }
-  const declaredFingerprints = [details && details.manifestFingerprint, details && details.userConfigFingerprint].filter((value) => value !== undefined);
-  if (declaredFingerprints.length === 0 || declaredFingerprints.some((value) => !validFingerprint(value))) {
-    return { status: 'BLOCKED', reason: 'consumer details did not expose a valid manifest fingerprint for binding', details: redacted(details), resumeCommand };
-  }
-  const observedFingerprint = declaredFingerprints[0];
-  if (new Set(declaredFingerprints).size !== 1) {
-    return { status: 'FAIL', reason: 'consumer details exposed conflicting manifest fingerprints', fingerprints: declaredFingerprints.map(safeFingerprint), resumeCommand };
-  }
-  if (observedFingerprint !== manifestFingerprint) {
-    return { status: 'FAIL', reason: 'consumer manifest fingerprint is stale', expectedFingerprint: safeFingerprint(manifestFingerprint), observedFingerprint: safeFingerprint(observedFingerprint), resumeCommand };
-  }
   return {
-    status: 'PASS',
-    reason: 'Claude plugin details matched the generated manifest fingerprint; no live context reduction claim is made',
+    ...bindInventory(parsed.value, manifestFingerprint),
+    stage: 'installed-manifest',
     observedVersion: redacted(observedVersion),
-    manifestFingerprint,
-    details: redacted(details),
     resumeCommand,
   };
 }
