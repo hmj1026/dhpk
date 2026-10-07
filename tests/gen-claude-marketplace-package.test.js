@@ -173,4 +173,87 @@ test('canonical Claude commands resolve relocated child skills inside the genera
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
 
+function transientPackageFixture() {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-transient-'));
+  const root = path.join(temp, 'root');
+  const out = path.join(temp, 'package');
+  for (const relative of [
+    '.claude-plugin', 'agent-traps', 'agents', 'commands', 'docs', 'hooks',
+    'manifests', 'modules', 'rules', 'scripts', 'skills', 'templates',
+  ]) fs.mkdirSync(path.join(root, relative), { recursive: true });
+  fs.writeFileSync(path.join(root, '.claude-plugin/plugin.json'), '{"name":"dhpk","version":"1.0.0"}\n');
+  fs.writeFileSync(path.join(root, 'scripts/keep.js'), 'module.exports = 1;\n');
+  return { temp, root, out };
+}
+
+function writeTransientFiles(directory) {
+  for (const relative of [
+    'scripts/__pycache__/tool.cpython-312.pyc',
+    'scripts/tool.pyc', 'scripts/tool.pyo', 'docs/.DS_Store',
+    'skills/harness-govern/scripts/__pycache__/retired.pyc',
+  ]) {
+    const file = path.join(directory, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, 'local cache\n');
+  }
+}
+
+test('materialization excludes Python and OS caches from canonical trees', () => {
+  const fixture = transientPackageFixture();
+  try {
+    writeTransientFiles(fixture.root);
+    GENERATOR.materialize(fixture);
+    for (const relative of [
+      'scripts/__pycache__', 'scripts/tool.pyc', 'scripts/tool.pyo', 'docs/.DS_Store',
+      'skills/harness-govern/scripts/__pycache__',
+    ]) assert.strictEqual(fs.existsSync(path.join(fixture.out, relative)), false, `${relative} must not be published`);
+    assert.strictEqual(fs.readFileSync(path.join(fixture.out, 'scripts/keep.js'), 'utf8'), 'module.exports = 1;\n');
+  } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
+});
+
+test('check ignores output caches and cache-only retired parents without deleting them', () => {
+  const fixture = transientPackageFixture();
+  try {
+    GENERATOR.materialize(fixture);
+    writeTransientFiles(fixture.out);
+    const result = GENERATOR.check(fixture);
+    assert.strictEqual(result.ok, true, result.error);
+    assert.strictEqual(fs.readFileSync(path.join(fixture.out, 'scripts/tool.pyc'), 'utf8'), 'local cache\n');
+  } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
+});
+
+test('check still detects changed payloads and non-cache extras', () => {
+  const fixture = transientPackageFixture();
+  try {
+    GENERATOR.materialize(fixture);
+    fs.writeFileSync(path.join(fixture.out, 'scripts/keep.js'), 'module.exports = 2;\n');
+    assert.strictEqual(GENERATOR.check(fixture).ok, false, 'modified payload must fail');
+    fs.writeFileSync(path.join(fixture.out, 'scripts/keep.js'), 'module.exports = 1;\n');
+    fs.writeFileSync(path.join(fixture.out, 'scripts/extra.js'), 'extra payload\n');
+    assert.strictEqual(GENERATOR.check(fixture).ok, false, 'unmanaged non-cache file must fail');
+    fs.unlinkSync(path.join(fixture.out, 'scripts/extra.js'));
+    fs.mkdirSync(path.join(fixture.out, 'skills/empty-extra'));
+    assert.strictEqual(GENERATOR.check(fixture).ok, false, 'unmanaged empty directory must still fail');
+  } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
+});
+
+test('cache-like names cannot hide escaping source symlinks or output symlinks', () => {
+  const fixture = transientPackageFixture();
+  try {
+    const external = path.join(fixture.temp, 'outside.py');
+    fs.writeFileSync(external, 'external payload\n');
+    const sourceLink = path.join(fixture.root, 'scripts/unsafe.pyc');
+    fs.symlinkSync(external, sourceLink);
+    assert.throws(() => GENERATOR.materialize(fixture), /symlink escapes/);
+    fs.unlinkSync(sourceLink);
+    GENERATOR.materialize(fixture);
+    fs.symlinkSync(external, path.join(fixture.out, 'scripts/unsafe.pyc'));
+    assert.throws(() => GENERATOR.check(fixture), /unsupported entry|symlink/);
+    fs.unlinkSync(path.join(fixture.out, 'scripts/unsafe.pyc'));
+    fs.mkdirSync(path.join(fixture.out, 'scripts/__pycache__'));
+    fs.symlinkSync(external, path.join(fixture.out, 'scripts/__pycache__/unsafe.pyc'));
+    assert.throws(() => GENERATOR.check(fixture), /unsupported entry|symlink/);
+  } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
+});
+
 run('gen-claude-marketplace-package');
