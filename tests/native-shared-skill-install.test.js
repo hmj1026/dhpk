@@ -8,6 +8,8 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { installNativeSharedSkills, uninstallNativeSharedSkills } = require('../scripts/lib/native-shared-skill-install');
 const {
   validateRelocatableAgentsSkillsProjection,
+  rollbackAgentsSkillsProjection,
+  materializeRelocatableAgentsSkillsProjection,
 } = require('../scripts/lib/project-agent-projection-publisher');
 
 function tmpDir(prefix) {
@@ -415,6 +417,267 @@ test('uninstallNativeSharedSkills drops one Host and keeps skills the other Host
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
     fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('uninstallNativeSharedSkills rejects invalid current inventories before retirement removal', () => {
+  const mutations = [
+    (inventory) => ({ ...inventory, skills: [], project_agent_projection: { ...inventory.project_agent_projection, profiles: {} } }),
+    (inventory) => ({ ...inventory, skills: inventory.skills.filter((entry) => entry.id === 'other'), project_agent_projection: { ...inventory.project_agent_projection, profiles: {} } }),
+    (inventory) => ({ ...inventory, skills: inventory.skills.map((entry) => ({ ...entry, path: undefined })) }),
+    (inventory) => ({ ...inventory, skills: inventory.skills.filter((entry) => entry.id === 'other') }),
+    (inventory) => ({ ...inventory, skills: [...inventory.skills, inventory.skills[0]] }),
+  ];
+  for (const mutate of mutations) {
+    const sourceRoot = dualFixture();
+    const projectRoot = tmpDir('dhpk-native-shared-invalid-retirement-');
+    try {
+      installNativeSharedSkills({ sourceRoot, projectRoot, host: 'cursor', selectedStableIds: ['sample'], declaredSelection: true });
+      installNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex', selectedStableIds: ['sample'], declaredSelection: true });
+      const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+      const skillPath = path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md');
+      const beforeReceipt = fs.readFileSync(receiptPath, 'utf8');
+      const beforeSkill = fs.readFileSync(skillPath, 'utf8');
+      write(path.join(projectRoot, '.agents', 'skills', 'foreign', 'README.md'), '# keep\n');
+      const inventory = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'distribution-inventory.json'), 'utf8'));
+      assert.throws(() => uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex', inventory: mutate(inventory) }));
+      assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), beforeReceipt);
+      assert.strictEqual(fs.readFileSync(skillPath, 'utf8'), beforeSkill);
+      for (const host of ['cursor', 'codex']) {
+        assert.strictEqual(fs.readlinkSync(path.join(projectRoot, `.${host}`, 'skills', 'dhpk-sample')), '../../.agents/skills/dhpk-sample');
+      }
+      assert.strictEqual(fs.readFileSync(path.join(projectRoot, '.agents', 'skills', 'foreign', 'README.md'), 'utf8'), '# keep\n');
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  }
+});
+
+test('uninstallNativeSharedSkills prunes a retired skill when removing an unbound Host', () => {
+  const sourceRoot = dualFixture();
+  const projectRoot = tmpDir('dhpk-native-shared-uninstall-retired-');
+  const retiredNativeSkill = path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample');
+  const remainingNativeSkill = path.join(projectRoot, '.cursor', 'skills', 'dhpk-other');
+  const retiredSharedSkill = path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md');
+  const remainingSharedSkill = path.join(projectRoot, '.agents', 'skills', 'dhpk-other', 'SKILL.md');
+  const foreignFile = path.join(projectRoot, '.agents', 'skills', 'user-owned', 'README.md');
+  try {
+    installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'cursor',
+      selectedStableIds: ['sample', 'other'],
+      declaredSelection: true,
+    });
+
+    const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const profile = inventory.project_agent_projection.profiles['portable-core'];
+    const retiredInventory = {
+      ...inventory,
+      skills: inventory.skills.filter((skill) => skill.id !== 'sample'),
+      project_agent_projection: {
+        ...inventory.project_agent_projection,
+        profiles: {
+          ...inventory.project_agent_projection.profiles,
+          'portable-core': {
+            ...profile,
+            stable_ids: ['other'],
+          },
+        },
+      },
+    };
+    write(inventoryPath, `${JSON.stringify(retiredInventory, null, 2)}\n`);
+    write(foreignFile, '# keep\n');
+
+    const result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex' });
+
+    assert.strictEqual(result.ok, true, result.error && result.error.message);
+    assert.ok(!fs.existsSync(retiredNativeSkill));
+    assert.ok(!fs.existsSync(retiredSharedSkill));
+    assert.ok(fs.lstatSync(remainingNativeSkill).isSymbolicLink());
+    assert.ok(fs.existsSync(remainingSharedSkill));
+    assert.strictEqual(fs.readFileSync(foreignFile, 'utf8'), '# keep\n');
+    assert.deepStrictEqual(result.receipt.selectedIds, ['other']);
+    assert.deepStrictEqual(result.receipt.emittedIds, ['other']);
+    assert.deepStrictEqual(result.receipt.entries.map((entry) => entry.stableId), ['other']);
+    assert.deepStrictEqual(result.receipt.hostBindings.cursor.selectedStableIds, ['other']);
+    assert.deepStrictEqual(result.receipt.hostBindings.cursor.emittedStableIds, ['other']);
+    assert.deepStrictEqual(
+      result.receipt.hostBindings.cursor.bindings.map((binding) => binding.stableId),
+      ['other'],
+    );
+    assert.deepStrictEqual(result.receipt.bindingPaths.cursor, [{
+      path: '.cursor/skills/dhpk-other',
+      target: '../../.agents/skills/dhpk-other',
+    }]);
+    assert.ok(result.receipt.managedPaths.every((managedPath) => !managedPath.includes('dhpk-sample')));
+    const checked = validateRelocatableAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('retirement reconciliation keeps hidden skills and independent Claude discovery with an empty remaining Host', () => {
+  const sourceRoot = hiddenVisibleFixture();
+  const projectRoot = tmpDir('dhpk-native-shared-mixed-retirement-');
+  try {
+    const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
+    const initial = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const inventory = {
+      ...initial,
+      skills: initial.skills.map((entry) => ({ ...entry, surfaces: [...entry.surfaces, 'claude-core'] })),
+    };
+    write(path.join(sourceRoot, 'skills', 'dhpk-retired', 'SKILL.md'), '---\nname: dhpk-retired\ndescription: Retired\n---\n# Retired\n');
+    const oldInventory = {
+      ...inventory,
+      skills: [...inventory.skills, { id: 'retired', name: 'dhpk-retired', path: 'skills/dhpk-retired', lifecycle: 'promoted', surfaces: ['agy-plugin', 'cursor-plugin', 'codex-sync'] }],
+      project_agent_projection: {
+        ...inventory.project_agent_projection,
+        profiles: { 'portable-core': { ...inventory.project_agent_projection.profiles['portable-core'], stable_ids: ['hidden', 'retired', 'visible'] } },
+      },
+    };
+    const previous = materializeRelocatableAgentsSkillsProjection({
+      sourceRoot, projectRoot, inventory: oldInventory, requestedHosts: ['agy', 'claude', 'codex', 'cursor'],
+      declaredSelection: true, selectedStableIds: ['hidden', 'retired', 'visible'],
+      hostSelections: { agy: ['retired'], claude: ['visible'], codex: ['hidden', 'visible'], cursor: ['retired'] },
+    });
+    const result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, inventory, host: 'cursor' });
+    assert.strictEqual(result.ok, true);
+    assert.deepStrictEqual(result.receipt.emittedIds, ['hidden', 'visible']);
+    assert.deepStrictEqual(result.receipt.hostBindings.agy.emittedStableIds, []);
+    assert.strictEqual(result.receipt.bindingPaths.agy, undefined);
+    assert.deepStrictEqual(result.receipt.hostBindings.codex.emittedStableIds, ['hidden', 'visible']);
+    assert.deepStrictEqual(result.receipt.hostBindings.claude.emittedStableIds, ['visible']);
+    assert.deepStrictEqual(result.receipt.hostBindings.claude.discovery.paths, ['.claude/skills/dhpk-visible']);
+    assert.strictEqual(result.receipt.hostBindings.codex.bindingShape, previous.receipt.hostBindings.codex.bindingShape);
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-hidden', 'SKILL.md')));
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.claude', 'skills', 'dhpk-hidden')));
+    const checked = validateRelocatableAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('retirement reconciliation prunes selected-only IDs without reclassifying direct bindings', () => {
+  const sourceRoot = dualFixture();
+  const projectRoot = tmpDir('dhpk-native-shared-retired-selection-');
+  try {
+    const oldInventory = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    const installed = materializeRelocatableAgentsSkillsProjection({
+      sourceRoot, projectRoot, inventory: oldInventory, requestedHosts: ['cursor'],
+      cursorBinding: { bindingShape: 'direct', reason: 'verified-consumer-discovery' },
+    });
+    assert.deepStrictEqual(installed.receipt.hostBindings.cursor.selectedStableIds, ['other', 'sample']);
+    assert.deepStrictEqual(installed.receipt.hostBindings.cursor.emittedStableIds, ['sample']);
+    assert.deepStrictEqual(installed.receipt.entries.map((entry) => entry.stableId), ['sample']);
+    const inventory = {
+      ...oldInventory,
+      skills: oldInventory.skills.filter((entry) => entry.id === 'sample'),
+      project_agent_projection: {
+        ...oldInventory.project_agent_projection,
+        profiles: { 'portable-core': { ...oldInventory.project_agent_projection.profiles['portable-core'], stable_ids: ['sample'] } },
+      },
+    };
+    const result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, inventory, host: 'codex' });
+    assert.deepStrictEqual(result.receipt.hostBindings.cursor.selectedStableIds, ['sample']);
+    assert.deepStrictEqual(result.receipt.hostBindings.cursor.emittedStableIds, ['sample']);
+    assert.strictEqual(result.receipt.hostBindings.cursor.bindingShape, 'direct');
+    assert.strictEqual(result.receipt.hostBindings.cursor.bindingReason, 'verified-consumer-discovery');
+    assert.deepStrictEqual(result.receipt.bindingPaths.cursor, []);
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')));
+    const checked = validateRelocatableAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('uninstallNativeSharedSkills removes an entirely retired projection using a valid current profile', () => {
+  const sourceRoot = dualFixture();
+  const projectRoot = tmpDir('dhpk-native-shared-all-retired-');
+  try {
+    installNativeSharedSkills({ sourceRoot, projectRoot, host: 'cursor', selectedStableIds: ['sample'], declaredSelection: true });
+    const oldInventory = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    const inventory = {
+      ...oldInventory,
+      skills: oldInventory.skills.filter((entry) => entry.id === 'other'),
+      project_agent_projection: {
+        ...oldInventory.project_agent_projection,
+        profiles: { 'portable-core': { ...oldInventory.project_agent_projection.profiles['portable-core'], stable_ids: ['other'] } },
+      },
+    };
+    write(path.join(projectRoot, '.agents', 'skills', 'foreign', 'README.md'), '# keep\n');
+    const result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex', inventory });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.state, 'REMOVED');
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')));
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample')));
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')));
+    assert.strictEqual(fs.readFileSync(path.join(projectRoot, '.agents', 'skills', 'foreign', 'README.md'), 'utf8'), '# keep\n');
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('retirement reconciliation preserves rollback and blocks modified retired assets', () => {
+  for (const damage of ['none', 'content', 'link']) {
+    const sourceRoot = dualFixture();
+    const projectRoot = tmpDir('dhpk-native-shared-retirement-safety-');
+    try {
+      installNativeSharedSkills({ sourceRoot, projectRoot, host: 'cursor', selectedStableIds: ['sample', 'other'], declaredSelection: true });
+      installNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex', selectedStableIds: ['other'], declaredSelection: true });
+      const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
+      const oldInventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+      const inventory = {
+        ...oldInventory,
+        skills: oldInventory.skills.filter((entry) => entry.id === 'other'),
+        project_agent_projection: {
+          ...oldInventory.project_agent_projection,
+          profiles: { 'portable-core': { ...oldInventory.project_agent_projection.profiles['portable-core'], stable_ids: ['other'] } },
+        },
+      };
+      const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+      const retiredFile = path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md');
+      const retiredLink = path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample');
+      if (damage === 'content') fs.appendFileSync(retiredFile, '\nUser edit\n');
+      if (damage === 'link') {
+        fs.unlinkSync(retiredLink);
+        fs.symlinkSync('../../foreign', retiredLink);
+      }
+      const beforeReceipt = fs.readFileSync(receiptPath, 'utf8');
+      const beforeContent = fs.readFileSync(retiredFile, 'utf8');
+      const beforeLink = fs.readlinkSync(retiredLink);
+      if (damage !== 'none') {
+        assert.throws(() => uninstallNativeSharedSkills({ sourceRoot, projectRoot, inventory, host: 'codex' }));
+        assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), beforeReceipt);
+        assert.strictEqual(fs.readFileSync(retiredFile, 'utf8'), beforeContent);
+        assert.strictEqual(fs.readlinkSync(retiredLink), beforeLink);
+      } else {
+        const result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, inventory, host: 'codex' });
+        assert.strictEqual(result.ok, true);
+        assert.deepStrictEqual(Object.keys(result.receipt.hostBindings), ['cursor']);
+        assert.deepStrictEqual(result.receipt.hostBindings.cursor.emittedStableIds, ['other']);
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        const restored = rollbackAgentsSkillsProjection({ projectRoot });
+        assert.strictEqual(restored.ok, true, JSON.stringify(restored.error));
+        assert.strictEqual(fs.readFileSync(retiredFile, 'utf8'), beforeContent);
+        assert.strictEqual(fs.readlinkSync(retiredLink), beforeLink);
+        const checked = validateRelocatableAgentsSkillsProjection({ projectRoot });
+        assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
+        assert.deepStrictEqual(Object.keys(JSON.parse(fs.readFileSync(receiptPath, 'utf8')).hostBindings).sort(), ['codex', 'cursor']);
+      }
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
   }
 });
 

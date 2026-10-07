@@ -292,7 +292,7 @@ function createProjectAgentProviderAdapters(hostBindings = {}, {
   const normalized = Object.fromEntries(hostIds.map((hostId) => [hostId, bindingValue(hostBindings[hostId], hostId)]));
   if (normalized.claude) {
     normalized.claude.discovery = createClaudeProjectDiscoveryAdapter({
-      entries,
+      entries: selectedAdapterEntries(entries, hostBindings.claude),
       sourceRoot: claudeSourceRoot,
       destinationRoot: claudeDestinationRoot,
     });

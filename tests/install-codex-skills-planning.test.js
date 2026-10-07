@@ -31,6 +31,94 @@ const {
   provenanceDriftPlanFixture
 } = fixtures;
 
+test('orphan-only retired receipt plans a fresh install without changing evidence', () => {
+  const scratch = projectRoot();
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, installed.stdout + installed.stderr);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const agentName = Object.keys(receipt.managed_entries.agents)[0];
+    fs.appendFileSync(path.join(scratch, '.codex', 'agents', agentName), '\n# user edit\n');
+    fs.writeFileSync(receiptPath, JSON.stringify({ ...receipt, profileId: 'minimal', legacy_pending: true }));
+    const removed = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(removed.status, 0, removed.stdout + removed.stderr);
+    const beforeReceipt = fs.readFileSync(receiptPath, 'utf8');
+    const beforeProjection = completeTreeFingerprint(path.join(scratch, '.codex'));
+    const beforeTransactions = transactionMetadataSnapshot(scratch);
+    const planned = runInstaller(scratch, ['--plan', '--json', '--force']);
+    assert.strictEqual(planned.status, 1, planned.stdout + planned.stderr);
+    const report = JSON.parse(planned.stdout);
+    assert.strictEqual(report.profileId, 'common');
+    assert.strictEqual(report.receipt_profile_id, 'minimal');
+    assert.ok(!/--uninstall|--migrate/.test(report.next_action || ''), report.next_action);
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), beforeReceipt);
+    assert.strictEqual(completeTreeFingerprint(path.join(scratch, '.codex')), beforeProjection);
+    assert.deepStrictEqual(transactionMetadataSnapshot(scratch), beforeTransactions);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('invalid retired residue cannot bypass the profile gate', () => {
+  const scratch = projectRoot();
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, installed.stdout + installed.stderr);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const agentName = Object.keys(receipt.managed_entries.agents)[0];
+    fs.appendFileSync(path.join(scratch, '.codex', 'agents', agentName), '\n# user edit\n');
+    fs.writeFileSync(receiptPath, JSON.stringify({ ...receipt, profileId: 'minimal' }));
+    const removed = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(removed.status, 0, removed.stdout + removed.stderr);
+    const orphanReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const base = { ...orphanReceipt, legacy_pending: false };
+    const relative = `agents/${agentName}`;
+    const oldAgent = base.managed_entries.agents[agentName];
+    fs.symlinkSync('agents', path.join(scratch, '.codex', 'linked-parent'));
+    fs.writeFileSync(path.join(scratch, '.codex', 'file-parent'), '# keep\n');
+    const variants = [
+      { ...base, profileId: 'unknown-profile' },
+      { ...base, state: 'current' },
+      { ...base, schema_version: 2 },
+      { ...base, mode: 'unknown' },
+      { ...base, legacy_pending: true },
+      { ...base, legacy_pending: 'false' },
+      { ...base, legacy_pending: 0 },
+      { ...base, transaction_final: false },
+      { ...base, transaction_final: 1 },
+      { ...base, transaction_id: '' },
+      { ...base, managed_entries: [] },
+      { ...base, managed_entries: { ...base.managed_entries, unknown: { asset: { orphaned: true } } } },
+      { ...base, managed_entries: { ...base.managed_entries, agents: [] } },
+      { ...base, managed_entries: { ...base.managed_entries, agents: { [agentName]: { ...oldAgent, orphaned: false } } } },
+      { ...base, managed_entries: { ...base.managed_entries, agents: { [agentName]: { ...oldAgent, orphaned: 'true' } } } },
+      { ...base, orphaned_entries: {} },
+      { ...base, orphaned_entries: [] },
+      { ...base, orphaned_entries: { [relative]: { ...base.orphaned_entries[relative], destination: 'agents/other.toml' } } },
+      { ...base, orphaned_entries: { '../escape.toml': { destination: '../escape.toml' } } },
+      { ...base, orphaned_entries: { ...base.orphaned_entries, [`linked-parent/${agentName}`]: { destination: `linked-parent/${agentName}` } } },
+      { ...base, orphaned_entries: { ...base.orphaned_entries, 'file-parent/asset': { destination: 'file-parent/asset' } } },
+    ];
+    for (const variant of variants) {
+      fs.writeFileSync(receiptPath, JSON.stringify(variant));
+      fs.rmSync(path.join(scratch, '.codex', '.dhpk-install.lock'), { force: true });
+      const beforeReceipt = fs.readFileSync(receiptPath, 'utf8');
+      const beforeProjection = completeTreeFingerprint(path.join(scratch, '.codex'));
+      const beforeTransactions = transactionMetadataSnapshot(scratch);
+      const fresh = runInstaller(scratch, ['--copy', '--force']);
+      assert.notStrictEqual(fresh.status, 0, fresh.stdout + fresh.stderr);
+      assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), beforeReceipt);
+      assert.strictEqual(completeTreeFingerprint(path.join(scratch, '.codex')), beforeProjection);
+      assert.deepStrictEqual(transactionMetadataSnapshot(scratch), beforeTransactions);
+      assert.ok(!fs.existsSync(path.join(scratch, '.codex', '.dhpk-install.lock')));
+    }
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('historical Codex profile receipts remain readable and block every live update', () => {
   const scratch = projectRoot();
   try {
