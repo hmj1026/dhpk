@@ -7,6 +7,7 @@ const {
   createExecutionTarget,
   createProviderModelCatalog,
 } = require('./dispatch-contract');
+const { authorizeCapability, createCapabilityEvidence } = require('./dispatch-capability-evidence');
 
 const FAILURE_CLASSES = Object.freeze({
   CLI_UNAVAILABLE: 'CLI_UNAVAILABLE',
@@ -212,6 +213,39 @@ function evaluateCandidate(request, candidate, catalog) {
   };
 }
 
+function evaluateCapabilityCandidate(request, candidate, evidence) {
+  const authorization = authorizeCapability({ request, candidate, evidence });
+  if (authorization.status !== 'AVAILABLE') {
+    return { status: authorization.status, reason: authorization.reason, capability: authorization.evidence, probe_performed: false, fallback_eligible: false };
+  }
+  const normalized = authorization.evidence;
+  const target = createExecutionTarget({
+    target_agent: normalized.target_agent,
+    provider: normalized.provider,
+    model_id: normalized.model_id,
+    allow_unknown_model: normalized.model_id === null,
+    effort: normalized.effort,
+    allow_unknown_effort: normalized.effort === null,
+    route: normalized.route,
+    transport: normalized.transport,
+    native: normalized.route === 'native'
+      && normalized.provider === request.host_profile.native_provider
+      && normalized.transport === 'native-runtime',
+  });
+  return {
+    status: 'AVAILABLE',
+    request,
+    target,
+    capability: {
+      ...normalized,
+      observed_model: normalized.observed_model,
+      observed_effort: normalized.observed_effort,
+    },
+    probe_performed: false,
+    fallback_eligible: false,
+  };
+}
+
 function normalizePreference(candidate) {
   if (typeof candidate === 'string') {
     const match = candidate.match(/^([^/]+)(?:\/([^:]+))?(?::([^:]+))?$/);
@@ -245,7 +279,7 @@ function requestedCandidate(request) {
   return request.target ? {
     ...(request.target.target_agent === undefined ? {} : { target_agent: request.target.target_agent }),
     ...(request.target.provider === undefined ? {} : { provider: request.target.provider }),
-    ...(request.target.model_id === undefined && request.target.model === undefined ? {} : { model_id: request.target.model_id || request.target.model }),
+    ...(request.target.model_id === undefined && request.target.model === undefined ? {} : { model_id: Object.prototype.hasOwnProperty.call(request.target, 'model_id') ? request.target.model_id : request.target.model }),
     ...(request.target.transport === undefined ? {} : { transport: request.target.transport }),
   } : null;
 }
@@ -254,22 +288,39 @@ function resolveTarget(input, options = {}) {
   const request = createDispatchRequest(input);
   const catalog = createProviderModelCatalog(options.catalog);
   const requested = requestedCandidate(request);
+  const capabilityEvidence = request.capability_evidence === undefined
+    ? null : createCapabilityEvidence(request.capability_evidence);
   const defaultPair = request.host_profile.role_defaults && request.host_profile.role_defaults[request.role];
   const fallbackPairs = request.host_profile.role_fallbacks && request.host_profile.role_fallbacks[request.role] || [];
   const cursorPlaceholder = requested && requested.target_agent === 'cursor' && requested.model_id === 'cursor-default';
   const explicit = cursorPlaceholder && request.role === 'worker' && defaultPair
     ? { ...defaultPair, effort: requested.effort || defaultPair.effort }
     : requested;
-  const candidates = explicit
+  const candidates = capabilityEvidence
+    ? [explicit || {
+      target_agent: capabilityEvidence.target_agent,
+      provider: capabilityEvidence.provider,
+      ...(capabilityEvidence.model_id === null ? {} : { model_id: capabilityEvidence.model_id }),
+      ...(capabilityEvidence.effort === null ? {} : { effort: capabilityEvidence.effort }),
+    }]
+    : explicit
     ? [explicit]
     : (options.preferenceOrder === undefined
       ? (defaultPair ? [defaultPair, ...fallbackPairs] : unique([request.host_profile.native_provider, ...request.host_profile.allowed_providers]).map((provider) => ({ provider })))
       : options.preferenceOrder.map(normalizePreference));
 
+  if (!capabilityEvidence && explicit && explicit.model_id === null) {
+    return Object.freeze({ status: 'BLOCKED', request, requested_target: request.target, target: null,
+      capability: { status: 'BLOCKED', evidence: 'unknown Model requires current bound native Host capability' },
+      reason: 'unknown Model requires current bound native Host capability', rejected_candidates: [],
+      probe_performed: false, fallback_eligible: false });
+  }
   const rejected = [];
   let fallbackEligible = false;
   for (const candidate of candidates) {
-    const evaluated = evaluateCandidate(request, candidate, catalog);
+    const evaluated = capabilityEvidence
+      ? evaluateCapabilityCandidate(request, candidate, capabilityEvidence)
+      : evaluateCandidate(request, candidate, catalog);
     if (evaluated.status === 'AVAILABLE') {
       return Object.freeze({
         status: 'RESOLVED',
@@ -355,9 +406,58 @@ function initialFallbackHistory(resolution) {
   }];
 }
 
-function decideFallback({ request, resolution, failureClass, sideEffects = 'unknown', catalog } = {}) {
+function decideRecoveryCandidate({ request, resolution, failureClass, sideEffects, catalog, candidate_request, reconciliation, recovery_action }) {
+  const blocked = (reason, status = 'BLOCKED') => Object.freeze({ status, request, target: null,
+    failure_class: failureClass, side_effects: sideEffects, action: 'stop',
+    retry_budget_remaining: request.fallback.retry_budget, reason });
+  if ([FAILURE_CLASSES.SAFETY_OR_USER_DENIAL, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT].includes(failureClass)) {
+    return blocked('failure requires stopping on the affected Provider');
+  }
+  if (!request.fallback.allow || request.fallback.retry_budget === 0) return blocked('recovery retry budget is exhausted or disabled');
+  let candidate;
+  try { candidate = createDispatchRequest(candidate_request); } catch (_) { return blocked('recovery candidate is invalid'); }
+  if (!candidate.target) return blocked('recovery requires one explicit candidate target');
+  const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+  if (request.strict_target && (!same(request.target, candidate.target) || request.effort !== candidate.effort)) {
+    return blocked('strict recovery must preserve the original target tuple');
+  }
+  const stable = ['task_id', 'role', 'authority', 'task', 'execution_binding', 'parallelism'];
+  if (stable.some((key) => !same(request[key], candidate[key]))
+      || request.scope.workdir !== candidate.scope.workdir
+      || !same(request.scope.prompt_evidence, candidate.scope.prompt_evidence)
+      || candidate.scope.assigned_files.some((file) => !request.scope.assigned_files.includes(file))
+      || candidate.strict_target !== request.strict_target) return blocked('recovery candidate widens or changes the task contract');
+  const profileIdentity = (profile) => { const { access, allowed_providers, ...identity } = profile; return identity; };
+  if (!same(profileIdentity(request.host_profile), profileIdentity(candidate.host_profile))
+      || candidate.host_profile.allowed_providers.some((provider) => !request.host_profile.allowed_providers.includes(provider))) return blocked('recovery candidate changes Host permission policy');
+  const interrupted = failureClass === FAILURE_CLASSES.TIMEOUT_OR_INTERRUPTION;
+  const semantic = failureClass === FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE;
+  const original = resolution && resolution.target;
+  if (semantic || interrupted) {
+    if (!['repair', 'resume'].includes(recovery_action) || !original
+        || candidate.target.provider !== original.provider) return blocked('repair and resume must retain the Provider');
+    if (!reconciliation || reconciliation.status !== 'PASSED'
+        || reconciliation.task_id !== request.task_id || reconciliation.attempt_id !== request.attempt_id
+        || reconciliation.scope_contained !== true || reconciliation.wip_preserved !== true
+        || reconciliation.diff_verified !== true || !Array.isArray(reconciliation.out_of_scope)
+        || reconciliation.out_of_scope.length !== 0) return blocked('recovery requires attempt-bound scope and diff reconciliation', 'RECONCILIATION_REQUIRED');
+  } else {
+    if (!AVAILABILITY_FAILURES.has(failureClass) || sideEffects !== 'none'
+        || recovery_action !== 'substitute') return blocked('Provider substitution requires confirmed no side effects', 'RECONCILIATION_REQUIRED');
+    if (request.strict_target) return blocked('strict target prevents substitution');
+  }
+  const next = resolveTarget(candidate, { catalog });
+  if (next.status !== 'RESOLVED') return blocked('recovery candidate is unavailable');
+  return Object.freeze({ status: 'FALLBACK', action: recovery_action, request, next_request: candidate,
+    target: next.target, resolution: next, failure_class: failureClass, side_effects: sideEffects,
+    reconciliation: reconciliation || null, retry_budget_remaining: request.fallback.retry_budget - 1 });
+}
+
+function decideFallback({ request, resolution, failureClass, sideEffects = 'unknown', catalog, candidate_request, reconciliation, recovery_action } = {}) {
   if (!Object.values(FAILURE_CLASSES).includes(failureClass)) throw new TypeError(`unknown failure class: ${failureClass}`);
   const normalizedRequest = createDispatchRequest(request);
+  if (candidate_request !== undefined) return decideRecoveryCandidate({ request: normalizedRequest, resolution,
+    failureClass, sideEffects, catalog, candidate_request, reconciliation, recovery_action });
   const history = initialFallbackHistory(resolution || {});
   const retryBudget = normalizedRequest.fallback.retry_budget;
   const fallbackAllowed = normalizedRequest.fallback.allow === true;
