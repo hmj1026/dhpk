@@ -12,7 +12,9 @@ const TRANSPORT_REQUESTS = Object.freeze({
 });
 
 function requireTarget(target) {
-  return createExecutionTarget(target);
+  const rawModel = target && (Object.prototype.hasOwnProperty.call(target, 'model_id') ? target.model_id : target.model);
+  if (rawModel === null && (!target || target.native !== true || target.route !== 'native' || target.transport !== 'native-runtime')) throw new TypeError('CLI execution requires a concrete model');
+  return createExecutionTarget({ ...target, ...(target && target.model_id === null && target.native === true ? { allow_unknown_model: true } : {}), ...(target && target.effort === null ? { allow_unknown_effort: true } : {}) });
 }
 
 function translatedModel(target, catalog) {
@@ -51,6 +53,7 @@ function buildInvocation(target, request, { printTimeout = '300s', catalog = DEF
       output: transport ? transport.output : 'native-result',
     });
   }
+  if (normalizedTarget.model_id === null) throw new TypeError('CLI execution requires a concrete model');
   if (!transport) throw new Error(`unsupported Provider/Transport: ${normalizedTarget.provider}/${normalizedTarget.transport}`);
   const workdir = request.scope.workdir;
   if (adapter === 'codex-cli' || normalizedTarget.provider === 'openai' || normalizedTarget.provider === 'codex-cli') {

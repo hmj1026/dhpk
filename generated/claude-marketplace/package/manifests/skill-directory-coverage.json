@@ -854,12 +854,16 @@
         "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
         "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
-        "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+        "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+        "references/portability.md",
+        "references/recovery.md"
       ],
       "executable_entries": [
         {
           "path": "scripts/launch-dispatch.js",
-          "fixture_ids": ["flow-drive-cli-missing-packet"]
+          "fixture_ids": [
+            "flow-drive-cli-missing-packet"
+          ]
         },
         {
           "path": "scripts/invocation.js",
@@ -883,40 +887,63 @@
             "flow-drive-dispatch-valid",
             "flow-drive-dispatch-invalid-authority"
           ]
+        },
+        {
+          "path": "scripts/run.js",
+          "fixture_ids": [
+            "flow-drive-public-runner-native"
+          ]
         }
       ],
       "internal_helpers": [
         {
           "path": "references/cli-dispatch/scripts/launch-cli-dispatch.js",
-          "required_by": ["scripts/launch-dispatch.js"]
+          "required_by": [
+            "scripts/launch-dispatch.js"
+          ]
         },
         {
           "path": "references/cli-dispatch/scripts/build-cli-dispatch-context.js",
-          "required_by": ["references/cli-dispatch/scripts/launch-cli-dispatch.js"]
+          "required_by": [
+            "references/cli-dispatch/scripts/launch-cli-dispatch.js"
+          ]
         },
         {
           "path": "references/cli-dispatch/scripts/cli-role-resolver.js",
-          "required_by": ["references/cli-dispatch/scripts/build-cli-dispatch-context.js", "scripts/dispatch.js"]
+          "required_by": [
+            "references/cli-dispatch/scripts/build-cli-dispatch-context.js",
+            "scripts/dispatch.js"
+          ]
         },
         {
           "path": "references/cli-dispatch/scripts/physical-file.js",
-          "required_by": ["references/cli-dispatch/scripts/launch-cli-dispatch.js"]
+          "required_by": [
+            "references/cli-dispatch/scripts/launch-cli-dispatch.js"
+          ]
         },
         {
           "path": "references/cli-dispatch/scripts/physical-file.py",
-          "required_by": ["references/cli-dispatch/scripts/physical-file.js"]
+          "required_by": [
+            "references/cli-dispatch/scripts/physical-file.js"
+          ]
         },
         {
           "path": "references/cli-dispatch/scripts/run-codex.sh",
-          "required_by": ["references/cli-dispatch/scripts/launch-cli-dispatch.js"]
+          "required_by": [
+            "references/cli-dispatch/scripts/launch-cli-dispatch.js"
+          ]
         },
         {
           "path": "references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py",
-          "required_by": ["references/cli-dispatch/scripts/run-codex.sh"]
+          "required_by": [
+            "references/cli-dispatch/scripts/run-codex.sh"
+          ]
         },
         {
           "path": "references/cli-dispatch/scripts/cli-transport/run-cli-transport.py",
-          "required_by": ["references/cli-dispatch/scripts/run-codex.sh"]
+          "required_by": [
+            "references/cli-dispatch/scripts/run-codex.sh"
+          ]
         },
         {
           "path": "references/execution-bundle/scripts/lib/dispatch-contract.js",

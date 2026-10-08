@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:033da58eb56038ecf3a1266e0a8ef87748fc80e1428abdc9b7dd1c221aa1bcf1`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:94fe3ce73fdaa79268dff6e4ee869ae7929630d697ebac2e37a0ef654a4fcd71`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -95,32 +95,33 @@ Examples:
 
 ### `$flow-drive`
 
-Summary: Implement a confirmed specification with bounded evidence
-Syntax: `$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
+Summary: Execute one scoped task with diagnosis and acceptance evidence
+Syntax: `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
 Invocation class: `explicit-only`
 Maximum authority: `workspace-write`
 
 Inputs:
-- `confirmed-spec-or-change-id` `<confirmed-spec-or-change-id>` (required, string) — Select the confirmed specification or change
+- `task-input` `<task-text|task-file|confirmed-spec-or-change-id>` (required, string) — Provide task text, a task file path, or a confirmed specification/change ID for Host resolution
 
 Actions:
-- `apply` `$flow-drive <confirmed-spec-or-change-id>` — Implement the confirmed specification or OpenSpec change
+- `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance
 
 Options:
-- `plan` `--plan[=<model>:<effort>]` (optional, string) — Request a planning pass before implementation
+- `plan` `--plan[=<model>:<effort>]` (optional, string) — Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker
 - `plan-mode` `--plan-mode=auto|bounded|discovery` (optional, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
 - `worker` `--worker=<worker>` (optional, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
-- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (optional, string) — Select an explicit provider, model, and effort target
-- `cross-provider` `--cross-provider` (optional, boolean, default=false) — Allow the explicitly selected provider boundary
-- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (optional, string) — Request a bounded second opinion
-- `architect` `--architect` (optional, boolean) — Enable the architecture pass
-- `no-architect` `--no-architect` (optional, boolean) — Disable the architecture pass
+- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (optional, string) — Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target
+- `cross-provider` `--cross-provider` (optional, boolean, default=false) — Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution
+- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (optional, string) — Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker
+- `architect` `--architect` (optional, boolean) — Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker
+- `no-architect` `--no-architect` (optional, boolean) — Compatibility notice only in the portable task runner
 
 Legacy diagnostics (not primary syntax):
 - `--codex` — Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut
 
 Examples:
-- `$flow-drive consolidate-remaining-dhpk-skill-families` — Implement a confirmed OpenSpec change
+- `$flow-drive Fix the receipt total and verify it matches the receipt lines.` — Resolve and implement a bounded task with explicit acceptance
+- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross-provider` — Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes
 
 ### `$flow-guide`
 

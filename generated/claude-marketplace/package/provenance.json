@@ -395,7 +395,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "bdbbb4000a5aaa5bc099aefa79ab0d5cc93fe50437246cdf9bd93646f921207a"
+      "sha256": "6a92e2a9e4fda4790a3a2d5f60dcc64bd9266a153822712f9700081e6e98707d"
     },
     {
       "skillId": "code-trace",
@@ -1011,7 +1011,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "f600a000020e13a598d6feb47ee351791993b0bfc78f2447f9d3f2123bc26e5a"
+      "sha256": "c43a234f9ee4ea60e422404b4f2f77036da269d0fcf0bb1ca5469ef05708c1c7"
     },
     {
       "skillId": "flow-drive",
@@ -1019,7 +1019,7 @@
       "sourcePath": "skills/flow-drive/agents/openai.yaml",
       "destination": "skills/flow-drive/agents/openai.yaml",
       "kind": "entry",
-      "sha256": "e9ae090d1dfbb8ee1944a4be23fcd9011f150efb494ae4ba43d756bd3a9386bf"
+      "sha256": "61f9092c9ddf2bf839efb4aaa91f2ad82223e9bd3ceb4a85a4da0471335c49bb"
     },
     {
       "skillId": "flow-drive",
@@ -1035,7 +1035,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "bdbbb4000a5aaa5bc099aefa79ab0d5cc93fe50437246cdf9bd93646f921207a"
+      "sha256": "6a92e2a9e4fda4790a3a2d5f60dcc64bd9266a153822712f9700081e6e98707d"
     },
     {
       "skillId": "flow-drive",
@@ -1907,7 +1907,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "bdbbb4000a5aaa5bc099aefa79ab0d5cc93fe50437246cdf9bd93646f921207a"
+      "sha256": "6a92e2a9e4fda4790a3a2d5f60dcc64bd9266a153822712f9700081e6e98707d"
     },
     {
       "skillId": "flow-drive",
@@ -1936,10 +1936,18 @@
     {
       "skillId": "flow-drive",
       "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js",
+      "kind": "entry",
+      "sha256": "b661f77a76c6f5796804228b170003b9d35efd8b5fd4b45ed089e3e2071ac6f1"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
       "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "kind": "entry",
-      "sha256": "9e6e7ea7425e21a45f3ad0b9ae98e7fee2d14295f5351e3f252a46211320bc7f"
+      "sha256": "608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef"
     },
     {
       "skillId": "flow-drive",
@@ -1947,7 +1955,23 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js",
       "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js",
       "kind": "entry",
-      "sha256": "e859d183be0d5dc4b011c6cd70234f6fea083062609488cf2f820588892083ff"
+      "sha256": "1c4950f7a4634cd74466ac3ae332584c5687610049ba1e637a70ddda380a0fc4"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-scheduler.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-scheduler.js",
+      "kind": "entry",
+      "sha256": "4ab269e21b3d11cabb1df91587940b4e87098f10516ca0a796ec94caba3a4c4e"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-writer-lease.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-writer-lease.js",
+      "kind": "entry",
+      "sha256": "9b56ed7fb28fb0ed5bffc7af115fc3563c9b2e6128edda1ee0cdd203fce11e3b"
     },
     {
       "skillId": "flow-drive",
@@ -2206,6 +2230,22 @@
       "sha256": "cc0a6c216c0cab3fbcb97ea9d2acac1ac6b371117c15f9460bfc654e0c40aed5"
     },
     {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/portability.md",
+      "destination": "skills/flow-drive/references/portability.md",
+      "kind": "entry",
+      "sha256": "41f1da2022294c168a8ba8d90315c7ab9719504241d1edd5eff103514c8166f8"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/recovery.md",
+      "destination": "skills/flow-drive/references/recovery.md",
+      "kind": "entry",
+      "sha256": "04d19a457d370ea71ed62ea63feaea337a832de650ebedc69dd34567823f8636"
+    },
+    {
       "skillId": "review-pending",
       "ownerId": "flow-drive",
       "sourcePath": "skills/review-pending/SKILL.md",
@@ -2232,10 +2272,26 @@
     {
       "skillId": "flow-drive",
       "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/attempt-executor.js",
+      "destination": "skills/flow-drive/scripts/attempt-executor.js",
+      "kind": "entry",
+      "sha256": "e560e3e29b4a419c7f65e8572da31e40c549886a99dfb1a3d92493203cc515ed"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
       "sourcePath": "skills/flow-drive/scripts/dispatch.js",
       "destination": "skills/flow-drive/scripts/dispatch.js",
       "kind": "entry",
-      "sha256": "9346678b4b7c29c908e4eb28451f972e5e00501ef69a006066ab351102146a09"
+      "sha256": "823dc6e08125c395f403a64f4124e9b5053a2668d7abc647813a03232d75f7a3"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/graph-runner.js",
+      "destination": "skills/flow-drive/scripts/graph-runner.js",
+      "kind": "entry",
+      "sha256": "b83a0470cfd0eba23a86f195cdb3e4cc6f9b3cf1da73e3f3093650ba06532f73"
     },
     {
       "skillId": "flow-drive",
@@ -2243,7 +2299,7 @@
       "sourcePath": "skills/flow-drive/scripts/invocation.js",
       "destination": "skills/flow-drive/scripts/invocation.js",
       "kind": "entry",
-      "sha256": "71b7483c0822b76c9d4a7606b844f94ec5460353b185dff1e2a27e8a50274506"
+      "sha256": "bd704f0c776f77771835e137e51587f88ce7c12463f7577c6191d9b2390017b0"
     },
     {
       "skillId": "flow-drive",
@@ -2252,6 +2308,54 @@
       "destination": "skills/flow-drive/scripts/launch-dispatch.js",
       "kind": "entry",
       "sha256": "f466a905aa314054230aa952621c3c4418a6324d67fd8465bfb78b822e40b8f2"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/provider-permissions.js",
+      "destination": "skills/flow-drive/scripts/provider-permissions.js",
+      "kind": "entry",
+      "sha256": "1cd85876293ade3d327688f06d816b98b0ce2f26842fb34ba5b4e1444977e7cd"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/run.js",
+      "destination": "skills/flow-drive/scripts/run.js",
+      "kind": "entry",
+      "sha256": "4ab9a4f52649bb6ee31be1e0dc8ff88177e83ab9c7a793d98291604d18b05ffc"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/scope-baseline.js",
+      "destination": "skills/flow-drive/scripts/scope-baseline.js",
+      "kind": "entry",
+      "sha256": "d8df6408201b0a2bbe42349976305f33e2eb1750e03ce619363d7f29f0dde957"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/target-policy.js",
+      "destination": "skills/flow-drive/scripts/target-policy.js",
+      "kind": "entry",
+      "sha256": "9d58d305f510150a6c3202b9bd276fcd4db5446d7eb61ca49ab0e3efbca473e2"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/task-contract.js",
+      "destination": "skills/flow-drive/scripts/task-contract.js",
+      "kind": "entry",
+      "sha256": "34d96a631c45eac4193c3f0a2bf6a66399a4d91978e8b8f66d1104e6cc4ad5d9"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/task-graph.js",
+      "destination": "skills/flow-drive/scripts/task-graph.js",
+      "kind": "entry",
+      "sha256": "a1d2f38df11605089cfa98abc10e5a04a5629168a8481b61d84b62c8ffde213a"
     },
     {
       "skillId": "flow-guide",
@@ -2291,7 +2395,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "bdbbb4000a5aaa5bc099aefa79ab0d5cc93fe50437246cdf9bd93646f921207a"
+      "sha256": "6a92e2a9e4fda4790a3a2d5f60dcc64bd9266a153822712f9700081e6e98707d"
     },
     {
       "skillId": "flow-guide",
@@ -2323,7 +2427,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "093b7c23d28ab45bb5d2b7de0f2bb944628164edcb6040c8938abe52b0e3e51e"
+      "sha256": "11582b15a3989bbdaa47c20a5134b507df135710c6422dc9c97efbe4504a8e48"
     },
     {
       "skillId": "flow-guide",
@@ -2411,7 +2515,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "bdbbb4000a5aaa5bc099aefa79ab0d5cc93fe50437246cdf9bd93646f921207a"
+      "sha256": "6a92e2a9e4fda4790a3a2d5f60dcc64bd9266a153822712f9700081e6e98707d"
     },
     {
       "skillId": "flow-guide",
@@ -2440,10 +2544,18 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js",
+      "kind": "entry",
+      "sha256": "b661f77a76c6f5796804228b170003b9d35efd8b5fd4b45ed089e3e2071ac6f1"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "kind": "entry",
-      "sha256": "9e6e7ea7425e21a45f3ad0b9ae98e7fee2d14295f5351e3f252a46211320bc7f"
+      "sha256": "608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef"
     },
     {
       "skillId": "flow-guide",
@@ -2451,7 +2563,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js",
       "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js",
       "kind": "entry",
-      "sha256": "e859d183be0d5dc4b011c6cd70234f6fea083062609488cf2f820588892083ff"
+      "sha256": "1c4950f7a4634cd74466ac3ae332584c5687610049ba1e637a70ddda380a0fc4"
     },
     {
       "skillId": "flow-guide",
