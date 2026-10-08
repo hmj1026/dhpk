@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change provider-neutral-subagent-orchestration. Update Purpose after archive.
+Define independent, portable Flow Guide and Flow Drive workflows with shared neutral contracts, optional peer evidence, and explicit execution and acceptance boundaries.
 
 ## Requirements
 
@@ -26,7 +26,7 @@ advisory and shall not execute the owner.
 
 ### Requirement: Flow Drive operates without Flow Guide
 
-`flow-drive` SHALL accept a confirmed specification or change and execute its
+`flow-drive` SHALL accept settled task text, a task file, or a confirmed specification/change and execute its
 implementation workflow without loading, invoking, or requiring `flow-guide`.
 Unclear or incomplete input SHALL produce an explicit blocker or use the
 implementation contract's own validation path.
@@ -80,3 +80,28 @@ AGY Hosts.
 
 - **WHEN** Codex CLI invokes the same guide action as Claude Code
 - **THEN** the action and result schema remain equivalent except for Host data
+
+### Requirement: Flow Drive owns portable execution resources and completion gates
+
+A copied complete Flow Drive Skill directory SHALL resolve necessary execution
+contracts within its own scripts and references without a sibling skill or
+canonical checkout fallback. Injected Host executors and explicitly selected
+external tools MAY remain environment dependencies. Missing optional peers
+SHALL NOT alone block work; reusable evidence SHALL require current task,
+prompt, baseline, and dependency validation. Necessary independent review
+SHALL require distinct observed executor evidence.
+
+#### Scenario: Native coordination in a blank consumer
+
+- **WHEN** a complete copied Skill runs a confirmed task with only an injected native Host and no canonical checkout visibility
+- **THEN** it diagnoses, serializes all assigned writers, verifies each item, and reports parent acceptance through its local resources
+
+#### Scenario: Optional evidence and necessary independent review
+
+- **WHEN** sufficient validated diagnosis is reusable but no distinct observed reviewer can satisfy a necessary review gate
+- **THEN** diagnosis may be reused while that review gate remains explicitly blocked
+
+#### Scenario: Partial task has an unknown cause
+
+- **WHEN** one cause is insufficient and a separate defect has sufficient diagnosis
+- **THEN** the first writer never launches and the independent defect retains its implementation, tests, and review evidence without claiming aggregate PASS

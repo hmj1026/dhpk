@@ -157,6 +157,7 @@ async function executeAttempt({ task, prepared, host, context, recoveryState, wr
       }
       const receipt = createDispatchReceipt({ receipt_id: `receipt-${request.attempt_id}`, request, target: resolution.target,
         allow_unknown_effort: resolution.target.effort === null,
+        ...(resolution.capability && resolution.capability.kind === 'host-executable-capability' ? { capability_evidence: resolution.capability } : {}),
         status: outcome.status === 'INTERRUPTED' ? 'TIMEOUT' : outcome.status,
         failure_class: failedClass, side_effects: effects, verification: passed ? 'PASSED' : interrupted ? 'RECONCILIATION_REQUIRED' : 'BLOCKED' });
       attempts.push(cloneAndFreezeTaskValue({ receipt, observed_target: outcome.observed_target ? {

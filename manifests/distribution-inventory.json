@@ -1693,7 +1693,7 @@
       ],
       "usage": {
         "display_name": "Flow Drive",
-        "summary": "Implement one Host-resolved task with scoped acceptance",
+        "summary": "Execute one scoped task with diagnosis and acceptance evidence",
         "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "inputs": [
@@ -1713,7 +1713,7 @@
         "actions": [
           {
             "id": "apply",
-            "summary": "Implement one Host-resolved task and verify its acceptance",
+            "summary": "Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance",
             "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id>",
             "input_kind": "mixed",
             "effect_authority": "workspace-write"
@@ -1725,7 +1725,7 @@
             "syntax": "--plan[=<model>:<effort>]",
             "value_kind": "string",
             "required": false,
-            "summary": "Request a planning pass before implementation",
+            "summary": "Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
             "applies_to": [
               "apply"
             ]
@@ -1767,7 +1767,7 @@
             "syntax": "--worker-target=<provider>/<model>[:<effort>]",
             "value_kind": "string",
             "required": false,
-            "summary": "Select an explicit provider, model, and effort target",
+            "summary": "Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target",
             "applies_to": [
               "apply"
             ]
@@ -1778,7 +1778,7 @@
             "value_kind": "boolean",
             "required": false,
             "default": false,
-            "summary": "Request cross-Provider routing; exact target, task constraints, and current Host evidence still apply",
+            "summary": "Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution",
             "applies_to": [
               "apply"
             ]
@@ -1788,7 +1788,7 @@
             "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Request a bounded second opinion",
+            "summary": "Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
             "applies_to": [
               "apply"
             ]
@@ -1798,7 +1798,7 @@
             "syntax": "--architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Enable the architecture pass",
+            "summary": "Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
             "applies_to": [
               "apply"
             ]
@@ -1808,7 +1808,7 @@
             "syntax": "--no-architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Disable the architecture pass",
+            "summary": "Compatibility notice only in the portable task runner",
             "applies_to": [
               "apply"
             ]
@@ -1833,6 +1833,10 @@
           {
             "prompt": "$flow-drive Fix the receipt total and verify it matches the receipt lines.",
             "summary": "Resolve and implement a bounded task with explicit acceptance"
+          },
+          {
+            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
+            "summary": "Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes"
           }
         ]
       }

@@ -47,6 +47,24 @@ Determine the workflow type (Small change / Bug / Feature / Architecture) from t
 
 Single source of truth for the six change types, their flow, and when an OpenSpec conversation may fill a missing outcome. `flow-guide` owns classification and routing; `flow-drive` accepts only confirmed implementation scope and acceptance, which may be carried by an existing specification, plain text, a file, or a report. Reference the table from `skills/flow-guide/SKILL.md` and `skills/flow-drive/SKILL.md` rather than adding another router.
 
+The explicitly invoked portable Flow Drive runner consumes task text, a file,
+or a confirmed identifier through Host resolution. A settled outcome permits
+bounded diagnosis of unknown causes; sufficient source, cause, repair, and
+verification evidence gates each dependent writer. Current session/executor
+bound capability records may resolve a target absent from a stale catalog;
+static declarations and `EXPOSED` selectors do not claim observed identity.
+Provider permission uses the trusted invocation ledger, Host allowed set,
+constraints, and selected-tuple refresh. Explicit Host refusal remains binding.
+All Flow Drive workspace writes, including scratch/manual proposals, share one
+writer lease. Recovery uses immutable attempt receipts and one invocation-wide
+budget; interrupted or uncertain launched writers need positive matching stop
+and actual scope/diff reconciliation before another writer may start. Missing
+proof suspends writers while readers can continue. Required independent review
+and parent acceptance remain completion gates. These portable contracts do not
+change legacy `cross_provider` configuration, generic scheduler parallelism,
+or the external `/opsx:apply` owner.
+
+
 | Change type | Planning / OpenSpec | Flow |
 |---|---|---|
 | Bug Fix (unknown root cause) | Ask only when acceptance or tracking outcomes are missing; reuse an applicable diagnosis | Reuse sufficient root-cause evidence; use `code-trace` to resolve a material gap before dependent writes → establish regression evidence for behavior changes → patch |

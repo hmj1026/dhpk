@@ -557,6 +557,7 @@ const EXPECTED_FLOW_GUIDE = [
   ['flow-guide-close-local-resources', 'scripts/action-runner.js'],
 ];
 const EXPECTED_FLOW_DRIVE = [
+  ['flow-drive-public-runner-native', 'scripts/run.js'],
   ['flow-drive-confirmed-input', 'scripts/invocation.js'],
   ['flow-drive-retired-codex-block', 'scripts/invocation.js'],
   ['flow-drive-dispatch-valid', 'scripts/dispatch.js'],

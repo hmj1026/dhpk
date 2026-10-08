@@ -1,7 +1,7 @@
 ---
 name: flow-drive
 argument-hint: '<task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]'
-description: 'Explicit-only implementation workflow for one task resolved by the Host into a bounded goal, acceptance contract, and constraints. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: distinct execution and acceptance evidence, or an explicit blocker.'
+description: 'Explicit-only implementation workflow for one task resolved by the Host into a bounded goal, acceptance contract, and constraints. Not for route selection, standalone review, formal OpenSpec authoring, or release. Diagnosis within a confirmed outcome gates dependent writes. Output: distinct execution and acceptance evidence, or an explicit blocker.'
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
@@ -29,12 +29,17 @@ handoff contract and does not load a peer skill to validate its input.
 
 ## Boundary
 
-Flow Drive owns implementation of the confirmed work. It does not choose a
-route, author a proposal, review an existing diff, or claim archive, commit,
+Flow Drive owns implementation of the confirmed work, including evidence
+collection and diagnosis when the outcome is settled but a cause is unknown.
+Only dependent writes wait for sufficient cause, repair, and verification
+evidence; independent work continues. A manual proposal may be written inside
+an explicitly assigned scratch scope. External OpenSpec proposal/artifact
+authoring remains with its separate owner. It does not choose a
+route, author formal OpenSpec artifacts, review an existing diff, or claim archive, commit,
 merge, release, deployment, or pilot evidence. Its explicit-only boundary is
 preserved even when a caller presents a ready-looking route.
 
-## Native single-task runner
+## Portable task runner
 
 The portable runner exports
 `runFlowDrive(argv, { host, workdir, authorizationEvidence, recovery })`. It passes the
@@ -84,12 +89,12 @@ any grant. After side-effect-free coordination, the runner refreshes only the
 selected external Provider/Agent/Model/Effort/Role/authority tuples; it never
 uses a provider-wide consent to probe every model from that Provider.
 
-The runner calls one executor and then the acceptance verifier. Its report
+The runner executes each admitted item and then its acceptance verifier. Its report
 keeps parser, execution, acceptance, and requested/resolved/observed targets
 separate. Verification `PASSED` requires successful execution and non-empty
 verification evidence; the runner's overall status is `REPORTED`, never an
 automatic task `PASS`. Planner, reasoner, and architecture options retain the
-legacy grammar, but the native single-task runner returns a migration notice
+legacy grammar, but the portable task runner returns a migration notice
 and blocker for those extra roles. Use the legacy Flow Drive procedure for
 that advanced path; `--no-architect` remains a notice-only compatibility flag.
 
@@ -102,24 +107,40 @@ pass. See [recovery](references/recovery.md) for Host hooks, deadlines,
 immutable attempt receipts, and the suspended-writer completion boundary.
 
 When the Host exposes current executable capability evidence, it may include a
-`capability_evidence` record with a `session_id` and `binding_id` supplied by
+`capability_evidence` record or per-node `capability_evidence_records` with a `session_id` and `binding_id` supplied by
 the runner's injected executor binding. The shared Dispatch Engine uses that
 evidence to resolve a currently executable target even when the shipped model
 catalog is stale. Static catalog or documentation declarations cannot create
 this evidence; Provider, Target Agent, Model, Role, Effort, Route, and
 authority remain separate, and unknown observed Model or Effort values stay
-unknown. The runner passes the same session and binding identifiers to the
+explicitly null. A current bound native Host tool may expose a fixed role or
+default selector without an observable Model or Effort. Such a target needs
+current Provider, role, authority, and binding proof; strict concrete selectors
+and external CLI targets retain their concrete requirements. An `EXPOSED`
+selector authorizes invocation without becoming observed identity. Even an
+`OBSERVED_AVAILABLE` invocation keeps selector and identity separate; explicit
+`observed_model`/`observed_effort` fields require actual observation, and runtime
+`observed_target` reports only the executor outcome. Matching
+fresh scoped evidence supersedes older matching observations, while
+contradictory fresh batches and explicit Host refusals remain blocked.
+The runner passes the same session and binding identifiers to the
 executor context so evidence cannot be attached to an arbitrary task string.
 
 The Host may return `mode: "coordinated"` with a dependency-ordered `nodes`
 graph. Each node inherits the parent authority and write scope; unknown,
 duplicate, cyclic, or widened dependencies block the graph before execution.
-Independent read-only nodes may run in parallel, while workspace writers use
+Independent read-only nodes may run in parallel, while all workspace writers, including scratch proposals, use
 the shared Dispatch writer lease so solo and coordinated calls never overlap.
 Every node must execute and pass its own verification before the aggregate
 acceptance can pass. A reasoner conclusion must carry attributable source,
 root-cause, repair, and verification evidence before a dependent writer is
-eligible; confidence text or a role name alone is insufficient.
+eligible; confidence text or a role name alone is insufficient. Required
+independent review needs a distinct observed executor identity. Optional peer
+absence alone is not a blocker, but a missing review gate cannot become PASS.
+The sanitized DEV QA fixtures in `tests/fixtures/flow-drive/` exercise partial
+acceptance: an unknown cause blocks its writer while a separate repaired item
+retains tests and independent review evidence. Fixture success does not prove
+real DEV, database, Provider runtime, deployment, or merge completion.
 
 ## Implementation contract
 
@@ -134,7 +155,7 @@ eligible; confidence text or a role name alone is insufficient.
    any dispatch. The return `cd` does not run on a non-zero exit, so begin any
    later command in this session with `cd <project root>`. Carry every
    `notices` entry into the report.
-1. Read the confirmed specification or change artifacts in order. Resolve
+1. Read the confirmed task text/file and any applicable specification or change artifacts in order. Resolve
    repository instructions, context, target files, nearby tests, and the
    verification commands before editing. When the Host has dedicated
    file-reading and search tools (on Claude Code: Read, Grep, Glob), use them
@@ -159,8 +180,11 @@ eligible; confidence text or a role name alone is insufficient.
    On Claude Code, launch selected Codex roles from the parent session through
    `scripts/launch-dispatch.js`; follow `references/parent-cli-dispatch.md` for the
    dispatcher packet, reasoner-before-worker gate, and independent verification.
-5. Stop on an evidence-changing blocker. A rejected or modified item may be
-   retried at most twice with its failure and current diff supplied as context.
+5. Stop the affected item on an evidence-changing blocker while independent
+   eligible items continue. Use the portable recovery contract for configured
+   attempt budgets and lifecycle proof. In the legacy advanced procedure, a
+   rejected or modified item may be retried at most twice with its failure and
+   current diff supplied as context.
 
 Completion means every ordered item has implementation and verification
 evidence, or the report names the exact blocker, skipped check, and resume

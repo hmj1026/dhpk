@@ -167,7 +167,43 @@ function runApiDriver(context, source) {
   }
 }
 
+const PUBLIC_RUNNER_DRIVER = String.raw`
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const skillDir = process.argv[2];
+const { runFlowDrive } = require(path.join(skillDir, 'scripts/run.js'));
+const catalog = require(path.join(skillDir, 'references/execution-bundle/manifests/provider-model-catalog.json'));
+const profiles = require(path.join(skillDir, 'references/execution-bundle/manifests/host-profiles.json'));
+const profile = profiles.profiles.find((item) => item.host === 'codex-cli');
+let executionCount = 0;
+let actualTotal = null;
+const host = {
+  async resolveTask(text) {
+    const prompt = path.join(process.cwd(), 'confirmed-input.txt');
+    fs.writeFileSync(prompt, text);
+    const stat = fs.statSync(prompt);
+    return { goal: 'Read the fixed receipt total.', acceptance: ['The actual total is 900.'],
+      constraints: { authority: 'read-only', assigned_files: [], delegation: 'none',
+        prompt_evidence: { path: prompt, dev: stat.dev, ino: stat.ino, sha256: crypto.createHash('sha256').update(text).digest('hex') } } };
+  },
+  async getCapabilities() { return { host_profile: profile, catalog }; },
+  async coordinate() { return { mode: 'solo', target: { provider: 'openai', target_agent: 'codex-cli', model_id: 'gpt-6-luna', effort: 'max' } }; },
+  async execute() { executionCount++; actualTotal = 1000 - 100; return { status: 'SUCCEEDED', actual_total: actualTotal }; },
+  async verify(_task, outcome) { return { status: outcome.actual_total === 900 ? 'PASSED' : 'FAILED', evidence: 'literal 900 acceptance compared with actual arithmetic' }; },
+};
+runFlowDrive(['Verify the fixed total.'], { host, workdir: process.cwd() }).then((report) => {
+  const modulesLocal = Object.keys(require.cache).filter((file) => file !== __filename).every((file) => file.startsWith(skillDir + path.sep));
+  process.stdout.write(JSON.stringify({ report, execution_count: executionCount, actual_total: actualTotal, modules_local: modulesLocal }));
+}).catch((error) => { process.stderr.write(error.message); process.exitCode = 1; });
+`;
+
 const DEFINITIONS = [
+  definition({ id: 'flow-drive-public-runner-native', entry: 'scripts/run.js',
+    expected: { status: 0, output: ['SUCCEEDED', 'PASSED', '"execution_count":1', '"actual_total":900', '"modules_local":true'] },
+    testdriver: (context) => runApiDriver(context, PUBLIC_RUNNER_DRIVER),
+  }),
   definition({
     id: 'flow-guide-help-unknown',
     entry: FLOW_GUIDE_ACTION,

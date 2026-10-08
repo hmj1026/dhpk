@@ -352,7 +352,7 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:71862426d0612db3b32cd41a5d9ac04506e7fa31861e98ed693ff1fdf32979ab",
+      "sha256": "sha256:6a92e2a9e4fda4790a3a2d5f60dcc64bd9266a153822712f9700081e6e98707d",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
@@ -376,19 +376,19 @@
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/dispatch-capability-evidence.js",
-      "sha256": "sha256:5c92c5229c9d334f806c42c8e12a981a672719004f3473b5220b6bf7a61f97e0",
+      "sha256": "sha256:b661f77a76c6f5796804228b170003b9d35efd8b5fd4b45ed089e3e2071ac6f1",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:580851ef89311b69ee9df122ad421d6e2cdfa39cb08faa233f4c727875d74a28",
+      "sha256": "sha256:608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/dispatch-engine.js",
-      "sha256": "sha256:c6ed70bccba9c2a641f192fdea0aad60cc31f2543c9fb1ec8a109510ad3b4b8e",
+      "sha256": "sha256:1c4950f7a4634cd74466ac3ae332584c5687610049ba1e637a70ddda380a0fc4",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-scheduler.js": {
@@ -496,7 +496,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:71862426d0612db3b32cd41a5d9ac04506e7fa31861e98ed693ff1fdf32979ab",
+      "sha256": "sha256:6a92e2a9e4fda4790a3a2d5f60dcc64bd9266a153822712f9700081e6e98707d",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
@@ -520,19 +520,19 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-capability-evidence.js",
-      "sha256": "sha256:5c92c5229c9d334f806c42c8e12a981a672719004f3473b5220b6bf7a61f97e0",
+      "sha256": "sha256:b661f77a76c6f5796804228b170003b9d35efd8b5fd4b45ed089e3e2071ac6f1",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:580851ef89311b69ee9df122ad421d6e2cdfa39cb08faa233f4c727875d74a28",
+      "sha256": "sha256:608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-engine.js",
-      "sha256": "sha256:c6ed70bccba9c2a641f192fdea0aad60cc31f2543c9fb1ec8a109510ad3b4b8e",
+      "sha256": "sha256:1c4950f7a4634cd74466ac3ae332584c5687610049ba1e637a70ddda380a0fc4",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js": {
