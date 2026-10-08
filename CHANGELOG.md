@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 0.66.0 — 2026-10-08 — Introduce Flow Drive autonomous execution, provider permissions, multi-reader coordination, bounded recovery, and isolated relocation verification
+
+- **feat(flow-drive)** — Flow Drive now resolves one task input into a bounded execution and reports independently verified acceptance. Current Host capability evidence can authorize a bound executable target beyond a stale catalog while preserving strict target and observed-result boundaries. Native Flow Drive coordination now validates dependency graphs, preserves inherited scope and authority, runs independent readers concurrently, and serializes writers through a shared lease.
+- **feat(flow-drive)** — Flow Drive now requires an answer ID for provider consent and refreshes external capabilities only after coordination selects an exact target tuple, while unanswered prompts and Host permission refusals keep external targets blocked.
+- **feat(flow-drive)** — Add sanitized copied-runner QA acceptance, REQ-01–16 executable coverage, current capability refresh, and truthful nullable native target evidence while preserving explicit Provider authorization and writer lifecycle gates.
+- **feat(flow-drive)** — Flow Drive supports bounded recovery through the public solo and coordinated runner with one shared retry budget, immutable attempt receipts, authorized candidate resolution, and same-Provider repair. Interrupted or unknown writers require matching stop and actual scope/diff reconciliation before release or resumption; unproven ownership suspends queued writers while independent readers can continue.
+- **feat(flow-drive)** — Flow Drive relocation probes exercise the public copied runner in a blank consumer with canonical and sibling visibility denied, preserving native execution, current capability evidence, coordination, granted external targets, and valid diagnosis reuse. Standalone documentation separates required local resources and environment dependencies from optional helpers, missing independent review, and real Host/Provider support evidence.
+- **fix(flow-drive)** — Reject unsafe assigned paths, bound scope snapshots, preserve uncertain writer leases, and report public acceptance separately from live runtime evidence.
+
 ## 0.65.3 — 2026-10-07 — Support CLI help aliases, ignore transient marketplace artifacts, and bind Claude config probe to installed plugins inventory
 
 - **fix(agents-skills)** — Generation and validation CLIs support --help and -h without reading source inventories or changing projection files.
