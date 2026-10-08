@@ -33,7 +33,7 @@ function catalogSupport(catalog, target, host) {
 function validateDispatchPlatformEvidence({ hostProfile, catalog, target, probe = null, receipt = null } = {}) {
   const profile = createHostProfile(hostProfile);
   const catalogData = createProviderModelCatalog(catalog);
-  const normalizedTarget = createExecutionTarget(target);
+  const normalizedTarget = createExecutionTarget({ ...target, ...(target && target.model_id === null && target.native === true ? { allow_unknown_model: true } : {}), ...(target && target.effort === null ? { allow_unknown_effort: true } : {}) });
   const accessProvider = ({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', 'cursor-native': 'xai' }[normalizedTarget.provider] || normalizedTarget.provider);
   const access = profile.access[accessProvider];
   const runtime = probe === null ? 'NOT_RUN' : status(probe.status, 'probe.status');

@@ -1,0 +1,235 @@
+{
+  "schema": "dhpk.flow-drive.requirement-map.v1",
+  "issue": 917,
+  "evidence_boundary": "Executable fixture and stub tests; actual Host/Provider runtime NOT_RUN; execution results belong in run receipts.",
+  "requirements": [
+    {
+      "id": "REQ-01",
+      "contract": "Native small task",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-runner.test.js",
+          "test": "a native task reaches the executor and reports parser, execution, and acceptance separately"
+        }
+      ]
+    },
+    {
+      "id": "REQ-02",
+      "contract": "Unknown cause gates dependent writer",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-coordination.test.js",
+          "test": "read-only evidence can progress while a parent-required writer remains gated"
+        },
+        {
+          "suite": "tests/flow-drive-dev-qa.test.js",
+          "test": "T7 QA native copied runner gates unknown A, repairs B and retains independent acceptance evidence"
+        }
+      ]
+    },
+    {
+      "id": "REQ-03",
+      "contract": "Vendor remains distinct from native route",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-runner.test.js",
+          "test": "an exact alternate target tuple remains within the current Provider"
+        },
+        {
+          "suite": "tests/dispatch-engine.test.js",
+          "test": "same Provider alternate Route remains same-Provider evidence"
+        }
+      ]
+    },
+    {
+      "id": "REQ-04",
+      "contract": "Answered additional Vendor only",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-provider-permissions.test.js",
+          "test": "--cross-provider asks for real provider scope before a scoped capability refresh"
+        },
+        {
+          "suite": "tests/flow-drive-dev-qa.test.js",
+          "test": "T7 QA answered extra Vendor probes only selected targets after consent"
+        }
+      ]
+    },
+    {
+      "id": "REQ-05",
+      "contract": "Equivalent multiple Provider answers",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-provider-permissions.test.js",
+          "test": "multi-select, successive provider answers, and provider text produce the same grant set without model questions"
+        }
+      ]
+    },
+    {
+      "id": "REQ-06",
+      "contract": "Existing grants and no-answer boundaries",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-provider-permissions.test.js",
+          "test": "cancel, no-answer, and no-UI add no grants while an independent native graph node continues"
+        },
+        {
+          "suite": "tests/flow-drive-provider-permissions.test.js",
+          "test": "trusted structured authorization reuses the same consent contract and strict task targets still bind"
+        }
+      ]
+    },
+    {
+      "id": "REQ-07",
+      "contract": "Current capability supersedes static catalogs",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-runner.test.js",
+          "test": "bound Host capability evidence can resolve a target absent from a stale catalog"
+        },
+        {
+          "suite": "tests/flow-drive-provider-permissions.test.js",
+          "test": "T7 refresh cannot supersede a newer matching observation with old, wrong-bound, wrong-effort or contradictory proof"
+        }
+      ]
+    },
+    {
+      "id": "REQ-08",
+      "contract": "Strict and nullable observed target truth",
+      "tests": [
+        {
+          "suite": "tests/dispatch-engine.test.js",
+          "test": "T7 native null and exposed selector preserve unknown observations through adapters"
+        },
+        {
+          "suite": "tests/dispatch-engine.test.js",
+          "test": "T7 observed invocation availability keeps selector distinct from explicit observed identity"
+        },
+        {
+          "suite": "tests/flow-drive-provider-permissions.test.js",
+          "test": "T7 nullable targets reject stale, declared, foreign or legacy-selector proof at the public seam"
+        }
+      ]
+    },
+    {
+      "id": "REQ-09",
+      "contract": "Independent progress and one writer including scratch",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-coordination.test.js",
+          "test": "scheduler overlaps readers while globally serializing disjoint writers"
+        },
+        {
+          "suite": "tests/flow-drive-dev-qa.test.js",
+          "test": "T7 QA native copied runner gates unknown A, repairs B and retains independent acceptance evidence"
+        }
+      ]
+    },
+    {
+      "id": "REQ-10",
+      "contract": "Independent review gap stays blocked",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-coordination.test.js",
+          "test": "reviewer requires distinct observed executor identity"
+        },
+        {
+          "suite": "tests/flow-drive-dev-qa.test.js",
+          "test": "T7 QA matching writer and reviewer identity blocks review acceptance"
+        }
+      ]
+    },
+    {
+      "id": "REQ-11",
+      "contract": "Copied skill and optional peer reuse",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-relocation.test.js",
+          "test": "the relocated native solo runner resolves local contracts and verifies actual assigned effects"
+        },
+        {
+          "suite": "tests/flow-drive-relocation.test.js",
+          "test": "valid prior diagnosis remains reusable with no peer skill or canonical checkout visibility"
+        }
+      ]
+    },
+    {
+      "id": "REQ-12",
+      "contract": "Bounded recovery and interrupted writer",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-recovery.test.js",
+          "test": "timeout recovery stops and reconciles the prior scope before a fresh writer attempt"
+        },
+        {
+          "suite": "tests/flow-drive-recovery.test.js",
+          "test": "one retry budget is shared across authorized providers and keeps each failed attempt receipt"
+        },
+        {
+          "suite": "tests/flow-drive-dev-qa.test.js",
+          "test": "T7 QA interrupted writer requires stopped reconciliation and blocks dependent acceptance"
+        }
+      ]
+    },
+    {
+      "id": "REQ-13",
+      "contract": "Task inputs and structured constraints",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-runner.test.js",
+          "test": "file and specification inputs reach Host task resolution unchanged"
+        },
+        {
+          "suite": "tests/flow-drive-provider-permissions.test.js",
+          "test": "trusted structured authorization reuses the same consent contract and strict task targets still bind"
+        }
+      ]
+    },
+    {
+      "id": "REQ-14",
+      "contract": "Advanced compatibility notices and exact CLI grants",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-runner.test.js",
+          "test": "unsupported advanced selection returns a migration notice instead of being ignored"
+        },
+        {
+          "suite": "tests/flow-drive-cli-dispatch.test.js",
+          "test": "an explicit Codex worker target wins over the native worker selector"
+        },
+        {
+          "suite": "tests/flow-drive-provider-permissions.test.js",
+          "test": "an exact external worker CLI grant is tuple-scoped and does not constrain native or reviewer nodes"
+        }
+      ]
+    },
+    {
+      "id": "REQ-15",
+      "contract": "Portable provenance with separate runtime claims",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-relocation.test.js",
+          "test": "a missing required copied resolver fails locally instead of finding the canonical checkout"
+        },
+        {
+          "suite": "tests/dispatch-engine.test.js",
+          "test": "T7 observed invocation availability keeps selector distinct from explicit observed identity"
+        }
+      ]
+    },
+    {
+      "id": "REQ-16",
+      "contract": "Fixed sanitized DEV QA acceptance",
+      "tests": [
+        {
+          "suite": "tests/flow-drive-dev-qa.test.js",
+          "test": "T7 QA native copied runner gates unknown A, repairs B and retains independent acceptance evidence"
+        },
+        {
+          "suite": "tests/flow-drive-dev-qa.test.js",
+          "test": "T7 QA literal 900 oracle rejects a bad repair even though A already blocks the parent"
+        }
+      ]
+    }
+  ]
+}

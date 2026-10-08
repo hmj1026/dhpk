@@ -222,14 +222,15 @@ function evaluateCapabilityCandidate(request, candidate, evidence) {
   const target = createExecutionTarget({
     target_agent: normalized.target_agent,
     provider: normalized.provider,
-    model_id: normalized.model_id || 'unknown',
+    model_id: normalized.model_id,
+    allow_unknown_model: normalized.model_id === null,
     effort: normalized.effort,
     allow_unknown_effort: normalized.effort === null,
     route: normalized.route,
     transport: normalized.transport,
     native: normalized.route === 'native'
       && normalized.provider === request.host_profile.native_provider
-      && normalized.model_id === request.host_profile.native_model,
+      && normalized.transport === 'native-runtime',
   });
   return {
     status: 'AVAILABLE',
@@ -237,8 +238,8 @@ function evaluateCapabilityCandidate(request, candidate, evidence) {
     target,
     capability: {
       ...normalized,
-      observed_model: normalized.model_id,
-      observed_effort: normalized.effort,
+      observed_model: normalized.observed_model,
+      observed_effort: normalized.observed_effort,
     },
     probe_performed: false,
     fallback_eligible: false,
@@ -278,7 +279,7 @@ function requestedCandidate(request) {
   return request.target ? {
     ...(request.target.target_agent === undefined ? {} : { target_agent: request.target.target_agent }),
     ...(request.target.provider === undefined ? {} : { provider: request.target.provider }),
-    ...(request.target.model_id === undefined && request.target.model === undefined ? {} : { model_id: request.target.model_id || request.target.model }),
+    ...(request.target.model_id === undefined && request.target.model === undefined ? {} : { model_id: Object.prototype.hasOwnProperty.call(request.target, 'model_id') ? request.target.model_id : request.target.model }),
     ...(request.target.transport === undefined ? {} : { transport: request.target.transport }),
   } : null;
 }
@@ -308,6 +309,12 @@ function resolveTarget(input, options = {}) {
       ? (defaultPair ? [defaultPair, ...fallbackPairs] : unique([request.host_profile.native_provider, ...request.host_profile.allowed_providers]).map((provider) => ({ provider })))
       : options.preferenceOrder.map(normalizePreference));
 
+  if (!capabilityEvidence && explicit && explicit.model_id === null) {
+    return Object.freeze({ status: 'BLOCKED', request, requested_target: request.target, target: null,
+      capability: { status: 'BLOCKED', evidence: 'unknown Model requires current bound native Host capability' },
+      reason: 'unknown Model requires current bound native Host capability', rejected_candidates: [],
+      probe_performed: false, fallback_eligible: false });
+  }
   const rejected = [];
   let fallbackEligible = false;
   for (const candidate of candidates) {

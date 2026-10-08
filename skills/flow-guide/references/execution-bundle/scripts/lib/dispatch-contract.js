@@ -488,7 +488,7 @@ function normalizeTarget(value) {
     : legacyProvider === 'codex-cli' ? 'codex-cli'
       : legacyProvider === 'agy' ? 'agy'
         : legacyProvider === 'cursor-native' ? 'cursor' : undefined);
-  const model = target.model_id || target.model;
+  const model = Object.prototype.hasOwnProperty.call(target, 'model_id') ? target.model_id : target.model;
   if (model !== undefined && model !== null) requiredString(model, 'target.model_id');
   if (targetAgent !== undefined) translatedTargetAgent(targetAgent, 'target.target_agent');
   if (target.provider !== undefined) canonicalProvider(target.provider, 'target.provider');
@@ -586,8 +586,11 @@ function createExecutionTarget(input) {
           : legacyProvider === 'cursor-native' ? 'cursor' : undefined), 'execution target.target_agent');
   const canonical = canonicalProvider(target.provider || ({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', cursor: 'cursor' }[targetAgent]), 'execution target.provider');
   const provider = canonical;
-  const model = target.model_id || target.model;
-  const modelId = model === undefined || model === null ? 'unknown' : requiredString(model, 'execution target.model_id');
+  const model = Object.prototype.hasOwnProperty.call(target, 'model_id') ? target.model_id : target.model;
+  const preserveUnknownModel = target.allow_unknown_model === true;
+  if (preserveUnknownModel && (target.native !== true || target.route !== 'native' || target.transport !== 'native-runtime')) throw new TypeError('unknown model is only valid for an authorized native execution target');
+  const modelId = model === null && preserveUnknownModel ? null
+    : model === undefined || model === null ? 'unknown' : requiredString(model, 'execution target.model_id');
   const allowUnknownEffort = target.allow_unknown_effort === true;
   const effort = target.effort === undefined || target.effort === null
     ? (allowUnknownEffort ? null : oneOf(target.effort, EFFORTS, 'execution target.effort'))
@@ -605,7 +608,7 @@ function createExecutionTarget(input) {
     route,
     transport,
     native: target.native === true,
-    identity: `${targetAgent}/${modelId}`,
+    identity: modelId === null ? null : `${targetAgent}/${modelId}`,
   });
 }
 
@@ -619,6 +622,7 @@ function createDispatchReceipt(input) {
   const status = oneOf(receipt.status, TERMINAL_STATUSES, 'receipt.status');
   const target = receipt.target === null || receipt.target === undefined ? null : createExecutionTarget({
     ...receipt.target,
+    ...(receipt.target.model_id === null && receipt.target.native === true ? { allow_unknown_model: true } : {}),
     ...(receipt.allow_unknown_effort === true ? { allow_unknown_effort: true } : {}),
   });
   const failureClass = receipt.failure_class === undefined || receipt.failure_class === null

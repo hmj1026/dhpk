@@ -610,4 +610,131 @@ test('relevant stale or contradictory capability records fail closed instead of 
   }
 });
 
+
+function boundRecord(context, selected, overrides = {}) {
+  return { kind: 'host-executable-capability', state: 'OBSERVED_AVAILABLE', status: 'AVAILABLE',
+    source: 'host-tool', observed_at: '2026-10-08T00:00:00Z', session_id: context.session_id,
+    binding_id: context.binding_id, host: selected.provider === 'openai' ? 'codex-cli' : 'claude-code',
+    ...selected, role: 'worker', authority: 'workspace-write', effort_binding: selected.effort === null ? 'unsupported' : 'parameter',
+    route: 'native', transport: 'native-runtime', ...overrides };
+}
+
+for (const mode of ['solo', 'graph']) {
+  test(`T7 refresh supersedes stale same-bound evidence in ${mode}`, async () => {
+    const selected = openAiWorkerTarget();
+    const fixture = createRunnerFixture({ task: makeTask({ delegation: mode === 'graph' ? 'coordinated' : 'none' }),
+      decision: { mode: 'solo', target: selected }, outcome: acceptedOutcome(selected) });
+    if (mode === 'graph') installGraphDecision(fixture, [{ id: 'write', goal: 'Update total', acceptance: ['Correct total'],
+      role: 'worker', authority: 'workspace-write', assigned_files: ['src/receipt.js'], dependencies: [], target: selected }]);
+    const workdir = makeWorkdir('supersede');
+    fixture.host.getCapabilities = async (context) => capabilities(CLAUDE_PROFILE,
+      { openai: { status: context.allow_external_probe ? 'AVAILABLE' : 'UNAVAILABLE', evidence: 'fixture' } },
+      { capability_evidence_records: [boundRecord(context, selected, { host: 'claude-code', route: 'headless-cli', transport: 'local-cli',
+        state: context.allow_external_probe ? 'OBSERVED_AVAILABLE' : 'OBSERVED_UNAVAILABLE',
+        status: context.allow_external_probe ? 'AVAILABLE' : 'UNAVAILABLE' })] });
+    try {
+      const report = await runFlowDrive(['Update total'], { host: fixture.host, workdir,
+        authorizationEvidence: { source: 'user-answer', answer_id: 't7-refresh', providers: ['openai'] } });
+      assert.strictEqual(report.acceptance.status, 'PASSED', JSON.stringify(report.blockers));
+      assert.strictEqual(fixture.calls.filter((call) => call.method === 'execute').length, 1);
+    } finally { fixture.cleanup(); fs.rmSync(workdir, { recursive: true, force: true }); }
+  });
+}
+
+test('T7 explicit Host refusal overrides bound native executable evidence without refresh', async () => {
+  const selected = target('openai', 'codex-cli', 'gpt-6-luna', 'max');
+  const fixture = createRunnerFixture({ task: makeTask(), decision: { mode: 'solo', target: selected } });
+  let refreshes = 0;
+  fixture.host.getCapabilities = async (context) => {
+    if (context.allow_external_probe) refreshes++;
+    return capabilities(CODEX_PROFILE, { openai: { status: 'BLOCKED', evidence: 'Host refuses' } },
+      { capability_evidence: boundRecord(context, selected) });
+  };
+  const workdir = makeWorkdir('refusal');
+  try {
+    const report = await runFlowDrive(['Update total'], { host: fixture.host, workdir });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(fixture.calls.filter((call) => call.method === 'execute').length, 0);
+    assert.strictEqual(refreshes, 0);
+  } finally { fixture.cleanup(); fs.rmSync(workdir, { recursive: true, force: true }); }
+});
+
+for (const mode of ['solo', 'graph']) {
+  test(`T7 current native nullable model retains truthful unknown identity in ${mode}`, async () => {
+    const selected = target('openai', 'codex-cli', null, null);
+    const fixture = createRunnerFixture({ task: makeTask({ delegation: mode === 'graph' ? 'coordinated' : 'none' }),
+      decision: { mode: 'solo', target: selected }, outcome: { status: 'SUCCEEDED' } });
+    if (mode === 'graph') installGraphDecision(fixture, [{ id: 'write', goal: 'Update total', acceptance: ['Correct total'],
+      role: 'worker', authority: 'workspace-write', assigned_files: ['src/receipt.js'], dependencies: [], target: selected }]);
+    fixture.host.getCapabilities = async (context) => capabilities(CODEX_PROFILE, {}, { capability_evidence: boundRecord(context, selected) });
+    const workdir = makeWorkdir('nullable');
+    try {
+      const report = await runFlowDrive(['Update total'], { host: fixture.host, workdir });
+      assert.strictEqual(report.acceptance.status, 'PASSED', JSON.stringify(report.blockers));
+      const launched = fixture.calls.find((call) => call.method === 'execute').target;
+      assert.strictEqual(launched.model_id, null); assert.strictEqual(launched.model, null);
+      assert.strictEqual(launched.identity, null); assert.strictEqual(launched.effort, null); assert.strictEqual(launched.native, true);
+      assert.strictEqual(JSON.stringify(report).includes('codex-cli/unknown'), false);
+      if (mode === 'solo') { assert.strictEqual(report.targets.requested.model_id, null); assert.strictEqual(report.targets.resolved.model_id, null); assert.strictEqual(report.targets.resolved.effort, null); assert.strictEqual(report.targets.observed, null); }
+    } finally { fixture.cleanup(); fs.rmSync(workdir, { recursive: true, force: true }); }
+  });
+}
+
+
+test('T7 refresh cannot supersede a newer matching observation with old, wrong-bound, wrong-effort or contradictory proof', async () => {
+  for (const invalid of ['older', 'wrong-binding', 'wrong-effort', 'contradictory']) {
+    const selected = openAiWorkerTarget();
+    const fixture = createRunnerFixture({ task: makeTask(), decision: { mode: 'solo', target: { ...selected, transport: 'local-cli' } }, outcome: acceptedOutcome(selected) });
+    const workdir = makeWorkdir(invalid);
+    fixture.host.getCapabilities = async (context) => {
+      const prior = boundRecord(context, selected, { host: 'claude-code', route: 'headless-cli', transport: 'local-cli',
+        observed_at: '2026-10-08T00:01:00Z', state: 'OBSERVED_UNAVAILABLE', status: 'UNAVAILABLE' });
+      const fresh = { ...prior, state: 'OBSERVED_AVAILABLE', status: 'AVAILABLE', observed_at: '2026-10-08T00:02:00Z',
+        ...(invalid === 'older' ? { observed_at: '2026-10-08T00:00:00Z' } : {}),
+        ...(invalid === 'wrong-binding' ? { binding_id: 'foreign-binding' } : {}),
+        ...(invalid === 'wrong-effort' ? { effort: 'low' } : {}) };
+      return capabilities(CLAUDE_PROFILE, { openai: { status: context.allow_external_probe ? 'AVAILABLE' : 'UNAVAILABLE', evidence: 'fixture' } },
+        { capability_evidence_records: context.allow_external_probe ? [fresh, ...(invalid === 'contradictory' ? [{ ...fresh, state: 'OBSERVED_UNAVAILABLE', status: 'UNAVAILABLE' }] : [])] : [prior] });
+    };
+    try {
+      const report = await runFlowDrive(['Update total'], { host: fixture.host, workdir,
+        authorizationEvidence: { source: 'user-answer', answer_id: 't7-invalid-refresh', providers: ['openai'] } });
+      assert.strictEqual(fixture.calls.filter((call) => call.method === 'execute').length, 0, invalid);
+      assert.notStrictEqual(report.acceptance.status, 'PASSED');
+    } finally { fixture.cleanup(); fs.rmSync(workdir, { recursive: true, force: true }); }
+  }
+});
+
+
+test('T7 nullable targets reject stale, declared, foreign or legacy-selector proof at the public seam', async () => {
+  for (const variant of ['stale', 'declared', 'foreign', 'legacy']) {
+    const selected = target(variant === 'foreign' ? 'anthropic' : 'openai', variant === 'foreign' ? 'claude-code' : 'codex-cli', null, null);
+    const fixture = createRunnerFixture({ task: makeTask(), decision: { mode: 'solo', target: selected }, outcome: { status: 'SUCCEEDED' } });
+    fixture.host.getCapabilities = async (context) => capabilities(CODEX_PROFILE, {}, { capability_evidence: boundRecord(context, selected,
+      { host: 'codex-cli', ...(variant === 'stale' ? { binding_id: 'stale' } : {}), ...(variant === 'declared' ? { state: 'DECLARED' } : {}),
+        ...(variant === 'foreign' ? { model_id: 'claude-opus-5-5' } : {}) }) });
+    const workdir = makeWorkdir(variant);
+    try {
+      const report = await runFlowDrive(['Update total', ...(variant === 'legacy' ? ['--worker=codex'] : [])], { host: fixture.host, workdir,
+        authorizationEvidence: { source: 'user-answer', answer_id: 't7-null-negative', providers: ['anthropic'] } });
+      assert.strictEqual(fixture.calls.filter((call) => call.method === 'execute').length, 0, variant);
+      assert.notStrictEqual(report.acceptance.status, 'PASSED');
+    } finally { fixture.cleanup(); fs.rmSync(workdir, { recursive: true, force: true }); }
+  }
+});
+
+for (const state of ['EXPOSED', 'OBSERVED_AVAILABLE']) test(`T7 ${state} native alias retains resolved selector while observed identity remains unknown`, async () => {
+  const selected = target('openai', 'codex-cli', 'host-default-alias', null);
+  const fixture = createRunnerFixture({ task: makeTask(), decision: { mode: 'solo', target: selected }, outcome: { status: 'SUCCEEDED' } });
+  fixture.host.getCapabilities = async (context) => capabilities(CODEX_PROFILE, {}, { capability_evidence: boundRecord(context, selected, { state }) });
+  const workdir = makeWorkdir('alias');
+  try {
+    const report = await runFlowDrive(['Update total'], { host: fixture.host, workdir, recovery: { retryBudget: 0 } });
+    assert.strictEqual(report.acceptance.status, 'PASSED'); assert.strictEqual(report.targets.resolved.model_id, 'host-default-alias');
+    assert.strictEqual(report.targets.observed, null);
+    const receipt = JSON.parse(report.execution.evidence)[0].receipt;
+    assert.strictEqual(receipt.capability_evidence.observed_model, null); assert.strictEqual(receipt.capability_evidence.observed_effort, null);
+  } finally { fixture.cleanup(); fs.rmSync(workdir, { recursive: true, force: true }); }
+});
+
 run('flow-drive-provider-permissions');

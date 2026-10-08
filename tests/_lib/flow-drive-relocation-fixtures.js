@@ -6,6 +6,7 @@ const { spawnSync } = require('node:child_process');
 const { withIsolatedSkill } = require('./skill-directory-isolation');
 const catalog = require('../../manifests/provider-model-catalog.json');
 const profiles = require('../../manifests/host-profiles.json');
+const { devQaDriver } = require('./flow-drive-dev-qa-driver');
 
 // Trusted fixture guards exercise dependency closure; they are not an OS
 // sandbox. The child receives plain fixture data and imports only builtins and
@@ -66,6 +67,11 @@ async function relocationDriver() {
   let runFlowDrive;
   try { ({ runFlowDrive } = require(path.join(input.skillDir, 'scripts/run.js'))); }
   catch (error) { process.stdout.write(JSON.stringify({ ...metadata(), setup_error: { code: error.code, message: error.message } })); return; }
+
+  if (input.fixtureData) {
+    const result = await devQaDriver(input, runFlowDrive);
+    process.stdout.write(JSON.stringify({ ...metadata(), ...result })); return;
+  }
 
   const scenario = input.scenario;
   const external = scenario === 'cross-provider';
@@ -177,14 +183,14 @@ async function relocationDriver() {
     maxWriters, activeWriters, reuseCalls, parentVerifications }));
 }
 
-function runRelocatedFlowDrive(scenario, { missingResource } = {}) {
+function runRelocatedFlowDrive(scenario, { missingResource, fixtureData, variant } = {}) {
   const canonicalRoot = path.resolve(__dirname, '..', '..');
   return withIsolatedSkill({ source: path.join(canonicalRoot, 'skills/flow-drive'),
     env: { NODE_PATH: canonicalRoot, NODE_OPTIONS: '--require=/canonical-fallback-must-not-load.js' } }, (context) => {
     if (missingResource) fs.unlinkSync(path.join(context.skillDir, missingResource));
-    const result = spawnSync(process.execPath, ['-e', `(${relocationDriver.toString()})().catch(error => { console.error(error.message); process.exitCode = 1; });`], {
+    const result = spawnSync(process.execPath, ['-e', `const devQaDriver = (${devQaDriver.toString()}); (${relocationDriver.toString()})().catch(error => { console.error(error.message); process.exitCode = 1; });`], {
       cwd: context.projectDir, env: context.env, encoding: 'utf8', timeout: 10000, maxBuffer: 4 * 1024 * 1024,
-      input: JSON.stringify({ scenario, canonicalRoot, skillDir: context.skillDir, projectDir: context.projectDir,
+      input: JSON.stringify({ scenario, fixtureData, variant, canonicalRoot, skillDir: context.skillDir, projectDir: context.projectDir,
         fixtureRoot: path.dirname(context.skillDir), catalog, profiles: profiles.profiles }),
     });
     return { ...result, skillDir: context.skillDir, projectDir: context.projectDir,

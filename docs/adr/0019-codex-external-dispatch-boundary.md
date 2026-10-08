@@ -4,8 +4,8 @@ Status: accepted
 
 The `codex-sync` and `codex-native` projections expose `flow-drive` and the
 shared CLI dispatch context, but they do not publish the Claude-side
-`agy-fast-worker` or `codex-bridge` adapters. Explicit external worker
-selection on either Codex surface is therefore an unavailable capability:
+`agy-fast-worker` or `codex-bridge` adapters. Legacy headless external worker
+selection that depends on those absent adapters is therefore unavailable:
 routing and launcher checks fail closed before adapter execution, `auto`
 remains native-only, AGY points to the [Codex handoff boundary](../../codex/guidance.md#codex-handoff-boundary)
 for its documented manual fallback, and
@@ -13,7 +13,12 @@ for its documented manual fallback, and
 curated subset and prevents an advertised route from depending on an absent
 adapter.
 
-This boundary applies only to Codex projections. Claude- and Cursor-side
+This boundary applies to those legacy adapter paths on Codex projections.
+Under #917, the portable Flow Drive runner may use a separately injected Host
+executor only when the trusted Provider grant, Host allowed set, current bound
+capability, and common Dispatch Engine validate the selected tuple. This scoped
+Host contract does not install the missing adapters or make legacy headless
+selection available. Claude- and Cursor-side
 documentation may continue to describe external worker options where those
 surfaces publish the required adapters, but those claims must remain scoped to
 the surface that actually supports them.
@@ -29,11 +34,12 @@ the surface that actually supports them.
 
 ## Consequences
 
-Codex-specific routing and capability metadata must not advertise external
-`agy` or `codex` workers as available. Stale explicit callers remain
+Codex-specific legacy routing and capability metadata must not advertise
+absent `agy` or `codex` headless adapters as available. Stale explicit callers remain
 diagnosable through the `UNAVAILABLE` result, while AGY users receive the
 manual workflow linked above and no provider switch occurs implicitly.
 Provider permission is a separate authorization boundary: an explicit user
 answer or target selection cannot create a missing Codex adapter, route, or
-capability, and the Codex-native projections continue to block unsupported
-external dispatch.
+capability, and unsupported
+legacy external dispatch remains blocked. Current bound Host executor evidence
+is a separate route-specific proof, never a blanket surface support claim.

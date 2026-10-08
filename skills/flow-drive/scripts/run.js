@@ -16,6 +16,7 @@ const {
   capabilityRefreshScope,
 } = require('./provider-permissions');
 const { evaluateTargetPolicy, selectCapabilityEvidence } = require('./target-policy');
+const { createCapabilityEvidence } = require('../references/execution-bundle/scripts/lib/dispatch-capability-evidence');
 const { executeSchedule } = require('../references/execution-bundle/scripts/lib/dispatch-scheduler');
 
 const PROVIDERS = new Set(['anthropic', 'openai', 'google', 'xai', 'cursor']);
@@ -50,7 +51,7 @@ function reportTarget(target) {
   if (!isRecord(target)) return null;
   const keys = ['target_agent', 'provider', 'model_id', 'model', 'effort', 'route', 'transport'];
   return Object.freeze(Object.fromEntries(keys
-    .filter((key) => target[key] !== undefined && target[key] !== null)
+    .filter((key) => target[key] !== undefined && (target[key] !== null || ['model_id', 'model', 'effort'].includes(key)))
     .map((key) => [key, target[key]])));
 }
 
@@ -136,8 +137,8 @@ function selectedTarget(decision) {
   const input = decision.target;
   const agent = canonicalAgent(input.target_agent || input.targetAgent);
   const provider = canonicalProvider(input.provider);
-  const model = input.model_id || input.model;
-  if (!provider || !model || typeof model !== 'string' || model.trim() === '' || input.route !== undefined) return null;
+  const model = Object.prototype.hasOwnProperty.call(input, 'model_id') ? input.model_id : (input.model === undefined ? null : input.model);
+  if (!provider || (model !== null && (typeof model !== 'string' || model.trim() === '')) || input.route !== undefined) return null;
   const targetAgent = agent || AGENT_FOR_PROVIDER[provider];
   if (!targetAgent) return null;
   return {
@@ -327,6 +328,7 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
   const ledgerBuilder = createAuthorizationLedgerBuilder(currentProvider, authorizationEvidence, cliTarget);
   if (invocation.options.crossProvider) await askForProviderScope(host, capabilities, currentProvider, ledgerBuilder);
   const authorizationLedger = ledgerBuilder.snapshot();
+  let capabilityHistory = [];
   const refreshForSelectedTargets = async (targets) => {
     const refreshScope = capabilityRefreshScope(
       authorizationLedger,
@@ -360,12 +362,42 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
             mergedCapabilities.host_profile.access[target.provider] = refreshedAccess[target.provider];
           }
         }
-        const evidenceRecords = [
+        const priorRecords = [
           ...(Array.isArray(mergedCapabilities.capability_evidence_records) ? mergedCapabilities.capability_evidence_records : []),
           ...(mergedCapabilities.capability_evidence ? [mergedCapabilities.capability_evidence] : []),
+        ];
+        const freshRecords = [
           ...(Array.isArray(refreshedSnapshot.capability_evidence_records) ? refreshedSnapshot.capability_evidence_records : []),
           ...(refreshedSnapshot.capability_evidence ? [refreshedSnapshot.capability_evidence] : []),
         ];
+        const validFresh = freshRecords.filter((record) => {
+          try { createCapabilityEvidence(record); } catch (_) { return false; }
+          return record.host === currentHost && record.session_id === sessionId && record.binding_id === bindingId
+            && refreshScope.authorized_targets.some((target) => target.provider === record.provider
+              && target.target_agent === record.target_agent && target.model_id === record.model_id
+              && target.role === record.role && target.authority === record.authority
+              && (!target.effort || target.effort === record.effort)
+              && (!target.transport || target.transport === record.transport)
+              && (!target.route || target.route === record.route));
+        });
+        const superseded = priorRecords.filter((prior) => validFresh.some((fresh) =>
+          prior.host === fresh.host && prior.session_id === fresh.session_id && prior.binding_id === fresh.binding_id
+          && prior.provider === fresh.provider && prior.target_agent === fresh.target_agent
+          && prior.model_id === fresh.model_id && prior.role === fresh.role && prior.authority === fresh.authority
+          && prior.effort === fresh.effort && prior.route === fresh.route && prior.transport === fresh.transport
+          && Date.parse(fresh.observed_at) >= Date.parse(prior.observed_at)));
+        // Only allowlisted summaries survive as history; private Host payloads never enter reports.
+        capabilityHistory = [...capabilityHistory, ...superseded.flatMap((record) => {
+          try {
+            const normalized = createCapabilityEvidence(record);
+            return [{ provider: normalized.provider, target_agent: normalized.target_agent,
+              model_id: normalized.model_id, role: normalized.role, authority: normalized.authority,
+              state: normalized.state, status: normalized.status }];
+          } catch (_) { return []; }
+        })].slice(-64);
+        mergedCapabilities.capability_evidence_history = capabilityHistory;
+        delete mergedCapabilities.capability_evidence;
+        const evidenceRecords = [...priorRecords.filter((record) => !superseded.includes(record)), ...freshRecords];
         if (evidenceRecords.length > 0) mergedCapabilities.capability_evidence_records = evidenceRecords;
         capabilities = freezeTaskValue(mergedCapabilities);
       } else {

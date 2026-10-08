@@ -298,11 +298,11 @@ test('declared capability evidence does not authorize execution', () => {
 test('exposed Host capability authorizes invocation without claiming observed identity', () => {
   const result = resolveTarget(request(cursorProfile, {
     role: 'worker', authority: 'workspace-write', effort: undefined,
-    target: { target_agent: 'cursor', provider: 'openai' },
+    target: { target_agent: 'cursor', provider: 'cursor' },
     capability_evidence: {
       kind: 'host-executable-capability', state: 'EXPOSED', status: 'AVAILABLE', source: 'injected Host executable contract',
       observed_at: '2026-10-08T00:00:00.000Z', session_id: 'session-exposed', binding_id: 'binding-exposed',
-      host: 'cursor', target_agent: 'cursor', provider: 'openai', model_id: null, role: 'worker', authority: 'workspace-write',
+      host: 'cursor', target_agent: 'cursor', provider: 'cursor', model_id: null, role: 'worker', authority: 'workspace-write',
       effort: null, effort_binding: 'unsupported', route: 'native', transport: 'native-runtime',
     },
     execution_binding: { session_id: 'session-exposed', binding_id: 'binding-exposed' },
@@ -358,12 +358,12 @@ test('receipt keeps unknown observed Model and Effort explicit', () => {
     role: 'worker',
     authority: 'workspace-write',
     effort: undefined,
-    target: { target_agent: 'cursor', provider: 'openai' },
+    target: { target_agent: 'cursor', provider: 'cursor' },
     capability_evidence: {
       kind: 'host-executable-capability', status: 'AVAILABLE', source: 'stub unknown target',
       state: 'OBSERVED_AVAILABLE',
       observed_at: '2026-10-08T00:00:00.000Z', session_id: 'session-unknown', binding_id: 'binding-unknown',
-      host: 'cursor', target_agent: 'cursor', provider: 'openai', model_id: null, role: 'worker',
+      host: 'cursor', target_agent: 'cursor', provider: 'cursor', model_id: null, role: 'worker',
       authority: 'workspace-write', effort: null, effort_binding: 'unsupported', route: 'native', transport: 'native-runtime',
     },
     execution_binding: { session_id: 'session-unknown', binding_id: 'binding-unknown' },
@@ -374,7 +374,7 @@ test('receipt keeps unknown observed Model and Effort explicit', () => {
     receipt_id: 'receipt-unknown-target', request: resolution.request, target: resolution.target,
     status: 'SUCCEEDED', verification: 'NOT_RUN', allow_unknown_effort: true, capability_evidence: resolution.capability,
   });
-  assert.strictEqual(receipt.resolved_target.model_id, 'unknown');
+  assert.strictEqual(receipt.resolved_target.model_id, null);
   assert.strictEqual(receipt.resolved_target.effort, null);
   assert.strictEqual(receipt.effort, undefined);
 });
@@ -1799,6 +1799,86 @@ test('recovery candidates retain binding, authority, scope and strict target ind
     assert.strictEqual(result.status, 'BLOCKED');
     assert.strictEqual(result.retry_budget_remaining, 1);
   }
+});
+
+
+function t7NativeEvidence(overrides = {}) {
+  return { kind: 'host-executable-capability', state: 'EXPOSED', status: 'AVAILABLE', source: 'host-tool',
+    observed_at: '2026-10-08T00:00:00Z', session_id: 't7-session', binding_id: 't7-binding', host: 'codex-cli',
+    provider: 'openai', target_agent: 'codex-cli', model_id: null, role: 'reasoner', authority: 'read-only',
+    effort: null, effort_binding: 'unsupported', route: 'native', transport: 'native-runtime', ...overrides };
+}
+
+test('T7 canonical executable evidence cannot override explicit Host refusal', () => {
+  const result = resolveTarget(request({ ...codexProfile, access: { ...codexProfile.access,
+    openai: { status: 'BLOCKED', evidence: 'refused' } } }, {
+    target: { target_agent: 'codex-cli', provider: 'openai' }, effort: undefined,
+    execution_binding: { session_id: 't7-session', binding_id: 't7-binding' }, capability_evidence: t7NativeEvidence(),
+  }), { catalog });
+  assert.strictEqual(result.status, 'BLOCKED');
+});
+
+test('T7 native null and exposed selector preserve unknown observations through adapters', () => {
+  const { createExecutionTarget } = require('../scripts/lib/dispatch-contract');
+  const { buildInvocation } = require('../scripts/lib/provider-cli-adapters');
+  const { validateDispatchPlatformEvidence } = require('../scripts/lib/dispatch-platform-validation');
+  const { createExecutionAdapter } = require('../scripts/lib/provider-adapter');
+  for (const model of [null, 'host-default-alias']) {
+    const input = request(codexProfile, { target: { target_agent: 'codex-cli', provider: 'openai', model_id: model }, effort: undefined,
+      execution_binding: { session_id: 't7-session', binding_id: 't7-binding' }, capability_evidence: t7NativeEvidence({ model_id: model }) });
+    const resolved = resolveTarget(input, { catalog });
+    assert.strictEqual(resolved.status, 'RESOLVED');
+    assert.strictEqual(resolved.target.model_id, model); assert.strictEqual(resolved.target.native, true);
+    assert.strictEqual(resolved.target.identity, model === null ? null : `codex-cli/${model}`);
+    assert.strictEqual(resolved.capability.observed_model, null); assert.strictEqual(resolved.capability.observed_effort, null);
+    const normalized = createExecutionTarget({ ...resolved.target, allow_unknown_model: true, allow_unknown_effort: true });
+    assert.strictEqual(normalized.model_id, model);
+    assert.deepStrictEqual(buildInvocation(resolved.target, resolved.request).argv, []);
+    const adapter = createExecutionAdapter({ provider: 'openai', execute: () => ({ status: 'SUCCEEDED', verification: 'PASSED' }) });
+    const receipt = adapter.execute(resolved.target, resolved.request).receipt;
+    assert.strictEqual(receipt.resolved_target.model_id, model);
+    assert.strictEqual(validateDispatchPlatformEvidence({ hostProfile: codexProfile, catalog, target: resolved.target }).status.catalog_support, 'UNSUPPORTED');
+  }
+  assert.strictEqual(createExecutionTarget({ target_agent: 'codex-cli', provider: 'openai', effort: 'high', transport: 'local-cli' }).model_id, 'unknown');
+  assert.throws(() => createExecutionTarget({ target_agent: 'codex-cli', provider: 'openai', model_id: null, effort: 'high',
+    transport: 'local-cli', allow_unknown_model: true }));
+});
+
+
+test('T7 explicit nullable foreign and transport-conflicting targets stay blocked', () => {
+  const { buildInvocation } = require('../scripts/lib/provider-cli-adapters');
+  assert.throws(() => buildInvocation({ target_agent: 'codex-cli', provider: 'openai', model_id: null,
+    effort: 'high', route: 'headless-cli', transport: 'local-cli' }, request(codexProfile)));
+  for (const target of [
+    { target_agent: 'codex-cli', provider: 'openai', model_id: null, transport: 'local-cli' },
+    { target_agent: 'claude-code', provider: 'anthropic', model_id: null },
+  ]) {
+    const result = resolveTarget(request(codexProfile, { target, effort: undefined,
+      execution_binding: { session_id: 't7-session', binding_id: 't7-binding' },
+      capability_evidence: t7NativeEvidence({ target_agent: target.target_agent, provider: target.provider, model_id: 'concrete-host-selector' }),
+    }), { catalog });
+    assert.strictEqual(result.status, 'BLOCKED');
+  }
+});
+
+
+test('T7 observed invocation availability keeps selector distinct from explicit observed identity', () => {
+  for (const observed of [false, true]) {
+    const result = resolveTarget(request(codexProfile, { target: { provider: 'openai', target_agent: 'codex-cli', model_id: 'dynamic-alias' }, effort: undefined,
+      execution_binding: { session_id: 't7-session', binding_id: 't7-binding' },
+      capability_evidence: t7NativeEvidence({ state: 'OBSERVED_AVAILABLE', model_id: 'dynamic-alias',
+        ...(observed ? { observed_model: 'actual-host-model', observed_effort: 'high' } : {}) }),
+    }), { catalog });
+    assert.strictEqual(result.status, 'RESOLVED');
+    assert.strictEqual(result.target.model_id, 'dynamic-alias');
+    assert.strictEqual(result.capability.observed_model, observed ? 'actual-host-model' : null);
+    assert.strictEqual(result.capability.observed_effort, observed ? 'high' : null);
+  }
+});
+
+test('T7 explicit null Model cannot fall back to a static default without current bound capability', () => {
+  const result = resolveTarget(request(codexProfile, { target: { target_agent: 'codex-cli', provider: 'openai', model_id: null } }), { catalog });
+  assert.strictEqual(result.status, 'BLOCKED');
 });
 
 run('dispatch-engine');

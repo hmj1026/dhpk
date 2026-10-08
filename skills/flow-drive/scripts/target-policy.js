@@ -14,8 +14,8 @@ function flattenTarget(target) {
   const body = target.target && typeof target.target === 'object' ? target.target : target;
   const provider = canonicalProvider(target.provider || body.provider);
   const targetAgent = canonicalAgent(body.target_agent || body.targetAgent);
-  const modelId = body.model_id || body.model;
-  if (!provider || !targetAgent || typeof modelId !== 'string' || modelId.trim() === '') return null;
+  const modelId = Object.prototype.hasOwnProperty.call(body, 'model_id') ? body.model_id : (body.model === undefined ? null : body.model);
+  if (!provider || !targetAgent || (modelId !== null && (typeof modelId !== 'string' || modelId.trim() === ''))) return null;
   return {
     provider,
     target_agent: targetAgent,
@@ -71,7 +71,7 @@ function evaluateTargetPolicy({ target, role, authority, constraints = {}, invoc
       if (!sameTarget(selected, requested)) return { allowed: false, reason: 'Host selection does not match the explicit worker target' };
     } else if (options.worker && options.worker !== 'auto') {
       const backend = BACKEND_FOR_AGENT[selected.target_agent];
-      if (backend !== options.worker) return { allowed: false, reason: 'Host selection does not match the legacy worker selector' };
+      if (selected.model_id === null || backend !== options.worker) return { allowed: false, reason: 'Host selection does not match the legacy worker selector' };
     }
   }
 
@@ -117,9 +117,14 @@ function selectCapabilityEvidence(capabilities, targetValue, role, authority, bi
     ? capabilities.capability_evidence_records
     : [];
   const singular = capabilities && capabilities.capability_evidence;
-  const candidates = [...plural, ...(singular ? [singular] : [])]
+  const relevant = [...plural, ...(singular ? [singular] : [])]
     .filter((record) => relevantEvidence(record, target, role, authority));
-  if (candidates.length === 0) return { status: 'none', evidence: null };
+  const candidates = relevant.filter((record) => (!target.transport || record.transport === target.transport)
+    && (!target.route || record.route === target.route) && (!target.effort || record.effort === target.effort));
+  if (relevant.length && !candidates.length) return { status: 'blocked', evidence: null, reason: 'Host capability evidence does not match requested execution tuple' };
+  if (candidates.length === 0) return target.model_id === null
+    ? { status: 'blocked', evidence: null, reason: 'unknown model requires current bound native Host capability evidence' }
+    : { status: 'none', evidence: null };
 
   if (plural.length === 0 && singular && relevantEvidence(singular, target, role, authority)) {
     // Preserve legacy evidence unchanged; Dispatch Engine validates its host,

@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:b8d44935176697354e40b7b8728c24bb2780b23b5f209909c4fe89d59c72c702`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:94fe3ce73fdaa79268dff6e4ee869ae7929630d697ebac2e37a0ef654a4fcd71`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -95,7 +95,7 @@ Examples:
 
 ### `$flow-drive`
 
-Summary: Implement one Host-resolved task with scoped acceptance
+Summary: Execute one scoped task with diagnosis and acceptance evidence
 Syntax: `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
 Invocation class: `explicit-only`
 Maximum authority: `workspace-write`
@@ -104,23 +104,24 @@ Inputs:
 - `task-input` `<task-text|task-file|confirmed-spec-or-change-id>` (required, string) — Provide task text, a task file path, or a confirmed specification/change ID for Host resolution
 
 Actions:
-- `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Implement one Host-resolved task and verify its acceptance
+- `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance
 
 Options:
-- `plan` `--plan[=<model>:<effort>]` (optional, string) — Request a planning pass before implementation
+- `plan` `--plan[=<model>:<effort>]` (optional, string) — Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker
 - `plan-mode` `--plan-mode=auto|bounded|discovery` (optional, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
 - `worker` `--worker=<worker>` (optional, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
-- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (optional, string) — Select an explicit provider, model, and effort target
-- `cross-provider` `--cross-provider` (optional, boolean, default=false) — Request cross-Provider routing; exact target, task constraints, and current Host evidence still apply
-- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (optional, string) — Request a bounded second opinion
-- `architect` `--architect` (optional, boolean) — Enable the architecture pass
-- `no-architect` `--no-architect` (optional, boolean) — Disable the architecture pass
+- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (optional, string) — Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target
+- `cross-provider` `--cross-provider` (optional, boolean, default=false) — Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution
+- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (optional, string) — Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker
+- `architect` `--architect` (optional, boolean) — Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker
+- `no-architect` `--no-architect` (optional, boolean) — Compatibility notice only in the portable task runner
 
 Legacy diagnostics (not primary syntax):
 - `--codex` — Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut
 
 Examples:
 - `$flow-drive Fix the receipt total and verify it matches the receipt lines.` — Resolve and implement a bounded task with explicit acceptance
+- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross-provider` — Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes
 
 ### `$flow-guide`
 

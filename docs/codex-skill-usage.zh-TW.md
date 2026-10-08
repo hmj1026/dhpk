@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:b8d44935176697354e40b7b8728c24bb2780b23b5f209909c4fe89d59c72c702`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:94fe3ce73fdaa79268dff6e4ee869ae7929630d697ebac2e37a0ef654a4fcd71`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
@@ -95,7 +95,7 @@ Actions：
 
 ### `$flow-drive`
 
-摘要：Implement one Host-resolved task with scoped acceptance
+摘要：Execute one scoped task with diagnosis and acceptance evidence
 語法：`$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
 呼叫類別：`explicit-only`
 最高 authority：`workspace-write`
@@ -104,23 +104,24 @@ Actions：
 - `task-input` `<task-text|task-file|confirmed-spec-or-change-id>` (必要, string) — Provide task text, a task file path, or a confirmed specification/change ID for Host resolution
 
 Actions：
-- `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Implement one Host-resolved task and verify its acceptance
+- `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance
 
 選項：
-- `plan` `--plan[=<model>:<effort>]` (可選, string) — Request a planning pass before implementation
+- `plan` `--plan[=<model>:<effort>]` (可選, string) — Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker
 - `plan-mode` `--plan-mode=auto|bounded|discovery` (可選, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
 - `worker` `--worker=<worker>` (可選, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
-- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (可選, string) — Select an explicit provider, model, and effort target
-- `cross-provider` `--cross-provider` (可選, boolean, default=false) — Request cross-Provider routing; exact target, task constraints, and current Host evidence still apply
-- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (可選, string) — Request a bounded second opinion
-- `architect` `--architect` (可選, boolean) — Enable the architecture pass
-- `no-architect` `--no-architect` (可選, boolean) — Disable the architecture pass
+- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (可選, string) — Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target
+- `cross-provider` `--cross-provider` (可選, boolean, default=false) — Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution
+- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (可選, string) — Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker
+- `architect` `--architect` (可選, boolean) — Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker
+- `no-architect` `--no-architect` (可選, boolean) — Compatibility notice only in the portable task runner
 
 Legacy diagnostic（非主要語法）：
 - `--codex` — Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut
 
 範例：
 - `$flow-drive Fix the receipt total and verify it matches the receipt lines.` — Resolve and implement a bounded task with explicit acceptance
+- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross-provider` — Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes
 
 ### `$flow-guide`
 
