@@ -113,8 +113,10 @@ pluginConfig > installed user pluginConfig > `false`; workspace-local settings
 are preferred over the global settings file.
 
 Flow Drive accepts a task with confirmed goal and acceptance while its root
-cause may remain unknown. Dependent writes require actual READY_FOR_DISPATCH
-evidence. Independent read-only work may continue; code, tests, and scratch
+cause may remain unknown. Dependent writes require sufficient attributable
+cause, repair, and verification evidence; when REASONER_REQUIRED applies,
+require actual READY_FOR_DISPATCH evidence. Independent read-only work may
+continue; code, tests, and scratch
 share one writer lease. Interrupted or uncertain writers must be stopped and
 reconciled before another writer starts. Required review independence is
 established by observed agent identity, not role labels or self-review.
