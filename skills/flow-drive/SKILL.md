@@ -72,6 +72,16 @@ authority remain separate, and unknown observed Model or Effort values stay
 unknown. The runner passes the same session and binding identifiers to the
 executor context so evidence cannot be attached to an arbitrary task string.
 
+The Host may return `mode: "coordinated"` with a dependency-ordered `nodes`
+graph. Each node inherits the parent authority and write scope; unknown,
+duplicate, cyclic, or widened dependencies block the graph before execution.
+Independent read-only nodes may run in parallel, while workspace writers use
+the shared Dispatch writer lease so solo and coordinated calls never overlap.
+Every node must execute and pass its own verification before the aggregate
+acceptance can pass. A reasoner conclusion must carry attributable source,
+root-cause, repair, and verification evidence before a dependent writer is
+eligible; confidence text or a role name alone is insufficient.
+
 ## Implementation contract
 
 0. Before anything else, run the parser as one shell command, exactly

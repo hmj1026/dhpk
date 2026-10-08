@@ -79,6 +79,9 @@ function createRunnerFixture({
       calls.push({ method: 'verify', task: resolvedTask, outcome: executionOutcome, context });
       return acceptance;
     },
+    async inspectScope() {
+      return { within_scope: true, wip_preserved: true, identity: 'fixture-baseline' };
+    },
   };
 
   return {
