@@ -715,8 +715,34 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
   test('help is metadata-only and cannot turn flow-drive into an implicit invocation', () => {
     const result = runHelp(['flow-drive']);
     assert.strictEqual(result.status, 0, output(result));
-    assert.doesNotMatch(output(result), /execut(e|ing)|implement(ed|ation)?\s+(started|running)|workspace-write granted/i);
-    assert.match(output(result), /explicit-only|direct.*invocation|human/i);
+    assert.match(output(result), /invocation: explicit-only/);
+    assert.match(output(result), /direct invocation required; this help card is read-only/);
+
+    // Exercise help with execution and target-procedure boundaries unavailable.
+    // A description may say Execute without loading or starting its target.
+    const guarded = spawnSync(process.execPath, ['-e', `
+      const Module = require('node:module');
+      const original = Module._load;
+      Module._load = function (request, parent, ...args) {
+        const name = request.replace(/^node:/, '');
+        if (['child_process', 'worker_threads', 'http', 'https', 'net', 'tls'].includes(name)) {
+          throw new Error('help crossed an execution or network boundary');
+        }
+        const resolved = Module._resolveFilename(request, parent);
+        if (resolved.includes('/skills/flow-drive/')) throw new Error('help loaded its target procedure');
+        return original.call(this, request, parent, ...args);
+      };
+      process.exitCode = require(process.argv[1]).run(['--json', 'flow-drive']);
+    `, CARD], { cwd: ROOT, encoding: 'utf8', timeout: 15000 });
+    assert.strictEqual(guarded.status, 0, output(guarded));
+    const card = JSON.parse(guarded.stdout);
+    assert.strictEqual(card.schema, 'dhpk.skill-usage-card.v1');
+    assert.strictEqual(card.invocation_class, 'explicit-only');
+    assert.deepStrictEqual(card.actions.map((action) => action.id), ['apply']);
+    assert.strictEqual(card.actions[0].syntax, '$flow-drive <task-text|task-file|confirmed-spec-or-change-id>');
+    for (const field of ['execution', 'acceptance', 'handoff', 'authorization', 'grants']) {
+      assert.strictEqual(Object.hasOwn(card, field), false, `help must not produce ${field} evidence or authority`);
+    }
   });
 }
 
