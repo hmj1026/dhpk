@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:94fe3ce73fdaa79268dff6e4ee869ae7929630d697ebac2e37a0ef654a4fcd71",
+  "sourceInventoryRevision": "sha256:9259fcd3cef34291e0a3daa9d72c2c7aefc976602bf3501eb4a28464592c234e",
   "entries": [
     {
       "id": "change-verdict",

@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.65.3",
-  "sourceCommit": "0fab297335bdf3a2e6761955d18946c72dfcfac0",
-  "generatedFromCommit": "0fab297335bdf3a2e6761955d18946c72dfcfac0",
-  "generatedFromTree": "c0080ba60b0e700cff1de5bb45a4e54ad8b36c57",
-  "inventoryDigest": "0bc7a9748dc492c9e567c18431e66eb7327ede85c77f19dd3f4d52e49dcf803b",
-  "inventoryRevision": "sha256:984b4e1d9df6ffd0cdc580d1643ff759f8fabeb0c01f6c85902bad2aba73b8d9",
+  "sourceCommit": "12a758761a2935a1745deb2b87183072a3630896",
+  "generatedFromCommit": "12a758761a2935a1745deb2b87183072a3630896",
+  "generatedFromTree": "be52d25c746d8b241b11754ac109e7d05bb31120",
+  "inventoryDigest": "d7c930856b17a567d013d5ae90dd5912d06f054f152f094fa99279a9c1e726f2",
+  "inventoryRevision": "sha256:9259fcd3cef34291e0a3daa9d72c2c7aefc976602bf3501eb4a28464592c234e",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "cli-dispatch-context",
@@ -1796,7 +1796,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "f048b71b30b3fb3f5f91fa919415e04e08c7eec1"
+        "originalGitBlobDigest": "408436a9d09cafe05b42112443c0f659b97a897e"
       },
       {
         "ownerId": "flow-guide",
@@ -6342,7 +6342,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "efbd52cee0718909e76bdd404d2239186ce87581d494dafc61a748ec87d2ef4b",
+    "planId": "6083a925038f0f1b14a575f7569019aa6df9d9ae1755d2ca964e492acc625326",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -6388,10 +6388,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "efbd52cee0718909e76bdd404d2239186ce87581d494dafc61a748ec87d2ef4b",
-      "inventory": "0bc7a9748dc492c9e567c18431e66eb7327ede85c77f19dd3f4d52e49dcf803b"
+      "plan": "6083a925038f0f1b14a575f7569019aa6df9d9ae1755d2ca964e492acc625326",
+      "inventory": "d7c930856b17a567d013d5ae90dd5912d06f054f152f094fa99279a9c1e726f2"
     },
-    "rollbackIdentity": "2f5b513d16cc109e11a70dfa6d555e85906619201606644bcf877a14eb23d98a"
+    "rollbackIdentity": "0791fa5ff39cbe875ef65a2b767620c68924ecfbb1221724db5f4da3958eec34"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -7441,5 +7441,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "67e6e4e55a7002504ee64bb3851062b24a04f69f208d48ce2d940963c82d96df",
   "surfaceSelectionFingerprint": "045d05054e0b0a3474c4f9049923652f0b0455c7d1687dbe78666d971ea3962a",
-  "planFingerprint": "fd9d46be4459b938a98764735caaca1a0475ad6424baacdbaeaf084acc96f5af"
+  "planFingerprint": "a678a5477fe0aa7beb072570ecf8814b6d911c0822d30b8b0e473e93e587c9ca"
 }
