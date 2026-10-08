@@ -290,7 +290,7 @@ test('usage renderer discloses grammar and authority without procedure prose', (
 
 test('$flow-guide help cards disclose inputs, enums, defaults, and retired markers', () => {
   const card = usageCardJsonHelp('flow-drive');
-  assert.deepStrictEqual(card.inputs.map((input) => input.id), ['confirmed-spec-or-change-id']);
+  assert.deepStrictEqual(card.inputs.map((input) => input.id), ['task-input']);
   const worker = card.options.find((option) => option.id === 'worker');
   assert.deepStrictEqual(worker.enum_values, ['claude', 'codex', 'agy', 'auto']);
   const crossProvider = card.options.find((option) => option.id === 'cross-provider');
@@ -338,7 +338,7 @@ test('generated usage artifacts bind to one catalog revision and derive Argument
 
   const flowDrive = inventory.skills.find((skill) => skill.id === 'flow-drive');
   assert.ok(flowDrive, 'the source inventory must contain flow-drive');
-  const expectedArgumentHint = '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]';
+  const expectedArgumentHint = '<task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]';
   assert.strictEqual(flowDrive.usage.syntax, '$flow-drive ' + expectedArgumentHint);
   const frontmatter = fs.readFileSync(path.join(ROOT, 'skills/flow-drive/SKILL.md'), 'utf8');
   assert.ok(
