@@ -38,3 +38,13 @@ would have been mislabelled as `headless-cli`.
 - The catalog schema moves to `dhpk.model.catalog.v2` with a separate
   `models{}` block, so vendor-level facts (display name, pricing) are stated
   once rather than once per Host.
+
+- Under #917, Flow Drive uses current session/executor-bound Host capability
+  evidence for its authorized selected targets even when the shipped catalog is
+  stale. The coordinator proposes; the common engine validates Provider,
+  Target-Agent, role, authority, effort, route, transport, and binding. A native
+  fixed role/default may retain null Model and Effort when identity is not
+  observable. An exposed selector remains separate from runtime observation.
+  This evolves capability resolution without adding formal Supported catalog
+  claims or revising the historical model counts above. Fixture/consumer proof,
+  actual Provider runtime, and release evidence remain separate.

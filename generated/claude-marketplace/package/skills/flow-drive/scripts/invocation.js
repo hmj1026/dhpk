@@ -166,6 +166,7 @@ function parseInvocation(argv = [], { host = null } = {}) {
   const notices = [];
   const seen = new Set();
   let changeId = null;
+  let taskInput = null;
   let architect = null;
   let requestedPlanMode = null;
   const options = {
@@ -188,8 +189,11 @@ function parseInvocation(argv = [], { host = null } = {}) {
 
   for (const token of tokens) {
     if (!token.startsWith('--')) {
-      if (changeId === null) changeId = token;
-      else diagnostic(diagnostics, `only one confirmed specification or change id is allowed; unexpected '${token}'.`);
+      if (taskInput === null) {
+        changeId = token;
+        taskInput = token;
+      }
+      else diagnostic(diagnostics, `only one task input is allowed; unexpected '${token}'.`);
       continue;
     }
     if (token === '--plan' || token.startsWith('--plan=')) {
@@ -252,6 +256,7 @@ function parseInvocation(argv = [], { host = null } = {}) {
     schema: SCHEMA,
     status: diagnostics.length === 0 ? 'ready' : 'blocked',
     changeId,
+    taskInput,
     options: normalizedOptions,
     diagnostics,
     notices,

@@ -51,6 +51,14 @@
     ],
     "flow-drive": [
       {
+        "source": "scripts/lib/dispatch-scheduler.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-scheduler.js"
+      },
+      {
+        "source": "scripts/lib/dispatch-writer-lease.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-writer-lease.js"
+      },
+      {
         "source": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
         "destination": "references/cli-dispatch/scripts/launch-cli-dispatch.js"
       },
@@ -143,6 +151,10 @@
         "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
       },
       {
+        "source": "scripts/lib/dispatch-capability-evidence.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-capability-evidence.js"
+      },
+      {
         "source": "scripts/lib/dispatch-engine.js",
         "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
       },
@@ -227,6 +239,10 @@
       {
         "source": "scripts/lib/dispatch-contract.js",
         "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
+      },
+      {
+        "source": "scripts/lib/dispatch-capability-evidence.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-capability-evidence.js"
       },
       {
         "source": "scripts/lib/dispatch-engine.js",

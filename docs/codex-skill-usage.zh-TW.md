@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:033da58eb56038ecf3a1266e0a8ef87748fc80e1428abdc9b7dd1c221aa1bcf1`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:a26420f278af3434c295e7b47a7c3244ec99f8d5f83aad16456773212eec6d15`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
@@ -95,32 +95,33 @@ Actions：
 
 ### `$flow-drive`
 
-摘要：Implement a confirmed specification with bounded evidence
-語法：`$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
+摘要：Execute one scoped task with diagnosis and acceptance evidence
+語法：`$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
 呼叫類別：`explicit-only`
 最高 authority：`workspace-write`
 
 輸入：
-- `confirmed-spec-or-change-id` `<confirmed-spec-or-change-id>` (必要, string) — Select the confirmed specification or change
+- `task-input` `<task-text|task-file|confirmed-spec-or-change-id>` (必要, string) — Provide task text, a task file path, or a confirmed specification/change ID for Host resolution
 
 Actions：
-- `apply` `$flow-drive <confirmed-spec-or-change-id>` — Implement the confirmed specification or OpenSpec change
+- `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance
 
 選項：
-- `plan` `--plan[=<model>:<effort>]` (可選, string) — Request a planning pass before implementation
+- `plan` `--plan[=<model>:<effort>]` (可選, string) — Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker
 - `plan-mode` `--plan-mode=auto|bounded|discovery` (可選, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
 - `worker` `--worker=<worker>` (可選, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
-- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (可選, string) — Select an explicit provider, model, and effort target
-- `cross-provider` `--cross-provider` (可選, boolean, default=false) — Allow the explicitly selected provider boundary
-- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (可選, string) — Request a bounded second opinion
-- `architect` `--architect` (可選, boolean) — Enable the architecture pass
-- `no-architect` `--no-architect` (可選, boolean) — Disable the architecture pass
+- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (可選, string) — Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target
+- `cross-provider` `--cross-provider` (可選, boolean, default=false) — Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution
+- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (可選, string) — Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker
+- `architect` `--architect` (可選, boolean) — Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker
+- `no-architect` `--no-architect` (可選, boolean) — Compatibility notice only in the portable task runner
 
 Legacy diagnostic（非主要語法）：
 - `--codex` — Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut
 
 範例：
-- `$flow-drive consolidate-remaining-dhpk-skill-families` — Implement a confirmed OpenSpec change
+- `$flow-drive Fix the receipt total and verify it matches the receipt lines.` — Resolve and implement a bounded task with explicit acceptance
+- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross-provider` — Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes
 
 ### `$flow-guide`
 

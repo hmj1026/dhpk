@@ -61,7 +61,7 @@ model. Advisory routing guidance SHALL NOT instruct a model to call an
 explicit-only entry through a generic Skill tool; it SHALL either remain silent
 or present the exact supported human command. `flow-drive` SHALL remain
 explicit-only and SHALL expose only the confirmed-implementation entry
-`$flow-drive <confirmed-spec-or-change-id> [implementation-options]`; it SHALL
+`$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [implementation-options]`; it SHALL
 not accept a `route` or `implement` mode selector. The advisory `flow-guide`
 actions `help`, `route`, `rules`, `next`, and `close` MAY be used for advisory
 routing according to their own invocation class. `route --go` MAY produce one
@@ -257,3 +257,29 @@ Marketplace publication SHALL retain each selected inventory public name, stable
 
 - **WHEN** a selected skill uses an approved unprefixed name
 - **THEN** publication preserves its inventory naming policy and invocation class rather than inferring a new family marker
+
+### Requirement: Explicit Flow Drive task inputs settle outcomes before mutation
+
+Flow Drive SHALL accept one explicitly invoked task text, task file, or
+confirmed specification/change identifier. Host resolution SHALL establish a
+bounded goal, acceptance, constraints, and assigned scope before execution.
+For workspace-write task text, the Host SHALL materialize a physical prompt
+file under already authorized input-preparation scope and bind its device,
+inode, and SHA-256 before returning the resolved task contract. If that
+preparation is unavailable, execution SHALL remain blocked until a bound task
+file is supplied. Read-only task text MAY resolve without a physical prompt
+file. The runner SHALL NOT infer preparation write authority from task text.
+An unknown cause MAY trigger read-only evidence and diagnosis within that
+settled outcome; dependent writes SHALL wait for sufficient attributable cause,
+repair, and verification evidence. Task text SHALL NOT grant external Provider,
+Git mutation, merge, deployment, or OpenSpec authoring authority.
+
+#### Scenario: Confirmed outcome has an unknown cause
+
+- **WHEN** the user explicitly invokes Flow Drive to fix a symptom with settled acceptance but insufficient root-cause evidence
+- **THEN** diagnosis may proceed and the dependent writer remains blocked until its evidence is sufficient
+
+#### Scenario: Independent assigned manual proposal
+
+- **WHEN** the confirmed task assigns a scratch manual proposal and a read-only merge plan
+- **THEN** those items may proceed under the same writer and scope rules while merge remains subject to separate approval

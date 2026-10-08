@@ -1,6 +1,6 @@
 interface:
   display_name: "Flow Drive"
-  short_description: "Implement a confirmed specification with evidence"
-  default_prompt: "Use $flow-drive <confirmed-spec-or-change-id> to implement confirmed work with bounded verification."
+  short_description: "Execute a scoped task with diagnosis and acceptance evidence"
+  default_prompt: "Use $flow-drive <task-text|task-file|confirmed-spec-or-change-id> for settled work with scoped verification. Add --cross-provider to ask for additional Vendor permission before selected external execution."
 policy:
   allow_implicit_invocation: false

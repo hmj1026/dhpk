@@ -1,0 +1,13 @@
+{
+  "schema": "dhpk.flow-drive.dev-qa-expectations.v1",
+  "parent_acceptance": "BLOCKED",
+  "B_total": 900,
+  "A_writer_launches": 0,
+  "peak_writers": 1,
+  "required_successes": ["A-diagnosis", "B-diagnosis", "B-red", "B-repair", "B-tests", "B-review", "manual-proposal", "merge-plan"],
+  "dependencies": [["A-diagnosis", "A-write"], ["B-diagnosis", "B-red"], ["B-red", "B-repair"], ["B-repair", "B-tests"], ["B-tests", "B-review"], ["manual-proposal", "merge-plan"]],
+  "unchanged_files": ["src/user-wip.php", "AGENTS.md"],
+  "forbidden_calls": { "git": 0, "database": 0, "DEV": 0, "deploy": 0, "provider": 0 },
+  "manual_proposal": "Draft only: confirm diagnosis A before implementation; merge requires user approval.\n",
+  "merge_plan": "PENDING_APPROVAL"
+}
