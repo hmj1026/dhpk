@@ -7,6 +7,7 @@ const {
   createExecutionTarget,
   createProviderModelCatalog,
 } = require('./dispatch-contract');
+const { authorizeCapability, createCapabilityEvidence } = require('./dispatch-capability-evidence');
 
 const FAILURE_CLASSES = Object.freeze({
   CLI_UNAVAILABLE: 'CLI_UNAVAILABLE',
@@ -212,6 +213,38 @@ function evaluateCandidate(request, candidate, catalog) {
   };
 }
 
+function evaluateCapabilityCandidate(request, candidate, evidence) {
+  const authorization = authorizeCapability({ request, candidate, evidence });
+  if (authorization.status !== 'AVAILABLE') {
+    return { status: authorization.status, reason: authorization.reason, capability: authorization.evidence, probe_performed: false, fallback_eligible: false };
+  }
+  const normalized = authorization.evidence;
+  const target = createExecutionTarget({
+    target_agent: normalized.target_agent,
+    provider: normalized.provider,
+    model_id: normalized.model_id || 'unknown',
+    effort: normalized.effort,
+    allow_unknown_effort: normalized.effort === null,
+    route: normalized.route,
+    transport: normalized.transport,
+    native: normalized.route === 'native'
+      && normalized.provider === request.host_profile.native_provider
+      && normalized.model_id === request.host_profile.native_model,
+  });
+  return {
+    status: 'AVAILABLE',
+    request,
+    target,
+    capability: {
+      ...normalized,
+      observed_model: normalized.model_id,
+      observed_effort: normalized.effort,
+    },
+    probe_performed: false,
+    fallback_eligible: false,
+  };
+}
+
 function normalizePreference(candidate) {
   if (typeof candidate === 'string') {
     const match = candidate.match(/^([^/]+)(?:\/([^:]+))?(?::([^:]+))?$/);
@@ -254,13 +287,22 @@ function resolveTarget(input, options = {}) {
   const request = createDispatchRequest(input);
   const catalog = createProviderModelCatalog(options.catalog);
   const requested = requestedCandidate(request);
+  const capabilityEvidence = request.capability_evidence === undefined
+    ? null : createCapabilityEvidence(request.capability_evidence);
   const defaultPair = request.host_profile.role_defaults && request.host_profile.role_defaults[request.role];
   const fallbackPairs = request.host_profile.role_fallbacks && request.host_profile.role_fallbacks[request.role] || [];
   const cursorPlaceholder = requested && requested.target_agent === 'cursor' && requested.model_id === 'cursor-default';
   const explicit = cursorPlaceholder && request.role === 'worker' && defaultPair
     ? { ...defaultPair, effort: requested.effort || defaultPair.effort }
     : requested;
-  const candidates = explicit
+  const candidates = capabilityEvidence
+    ? [explicit || {
+      target_agent: capabilityEvidence.target_agent,
+      provider: capabilityEvidence.provider,
+      ...(capabilityEvidence.model_id === null ? {} : { model_id: capabilityEvidence.model_id }),
+      ...(capabilityEvidence.effort === null ? {} : { effort: capabilityEvidence.effort }),
+    }]
+    : explicit
     ? [explicit]
     : (options.preferenceOrder === undefined
       ? (defaultPair ? [defaultPair, ...fallbackPairs] : unique([request.host_profile.native_provider, ...request.host_profile.allowed_providers]).map((provider) => ({ provider })))
@@ -269,7 +311,9 @@ function resolveTarget(input, options = {}) {
   const rejected = [];
   let fallbackEligible = false;
   for (const candidate of candidates) {
-    const evaluated = evaluateCandidate(request, candidate, catalog);
+    const evaluated = capabilityEvidence
+      ? evaluateCapabilityCandidate(request, candidate, capabilityEvidence)
+      : evaluateCandidate(request, candidate, catalog);
     if (evaluated.status === 'AVAILABLE') {
       return Object.freeze({
         status: 'RESOLVED',

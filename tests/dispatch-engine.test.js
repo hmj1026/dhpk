@@ -6,7 +6,7 @@ const {
   decideFallback,
   resolveTarget,
 } = require('../scripts/lib/dispatch-engine');
-const { SCHEMAS } = require('../scripts/lib/dispatch-contract');
+const { SCHEMAS, createDispatchReceipt } = require('../scripts/lib/dispatch-contract');
 const catalog = require('../manifests/provider-model-catalog.json');
 const profiles = require('../manifests/host-profiles.json');
 
@@ -224,6 +224,159 @@ test('explicit unknown Model is unavailable and is never inferred from another P
 
   assert.strictEqual(result.status, 'UNAVAILABLE');
   assert.ok(result.reason.includes('opus5'));
+});
+
+test('bound current Host evidence resolves a model absent from a stale catalog', () => {
+  const evidence = {
+    kind: 'host-executable-capability',
+    state: 'OBSERVED_AVAILABLE',
+    status: 'AVAILABLE',
+    source: 'stub Host executor',
+    observed_at: '2026-10-08T00:00:00.000Z',
+    session_id: 'session-919',
+    binding_id: 'binding-919',
+    host: 'cursor',
+    target_agent: 'cursor',
+    provider: 'openai',
+    model_id: 'fresh-model',
+    role: 'reasoner',
+    authority: 'read-only',
+    effort: 'high',
+    effort_binding: 'parameter',
+    route: 'headless-cli',
+    transport: 'local-cli',
+  };
+  const staleCatalog = { ...catalog, models: { ...catalog.models }, routes: catalog.routes.filter((route) => route.model_id !== 'fresh-model') };
+  const result = resolveTarget(request({
+    ...cursorProfile,
+    access: { ...cursorProfile.access, openai: { status: 'AVAILABLE', evidence: 'stale profile access' } },
+  }, {
+    target: { target_agent: 'cursor', provider: 'openai', model_id: 'fresh-model' },
+    capability_evidence: evidence,
+    execution_binding: { session_id: 'session-919', binding_id: 'binding-919' },
+  }), { catalog: staleCatalog });
+  assert.strictEqual(result.status, 'RESOLVED');
+  assert.strictEqual(result.target.model_id, 'fresh-model');
+  assert.strictEqual(result.target.route, 'headless-cli');
+  assert.strictEqual(result.capability.source, 'stub Host executor');
+});
+
+test('unbound capability evidence cannot authorize a target', () => {
+  assert.throws(() => resolveTarget(request(cursorProfile, {
+    target: { target_agent: 'cursor', provider: 'openai', model_id: 'fresh-model' },
+    capability_evidence: { status: 'AVAILABLE', provider: 'openai' },
+  }), { catalog }), /capability evidence/i);
+});
+
+test('capability evidence with the wrong executor binding is blocked', () => {
+  const result = resolveTarget(request(cursorProfile, {
+    target: { target_agent: 'cursor', provider: 'openai', model_id: 'fresh-model' },
+    capability_evidence: {
+      kind: 'host-executable-capability', state: 'OBSERVED_AVAILABLE', status: 'AVAILABLE', source: 'stub Host executor',
+      observed_at: '2026-10-08T00:00:00.000Z', session_id: 'session-real', binding_id: 'binding-real',
+      host: 'cursor', target_agent: 'cursor', provider: 'openai', model_id: 'fresh-model', role: 'reasoner', authority: 'read-only', effort: 'high', effort_binding: 'parameter', route: 'headless-cli', transport: 'local-cli',
+    },
+    execution_binding: { session_id: 'session-other', binding_id: 'binding-other' },
+  }), { catalog });
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.match(result.reason, /bound to the injected executor/i);
+});
+
+test('declared capability evidence does not authorize execution', () => {
+  const result = resolveTarget(request(cursorProfile, {
+    target: { target_agent: 'cursor', provider: 'openai', model_id: 'fresh-model' },
+    capability_evidence: {
+      kind: 'host-executable-capability', state: 'DECLARED', status: 'AVAILABLE', source: 'static declaration',
+      observed_at: '2026-10-08T00:00:00.000Z', session_id: 'session-declared', binding_id: 'binding-declared',
+      host: 'cursor', target_agent: 'cursor', provider: 'openai', model_id: 'fresh-model', role: 'reasoner', authority: 'read-only', effort: 'high', effort_binding: 'parameter', route: 'headless-cli', transport: 'local-cli',
+    },
+    execution_binding: { session_id: 'session-declared', binding_id: 'binding-declared' },
+  }), { catalog });
+  assert.strictEqual(result.status, 'NOT_RUN');
+});
+
+test('exposed Host capability authorizes invocation without claiming observed identity', () => {
+  const result = resolveTarget(request(cursorProfile, {
+    role: 'worker', authority: 'workspace-write', effort: undefined,
+    target: { target_agent: 'cursor', provider: 'openai' },
+    capability_evidence: {
+      kind: 'host-executable-capability', state: 'EXPOSED', status: 'AVAILABLE', source: 'injected Host executable contract',
+      observed_at: '2026-10-08T00:00:00.000Z', session_id: 'session-exposed', binding_id: 'binding-exposed',
+      host: 'cursor', target_agent: 'cursor', provider: 'openai', model_id: null, role: 'worker', authority: 'workspace-write',
+      effort: null, effort_binding: 'unsupported', route: 'native', transport: 'native-runtime',
+    },
+    execution_binding: { session_id: 'session-exposed', binding_id: 'binding-exposed' },
+  }), { catalog });
+  assert.strictEqual(result.status, 'RESOLVED');
+  assert.strictEqual(result.capability.state, 'EXPOSED');
+  assert.strictEqual(result.capability.model_id, null);
+  assert.strictEqual(result.capability.effort, null);
+});
+
+test('strict requested effort remains blocked when observed effort is unknown', () => {
+  const result = resolveTarget(request({
+    ...cursorProfile,
+    access: { ...cursorProfile.access, openai: { status: 'AVAILABLE', evidence: 'stub access' } },
+  }, {
+    target: { target_agent: 'cursor', provider: 'openai', model_id: 'fresh-model' },
+    capability_evidence: {
+      kind: 'host-executable-capability', status: 'AVAILABLE', source: 'stub Host executor',
+      state: 'OBSERVED_AVAILABLE',
+      observed_at: '2026-10-08T00:00:00.000Z', session_id: 'session-919', binding_id: 'binding-919',
+      host: 'cursor', target_agent: 'cursor', provider: 'openai', model_id: 'fresh-model',
+      role: 'reasoner', authority: 'read-only', effort_binding: 'unsupported', route: 'headless-cli', transport: 'local-cli',
+    },
+    execution_binding: { session_id: 'session-919', binding_id: 'binding-919' },
+  }), { catalog });
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.match(result.reason, /Effort high|effort/i);
+});
+
+test('same Provider alternate Route remains same-Provider evidence', () => {
+  const result = resolveTarget(request(cursorProfile, {
+    role: 'worker',
+    authority: 'workspace-write',
+    effort: 'high',
+    target: { target_agent: 'cursor', provider: 'openai', model_id: 'route-alias' },
+    capability_evidence: {
+      kind: 'host-executable-capability', status: 'AVAILABLE', source: 'stub alternate route',
+      state: 'OBSERVED_AVAILABLE',
+      observed_at: '2026-10-08T00:00:00.000Z', session_id: 'session-route', binding_id: 'binding-route',
+      host: 'cursor', target_agent: 'cursor', provider: 'openai', model_id: 'route-alias', role: 'worker',
+      authority: 'workspace-write', effort: 'high', effort_binding: 'parameter', route: 'headless-cli', transport: 'local-cli',
+    },
+    execution_binding: { session_id: 'session-route', binding_id: 'binding-route' },
+  }), { catalog });
+  assert.strictEqual(result.status, 'RESOLVED');
+  assert.strictEqual(result.target.provider, 'openai');
+  assert.strictEqual(result.target.route, 'headless-cli');
+  assert.strictEqual(result.capability.provider, result.target.provider);
+});
+
+test('receipt keeps unknown observed Model and Effort explicit', () => {
+  const input = request(cursorProfile, {
+    role: 'worker',
+    authority: 'workspace-write',
+    effort: undefined,
+    target: { target_agent: 'cursor', provider: 'openai' },
+    capability_evidence: {
+      kind: 'host-executable-capability', status: 'AVAILABLE', source: 'stub unknown target',
+      state: 'OBSERVED_AVAILABLE',
+      observed_at: '2026-10-08T00:00:00.000Z', session_id: 'session-unknown', binding_id: 'binding-unknown',
+      host: 'cursor', target_agent: 'cursor', provider: 'openai', model_id: null, role: 'worker',
+      authority: 'workspace-write', effort: null, effort_binding: 'unsupported', route: 'native', transport: 'native-runtime',
+    },
+    execution_binding: { session_id: 'session-unknown', binding_id: 'binding-unknown' },
+  });
+  const resolution = resolveTarget(input, { catalog });
+  assert.strictEqual(resolution.status, 'RESOLVED');
+  const receipt = createDispatchReceipt({
+    receipt_id: 'receipt-unknown-target', request: resolution.request, target: resolution.target,
+    status: 'SUCCEEDED', verification: 'NOT_RUN', allow_unknown_effort: true, capability_evidence: resolution.capability,
+  });
+  assert.strictEqual(receipt.resolved_target.model_id, 'unknown');
+  assert.strictEqual(receipt.resolved_target.effort, null);
+  assert.strictEqual(receipt.effort, undefined);
 });
 
 test('automatic selection requires Host policy opt-in for an external Provider', () => {

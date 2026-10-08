@@ -143,6 +143,10 @@
         "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
       },
       {
+        "source": "scripts/lib/dispatch-capability-evidence.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-capability-evidence.js"
+      },
+      {
         "source": "scripts/lib/dispatch-engine.js",
         "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
       },
@@ -227,6 +231,10 @@
       {
         "source": "scripts/lib/dispatch-contract.js",
         "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
+      },
+      {
+        "source": "scripts/lib/dispatch-capability-evidence.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-capability-evidence.js"
       },
       {
         "source": "scripts/lib/dispatch-engine.js",

@@ -569,6 +569,9 @@ function createDispatchRequest(input) {
     ...(request.effort === undefined || request.effort === null ? {} : { effort: oneOf(request.effort, EFFORTS, 'effort') }),
     fallback: normalizeFallback(request.fallback),
     parallelism: normalizeParallelism(request.parallelism),
+    ...(request.capability_evidence === undefined ? {} : { capability_evidence: request.capability_evidence }),
+    ...(request.execution_binding === undefined ? {} : { execution_binding: request.execution_binding }),
+    ...(request.strict_target === undefined ? {} : { strict_target: request.strict_target === true }),
   };
   return freeze(normalized);
 }
@@ -585,7 +588,10 @@ function createExecutionTarget(input) {
   const provider = canonical;
   const model = target.model_id || target.model;
   const modelId = model === undefined || model === null ? 'unknown' : requiredString(model, 'execution target.model_id');
-  const effort = oneOf(target.effort, EFFORTS, 'execution target.effort');
+  const allowUnknownEffort = target.allow_unknown_effort === true;
+  const effort = target.effort === undefined || target.effort === null
+    ? (allowUnknownEffort ? null : oneOf(target.effort, EFFORTS, 'execution target.effort'))
+    : oneOf(target.effort, EFFORTS, 'execution target.effort');
   const transport = oneOf(target.transport, TRANSPORTS, 'execution target.transport');
   const route = target.route === undefined
     ? routeForTarget({ targetAgent, host: target.host, transport })
@@ -611,7 +617,10 @@ function createDispatchReceipt(input) {
   const receipt = requiredRecord(input, 'dispatch receipt');
   const request = createDispatchRequest(receipt.request);
   const status = oneOf(receipt.status, TERMINAL_STATUSES, 'receipt.status');
-  const target = receipt.target === null || receipt.target === undefined ? null : createExecutionTarget(receipt.target);
+  const target = receipt.target === null || receipt.target === undefined ? null : createExecutionTarget({
+    ...receipt.target,
+    ...(receipt.allow_unknown_effort === true ? { allow_unknown_effort: true } : {}),
+  });
   const failureClass = receipt.failure_class === undefined || receipt.failure_class === null
     ? null : requiredString(receipt.failure_class, 'receipt.failure_class');
   const sideEffects = oneOf(receipt.side_effects === undefined ? 'none' : receipt.side_effects, SIDE_EFFECT_STATES, 'receipt.side_effects');
@@ -642,7 +651,7 @@ function createDispatchReceipt(input) {
     normalizedFallbackHistory.push(normalizedEntry);
   }
   const rawCapabilityEvidence = receipt.capability_evidence === undefined ? null : requiredRecord(receipt.capability_evidence, 'receipt.capability_evidence');
-  if (rawCapabilityEvidence && Object.keys(rawCapabilityEvidence).some((key) => !['status', 'evidence', 'source', 'provider', 'target_agent', 'model_id', 'model', 'route', 'effort', 'transport', 'observed_at', 'client_version', 'role', 'authority'].includes(key))) {
+  if (rawCapabilityEvidence && Object.keys(rawCapabilityEvidence).some((key) => !['kind', 'state', 'status', 'evidence', 'source', 'provider', 'target_agent', 'model_id', 'model', 'route', 'effort', 'transport', 'observed_at', 'client_version', 'role', 'authority', 'session_id', 'binding_id', 'host', 'effort_binding', 'observed_model', 'observed_effort'].includes(key))) {
     throw new TypeError('receipt.capability_evidence contains unsupported evidence');
   }
   let capabilityEvidence = null;
@@ -651,25 +660,30 @@ function createDispatchReceipt(input) {
     if (rawCapabilityEvidence.status !== undefined) {
       capabilityEvidence.status = oneOf(rawCapabilityEvidence.status, CAPABILITY_STATUSES, 'receipt.capability_evidence.status');
     }
-    for (const key of ['evidence', 'source', 'observed_at']) {
+    for (const key of ['evidence', 'source', 'observed_at', 'session_id', 'binding_id', 'host']) {
       if (rawCapabilityEvidence[key] !== undefined) {
         if (key === 'observed_at') isoTimestamp(rawCapabilityEvidence[key], `receipt.capability_evidence.${key}`);
         else boundedEvidence(rawCapabilityEvidence[key], `receipt.capability_evidence.${key}`);
         capabilityEvidence[key] = rawCapabilityEvidence[key];
       }
     }
+    if (rawCapabilityEvidence.kind !== undefined) capabilityEvidence.kind = boundedEvidence(rawCapabilityEvidence.kind, 'receipt.capability_evidence.kind');
+    if (rawCapabilityEvidence.state !== undefined) capabilityEvidence.state = boundedEvidence(rawCapabilityEvidence.state, 'receipt.capability_evidence.state');
+    if (rawCapabilityEvidence.effort_binding !== undefined) capabilityEvidence.effort_binding = oneOf(rawCapabilityEvidence.effort_binding, EFFORT_BINDINGS, 'receipt.capability_evidence.effort_binding');
+    if (rawCapabilityEvidence.observed_model !== undefined) capabilityEvidence.observed_model = rawCapabilityEvidence.observed_model === null ? null : requiredString(rawCapabilityEvidence.observed_model, 'receipt.capability_evidence.observed_model');
+    if (rawCapabilityEvidence.observed_effort !== undefined) capabilityEvidence.observed_effort = rawCapabilityEvidence.observed_effort === null ? null : oneOf(rawCapabilityEvidence.observed_effort, EFFORTS, 'receipt.capability_evidence.observed_effort');
     if (rawCapabilityEvidence.client_version !== undefined) {
       boundedEvidence(rawCapabilityEvidence.client_version, 'receipt.capability_evidence.client_version');
       capabilityEvidence.client_version = rawCapabilityEvidence.client_version;
     }
     if (rawCapabilityEvidence.provider !== undefined) capabilityEvidence.provider = canonicalProvider(rawCapabilityEvidence.provider, 'receipt.capability_evidence.provider');
     if (rawCapabilityEvidence.target_agent !== undefined) capabilityEvidence.target_agent = translatedTargetAgent(rawCapabilityEvidence.target_agent, 'receipt.capability_evidence.target_agent');
-    if (rawCapabilityEvidence.model_id !== undefined) capabilityEvidence.model_id = requiredString(rawCapabilityEvidence.model_id, 'receipt.capability_evidence.model_id');
+    if (rawCapabilityEvidence.model_id !== undefined) capabilityEvidence.model_id = rawCapabilityEvidence.model_id === null ? null : requiredString(rawCapabilityEvidence.model_id, 'receipt.capability_evidence.model_id');
     else if (rawCapabilityEvidence.model !== undefined) capabilityEvidence.model_id = requiredString(rawCapabilityEvidence.model, 'receipt.capability_evidence.model');
     if (rawCapabilityEvidence.role !== undefined) capabilityEvidence.role = oneOf(rawCapabilityEvidence.role, CANONICAL_ROLES, 'receipt.capability_evidence.role');
     if (rawCapabilityEvidence.authority !== undefined) capabilityEvidence.authority = oneOf(rawCapabilityEvidence.authority, AUTHORITIES, 'receipt.capability_evidence.authority');
     if (rawCapabilityEvidence.route !== undefined) capabilityEvidence.route = oneOf(rawCapabilityEvidence.route, ROUTES, 'receipt.capability_evidence.route');
-    if (rawCapabilityEvidence.effort !== undefined) capabilityEvidence.effort = oneOf(rawCapabilityEvidence.effort, EFFORTS, 'receipt.capability_evidence.effort');
+    if (rawCapabilityEvidence.effort !== undefined) capabilityEvidence.effort = rawCapabilityEvidence.effort === null ? null : oneOf(rawCapabilityEvidence.effort, EFFORTS, 'receipt.capability_evidence.effort');
     if (rawCapabilityEvidence.transport !== undefined) capabilityEvidence.transport = oneOf(rawCapabilityEvidence.transport, TRANSPORTS, 'receipt.capability_evidence.transport');
   }
   requiredString(receipt.receipt_id, 'receipt.receipt_id');
