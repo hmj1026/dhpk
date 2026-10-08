@@ -1,6 +1,9 @@
 'use strict';
 
 const path = require('node:path');
+const { createNodeTask } = require('./task-contract');
+const { exactWorkerTarget } = require('./provider-permissions');
+const { evaluateTargetPolicy, selectCapabilityEvidence } = require('./target-policy');
 
 function validConclusion(result) {
   let cursor = result;
@@ -20,34 +23,48 @@ function sameIdentity(left, right) {
 }
 
 async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host, invocation, workdir, sessionId, bindingId,
-  currentProvider, taskIdentity, nodeTaskDigest, selectedTarget, dispatchRequest, prepareDispatch, withWriterLease, executeSchedule, verifyPromptEvidence, observedTargetIssue }) {
+  currentProvider, authorizationLedger, taskIdentity, nodeTaskDigest, selectedTarget, dispatchRequest, prepareDispatch, withWriterLease, executeSchedule, verifyPromptEvidence, observedTargetIssue }) {
   const outcomes = new Map();
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const currentDigest = resolvedTask.constraints.prompt_evidence.sha256;
   const strict = resolvedTask.constraints.strict_target;
-  const exact = invocation && invocation.options && invocation.options.workerTarget;
-  const explicit = exact && ({ provider: ({ claude: 'anthropic', codex: 'openai', agy: 'google' })[exact.provider], target_agent: ({ claude: 'claude-code', codex: 'codex-cli', agy: 'agy' })[exact.provider], model_id: exact.model, effort: exact.effort });
+  const explicit = exactWorkerTarget(invocation);
+  const authorizedProviders = [...new Set([
+    ...authorizationLedger.providers,
+    ...authorizationLedger.targets.map((grant) => grant.provider),
+  ])];
 
   const executeNode = async (node, { lease = true } = {}) => {
     const target = selectedTarget({ target: node.target });
     if (!target) return { id: node.id, status: 'BLOCKED', reason: `node ${node.id} has no valid target` };
-    if (target.provider !== currentProvider && !resolvedTask.constraints.provider) return { id: node.id, status: 'BLOCKED', reason: 'node Provider is outside the current Host Provider' };
-    if (resolvedTask.constraints.provider && target.provider !== resolvedTask.constraints.provider) return { id: node.id, status: 'BLOCKED', reason: 'node Provider conflicts with the task constraint' };
-    if (strict && (target.provider !== strict.provider || target.target.target_agent !== strict.target_agent || target.target.model_id !== strict.model_id || strict.effort && (node.effort || target.effort) !== strict.effort)) return { id: node.id, status: 'BLOCKED', reason: 'node target does not match strict task target' };
-    if (explicit && (target.provider !== explicit.provider || target.target.target_agent !== explicit.target_agent || target.target.model_id !== explicit.model_id || explicit.effort && (node.effort || target.effort) !== explicit.effort)) return { id: node.id, status: 'BLOCKED', reason: 'node target does not match explicit worker target' };
-    if (!exact && invocation.options.worker !== 'auto') { const backend = ({ 'claude-code': 'claude', 'codex-cli': 'codex', agy: 'agy' })[target.target.target_agent]; if (backend !== invocation.options.worker) return { id: node.id, status: 'BLOCKED', reason: 'node target does not match the legacy worker selector' }; }
-    const nodeTask = { ...resolvedTask, goal: node.goal, acceptance: [...node.acceptance], constraints: { ...resolvedTask.constraints, authority: node.authority, assigned_files: node.assigned_files } };
+    const policy = evaluateTargetPolicy({
+      target,
+      role: node.role,
+      authority: node.authority,
+      constraints: resolvedTask.constraints,
+      invocation,
+      ledger: authorizationLedger,
+      hostAllowedProviders: capabilities.host_profile.allowed_providers,
+    });
+    if (!policy.allowed) return { id: node.id, status: 'BLOCKED', reason: policy.reason };
+    const nodeTask = createNodeTask(resolvedTask, node);
     const currentTaskDigest = nodeTaskDigest(node, nodeTask, workdir);
+    const evidenceSelection = selectCapabilityEvidence(
+      capabilities, target, node.role, node.authority, { session_id: sessionId, binding_id: bindingId },
+    );
+    if (evidenceSelection.status === 'blocked') {
+      return { id: node.id, status: 'BLOCKED', reason: evidenceSelection.reason };
+    }
     let prepared;
     try {
       prepared = prepareDispatch({
         ...dispatchRequest(nodeTask, path.resolve(workdir), capabilities, target, node.effort || target.effort,
-          [currentProvider], capabilities.capability_evidence, { session_id: sessionId, binding_id: bindingId }, Boolean(strict || explicit), node.role),
+          authorizedProviders, evidenceSelection.evidence, { session_id: sessionId, binding_id: bindingId }, Boolean(strict || (node.role === 'worker' && explicit)), node.role),
         change: { confirmed: true, change_id: taskIdentity(resolvedTask).taskId },
       });
     } catch (error) { return { id: node.id, status: 'BLOCKED', reason: error.message }; }
     if (prepared.resolution.status !== 'RESOLVED') return { id: node.id, status: 'BLOCKED', reason: prepared.resolution.reason || 'node dispatch blocked' };
-    const nodeContext = { invocation, capabilities, decision, resolution: prepared.resolution, workdir, node };
+    const nodeContext = { invocation, capabilities, decision, resolution: prepared.resolution, workdir, node, authorization_ledger: authorizationLedger };
     let scopeBefore = null;
     let executionStarted = false;
     let outcome = null;
@@ -86,7 +103,8 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
         nodeResult = { id: node.id, status: 'BLOCKED', reason: 'invalid node execution outcome' };
       } else {
         verification = await host.verify(nodeTask, outcome, nodeContext);
-        observedIssue = observedTargetIssue && observedTargetIssue(outcome.observed_target, prepared.resolution.target, explicit || strict);
+        observedIssue = observedTargetIssue && observedTargetIssue(outcome.observed_target, prepared.resolution.target,
+          (node.role === 'worker' && explicit) || strict);
         if (node.role === 'reviewer' && node.independent_of) {
           const observed = outcome.executor_identity;
           const sources = node.independent_of.map((dependency) => outcomes.get(dependency)?.outcome?.executor_identity);
@@ -121,11 +139,15 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
 
   const requests = graph.nodes.map((node) => {
     const target = selectedTarget({ target: node.target });
-    const nodeTask = { ...resolvedTask, goal: node.goal, acceptance: [...node.acceptance], constraints: { ...resolvedTask.constraints, authority: node.authority, assigned_files: node.assigned_files } };
+    const nodeTask = createNodeTask(resolvedTask, node);
+    const evidenceSelection = selectCapabilityEvidence(
+      capabilities, target, node.role, node.authority, { session_id: sessionId, binding_id: bindingId },
+    );
     const packet = dispatchRequest(nodeTask, path.resolve(workdir), capabilities,
       target || { target: { target_agent: 'cursor', provider: currentProvider, model_id: capabilities.host_profile.native_model }, effort: null },
-      node.effort || target && target.effort, [currentProvider], capabilities.capability_evidence,
-      { session_id: sessionId, binding_id: bindingId }, Boolean(strict || explicit), node.role);
+      node.effort || target && target.effort, authorizedProviders,
+      evidenceSelection.status === 'selected' ? evidenceSelection.evidence : null,
+      { session_id: sessionId, binding_id: bindingId }, Boolean(strict || (node.role === 'worker' && explicit)), node.role);
     return { ...packet.request, task_id: node.id, parallelism: { dependencies: [...node.dependencies], max_concurrency: graph.nodes.length } };
   });
   const scheduled = await executeSchedule(requests, {
