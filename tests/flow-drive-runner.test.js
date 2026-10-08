@@ -45,10 +45,17 @@ async function assertSoloPostlaunchCleanupBarrier(failureMode) {
   first.host.execute = async () => {
     executeEntered.resolve();
     await executeGate.promise;
-    fs.writeFileSync(path.join(workdir, 'partial-write.txt'), 'partial');
+    fs.mkdirSync(path.join(workdir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(workdir, 'src/receipt.js'), 'partial');
     if (failureMode === 'throw') throw new Error('executor stopped after a partial write');
     return { status: 'INVALID' };
   };
+  first.host.stop = async (_task, context) => ({ status: 'STOPPED', task_id: context.request.task_id, attempt_id: context.request.attempt_id });
+  first.host.reconcile = async (_task, context) => ({
+    status: 'PASSED', task_id: context.request.task_id, attempt_id: context.request.attempt_id,
+    baseline_id: baseline.identity, scope_contained: true, wip_preserved: true, diff_verified: true,
+    attributable_changes: ['src/receipt.js'], unconfirmed: ['src/receipt.js'], remaining: [], out_of_scope: [],
+  });
   second.host.execute = async () => {
     secondExecutions += 1;
     return { status: 'SUCCEEDED', observed_target: { ...DEFAULT_TARGET } };

@@ -399,9 +399,58 @@ function initialFallbackHistory(resolution) {
   }];
 }
 
-function decideFallback({ request, resolution, failureClass, sideEffects = 'unknown', catalog } = {}) {
+function decideRecoveryCandidate({ request, resolution, failureClass, sideEffects, catalog, candidate_request, reconciliation, recovery_action }) {
+  const blocked = (reason, status = 'BLOCKED') => Object.freeze({ status, request, target: null,
+    failure_class: failureClass, side_effects: sideEffects, action: 'stop',
+    retry_budget_remaining: request.fallback.retry_budget, reason });
+  if ([FAILURE_CLASSES.SAFETY_OR_USER_DENIAL, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT].includes(failureClass)) {
+    return blocked('failure requires stopping on the affected Provider');
+  }
+  if (!request.fallback.allow || request.fallback.retry_budget === 0) return blocked('recovery retry budget is exhausted or disabled');
+  let candidate;
+  try { candidate = createDispatchRequest(candidate_request); } catch (_) { return blocked('recovery candidate is invalid'); }
+  if (!candidate.target) return blocked('recovery requires one explicit candidate target');
+  const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+  if (request.strict_target && (!same(request.target, candidate.target) || request.effort !== candidate.effort)) {
+    return blocked('strict recovery must preserve the original target tuple');
+  }
+  const stable = ['task_id', 'role', 'authority', 'task', 'execution_binding', 'parallelism'];
+  if (stable.some((key) => !same(request[key], candidate[key]))
+      || request.scope.workdir !== candidate.scope.workdir
+      || !same(request.scope.prompt_evidence, candidate.scope.prompt_evidence)
+      || candidate.scope.assigned_files.some((file) => !request.scope.assigned_files.includes(file))
+      || candidate.strict_target !== request.strict_target) return blocked('recovery candidate widens or changes the task contract');
+  const profileIdentity = (profile) => { const { access, allowed_providers, ...identity } = profile; return identity; };
+  if (!same(profileIdentity(request.host_profile), profileIdentity(candidate.host_profile))
+      || candidate.host_profile.allowed_providers.some((provider) => !request.host_profile.allowed_providers.includes(provider))) return blocked('recovery candidate changes Host permission policy');
+  const interrupted = failureClass === FAILURE_CLASSES.TIMEOUT_OR_INTERRUPTION;
+  const semantic = failureClass === FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE;
+  const original = resolution && resolution.target;
+  if (semantic || interrupted) {
+    if (!['repair', 'resume'].includes(recovery_action) || !original
+        || candidate.target.provider !== original.provider) return blocked('repair and resume must retain the Provider');
+    if (!reconciliation || reconciliation.status !== 'PASSED'
+        || reconciliation.task_id !== request.task_id || reconciliation.attempt_id !== request.attempt_id
+        || reconciliation.scope_contained !== true || reconciliation.wip_preserved !== true
+        || reconciliation.diff_verified !== true || !Array.isArray(reconciliation.out_of_scope)
+        || reconciliation.out_of_scope.length !== 0) return blocked('recovery requires attempt-bound scope and diff reconciliation', 'RECONCILIATION_REQUIRED');
+  } else {
+    if (!AVAILABILITY_FAILURES.has(failureClass) || sideEffects !== 'none'
+        || recovery_action !== 'substitute') return blocked('Provider substitution requires confirmed no side effects', 'RECONCILIATION_REQUIRED');
+    if (request.strict_target) return blocked('strict target prevents substitution');
+  }
+  const next = resolveTarget(candidate, { catalog });
+  if (next.status !== 'RESOLVED') return blocked('recovery candidate is unavailable');
+  return Object.freeze({ status: 'FALLBACK', action: recovery_action, request, next_request: candidate,
+    target: next.target, resolution: next, failure_class: failureClass, side_effects: sideEffects,
+    reconciliation: reconciliation || null, retry_budget_remaining: request.fallback.retry_budget - 1 });
+}
+
+function decideFallback({ request, resolution, failureClass, sideEffects = 'unknown', catalog, candidate_request, reconciliation, recovery_action } = {}) {
   if (!Object.values(FAILURE_CLASSES).includes(failureClass)) throw new TypeError(`unknown failure class: ${failureClass}`);
   const normalizedRequest = createDispatchRequest(request);
+  if (candidate_request !== undefined) return decideRecoveryCandidate({ request: normalizedRequest, resolution,
+    failureClass, sideEffects, catalog, candidate_request, reconciliation, recovery_action });
   const history = initialFallbackHistory(resolution || {});
   const retryBudget = normalizedRequest.fallback.retry_budget;
   const fallbackAllowed = normalizedRequest.fallback.allow === true;

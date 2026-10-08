@@ -52,6 +52,12 @@ async function assertGraphPostlaunchCleanupBarrier(failureMode) {
     if (failureMode === 'throw') throw new Error('graph executor stopped after a partial write');
     return { status: 'SUCCEEDED', observed_target: { ...DEFAULT_TARGET, provider: 'anthropic' } };
   };
+  first.host.stop = async (_task, context) => ({ status: 'STOPPED', task_id: context.request.task_id, attempt_id: context.request.attempt_id });
+  first.host.reconcile = async (_task, context) => ({
+    status: 'PASSED', task_id: context.request.task_id, attempt_id: context.request.attempt_id,
+    baseline_id: baseline.identity, scope_contained: true, wip_preserved: true, diff_verified: true,
+    attributable_changes: ['src/receipt.js'], unconfirmed: ['src/receipt.js'], remaining: [], out_of_scope: [],
+  });
   second.host.execute = async () => {
     secondExecutions += 1;
     return { status: 'SUCCEEDED', observed_target: { ...DEFAULT_TARGET } };

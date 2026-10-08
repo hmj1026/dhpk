@@ -37,7 +37,7 @@ preserved even when a caller presents a ready-looking route.
 ## Native single-task runner
 
 The portable runner exports
-`runFlowDrive(argv, { host, workdir, authorizationEvidence })`. It passes the
+`runFlowDrive(argv, { host, workdir, authorizationEvidence, recovery })`. It passes the
 first positional input unchanged to `host.resolveTask(input, { workdir })`;
 the Host supplies a non-empty `goal`, a non-empty `acceptance` array, and a
 plain-object `constraints` value. The runner does not classify natural-language
@@ -83,6 +83,14 @@ automatic task `PASS`. Planner, reasoner, and architecture options retain the
 legacy grammar, but the native single-task runner returns a migration notice
 and blocker for those extra roles. Use the legacy Flow Drive procedure for
 that advanced path; `--no-architect` remains a notice-only compatibility flag.
+
+An optional `recovery` contract enables bounded attempt recovery for solo and
+coordinated tasks. The Host proposes a target through `recover`; shared
+authorization, capability resolution, failure policy, and one invocation-wide
+retry budget validate every replacement. Interrupted writers retain exclusive
+ownership until matching stop evidence and actual scope/diff reconciliation
+pass. See [recovery](references/recovery.md) for Host hooks, deadlines,
+immutable attempt receipts, and the suspended-writer completion boundary.
 
 When the Host exposes current executable capability evidence, it may include a
 `capability_evidence` record with a `session_id` and `binding_id` supplied by

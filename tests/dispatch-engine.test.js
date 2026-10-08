@@ -1771,4 +1771,34 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   });
 }
 
+test('recovery candidates retain binding, authority, scope and strict target independently of the public Host policy', () => {
+  const initialRequest = request(codexProfile, {
+    role: 'worker', authority: 'workspace-write', strict_target: true, effort: 'max',
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-6-luna' },
+    execution_binding: { session_id: 'recovery-session', binding_id: 'recovery-binding' },
+    scope: { workdir: '/workspace/project', assigned_files: ['src/receipt.js'],
+      prompt_evidence: { path: '/workspace/project/prompt.txt', dev: 1, ino: 2, sha256: 'b'.repeat(64) } },
+  });
+  const resolution = resolveTarget(initialRequest, { catalog });
+  assert.strictEqual(resolution.status, 'RESOLVED');
+  const normalized = resolution.request;
+  const reconciliation = { status: 'PASSED', task_id: normalized.task_id, attempt_id: normalized.attempt_id,
+    scope_contained: true, wip_preserved: true, diff_verified: true, out_of_scope: [] };
+  for (const changes of [
+    { target: { ...normalized.target, model_id: 'gpt-6.1-sol' } },
+    { effort: 'high' },
+    { execution_binding: { session_id: 'foreign-session', binding_id: 'foreign-binding' } },
+    { authority: 'read-only' },
+    { scope: { ...normalized.scope, assigned_files: ['src/receipt.js', 'outside.js'] } },
+    { host_profile: { ...normalized.host_profile, native_model: 'gpt-6-sol' } },
+  ]) {
+    const candidate = { ...normalized, ...changes };
+    const result = decideFallback({ request: normalized, resolution, catalog,
+      failureClass: FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE, sideEffects: 'observed',
+      candidate_request: candidate, reconciliation, recovery_action: 'repair' });
+    assert.strictEqual(result.status, 'BLOCKED');
+    assert.strictEqual(result.retry_budget_remaining, 1);
+  }
+});
+
 run('dispatch-engine');
