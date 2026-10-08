@@ -2,6 +2,7 @@
 
 const { createDispatchRequest, createProviderModelCatalog } = require('./dispatch-contract');
 const { decideFallback, FAILURE_CLASSES, resolveTarget } = require('./dispatch-engine');
+const { withWriterLease } = require('./dispatch-writer-lease');
 
 function intersects(left, right) {
   const rightSet = new Set(right);
@@ -34,10 +35,11 @@ function scheduleResolution(request, catalog, preferenceOrder, allowFallback) {
   return { resolution, fallback: null };
 }
 
-function createSchedule(inputs, { catalog: rawCatalog, preferenceOrder, fallback = true } = {}) {
+function createSchedule(inputs, { catalog: rawCatalog, preferenceOrder, fallback = true, singleWriter = false } = {}) {
   if (!Array.isArray(inputs) || inputs.length === 0) throw new TypeError('scheduler requires at least one request');
   const catalog = createProviderModelCatalog(rawCatalog);
   const requests = inputs.map(createDispatchRequest);
+  if (new Set(requests.map((request) => request.task_id)).size !== requests.length) throw new TypeError('scheduler task_id values must be unique');
   const resolutions = requests.map((request) => scheduleResolution(request, catalog, preferenceOrder, fallback));
   const byId = new Map(requests.map((request) => [request.task_id, request]));
   const remaining = new Set(requests.map((request) => request.task_id));
@@ -49,6 +51,7 @@ function createSchedule(inputs, { catalog: rawCatalog, preferenceOrder, fallback
   while (remaining.size > 0 && guard > 0) {
     guard -= 1;
     const wave = [];
+    let writerInWave = false;
     const usage = new Map();
     for (const request of requests) {
       if (!remaining.has(request.task_id)) continue;
@@ -70,6 +73,10 @@ function createSchedule(inputs, { catalog: rawCatalog, preferenceOrder, fallback
         diagnostics.push({ task_id: request.task_id, reason: 'assigned scope conflict' });
         continue;
       }
+      if (singleWriter && request.authority === 'workspace-write' && writerInWave) {
+        diagnostics.push({ task_id: request.task_id, reason: 'shared writer lease admission' });
+        continue;
+      }
       const profile = request.host_profile;
       const pool = profile.quota_pools[resolution.target.provider];
       const limit = profile.concurrency_limits[pool];
@@ -80,6 +87,7 @@ function createSchedule(inputs, { catalog: rawCatalog, preferenceOrder, fallback
         continue;
       }
       usage.set(pool, current + 1);
+      if (request.authority === 'workspace-write') writerInWave = true;
         wave.push({ request, resolution, target: resolution.target, fallback: scheduled.fallback });
     }
     if (wave.length === 0) {
@@ -106,9 +114,9 @@ function timeoutPromise(promise, timeoutMs) {
   ]);
 }
 
-async function executeSchedule(inputs, { catalog: rawCatalog, preferenceOrder, dispatch, registry, fallback = true, signal, timeoutMs } = {}) {
+async function executeSchedule(inputs, { catalog: rawCatalog, preferenceOrder, dispatch, registry, fallback = true, signal, timeoutMs, beforeDispatch, retainOutcomes = false, singleWriter = false, managedLifecycle = false } = {}) {
   if (typeof dispatch !== 'function') throw new TypeError('scheduler dispatch function is required');
-  const plan = createSchedule(inputs, { catalog: rawCatalog, preferenceOrder, fallback });
+  const plan = createSchedule(inputs, { catalog: rawCatalog, preferenceOrder, fallback, singleWriter });
   const results = plan.blocked.map((entry) => ({
     task_id: entry.request.task_id,
     status: 'BLOCKED',
@@ -119,7 +127,7 @@ async function executeSchedule(inputs, { catalog: rawCatalog, preferenceOrder, d
       target: entry.resolution && entry.resolution.target ? entry.resolution.target.identity : null,
     },
   }));
-  const completed = new Map(results.map((entry) => [entry.task_id, entry.status]));
+  const completed = new Map(results.map((entry) => [entry.task_id, retainOutcomes ? entry : entry.status]));
   for (const wave of plan.waves) {
     const waveResults = await Promise.all(wave.map(async (entry) => {
       const launch_identity = {
@@ -128,16 +136,27 @@ async function executeSchedule(inputs, { catalog: rawCatalog, preferenceOrder, d
         target: entry.target.identity,
       };
       if (signal && signal.aborted) return { task_id: entry.request.task_id, status: 'CANCELLED', launch_identity };
-          const failedDependency = entry.request.parallelism.dependencies.find((dependency) => completed.get(dependency) !== 'SUCCEEDED');
+      const failedDependency = entry.request.parallelism.dependencies.find((dependency) => {
+        const prior = completed.get(dependency);
+        return (retainOutcomes ? prior && prior.status : prior) !== 'SUCCEEDED';
+      });
       if (failedDependency) return { task_id: entry.request.task_id, status: 'BLOCKED', reason: `dependency did not succeed: ${failedDependency}`, launch_identity };
+      if (typeof beforeDispatch === 'function') {
+        let permitted = false;
+        try { permitted = await beforeDispatch(entry.request, entry.resolution, new Map(completed)); } catch (error) { return { task_id: entry.request.task_id, status: 'BLOCKED', reason: error.message, launch_identity }; }
+        if (permitted !== true) return { task_id: entry.request.task_id, status: 'BLOCKED', reason: 'semantic dispatch gate denied', launch_identity };
+      }
       try {
-        const outcome = await timeoutPromise(dispatch(entry.request, {
+        const invoke = (writer_lease) => dispatch(entry.request, {
           catalog: rawCatalog,
           registry,
           preferenceOrder,
           fallback,
           resolution: entry.resolution,
-        }), timeoutMs);
+          ...(writer_lease ? { writer_lease } : {}),
+        });
+        const dispatched = singleWriter && entry.request.authority === 'workspace-write' ? withWriterLease(invoke) : invoke();
+        const outcome = await (managedLifecycle ? dispatched : timeoutPromise(dispatched, timeoutMs));
         const status = outcome && outcome.status;
         return {
           task_id: entry.request.task_id,
@@ -145,13 +164,14 @@ async function executeSchedule(inputs, { catalog: rawCatalog, preferenceOrder, d
           receipt: outcome && outcome.receipt,
           ...(entry.fallback ? { fallback: entry.fallback } : {}),
           launch_identity,
+          ...(retainOutcomes ? { outcome } : {}),
         };
       } catch (error) {
         return { task_id: entry.request.task_id, status: 'CRASHED', reason: error.message, launch_identity };
       }
     }));
     results.push(...waveResults);
-    waveResults.forEach((entry) => completed.set(entry.task_id, entry.status));
+    waveResults.forEach((entry) => completed.set(entry.task_id, retainOutcomes ? entry : entry.status));
   }
   return Object.freeze({ status: results.every((entry) => entry.status === 'SUCCEEDED') ? 'SUCCEEDED' : 'COMPLETED_WITH_FAILURES', plan, results });
 }

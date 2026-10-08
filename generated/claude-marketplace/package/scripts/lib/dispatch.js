@@ -9,6 +9,7 @@ function blockedReceipt(request, resolution) {
     receipt_id: `receipt-${request.attempt_id}`,
     request,
     target: resolution.target || null,
+    ...(resolution.target && resolution.target.effort === null ? { allow_unknown_effort: true } : {}),
     status: 'BLOCKED',
     failure_class: resolution.status === 'NOT_RUN' ? 'CAPABILITY_PROBE_NOT_RUN' : 'CAPABILITY_UNAVAILABLE',
     verification: 'BLOCKED',

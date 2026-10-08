@@ -23,7 +23,7 @@ function validateAdapterProvider(provider) {
 }
 
 function validateTarget(provider, target) {
-  const normalized = createExecutionTarget(target);
+  const normalized = createExecutionTarget({ ...target, ...(target && target.model_id === null && target.native === true ? { allow_unknown_model: true } : {}), ...(target && target.effort === null ? { allow_unknown_effort: true } : {}) });
   const canonical = ADAPTER_PROVIDER_ALIASES[provider] || provider;
   const normalizedProvider = ADAPTER_PROVIDER_ALIASES[normalized.provider] || normalized.provider;
   if (normalizedProvider !== canonical) throw new TypeError(`adapter ${provider} received target for ${normalized.provider}`);
@@ -59,6 +59,7 @@ function receiptFor({ request, target, status, failureClass, verification, sideE
     receipt_id: receiptId || `receipt-${request.attempt_id}`,
     request,
     target,
+    ...(target && target.effort === null ? { allow_unknown_effort: true } : {}),
     status,
     failure_class: failureClass,
     side_effects: sideEffects,

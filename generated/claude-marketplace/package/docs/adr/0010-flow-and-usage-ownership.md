@@ -22,9 +22,11 @@ Use these ownership boundaries:
 - `flow-guide` owns read-only `help`, `route`, `rules`, `next`, and `close`.
   `help` reads the generated inventory usage catalogue or one usage card;
   `route --go` may only hand off one available implicit-eligible target.
-- `flow-drive` is explicit-only and mode-free. It accepts only a confirmed
-  specification or OpenSpec change for implementation. Proposal authoring is
-  owned by the external `$openspec-propose` skill.
+- `flow-drive` is explicit-only and mode-free. Its single-task runner accepts
+  task text, a task file, or a confirmed specification/change ID; the Host must
+  resolve the input into a non-empty goal, acceptance criteria, and structured
+  constraints before dispatch. Proposal authoring remains owned by the
+  external `$openspec-propose` skill.
 - The inventory `usage` object is the sole public grammar source for Codex
   syntax, actions, options, input kind, authority, and examples. Generated
   `agents/openai.yaml` metadata remains limited to its supported interface
@@ -53,7 +55,10 @@ aliases or add skills to the catalogue.
   plus `laravel`, `phpunit`, and `harness-govern`. Stable IDs and retirement
   rows preserve migration diagnostics without preserving aliases.
 - `flow-guide` can advise without acquiring write authority, and
-  `flow-drive` cannot be mistaken for a classifier or proposal author.
+  `flow-drive` cannot be mistaken for a classifier or proposal author. The
+  single-task runner does not infer intent, defaults to read-only authority,
+  requires an explicit assigned-file scope for workspace writes, and reports
+  execution separately from independently verified acceptance.
 - Generated catalogue drift is a build failure. A local help card, static
   metadata check, or package generation result does not prove runtime or
   release support.

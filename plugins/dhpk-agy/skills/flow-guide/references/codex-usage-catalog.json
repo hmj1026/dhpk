@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:033da58eb56038ecf3a1266e0a8ef87748fc80e1428abdc9b7dd1c221aa1bcf1",
+  "sourceInventoryRevision": "sha256:a26420f278af3434c295e7b47a7c3244ec99f8d5f83aad16456773212eec6d15",
   "entries": [
     {
       "id": "change-verdict",
@@ -341,18 +341,18 @@
       "name": "flow-drive",
       "usage": {
         "display_name": "Flow Drive",
-        "summary": "Implement a confirmed specification with bounded evidence",
-        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
+        "summary": "Execute one scoped task with diagnosis and acceptance evidence",
+        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
         "inputs": [
           {
-            "id": "confirmed-spec-or-change-id",
-            "syntax": "<confirmed-spec-or-change-id>",
+            "id": "task-input",
+            "syntax": "<task-text|task-file|confirmed-spec-or-change-id>",
             "value_kind": "string",
             "required": true,
-            "summary": "Select the confirmed specification or change",
+            "summary": "Provide task text, a task file path, or a confirmed specification/change ID for Host resolution",
             "applies_to": [
               "apply"
             ]
@@ -361,9 +361,9 @@
         "actions": [
           {
             "id": "apply",
-            "summary": "Implement the confirmed specification or OpenSpec change",
-            "syntax": "$flow-drive <confirmed-spec-or-change-id>",
-            "input_kind": "identifier",
+            "summary": "Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance",
+            "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id>",
+            "input_kind": "mixed",
             "effect_authority": "workspace-write"
           }
         ],
@@ -373,7 +373,7 @@
             "syntax": "--plan[=<model>:<effort>]",
             "value_kind": "string",
             "required": false,
-            "summary": "Request a planning pass before implementation",
+            "summary": "Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
             "applies_to": [
               "apply"
             ]
@@ -415,7 +415,7 @@
             "syntax": "--worker-target=<provider>/<model>[:<effort>]",
             "value_kind": "string",
             "required": false,
-            "summary": "Select an explicit provider, model, and effort target",
+            "summary": "Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target",
             "applies_to": [
               "apply"
             ]
@@ -425,7 +425,7 @@
             "syntax": "--cross-provider",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Allow the explicitly selected provider boundary",
+            "summary": "Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution",
             "default": false,
             "applies_to": [
               "apply"
@@ -436,7 +436,7 @@
             "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Request a bounded second opinion",
+            "summary": "Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
             "applies_to": [
               "apply"
             ]
@@ -446,7 +446,7 @@
             "syntax": "--architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Enable the architecture pass",
+            "summary": "Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
             "applies_to": [
               "apply"
             ]
@@ -456,7 +456,7 @@
             "syntax": "--no-architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Disable the architecture pass",
+            "summary": "Compatibility notice only in the portable task runner",
             "applies_to": [
               "apply"
             ]
@@ -479,12 +479,16 @@
         ],
         "examples": [
           {
-            "prompt": "$flow-drive consolidate-remaining-dhpk-skill-families",
-            "summary": "Implement a confirmed OpenSpec change"
+            "prompt": "$flow-drive Fix the receipt total and verify it matches the receipt lines.",
+            "summary": "Resolve and implement a bounded task with explicit acceptance"
+          },
+          {
+            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
+            "summary": "Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes"
           }
         ]
       },
-      "usageFingerprint": "e105064f7c17f0112dbe93a1d90a8eee95128348934678738d149a630820fdf6"
+      "usageFingerprint": "f4d454495d3461c450e9ab073ed3612e945b9e5bb63460bce05be8a83ef920d4"
     },
     {
       "id": "flow-guide",
@@ -1146,7 +1150,7 @@
         "id": "flow-drive",
         "publicName": "flow-drive",
         "invocationClass": "explicit-only",
-        "command": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
+        "command": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
         "codexInvokable": true
       },
       "flow-guide": {

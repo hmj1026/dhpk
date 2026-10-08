@@ -66,9 +66,9 @@ function prepareDispatch({ change, request, catalog, preferenceOrder } = {}) {
     disposition: resolution.status === 'RESOLVED' ? 'ready' : 'blocked',
     target: resolution.target ? {
       provider: resolution.target.provider,
-      model: resolution.target.model,
+      ...(resolution.target.model === null ? {} : { model: resolution.target.model }),
       role: normalized.role,
-      effort: resolution.target.effort,
+      ...(resolution.target.effort === null ? {} : { effort: resolution.target.effort }),
       transport: resolution.target.transport,
     } : null,
     evidence: [{

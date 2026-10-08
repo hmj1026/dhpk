@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change provider-neutral-subagent-orchestration. Update Purpose after archive.
+Define Provider-neutral target resolution, current bound capabilities, role and authority validation, observable receipts, and safe scheduling and recovery across Host runtimes.
 
 ## Requirements
 
@@ -38,14 +38,14 @@ one Execution Target without requiring a Provider-bound Role name.
 #### Scenario: Cursor requests Claude Code Opus5
 
 - **WHEN** the current Host is Cursor and a reasoner request names Provider
-  `claude-code`, Model `opus5`, and Effort `high`
+  `anthropic`, Target-Agent `claude-code`, Model `claude-opus-5-5`, and Effort `high`
 - **THEN** the engine resolves a Claude Code Execution Target and preserves
   `reasoner` as the Role
 
 #### Scenario: Cursor requests Codex Sol5.6
 
 - **WHEN** the current Host is Cursor and a reasoner request names Provider
-  `codex-cli`, Model `sol5.6`, and Effort `high`
+  `openai`, Target-Agent `codex-cli`, Model `gpt-5.6-sol`, and Effort `high`
 - **THEN** the engine resolves a Codex CLI Execution Target without changing
   the Role to a provider-bound name
 
@@ -160,7 +160,8 @@ including launch, timeout, cancellation, process crash, and unknown child
 process state. A target with unknown launch or side-effect state SHALL enter
 reconciliation and SHALL not be dispatched again for the same task unless the
 engine has positive evidence that no launch occurred and the fallback policy
-allows it.
+allows it, or matching stopped and scope/diff reconciliation evidence permits
+a same-Provider repair or resume.
 
 #### Scenario: Timeout does not silently switch Provider
 
@@ -174,3 +175,58 @@ allows it.
   allowed
 - **THEN** the engine records the unavailable attempt and may use the contextual
   Host-native target
+
+### Requirement: Bound capabilities authorize only the current selected execution tuple
+
+Current Host capability evidence SHALL retain source, state, observation time,
+session, executor binding, Host, Provider, Target-Agent, role, authority,
+Model, Effort, route, and transport. The engine SHALL validate it independently
+of static catalog support. Explicit Host refusal SHALL override executable
+evidence. Scoped refresh SHALL supersede only older matching authorized
+execution tuples; a contradictory fresh batch, stale binding, or mismatched
+requested transport/effort SHALL remain blocked. A current native fixed role or
+default MAY retain null Model/Effort; strict concrete and external CLI targets
+SHALL NOT silently substitute. Exposed selectors SHALL NOT become observed
+Model/Effort; explicit `observed_model` and `observed_effort` capability fields
+SHALL describe independently observed identity only in observed evidence states,
+and runtime observed identity SHALL come from actual outcome evidence.
+
+#### Scenario: Current model absent from a stale catalog
+
+- **WHEN** an authorized selected target has matching current bound executable Host evidence but no shipped catalog row
+- **THEN** the engine may resolve it while catalog support remains independently unsupported
+
+#### Scenario: Native role exposes no model identity
+
+- **WHEN** the current Provider has matching current native Host role/authority evidence with unknown Model and Effort
+- **THEN** the target and receipt retain explicit null identity fields and the native adapter emits no fabricated model argument
+
+#### Scenario: Explicit Host refusal and fresh contradiction
+
+- **WHEN** the Host refuses a Provider or one fresh batch contradicts itself for the same execution tuple
+- **THEN** the engine blocks that target without external execution or policy bypass
+
+### Requirement: Flow Drive recovery preserves exclusive writer lifecycle and attempt evidence
+
+Flow Drive SHALL serialize every workspace writer, including scratch output,
+across solo and coordinated invocations. Readers MAY continue independently.
+An invocation-wide retry budget SHALL count only admitted replacements, and
+prior immutable attempt receipts SHALL retain actual IDs, failure class,
+side effects, verification, capability provenance, and reconciliation state.
+Availability substitution SHALL require confirmed no effects, authorization,
+non-strict selection, and remaining budget. Semantic repair SHALL stay on the
+same Provider with actual diff reconciliation. Safety/user denial and affected
+quota failure SHALL stop. Timeout, interruption, thrown execution, or malformed
+launched outcomes SHALL require positive matching stop and physical scope/diff
+reconciliation; missing proof SHALL suspend writers. This Flow Drive policy
+SHALL preserve generic legacy scheduler parallelism and configuration semantics.
+
+#### Scenario: Interrupted writer cannot overlap its replacement
+
+- **WHEN** a launched writer is interrupted with incomplete stop or reconciliation proof
+- **THEN** queued and new writers remain blocked while independent readers may progress
+
+#### Scenario: Verified dependency recovery invalidates stale downstream reuse
+
+- **WHEN** an affected prerequisite executes freshly or recovers
+- **THEN** dependent acceptance evidence is verified freshly while unrelated validated reuse may remain
