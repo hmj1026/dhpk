@@ -62,6 +62,16 @@ legacy grammar, but the native single-task runner returns a migration notice
 and blocker for those extra roles. Use the legacy Flow Drive procedure for
 that advanced path; `--no-architect` remains a notice-only compatibility flag.
 
+When the Host exposes current executable capability evidence, it may include a
+`capability_evidence` record with a `session_id` and `binding_id` supplied by
+the runner's injected executor binding. The shared Dispatch Engine uses that
+evidence to resolve a currently executable target even when the shipped model
+catalog is stale. Static catalog or documentation declarations cannot create
+this evidence; Provider, Target Agent, Model, Role, Effort, Route, and
+authority remain separate, and unknown observed Model or Effort values stay
+unknown. The runner passes the same session and binding identifiers to the
+executor context so evidence cannot be attached to an arbitrary task string.
+
 ## Implementation contract
 
 0. Before anything else, run the parser as one shell command, exactly

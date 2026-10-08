@@ -59,6 +59,7 @@ function receiptFor({ request, target, status, failureClass, verification, sideE
     receipt_id: receiptId || `receipt-${request.attempt_id}`,
     request,
     target,
+    ...(target && target.effort === null ? { allow_unknown_effort: true } : {}),
     status,
     failure_class: failureClass,
     side_effects: sideEffects,

@@ -75,11 +75,28 @@ function validateTask(value) {
   )))) {
     return { task: null, missing: ['safe relative assigned_files constraints'] };
   }
+  if (Object.prototype.hasOwnProperty.call(task.constraints, 'strict_target')) {
+    const strict = task.constraints.strict_target;
+    if (!isRecord(strict) || !canonicalProvider(strict.provider)
+      || !['claude-code', 'codex-cli', 'agy', 'cursor'].includes(canonicalAgent(strict.target_agent))
+      || typeof strict.model_id !== 'string' || strict.model_id.trim() === ''
+      || (strict.effort !== undefined && !['low', 'medium', 'high', 'max', 'xhigh', 'ultra'].includes(strict.effort))) {
+      return { task: null, missing: ['a valid strict_target constraint'] };
+    }
+    task.constraints.strict_target = Object.freeze({
+      provider: canonicalProvider(strict.provider),
+      target_agent: canonicalAgent(strict.target_agent),
+      model_id: strict.model_id,
+      ...(strict.effort === undefined ? {} : { effort: strict.effort }),
+    });
+  }
   if (!verifyPromptEvidence(task.constraints.prompt_evidence)) {
     return { task: null, missing: ['Host-supplied prompt evidence'] };
   }
   task.constraints.authority = authority;
-  task.constraints.assigned_files = assignedFiles ? [...assignedFiles] : [];
+  task.constraints.assigned_files = assignedFiles ? Object.freeze([...assignedFiles]) : Object.freeze([]);
+  task.acceptance = Object.freeze([...task.acceptance]);
+  task.constraints = Object.freeze(task.constraints);
   return { task: Object.freeze(task), missing: [] };
 }
 
@@ -135,6 +152,20 @@ function targetMatches(actual, expected) {
     && (!expected.effort || actual.effort === expected.effort));
 }
 
+function observedTargetIssue(observed, resolved, strictRequested) {
+  if (!isRecord(observed)) return null;
+  for (const key of ['provider', 'target_agent']) {
+    if (observed[key] !== undefined && observed[key] !== resolved[key]) {
+      return `observed ${key} ${observed[key]} does not match resolved ${key} ${resolved[key]}`;
+    }
+  }
+  const requestedModel = strictRequested && strictRequested.model_id;
+  if (requestedModel && observed.model_id !== undefined && observed.model_id !== requestedModel) {
+    return `observed model ${observed.model_id} does not match strict requested model ${requestedModel}`;
+  }
+  return null;
+}
+
 function profileWithinScope(profile, allowedProviders) {
   const allowed = new Set(allowedProviders);
   const original = Array.isArray(profile.allowed_providers) ? profile.allowed_providers : [];
@@ -154,7 +185,7 @@ function taskIdentity(task) {
   return { digest, taskId: `flow-drive-${digest.slice(0, 16)}` };
 }
 
-function dispatchRequest(task, workdir, capabilities, target, effort, authorizedProviders) {
+function dispatchRequest(task, workdir, capabilities, target, effort, authorizedProviders, capabilityEvidence, executionBinding, strictTarget) {
   const { digest, taskId } = taskIdentity(task);
   const hostProfile = profileWithinScope(capabilities.host_profile, authorizedProviders);
   const defaultEffort = hostProfile.role_defaults && hostProfile.role_defaults.worker
@@ -176,7 +207,10 @@ function dispatchRequest(task, workdir, capabilities, target, effort, authorized
         prompt_evidence: { ...task.constraints.prompt_evidence },
       },
       target: target.target,
-      ...(effort || defaultEffort ? { effort: effort || defaultEffort } : {}),
+      ...(effort || (!capabilityEvidence && defaultEffort) ? { effort: effort || defaultEffort } : {}),
+      ...(capabilityEvidence ? { capability_evidence: capabilityEvidence } : {}),
+      ...(executionBinding ? { execution_binding: executionBinding } : {}),
+      ...(strictTarget ? { strict_target: true } : {}),
       fallback: { allow: false, retry_budget: 0 },
       parallelism: { dependencies: [], max_concurrency: 1 },
     },
@@ -232,8 +266,10 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
   }
 
   let capabilities;
+  const sessionId = `flow-drive-session-${crypto.randomUUID()}`;
+  const bindingId = `flow-drive-binding-${crypto.randomUUID()}`;
   try {
-    capabilities = await host.getCapabilities();
+    capabilities = await host.getCapabilities({ workdir, session_id: sessionId, binding_id: bindingId });
   } catch (_) {
     return makeReport({ parser, blockers: ['Host capability evidence is unavailable'] });
   }
@@ -280,13 +316,20 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
   if (taskProvider && selection.provider !== taskProvider) {
     return makeReport({ parser, requested, blockers: ['selected Provider conflicts with the task constraint'] });
   }
+  const strictConstraint = resolvedTask.constraints.strict_target || null;
+  if (strictConstraint && (selection.provider !== strictConstraint.provider
+    || selection.target.target_agent !== strictConstraint.target_agent
+    || selection.target.model_id !== strictConstraint.model_id
+    || (strictConstraint.effort !== undefined && selection.effort !== strictConstraint.effort))) {
+    return makeReport({ parser, requested, blockers: ['Host selection does not match the strict task target'] });
+  }
   // --cross-provider opens a later Host interaction; the flag itself does not widen this set.
   const authorizedProviders = [currentProvider, ...(exact ? [exact.provider] : [])];
   const { taskId } = taskIdentity(resolvedTask);
   let prepared;
   try {
     prepared = prepareDispatch({
-      ...dispatchRequest(resolvedTask, path.resolve(workdir), capabilities, selection, selection.effort, authorizedProviders),
+      ...dispatchRequest(resolvedTask, path.resolve(workdir), capabilities, selection, selection.effort, authorizedProviders, capabilities.capability_evidence, { session_id: sessionId, binding_id: bindingId }, Boolean(exact || strictConstraint)),
       change: { confirmed: true, change_id: taskId },
     });
   } catch (_) {
@@ -297,7 +340,10 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
   }
 
   const resolved = reportTarget(prepared.resolution.target);
-  const context = { invocation, capabilities, decision, resolution: prepared.resolution, workdir };
+  const context = {
+    invocation, capabilities, decision, resolution: prepared.resolution, workdir,
+    execution_binding: { session_id: sessionId, binding_id: bindingId },
+  };
   let outcome;
   try {
     outcome = await host.execute(prepared.resolution.target, resolvedTask, context);
@@ -323,8 +369,10 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
   }
 
   const accepted = verification.status === 'PASSED';
+  const observedIssue = observedTargetIssue(outcome.observed_target, prepared.resolution.target, exact || strictConstraint);
   const acceptanceStatus = accepted && outcome.status === 'SUCCEEDED'
       && typeof verification.evidence === 'string' && verification.evidence.trim() !== ''
+      && !observedIssue
     ? 'PASSED'
     : accepted ? 'BLOCKED' : verification.status;
   const blockers = [];
@@ -332,6 +380,7 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
   if (accepted && acceptanceStatus === 'BLOCKED') {
     blockers.push('acceptance requires successful execution and non-empty verification evidence');
   }
+  if (observedIssue) blockers.push(observedIssue);
 
   return makeReport({
     status: 'REPORTED',

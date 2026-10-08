@@ -61,6 +61,67 @@ test('a native task reaches the executor and reports parser, execution, and acce
   assert.deepStrictEqual(dispatchRequest.scope.assigned_files, ['src/receipt.js']);
 });
 
+test('bound Host capability evidence can resolve a target absent from a stale catalog', async () => {
+  const fixture = createRunnerFixture({
+    decision: {
+      target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'fresh-model', effort: 'max' },
+      mode: 'solo',
+    },
+    outcome: {
+      status: 'SUCCEEDED',
+      observed_target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'fresh-model' },
+    },
+    capabilities: {
+      host_profile: CODEX_PROFILE,
+      catalog: { ...CATALOG, routes: CATALOG.routes.filter((route) => route.model_id !== 'fresh-model') },
+    },
+  });
+  const original = fixture.host.getCapabilities;
+  fixture.host.getCapabilities = async (context) => ({
+    ...(await original(context)),
+    capability_evidence: {
+      kind: 'host-executable-capability', state: 'OBSERVED_AVAILABLE', status: 'AVAILABLE', source: 'stub injected executor',
+      observed_at: '2026-10-08T00:00:00.000Z', session_id: context.session_id, binding_id: context.binding_id,
+      host: 'codex-cli', target_agent: 'codex-cli', provider: 'openai', model_id: 'fresh-model',
+      role: 'worker', authority: 'workspace-write', effort: 'max', effort_binding: 'parameter',
+      route: 'native', transport: 'native-runtime',
+    },
+  });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  assert.strictEqual(report.status, 'REPORTED');
+  assert.strictEqual(report.execution.status, 'SUCCEEDED');
+  assert.strictEqual(report.acceptance.status, 'PASSED');
+  const call = fixture.calls.find((entry) => entry.method === 'execute');
+  assert.strictEqual(call.context.execution_binding.binding_id.startsWith('flow-drive-binding-'), true);
+  assert.strictEqual(call.context.resolution.target.model_id, 'fresh-model');
+});
+
+test('a contradictory observed Provider blocks acceptance', async () => {
+  const fixture = createRunnerFixture({
+    outcome: { status: 'SUCCEEDED', observed_target: { target_agent: 'codex-cli', provider: 'anthropic', model_id: 'gpt-6-luna' } },
+  });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  assert.strictEqual(report.execution.status, 'SUCCEEDED');
+  assert.strictEqual(report.acceptance.status, 'BLOCKED');
+  assert.ok(report.blockers.some((blocker) => blocker.includes('observed provider')));
+});
+
+test('runner blocks capability evidence bound to another session', async () => {
+  const fixture = createRunnerFixture();
+  const original = fixture.host.getCapabilities;
+  fixture.host.getCapabilities = async (context) => ({
+    ...(await original(context)),
+    capability_evidence: {
+      kind: 'host-executable-capability', state: 'OBSERVED_AVAILABLE', status: 'AVAILABLE', source: 'wrong binding fixture',
+      observed_at: '2026-10-08T00:00:00.000Z', session_id: 'other-session', binding_id: 'other-binding',
+      host: 'codex-cli', target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-6-luna', role: 'worker', authority: 'workspace-write', effort: 'max', effort_binding: 'parameter', route: 'native', transport: 'native-runtime',
+    },
+  });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  assert.strictEqual(report.status, 'BLOCKED');
+  assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
+});
+
 test('an executor success remains distinct from a failed acceptance check', async () => {
   const fixture = createRunnerFixture({
     acceptance: { status: 'FAILED', evidence: 'the displayed total is 19, expected 20' },
