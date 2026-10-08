@@ -1,15 +1,90 @@
 'use strict';
 
 const { test, run, assert } = require('./_lib/tinytest');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { parseInvocation } = require('../skills/flow-drive/scripts/invocation');
 const { runFlowDrive } = require('../skills/flow-drive/scripts/run');
 const {
   createRunnerFixture,
   DEFAULT_TASK,
+  DEFAULT_TARGET,
   CODEX_PROFILE,
   CLAUDE_PROFILE,
   CATALOG,
 } = require('./_lib/flow-drive-runner-fixtures');
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+async function assertSoloPostlaunchCleanupBarrier(failureMode) {
+  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), `flow-drive-solo-cleanup-${failureMode}-`));
+  const first = createRunnerFixture();
+  const second = createRunnerFixture();
+  const baseline = Object.freeze({ identity: `baseline-${failureMode}` });
+  const executeEntered = deferred();
+  const executeGate = deferred();
+  const postEntered = deferred();
+  const postGate = deferred();
+  const postCalls = [];
+  let secondExecutions = 0;
+  let firstPromise;
+  let secondPromise;
+
+  first.host.inspectScope = async (_task, context) => {
+    if (context.phase === 'pre') return baseline;
+    postCalls.push(context);
+    postEntered.resolve();
+    await postGate.promise;
+    return { within_scope: true, wip_preserved: true };
+  };
+  first.host.execute = async () => {
+    executeEntered.resolve();
+    await executeGate.promise;
+    fs.writeFileSync(path.join(workdir, 'partial-write.txt'), 'partial');
+    if (failureMode === 'throw') throw new Error('executor stopped after a partial write');
+    return { status: 'INVALID' };
+  };
+  second.host.execute = async () => {
+    secondExecutions += 1;
+    return { status: 'SUCCEEDED', observed_target: { ...DEFAULT_TARGET } };
+  };
+
+  try {
+    firstPromise = runFlowDrive(['Exercise solo cleanup.'], { host: first.host, workdir });
+    await executeEntered.promise;
+    secondPromise = runFlowDrive(['Queue the next solo writer.'], { host: second.host, workdir });
+    await new Promise((resolve) => setImmediate(resolve));
+    executeGate.resolve();
+
+    const cleanupStarted = await Promise.race([
+      postEntered.promise.then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 250)),
+    ]);
+    assert.strictEqual(cleanupStarted, true, 'postlaunch failure must still inspect the writer scope');
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.strictEqual(secondExecutions, 0, 'the next writer must wait for post-scope inspection');
+    assert.strictEqual(postCalls.length, 1, 'post-scope inspection must run exactly once');
+    assert.strictEqual(postCalls[0].baseline, baseline, 'post-scope inspection must receive the prelaunch baseline');
+
+    postGate.resolve();
+    const firstReport = await firstPromise;
+    await secondPromise;
+    assert.notStrictEqual(firstReport.acceptance.status, 'PASSED');
+    assert.ok(secondExecutions > 0, 'the queued writer should continue after scope inspection completes');
+  } finally {
+    executeGate.resolve();
+    postGate.resolve();
+    await Promise.allSettled([firstPromise, secondPromise].filter(Boolean));
+    first.cleanup();
+    second.cleanup();
+    fs.rmSync(workdir, { recursive: true, force: true });
+  }
+}
 
 test('a quoted task is exposed as task input while preserving the legacy change ID', () => {
   const task = 'Fix the receipt total and verify the displayed balance.';
@@ -153,6 +228,27 @@ test('a successful verifier without evidence cannot produce accepted status', as
   assert.strictEqual(report.execution.status, 'SUCCEEDED');
   assert.strictEqual(report.acceptance.status, 'BLOCKED');
   assert.ok(report.blockers.includes('acceptance requires successful execution and non-empty verification evidence'));
+});
+
+test('solo verification failure still inspects post scope and cannot pass acceptance', async () => {
+  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), 'flow-drive-verify-throw-'));
+  const postScopeMarker = path.join(workdir, 'post-scope-inspected');
+  const fixture = createRunnerFixture();
+  fixture.host.inspectScope = async (_task, context) => {
+    if (context.phase === 'post') fs.writeFileSync(postScopeMarker, 'inspected');
+    return { within_scope: true, wip_preserved: true, identity: 'verify-throw-baseline' };
+  };
+  fixture.host.execute = async () => ({ status: 'SUCCEEDED' });
+  fixture.host.verify = async () => { throw new Error('verification service unavailable'); };
+  try {
+    const report = await runFlowDrive(['Verify despite verifier failure.'], { host: fixture.host, workdir });
+    assert.strictEqual(report.execution.status, 'FAILED');
+    assert.notStrictEqual(report.acceptance.status, 'PASSED');
+    assert.strictEqual(fs.readFileSync(postScopeMarker, 'utf8'), 'inspected');
+  } finally {
+    fixture.cleanup();
+    fs.rmSync(workdir, { recursive: true, force: true });
+  }
 });
 
 test('an external provider selection is blocked when --cross-provider has no exact authorization', async () => {
@@ -346,6 +442,14 @@ test('retired --codex remains a blocking parser diagnostic', async () => {
   assert.strictEqual(report.parser.status, 'blocked');
   assert.ok(report.parser.diagnostics.some((diagnostic) => diagnostic.includes('--codex is retired')));
   assert.strictEqual(fixture.calls.length, 0);
+});
+
+test('solo executor failure after a partial write inspects scope before releasing the next writer', async () => {
+  await assertSoloPostlaunchCleanupBarrier('throw');
+});
+
+test('solo malformed outcome inspects scope before releasing the next writer', async () => {
+  await assertSoloPostlaunchCleanupBarrier('malformed');
 });
 
 run('flow-drive-runner');

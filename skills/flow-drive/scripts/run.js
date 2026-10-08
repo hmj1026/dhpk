@@ -5,6 +5,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { parseInvocation } = require('./invocation');
 const { prepareDispatch } = require('./dispatch');
+const { validateTaskGraph, nodeTaskDigest } = require('./task-graph');
+const { runTaskGraph } = require('./graph-runner');
+const { withWriterLease } = require('../references/execution-bundle/scripts/lib/dispatch-writer-lease');
+const { executeSchedule } = require('../references/execution-bundle/scripts/lib/dispatch-scheduler');
 
 const PROVIDERS = new Set(['anthropic', 'openai', 'google', 'xai', 'cursor']);
 const AGENT_FOR_PROVIDER = Object.freeze({
@@ -163,6 +167,9 @@ function observedTargetIssue(observed, resolved, strictRequested) {
   if (requestedModel && observed.model_id !== undefined && observed.model_id !== requestedModel) {
     return `observed model ${observed.model_id} does not match strict requested model ${requestedModel}`;
   }
+  if (strictRequested && strictRequested.effort && observed.effort !== undefined && observed.effort !== strictRequested.effort) {
+    return `observed effort ${observed.effort} does not match strict requested effort ${strictRequested.effort}`;
+  }
   return null;
 }
 
@@ -185,11 +192,11 @@ function taskIdentity(task) {
   return { digest, taskId: `flow-drive-${digest.slice(0, 16)}` };
 }
 
-function dispatchRequest(task, workdir, capabilities, target, effort, authorizedProviders, capabilityEvidence, executionBinding, strictTarget) {
+function dispatchRequest(task, workdir, capabilities, target, effort, authorizedProviders, capabilityEvidence, executionBinding, strictTarget, role = 'worker') {
   const { digest, taskId } = taskIdentity(task);
   const hostProfile = profileWithinScope(capabilities.host_profile, authorizedProviders);
-  const defaultEffort = hostProfile.role_defaults && hostProfile.role_defaults.worker
-    && hostProfile.role_defaults.worker.effort;
+  const defaultEffort = hostProfile.role_defaults && hostProfile.role_defaults[role]
+    && hostProfile.role_defaults[role].effort;
 
   return {
     change: { confirmed: true, change_id: taskId },
@@ -198,7 +205,7 @@ function dispatchRequest(task, workdir, capabilities, target, effort, authorized
       host_profile: hostProfile,
       task_id: taskId,
       attempt_id: `flow-drive-attempt-${crypto.randomUUID()}`,
-      role: 'worker',
+      role,
       authority: task.constraints.authority,
       task: { description_digest: digest },
       scope: {
@@ -285,6 +292,31 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
   } catch (_) {
     return makeReport({ parser, blockers: ['Host could not coordinate the task'] });
   }
+  if (decision && decision.mode === 'coordinated') {
+    let graph;
+    try { graph = validateTaskGraph(decision, resolvedTask.constraints); } catch (error) {
+      return makeReport({ parser, acceptanceStatus: 'BLOCKED', blockers: [error.message] });
+    }
+    const graphWorker = invocation.options.worker;
+    const graphExact = explicitTarget(invocation.options);
+    if (graph.nodes.some((node) => { const target = selectedTarget({ target: node.target }); if (!target) return true; if (graphExact && !targetMatches(target, graphExact)) return true; if (!graphExact && graphWorker !== 'auto' && ({ 'claude-code': 'claude', 'codex-cli': 'codex', agy: 'agy' })[target.target.target_agent] !== graphWorker) return true; return false; })) {
+      return makeReport({ parser, status: 'BLOCKED', acceptanceStatus: 'BLOCKED', blockers: ['graph target does not match the requested worker selector'] });
+    }
+    const graphResult = await runTaskGraph({
+      graph, resolvedTask, capabilities, decision, host, invocation, workdir, sessionId, bindingId,
+      currentProvider, taskIdentity, nodeTaskDigest, selectedTarget, dispatchRequest, prepareDispatch, withWriterLease, executeSchedule,
+      verifyPromptEvidence, observedTargetIssue,
+    });
+    return makeReport({
+      status: 'REPORTED',
+      parser,
+      executionStatus: graphResult.failed.length ? 'FAILED' : 'SUCCEEDED',
+      acceptanceStatus: graphResult.failed.length ? 'BLOCKED' : 'PASSED',
+      blockers: graphResult.failed.map((result) => `${result.id}: ${result.reason || result.status}`),
+      acceptanceEvidence: graphResult.parentVerification && graphResult.parentVerification.evidence,
+      executionEvidence: JSON.stringify(graphResult.results.map((result) => ({ id: result.id, status: result.status, ...(result.reason ? { reason: result.reason } : {}) }))),
+    });
+  }
   const requested = reportTarget(decision && decision.target);
   const selection = selectedTarget(decision);
   if (!selection) return makeReport({ parser, requested, blockers: ['Host coordination did not select a valid target'] });
@@ -345,34 +377,66 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
     execution_binding: { session_id: sessionId, binding_id: bindingId },
   };
   let outcome;
+  let verification;
+  let scopeIssue = null;
+  let observedIssue = null;
   try {
-    outcome = await host.execute(prepared.resolution.target, resolvedTask, context);
+    const run = async () => {
+      let scopeBefore = null;
+      let executionStarted = false;
+      let result;
+      let accepted;
+      if (resolvedTask.constraints.authority === 'workspace-write') {
+        if (typeof host.inspectScope !== 'function') throw new Error('writer scope inspection is required');
+        scopeBefore = await host.inspectScope(resolvedTask, { phase: 'pre', workdir });
+      }
+      try {
+        const evidence = resolvedTask.constraints.prompt_evidence;
+        if (!verifyPromptEvidence(evidence)) throw new Error('prompt evidence changed before execution');
+        executionStarted = true;
+        result = await host.execute(prepared.resolution.target, resolvedTask, context);
+        if (isRecord(result) && EXECUTION_STATUSES.has(result.status)) {
+          accepted = await host.verify(resolvedTask, result, context);
+          observedIssue = observedTargetIssue(result.observed_target, prepared.resolution.target, exact || strictConstraint);
+        }
+      } finally {
+        if (executionStarted && resolvedTask.constraints.authority === 'workspace-write') {
+          try {
+            const scopeAfter = await host.inspectScope(resolvedTask, { phase: 'post', workdir, baseline: scopeBefore, outcome: result || null });
+            if (!scopeAfter || scopeAfter.within_scope !== true || scopeAfter.wip_preserved !== true) {
+              scopeIssue = 'writer scope inspection did not prove assigned changes and WIP preservation';
+            }
+          } catch (_) {
+            scopeIssue = 'writer scope inspection failed after execution';
+          }
+        }
+      }
+      return { result, verification: accepted };
+    };
+    const completed = resolvedTask.constraints.authority === 'workspace-write' ? withWriterLease(run) : run();
+    const result = await completed;
+    outcome = result.result;
+    verification = result.verification;
   } catch (_) {
     return makeReport({ status: 'REPORTED', parser, executionStatus: 'FAILED', requested, resolved,
-      blockers: ['Host executor failed before returning an outcome'] });
+      blockers: ['Host executor failed before returning an outcome', ...(scopeIssue ? [scopeIssue] : [])] });
   }
   if (!isRecord(outcome) || !EXECUTION_STATUSES.has(outcome.status)) {
     return makeReport({ status: 'REPORTED', parser, executionStatus: 'BLOCKED', requested, resolved,
-      blockers: ['Host executor returned an invalid outcome'] });
+      blockers: ['Host executor returned an invalid outcome', ...(scopeIssue ? [scopeIssue] : [])] });
   }
 
-  let verification;
-  try {
-    verification = await host.verify(resolvedTask, outcome, context);
-  } catch (_) {
-    return makeReport({ status: 'REPORTED', parser, executionStatus: outcome.status, requested, resolved,
-      observed: reportTarget(outcome.observed_target), blockers: ['Host acceptance verification failed to return a result'] });
-  }
+  if (!verification) return makeReport({ status: 'REPORTED', parser, executionStatus: outcome.status, requested, resolved,
+    observed: reportTarget(outcome.observed_target), blockers: ['Host acceptance verification failed to return a result', ...(scopeIssue ? [scopeIssue] : [])] });
   if (!isRecord(verification) || !ACCEPTANCE_STATUSES.has(verification.status)) {
     return makeReport({ status: 'REPORTED', parser, executionStatus: outcome.status, requested, resolved,
-      observed: reportTarget(outcome.observed_target), blockers: ['Host returned an invalid acceptance result'] });
+      observed: reportTarget(outcome.observed_target), blockers: ['Host returned an invalid acceptance result', ...(scopeIssue ? [scopeIssue] : [])] });
   }
 
   const accepted = verification.status === 'PASSED';
-  const observedIssue = observedTargetIssue(outcome.observed_target, prepared.resolution.target, exact || strictConstraint);
   const acceptanceStatus = accepted && outcome.status === 'SUCCEEDED'
       && typeof verification.evidence === 'string' && verification.evidence.trim() !== ''
-      && !observedIssue
+      && !observedIssue && !scopeIssue
     ? 'PASSED'
     : accepted ? 'BLOCKED' : verification.status;
   const blockers = [];
@@ -381,6 +445,7 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
     blockers.push('acceptance requires successful execution and non-empty verification evidence');
   }
   if (observedIssue) blockers.push(observedIssue);
+  if (scopeIssue) blockers.push(scopeIssue);
 
   return makeReport({
     status: 'REPORTED',

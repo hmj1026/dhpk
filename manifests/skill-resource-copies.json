@@ -391,6 +391,18 @@
       "sha256": "sha256:8701ff74f675b867ac9ce189ec167228443249d08b4eaa66d3c9c659cb725acf",
       "mode": "0644"
     },
+    "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-scheduler.js": {
+      "skill_id": "flow-drive",
+      "source": "scripts/lib/dispatch-scheduler.js",
+      "sha256": "sha256:6c5245be137d2af07be4a21fcd896e4fe7b806bca749c999283bd14e67c819b8",
+      "mode": "0644"
+    },
+    "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-writer-lease.js": {
+      "skill_id": "flow-drive",
+      "source": "scripts/lib/dispatch-writer-lease.js",
+      "sha256": "sha256:428f9b10a387d623679b61492777032ed1d7caf9c52d7f31e6b4d0eaa4b40cd4",
+      "mode": "0644"
+    },
     "skills/flow-drive/references/execution-bundle/scripts/lib/flow-handoff-contract.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/flow-handoff-contract.js",
