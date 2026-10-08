@@ -64,7 +64,6 @@ and parent acceptance remain completion gates. These portable contracts do not
 change legacy `cross_provider` configuration, generic scheduler parallelism,
 or the external `/opsx:apply` owner.
 
-
 | Change type | Planning / OpenSpec | Flow |
 |---|---|---|
 | Bug Fix (unknown root cause) | Ask only when acceptance or tracking outcomes are missing; reuse an applicable diagnosis | Reuse sufficient root-cause evidence; use `code-trace` to resolve a material gap before dependent writes → establish regression evidence for behavior changes → patch |
