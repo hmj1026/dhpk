@@ -1,7 +1,7 @@
 ---
 name: flow-drive
-argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]'
-description: 'Explicit-only implementation workflow for a confirmed specification or OpenSpec change whose target and acceptance contract are settled. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: ordered implementation and verification evidence, or an explicit blocker.'
+argument-hint: '<task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]'
+description: 'Explicit-only implementation workflow for one task resolved by the Host into a bounded goal, acceptance contract, and constraints. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: distinct execution and acceptance evidence, or an explicit blocker.'
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
@@ -9,12 +9,13 @@ metadata:
 
 # Flow Drive
 
-Use `$flow-drive <confirmed-spec-or-change-id> [implementation-options]` only
-after the specification, target, and acceptance boundary are confirmed. When
-ownership is unclear, return an explicit blocker or use the separately invoked
-route owner; use the external OpenSpec authoring owner when a proposal or
-artifact is still missing. Flow Drive consumes the shared neutral handoff
-contract and does not load a peer skill to validate its input.
+Use `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [options]`
+for one bounded implementation task. The Host resolves that single positional
+input into a goal, acceptance criteria, and structured constraints before
+dispatch. When ownership is unclear, return an explicit blocker or use the
+separately invoked route owner; use the external OpenSpec authoring owner when
+a proposal or artifact is still missing. Flow Drive consumes the shared neutral
+handoff contract and does not load a peer skill to validate its input.
 
 ## When NOT to Use
 
@@ -32,6 +33,34 @@ Flow Drive owns implementation of the confirmed work. It does not choose a
 route, author a proposal, review an existing diff, or claim archive, commit,
 merge, release, deployment, or pilot evidence. Its explicit-only boundary is
 preserved even when a caller presents a ready-looking route.
+
+## Native single-task runner
+
+The portable runner exports `runFlowDrive(argv, { host, workdir })`. It passes
+the first positional input unchanged to `host.resolveTask(input, { workdir })`;
+the Host supplies a non-empty `goal`, a non-empty `acceptance` array, and a
+plain-object `constraints` value. The runner does not classify natural-language
+intent. The Host owns interpretation and target coordination, while the
+existing dispatch resolver validates the selected target.
+
+Task constraints default to `authority: "read-only"`. A
+`"workspace-write"` task must include non-empty, safe relative
+`assigned_files`. The Host supplies `constraints.prompt_evidence` pointing to
+the actual input file together with its device, inode, and SHA-256; the runner
+checks the file identity and content before dispatch. A canonical task
+`provider` constraint takes precedence over legacy target flags. An exact
+`--worker-target` can authorize only its selected Provider/Agent/Model/Effort
+tuple, and the dispatch resolver still requires current Host access evidence.
+`--cross-provider` alone never authorizes another Provider.
+
+The runner calls one executor and then the acceptance verifier. Its report
+keeps parser, execution, acceptance, and requested/resolved/observed targets
+separate. Verification `PASSED` requires successful execution and non-empty
+verification evidence; the runner's overall status is `REPORTED`, never an
+automatic task `PASS`. Planner, reasoner, and architecture options retain the
+legacy grammar, but the native single-task runner returns a migration notice
+and blocker for those extra roles. Use the legacy Flow Drive procedure for
+that advanced path; `--no-architect` remains a notice-only compatibility flag.
 
 ## Implementation contract
 
