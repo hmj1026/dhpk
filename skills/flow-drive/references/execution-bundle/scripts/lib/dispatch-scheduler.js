@@ -114,7 +114,7 @@ function timeoutPromise(promise, timeoutMs) {
   ]);
 }
 
-async function executeSchedule(inputs, { catalog: rawCatalog, preferenceOrder, dispatch, registry, fallback = true, signal, timeoutMs, beforeDispatch, retainOutcomes = false, singleWriter = false } = {}) {
+async function executeSchedule(inputs, { catalog: rawCatalog, preferenceOrder, dispatch, registry, fallback = true, signal, timeoutMs, beforeDispatch, retainOutcomes = false, singleWriter = false, managedLifecycle = false } = {}) {
   if (typeof dispatch !== 'function') throw new TypeError('scheduler dispatch function is required');
   const plan = createSchedule(inputs, { catalog: rawCatalog, preferenceOrder, fallback, singleWriter });
   const results = plan.blocked.map((entry) => ({
@@ -147,14 +147,16 @@ async function executeSchedule(inputs, { catalog: rawCatalog, preferenceOrder, d
         if (permitted !== true) return { task_id: entry.request.task_id, status: 'BLOCKED', reason: 'semantic dispatch gate denied', launch_identity };
       }
       try {
-        const invoke = () => dispatch(entry.request, {
+        const invoke = (writer_lease) => dispatch(entry.request, {
           catalog: rawCatalog,
           registry,
           preferenceOrder,
           fallback,
           resolution: entry.resolution,
+          ...(writer_lease ? { writer_lease } : {}),
         });
-        const outcome = await timeoutPromise(singleWriter && entry.request.authority === 'workspace-write' ? withWriterLease(invoke) : invoke(), timeoutMs);
+        const dispatched = singleWriter && entry.request.authority === 'workspace-write' ? withWriterLease(invoke) : invoke();
+        const outcome = await (managedLifecycle ? dispatched : timeoutPromise(dispatched, timeoutMs));
         const status = outcome && outcome.status;
         return {
           task_id: entry.request.task_id,

@@ -7,6 +7,7 @@ const { parseInvocation } = require('./invocation');
 const { prepareDispatch } = require('./dispatch');
 const { validateTaskGraph, nodeTaskDigest } = require('./task-graph');
 const { runTaskGraph } = require('./graph-runner');
+const { createRecoveryState, executeAttempt } = require('./attempt-executor');
 const { cloneTaskValue, freezeTaskValue } = require('./task-contract');
 const {
   exactWorkerTarget,
@@ -15,7 +16,6 @@ const {
   capabilityRefreshScope,
 } = require('./provider-permissions');
 const { evaluateTargetPolicy, selectCapabilityEvidence } = require('./target-policy');
-const { withWriterLease } = require('../references/execution-bundle/scripts/lib/dispatch-writer-lease');
 const { executeSchedule } = require('../references/execution-bundle/scripts/lib/dispatch-scheduler');
 
 const PROVIDERS = new Set(['anthropic', 'openai', 'google', 'xai', 'cursor']);
@@ -25,7 +25,6 @@ const AGENT_FOR_PROVIDER = Object.freeze({
 const PROVIDER_FOR_AGENT = Object.freeze({
   'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', cursor: 'cursor',
 });
-const EXECUTION_STATUSES = new Set(['SUCCEEDED', 'FAILED', 'BLOCKED', 'TIMEOUT']);
 const ACCEPTANCE_STATUSES = new Set(['PASSED', 'FAILED', 'NOT_RUN', 'BLOCKED', 'RECONCILIATION_REQUIRED']);
 
 const isRecord = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value)
@@ -239,7 +238,11 @@ function dispatchRequest(task, workdir, capabilities, target, effort, authorized
   };
 }
 
-async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authorizationEvidence } = {}) {
+async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authorizationEvidence, recovery } = {}) {
+  let recoveryState;
+  try { recoveryState = createRecoveryState(recovery); } catch (_) {
+    return makeReport({ blockers: ['invalid recovery budget or deadline'] });
+  }
   const invocation = parseInvocation(argv);
   const notices = [...invocation.notices];
   const parserReport = () => Object.freeze({
@@ -375,6 +378,29 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
     }
   };
 
+  const validateRecoveryCandidate = async (value, task, request, reconciliation) => {
+    const target = selectedTarget({ target: value });
+    const policy = evaluateTargetPolicy({ target, role: request.role, authority: request.authority,
+      constraints: task.constraints, invocation, ledger: authorizationLedger, hostAllowedProviders });
+    if (!policy.allowed) return null;
+    await refreshForSelectedTargets([{ ...policy.target, role: request.role, authority: request.authority }]);
+    const selectedEvidence = selectCapabilityEvidence(capabilities, target, request.role, request.authority,
+      { session_id: sessionId, binding_id: bindingId });
+    if (selectedEvidence.status === 'blocked') return null;
+    const ledger = reconciliation && reconciliation.completion_ledger;
+    const assigned = ledger ? [...ledger.unconfirmed, ...ledger.remaining] : request.scope.assigned_files;
+    const packet = { ...request, host_profile: { ...request.host_profile,
+      allowed_providers: request.host_profile.allowed_providers.filter((provider) => hostAllowedProviders.includes(provider)),
+      access: Object.fromEntries(Object.entries(capabilities.host_profile.access || {}).filter(([provider]) => request.host_profile.allowed_providers.includes(provider))) },
+      target: target.target, effort: target.effort || request.effort,
+      scope: { ...request.scope, assigned_files: assigned },
+      ...(selectedEvidence.evidence ? { capability_evidence: selectedEvidence.evidence } : {}) };
+    if (!selectedEvidence.evidence) delete packet.capability_evidence;
+    const candidate = prepareDispatch({ change: { confirmed: true, change_id: request.task_id },
+      request: packet, catalog: capabilities.catalog });
+    return candidate.resolution.status === 'RESOLVED' ? candidate : null;
+  };
+
   let decision;
   try {
     decision = await host.coordinate(resolvedTask, {
@@ -427,8 +453,8 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
     }
     const graphResult = await runTaskGraph({
       graph, resolvedTask, capabilities, decision, host, invocation, workdir, sessionId, bindingId,
-      currentProvider, authorizationLedger, taskIdentity, nodeTaskDigest, selectedTarget, dispatchRequest, prepareDispatch, withWriterLease, executeSchedule,
-      verifyPromptEvidence, observedTargetIssue,
+      currentProvider, authorizationLedger, taskIdentity, nodeTaskDigest, selectedTarget, dispatchRequest, prepareDispatch, executeSchedule,
+      verifyPromptEvidence, observedTargetIssue, recoveryState, validateRecoveryCandidate,
     });
     return makeReport({
       status: 'REPORTED',
@@ -437,7 +463,7 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
       acceptanceStatus: graphResult.failed.length ? 'BLOCKED' : 'PASSED',
       blockers: graphResult.failed.map((result) => `${result.id}: ${result.reason || result.status}`),
       acceptanceEvidence: graphResult.parentVerification && graphResult.parentVerification.evidence,
-      executionEvidence: JSON.stringify(graphResult.results.map((result) => ({ id: result.id, status: result.status, ...(result.reason ? { reason: result.reason } : {}) }))),
+      executionEvidence: JSON.stringify(graphResult.results.map((result) => ({ id: result.id, status: result.status, ...(result.reason ? { reason: result.reason } : {}), ...(result.attempts ? { attempts: result.attempts } : {}) }))),
     });
   }
   const requested = reportTarget(decision && decision.target);
@@ -510,88 +536,22 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
     execution_binding: { session_id: sessionId, binding_id: bindingId },
     authorization_ledger: authorizationLedger,
   };
-  let outcome;
-  let verification;
-  let scopeIssue = null;
-  let observedIssue = null;
-  try {
-    const run = async () => {
-      let scopeBefore = null;
-      let executionStarted = false;
-      let result;
-      let accepted;
-      if (resolvedTask.constraints.authority === 'workspace-write') {
-        if (typeof host.inspectScope !== 'function') throw new Error('writer scope inspection is required');
-        scopeBefore = await host.inspectScope(resolvedTask, { phase: 'pre', workdir });
-      }
-      try {
-        const evidence = resolvedTask.constraints.prompt_evidence;
-        if (!verifyPromptEvidence(evidence)) throw new Error('prompt evidence changed before execution');
-        executionStarted = true;
-        result = await host.execute(prepared.resolution.target, resolvedTask, context);
-        if (isRecord(result) && EXECUTION_STATUSES.has(result.status)) {
-          accepted = await host.verify(resolvedTask, result, context);
-          observedIssue = observedTargetIssue(result.observed_target, prepared.resolution.target, exact || strictConstraint);
-        }
-      } finally {
-        if (executionStarted && resolvedTask.constraints.authority === 'workspace-write') {
-          try {
-            const scopeAfter = await host.inspectScope(resolvedTask, { phase: 'post', workdir, baseline: scopeBefore, outcome: result || null });
-            if (!scopeAfter || scopeAfter.within_scope !== true || scopeAfter.wip_preserved !== true) {
-              scopeIssue = 'writer scope inspection did not prove assigned changes and WIP preservation';
-            }
-          } catch (_) {
-            scopeIssue = 'writer scope inspection failed after execution';
-          }
-        }
-      }
-      return { result, verification: accepted };
-    };
-    const completed = resolvedTask.constraints.authority === 'workspace-write' ? withWriterLease(run) : run();
-    const result = await completed;
-    outcome = result.result;
-    verification = result.verification;
-  } catch (_) {
-    return makeReport({ status: 'REPORTED', parser, executionStatus: 'FAILED', requested, resolved,
-      blockers: ['Host executor failed before returning an outcome', ...(scopeIssue ? [scopeIssue] : [])] });
-  }
-  if (!isRecord(outcome) || !EXECUTION_STATUSES.has(outcome.status)) {
-    return makeReport({ status: 'REPORTED', parser, executionStatus: 'BLOCKED', requested, resolved,
-      blockers: ['Host executor returned an invalid outcome', ...(scopeIssue ? [scopeIssue] : [])] });
-  }
-
-  if (!verification) return makeReport({ status: 'REPORTED', parser, executionStatus: outcome.status, requested, resolved,
-    observed: reportTarget(outcome.observed_target), blockers: ['Host acceptance verification failed to return a result', ...(scopeIssue ? [scopeIssue] : [])] });
-  if (!isRecord(verification) || !ACCEPTANCE_STATUSES.has(verification.status)) {
-    return makeReport({ status: 'REPORTED', parser, executionStatus: outcome.status, requested, resolved,
-      observed: reportTarget(outcome.observed_target), blockers: ['Host returned an invalid acceptance result', ...(scopeIssue ? [scopeIssue] : [])] });
-  }
-
-  const accepted = verification.status === 'PASSED';
-  const acceptanceStatus = accepted && outcome.status === 'SUCCEEDED'
-      && typeof verification.evidence === 'string' && verification.evidence.trim() !== ''
-      && !observedIssue && !scopeIssue
-    ? 'PASSED'
-    : accepted ? 'BLOCKED' : verification.status;
-  const blockers = [];
-  if (verification.status === 'BLOCKED') blockers.push('acceptance remains blocked');
-  if (accepted && acceptanceStatus === 'BLOCKED') {
-    blockers.push('acceptance requires successful execution and non-empty verification evidence');
-  }
-  if (observedIssue) blockers.push(observedIssue);
-  if (scopeIssue) blockers.push(scopeIssue);
-
-  return makeReport({
-    status: 'REPORTED',
-    parser,
-    executionStatus: outcome.status,
-    acceptanceStatus,
-    requested,
-    resolved,
-    observed: reportTarget(outcome.observed_target),
-    executionEvidence: typeof outcome.evidence === 'string' ? outcome.evidence : null,
-    acceptanceEvidence: typeof verification.evidence === 'string' ? verification.evidence : null,
-    blockers,
+  const completed = await executeAttempt({ task: resolvedTask, prepared, host, context, recoveryState,
+    verifyPromptEvidence, observedTargetIssue, strictTarget: exact || strictConstraint,
+    validateCandidate: validateRecoveryCandidate });
+  const outcome = completed.outcome;
+  const verification = completed.verification;
+  return makeReport({ status: 'REPORTED', parser,
+    executionStatus: outcome ? (outcome.status === 'INTERRUPTED' ? 'TIMEOUT' : outcome.status) : 'BLOCKED',
+    acceptanceStatus: completed.status === 'SUCCEEDED' ? 'PASSED'
+      : recoveryState || verification && verification.status === 'PASSED' ? 'BLOCKED'
+        : verification && ACCEPTANCE_STATUSES.has(verification.status) ? verification.status : 'NOT_RUN',
+    requested, resolved: completed.attempts && completed.attempts.length
+      ? reportTarget(completed.attempts[completed.attempts.length - 1].receipt.resolved_target) : resolved,
+    observed: outcome ? reportTarget(outcome.observed_target) : null,
+    executionEvidence: recoveryState ? JSON.stringify(completed.attempts) : outcome && typeof outcome.evidence === 'string' ? outcome.evidence : null,
+    acceptanceEvidence: verification && typeof verification.evidence === 'string' ? verification.evidence : null,
+    blockers: completed.reason ? [completed.reason] : [],
   });
 }
 
