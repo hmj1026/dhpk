@@ -45,6 +45,15 @@ intent. The Host owns interpretation and target coordination, while the
 existing dispatch resolver validates the selected target. The runner clones
 and freezes the returned task contract before coordination or dispatch.
 
+The complete Skill directory can be installed or moved independently. Required
+lookup uses its own `scripts/`, `references/execution-bundle/`, and
+`references/cli-dispatch/` resources. Native execution, bound current capability
+evidence, coordination, and granted cross-Provider selection use the same public
+runner after relocation. Peer skills and a canonical checkout are optional;
+the injected Host and any selected external tools remain environment
+dependencies. See [portability](references/portability.md) for the copy boundary,
+optional evidence, missing independence, and fixture versus runtime claims.
+
 Task constraints default to `authority: "read-only"`. A
 `"workspace-write"` task must include non-empty, safe relative
 `assigned_files`. The Host supplies `constraints.prompt_evidence` pointing to
