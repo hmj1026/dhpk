@@ -36,12 +36,14 @@ preserved even when a caller presents a ready-looking route.
 
 ## Native single-task runner
 
-The portable runner exports `runFlowDrive(argv, { host, workdir })`. It passes
-the first positional input unchanged to `host.resolveTask(input, { workdir })`;
+The portable runner exports
+`runFlowDrive(argv, { host, workdir, authorizationEvidence })`. It passes the
+first positional input unchanged to `host.resolveTask(input, { workdir })`;
 the Host supplies a non-empty `goal`, a non-empty `acceptance` array, and a
 plain-object `constraints` value. The runner does not classify natural-language
 intent. The Host owns interpretation and target coordination, while the
-existing dispatch resolver validates the selected target.
+existing dispatch resolver validates the selected target. The runner clones
+and freezes the returned task contract before coordination or dispatch.
 
 Task constraints default to `authority: "read-only"`. A
 `"workspace-write"` task must include non-empty, safe relative
@@ -49,9 +51,29 @@ Task constraints default to `authority: "read-only"`. A
 the actual input file together with its device, inode, and SHA-256; the runner
 checks the file identity and content before dispatch. A canonical task
 `provider` constraint takes precedence over legacy target flags. An exact
-`--worker-target` can authorize only its selected Provider/Agent/Model/Effort
-tuple, and the dispatch resolver still requires current Host access evidence.
-`--cross-provider` alone never authorizes another Provider.
+`--worker-target` grants only its selected Worker Provider/Agent/Model and
+optional Effort tuple; it does not authorize that Provider for other Roles.
+The dispatch resolver still requires current Host access and capability
+evidence. `--cross-provider` only opens the optional Host provider-scope
+question. The runner starts with external probing disabled and requests a
+scoped capability refresh only after a provider-scope answer or an exact
+`--worker-target` grant. Cancellation, no answer, or a Host without the
+question callback creates no external grant, so independent native graph work
+can continue while external nodes remain blocked.
+
+The Host may return a multi-provider selection, successive selections, or a
+plain provider-list answer; each `ANSWERED` result must include a nonblank
+`answer_id`. Provider names in unrelated or negative text do not grant access.
+The runner keeps only a sanitized answer ID with each grant and does not retain
+answer text. It does not ask for model choices. A trusted caller may supply
+root-owned `authorizationEvidence`, for example
+`{ source: "user-answer", answer_id: "consent-42", providers: ["openai"] }`.
+Task files, resolver metadata, coordination decisions, and catalog entries
+cannot grant provider permission. Host allowed-provider policy, task provider
+and strict-target constraints, and current Host evidence remain binding after
+any grant. After side-effect-free coordination, the runner refreshes only the
+selected external Provider/Agent/Model/Effort/Role/authority tuples; it never
+uses a provider-wide consent to probe every model from that Provider.
 
 The runner calls one executor and then the acceptance verifier. Its report
 keeps parser, execution, acceptance, and requested/resolved/observed targets
@@ -144,8 +166,9 @@ action.
 - `--worker-target=<provider>/<model>[:<effort>]` selects an explicit
   Provider/Model/Effort Execution Target. It is distinct from `--worker` and
   is not an alias for the selector.
-- `--cross-provider` permits the explicitly selected provider boundary when
-  the surrounding policy and evidence allow it.
+- `--cross-provider` opens the optional Host provider-scope question; the flag
+  alone grants no provider access. An explicit `--worker-target` is limited to
+  that Worker tuple, while a Host answer grants only the selected Providers.
 - `--reasoner=<provider>[/<model>[:<effort>]]` requests a bounded second opinion
   with a Provider-scoped target; canonical Role remains `reasoner`.
 - `--architect` or `--no-architect` controls the architecture pass.

@@ -385,6 +385,22 @@ pluginConfig > `false`; `.claude/settings.local.json` is preferred over
 `.claude/settings.json`. Dispatch
 selection never creates a review PASS or a retired Sentinel state.
 
+For Flow Drive, the initial Host capability request disables external probes.
+`--cross-provider` only opens an optional Host provider-scope question; a
+provider grant from an answered Host question or root-supplied
+`authorizationEvidence` is required before the runner requests a scoped
+external capability refresh. An exact `--worker-target` grants only its
+Provider/Agent/Model and optional Effort tuple for the Worker Role, not a broad
+Provider grant or permission for another Role. Cancellation, no answer, or a
+missing question callback creates no grant. Host allowed-provider policy,
+task constraints, current binding, and matching capability evidence remain
+binding after consent. An answered Host selection and root-supplied
+`authorizationEvidence` must carry a nonblank answer ID; only a sanitized ID
+is retained with the grant, never raw answer text. After side-effect-free
+coordination identifies selected candidates, Flow Drive scopes any external
+refresh to those concrete Provider/Agent/Model/Effort/Role/authority tuples;
+Provider consent never triggers a provider-wide model probe.
+
 The Dispatch Engine enforces this baseline for all four Roles; adapters
 consume the same neutral request without duplicating candidate-selection logic.
 

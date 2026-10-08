@@ -7,6 +7,14 @@ const { parseInvocation } = require('./invocation');
 const { prepareDispatch } = require('./dispatch');
 const { validateTaskGraph, nodeTaskDigest } = require('./task-graph');
 const { runTaskGraph } = require('./graph-runner');
+const { cloneTaskValue, freezeTaskValue } = require('./task-contract');
+const {
+  exactWorkerTarget,
+  createAuthorizationLedgerBuilder,
+  askForProviderScope,
+  capabilityRefreshScope,
+} = require('./provider-permissions');
+const { evaluateTargetPolicy, selectCapabilityEvidence } = require('./target-policy');
 const { withWriterLease } = require('../references/execution-bundle/scripts/lib/dispatch-writer-lease');
 const { executeSchedule } = require('../references/execution-bundle/scripts/lib/dispatch-scheduler');
 
@@ -49,17 +57,25 @@ function reportTarget(target) {
 
 function validateTask(value) {
   if (!isRecord(value)) return { task: null, missing: ['task'] };
+  let copiedAcceptance;
+  let copiedConstraints;
+  try {
+    copiedAcceptance = cloneTaskValue(value.acceptance);
+    copiedConstraints = cloneTaskValue(value.constraints);
+  } catch (_) {
+    return { task: null, missing: ['plain-data task constraints'] };
+  }
   const missing = [];
   if (typeof value.goal !== 'string' || value.goal.trim() === '') missing.push('goal');
-  if (!Array.isArray(value.acceptance) || value.acceptance.length === 0
-      || value.acceptance.some((item) => typeof item !== 'string' || item.trim() === '')) missing.push('acceptance');
-  if (!isRecord(value.constraints)) missing.push('constraints');
+  if (!Array.isArray(copiedAcceptance) || copiedAcceptance.length === 0
+      || copiedAcceptance.some((item) => typeof item !== 'string' || item.trim() === '')) missing.push('acceptance');
+  if (!isRecord(copiedConstraints)) missing.push('constraints');
   if (missing.length > 0) return { task: null, missing };
 
   const task = {
     goal: value.goal,
-    acceptance: [...value.acceptance],
-    constraints: { ...value.constraints },
+    acceptance: [...copiedAcceptance],
+    constraints: { ...copiedConstraints },
   };
   if (Object.prototype.hasOwnProperty.call(task.constraints, 'provider')
       && !canonicalProvider(task.constraints.provider)) {
@@ -99,9 +115,7 @@ function validateTask(value) {
   }
   task.constraints.authority = authority;
   task.constraints.assigned_files = assignedFiles ? Object.freeze([...assignedFiles]) : Object.freeze([]);
-  task.acceptance = Object.freeze([...task.acceptance]);
-  task.constraints = Object.freeze(task.constraints);
-  return { task: Object.freeze(task), missing: [] };
+  return { task: freezeTaskValue(task), missing: [] };
 }
 
 function verifyPromptEvidence(evidence) {
@@ -225,7 +239,7 @@ function dispatchRequest(task, workdir, capabilities, target, effort, authorized
   };
 }
 
-async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
+async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authorizationEvidence } = {}) {
   const invocation = parseInvocation(argv);
   const notices = [...invocation.notices];
   const parserReport = () => Object.freeze({
@@ -256,7 +270,7 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
     parser = parserReport();
   }
   if (invocation.options.crossProvider) {
-    notices.push('--cross-provider is accepted, but this runner has no Provider question yet; the flag alone does not authorize another Provider.');
+    notices.push('--cross-provider opens a Provider-scope question when the Host supports it; the flag alone grants nothing.');
     parser = parserReport();
   }
 
@@ -276,19 +290,98 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
   const sessionId = `flow-drive-session-${crypto.randomUUID()}`;
   const bindingId = `flow-drive-binding-${crypto.randomUUID()}`;
   try {
-    capabilities = await host.getCapabilities({ workdir, session_id: sessionId, binding_id: bindingId });
+    capabilities = await host.getCapabilities({
+      workdir, session_id: sessionId, binding_id: bindingId,
+      allow_external_probe: false,
+      authorized_providers: Object.freeze([]),
+      authorized_targets: Object.freeze([]),
+    });
   } catch (_) {
     return makeReport({ parser, blockers: ['Host capability evidence is unavailable'] });
   }
   if (!isRecord(capabilities) || !isRecord(capabilities.host_profile) || !isRecord(capabilities.catalog)) {
     return makeReport({ parser, blockers: ['Host capabilities must provide a host_profile and catalog'] });
   }
+  try {
+    capabilities = freezeTaskValue(cloneTaskValue(capabilities));
+  } catch (_) {
+    return makeReport({ parser, blockers: ['Host capabilities must contain plain data'] });
+  }
   const currentProvider = canonicalProvider(capabilities.host_profile.native_provider);
   if (!currentProvider) return makeReport({ parser, blockers: ['the current Provider is unknown'] });
+  const currentHost = capabilities.host_profile.host;
+  let hostAllowedProviders = Object.freeze(Array.isArray(capabilities.host_profile.allowed_providers)
+    ? [...new Set(capabilities.host_profile.allowed_providers.map(canonicalProvider).filter(Boolean))]
+    : [currentProvider]);
+  const initialHostAccess = capabilities.host_profile.access || {};
+  const hostPermitsScopedQuery = (provider) => {
+    const access = initialHostAccess[provider];
+    // UNAVAILABLE may be stale or route-specific; explicit permission blocks stay binding.
+    return Boolean(access && ['AVAILABLE', 'NOT_RUN', 'UNAVAILABLE'].includes(String(access.status || '').toUpperCase()));
+  };
+
+  const cliTarget = exactWorkerTarget(invocation);
+  const ledgerBuilder = createAuthorizationLedgerBuilder(currentProvider, authorizationEvidence, cliTarget);
+  if (invocation.options.crossProvider) await askForProviderScope(host, capabilities, currentProvider, ledgerBuilder);
+  const authorizationLedger = ledgerBuilder.snapshot();
+  const refreshForSelectedTargets = async (targets) => {
+    const refreshScope = capabilityRefreshScope(
+      authorizationLedger,
+      resolvedTask.constraints,
+      targets.filter((target) => hostAllowedProviders.includes(target.provider)
+        && hostPermitsScopedQuery(target.provider)),
+    );
+    if (refreshScope.authorized_targets.length === 0) return;
+    try {
+      const refreshed = await host.getCapabilities({
+        workdir,
+        session_id: sessionId,
+        binding_id: bindingId,
+        allow_external_probe: true,
+        authorized_providers: Object.freeze([]),
+        authorized_targets: Object.freeze(refreshScope.authorized_targets.map((target) => Object.freeze({ ...target }))),
+      });
+      if (isRecord(refreshed) && isRecord(refreshed.host_profile) && isRecord(refreshed.catalog)
+          && refreshed.host_profile.host === currentHost
+          && canonicalProvider(refreshed.host_profile.native_provider) === currentProvider) {
+        const refreshedSnapshot = cloneTaskValue(refreshed);
+        const refreshedAllowedProviders = Array.isArray(refreshedSnapshot.host_profile.allowed_providers)
+          ? refreshedSnapshot.host_profile.allowed_providers.map(canonicalProvider).filter(Boolean)
+          : hostAllowedProviders;
+        hostAllowedProviders = Object.freeze(hostAllowedProviders.filter((provider) => refreshedAllowedProviders.includes(provider)));
+        const mergedCapabilities = cloneTaskValue(capabilities);
+        mergedCapabilities.host_profile.allowed_providers = [...hostAllowedProviders];
+        const refreshedAccess = isRecord(refreshedSnapshot.host_profile.access) ? refreshedSnapshot.host_profile.access : {};
+        for (const target of refreshScope.authorized_targets) {
+          if (isRecord(refreshedAccess[target.provider])) {
+            mergedCapabilities.host_profile.access[target.provider] = refreshedAccess[target.provider];
+          }
+        }
+        const evidenceRecords = [
+          ...(Array.isArray(mergedCapabilities.capability_evidence_records) ? mergedCapabilities.capability_evidence_records : []),
+          ...(mergedCapabilities.capability_evidence ? [mergedCapabilities.capability_evidence] : []),
+          ...(Array.isArray(refreshedSnapshot.capability_evidence_records) ? refreshedSnapshot.capability_evidence_records : []),
+          ...(refreshedSnapshot.capability_evidence ? [refreshedSnapshot.capability_evidence] : []),
+        ];
+        if (evidenceRecords.length > 0) mergedCapabilities.capability_evidence_records = evidenceRecords;
+        capabilities = freezeTaskValue(mergedCapabilities);
+      } else {
+        notices.push('Host scoped capability refresh was invalid; external targets remain unavailable.');
+        parser = parserReport();
+      }
+    } catch (_) {
+      notices.push('Host scoped capability evidence is unavailable; external targets remain unavailable.');
+      parser = parserReport();
+    }
+  };
 
   let decision;
   try {
-    decision = await host.coordinate(resolvedTask, { invocation, capabilities, workdir });
+    decision = await host.coordinate(resolvedTask, {
+      invocation, capabilities, workdir,
+      authorization_ledger: authorizationLedger,
+      allow_external_probe: false,
+    });
   } catch (_) {
     return makeReport({ parser, blockers: ['Host could not coordinate the task'] });
   }
@@ -297,14 +390,44 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
     try { graph = validateTaskGraph(decision, resolvedTask.constraints); } catch (error) {
       return makeReport({ parser, acceptanceStatus: 'BLOCKED', blockers: [error.message] });
     }
-    const graphWorker = invocation.options.worker;
-    const graphExact = explicitTarget(invocation.options);
-    if (graph.nodes.some((node) => { const target = selectedTarget({ target: node.target }); if (!target) return true; if (graphExact && !targetMatches(target, graphExact)) return true; if (!graphExact && graphWorker !== 'auto' && ({ 'claude-code': 'claude', 'codex-cli': 'codex', agy: 'agy' })[target.target.target_agent] !== graphWorker) return true; return false; })) {
-      return makeReport({ parser, status: 'BLOCKED', acceptanceStatus: 'BLOCKED', blockers: ['graph target does not match the requested worker selector'] });
+    const evaluateGraphPolicies = () => graph.nodes.map((node) => {
+      const target = selectedTarget({ target: node.target });
+      return {
+        node,
+        policy: evaluateTargetPolicy({
+          target,
+          role: node.role,
+          authority: node.authority,
+          constraints: resolvedTask.constraints,
+          invocation,
+          ledger: authorizationLedger,
+          hostAllowedProviders,
+        }),
+      };
+    });
+    let graphPolicies = evaluateGraphPolicies();
+    if (graph.nodes.every((node) => node.role === 'worker') && graphPolicies.every((entry) => !entry.policy.allowed)) {
+      return makeReport({
+        status: 'BLOCKED',
+        parser,
+        acceptanceStatus: 'BLOCKED',
+        blockers: graphPolicies.map(({ node, policy }) => `${node.id}: ${policy.reason}`),
+      });
+    }
+    await refreshForSelectedTargets(graphPolicies.filter(({ policy }) => policy.allowed)
+      .map(({ node, policy }) => ({ ...policy.target, role: node.role, authority: node.authority })));
+    graphPolicies = evaluateGraphPolicies();
+    if (graph.nodes.every((node) => node.role === 'worker') && graphPolicies.every((entry) => !entry.policy.allowed)) {
+      return makeReport({
+        status: 'BLOCKED',
+        parser,
+        acceptanceStatus: 'BLOCKED',
+        blockers: graphPolicies.map(({ node, policy }) => `${node.id}: ${policy.reason}`),
+      });
     }
     const graphResult = await runTaskGraph({
       graph, resolvedTask, capabilities, decision, host, invocation, workdir, sessionId, bindingId,
-      currentProvider, taskIdentity, nodeTaskDigest, selectedTarget, dispatchRequest, prepareDispatch, withWriterLease, executeSchedule,
+      currentProvider, authorizationLedger, taskIdentity, nodeTaskDigest, selectedTarget, dispatchRequest, prepareDispatch, withWriterLease, executeSchedule,
       verifyPromptEvidence, observedTargetIssue,
     });
     return makeReport({
@@ -325,16 +448,7 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
   if (invocation.options.workerTarget && !exact) {
     return makeReport({ parser, requested, blockers: ['the explicit worker target is invalid'] });
   }
-  if (exact && !targetMatches(selection, exact)) {
-    return makeReport({ parser, requested, blockers: ['Host selection does not match the explicit worker target'] });
-  }
   const workerAlias = invocation.options.worker;
-  if (workerAlias !== 'auto' && !exact) {
-    const selectedBackend = ({ 'claude-code': 'claude', 'codex-cli': 'codex', agy: 'agy' })[selection.target.target_agent];
-    if (workerAlias !== selectedBackend) {
-      return makeReport({ parser, requested, blockers: ['Host selection does not match the legacy worker selector'] });
-    }
-  }
   if (exact && workerAlias !== 'auto') {
     const exactBackend = ({ 'claude-code': 'claude', 'codex-cli': 'codex', agy: 'agy' })[exact.target_agent];
     if (workerAlias !== exactBackend) {
@@ -342,26 +456,45 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
       parser = parserReport();
     }
   }
-  const taskProvider = Object.prototype.hasOwnProperty.call(resolvedTask.constraints, 'provider')
-    ? canonicalProvider(resolvedTask.constraints.provider)
-    : null;
-  if (taskProvider && selection.provider !== taskProvider) {
-    return makeReport({ parser, requested, blockers: ['selected Provider conflicts with the task constraint'] });
-  }
   const strictConstraint = resolvedTask.constraints.strict_target || null;
-  if (strictConstraint && (selection.provider !== strictConstraint.provider
-    || selection.target.target_agent !== strictConstraint.target_agent
-    || selection.target.model_id !== strictConstraint.model_id
-    || (strictConstraint.effort !== undefined && selection.effort !== strictConstraint.effort))) {
-    return makeReport({ parser, requested, blockers: ['Host selection does not match the strict task target'] });
+  const policy = evaluateTargetPolicy({
+    target: selection,
+    role: 'worker',
+    authority: resolvedTask.constraints.authority,
+    constraints: resolvedTask.constraints,
+    invocation,
+    ledger: authorizationLedger,
+    hostAllowedProviders,
+  });
+  if (!policy.allowed) return makeReport({ parser, requested, blockers: [policy.reason] });
+
+  await refreshForSelectedTargets([{ ...policy.target, role: 'worker', authority: resolvedTask.constraints.authority }]);
+  const refreshedPolicy = evaluateTargetPolicy({
+    target: selection,
+    role: 'worker',
+    authority: resolvedTask.constraints.authority,
+    constraints: resolvedTask.constraints,
+    invocation,
+    ledger: authorizationLedger,
+    hostAllowedProviders,
+  });
+  if (!refreshedPolicy.allowed) return makeReport({ parser, requested, blockers: [refreshedPolicy.reason] });
+
+  const authorizedProviders = [...new Set([
+    ...authorizationLedger.providers,
+    ...authorizationLedger.targets.map((grant) => grant.provider),
+  ])];
+  const evidenceSelection = selectCapabilityEvidence(
+    capabilities, selection, 'worker', resolvedTask.constraints.authority, { session_id: sessionId, binding_id: bindingId },
+  );
+  if (evidenceSelection.status === 'blocked') {
+    return makeReport({ parser, requested, blockers: [evidenceSelection.reason] });
   }
-  // --cross-provider opens a later Host interaction; the flag itself does not widen this set.
-  const authorizedProviders = [currentProvider, ...(exact ? [exact.provider] : [])];
   const { taskId } = taskIdentity(resolvedTask);
   let prepared;
   try {
     prepared = prepareDispatch({
-      ...dispatchRequest(resolvedTask, path.resolve(workdir), capabilities, selection, selection.effort, authorizedProviders, capabilities.capability_evidence, { session_id: sessionId, binding_id: bindingId }, Boolean(exact || strictConstraint)),
+      ...dispatchRequest(resolvedTask, path.resolve(workdir), capabilities, selection, selection.effort, authorizedProviders, evidenceSelection.evidence, { session_id: sessionId, binding_id: bindingId }, Boolean(exact || strictConstraint)),
       change: { confirmed: true, change_id: taskId },
     });
   } catch (_) {
@@ -375,6 +508,7 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd() } = {}) {
   const context = {
     invocation, capabilities, decision, resolution: prepared.resolution, workdir,
     execution_binding: { session_id: sessionId, binding_id: bindingId },
+    authorization_ledger: authorizationLedger,
   };
   let outcome;
   let verification;

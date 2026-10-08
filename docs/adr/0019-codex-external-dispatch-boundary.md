@@ -33,3 +33,7 @@ Codex-specific routing and capability metadata must not advertise external
 `agy` or `codex` workers as available. Stale explicit callers remain
 diagnosable through the `UNAVAILABLE` result, while AGY users receive the
 manual workflow linked above and no provider switch occurs implicitly.
+Provider permission is a separate authorization boundary: an explicit user
+answer or target selection cannot create a missing Codex adapter, route, or
+capability, and the Codex-native projections continue to block unsupported
+external dispatch.
