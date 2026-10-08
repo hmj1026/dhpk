@@ -231,5 +231,115 @@
         }
       ]
     }
+  ],
+  "source_mapping_is_execution_evidence": false,
+  "public_scenario_source": "https://github.com/hmj1026/dhpk/issues/917",
+  "acceptance_record": "docs/contracts/flow-drive-acceptance.md",
+  "acceptance_status_contract": {
+    "statuses": [
+      "PASS",
+      "FAIL",
+      "BLOCKED",
+      "NOT_RUN"
+    ],
+    "scope": "Report each requirement and surface independently; test source IDs establish mapping only. PASS requires executed applicable evidence."
+  },
+  "public_scenarios": [
+    {
+      "id": "REQ-01",
+      "scenario": "無選項的小型明確工作",
+      "expected": "不強制問答、planner 或 subAgent；保持當前 Provider，可直接完成並回報驗證。",
+      "requirement": "REQ-01"
+    },
+    {
+      "id": "REQ-02",
+      "scenario": "無選項的多缺陷工作",
+      "expected": "可選擇原生協調；根因未知時先蒐證與診斷，證據不充分的 writer 啟動次數為零。",
+      "requirement": "REQ-02"
+    },
+    {
+      "id": "REQ-03",
+      "scenario": "Host 原生可調用不同供應商",
+      "expected": "未獲允許的 Provider 不因 native Route 而被調用；同 Provider 的不同 Route 不誤標為跨 Provider。",
+      "requirement": "REQ-03"
+    },
+    {
+      "id": "REQ-04",
+      "scenario": "--cross-provider 且選擇一個額外供應商",
+      "expected": "問答確認前沒有外部探測或執行；確認後只考慮已允許集合。",
+      "requirement": "REQ-04"
+    },
+    {
+      "id": "REQ-05",
+      "scenario": "多個供應商選擇",
+      "expected": "多選、單選追加與文字答覆均形成相同允許集合；未選取者沒有執行。",
+      "requirement": "REQ-05"
+    },
+    {
+      "id": "REQ-06",
+      "scenario": "已有明確授權、取消、無答覆或無問答工具",
+      "expected": "不重問已授權事項；沒有新增答覆不增加允許集合，獨立原生工作可繼續。",
+      "requirement": "REQ-06"
+    },
+    {
+      "id": "REQ-07",
+      "scenario": "過時 catalog／profile 與新 Host 能力",
+      "expected": "已驗證的新能力不因缺少靜態條目而受阻；文件宣稱不直接升格為 observed success。",
+      "requirement": "REQ-07"
+    },
+    {
+      "id": "REQ-08",
+      "scenario": "錯誤能力描述、模型偏好、嚴格模型與動態別名",
+      "expected": "可修正描述與調整偏好；嚴格 target 不靜默替換；無法觀察的模型資訊明確標示。",
+      "requirement": "REQ-08"
+    },
+    {
+      "id": "REQ-09",
+      "scenario": "獨立子任務與寫入互斥",
+      "expected": "一項 blocker 不阻塞不依賴它的任務；唯讀可並行，包含 scratch 的 concurrent writer 數不超過一。",
+      "requirement": "REQ-09"
+    },
+    {
+      "id": "REQ-10",
+      "scenario": "角色或獨立審查能力不足",
+      "expected": "可兼任的工作繼續；必要獨立 gate 保持未完成，不以自查或代理名稱宣稱 PASS。",
+      "requirement": "REQ-10"
+    },
+    {
+      "id": "REQ-11",
+      "scenario": "relocation 與輔助有無",
+      "expected": "技能複製到空白 consumer 後可執行必要流程；不需要 sibling skill 或 canonical checkout；有輔助時可重用充分證據。",
+      "requirement": "REQ-11"
+    },
+    {
+      "id": "REQ-12",
+      "scenario": "availability、語意失敗、拒絕、逾時與部分寫入",
+      "expected": "替代維持允許集合與重試上限；拒絕不規避、逾時不產生第二個未對帳 writer，scope 與 diff 可恢復。",
+      "requirement": "REQ-12"
+    },
+    {
+      "id": "REQ-13",
+      "scenario": "自然語言與非互動設定",
+      "expected": "明確 solo／協調與 Provider 限制生效；結構化設定走相同權限契約，不能藉無 UI 擴權。",
+      "requirement": "REQ-13"
+    },
+    {
+      "id": "REQ-14",
+      "scenario": "既有進階呼叫",
+      "expected": "相容參數的成功、notice 與 blocking 行為可辨識；明確外部 target 不授權其他 Provider。",
+      "requirement": "REQ-14"
+    },
+    {
+      "id": "REQ-15",
+      "scenario": "分發與宣稱",
+      "expected": "公開 usage 與 projections 來自 canonical owner；靜態測試、stub 執行、Consumer Evidence 與真 provider runtime 分開報告。",
+      "requirement": "REQ-15"
+    },
+    {
+      "id": "REQ-16",
+      "scenario": "DEV QA 代表案例",
+      "expected": "以去敏、固定事實 fixture 模擬蒐證、雙根因、手冊提案、修復、審查與唯讀合併方案；遵守 PHP、DB、WIP、禁止 commit 與 merge 核准等約束，不觸碰真實 DEV。",
+      "requirement": "REQ-16"
+    }
   ]
 }

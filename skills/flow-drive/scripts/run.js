@@ -172,6 +172,11 @@ function targetMatches(actual, expected) {
 
 function observedTargetIssue(observed, resolved, strictRequested) {
   if (!isRecord(observed)) return null;
+  for (const key of ['provider', 'target_agent', 'model_id', 'effort']) {
+    if (observed[key] !== undefined && observed[key] !== null && typeof observed[key] !== 'string') {
+      return `observed ${key} must be a primitive string or null`;
+    }
+  }
   for (const key of ['provider', 'target_agent']) {
     if (observed[key] !== undefined && observed[key] !== resolved[key]) {
       return `observed ${key} ${observed[key]} does not match resolved ${key} ${resolved[key]}`;

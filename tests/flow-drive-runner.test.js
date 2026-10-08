@@ -15,84 +15,8 @@ const {
   CATALOG,
 } = require('./_lib/flow-drive-runner-fixtures');
 
-function deferred() {
-  let resolve;
-  const promise = new Promise((done) => { resolve = done; });
-  return { promise, resolve };
-}
-
-async function assertSoloPostlaunchCleanupBarrier(failureMode) {
-  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), `flow-drive-solo-cleanup-${failureMode}-`));
-  const first = createRunnerFixture();
-  const second = createRunnerFixture();
-  const baseline = Object.freeze({ identity: `baseline-${failureMode}` });
-  const executeEntered = deferred();
-  const executeGate = deferred();
-  const postEntered = deferred();
-  const postGate = deferred();
-  const postCalls = [];
-  let secondExecutions = 0;
-  let firstPromise;
-  let secondPromise;
-
-  first.host.inspectScope = async (_task, context) => {
-    if (context.phase === 'pre') return baseline;
-    postCalls.push(context);
-    postEntered.resolve();
-    await postGate.promise;
-    return { within_scope: true, wip_preserved: true };
-  };
-  first.host.execute = async () => {
-    executeEntered.resolve();
-    await executeGate.promise;
-    fs.mkdirSync(path.join(workdir, 'src'), { recursive: true });
-    fs.writeFileSync(path.join(workdir, 'src/receipt.js'), 'partial');
-    if (failureMode === 'throw') throw new Error('executor stopped after a partial write');
-    return { status: 'INVALID' };
-  };
-  first.host.stop = async (_task, context) => ({ status: 'STOPPED', task_id: context.request.task_id, attempt_id: context.request.attempt_id });
-  first.host.reconcile = async (_task, context) => ({
-    status: 'PASSED', task_id: context.request.task_id, attempt_id: context.request.attempt_id,
-    baseline_id: baseline.identity, scope_contained: true, wip_preserved: true, diff_verified: true,
-    attributable_changes: ['src/receipt.js'], unconfirmed: ['src/receipt.js'], remaining: [], out_of_scope: [],
-  });
-  second.host.execute = async () => {
-    secondExecutions += 1;
-    return { status: 'SUCCEEDED', observed_target: { ...DEFAULT_TARGET } };
-  };
-
-  try {
-    firstPromise = runFlowDrive(['Exercise solo cleanup.'], { host: first.host, workdir });
-    await executeEntered.promise;
-    secondPromise = runFlowDrive(['Queue the next solo writer.'], { host: second.host, workdir });
-    await new Promise((resolve) => setImmediate(resolve));
-    executeGate.resolve();
-
-    const cleanupStarted = await Promise.race([
-      postEntered.promise.then(() => true),
-      new Promise((resolve) => setTimeout(() => resolve(false), 250)),
-    ]);
-    assert.strictEqual(cleanupStarted, true, 'postlaunch failure must still inspect the writer scope');
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.strictEqual(secondExecutions, 0, 'the next writer must wait for post-scope inspection');
-    assert.strictEqual(postCalls.length, 1, 'post-scope inspection must run exactly once');
-    assert.strictEqual(postCalls[0].baseline, baseline, 'post-scope inspection must receive the prelaunch baseline');
-
-    postGate.resolve();
-    const firstReport = await firstPromise;
-    await secondPromise;
-    assert.notStrictEqual(firstReport.acceptance.status, 'PASSED');
-    assert.ok(secondExecutions > 0, 'the queued writer should continue after scope inspection completes');
-  } finally {
-    executeGate.resolve();
-    postGate.resolve();
-    await Promise.allSettled([firstPromise, secondPromise].filter(Boolean));
-    first.cleanup();
-    second.cleanup();
-    fs.rmSync(workdir, { recursive: true, force: true });
-  }
-}
-
+const { assertPostlaunchCleanupBarrier } = require('./_lib/flow-drive-cleanup-fixtures');
+const assertSoloPostlaunchCleanupBarrier = (failureMode) => assertPostlaunchCleanupBarrier('solo', failureMode);
 test('a quoted task is exposed as task input while preserving the legacy change ID', () => {
   const task = 'Fix the receipt total and verify the displayed balance.';
   const parsed = parseInvocation([task]);
@@ -119,7 +43,7 @@ test('the invocation parser rejects multiple positional task inputs', () => {
 
 test('a native task reaches the executor and reports parser, execution, and acceptance separately', async () => {
   const fixture = createRunnerFixture();
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
 
   assert.strictEqual(report.status, 'REPORTED');
   assert.strictEqual(report.parser.status, 'ready');
@@ -130,7 +54,7 @@ test('a native task reaches the executor and reports parser, execution, and acce
   assert.strictEqual(report.targets.resolved.route, 'native');
   assert.strictEqual(report.targets.observed.model_id, 'gpt-6-luna');
   assert.deepStrictEqual(fixture.calls.find((call) => call.method === 'resolveTask').input, 'Fix the receipt total.');
-  assert.deepStrictEqual(fixture.calls.find((call) => call.method === 'resolveTask').context, { workdir: '/repo' });
+  assert.deepStrictEqual(fixture.calls.find((call) => call.method === 'resolveTask').context, { workdir: fixture.workdir });
   const executedTarget = fixture.calls.find((call) => call.method === 'execute').target;
   assert.deepStrictEqual({
     provider: executedTarget.provider,
@@ -169,7 +93,7 @@ test('bound Host capability evidence can resolve a target absent from a stale ca
       route: 'native', transport: 'native-runtime',
     },
   });
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
   assert.strictEqual(report.status, 'REPORTED');
   assert.strictEqual(report.execution.status, 'SUCCEEDED');
   assert.strictEqual(report.acceptance.status, 'PASSED');
@@ -182,7 +106,7 @@ test('a contradictory observed Provider blocks acceptance', async () => {
   const fixture = createRunnerFixture({
     outcome: { status: 'SUCCEEDED', observed_target: { target_agent: 'codex-cli', provider: 'anthropic', model_id: 'gpt-6-luna' } },
   });
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
   assert.strictEqual(report.execution.status, 'SUCCEEDED');
   assert.strictEqual(report.acceptance.status, 'BLOCKED');
   assert.ok(report.blockers.some((blocker) => blocker.includes('observed provider')));
@@ -199,7 +123,7 @@ test('runner blocks capability evidence bound to another session', async () => {
       host: 'codex-cli', target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-6-luna', role: 'worker', authority: 'workspace-write', effort: 'max', effort_binding: 'parameter', route: 'native', transport: 'native-runtime',
     },
   });
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
   assert.strictEqual(report.status, 'BLOCKED');
   assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
 });
@@ -208,7 +132,7 @@ test('an executor success remains distinct from a failed acceptance check', asyn
   const fixture = createRunnerFixture({
     acceptance: { status: 'FAILED', evidence: 'the displayed total is 19, expected 20' },
   });
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
 
   assert.strictEqual(report.status, 'REPORTED');
   assert.strictEqual(report.execution.status, 'SUCCEEDED');
@@ -221,7 +145,7 @@ test('a successful verifier result cannot pass a failed execution', async () => 
     outcome: { status: 'FAILED', observed_target: { provider: 'openai', model_id: 'gpt-6-luna' } },
     acceptance: { status: 'PASSED', evidence: 'the final state appears correct' },
   });
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
 
   assert.strictEqual(report.execution.status, 'FAILED');
   assert.strictEqual(report.acceptance.status, 'BLOCKED');
@@ -230,7 +154,7 @@ test('a successful verifier result cannot pass a failed execution', async () => 
 
 test('a successful verifier without evidence cannot produce accepted status', async () => {
   const fixture = createRunnerFixture({ acceptance: { status: 'PASSED' } });
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
 
   assert.strictEqual(report.execution.status, 'SUCCEEDED');
   assert.strictEqual(report.acceptance.status, 'BLOCKED');
@@ -272,7 +196,7 @@ test('an external provider selection is blocked when --cross-provider has no exa
   });
   const report = await runFlowDrive(['Fix the receipt total.', '--cross-provider'], {
     host: fixture.host,
-    workdir: '/repo',
+    workdir: fixture.workdir,
   });
 
   assert.strictEqual(report.status, 'BLOCKED');
@@ -306,7 +230,7 @@ test('an exact external target resolves only when the task constraint permits th
   });
   const report = await runFlowDrive(['#918', '--worker-target=codex/gpt-6-luna:high'], {
     host: fixture.host,
-    workdir: '/repo',
+    workdir: fixture.workdir,
   });
 
   assert.strictEqual(report.status, 'REPORTED');
@@ -325,7 +249,7 @@ test('an exact alternate target tuple remains within the current Provider', asyn
   });
   const report = await runFlowDrive(['Fix the receipt total.', '--worker-target=codex/gpt-6-luna:high'], {
     host: fixture.host,
-    workdir: '/repo',
+    workdir: fixture.workdir,
   });
 
   assert.strictEqual(report.status, 'REPORTED');
@@ -345,7 +269,7 @@ test('a task Provider constraint takes precedence over an exact legacy worker ta
   });
   const report = await runFlowDrive(['Fix the receipt total.', '--worker-target=claude/claude-opus-5-5:max'], {
     host: fixture.host,
-    workdir: '/repo',
+    workdir: fixture.workdir,
   });
 
   assert.strictEqual(report.status, 'BLOCKED');
@@ -360,7 +284,7 @@ test('an unknown Provider is not inferred from a known Target Agent', async () =
       mode: 'solo',
     },
   });
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
 
   assert.strictEqual(report.status, 'BLOCKED');
   assert.strictEqual(report.blockers[0], 'Host coordination did not select a valid target');
@@ -369,7 +293,7 @@ test('an unknown Provider is not inferred from a known Target Agent', async () =
 
 test('an unresolved task reports missing acceptance and does not start dispatch', async () => {
   const fixture = createRunnerFixture({ task: { goal: DEFAULT_TASK.goal, acceptance: [], constraints: {} } });
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
 
   assert.strictEqual(report.status, 'BLOCKED');
   assert.strictEqual(report.parser.status, 'ready');
@@ -382,7 +306,7 @@ test('a write task without an assigned file scope is blocked before capability l
   const fixture = createRunnerFixture({
     task: { ...DEFAULT_TASK, constraints: { authority: 'workspace-write', assigned_files: [] } },
   });
-  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
 
   assert.strictEqual(report.status, 'BLOCKED');
   assert.deepStrictEqual(report.blockers, ['task a non-empty write scope assigned_files constraint is missing']);
@@ -393,7 +317,7 @@ test('read-only tasks remain read-only when no authority is supplied', async () 
   const fixture = createRunnerFixture({
     task: { ...DEFAULT_TASK, constraints: { provider: 'openai' } },
   });
-  const report = await runFlowDrive(['Inspect the receipt total.'], { host: fixture.host, workdir: '/repo' });
+  const report = await runFlowDrive(['Inspect the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
   const dispatchRequest = fixture.calls.find((call) => call.method === 'execute').context.resolution.request;
 
   assert.strictEqual(report.execution.status, 'SUCCEEDED');
@@ -401,10 +325,19 @@ test('read-only tasks remain read-only when no authority is supplied', async () 
   assert.deepStrictEqual(dispatchRequest.scope.assigned_files, []);
 });
 
+test('a writer with a missing physical workspace is blocked before execution without recovery', async () => {
+  const fixture = createRunnerFixture();
+  try {
+    const report = await runFlowDrive(['Write in the assigned scope.'], { host: fixture.host, workdir: path.join(fixture.workdir, 'missing') });
+    assert.strictEqual(report.execution.status, 'BLOCKED');
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
+  } finally { fixture.cleanup(); }
+});
+
 test('file and specification inputs reach Host task resolution unchanged', async () => {
   const fixture = createRunnerFixture();
-  await runFlowDrive(['/tmp/confirmed-task.md'], { host: fixture.host, workdir: '/repo' });
-  await runFlowDrive(['#918'], { host: fixture.host, workdir: '/repo' });
+  await runFlowDrive(['/tmp/confirmed-task.md'], { host: fixture.host, workdir: fixture.workdir });
+  await runFlowDrive(['#918'], { host: fixture.host, workdir: fixture.workdir });
 
   assert.deepStrictEqual(fixture.calls.filter((call) => call.method === 'resolveTask').map((call) => call.input), [
     '/tmp/confirmed-task.md',
@@ -417,7 +350,7 @@ test('unsupported advanced selection returns a migration notice instead of being
     const fixture = createRunnerFixture();
     const report = await runFlowDrive(['Fix the receipt total.', option], {
       host: fixture.host,
-      workdir: '/repo',
+      workdir: fixture.workdir,
     });
 
     assert.strictEqual(report.status, 'BLOCKED', option);
@@ -431,7 +364,7 @@ test('--no-architect remains a notice-only compatibility option', async () => {
   const fixture = createRunnerFixture();
   const report = await runFlowDrive(['Fix the receipt total.', '--no-architect'], {
     host: fixture.host,
-    workdir: '/repo',
+    workdir: fixture.workdir,
   });
 
   assert.strictEqual(report.status, 'REPORTED');
@@ -442,7 +375,7 @@ test('retired --codex remains a blocking parser diagnostic', async () => {
   const fixture = createRunnerFixture();
   const report = await runFlowDrive(['Fix the receipt total.', '--codex'], {
     host: fixture.host,
-    workdir: '/repo',
+    workdir: fixture.workdir,
   });
 
   assert.strictEqual(report.status, 'BLOCKED');

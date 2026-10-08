@@ -63,7 +63,13 @@ Task constraints default to `authority: "read-only"`. A
 `"workspace-write"` task must include non-empty, safe relative
 `assigned_files`. The Host supplies `constraints.prompt_evidence` pointing to
 the actual input file together with its device, inode, and SHA-256; the runner
-checks the file identity and content before dispatch. A canonical task
+checks the file identity and content before dispatch. For raw task text, the
+Host must materialize that text as a physical prompt file under its authorized
+input-preparation scope before returning the write contract from `resolveTask`.
+If the Host cannot provide that file and binding, the writer remains blocked;
+the caller can supply a task file instead. Read-only task text requires no
+physical prompt file. The runner does not create a prompt file or grant the
+Host permission to write one. A canonical task
 `provider` constraint takes precedence over legacy target flags. An exact
 `--worker-target` grants only its selected Worker Provider/Agent/Model and
 optional Effort tuple; it does not authorize that Provider for other Roles.
