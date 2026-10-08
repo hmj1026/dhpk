@@ -104,13 +104,37 @@ selection context without deriving scope from its work mode.
 ## Native dispatch baseline
 
 Planner, reasoner, worker, and reviewer share one native-only dispatch baseline.
-Automatic dispatch considers only the native Claude candidate by default and
+Automatic dispatch considers the Host Profile's actual native Provider by default and
 MUST NOT probe, authenticate, launch, or otherwise discover an external CLI
 when cross-provider dispatch is disabled. An explicitly requested external
 target remains directional. The public `cross_provider` option is `false` by
 default and resolves as `--cross-provider` (one-shot enable) > project
 pluginConfig > installed user pluginConfig > `false`; workspace-local settings
 are preferred over the global settings file.
+
+Flow Drive accepts a task with confirmed goal and acceptance while its root
+cause may remain unknown. Dependent writes require actual READY_FOR_DISPATCH
+evidence. Independent read-only work may continue; code, tests, and scratch
+share one writer lease. Interrupted or uncertain writers must be stopped and
+reconciled before another writer starts. Required review independence is
+established by observed agent identity, not role labels or self-review.
+
+For Flow Drive, `--cross-provider` opens a provider-scope question and grants
+no permission by itself. Initial capability discovery disables external
+probes. Answered Host consent or root-supplied `authorizationEvidence` requires
+a nonblank answer ID; retain only its sanitized ID. Cancellation, no answer,
+and missing question tools create no additional grant. An exact worker target
+grants only its Provider/Agent/Model and optional Effort tuple for that role.
+After side-effect-free coordination, refresh only selected, authorized
+Provider/Agent/Model/Effort/Role/authority tuples. Host policy, task constraints,
+current binding, and matching capability evidence remain mandatory.
+
+Current bound Host capabilities may establish an executable target absent from
+the static catalog, without declaring a new formally supported combination.
+Requested, resolved, and observed identities remain separate; unknown models
+or effort stay null. Preserve strict targets, Host refusals, assigned scope,
+WIP, and invocation-wide retry limits. Stub and relocation PASS do not prove
+live Host/Provider runtime or release readiness.
 
 ## Failure classification and fallback chain
 
