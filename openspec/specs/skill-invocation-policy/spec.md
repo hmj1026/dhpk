@@ -263,6 +263,12 @@ Marketplace publication SHALL retain each selected inventory public name, stable
 Flow Drive SHALL accept one explicitly invoked task text, task file, or
 confirmed specification/change identifier. Host resolution SHALL establish a
 bounded goal, acceptance, constraints, and assigned scope before execution.
+For workspace-write task text, the Host SHALL materialize a physical prompt
+file under already authorized input-preparation scope and bind its device,
+inode, and SHA-256 before returning the resolved task contract. If that
+preparation is unavailable, execution SHALL remain blocked until a bound task
+file is supplied. Read-only task text MAY resolve without a physical prompt
+file. The runner SHALL NOT infer preparation write authority from task text.
 An unknown cause MAY trigger read-only evidence and diagnosis within that
 settled outcome; dependent writes SHALL wait for sufficient attributable cause,
 repair, and verification evidence. Task text SHALL NOT grant external Provider,

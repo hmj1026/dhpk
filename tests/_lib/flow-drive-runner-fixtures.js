@@ -87,6 +87,7 @@ function createRunnerFixture({
   return {
     host,
     calls,
+    workdir: evidenceRoot,
     cleanup() {
       EVIDENCE_ROOTS.delete(evidenceRoot);
       fs.rmSync(evidenceRoot, { recursive: true, force: true });

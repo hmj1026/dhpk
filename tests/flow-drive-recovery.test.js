@@ -689,7 +689,7 @@ test('solo recovery shares the public attempt lifecycle and retains parent accep
 });
 
 test('recovery blocks assigned symlinks and symlink ancestors before any executor call', async () => {
-  for (const ancestor of [false, true]) {
+  for (const recovery of [undefined, { retryBudget: 1 }]) for (const ancestor of [false, true]) {
     const workdir = makeWorkdir('symlink-workspace');
     const outside = makeWorkdir('symlink-outside');
     fs.writeFileSync(path.join(outside, 'receipt.js'), 'outside WIP');
@@ -701,7 +701,7 @@ test('recovery blocks assigned symlinks and symlink ancestors before any executo
     let executed = 0;
     fixture.host.execute = async () => { executed += 1; fs.writeFileSync(path.join(workdir, assigned), 'damaged'); return { status: 'FAILED' }; };
     try {
-      const report = await runFlowDrive(['Write within physical scope.'], { host: fixture.host, workdir, recovery: { retryBudget: 1 } });
+      const report = await runFlowDrive(['Write within physical scope.'], { host: fixture.host, workdir, recovery });
       assert.strictEqual(executed, 0);
       assert.notStrictEqual(report.acceptance.status, 'PASSED');
       assert.strictEqual(fs.readFileSync(path.join(outside, 'receipt.js'), 'utf8'), 'outside WIP');

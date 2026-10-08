@@ -86,117 +86,129 @@ async function executeAttempt({ task, prepared, host, context, recoveryState, wr
       let interrupted = false;
       let unknownLifecycle = false;
       let stopped = false;
+      let launched = false;
       const control = (fn) => bounded(fn, recoveryState ? recoveryState.controlTimeoutMs : 5000);
       try {
-        if (writer) {
-          if (typeof host.inspectScope !== 'function') return finish('BLOCKED', null, null, 'writer scope inspection is required');
-          baseline = await control(() => host.inspectScope(activeTask, { ...attemptContext, phase: 'pre', node: context.node }));
-          try {
-            validateAssignedPaths(context.workdir, request.scope.assigned_files);
-            physicalBefore = captureScope(context.workdir);
-          } catch (error) { if (recoveryState) throw error; }
-        }
-        if (!verifyPromptEvidence(activeTask.constraints.prompt_evidence)) return finish('BLOCKED', null, null, 'prompt evidence changed before execution');
-      } catch (_) { return finish('BLOCKED', null, null, 'pre-execution scope evidence is unavailable'); }
-
-      // The owner remains active through every post-launch hook. A deadline
-      // stops waiting but cannot release ownership of an unconfirmed writer.
-      try {
-        const pending = () => Promise.resolve().then(() => host.execute(resolution.target, activeTask, attemptContext))
-          .catch(() => { unknownLifecycle = true; return { status: 'FAILED', failure_class: FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE, side_effects: 'unknown' }; });
-        try { outcome = await bounded(pending, recoveryState && recoveryState.executionTimeoutMs || undefined); }
-        catch (_) { outcome = { status: 'TIMEOUT', failure_class: FAILURE_CLASSES.TIMEOUT_OR_INTERRUPTION, side_effects: 'unknown' }; }
-        if (!outcome || typeof outcome !== 'object' || !['SUCCEEDED', 'FAILED', 'BLOCKED', 'TIMEOUT', 'INTERRUPTED'].includes(outcome.status)) {
-          unknownLifecycle = true;
-          outcome = { status: 'BLOCKED', failure_class: FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE, side_effects: 'unknown' };
-        }
-        interrupted = failureClass(outcome) === FAILURE_CLASSES.TIMEOUT_OR_INTERRUPTION && outcome.status !== 'SUCCEEDED';
-        if (interrupted || unknownLifecycle) {
-          try {
-            const proof = await control(() => typeof host.stop === 'function' ? host.stop(activeTask, attemptContext) : null);
-            stopped = matching(proof, request) && proof.status === 'STOPPED';
-          } catch (_) { stopped = false; }
-        }
-        try { verification = await control(() => host.verify(activeTask, outcome, attemptContext)); }
-        catch (_) { verification = null; if (!recoveryState) outcome = { ...outcome, status: 'FAILED' }; }
-        observedIssue = observedTargetIssue(outcome.observed_target, resolution.target, strictTarget);
-      } finally {
-        if (writer) {
-          try {
-            const post = await control(() => host.inspectScope(activeTask, { ...attemptContext, phase: 'post', baseline, outcome }));
-            if (!post || post.within_scope !== true || post.wip_preserved !== true) scopeIssue = 'writer scope inspection did not prove assigned changes and WIP preservation';
-            if (physicalBefore && (recoveryState || interrupted || unknownLifecycle)) {
-              diff = scopeDiff(physicalBefore, captureScope(context.workdir), request.scope.assigned_files);
-              if (diff.out_of_scope.length) scopeIssue = 'writer changed files outside assigned scope';
-            }
-          } catch (_) { scopeIssue = 'writer scope inspection failed after execution'; }
-        }
-      }
-      const acceptedEvidence = verification && verification.status === 'PASSED'
-        && typeof verification.evidence === 'string' && verification.evidence.trim() !== '';
-      const failedClass = outcome.status === 'SUCCEEDED' && acceptedEvidence ? null : failureClass(outcome);
-      let effects = ['none', 'observed', 'unknown'].includes(outcome.side_effects) ? outcome.side_effects : 'unknown';
-      if (diff && diff.changed.length) effects = 'observed';
-      if (effects === 'observed') retainedEffects = 'observed';
-      else if (effects === 'unknown' && retainedEffects !== 'observed') retainedEffects = 'unknown';
-      const passed = outcome.status === 'SUCCEEDED' && verification && verification.status === 'PASSED'
-        && typeof verification.evidence === 'string' && verification.evidence.trim() !== '' && !scopeIssue && !observedIssue;
-      if ((interrupted || unknownLifecycle) && (!writer || stopped) && !scopeIssue && (!writer || diff)) {
         try {
-          const proof = await control(() => typeof host.reconcile === 'function'
-            ? host.reconcile(activeTask, { ...attemptContext, baseline, outcome }) : null);
-          reconciliation = reconcileProof(proof, request, baseline || {}, diff || { changed: [], out_of_scope: [] });
-        } catch (_) { reconciliation = null; }
-      } else if (recoveryState && failedClass === FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE && !scopeIssue && (!writer || diff)) {
-        const assigned = request.scope.assigned_files;
-        const changed = diff ? diff.changed : [];
-        reconciliation = cloneAndFreezeTaskValue({ status: 'PASSED', task_id: request.task_id, attempt_id: request.attempt_id,
-          baseline_id: baseline && baseline.identity || 'read-only', scope_contained: true, wip_preserved: true, diff_verified: true,
-          attributable_changes: changed, unconfirmed: changed, remaining: assigned.filter((file) => !changed.includes(file)), out_of_scope: [],
-          completion_ledger: deriveCompletionLedger({ assignedFiles: assigned, changedFiles: changed }) });
+          if (writer) {
+            if (typeof host.inspectScope !== 'function') return finish('BLOCKED', null, null, 'writer scope inspection is required');
+            baseline = await control(() => host.inspectScope(activeTask, { ...attemptContext, phase: 'pre', node: context.node }));
+            validateAssignedPaths(context.workdir, request.scope.assigned_files);
+            try {
+              physicalBefore = captureScope(context.workdir);
+            } catch (error) { if (recoveryState) throw error; }
+          }
+          if (!verifyPromptEvidence(activeTask.constraints.prompt_evidence)) return finish('BLOCKED', null, null, 'prompt evidence changed before execution');
+        } catch (_) { return finish('BLOCKED', null, null, 'pre-execution scope evidence is unavailable'); }
+
+        // The owner remains active through every post-launch hook. A deadline
+        // stops waiting but cannot release ownership of an unconfirmed writer.
+        try {
+          launched = true;
+          unknownLifecycle = true;
+          const pending = () => Promise.resolve().then(() => host.execute(resolution.target, activeTask, attemptContext))
+            .catch(() => { unknownLifecycle = true; return { status: 'FAILED', failure_class: FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE, side_effects: 'unknown' }; });
+          try { outcome = await bounded(pending, recoveryState && recoveryState.executionTimeoutMs || undefined); }
+          catch (_) { outcome = { status: 'TIMEOUT', failure_class: FAILURE_CLASSES.TIMEOUT_OR_INTERRUPTION, side_effects: 'unknown' }; }
+          if (!outcome || typeof outcome !== 'object' || !['SUCCEEDED', 'FAILED', 'BLOCKED', 'TIMEOUT', 'INTERRUPTED'].includes(outcome.status)) {
+            unknownLifecycle = true;
+            outcome = { status: 'BLOCKED', failure_class: FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE, side_effects: 'unknown' };
+          } else if (!['TIMEOUT', 'INTERRUPTED'].includes(outcome.status) && outcome.side_effects !== 'unknown') {
+            unknownLifecycle = false;
+          }
+          interrupted = failureClass(outcome) === FAILURE_CLASSES.TIMEOUT_OR_INTERRUPTION && outcome.status !== 'SUCCEEDED';
+          if (interrupted || unknownLifecycle) {
+            try {
+              const proof = await control(() => typeof host.stop === 'function' ? host.stop(activeTask, attemptContext) : null);
+              stopped = matching(proof, request) && proof.status === 'STOPPED';
+            } catch (_) { stopped = false; }
+          }
+          try { verification = await control(() => host.verify(activeTask, outcome, attemptContext)); }
+          catch (_) { verification = null; if (!recoveryState) outcome = { ...outcome, status: 'FAILED' }; }
+          observedIssue = observedTargetIssue(outcome.observed_target, resolution.target, strictTarget);
+        } finally {
+          if (writer) {
+            try {
+              const post = await control(() => host.inspectScope(activeTask, { ...attemptContext, phase: 'post', baseline, outcome }));
+              if (!post || post.within_scope !== true || post.wip_preserved !== true) scopeIssue = 'writer scope inspection did not prove assigned changes and WIP preservation';
+              if (physicalBefore && (recoveryState || interrupted || unknownLifecycle)) {
+                diff = scopeDiff(physicalBefore, captureScope(context.workdir), request.scope.assigned_files);
+                if (diff.out_of_scope.length) scopeIssue = 'writer changed files outside assigned scope';
+              }
+            } catch (_) { scopeIssue = 'writer scope inspection failed after execution'; }
+          }
+        }
+        const acceptedEvidence = verification && verification.status === 'PASSED'
+          && typeof verification.evidence === 'string' && verification.evidence.trim() !== '';
+        const failedClass = outcome.status === 'SUCCEEDED' && acceptedEvidence ? null : failureClass(outcome);
+        let effects = ['none', 'observed', 'unknown'].includes(outcome.side_effects) ? outcome.side_effects : 'unknown';
+        if (diff && diff.changed.length) effects = 'observed';
+        if (effects === 'observed') retainedEffects = 'observed';
+        else if (effects === 'unknown' && retainedEffects !== 'observed') retainedEffects = 'unknown';
+        const passed = outcome.status === 'SUCCEEDED' && verification && verification.status === 'PASSED'
+          && typeof verification.evidence === 'string' && verification.evidence.trim() !== '' && !scopeIssue && !observedIssue;
+        if ((interrupted || unknownLifecycle) && (!writer || stopped) && !scopeIssue && (!writer || diff)) {
+          try {
+            const proof = await control(() => typeof host.reconcile === 'function'
+              ? host.reconcile(activeTask, { ...attemptContext, baseline, outcome }) : null);
+            reconciliation = reconcileProof(proof, request, baseline || {}, diff || { changed: [], out_of_scope: [] });
+          } catch (_) { reconciliation = null; }
+        } else if (recoveryState && failedClass === FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE && !scopeIssue && (!writer || diff)) {
+          const assigned = request.scope.assigned_files;
+          const changed = diff ? diff.changed : [];
+          reconciliation = cloneAndFreezeTaskValue({ status: 'PASSED', task_id: request.task_id, attempt_id: request.attempt_id,
+            baseline_id: baseline && baseline.identity || 'read-only', scope_contained: true, wip_preserved: true, diff_verified: true,
+            attributable_changes: changed, unconfirmed: changed, remaining: assigned.filter((file) => !changed.includes(file)), out_of_scope: [],
+            completion_ledger: deriveCompletionLedger({ assignedFiles: assigned, changedFiles: changed }) });
+        }
+        // Ownership safety precedes receipts and other fallible presentation.
+        if (writer && (interrupted || unknownLifecycle) && (!stopped || !reconciliation || scopeIssue) && owner) owner.suspend();
+        const receipt = createDispatchReceipt({ receipt_id: `receipt-${request.attempt_id}`, request, target: resolution.target,
+          allow_unknown_effort: resolution.target.effort === null,
+          ...(resolution.capability && resolution.capability.kind === 'host-executable-capability' ? { capability_evidence: resolution.capability } : {}),
+          status: outcome.status === 'INTERRUPTED' ? 'TIMEOUT' : outcome.status,
+          failure_class: failedClass, side_effects: effects, verification: passed ? 'PASSED' : interrupted ? 'RECONCILIATION_REQUIRED' : 'BLOCKED' });
+        attempts.push(cloneAndFreezeTaskValue({ receipt, observed_target: outcome.observed_target ? {
+          provider: outcome.observed_target.provider || null, target_agent: outcome.observed_target.target_agent || null,
+          model_id: outcome.observed_target.model_id || null, effort: outcome.observed_target.effort || null,
+        } : null, remaining_budget: recoveryState ? recoveryState.remaining : 0,
+        side_effects: retainedEffects, ...(reconciliation ? { reconciliation } : {}) }));
+        if (writer && (interrupted || unknownLifecycle) && (!stopped || !reconciliation || scopeIssue)) {
+          return finish('BLOCKED', outcome, verification, 'RECONCILIATION_REQUIRED: old writer stop and scope evidence are incomplete');
+        }
+        if (passed) return finish('SUCCEEDED', outcome, verification);
+        if (recoveryState && writer && scopeIssue && owner) owner.suspend();
+        if (scopeIssue || observedIssue) return finish('BLOCKED', outcome, verification, scopeIssue || observedIssue);
+        if (!recoveryState || recoveryState.remaining === 0 || !failedClass
+            || [FAILURE_CLASSES.SAFETY_OR_USER_DENIAL, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT].includes(failedClass)
+            || (request.strict_target && [FAILURE_CLASSES.CLI_UNAVAILABLE, FAILURE_CLASSES.AUTHENTICATION_OR_MODEL_UNAVAILABLE].includes(failedClass))
+            || typeof host.recover !== 'function') return finish('FAILED', outcome, verification, verification && verification.status === 'PASSED'
+              ? 'acceptance requires successful execution and non-empty verification evidence'
+              : failedClass || 'acceptance remains blocked', reconciliation);
+        let selection;
+        try { selection = await control(() => host.recover(activeTask, { ...attemptContext, failure_class: failedClass,
+          receipt, reconciliation, remaining_budget: recoveryState.remaining })); }
+        catch (_) { return finish('BLOCKED', outcome, verification, 'recovery control did not return a decision', reconciliation); }
+        if (!selection || !['substitute', 'repair', 'resume'].includes(selection.action)) return finish('BLOCKED', outcome, verification, 'recovery stopped', reconciliation);
+        let candidate;
+        try { candidate = await control(() => validateCandidate(selection.target, activeTask, request, reconciliation)); }
+        catch (_) { candidate = null; }
+        if (!candidate) return finish('BLOCKED', outcome, verification, 'recovery target is unauthorized or unavailable', reconciliation);
+        const decision = decideFallback({ request, resolution, failureClass: failedClass, sideEffects: effects,
+          catalog: context.capabilities.catalog, candidate_request: candidate.request, reconciliation, recovery_action: selection.action });
+        if (decision.status !== 'FALLBACK') return finish('BLOCKED', outcome, verification, decision.reason, reconciliation);
+        if (recoveryState.remaining <= 0) return finish('BLOCKED', outcome, verification, 'shared recovery retry budget is exhausted', reconciliation);
+        recoveryState.remaining -= 1;
+        const nextRequest = createDispatchRequest({ ...decision.next_request, attempt_id: `flow-drive-attempt-${crypto.randomUUID()}`,
+          fallback: { allow: true, retry_budget: recoveryState.remaining } });
+        activeTask = cloneAndFreezeTaskValue({ ...activeTask, constraints: { ...activeTask.constraints, assigned_files: [...nextRequest.scope.assigned_files] } });
+        activePrepared = { ...candidate, request: nextRequest, resolution: { ...decision.resolution, request: nextRequest } };
+        context = { ...context, verified_completed: reconciliation && reconciliation.completion_ledger.confirmed || [] };
+      } catch (_) {
+        return finish('BLOCKED', outcome, verification, `${interrupted || unknownLifecycle ? 'RECONCILIATION_REQUIRED: ' : ''}post-execution evidence is unavailable`);
+      } finally {
+        if (writer && launched && (interrupted || unknownLifecycle) && (!stopped || !reconciliation || scopeIssue) && owner) owner.suspend();
       }
-      const receipt = createDispatchReceipt({ receipt_id: `receipt-${request.attempt_id}`, request, target: resolution.target,
-        allow_unknown_effort: resolution.target.effort === null,
-        ...(resolution.capability && resolution.capability.kind === 'host-executable-capability' ? { capability_evidence: resolution.capability } : {}),
-        status: outcome.status === 'INTERRUPTED' ? 'TIMEOUT' : outcome.status,
-        failure_class: failedClass, side_effects: effects, verification: passed ? 'PASSED' : interrupted ? 'RECONCILIATION_REQUIRED' : 'BLOCKED' });
-      attempts.push(cloneAndFreezeTaskValue({ receipt, observed_target: outcome.observed_target ? {
-        provider: outcome.observed_target.provider || null, target_agent: outcome.observed_target.target_agent || null,
-        model_id: outcome.observed_target.model_id || null, effort: outcome.observed_target.effort || null,
-      } : null, remaining_budget: recoveryState ? recoveryState.remaining : 0,
-      side_effects: retainedEffects, ...(reconciliation ? { reconciliation } : {}) }));
-      if (writer && (interrupted || unknownLifecycle) && (!stopped || !reconciliation || scopeIssue)) {
-        if (owner) owner.suspend();
-        return finish('BLOCKED', outcome, verification, 'RECONCILIATION_REQUIRED: old writer stop and scope evidence are incomplete');
-      }
-      if (passed) return finish('SUCCEEDED', outcome, verification);
-      if (recoveryState && writer && scopeIssue && owner) owner.suspend();
-      if (scopeIssue || observedIssue) return finish('BLOCKED', outcome, verification, scopeIssue || observedIssue);
-      if (!recoveryState || recoveryState.remaining === 0 || !failedClass
-          || [FAILURE_CLASSES.SAFETY_OR_USER_DENIAL, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT].includes(failedClass)
-          || (request.strict_target && [FAILURE_CLASSES.CLI_UNAVAILABLE, FAILURE_CLASSES.AUTHENTICATION_OR_MODEL_UNAVAILABLE].includes(failedClass))
-          || typeof host.recover !== 'function') return finish('FAILED', outcome, verification, verification && verification.status === 'PASSED'
-            ? 'acceptance requires successful execution and non-empty verification evidence'
-            : failedClass || 'acceptance remains blocked', reconciliation);
-      let selection;
-      try { selection = await control(() => host.recover(activeTask, { ...attemptContext, failure_class: failedClass,
-        receipt, reconciliation, remaining_budget: recoveryState.remaining })); }
-      catch (_) { return finish('BLOCKED', outcome, verification, 'recovery control did not return a decision', reconciliation); }
-      if (!selection || !['substitute', 'repair', 'resume'].includes(selection.action)) return finish('BLOCKED', outcome, verification, 'recovery stopped', reconciliation);
-      let candidate;
-      try { candidate = await control(() => validateCandidate(selection.target, activeTask, request, reconciliation)); }
-      catch (_) { candidate = null; }
-      if (!candidate) return finish('BLOCKED', outcome, verification, 'recovery target is unauthorized or unavailable', reconciliation);
-      const decision = decideFallback({ request, resolution, failureClass: failedClass, sideEffects: effects,
-        catalog: context.capabilities.catalog, candidate_request: candidate.request, reconciliation, recovery_action: selection.action });
-      if (decision.status !== 'FALLBACK') return finish('BLOCKED', outcome, verification, decision.reason, reconciliation);
-      if (recoveryState.remaining <= 0) return finish('BLOCKED', outcome, verification, 'shared recovery retry budget is exhausted', reconciliation);
-      recoveryState.remaining -= 1;
-      const nextRequest = createDispatchRequest({ ...decision.next_request, attempt_id: `flow-drive-attempt-${crypto.randomUUID()}`,
-        fallback: { allow: true, retry_budget: recoveryState.remaining } });
-      activeTask = cloneAndFreezeTaskValue({ ...activeTask, constraints: { ...activeTask.constraints, assigned_files: [...nextRequest.scope.assigned_files] } });
-      activePrepared = { ...candidate, request: nextRequest, resolution: { ...decision.resolution, request: nextRequest } };
-      context = { ...context, verified_completed: reconciliation && reconciliation.completion_ledger.confirmed || [] };
     }
   };
   try { return await (writer && !writerLease ? withWriterLease(run) : run(writerLease)); }

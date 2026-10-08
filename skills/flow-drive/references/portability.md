@@ -24,6 +24,14 @@ catalog only when bound to this Host session, executor binding, target, role,
 and authority. Moving the Skill preserves those checks and does not grant a
 Provider, model, or tool.
 
+Raw text remains valid input. Before `resolveTask` returns a workspace-write
+contract, the Host must materialize the text into a physical prompt file under
+already authorized input-preparation scope and bind its device, inode, and
+SHA-256 in `constraints.prompt_evidence`. A Host without that capability must
+block the writer or accept a caller-supplied task file. Read-only text needs no
+physical prompt file. Relocation and the runner supply no new write authority
+for this preparation.
+
 The portable runner supports the same native solo task, dependency-ordered
 coordination, and explicitly granted external target selections as its source
 contract. It starts with external probing disabled. An answered Provider scope

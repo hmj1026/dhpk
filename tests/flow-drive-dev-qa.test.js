@@ -90,7 +90,10 @@ test('T7 REQ-01 through REQ-16 map to existing executable test source IDs withou
       assert.ok(source.includes(`test('${entry.test}'`), `${item.id}: missing executable source ID ${entry.test}`);
     }
   }
-  assert.strictEqual(JSON.stringify(map).includes('"status": "PASS"'), false);
+  assert.strictEqual(map.source_mapping_is_execution_evidence, false);
+  assert.deepStrictEqual(map.public_scenarios.map((item) => item.requirement), map.requirements.map((item) => item.id));
+  assert.ok(map.public_scenarios.every((item) => item.id === item.requirement && item.scenario && item.expected));
+  assert.deepStrictEqual(map.acceptance_status_contract.statuses, ['PASS', 'FAIL', 'BLOCKED', 'NOT_RUN']);
 });
 
 run('flow-drive-dev-qa');
