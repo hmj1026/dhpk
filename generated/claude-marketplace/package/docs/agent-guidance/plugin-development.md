@@ -145,6 +145,6 @@ Report the result with the other gates.
 ## Test quality rule
 
 **Tautological tests considered harmful.** Apply the canonical
-[`skills/tdd-workflow/tests.md`](../../skills/tdd-workflow/tests.md) rules and
+[`skills/tdd-workflow/references/tests.md`](../../skills/tdd-workflow/references/tests.md) rules and
 the repository reviewer checklist in
 [`CODING_STANDARDS.md`](../../CODING_STANDARDS.md#tests).

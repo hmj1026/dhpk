@@ -1,6 +1,6 @@
 ---
-description: 'Short Claude front door for explicit-only implementation of a confirmed specification or OpenSpec change.'
-argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]'
+description: 'Short Claude front door for explicit-only implementation of a bounded task with settled acceptance.'
+argument-hint: '<task-text|task-file|confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 disable-model-invocation: true
 metadata:
@@ -10,11 +10,13 @@ metadata:
 # `/dhpk:flow-drive`
 
 This is a thin Host front door to the canonical `$flow-drive` Skill. Forward
-the supplied confirmed specification or change identifier and implementation
+the supplied task text, task file, or confirmed identifier and implementation
 options unchanged; the Skill owns planning, editing, verification, authority,
-and terminal evidence.
+and terminal evidence. Keep the task input as one argument; quote multiword
+text or paths containing spaces, for example
+`/dhpk:flow-drive "Fix checkout flow and verify receipt totals" --worker=codex`.
 
-Not for: route selection, proposal authoring, review, debugging without a confirmed cause, or release.
+Not for: route selection, proposal authoring, review, diagnosis without a settled outcome, or release.
 
 `--worker=<worker>` remains the Worker Selector. Use
 `--worker-target=<provider>/<model>[:<effort>]` for an explicit execution

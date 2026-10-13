@@ -1233,8 +1233,8 @@
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml",
-        "mocking.md",
-        "tests.md"
+        "references/mocking.md",
+        "references/tests.md"
       ],
       "executable_entries": [],
       "host_capabilities": []
