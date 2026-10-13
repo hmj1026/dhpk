@@ -386,7 +386,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 
   | 參數 | 類型 / 選項 | 預設值 | 說明 |
   |---|---|---|---|
-  | `<task-text|task-file|confirmed-spec-or-change-id>` | 字串 | （必填） | 任務文字、任務檔案或已確認的規格／OpenSpec Change ID。 |
+  | `<task-text\|task-file\|confirmed-spec-or-change-id>` | 字串 | （必填） | 任務文字、任務檔案或已確認的規格／OpenSpec Change ID。 |
   | `--plan[=<model>:<effort>]` | 字串（可選值） | 無 | 在實作前啟動 Planner 進行審查；可選指定模型與強度（例如 `opus:xhigh`、`sonnet:high`）。 |
   | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner 審查範圍（需搭配 `--plan`）。`bounded` 嚴格限制最多 4 次讀取且無子代理；`discovery` 最多 12 次直接讀取及 2 個唯讀子代理。 |
   | `--worker=<worker>` | `claude` \| `codex` \| `agy` \| `auto` | `auto` | 指定本次變更實作的 Worker 類型（通常使用當前模型）。 |

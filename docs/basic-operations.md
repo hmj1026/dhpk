@@ -401,7 +401,7 @@ The following sections provide comprehensive parameter references, types, defaul
 
   | Parameter | Type / Choices | Default | Description |
   |---|---|---|---|
-  | `<task-text|task-file|confirmed-spec-or-change-id>` | String | (Required) | Task text, task file, or confirmed specification / OpenSpec Change ID. |
+  | `<task-text\|task-file\|confirmed-spec-or-change-id>` | String | (Required) | Task text, task file, or confirmed specification / OpenSpec Change ID. |
   | `--plan[=<model>:<effort>]` | String (optional value) | None | Request pre-implementation critique by a Planner; optionally specify model and reasoning effort (e.g., `opus:xhigh`, `sonnet:high`). |
   | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner consult scope (requires `--plan`). `bounded` limits to max 4 direct reads with no child agent; `discovery` allows at most 12 direct reads and 2 read-only children. |
   | `--worker=<worker>` | `claude` \| `codex` \| `agy` \| `auto` | `auto` | Select mechanical Worker type for this change (typically uses current model). |
