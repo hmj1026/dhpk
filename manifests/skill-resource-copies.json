@@ -310,7 +310,7 @@
     "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py": {
       "skill_id": "flow-drive",
       "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-      "sha256": "sha256:5b313380d83f8d2c20eb666a588ad641547522bea7c38f048114a674bd020bed",
+      "sha256": "sha256:cdd78e8637b09e7816e4b32e25223a63f8597d04db538085861015eab929504c",
       "mode": "0644"
     },
     "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh": {
@@ -352,7 +352,7 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:bcaf7a5c06f5a7d77d809344a9916de46b2903b5d8a91b6f01fd59c982a7f48d",
+      "sha256": "sha256:3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
@@ -496,7 +496,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:bcaf7a5c06f5a7d77d809344a9916de46b2903b5d8a91b6f01fd59c982a7f48d",
+      "sha256": "sha256:3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
