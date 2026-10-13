@@ -407,7 +407,9 @@ pluginConfig > `false`; `.claude/settings.local.json` is preferred over
 `.claude/settings.json`. Dispatch
 selection never creates a review PASS or a retired Sentinel state.
 
-For Flow Drive, the initial Host capability request disables external probes.
+For the programmatic Flow Drive runner (`runFlowDrive`), the initial Host
+capability request disables external probes. The user-facing legacy Host
+procedure retains the automatic-candidate policy above.
 `--cross-provider` only opens an optional Host provider-scope question; a
 provider grant from an answered Host question or root-supplied
 `authorizationEvidence` is required before the runner requests a scoped

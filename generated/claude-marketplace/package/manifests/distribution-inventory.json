@@ -465,8 +465,8 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "bcaf7a5c06f5a7d77d809344a9916de46b2903b5d8a91b6f01fd59c982a7f48d",
-      "projection_digest": "e04588b93fb92f056aaa13bb95be3a4f859946f7f6ee8cdb56f3dab981842842",
+      "canonical_digest": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6",
+      "projection_digest": "9b9ebc35a257180c19d8c8b56a9b91f46e1afa8511d94dafad51f08c14547cee",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
@@ -1702,7 +1702,7 @@
             "syntax": "<task-text|task-file|confirmed-spec-or-change-id>",
             "value_kind": "string",
             "required": true,
-            "summary": "Provide task text, a task file path, or a confirmed specification/change ID for Host resolution",
+            "summary": "Provide one task text argument, task file path, or confirmed specification/change ID; quote text and paths containing spaces",
             "applies_to": [
               "apply"
             ]
@@ -1778,7 +1778,7 @@
             "value_kind": "boolean",
             "required": false,
             "default": false,
-            "summary": "Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution",
+            "summary": "Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh",
             "applies_to": [
               "apply"
             ]
@@ -1831,12 +1831,12 @@
         ],
         "examples": [
           {
-            "prompt": "$flow-drive Fix the receipt total and verify it matches the receipt lines.",
+            "prompt": "$flow-drive \"Fix the receipt total and verify it matches the receipt lines.\"",
             "summary": "Resolve and implement a bounded task with explicit acceptance"
           },
           {
             "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
-            "summary": "Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes"
+            "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
           }
         ]
       }
