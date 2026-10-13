@@ -37,6 +37,7 @@ const EXPECTED_ENTRIES = Object.freeze({
   'remaining-change-verdict-unrelated-merge-skip': ['change-verdict', 'scripts/check-unrelated-changes.sh'],
   'remaining-change-verdict-review-cli-stub': ['change-verdict', 'scripts/review-cli.sh'],
   'remaining-flow-guide-pre-route-local-table': ['flow-guide', 'scripts/pre-route.sh'],
+  'remaining-git-smart-commit-collect-changes-scope-readonly': ['git-smart-commit', 'scripts/collect-changes.js'],
 });
 
 function ignored(name) {
