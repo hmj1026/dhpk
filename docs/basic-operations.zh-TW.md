@@ -377,21 +377,22 @@ inspect → verify surface → route → plan/classify → implement → review 
   /dhpk:flow-guide close
   ```
 
-#### 2. flow-drive（已確認規格實作入口）
+#### 2. flow-drive（已確認任務實作入口）
 
-- **定位**：明確實作（explicit-only）入口，負責執行驗收邊界已確認的變更。不選路由、不草擬提案、不跳過測試。
-- **呼叫語法**：`/dhpk:flow-drive <confirmed-spec-or-change-id> [options]`（Codex: `$flow-drive ...`）
+- **定位**：明確實作（explicit-only）入口，負責執行目標、限制與驗收邊界已確認的任務。可先診斷未知原因，取得充分證據後才進行相依寫入；正式 OpenSpec authoring 由外部 owner 負責。
+- **呼叫語法**：`/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id> [options]`（Codex: `$flow-drive ...`）
+- 多字任務文字或含空白路徑須用引號保留為單一 argument，例如 `/dhpk:flow-drive "修正結帳並驗證收據金額" --worker=codex`。
 - **參數說明**：
 
   | 參數 | 類型 / 選項 | 預設值 | 說明 |
   |---|---|---|---|
-  | `<confirmed-spec-or-change-id>` | 字串 | （必填） | 已確認的規格名稱或 OpenSpec Change ID（例如 `auth-oauth2-flow`）。 |
+  | `<task-text|task-file|confirmed-spec-or-change-id>` | 字串 | （必填） | 任務文字、任務檔案或已確認的規格／OpenSpec Change ID。 |
   | `--plan[=<model>:<effort>]` | 字串（可選值） | 無 | 在實作前啟動 Planner 進行審查；可選指定模型與強度（例如 `opus:xhigh`、`sonnet:high`）。 |
-  | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner 審查範圍（需搭配 `--plan`）。`bounded` 嚴格限制最多 4 次讀取且無子代理；`discovery` 允許深入探索。 |
+  | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner 審查範圍（需搭配 `--plan`）。`bounded` 嚴格限制最多 4 次讀取且無子代理；`discovery` 最多 12 次直接讀取及 2 個唯讀子代理。 |
   | `--worker=<worker>` | `claude` \| `codex` \| `agy` \| `auto` | `auto` | 指定本次變更實作的 Worker 類型（通常使用當前模型）。 |
   | `--worker-target=<target>` | `<provider>/<model>[:<effort>]` | 無 | 明確指定 Worker 的供應商與模型目標（例如 `anthropic/claude-3-7-sonnet`）。 |
   | `--cross-provider` | 布林旗標 | 關閉 | 在 `--worker=auto` 時允許考慮外部跨供應商候選（如 Codex），不影響明確指定的 target。 |
-  | `--reasoner=<target>` | `<provider>/<model>[:<effort>]` | 無 | 請求外部獨立 Reasoner 進行唯讀架構或複雜決策審查（例如 `codex-cli/gpt-6.1-sol:high`）。 |
+  | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | 無 | 請求獨立 Reasoner 進行唯讀架構或複雜決策審查（例如 `codex-cli/gpt-6.1-sol:high`）。 |
   | `--architect` / `--no-architect` | 布林旗標 | 依政策 | 控制本次實作是否強制執行架構層面審查。 |
 
 - **實戰範例**：
@@ -408,6 +409,10 @@ inspect → verify surface → route → plan/classify → implement → review 
   # 包含外部 CLI Reasoner 第二意見與架構審查
   /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex-cli/gpt-6.1-sol:high
   ```
+
+Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launcher；建立私有 attempt 目錄、packet 與 context 的完整流程見 [parent CLI dispatch](../skills/flow-drive/references/parent-cli-dispatch.md)。明確的 `--worker=codex` 不需要 `--cross-provider`，仍須通過目前的 access 與 capability 檢查。
+
+若以程式整合 `runFlowDrive`，請依 [portable runner contract](../skills/flow-drive/references/portable-runner.md)：此路徑的 `--cross-provider` 只開啟授權問題，旗標本身不授權；planner、reasoner、architect 選項需使用 Host 操作流程。
 
 #### 3. code-trace（程式碼追蹤、根因診斷與工具選取）
 
