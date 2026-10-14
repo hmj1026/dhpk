@@ -13,7 +13,6 @@
     "architect": { "status": "direct", "target": "architect" },
     "bug-investigator": { "status": "direct", "target": "bug-investigator" },
     "code-reviewer": { "status": "direct", "target": "code-reviewer" },
-    "codex-bridge": { "status": "intentionally-unavailable", "target": "No Codex role projection is required" },
     "codex-deep-reasoner": { "status": "merged", "target": "deep-reasoner" },
     "codex-fast-worker": { "status": "merged", "target": "worker" },
     "codex-reasoner": { "status": "merged", "target": "deep-reasoner" },

@@ -91,7 +91,6 @@
     "agy-worker",
     "architect",
     "code-reviewer",
-    "codex-bridge",
     "codex-deep-reasoner",
     "codex-fast-worker",
     "codex-reasoner",
@@ -465,7 +464,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6",
+      "canonical_digest": "2700e1599b469ea808e15ba576f24a8ffd79e80f1e4e993aeff075124a31a4ae",
       "projection_digest": "9b9ebc35a257180c19d8c8b56a9b91f46e1afa8511d94dafad51f08c14547cee",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -481,7 +480,7 @@
       "id": "codex-supporting-agent-traps-_common-cli-prompt-composition-md",
       "source": "codex/supporting/agent-traps/_common/cli-prompt-composition.md",
       "canonical_source": "agent-traps/_common/cli-prompt-composition.md",
-      "canonical_digest": "566306b9a9757b5cb413181e8d9c73ffbd0122757853df1dcdd2b60444741e4c",
+      "canonical_digest": "81f8c046d9c1e9aa82e8a082cf4a14ffec470d3988ab080d79fdd144bf30ca35",
       "projection_digest": "ce688871d91c199c68f8395ac8a6614237dca27dc94d651dfc5c2b98a46b879c",
       "destination": "dhpk/agent-traps/_common/cli-prompt-composition.md"
     },
@@ -1351,24 +1350,6 @@
       }
     },
     {
-      "id": "agy-fast-worker",
-      "name": "dhpk-agy-fast-worker",
-      "path": "skills/dhpk-agy-fast-worker",
-      "capability_id": "dhpk.skill.agy-fast-worker",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "agy-fast-worker"
-      ]
-    },
-    {
       "id": "code-trace",
       "name": "code-trace",
       "name_style": "portable-family",
@@ -1497,70 +1478,6 @@
           }
         ]
       }
-    },
-    {
-      "id": "cli-dispatch-context",
-      "name": "dhpk-cli-dispatch-context",
-      "path": "skills/dhpk-cli-dispatch-context",
-      "capability_id": "dhpk.skill.cli-dispatch-context",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "claude-module",
-        "codex-sync",
-        "codex-native",
-        "agent-plugin",
-        "cursor-plugin",
-        "cursor-sync",
-        "agy-plugin"
-      ],
-      "invokable": false,
-      "discoveryVisible": false
-    },
-    {
-      "id": "cli-transport",
-      "name": "dhpk-cli-transport",
-      "path": "skills/dhpk-cli-transport",
-      "capability_id": "dhpk.skill.cli-transport",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "claude-module",
-        "codex-sync",
-        "codex-native",
-        "agent-plugin",
-        "cursor-plugin",
-        "cursor-sync",
-        "agy-plugin"
-      ],
-      "invokable": false,
-      "discoveryVisible": false
-    },
-    {
-      "id": "codex-bridge",
-      "name": "dhpk-codex-bridge",
-      "path": "skills/dhpk-codex-bridge",
-      "capability_id": "dhpk.skill.codex-bridge",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "codex-bridge"
-      ]
     },
     {
       "id": "change-verdict",
@@ -1694,7 +1611,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Execute one scoped task with diagnosis and acceptance evidence",
-        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "inputs": [
           {
@@ -1722,63 +1639,37 @@
         "options": [
           {
             "id": "plan",
-            "syntax": "--plan[=<model>:<effort>]",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "plan-mode",
-            "syntax": "--plan-mode=auto|bounded|discovery",
+            "syntax": "--plan[=auto|bounded|discovery]",
             "value_kind": "enum",
             "required": false,
-            "default": "auto",
+            "summary": "Request a planner scope using the current Host declared effective target",
+            "applies_to": [
+              "apply"
+            ],
             "enum_values": [
               "auto",
               "bounded",
               "discovery"
-            ],
-            "summary": "Select the consult scope; requires --plan and defaults to auto when enabled",
-            "applies_to": [
-              "apply"
             ]
           },
           {
             "id": "worker",
-            "syntax": "--worker=<worker>",
-            "value_kind": "enum",
-            "required": false,
-            "enum_values": [
-              "claude",
-              "codex",
-              "agy",
-              "auto"
-            ],
-            "summary": "Select an explicitly requested implementation worker",
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "worker-target",
-            "syntax": "--worker-target=<provider>/<model>[:<effort>]",
+            "syntax": "--worker=auto|provider[/model[:effort]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target",
+            "summary": "Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant",
             "applies_to": [
               "apply"
-            ]
+            ],
+            "default": "auto"
           },
           {
-            "id": "cross-provider",
-            "syntax": "--cross-provider",
+            "id": "cross",
+            "syntax": "--cross",
             "value_kind": "boolean",
             "required": false,
             "default": false,
-            "summary": "Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh",
+            "summary": "Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches",
             "applies_to": [
               "apply"
             ]
@@ -1788,7 +1679,7 @@
             "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+            "summary": "Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers",
             "applies_to": [
               "apply"
             ]
@@ -1798,7 +1689,7 @@
             "syntax": "--architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+            "summary": "Request consultation; report UNAVAILABLE when the current Host has no supported architecture route",
             "applies_to": [
               "apply"
             ]
@@ -1808,7 +1699,7 @@
             "syntax": "--no-architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Compatibility notice only in the portable task runner",
+            "summary": "Suppress an optional consult while preserving required Host gates",
             "applies_to": [
               "apply"
             ]
@@ -1822,7 +1713,7 @@
             "legacy": {
               "replacement_id": "worker",
               "diagnostic_only": true,
-              "reason": "Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut"
+              "reason": "Use an explicit worker or reasoner instead of the retired Codex shortcut"
             },
             "applies_to": [
               "apply"
@@ -1835,7 +1726,7 @@
             "summary": "Resolve and implement a bounded task with explicit acceptance"
           },
           {
-            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
+            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross",
             "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
           }
         ]
@@ -3632,13 +3523,9 @@
   ],
   "surface_membership": {
     "agent-plugin": [
-      "agy-fast-worker",
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-simplify",
       "code-trace",
-      "codex-bridge",
       "composer-package-hygiene",
       "create-pr",
       "dep-audit",
@@ -3673,13 +3560,9 @@
       "update-docs"
     ],
     "cursor-plugin": [
-      "agy-fast-worker",
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-simplify",
       "code-trace",
-      "codex-bridge",
       "composer-package-hygiene",
       "create-pr",
       "dep-audit",
@@ -3717,13 +3600,9 @@
       "update-docs"
     ],
     "agy-plugin": [
-      "agy-fast-worker",
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-simplify",
       "code-trace",
-      "codex-bridge",
       "composer-package-hygiene",
       "create-pr",
       "dep-audit",
@@ -3758,13 +3637,9 @@
       "update-docs"
     ],
     "cursor-sync": [
-      "agy-fast-worker",
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-simplify",
       "code-trace",
-      "codex-bridge",
       "composer-package-hygiene",
       "create-pr",
       "dep-audit",
@@ -3803,29 +3678,12 @@
     ]
   },
   "internal_runtime_skills": {
-    "agent-plugin": [
-      "agy-fast-worker",
-      "cli-dispatch-context",
-      "cli-transport",
-      "codex-bridge"
-    ],
-    "cursor-plugin": [
-      "agy-fast-worker",
-      "cli-dispatch-context",
-      "cli-transport",
-      "codex-bridge"
-    ],
+    "agent-plugin": [],
+    "cursor-plugin": [],
     "agy-plugin": [
-      "agy-fast-worker",
-      "cli-dispatch-context",
-      "cli-transport",
-      "codex-bridge",
       "flow-guide"
     ],
-    "codex-native": [
-      "cli-dispatch-context",
-      "cli-transport"
-    ]
+    "codex-native": []
   },
   "agy_plugin": {
     "source_root": "plugins/dhpk-agy",
@@ -3837,7 +3695,6 @@
       "agy-worker.md",
       "architect.md",
       "code-reviewer.md",
-      "codex-bridge.md",
       "codex-deep-reasoner.md",
       "codex-fast-worker.md",
       "codex-reasoner.md",
@@ -5539,6 +5396,103 @@
       "rollback": {
         "release": "0.64.4"
       }
+    },
+    {
+      "id": "agy-fast-worker",
+      "name": "dhpk-agy-fast-worker",
+      "canonicalPath": "skills/dhpk-agy-fast-worker",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "flow-drive-runtime-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-drive"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "cli-dispatch-context",
+      "name": "dhpk-cli-dispatch-context",
+      "canonicalPath": "skills/dhpk-cli-dispatch-context",
+      "priorSurfaces": [
+        "claude-core",
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "agent-plugin",
+        "cursor-plugin",
+        "cursor-sync",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "flow-drive-runtime-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-drive"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "cli-transport",
+      "name": "dhpk-cli-transport",
+      "canonicalPath": "skills/dhpk-cli-transport",
+      "priorSurfaces": [
+        "claude-core",
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "agent-plugin",
+        "cursor-plugin",
+        "cursor-sync",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "flow-drive-runtime-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-drive"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "codex-bridge",
+      "name": "dhpk-codex-bridge",
+      "canonicalPath": "skills/dhpk-codex-bridge",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "standalone-bridge-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
     }
   ],
   "external_skill_packages": [],
@@ -5635,13 +5589,9 @@
         "version": "portable-core-v1",
         "compatibility_mode": "portable-core",
         "stable_ids": [
-          "agy-fast-worker",
           "change-verdict",
-          "cli-dispatch-context",
-          "cli-transport",
           "code-simplify",
           "code-trace",
-          "codex-bridge",
           "composer-package-hygiene",
           "create-pr",
           "dep-audit",
