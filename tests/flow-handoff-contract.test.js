@@ -145,10 +145,10 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
   test('flow-drive parses the documented implementation options into one immutable context', () => {
     const context = parseInvocation([
       'confirmed-change-123',
-      '--plan=sol:medium',
+      '--plan=auto',
       '--worker=auto',
-      '--cross-provider',
-      '--reasoner=codex:terra:high',
+      '--cross',
+      '--reasoner=codex/terra:high',
       '--architect',
     ]);
 
@@ -156,7 +156,7 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.strictEqual(context.status, 'ready');
     assert.strictEqual(context.changeId, 'confirmed-change-123');
     assert.deepStrictEqual(context.options, {
-      plan: { enabled: true, model: 'sol', effort: 'medium', mode: 'auto' },
+      plan: { enabled: true, model: null, effort: null, mode: 'auto' },
       worker: 'auto',
       workerTarget: null,
       crossProvider: true,
@@ -196,48 +196,32 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     });
   });
 
-  test('flow-drive accepts planner modes in either option order and preserves model and effort', () => {
+  test('flow-drive planner scopes are independent of unrelated option order', () => {
     for (const mode of ['auto', 'bounded', 'discovery']) {
-      const modeFirst = parseInvocation([
-        'confirmed-change-123',
-        `--plan-mode=${mode}`,
-        '--plan=sol:medium',
-      ]);
-      const planFirst = parseInvocation([
-        'confirmed-change-123',
-        '--plan=sol:medium',
-        `--plan-mode=${mode}`,
-      ]);
-      const expected = { enabled: true, model: 'sol', effort: 'medium', mode };
-
-      assert.strictEqual(modeFirst.status, 'ready', modeFirst.diagnostics.join('\n'));
-      assert.strictEqual(planFirst.status, 'ready', planFirst.diagnostics.join('\n'));
-      assert.deepStrictEqual(modeFirst.options.plan, expected);
-      assert.deepStrictEqual(planFirst.options.plan, expected);
-      assert.ok(Object.isFrozen(modeFirst.options.plan));
-      assert.ok(Object.isFrozen(planFirst.options.plan));
+      const first = parseInvocation(['confirmed-change-123', `--plan=${mode}`, '--worker=auto']);
+      const last = parseInvocation(['confirmed-change-123', '--worker=auto', `--plan=${mode}`]);
+      const expected = { enabled: true, model: null, effort: null, mode };
+      for (const context of [first, last]) {
+        assert.strictEqual(context.status, 'ready', context.diagnostics.join('\n'));
+        assert.deepStrictEqual(context.options.plan, expected);
+        assert.ok(Object.isFrozen(context.options.plan));
+      }
     }
   });
 
-  test('flow-drive blocks invalid planner-mode forms', () => {
+  test('flow-drive rejects malformed, repeated and removed planner grammar', () => {
     const invalidOptions = [
-      ['empty', ['--plan', '--plan-mode='], /plan-mode/i],
-      ['unknown', ['--plan', '--plan-mode=unknown'], /plan-mode/i],
-      ['duplicate', ['--plan', '--plan-mode=bounded', '--plan-mode=discovery'], /plan-mode.*may only be specified once/i],
-      ['orphan', ['--plan-mode=bounded'], /--plan-mode.*requires.*--plan/i],
-      ['bare', ['--plan-mode'], /plan-mode/i],
-      ['separated', ['--plan-mode', 'bounded'], /plan-mode/i],
+      ['empty', ['--plan='], /plan.*scope/i],
+      ['unknown', ['--plan=unknown'], /plan.*scope/i],
+      ['duplicate', ['--plan=bounded', '--plan=discovery'], /plan.*may only be specified once/i],
+      ['old mode', ['--plan-mode=bounded'], /unsupported.*plan-mode/i],
+      ['old model', ['--plan=sol:medium'], /plan.*scope/i],
+      ['separated', ['--plan', 'bounded'], /only one task input/i],
     ];
-
     for (const [label, args, diagnostic] of invalidOptions) {
       const context = parseInvocation(['confirmed-change-123', ...args]);
-
       assert.strictEqual(context.status, 'blocked', label);
-      assert.ok(context.diagnostics.some((item) => diagnostic.test(item)), `${label}: ${context.diagnostics.join('\n')}`);
-      if (label === 'orphan') {
-        assert.strictEqual(context.options.plan.enabled, false);
-        assert.strictEqual(context.options.plan.mode, null);
-      }
+      assert.ok(context.diagnostics.some((item) => diagnostic.test(item)), label + ': ' + context.diagnostics.join('\n'));
     }
   });
 
@@ -246,53 +230,29 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
 
     assert.strictEqual(context.status, 'blocked');
     assert.ok(context.diagnostics.some((item) => /architect.*conflict|mutually exclusive/i.test(item)));
-    assert.strictEqual(context.options.architect, null);
   });
 
-  test('flow-drive keeps worker selection separate from an explicit worker target', () => {
-    const context = parseInvocation([
-      'confirmed-change-123',
-      '--worker=auto',
-      '--worker-target=codex/gpt-5.6-sol:high',
-    ]);
-
+  test('flow-drive normalizes one unified exact worker target', () => {
+    const context = parseInvocation(['confirmed-change-123', '--worker=codex/gpt-5.6-sol:high']);
     assert.strictEqual(context.status, 'ready');
-    assert.strictEqual(context.options.worker, 'auto');
-    assert.deepStrictEqual(context.options.workerTarget, {
-      provider: 'codex',
-      model: 'gpt-5.6-sol',
-      effort: 'high',
-    });
+    assert.strictEqual(context.options.worker, 'codex');
+    assert.deepStrictEqual(context.options.workerTarget, { provider: 'codex', model: 'gpt-5.6-sol', effort: 'high' });
   });
 
-  test('flow-drive lets an explicit Codex worker target override AGY selection on Claude Code', () => {
-    const context = parseInvocation([
-      'confirmed-change-123',
-      '--worker=agy',
-      '--worker-target=codex/gpt-6-luna:xhigh',
-    ], { host: 'claude-code' });
-
-    assert.strictEqual(context.status, 'ready', context.diagnostics.join('\n'));
-    assert.strictEqual(context.options.worker, 'agy');
-    assert.deepStrictEqual(context.options.workerTarget, {
-      provider: 'codex',
-      model: 'gpt-6-luna',
-      effort: 'xhigh',
-    });
+  test('flow-drive rejects the removed selector override even on a supported Host', () => {
+    const context = parseInvocation(['confirmed-change-123', '--worker=agy', '--worker-target=codex/gpt-6-luna:xhigh'],
+      { host: 'claude-code' });
+    assert.strictEqual(context.status, 'blocked');
+    assert.ok(context.diagnostics.some((item) => /unsupported.*worker-target/.test(item)));
   });
 
-  test('flow-drive rejects malformed worker targets and duplicate target selectors', () => {
-    const malformed = parseInvocation(['confirmed-change-123', '--worker-target=auto/model']);
+  test('flow-drive rejects malformed targets and repeated unified worker selections', () => {
+    const malformed = parseInvocation(['confirmed-change-123', '--worker=auto/model']);
     assert.strictEqual(malformed.status, 'blocked');
-    assert.ok(malformed.diagnostics.some((item) => /worker-target.*provider|unsupported/i.test(item)));
-
-    const duplicate = parseInvocation([
-      'confirmed-change-123',
-      '--worker-target=codex/terra',
-      '--worker-target=agy/worker',
-    ]);
+    assert.ok(malformed.diagnostics.some((item) => /worker.*provider/i.test(item)));
+    const duplicate = parseInvocation(['confirmed-change-123', '--worker=codex/terra', '--worker=agy/worker']);
     assert.strictEqual(duplicate.status, 'blocked');
-    assert.ok(duplicate.diagnostics.some((item) => /worker-target.*once/i.test(item)));
+    assert.ok(duplicate.diagnostics.some((item) => /worker.*once/i.test(item)));
   });
 
   test('flow-drive rejects retired codex and malformed worker/reasoner options', () => {
@@ -311,7 +271,7 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
 
   const CLI_BACKED_SELECTIONS = [
     ['--worker=agy'],
-    ['--worker-target=agy/gemini-3.8-flash-high'],
+    ['--worker=agy/gemini-3.8-flash-high'],
   ];
 
   for (const selection of CLI_BACKED_SELECTIONS) {
@@ -320,52 +280,32 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
 
       assert.strictEqual(context.status, 'blocked');
       assert.ok(
-        context.diagnostics.some((item) => /AGY dispatch is not supported by (?:the )?parent-session CLI launcher/i.test(item)),
+        context.diagnostics.some((item) => /AGY dispatch.*unavailable|AGY.*unsupported/i.test(item)),
         context.diagnostics.join('\n'),
       );
     });
   }
 
-  test('flow-drive accepts all configured Codex options on Claude Code and normalizes the codex-cli reasoner alias', () => {
-    const context = parseInvocation([
-      'confirmed-change-123',
-      '--plan=opus:high',
-      '--plan-mode=bounded',
-      '--worker=codex',
-      '--worker-target=codex/gpt-6-luna:xhigh',
-      '--cross-provider',
-      '--reasoner=codex-cli/gpt-6.1-sol:high',
-      '--architect',
-    ], { host: 'claude-code' });
-
+  test('flow-drive preserves configured Codex intent on Claude Code without provider aliases', () => {
+    const context = parseInvocation(['confirmed-change-123', '--plan=bounded', '--worker=codex/gpt-6-luna:xhigh',
+      '--cross', '--reasoner=codex/gpt-6.1-sol:high', '--architect'], { host: 'claude-code' });
     assert.strictEqual(context.status, 'ready', context.diagnostics.join('\n'));
     assert.deepStrictEqual(context.options, {
-      plan: { enabled: true, model: 'opus', effort: 'high', mode: 'bounded' },
-      worker: 'codex',
-      workerTarget: { provider: 'codex', model: 'gpt-6-luna', effort: 'xhigh' },
-      crossProvider: true,
-      reasoner: { backend: 'codex', model: 'gpt-6.1-sol', effort: 'high' },
-      architect: true,
+      plan: { enabled: true, model: null, effort: null, mode: 'bounded' },
+      worker: 'codex', workerTarget: { provider: 'codex', model: 'gpt-6-luna', effort: 'xhigh' },
+      crossProvider: true, reasoner: { backend: 'codex', model: 'gpt-6.1-sol', effort: 'high' }, architect: true,
     });
     assert.deepStrictEqual(context.notices, []);
+    assert.strictEqual(parseInvocation(['confirmed-change-123', '--reasoner=codex-cli/gpt-6.1-sol:high']).status, 'blocked');
   });
 
-  test('flow-drive discloses native reasoner and worker-target effort overrides on Claude Code', () => {
-    const context = parseInvocation([
-      'confirmed-change-123',
-      '--reasoner=claude:claude-opus-5-5:medium',
-      '--worker-target=claude/claude-opus-5-5:high',
-    ], { host: 'claude-code' });
-
+  test('flow-drive parsing preserves native exact efforts without claiming execution', () => {
+    const context = parseInvocation(['confirmed-change-123', '--reasoner=claude/claude-opus-5-5:medium',
+      '--worker=claude/claude-opus-5-5:high'], { host: 'claude-code' });
     assert.strictEqual(context.status, 'ready', context.diagnostics.join('\n'));
-    assert.ok(
-      context.notices.some((item) => /reasoner.*effort 'medium'.*configured effort 'high'/i.test(item)),
-      context.notices.join('\n'),
-    );
-    assert.ok(
-      context.notices.some((item) => /worker-target.*effort 'high'.*configured effort 'medium'/i.test(item)),
-      context.notices.join('\n'),
-    );
+    assert.strictEqual(context.options.reasoner.effort, 'medium');
+    assert.strictEqual(context.options.workerTarget.effort, 'high');
+    assert.deepStrictEqual(context.notices, []);
   });
 
   test('flow-drive keeps CLI-backed selections ready when the host is unspecified or CLI-native', () => {
@@ -377,7 +317,7 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
 
   test('flow-drive keeps native selections ready on the Claude Code host', () => {
     const context = parseInvocation(
-      ['confirmed-change-123', '--worker=claude', '--reasoner=claude', '--worker-target=claude/opus'],
+      ['confirmed-change-123', '--reasoner=claude', '--worker=claude/opus'],
       { host: 'claude-code' },
     );
 
@@ -385,39 +325,26 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.deepStrictEqual(context.diagnostics, []);
   });
 
-  test('flow-drive reports an unapplied planner effort on the Claude Code host', () => {
-    const context = parseInvocation(
-      ['confirmed-change-123', '--plan=opus:medium', '--plan-mode=bounded'],
-      { host: 'claude-code' },
-    );
-
-    assert.strictEqual(context.status, 'ready');
-    assert.deepStrictEqual(context.options.plan, { enabled: true, model: 'opus', effort: 'medium', mode: 'bounded' });
-    assert.ok(
-      context.notices.some((item) => /effort 'medium' is not applied/.test(item) && /'high'/.test(item)),
-      context.notices.join('\n'),
-    );
-  });
-
-  test('flow-drive emits no effort notice when the requested effort matches or the host is unspecified', () => {
-    assert.deepStrictEqual(parseInvocation(['confirmed-change-123', '--plan=opus:high'], { host: 'claude-code' }).notices, []);
-    assert.deepStrictEqual(parseInvocation(['confirmed-change-123', '--plan=opus:medium']).notices, []);
-  });
-
-  test('flow-drive lists the legal effort values for every invalid effort', () => {
-    const context = parseInvocation([
-      'confirmed-change-123',
-      '--plan=opus:med',
-      '--reasoner=codex:terra:med',
-      '--worker-target=codex/terra:med',
-    ]);
-
+  test('flow-drive rejects model-valued planning instead of reporting an unapplied effort', () => {
+    const context = parseInvocation(['confirmed-change-123', '--plan=opus:medium'], { host: 'claude-code' });
     assert.strictEqual(context.status, 'blocked');
-    const effortDiagnostics = context.diagnostics.filter((item) => /effort 'med'/.test(item));
-    assert.strictEqual(effortDiagnostics.length, 3, context.diagnostics.join('\n'));
-    for (const item of effortDiagnostics) {
-      assert.match(item, /low\|medium\|high\|max\|xhigh\|ultra/);
+    assert.ok(context.diagnostics.some((item) => /invalid.*plan.*scope/i.test(item)));
+  });
+
+  test('flow-drive scope parsing is Host-neutral and adds no effort notice', () => {
+    for (const host of [null, 'claude-code']) {
+      const context = parseInvocation(['confirmed-change-123', '--plan=bounded'], { host });
+      assert.strictEqual(context.status, 'ready');
+      assert.deepStrictEqual(context.notices, []);
     }
+  });
+
+  test('flow-drive lists the legal values for each malformed role effort', () => {
+    const context = parseInvocation(['confirmed-change-123', '--reasoner=codex/terra:med', '--worker=codex/terra:med']);
+    assert.strictEqual(context.status, 'blocked');
+    const efforts = context.diagnostics.filter((item) => /effort 'med'/.test(item));
+    assert.strictEqual(efforts.length, 2, context.diagnostics.join('\n'));
+    for (const item of efforts) assert.match(item, /low\|medium\|high\|max\|xhigh\|ultra/);
   });
 
   test('flow-drive CLI derives the Claude Code host from the environment and keeps Codex intent ready', () => {

@@ -55,13 +55,13 @@ test('fresh Codex install selects the common collection and keeps runtime suppor
     assert.strictEqual(receipt.profileId, 'common');
     assert.deepStrictEqual([...receipt.selectedStableIds].sort(), [...COMMON_SKILL_IDS].sort());
     assert.deepStrictEqual([...receipt.emittedStableIds].sort(), [...COMMON_SKILL_IDS].sort());
-    assert.deepStrictEqual(receipt.runtimeSupportStableIds, [
-      'cli-dispatch-context',
-      'cli-transport',
-    ]);
-    for (const name of ['dhpk-cli-dispatch-context', 'dhpk-cli-transport']) {
-      assert.ok(receipt.managed_entries.skills[name], `${name} must remain installed as runtime support`);
+    assert.deepStrictEqual(receipt.runtimeSupportStableIds, []);
+    for (const name of ['dhpk-cli-dispatch-context', 'dhpk-cli-transport', 'dhpk-codex-bridge', 'dhpk-agy-fast-worker']) {
+      assert.ok(!receipt.managed_entries.skills[name], `${name} must remain retired`);
     }
+    const runtime = path.join(scratch, '.codex', 'skills', 'flow-drive', 'scripts', 'run.js');
+    const loaded = spawnSync(process.execPath, ['-e', 'require(process.argv[1])', runtime], { cwd: scratch, encoding: 'utf8' });
+    assert.strictEqual(loaded.status, 0, loaded.stderr);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -480,9 +480,13 @@ test('Codex sync installs its transport runtime without granting it profile capa
     assert.ok(!receipt.selectedStableIds.includes('cli-transport'));
     assert.ok(!receipt.emittedStableIds.includes('cli-dispatch-context'));
     assert.ok(!receipt.emittedStableIds.includes('cli-transport'));
-    assert.deepStrictEqual(receipt.runtimeSupportStableIds, ['cli-dispatch-context', 'cli-transport']);
-    assert.ok(receipt.managed_entries.skills['dhpk-cli-dispatch-context']);
-    assert.ok(receipt.managed_entries.skills['dhpk-cli-transport']);
+    assert.deepStrictEqual(receipt.runtimeSupportStableIds, []);
+    assert.ok(!receipt.managed_entries.skills['dhpk-cli-dispatch-context']);
+    assert.ok(!receipt.managed_entries.skills['dhpk-cli-transport']);
+    assert.ok(receipt.emittedStableIds.includes('flow-drive'));
+    for (const resource of ['transport/run-cli-transport.py', 'dispatch-runtime/launch-cli-dispatch.js', 'adapters/run-codex.sh', 'adapters/run-agy.sh']) {
+      assert.ok(fs.statSync(path.join(scratch, '.codex/skills/flow-drive/scripts', resource)).isFile(), resource);
+    }
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

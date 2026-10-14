@@ -8,28 +8,27 @@ const {
   ROOT,
   runInstaller,
   projectRoot,
-  runtimeSupportSkillNames,
 } = require('./_lib/install-codex-skills-fixtures');
 
 const GENERATOR = path.join(ROOT, 'scripts', 'ci', 'gen-agents-skills.js');
 const VALIDATOR = path.join(ROOT, 'scripts', 'ci', 'validate-agents-skills.js');
 
-test('Codex native runtime skills remain bound during a portable multi-host projection', () => {
+test('canonical Codex native ownership stays separate from portable multi-host Skill bindings', () => {
   const project = projectRoot();
   try {
     const installed = runInstaller(project, ['--migrate', '--update']);
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
 
-    const runtimeSkillNames = runtimeSupportSkillNames();
-    assert.ok(runtimeSkillNames.length > 0, 'expected Codex native runtime-support skills');
     const nativeSkillsRoot = path.join(project, '.codex', 'skills');
     const nativeReceiptPath = path.join(project, '.codex', '.dhpk-installed.json');
     const nativeReceiptBefore = fs.readFileSync(nativeReceiptPath, 'utf8');
-    const nativeTargetsBefore = runtimeSkillNames.map((name) => {
-      const destination = path.join(nativeSkillsRoot, name);
-      assert.ok(fs.lstatSync(destination).isSymbolicLink(), `${name} should be a native symlink`);
-      return [name, fs.readlinkSync(destination)];
-    });
+    const nativeReceipt = JSON.parse(nativeReceiptBefore);
+    assert.deepStrictEqual(nativeReceipt.runtimeSupportStableIds, []);
+    assert.deepStrictEqual(nativeReceipt.managed_entries.skills, {});
+    const nativeTargetsBefore = Object.values(nativeReceipt.managed_entries.agents).map((entry) => [
+      entry.destination, fs.readFileSync(path.join(project, '.codex', entry.destination), 'utf8'),
+    ]);
+    assert.ok(nativeTargetsBefore.length > 0, 'native agent ownership must remain exercised');
 
     const generated = spawnSync(process.execPath, [
       GENERATOR,
@@ -48,11 +47,11 @@ test('Codex native runtime skills remain bound during a portable multi-host proj
       '--project-root', project,
     ], { cwd: project, encoding: 'utf8', timeout: 120_000 });
 
-    const nativeTargetsAfter = runtimeSkillNames.map((name) => [
-      name,
-      fs.readlinkSync(path.join(nativeSkillsRoot, name)),
+    const nativeTargetsAfter = nativeTargetsBefore.map(([destination]) => [
+      destination,
+      fs.readFileSync(path.join(project, '.codex', destination), 'utf8'),
     ]);
-    assert.deepStrictEqual(nativeTargetsAfter, nativeTargetsBefore, 'projection should preserve native Codex runtime symlink targets');
+    assert.deepStrictEqual(nativeTargetsAfter, nativeTargetsBefore, 'portable projection must preserve native agent files');
     assert.strictEqual(
       generated.status,
       0,
@@ -64,18 +63,12 @@ test('Codex native runtime skills remain bound during a portable multi-host proj
       `generated projection did not validate (${validated.status})\n${validated.stdout}\n${validated.stderr}`,
     );
 
-    for (const name of runtimeSkillNames) {
-      assert.ok(
-        fs.statSync(path.join(project, '.agents', 'skills', name, 'SKILL.md')).isFile(),
-        `${name} should remain in the shared project projection`,
-      );
-    }
+    assert.strictEqual(typeof require(path.join(nativeSkillsRoot, 'flow-drive/scripts/run.js')).runFlowDrive, 'function');
     const projectionReceipt = JSON.parse(fs.readFileSync(path.join(project, '.agents', '.dhpk-installed.json'), 'utf8'));
     const codexBindingPaths = projectionReceipt.bindingPaths.codex.map((binding) => binding.path);
-    for (const name of runtimeSkillNames) {
-      assert.ok(!codexBindingPaths.includes(`.codex/skills/${name}`), `${name} must not be owned by the project projection`);
-      assert.strictEqual(projectionReceipt.entries.find((entry) => entry.name === name).discoveryVisible, false);
-    }
+    assert.ok(codexBindingPaths.includes('.codex/skills/flow-drive'));
+    assert.ok(projectionReceipt.entries.some((entry) => entry.name === 'flow-drive'
+      && entry.stableId === 'flow-drive' && entry.provenance.canonicalSource === 'skills/flow-drive'));
 
     const repeated = spawnSync(process.execPath, [
       GENERATOR, '--source-root', ROOT, '--project-root', project, '--profile', 'portable-core',
@@ -88,9 +81,10 @@ test('Codex native runtime skills remain bound during a portable multi-host proj
     });
     assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
     assert.strictEqual(fs.readFileSync(nativeReceiptPath, 'utf8'), nativeReceiptBefore);
-    for (const [name, target] of nativeTargetsBefore) {
-      assert.strictEqual(fs.readlinkSync(path.join(nativeSkillsRoot, name)), target);
+    for (const [destination, content] of nativeTargetsBefore) {
+      assert.strictEqual(fs.readFileSync(path.join(project, '.codex', destination), 'utf8'), content);
     }
+    assert.ok(!fs.existsSync(path.join(nativeSkillsRoot, 'flow-drive')), 'shared uninstall removes its own binding');
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
   }

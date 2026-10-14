@@ -491,23 +491,23 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     }
   });
 
-  test('native compiler materializes a non-invokable transport runtime without granting capability selection', () => {
+  test('native compiler materializes non-invokable support without granting capability selection', () => {
     const inventory = {
       skills: [
         { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] },
-        { id: 'cli-transport', name: 'dhpk-cli-transport', path: 'skills/dhpk-cli-transport', lifecycle: 'optional', invokable: false, surfaces: ['codex-native'] },
+        { id: 'support', name: 'flow-guide', path: 'skills/flow-guide', lifecycle: 'optional', invokable: false, surfaces: ['codex-native'] },
       ],
-      internal_runtime_skills: { 'codex-native': ['cli-transport'] },
+      internal_runtime_skills: { 'codex-native': ['support'] },
     };
     const out = tmpDir('dhpk-native-runtime-support-');
     try {
       const projection = compileNativePackage({ inventory, root: ROOT, outDir: out, version: '1.2.3', sourceCommit: 'abc123' });
       assert.deepStrictEqual(projection.selectedSkillIds, ['tdd']);
-      assert.deepStrictEqual(projection.materializedSkillIds, ['cli-transport', 'tdd']);
+      assert.deepStrictEqual(projection.materializedSkillIds, ['support', 'tdd']);
       assert.deepStrictEqual(projection.provenance.selectedSkillIds, ['tdd']);
-      assert.deepStrictEqual(projection.provenance.runtimeSupportStableIds, ['cli-transport']);
-      assert.ok(projection.plan.entries.some((entry) => entry.destination === 'skills/dhpk-cli-transport/SKILL.md'));
-      assert.ok(!projection.plan.selectedStableIds.includes('cli-transport'));
+      assert.deepStrictEqual(projection.provenance.runtimeSupportStableIds, ['support']);
+      assert.ok(projection.plan.entries.some((entry) => entry.destination === 'skills/flow-guide/SKILL.md'));
+      assert.ok(!projection.plan.selectedStableIds.includes('support'));
     } finally {
       fs.rmSync(out, { recursive: true, force: true });
     }
@@ -906,7 +906,11 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
         && inventoryById.get(entry.id).surfaces.includes('codex-native')).map((entry) => entry.id).sort();
       const expectedIds = [...commonIds, ...hostOnlyIds].sort();
-      assert.deepStrictEqual(provenance.runtimeSupportStableIds, ['cli-dispatch-context', 'cli-transport']);
+      assert.deepStrictEqual(provenance.runtimeSupportStableIds, []);
+      for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) {
+        assert.ok(!provenance.materializedSkillIds.includes(id), id);
+      }
+      assert.strictEqual(typeof require(path.join(out, 'skills/flow-drive/scripts/run.js')).runFlowDrive, 'function');
       assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);
       assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, hostOnlyIds);
       assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);

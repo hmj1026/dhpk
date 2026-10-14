@@ -402,7 +402,7 @@ The following sections provide comprehensive parameter references, types, defaul
   | Parameter | Type / Choices | Default | Description |
   |---|---|---|---|
   | `<task-text\|task-file\|confirmed-spec-or-change-id>` | String | (Required) | Task text, task file, or confirmed specification / OpenSpec Change ID. |
-  | `--plan[=auto|bounded|discovery]` | String (optional value) | None | Request pre-implementation critique by a Planner; select `auto`, `bounded`, or `discovery` scope using the current Host declared effective target. |
+  | `--plan[=auto\|bounded\|discovery]` | String (optional value) | None | Request pre-implementation critique by a Planner; select `auto`, `bounded`, or `discovery` scope using the current Host declared effective target. |
   | `--worker=auto\|provider[/model[:effort]]` | `claude`, `codex`, `agy`, or an exact target | `auto` | Automatic native candidates by default; external intent still requires a current exact Host role/target/authority grant. |
   | `--cross` | Boolean flag | Off | Allow external cross-provider candidates (such as Codex) when `--worker=auto` is used. |
   | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | None | Request a read-only Reasoner pass for architecture or complex decisions (e.g., `codex/gpt-6.1-sol:high`). |

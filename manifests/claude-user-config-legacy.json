@@ -185,6 +185,12 @@
       "description": "Role-specific dispatcher deadline for codex-deep-reasoner. Must be an integer number of seconds >= 0; 0 intentionally disables the portable runner deadline. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
       "default": "360"
     },
+    "codex_bridge_timeout_secs": {
+      "type": "string",
+      "title": "codex-bridge timeout (seconds)",
+      "description": "One-release timeout configuration alias for the shared runner codex-reviewer role. The canonical codex_reviewer_timeout_secs key takes precedence. This passive alias does not restore the retired codex-bridge agent or Skill.",
+      "default": "360"
+    },
     "architect_model": {
       "type": "string",
       "title": "architect model",
