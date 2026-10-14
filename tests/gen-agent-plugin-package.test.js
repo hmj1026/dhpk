@@ -618,7 +618,10 @@ test('default Agent Plugin generation publishes the canonical owner catalog', ()
     const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
     const actualNames = fs.readdirSync(path.join(out, 'skills')).filter((name) => fs.existsSync(path.join(out, 'skills', name, 'SKILL.md'))).sort();
     assert.strictEqual(commonIds.length, 15);
-    assert.strictEqual(hostOnlyIds.length, 2);
+    for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) {
+      assert.ok(!expectedIds.includes(id), `${id} remains retired`);
+    }
+    assert.strictEqual(typeof require(path.join(out, 'skills/flow-drive/scripts/run.js')).runFlowDrive, 'function');
     assert.deepStrictEqual(actualNames, expectedIds.map((id) => inventoryById.get(id).name).sort());
     assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);
     assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, hostOnlyIds);

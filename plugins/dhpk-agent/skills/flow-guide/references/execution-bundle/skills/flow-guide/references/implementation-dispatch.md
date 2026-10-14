@@ -230,25 +230,16 @@ rounds and was the best-practice pattern observed in the `fe13512c` run.
 
 ## Explicit high-stakes second-opinion path
 
-For a high-stakes implement-phase design/diagnosis decision, dispatch
-`deep-reasoner` and an explicitly requested `dhpk-codex-bridge` opinion in
-parallel, each blind to the other's findings, per §Multi-AI / dual-perspective
-independence. Do not feed one side's conclusion into the other's prompt. The
-bridge is an explicitly selected optional `codex-bridge` capability, with
-output quarantined in the subagent and relayed verbatim. Its host-provided
-CLI transport is separate from the retired in-session MCP `codex-*` identities
-and the external `codex:` app-server plugin. Read-only requests use
-`codex-reviewer` (`gpt-6.1-sol` / `high`) and workspace-write requests use
-`codex-worker` (`gpt-6-luna` / `xhigh`), per the §Implementation dispatch row.
-A pre-GPT-6 model is never an automatic fallback and cannot satisfy runtime
-acceptance evidence; an explicit user `codex_*_model` override is still honored. The default path never dispatches this bridge; a retired
-`CODEX=on`/`--codex` flag is rejected with `DEPRECATED_CODEX_FLAG` instead of
-being reinterpreted as a second opinion. A goal may request the bridge only
-through an explicit second-opinion option and must record when no independent
-opinion ran; `deep-reasoner` alone handles Codex-free sessions. Triggers include
-first-seen query/repository patterns, framework-internal hacks, and
-explicit-rule deferrals; use the named second-opinion option for the independent
-check, and record a human-approved exception for any hard-rule bypass.
+For a high-stakes design or diagnosis decision, use independent read-only
+reasoner/reviewer dispatches with separate source prompts. Keep each blind to
+the other's conclusion and record actual independent evidence. The standalone
+`dhpk-codex-bridge` Skill and agent retire in 0.66.2 with no dedicated
+replacement mode; model-default reasoning remains available. Flow Drive
+carries implementation-scoped Worker/Reasoner execution, not blind review.
+A named owner with its own supported CLI second-opinion runtime keeps that
+separate contract. First-seen query/repository patterns, framework-internal
+hacks, and explicit-rule deferrals still require applicable independent
+evidence or a recorded human-approved exception.
 
 ## Session-environment traps
 
@@ -256,4 +247,4 @@ The shell is zsh, where `status` is a read-only variable — use `st=` / `rc=` f
 
 ## Cross-verify a premise-overturning worker discovery before reframing
 
-When a worker returns a finding that *overturns an existing design premise* — "the bug is not reproducible as `design.md` assumed", "the documented approach cannot work", any result that changes the plan's direction — treat it as an approach-changing decision, not a routine result. Before reframing the plan on that single finding, obtain an **independent** second opinion per §Multi-AI / dual-perspective independence: in a default (codex-free) session, a second `deep-reasoner` pass prompted independently from the source (never fed the first conclusion); when the caller explicitly selects `--second-opinion=codex-exec`, the `dhpk-codex-bridge` opinion may run in parallel. A single model overturning its own earlier premise is exactly the shared-blind-spot case independence guards against — orchestrator-inline self-confirmation is not a substitute. Once the reframe is agreed and before the reframed artifacts go to the doc-review gate, run a **keyword sweep**: grep the whole change directory (proposal / design / tasks / specs) for the old, now-disproven wording and update or remove every remaining occurrence — stale wording surviving the reframe otherwise causes a doc-reviewer BLOCK → fix → re-review round that the sweep would have avoided.
+When a worker returns a finding that *overturns an existing design premise* — "the bug is not reproducible as `design.md` assumed", "the documented approach cannot work", any result that changes the plan's direction — treat it as an approach-changing decision, not a routine result. Before reframing the plan on that single finding, obtain an **independent** second opinion per §Multi-AI / dual-perspective independence: in a default (codex-free) session, a second `deep-reasoner` pass prompted independently from the source (never fed the first conclusion); a named owner's separately supported second-opinion runtime may supply additional independent evidence. A single model overturning its own earlier premise is exactly the shared-blind-spot case independence guards against — orchestrator-inline self-confirmation is not a substitute. Once the reframe is agreed and before the reframed artifacts go to the doc-review gate, run a **keyword sweep**: grep the whole change directory (proposal / design / tasks / specs) for the old, now-disproven wording and update or remove every remaining occurrence — stale wording surviving the reframe otherwise causes a doc-reviewer BLOCK → fix → re-review round that the sweep would have avoided.

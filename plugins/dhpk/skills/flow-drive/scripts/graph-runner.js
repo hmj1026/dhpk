@@ -30,6 +30,10 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
   const currentDigest = resolvedTask.constraints.prompt_evidence.sha256;
   const strict = resolvedTask.constraints.strict_target;
   const explicit = exactWorkerTarget(invocation);
+  const requestedNodeTarget = (node) => (node.role === 'worker' && explicit)
+    || (node.role === 'reasoner' && invocation.options.reasoner ? node.target : null)
+    || (node.role === 'planner' && invocation.options.plan.enabled ? node.target : null)
+    || strict;
   const authorizedProviders = [...new Set([
     ...authorizationLedger.providers,
     ...authorizationLedger.targets.map((grant) => grant.provider),
@@ -90,7 +94,7 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
     }
     const completed = await executeAttempt({ task: nodeTask, prepared, host, context: nodeContext,
       recoveryState, writerLease, verifyPromptEvidence, observedTargetIssue,
-      strictTarget: (node.role === 'worker' && explicit) || strict, validateCandidate: validateRecoveryCandidate });
+      strictTarget: requestedNodeTarget(node), validateCandidate: validateRecoveryCandidate });
     if (node.role === 'reviewer' && node.independent_of && completed.status === 'SUCCEEDED') {
       const observed = completed.outcome.executor_identity;
       const sources = node.independent_of.map((dependency) => outcomes.get(dependency)?.outcome?.executor_identity);
@@ -112,7 +116,7 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
       target || { target: { target_agent: 'cursor', provider: currentProvider, model_id: capabilities.host_profile.native_model }, effort: null },
       node.effort || target && target.effort, authorizedProviders,
       evidenceSelection.status === 'selected' ? evidenceSelection.evidence : null,
-      { session_id: sessionId, binding_id: bindingId }, Boolean(strict || (node.role === 'worker' && explicit)), node.role);
+      { session_id: sessionId, binding_id: bindingId }, Boolean(requestedNodeTarget(node)), node.role);
     return { ...packet.request, task_id: node.id, parallelism: { dependencies: [...node.dependencies], max_concurrency: graph.nodes.length } };
   });
   const scheduled = await executeSchedule(requests, {

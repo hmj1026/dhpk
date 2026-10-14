@@ -2,11 +2,9 @@
 
 Read this reference only when embedding or invoking the programmatic
 `runFlowDrive(argv, { host, workdir, authorizationEvidence, recovery })` API.
-For the user-facing `$flow-drive` entrypoint, follow the advanced legacy Host
-procedure in [SKILL.md](../SKILL.md). The two interfaces have different
-`--cross-provider` semantics: this API opens an optional Host scope question;
-the legacy procedure enables additional automatic candidates under current
-Host policy and access.
+For the user-facing `$flow-drive` entrypoint, follow the Host procedure in
+[SKILL.md](../SKILL.md). Both interfaces use the same grammar and keep Provider
+selection intent separate from current Host grants.
 
 ## Task contract and portability
 
@@ -20,7 +18,8 @@ before coordination or dispatch.
 
 The complete Skill directory can be installed or moved independently.
 Required lookup uses its own `scripts/`,
-`references/execution-bundle/`, and `references/cli-dispatch/` resources.
+`references/execution-bundle/`, `scripts/dispatch-runtime/`,
+`scripts/adapters/`, and `scripts/transport/` resources.
 Native execution, bound current capability evidence, coordination, and granted
 cross-Provider selection use the same public runner after relocation. Peer
 skills and a canonical checkout are optional; the injected Host and any
@@ -42,16 +41,18 @@ grant the Host permission to write one.
 
 ## Provider authorization and capability
 
-A canonical task `provider` constraint takes precedence over legacy target
-flags. An exact `--worker-target` grants only its selected Worker
-Provider/Agent/Model and optional Effort tuple; it does not authorize that
-Provider for other Roles. The dispatch resolver still requires current Host
-access and capability evidence. `--cross-provider` only opens the optional
-Host provider-scope question. The runner starts with external probing disabled
-and requests a scoped capability refresh only after a provider-scope answer or
-an exact `--worker-target` grant. Cancellation, no answer, or a Host without
-the question callback creates no external grant, so independent native graph
-work can continue while external nodes remain blocked.
+A canonical task `provider` constraint takes precedence over selection intent.
+`--worker=provider/model:effort` is an exact Worker request, not a grant.
+The Host must answer the selected target/role/authority scope before external
+probe or launch. Exact target grants do not authorize another role, authority,
+model, effort, or Provider. `--reasoner` intent does not change automatic
+Worker candidates. Automatic Workers remain native unless this invocation
+contains `--cross`; legacy cross environment/configuration is ignored.
+The runner starts with external probing disabled. Cancellation, refusal,
+partial/mismatched target answers, stale binding, or a missing question
+callback creates no target grant; independent eligible native graph work
+can continue. Existing root-owned provider-scope evidence remains usable only
+within current Host policy and the invocation's candidate scope.
 
 The Host may return a multi-provider selection, successive selections, or a
 plain provider-list answer; each `ANSWERED` result must include a nonblank
@@ -75,10 +76,16 @@ requested/resolved/observed targets separate. Verification `PASSED` requires
 successful execution and non-empty verification evidence; the runner's overall
 status is `REPORTED`, never an automatic task `PASS`.
 
-Planner, reasoner, and architecture options retain the legacy grammar, but the
-portable task runner returns a migration notice and blocker for those extra
-roles. Use the legacy Flow Drive procedure for that advanced path;
-`--no-architect` remains a notice-only compatibility flag.
+For `--plan`, the current Host declares its effective planner tuple in
+`host_profile.role_defaults.planner`. No Claude settings or other Host defaults
+are imported. Missing/invalid support blocks before coordination; omission
+adds no planner dependency. The runner exposes no separate legacy
+`planner_target` configuration adapter. The Host receives
+`context.requested_roles`, including planner scope and exact role targets,
+and returns matching read-only graph nodes before dependent writers.
+Requested reasoners retain the existing verified conclusion gate.
+`--architect` reports explicit `UNAVAILABLE` for the current Host contract.
+`--no-architect` preserves required graph policy and dependencies.
 
 An optional `recovery` contract enables bounded attempt recovery for solo and
 coordinated tasks. The Host proposes a target through `recover`; shared

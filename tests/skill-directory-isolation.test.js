@@ -340,18 +340,18 @@ const fixtures = Object.fromEntries(
 test('bridge-family registry exposes the exact raw-directory entry matrix', () => {
   assert.deepStrictEqual(Object.keys(fixtures), bridgeFamilyFixtureIds);
   const expectedEntries = {
-    'bridge-codex-contained-success': 'scripts/run-codex.sh',
-    'bridge-codex-attestation-required': 'scripts/run-codex.sh',
-    'bridge-codex-tool-unavailable': 'scripts/run-codex.sh',
-    'bridge-agy-contained-success': 'scripts/run-agy.sh',
-    'bridge-agy-attestation-required': 'scripts/run-agy.sh',
-    'bridge-agy-tool-unavailable': 'scripts/run-agy.sh',
-    'bridge-dispatch-codex-local-closure': 'scripts/launch-cli-dispatch.js',
-    'bridge-dispatch-agy-local-closure': 'scripts/launch-cli-dispatch.js',
-    'bridge-dispatch-rejected-authority': 'scripts/launch-cli-dispatch.js',
-    'bridge-transport-prepare-attested': 'scripts/prepare-cli-request.py',
-    'bridge-transport-contained-success': 'scripts/run-cli-transport.py',
-    'bridge-transport-rejected-authority': 'scripts/run-cli-transport.py',
+    'bridge-codex-contained-success': 'scripts/adapters/run-codex.sh',
+    'bridge-codex-attestation-required': 'scripts/adapters/run-codex.sh',
+    'bridge-codex-tool-unavailable': 'scripts/adapters/run-codex.sh',
+    'bridge-agy-contained-success': 'scripts/adapters/run-agy.sh',
+    'bridge-agy-attestation-required': 'scripts/adapters/run-agy.sh',
+    'bridge-agy-tool-unavailable': 'scripts/adapters/run-agy.sh',
+    'bridge-dispatch-codex-local-closure': 'scripts/dispatch-runtime/launch-cli-dispatch.js',
+    'bridge-dispatch-agy-local-closure': 'scripts/dispatch-runtime/launch-cli-dispatch.js',
+    'bridge-dispatch-rejected-authority': 'scripts/dispatch-runtime/launch-cli-dispatch.js',
+    'bridge-transport-prepare-attested': 'scripts/transport/prepare-cli-request.py',
+    'bridge-transport-contained-success': 'scripts/transport/run-cli-transport.py',
+    'bridge-transport-rejected-authority': 'scripts/transport/run-cli-transport.py',
   };
   for (const [id, entry] of Object.entries(expectedEntries)) {
     assert.strictEqual(fixtures[id].entry, entry, `${id} entry must remain Skill-relative`);

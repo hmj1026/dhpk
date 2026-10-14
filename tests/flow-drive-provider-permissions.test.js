@@ -84,7 +84,100 @@ function acceptedOutcome(targetInfo) {
   };
 }
 
-test('--cross-provider asks for real provider scope before a scoped capability refresh', async () => {
+test('an explicit external selector is intent and cannot probe or launch without a current Host answer', async () => {
+  const fixture = createRunnerFixture({ task: makeTask(), capabilities: capabilities(CLAUDE_PROFILE),
+    decision: { mode: 'solo', target: openAiWorkerTarget() }, outcome: acceptedOutcome(openAiWorkerTarget()) });
+  const requests = installCapabilityRefresh(fixture);
+  try {
+    const report = await runFlowDrive(['Repair.', '--worker=codex/gpt-6-luna:high'],
+      { host: fixture.host, workdir: fixture.workdir });
+    assert.strictEqual(report.parser.status, 'ready');
+    assert.notStrictEqual(report.acceptance.status, 'PASSED');
+    assert.deepStrictEqual(requests.map((request) => request.allow_external_probe), [false]);
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
+  } finally { fixture.cleanup(); }
+});
+
+test('an exact read-only worker grant cannot authorize a workspace-write worker at the same tuple', async () => {
+  const selected = openAiWorkerTarget();
+  const fixture = createRunnerFixture({ task: makeTask({ delegation: 'coordinated' }), capabilities: capabilities(CLAUDE_PROFILE) });
+  const requests = installCapabilityRefresh(fixture);
+  installGraphDecision(fixture, [
+    { id: 'read', role: 'worker', goal: 'Read.', acceptance: ['read'], authority: 'read-only', assigned_files: [], dependencies: [], target: selected },
+    { id: 'write', role: 'worker', goal: 'Write.', acceptance: ['written'], authority: 'workspace-write', assigned_files: ['src/receipt.js'], dependencies: [], target: selected },
+  ]);
+  fixture.host.askProviderScope = async (question) => ({ status: 'ANSWERED', answer_id: 'readonly-consent',
+    targets: question.selected_targets.filter((target) => target.authority === 'read-only') });
+  try {
+    const report = await runFlowDrive(['Repair.', '--worker=codex/gpt-6-luna:high'], { host: fixture.host, workdir: fixture.workdir });
+    assert.notStrictEqual(report.acceptance.status, 'PASSED');
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'execute' && call.task.constraints.authority === 'workspace-write'), false);
+    assert.ok(requests.every((request) => request.authorized_targets.every((target) => target.authority === 'read-only')));
+  } finally { fixture.cleanup(); }
+});
+
+test('--cross cannot turn an explicit worker selection into a broad Provider grant', async () => {
+  const fixture = createRunnerFixture({ task: makeTask(), capabilities: capabilities(CLAUDE_PROFILE),
+    decision: { mode: 'solo', target: openAiWorkerTarget() }, outcome: acceptedOutcome(openAiWorkerTarget()) });
+  const requests = installCapabilityRefresh(fixture);
+  const questions = [];
+  fixture.host.askProviderScope = async (question) => {
+    questions.push(question);
+    return question.selected_targets ? { status: 'REFUSED' }
+      : { status: 'ANSWERED', answer_id: 'broad-consent', providers: ['openai'] };
+  };
+  try {
+    const report = await runFlowDrive(['Repair.', '--worker=codex/gpt-6-luna:high', '--cross'], { host: fixture.host, workdir: fixture.workdir });
+    assert.notStrictEqual(report.acceptance.status, 'PASSED');
+    assert.ok(questions.every((question) => Array.isArray(question.selected_targets)));
+    assert.deepStrictEqual(requests.map((request) => request.allow_external_probe), [false]);
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
+  } finally { fixture.cleanup(); }
+});
+
+test('legacy cross environment cannot broaden automatic Flow Drive candidates', async () => {
+  const names = ['DHPK_PROJECT_OPTION_CROSS_PROVIDER', 'CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER'];
+  const original = names.map((name) => process.env[name]);
+  const fixture = createRunnerFixture({ task: makeTask(), capabilities: capabilities(CLAUDE_PROFILE),
+    decision: { mode: 'solo', target: openAiWorkerTarget() }, outcome: acceptedOutcome(openAiWorkerTarget()) });
+  const requests = installCapabilityRefresh(fixture);
+  try {
+    for (const name of names) process.env[name] = 'true';
+    const report = await runFlowDrive(['Repair.'], { host: fixture.host, workdir: fixture.workdir });
+    assert.notStrictEqual(report.acceptance.status, 'PASSED');
+    assert.deepStrictEqual(requests.map((request) => request.allow_external_probe), [false]);
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
+  } finally {
+    names.forEach((name, index) => {
+      if (original[index] === undefined) delete process.env[name]; else process.env[name] = original[index];
+    });
+    fixture.cleanup();
+  }
+});
+
+test('auto worker Provider consent cannot grant an explicitly selected reasoner whose tuple was refused', async () => {
+  for (const selectedWorker of [nativeClaudeTarget(), openAiWorkerTarget()]) {
+  const reasoner = target('openai', 'codex-cli', 'gpt-6.1-sol', 'high');
+  const fixture = createRunnerFixture({ task: makeTask({ delegation: 'coordinated' }), capabilities: capabilities(CLAUDE_PROFILE) });
+  const requests = installCapabilityRefresh(fixture);
+  installGraphDecision(fixture, [
+    { id: 'reason', role: 'reasoner', goal: 'Diagnose.', acceptance: ['diagnosed'], authority: 'read-only', assigned_files: [], dependencies: [], target: reasoner },
+    { id: 'write', role: 'worker', goal: 'Repair.', acceptance: ['repaired'], authority: 'workspace-write', assigned_files: ['src/receipt.js'],
+      dependencies: ['reason'], reasoner_dependencies: ['reason'], decision_state: 'REASONER_REQUIRED', target: selectedWorker },
+  ]);
+  fixture.host.askProviderScope = async (question) => question.selected_targets ? { status: 'REFUSED' }
+    : { status: 'ANSWERED', answer_id: 'auto-worker-consent', providers: ['openai'] };
+  try {
+    const report = await runFlowDrive(['Repair.', '--reasoner=codex/gpt-6.1-sol:high', '--cross'], { host: fixture.host, workdir: fixture.workdir });
+    assert.notStrictEqual(report.acceptance.status, 'PASSED');
+    assert.deepStrictEqual(requests.map((request) => request.allow_external_probe), selectedWorker.provider === 'openai' ? [false, true] : [false]);
+    assert.ok(requests.every((request) => request.authorized_targets.every((target) => target.role !== 'reasoner')));
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
+  } finally { fixture.cleanup(); }
+  }
+});
+
+test('--cross asks for real provider scope before a scoped capability refresh', async () => {
   const fixture = createRunnerFixture({
     task: makeTask(),
     capabilities: capabilities(CLAUDE_PROFILE),
@@ -103,7 +196,7 @@ test('--cross-provider asks for real provider scope before a scoped capability r
   };
 
   try {
-    const report = await runFlowDrive(['Update the receipt total.', '--cross-provider'], { host: fixture.host, workdir });
+    const report = await runFlowDrive(['Update the receipt total.', '--cross'], { host: fixture.host, workdir });
     assert.strictEqual(report.execution.status, 'SUCCEEDED');
     assert.strictEqual(report.acceptance.status, 'PASSED');
     assert.strictEqual(permissionRequests.length, 1);
@@ -168,7 +261,7 @@ test('multi-select, successive provider answers, and provider text produce the s
       return entry.answers[answerIndex++];
     };
     try {
-      const report = await runFlowDrive(['Update the receipt total.', '--cross-provider'], { host: fixture.host, workdir });
+      const report = await runFlowDrive(['Update the receipt total.', '--cross'], { host: fixture.host, workdir });
       assert.strictEqual(report.acceptance.status, 'PASSED');
       const context = fixture.calls.find((call) => call.method === 'coordinate').context;
       observedGrantSets.push(context.authorization_ledger.providers);
@@ -231,7 +324,7 @@ test('cancel, no-answer, and no-UI add no grants while an independent native gra
     };
 
     try {
-      const report = await runFlowDrive(['Update the receipt total.', '--cross-provider'], { host: fixture.host, workdir });
+      const report = await runFlowDrive(['Update the receipt total.', '--cross'], { host: fixture.host, workdir });
       assert.strictEqual(report.acceptance.status, 'BLOCKED');
       assert.strictEqual(fixture.calls.filter((call) => call.method === 'execute' && call.target.provider === 'anthropic').length, 1);
       assert.strictEqual(fixture.calls.some((call) => call.method === 'execute' && call.target.provider === 'openai'), false);
@@ -259,7 +352,7 @@ test('trusted structured authorization reuses the same consent contract and stri
   fixture.host.askProviderScope = async () => { questions += 1; return { status: 'CANCELLED' }; };
 
   try {
-    const report = await runFlowDrive(['Update the receipt total.', '--cross-provider'], {
+    const report = await runFlowDrive(['Update the receipt total.', '--cross'], {
       host: fixture.host,
       workdir,
       authorizationEvidence: { source: 'user-answer', answer_id: 'api-consent-openai-1', providers: ['openai'] },
@@ -320,7 +413,7 @@ test('answered scopes without a nonblank answer ID grant nothing and trigger no 
     const capabilityRequests = installCapabilityRefresh(fixture);
     if (entry.answer) fixture.host.askProviderScope = async () => entry.answer;
     try {
-      const report = await runFlowDrive(['Update the receipt total.', '--cross-provider'], {
+      const report = await runFlowDrive(['Update the receipt total.', '--cross'], {
         host: fixture.host,
         workdir,
         ...(entry.evidence ? { authorizationEvidence: entry.evidence } : {}),
@@ -350,7 +443,7 @@ test('a strict provider answer refreshes only the exact strict target tuple', as
   fixture.host.askProviderScope = async () => ({ status: 'ANSWERED', answer_id: 'consent-strict-1', providers: ['openai'] });
 
   try {
-    const report = await runFlowDrive(['Update the receipt total.', '--cross-provider'], { host: fixture.host, workdir });
+    const report = await runFlowDrive(['Update the receipt total.', '--cross'], { host: fixture.host, workdir });
     assert.strictEqual(report.acceptance.status, 'PASSED');
     assert.deepStrictEqual(capabilityRequests[1].authorized_providers, []);
     assert.deepStrictEqual(capabilityRequests[1].authorized_targets, [
@@ -396,14 +489,15 @@ test('an exact external worker CLI grant is tuple-scoped and does not constrain 
     },
   });
   installGraphDecision(fixture, nodes);
-  fixture.host.askProviderScope = async () => { throw new Error('exact CLI permission must not open a provider question'); };
+  fixture.host.askProviderScope = async (question) => ({ status: 'ANSWERED', answer_id: 'exact-worker-consent',
+    targets: question.selected_targets });
   fixture.host.execute = async (resolvedTarget, task, context) => {
     fixture.calls.push({ method: 'execute', target: resolvedTarget, task, context });
     return acceptedOutcome(resolvedTarget);
   };
 
   try {
-    const report = await runFlowDrive(['Update the receipt total.', '--worker-target=codex/gpt-6-luna:high'], { host: fixture.host, workdir });
+    const report = await runFlowDrive(['Update the receipt total.', '--worker=codex/gpt-6-luna:high'], { host: fixture.host, workdir });
     assert.strictEqual(report.acceptance.status, 'BLOCKED');
     const executions = fixture.calls.filter((call) => call.method === 'execute');
     assert.deepStrictEqual(executions.map((call) => call.context.node.role).sort(), ['reviewer', 'worker']);
@@ -540,7 +634,7 @@ test('an explicit Host access block remains binding while stale unavailability c
       return capabilities(initialProfile);
     };
     try {
-      const report = await runFlowDrive(['Update the receipt total.', '--cross-provider'], {
+      const report = await runFlowDrive(['Update the receipt total.', '--cross'], {
         host: fixture.host,
         workdir,
         authorizationEvidence: { source: 'user-answer', answer_id: `host-access-${entry.name}`, providers: ['openai'] },
@@ -633,7 +727,7 @@ for (const mode of ['solo', 'graph']) {
         state: context.allow_external_probe ? 'OBSERVED_AVAILABLE' : 'OBSERVED_UNAVAILABLE',
         status: context.allow_external_probe ? 'AVAILABLE' : 'UNAVAILABLE' })] });
     try {
-      const report = await runFlowDrive(['Update total'], { host: fixture.host, workdir,
+      const report = await runFlowDrive(['Update total', '--cross'], { host: fixture.host, workdir,
         authorizationEvidence: { source: 'user-answer', answer_id: 't7-refresh', providers: ['openai'] } });
       assert.strictEqual(report.acceptance.status, 'PASSED', JSON.stringify(report.blockers));
       assert.strictEqual(fixture.calls.filter((call) => call.method === 'execute').length, 1);

@@ -1,6 +1,8 @@
 'use strict';
 
 const path = require('node:path');
+const fs = require('node:fs');
+const { withIsolatedSkill } = require('./_lib/skill-directory-isolation');
 const { test, run, assert } = require('./_lib/tinytest');
 const { runRelocatedFlowDrive } = require('./_lib/flow-drive-relocation-fixtures');
 
@@ -105,6 +107,61 @@ test('a missing required copied resolver fails locally instead of finding the ca
   assert.strictEqual(value.setup_error.code, 'MODULE_NOT_FOUND');
   assert.ok(value.setup_error.message.includes('dispatch-engine'));
   assert.strictEqual(value.report, undefined);
+});
+
+function relocatedCli({ missingResource } = {}) {
+  return withIsolatedSkill({ source: path.join(__dirname, '..', 'skills', 'flow-drive'), stubs: {
+    codex: { body: `const fs = require('node:fs');
+      const args = process.argv.slice(1);
+      fs.readFileSync(0);
+      fs.writeFileSync(args[args.indexOf('--output-last-message') + 1], 'fixture completed');
+      fs.writeFileSync('allowed.txt', 'approved');`, status: 0 },
+  } }, (context) => {
+    const artifactRoot = path.join(context.projectDir, '.dhpk', 'attempt');
+    fs.mkdirSync(artifactRoot, { recursive: true, mode: 0o700 });
+    const prompt = path.join(context.projectDir, 'prompt.txt');
+    fs.writeFileSync(prompt, 'write the literal approved value');
+    const scope = path.join(context.projectDir, 'scope.json');
+    const receiptPath = path.join(artifactRoot, 'receipt.json');
+    fs.writeFileSync(scope, JSON.stringify({ artifact_root: artifactRoot,
+      context_path: path.join(artifactRoot, 'context.json'), receipt_path: receiptPath,
+      assigned_files: ['allowed.txt'], report_only: true, runtime_path: `${context.binDir}:/usr/bin` }));
+    const config = path.join(context.projectDir, 'config.json');
+    fs.writeFileSync(config, JSON.stringify({ codex_worker_timeout_secs: 3 }));
+    if (missingResource) {
+      const resource = path.join(context.skillDir, missingResource);
+      if (fs.existsSync(resource)) fs.unlinkSync(resource);
+    }
+    const { spawnSync } = require('node:child_process');
+    const result = spawnSync(process.execPath, [path.join(context.skillDir, 'scripts/dispatch-runtime/launch-cli-dispatch.js'),
+      '--dispatching-agent', 'fixture-host', '--execution-provider', 'codex',
+      '--requested-role', 'codex-worker', '--mode', 'workspace-write',
+      '--task-id', 'relocated-cli', '--attempt-id', 'relocated-attempt',
+      '--workdir', context.projectDir, '--prompt', prompt, '--scope', scope, '--config-layer', config],
+    { cwd: context.projectDir, env: context.env, encoding: 'utf8', timeout: 10000 });
+    return { ...result, started: fs.existsSync(path.join(context.projectDir, 'allowed.txt')),
+      effect: fs.existsSync(path.join(context.projectDir, 'allowed.txt'))
+        ? fs.readFileSync(path.join(context.projectDir, 'allowed.txt'), 'utf8') : null,
+      receipt: fs.existsSync(receiptPath) ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) : null };
+  });
+}
+
+test('the raw relocated owned CLI runtime creates an attested receipt and verifies the assigned effect', () => {
+  const result = relocatedCli();
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert.strictEqual(result.effect, 'approved');
+  assert.strictEqual(result.receipt.schema, 'dhpk.cli.receipt.v1');
+  assert.strictEqual(result.receipt.status, 'SUCCEEDED');
+  assert.strictEqual(result.receipt.task_id, 'relocated-cli');
+  assert.strictEqual(result.receipt.attempt_id, 'relocated-attempt');
+});
+
+test('a missing owned physical context helper fails explicitly before the external provider starts', () => {
+  const result = relocatedCli({ missingResource: 'scripts/dispatch-runtime/physical-file.py' });
+  assert.strictEqual(result.status, 65, result.stderr);
+  assert.match(result.stderr, /BLOCKED.*physical-file\.py/);
+  assert.strictEqual(result.started, false);
+  assert.strictEqual(result.receipt, null);
 });
 
 run('flow-drive-relocation');

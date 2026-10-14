@@ -66,8 +66,6 @@ front doors. Invoke the public name directly from Codex.
 
 | Public skill | Stable ID | Purpose |
 | --- | --- | --- |
-| [dhpk-agy-fast-worker](dhpk-agy-fast-worker/SKILL.md) | `agy-fast-worker` | Explicit AGY worker handoff |
-| [dhpk-codex-bridge](dhpk-codex-bridge/SKILL.md) | `codex-bridge` | Explicit external CLI bridge |
 | [dhpk-composer-package-hygiene](dhpk-composer-package-hygiene/SKILL.md) | `composer-package-hygiene` | Composer package and public API hygiene |
 | [dhpk-deploy-list](dhpk-deploy-list/SKILL.md) | `deploy-list` | Deployment file-list and checklist |
 | [dhpk-feature-verify](dhpk-feature-verify/SKILL.md) | `feature-verify` | Read-only post-deploy verification |
@@ -92,8 +90,6 @@ transport contract.
 
 | Public skill | Stable ID | Scope |
 | --- | --- | --- |
-| [dhpk-cli-dispatch-context](dhpk-cli-dispatch-context/SKILL.md) | `cli-dispatch-context` | CLI context dispatch |
-| [dhpk-cli-transport](dhpk-cli-transport/SKILL.md) | `cli-transport` | Hardened CLI transport |
 | [dhpk-fastapi-pro](dhpk-fastapi-pro/SKILL.md) | `fastapi-pro` | FastAPI and SQLAlchemy |
 | [dhpk-ios-icon-gen](dhpk-ios-icon-gen/SKILL.md) | `ios-icon-gen` | iOS icon generation |
 | [dhpk-ios-platform](dhpk-ios-platform/SKILL.md) | `ios-platform` | iOS platform APIs |

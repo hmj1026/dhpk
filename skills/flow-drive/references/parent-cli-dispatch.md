@@ -10,13 +10,12 @@ The short invocation uses the dispatcher's resolved configuration:
 /dhpk:flow-drive <change> --worker=codex --reasoner=codex
 ```
 
-Use `--reasoner=codex/gpt-6.1-sol:high` to override the configured reasoner
-model and effort. `codex-cli` remains a compatibility spelling of `codex`.
-An explicit worker target overrides the worker selector. Explicit selection
-does not require `--cross-provider`; in this Host procedure, that flag permits additional automatic candidates
-under the execution policy and current access checks. The programmatic
-[portable runner](portable-runner.md) instead uses it to open a provider-scope
-question; neither path grants workspace or external-action authority.
+Use `--worker=codex/gpt-6-luna:xhigh` or
+`--reasoner=codex/gpt-6.1-sol:high` for exact role targets. Bare Providers
+use their resolved role configuration. Provider aliases and the former
+selector/target split are removed. `--cross` expands automatic candidates only.
+Explicit Provider selection needs no duplicate flag and still requires a
+current exact Host grant before external capability probes or launch.
 
 ## Dispatcher packet
 
@@ -50,6 +49,10 @@ The packet contains:
   corresponding `codex_reasoner_*` values. Resolve shipped defaults through
   the selected installation's configuration before writing the packet;
   normalize the timeout to an integer, including an explicit `0` for no deadline.
+- `provider_grant`: for an external target, a current Host record with
+  `status: "GRANTED"`, nonblank `answer_id`, matching `task_id`, `attempt_id`,
+  `role`, `authority`, `provider`, `target_agent`, `model_id`, and `effort`.
+  Capability access and explicit selection do not substitute for this grant.
 - `reasoner_result`: required on a worker packet when a reasoner was requested;
   its `status` must be `READY_FOR_DISPATCH` and `evidence` must identify the
   observed conclusion and receipt. The parent checks the conclusion contract

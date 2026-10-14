@@ -35,7 +35,7 @@ function isCursorBoilerplateLine(line) {
     || line.includes(CURSOR_CX_BOILERPLATE)
     || line.includes(CLAUDE_PLUGIN_ROOT_TOKEN + '/scripts/')
     || (line.includes(CLAUDE_PLUGIN_ROOT_TOKEN + '/skills/')
-      && !/\/skills\/dhpk-(?:agy-fast-worker|codex-bridge)\/scripts\/run-(?:agy|codex)\.sh\b/.test(line))
+      && !/\/skills\/flow-drive\/scripts\/adapters\/run-(?:agy|codex)\.sh\b/.test(line))
   );
 }
 
@@ -80,10 +80,10 @@ function rewriteCursorHarnessBody(body) {
       .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/rules/execution-policy.md').join(CURSOR_SUPPORT_ROOT + '/policies/execution-policy.md')
       .replace(remainingRulePattern, '.cursor/rules/$1.mdc')
       .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/agents/').join('.cursor/agents/')
-      .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/skills/dhpk-agy-fast-worker/scripts/run-agy.sh')
-      .join(CURSOR_PLUGIN_ROOT_TOKEN + '/skills/dhpk-agy-fast-worker/scripts/run-agy.sh')
-      .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/skills/dhpk-codex-bridge/scripts/run-codex.sh')
-      .join(CURSOR_PLUGIN_ROOT_TOKEN + '/skills/dhpk-codex-bridge/scripts/run-codex.sh'),
+      .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-agy.sh')
+      .join(CURSOR_PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-agy.sh')
+      .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-codex.sh')
+      .join(CURSOR_PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-codex.sh'),
   )
     .replace(/[ \t]+$/gm, '')
     .replace(/\n{3,}/g, '\n\n')

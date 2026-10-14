@@ -1,6 +1,6 @@
 ---
 name: codex-reasoner
-description: "CLI-backed read-only deep-reasoning worker — the codex variant of `deep-reasoner`. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase when the `--reasoner=codex-cli/<model>[:<effort>]` target is selected (default `gpt-6.1-sol` @ `high`) instead of the in-process opus deep-reasoner. The bare `--reasoner=codex` value is a compatibility shorthand. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Runs `codex exec` in a read-only sandbox (never modifies the working tree), then returns the deep-reasoner conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture to `architect`. BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected. Not a reviewer."
+description: "CLI-backed read-only deep-reasoning worker — the codex variant of `deep-reasoner`. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase when the `--reasoner=codex/<model>[:<effort>]` target is selected (default `gpt-6.1-sol` @ `high`) instead of the in-process opus deep-reasoner. The bare `--reasoner=codex` value is a compatibility shorthand. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Runs `codex exec` in a read-only sandbox (never modifies the working tree), then returns the deep-reasoner conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture to `architect`. BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected. Not a reviewer."
 model: "cursor-grok-4.6-high"
 readonly: true
 ---
@@ -69,7 +69,7 @@ backend or produce a reasoning result from your own analysis when the CLI is una
    ```bash
    # The dispatcher created this 0600 context; this role must not fabricate it.
    export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
-   bash "${CURSOR_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh" \
+   bash "${CURSOR_PLUGIN_ROOT}/skills/flow-drive/scripts/adapters/run-codex.sh" \
      read-only "<workdir>" "$prompt_file" "<model>" "<effort>"
    ```
 

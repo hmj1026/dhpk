@@ -313,9 +313,9 @@ function transactionMetadataSnapshot(codexRoot) {
     .map((name) => [name, fs.readFileSync(path.join(codexRoot, name), 'utf8')]);
 }
 
-function provenanceDriftPlanFixture(drift) {
+function provenanceDriftPlanFixture(drift, pluginRoot = ROOT) {
   const scratch = projectRoot();
-  const first = runInstaller(scratch, ['--force']);
+  const first = runInstaller(scratch, ['--force'], pluginRoot);
   assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
   const codexRoot = path.join(scratch, '.codex');
   const receiptPath = path.join(codexRoot, '.dhpk-installed.json');
@@ -348,7 +348,7 @@ function provenanceDriftPlanFixture(drift) {
   };
   const planned = runInstaller(scratch, [
     '--migrate', '--update', '--plan', '--json', '--force',
-  ]);
+  ], pluginRoot);
   return {
     scratch,
     codexRoot,

@@ -292,8 +292,9 @@ test('$flow-guide help cards disclose inputs, enums, defaults, and retired marke
   const card = usageCardJsonHelp('flow-drive');
   assert.deepStrictEqual(card.inputs.map((input) => input.id), ['task-input']);
   const worker = card.options.find((option) => option.id === 'worker');
-  assert.deepStrictEqual(worker.enum_values, ['claude', 'codex', 'agy', 'auto']);
-  const crossProvider = card.options.find((option) => option.id === 'cross-provider');
+  assert.strictEqual(worker.syntax, '--worker=auto|provider[/model[:effort]]');
+  assert.strictEqual(worker.default, 'auto');
+  const crossProvider = card.options.find((option) => option.id === 'cross');
   assert.strictEqual(crossProvider.default, false);
   const retired = card.options.find((option) => option.id === 'codex');
   assert.strictEqual(retired.legacy.diagnostic_only, true);
@@ -310,7 +311,8 @@ test('$flow-guide help variants remain metadata-only and deterministic', () => {
     assert.match(first.stdout, new RegExp('\\$' + name));
     assert.doesNotMatch(first.stdout, /execute target|load target procedure|workspace-write granted/i);
   }
-  assert.match(usageCardHelp(['flow-drive']).stdout, /--worker-target=<provider>\/\\?<model>|--worker-target=<provider>\/\\?\\<model>/i);
+  assert.ok(usageCardHelp(['flow-drive']).stdout.includes('--worker=auto|provider[/model[:effort]]'));
+  assert.doesNotMatch(usageCardHelp(['flow-drive']).stdout, /--worker-target|--cross-provider|--plan-mode/);
 });
 
 test('generated usage artifacts bind to one catalog revision and derive Argument Hints', () => {
@@ -338,7 +340,7 @@ test('generated usage artifacts bind to one catalog revision and derive Argument
 
   const flowDrive = inventory.skills.find((skill) => skill.id === 'flow-drive');
   assert.ok(flowDrive, 'the source inventory must contain flow-drive');
-  const expectedArgumentHint = '<task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]';
+  const expectedArgumentHint = '<task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]';
   assert.strictEqual(flowDrive.usage.syntax, '$flow-drive ' + expectedArgumentHint);
   const frontmatter = fs.readFileSync(path.join(ROOT, 'skills/flow-drive/SKILL.md'), 'utf8');
   assert.ok(

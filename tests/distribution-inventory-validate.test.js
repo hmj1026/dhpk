@@ -744,30 +744,31 @@ test('projection contract rejects missing, unknown, conflicting, and broadened s
 
 // Merged from tests/internal-cli-transport-inventory.test.js.
 
-test('internal transport is registered everywhere but excluded from invokable generation', () => {
+test('Flow Drive owns transport closure without retired runtime Skill registrations', () => {
   const inventory = JSON.parse(JSON.stringify(require('../manifests/distribution-inventory.json')));
-  const entry = inventory.skills.find((skill) => skill.id === 'cli-transport');
-  assert.ok(entry, 'internal transport inventory entry is required');
-  assert.strictEqual(entry.invokable, false);
-  assert.deepStrictEqual([...entry.surfaces].sort(), [...inventory.surfaces].sort());
+  const retiredIds = ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge'];
+  for (const id of retiredIds) assert.ok(!inventory.skills.some((skill) => skill.id === id), id);
+  const entry = inventory.skills.find((skill) => skill.id === 'flow-drive');
+  assert.ok(entry);
+  for (const resource of ['scripts/transport/run-cli-transport.py', 'scripts/dispatch-runtime/launch-cli-dispatch.js', 'scripts/adapters/run-codex.sh', 'scripts/adapters/run-agy.sh']) {
+    assert.ok(fs.statSync(path.join(ROOT, entry.path, resource)).isFile(), resource);
+  }
   const validation = validateDistributionInventory({ inventory });
   assert.deepStrictEqual(validation.errors, [], validation.errors.join('\n'));
   const generated = generateClaudeSkillRoots(inventory);
-  assert.ok(generated.registeredSkillIds.includes('cli-transport'));
-  assert.ok(!generated.generatedSkillIds.includes('cli-transport'));
+  assert.ok(generated.generatedSkillIds.includes('flow-drive'));
+  for (const id of retiredIds) assert.ok(!generated.registeredSkillIds.includes(id), id);
 
-  const expectedRuntimeSupport = ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge'];
-  for (const surface of ['agent-plugin', 'cursor-plugin']) {
+  const expectedRuntimeSupport = [];
+  for (const surface of ['agent-plugin', 'cursor-plugin', 'codex-native']) {
     assert.deepStrictEqual(
       inventory.internal_runtime_skills[surface],
       expectedRuntimeSupport,
-      `${surface} must explicitly carry the non-invokable transport runtime`,
+      `${surface} must use the selected Flow Drive runtime owner`,
     );
   }
   assert.deepStrictEqual(inventory.internal_runtime_skills['agy-plugin'], [...expectedRuntimeSupport, 'flow-guide'],
     'AGY must explicitly carry the flow-guide runtime closure');
-  assert.deepStrictEqual(inventory.internal_runtime_skills['codex-native'], ['cli-dispatch-context', 'cli-transport'],
-    'Codex sync must materialize its transport runtime outside capability selection');
 
   const unknownSupport = JSON.parse(JSON.stringify(inventory));
   unknownSupport.internal_runtime_skills['agent-plugin'] = ['missing-runtime'];
@@ -783,26 +784,21 @@ function inventory() {
 
 test('resolves declared runtime support without making it an invokable selection', () => {
   const source = inventory();
-  const expected = ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge'];
-  const entry = source.skills.find((skill) => skill.id === 'cli-dispatch-context');
-  assert.ok(entry, 'dispatch context inventory entry is required');
-  assert.strictEqual(entry.invokable, false);
-  assert.strictEqual(entry.discoveryVisible, false);
-  assert.deepStrictEqual([...entry.surfaces].sort(), [...source.surfaces].sort());
+  const expected = [];
   assert.deepStrictEqual(INTERNAL_RUNTIME_SURFACES, ['agent-plugin', 'cursor-plugin', 'agy-plugin', 'codex-native']);
   assert.deepStrictEqual(runtimeSupportSkillIds(source, 'agent-plugin'), expected);
   assert.deepStrictEqual(runtimeSupportSkillIds(source, 'cursor-plugin'), expected);
   assert.deepStrictEqual(runtimeSupportSkillIds(source, 'agy-plugin'), [...expected, 'flow-guide']);
-  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'codex-native'), ['cli-dispatch-context', 'cli-transport']);
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'codex-native'), expected);
 });
 
 test('rejects malformed and unsupported runtime-support declarations', () => {
   const duplicate = inventory();
-  duplicate.internal_runtime_skills['agent-plugin'] = ['cli-transport', 'cli-transport'];
+  duplicate.internal_runtime_skills['agent-plugin'] = ['flow-guide', 'flow-guide'];
   assert.throws(() => runtimeSupportSkillIds(duplicate, 'agent-plugin'), /duplicate stable id/);
 
   const unsupported = inventory();
-  unsupported.internal_runtime_skills['unsupported-surface'] = ['cli-transport'];
+  unsupported.internal_runtime_skills['unsupported-surface'] = ['flow-guide'];
   const validation = validateInternalRuntimeSkills({ inventory: unsupported });
   assert.ok(validation.errors.some((error) => error.includes("unsupported surface 'unsupported-surface'")));
 });
@@ -890,17 +886,19 @@ test('generated Agent and Cursor manifests and provenance match inventory select
   const marketplace = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-cursor/.cursor-plugin/marketplace.json'), 'utf8'));
   assert.strictEqual(agent.name, 'dhpk');
   assert.strictEqual(cursor.name, 'dhpk-cursor');
-  assert.strictEqual(cursor.skills, './skills/');
   assert.strictEqual(cursor.hooks, './hooks/hooks.json');
-  assert.deepStrictEqual(fs.readdirSync(path.join(ROOT, 'plugins/dhpk-cursor/skills')).sort(), [
-    'dhpk-cli-dispatch-context', 'dhpk-cli-transport',
-  ]);
   const cursorProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-cursor/provenance.json'), 'utf8'));
-  assert.strictEqual(cursorProvenance.skillProjectionMode, 'overlay');
-  assert.deepStrictEqual(cursorProvenance.selectedSkillIds, ['cli-dispatch-context', 'cli-transport']);
+  assert.strictEqual(cursorProvenance.skillProjectionMode, 'shared');
+  assert.deepStrictEqual(cursorProvenance.selectedSkillIds, []);
+  assert.strictEqual(cursor.skills, undefined);
+  assert.ok(!fs.existsSync(path.join(ROOT, 'plugins/dhpk-cursor/skills')));
   assert.strictEqual(cursorProvenance.sharedSkillSurface, 'agent-plugin');
   assert.strictEqual(cursorProvenance.sharedSkillSource, 'plugins/dhpk-agent/skills/');
-  assert.ok(cursorProvenance.sharedSkillIds.length > 0);
+  const agentProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-agent/provenance.json'), 'utf8'));
+  assert.deepStrictEqual(cursorProvenance.sharedSkillIds, agentProvenance.marketplacePublication.publicEntryIds);
+  for (const name of cursorProvenance.sharedSkillNames) {
+    assert.ok(fs.existsSync(path.join(ROOT, cursorProvenance.sharedSkillSource, name, 'SKILL.md')), name);
+  }
   assert.strictEqual(marketplace.plugins.length, 1);
   assert.strictEqual(marketplace.plugins[0].source, '.');
 });

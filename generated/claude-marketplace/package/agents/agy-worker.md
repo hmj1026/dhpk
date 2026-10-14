@@ -75,7 +75,7 @@ task/semantic, and timeout/interruption failures stay on their existing policy p
    # Supplied by the dispatcher; AGY wrapper blocks without it.
    export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
    before="$(git status --porcelain)"
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-agy-fast-worker/scripts/run-agy.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/flow-drive/scripts/adapters/run-agy.sh" \
      "<workdir>" "<prompt-file>" "<model>"
    after="$(git status --porcelain)"
    ```

@@ -98,7 +98,8 @@ test('host-only rows follow the requested inventory surface and no surface is im
     assert.deepStrictEqual(result.hostOnly.map((row) => row.id).sort(), expected, `${surface} host-only rows`);
   }
   const agentOnly = compilePublication({ hostSurface: 'agent-plugin' }).hostOnly.map((entry) => entry.id).sort();
-  assert.deepStrictEqual(agentOnly, ['cli-dispatch-context', 'cli-transport']);
+  for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) assert.ok(!agentOnly.includes(id), id);
+  assert.ok(compilePublication({ hostSurface: 'agent-plugin' }).publicEntries.some((entry) => entry.id === 'flow-drive'));
 });
 
 test('the selection digest is SHA-256 over canonical JSON regardless of object key order', () => {
@@ -162,9 +163,11 @@ test('an unknown host surface fails closed without partial publication data', ()
 
 test('a host-only row without inventory surface data fails closed', () => {
   const inventory = clone(INVENTORY);
-  delete inventory.skills.find((skill) => skill.id === 'cli-transport').surfaces;
-  const result = compilePublication({ inventory, hostSurface: 'agent-plugin' });
-  assert.match(errorText(result), /cli-transport.*surfaces/i);
+  const selection = clone(SELECTION);
+  selection.skills.find((skill) => skill.id === 'flow-guide').selection = 'host-only';
+  delete inventory.skills.find((skill) => skill.id === 'flow-guide').surfaces;
+  const result = compilePublication({ inventory, selection, hostSurface: 'agent-plugin' });
+  assert.match(errorText(result), /flow-guide.*surfaces/i);
   assert.deepStrictEqual(result.publicEntries, []);
   assert.deepStrictEqual(result.bundledChildren, {});
   assert.deepStrictEqual(result.hostOnly, []);
@@ -193,13 +196,22 @@ test('every generated package lists skills under their inventory name, never an 
   const aliasSet = new Set(ALIASES);
   for (const { root: relative, surface, includeCommon } of PACKAGE_SKILL_CATALOGS) {
     const root = path.join(ROOT, relative);
-    assert.ok(fs.existsSync(root), `${relative} must be generated`);
     const publication = compilePublication({ hostSurface: surface });
     assert.deepStrictEqual(publication.errors, [], `${surface} publication must compile`);
     const expectedEntries = includeCommon
       ? [...publication.publicEntries, ...publication.hostOnly]
       : publication.hostOnly;
     const expectedNames = expectedEntries.map((entry) => entry.name).sort();
+    if (!includeCommon && expectedNames.length === 0) {
+      const provenance = readJson('plugins/dhpk-cursor/provenance.json');
+      assert.strictEqual(provenance.sharedSkillSurface, 'agent-plugin');
+      assert.strictEqual(provenance.sharedSkillSource, 'plugins/dhpk-agent/skills/');
+      assert.deepStrictEqual(provenance.sharedSkillIds, publication.publicEntries.map((entry) => entry.id).sort());
+      for (const entry of publication.publicEntries) assert.ok(fs.existsSync(path.join(ROOT, provenance.sharedSkillSource, entry.name, 'SKILL.md')), entry.id);
+      assert.ok(!fs.existsSync(root), 'shared-only Cursor must not duplicate the Skill tree');
+      continue;
+    }
+    assert.ok(fs.existsSync(root), `${relative} must be generated`);
     const actualNames = [];
     for (const directory of fs.readdirSync(root)) {
       const file = path.join(root, directory, 'SKILL.md');

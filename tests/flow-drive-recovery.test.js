@@ -112,7 +112,7 @@ test('availability failures can use one authorized alternate target when no effe
     });
 
     try {
-      const report = await runFlowDrive(['Repair the receipt total.', '--cross-provider'], {
+      const report = await runFlowDrive(['Repair the receipt total.', '--cross'], {
         host: fixture.host,
         workdir,
         recovery: { retryBudget: 1 },
@@ -152,7 +152,7 @@ test('one retry budget is shared across authorized providers and keeps each fail
   fixture.host.verify = async () => ({ status: 'FAILED', evidence: 'execution failed' });
 
   try {
-    const report = await runFlowDrive(['Repair the receipt total.', '--cross-provider'], {
+    const report = await runFlowDrive(['Repair the receipt total.', '--cross'], {
       host: fixture.host,
       workdir,
       recovery: { retryBudget: 1 },
@@ -187,7 +187,7 @@ test('quota failure stops on its provider instead of substituting an authorized 
   fixture.host.verify = async () => ({ status: 'FAILED', evidence: 'quota prevented execution' });
 
   try {
-    const report = await runFlowDrive(['Repair the receipt total.', '--cross-provider'], {
+    const report = await runFlowDrive(['Repair the receipt total.', '--cross'], {
       host: fixture.host,
       workdir,
       recovery: { retryBudget: 1 },
@@ -217,7 +217,7 @@ test('zero retry budget does not launch a substitute after an availability failu
   fixture.host.verify = async () => ({ status: 'FAILED', evidence: 'execution failed' });
 
   try {
-    const report = await runFlowDrive(['Repair the receipt total.', '--cross-provider'], {
+    const report = await runFlowDrive(['Repair the receipt total.', '--cross'], {
       host: fixture.host,
       workdir,
       recovery: { retryBudget: 0 },
@@ -290,7 +290,7 @@ test('a user or safety denial cannot be bypassed by an authorized substitute', a
   fixture.host.verify = async () => ({ status: 'FAILED', evidence: 'execution was denied' });
 
   try {
-    const report = await runFlowDrive(['Repair the receipt total.', '--cross-provider'], {
+    const report = await runFlowDrive(['Repair the receipt total.', '--cross'], {
       host: fixture.host,
       workdir,
       recovery: { retryBudget: 2 },
@@ -328,7 +328,7 @@ test('an explicit strict target cannot be substituted after an availability fail
   fixture.host.verify = async () => ({ status: 'FAILED', evidence: 'execution failed' });
 
   try {
-    const report = await runFlowDrive(['Use the exact approved target.', '--cross-provider'], {
+    const report = await runFlowDrive(['Use the exact approved target.', '--cross'], {
       host: fixture.host,
       workdir,
       recovery: { retryBudget: 2 },
@@ -676,7 +676,7 @@ test('solo recovery shares the public attempt lifecycle and retains parent accep
   fixture.host.recover = async () => ({ action: 'substitute', target: OPENAI_TARGET });
   fixture.host.verify = async (_task, outcome) => ({ status: outcome.status === 'SUCCEEDED' ? 'PASSED' : 'FAILED', evidence: 'literal acceptance checked' });
   try {
-    const report = await runFlowDrive(['Recover one solo task.', '--cross-provider'], { host: fixture.host, workdir, recovery: { retryBudget: 1 } });
+    const report = await runFlowDrive(['Recover one solo task.', '--cross'], { host: fixture.host, workdir, recovery: { retryBudget: 1 } });
     assert.strictEqual(report.acceptance.status, 'PASSED');
     assert.strictEqual(attempts.length, 2);
     assert.strictEqual(attempts[0].task_id, attempts[1].task_id);
@@ -727,7 +727,7 @@ test('the retry budget is shared across graph nodes and verified independent wor
   fixture.host.recover = async () => ({ action: 'substitute', target: OPENAI_TARGET });
   fixture.host.verify = async (_task, outcome) => ({ status: outcome.status === 'SUCCEEDED' ? 'PASSED' : 'FAILED', evidence: 'acceptance checked' });
   try {
-    const report = await runFlowDrive(['Recover only affected graph work.', '--cross-provider'], { host: fixture.host, workdir, recovery: { retryBudget: 1 } });
+    const report = await runFlowDrive(['Recover only affected graph work.', '--cross'], { host: fixture.host, workdir, recovery: { retryBudget: 1 } });
     assert.deepStrictEqual(executions.filter((entry) => entry.id === 'first').map((entry) => entry.provider), ['anthropic', 'openai']);
     assert.deepStrictEqual(executions.filter((entry) => entry.id === 'second').map((entry) => entry.provider), ['anthropic']);
     assert.strictEqual(executions.filter((entry) => entry.id === 'reader').length, 1);
@@ -767,7 +767,7 @@ test('concurrent read-only failures admit only one replacement from the shared b
   };
   fixture.host.verify = async (_task, outcome) => ({ status: outcome.status === 'SUCCEEDED' ? 'PASSED' : 'FAILED', evidence: 'acceptance checked' });
   try {
-    const report = await runFlowDrive(['Inspect independent evidence.', '--cross-provider'], { host: fixture.host, workdir,
+    const report = await runFlowDrive(['Inspect independent evidence.', '--cross'], { host: fixture.host, workdir,
       recovery: { retryBudget: 1, controlTimeoutMs: 200 } });
     assert.strictEqual(executions.filter((entry) => entry.model === 'sonnet5').length, 1);
     assert.strictEqual(executions.length, 3);
@@ -810,7 +810,7 @@ test('a recovered prerequisite invalidates downstream reuse while parent accepta
     return { status: outcome.status === 'SUCCEEDED' ? 'PASSED' : 'FAILED', evidence: 'fresh dependency acceptance verified' };
   };
   try {
-    const report = await runFlowDrive(['Recover and verify the dependency.', '--cross-provider'], { host: fixture.host, workdir, recovery: { retryBudget: 1 } });
+    const report = await runFlowDrive(['Recover and verify the dependency.', '--cross'], { host: fixture.host, workdir, recovery: { retryBudget: 1 } });
     assert.strictEqual(reuseCalls, 0);
     assert.strictEqual(freshReads, 1);
     assert.strictEqual(parentVerifications, 1);

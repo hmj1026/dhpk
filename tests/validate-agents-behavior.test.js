@@ -126,7 +126,18 @@ test('missing tools fails as local policy', () => {
 test('the validator covers root and module agents', () => {
   const result = spawnSync(process.execPath, [VALIDATOR], { encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout || ''}${result.stderr || ''}`);
-  assert.match(`${result.stdout || ''}${result.stderr || ''}`, /34 agent files/);
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
+  const rootAgents = fs.readdirSync(path.join(ROOT, 'agents')).filter((name) => name.endsWith('.md') && name !== 'INDEX.md')
+    .map((name) => name.slice(0, -3)).sort();
+  assert.deepStrictEqual(rootAgents, [...inventory.agent_roster].sort());
+  const moduleAgents = inventory.modules.flatMap((entry) => {
+    const directory = path.join(ROOT, entry.path, 'agents');
+    return fs.existsSync(directory) ? fs.readdirSync(directory).filter((name) => name.endsWith('.md') && name !== 'INDEX.md')
+      .map((name) => `${entry.path}/agents/${name}`) : [];
+  });
+  assert.deepStrictEqual(moduleAgents.sort(), ['modules/library-author/agents/polyfill-reviewer.md']);
+  assert.ok(!inventory.agent_roster.includes('codex-bridge'), 'standalone bridge stays retired');
+  assert.match(`${result.stdout || ''}${result.stderr || ''}`, new RegExp(`${inventory.agent_roster.length + moduleAgents.length} agent files`));
 });
 
 test('INDEX.md is skipped even without tools or a matching name', () => {

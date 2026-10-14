@@ -361,9 +361,9 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
 
   test('rewriteCursorHarnessBody preserves transport invocations with the bound Cursor package root', () => {
     const rewritten = rewriteCursorHarnessBody(
-      'bash "' + PLUGIN_ROOT_TOKEN + '/skills/dhpk-codex-bridge/scripts/run-codex.sh" read-only /work prompt.txt',
+      'bash "' + PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-codex.sh" read-only /work prompt.txt',
     );
-    assert.match(rewritten, /bash "\$\{CURSOR_PLUGIN_ROOT\}\/skills\/dhpk-codex-bridge\/scripts\/run-codex\.sh"/);
+    assert.match(rewritten, /bash "\$\{CURSOR_PLUGIN_ROOT\}\/skills\/flow-drive\/scripts\/adapters\/run-codex\.sh"/);
     assert.ok(!rewritten.includes(PLUGIN_ROOT_TOKEN));
   });
 
@@ -373,10 +373,10 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
       'name: dhpk-codex-bridge',
       'description: Bridge',
       '---',
-      'bash "' + PLUGIN_ROOT_TOKEN + '/skills/dhpk-codex-bridge/scripts/run-codex.sh" read-only /work prompt.txt',
+      'bash "' + PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-codex.sh" read-only /work prompt.txt',
     ].join('\n'), 'dhpk-codex-bridge');
     assert.strictEqual(adapted.ok, true, adapted.reason);
-    assert.ok(adapted.content.includes('${CURSOR_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh'));
+    assert.ok(adapted.content.includes('${CURSOR_PLUGIN_ROOT}/skills/flow-drive/scripts/adapters/run-codex.sh'));
     assert.ok(!retainsClaudePluginRoot(adapted.content));
   });
 

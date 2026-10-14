@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727",
+  "sourceInventoryRevision": "sha256:0129decc4f364179ac002e916d8afa863df28fb02aa45e75e9964669981e8499",
   "entries": [
     {
       "id": "change-verdict",
@@ -342,7 +342,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Execute one scoped task with diagnosis and acceptance evidence",
-        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
@@ -370,21 +370,10 @@
         "options": [
           {
             "id": "plan",
-            "syntax": "--plan[=<model>:<effort>]",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "plan-mode",
-            "syntax": "--plan-mode=auto|bounded|discovery",
+            "syntax": "--plan[=auto|bounded|discovery]",
             "value_kind": "enum",
             "required": false,
-            "summary": "Select the consult scope; requires --plan and defaults to auto when enabled",
-            "default": "auto",
+            "summary": "Request a planner scope using the current Host declared effective target",
             "enum_values": [
               "auto",
               "bounded",
@@ -396,36 +385,21 @@
           },
           {
             "id": "worker",
-            "syntax": "--worker=<worker>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Select an explicitly requested implementation worker",
-            "enum_values": [
-              "claude",
-              "codex",
-              "agy",
-              "auto"
-            ],
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "worker-target",
-            "syntax": "--worker-target=<provider>/<model>[:<effort>]",
+            "syntax": "--worker=auto|provider[/model[:effort]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target",
+            "summary": "Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant",
+            "default": "auto",
             "applies_to": [
               "apply"
             ]
           },
           {
-            "id": "cross-provider",
-            "syntax": "--cross-provider",
+            "id": "cross",
+            "syntax": "--cross",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh",
+            "summary": "Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches",
             "default": false,
             "applies_to": [
               "apply"
@@ -436,7 +410,7 @@
             "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+            "summary": "Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers",
             "applies_to": [
               "apply"
             ]
@@ -446,7 +420,7 @@
             "syntax": "--architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+            "summary": "Request consultation; report UNAVAILABLE when the current Host has no supported architecture route",
             "applies_to": [
               "apply"
             ]
@@ -456,7 +430,7 @@
             "syntax": "--no-architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Compatibility notice only in the portable task runner",
+            "summary": "Suppress an optional consult while preserving required Host gates",
             "applies_to": [
               "apply"
             ]
@@ -470,7 +444,7 @@
             "legacy": {
               "replacement_id": "worker",
               "diagnostic_only": true,
-              "reason": "Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut"
+              "reason": "Use an explicit worker or reasoner instead of the retired Codex shortcut"
             },
             "applies_to": [
               "apply"
@@ -483,12 +457,12 @@
             "summary": "Resolve and implement a bounded task with explicit acceptance"
           },
           {
-            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
+            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross",
             "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
           }
         ]
       },
-      "usageFingerprint": "d78ea140b33fb6d1fdc2f2d733f584904194e0819ac3ff7e801c4f91ea460886"
+      "usageFingerprint": "302776393f4628264a0fca0525eadaa38f0e9c27134f8ae3625efc4a5d2f4cb5"
     },
     {
       "id": "flow-guide",
@@ -1045,36 +1019,15 @@
       "usageFingerprint": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
     }
   ],
-  "sourceSelectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
+  "sourceSelectionDigest": "5f9d35c642d1c09214e14a916cfbcb3cec6a7c327479a3598e9e1589a7b44e2f",
   "runtimeIndex": {
     "targets": {
-      "agy-fast-worker": {
-        "id": "agy-fast-worker",
-        "publicName": "dhpk-agy-fast-worker",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-agy-fast-worker <input>",
-        "codexInvokable": false
-      },
       "change-verdict": {
         "id": "change-verdict",
         "publicName": "change-verdict",
         "invocationClass": "implicit-eligible",
         "command": "$change-verdict [--mode=<mode>] [--coverage] [<target>]",
         "codexInvokable": true
-      },
-      "cli-dispatch-context": {
-        "id": "cli-dispatch-context",
-        "publicName": "dhpk-cli-dispatch-context",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-cli-dispatch-context <input>",
-        "codexInvokable": false
-      },
-      "cli-transport": {
-        "id": "cli-transport",
-        "publicName": "dhpk-cli-transport",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-cli-transport <input>",
-        "codexInvokable": false
       },
       "code-simplify": {
         "id": "code-simplify",
@@ -1089,13 +1042,6 @@
         "invocationClass": "implicit-eligible",
         "command": "$code-trace [--mode=<mode>] <query>",
         "codexInvokable": true
-      },
-      "codex-bridge": {
-        "id": "codex-bridge",
-        "publicName": "dhpk-codex-bridge",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-codex-bridge <input>",
-        "codexInvokable": false
       },
       "composer-package-hygiene": {
         "id": "composer-package-hygiene",
@@ -1150,7 +1096,7 @@
         "id": "flow-drive",
         "publicName": "flow-drive",
         "invocationClass": "explicit-only",
-        "command": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
+        "command": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]",
         "codexInvokable": true
       },
       "flow-guide": {
@@ -1526,14 +1472,6 @@
       }
     },
     "aliases": {
-      "agy-fast-worker": {
-        "target": "dhpk-agy-fast-worker",
-        "disposition": "legacy"
-      },
-      "codex-bridge": {
-        "target": "dhpk-codex-bridge",
-        "disposition": "legacy"
-      },
       "composer-package-hygiene": {
         "target": "dhpk-composer-package-hygiene",
         "disposition": "legacy"
@@ -1554,6 +1492,10 @@
         "target": "git-smart-commit",
         "disposition": "retired"
       },
+      "dhpk-agy-fast-worker": {
+        "target": "flow-drive",
+        "disposition": "retired"
+      },
       "dhpk-bug-fix": {
         "target": "flow-guide",
         "disposition": "retired"
@@ -1566,6 +1508,14 @@
         "target": "harness-govern",
         "disposition": "retired"
       },
+      "dhpk-cli-dispatch-context": {
+        "target": "flow-drive",
+        "disposition": "retired"
+      },
+      "dhpk-cli-transport": {
+        "target": "flow-drive",
+        "disposition": "retired"
+      },
       "dhpk-codebase-exploration": {
         "target": "code-trace",
         "disposition": "retired"
@@ -1576,6 +1526,10 @@
       },
       "dhpk-codex-brainstorm": {
         "target": "module-design",
+        "disposition": "retired"
+      },
+      "dhpk-codex-bridge": {
+        "target": "flow-guide",
         "disposition": "retired"
       },
       "dhpk-codex-implement": {

@@ -59,6 +59,14 @@ function evaluateTargetPolicy({ target, role, authority, constraints = {}, invoc
     return { allowed: false, reason: 'Host selection does not match the strict task target' };
   }
 
+  if (role === 'reasoner' && invocation && invocation.options.reasoner) {
+    const option = invocation.options.reasoner;
+    const provider = ({ claude: 'anthropic', codex: 'openai', agy: 'google' })[option.backend];
+    if (selected.provider !== provider || option.model && selected.model_id !== option.model
+      || option.effort && selected.effort !== option.effort) {
+      return { allowed: false, reason: 'Host selection does not match the explicit reasoner target' };
+    }
+  }
   if (role === 'worker') {
     const options = invocation && invocation.options || {};
     const exact = options.workerTarget;
@@ -72,11 +80,17 @@ function evaluateTargetPolicy({ target, role, authority, constraints = {}, invoc
     } else if (options.worker && options.worker !== 'auto') {
       const backend = BACKEND_FOR_AGENT[selected.target_agent];
       if (selected.model_id === null || backend !== options.worker) return { allowed: false, reason: 'Host selection does not match the legacy worker selector' };
+    } else if (!options.crossProvider && selected.provider !== ledger.current_provider) {
+      return { allowed: false, reason: 'automatic worker selection is native-only unless --cross is specified' };
     }
   }
 
-  const broadProviderGrant = ledger && ledger.providers.includes(selected.provider);
-  const exactTargetGrant = ledger && targetGrantMatches(ledger, selected, role);
+  const options = invocation && invocation.options || {};
+  const explicitRole = role === 'worker' && options.worker && options.worker !== 'auto'
+    || role === 'reasoner' && options.reasoner;
+  const broadProviderGrant = ledger && ledger.providers.includes(selected.provider)
+    && (selected.provider === ledger.current_provider || !explicitRole);
+  const exactTargetGrant = ledger && targetGrantMatches(ledger, selected, role, authority);
   if (!broadProviderGrant && !exactTargetGrant) {
     return { allowed: false, target: selected, reason: 'target Provider is not authorized for this task' };
   }

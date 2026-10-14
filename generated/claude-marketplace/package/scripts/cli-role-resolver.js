@@ -1,3 +1,3 @@
 'use strict';
 
-module.exports = require('../skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver');
+module.exports = require('../skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver');

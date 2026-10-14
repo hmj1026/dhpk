@@ -52,6 +52,7 @@ function createHarness({
   confirmed = true,
   codexStub = CODEX_STUB,
   existingContext = null,
+  providerGrant = true,
 } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'flow-drive-cli-dispatch-'));
   const workdir = path.join(root, 'work');
@@ -93,6 +94,13 @@ function createHarness({
     scope,
     config: { ...config },
   };
+  const selection = role === 'reasoner' ? invocation.options.reasoner : invocation.options.workerTarget;
+  packet.provider_grant = providerGrant === true ? {
+    status: 'GRANTED', answer_id: 'fixture-provider-consent', task_id: packet.task_id, attempt_id: packet.attempt_id,
+    role, authority: role === 'worker' ? 'workspace-write' : 'read-only', provider: 'openai', target_agent: 'codex-cli',
+    model_id: selection && selection.model || config[role === 'worker' ? 'codex_worker_model' : 'codex_reasoner_model'],
+    effort: selection && selection.effort || config[role === 'worker' ? 'codex_worker_effort' : 'codex_reasoner_effort'],
+  } : providerGrant;
   if (reasonerResult) {
     const evidence = path.join(artifactRoot, 'reasoner-conclusion.json');
     fs.writeFileSync(evidence, JSON.stringify({ conclusion: 'the selected task is ready for the worker phase' }));
@@ -138,11 +146,25 @@ function promptEvidence(prompt) {
   };
 }
 
+test('an explicit external dispatcher target without a current exact Host grant never launches', () => {
+  for (const providerGrant of [null, { status: 'GRANTED', answer_id: 'partial' },
+    { status: 'REFUSED', answer_id: 'refusal' }]) {
+    const harness = createHarness({ args: ['--worker=codex'], providerGrant });
+    try {
+      const result = harness.run();
+      assert.strictEqual(result.status, 65, result.stderr);
+      assert.match(result.stderr, /grant/);
+      assert.strictEqual(hasNoProviderStart(harness), true);
+      assert.strictEqual(fs.existsSync(harness.scope.context_path), false);
+    } finally { harness.cleanup(); }
+  }
+});
+
 test('Claude Code launches the selected Codex worker with dispatcher-attested role, authority, model, and effort', () => {
   const harness = createHarness({
     args: [
-      '--plan=opus:high', '--plan-mode=bounded', '--worker=codex', '--cross-provider',
-      '--reasoner=codex-cli/gpt-6.1-sol:high', '--architect',
+      '--plan=bounded', '--worker=codex', '--cross',
+      '--reasoner=codex/gpt-6.1-sol:high', '--architect',
     ],
     role: 'worker',
     reasonerResult: true,
@@ -174,9 +196,9 @@ test('Claude Code launches the selected Codex worker with dispatcher-attested ro
   }
 });
 
-test('an explicit Codex worker target wins over the native worker selector', () => {
+test('a unified exact Codex worker selection reaches the literal target', () => {
   const harness = createHarness({
-    args: ['--worker=agy', '--worker-target=codex/gpt-6-luna:xhigh'],
+    args: ['--worker=codex/gpt-6-luna:xhigh'],
     role: 'worker',
   });
   try {
@@ -205,20 +227,18 @@ test('a native Claude Code reasoner selection resolves through the common dispat
   }
 });
 
-test('an explicit native worker target resolves with its configured effort and an override notice', () => {
+test('a supported exact native worker effort is preserved instead of substituting its default', () => {
   const model = CLAUDE_PROFILE.role_defaults.worker.model_id;
   const harness = createHarness({
-    args: [`--worker-target=claude/${model}:high`],
+    args: [`--worker=claude/${model}:high`],
     config: {},
   });
   try {
     const prepared = prepareInvocationDispatch(harness.packet, promptEvidence(harness.packet.prompt));
     assert.strictEqual(prepared.resolution.status, 'RESOLVED');
-    assert.strictEqual(prepared.resolution.target.provider, 'anthropic');
-    assert.strictEqual(prepared.resolution.target.target_agent, 'claude-code');
-    assert.strictEqual(prepared.request.effort, 'medium');
-    assert.strictEqual(prepared.resolution.target.effort, 'medium');
-    assert.match(harness.packet.invocation.notices.join('\n'), /not applied/);
+    assert.strictEqual(prepared.request.effort, 'high');
+    assert.strictEqual(prepared.resolution.target.effort, 'high');
+    assert.deepStrictEqual(harness.packet.invocation.notices, []);
   } finally {
     harness.cleanup();
   }
@@ -226,7 +246,7 @@ test('an explicit native worker target resolves with its configured effort and a
 
 test('an available native worker resolves before unused Codex fallback config is needed', () => {
   const harness = createHarness({
-    args: ['--cross-provider'],
+    args: ['--cross'],
     config: {},
     openaiStatus: 'NOT_RUN',
   });
@@ -305,7 +325,7 @@ test('an explicit Codex reasoner target overrides configured model and effort', 
     codex_reasoner_effort: 'medium',
   };
   const harness = createHarness({
-    args: ['--reasoner=codex-cli/gpt-6.1-sol:high'],
+    args: ['--reasoner=codex/gpt-6.1-sol:high'],
     role: 'reasoner',
     config,
   });
@@ -346,7 +366,7 @@ test('unconfirmed changes are blocked before Codex starts', () => {
 });
 
 test('an unsupported Codex model effort is blocked before provider execution', () => {
-  const harness = createHarness({ args: ['--worker=codex', '--worker-target=codex/gpt-6-luna:ultra'] });
+  const harness = createHarness({ args: ['--worker=codex/gpt-6-luna:ultra'] });
   try {
     const result = harness.run();
     assert.strictEqual(result.status, 65, result.stderr);

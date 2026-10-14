@@ -533,46 +533,6 @@
         }
       ]
     },
-    "agy-fast-worker": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "scripts/report-schema.json"
-      ],
-      "executable_entries": [
-        {
-          "path": "scripts/run-agy.sh",
-          "fixture_ids": [
-            "bridge-agy-contained-success",
-            "bridge-agy-attestation-required",
-            "bridge-agy-tool-unavailable"
-          ]
-        }
-      ],
-      "host_capabilities": [
-        "agy-cli"
-      ],
-      "internal_helpers": [
-        {
-          "path": "scripts/cli-transport/prepare-cli-request.py",
-          "required_by": [
-            "scripts/run-agy.sh"
-          ]
-        },
-        {
-          "path": "scripts/cli-transport/run-cli-transport.py",
-          "required_by": [
-            "scripts/run-agy.sh"
-          ]
-        }
-      ],
-      "host_evidence": {
-        "agy-cli": {
-          "status": "NOT_RUN",
-          "reason": "Only isolated stub-provider fixtures have executed; no real provider Host probe."
-        }
-      }
-    },
     "code-trace": {
       "entry": "SKILL.md",
       "references": [
@@ -632,146 +592,6 @@
         }
       ],
       "host_capabilities": []
-    },
-    "cli-dispatch-context": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [
-        {
-          "path": "scripts/launch-cli-dispatch.js",
-          "fixture_ids": [
-            "bridge-dispatch-codex-local-closure",
-            "bridge-dispatch-agy-local-closure",
-            "bridge-dispatch-rejected-authority"
-          ]
-        }
-      ],
-      "host_capabilities": [],
-      "internal_helpers": [
-        {
-          "path": "scripts/run-codex.sh",
-          "required_by": [
-            "scripts/launch-cli-dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/run-agy.sh",
-          "required_by": [
-            "scripts/launch-cli-dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/cli-transport/prepare-cli-request.py",
-          "required_by": [
-            "scripts/run-codex.sh",
-            "scripts/run-agy.sh"
-          ]
-        },
-        {
-          "path": "scripts/cli-transport/run-cli-transport.py",
-          "required_by": [
-            "scripts/run-codex.sh",
-            "scripts/run-agy.sh"
-          ]
-        },
-        {
-          "path": "scripts/build-cli-dispatch-context.js",
-          "required_by": [
-            "scripts/launch-cli-dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/cli-role-resolver.js",
-          "required_by": [
-            "scripts/build-cli-dispatch-context.js",
-            "scripts/launch-cli-dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/physical-file.js",
-          "required_by": [
-            "scripts/launch-cli-dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/physical-file.py",
-          "required_by": [
-            "scripts/physical-file.js"
-          ]
-        }
-      ]
-    },
-    "cli-transport": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "scripts/prepare-cli-request.py",
-        "scripts/run-cli-transport.py"
-      ],
-      "executable_entries": [
-        {
-          "path": "scripts/prepare-cli-request.py",
-          "fixture_ids": [
-            "bridge-transport-prepare-attested"
-          ]
-        },
-        {
-          "path": "scripts/run-cli-transport.py",
-          "fixture_ids": [
-            "bridge-transport-contained-success",
-            "bridge-transport-rejected-authority"
-          ]
-        }
-      ],
-      "host_capabilities": []
-    },
-    "codex-bridge": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "scripts/report-schema.json"
-      ],
-      "executable_entries": [
-        {
-          "path": "scripts/run-codex.sh",
-          "fixture_ids": [
-            "bridge-codex-contained-success",
-            "bridge-codex-attestation-required",
-            "bridge-codex-tool-unavailable"
-          ]
-        }
-      ],
-      "host_capabilities": [
-        "codex-cli"
-      ],
-      "internal_helpers": [
-        {
-          "path": "scripts/cli-transport/prepare-cli-request.py",
-          "required_by": [
-            "scripts/run-codex.sh"
-          ]
-        },
-        {
-          "path": "scripts/cli-transport/run-cli-transport.py",
-          "required_by": [
-            "scripts/run-codex.sh"
-          ]
-        }
-      ],
-      "host_evidence": {
-        "codex-cli": {
-          "status": "NOT_RUN",
-          "reason": "Only isolated stub-provider fixtures have executed; no real provider Host probe."
-        }
-      },
-      "api_entries": [
-        {
-          "path": "scripts/codex-timeout-envelope.js",
-          "fixture_ids": []
-        }
-      ]
     },
     "change-verdict": {
       "entry": "SKILL.md",
@@ -897,52 +717,60 @@
       ],
       "internal_helpers": [
         {
-          "path": "references/cli-dispatch/scripts/launch-cli-dispatch.js",
+          "path": "scripts/role-intents.js",
+          "required_by": [
+            "scripts/run.js"
+          ]
+        },
+        {
+          "path": "scripts/dispatch-runtime/launch-cli-dispatch.js",
           "required_by": [
             "scripts/launch-dispatch.js"
           ]
         },
         {
-          "path": "references/cli-dispatch/scripts/build-cli-dispatch-context.js",
+          "path": "scripts/dispatch-runtime/build-cli-dispatch-context.js",
           "required_by": [
-            "references/cli-dispatch/scripts/launch-cli-dispatch.js"
+            "scripts/dispatch-runtime/launch-cli-dispatch.js"
           ]
         },
         {
-          "path": "references/cli-dispatch/scripts/cli-role-resolver.js",
+          "path": "scripts/dispatch-runtime/cli-role-resolver.js",
           "required_by": [
-            "references/cli-dispatch/scripts/build-cli-dispatch-context.js",
+            "scripts/dispatch-runtime/build-cli-dispatch-context.js",
             "scripts/dispatch.js"
           ]
         },
         {
-          "path": "references/cli-dispatch/scripts/physical-file.js",
+          "path": "scripts/dispatch-runtime/physical-file.js",
           "required_by": [
-            "references/cli-dispatch/scripts/launch-cli-dispatch.js"
+            "scripts/dispatch-runtime/launch-cli-dispatch.js"
           ]
         },
         {
-          "path": "references/cli-dispatch/scripts/physical-file.py",
+          "path": "scripts/dispatch-runtime/physical-file.py",
           "required_by": [
-            "references/cli-dispatch/scripts/physical-file.js"
+            "scripts/dispatch-runtime/physical-file.js"
           ]
         },
         {
-          "path": "references/cli-dispatch/scripts/run-codex.sh",
+          "path": "scripts/adapters/run-codex.sh",
           "required_by": [
-            "references/cli-dispatch/scripts/launch-cli-dispatch.js"
+            "scripts/dispatch-runtime/launch-cli-dispatch.js"
           ]
         },
         {
-          "path": "references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py",
+          "path": "scripts/transport/prepare-cli-request.py",
           "required_by": [
-            "references/cli-dispatch/scripts/run-codex.sh"
+            "scripts/adapters/run-codex.sh",
+            "scripts/adapters/run-agy.sh"
           ]
         },
         {
-          "path": "references/cli-dispatch/scripts/cli-transport/run-cli-transport.py",
+          "path": "scripts/transport/run-cli-transport.py",
           "required_by": [
-            "references/cli-dispatch/scripts/run-codex.sh"
+            "scripts/adapters/run-codex.sh",
+            "scripts/adapters/run-agy.sh"
           ]
         },
         {
@@ -970,6 +798,12 @@
           "path": "references/execution-bundle/scripts/lib/flow-handoff-contract.js",
           "required_by": [
             "scripts/dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/adapters/run-agy.sh",
+          "required_by": [
+            "scripts/dispatch-runtime/launch-cli-dispatch.js"
           ]
         }
       ]

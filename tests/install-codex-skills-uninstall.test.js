@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-const fixtures = require('./_lib/install-codex-skills-fixtures');
+const fixtures = require('./_lib/native-installer-lifecycle-fixture');
 
 const {
   ROOT,

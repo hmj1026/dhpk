@@ -240,7 +240,7 @@ function dispatchDriver(context, entryArgs) {
 const path = require('node:path');
 const skillDir = process.argv[2];
 const args = JSON.parse(process.argv[3]);
-const launcher = path.join(skillDir, 'scripts', 'launch-cli-dispatch.js');
+const launcher = path.join(skillDir, 'scripts', 'dispatch-runtime', 'launch-cli-dispatch.js');
 const result = require(launcher).main(args);
 process.exitCode = result;
 `, [JSON.stringify(entryArgs)]);
@@ -337,8 +337,8 @@ const AGY_PROVIDER = {
 const DEFINITIONS = [
   fixture({
     id: 'bridge-codex-contained-success',
-    source: 'codex-bridge',
-    entry: 'scripts/run-codex.sh',
+    source: 'flow-drive',
+    entry: 'scripts/adapters/run-codex.sh',
     expected: { status: 0, output: ['fixture-codex-report token=[REDACTED]'] },
     stubs: { codex: CODEX_PROVIDER },
     prepare(context) {
@@ -366,8 +366,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-codex-attestation-required',
-    source: 'codex-bridge',
-    entry: 'scripts/run-codex.sh',
+    source: 'flow-drive',
+    entry: 'scripts/adapters/run-codex.sh',
     expected: { status: 65, output: ['run-codex.sh: BLOCKED: attested DHPK_CLI_TRANSPORT_CONTEXT is required; legacy authority is never inferred.'], absent: ['codex-fixture-provider'] },
     stubs: { codex: CODEX_PROVIDER },
     prepare(context) {
@@ -383,8 +383,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-codex-tool-unavailable',
-    source: 'codex-bridge',
-    entry: 'scripts/run-codex.sh',
+    source: 'flow-drive',
+    entry: 'scripts/adapters/run-codex.sh',
     expected: { status: 65, output: ['attested restricted runtime is missing named executable codex'], absent: ['codex-fixture-provider'] },
     stubs: {},
     prepare(context) {
@@ -407,8 +407,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-agy-contained-success',
-    source: 'agy-fast-worker',
-    entry: 'scripts/run-agy.sh',
+    source: 'flow-drive',
+    entry: 'scripts/adapters/run-agy.sh',
     expected: { status: 0, output: ['fixture-agy-report'] },
     stubs: { agy: AGY_PROVIDER },
     prepare(context) {
@@ -432,8 +432,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-agy-attestation-required',
-    source: 'agy-fast-worker',
-    entry: 'scripts/run-agy.sh',
+    source: 'flow-drive',
+    entry: 'scripts/adapters/run-agy.sh',
     expected: { status: 65, output: ['run-agy.sh: BLOCKED: attested DHPK_CLI_TRANSPORT_CONTEXT is required; legacy authority is never inferred.'], absent: ['agy-fixture-provider'] },
     stubs: { agy: AGY_PROVIDER },
     prepare(context) {
@@ -449,8 +449,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-agy-tool-unavailable',
-    source: 'agy-fast-worker',
-    entry: 'scripts/run-agy.sh',
+    source: 'flow-drive',
+    entry: 'scripts/adapters/run-agy.sh',
     expected: { status: 65, output: ['attested restricted runtime is missing named executable agy'], absent: ['agy-fixture-provider'] },
     stubs: {},
     prepare(context) {
@@ -473,8 +473,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-dispatch-codex-local-closure',
-    source: 'cli-dispatch-context',
-    entry: 'scripts/launch-cli-dispatch.js',
+    source: 'flow-drive',
+    entry: 'scripts/dispatch-runtime/launch-cli-dispatch.js',
     expected: { status: 0, output: ['fixture-codex-report token=[REDACTED]'] },
     stubs: { codex: CODEX_PROVIDER },
     prepare(context) {
@@ -500,8 +500,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-dispatch-agy-local-closure',
-    source: 'cli-dispatch-context',
-    entry: 'scripts/launch-cli-dispatch.js',
+    source: 'flow-drive',
+    entry: 'scripts/dispatch-runtime/launch-cli-dispatch.js',
     expected: { status: 0, output: ['fixture-agy-report'] },
     stubs: { agy: AGY_PROVIDER },
     prepare(context) {
@@ -523,8 +523,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-dispatch-rejected-authority',
-    source: 'cli-dispatch-context',
-    entry: 'scripts/launch-cli-dispatch.js',
+    source: 'flow-drive',
+    entry: 'scripts/dispatch-runtime/launch-cli-dispatch.js',
     expected: { status: 65, output: ['launch-cli-dispatch: BLOCKED: role agy-worker contradicts mode read-only'], absent: ['agy-fixture-provider'] },
     stubs: { agy: AGY_PROVIDER },
     prepare(context) {
@@ -542,8 +542,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-transport-prepare-attested',
-    source: 'cli-transport',
-    entry: 'scripts/prepare-cli-request.py',
+    source: 'flow-drive',
+    entry: 'scripts/transport/prepare-cli-request.py',
     expected: { status: 0, output: ['"schema":"dhpk.cli.request.v1"', '"stdin_mode":"prompt"', '"transport":"codex-exec"'] },
     stubs: { codex: CODEX_PROVIDER },
     prepare(context) {
@@ -574,8 +574,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-transport-contained-success',
-    source: 'cli-transport',
-    entry: 'scripts/run-cli-transport.py',
+    source: 'flow-drive',
+    entry: 'scripts/transport/run-cli-transport.py',
     expected: { status: 0, output: ['fixture-codex-report token=[REDACTED]'] },
     stubs: { codex: CODEX_PROVIDER },
     prepare(context) {
@@ -598,8 +598,8 @@ const DEFINITIONS = [
   }),
   fixture({
     id: 'bridge-transport-rejected-authority',
-    source: 'cli-transport',
-    entry: 'scripts/run-cli-transport.py',
+    source: 'flow-drive',
+    entry: 'scripts/transport/run-cli-transport.py',
     expected: { status: 65, output: ['dhpk-cli-transport: BLOCKED: effective role is not bound to provider'], absent: ['codex-fixture-provider'] },
     stubs: { codex: CODEX_PROVIDER },
     prepare(context) {
@@ -648,10 +648,7 @@ module.exports = {
   outputText,
   bridgeFamilyFixtureIds: Object.freeze(DEFINITIONS.map(({ id }) => id)),
   bridgeFamilySources: Object.freeze({
-    'codex-bridge': 'dhpk-codex-bridge',
-    'agy-fast-worker': 'dhpk-agy-fast-worker',
-    'cli-dispatch-context': 'dhpk-cli-dispatch-context',
-    'cli-transport': 'dhpk-cli-transport',
+    'flow-drive': 'flow-drive',
   }),
   RESERVED_ROOT_ENVIRONMENT,
 };
