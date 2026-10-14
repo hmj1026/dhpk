@@ -387,7 +387,7 @@ inspect → verify surface → route → plan/classify → implement → review 
   | 參數 | 類型 / 選項 | 預設值 | 說明 |
   |---|---|---|---|
   | `<task-text\|task-file\|confirmed-spec-or-change-id>` | 字串 | （必填） | 任務文字、任務檔案或已確認的規格／OpenSpec Change ID。 |
-  | `--plan[=auto|bounded|discovery]` | 字串（可選值） | 無 | 在實作前啟動 Planner 進行審查；選擇 `auto`、`bounded` 或 `discovery` 範圍，使用當前 Host 宣告的有效目標。 |
+  | `--plan[=auto\|bounded\|discovery]` | 字串（可選值） | 無 | 在實作前啟動 Planner 進行審查；選擇 `auto`、`bounded` 或 `discovery` 範圍，使用當前 Host 宣告的有效目標。 |
   | `--worker=auto\|provider[/model[:effort]]` | `claude`、`codex`、`agy` 或精確目標 | `auto` | auto 預設 native；外部選取仍須當前 Host 的精確 role/target/authority grant。 |
   | `--cross` | 布林旗標 | 關閉 | 在 `--worker=auto` 時允許考慮外部跨供應商候選（如 Codex），不影響明確指定的 target。 |
   | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | 無 | 請求獨立 Reasoner 進行唯讀架構或複雜決策審查（例如 `codex/gpt-6.1-sol:high`）。 |
