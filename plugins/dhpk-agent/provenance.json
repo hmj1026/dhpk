@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.0",
-  "sourceCommit": "2b141854f618040896278bff8b8cb31ef6dccd0c",
-  "generatedFromCommit": "2b141854f618040896278bff8b8cb31ef6dccd0c",
-  "generatedFromTree": "bec1b6dc0d717860d4415ea6f07f40dcadcd0f7a",
+  "sourceCommit": "19c8f841103164fc04171f03c157790ef48216cb",
+  "generatedFromCommit": "19c8f841103164fc04171f03c157790ef48216cb",
+  "generatedFromTree": "e4d6916ea2bc0185516132cf47e3648fdddeebbb",
   "inventoryDigest": "a7af2c727d2088dd8a14e926b513312be48ad298a9ad85a8783cd835f8c41dca",
   "inventoryRevision": "sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727",
   "generatorVersion": "1.0.0",
@@ -2229,13 +2229,25 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/SKILL.md",
         "destination": "skills/git-smart-commit/SKILL.md",
-        "originalGitBlobDigest": "b0682dc13d81956ce87585fccd4b91e533fd461b"
+        "originalGitBlobDigest": "074ded554b43ba63d52db10741efc31f1918ccc8"
       },
       {
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/agents/openai.yaml",
         "destination": "skills/git-smart-commit/agents/openai.yaml",
         "originalGitBlobDigest": "18d2f971bd295aee1b9774480d2d25e188dfd2c0"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "source": "skills/git-smart-commit/references/collector.md",
+        "destination": "skills/git-smart-commit/references/collector.md",
+        "originalGitBlobDigest": "959013170eb8c71aa784d5c0b62dbc4d1ab9c5cc"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "source": "skills/git-smart-commit/scripts/collect-changes.js",
+        "destination": "skills/git-smart-commit/scripts/collect-changes.js",
+        "originalGitBlobDigest": "33e0d34cb46e061563c0b21a9508061732b50b93"
       },
       {
         "ownerId": "git-worktree",
@@ -5280,6 +5292,20 @@
         "kind": "entry"
       },
       {
+        "ownerId": "git-smart-commit",
+        "skillId": "git-smart-commit",
+        "sourcePath": "skills/git-smart-commit/references/collector.md",
+        "destination": "skills/git-smart-commit/references/collector.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "skillId": "git-smart-commit",
+        "sourcePath": "skills/git-smart-commit/scripts/collect-changes.js",
+        "destination": "skills/git-smart-commit/scripts/collect-changes.js",
+        "kind": "entry"
+      },
+      {
         "ownerId": "git-worktree",
         "skillId": "git-worktree",
         "sourcePath": "skills/git-worktree/SKILL.md",
@@ -6013,7 +6039,7 @@
     "dhpk-cli-transport": "65506d2795a747d7e2d878d0301db03b7875370b2ec33e1c6dd70fa50909a482",
     "flow-drive": "a8e24b2b7ae5f890711376d41e6aab4dcbf6e5d06a9c476d9d23f2d14302c589",
     "flow-guide": "a01d9c8445a555314dbfb7bf39c810d2d661fc4bfd9fef89718fe1e5d283dc92",
-    "git-smart-commit": "4d2aa4f52a45e7a99bcee9e6b26165055c3c35f3104234cd3fbabca2f48be37c",
+    "git-smart-commit": "4d79f1b8b1f65c6ed2f78dcb23247886523ba5d203d2def3c4ed17b597978def",
     "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
     "precommit": "64198cabda6f826b5b9c5d63e761256ba4ece088ff45582a0fba987718b9ca27",
     "proposal-analyze": "a51f5cec8c1126351ee64f61fa37dcc79c8c8579b74f0d68a4a2705bdc28150f",
