@@ -924,11 +924,11 @@ test('public CI plan selects existing owner suites and enables macOS only for in
 
 test('known resource families select their existing owner suites', () => {
   const fixture = gitFixture((root) => {
-    fs.mkdirSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'skills', 'flow-drive', 'scripts', 'adapters'), { recursive: true });
     fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh'), 'old\n');
-    for (const owner of ['modules.test.js', 'run-agy.test.js', 'run-cli-transport.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js']) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
-  }, (root) => fs.writeFileSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh'), 'new\n'));
+    fs.writeFileSync(path.join(root, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-agy.sh'), 'old\n');
+    for (const owner of ['modules.test.js', 'run-agy.test.js', 'run-codex.test.js', 'run-cli-transport.test.js', 'cli-dispatch-launcher.test.js', 'cli-role-resolver.test.js', 'flow-drive-cli-dispatch.test.js', 'flow-drive-relocation.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js']) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
+  }, (root) => fs.writeFileSync(path.join(root, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-agy.sh'), 'new\n'));
   try { assert.strictEqual(fixture.plan.mode, 'selected'); assert.ok(fixture.plan.testFiles.includes('run-agy.test.js')); }
   finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });

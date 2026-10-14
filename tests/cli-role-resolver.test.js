@@ -38,19 +38,23 @@ test('canonical provider role IDs resolve to their fixed mode and immutable role
   }
 });
 
-test('legacy aliases resolve at the boundary and codex-bridge is explicitly mode-qualified', () => {
+test('retained worker and reasoner aliases resolve at the boundary', () => {
   const aliases = [
     ['codex-fast-worker', 'workspace-write', 'codex-worker'],
     ['codex-deep-reasoner', 'read-only', 'codex-reasoner'],
     ['agy-fast-worker', 'workspace-write', 'agy-worker'],
-    ['codex-bridge', 'read-only', 'codex-reviewer'],
-    ['codex-bridge', 'workspace-write', 'codex-worker'],
   ];
   for (const [requestedRole, mode, effectiveRole] of aliases) {
     const result = resolveRole({ requestedRole, mode });
     assert.strictEqual(result.status, 'RESOLVED');
     assert.strictEqual(result.effective_role, effectiveRole);
     assert.strictEqual(result.deprecated_alias, true);
+  }
+});
+
+test('the retired standalone bridge role rejects both authorities', () => {
+  for (const mode of ['read-only', 'workspace-write']) {
+    assert.strictEqual(resolveRole({ requestedRole: 'codex-bridge', mode }).status, 'BLOCKED');
   }
 });
 
@@ -150,8 +154,8 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
   const path = require('node:path');
   const { spawnSync } = require('node:child_process');
   const { test, assert } = require('./_lib/tinytest');
-  const { createSessionDiagnostics } = require('../skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver');
-  const { buildContext } = require('../skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context');
+  const { createSessionDiagnostics } = require('../skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver');
+  const { buildContext } = require('../skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context');
 
   const ROOT = path.join(__dirname, '..');
 
@@ -372,12 +376,12 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
   });
 
   test('projected builder loads the resolver from its package-local source', () => {
-    const sourceBuilder = path.join(ROOT, 'skills', 'dhpk-cli-dispatch-context', 'scripts', 'build-cli-dispatch-context.js');
-    const sourceResolver = path.join(ROOT, 'skills', 'dhpk-cli-dispatch-context', 'scripts', 'cli-role-resolver.js');
+    const sourceBuilder = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime', 'build-cli-dispatch-context.js');
+    const sourceResolver = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime', 'cli-role-resolver.js');
 
     const projectionRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cli-dispatch-context-projection-'));
     try {
-      const scripts = path.join(projectionRoot, 'skills', 'dhpk-cli-dispatch-context', 'scripts');
+      const scripts = path.join(projectionRoot, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime');
       fs.mkdirSync(scripts, { recursive: true });
       fs.copyFileSync(sourceBuilder, path.join(scripts, 'build-cli-dispatch-context.js'));
       fs.copyFileSync(sourceResolver, path.join(scripts, 'cli-role-resolver.js'));

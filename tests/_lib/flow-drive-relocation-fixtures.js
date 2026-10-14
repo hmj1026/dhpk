@@ -175,7 +175,7 @@ async function relocationDriver() {
       return { status: outcome.status === 'SUCCEEDED' && valid ? 'PASSED' : 'FAILED', evidence: 'literal receipt sum and assigned notes verified' };
     },
   };
-  const report = await runFlowDrive(['Repair the literal line sum.', ...(external ? ['--cross-provider'] : [])],
+  const report = await runFlowDrive(['Repair the literal line sum.', ...(external ? ['--cross'] : [])],
     { host, workdir: input.projectDir, recovery: { retryBudget: 0 } });
   const effects = Object.fromEntries(assigned.filter((file) => fs.existsSync(path.join(input.projectDir, file)))
     .map((file) => [file, fs.readFileSync(path.join(input.projectDir, file), 'utf8')]));

@@ -958,29 +958,15 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.strictEqual(translated.compatibility.deprecated, true);
   });
 
-  test('codex-bridge translation requires explicit mode and never guesses a Role', () => {
-    assert.throws(() => translateLegacyRequest({
-      schema: 'dhpk.cli.context.v1',
-      host_profile: HOST_PROFILE,
-      task_id: 'legacy-task-2',
-      attempt_id: 'legacy-attempt-2',
-      requested_role: 'codex-bridge',
-      task: { description_digest: 'd'.repeat(64) },
-      scope: request().scope,
-    }), /explicit.*mode/i);
-
-    const reviewer = translateLegacyRequest({
-      schema: 'dhpk.cli.context.v1',
-      host_profile: HOST_PROFILE,
-      task_id: 'legacy-task-3',
-      attempt_id: 'legacy-attempt-3',
-      requested_role: 'codex-bridge',
-      mode: 'read-only',
-      task: { description_digest: 'e'.repeat(64) },
-      scope: request().scope,
-    });
-    assert.strictEqual(reviewer.request.role, 'reviewer');
-    assert.strictEqual(reviewer.request.authority, 'read-only');
+  test('the retired codex-bridge legacy request is rejected for every mode', () => {
+    for (const mode of [undefined, 'read-only', 'workspace-write']) {
+      assert.throws(() => translateLegacyRequest({
+        schema: 'dhpk.cli.context.v1', host_profile: HOST_PROFILE,
+        task_id: 'legacy-task-2', attempt_id: 'legacy-attempt-2',
+        requested_role: 'codex-bridge', mode,
+        task: { description_digest: 'd'.repeat(64) }, scope: request().scope,
+      }), /unknown legacy role/);
+    }
   });
 
   test('v2 receipt identifies target and verification without raw prompt, output, or secret content', () => {

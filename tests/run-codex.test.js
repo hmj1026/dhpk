@@ -9,7 +9,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { buildToolsOnlyDir } = require('./_lib/restricted-path');
 
 const ROOT = path.join(__dirname, '..');
-const WRAPPER = path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'scripts', 'run-codex.sh');
+const WRAPPER = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-codex.sh');
 const REQUIRED_TOOLS = ['mktemp', 'rm', 'cat', 'bash', 'python3'];
 const SYSTEM_PYTHON = '/usr/bin/python3';
 
@@ -59,12 +59,11 @@ function writeContext(ctx, overrides = {}) {
   fs.mkdirSync(artifactRoot, { recursive: true, mode: 0o700 });
   fs.chmodSync(artifactRoot, 0o700);
   const sequence = (ctx.sequence = (ctx.sequence || 0) + 1);
-  const role = overrides.role || 'codex-bridge';
   const mode = overrides.mode || 'workspace-write';
+  const role = overrides.role || (mode === 'read-only' ? 'codex-reviewer' : 'codex-worker');
   const effectiveRole = role === 'codex-fast-worker' ? 'codex-worker'
     : role === 'codex-deep-reasoner' ? 'codex-reasoner'
-      : role === 'codex-bridge' ? (mode === 'read-only' ? 'codex-reviewer' : 'codex-worker')
-        : role;
+      : role;
   const authority = effectiveRole === 'codex-reasoner' || effectiveRole === 'codex-reviewer' ? 'read-only' : 'workspace-write';
   const model = overrides.model === undefined ? null : overrides.model;
   const effort = overrides.effort === undefined ? null : overrides.effort;
@@ -234,8 +233,8 @@ test('quoted secret output is redacted and a zero-exit empty report fails closed
 test('Codex wrapper resolves transport only from its physical Skill-local directory', () => {
   const source = fs.readFileSync(WRAPPER, 'utf8');
   assert.match(source, /SCRIPT_DIR=.*pwd -P/);
-  assert.match(source, /PREPARE="\$SCRIPT_DIR\/cli-transport\/prepare-cli-request\.py"/);
-  assert.match(source, /RUNNER="\$SCRIPT_DIR\/cli-transport\/run-cli-transport\.py"/);
+  assert.match(source, /PREPARE="\$SCRIPT_DIR\/\.\.\/transport\/prepare-cli-request\.py"/);
+  assert.match(source, /RUNNER="\$SCRIPT_DIR\/\.\.\/transport\/run-cli-transport\.py"/);
   assert.doesNotMatch(source, /PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|skills\/dhpk-cli-transport/);
 });
 

@@ -21,6 +21,87 @@ function deferred() {
 
 const { assertPostlaunchCleanupBarrier } = require('./_lib/flow-drive-cleanup-fixtures');
 const assertGraphPostlaunchCleanupBarrier = (failureMode) => assertPostlaunchCleanupBarrier('graph', failureMode);
+
+test('a requested planner uses the current Host declared default and preserves bounded scope', async () => {
+  const fixture = createRunnerFixture({ task: { ...DEFAULT_TASK,
+    constraints: { ...DEFAULT_TASK.constraints, delegation: 'coordinated' } } });
+  fixture.host.coordinate = async (task, context) => {
+    fixture.calls.push({ method: 'coordinate', task, context });
+    return { mode: 'coordinated', nodes: [
+      { id: 'plan', role: 'planner', goal: 'Plan the repair.', acceptance: ['bounded plan'], authority: 'read-only',
+        assigned_files: [], dependencies: [], target: context.requested_roles.planner.target },
+      { id: 'write', role: 'worker', goal: 'Apply repair.', acceptance: ['done'], authority: 'workspace-write',
+        assigned_files: ['src/receipt.js'], dependencies: ['plan'], target: DEFAULT_TARGET },
+    ] };
+  };
+  const execute = fixture.host.execute;
+  fixture.host.execute = async (target, task, context) => {
+    await execute(target, task, context);
+    return { status: 'SUCCEEDED', observed_target: { ...target } };
+  };
+  try {
+    const report = await runFlowDrive(['Repair.', '--plan=bounded'], { host: fixture.host, workdir: fixture.workdir });
+    assert.strictEqual(report.acceptance.status, 'PASSED', JSON.stringify(report.blockers));
+    const context = fixture.calls.find((call) => call.method === 'coordinate').context;
+    assert.strictEqual(context.requested_roles.planner.scope, 'bounded');
+    const executions = fixture.calls.filter((call) => call.method === 'execute');
+    assert.strictEqual(executions[0].target.model_id, CODEX_PROFILE.role_defaults.planner.model_id);
+    assert.strictEqual(executions[0].context.request.authority, 'read-only');
+    assert.strictEqual(executions[1].context.node.id, 'write');
+  } finally { fixture.cleanup(); }
+});
+
+test('missing requested planner capability blocks before coordination while omission adds no dependency', async () => {
+  const profile = { ...CODEX_PROFILE, role_defaults: Object.fromEntries(Object.entries(CODEX_PROFILE.role_defaults)
+    .filter(([role]) => role !== 'planner')) };
+  const fixture = createRunnerFixture({ capabilities: { host_profile: profile, catalog: CATALOG } });
+  try {
+    const requested = await runFlowDrive(['Repair.', '--plan'], { host: fixture.host, workdir: fixture.workdir });
+    assert.match(requested.blockers.join(' '), /planner.*UNAVAILABLE|UNAVAILABLE.*planner/);
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'coordinate'), false);
+    const omitted = await runFlowDrive(['Repair.'], { host: fixture.host, workdir: fixture.workdir });
+    assert.strictEqual(omitted.acceptance.status, 'PASSED');
+  } finally { fixture.cleanup(); }
+});
+
+test('architect requests are explicitly unavailable and suppression cannot bypass a required reasoner gate', async () => {
+  const fixture = createRunnerFixture({ task: { ...DEFAULT_TASK,
+    constraints: { ...DEFAULT_TASK.constraints, delegation: 'coordinated' } }, decision: { mode: 'coordinated', nodes: [
+    { id: 'write', role: 'worker', goal: 'Repair.', acceptance: ['done'], authority: 'workspace-write', assigned_files: ['src/receipt.js'],
+      dependencies: [], reasoner_dependencies: [], decision_state: 'REASONER_REQUIRED', target: DEFAULT_TARGET },
+  ] } });
+  try {
+    const requested = await runFlowDrive(['Repair.', '--architect'], { host: fixture.host, workdir: fixture.workdir });
+    assert.match(requested.blockers.join(' '), /architect.*UNAVAILABLE|UNAVAILABLE.*architect/);
+    const suppressed = await runFlowDrive(['Repair.', '--no-architect'], { host: fixture.host, workdir: fixture.workdir });
+    assert.notStrictEqual(suppressed.acceptance.status, 'PASSED');
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
+  } finally { fixture.cleanup(); }
+});
+
+test('an observed reasoner model mismatch cannot satisfy an exact requested reasoner or unlock its writer', async () => {
+  for (const mismatch of [{ model_id: 'gpt-6-luna' }, { effort: 'low' }, null]) {
+  const fixture = createRunnerFixture({ task: { ...DEFAULT_TASK,
+    constraints: { ...DEFAULT_TASK.constraints, delegation: 'coordinated' } } });
+  fixture.host.coordinate = async (_task, context) => ({ mode: 'coordinated', nodes: [
+    { id: 'reason', role: 'reasoner', goal: 'Diagnose.', acceptance: ['diagnosed'], authority: 'read-only', assigned_files: [], dependencies: [],
+      target: context.requested_roles.reasoner.target },
+    { id: 'write', role: 'worker', goal: 'Repair.', acceptance: ['repaired'], authority: 'workspace-write', assigned_files: ['src/receipt.js'],
+      dependencies: ['reason'], reasoner_dependencies: ['reason'], decision_state: 'REASONER_REQUIRED', target: DEFAULT_TARGET },
+  ] });
+  fixture.host.execute = async (target, task, context) => {
+    fixture.calls.push({ method: 'execute', target, task, context });
+    return { status: 'SUCCEEDED', observed_target: mismatch ? { ...target, ...mismatch } : undefined,
+      conclusion: { status: 'READY_FOR_DISPATCH', source_evidence: 'inspected', root_cause: 'known', repair: 'bounded', verification: 'test' } };
+  };
+  try {
+    const report = await runFlowDrive(['Repair.', '--reasoner=codex/gpt-6.1-sol:high'], { host: fixture.host, workdir: fixture.workdir });
+    assert.notStrictEqual(report.acceptance.status, 'PASSED');
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'execute' && call.context.node.id === 'write'), false);
+  } finally { fixture.cleanup(); }
+  }
+});
+
 test('task graph rejects duplicate, unknown, and cyclic dependencies', () => {
   assert.throws(() => validateTaskGraph({ mode: 'coordinated', nodes: [
     { id: 'a', goal: 'a', acceptance: ['a'], dependencies: ['missing'], role: 'reasoner', authority: 'read-only', assigned_files: [] },
@@ -435,7 +516,7 @@ test('graph explicit worker target rejects a mismatched observed canonical model
   };
   fixture.host.verify = async () => { fs.writeFileSync(verificationMarker, 'verified'); return { status: 'PASSED', evidence: 'Host verification passed' }; };
   try {
-    const report = await runFlowDrive(['Use the exact selected model.', '--worker-target=codex/gpt-6-luna:max'], { host: fixture.host, workdir });
+    const report = await runFlowDrive(['Use the exact selected model.', '--worker=codex/gpt-6-luna:max'], { host: fixture.host, workdir });
     assert.strictEqual(report.acceptance.status, 'BLOCKED');
     assert.strictEqual(fs.readFileSync(verificationMarker, 'utf8'), 'verified');
     assert.strictEqual(fs.readFileSync(path.join(workdir, 'src/receipt.js'), 'utf8'), 'updated');

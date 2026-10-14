@@ -102,7 +102,7 @@ async function devQaDriver(input, runFlowDrive) {
       return { status: valid ? 'PASSED' : 'FAILED', evidence: `${id}: actual fixture bytes and literal acceptance verified` };
     },
   };
-  const report = await runFlowDrive([data.task, ...(external ? ['--cross-provider'] : [])], { host, workdir: input.projectDir, recovery: { retryBudget: 0, executionTimeoutMs: 100, controlTimeoutMs: 20 } });
+  const report = await runFlowDrive([data.task, ...(external ? ['--cross'] : [])], { host, workdir: input.projectDir, recovery: { retryBudget: 0, executionTimeoutMs: 100, controlTimeoutMs: 20 } });
   return { report, events, executions, capabilityRequests: capabilities, verifications, peakWriters: peak,
     activeWriters: active, parentVerifications, total: total(), calls,
     files: Object.fromEntries([...new Set([...Object.keys(data.initial_files), ...data.assigned_files])]
