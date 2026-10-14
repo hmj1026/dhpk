@@ -447,4 +447,44 @@ test('prompt replacement after dispatch preparation is blocked before provider l
   }
 });
 
+test('Codex dispatch creates a private context when the launcher inherits a restrictive umask', () => {
+  const harness = createHarness({ args: ['--worker=codex'] });
+  const parentUmask = process.umask();
+  const child = [
+    'process.umask(0o777);',
+    `const { main } = require(${JSON.stringify(ENTRY)});`,
+    `process.exitCode = main(['--packet', ${JSON.stringify(harness.packetPath)}]);`,
+  ].join('\n');
+  try {
+    const result = spawnSync(process.execPath, ['-e', child], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: 20000,
+    });
+    assert.strictEqual(process.umask(), parentUmask);
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(fs.statSync(harness.scope.context_path).mode & 0o777, 0o600);
+    assert.strictEqual(JSON.parse(fs.readFileSync(harness.scope.receipt_path, 'utf8')).status, 'SUCCEEDED');
+    assert.deepStrictEqual(fs.readdirSync(harness.scope.artifact_root).sort(), [
+      'dispatch-context.json',
+      'provider-receipt.json',
+    ]);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('Codex dispatch rejects an artifact directory accessible to group or other users', () => {
+  const harness = createHarness({ args: ['--worker=codex'] });
+  try {
+    fs.chmodSync(harness.scope.artifact_root, 0o755);
+    const result = harness.run();
+    assert.strictEqual(result.status, 65, result.stderr);
+    assert.match(result.stderr, /artifact.*private|artifact_root/i);
+    assert.strictEqual(hasNoProviderStart(harness), true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
 run('flow-drive-cli-dispatch');

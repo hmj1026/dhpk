@@ -68,7 +68,7 @@ appending a new dated paragraph after it.
 ## Tests
 
 - Apply the rejection checklist in
-  [skills/tdd-workflow/tests.md](skills/tdd-workflow/tests.md) to every added
+  [skills/tdd-workflow/references/tests.md](skills/tdd-workflow/references/tests.md) to every added
   or rewritten assertion; a passing tautological test is not coverage.
 - Add a test to the existing suite that owns its contract. A new
   `tests/*.test.js` file needs a reason the owner cannot hold it, such as an

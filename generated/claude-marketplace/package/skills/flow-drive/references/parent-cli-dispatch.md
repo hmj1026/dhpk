@@ -13,8 +13,10 @@ The short invocation uses the dispatcher's resolved configuration:
 Use `--reasoner=codex/gpt-6.1-sol:high` to override the configured reasoner
 model and effort. `codex-cli` remains a compatibility spelling of `codex`.
 An explicit worker target overrides the worker selector. Explicit selection
-does not require `--cross-provider`; that flag permits additional automatic
-candidates under the execution policy, and never grants extra authority.
+does not require `--cross-provider`; in this Host procedure, that flag permits additional automatic candidates
+under the execution policy and current access checks. The programmatic
+[portable runner](portable-runner.md) instead uses it to open a provider-scope
+question; neither path grants workspace or external-action authority.
 
 ## Dispatcher packet
 
@@ -53,10 +55,26 @@ The packet contains:
   observed conclusion and receipt. The parent checks the conclusion contract
   before attesting this result.
 
-Use a fresh context and receipt path for each role and retry. The launcher
-requires a private artifact directory; create it with mode `0700` before dispatch.
-The launcher
-creates the immutable `0600` transport context and binds the resolved model,
+Use a fresh attempt directory, context path, and receipt path for each role
+and retry. Scoped preparation of these inputs is part of this CLI dispatch
+procedure and is allowed before the launch command. For example, under the
+authorized project artifact scope:
+
+```bash
+mkdir -p "<project root>/.dhpk"
+mkdir -m 700 "<project root>/.dhpk/<new attempt id>"
+```
+
+Set `scope.artifact_root` to that new directory. The second command must succeed
+as a fresh creation; inspect an existing path and choose a new attempt rather
+than changing its permissions or overwriting earlier evidence. Write the
+self-contained prompt and dispatcher packet inside this directory. Packet and
+prompt must be regular, non-symlink files; they do not require exact `0600`
+modes because the containing directory already restricts access.
+
+Supply `scope.context_path` and `scope.receipt_path` as fresh absolute paths
+inside `scope.artifact_root`, but leave both target files nonexistent. The
+launcher creates the immutable `0600` transport context and binds the resolved model,
 effort, timeout, prompt, runtime and authority. Preserve its context and
 terminal receipt as evidence; do not reuse or overwrite an earlier attempt.
 The dispatcher prepares trusted runtime entries for `codex`, `python3`, and
@@ -79,3 +97,23 @@ assigned diff before reporting `PASS`. Report model/auth/tool failures as
 `BLOCKED`, timeouts through the existing reconciliation policy, and real Host
 or model checks that were not run as `NOT_RUN`. The launcher performs no
 automatic provider fallback.
+
+## Permission failures
+
+A `0600` diagnostic identifies a private transport file check, not Codex model
+access. Keep the exact error and stage in the report:
+
+- `artifact_root must remain private while pinned`: the artifact directory
+  is accessible to group or other users. Start a fresh `0700` attempt directory
+  using the preparation above.
+- `physical temporary file is not a private regular file`: context creation
+  failed before Codex started. The launcher must set `0600` on its newly opened
+  descriptor even when inherited `umask` masks owner bits. Preserve failed
+  attempt evidence and use a fresh attempt with the corrected runtime.
+- A transport context mode, identity, or symlink rejection: preserve the
+  rejected context and receipt; confirm the packet points to the fresh
+  launcher-owned context. Do not create or chmod a context manually.
+
+Local fixture verification uses a Codex stub and proves the launcher contract;
+it does not establish real Claude permission approval, Codex authentication,
+or Provider execution.

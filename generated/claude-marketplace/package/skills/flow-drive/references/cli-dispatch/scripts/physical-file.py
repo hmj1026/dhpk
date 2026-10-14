@@ -81,6 +81,8 @@ def main():
             descriptor = os.open(temporary, flags, PRIVATE_MODE, dir_fd=PARENT_FD)
         except FileExistsError:
             fail("physical temporary name collided", EXIT_SECURITY)
+        # Set the exact private mode on this new descriptor despite inherited umask.
+        os.fchmod(descriptor, PRIVATE_MODE)
         temporary_stat = os.fstat(descriptor)
         if not private_regular(temporary_stat) or temporary_stat.st_size != 0:
             fail("physical temporary file is not a private regular file")
