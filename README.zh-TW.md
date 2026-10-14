@@ -181,7 +181,7 @@ surface：
 
 | Surface | 名稱／入口 | 需要 | 失敗或邊界 |
 |---------|----------|------|----------|
-| CLI-only Codex path | `change-verdict --mode code --backend cli`；同族 role：`codex-worker`、`codex-reasoner`、`codex-reviewer`、`dhpk-codex-bridge` | Codex CLI 執行檔與 hardened wrapper 的 Bash shell-out；不需要 MCP server | 缺少 `codex` 時回報 optional backend 不可用；預設仍使用 current-model path |
+| CLI-only Codex path | `change-verdict --mode code --backend cli`；同族 role：`codex-worker`、`codex-reasoner`、`codex-reviewer` | Codex CLI 執行檔與 hardened wrapper 的 Bash shell-out；不需要 MCP server | 缺少 `codex` 時回報 optional backend 不可用；預設仍使用 current-model path |
 | 外部 app-server plugin | `openai/codex-plugin-cc` 與其 `/codex:*` 指令 | 明確安裝外部 plugin；它驅動 `codex app-server` | 與 dhpk skill、CLI review 及已退休的 MCP 機制彼此獨立 |
 | 歷史上的已退休 MCP | `mcp__codex__codex`、`mcp__codex__codex-reply` 與 `codex mcp-server` | 本次 migration 已退休；目前沒有 dhpk capability 需要或建議它 | 僅供歷史說明。見[retirement ledger](./docs/skill-platform-migration.zh-TW.md#alias-free-codex-mcp-retirement-ledger)與[capability-parity matrix](./docs/codex-mcp-capability-parity.md)了解各 capability 的 successor |
 

@@ -186,7 +186,7 @@ separate surfaces with explicit ownership:
 
 | Surface | Names / entrypoint | Requirement | Failure or boundary |
 |---------|--------------------|-------------|--------------------|
-| CLI-only Codex path | `change-verdict --mode code --backend cli`; sibling roles `codex-worker`, `codex-reasoner`, `codex-reviewer`, and `dhpk-codex-bridge` | Codex CLI binary and Bash shell-out through the hardened wrapper; no MCP server | Missing `codex` is reported as an unavailable optional backend; the current-model path remains the default |
+| CLI-only Codex path | `change-verdict --mode code --backend cli`; sibling roles `codex-worker`, `codex-reasoner`, `codex-reviewer` | Codex CLI binary and Bash shell-out through the hardened wrapper; no MCP server | Missing `codex` is reported as an unavailable optional backend; the current-model path remains the default |
 | External app-server plugin | `openai/codex-plugin-cc` and its `/codex:*` commands | Explicitly installed external plugin; it drives `codex app-server` | It is independent of dhpk skills, CLI review, and the retired MCP mechanism |
 | Historical retired MCP | `mcp__codex__codex`, `mcp__codex__codex-reply`, and `codex mcp-server` | Retired in this migration; no current dhpk capability requires or recommends it | Historical context only. See the [retirement ledger](./docs/skill-platform-migration.md#alias-free-codex-mcp-retirement-ledger) and [capability-parity matrix](./docs/codex-mcp-capability-parity.md) for each capability's successor |
 

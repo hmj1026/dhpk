@@ -49,10 +49,10 @@ family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 colli
 
 ```text
 $flow-drive <change-id> --plan
-$flow-drive <change-id> --plan=opus:xhigh
+$flow-drive <change-id> --plan=discovery
 $flow-drive <change-id> --worker=claude|codex|agy|auto
-$flow-drive <change-id> --worker-target=<provider>/<model>[:<effort>] [--cross-provider]
-$flow-drive <change-id> --reasoner=codex-cli/gpt-6.1-sol:high
+$flow-drive <change-id> --worker=<provider>/<model>[:<effort>] [--cross]
+$flow-drive <change-id> --reasoner=codex/gpt-6.1-sol:high
 $flow-drive <change-id> --architect
 $flow-drive <change-id> --no-architect
 ```

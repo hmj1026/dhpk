@@ -52,6 +52,23 @@ Determine the workflow type (Small change / Bug / Feature / Architecture) from t
 
 Single source of truth for the six change types, their flow, and when an OpenSpec conversation may fill a missing outcome. `flow-guide` owns classification and routing; `flow-drive` accepts only confirmed implementation scope and acceptance, which may be carried by an existing specification, plain text, a file, or a report. Reference the table from `skills/flow-guide/SKILL.md` and `skills/flow-drive/SKILL.md` rather than adding another router.
 
+The explicitly invoked portable Flow Drive runner consumes task text, a file,
+or a confirmed identifier through Host resolution. A settled outcome permits
+bounded diagnosis of unknown causes; sufficient source, cause, repair, and
+verification evidence gates each dependent writer. Current session/executor
+bound capability records may resolve a target absent from a stale catalog;
+static declarations and `EXPOSED` selectors do not claim observed identity.
+Provider permission uses the trusted invocation ledger, Host allowed set,
+constraints, and selected-tuple refresh. Explicit Host refusal remains binding.
+All Flow Drive workspace writes, including scratch/manual proposals, share one
+writer lease. Recovery uses immutable attempt receipts and one invocation-wide
+budget; interrupted or uncertain launched writers need positive matching stop
+and actual scope/diff reconciliation before another writer may start. Missing
+proof suspends writers while readers can continue. Required independent review
+and parent acceptance remain completion gates. These portable contracts do not
+change legacy `cross_provider` configuration, generic scheduler parallelism,
+or the external `/opsx:apply` owner.
+
 | Change type | Planning / OpenSpec | Flow |
 |---|---|---|
 | Bug Fix (unknown root cause) | Ask only when acceptance or tracking outcomes are missing; reuse an applicable diagnosis | Reuse sufficient root-cause evidence; use `code-trace` to resolve a material gap before dependent writes → establish regression evidence for behavior changes → patch |
@@ -107,7 +124,7 @@ request a consult.
 #### Planner consult scope
 
 Scope selection is an orchestrator judgment for an already requested planner
-consult. `--plan-mode=auto|bounded|discovery` selects consult scope; it does not
+consult. `--plan[=auto|bounded|discovery]` selects consult scope; it does not
 select the planner's critique, blind-sketch, dual-plan, warm-review, or
 cold-review work mode. The Flow Drive parser validates the option grammar but
 does not choose scope or calculate risk. An enabled legacy handoff with no mode
@@ -173,11 +190,10 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `tdd-guide` | RED / test-first specialist when a separate test seam or live integration setup needs that expertise; GREEN ownership follows the settled task scope and capability | specialist |
 | `architect` | Cross-module or DDD-layer design | — |
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
-| `codex-reasoner` | Selected by `--reasoner=codex-cli/<model>[:<effort>]` — a `deep-reasoner` whose reasoning runs on the codex CLI backend (read-only sandbox); canonical role ID, legacy alias: `codex-deep-reasoner`; see §Implementation dispatch | — |
+| `codex-reasoner` | Selected by `--reasoner=codex[/<model>[:<effort>]]` — a `deep-reasoner` whose reasoning runs on the codex CLI backend (read-only sandbox); canonical role ID, legacy alias: `codex-deep-reasoner`; see §Implementation dispatch | — |
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
 | `codex-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID, legacy alias: `codex-fast-worker`; see §Implementation dispatch | — |
 | `agy-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run the agy CLI backend; canonical role ID, legacy alias: `agy-fast-worker`; see §Implementation dispatch | — |
-| `codex-bridge` | **Explicit CLI `codex exec` path, not the legacy MCP peer** — outsource a self-contained clear-spec task, or a blind second opinion, to the GPT-6 family; output isolated in the subagent, relayed verbatim; mode-qualified alias (read-only → `codex-reviewer` → `gpt-6.1-sol`/`high`, workspace-write → `codex-worker` → `gpt-6-luna`/`xhigh`); `codex-reviewer` is internal-only in this rollout; see §Implementation dispatch | — |
 | `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
 | `code-reviewer` | Code review — triggered by source-file edits | consolidated wave |
 | `database-reviewer` | SQL / Repository / migration (SQL correctness) — triggered or back-stop | consolidated wave |
@@ -332,7 +348,7 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | Work shape | Dispatch |
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
-| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex-cli/<model>[:<effort>]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-6.1-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
+| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex[/<model>[:<effort>]]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-6.1-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
 | Bounded mechanical work with an exact scope and an independent owner or coordination benefit (boilerplate, test scaffolds, rename sweeps, doc-consistency work, applying an approved plan) | `fast-worker` when delegation improves ownership, focus, or concurrency |
 | Judgment-dense but standardizable work with a bounded repeatable intent, exact scope, and known verification (documentation migration, bilingual restructuring, or a known fix batch) | In-process `fast-worker` when a shared owner improves consistency |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; the retired `CODEX=on`/`--codex` review-peer flags cannot select it. | `codex-worker` (canonical role ID; legacy alias: `codex-fast-worker`) |
@@ -346,7 +362,6 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | RED Vitest/Jest unit/integration test authored test-first when a non-trivial seam or runtime setup needs a separate specialist — same semantics as the RED PHPUnit row; `e2e-runner` is Playwright-journey-scoped, read-only `deep-reasoner` can't run it, and `fast-worker`'s "make verification pass" contract conflicts with a deliberately-failing RED test | `tdd-guide` when specialist ownership is useful; otherwise follow the task's settled inline/worker ownership |
 | A read-only, scenario-driven live-runtime probe (drive the real running system with one concrete scenario, observe rather than infer) — distinct from `e2e-runner` (authors/runs Playwright specs, write-capable, web-scoped) and the `feature-verify` skill (main-context, heavyweight P0–P5 scope, not a dispatchable isolated agent) | `dhpk:smoke-tester` |
 | Planning outcome is missing because of unresolved decisions, dependencies, ownership, coupling, or material risk; or an explicit pre-implementation consult is requested | `dhpk:planner` when available and permitted; adequate existing evidence does not require a duplicate consult |
-| Independent second opinion, or an offloaded self-contained clear-spec task — explicit CLI route, separate from the retired `--codex` flag | `codex-bridge` (subagent; one-shot bash `codex exec`, output isolated + relayed verbatim; mode-qualified alias for `codex-reviewer` or `codex-worker`) |
 | Live CI/deploy verification (`gh run watch`, run-log triage, retry babysitting) — main context keeps only merge/fix decisions | `dhpk:smoke-tester` (read-only probe) or background `fast-worker` |
 
 For a parallel mechanical batch, every worker task spec MUST declare `Parallel: yes`, exact assigned repo-relative files, per-file intent, and either a path-scoped verification command or an explicit report-only outcome. The assigned list is the worker's authoritative write, diff, and verification boundary. New files must be listed before dispatch; workers must stop with `BLOCKED` rather than expand scope.
@@ -389,6 +404,24 @@ target remains directional and may be checked by its adapter. The public
 pluginConfig > `false`; `.claude/settings.local.json` is preferred over
 `.claude/settings.json`. Dispatch
 selection never creates a review PASS or a retired Sentinel state.
+
+For Flow Drive, invocation grammar and candidate scope are owned by its Skill.
+Automatic candidates remain native unless this invocation supplies `--cross`;
+legacy cross configuration/environment cannot broaden that scope. Explicit
+`--worker=provider[/model[:effort]]` and `--reasoner=provider[/model[:effort]]`
+express role-scoped intent and require a current Host grant before external
+probe or launch. An exact target grant includes Provider, Agent, Model, Effort,
+Role, and authority; read-only cannot authorize workspace-write. The initial
+capability request disables external probes. The configuration precedence
+above remains valid for non-Flow Drive common-engine consumers. Cancellation, no answer, or a
+missing question callback creates no grant. Host allowed-provider policy,
+task constraints, current binding, and matching capability evidence remain
+binding after consent. An answered Host selection and root-supplied
+`authorizationEvidence` must carry a nonblank answer ID; only a sanitized ID
+is retained with the grant, never raw answer text. After side-effect-free
+coordination identifies selected candidates, Flow Drive scopes any external
+refresh to those concrete Provider/Agent/Model/Effort/Role/authority tuples;
+Provider consent never triggers a provider-wide model probe.
 
 The Dispatch Engine enforces this baseline for all four Roles; adapters
 consume the same neutral request without duplicating candidate-selection logic.
@@ -451,9 +484,12 @@ Codex backend is selected, verification result, and the complete edited-file
 list. Worker-backend selection is independent of the retired `CODEX` flag:
 `CODEX=on` and `CODEX=off` no longer select a review peer or alter worker
 selection. Use `--worker=codex` to select the retained Codex CLI worker, or use
-`--reasoner=codex-cli/<model>[:<effort>]` for a read-only reasoning pass. The
-bare `--reasoner=codex` value remains a compatibility shorthand. The explicit `codex-bridge`
-route remains a separate `codex exec` transport. An explicit backend request is
+`--reasoner=codex/<model>[:<effort>]` for a read-only reasoning pass. The
+bare `--reasoner=codex` value uses the resolved reasoner configuration;
+Flow Drive accepts `codex` as its Provider spelling. On Claude Code, its
+parent session launches the bundled attested CLI runtime directly instead of
+passing transport context through the Agent tool. The standalone `codex-bridge`
+Skill and agent are retired in 0.66.2; their compatible rollback pin is 0.66.1. An explicit backend request is
 blocked only by selector availability/fallback rules, never silently downgraded.
 
 ### Reasoner target compatibility boundary
@@ -492,10 +528,10 @@ app-server plugin. There is no hidden fallback. Exact replacements are:
 - Use `$flow-drive <confirmed-spec-or-change-id>` for explicit implementation,
   with `--worker=codex` when a Codex CLI mechanical worker is deliberately
   selected.
-- Use `$flow-drive --reasoner=codex-cli/<model>:<effort> <confirmed-spec-or-change-id>`
+- Use `$flow-drive <confirmed-spec-or-change-id> --reasoner=codex/<model>:<effort>`
   for an explicitly selected Codex CLI reasoning pass.
-- Use a named owner's `--second-opinion=codex-exec` option, or the explicit
-  `codex-bridge` route, for an additive one-shot `codex exec` second opinion.
+- Use a named owner's supported second-opinion interface for an additive
+  independent perspective; the standalone bridge entry is retired.
 - Invoke the external `openai/codex-plugin-cc` app-server commands directly;
   `$flow-drive` does not translate this retired flag into that plugin.
 
@@ -505,10 +541,9 @@ must choose one of the replacements above and rerun the task.
 ### High-stakes second opinion after flag retirement
 
 High-stakes decisions may still request an independent blind perspective, but it
-must be named explicitly with `--second-opinion=codex-exec` or an isolated
-reviewer dispatch. Triggers include a first-seen query/repository pattern,
-framework-internal hack, or explicit-rule deferral. At wrap-up, a session that
-dispatched `codex-bridge` 0 times records that no independent CLI opinion ran;
+must use a named owner's supported interface or an isolated reviewer dispatch. Triggers include a first-seen query/repository pattern,
+framework-internal hack, or explicit-rule deferral. At wrap-up, a session without observed independent execution records that
+no independent opinion ran;
 it does not infer one from the retired flags. Full triggers and mechanics:
 `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
 
@@ -581,7 +616,7 @@ then merge their findings into one bounded fix-spec while retaining each
 domain's independent verdict. Do not re-review each micro-fix as its own round.
 If an applicable external review already covers a domain, attach its scope,
 conclusion, observations, and gaps to the wave and fill only the missing part.
-`codex-bridge` remains escalation-only.
+The retired standalone bridge is not a reviewer dispatch target.
 
 ### Hook lifecycle classes
 

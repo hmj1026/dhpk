@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:0129decc4f364179ac002e916d8afa863df28fb02aa45e75e9964669981e8499`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
@@ -96,7 +96,7 @@ Actions：
 ### `$flow-drive`
 
 摘要：Execute one scoped task with diagnosis and acceptance evidence
-語法：`$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
+語法：`$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]`
 呼叫類別：`explicit-only`
 最高 authority：`workspace-write`
 
@@ -107,21 +107,19 @@ Actions：
 - `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance
 
 選項：
-- `plan` `--plan[=<model>:<effort>]` (可選, string) — Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker
-- `plan-mode` `--plan-mode=auto|bounded|discovery` (可選, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
-- `worker` `--worker=<worker>` (可選, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
-- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (可選, string) — Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target
-- `cross-provider` `--cross-provider` (可選, boolean, default=false) — Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh
-- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (可選, string) — Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker
-- `architect` `--architect` (可選, boolean) — Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker
-- `no-architect` `--no-architect` (可選, boolean) — Compatibility notice only in the portable task runner
+- `plan` `--plan[=auto|bounded|discovery]` (可選, enum, values=auto|bounded|discovery) — Request a planner scope using the current Host declared effective target
+- `worker` `--worker=auto|provider[/model[:effort]]` (可選, string, default=auto) — Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant
+- `cross` `--cross` (可選, boolean, default=false) — Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches
+- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (可選, string) — Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers
+- `architect` `--architect` (可選, boolean) — Request consultation; report UNAVAILABLE when the current Host has no supported architecture route
+- `no-architect` `--no-architect` (可選, boolean) — Suppress an optional consult while preserving required Host gates
 
 Legacy diagnostic（非主要語法）：
-- `--codex` — Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut
+- `--codex` — Use an explicit worker or reasoner instead of the retired Codex shortcut
 
 範例：
 - `$flow-drive "Fix the receipt total and verify it matches the receipt lines."` — Resolve and implement a bounded task with explicit acceptance
-- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross-provider` — Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes
+- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross` — Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes
 
 ### `$flow-guide`
 

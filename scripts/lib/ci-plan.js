@@ -33,7 +33,7 @@ function isCanonicalProse(file) {
 
 function categoryFor(file) {
   if (isCanonicalProse(file)) return 'content';
-  if (/^(?:skills\/(?:dhpk-agy-fast-worker|dhpk-cli-transport)\/scripts|modules\/[^/]+\/scripts)\//i.test(file)) return 'script';
+  if (/^(?:skills\/flow-drive\/scripts\/(?:adapters|transport|dispatch-runtime)|modules\/[^/]+\/scripts)\//i.test(file)) return 'script';
   if (/^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex)\/.*\.(?:json|ya?ml|toml)$/i.test(file)) return 'metadata';
   if (/^(?:\.github\/actions|scripts\/hooks|scripts\/install|install)/i.test(file)) return 'installer';
   if (/^(?:scripts|bin|tests)\//i.test(file)) return 'script';
@@ -52,8 +52,8 @@ const OWNER_GROUPS = Object.freeze([
   },
   {
     name: 'resource',
-    paths: [/^scripts\/lib\/skill-resource-sync\.js$/i, /^scripts\/ci\/sync-skill-resources\.js$/i, /^skills\/(?:dhpk-agy-fast-worker|dhpk-cli-transport)\/scripts\//i, /^modules\/[^/]+\/scripts\//i],
-    tests: ['modules.test.js', 'run-agy.test.js', 'run-cli-transport.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js'],
+    paths: [/^scripts\/lib\/skill-resource-sync\.js$/i, /^scripts\/ci\/sync-skill-resources\.js$/i, /^skills\/flow-drive\/scripts\/(?:adapters|transport|dispatch-runtime)\//i, /^modules\/[^/]+\/scripts\//i],
+    tests: ['modules.test.js', 'run-agy.test.js', 'run-codex.test.js', 'run-cli-transport.test.js', 'cli-dispatch-launcher.test.js', 'cli-role-resolver.test.js', 'flow-drive-cli-dispatch.test.js', 'flow-drive-relocation.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js'],
   },
   {
     name: 'manifest',

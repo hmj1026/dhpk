@@ -29,7 +29,7 @@ switches target or changes its conclusion contract.
 
 - DDD-layer placement / cross-module architecture → `architect` (see Defers below).
 - Opt-in `$flow-drive --plan` critique or plan sketch → `planner`
-- `--reasoner=codex-cli/<model>[:<effort>]` backend variant → the direct Codex CLI backend role (the legacy codex-deep-reasoner entry remains compatibility-only)
+- `--reasoner=codex/<model>[:<effort>]` backend variant → the direct Codex CLI backend role (the legacy codex-deep-reasoner entry remains compatibility-only)
 
 ## Scope
 
