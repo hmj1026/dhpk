@@ -107,9 +107,10 @@ function assertPhysicalAncestors(candidate, label, boundary = null) {
   while (true) {
     const stat = lstatOrNull(current);
     if (stat && stat.isSymbolicLink()) {
+      const recovery = 'preserve the symlink and its target; do not remove a conflicting skill symlink as a standalone recovery step for receipt-owned content; restore physical files matching the current receipt fingerprints before retrying; see docs/platform-installation.md#recover-receipt-owned-shared-skills';
       const message = current === resolvedCandidate
-        ? `${label} is a symlink at candidate path: ${current}; remove the conflicting symlink before retrying`
-        : `${label} has a symlinked ancestor: ${current}; remove a conflicting skill symlink or replace the symlinked directory with a physical directory before retrying`;
+        ? `${label} is a symlink at candidate path: ${current}; ${recovery}`
+        : `${label} has a symlinked ancestor: ${current}; ${recovery}`;
       throw fail('UNSAFE_PATH', message, { paths: [current] });
     }
     if (stop && current === stop) break;
@@ -942,9 +943,11 @@ function validateManagedFiles(roots, receipt, { requireBindings = true } = {}) {
   for (const relative of receipt.managedPaths.slice().sort()) {
     const target = pathIn(roots.managedRoot, relative, 'receipt-owned managed path');
     const stat = lstatOrNull(target);
-    if (!stat || stat.isSymbolicLink() || !stat.isFile()) throw fail('MANAGED_CONTENT_MISSING', `receipt-owned managed file is missing or unsafe: ${relative}`, { paths: [relative] });
+    if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
+      throw fail('MANAGED_CONTENT_MISSING', `receipt-owned managed file is missing or unsafe: ${relative}; expected SHA-256: ${receipt.generatedFingerprints[relative]}; restore a physical backup matching the current receipt fingerprints before retrying; --repair and --rollback do not restore missing current-receipt content; see docs/platform-installation.md#recover-receipt-owned-shared-skills`, { paths: [relative] });
+    }
     const actual = digest(fs.readFileSync(target));
-    if (actual !== receipt.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `receipt-owned managed file was modified or fingerprint drifted: ${relative}`, { paths: [relative] });
+    if (actual !== receipt.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `receipt-owned managed file was modified or fingerprint drifted: ${relative}; expected SHA-256: ${receipt.generatedFingerprints[relative]}; preserve the modified content and obtain a physical backup matching the current receipt fingerprints; see docs/platform-installation.md#recover-receipt-owned-shared-skills`, { paths: [relative] });
   }
   for (const binding of flattenBindingPaths(normalizeBindingPaths(receipt.bindingPaths || {}, roots))) {
     const resolved = bindingTargetIn(roots, binding, `receipt-owned ${binding.hostId} binding`);

@@ -644,6 +644,67 @@ project guidance). Cursor agents/rules remain `.cursor/agents/` and
 plugin package. Keep those platform-native projections generated from the
 canonical `agents/` and `rules/` trees.
 
+### Recover receipt-owned shared skills
+
+Use this procedure when a previously managed directory under
+`.agents/skills/` was replaced by a symlink, or its receipt-owned files are
+missing. An update deliberately refuses both states. Removing the symlink
+alone does not restore receipt integrity.
+
+1. Stop installers and other writers in the consumer project. Preserve the
+   current `.agents/.dhpk-installed.json`, the conflicting symlink and its
+   target, and any available backups outside managed and discovery trees.
+   Record the current receipt's SHA-256 before proceeding. If
+   `.agents/.dhpk-installed.transaction.json` exists, stop manual recovery:
+   resolve the interrupted transaction first through the installer; if that
+   fails, retain its diagnostics and backups for maintainer assistance.
+2. Find a physical backup of the affected skill from the installation described
+   by the **current** receipt, such as the original directory saved before
+   replacement. A rollback directory contains a previous version and is only
+   a candidate. Current canonical source may also differ from generated output.
+3. Read the current receipt's `managedPaths` and `generatedFingerprints`.
+   For every managed path below the affected skill, compare the backup file's
+   SHA-256 to that path's `generatedFingerprints` value. Require every file to
+   exist as a regular file, with physical parent directories and no symlinks.
+   For example, this read-only command prints expected hashes for one skill;
+   replace the two arguments with the consumer receipt and public skill name:
+
+   ```bash
+   node - /path/to/project/.agents/.dhpk-installed.json git-smart-commit <<'NODE'
+   const fs = require('node:fs');
+   const receipt = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+   const prefix = `${process.argv[3]}/`;
+   const paths = receipt.managedPaths.filter((entry) => entry.startsWith(prefix));
+   if (!paths.length) throw new Error('No receipt-owned files for this skill');
+   for (const entry of paths) console.log(receipt.generatedFingerprints[entry], entry);
+   NODE
+   ```
+
+   Use `sha256sum /path/to/backup/git-smart-commit/SKILL.md` (or
+   `shasum -a 256` on macOS) for each corresponding backup file, including
+   scripts and resources. This inspection does not validate the receipt's
+   authenticity; the installer validates the sealed receipt when retried.
+4. If a file is absent, unsafe, or has a different hash, stop. Keep the current
+   receipt and consumer content unchanged and obtain a matching backup or
+   maintainer assistance. Existing `--repair` handles receipt-less legacy
+   adoption; it does not restore missing files in an existing lifecycle receipt.
+   `--rollback` also requires the current managed content to pass validation.
+5. Once all affected backup files match, move the conflicting symlink itself
+   to a separate preserved location without following it. If it was already
+   removed, keep the destination absent. Confirm all its parents under the
+   project are physical directories and the destination does not exist
+   (including a dangling link). Restore the verified skill directory to its
+   original location as physical files, retaining the backup. Restore only the
+   receipt-listed files; preserve backup-only foreign files externally. Recheck
+   restored hashes and the unchanged receipt hash. Preserve unrelated files
+   and other Hosts' bindings.
+6. From the consumer project, retry the same native installer with
+   `--migrate --update` and the original selection arguments. Successful
+   validation and update complete recovery.
+   If another affected path is reported, repeat the checks for that path;
+   retain diagnostics if receipt validation fails. Never delete receipt entries
+   or use `--force` to work around ownership or fingerprint validation.
+
 ## Cursor standard Agent Plugin
 
 Prerequisites: a Cursor desktop client with the local plugin loader and a

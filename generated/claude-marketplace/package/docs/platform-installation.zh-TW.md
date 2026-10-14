@@ -596,6 +596,38 @@ project probe。Codex 的官方位置仍是
 plugin package 內。這些 platform-native projection 仍由 canonical `agents/` 與
 `rules/` 產生。
 
+### 復原 receipt-owned shared skills
+
+當 `.agents/skills/` 下原本受管理的 skill 目錄被換成 symlink，或 receipt-owned
+檔案遺失時，依此程序處理。更新會拒絕這兩種狀態；只移除 symlink 不會恢復
+receipt 完整性。英文版的 [復原程序](platform-installation.md#recover-receipt-owned-shared-skills)
+包含列出預期 SHA-256 的唯讀指令。
+
+1. 停止 consumer 專案的 installer 與其他寫入程序。保留目前的
+   `.agents/.dhpk-installed.json`、衝突 symlink、其 target 與可用備份，存放於
+   managed／discovery tree 之外，並記錄目前 receipt 的 SHA-256。
+   若存在 `.agents/.dhpk-installed.transaction.json`，先停止人工復原，透過
+   installer 處理中斷的 transaction；失敗時保留診斷與備份，交由維護者協助。
+2. 找到符合**目前 receipt** 所記錄安裝內容的實體 skill 備份，例如替換前保存的
+   原始目錄。rollback 目錄是上一版內容，只能作為候選來源；目前 canonical source
+   也可能與 generated output 不同。
+3. 讀取目前 receipt 的 `managedPaths` 與 `generatedFingerprints`，逐一比較受影響
+   skill 下所有備份檔案的 SHA-256，包含 scripts 與 resources。每個檔案必須存在、
+   為 regular file、所有父目錄均為實體目錄且沒有 symlink。可用 `sha256sum`，macOS
+   用 `shasum -a 256`。這項比對不代表 receipt 真實性已驗證；重試 installer 時
+   仍會驗證 sealed receipt。
+4. 任一檔案遺失、不安全或 hash 不符時停止，保留 receipt 與 consumer 內容，取得
+   符合的備份或維護者協助。現有 `--repair` 處理沒有 lifecycle receipt 的 legacy
+   adoption，無法恢復既有 receipt 下的遺失檔案；`--rollback` 也先驗證目前內容。
+5. 全部備份檔案符合後，將衝突 symlink 本身移到另一個保存位置，勿跟隨 target。
+   已移除 symlink 時保持 destination 不存在。確認 project 下所有父目錄均為實體，
+   destination 不存在（包括 dangling link），再將驗證過的 skill 還原至原位置為
+   實體目錄與檔案，只還原 receipt 列出的檔案；備份內其他 foreign files 保留在外部。
+   重新比對還原檔案的 hash 與 receipt 未變的 hash，保留備份、無關檔案及其他 Host bindings。
+6. 在 consumer 專案重試相同 native installer 的 `--migrate --update` 與原本的 selection arguments；驗證與更新
+   成功才算完成復原。若回報其他受影響路徑，對該路徑重複比對；receipt 驗證失敗時
+   保留診斷。勿刪除 receipt entries 或用 `--force` 繞過 ownership／fingerprint 驗證。
+
 ## Cursor standard Agent Plugin
 
 Prerequisites：具 local plugin loader 的 Cursor desktop client，以及已記錄的

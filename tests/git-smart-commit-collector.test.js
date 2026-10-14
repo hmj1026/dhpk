@@ -36,13 +36,15 @@ function makeRepo() {
   assert.strictEqual(init.status, 0, init.stderr);
   git(root, ['config', 'user.name', 'Collector Test']);
   git(root, ['config', 'user.email', 'collector-test@example.invalid']);
+  git(root, ['config', 'maintenance.auto', 'false']);
+  git(root, ['config', 'gc.auto', '0']);
   return { parent, root };
 }
 
-function git(cwd, args) {
+function git(cwd, args, extraEnv = {}) {
   const result = spawnSync('git', args, {
     cwd,
-    env: repoEnv(cwd),
+    env: { ...repoEnv(cwd), ...extraEnv },
     encoding: 'utf8',
     timeout: 10000,
   });
@@ -70,9 +72,9 @@ function repoEnv(cwd) {
   return cleanGitEnv();
 }
 
-function commitAll(root, message = 'fixture commit') {
+function commitAll(root, message = 'fixture commit', extraEnv = {}) {
   git(root, ['add', '--all']);
-  git(root, ['commit', '--quiet', '--no-gpg-sign', '-m', message]);
+  git(root, ['commit', '--quiet', '--no-gpg-sign', '-m', message], extraEnv);
 }
 
 function captureTree(root) {
@@ -176,6 +178,34 @@ test('collector reports an empty unborn repository with its root and default hoo
         commitMsg: { exists: false, executable: false },
       },
     });
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('collector fixture commits keep Git maintenance inactive', () => {
+  const { parent, root } = makeRepo();
+  try {
+    fs.writeFileSync(path.join(root, 'committed.txt'), 'stable\n');
+    const tracePath = path.join(parent, 'git-trace2.jsonl');
+    commitAll(root, 'fixture commit', { GIT_TRACE2_EVENT: tracePath });
+    const events = fs.readFileSync(tracePath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map(line => JSON.parse(line));
+    const detachedMaintenance = events.filter(event => (
+      event.event === 'child_start'
+      && Array.isArray(event.argv)
+      && event.argv.includes('maintenance')
+      && event.argv.includes('--detach')
+    ));
+
+    assert.deepStrictEqual(detachedMaintenance, [], 'fixture commits must not start detached Git maintenance');
+    assert.strictEqual(
+      fs.existsSync(path.join(root, '.git', 'objects', 'maintenance.lock')),
+      false,
+      'fixture commits must not leave a Git maintenance lock in the object database',
+    );
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }
