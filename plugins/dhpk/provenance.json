@@ -4,16 +4,14 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.66.1",
-  "sourceCommit": "fda1e5fd5d2dbde2cc87a238068dda68b2dcd0ca",
-  "generatedFromCommit": "fda1e5fd5d2dbde2cc87a238068dda68b2dcd0ca",
-  "generatedFromTree": "bb800a351c4a774a02a16e2290b37957565947e2",
-  "inventoryDigest": "0982a9a4048565ad5f99f965b1d71ea7e11aa483f501c1c065a8f8253223bd3a",
-  "inventoryRevision": "sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727",
+  "sourceCommit": "e659edcda637416359fb329c54baa2abfe361702",
+  "generatedFromCommit": "e659edcda637416359fb329c54baa2abfe361702",
+  "generatedFromTree": "0d8f8ca84de80fecef123c0c9a7a13c985335d72",
+  "inventoryDigest": "74c25db73c57776e6d6fd85635951ee80ddb651ae0a9bb5ed6429d7e2629fd1d",
+  "inventoryRevision": "sha256:0129decc4f364179ac002e916d8afa863df28fb02aa45e75e9964669981e8499",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "change-verdict",
-    "cli-dispatch-context",
-    "cli-transport",
     "code-trace",
     "create-pr",
     "dep-audit",
@@ -36,8 +34,6 @@
     "code-trace",
     "create-pr",
     "dep-audit",
-    "dhpk-cli-dispatch-context",
-    "dhpk-cli-transport",
     "dhpk-opsx-load-context",
     "dhpk-opsx-post-observation",
     "flow-drive",
@@ -54,8 +50,6 @@
   ],
   "materializedSkillIds": [
     "change-verdict",
-    "cli-dispatch-context",
-    "cli-transport",
     "code-trace",
     "create-pr",
     "dep-audit",
@@ -78,8 +72,6 @@
     "code-trace",
     "create-pr",
     "dep-audit",
-    "dhpk-cli-dispatch-context",
-    "dhpk-cli-transport",
     "dhpk-opsx-load-context",
     "dhpk-opsx-post-observation",
     "flow-drive",
@@ -94,12 +86,9 @@
     "ui-ux-verify",
     "update-docs"
   ],
-  "runtimeSupportStableIds": [
-    "cli-dispatch-context",
-    "cli-transport"
-  ],
+  "runtimeSupportStableIds": [],
   "marketplacePublication": {
-    "selectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
+    "selectionDigest": "5f9d35c642d1c09214e14a916cfbcb3cec6a7c327479a3598e9e1589a7b44e2f",
     "publicEntryIds": [
       "change-verdict",
       "code-trace",
@@ -118,18 +107,14 @@
       "update-docs"
     ],
     "hostOnlyIds": [
-      "cli-dispatch-context",
-      "cli-transport",
       "opsx-load-context",
       "opsx-post-obs"
     ]
   },
   "bundledContentProvenance": {
-    "selectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
+    "selectionDigest": "5f9d35c642d1c09214e14a916cfbcb3cec6a7c327479a3598e9e1589a7b44e2f",
     "entryIds": [
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-trace",
       "create-pr",
       "dep-audit",
@@ -442,96 +427,6 @@
         "originalGitBlobDigest": "80df7c7a7662148d1b807ac55a6727dd368bb773"
       },
       {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/SKILL.md",
-        "destination": "skills/dhpk-cli-dispatch-context/SKILL.md",
-        "originalGitBlobDigest": "7964e446feeacb6be247bfdf6612ee17be09d27f"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/agents/openai.yaml",
-        "destination": "skills/dhpk-cli-dispatch-context/agents/openai.yaml",
-        "originalGitBlobDigest": "3df7bba7e10f0f2cb4280ea6d80effe3e538f5e0"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-        "originalGitBlobDigest": "04afc1fdc0b0079a812daade944a62ecab9162e3"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-        "originalGitBlobDigest": "a505d3bda8781afc9b0e1f6a4897ce429b7ddfc6"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/prepare-cli-request.py",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/prepare-cli-request.py",
-        "originalGitBlobDigest": "64efa5cdbe54ad875202e6e37754e28643b0703c"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/run-cli-transport.py",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/run-cli-transport.py",
-        "originalGitBlobDigest": "c787567919dbf4f84cb5e5214c3145669b14e050"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-        "originalGitBlobDigest": "7dd1c197b5b3b2f8799db1eec2fa03f4e7b104e3"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-        "originalGitBlobDigest": "5fd20912594f1befa35cababcd98358f42f738dc"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-        "originalGitBlobDigest": "5d591a28b06aec4c091115448caf375dd2d70b47"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/scripts/run-agy.sh",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/run-agy.sh",
-        "originalGitBlobDigest": "1cd14c050226327d6e89a15bbdacfb4676186811"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "source": "skills/dhpk-cli-dispatch-context/scripts/run-codex.sh",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/run-codex.sh",
-        "originalGitBlobDigest": "3c250840d9d8cee0ae6f8121281afffe58abf110"
-      },
-      {
-        "ownerId": "cli-transport",
-        "source": "skills/dhpk-cli-transport/SKILL.md",
-        "destination": "skills/dhpk-cli-transport/SKILL.md",
-        "originalGitBlobDigest": "cf20798ee026633d4d55d2141cd2747ad9a54fff"
-      },
-      {
-        "ownerId": "cli-transport",
-        "source": "skills/dhpk-cli-transport/agents/openai.yaml",
-        "destination": "skills/dhpk-cli-transport/agents/openai.yaml",
-        "originalGitBlobDigest": "2cb8e2c4e06d2a38b5b52bfe1ff17da1c7f76b4e"
-      },
-      {
-        "ownerId": "cli-transport",
-        "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-        "destination": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-        "originalGitBlobDigest": "64efa5cdbe54ad875202e6e37754e28643b0703c"
-      },
-      {
-        "ownerId": "cli-transport",
-        "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-        "destination": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-        "originalGitBlobDigest": "c787567919dbf4f84cb5e5214c3145669b14e050"
-      },
-      {
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
@@ -559,7 +454,7 @@
         "ownerId": "code-trace",
         "source": "rules/execution-policy.md",
         "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
+        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
       },
       {
         "ownerId": "code-trace",
@@ -811,13 +706,13 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/SKILL.md",
         "destination": "skills/flow-drive/SKILL.md",
-        "originalGitBlobDigest": "0c971649968d1788320e8c8c8d6453c71b73fa3f"
+        "originalGitBlobDigest": "5a23333c01a16c5d80f0ba7a69655b76d0b59c01"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/agents/openai.yaml",
         "destination": "skills/flow-drive/agents/openai.yaml",
-        "originalGitBlobDigest": "fd308851b04d3c20934e64744dd7a8803d8794f5"
+        "originalGitBlobDigest": "696bdc982b361c5353a2110daa3b45fca5097a7c"
       },
       {
         "ownerId": "flow-drive",
@@ -829,61 +724,13 @@
         "ownerId": "flow-drive",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
+        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
       },
       {
         "ownerId": "flow-drive",
         "source": "scripts/lib/flow-handoff-contract.js",
         "destination": "skills/flow-drive/references/_dependencies/scripts/lib/flow-handoff-contract.js",
         "originalGitBlobDigest": "98ee51ce36200ccc5c0f448b7980f5d2413cc8f7"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/cli-dispatch/scripts/build-cli-dispatch-context.js",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/build-cli-dispatch-context.js",
-        "originalGitBlobDigest": "04afc1fdc0b0079a812daade944a62ecab9162e3"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/cli-dispatch/scripts/cli-role-resolver.js",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/cli-role-resolver.js",
-        "originalGitBlobDigest": "a505d3bda8781afc9b0e1f6a4897ce429b7ddfc6"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py",
-        "originalGitBlobDigest": "64efa5cdbe54ad875202e6e37754e28643b0703c"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/run-cli-transport.py",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/run-cli-transport.py",
-        "originalGitBlobDigest": "c787567919dbf4f84cb5e5214c3145669b14e050"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/cli-dispatch/scripts/launch-cli-dispatch.js",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/launch-cli-dispatch.js",
-        "originalGitBlobDigest": "7dd1c197b5b3b2f8799db1eec2fa03f4e7b104e3"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.js",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.js",
-        "originalGitBlobDigest": "5fd20912594f1befa35cababcd98358f42f738dc"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
-        "originalGitBlobDigest": "5d591a28b06aec4c091115448caf375dd2d70b47"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh",
-        "originalGitBlobDigest": "3c250840d9d8cee0ae6f8121281afffe58abf110"
       },
       {
         "ownerId": "flow-drive",
@@ -1483,13 +1330,13 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
+        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "cce25cc6372fe2c3c96b794b5383f20221e15d20"
+        "originalGitBlobDigest": "7596dc383a9e2dd401355eaeccf02bf1ca0e0dfb"
       },
       {
         "ownerId": "flow-drive",
@@ -1513,7 +1360,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
         "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
-        "originalGitBlobDigest": "b527c8c6d7f2dd6917dcfdd455da89b0570a775a"
+        "originalGitBlobDigest": "81b56743ebb6687b926a1fa553c9fa2d258f1823"
       },
       {
         "ownerId": "flow-drive",
@@ -1567,7 +1414,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "c1cd8199d3456ad933ac26772c9c7fe681e77828"
+        "originalGitBlobDigest": "befe9b5227cfb9950d2a31a28d0a7034358815d9"
       },
       {
         "ownerId": "flow-drive",
@@ -1723,7 +1570,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/parent-cli-dispatch.md",
         "destination": "skills/flow-drive/references/parent-cli-dispatch.md",
-        "originalGitBlobDigest": "543197b4b288704824ca82ca4b8ab4cbf7f4cfba"
+        "originalGitBlobDigest": "665faee1e8b4efe285cbf81ab1ef200ddaa2148d"
       },
       {
         "ownerId": "flow-drive",
@@ -1735,7 +1582,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/portable-runner.md",
         "destination": "skills/flow-drive/references/portable-runner.md",
-        "originalGitBlobDigest": "1c6ff48b52ed780dd145d4e0e2c48524c96ecb50"
+        "originalGitBlobDigest": "8843fa1c7cf1533be22e836ab4e01566af73d744"
       },
       {
         "ownerId": "flow-drive",
@@ -1763,45 +1610,93 @@
       },
       {
         "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/adapters/run-agy.sh",
+        "destination": "skills/flow-drive/scripts/adapters/run-agy.sh",
+        "originalGitBlobDigest": "a90779b3370871ae230f343400dab4bd11ddda40"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/adapters/run-codex.sh",
+        "destination": "skills/flow-drive/scripts/adapters/run-codex.sh",
+        "originalGitBlobDigest": "c670c6eb5564b1c9d7f51215abd720a9b8c24132"
+      },
+      {
+        "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/attempt-executor.js",
         "destination": "skills/flow-drive/scripts/attempt-executor.js",
         "originalGitBlobDigest": "1422e5a373cff2bc126b5facd6e78aeea9e1a425"
       },
       {
         "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
+        "originalGitBlobDigest": "04afc1fdc0b0079a812daade944a62ecab9162e3"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
+        "originalGitBlobDigest": "5a55781527015917e0b27b1ed81790fabbe61a8f"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/dispatch-runtime/launch-cli-dispatch.js",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/launch-cli-dispatch.js",
+        "originalGitBlobDigest": "828d078e79a79d827bcaf26c3e2171b7eaa44652"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/dispatch-runtime/physical-file.js",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/physical-file.js",
+        "originalGitBlobDigest": "5fd20912594f1befa35cababcd98358f42f738dc"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/dispatch-runtime/physical-file.py",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/physical-file.py",
+        "originalGitBlobDigest": "5d591a28b06aec4c091115448caf375dd2d70b47"
+      },
+      {
+        "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/dispatch.js",
         "destination": "skills/flow-drive/scripts/dispatch.js",
-        "originalGitBlobDigest": "8ec7069d4d69910834d525b71bb3c0c7cf764936"
+        "originalGitBlobDigest": "57c180ff632a0cecbca8b57af6ad2064f3003f85"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/graph-runner.js",
         "destination": "skills/flow-drive/scripts/graph-runner.js",
-        "originalGitBlobDigest": "dabb72b6ac7e4b9ee052f1d5e2a2247d5fc2b4c6"
+        "originalGitBlobDigest": "8a37f3c46d8e1f4833116633e28ffabd1c200ec1"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/invocation.js",
         "destination": "skills/flow-drive/scripts/invocation.js",
-        "originalGitBlobDigest": "368aedee39a21cf5fe15a36637054b46a44088c5"
+        "originalGitBlobDigest": "99e43002909f9c84be3d5dc2fa9d3a0d2f3baf45"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/launch-dispatch.js",
         "destination": "skills/flow-drive/scripts/launch-dispatch.js",
-        "originalGitBlobDigest": "7aa70eeaaa1941eaa423ce9e507e1cd57883250a"
+        "originalGitBlobDigest": "25f2fb0d1a44651e52a85d987e3529975519994d"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/provider-permissions.js",
         "destination": "skills/flow-drive/scripts/provider-permissions.js",
-        "originalGitBlobDigest": "ac9535ceb17c42b419b92ae493c39d4e12b87a84"
+        "originalGitBlobDigest": "bf1495ec0073ea431d5bb72f0672bb359d4bac2e"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/role-intents.js",
+        "destination": "skills/flow-drive/scripts/role-intents.js",
+        "originalGitBlobDigest": "8cac5c8d20570f6bf2c0d93b4decefa246aef5d9"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/run.js",
         "destination": "skills/flow-drive/scripts/run.js",
-        "originalGitBlobDigest": "409d3381ee8da5aaa9ed86f085aede516600d1ae"
+        "originalGitBlobDigest": "afff875b6ec4abaa25a4b98768f04e116e01ff72"
       },
       {
         "ownerId": "flow-drive",
@@ -1813,7 +1708,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/target-policy.js",
         "destination": "skills/flow-drive/scripts/target-policy.js",
-        "originalGitBlobDigest": "4a0a022c2fee36f2266d32d806cac3ca2f5366ad"
+        "originalGitBlobDigest": "deeb612914f218a1785321d8e8a1043311d26a64"
       },
       {
         "ownerId": "flow-drive",
@@ -1826,6 +1721,18 @@
         "source": "skills/flow-drive/scripts/task-graph.js",
         "destination": "skills/flow-drive/scripts/task-graph.js",
         "originalGitBlobDigest": "b9cedbce3c24c04ae9edfdf7b00b70fc6273bdfe"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/transport/prepare-cli-request.py",
+        "destination": "skills/flow-drive/scripts/transport/prepare-cli-request.py",
+        "originalGitBlobDigest": "64efa5cdbe54ad875202e6e37754e28643b0703c"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/flow-drive/scripts/transport/run-cli-transport.py",
+        "destination": "skills/flow-drive/scripts/transport/run-cli-transport.py",
+        "originalGitBlobDigest": "2815a8004f678ec5ea6a59de73c180d3dd7bce44"
       },
       {
         "ownerId": "flow-guide",
@@ -1855,7 +1762,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
+        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
       },
       {
         "ownerId": "flow-guide",
@@ -1879,7 +1786,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "426a7d1a29805f63140a4f8b83620e4472706c70"
+        "originalGitBlobDigest": "612717b55e332dfc3dcb6ea329f53b929ba7eaec"
       },
       {
         "ownerId": "flow-guide",
@@ -1909,7 +1816,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/dispatch-and-gates.md",
         "destination": "skills/flow-guide/references/dispatch-and-gates.md",
-        "originalGitBlobDigest": "72d67f171a814f2de26c6478baadfe555fb8b533"
+        "originalGitBlobDigest": "78e39a7ae45dfddaad665ab54ad876c3fcb6e604"
       },
       {
         "ownerId": "flow-guide",
@@ -1945,13 +1852,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
+        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "cce25cc6372fe2c3c96b794b5383f20221e15d20"
+        "originalGitBlobDigest": "7596dc383a9e2dd401355eaeccf02bf1ca0e0dfb"
       },
       {
         "ownerId": "flow-guide",
@@ -1975,7 +1882,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
-        "originalGitBlobDigest": "b527c8c6d7f2dd6917dcfdd455da89b0570a775a"
+        "originalGitBlobDigest": "81b56743ebb6687b926a1fa553c9fa2d258f1823"
       },
       {
         "ownerId": "flow-guide",
@@ -2017,7 +1924,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "c1cd8199d3456ad933ac26772c9c7fe681e77828"
+        "originalGitBlobDigest": "befe9b5227cfb9950d2a31a28d0a7034358815d9"
       },
       {
         "ownerId": "flow-guide",
@@ -2053,7 +1960,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "c1cd8199d3456ad933ac26772c9c7fe681e77828"
+        "originalGitBlobDigest": "befe9b5227cfb9950d2a31a28d0a7034358815d9"
       },
       {
         "ownerId": "flow-guide",
@@ -2719,7 +2626,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "545d63956a457f40adff14c614e333e3592ad730"
+        "originalGitBlobDigest": "c11c605640d282a9cd1b81a2fdaa8f68f28c5ec4"
       },
       {
         "ownerId": "tdd",
@@ -3555,111 +3462,6 @@
         "kind": "entry"
       },
       {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/SKILL.md",
-        "destination": "skills/dhpk-cli-dispatch-context/SKILL.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/agents/openai.yaml",
-        "destination": "skills/dhpk-cli-dispatch-context/agents/openai.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/prepare-cli-request.py",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/prepare-cli-request.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/run-cli-transport.py",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/run-cli-transport.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/run-agy.sh",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/run-agy.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-dispatch-context",
-        "skillId": "cli-dispatch-context",
-        "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/run-codex.sh",
-        "destination": "skills/dhpk-cli-dispatch-context/scripts/run-codex.sh",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-transport",
-        "skillId": "cli-transport",
-        "sourcePath": "skills/dhpk-cli-transport/SKILL.md",
-        "destination": "skills/dhpk-cli-transport/SKILL.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-transport",
-        "skillId": "cli-transport",
-        "sourcePath": "skills/dhpk-cli-transport/agents/openai.yaml",
-        "destination": "skills/dhpk-cli-transport/agents/openai.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-transport",
-        "skillId": "cli-transport",
-        "sourcePath": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-        "destination": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "cli-transport",
-        "skillId": "cli-transport",
-        "sourcePath": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-        "destination": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-        "kind": "entry"
-      },
-      {
         "ownerId": "opsx-load-context",
         "skillId": "opsx-load-context",
         "sourcePath": "skills/dhpk-opsx-load-context/SKILL.md",
@@ -3742,62 +3544,6 @@
         "sourcePath": "scripts/lib/flow-handoff-contract.js",
         "destination": "skills/flow-drive/references/_dependencies/scripts/lib/flow-handoff-contract.js",
         "kind": "dependency"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/build-cli-dispatch-context.js",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/build-cli-dispatch-context.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/cli-role-resolver.js",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/cli-role-resolver.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/run-cli-transport.py",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/run-cli-transport.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/launch-cli-dispatch.js",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/launch-cli-dispatch.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.js",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh",
-        "destination": "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh",
-        "kind": "entry"
       },
       {
         "ownerId": "flow-drive",
@@ -4824,8 +4570,57 @@
       {
         "ownerId": "flow-drive",
         "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/adapters/run-agy.sh",
+        "destination": "skills/flow-drive/scripts/adapters/run-agy.sh",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/adapters/run-codex.sh",
+        "destination": "skills/flow-drive/scripts/adapters/run-codex.sh",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
         "sourcePath": "skills/flow-drive/scripts/attempt-executor.js",
         "destination": "skills/flow-drive/scripts/attempt-executor.js",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/launch-cli-dispatch.js",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/launch-cli-dispatch.js",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/physical-file.js",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/physical-file.js",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/physical-file.py",
+        "destination": "skills/flow-drive/scripts/dispatch-runtime/physical-file.py",
         "kind": "entry"
       },
       {
@@ -4866,6 +4661,13 @@
       {
         "ownerId": "flow-drive",
         "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/role-intents.js",
+        "destination": "skills/flow-drive/scripts/role-intents.js",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
         "sourcePath": "skills/flow-drive/scripts/run.js",
         "destination": "skills/flow-drive/scripts/run.js",
         "kind": "entry"
@@ -4896,6 +4698,20 @@
         "skillId": "flow-drive",
         "sourcePath": "skills/flow-drive/scripts/task-graph.js",
         "destination": "skills/flow-drive/scripts/task-graph.js",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/transport/prepare-cli-request.py",
+        "destination": "skills/flow-drive/scripts/transport/prepare-cli-request.py",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/scripts/transport/run-cli-transport.py",
+        "destination": "skills/flow-drive/scripts/transport/run-cli-transport.py",
         "kind": "entry"
       },
       {
@@ -6155,34 +5971,30 @@
   },
   "fingerprints": {
     "change-verdict": "527bba10033638a15608097b7ae2dfa32d8b41b8628eb75169157e2a4c803dbc",
-    "code-trace": "738125067d2946a0347662e2dcdaae67fd65e94fcf90700e9a1e6ac4cd8577a7",
+    "code-trace": "b421c8e7d84965778d837f769055a7cdf6ef778ba6eb62e93902eee8fefb5102",
     "create-pr": "d078019e7dab7f3bec033df6231b97c631c5ad4827e9f2ee26122bbbefe4fa93",
     "dep-audit": "59268ef33dc7abb1d4f4d135893aa8aa0fb58d96a3096f4fede12b6cdea108fd",
-    "dhpk-cli-dispatch-context": "d7952e718553972756a9727eba111c15d9b108907edb59b75afe1e961eeb793d",
-    "dhpk-cli-transport": "12926e258a9c40c274f4ea1789d0fb8b69cf45c2d4f329aa0b359eb611aa6502",
     "dhpk-opsx-load-context": "dc312cf37a15a7d4b4b9bdef9e2f0e6fc6f1b71c9ac3e5df18e119476a184415",
     "dhpk-opsx-post-observation": "a5683c62da6ea8a25e3e45706078917d5b170b5298eaf1168ee9874323aeb970",
-    "flow-drive": "70ef9578b9bf10e6e4336c8d3dfa4ab0639f521267eeb9db7b36ae2147ee003b",
-    "flow-guide": "d34197f6f2c8e7612275db7b6e2e507efac0d623ebd28c5f6e06b4075a981140",
+    "flow-drive": "8a7350fc023f1c73978b1942f84a6062eb66988b6151d87fc864cafa9b635caf",
+    "flow-guide": "624059df1dfef45b7be8d34171a74510dc0d750d7c84bbbc22f5ec91b116a443",
     "git-smart-commit": "70ae8512825b4375ad911a60d7a4fe92fa47e51ec61e1ef1a21056753d00fe00",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
     "precommit": "46311444e480082877e7784e715968c90a20a0237a4eb58ab939bae0f7e8e777",
     "proposal-analyze": "e8921cb440426d8a96306b09a7affdb060248e7bbaf60abde749114d454b3818",
     "release-creator": "e2dd86197a7461ed8493e36673db6a602d0acb9eb79442539c8205d1b19e9c63",
     "repo-verify": "ad199643d8b917bc0211f806bb9eeaac265d758bd549d330d0723bdb1cab8c8a",
-    "tdd-workflow": "f1a84f3311bad13771064f138a57569ff39fdc569d98afbf19a9d8947db96fc8",
+    "tdd-workflow": "9d14eda3e4d4747e84bc20e5883b5c6f09e0b37ae4946bd4a449a53dabb28898",
     "ui-ux-verify": "a116cb22d82d85de9bc89862cdd585f3f7505a3ea4edb5dc1be803e6e696eb9a",
     "update-docs": "0897ee969a5ebee4ed4b9d98b6fe01f1f7bb5404156e4c2a3aa1ec6e58d3d024"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "972bbf3c76dfd8066f9569a118402cea513d63e3b0c51c5f4f2e9733c79be3fe",
+    "planId": "8d339ba786d72912656d6b1b0219aad137806a91a8a79fc05b9070829fd14312",
     "scope": "project",
-    "profileId": "compat-v1",
+    "profileId": "common",
     "selectedStableIds": [
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-trace",
       "create-pr",
       "dep-audit",
@@ -6190,8 +6002,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "opsx-load-context",
-      "opsx-post-obs",
       "precommit",
       "proposal-analyze",
       "release-creator",
@@ -6203,8 +6013,6 @@
     "supportClosure": {
       "stableIds": [
         "change-verdict",
-        "cli-dispatch-context",
-        "cli-transport",
         "code-trace",
         "create-pr",
         "dep-audit",
@@ -6212,8 +6020,6 @@
         "flow-guide",
         "git-smart-commit",
         "git-worktree",
-        "opsx-load-context",
-        "opsx-post-obs",
         "precommit",
         "proposal-analyze",
         "release-creator",
@@ -6230,10 +6036,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "972bbf3c76dfd8066f9569a118402cea513d63e3b0c51c5f4f2e9733c79be3fe",
-      "inventory": "0982a9a4048565ad5f99f965b1d71ea7e11aa483f501c1c065a8f8253223bd3a"
+      "plan": "8d339ba786d72912656d6b1b0219aad137806a91a8a79fc05b9070829fd14312",
+      "inventory": "74c25db73c57776e6d6fd85635951ee80ddb651ae0a9bb5ed6429d7e2629fd1d"
     },
-    "rollbackIdentity": "f4e0234e79b5e2919b6664f48cccab3a8d5cd8a26371b3672bfd5f88694e321c"
+    "rollbackIdentity": "e36aed1477079597d17096bd0a225d5e9359fe7b2e8b4e62a9ee471b739ffac9"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
@@ -6617,7 +6423,7 @@
     "flow-drive": {
       "display_name": "Flow Drive",
       "summary": "Execute one scoped task with diagnosis and acceptance evidence",
-      "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
+      "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]",
       "input_kind": "mixed",
       "inputs": [
         {
@@ -6645,63 +6451,37 @@
       "options": [
         {
           "id": "plan",
-          "syntax": "--plan[=<model>:<effort>]",
-          "value_kind": "string",
-          "required": false,
-          "summary": "Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
-          "applies_to": [
-            "apply"
-          ]
-        },
-        {
-          "id": "plan-mode",
-          "syntax": "--plan-mode=auto|bounded|discovery",
+          "syntax": "--plan[=auto|bounded|discovery]",
           "value_kind": "enum",
           "required": false,
-          "default": "auto",
+          "summary": "Request a planner scope using the current Host declared effective target",
+          "applies_to": [
+            "apply"
+          ],
           "enum_values": [
             "auto",
             "bounded",
             "discovery"
-          ],
-          "summary": "Select the consult scope; requires --plan and defaults to auto when enabled",
-          "applies_to": [
-            "apply"
           ]
         },
         {
           "id": "worker",
-          "syntax": "--worker=<worker>",
-          "value_kind": "enum",
-          "required": false,
-          "enum_values": [
-            "claude",
-            "codex",
-            "agy",
-            "auto"
-          ],
-          "summary": "Select an explicitly requested implementation worker",
-          "applies_to": [
-            "apply"
-          ]
-        },
-        {
-          "id": "worker-target",
-          "syntax": "--worker-target=<provider>/<model>[:<effort>]",
+          "syntax": "--worker=auto|provider[/model[:effort]]",
           "value_kind": "string",
           "required": false,
-          "summary": "Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target",
+          "summary": "Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant",
           "applies_to": [
             "apply"
-          ]
+          ],
+          "default": "auto"
         },
         {
-          "id": "cross-provider",
-          "syntax": "--cross-provider",
+          "id": "cross",
+          "syntax": "--cross",
           "value_kind": "boolean",
           "required": false,
           "default": false,
-          "summary": "Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh",
+          "summary": "Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches",
           "applies_to": [
             "apply"
           ]
@@ -6711,7 +6491,7 @@
           "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
           "value_kind": "string",
           "required": false,
-          "summary": "Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+          "summary": "Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers",
           "applies_to": [
             "apply"
           ]
@@ -6721,7 +6501,7 @@
           "syntax": "--architect",
           "value_kind": "boolean",
           "required": false,
-          "summary": "Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+          "summary": "Request consultation; report UNAVAILABLE when the current Host has no supported architecture route",
           "applies_to": [
             "apply"
           ]
@@ -6731,7 +6511,7 @@
           "syntax": "--no-architect",
           "value_kind": "boolean",
           "required": false,
-          "summary": "Compatibility notice only in the portable task runner",
+          "summary": "Suppress an optional consult while preserving required Host gates",
           "applies_to": [
             "apply"
           ]
@@ -6745,7 +6525,7 @@
           "legacy": {
             "replacement_id": "worker",
             "diagnostic_only": true,
-            "reason": "Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut"
+            "reason": "Use an explicit worker or reasoner instead of the retired Codex shortcut"
           },
           "applies_to": [
             "apply"
@@ -6758,7 +6538,7 @@
           "summary": "Resolve and implement a bounded task with explicit acceptance"
         },
         {
-          "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
+          "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross",
           "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
         }
       ]
@@ -7275,7 +7055,7 @@
     "dep-audit": "6ab9eeed7127559c6b5075f06b7284a7fad7f6d4aa68472b0d5e0f1a1075506a",
     "opsx-load-context": "91a653e1525bb1472134b8b10a1b0568821ebd1fda6e5ded2d88bdfb0e68a35c",
     "opsx-post-obs": "06a21db402817a9a45c8992ddb158c18a7d8fe256f73670e1486270c7c9461ea",
-    "flow-drive": "d78ea140b33fb6d1fdc2f2d733f584904194e0819ac3ff7e801c4f91ea460886",
+    "flow-drive": "302776393f4628264a0fca0525eadaa38f0e9c27134f8ae3625efc4a5d2f4cb5",
     "flow-guide": "5300a6121dae6a264abe9859a10cc42504b034b4908f06ca3343b2f88a7cd369",
     "git-smart-commit": "bf7f04db7306d231b79a4e95374595c27fd56c8cd665f04394085a23af15b9f5",
     "git-worktree": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689",
@@ -7287,5 +7067,61 @@
     "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd",
     "update-docs": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
   },
-  "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "profileId": "common",
+  "selectedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "update-docs",
+    "precommit",
+    "dep-audit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "canonicalSelectedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "update-docs",
+    "precommit",
+    "dep-audit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "emittedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "update-docs",
+    "precommit",
+    "dep-audit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "compatibilityMode": "profile",
+  "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
+  "selectionFingerprint": "0511ce16dd5101c4d7da79fa21100924cea4c3420deaf660ae84bb56e5858075",
+  "surfaceSelectionFingerprint": "0171e2ab056a2eedd91a132d7e71d2a8e7890f6bd02b63daea02cddc20b504c2"
 }

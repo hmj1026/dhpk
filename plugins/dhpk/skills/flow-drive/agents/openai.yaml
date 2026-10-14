@@ -1,6 +1,6 @@
 interface:
   display_name: "Flow Drive"
   short_description: "Execute a scoped task with diagnosis and acceptance evidence"
-  default_prompt: "Use $flow-drive <task-text|task-file|confirmed-spec-or-change-id> for settled work with scoped verification. Use --cross-provider for additional Provider candidates under the selected interface authorization contract."
+  default_prompt: "Use $flow-drive <task-text|task-file|confirmed-spec-or-change-id> for settled work with scoped verification. Use --cross for additional Provider candidates under the selected interface authorization contract."
 policy:
   allow_implicit_invocation: false

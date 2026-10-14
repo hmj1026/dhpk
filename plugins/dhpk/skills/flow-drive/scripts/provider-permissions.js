@@ -71,25 +71,6 @@ function addProviderGrant(grants, provider, source, answerIdValue) {
   }));
 }
 
-function addExactTargetGrant(grants, target) {
-  if (!target || !canonicalProvider(target.provider)
-      || typeof target.target_agent !== 'string' || typeof target.model_id !== 'string') return;
-  if (grants.some((grant) => grant.scope === 'target'
-      && grant.provider === target.provider
-      && grant.target_agent === target.target_agent
-      && grant.model_id === target.model_id
-      && grant.effort === target.effort)) return;
-  grants.push(Object.freeze({
-    scope: 'target',
-    source: 'explicit-cli',
-    provider: target.provider,
-    target_agent: target.target_agent,
-    model_id: target.model_id,
-    ...(target.effort ? { effort: target.effort } : {}),
-    role: 'worker',
-  }));
-}
-
 function sanitizeAnswerId(value) {
   if (typeof value !== 'string' || value.trim() === '') return null;
   const trimmed = value.trim();
@@ -119,7 +100,6 @@ function createAuthorizationLedgerBuilder(currentProvider, authorizationEvidence
   addProviderGrant(grants, currentProvider, 'current-provider');
   trustedProviders(authorizationEvidence, currentProvider)
     .forEach(({ provider, answer_id: answerId }) => addProviderGrant(grants, provider, 'user-answer', answerId));
-  addExactTargetGrant(grants, cliTarget);
 
   function addAnsweredProviders(values, allowedProviders, answerId) {
     const sanitizedAnswerId = sanitizeAnswerId(answerId);
@@ -147,7 +127,40 @@ function createAuthorizationLedgerBuilder(currentProvider, authorizationEvidence
     });
   }
 
-  return Object.freeze({ addAnsweredProviders, snapshot });
+  function addAnsweredTargets(targets, answerId) {
+    const identity = sanitizeAnswerId(answerId);
+    if (!identity) return;
+    for (const target of targets) {
+      if (!canonicalProvider(target.provider) || !target.model_id || !target.target_agent || !target.role || !target.authority) continue;
+      grants.push(Object.freeze({ scope: 'target', source: 'user-answer', answer_id: identity, ...target }));
+    }
+  }
+
+  return Object.freeze({ addAnsweredProviders, addAnsweredTargets, snapshot });
+}
+
+async function askForTargetScope(host, targets, ledgerBuilder, binding) {
+  if (typeof host.askProviderScope !== 'function') return;
+  const requested = targets.filter((target) => target.provider !== ledgerBuilder.snapshot().current_provider
+    && !targetGrantMatches(ledgerBuilder.snapshot(), target, target.role));
+  if (!requested.length) return;
+  let answer;
+  try {
+    answer = await host.askProviderScope(Object.freeze({
+      schema: 'dhpk.flow-drive.provider-scope-question.v1', ...binding,
+      selected_targets: Object.freeze(requested.map((target) => Object.freeze({ ...target }))),
+      provider_options: Object.freeze(unique(requested.map((target) => target.provider))
+        .map((provider) => Object.freeze({ provider, display_name: PROVIDER_LABELS[provider] }))),
+      allow_external_probe: false, answer_evidence_required: 'answer_id',
+    }));
+  } catch (_) { return; }
+  if (!answer || answer.status !== 'ANSWERED' || !sanitizeAnswerId(answer.answer_id)
+    || Object.entries(binding).some(([key, value]) => answer[key] !== undefined && answer[key] !== value)) return;
+  const selected = requested.filter((target) => Array.isArray(answer.targets)
+    ? answer.targets.some((grant) => ['provider', 'target_agent', 'model_id', 'effort', 'role', 'authority']
+      .every((key) => grant[key] === target[key]))
+    : Array.isArray(answer.providers) && answer.providers.includes(target.provider));
+  ledgerBuilder.addAnsweredTargets(selected, answer.answer_id);
 }
 
 function explicitlySelectedProviders(answer, allowedProviders) {
@@ -244,11 +257,12 @@ function capabilityRefreshScope(ledger, constraints, selectedTargets = []) {
   });
 }
 
-function targetGrantMatches(ledger, target, role) {
+function targetGrantMatches(ledger, target, role, authority = target.authority) {
   return ledger.targets.some((grant) => grant.role === role
     && grant.provider === target.provider
     && grant.target_agent === target.target_agent
     && grant.model_id === target.model_id
+    && grant.authority === authority
     && (!grant.effort || grant.effort === target.effort));
 }
 
@@ -259,6 +273,7 @@ module.exports = Object.freeze({
   providerOptions,
   createAuthorizationLedgerBuilder,
   askForProviderScope,
+  askForTargetScope,
   capabilityRefreshScope,
   targetGrantMatches,
 });

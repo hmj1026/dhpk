@@ -751,12 +751,6 @@ function translateLegacyRequest(input) {
   requiredString(requestedAlias, 'legacy requested role');
   let mapping = ROLE_ALIASES[requestedAlias] || LEGACY_ROLE_ALIASES[requestedAlias];
   if (!mapping && CANONICAL_ROLES.includes(requestedAlias)) mapping = { role: requestedAlias };
-  if (!mapping && requestedAlias === 'codex-bridge') {
-    if (!AUTHORITIES.includes(legacy.mode)) throw new TypeError('codex-bridge requires an explicit read-only or workspace-write mode');
-    mapping = legacy.mode === 'read-only'
-      ? { role: 'reviewer', authority: 'read-only' }
-      : { role: 'worker', authority: 'workspace-write' };
-  }
   if (!mapping) throw new TypeError(`unknown legacy role: ${requestedAlias}`);
   const authority = mapping.authority || legacy.authority || legacy.mode || MAX_AUTHORITY[mapping.role];
   if (legacy.mode !== undefined && legacy.mode !== authority) throw new TypeError(`legacy role ${requestedAlias} conflicts with authority ${legacy.mode}`);

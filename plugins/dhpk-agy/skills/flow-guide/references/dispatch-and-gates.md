@@ -7,7 +7,7 @@ workflow type 確定後，若需要 planning/implementation dispatch、post-impl
 Claude 的預設 discovery artifact 是由 inventory 產生的實體化 `minimal`
 profile；`full` 與 `compat-v1` 必須明確 opt-in。Codex MCP surface 已完成
 retirement，現行 capability 預設走 current-model；`codex exec`、Codex CLI
-worker/reasoner/bridge 與外部 `codex app-server` plugin 仍是明確選用的獨立
+worker/reasoner 與外部 `codex app-server` plugin 仍是明確選用的獨立
 transport。
 
 ## Implementation-Phase Agent
@@ -18,7 +18,6 @@ SSOT 是 `@rules/execution-policy.md` 的 *Implementation dispatch*；本表只�
 |---|---|---|
 | Bug Investigation & Fix | 根因未知 | `subagent_type=dhpk:deep-reasoner`，產出 fix spec 交給下一列 |
 | Feature / Bug Fix | 機械式、規格明確，且分派有助於 ownership、focus 或 concurrency | shared selector 解出的 `dhpk:fast-worker` / `dhpk:codex-fast-worker` / `dhpk:agy-fast-worker` |
-| Feature / Bug Fix | caller 明確要求獨立第二視角或自足規格任務 | `subagent_type=dhpk:dhpk-codex-bridge`，一次性 CLI `codex exec`、輸出隔離、原文轉述；不得透過已退休的 `--codex` flag 隱式啟用 |
 | Feature / Bug Fix | scope、ownership 與所需 verification 已明確，且 coordination need 低 | 無，inline；file count 不單獨決定 |
 | Lightweight Maintenance | — | 無，inline patch |
 

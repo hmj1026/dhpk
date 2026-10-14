@@ -4,7 +4,7 @@
 const path = require('node:path');
 const { prepareInvocationDispatch } = require('./dispatch');
 const { launchWithInputs, readJsonObject, promptEvidence } = require(
-  path.join(__dirname, '..', 'references', 'cli-dispatch', 'scripts', 'launch-cli-dispatch'),
+  path.join(__dirname, 'dispatch-runtime', 'launch-cli-dispatch'),
 );
 
 function launchPacket(packet) {
