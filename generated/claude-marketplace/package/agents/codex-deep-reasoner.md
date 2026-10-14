@@ -21,7 +21,7 @@ instead of invoking the adapter directly.
 ## Forward through the canonical launcher
 
 When this compatibility entry must launch the provider, follow
-`skills/dhpk-cli-dispatch-context/SKILL.md`.
+`skills/flow-drive/references/parent-cli-dispatch.md`.
 Do not paste that skill's launcher flag list here and do not call the
 adapter directly.
 

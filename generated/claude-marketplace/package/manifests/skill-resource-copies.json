@@ -13,54 +13,6 @@
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     },
-    "skills/dhpk-agy-fast-worker/scripts/cli-transport/prepare-cli-request.py": {
-      "skill_id": "agy-fast-worker",
-      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
-      "mode": "0755"
-    },
-    "skills/dhpk-agy-fast-worker/scripts/cli-transport/run-cli-transport.py": {
-      "skill_id": "agy-fast-worker",
-      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
-      "mode": "0755"
-    },
-    "skills/dhpk-cli-dispatch-context/scripts/cli-transport/prepare-cli-request.py": {
-      "skill_id": "cli-dispatch-context",
-      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
-      "mode": "0755"
-    },
-    "skills/dhpk-cli-dispatch-context/scripts/cli-transport/run-cli-transport.py": {
-      "skill_id": "cli-dispatch-context",
-      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
-      "mode": "0755"
-    },
-    "skills/dhpk-cli-dispatch-context/scripts/run-agy.sh": {
-      "skill_id": "cli-dispatch-context",
-      "source": "skills/dhpk-agy-fast-worker/scripts/run-agy.sh",
-      "sha256": "sha256:820a761a17af96812de9896f0de1bce3d107cee2a1ea479c43ba26ba84e95fbd",
-      "mode": "0755"
-    },
-    "skills/dhpk-cli-dispatch-context/scripts/run-codex.sh": {
-      "skill_id": "cli-dispatch-context",
-      "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
-      "sha256": "sha256:c53f3c806c3545822f0c6c5a45cd653dab86f482f92faa8c517e48af2293b140",
-      "mode": "0755"
-    },
-    "skills/dhpk-codex-bridge/scripts/cli-transport/prepare-cli-request.py": {
-      "skill_id": "codex-bridge",
-      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
-      "mode": "0755"
-    },
-    "skills/dhpk-codex-bridge/scripts/cli-transport/run-cli-transport.py": {
-      "skill_id": "codex-bridge",
-      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
-      "mode": "0755"
-    },
     "skills/dhpk-ios-platform/references/actor-persistence.md": {
       "skill_id": "ios-platform",
       "source": "modules/ios-platform/references/actor-persistence.md",
@@ -271,54 +223,6 @@
       "sha256": "sha256:4d4fe6561fbf37a16566d3262db55f746865100429b59fab3b9a327e96591608",
       "mode": "0644"
     },
-    "skills/flow-drive/references/cli-dispatch/scripts/build-cli-dispatch-context.js": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-      "sha256": "sha256:a8330be39319fc8fcf6c71d7a17dfe61b62ee851c2b9753594fef21b7d62446e",
-      "mode": "0644"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/cli-role-resolver.js": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-      "sha256": "sha256:5bca594d35d92312e56b8ebe179f7d7f6bda5ac384372dd650e7202431d7e7fb",
-      "mode": "0644"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
-      "mode": "0755"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/run-cli-transport.py": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
-      "mode": "0755"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/launch-cli-dispatch.js": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-      "sha256": "sha256:3471c66782fdcffa564da411623232b62cfb3b2fdff4d395b80db07f638b9db6",
-      "mode": "0755"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/physical-file.js": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-      "sha256": "sha256:fc3698a983dca798bbe66899606d4f98f308cd5c7bfedc85254966cfc4b24b77",
-      "mode": "0644"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-      "sha256": "sha256:cdd78e8637b09e7816e4b32e25223a63f8597d04db538085861015eab929504c",
-      "mode": "0644"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
-      "sha256": "sha256:c53f3c806c3545822f0c6c5a45cd653dab86f482f92faa8c517e48af2293b140",
-      "mode": "0755"
-    },
     "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md": {
       "skill_id": "flow-drive",
       "source": "docs/subagent-prompt-template.md",
@@ -352,13 +256,13 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6",
+      "sha256": "sha256:2700e1599b469ea808e15ba576f24a8ffd79e80f1e4e993aeff075124a31a4ae",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-drive",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:f5b6cedfa72f393ace35460cbb39d72160f4f484b4a68192f0857f794a792ac7",
+      "sha256": "sha256:8071995a904dae8c0ab1f886b79146e18c9466258b9416137460102716b8b404",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/tool-routing.md": {
@@ -382,7 +286,7 @@
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef",
+      "sha256": "sha256:fdeef12c8179d1c6c66bc9c74d3bfc88396ec6df5cbb8e2e8c9827e4c411bef6",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js": {
@@ -436,7 +340,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:6fc9a29eb62aafd3ae8d62f5d02a25d099324a359d812d93d3cab43d0a961389",
+      "sha256": "sha256:f4ede6f68973dc3ccd9b6d877d2e125be49d8437efe0f26bcf4f8e3dfd85b2d4",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -496,13 +400,13 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6",
+      "sha256": "sha256:2700e1599b469ea808e15ba576f24a8ffd79e80f1e4e993aeff075124a31a4ae",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:f5b6cedfa72f393ace35460cbb39d72160f4f484b4a68192f0857f794a792ac7",
+      "sha256": "sha256:8071995a904dae8c0ab1f886b79146e18c9466258b9416137460102716b8b404",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
@@ -526,7 +430,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef",
+      "sha256": "sha256:fdeef12c8179d1c6c66bc9c74d3bfc88396ec6df5cbb8e2e8c9827e4c411bef6",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js": {
@@ -568,7 +472,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:6fc9a29eb62aafd3ae8d62f5d02a25d099324a359d812d93d3cab43d0a961389",
+      "sha256": "sha256:f4ede6f68973dc3ccd9b6d877d2e125be49d8437efe0f26bcf4f8e3dfd85b2d4",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {

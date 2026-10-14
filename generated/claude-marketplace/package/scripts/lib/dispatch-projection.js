@@ -12,7 +12,7 @@ const {
 
 const PROJECTION_SCHEMA = 'dhpk.dispatch.projection.v1';
 const SURFACES = Object.freeze(['claude-core', 'agent-plugin', 'cursor-plugin', 'cursor-sync', 'codex-native', 'codex-sync', 'agy-plugin']);
-const LEGACY_ALIASES = Object.freeze(['codex-fast-worker', 'codex-deep-reasoner', 'agy-fast-worker', 'codex-bridge']);
+const LEGACY_ALIASES = Object.freeze(['codex-fast-worker', 'codex-deep-reasoner', 'agy-fast-worker']);
 
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);

@@ -210,39 +210,11 @@
       "selection": "common"
     },
     {
-      "id": "agy-fast-worker",
-      "authority": "guidance-only",
-      "kind": "entry",
-      "owner": "agy-fast-worker",
-      "selection": "host-only"
-    },
-    {
       "id": "code-trace",
       "authority": "read-only",
       "kind": "entry",
       "owner": "code-trace",
       "selection": "common"
-    },
-    {
-      "id": "cli-dispatch-context",
-      "authority": "transport-internal",
-      "kind": "internal",
-      "owner": "codex-bridge",
-      "selection": "host-only"
-    },
-    {
-      "id": "cli-transport",
-      "authority": "transport-internal",
-      "kind": "internal",
-      "owner": "codex-bridge",
-      "selection": "host-only"
-    },
-    {
-      "id": "codex-bridge",
-      "authority": "guidance-only",
-      "kind": "entry",
-      "owner": "codex-bridge",
-      "selection": "host-only"
     },
     {
       "id": "change-verdict",

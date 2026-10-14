@@ -45,7 +45,7 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **76 個 active `userConfig` 旋
 
 部分布林/模式類旋鈕額外支援**單次環境變數覆寫**（僅限當次 session）——見下表「Env 覆寫」欄。
 
-對自動 fast-worker 派發而言，單次 `--cross-provider` flag 的優先序最高，
+對自動 fast-worker 派發而言，單次 `--cross` flag 的優先序最高，
 只在該次呼叫開放外部候選。沒有 flag 時，專案設定優先於安裝後的使用者設定，
 而 shipped 預設為 `false`。
 
@@ -74,7 +74,7 @@ key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保�
 ## 核心派發與 Review
 
 Planner consult scope 使用逐次 invocation 旗標
-`--plan-mode=auto|bounded|discovery` 選擇，且必須搭配 `--plan`；啟用 `--plan` 但省略
+`--plan[=auto|bounded|discovery]` 選擇，且必須搭配 `--plan`；啟用 `--plan` 但省略
 mode 時預設為 `auto`。這不是 `userConfig` 設定，不會改變 `planner_model` 的 `opus`、
 `planner_effort` 的 `high`，也不會改變 planner work mode。範圍預算見
 [基本操作](./basic-operations.zh-TW.md)，選擇規則見
@@ -93,7 +93,7 @@ mode 時預設為 `auto`。這不是 `userConfig` 設定，不會改變 `planner
 | `codex_worker_model` | string | `gpt-6-luna` | codex CLI 接受的任何模型 | 規範角色 `codex-worker` 派發時傳給 codex CLI 後端的模型。依標準分層解析（專案 pluginConfigs > 全域 pluginConfigs > 出廠預設）後傳入 `run-codex.sh`。Codex 模型名稱汰換快速——預設值失效時在此覆寫，而非改原始碼（可用 `codex models` 查詢）。舊別名：`codex_fast_worker_model`。 |
 | `codex_worker_effort` | string | `xhigh` | codex CLI 接受的任何強度（如 `low` \| `medium` \| `high` \| `xhigh`） | `codex-worker` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`——強力機械層。舊別名：`codex_fast_worker_effort`。 |
 | `codex_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-worker` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_fast_worker_timeout_secs`。 |
-| `codex_reasoner_model` | string | `gpt-6.1-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex-cli/<model>[:<effort>]` 使用唯讀 sandbox。裸值 `--reasoner=codex` 是相容性 shorthand。舊別名：`codex_deep_reasoner_model`。 |
+| `codex_reasoner_model` | string | `gpt-6.1-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex/<model>[:<effort>]` 使用唯讀 sandbox。裸值 `--reasoner=codex` 選擇目前 role 設定。舊別名：`codex_deep_reasoner_model`。 |
 | `codex_reasoner_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reasoner` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。舊別名：`codex_deep_reasoner_effort`。 |
 | `codex_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reasoner` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed。舊別名：`codex_deep_reasoner_timeout_secs`。 |
 | `codex_reviewer_model` | string | `gpt-6.1-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reviewer` 派發時傳給 codex CLI 後端的模型（此版本內部只用，無法直接派發）。 |
@@ -127,7 +127,7 @@ native-only。
 
 要對單一專案 opt-in，請在 `.claude/settings.local.json`（或 project
 `settings.json`）的 `pluginConfigs.dhpk@dhpk.options` 下加入設定。只對單次
-automatic selection opt-in 則使用 `--worker=auto --cross-provider`。單次 flag
+automatic selection opt-in 則使用 `--worker=auto --cross`。單次 flag
 優先於 project 與 installed-user 設定。將 project 值設為 `false` 可回到
 native-only automatic selection；移除 project override 則會重新暴露 installed-user
 值，因此只有在該值也未設定或為 `false` 時，才能把移除視為 rollback。已退休的
@@ -143,8 +143,8 @@ dispatcher 在建立 `0600` immutable transport context 前，會將解析後的
 目前 dhpk capability 使用 in-process model 或明確指定的 CLI backend。沒有任何
 active skill 或 command 需要 Codex MCP server。現行 CLI-only review path 是
 `change-verdict --mode code --backend cli`；同族 CLI role 為
-`codex-worker`、`codex-reasoner`、`codex-reviewer` 與 `dhpk-codex-bridge`。需要
-Codex CLI transport 時，請明確使用 `--worker=codex`、`--reasoner=codex-cli/<model>[:<effort>]` 或
+`codex-worker`、`codex-reasoner`、`codex-reviewer` 與 Flow Drive implementation-scoped adapters。需要
+Codex CLI transport 時，請明確使用 `--worker=codex`、`--reasoner=codex/<model>[:<effort>]` 或
 `codex exec` 第二意見。
 
 ### 歷史：Codex MCP server（已退休）
@@ -184,7 +184,7 @@ docs/basic-operations.zh-TW.md）也與已退休的 MCP 機制
 
 `CODEX=on` 與 `/dhpk:do --codex` 曾是單次 session 的 legacy MCP-peer interface。
 兩者現在都已移除，不是持久化的 `userConfig` 值，也不會靜默重新解讀成
-`codex exec`、`--worker=codex`、`--reasoner=codex-cli/<model>[:<effort>]` 或外部 plugin。裸值
+`codex exec`、`--worker=codex`、`--reasoner=codex/<model>[:<effort>]` 或外部 plugin。裸值
 `--reasoner=codex` 是相容性 shorthand。請用
 `/dhpk:flow-drive` 進行 current-model implementation，需要時明確選 CLI
 role，並以具名 `codex exec` opt-in 請求第二意見。
@@ -299,3 +299,9 @@ claude plugin install dhpk@dhpk \
 ```
 
 精選的模組組合請見 `manifests/install-profiles.json`；完整技術棧／版本目錄（SSOT）請見 `manifests/module-catalog.json`。
+
+Flow Drive 使用單次 invocation 的 `--cross`；舊 cross environment/configuration
+不會擴大其 auto 候選。`--worker=provider[/model[:effort]]` 與 reasoner
+只表達選取意圖，外部 probe/launch 前仍須當前 Host grant。
+`--plan[=auto|bounded|discovery]` 使用當前 Host 宣告的有效 planner tuple；
+portable runner 不另讀取 Claude planner 設定。standalone bridge 已於 0.66.2 退休。

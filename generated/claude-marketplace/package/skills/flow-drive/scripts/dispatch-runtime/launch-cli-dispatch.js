@@ -26,7 +26,7 @@ const SCOPE_KEYS = Object.freeze([
 ]);
 const ADAPTERS = Object.freeze({
   codex: Object.freeze({
-    path: path.join(__dirname, 'run-codex.sh'),
+    path: path.join(__dirname, '..', 'adapters', 'run-codex.sh'),
     args(context) {
       const required = [context.mode, context.workdir, context.prompt_file];
       if (context.requested_effort !== null) return [...required, context.requested_model || '', context.requested_effort];
@@ -35,7 +35,7 @@ const ADAPTERS = Object.freeze({
     },
   }),
   agy: Object.freeze({
-    path: path.join(__dirname, 'run-agy.sh'),
+    path: path.join(__dirname, '..', 'adapters', 'run-agy.sh'),
     args(context) { return [context.workdir, context.prompt_file, context.requested_model]; },
   }),
 });

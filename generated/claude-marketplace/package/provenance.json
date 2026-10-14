@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.claude-marketplace-catalog.v1",
-  "selectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
+  "selectionDigest": "5f9d35c642d1c09214e14a916cfbcb3cec6a7c327479a3598e9e1589a7b44e2f",
   "publicEntryIds": [
     "flow-guide",
     "code-trace",
@@ -19,10 +19,6 @@
     "ui-ux-verify"
   ],
   "hostOnlyIds": [
-    "agy-fast-worker",
-    "cli-dispatch-context",
-    "cli-transport",
-    "codex-bridge",
     "opsx-load-context",
     "opsx-post-obs",
     "harness-setup",
@@ -395,7 +391,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
+      "sha256": "2700e1599b469ea808e15ba576f24a8ffd79e80f1e4e993aeff075124a31a4ae"
     },
     {
       "skillId": "code-trace",
@@ -726,230 +722,6 @@
       "sha256": "3ca5f80183f76c5d66707f324f0810905988e1504df4a4af260baa2532256ba7"
     },
     {
-      "skillId": "agy-fast-worker",
-      "ownerId": "agy-fast-worker",
-      "sourcePath": "skills/dhpk-agy-fast-worker/SKILL.md",
-      "destination": "skills/dhpk-agy-fast-worker/SKILL.md",
-      "kind": "entry",
-      "sha256": "a015c3b389fa620a889bfc5529b8428f48ab72ae2414de04e93af9116c85fb08"
-    },
-    {
-      "skillId": "agy-fast-worker",
-      "ownerId": "agy-fast-worker",
-      "sourcePath": "skills/dhpk-agy-fast-worker/agents/openai.yaml",
-      "destination": "skills/dhpk-agy-fast-worker/agents/openai.yaml",
-      "kind": "entry",
-      "sha256": "b44134de11408034b95a43fabb76742a7ba4fc5372fd1aedb6e60b2a72a213c7"
-    },
-    {
-      "skillId": "agy-fast-worker",
-      "ownerId": "agy-fast-worker",
-      "sourcePath": "skills/dhpk-agy-fast-worker/scripts/cli-transport/prepare-cli-request.py",
-      "destination": "skills/dhpk-agy-fast-worker/scripts/cli-transport/prepare-cli-request.py",
-      "kind": "entry",
-      "sha256": "ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90"
-    },
-    {
-      "skillId": "agy-fast-worker",
-      "ownerId": "agy-fast-worker",
-      "sourcePath": "skills/dhpk-agy-fast-worker/scripts/cli-transport/run-cli-transport.py",
-      "destination": "skills/dhpk-agy-fast-worker/scripts/cli-transport/run-cli-transport.py",
-      "kind": "entry",
-      "sha256": "fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464"
-    },
-    {
-      "skillId": "agy-fast-worker",
-      "ownerId": "agy-fast-worker",
-      "sourcePath": "skills/dhpk-agy-fast-worker/scripts/report-schema.json",
-      "destination": "skills/dhpk-agy-fast-worker/scripts/report-schema.json",
-      "kind": "entry",
-      "sha256": "d84766ee3f0760dae48cc244ad79ad07ed3a01e55ff7d0e3144678807bf7f877"
-    },
-    {
-      "skillId": "agy-fast-worker",
-      "ownerId": "agy-fast-worker",
-      "sourcePath": "skills/dhpk-agy-fast-worker/scripts/run-agy.sh",
-      "destination": "skills/dhpk-agy-fast-worker/scripts/run-agy.sh",
-      "kind": "entry",
-      "sha256": "820a761a17af96812de9896f0de1bce3d107cee2a1ea479c43ba26ba84e95fbd"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/SKILL.md",
-      "destination": "skills/dhpk-cli-dispatch-context/SKILL.md",
-      "kind": "entry",
-      "sha256": "1971cd63e2e9a6538fd2cb81170ebbdb7413b8f425a9c562cc20852dcfa37dc8"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/agents/openai.yaml",
-      "destination": "skills/dhpk-cli-dispatch-context/agents/openai.yaml",
-      "kind": "entry",
-      "sha256": "4c96c9afe763ac1602a40e5846336d260bff7f994be40cb39d89c5cb6edb0cfd"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-      "destination": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-      "kind": "entry",
-      "sha256": "a8330be39319fc8fcf6c71d7a17dfe61b62ee851c2b9753594fef21b7d62446e"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-      "destination": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-      "kind": "entry",
-      "sha256": "5bca594d35d92312e56b8ebe179f7d7f6bda5ac384372dd650e7202431d7e7fb"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/prepare-cli-request.py",
-      "destination": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/prepare-cli-request.py",
-      "kind": "entry",
-      "sha256": "ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/run-cli-transport.py",
-      "destination": "skills/dhpk-cli-dispatch-context/scripts/cli-transport/run-cli-transport.py",
-      "kind": "entry",
-      "sha256": "fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-      "destination": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-      "kind": "entry",
-      "sha256": "3471c66782fdcffa564da411623232b62cfb3b2fdff4d395b80db07f638b9db6"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-      "destination": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-      "kind": "entry",
-      "sha256": "fc3698a983dca798bbe66899606d4f98f308cd5c7bfedc85254966cfc4b24b77"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-      "destination": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-      "kind": "entry",
-      "sha256": "cdd78e8637b09e7816e4b32e25223a63f8597d04db538085861015eab929504c"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/run-agy.sh",
-      "destination": "skills/dhpk-cli-dispatch-context/scripts/run-agy.sh",
-      "kind": "entry",
-      "sha256": "820a761a17af96812de9896f0de1bce3d107cee2a1ea479c43ba26ba84e95fbd"
-    },
-    {
-      "skillId": "cli-dispatch-context",
-      "ownerId": "cli-dispatch-context",
-      "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/run-codex.sh",
-      "destination": "skills/dhpk-cli-dispatch-context/scripts/run-codex.sh",
-      "kind": "entry",
-      "sha256": "c53f3c806c3545822f0c6c5a45cd653dab86f482f92faa8c517e48af2293b140"
-    },
-    {
-      "skillId": "cli-transport",
-      "ownerId": "cli-transport",
-      "sourcePath": "skills/dhpk-cli-transport/SKILL.md",
-      "destination": "skills/dhpk-cli-transport/SKILL.md",
-      "kind": "entry",
-      "sha256": "5484a22d2641451e192c256e61e3364bf71167d2f0b488e360065297d8dd3894"
-    },
-    {
-      "skillId": "cli-transport",
-      "ownerId": "cli-transport",
-      "sourcePath": "skills/dhpk-cli-transport/agents/openai.yaml",
-      "destination": "skills/dhpk-cli-transport/agents/openai.yaml",
-      "kind": "entry",
-      "sha256": "655a57fcf928fb80c9072ecf84bfdd4e2f50015ee091eacf8a1ed11a8d31fa3b"
-    },
-    {
-      "skillId": "cli-transport",
-      "ownerId": "cli-transport",
-      "sourcePath": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "destination": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "kind": "entry",
-      "sha256": "ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90"
-    },
-    {
-      "skillId": "cli-transport",
-      "ownerId": "cli-transport",
-      "sourcePath": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "destination": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "kind": "entry",
-      "sha256": "fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464"
-    },
-    {
-      "skillId": "codex-bridge",
-      "ownerId": "codex-bridge",
-      "sourcePath": "skills/dhpk-codex-bridge/SKILL.md",
-      "destination": "skills/dhpk-codex-bridge/SKILL.md",
-      "kind": "entry",
-      "sha256": "28545142a87a5d36e29295d23581e7f750a72c4dc89435dce83b1231fb58058d"
-    },
-    {
-      "skillId": "codex-bridge",
-      "ownerId": "codex-bridge",
-      "sourcePath": "skills/dhpk-codex-bridge/agents/openai.yaml",
-      "destination": "skills/dhpk-codex-bridge/agents/openai.yaml",
-      "kind": "entry",
-      "sha256": "4c11d90bd589bdd4b7250b06db41913b4ee16c8990973540e5b2b44e935830ba"
-    },
-    {
-      "skillId": "codex-bridge",
-      "ownerId": "codex-bridge",
-      "sourcePath": "skills/dhpk-codex-bridge/scripts/cli-transport/prepare-cli-request.py",
-      "destination": "skills/dhpk-codex-bridge/scripts/cli-transport/prepare-cli-request.py",
-      "kind": "entry",
-      "sha256": "ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90"
-    },
-    {
-      "skillId": "codex-bridge",
-      "ownerId": "codex-bridge",
-      "sourcePath": "skills/dhpk-codex-bridge/scripts/cli-transport/run-cli-transport.py",
-      "destination": "skills/dhpk-codex-bridge/scripts/cli-transport/run-cli-transport.py",
-      "kind": "entry",
-      "sha256": "fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464"
-    },
-    {
-      "skillId": "codex-bridge",
-      "ownerId": "codex-bridge",
-      "sourcePath": "skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js",
-      "destination": "skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js",
-      "kind": "entry",
-      "sha256": "ab5a6c0244fc2a5973369d7ff162ae47331344f0cc4d57dcff2e799ec91cd5a6"
-    },
-    {
-      "skillId": "codex-bridge",
-      "ownerId": "codex-bridge",
-      "sourcePath": "skills/dhpk-codex-bridge/scripts/report-schema.json",
-      "destination": "skills/dhpk-codex-bridge/scripts/report-schema.json",
-      "kind": "entry",
-      "sha256": "68cc53c214c17682b49fb86016cb90299958f2c3aaf58dfb0bb083a81f2e243b"
-    },
-    {
-      "skillId": "codex-bridge",
-      "ownerId": "codex-bridge",
-      "sourcePath": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
-      "destination": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
-      "kind": "entry",
-      "sha256": "c53f3c806c3545822f0c6c5a45cd653dab86f482f92faa8c517e48af2293b140"
-    },
-    {
       "skillId": "opsx-load-context",
       "ownerId": "opsx-load-context",
       "sourcePath": "skills/dhpk-opsx-load-context/SKILL.md",
@@ -1011,7 +783,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "6981c471294f2d60ac8d57c460bf479e921de6c9547563e6d8487cb1b7096e8d"
+      "sha256": "ca17c7e9748e0e89520de8d5e6caa44aa725e3da57054f275c67bccffc2b7537"
     },
     {
       "skillId": "flow-drive",
@@ -1019,7 +791,7 @@
       "sourcePath": "skills/flow-drive/agents/openai.yaml",
       "destination": "skills/flow-drive/agents/openai.yaml",
       "kind": "entry",
-      "sha256": "ce32f687267ac3ae8c114a6079caed1e7e6601578a7f7e0ea1e29c0d48c20119"
+      "sha256": "fb77b353b6d92248f62f5042b1c014dac04d2a850d4e38290676b5ea0157b47a"
     },
     {
       "skillId": "flow-drive",
@@ -1035,7 +807,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
+      "sha256": "2700e1599b469ea808e15ba576f24a8ffd79e80f1e4e993aeff075124a31a4ae"
     },
     {
       "skillId": "flow-drive",
@@ -1044,70 +816,6 @@
       "destination": "skills/flow-drive/references/_dependencies/scripts/lib/flow-handoff-contract.js",
       "kind": "dependency",
       "sha256": "5d9adae49b755ad85fcf5eba0a990be99dbffdb26f20489928f29e6349f222e2"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/build-cli-dispatch-context.js",
-      "destination": "skills/flow-drive/references/cli-dispatch/scripts/build-cli-dispatch-context.js",
-      "kind": "entry",
-      "sha256": "a8330be39319fc8fcf6c71d7a17dfe61b62ee851c2b9753594fef21b7d62446e"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/cli-role-resolver.js",
-      "destination": "skills/flow-drive/references/cli-dispatch/scripts/cli-role-resolver.js",
-      "kind": "entry",
-      "sha256": "5bca594d35d92312e56b8ebe179f7d7f6bda5ac384372dd650e7202431d7e7fb"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py",
-      "destination": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py",
-      "kind": "entry",
-      "sha256": "ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/run-cli-transport.py",
-      "destination": "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/run-cli-transport.py",
-      "kind": "entry",
-      "sha256": "fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/launch-cli-dispatch.js",
-      "destination": "skills/flow-drive/references/cli-dispatch/scripts/launch-cli-dispatch.js",
-      "kind": "entry",
-      "sha256": "3471c66782fdcffa564da411623232b62cfb3b2fdff4d395b80db07f638b9db6"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.js",
-      "destination": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.js",
-      "kind": "entry",
-      "sha256": "fc3698a983dca798bbe66899606d4f98f308cd5c7bfedc85254966cfc4b24b77"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
-      "destination": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
-      "kind": "entry",
-      "sha256": "cdd78e8637b09e7816e4b32e25223a63f8597d04db538085861015eab929504c"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh",
-      "destination": "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh",
-      "kind": "entry",
-      "sha256": "c53f3c806c3545822f0c6c5a45cd653dab86f482f92faa8c517e48af2293b140"
     },
     {
       "skillId": "code-simplify",
@@ -1907,7 +1615,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
+      "sha256": "2700e1599b469ea808e15ba576f24a8ffd79e80f1e4e993aeff075124a31a4ae"
     },
     {
       "skillId": "flow-drive",
@@ -1915,7 +1623,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
       "kind": "entry",
-      "sha256": "f5b6cedfa72f393ace35460cbb39d72160f4f484b4a68192f0857f794a792ac7"
+      "sha256": "8071995a904dae8c0ab1f886b79146e18c9466258b9416137460102716b8b404"
     },
     {
       "skillId": "flow-drive",
@@ -1947,7 +1655,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "kind": "entry",
-      "sha256": "608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef"
+      "sha256": "fdeef12c8179d1c6c66bc9c74d3bfc88396ec6df5cbb8e2e8c9827e4c411bef6"
     },
     {
       "skillId": "flow-drive",
@@ -2019,7 +1727,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "6fc9a29eb62aafd3ae8d62f5d02a25d099324a359d812d93d3cab43d0a961389"
+      "sha256": "f4ede6f68973dc3ccd9b6d877d2e125be49d8437efe0f26bcf4f8e3dfd85b2d4"
     },
     {
       "skillId": "flow-drive",
@@ -2227,7 +1935,7 @@
       "sourcePath": "skills/flow-drive/references/parent-cli-dispatch.md",
       "destination": "skills/flow-drive/references/parent-cli-dispatch.md",
       "kind": "entry",
-      "sha256": "368fa105bdf88f150225894d9b47a5ec652296526a3d92cd8881d99b09f24702"
+      "sha256": "a66b4d519e888e54dca9edbaa4a6e6c8bffab21da8759a09248718d69d091c80"
     },
     {
       "skillId": "flow-drive",
@@ -2243,7 +1951,7 @@
       "sourcePath": "skills/flow-drive/references/portable-runner.md",
       "destination": "skills/flow-drive/references/portable-runner.md",
       "kind": "entry",
-      "sha256": "9b7a41e2cc339a3e0f75dce3044e196fcbf7616ea77a2bd28480e3f73aee1e7d"
+      "sha256": "4eb95ee9adc129bd0c629441f023aa20f5c8a59f96a6b40bb7260101b42620eb"
     },
     {
       "skillId": "flow-drive",
@@ -2280,6 +1988,22 @@
     {
       "skillId": "flow-drive",
       "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/adapters/run-agy.sh",
+      "destination": "skills/flow-drive/scripts/adapters/run-agy.sh",
+      "kind": "entry",
+      "sha256": "13f307a15152f4ef9555c520d8cb3deffa4de86d1721f98de93dcedf08da0d1f"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/adapters/run-codex.sh",
+      "destination": "skills/flow-drive/scripts/adapters/run-codex.sh",
+      "kind": "entry",
+      "sha256": "e165965109e7b923d3bb76984db6dbd577222879fdf57371851cba76a2108816"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
       "sourcePath": "skills/flow-drive/scripts/attempt-executor.js",
       "destination": "skills/flow-drive/scripts/attempt-executor.js",
       "kind": "entry",
@@ -2288,10 +2012,50 @@
     {
       "skillId": "flow-drive",
       "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
+      "destination": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
+      "kind": "entry",
+      "sha256": "a8330be39319fc8fcf6c71d7a17dfe61b62ee851c2b9753594fef21b7d62446e"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
+      "destination": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
+      "kind": "entry",
+      "sha256": "3ff6af0ff87144f469eab0f24118f623f8715acc0b658f10b99b4ecac3e2422d"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/launch-cli-dispatch.js",
+      "destination": "skills/flow-drive/scripts/dispatch-runtime/launch-cli-dispatch.js",
+      "kind": "entry",
+      "sha256": "f10d8f7c51b73863b1bce2ee6dd8f2b90f4567490f9962465f328515aa9cdb31"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/physical-file.js",
+      "destination": "skills/flow-drive/scripts/dispatch-runtime/physical-file.js",
+      "kind": "entry",
+      "sha256": "fc3698a983dca798bbe66899606d4f98f308cd5c7bfedc85254966cfc4b24b77"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/physical-file.py",
+      "destination": "skills/flow-drive/scripts/dispatch-runtime/physical-file.py",
+      "kind": "entry",
+      "sha256": "cdd78e8637b09e7816e4b32e25223a63f8597d04db538085861015eab929504c"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
       "sourcePath": "skills/flow-drive/scripts/dispatch.js",
       "destination": "skills/flow-drive/scripts/dispatch.js",
       "kind": "entry",
-      "sha256": "823dc6e08125c395f403a64f4124e9b5053a2668d7abc647813a03232d75f7a3"
+      "sha256": "1b9811e2e14efb02fb9759e8ececf1966ca5aa677cf5da0681fcc87409c69a9a"
     },
     {
       "skillId": "flow-drive",
@@ -2299,7 +2063,7 @@
       "sourcePath": "skills/flow-drive/scripts/graph-runner.js",
       "destination": "skills/flow-drive/scripts/graph-runner.js",
       "kind": "entry",
-      "sha256": "b83a0470cfd0eba23a86f195cdb3e4cc6f9b3cf1da73e3f3093650ba06532f73"
+      "sha256": "e1ea8c292defee1817b476b4c736ccb2d8865f0a813eaec8a6a4896ea134d83e"
     },
     {
       "skillId": "flow-drive",
@@ -2307,7 +2071,7 @@
       "sourcePath": "skills/flow-drive/scripts/invocation.js",
       "destination": "skills/flow-drive/scripts/invocation.js",
       "kind": "entry",
-      "sha256": "bd704f0c776f77771835e137e51587f88ce7c12463f7577c6191d9b2390017b0"
+      "sha256": "68d71f358fdd2d3b9b4bc212b6deff139868308d085b768696e621393a2ab8b3"
     },
     {
       "skillId": "flow-drive",
@@ -2315,7 +2079,7 @@
       "sourcePath": "skills/flow-drive/scripts/launch-dispatch.js",
       "destination": "skills/flow-drive/scripts/launch-dispatch.js",
       "kind": "entry",
-      "sha256": "f466a905aa314054230aa952621c3c4418a6324d67fd8465bfb78b822e40b8f2"
+      "sha256": "13ef5bd0907a00410d5c239bc52a997be920c039cecbcd77fd3634727311c1af"
     },
     {
       "skillId": "flow-drive",
@@ -2323,7 +2087,15 @@
       "sourcePath": "skills/flow-drive/scripts/provider-permissions.js",
       "destination": "skills/flow-drive/scripts/provider-permissions.js",
       "kind": "entry",
-      "sha256": "1cd85876293ade3d327688f06d816b98b0ce2f26842fb34ba5b4e1444977e7cd"
+      "sha256": "17333fc4cc964dbe1324fd5a3409b1e62965eb6c1d95d287719e6ee109ca2960"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/role-intents.js",
+      "destination": "skills/flow-drive/scripts/role-intents.js",
+      "kind": "entry",
+      "sha256": "8cc523e47d8aac9ddc1315e65f94d7a8c4839d3c2578361be81733d17fa7e2b6"
     },
     {
       "skillId": "flow-drive",
@@ -2331,7 +2103,7 @@
       "sourcePath": "skills/flow-drive/scripts/run.js",
       "destination": "skills/flow-drive/scripts/run.js",
       "kind": "entry",
-      "sha256": "4ab9a4f52649bb6ee31be1e0dc8ff88177e83ab9c7a793d98291604d18b05ffc"
+      "sha256": "0f00ae53b671ec13ad34b731d533bd481d94de366a58ae3f49476b4de2915bec"
     },
     {
       "skillId": "flow-drive",
@@ -2347,7 +2119,7 @@
       "sourcePath": "skills/flow-drive/scripts/target-policy.js",
       "destination": "skills/flow-drive/scripts/target-policy.js",
       "kind": "entry",
-      "sha256": "9d58d305f510150a6c3202b9bd276fcd4db5446d7eb61ca49ab0e3efbca473e2"
+      "sha256": "a2e7832e716ea2e7543265b97e3f749b2413ce318a1ed342730a1472198c2e92"
     },
     {
       "skillId": "flow-drive",
@@ -2364,6 +2136,22 @@
       "destination": "skills/flow-drive/scripts/task-graph.js",
       "kind": "entry",
       "sha256": "a1d2f38df11605089cfa98abc10e5a04a5629168a8481b61d84b62c8ffde213a"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/transport/prepare-cli-request.py",
+      "destination": "skills/flow-drive/scripts/transport/prepare-cli-request.py",
+      "kind": "entry",
+      "sha256": "ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/transport/run-cli-transport.py",
+      "destination": "skills/flow-drive/scripts/transport/run-cli-transport.py",
+      "kind": "entry",
+      "sha256": "36c29ec2e452eac34cc9b30d6a10788b464c95892bd48bb73824f3ccb1674cf5"
     },
     {
       "skillId": "flow-guide",
@@ -2403,7 +2191,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
+      "sha256": "2700e1599b469ea808e15ba576f24a8ffd79e80f1e4e993aeff075124a31a4ae"
     },
     {
       "skillId": "flow-guide",
@@ -2435,7 +2223,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "d141e282c4b19248f9c2dd2f9274928214b07eba49a3af57678dc73097afe948"
+      "sha256": "9b294a7dd6b2f9cfd86decbd5beacf53be9b47fce408e58fef5b74ecfe25f0ba"
     },
     {
       "skillId": "flow-guide",
@@ -2475,7 +2263,7 @@
       "sourcePath": "skills/flow-guide/references/dispatch-and-gates.md",
       "destination": "skills/flow-guide/references/dispatch-and-gates.md",
       "kind": "entry",
-      "sha256": "a2e69296f61d89f4051883399a7b6daa19017c646ef5183c50435c92c1480007"
+      "sha256": "46fc602400718b1d2b83da1ae9ca0e6c92e627115db75a035aca19ba4d05614f"
     },
     {
       "skillId": "flow-guide",
@@ -2523,7 +2311,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
+      "sha256": "2700e1599b469ea808e15ba576f24a8ffd79e80f1e4e993aeff075124a31a4ae"
     },
     {
       "skillId": "flow-guide",
@@ -2531,7 +2319,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "kind": "entry",
-      "sha256": "f5b6cedfa72f393ace35460cbb39d72160f4f484b4a68192f0857f794a792ac7"
+      "sha256": "8071995a904dae8c0ab1f886b79146e18c9466258b9416137460102716b8b404"
     },
     {
       "skillId": "flow-guide",
@@ -2563,7 +2351,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "kind": "entry",
-      "sha256": "608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef"
+      "sha256": "fdeef12c8179d1c6c66bc9c74d3bfc88396ec6df5cbb8e2e8c9827e4c411bef6"
     },
     {
       "skillId": "flow-guide",
@@ -2619,7 +2407,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "6fc9a29eb62aafd3ae8d62f5d02a25d099324a359d812d93d3cab43d0a961389"
+      "sha256": "f4ede6f68973dc3ccd9b6d877d2e125be49d8437efe0f26bcf4f8e3dfd85b2d4"
     },
     {
       "skillId": "flow-guide",
@@ -2667,7 +2455,7 @@
       "sourcePath": "skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "6fc9a29eb62aafd3ae8d62f5d02a25d099324a359d812d93d3cab43d0a961389"
+      "sha256": "f4ede6f68973dc3ccd9b6d877d2e125be49d8437efe0f26bcf4f8e3dfd85b2d4"
     },
     {
       "skillId": "flow-guide",
@@ -3667,7 +3455,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "2654f2ca1b0e12385b950e3a26a6beafa69a9a93e082ce3cebfa8399d8591adc"
+      "sha256": "9eabd22a65b9d4dc0a1e25b3cf9c116219441cd6aa8de4f16b3ca71917172477"
     },
     {
       "skillId": "tdd",
