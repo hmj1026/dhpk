@@ -4,12 +4,12 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.66.0",
-  "sourceCommit": "d66f426071f84b2e71e875db11bf7e275572cd40",
-  "generatedFromCommit": "d66f426071f84b2e71e875db11bf7e275572cd40",
-  "generatedFromTree": "dfd3edad3c76ad70379e40470b8e8fc10547081f",
-  "inventoryDigest": "11beb4420f8b1bb3d9b54355047d0c604f524f5ecbbf98fb3bd2d631e34513ba",
-  "inventoryRevision": "sha256:a26420f278af3434c295e7b47a7c3244ec99f8d5f83aad16456773212eec6d15",
+  "sourceVersion": "0.66.1",
+  "sourceCommit": "fda1e5fd5d2dbde2cc87a238068dda68b2dcd0ca",
+  "generatedFromCommit": "fda1e5fd5d2dbde2cc87a238068dda68b2dcd0ca",
+  "generatedFromTree": "bb800a351c4a774a02a16e2290b37957565947e2",
+  "inventoryDigest": "0982a9a4048565ad5f99f965b1d71ea7e11aa483f501c1c065a8f8253223bd3a",
+  "inventoryRevision": "sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "cli-dispatch-context",
@@ -416,7 +416,7 @@
         "ownerId": "cli-dispatch-context",
         "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
         "destination": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-        "originalGitBlobDigest": "62c9526ab73a46e239ad70ae14e227895ec5c547"
+        "originalGitBlobDigest": "5d591a28b06aec4c091115448caf375dd2d70b47"
       },
       {
         "ownerId": "cli-dispatch-context",
@@ -482,7 +482,7 @@
         "ownerId": "code-trace",
         "source": "rules/execution-policy.md",
         "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "99822651b365c3f2d098df64ed4ef1ea3a671bae"
+        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
       },
       {
         "ownerId": "code-trace",
@@ -734,13 +734,13 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/SKILL.md",
         "destination": "skills/flow-drive/SKILL.md",
-        "originalGitBlobDigest": "09c930aea77cfd05d6a8a853f64aa496919300f0"
+        "originalGitBlobDigest": "0c971649968d1788320e8c8c8d6453c71b73fa3f"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/agents/openai.yaml",
         "destination": "skills/flow-drive/agents/openai.yaml",
-        "originalGitBlobDigest": "51e5651646be673e721a5bd3ed4d80966b2101ba"
+        "originalGitBlobDigest": "fd308851b04d3c20934e64744dd7a8803d8794f5"
       },
       {
         "ownerId": "flow-drive",
@@ -752,7 +752,7 @@
         "ownerId": "flow-drive",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "99822651b365c3f2d098df64ed4ef1ea3a671bae"
+        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
       },
       {
         "ownerId": "flow-drive",
@@ -800,7 +800,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
         "destination": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
-        "originalGitBlobDigest": "62c9526ab73a46e239ad70ae14e227895ec5c547"
+        "originalGitBlobDigest": "5d591a28b06aec4c091115448caf375dd2d70b47"
       },
       {
         "ownerId": "flow-drive",
@@ -1406,7 +1406,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "99822651b365c3f2d098df64ed4ef1ea3a671bae"
+        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
       },
       {
         "ownerId": "flow-drive",
@@ -1646,13 +1646,19 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/parent-cli-dispatch.md",
         "destination": "skills/flow-drive/references/parent-cli-dispatch.md",
-        "originalGitBlobDigest": "2bd760d244cfebc742055cddf2763db8c575653d"
+        "originalGitBlobDigest": "543197b4b288704824ca82ca4b8ab4cbf7f4cfba"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/portability.md",
         "destination": "skills/flow-drive/references/portability.md",
         "originalGitBlobDigest": "15537a87d27f8c48c77438e7ebd5de42675462dd"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/flow-drive/references/portable-runner.md",
+        "destination": "skills/flow-drive/references/portable-runner.md",
+        "originalGitBlobDigest": "1c6ff48b52ed780dd145d4e0e2c48524c96ecb50"
       },
       {
         "ownerId": "flow-drive",
@@ -1772,7 +1778,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "99822651b365c3f2d098df64ed4ef1ea3a671bae"
+        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
       },
       {
         "ownerId": "flow-guide",
@@ -1796,7 +1802,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "f480ceb346e80706a075770e29710a46e11fb01b"
+        "originalGitBlobDigest": "426a7d1a29805f63140a4f8b83620e4472706c70"
       },
       {
         "ownerId": "flow-guide",
@@ -1862,7 +1868,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "99822651b365c3f2d098df64ed4ef1ea3a671bae"
+        "originalGitBlobDigest": "4cb535d18d5ef82e316e67b5ed82e44e3c449789"
       },
       {
         "ownerId": "flow-guide",
@@ -2180,13 +2186,25 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/SKILL.md",
         "destination": "skills/git-smart-commit/SKILL.md",
-        "originalGitBlobDigest": "b0682dc13d81956ce87585fccd4b91e533fd461b"
+        "originalGitBlobDigest": "074ded554b43ba63d52db10741efc31f1918ccc8"
       },
       {
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/agents/openai.yaml",
         "destination": "skills/git-smart-commit/agents/openai.yaml",
         "originalGitBlobDigest": "18d2f971bd295aee1b9774480d2d25e188dfd2c0"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "source": "skills/git-smart-commit/references/collector.md",
+        "destination": "skills/git-smart-commit/references/collector.md",
+        "originalGitBlobDigest": "959013170eb8c71aa784d5c0b62dbc4d1ab9c5cc"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "source": "skills/git-smart-commit/scripts/collect-changes.js",
+        "destination": "skills/git-smart-commit/scripts/collect-changes.js",
+        "originalGitBlobDigest": "33e0d34cb46e061563c0b21a9508061732b50b93"
       },
       {
         "ownerId": "git-worktree",
@@ -2582,19 +2600,13 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "603b8e8a95e792fbfa8d7171f95db6840f6ce190"
+        "originalGitBlobDigest": "545d63956a457f40adff14c614e333e3592ad730"
       },
       {
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/agents/openai.yaml",
         "destination": "skills/tdd-workflow/agents/openai.yaml",
         "originalGitBlobDigest": "3fd83276c1886134f1b8536bdb8003282ea99d2b"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/tdd-workflow/mocking.md",
-        "destination": "skills/tdd-workflow/mocking.md",
-        "originalGitBlobDigest": "401d750709f7b12fc6f88ed2c5d76c0df33bf530"
       },
       {
         "ownerId": "tdd",
@@ -2706,6 +2718,12 @@
       },
       {
         "ownerId": "tdd",
+        "source": "skills/tdd-workflow/references/mocking.md",
+        "destination": "skills/tdd-workflow/references/mocking.md",
+        "originalGitBlobDigest": "401d750709f7b12fc6f88ed2c5d76c0df33bf530"
+      },
+      {
+        "ownerId": "tdd",
         "source": "skills/phpunit/SKILL.md",
         "destination": "skills/tdd-workflow/references/phpunit/SKILL.md",
         "originalGitBlobDigest": "0426ccf7aed8194857fbef012b2a2e4aa498fd3e"
@@ -2748,8 +2766,8 @@
       },
       {
         "ownerId": "tdd",
-        "source": "skills/tdd-workflow/tests.md",
-        "destination": "skills/tdd-workflow/tests.md",
+        "source": "skills/tdd-workflow/references/tests.md",
+        "destination": "skills/tdd-workflow/references/tests.md",
         "originalGitBlobDigest": "caca5ae7a7d44666e0a762bfa690171d6b58f3d1"
       },
       {
@@ -4603,6 +4621,13 @@
       {
         "ownerId": "flow-drive",
         "skillId": "flow-drive",
+        "sourcePath": "skills/flow-drive/references/portable-runner.md",
+        "destination": "skills/flow-drive/references/portable-runner.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "flow-drive",
         "sourcePath": "skills/flow-drive/references/recovery.md",
         "destination": "skills/flow-drive/references/recovery.md",
         "kind": "entry"
@@ -5224,6 +5249,20 @@
         "kind": "entry"
       },
       {
+        "ownerId": "git-smart-commit",
+        "skillId": "git-smart-commit",
+        "sourcePath": "skills/git-smart-commit/references/collector.md",
+        "destination": "skills/git-smart-commit/references/collector.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "skillId": "git-smart-commit",
+        "sourcePath": "skills/git-smart-commit/scripts/collect-changes.js",
+        "destination": "skills/git-smart-commit/scripts/collect-changes.js",
+        "kind": "entry"
+      },
+      {
         "ownerId": "git-worktree",
         "skillId": "git-worktree",
         "sourcePath": "skills/git-worktree/SKILL.md",
@@ -5694,13 +5733,6 @@
       },
       {
         "ownerId": "tdd",
-        "skillId": "tdd",
-        "sourcePath": "skills/tdd-workflow/mocking.md",
-        "destination": "skills/tdd-workflow/mocking.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "tdd",
         "skillId": "laravel-testbench-matrix",
         "sourcePath": "skills/dhpk-laravel-testbench-matrix/SKILL.md",
         "destination": "skills/tdd-workflow/references/dhpk-laravel-testbench-matrix/SKILL.md",
@@ -5827,6 +5859,13 @@
       },
       {
         "ownerId": "tdd",
+        "skillId": "tdd",
+        "sourcePath": "skills/tdd-workflow/references/mocking.md",
+        "destination": "skills/tdd-workflow/references/mocking.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "tdd",
         "skillId": "phpunit",
         "sourcePath": "skills/phpunit/SKILL.md",
         "destination": "skills/tdd-workflow/references/phpunit/SKILL.md",
@@ -5877,8 +5916,8 @@
       {
         "ownerId": "tdd",
         "skillId": "tdd",
-        "sourcePath": "skills/tdd-workflow/tests.md",
-        "destination": "skills/tdd-workflow/tests.md",
+        "sourcePath": "skills/tdd-workflow/references/tests.md",
+        "destination": "skills/tdd-workflow/references/tests.md",
         "kind": "entry"
       },
       {
@@ -6334,15 +6373,15 @@
     }
   ],
   "fingerprints": {
-    "skills": "c36e5b8d7784d9f0599f2c3c2136043eec3362b89e816afde77014aaa5651917",
-    "rules": "1dbf51fcb4525bff7809c41b385a815f582f3df5fb7f28b3365a6e2cc25743d0",
+    "skills": "e277173d1d76357d4c6ea62b8e115b9915ef560fa79b3aeced3c173e0aed57fb",
+    "rules": "232fbab177b1d67149e688a0ac9b5cee923def98700f759aeefa38fc29353101",
     "agents": "fc5c1d1f15762dd5536e6c48fbe162ee7d805abd5a26e32f078214a7469b0d70",
-    "commands": "ea0bf5fc92b291dfcd759a2317c7634ef963f41b5f228b5324bc90584a9a1d34",
+    "commands": "d0d936049a5339539912a2292923a665cb42d639899374e6859e154da9d0ff0e",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "e3acc15dba489903a22dd722d8bb8c1f128126a1e41e84bda54bf63bff396baf",
+    "planId": "7eb95d3585deb293578c5d8ea97c57b6ff81278b8736df3ae45af88174a01d1e",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -6392,10 +6431,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "e3acc15dba489903a22dd722d8bb8c1f128126a1e41e84bda54bf63bff396baf",
-      "inventory": "11beb4420f8b1bb3d9b54355047d0c604f524f5ecbbf98fb3bd2d631e34513ba"
+      "plan": "7eb95d3585deb293578c5d8ea97c57b6ff81278b8736df3ae45af88174a01d1e",
+      "inventory": "0982a9a4048565ad5f99f965b1d71ea7e11aa483f501c1c065a8f8253223bd3a"
     },
-    "rollbackIdentity": "9964a475c03c057d6d01a2e8bfdf79704c77d574ef4a50b7b647b261691121f8"
+    "rollbackIdentity": "d10f96bb4c92d96abaff029074758cd363c5279e36e642a06827cecfdb988b27"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6707,7 +6746,7 @@
           "syntax": "<task-text|task-file|confirmed-spec-or-change-id>",
           "value_kind": "string",
           "required": true,
-          "summary": "Provide task text, a task file path, or a confirmed specification/change ID for Host resolution",
+          "summary": "Provide one task text argument, task file path, or confirmed specification/change ID; quote text and paths containing spaces",
           "applies_to": [
             "apply"
           ]
@@ -6783,7 +6822,7 @@
           "value_kind": "boolean",
           "required": false,
           "default": false,
-          "summary": "Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution",
+          "summary": "Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh",
           "applies_to": [
             "apply"
           ]
@@ -6836,12 +6875,12 @@
       ],
       "examples": [
         {
-          "prompt": "$flow-drive Fix the receipt total and verify it matches the receipt lines.",
+          "prompt": "$flow-drive \"Fix the receipt total and verify it matches the receipt lines.\"",
           "summary": "Resolve and implement a bounded task with explicit acceptance"
         },
         {
           "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
-          "summary": "Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes"
+          "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
         }
       ]
     },
@@ -7371,7 +7410,7 @@
     "flow-guide": "5300a6121dae6a264abe9859a10cc42504b034b4908f06ca3343b2f88a7cd369",
     "code-trace": "48654b9393cc852db2f54b7801cc7b40eee7b13eeab8b85ee8244d8248a9d438",
     "change-verdict": "6ca8496f176cb1bd7143d0091dcc876ddd44986763e5e3a685b73b7e8914f494",
-    "flow-drive": "f4d454495d3461c450e9ab073ed3612e945b9e5bb63460bce05be8a83ef920d4",
+    "flow-drive": "d78ea140b33fb6d1fdc2f2d733f584904194e0819ac3ff7e801c4f91ea460886",
     "git-smart-commit": "bf7f04db7306d231b79a4e95374595c27fd56c8cd665f04394085a23af15b9f5",
     "release-creator": "7e3c907d8a22657cdfb8f3ba4f4962b13368f6621905bf23e9b8210ef8ae0e8c",
     "tdd": "2b0cd39febeefaa18ff9fd70c8e0c9d068136599c488a35b3e06afa07eb20c6d",
@@ -7389,5 +7428,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "a63b5889132ad90bf6e2941a30ddeae12d1c88088255bf2a2537593202f29d89"
+  "planFingerprint": "3dd0c8e0bd84bb6c0849492b5f83d5bfbbf519faa293ca72ae894d9ab27ab90c"
 }

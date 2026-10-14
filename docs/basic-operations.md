@@ -392,21 +392,22 @@ The following sections provide comprehensive parameter references, types, defaul
   /dhpk:flow-guide close
   ```
 
-#### 2. flow-drive (Confirmed Specification Implementation Entrypoint)
+#### 2. flow-drive (Confirmed Task Implementation Entrypoint)
 
-- **Purpose**: Explicit-only implementation entrypoint for changes with confirmed specifications and acceptance boundaries. Never selects routes, drafts proposals, or skips tests.
-- **Invocation Syntax**: `/dhpk:flow-drive <confirmed-spec-or-change-id> [options]` (Codex: `$flow-drive ...`)
+- **Purpose**: Explicit-only implementation for tasks with settled goals, constraints, and acceptance. Diagnosis may establish an unknown cause before dependent writes; formal OpenSpec authoring remains with its external owner.
+- **Invocation Syntax**: `/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id> [options]` (Codex: `$flow-drive ...`)
+- Quote multiword task text or paths containing spaces as one argument, for example `/dhpk:flow-drive "Fix checkout flow and verify receipt totals" --worker=codex`.
 - **Parameter Breakdown**:
 
   | Parameter | Type / Choices | Default | Description |
   |---|---|---|---|
-  | `<confirmed-spec-or-change-id>` | String | (Required) | Settled specification name or OpenSpec Change ID (e.g., `auth-oauth2-flow`). |
+  | `<task-text\|task-file\|confirmed-spec-or-change-id>` | String | (Required) | Task text, task file, or confirmed specification / OpenSpec Change ID. |
   | `--plan[=<model>:<effort>]` | String (optional value) | None | Request pre-implementation critique by a Planner; optionally specify model and reasoning effort (e.g., `opus:xhigh`, `sonnet:high`). |
-  | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner consult scope (requires `--plan`). `bounded` limits to max 4 direct reads with no child agent; `discovery` allows full exploration. |
+  | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner consult scope (requires `--plan`). `bounded` limits to max 4 direct reads with no child agent; `discovery` allows at most 12 direct reads and 2 read-only children. |
   | `--worker=<worker>` | `claude` \| `codex` \| `agy` \| `auto` | `auto` | Select mechanical Worker type for this change (typically uses current model). |
   | `--worker-target=<target>` | `<provider>/<model>[:<effort>]` | None | Explicitly designate execution target provider and model (e.g., `anthropic/claude-3-7-sonnet`). |
   | `--cross-provider` | Boolean flag | Off | Allow external cross-provider candidates (such as Codex) when `--worker=auto` is used. |
-  | `--reasoner=<target>` | `<provider>/<model>[:<effort>]` | None | Request an external read-only Reasoner pass for architecture or complex decisions (e.g., `codex-cli/gpt-6.1-sol:high`). |
+  | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | None | Request a read-only Reasoner pass for architecture or complex decisions (e.g., `codex-cli/gpt-6.1-sol:high`). |
   | `--architect` / `--no-architect` | Boolean flag | Policy default | Explicitly enable or bypass the architectural design review pass. |
 
 - **Practical Examples**:
@@ -423,6 +424,10 @@ The following sections provide comprehensive parameter references, types, defaul
   # Implementation with CLI Reasoner second opinion and architecture pass
   /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex-cli/gpt-6.1-sol:high
   ```
+
+On Claude Code, the parent session launches Codex workers and reasoners through the bundled launcher. Follow [parent CLI dispatch](../skills/flow-drive/references/parent-cli-dispatch.md) for the private attempt directory, packet, and context procedure. Explicit `--worker=codex` needs no `--cross-provider` flag and still requires current access and capability evidence.
+
+For programmatic `runFlowDrive` integration, follow the [portable runner contract](../skills/flow-drive/references/portable-runner.md): its `--cross-provider` opens an authorization question and grants nothing by itself; planner, reasoner, and architect selections use the Host procedure instead.
 
 #### 3. code-trace (Code Exploration, Root-Cause Diagnosis & Tool Selection)
 

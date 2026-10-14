@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   SCHEMA,
@@ -12,6 +12,33 @@ const {
 
 const ROOT = path.join(__dirname, '..');
 const SOURCE_COMMIT = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+const PRIVATE_CANARIES = [
+  { label: 'GH_TOKEN', variable: 'GH_TOKEN', value: 'synthetic-gh-token-pr929-canary' },
+  { label: 'GITHUB_TOKEN', variable: 'GITHUB_TOKEN', value: 'synthetic-github-token-pr929-canary' },
+  { label: 'AWS_SECRET', variable: 'AWS_SECRET', value: 'synthetic-aws-secret-pr929-canary' },
+  { label: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY', value: 'synthetic-aws-secret-access-key-pr929-canary' },
+  { label: 'Authorization header', variable: 'Authorization', value: 'Bearer synthetic-authorization-pr929-canary' },
+];
+
+function assertBaselineOmitsPrivateValues(baseline, privateValues) {
+  const serialized = JSON.stringify(baseline);
+  for (const { label, value } of privateValues) {
+    if (typeof value !== 'string' || value.length === 0) continue;
+    const literal = JSON.stringify(value).slice(1, -1);
+    assert.ok(!serialized.includes(literal), `Baseline omits ${label}`);
+  }
+}
+
+function assertPrivateValueRejected(baseline, value) {
+  let error = null;
+  try {
+    assertBaselineOmitsPrivateValues(baseline, [{ label: 'synthetic private value', value }]);
+  } catch (caught) {
+    error = caught;
+  }
+  assert.ok(error && error.message === 'Baseline omits synthetic private value', 'privacy assertion rejects the injected value with a label-only message');
+  assert.ok(error && !error.message.includes(value), 'privacy assertion error omits the injected value');
+}
 
 test('baseline records exactly one static entry per inventory skill and module', () => {
   const inventory = require('../manifests/distribution-inventory.json');
@@ -80,11 +107,66 @@ test('baseline no longer reports the retired fast-worker forwarding wrapper', ()
   )));
 });
 
-test('baseline does not include environment secrets or private HOME paths', () => {
-  const baseline = buildBaseline({ root: ROOT });
-  const serialized = JSON.stringify(baseline);
-  assert.doesNotMatch(serialized, /GH_TOKEN|GITHUB_TOKEN|AWS_SECRET|Authorization/i);
-  assert.doesNotMatch(serialized, new RegExp(`${process.env.HOME || '/Users/'}`));
+test('privacy assertion allows benign authorization and credential-variable terminology', () => {
+  assertBaselineOmitsPrivateValues({
+    nested: {
+      authorization: 'Documented interface authorization contract.',
+      environment: ['GH_TOKEN', 'GITHUB_TOKEN', 'AWS_SECRET', 'AWS_SECRET_ACCESS_KEY'],
+    },
+  }, PRIVATE_CANARIES);
+});
+
+for (const { label, variable, value } of PRIVATE_CANARIES) {
+  test(`privacy assertion rejects nested ${label} canary`, () => {
+    assertPrivateValueRejected({ nested: { credentials: { [variable]: value } } }, value);
+  });
+}
+
+test('privacy assertion matches regex-metacharacter paths literally', () => {
+  const value = '/tmp/dhpk.privacy[regex](canary)+secret';
+  assertPrivateValueRejected({ nested: { path: value } }, value);
+});
+
+test('privacy assertion matches Windows paths with backslashes literally', () => {
+  const value = 'C:\\Users\\synthetic\\AppData\\Local\\Temp\\private[regex]+canary';
+  assertPrivateValueRejected({ nested: { path: value } }, value);
+});
+
+test('collector output excludes environment canaries and private HOME paths', () => {
+  const temporaryHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-baseline-private-home-'));
+  const originalParentHome = process.env.HOME || os.homedir();
+  try {
+    const childEnvironment = {
+      ...process.env,
+      ...Object.fromEntries(PRIVATE_CANARIES.map(({ variable, value }) => [variable, value])),
+      HOME: temporaryHome,
+      USERPROFILE: temporaryHome,
+    };
+    const child = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'skill-baseline.js'),
+      '--root', ROOT,
+      '--json',
+    ], {
+      cwd: ROOT,
+      env: childEnvironment,
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    assert.strictEqual(child.status, 0, 'collector process succeeds');
+    let baseline;
+    try {
+      baseline = JSON.parse(child.stdout);
+    } catch (_error) {
+      assert.fail('collector output is valid JSON');
+    }
+    assertBaselineOmitsPrivateValues(baseline, [
+      ...PRIVATE_CANARIES,
+      { label: 'temporary HOME path', value: temporaryHome },
+      { label: 'parent HOME path', value: originalParentHome },
+    ]);
+  } finally {
+    fs.rmSync(temporaryHome, { recursive: true, force: true });
+  }
 });
 
 test('checked-in baseline source commit remains pinned and valid', () => {

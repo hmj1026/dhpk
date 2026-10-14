@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.66.1 — 2026-10-14 — Add Git Smart Commit change collector, fix Flow Drive private dispatch context permissions under restrictive umask, reorganize TDD workflow guidance, and repair CI validation
+
+- **fix(flow-drive)** — Preserve private Codex dispatch context permissions under restrictive umask and clarify fresh attempt preparation and Host versus portable runner instructions.
+- **fix(git-smart-commit)** — The Git Smart Commit skill reviews changes from a compact summary, rejects observed HEAD/status/numstat drift and indexed submodules requiring manual inspection, and checks the index against each authorized commit group without file-count-based reconfirmation.
+- **fix(ci)** — Repair Flow Drive parameter-table formatting and check baseline privacy using literal private values instead of credential terminology.
+- **docs(tdd-workflow)** — Clarify TDD modes and verification evidence, preserve settled-owner boundaries, and relocate test and mocking guidance under references with updated links.
+
 ## 0.66.0 — 2026-10-08 — Introduce Flow Drive autonomous execution, provider permissions, multi-reader coordination, bounded recovery, and isolated relocation verification
 
 - **feat(flow-drive)** — Flow Drive now resolves one task input into a bounded execution and reports independently verified acceptance. Current Host capability evidence can authorize a bound executable target beyond a stale catalog while preserving strict target and observed-result boundaries. Native Flow Drive coordination now validates dependency graphs, preserves inherited scope and authority, runs independent readers concurrently, and serializes writers through a shared lease.

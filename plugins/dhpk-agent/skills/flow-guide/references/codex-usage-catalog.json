@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:a26420f278af3434c295e7b47a7c3244ec99f8d5f83aad16456773212eec6d15",
+  "sourceInventoryRevision": "sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727",
   "entries": [
     {
       "id": "change-verdict",
@@ -352,7 +352,7 @@
             "syntax": "<task-text|task-file|confirmed-spec-or-change-id>",
             "value_kind": "string",
             "required": true,
-            "summary": "Provide task text, a task file path, or a confirmed specification/change ID for Host resolution",
+            "summary": "Provide one task text argument, task file path, or confirmed specification/change ID; quote text and paths containing spaces",
             "applies_to": [
               "apply"
             ]
@@ -425,7 +425,7 @@
             "syntax": "--cross-provider",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution",
+            "summary": "Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh",
             "default": false,
             "applies_to": [
               "apply"
@@ -479,16 +479,16 @@
         ],
         "examples": [
           {
-            "prompt": "$flow-drive Fix the receipt total and verify it matches the receipt lines.",
+            "prompt": "$flow-drive \"Fix the receipt total and verify it matches the receipt lines.\"",
             "summary": "Resolve and implement a bounded task with explicit acceptance"
           },
           {
             "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
-            "summary": "Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes"
+            "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
           }
         ]
       },
-      "usageFingerprint": "f4d454495d3461c450e9ab073ed3612e945b9e5bb63460bce05be8a83ef920d4"
+      "usageFingerprint": "d78ea140b33fb6d1fdc2f2d733f584904194e0819ac3ff7e801c4f91ea460886"
     },
     {
       "id": "flow-guide",

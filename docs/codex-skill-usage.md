@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:a26420f278af3434c295e7b47a7c3244ec99f8d5f83aad16456773212eec6d15`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -101,7 +101,7 @@ Invocation class: `explicit-only`
 Maximum authority: `workspace-write`
 
 Inputs:
-- `task-input` `<task-text|task-file|confirmed-spec-or-change-id>` (required, string) — Provide task text, a task file path, or a confirmed specification/change ID for Host resolution
+- `task-input` `<task-text|task-file|confirmed-spec-or-change-id>` (required, string) — Provide one task text argument, task file path, or confirmed specification/change ID; quote text and paths containing spaces
 
 Actions:
 - `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance
@@ -111,7 +111,7 @@ Options:
 - `plan-mode` `--plan-mode=auto|bounded|discovery` (optional, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
 - `worker` `--worker=<worker>` (optional, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
 - `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (optional, string) — Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target
-- `cross-provider` `--cross-provider` (optional, boolean, default=false) — Ask for additional Vendor scope; only explicit answers authorize selected target refresh and execution
+- `cross-provider` `--cross-provider` (optional, boolean, default=false) — Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh
 - `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (optional, string) — Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker
 - `architect` `--architect` (optional, boolean) — Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker
 - `no-architect` `--no-architect` (optional, boolean) — Compatibility notice only in the portable task runner
@@ -120,8 +120,8 @@ Legacy diagnostics (not primary syntax):
 - `--codex` — Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut
 
 Examples:
-- `$flow-drive Fix the receipt total and verify it matches the receipt lines.` — Resolve and implement a bounded task with explicit acceptance
-- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross-provider` — Ask for additional Vendor permission before any selected external capability probe; unknown cause gates only dependent writes
+- `$flow-drive "Fix the receipt total and verify it matches the receipt lines."` — Resolve and implement a bounded task with explicit acceptance
+- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross-provider` — Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes
 
 ### `$flow-guide`
 

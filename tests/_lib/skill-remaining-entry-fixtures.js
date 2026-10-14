@@ -23,6 +23,7 @@ const SOURCES = Object.freeze({
   'feature-verify': 'dhpk-feature-verify',
   'change-verdict': 'change-verdict',
   'flow-guide': 'flow-guide',
+  'git-smart-commit': 'git-smart-commit',
 });
 
 function resolveTool(name) {
@@ -379,6 +380,66 @@ function registerRemainingFixtures() {
       id: 'remaining-flow-guide-pre-route-local-table', skill: 'flow-guide', entry: 'scripts/pre-route.sh',
       argsFactory(_context, state) { return [state.query]; }, expected: { status: 0, output: ['MATCH\tcode-trace\tcode exploration'] },
       prepare: prepareFlowFixture,
+    },
+    {
+      id: 'remaining-git-smart-commit-collect-changes-scope-readonly',
+      skill: 'git-smart-commit', entry: 'scripts/collect-changes.js',
+      args: ['--scope', 'src'], stubs: fixtureTools('git'),
+      prepare(context) {
+        initGit(context);
+        const sourcePath = path.join(context.projectDir, 'src', 'receipt.txt');
+        writeFile(sourcePath, 'base\n');
+        git(context, ['add', 'src/receipt.txt']);
+        git(context, ['commit', '-qm', 'fixture base']);
+        writeFile(sourcePath, 'base\nstaged\n');
+        git(context, ['add', 'src/receipt.txt']);
+        writeFile(sourcePath, 'base\nstaged\nworking\n');
+        writeFile(path.join(context.projectDir, 'docs', 'outside-scope.txt'), 'staged outside scope\n');
+        git(context, ['add', 'docs/outside-scope.txt']);
+        return {
+          before: {
+            head: git(context, ['rev-parse', 'HEAD']),
+            status: git(context, ['status', '--porcelain=v1', '--untracked-files=all']),
+            cached: git(context, ['diff', '--cached', '--numstat']),
+            working: git(context, ['diff', '--numstat']),
+          },
+        };
+      },
+      expected: {
+        status: 0,
+        output: [
+          '"schemaVersion":1',
+          '"scope":"src"',
+          '"path":"src/receipt.txt"',
+          '"hasPartialStaging":true',
+          '"hasOutOfScopeStaged":true',
+        ],
+      },
+      verify(result, context, state) {
+        const summary = JSON.parse(String(result.stdout));
+        assert.strictEqual(summary.schemaVersion, 1);
+        assert.strictEqual(summary.repoRoot, context.projectDir);
+        assert.strictEqual(summary.head, state.before.head);
+        assert.strictEqual(summary.branch, 'master');
+        assert.strictEqual(summary.scope, 'src');
+        assert.deepStrictEqual(summary.files.map(file => file.path), ['src/receipt.txt']);
+        assert.deepStrictEqual(summary.files[0].staged, { added: 1, deleted: 0 });
+        assert.deepStrictEqual(summary.files[0].unstaged, { added: 1, deleted: 0 });
+        assert.deepStrictEqual(summary.safety, {
+          hasStaged: true,
+          hasPartialStaging: true,
+          hasOutOfScopeStaged: true,
+          hasConflicts: false,
+          operations: [],
+        });
+        assert.doesNotMatch(String(result.stdout), /staged outside scope|working/);
+        assert.deepStrictEqual({
+          head: git(context, ['rev-parse', 'HEAD']),
+          status: git(context, ['status', '--porcelain=v1', '--untracked-files=all']),
+          cached: git(context, ['diff', '--cached', '--numstat']),
+          working: git(context, ['diff', '--numstat']),
+        }, state.before, 'collector must leave the repository unchanged');
+      },
     },
   ];
 

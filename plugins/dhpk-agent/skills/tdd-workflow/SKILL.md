@@ -1,157 +1,124 @@
 ---
 name: tdd-workflow
-description: "Framework-agnostic test-driven development guidance for behavior-first unit and integration tests, test scaffolds, and minimal RED-GREEN-REFACTOR changes. Use when building a feature or fixing a bug test-first, writing a test scaffold, or reviewing test seams and mocks; reuse adequate test-first evidence and settled ownership. Not for: Playwright journey authoring or pure documentation or rename work. Explicit tdd-guide requirements remain binding. Output: a failing-test proof, minimal implementation/test change, scoped verification, and a concise TDD report."
+description: "Use for test-first feature or bug implementation, regression tests, test-generation scaffolds, and choosing public test seams or boundary mocks. Guides framework-agnostic unit/integration RED-GREEN-REFACTOR and verified worker handbacks. Reuse adequate test-first evidence and settled ownership; explicit tdd-guide requirements remain binding. Not for Playwright journeys, post-hoc coverage audits, or documentation/formatting/rename-only work. Output: scoped tests or implementation with RED/GREEN evidence and honest verification status."
 metadata:
   dhpk-invocation-class: "implicit-eligible"
 ---
 
 # Test-Driven Development
 
-## Test-generation mode
+## Select the work
 
-When invoked with `test-generation`, inspect the named production seam and its
-existing test conventions, then generate the smallest behavior-focused test
-scaffold. The caller must review and run the generated test before claiming a
-GREEN result. This is the canonical replacement for the retired
-`/codex-test-gen` command; use an explicitly selected Codex backend only when
-the caller requests one.
+Choose the mode from the requested outcome, rather than the agent's name:
 
-Use this skill to keep tests attached to observable behavior rather than
-implementation details. Read [tests.md](tests.md) when writing or reviewing
-assertions and [mocking.md](mocking.md) before introducing a test double.
+- **Standard TDD**: own a feature or bug's test-first behavior change.
+- **Test-generation**: produce tests or a scaffold for a named production seam;
+  keep production code unchanged unless implementation is separately requested.
+- **Worker handback**: perform a bounded GREEN or scaffold task using the settled
+  owner's seam, target files, and verification command.
 
-Before choosing names or seams, read `CONTEXT.md` when the repository provides
-one and respect nearby ADRs. Keep test vocabulary aligned with the project's
-domain language rather than inventing test-only names.
+For Playwright journeys use `e2e-runner`; for a post-hoc coverage or acceptance
+audit use `change-verdict`. Documentation, formatting, rename-only, and harness
+configuration work without testable runtime behavior need no TDD loop.
 
-## Standard TDD mode
+Read [tests.md](references/tests.md) when choosing assertions and [mocking.md](references/mocking.md)
+when introducing test doubles. Use the repository's existing test framework,
+runner, and nearby conventions. Read `CONTEXT.md` and relevant ADRs when present
+before choosing domain vocabulary or a new seam.
 
-Use this mode for `tdd-guide` and any task that owns test strategy:
+## Establish the seam and evidence
 
-1. Identify the public interface and the behavior that should be observable.
-2. Confirm the seam from the user request, approved plan, or dispatcher brief.
-3. Write one small test for that behavior and run it before implementation.
-4. Confirm RED fails for the intended missing behavior, not a test/setup error.
-5. Write only enough production code to make that test GREEN.
-6. Run the scoped test again, then refactor only while it remains green.
-7. Repeat one vertical slice at a time; run the applicable full suite at phase
-   exit rather than broad speculative tests on every loop.
+1. Identify the caller-visible behavior and its public API, command, event, or
+   other boundary. Reuse the requested or approved seam and its existing test
+   owner; ask only about a material missing behavior or constraint.
+2. Find the smallest safe verification command. Keep tests isolated from shared
+   services and data unless their use is explicitly authorized.
+3. Check supplied RED/GREEN evidence against the current behavior, test, seam,
+   and source revision. Reuse adequate evidence without repeating approvals;
+   rerun the scoped command when the source or test has drifted, or the failure
+   reason is missing. An old failure alone does not establish current RED.
 
-Choose inline implementation or a worker handback from ownership, coupling,
-the settled test seam, and material risk. A file count alone does not decide
-the route. Preserve any explicit higher-priority instruction or acceptance
-requirement that governs the task.
+Choose inline work or a worker handback from ownership, coupling, runtime
+expertise, and material risk; file count alone does not decide the route.
+Resolve a missing specialist outcome with `tdd-guide` when separate expertise
+is needed. Explicit Host, user, acceptance, and higher-priority requirements
+for that role remain binding. If the required role or runtime is unavailable,
+report `BLOCKED` and the action needed to resume. An equivalent capable owner
+may proceed only when applicable instructions allow it. In dhpk,
+`rules/execution-policy.md` owns dispatch and ownership decisions.
 
-Tests must assert return values, emitted state, or caller-visible side effects.
-Do not test private methods, internal call counts, or a value through a side
-channel that bypasses the public interface. Expected values must come from a
-literal, worked example, or independent specification; never recompute them
-with the same logic as the implementation.
+## Standard TDD
 
-### Seams and slicing rules
+Work in one vertical slice at a time:
 
-- Name the **public seams** before writing the test: API, command, event, or
-  other caller-visible boundary. Keep tests at that seam unless a genuine
-  external boundary requires a narrow adapter test.
-- Use **independent expected values** from a literal example or specification;
-  a test that calls the same helper to compute its expected result is
-  tautological and cannot detect a shared defect.
-- Build **vertical tracer bullets**: one failing behavior through the real
-  boundary and minimal collaborators, then expand coverage around the same
-  path.
-- Keep the loop vertical: one test, one minimal implementation, then one
-  refactor while green. Avoid writing a horizontal batch of imagined tests
-  before the first behavior is understood.
-- Avoid **horizontal slicing** (all models, then all services, then all
-  controllers). It delays feedback and encourages implementation-coupled tests.
-- Reject **implementation-coupled** assertions on private names, incidental
-  call counts, or internal data shape. A **tautological** test is a test smell,
-  not evidence of coverage.
+1. **RED**: write one small test for the observable behavior, then run it before
+   changing production code. Capture the command and intended failing assertion.
+2. Confirm the failure exposes the missing behavior. A missing dependency,
+   syntax error, broken fixture, or unavailable service is a setup problem,
+   not RED evidence; resolve it before dependent implementation.
+3. **GREEN**: change only enough production code to satisfy that behavior, then
+   rerun the same scoped command and capture the result.
+4. **REFACTOR**: simplify only while tests stay green; rerun affected checks
+   after refactoring. Skip refactoring when it adds no value.
+5. Repeat for the next behavior. Run the applicable suite at phase exit, using
+   the project's acceptance scope; keep unrun or blocked checks visible.
 
-## Fast-worker mode
+Test through the real public seam with minimal collaborators. Use independently
+worked examples, specification values, or independently derived invariants for
+expectations. A plausible wrong implementation should fail the test. The
+quality and rejection rules live in [tests.md](references/tests.md); mock external or
+otherwise unavoidable system boundaries as described in [mocking.md](references/mocking.md).
 
-Use this mode when `fast-worker`, `codex-fast-worker`, or `dhpk-agy-fast-worker`
-receives an approved task spec or a proven RED/GREEN handback from the settled
-test owner:
+## Test-generation
 
-1. Treat the dispatcher's target files, behavior, and verification command as
-   the pre-approved seam and contract. Do not pause for another seam approval.
-2. Apply only the specified GREEN or test-scaffold change. Do not invent new
-   behavior, broaden the file list, or start an independent RED strategy.
-3. Keep each test focused on one observable outcome and mock only external or
-   otherwise unavoidable system boundaries; see [mocking.md](mocking.md).
-4. Run the task's scoped verification command yourself and report the exact
-   result and edited files. Escalate ambiguity instead of guessing.
+Inspect the named production seam and existing conventions, then generate the
+smallest behavior-focused tests or scaffold. `test-generation` replaces the
+retired `/codex-test-gen` command; select a Codex backend only when explicitly
+requested.
 
-The fast-worker mode preserves the mechanical GREEN worker boundary: the
-settled test owner supplies RED evidence, seam selection, and test strategy.
-Reuse adequate existing RED/GREEN evidence from inline or worker work when it
-covers the current behavior and public seam. Resolve an unsettled test seam or
-runtime setup with `tdd-guide` when separate specialist expertise is needed,
-before dependent implementation. In dhpk, `rules/execution-policy.md` owns
-ownership and dispatch decisions.
-If the specialist is unavailable, a capable settled owner may supply the
-equivalent test-first outcome only when applicable instructions allow it;
-otherwise report `BLOCKED` with the missing role, seam or runtime capability,
-and the action needed to resume. Explicit Host, user, acceptance, or
-higher-priority requirements for `tdd-guide` remain binding.
+Run the scoped tests when the caller permits and the runtime is available.
+If the caller requests files only, supply the exact command and mark execution
+`NOT_RUN`. If execution is attempted but a prerequisite prevents it, report
+`BLOCKED` with the observed cause. A generated scaffold is an artifact, not
+proof of RED or GREEN. Distinguish expected failure from observed failure.
 
-## Tautological tests considered harmful
+## Worker handback
 
-A passing test is not evidence when it can share the production defect. Ask:
-"If the implementation and this test contained the same bug, would the test
-still pass?" If yes, replace the assertion before counting the test as
-coverage. [tests.md](tests.md) owns the independent-oracle, discrimination,
-and ownership rules and the rejection checklist.
+This includes `fast-worker`, `codex-fast-worker`, and `dhpk-agy-fast-worker`
+tasks with a settled owner:
 
-## When NOT to Use
+1. Preserve the dispatcher's target files, behavior, public seam, and command.
+   Do not request another seam approval or start a separate test strategy.
+2. Apply the specified GREEN or scaffold change after establishing adequate
+   handback evidence as above. Escalate ambiguity without broadening scope.
+3. Run the scoped command yourself. Report edited files and the exact result
+   through the worker's canonical report, including the TDD evidence below.
 
-- Use `e2e-runner` for Playwright user journeys, browser fixtures, and live
-  journey stabilization.
-- Use `change-verdict` for a post-hoc coverage or acceptance-criteria audit.
-- Skip the TDD loop for pure documentation, rename, formatting, or harness
-  configuration tasks that do not change testable runtime behavior.
-- Reuse adequate test-first evidence and settled ownership for business
-  features and bugs; dispatch `tdd-guide` to resolve a missing specialist
-  outcome or satisfy an explicit applicable requirement.
+## Report and verification
 
-## Mocking boundary
-
-Mock external APIs, databases when a test database is impractical, time/random
-sources, and file systems only when necessary. Prefer dependency injection and
-specific SDK-like interfaces. Do not mock application classes merely to assert
-that an internal collaborator was called; test the behavior at the public seam.
-
-## Output
-
-Report:
+Use a concise report, or include these facts in the worker's canonical report:
 
 ```text
-Phase: RED | GREEN | REFACTOR | GREEN-HANDOFF
-Verdict: PASS | WARNING | FAIL
-Verification: <command> -> PASS | FAIL
-Test files:
-- <path>
-Implementation: <none | changed files>
-Coverage: <percentage | unavailable>
-Notes: <reason for handoff, warning, or skipped refactor>
+Mode: Standard TDD | Test-generation | Worker handback
+Phase: RED | GREEN | REFACTOR | GREEN-HANDOFF | SCAFFOLD
+Verdict: PASS | PARTIAL | FAIL | BLOCKED
+RED evidence: <command and intended assertion failure | supplied evidence and scope | NOT_RUN with reason>
+Scoped verification: <command> -> PASS | FAIL | NOT_RUN | BLOCKED
+Suite verification: <command> -> PASS | FAIL | NOT_RUN | BLOCKED
+Test files: <paths>
+Implementation: <none | changed paths>
+Coverage: <measured percentage and scope | unavailable>
+Remaining: <missing check, prerequisite, handoff, or none>
 ```
 
-For fast-worker dispatches, retain the worker's canonical report contract and
-include the TDD-relevant test/verification result in its existing report.
+`PASS` applies to the requested mode and verification scope. It never promotes
+an unrun scaffold, setup failure, or local test into implementation, runtime,
+browser, or release proof. Use `PARTIAL` for delivered work with required checks
+still unrun, `FAIL` for a demonstrated unmet behavior, and `BLOCKED` for an
+unavailable prerequisite. State the resume command or action for unfinished
+work. Report coverage only if measured; apply a percentage target only when
+project acceptance or runner configuration requires it.
 
-## Verification
-
-- [ ] The RED test failed for the intended reason, or the worker received a
-  previously proven RED/GREEN handback.
-- [ ] The test asserts observable behavior at an agreed public seam.
-- [ ] Expected values are independently derived and mocks are boundary-only.
-- [ ] The scoped verification command passes.
-- [ ] The applicable suite is run at phase exit and the result is reported.
-
-## References
-
-- [tests.md](tests.md) — behavior-focused good/bad test shapes,
-  implementation-coupling traps, independent oracles, discrimination, and the
-  rejection checklist.
-- [mocking.md](mocking.md) — boundary mocking and dependency-injection rules.
+Before reporting, check that the evidence establishes the intended failure
+(or an adequate handback), the test observes the public behavior with an
+independent oracle, and scoped/suite results match what actually ran.

@@ -395,7 +395,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "bcaf7a5c06f5a7d77d809344a9916de46b2903b5d8a91b6f01fd59c982a7f48d"
+      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
     },
     {
       "skillId": "code-trace",
@@ -843,7 +843,7 @@
       "sourcePath": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
       "destination": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
       "kind": "entry",
-      "sha256": "5b313380d83f8d2c20eb666a588ad641547522bea7c38f048114a674bd020bed"
+      "sha256": "cdd78e8637b09e7816e4b32e25223a63f8597d04db538085861015eab929504c"
     },
     {
       "skillId": "cli-dispatch-context",
@@ -1011,7 +1011,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "c43a234f9ee4ea60e422404b4f2f77036da269d0fcf0bb1ca5469ef05708c1c7"
+      "sha256": "6981c471294f2d60ac8d57c460bf479e921de6c9547563e6d8487cb1b7096e8d"
     },
     {
       "skillId": "flow-drive",
@@ -1019,7 +1019,7 @@
       "sourcePath": "skills/flow-drive/agents/openai.yaml",
       "destination": "skills/flow-drive/agents/openai.yaml",
       "kind": "entry",
-      "sha256": "61f9092c9ddf2bf839efb4aaa91f2ad82223e9bd3ceb4a85a4da0471335c49bb"
+      "sha256": "ce32f687267ac3ae8c114a6079caed1e7e6601578a7f7e0ea1e29c0d48c20119"
     },
     {
       "skillId": "flow-drive",
@@ -1035,7 +1035,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "bcaf7a5c06f5a7d77d809344a9916de46b2903b5d8a91b6f01fd59c982a7f48d"
+      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
     },
     {
       "skillId": "flow-drive",
@@ -1099,7 +1099,7 @@
       "sourcePath": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
       "destination": "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py",
       "kind": "entry",
-      "sha256": "5b313380d83f8d2c20eb666a588ad641547522bea7c38f048114a674bd020bed"
+      "sha256": "cdd78e8637b09e7816e4b32e25223a63f8597d04db538085861015eab929504c"
     },
     {
       "skillId": "flow-drive",
@@ -1907,7 +1907,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "bcaf7a5c06f5a7d77d809344a9916de46b2903b5d8a91b6f01fd59c982a7f48d"
+      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
     },
     {
       "skillId": "flow-drive",
@@ -2227,7 +2227,7 @@
       "sourcePath": "skills/flow-drive/references/parent-cli-dispatch.md",
       "destination": "skills/flow-drive/references/parent-cli-dispatch.md",
       "kind": "entry",
-      "sha256": "cc0a6c216c0cab3fbcb97ea9d2acac1ac6b371117c15f9460bfc654e0c40aed5"
+      "sha256": "368fa105bdf88f150225894d9b47a5ec652296526a3d92cd8881d99b09f24702"
     },
     {
       "skillId": "flow-drive",
@@ -2236,6 +2236,14 @@
       "destination": "skills/flow-drive/references/portability.md",
       "kind": "entry",
       "sha256": "41f1da2022294c168a8ba8d90315c7ab9719504241d1edd5eff103514c8166f8"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/portable-runner.md",
+      "destination": "skills/flow-drive/references/portable-runner.md",
+      "kind": "entry",
+      "sha256": "9b7a41e2cc339a3e0f75dce3044e196fcbf7616ea77a2bd28480e3f73aee1e7d"
     },
     {
       "skillId": "flow-drive",
@@ -2395,7 +2403,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "bcaf7a5c06f5a7d77d809344a9916de46b2903b5d8a91b6f01fd59c982a7f48d"
+      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
     },
     {
       "skillId": "flow-guide",
@@ -2427,7 +2435,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "0b43f7b94931debbd6f4cfc2efc40cadb02983fbd83cd739abe844af259ad12b"
+      "sha256": "d141e282c4b19248f9c2dd2f9274928214b07eba49a3af57678dc73097afe948"
     },
     {
       "skillId": "flow-guide",
@@ -2515,7 +2523,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "bcaf7a5c06f5a7d77d809344a9916de46b2903b5d8a91b6f01fd59c982a7f48d"
+      "sha256": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6"
     },
     {
       "skillId": "flow-guide",
@@ -2939,7 +2947,7 @@
       "sourcePath": "skills/git-smart-commit/SKILL.md",
       "destination": "skills/git-smart-commit/SKILL.md",
       "kind": "entry",
-      "sha256": "d8e9eed8596bc485ca1dcb9fe4ed5a352bef38f4fafe1b52ae8f8c30b51974e6"
+      "sha256": "0db779db199544428074f215d236415fe7daa0f16a200f2db598372061804713"
     },
     {
       "skillId": "git-smart-commit",
@@ -2948,6 +2956,22 @@
       "destination": "skills/git-smart-commit/agents/openai.yaml",
       "kind": "entry",
       "sha256": "49f67a450cd8ec991b6d9fa3da372bb158872723386e9abda15655c4cd28c426"
+    },
+    {
+      "skillId": "git-smart-commit",
+      "ownerId": "git-smart-commit",
+      "sourcePath": "skills/git-smart-commit/references/collector.md",
+      "destination": "skills/git-smart-commit/references/collector.md",
+      "kind": "entry",
+      "sha256": "558fc8b2e60ef259cc8be00fde45e0d3c5cf8fa5058c58ed0a37f2118c0e9bdd"
+    },
+    {
+      "skillId": "git-smart-commit",
+      "ownerId": "git-smart-commit",
+      "sourcePath": "skills/git-smart-commit/scripts/collect-changes.js",
+      "destination": "skills/git-smart-commit/scripts/collect-changes.js",
+      "kind": "entry",
+      "sha256": "25fb39005052ba4edcffe9e55bcbdf72a09346e46f5cc22ec4a11bcd59ad69f4"
     },
     {
       "skillId": "git-worktree",
@@ -3643,7 +3667,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "a439a62c32d6da92fde92132b27d8d9274b26cc0cfe4f616aac8ed1927c7ee39"
+      "sha256": "2654f2ca1b0e12385b950e3a26a6beafa69a9a93e082ce3cebfa8399d8591adc"
     },
     {
       "skillId": "tdd",
@@ -3652,14 +3676,6 @@
       "destination": "skills/tdd-workflow/agents/openai.yaml",
       "kind": "entry",
       "sha256": "b43fe6e8f22ebf197a88e6492bb90600b665309ce983e4fff7e5cdd8e502e633"
-    },
-    {
-      "skillId": "tdd",
-      "ownerId": "tdd",
-      "sourcePath": "skills/tdd-workflow/mocking.md",
-      "destination": "skills/tdd-workflow/mocking.md",
-      "kind": "entry",
-      "sha256": "febfc879aa20857ac74cf918b911d5849efe2b7a10e01090f4d716a5621a6f55"
     },
     {
       "skillId": "laravel-testbench-matrix",
@@ -3806,6 +3822,14 @@
       "sha256": "01057b573f64653b8c34c12d31823199498d3b197d73f31c8638b5bb397e4667"
     },
     {
+      "skillId": "tdd",
+      "ownerId": "tdd",
+      "sourcePath": "skills/tdd-workflow/references/mocking.md",
+      "destination": "skills/tdd-workflow/references/mocking.md",
+      "kind": "entry",
+      "sha256": "febfc879aa20857ac74cf918b911d5849efe2b7a10e01090f4d716a5621a6f55"
+    },
+    {
       "skillId": "phpunit",
       "ownerId": "tdd",
       "sourcePath": "skills/phpunit/SKILL.md",
@@ -3864,8 +3888,8 @@
     {
       "skillId": "tdd",
       "ownerId": "tdd",
-      "sourcePath": "skills/tdd-workflow/tests.md",
-      "destination": "skills/tdd-workflow/tests.md",
+      "sourcePath": "skills/tdd-workflow/references/tests.md",
+      "destination": "skills/tdd-workflow/references/tests.md",
       "kind": "entry",
       "sha256": "bd8c7daa182811b57309ecd15b41078b1657b71f1775bc81c7829c690a114d61"
     },

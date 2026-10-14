@@ -121,8 +121,9 @@ share one writer lease. Interrupted or uncertain writers must be stopped and
 reconciled before another writer starts. Required review independence is
 established by observed agent identity, not role labels or self-review.
 
-For Flow Drive, `--cross-provider` opens a provider-scope question and grants
-no permission by itself. Initial capability discovery disables external
+For the programmatic Flow Drive runner (`runFlowDrive`), `--cross-provider`
+opens a provider-scope question and grants no permission by itself. The
+user-facing legacy Host procedure retains the automatic-candidate policy above. Initial capability discovery disables external
 probes. Answered Host consent or root-supplied `authorizationEvidence` requires
 a nonblank answer ID; retain only its sanitized ID. Cancellation, no answer,
 and missing question tools create no additional grant. An exact worker target
