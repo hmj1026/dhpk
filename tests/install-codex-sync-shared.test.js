@@ -132,6 +132,174 @@ function runCursorInstaller(project, args, pluginRoot, extraEnv) {
   });
 }
 
+const sharedSkillRecoveryEntrypoints = [
+  { host: 'codex', skillName: 'dhpk-codex-only', run: runCodexInstaller },
+  { host: 'cursor', skillName: 'dhpk-portable', run: runCursorInstaller },
+];
+
+function prepareManagedSkillSymlinkScenario(entrypoint) {
+  const project = projectRoot();
+  const plugin = fakePlugin();
+  const externalRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-931-recovery-')));
+  try {
+    const cursor = runCursorInstaller(project, ['--copy', '--force'], plugin);
+    assert.strictEqual(cursor.status, 0, `${cursor.stdout}\n${cursor.stderr}`);
+    const codex = runCodexInstaller(project, ['--copy', '--force'], plugin);
+    assert.strictEqual(codex.status, 0, `${codex.stdout}\n${codex.stderr}`);
+
+    const receiptPath = path.join(project, '.agents', '.dhpk-installed.json');
+    const receiptText = fs.readFileSync(receiptPath, 'utf8');
+    const receipt = JSON.parse(receiptText);
+    const relative = `${entrypoint.skillName}/SKILL.md`;
+    assert.deepStrictEqual(receipt.managedPaths.filter((item) => item.startsWith(`${entrypoint.skillName}/`)), [relative], 'the fixture skill should have one current-receipt-owned file');
+    const expectedDigest = receipt.generatedFingerprints[relative];
+    const managedSkill = path.join(project, '.agents', 'skills', entrypoint.skillName);
+    const originalFile = path.join(managedSkill, 'SKILL.md');
+    const originalStat = fs.lstatSync(originalFile);
+    assert.ok(originalStat.isFile() && !originalStat.isSymbolicLink(), 'managed source must be a physical file');
+    assert.strictEqual(crypto.createHash('sha256').update(fs.readFileSync(originalFile)).digest('hex'), expectedDigest, 'fixture content must match the fingerprint in the current receipt');
+
+    const preservedSkill = path.join(externalRoot, 'receipt-matching-copy');
+    fs.cpSync(managedSkill, preservedSkill, { recursive: true });
+    const preservedFile = path.join(preservedSkill, 'SKILL.md');
+    const preservedStat = fs.lstatSync(preservedFile);
+    assert.ok(preservedStat.isFile() && !preservedStat.isSymbolicLink(), 'recovery copy must contain physical files');
+    assert.strictEqual(crypto.createHash('sha256').update(fs.readFileSync(preservedFile)).digest('hex'), expectedDigest, 'recovery copy must match the current receipt fingerprint');
+    assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), false, 'the recovery scenario must not have a pending projection transaction');
+
+    const nativeBindings = {
+      codex: path.join(project, '.codex', 'skills', 'dhpk-codex-only'),
+      cursor: path.join(project, '.cursor', 'skills', 'dhpk-portable'),
+    };
+    const nativeBindingTargets = Object.fromEntries(Object.entries(nativeBindings).map(([host, binding]) => [host, fs.readlinkSync(binding)]));
+    const foreignSkill = path.join(externalRoot, 'custom-skill');
+    write(path.join(foreignSkill, 'README.md'), '# Consumer-owned skill\n');
+    fs.rmSync(managedSkill, { recursive: true, force: true });
+    fs.symlinkSync(foreignSkill, managedSkill, 'dir');
+
+    const otherHost = entrypoint.host === 'codex' ? 'cursor' : 'codex';
+    const otherSkillName = entrypoint.host === 'codex' ? 'dhpk-portable' : 'dhpk-codex-only';
+    const otherSkill = path.join(project, '.agents', 'skills', otherSkillName);
+    return {
+      project,
+      plugin,
+      externalRoot,
+      foreignSkill,
+      managedSkill,
+      otherHost,
+      otherSkill,
+      preservedSkill,
+      receiptPath,
+      receiptText,
+      receipt,
+      expectedDigest,
+      nativeBindings,
+      nativeBindingTargets,
+    };
+  } catch (error) {
+    fs.rmSync(project, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+    fs.rmSync(externalRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function updateSharedSkillThrough(entrypoint, project, plugin) {
+  return entrypoint.run(project, ['--copy', '--migrate', '--update', '--force'], plugin);
+}
+
+function outputOf(result) {
+  return `${result.stdout}\n${result.stderr}`;
+}
+for (const entrypoint of sharedSkillRecoveryEntrypoints) {
+  test(`${entrypoint.host} symlink and missing-content diagnostics point to receipt recovery`, () => {
+    const scenario = prepareManagedSkillSymlinkScenario(entrypoint);
+    const foreignBefore = snapshotTree(scenario.externalRoot);
+    try {
+      const collision = updateSharedSkillThrough(entrypoint, scenario.project, scenario.plugin);
+      const symlinkWasPreserved = fs.lstatSync(scenario.managedSkill).isSymbolicLink();
+      const symlinkTarget = fs.readlinkSync(scenario.managedSkill);
+      const receiptAfterCollision = fs.readFileSync(scenario.receiptPath, 'utf8');
+
+      fs.unlinkSync(scenario.managedSkill);
+      const missing = updateSharedSkillThrough(entrypoint, scenario.project, scenario.plugin);
+
+      assert.notStrictEqual(collision.status, 0, `${collision.stdout}\n${collision.stderr}`);
+      assert.match(outputOf(collision), /docs\/platform-installation\.md#recover-receipt-owned-shared-skills/i);
+      assert.match(outputOf(collision), /preserve the symlink and its target/i);
+      assert.match(outputOf(collision), /current receipt fingerprints/i);
+      assert.ok(symlinkWasPreserved, 'failed collision check must leave the consumer link in place');
+      assert.strictEqual(symlinkTarget, scenario.foreignSkill);
+      assert.strictEqual(receiptAfterCollision, scenario.receiptText);
+
+      assert.notStrictEqual(missing.status, 0, `${missing.stdout}\n${missing.stderr}`);
+      assert.match(outputOf(missing), new RegExp(`expected SHA-256:\\s*${scenario.expectedDigest}`, 'i'));
+      assert.match(outputOf(missing), /docs\/platform-installation\.md#recover-receipt-owned-shared-skills/i);
+      assert.strictEqual(fs.readFileSync(scenario.receiptPath, 'utf8'), scenario.receiptText);
+      assert.strictEqual(fs.existsSync(scenario.managedSkill), false, 'missing-content retry must not invent files');
+      assert.strictEqual(snapshotTree(scenario.externalRoot), foreignBefore, 'foreign target and saved copy must remain unchanged');
+    } finally {
+      fs.rmSync(scenario.project, { recursive: true, force: true });
+      fs.rmSync(scenario.plugin, { recursive: true, force: true });
+      fs.rmSync(scenario.externalRoot, { recursive: true, force: true });
+    }
+  });
+  test(`${entrypoint.host} accepts only matching current-receipt recovery content`, () => {
+    const scenario = prepareManagedSkillSymlinkScenario(entrypoint);
+    const otherSkillBefore = snapshotTree(scenario.otherSkill);
+    const otherBindingBefore = JSON.stringify(scenario.receipt.hostBindings[scenario.otherHost]);
+    const otherBindingPathsBefore = JSON.stringify(scenario.receipt.bindingPaths[scenario.otherHost]);
+    const agentsRoot = path.join(scenario.project, '.agents');
+    try {
+      const collision = updateSharedSkillThrough(entrypoint, scenario.project, scenario.plugin);
+      assert.notStrictEqual(collision.status, 0, `${collision.stdout}\n${collision.stderr}`);
+      const preservedLink = path.join(scenario.externalRoot, 'preserved-symlink');
+      fs.renameSync(scenario.managedSkill, preservedLink);
+      const preservedLinkTarget = fs.readlinkSync(preservedLink);
+      assert.strictEqual(preservedLinkTarget, scenario.foreignSkill);
+      const externalBefore = snapshotTree(scenario.externalRoot);
+      const missing = updateSharedSkillThrough(entrypoint, scenario.project, scenario.plugin);
+      assert.notStrictEqual(missing.status, 0, `${missing.stdout}\n${missing.stderr}`);
+      assert.strictEqual(fs.readFileSync(scenario.receiptPath, 'utf8'), scenario.receiptText);
+
+      assert.ok(fs.lstatSync(path.join(scenario.project, '.agents')).isDirectory(), 'shared root must be physical');
+      assert.ok(fs.lstatSync(path.dirname(scenario.managedSkill)).isDirectory(), 'receipt-owned parent must be physical');
+      fs.mkdirSync(scenario.managedSkill);
+      assert.ok(fs.lstatSync(scenario.managedSkill).isDirectory(), 'restored skill directory must be physical');
+      const restoredFile = path.join(scenario.managedSkill, 'SKILL.md');
+      fs.copyFileSync(path.join(scenario.preservedSkill, 'SKILL.md'), restoredFile);
+      assert.ok(fs.lstatSync(restoredFile).isFile(), 'restored receipt-owned file must be physical');
+      fs.appendFileSync(restoredFile, '\n# Mismatched recovery copy\n');
+      const mismatchedState = snapshotTree(agentsRoot);
+      const mismatch = updateSharedSkillThrough(entrypoint, scenario.project, scenario.plugin);
+      assert.notStrictEqual(mismatch.status, 0, `${mismatch.stdout}\n${mismatch.stderr}`);
+      assert.match(outputOf(mismatch), /fingerprint|modified|changed/i);
+      assert.strictEqual(snapshotTree(agentsRoot), mismatchedState, 'rejected recovery must preserve the mismatched content and receipt');
+      const mismatchOutput = outputOf(mismatch);
+      assert.strictEqual(snapshotTree(scenario.externalRoot), externalBefore, 'rejected recovery must preserve the foreign target and saved copy');
+      assert.ok(fs.lstatSync(scenario.managedSkill).isDirectory(), 'rejected recovery must leave the physical managed directory');
+      assert.ok(fs.lstatSync(restoredFile).isFile(), 'rejected recovery must leave the physical managed file');
+      fs.copyFileSync(path.join(scenario.preservedSkill, 'SKILL.md'), restoredFile);
+      assert.strictEqual(crypto.createHash('sha256').update(fs.readFileSync(restoredFile)).digest('hex'), scenario.expectedDigest, 'restored file must match the current receipt');
+      const recovered = updateSharedSkillThrough(entrypoint, scenario.project, scenario.plugin);
+      assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
+      assert.match(mismatchOutput, /docs\/platform-installation\.md#recover-receipt-owned-shared-skills/i);
+      const receiptAfterRecovery = JSON.parse(fs.readFileSync(scenario.receiptPath, 'utf8'));
+      assert.deepStrictEqual(receiptAfterRecovery.hostBindings[scenario.otherHost], JSON.parse(otherBindingBefore));
+      assert.deepStrictEqual(receiptAfterRecovery.bindingPaths[scenario.otherHost], JSON.parse(otherBindingPathsBefore));
+      assert.strictEqual(snapshotTree(scenario.otherSkill), otherSkillBefore, 'the other Host skill content must remain intact');
+      assert.strictEqual(snapshotTree(scenario.externalRoot), externalBefore, 'recovery must leave consumer-owned content untouched');
+      assert.strictEqual(fs.readlinkSync(preservedLink), preservedLinkTarget, 'the saved consumer symlink target must remain unchanged');
+      assert.strictEqual(fs.existsSync(path.join(scenario.project, '.agents', '.dhpk-installed.transaction.json')), false);
+      assert.deepStrictEqual(Object.fromEntries(Object.entries(scenario.nativeBindings).map(([host, binding]) => [host, fs.readlinkSync(binding)])), scenario.nativeBindingTargets);
+    } finally {
+      fs.rmSync(scenario.project, { recursive: true, force: true });
+      fs.rmSync(scenario.plugin, { recursive: true, force: true });
+      fs.rmSync(scenario.externalRoot, { recursive: true, force: true });
+    }
+  });
+}
+
 function writeCodexEvidence(dir, status) {
   const file = path.join(dir, 'codex-consumer-evidence.json');
   write(file, `${JSON.stringify({
