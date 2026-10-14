@@ -2947,7 +2947,7 @@
       "sourcePath": "skills/git-smart-commit/SKILL.md",
       "destination": "skills/git-smart-commit/SKILL.md",
       "kind": "entry",
-      "sha256": "d8e9eed8596bc485ca1dcb9fe4ed5a352bef38f4fafe1b52ae8f8c30b51974e6"
+      "sha256": "0db779db199544428074f215d236415fe7daa0f16a200f2db598372061804713"
     },
     {
       "skillId": "git-smart-commit",
@@ -2956,6 +2956,22 @@
       "destination": "skills/git-smart-commit/agents/openai.yaml",
       "kind": "entry",
       "sha256": "49f67a450cd8ec991b6d9fa3da372bb158872723386e9abda15655c4cd28c426"
+    },
+    {
+      "skillId": "git-smart-commit",
+      "ownerId": "git-smart-commit",
+      "sourcePath": "skills/git-smart-commit/references/collector.md",
+      "destination": "skills/git-smart-commit/references/collector.md",
+      "kind": "entry",
+      "sha256": "558fc8b2e60ef259cc8be00fde45e0d3c5cf8fa5058c58ed0a37f2118c0e9bdd"
+    },
+    {
+      "skillId": "git-smart-commit",
+      "ownerId": "git-smart-commit",
+      "sourcePath": "skills/git-smart-commit/scripts/collect-changes.js",
+      "destination": "skills/git-smart-commit/scripts/collect-changes.js",
+      "kind": "entry",
+      "sha256": "25fb39005052ba4edcffe9e55bcbdf72a09346e46f5cc22ec4a11bcd59ad69f4"
     },
     {
       "skillId": "git-worktree",

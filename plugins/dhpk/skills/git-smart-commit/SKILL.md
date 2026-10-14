@@ -23,57 +23,49 @@ metadata:
 
 ## 流程 — SSOT: `rules/execution-policy.md` owns commit/review safety; this skill owns grouping evidence
 
-### 1. 檢查變更狀態
+### 1. 收集摘要並閱讀相關變更
 
-執行以下指令取得完整變更清單：
-
-```bash
-git status --short
-```
-
-若沒有任何變更，告知使用者「目前沒有需要提交的變更」後結束。
-
-接著取得所有變更的 diff 內容（用來判斷分群邏輯）：
+從 consumer 專案根目錄或子目錄執行唯讀收集器：
 
 ```bash
-git diff
-git diff --cached
+node "$SKILL_DIR/scripts/collect-changes.js" [--scope <path>]
 ```
+
+`$SKILL_DIR` 是已安裝技能目錄。收集器原始碼見 [`scripts/collect-changes.js`](scripts/collect-changes.js)。`--scope` 是 repo-relative literal path；它限制檔案清單，但仍會回報範圍外的 staged 內容。收集器只讀取 Git 狀態與統計，不輸出 diff 或檔案內容，也不執行 hooks。
+
+摘要提供 `repoRoot`、起始 `head`、`files`、`safety` 與 `hooks`；hook 資訊不代表已執行或通過。解讀欄位或處理收集失敗時，閱讀 [collector contract](references/collector.md)。
+
+若收集器不存在、退出非零、JSON 無效或輸出不完整，回報摘要未完成並停止提交流程，不推斷「沒有變更」或「沒有 hook」。若 `files` 沒有範圍內變更，先檢查 `safety`，尤其範圍外 staged；確認沒有待處理安全狀態後，再回報目前範圍無需提交。
+
+摘要只用來選出待檢查的功能群。將 shell 工作目錄切換到輸出中的 `repoRoot`，再逐路徑閱讀該群的 staged 與 unstaged diff；新增的未追蹤檔案要閱讀檔案內容。使用 literal pathspec，rename 要同時檢查新舊路徑：
+
+```bash
+git --literal-pathspecs diff -- <path>
+git --literal-pathspecs diff --cached -- <path>
+```
+
+逐組檢查並控制輸出量，不先讀取整個 worktree 的完整 diff。收集器會拒絕前後觀察到的 HEAD、status 或行數統計變動，但摘要不是原子快照，也不能證明內容未變。若來源在檢查期間改變，重新收集摘要、檢查受影響內容並重擬計畫；提交前仍須核對實際 staged diff。
 
 ### 2. 分析並分群
 
-根據以下維度，將檔案變更分成多個 **commit 群組**，每組代表一個獨立的邏輯單元：
-
-#### 分群依據（優先順序）
-
-| 優先級 | 維度 | 範例（依專案實際路徑調整） |
-|--------|------|------|
-| 1 | **專案設定 / 核心與 AI 規則** | 依套件管理檔（`composer.json` / `package.json` / `pyproject.toml` 等）、框架設定目錄、`.gitignore`、`CLAUDE.md`、`AGENTS.md`、根目錄 `*.md` |
-| 2 | **資料表異動 (Migration)** | 專案的 migrations 目錄 |
-| 3 | **領域邏輯 (Domain / Infra)** | DDD 風格時的 `domain/*` 與 `infrastructure/*`；其他架構則依專案分層 |
-| 4 | **MVC 架構 (Controller/Model)** | 框架對應的 controllers / models / views 路徑 |
-| 5 | **核心工具 / 共用元件** | 專案自有共用元件或內部基礎庫 |
-| 6 | **前端 / Legacy JS bundle** | 主要 JS bundle（`js/*` 等）、`css/*` |
-| 7 | **自動化測試** | 專案測試目錄（`tests/*` 等） |
-| 8 | **文件 / 規格 (OpenSpec)** | `docs/*`、`openspec/*` |
+依變更意圖、功能關聯和依賴關係分組。目錄可協助定位，不能單獨決定 commit 邊界；同一功能跨 Controller、Service、Model、View、測試或文件時，應一起評估。
 
 #### 分群規則
 
-- **領域模型與基礎設施**：同步修改的 `Domain` 與對應的 `Infrastructure` 實作應視為同一組（完整業務邏輯）。
-- **MVC 功能**：同一個 Feature 的 `Controller` + `Model` + `View` 可歸為同一組。
-- **資料庫遷移**：`Migration` 檔案應盡量獨立成一個 commit，方便追蹤資料庫 Schema 變更。
-- **測試**：若修改某個功能，連帶修改其 `tests/*` 內的測試，應合併在同一個 commit 中。
-- **其他微小變更**：若某一組只有 1 個檔案且改動極小（< 5 行），評估是否合併到最相關的鄰近組。
-- **變更類型**：新增檔案用 `feat`，修改/重構用 `fix` / `refactor` / `style`，刪除或環境設定用 `chore`，文件更新用 `docs`。
+- 同一功能的 Domain 與 Infrastructure 實作，以及對應測試，通常放在同一組。
+- MVC 功能可將相關的 `Controller`、`Model`、`View` 和測試放在同一組。
+- Migration 僅在能獨立理解和驗證時拆成單獨 commit；必要的程式相依不得拆散。
+- 少量變更依實際關聯併入最相關的功能群，不以檔案數量或路徑強行合併。
+- 新增功能使用 `feat`；修正或重構使用 `fix` / `refactor` / `style`；刪除或環境設定使用 `chore`；文件更新使用 `docs`。
 
 ---
 
 ### 3. 產出 Commit 計畫
 
-在執行任何 git 操作之前，先列出計畫讓使用者確認：
+在任何 index 或 commit 寫入前，列出各組的 commit message、完整路徑（rename 包含來源與目的路徑），並說明 staged／unstaged 的分組方式。唯讀 Git 查詢可在計畫前執行。
 
 ```
-📋 Commit 計畫（共 N 個 commit）
+Commit 計畫（共 N 個 commit）
 
 1. chore(project): 更新 AI 輔助規則
    → GEMINI.md, CLAUDE.md
@@ -89,21 +81,33 @@ git diff --cached
 
 ...
 
-確認執行？(Y/n)
+授權狀態：依既有明確授權執行；若尚未授權，先等待使用者確認。
 ```
 
-**請暫停並等待使用者確認。**
+遵守 `rules/execution-policy.md` 的授權邊界。若目前任務已明確授權這些範圍與分組，依該授權執行，不重複要求確認；新增分組或超出授權範圍時，先取得對該變更的實際授權。
 
 ---
 
 ### 4. 逐批執行 Commit
 
-使用者確認後，對每一組依序執行：
+先處理摘要中的安全狀態：
+
+- `hasConflicts: true` 或 `operations` 非空時，停止提交並請使用者先完成相應操作。
+- 有既有 staged、partial staging 或範圍外 staged 時，保留 index 和 worktree。逐層檢視 staged／unstaged 內容；不以整檔 `git add` 改寫既有選擇。若 index 尚未精確對應一個已檢查且已授權的群組，提供人工 staging 方案並停止，待使用者完成後重新收集。
+- Index 原本為空時，只在該路徑的所有變更都屬於同一群組時整檔 staging。若同一路徑跨多組，提供逐 hunk 的人工 staging 方案。
+
+每次 commit 前檢查 staged diff，確認 index 只含目前群組；rename 要核對來源與目的路徑。若內容或路徑不符，停止並重新規劃。保留正常 Git hooks；hook 失敗時停止並回報，不繞過或自動回滾。任何 code precommit 或 hook 完成後，若 HEAD、index 或 worktree 有變動，重新收集並檢查受影響差異；若計畫範圍或分組改變，先更新計畫並取得尚未授權部分的明確授權。
+
+只有原本為空的 index 流程才使用 `git add`。若既有 index 已精確對應一個檢查且授權的群組，略過 staging，直接核對後提交。
 
 ```bash
-git add <file1> <file2> ...
+git --literal-pathspecs add -- <reviewed-paths>
+git diff --cached --name-status -z
+git --literal-pathspecs diff --cached -- <reviewed-paths>
 git commit -m "<type>(<scope>): <subject>"
 ```
+
+依下方 Commit Message 格式產生訊息。路徑需按 shell 規則引用，並保留 Git 路徑的原始拼寫。
 
 #### Commit Message 格式
 
@@ -144,46 +148,41 @@ git commit -m "<type>(<scope>): <subject>"
 
 ---
 
-### 5. 確認結果
+### 5. 核對結果
 
-所有 commit 完成後，執行：
-
-```bash
-git log --oneline -20
-```
-
-將結果展示給使用者，確認所有 commit 都已正確建立。
+記錄收集器起始的 `head`。完成後檢查起始 HEAD 之後建立的 commit，逐筆核對其實際變更路徑與核准分組；起始 HEAD 為 `null` 時，逐筆核對本次建立的所有 commit（包含 root commit）。重新執行收集器，確認剩餘變更都能對應計畫中的保留項目。只列出 `git log --oneline -20` 不足以證明分組正確。
 
 ## 邊界情況處理
 
 - **有衝突或 merge 狀態**：提醒使用者先解決衝突，不執行任何操作。
 - **有敏感檔案**：提醒使用者確認是否應被 gitignore (例如 `.env` 或 config 內的機密寫死)，不自動提交。
-- **變更量極大（> 50 個檔案）**：先產出大致的分組摘要，請使用者確認是否要更細緻拆分，確認後再執行。
-- **使用者已有部分 staged 變更**：尊重已 staged 的狀態，將其視為一個獨立群組，或詢問使否要合併重新規劃。
+- **變更量大**：先整理功能群摘要，再逐組檢查；沿用既有授權，只有未解決的分組選擇或新增範圍需要使用者決定。
+- **已有 staged 變更**：保留使用者的 index 狀態；先檢查 staged 與 unstaged 內容，再提供可核對的分組或人工 staging 方案。
 
 ---
 
 ## Output
 
 ```markdown
-📋 Commit 計畫（共 N 個 commit）
+Commit 計畫（共 N 個 commit）
 
 1. <type>(<scope>): <subject>
    → <file1>, <file2>
 
 ...
 
-確認執行？(Y/n)
+授權狀態：依既有明確授權執行；若尚未授權，先等待使用者確認。
 ```
 
-- 取得確認前只輸出計畫，不執行 `git add` / `git commit`。
-- 使用者確認後，提供每組可直接執行的 git 指令與預期 commit message。
-- 全部完成後回報 `git log --oneline -20` 的摘要結果。
+- 尚未取得本計畫所需授權前，只讀取狀態、diff 和檔案內容；不執行 `git add` / `git commit`。
+- 授權後依序提供或執行各組指令，保留正常 hooks，hook 失敗即停止。
+- 全部完成後回報起始 HEAD 之後的 commit、每筆實際路徑，以及收集器所列的剩餘變更。
 
 ## Verification
 
-- [ ] 已執行 `git status --short` 並確認存在變更。
-- [ ] 已檢查 `git diff` 與 `git diff --cached` 完整變更內容。
-- [ ] 已先輸出 commit 計畫並等待使用者確認。
+- [ ] 收集器成功輸出完整摘要，並檢查相關 staged／unstaged diff 與新增檔案內容。
+- [ ] 已辨識衝突、操作中狀態、既有 staged、partial staging 和範圍外 staged。
+- [ ] 計畫已符合既有授權；未授權的新分組已取得實際授權。
+- [ ] 每個 commit 前都已核對 index 與已授權分組一致。
 - [ ] 每個 commit 群組都有明確 `type(scope): subject`。
-- [ ] 提交後已檢查 `git log --oneline -20`。
+- [ ] 已按起始 HEAD 核對新 commit 路徑，並重新收集及核對剩餘變更。
