@@ -3,10 +3,10 @@
   "surface": "codex-native",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
-  "sourceVersion": "0.66.0",
-  "sourceCommit": "19c8f841103164fc04171f03c157790ef48216cb",
-  "generatedFromCommit": "19c8f841103164fc04171f03c157790ef48216cb",
-  "generatedFromTree": "e4d6916ea2bc0185516132cf47e3648fdddeebbb",
+  "sourceVersion": "0.66.1",
+  "sourceCommit": "fda1e5fd5d2dbde2cc87a238068dda68b2dcd0ca",
+  "generatedFromCommit": "fda1e5fd5d2dbde2cc87a238068dda68b2dcd0ca",
+  "generatedFromTree": "bb800a351c4a774a02a16e2290b37957565947e2",
   "inventoryDigest": "0982a9a4048565ad5f99f965b1d71ea7e11aa483f501c1c065a8f8253223bd3a",
   "inventoryRevision": "sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727",
   "generatorVersion": "2.3.0",
@@ -6176,11 +6176,13 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "bb77d92b893c99c7f4f7540de236202a0ee56d91ce3b85915d9308a2e8b507ce",
+    "planId": "972bbf3c76dfd8066f9569a118402cea513d63e3b0c51c5f4f2e9733c79be3fe",
     "scope": "project",
-    "profileId": "common",
+    "profileId": "compat-v1",
     "selectedStableIds": [
       "change-verdict",
+      "cli-dispatch-context",
+      "cli-transport",
       "code-trace",
       "create-pr",
       "dep-audit",
@@ -6188,6 +6190,8 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
+      "opsx-load-context",
+      "opsx-post-obs",
       "precommit",
       "proposal-analyze",
       "release-creator",
@@ -6199,6 +6203,8 @@
     "supportClosure": {
       "stableIds": [
         "change-verdict",
+        "cli-dispatch-context",
+        "cli-transport",
         "code-trace",
         "create-pr",
         "dep-audit",
@@ -6206,6 +6212,8 @@
         "flow-guide",
         "git-smart-commit",
         "git-worktree",
+        "opsx-load-context",
+        "opsx-post-obs",
         "precommit",
         "proposal-analyze",
         "release-creator",
@@ -6222,10 +6230,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "bb77d92b893c99c7f4f7540de236202a0ee56d91ce3b85915d9308a2e8b507ce",
+      "plan": "972bbf3c76dfd8066f9569a118402cea513d63e3b0c51c5f4f2e9733c79be3fe",
       "inventory": "0982a9a4048565ad5f99f965b1d71ea7e11aa483f501c1c065a8f8253223bd3a"
     },
-    "rollbackIdentity": "072dcb2d8d344960219725f43c72e13643e2444b094f66baffa769268e57ea51"
+    "rollbackIdentity": "f4e0234e79b5e2919b6664f48cccab3a8d5cd8a26371b3672bfd5f88694e321c"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
@@ -7279,61 +7287,5 @@
     "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd",
     "update-docs": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
   },
-  "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-  "profileId": "common",
-  "selectedStableIds": [
-    "flow-guide",
-    "code-trace",
-    "change-verdict",
-    "flow-drive",
-    "git-smart-commit",
-    "release-creator",
-    "tdd",
-    "create-pr",
-    "git-worktree",
-    "proposal-analyze",
-    "update-docs",
-    "precommit",
-    "dep-audit",
-    "repo-verify",
-    "ui-ux-verify"
-  ],
-  "canonicalSelectedStableIds": [
-    "flow-guide",
-    "code-trace",
-    "change-verdict",
-    "flow-drive",
-    "git-smart-commit",
-    "release-creator",
-    "tdd",
-    "create-pr",
-    "git-worktree",
-    "proposal-analyze",
-    "update-docs",
-    "precommit",
-    "dep-audit",
-    "repo-verify",
-    "ui-ux-verify"
-  ],
-  "emittedStableIds": [
-    "flow-guide",
-    "code-trace",
-    "change-verdict",
-    "flow-drive",
-    "git-smart-commit",
-    "release-creator",
-    "tdd",
-    "create-pr",
-    "git-worktree",
-    "proposal-analyze",
-    "update-docs",
-    "precommit",
-    "dep-audit",
-    "repo-verify",
-    "ui-ux-verify"
-  ],
-  "compatibilityMode": "profile",
-  "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "c94ca1932e898b57f1bde1777551ae495da681391014909ef3014bba0ed7d24c",
-  "surfaceSelectionFingerprint": "b6d0f73a934e2fa0bf556befa73460760085e623658a545e36ebde7bd6a1dfd3"
+  "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
 }
