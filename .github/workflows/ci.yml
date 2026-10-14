@@ -68,7 +68,7 @@ jobs:
 
       - name: Validate workflow syntax
         if: needs.plan.outputs.mode == 'full'
-        uses: reviewdog/action-actionlint@1129829fb3230509a1c9aa4e93cec2b234746a68 # v1.78.0
+        uses: reviewdog/action-actionlint@1758727be30241166609dad4c97588b6ad411f32 # v1.79.1
         with:
           actionlint_flags: -color
           fail_level: error
