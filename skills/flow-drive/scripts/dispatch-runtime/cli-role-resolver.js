@@ -15,11 +15,6 @@ const ALIASES = Object.freeze({
   'agy-fast-worker': Object.freeze({ effectiveRole: 'agy-worker' }),
 });
 
-const BRIDGE_MODES = Object.freeze({
-  'read-only': 'codex-reviewer',
-  'workspace-write': 'codex-worker',
-});
-
 const CANONICAL_ROLES = Object.freeze({
   planner: Object.freeze({ authority: 'read-only' }),
   reasoner: Object.freeze({ authority: 'read-only' }),
@@ -79,14 +74,7 @@ function resolveRole({ requestedRole, mode, provider, diagnostics } = {}) {
   let providerConstraint;
   let deprecatedAlias = false;
   let compatibilitySource = 'canonical-role';
-  if (requestedRole === 'codex-bridge') {
-    if (mode !== 'read-only' && mode !== 'workspace-write') return blocked('mode is required and must be explicit');
-    effectiveRole = BRIDGE_MODES[mode];
-    canonicalRole = mode === 'read-only' ? 'reviewer' : 'worker';
-    providerConstraint = 'codex-cli';
-    deprecatedAlias = true;
-    compatibilitySource = 'legacy-role-alias';
-  } else if (ALIASES[requestedRole]) {
+  if (ALIASES[requestedRole]) {
     effectiveRole = ALIASES[requestedRole].effectiveRole;
     canonicalRole = LEGACY_PROVIDER_ROLES[effectiveRole].canonicalRole;
     providerConstraint = LEGACY_PROVIDER_ROLES[effectiveRole].provider;
@@ -168,5 +156,5 @@ function resolvePublication({ role, target, capabilities = [] } = {}) {
 }
 
 module.exports = Object.freeze({
-  ALIASES, BRIDGE_MODES, ROLE_MATRIX, createSessionDiagnostics, resolveConfig, resolvePublication, resolveRole,
+  ALIASES, ROLE_MATRIX, createSessionDiagnostics, resolveConfig, resolvePublication, resolveRole,
 });

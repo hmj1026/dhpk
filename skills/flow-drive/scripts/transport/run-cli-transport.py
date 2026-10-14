@@ -559,10 +559,7 @@ def reject_reserved_transport_placeholders(request):
 def canonical_role(requested_role, mode):
     if mode not in ("read-only", "workspace-write"):
         raise Blocked("mode is invalid")
-    if requested_role == "codex-bridge":
-        role = "codex-reviewer" if mode == "read-only" else "codex-worker"
-    else:
-        role = ROLE_ALIASES.get(requested_role, requested_role)
+    role = ROLE_ALIASES.get(requested_role, requested_role)
     authority = MAX_AUTHORITY.get(role)
     if authority is None:
         raise Blocked("role contract role is unknown")
