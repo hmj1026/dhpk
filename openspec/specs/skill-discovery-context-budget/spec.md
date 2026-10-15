@@ -98,12 +98,17 @@ contract SHALL have a schema version and deterministic fingerprint.
 
 ### Requirement: React and Next remain separate
 
-React 18/19 and Next.js 15.5/16 SHALL retain separate IDs and source mappings. This capability SHALL not merge, rename, or alias these entries.
+React and Next.js SHALL remain separate families with canonical stable IDs and public names `react` and `nextjs`. The closed self-contained consolidation SHALL replace React 18/19 predecessors with `react` and Next.js 15.5/16 predecessors with `nextjs`; it SHALL NOT preserve the four former entries as active identities or aliases. Each family SHALL preserve its version-specific differences, load only applicable resources, and avoid mixing incompatible APIs. Unknown or conflicting target versions SHALL trigger clarification and a pause before version-specific loading or dependent work. This replacement SHALL NOT relax restrictions for unrelated entries.
 
 #### Scenario: Frontend regression guard
 
-- **WHEN** the regression guard scans inventory and projections
-- **THEN** all four families remain independently addressable with their current mappings
+- **WHEN** the regression guard scans inventory and projections after consolidation
+- **THEN** `react` and `nextjs` remain independently addressable, their four predecessors are absent as active entries/aliases, and version resources remain correctly owned
+
+#### Scenario: Frontend target version is ambiguous
+
+- **WHEN** the selected frontend task lacks a reliable target version or has conflicting evidence
+- **THEN** the family asks and waits before loading version-specific references or taking dependent actions
 
 ### Requirement: Runtime evidence remains stage-honest
 
@@ -420,3 +425,22 @@ The distribution inventory SHALL declare the live `laravel` and `phpunit` family
 
 - **WHEN** validation sees duplicate aliases, ambiguous selectors, unsupported surfaces, a missing reference, a target outside the owning family `references/` directory, or a retired alias in a projection
 - **THEN** `node scripts/ci/validate-distribution.js --strict` fails with a stable diagnostic before projection or profile publication
+
+### Requirement: Consolidation evidence separates initial discovery from task loading
+
+SCF-REQ-009: Consolidation context comparisons SHALL bind before/after observations to the same provider/profile, source/artifact identities, and representative task inputs. Reports SHALL separately record the actual Host-rendered discovery list and initial tokens, static description estimates, and cumulative task input tokens/tool round trips with loaded-resource traces. Static estimates SHALL NOT be labeled live measurements. Acceptance SHALL verify that mapped predecessors are no longer exposed and that a family loads only task-required resources rather than preloading all references. Positive token savings SHALL remain an observed outcome, not a guaranteed threshold; unmeasured outcomes SHALL remain `NOT_RUN`. This requirement SHALL NOT force unrelated families into `common`, start unrelated full research baselines, or change existing authorization for model/API execution.
+
+#### Scenario: Static catalog shrinks without a Host observation
+
+- **WHEN** inventory counts or static description estimates decrease but no matching Host measurement ran
+- **THEN** the report preserves the static result and leaves live initialization and task-token benefit `NOT_RUN`
+
+#### Scenario: Family preloads its entire reference collection
+
+- **WHEN** a representative task loads all family references regardless of relevance
+- **THEN** progressive-loading acceptance fails even if the discovery entry count decreased
+
+#### Scenario: Before and after observations use different selections
+
+- **WHEN** provider/profile or task inputs differ across the proposed cost comparison
+- **THEN** the report identifies the mismatch and does not present the observations as a controlled savings result
