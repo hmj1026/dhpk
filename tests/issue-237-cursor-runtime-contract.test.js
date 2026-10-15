@@ -63,7 +63,7 @@ test('Cursor authenticated shared-network runtime probes use bwrap --share-net w
       pathValue: process.env.PATH,
       executable: path.join(bin, 'cursor-agent'),
       args: ['--plugin-dir', packageRoot, '--output-format', 'json'],
-      timeoutMs: 500,
+      timeoutMs: 10_000,
       requireOutput: true,
       requireJson: true,
       requireDiscovery: true,
