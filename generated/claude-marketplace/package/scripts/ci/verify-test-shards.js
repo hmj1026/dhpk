@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { findTests } = require('../../tests/run-all');
 const { validateCiPlan } = require('../lib/ci-plan');
+const { validateAssertionSummary } = require('../lib/assertion-evidence');
 
 const TIMING_SCHEMA = 'dhpk.test-timing.v1';
 const EXPECTED_JOBS = 4;
@@ -28,25 +29,6 @@ function isNonNegativeNumber(value) {
 
 function isCount(value) {
   return Number.isInteger(value) && value >= 0;
-}
-
-function validateAssertionSummary(assertions, label, requireObservedStatus = true, allowUnknownSkipped = false) {
-  if (!assertions || typeof assertions !== 'object' || Array.isArray(assertions)) {
-    return [`${label} has no assertion summary.`];
-  }
-  if (requireObservedStatus && assertions.status !== 'OBSERVED') {
-    return [`${label} assertion evidence is not observed.`];
-  }
-
-  const counts = ['total', 'passed', 'failed'];
-  if (!allowUnknownSkipped || assertions.skipped !== null) counts.push('skipped');
-  const invalidCount = counts.find((field) => !isCount(assertions[field]));
-  if (invalidCount) return [`${label} has an invalid ${invalidCount} assertion count.`];
-  if (assertions.total !== assertions.passed + assertions.failed) {
-    return [`${label} assertion totals are inconsistent.`];
-  }
-  if (assertions.failed !== 0) return [`${label} contains failed assertions.`];
-  return [];
 }
 
 function normalizeReportFile(file, label) {
