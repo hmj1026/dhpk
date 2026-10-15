@@ -5,6 +5,12 @@ description: 'Save and resume a long-running OpenSpec apply session from a live 
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
+  dhpk-next:
+    PASS: none
+    FAIL: none
+    BLOCKED: none
+    NOT_RUN: none
+    UNAVAILABLE: none
 ---
 
 # OpenSpec Apply Resume

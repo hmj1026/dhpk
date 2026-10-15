@@ -5,6 +5,12 @@ argument-hint: '[--scope=<path>] [--type=<type>] [--ai-co-author]'
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
+  dhpk-next:
+    PASS: change-verdict:pr
+    FAIL: none
+    BLOCKED: none
+    NOT_RUN: none
+    UNAVAILABLE: none
 ---
 
 # Git Smart Commit — 智慧拆分提交

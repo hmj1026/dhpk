@@ -213,6 +213,14 @@
       {
         "source": "scripts/lib/feature-resolver.js",
         "destination": "scripts/_lib/feature-resolver.js"
+      },
+      {
+        "source": "scripts/lib/skill-next-map.js",
+        "destination": "scripts/_lib/skill-next-map.js"
+      },
+      {
+        "source": "scripts/ci/_lib/frontmatter.js",
+        "destination": "scripts/_lib/frontmatter.js"
       }
     ],
     "harness-setup": [

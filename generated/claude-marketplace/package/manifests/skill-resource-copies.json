@@ -319,10 +319,22 @@
       "sha256": "sha256:8a3ba85f1381877a61d3b65f5382977916ed884547fbc5c4d5465c97fd60062d",
       "mode": "0644"
     },
+    "skills/flow-guide/scripts/_lib/frontmatter.js": {
+      "skill_id": "flow-guide",
+      "source": "scripts/ci/_lib/frontmatter.js",
+      "sha256": "sha256:ebb87555ff5d516c8484e645f09253b7fea11d8c925743382e59e741247dbf39",
+      "mode": "0644"
+    },
     "skills/flow-guide/scripts/_lib/runner-utils.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/runner-utils.js",
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "mode": "0644"
+    },
+    "skills/flow-guide/scripts/_lib/skill-next-map.js": {
+      "skill_id": "flow-guide",
+      "source": "scripts/lib/skill-next-map.js",
+      "sha256": "sha256:839f31ada88dcf34edd9bcee1b928a79f2accb23259fe1e107a81f71cbba2c28",
       "mode": "0644"
     },
     "skills/flow-guide/scripts/_lib/skill-usage.js": {

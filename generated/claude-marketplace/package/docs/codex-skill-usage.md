@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:96d01f6f6b5cc2704b82cb862c4bd131665ff1d8712c63faf1c29dc9facd6921`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:938ca786b9969a31e9b014c52fa1092031639beb669ec6db147d896e814b69fe`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -134,7 +134,7 @@ Examples:
 ### `$flow-guide`
 
 Summary: Guide routes, rules, next steps, closeout, and usage help
-Syntax: `$flow-guide <help|route|rules|next|close> [--go] [<query>]`
+Syntax: `$flow-guide <help|route|rules|next|close> [--go] [--host <host>] [<query>]`
 Invocation class: `implicit-eligible`
 Maximum authority: `delegate`
 
@@ -146,14 +146,16 @@ Actions:
 - `help` `$flow-guide help [<skill>]` — Show available Codex usage or one usage card
 - `route` `$flow-guide route [--go] [<query>]` — Select the smallest workflow owner for a task
 - `rules` `$flow-guide rules [<query>]` — Look up the governing workflow rules
-- `next` `$flow-guide next [<query>]` — Identify the next bounded workflow action
+- `next` `$flow-guide next [--host <host>] [<query>]` — Identify the next bounded workflow action
 - `close` `$flow-guide close [<query>]` — Check closeout evidence and remaining gates
 
 Options:
 - `go` `--go` (optional, boolean, default=false) — Request one bounded handoff when the route is eligible
+- `host` `--host` (optional, enum, values=claude-code|codex-cli|agy|cursor|claude|codex, default=claude-code) — Select next-action invocation formatting and handoff Host; Codex passes codex-cli
 
 Examples:
 - `$flow-guide help` — List the available Codex skill usage contracts
+- `$flow-guide next --host codex-cli` — Resolve declared next steps using Codex invocation formatting
 
 ### `$git-smart-commit`
 

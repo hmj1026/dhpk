@@ -3,6 +3,12 @@ name: git-smart-commit
 description: "將雜亂的 git 變更依邏輯分群、逐批提交,適用於需要把多項變更拆成多個邏輯一致 commit 的情境。Not for: 單一小變更或只需要一個 commit（直接 commit 即可）。Output: 可直接執行的分組提交計畫與 commit 指令。"
 metadata:
   dhpk-invocation-class: "explicit-only"
+  dhpk-next:
+    PASS: "change-verdict:pr"
+    FAIL: "none"
+    BLOCKED: "none"
+    NOT_RUN: "none"
+    UNAVAILABLE: "none"
 ---
 
 # Git Smart Commit — 智慧拆分提交

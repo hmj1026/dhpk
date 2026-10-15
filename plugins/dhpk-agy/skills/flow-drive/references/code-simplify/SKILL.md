@@ -5,6 +5,12 @@ description: 'Use when cleaning changed code for reuse, simplicity, efficiency, 
 allowed-tools: 'Read, Grep, Glob, Edit, Bash'
 metadata:
   dhpk-invocation-class: implicit-eligible
+  dhpk-next:
+    PASS: repo-verify
+    FAIL: none
+    BLOCKED: none
+    NOT_RUN: none
+    UNAVAILABLE: none
 ---
 
 # Code simplification
