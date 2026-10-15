@@ -10,6 +10,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
+  normalizePortableFrontmatter,
   AGENT_PLUGIN_SCHEMA,
   MCP_SCHEMA,
   materializeAgentPluginPackage,
@@ -21,6 +22,7 @@ const {
 } = require('../scripts/lib/agent-plugin-package');
 
 const ROOT = path.join(__dirname, '..');
+const { extractMetadata } = require('../scripts/ci/_lib/frontmatter');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
 
 function tmpDir(prefix) {
@@ -64,6 +66,38 @@ function assertPackageFilesEquivalent(actualFiles, expectedFiles) {
     assert.ok(content.equals(expectedFiles[key]), `Content mismatch for package entry: ${key}`);
   }
 }
+
+test('portable normalization preserves nested handoff metadata semantics and is idempotent', () => {
+  const source = [
+    '---', 'name: doc-maintain', 'description: Maintain docs', 'metadata:',
+    '  origin: existing scalar',
+    '  Legacy.Key: preserved scalar',
+    '  dhpk-invocation-class: implicit-eligible',
+    '  dhpk-modes: [update, codemap, refactor]',
+    '  dhpk-next:',
+    '    PASS: none', '    FAIL: none', '    BLOCKED: none', '    NOT_RUN: none', '    UNAVAILABLE: none',
+    '    update:PASS: git-smart-commit', '---', '# body',
+  ].join('\n');
+  const normalized = normalizePortableFrontmatter(source);
+  assert.strictEqual(normalized.ok, true, normalized.errors.join('\n'));
+  assert.strictEqual(normalized.frontmatter.metadata['Legacy.Key'], 'preserved scalar');
+  assert.strictEqual(normalized.frontmatter.metadata.origin, 'existing scalar');
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(normalized.frontmatter.metadata, 'PASS'), false);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(normalized.frontmatter.metadata, 'update:PASS'), false);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(normalized.frontmatter.metadata, 'update'), false);
+  const metadata = extractMetadata(normalized.output);
+  assert.deepStrictEqual(metadata.errors, []);
+  assert.deepStrictEqual(metadata.values, extractMetadata(source).values);
+  assert.strictEqual(normalizePortableFrontmatter(normalized.output).output, normalized.output);
+});
+
+test('portable normalization refuses malformed known nested handoff fields', () => {
+  for (const metadata of ['  dhpk-next: ""', '  dhpk-modes: "[update, codemap]"']) {
+    const result = normalizePortableFrontmatter(`---\nname: doc-maintain\ndescription: Maintain docs\nmetadata:\n${metadata}\n---\n`);
+    assert.strictEqual(result.ok, false, metadata);
+    assert.ok(result.errors.length > 0);
+  }
+});
 
 test('portable manifest is closed and uses the Agent Plugins 1.0.0 schema', () => {
   const valid = validatePortableManifest({
@@ -608,6 +642,24 @@ test('default Agent Plugin generation publishes the canonical owner catalog', ()
       sourceCommit: priorReceipt.sourceCommit,
       manifestMetadata: sourceManifest,
     });
+    const guideLib = path.join(out, 'skills', 'flow-guide', 'scripts', '_lib');
+    const packagedParser = require(path.join(guideLib, 'frontmatter.js'));
+    const packagedMap = require(path.join(guideLib, 'skill-next-map.js'));
+    const metadata = Object.fromEntries(['doc-maintain', 'git-smart-commit'].map(name => [
+      name, packagedParser.extractMetadata(fs.readFileSync(path.join(out, 'skills', name, 'SKILL.md'), 'utf8')),
+    ]));
+    const target = packagedMap.resolveNext(metadata, { name: 'doc-maintain', mode: 'update', state: 'PASS' });
+    assert.deepStrictEqual({
+      errors: metadata['doc-maintain'].errors,
+      modes: metadata['doc-maintain'].values['dhpk-modes'],
+      next: metadata['doc-maintain'].values['dhpk-next']['update:PASS'],
+      target: target.name,
+      action: packagedMap.formatNextAction(target, { host: 'codex' }),
+    }, {
+      errors: [], modes: ['update', 'codemap', 'refactor'], next: 'git-smart-commit',
+      target: 'git-smart-commit', action: '$git-smart-commit',
+    });
+
     const selection = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
     const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
     const commonIds = selection.skills.filter((entry) => entry.selection === 'common' && entry.kind === 'entry')

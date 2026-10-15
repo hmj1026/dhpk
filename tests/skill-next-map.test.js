@@ -30,6 +30,15 @@ test('a mode-specific state wins over the generic state', () => {
 
 test('none resolves as terminal without looking up a skill named none', () => {
   assert.strictEqual(resolveNext(skills, { name: 'tdd-workflow', state: 'BLOCKED' }).terminal, true);
+  const absent = { source: { values: { 'dhpk-next': { PASS: 'constructor' } } } };
+  assert.strictEqual(resolveNext(absent, { name: 'source', state: 'PASS' }).terminal, true);
+  const present = { ...absent, constructor: { values: {} } };
+  assert.strictEqual(resolveNext(present, { name: 'source', state: 'PASS' }).name, 'constructor');
+  const inherited = Object.create({ source: { values: { 'dhpk-next': { PASS: 'target' } } } });
+  inherited.target = { values: {} };
+  assert.strictEqual(resolveNext(inherited, { name: 'source', state: 'PASS' }).terminal, true);
+  const inheritedTarget = Object.assign(Object.create({ target: { values: {} } }), { source: { values: { 'dhpk-next': { PASS: 'target' } } } });
+  assert.strictEqual(resolveNext(inheritedTarget, { name: 'source', state: 'PASS' }).terminal, true);
 });
 
 test('doc-maintain update has its own successor while other modes stay terminal', () => {

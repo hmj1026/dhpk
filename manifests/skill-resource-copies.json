@@ -334,7 +334,7 @@
     "skills/flow-guide/scripts/_lib/skill-next-map.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/skill-next-map.js",
-      "sha256": "sha256:41758abb1d4afee91ea31ea02327127fa367f0124f6c0715ae8e54dcf692714b",
+      "sha256": "sha256:839f31ada88dcf34edd9bcee1b928a79f2accb23259fe1e107a81f71cbba2c28",
       "mode": "0644"
     },
     "skills/flow-guide/scripts/_lib/skill-usage.js": {

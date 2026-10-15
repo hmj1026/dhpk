@@ -15,6 +15,9 @@ function fixture(next = {}, modes = ['code']) {
 test('one graph-integrity suite accepts closed maps and rejects invalid edges', () => {
   const valid = fixture({ PASS: 'target:code' });
   assert.deepStrictEqual(validateNextGraph(valid), []);
+  const ownConstructor = fixture({ PASS: 'constructor' });
+  ownConstructor.constructor = { values: { 'dhpk-next': terminal } };
+  assert.deepStrictEqual(validateNextGraph(ownConstructor), []);
   const openModes = fixture({ PASS: 'target:fast' });
   delete openModes.target.values['dhpk-modes'];
   assert.deepStrictEqual(validateNextGraph(openModes), []);
@@ -25,6 +28,7 @@ test('one graph-integrity suite accepts closed maps and rejects invalid edges', 
   const invalid = [
     [fixture({ PARTIAL: 'none' }), /state/i],
     [fixture({ PASS: 'missing' }), /target|skill/i],
+    [fixture({ PASS: 'constructor' }), /target|skill/i],
     [fixture({ PASS: 'target:missing' }), /mode/i],
     [fixture({ PASS: '/target' }), /identity|target|value/i],
     [fixture({ PASS: '$target' }), /identity|target|value/i],
@@ -36,6 +40,10 @@ test('one graph-integrity suite accepts closed maps and rejects invalid edges', 
     assert.match(errors.join('\n'), message);
   }
   assert.ok(validateNextGraph({ source: { values: {} } }, { requiredSkills: ['source'] }).length > 0);
+  const inherited = Object.create({ source: { values: { 'dhpk-next': terminal } } });
+  assert.ok(validateNextGraph(inherited, { requiredSkills: ['source'] }).length > 0);
+  const inheritedTarget = Object.assign(Object.create({ target: { values: { 'dhpk-next': terminal } } }), { source: valid.source });
+  assert.ok(validateNextGraph(inheritedTarget).length > 0);
 });
 
 run('skill-next-graph');

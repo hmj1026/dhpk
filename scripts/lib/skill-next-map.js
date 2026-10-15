@@ -14,10 +14,15 @@ function valuesOf(metadata) {
   return metadata && metadata.values ? metadata.values : {};
 }
 
+function ownSkill(skills, name) {
+  return Object.prototype.hasOwnProperty.call(skills, name) ? skills[name] : null;
+}
+
 function validateNextGraph(skills, { requiredSkills = [] } = {}) {
   const errors = [];
   for (const name of requiredSkills) {
-    if (!skills[name] || !valuesOf(skills[name])['dhpk-next']) {
+    const metadata = ownSkill(skills, name);
+    if (!metadata || !valuesOf(metadata)['dhpk-next']) {
       errors.push(`${name}: required dhpk-next map is missing`);
     }
   }
@@ -44,7 +49,7 @@ function validateNextGraph(skills, { requiredSkills = [] } = {}) {
         errors.push(`${name}: invalid target identity ${String(target)}`);
         continue;
       }
-      const targetMetadata = skills[identity[1]];
+      const targetMetadata = ownSkill(skills, identity[1]);
       if (!targetMetadata) {
         errors.push(`${name}: target skill ${identity[1]} does not exist`);
         continue;
@@ -58,19 +63,20 @@ function validateNextGraph(skills, { requiredSkills = [] } = {}) {
 }
 
 function resolveNext(skills, { name, mode, state }) {
-  const next = valuesOf(skills[name])['dhpk-next'] || {};
+  const next = valuesOf(ownSkill(skills, name))['dhpk-next'] || {};
   const modeKey = mode ? `${mode}:${state}` : null;
   const value = modeKey && Object.prototype.hasOwnProperty.call(next, modeKey) ? next[modeKey] : next[state];
   const terminal = { name: null, mode: null, terminal: true, invocationClass: null };
   if (value == null || value === 'none') return terminal;
   const identity = typeof value === 'string' ? value.match(IDENTITY) : null;
-  if (!identity || !skills[identity[1]]) return terminal;
-  if (identity[2] && valuesOf(skills[identity[1]])['dhpk-modes'] !== undefined && !valuesOf(skills[identity[1]])['dhpk-modes'].includes(identity[2])) return terminal;
+  const metadata = identity && ownSkill(skills, identity[1]);
+  if (!metadata) return terminal;
+  if (identity[2] && valuesOf(metadata)['dhpk-modes'] !== undefined && !valuesOf(metadata)['dhpk-modes'].includes(identity[2])) return terminal;
   return {
     name: identity[1],
     mode: identity[2] || null,
     terminal: false,
-    invocationClass: valuesOf(skills[identity[1]])['dhpk-invocation-class'] || null,
+    invocationClass: valuesOf(metadata)['dhpk-invocation-class'] || null,
   };
 }
 
