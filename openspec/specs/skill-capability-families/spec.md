@@ -44,44 +44,42 @@ selection is decided independently.
 
 ### Requirement: Family modes preserve predecessor behavior and authority
 
-The family interfaces SHALL provide these modes and selectors: `skill-scope` has `health`, `judge`, `stocktake`, and `scout`; `flow-guide` has `route`, `rules`, `next`, and `close`, plus a read-only `help` metadata action that is not a workflow mode; `flow-drive` has no modes and exposes one explicit implementation entry for confirmed specifications; `change-verdict` has `code`, `pr`, `security`, `tests`, `docs`, and `risk`, plus `pending` and `deps` actions with the authority contract below; `code-trace` has `explore`, `diagnose`, `history`, and `select-tool`; `laravel` has selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, and `mix`; `phpunit` has selectors `9`, `10`, and `11`; and `harness-govern` has modes `health`, `budget`, `fill`, `revise`, and `sync`. A mode or selector SHALL preserve the applicable predecessor's authorization boundary and terminal evidence. These interface contracts do not require every family to be selected as a public workflow.
-
-SCF-REQ-007: `change-verdict`'s six existing modes, `pending`, and default `deps` audit SHALL remain read-only. Only an explicit user request for dependency fix/remediation SHALL authorize workspace writes, limited to that dependency remediation; the request SHALL NOT require repeated authorization for the same bounded fix or grant arbitrary source repair. Fix execution SHALL be followed by an independent security verdict and SHALL NOT itself clear a gate. `pending` SHALL delegate to an available `code-reviewer`; its absence SHALL return `UNAVAILABLE`. Description, authority instructions, inventory usage, and action authority SHALL consistently distinguish audit from remediation instead of retaining a blanket read-only promise or marking default audit workspace-write.
+The family interfaces SHALL provide these modes and selectors: `skill-scope`
+has `health`, `judge`, `stocktake`, and `scout`; `flow-guide` has `route`, `rules`, `next`, and `close`, plus a
+read-only `help` metadata action that is not a workflow mode; `flow-drive` has
+no modes and exposes one explicit implementation entry for confirmed
+specifications; `change-verdict` has `code`, `pr`, `security`, `tests`, `docs`,
+and `risk`; `code-trace` has `explore`, `diagnose`, `history`, and `select-tool`;
+`laravel` has selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, and `mix`;
+`phpunit` has selectors `9`, `10`, and `11`; and `harness-govern` has modes
+`health`, `budget`, `fill`, `revise`, and `sync`. A mode or selector SHALL
+preserve the applicable predecessor's authorization boundary and terminal
+evidence. These interface contracts do not require every family to be selected
+as a public workflow.
 
 #### Scenario: Read-only verdict is selected
 
-- **WHEN** `change-verdict` selects `code`, `pr`, `security`, `tests`, `docs`, `risk`, `pending`, or `deps` without explicit remediation authority
+- **WHEN** `change-verdict` selects any mode
 - **THEN** it reads and reports evidence without editing files, clearing sentinels, staging changes, invoking a writer, or producing an approval unsupported by the selected checks
 
 #### Scenario: Mutating family requires explicit invocation
 
 - **WHEN** work requires `flow-drive` or `harness-govern`
-- **THEN** the family remains explicit-only and the model may recommend it without starting it absent direct human invocation or an already authorized explicit router delegation
+- **THEN** the family remains explicit-only and the model may recommend it
+  without starting it absent direct human invocation or an already authorized
+  explicit router delegation
 
 #### Scenario: Flow guide help is metadata-only
 
 - **WHEN** a user requests `flow-guide` `help` for a skill, action, or selector
-- **THEN** it returns the inventory-owned usage metadata without editing files, changing workflow state, or treating `help` as a fourth workflow mode
+- **THEN** it returns the inventory-owned usage metadata without editing files,
+  changing workflow state, or treating `help` as a fourth workflow mode
 
 #### Scenario: Flow drive receives a confirmed specification
 
 - **WHEN** `flow-drive` receives a confirmed specification or OpenSpec change
-- **THEN** it begins the explicit implementation entry without requiring or accepting a mode selector
-
-#### Scenario: Pending reviewer is unavailable
-
-- **WHEN** `pending` has no available permitted `code-reviewer`
-- **THEN** it reports `UNAVAILABLE` without substituting self-review or clearing a gate
-
-#### Scenario: Explicit dependency remediation is requested
-
-- **WHEN** a user explicitly requests `deps fix` or equivalent dependency remediation
-- **THEN** only bounded dependency changes are authorized, no repeated confirmation is required for that scope, and a separate independent security verdict follows the fix
-
-#### Scenario: Remediation completes but independent review does not pass
-
-- **WHEN** the fix command succeeds but independent security review fails or is unavailable
-- **THEN** remediation execution and the non-pass verdict remain separate and no gate PASS is reported
+- **THEN** it begins the explicit implementation entry without requiring or
+  accepting a mode selector
 
 ### Requirement: Predecessor mapping is closed and normative
 
@@ -209,90 +207,3 @@ SHALL not add a workflow mode or independent help owner.
 - **WHEN** a proposed usage contract adds a mode selector to `flow-drive`
 - **THEN** family validation rejects it and preserves the single explicit
   implementation entry
-
-### Requirement: Self-contained skill consolidation has a closed ownership mapping
-
-SCF-REQ-001: The self-contained consolidation SHALL use exactly this stable-ID predecessor mapping. Each successor SHALL directly own its internal capabilities and SHALL NOT invoke a removed predecessor at runtime. Internal references/scripts SHALL NOT become separately discovered skills. New successor stable IDs and inventory public names SHALL be `swift`, `react`, `nextjs`, `python`, `js-static-checks`, `php`, and `yii1`; `opsx-apply-resume` and `change-verdict` SHALL retain their existing identities. Provider namespaces SHALL remain governed by existing projection rules.
-
-| Predecessor stable ID | Successor stable ID |
-| --- | --- |
-| `opsx-load-context` | `opsx-apply-resume` |
-| `opsx-post-obs` | `opsx-apply-resume` |
-| `swift-language` | `swift` |
-| `swiftui-architecture` | `swift` |
-| `swift-test-strategy` | `swift` |
-| `ios-platform` | `swift` |
-| `xcode-build-tooling` | `swift` |
-| `ios-icon-gen` | `swift` |
-| `react-18-notes` | `react` |
-| `react-19-notes` | `react` |
-| `nextjs-15-5-notes` | `nextjs` |
-| `nextjs-16-notes` | `nextjs` |
-| `python-pro` | `python` |
-| `python-static-checks` | `python` |
-| `pytest-async` | `python` |
-| `fastapi-pro` | `python` |
-| `js-lint-config` | `js-static-checks` |
-| `js-static-check-strategy` | `js-static-checks` |
-| `php-pro` | `php` |
-| `php-modern-pro` | `php` |
-| `php-8x-features` | `php` |
-| `php56-yii-dev` | `yii1` |
-| `yii1-security-audit` | `yii1` |
-| `review-pending` | `change-verdict` |
-| `dep-audit` | `change-verdict` |
-
-This is a separate closed mapping from the historical predecessor matrix; it SHALL NOT alter or extend that historical wave. `flow-drive`, `dhpk-cli-transport`, `dhpk-cli-dispatch-context`, `dhpk-codex-bridge`, and `dhpk-agy-fast-worker` SHALL be fully excluded from file movement, route changes, helper consolidation, and exposure changes. No universal router or adapter framework SHALL be introduced by this consolidation.
-
-#### Scenario: Selected family replaces its predecessors
-
-- **WHEN** an affected selection installs the consolidated successor
-- **THEN** the successor owns the mapped capabilities, old mapped entries are absent from discovery, and internal resources do not appear as peer skills
-
-#### Scenario: Mapping or excluded owner is changed
-
-- **WHEN** consolidation validation encounters an extra/remapped predecessor or a changed excluded skill/selection
-- **THEN** it fails with the identity and unexpected change instead of treating directory count as authority to expand scope
-
-### Requirement: Consolidated families preserve specialist task outcomes
-
-SCF-REQ-005: Internal on-demand resources SHALL preserve useful predecessor behavior and verification, including Swift icon generation scripts and asset outputs, Swift testing/build/platform workflows, Python testing/static-check/FastAPI workflows, PHP 5.6/7.4/8.x runtime restrictions, and Yii security. PHP runtime/language routing SHALL belong to `php`; Yii framework/security behavior SHALL belong to `yii1`. Consolidation SHALL NOT erase legacy compatibility or flatten distinct task/version behavior into generic advice.
-
-#### Scenario: Swift icon task is selected
-
-- **WHEN** a caller requests supported icon asset generation through `swift`
-- **THEN** the family selects its local icon procedure/scripts and preserves the expected asset outputs and verification without loading every Swift reference
-
-#### Scenario: Python specialist task is selected
-
-- **WHEN** a caller requests testing, static checks, or FastAPI work through `python`
-- **THEN** the matching specialist resources and output checks apply rather than one undifferentiated Python procedure
-
-#### Scenario: Legacy PHP or Yii task is selected
-
-- **WHEN** the target is PHP 5.6/7.4/8.x or Yii 1.1
-- **THEN** `php` applies the established target runtime restrictions and `yii1` applies framework/security guidance without suggesting unsupported newer-runtime APIs
-
-### Requirement: Opsx directly owns Resume and Save helper behavior
-
-SCF-REQ-006: `opsx-apply-resume` SHALL directly own the complete local procedures/scripts formerly exposed by `opsx-load-context` and `opsx-post-obs`. Resume SHALL retain memory, compact JSON, then handoff fallback, returning `BLOCKED` only when all three provide no usable content. Observation posting SHALL occur only in Save and preserve asynchronous overlap, result collection/waiting before handoff completion, and existing observation-ID/null semantics. Optional-service failure SHALL NOT be confused with required local asset failure or reported as successful saving. Existing safe-destination and write-boundary protections SHALL remain intact.
-
-#### Scenario: Earlier Resume context sources are unavailable
-
-- **WHEN** memory and compact context provide no usable data but a valid handoff does
-- **THEN** Resume uses the handoff and reports its context source instead of blocking on the earlier sources
-
-#### Scenario: No Resume context is usable
-
-- **WHEN** memory, compact JSON, and handoff all provide no usable context
-- **THEN** Resume returns `BLOCKED` without inventing context
-
-#### Scenario: Optional observation service fails
-
-- **WHEN** Save's optional observation service is denied or unavailable
-- **THEN** Save preserves the existing null/failure record and required result-collection semantics without claiming that observation persistence succeeded
-
-#### Scenario: Resume is selected
-
-- **WHEN** the workflow enters Resume rather than Save
-- **THEN** it performs no observation-posting side effect

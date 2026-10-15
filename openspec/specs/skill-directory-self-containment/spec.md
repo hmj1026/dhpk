@@ -214,13 +214,19 @@ or session-context file can be created outside the selected target.
 
 ### Requirement: Completion evidence covers canonical Skills and consumers separately
 
-Verification SHALL include inventory-wide structure/resource coverage and
-isolated behavioral fixtures for declared executable entries, with appropriate
-reference/routing checks for instruction-only Skills. Generated packages,
-installation migration, and actual Host probes SHALL have separate evidence.
-Missing fixtures, failed checks, and unavailable Host probes SHALL remain
-visible non-pass states; neither a help-only check nor successful packaging
-SHALL substitute for representative runtime behavior.
+REQ-6 continued: Verification SHALL include inventory-wide structure/resource
+coverage and authoring fixture definitions for declared executable entries,
+with appropriate reference/routing checks for instruction-only Skills.
+Generated packages, installation migration, and actual Host probes SHALL have
+separate evidence. Missing fixture definitions, failed checks, and unavailable
+Host probes SHALL remain visible non-pass states. Routine CI SHALL classify packaged Skill-script files and execute recognized
+public CLI entries through the operability smoke suite (exit code and output
+shape). Internal modules SHALL retain their applicable existing behavior
+coverage. Routine CI SHALL NOT present that smoke as representative isolated
+runtime. Neither a help-only check nor successful packaging SHALL substitute
+for representative runtime behavior. Representative isolated runtime remains a
+publication or on-demand evidence class; daily CI MAY omit historical family
+isolation suites when the smoke suite invokes those public CLI entries.
 
 #### Scenario: Raw-directory behavior fails after package tests pass
 
@@ -234,6 +240,13 @@ SHALL substitute for representative runtime behavior.
   probe
 - **THEN** the report records `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE` and does not
   upgrade structural evidence into consumer runtime PASS
+
+#### Scenario: Operability smoke is not representative runtime
+
+- **WHEN** the Skill-script operability smoke passes using `--help` or a start
+  fixture in an isolated empty project
+- **THEN** reports SHALL NOT record representative isolated runtime as PASS
+  from that smoke alone
 
 ### Requirement: Publication preserves selection and verified ownership
 
@@ -263,40 +276,20 @@ revision; missing commit or publication authority SHALL remain an explicit gate.
 - **THEN** the operation is blocked without hand-editing receipts, fabricating
   provenance, or silently committing the worktree
 
-### Requirement: Consolidated families include complete delivery resources
+### Requirement: Coverage fixture definitions remain until remapped
 
-SCF-REQ-002: Each family in the closed self-contained consolidation mapping SHALL include every required local procedure, document, reference, script, template, configuration, and transitive resource within its installed family directory. All local paths SHALL resolve from that directory without reading a source checkout, sibling skill, retired predecessor, repository manifest, or ambient parent. Shared canonical sources and deterministic authoring-time copies SHALL remain permitted. Missing required assets SHALL fail build, installation, or delivery validation; they SHALL NOT be an ordinary user workflow branch or an instruction to obtain the omitted package resource. Runtime missing-resource protection SHALL fail closed before dependent mutation and SHALL NOT excuse incomplete delivery.
+REQ-6: Inventory-wide skill-directory coverage SHALL continue to require a
+fixture definition for every declared executable entry. Authoring registration
+of those definitions SHALL remain valid after isolation-test deletion. Fixture
+modules that the coverage validator still imports SHALL NOT be deleted as
+orphans. Bridge, flow, resume, and skill-directory fixture helpers that other
+KEEP suites or the coverage validator require SHALL remain. A later remap of
+`fixture_ids` onto the operability smoke suite MAY retire family-specific
+definition modules only after coverage validation still passes.
 
-#### Scenario: Family survives relocation and predecessor deletion
+#### Scenario: Isolation tests are gone and coverage still validates
 
-- **WHEN** a complete family directory is copied to an unrelated temporary location, ambient source variables and module paths are cleared, and predecessor/sibling skills are absent
-- **THEN** its representative supported task resolves all local resources and produces the expected output using only declared external capabilities and explicit task inputs
-
-#### Scenario: Required package asset is removed
-
-- **WHEN** a required local asset is deleted from a candidate family package while an ambient copy remains available
-- **THEN** delivery validation fails with the family identity and missing resource instead of borrowing the ambient copy or requesting that the user supply the omitted asset
-
-#### Scenario: Runtime detects tampering after delivery
-
-- **WHEN** a required bundled resource becomes unavailable before a dependent mutating action
-- **THEN** runtime protection returns a non-pass missing-resource result without performing that action or modifying the target
-
-### Requirement: Consolidated family acceptance observes representative tasks
-
-SCF-REQ-010: Every mapped successor family SHALL have representative public task fixtures covering selected resources/actions, observable output, required resource closure, scope/version clarification when relevant, and effect authority. Executable families SHALL be exercised in relocated directories with ambient dependencies removed; instruction-only branches SHALL have task-to-reference/output oracles beyond matching prose. Existing synthetic fixtures, static checks, and generated package success SHALL NOT substitute for family-specific behavior or actual Host runtime. External APIs MAY use bounded test substitutes, but reports SHALL identify the substitute and retain unavailable live evidence as `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE`.
-
-#### Scenario: Existing synthetic isolation tests pass
-
-- **WHEN** synthetic isolation tests pass but a consolidated family has no representative public-task fixture
-- **THEN** that family's behavioral acceptance remains incomplete rather than inheriting the synthetic result
-
-#### Scenario: External service is simulated
-
-- **WHEN** a family fixture uses a bounded substitute for an external API
-- **THEN** the report records the tested contract and substitute separately from live service and Host evidence
-
-#### Scenario: One family still reads a sibling
-
-- **WHEN** aggregate packaging passes but one relocated family fails without its sibling directory
-- **THEN** that family fails self-containment and overall consolidation acceptance remains non-pass
+- **WHEN** family isolation test files are deleted and the coverage validator
+  runs with the remaining fixture registrations
+- **THEN** every declared executable entry still has a known fixture id and
+  matching entry path, or coverage fails with the unknown fixture identity
