@@ -31,7 +31,7 @@ consumer-facing contract.
 ## When NOT to Use
 
 - Application code that is never published to downstream consumers.
-- Language-level idiom selection; use `skills/dhpk-php-modern-pro`.
+- Language-level idiom selection; use `skills/php`.
 - Laravel service-provider, facade, publishing, or Testbench mechanics; use
   `dhpk-laravel-package-author` or `dhpk-laravel-testbench-matrix`.
 - A release workflow that does not publish a Composer package.
@@ -62,6 +62,6 @@ Return one of:
 
 - `references/package-contracts.md` — semver, public API, composer.json, Laravel
   discovery, and release contract details; load only the branch being used.
-- `skills/dhpk-php-modern-pro/SKILL.md` — PHP language and dual-floor idioms.
+- `skills/php/SKILL.md` — PHP language and dual-floor idioms.
 - `skills/dhpk-laravel-package-author/SKILL.md` — Laravel package authoring mechanics.
 - `skills/dhpk-laravel-testbench-matrix/SKILL.md` — per-major Testbench matrix mechanics.

@@ -61,6 +61,6 @@ frustrating feedback loop. The commit boundary is the right place to gate.
 
 | When… | Where to look |
 |---|---|
-| Designing a 7.4+ class, picking between a 7.4 and 8.x idiom, writing a polyfill, reviewing composer constraints | `skills/dhpk-php-modern-pro/SKILL.md` |
-| Working on legacy 5.6 code (no overlap with this module's idioms) | `skills/dhpk-php-runtime-router/SKILL.md` |
+| Designing a 7.4+ class, picking between a 7.4 and 8.x idiom, writing a polyfill, reviewing composer constraints | `php` family, with the target package's PHP 7.4+ runtime branch |
+| Working on legacy 5.6 code (no overlap with this module's idioms) | `php` family, with the target package's PHP 5.6 runtime branch |
 | `code-reviewer` or `security-reviewer` agent auditing a PHP diff | (project-level) — agents read the active modules' references when the matching sentinel fires |

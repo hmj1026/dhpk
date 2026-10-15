@@ -1,5 +1,5 @@
 ---
-description: 'Short Claude front door for the implicit-eligible $js-static-check-strategy status action.'
+description: 'Short Claude front door for the implicit-eligible $js-static-checks status action.'
 argument-hint: '[--path <directory>]'
 allowed-tools: 'Skill'
 metadata:
@@ -9,12 +9,12 @@ metadata:
 # `/dhpk:ts-check-status`
 
 Forward `$ARGUMENTS` unchanged to the canonical
-`$js-static-check-strategy status` action. Pass `--path <directory>` to scan a
+`$js-static-checks status` action. Pass `--path <directory>` to scan a
 specific frontend root; when omitted, the owning Skill applies
 `CLAUDE_PLUGIN_OPTION_JS_CHECK_PATH` or its `js/` default and returns the
 machine-readable directive distribution.
 
-Not for: everyday JavaScript feature work or isolated lint-rule lookups (use `dhpk-js-lint-config`).
+Not for: everyday JavaScript feature work or isolated lint-rule lookups (use `js-static-checks` for lint configuration).
 
 This command is a thin Host front door. The owning Skill and its standalone
 runner own classification, deterministic ordering, unavailable-path

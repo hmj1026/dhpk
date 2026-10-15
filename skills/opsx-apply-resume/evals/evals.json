@@ -1,0 +1,36 @@
+{
+  "skill_name": "opsx-apply-resume",
+  "evidence_kind": "instruction-forward-evaluation",
+  "host_runtime_status": "NOT_RUN",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use $opsx-apply-resume to resume change checkout-a in Codex. Treat each of these as a separate fresh fixture, and return the chosen context and ordered resource/tool trace. The explicit .dhpk/artifacts/apply-resume/latest.md is a valid saved handoff with change_id checkout-a, claude_mem_obs_id 17, compact_json_path compact-notes/compact-a.json, Compact Summary 'Finish the receipt retry review', Completed 'Kept the WIP', In Progress 'Review retry evidence', Next Actions 'Inspect retry callers'. The change tasks.md exists. A: permitted get_observations returns goal 'Verify the receipt retry', completed ['wrote regression'], in_progress ['run review']; compact JSON also has different usable content. B: the pinned observation returns {}; compact JSON has L0 'Retry review', session_goal 'Review the compact retry result', completed ['captured evidence'], in_progress ['review callers']. C: memory access is denied and compact JSON is malformed; the handoff is unchanged. D: memory access is denied, compact JSON exists, but the package-local extractor is missing while an old extractor exists outside this family; the handoff is unchanged. In all fixtures cross-session search is denied, the external openspec-apply-change capability is unavailable, and unattended carry-forward support is not declared. Do not contact a live service or edit the fixture files.",
+      "expected_output": "A selects claude-mem obs #17 and does not load compact data. B rejects empty memory and selects compact JSON using only the relocated family extractor. C falls through denial and compact parse failure to handoff only. D preserves BLOCKED_RESOURCE_MISSING for the missing local extractor, borrows no ambient copy, and selects usable handoff only; context recovery does not pass package closure validation. Each returns all initialized context fields and an empty cross_session_observations list. External continuation is UNAVAILABLE and the saved handoff remains recoverable; no observation POST or state/archive mutation occurs because the required external capability was not validated.",
+      "expected_boundaries": {
+        "local_resources": ["references/resume.md", "references/load-context.md", "scripts/extract-compact.sh"],
+        "forbidden_reads": ["predecessor skills", "peer skills", "repository manifests"],
+        "forbidden_effects": ["observation POST", "external apply substitution", "handoff archival"]
+      }
+    },
+    {
+      "id": 2,
+      "prompt": "Use $opsx-apply-resume to restore checkout-empty in Codex from a valid saved handoff at .dhpk/artifacts/apply-resume/latest.md. The change tasks.md exists. claude_mem_obs_id is 18; its provider returns only whitespace. compact_json_path points to a readable JSON object with empty L0/session_goal and empty completed/in_progress arrays. The handoff Compact Summary is '(未取得)', Completed is '(none)', and In Progress is 'unavailable'. Next Actions says 'Continue checkout-empty'. The canonical external apply capability is available. All bundled family resources are present. Show the result and intended tool/write trace. Do not edit fixture files or call a live service.",
+      "expected_output": "BLOCKED with CONTEXT_UNAVAILABLE and CONTEXT_SOURCE handoff unavailable after rejecting all three empty/marker sources. Goal stays (未取得), lists stay empty, and the handoff remains saved. Next Action text alone is not fabricated as restored context. No consuming transition, observation posting, external apply, or archive occurs.",
+      "expected_boundaries": {
+        "local_resources": ["references/resume.md", "references/load-context.md", "scripts/extract-compact.sh"],
+        "forbidden_effects": ["handoff state mutation", "observation POST", "external apply", "handoff archival"]
+      }
+    },
+    {
+      "id": 3,
+      "prompt": "Use $opsx-apply-resume to save current checkout-save progress in Codex. Only plan and show the exact ordered read/write/provider trace; execute no live service calls. The live worktree has uncommitted source edits that must remain intact; tasks.md exists with one incomplete review task. Commit/precommit are not requested. Compact data is L0 'Stage S4 Wave B: receipt retry', session_goal 'Review receipt retry', in_progress [{task:'Inspect retry guard'}], key_decisions [{decision:'Keep live WIP',reason:'Source of truth'}], failed_approaches [{lesson:'Avoid blind retry'}]. The enabled permitted optional local memory provider starts a pending post. While pending you can read tasks and capture advisory risk/model state. First show the plan for result integer 42, then show only the outcome differences if the provider is denied or its wait fails. All bundled resources and Python3 are available. Finally state what happens if scripts/post-obs.sh is removed while an old observer exists outside this family.",
+      "expected_output": "Save alone selects post-observation. JSON preserves special characters/newlines as data and concepts contain checkout-save, stage-s4, wave-b, opsx-apply-resume. A private temporary payload/result pair is created; POST launches in background, task/risk steps overlap it, then wait/result collection finishes before write-handoff. ID 42 and memory POSTED are reported only for the integer result. Denial/failure yields null plus UNAVAILABLE/FAILED without claiming persisted observation; an accurate embedded handoff may still be saved. Commit is SKIPPED and uncommitted WIP is retained. Missing bundled observer returns BLOCKED_RESOURCE_MISSING before a dependent write; no ambient observer is borrowed.",
+      "expected_boundaries": {
+        "local_resources": ["references/save.md", "references/post-observation.md", "scripts/post-obs.sh", "scripts/write-handoff.sh"],
+        "allowed_fixture_writes": ["private observation payload/result", ".dhpk/artifacts/apply-resume/latest.md"],
+        "forbidden_effects": ["commit", "precommit without enabling request", "source edit/stash/revert", "peer observer fallback", "handoff completion before collection"]
+      }
+    }
+  ]
+}

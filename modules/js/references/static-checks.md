@@ -52,8 +52,8 @@ ignored files.
 
 | When… | Skill |
 |---|---|
-| Editing `eslint.config.js`, designing AST selectors, syncing the legacy-globals whitelist across ESLint / `.d.ts` / `jsdoc-globals.js`, interpreting tier 1.5 / 1.7 exemptions, measuring rollout progress | `dhpk-js-lint-config` Skill (optional peer capability) |
-| Planning a per-leaf cleanup, classifying a leaf as typedef-widening-fixable vs permanent-exclude, editing `tsconfig.json`'s `exclude` list, validating the strict `checkJs` exit gate | `js-static-check-strategy` Skill (optional peer capability) |
+| Editing `eslint.config.js`, designing AST selectors, syncing the legacy-globals whitelist across ESLint / `.d.ts` / `jsdoc-globals.js`, interpreting tier 1.5 / 1.7 exemptions, measuring rollout progress | `js-static-checks` lint-configuration task |
+| Planning a per-leaf cleanup, classifying a leaf as typedef-widening-fixable vs permanent-exclude, editing `tsconfig.json`'s `exclude` list, validating the strict `checkJs` exit gate | `js-static-checks` per-leaf rollout task |
 | `frontend-reviewer` agent auditing a JS/TS diff for SSOT-facade adherence and tier consistency | [`frontend-review-patterns.md`](./frontend-review-patterns.md) |
 
 ## Related command

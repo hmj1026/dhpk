@@ -302,8 +302,8 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
 - **Actions**:
   - **Advisory Specialist Review**: Dispatch matching reviewers based on modified file extensions and paths:
     ```text
-    /dhpk:review-pending                              # review all currently modified files
-    /dhpk:review-pending --files="app/Models/User.php" # review designated file subset
+    /dhpk:change-verdict pending                              # review all currently modified files
+    /dhpk:change-verdict pending --files="app/Models/User.php" # review designated file subset
     ```
   - **Standalone Quality Verdicts**: Evaluate code standards, security vulnerabilities, test adequacy, or change risk:
     ```text
@@ -490,10 +490,10 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
   /dhpk:change-verdict --mode docs docs/basic-operations.md
   ```
 
-#### 5. review-pending (Pending Changes Review Dispatcher)
+#### 5. change-verdict pending (Pending Changes Review)
 
-- **Purpose**: Automatically inspects working tree changes and dispatches specialist reviewers (code, database, security, frontend, docs) based on edited file paths.
-- **Invocation Syntax**: `/dhpk:review-pending [--files=<rel-paths>]`
+- **Purpose**: Performs a read-only review of working tree changes, using the matching available reviewers for the selected paths. If the required reviewer is unavailable, report `UNAVAILABLE`.
+- **Invocation Syntax**: `/dhpk:change-verdict pending [--files=<rel-paths>]`
 - **Parameter Breakdown**:
 
   | Parameter | Type | Default | Description |
@@ -503,10 +503,10 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
 - **Practical Examples**:
   ```text
   # Review all currently modified (staged + unstaged) files
-  /dhpk:review-pending
+  /dhpk:change-verdict pending
 
   # Review only designated critical files
-  /dhpk:review-pending --files="app/Models/User.php,routes/api.php"
+  /dhpk:change-verdict pending --files="app/Models/User.php,routes/api.php"
   ```
 
 #### 6. tdd-workflow (Test-Driven Development Workflow)

@@ -1,10 +1,9 @@
 {
   "schema": "dhpk.claude-marketplace-catalog.v1",
-  "selectionDigest": "5f9d35c642d1c09214e14a916cfbcb3cec6a7c327479a3598e9e1589a7b44e2f",
+  "selectionDigest": "2d3c88a251d94b3ab2492b776161ba960c6484ce1829c07adb333114dcb69e52",
   "publicEntryIds": [
     "flow-guide",
     "code-trace",
-    "change-verdict",
     "flow-drive",
     "git-smart-commit",
     "release-creator",
@@ -14,13 +13,11 @@
     "proposal-analyze",
     "update-docs",
     "precommit",
-    "dep-audit",
     "repo-verify",
-    "ui-ux-verify"
+    "ui-ux-verify",
+    "change-verdict"
   ],
   "hostOnlyIds": [
-    "opsx-load-context",
-    "opsx-post-obs",
     "harness-setup",
     "opsx-apply-resume"
   ],
@@ -31,7 +28,7 @@
       "sourcePath": "skills/change-verdict/SKILL.md",
       "destination": "skills/change-verdict/SKILL.md",
       "kind": "entry",
-      "sha256": "9467f6d5f6b8dc1bf022140e744dc00ddb9ed9936495286488eda4be856f4cbd"
+      "sha256": "439f3a05ecf427b65e97edcc2978a1a79c3ef84d77e7d5c4d6264bdcbb3062b9"
     },
     {
       "skillId": "change-verdict",
@@ -39,7 +36,23 @@
       "sourcePath": "skills/change-verdict/agents/openai.yaml",
       "destination": "skills/change-verdict/agents/openai.yaml",
       "kind": "entry",
-      "sha256": "39f41a7e1f85567345a0e5b30aa95885c301dc6e4f4a41b86e8655f4d617eba7"
+      "sha256": "0014b097131ca525efa070c9fb1e87a6cda47368f93b006669a2b76c27ac20f3"
+    },
+    {
+      "skillId": "change-verdict",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/change-verdict/references/actions/deps.md",
+      "destination": "skills/change-verdict/references/actions/deps.md",
+      "kind": "entry",
+      "sha256": "74cc45a974087a68f5905d2bd3cad87ba4d619ee2369bccd38944074b55ed222"
+    },
+    {
+      "skillId": "change-verdict",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/change-verdict/references/actions/pending.md",
+      "destination": "skills/change-verdict/references/actions/pending.md",
+      "kind": "entry",
+      "sha256": "5dcd981a844878f57ea3a9ce4a4699deb87702a568c15ed90c190031b104201c"
     },
     {
       "skillId": "change-verdict",
@@ -71,7 +84,7 @@
       "sourcePath": "skills/dhpk-composer-package-hygiene/SKILL.md",
       "destination": "skills/change-verdict/references/dhpk-composer-package-hygiene/SKILL.md",
       "kind": "reference",
-      "sha256": "86e172b4c4463c314ba9d8458eb5dd44d0b2bfc770730dc3253b40c8084780e3"
+      "sha256": "408824f1ae35198d71ef9954a76ddf522b83baa24946f15c6c65107aa0ebf9e0"
     },
     {
       "skillId": "composer-package-hygiene",
@@ -160,38 +173,6 @@
       "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/lib/runner-utils.js",
       "kind": "branch",
       "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
-    },
-    {
-      "skillId": "yii1-security-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-yii1-security-audit/SKILL.md",
-      "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/SKILL.md",
-      "kind": "branch",
-      "sha256": "e386972b7f914b86a4f6ca0ed5bbeaed401dc21f8e5add27b429e1123c46c396"
-    },
-    {
-      "skillId": "yii1-security-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-yii1-security-audit/agents/openai.yaml",
-      "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/agents/openai.yaml",
-      "kind": "branch",
-      "sha256": "2719006376ad7952ba3b4b1fa54a81a9a1b11b43c95796c7a91b56a7141028fd"
-    },
-    {
-      "skillId": "yii1-security-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-yii1-security-audit/evals/evals.json",
-      "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/evals/evals.json",
-      "kind": "branch",
-      "sha256": "4a94cacd5e133bfa95eaeea2e457a97cd23938ad30c50ed75ed6975906297725"
-    },
-    {
-      "skillId": "yii1-security-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-yii1-security-audit/references/yii1-security-patterns.md",
-      "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/references/yii1-security-patterns.md",
-      "kind": "branch",
-      "sha256": "c1763816e7a1b8179032e5e5c2d603d6442e34e3dc9d87df4d0a25c9ffc3e3ba"
     },
     {
       "skillId": "change-verdict",
@@ -698,86 +679,6 @@
       "sha256": "55fc41100592dbbea1913dc96be57b1e82d8069b2c695d8f52790332db6d77eb"
     },
     {
-      "skillId": "dep-audit",
-      "ownerId": "dep-audit",
-      "sourcePath": "skills/dep-audit/SKILL.md",
-      "destination": "skills/dep-audit/SKILL.md",
-      "kind": "entry",
-      "sha256": "b1ced0055dbf47e89c77e1c1488ee4456f2ab031310359f43139de4f07ee13ee"
-    },
-    {
-      "skillId": "dep-audit",
-      "ownerId": "dep-audit",
-      "sourcePath": "skills/dep-audit/agents/openai.yaml",
-      "destination": "skills/dep-audit/agents/openai.yaml",
-      "kind": "entry",
-      "sha256": "47c7ab1d5a29661c493adbfd17cc55a4d845c757a523299efd0f553dfb8198e8"
-    },
-    {
-      "skillId": "dep-audit",
-      "ownerId": "dep-audit",
-      "sourcePath": "skills/dep-audit/references/workflow.md",
-      "destination": "skills/dep-audit/references/workflow.md",
-      "kind": "entry",
-      "sha256": "3ca5f80183f76c5d66707f324f0810905988e1504df4a4af260baa2532256ba7"
-    },
-    {
-      "skillId": "opsx-load-context",
-      "ownerId": "opsx-load-context",
-      "sourcePath": "skills/dhpk-opsx-load-context/SKILL.md",
-      "destination": "skills/dhpk-opsx-load-context/SKILL.md",
-      "kind": "entry",
-      "sha256": "2ac54795d416706ed09cf170c154428bb5ac348fe7a7709cf9be86d4f82c2d16"
-    },
-    {
-      "skillId": "opsx-load-context",
-      "ownerId": "opsx-load-context",
-      "sourcePath": "skills/dhpk-opsx-load-context/agents/openai.yaml",
-      "destination": "skills/dhpk-opsx-load-context/agents/openai.yaml",
-      "kind": "entry",
-      "sha256": "fd83a2870fa7e520fb900cf86dd41e41ef477285f737abffb0a6855d7efc31b4"
-    },
-    {
-      "skillId": "opsx-load-context",
-      "ownerId": "opsx-load-context",
-      "sourcePath": "skills/dhpk-opsx-load-context/references/extractor-resolution.md",
-      "destination": "skills/dhpk-opsx-load-context/references/extractor-resolution.md",
-      "kind": "entry",
-      "sha256": "06d1389d5072eec0d5208849aa5f5283c1753e177dfffd43b57bf4a8c3a42632"
-    },
-    {
-      "skillId": "opsx-load-context",
-      "ownerId": "opsx-load-context",
-      "sourcePath": "skills/dhpk-opsx-load-context/scripts/extract-compact.sh",
-      "destination": "skills/dhpk-opsx-load-context/scripts/extract-compact.sh",
-      "kind": "entry",
-      "sha256": "2c59d38ad387b67ae5d3ceb360c76d4288b65c49ca4be649d561bcbfb3fdb8af"
-    },
-    {
-      "skillId": "opsx-post-obs",
-      "ownerId": "opsx-post-obs",
-      "sourcePath": "skills/dhpk-opsx-post-observation/SKILL.md",
-      "destination": "skills/dhpk-opsx-post-observation/SKILL.md",
-      "kind": "entry",
-      "sha256": "da5438fbfc80147120494a85d3c247da2d58990a474dd0ace62d7effe7861fab"
-    },
-    {
-      "skillId": "opsx-post-obs",
-      "ownerId": "opsx-post-obs",
-      "sourcePath": "skills/dhpk-opsx-post-observation/agents/openai.yaml",
-      "destination": "skills/dhpk-opsx-post-observation/agents/openai.yaml",
-      "kind": "entry",
-      "sha256": "571418e06ac3cd40e278fac0e6b4bea63858ce9f2c6bd7c5ed2ab71f36e49c49"
-    },
-    {
-      "skillId": "opsx-post-obs",
-      "ownerId": "opsx-post-obs",
-      "sourcePath": "skills/dhpk-opsx-post-observation/scripts/post-obs.sh",
-      "destination": "skills/dhpk-opsx-post-observation/scripts/post-obs.sh",
-      "kind": "entry",
-      "sha256": "d26ec7c9cd9073470b8c8af1c21f972d437a29bc57e0417e7ba9f1b153b7a0c9"
-    },
-    {
       "skillId": "flow-drive",
       "ownerId": "flow-drive",
       "sourcePath": "skills/flow-drive/SKILL.md",
@@ -842,166 +743,6 @@
       "sha256": "320294ab165a2fcf27b2475e0758ea31b5a383aa4da7fc86f05280a4c203b730"
     },
     {
-      "skillId": "fastapi-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-fastapi-pro/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-fastapi-pro/SKILL.md",
-      "kind": "reference",
-      "sha256": "6fcf0365bd40599c705b26f61b90b1bcda0a8417fd58f2e6bf758fedea892c76"
-    },
-    {
-      "skillId": "fastapi-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-fastapi-pro/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-fastapi-pro/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "57c9b6d46d3a71051c583f706c1ee81457b718c7a13ab6a09af50b59befb3124"
-    },
-    {
-      "skillId": "ios-icon-gen",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-icon-gen/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/SKILL.md",
-      "kind": "branch",
-      "sha256": "ad4ce384ddaa80f33f507fbb7a4b26241baf4a87f2d25114fc8065e1c4cd5e47"
-    },
-    {
-      "skillId": "ios-icon-gen",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-icon-gen/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/agents/openai.yaml",
-      "kind": "branch",
-      "sha256": "4326a4f9247f5fb1fb25c646acaf5c585fcf0a33110ec8423c0f8a6354c4bd13"
-    },
-    {
-      "skillId": "ios-icon-gen",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-icon-gen/scripts/generate_icons.swift",
-      "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/scripts/generate_icons.swift",
-      "kind": "branch",
-      "sha256": "0dad47223dd5502cf986070950cd2dd0ceed7ff7d17d2600d9d8aeb24a4b3069"
-    },
-    {
-      "skillId": "ios-icon-gen",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-icon-gen/scripts/iconify_gen.sh",
-      "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/scripts/iconify_gen.sh",
-      "kind": "branch",
-      "sha256": "37a2f68c477bd60337cb8481b72c8ffc9e43634336a396949b6301bb09ee0d7d"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/SKILL.md",
-      "kind": "reference",
-      "sha256": "6b863f0e1510f7e3050398f01f244d24235313ee36a3287727c53205c9b3aa85"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "92d64c2a162572f6d35ac95530d742369c7c04af23113effd07abb51d05ac781"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/references/actor-persistence.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/references/actor-persistence.md",
-      "kind": "reference",
-      "sha256": "8b4efa741a95cfdd1f3fad3bbd1b5aa27b6afda5ae10897af767086456901711"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/references/coredata-encryption.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/references/coredata-encryption.md",
-      "kind": "reference",
-      "sha256": "abeaebd0021e32e8cfe3783f1536f9f08ba48f316f11010e0ae9e01024b17851"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/references/cryptokit-keychain.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/references/cryptokit-keychain.md",
-      "kind": "reference",
-      "sha256": "790fd8575ad85fcaca3efe10e93ecfc5c93af8f523c266aa2fd27fcaa56ebfea"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/references/healthkit-read.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/references/healthkit-read.md",
-      "kind": "reference",
-      "sha256": "5c63e27a80c9df8c15a1d2f9e992e8465f97309d77f6e9563b61516e6f456cc4"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/references/local-authentication.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/references/local-authentication.md",
-      "kind": "reference",
-      "sha256": "0ec2e3f447b3a643b7807b32888f376a1f81b585c27f9811ca93a032c582c47c"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/references/notifications.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/references/notifications.md",
-      "kind": "reference",
-      "sha256": "5c8b16a1bef8fb97e67f1ca161213531b651d3586773f39b6d5834d8d03c40e8"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/references/privacy-compliance.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/references/privacy-compliance.md",
-      "kind": "reference",
-      "sha256": "adbd510810a77af059390703bad9580c4d9c73576a231be3e77b03160a499156"
-    },
-    {
-      "skillId": "ios-platform",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-ios-platform/references/vision-ocr.md",
-      "destination": "skills/flow-drive/references/dhpk-ios-platform/references/vision-ocr.md",
-      "kind": "reference",
-      "sha256": "cc1afcd34901f8fa4546b9fa44cda27d695711473bd72d436ec536a3b73ae1f9"
-    },
-    {
-      "skillId": "js-lint-config",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-js-lint-config/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-js-lint-config/SKILL.md",
-      "kind": "reference",
-      "sha256": "f3173e6e74e9073f78db3d4396a787999f04bbf5a4a24d9aec77bea966031533"
-    },
-    {
-      "skillId": "js-lint-config",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-js-lint-config/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-js-lint-config/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "b15ff15c6cace36d97e5a588f5fe9878fd6bb570fcd10b98fdd85fee13efe079"
-    },
-    {
-      "skillId": "js-lint-config",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-js-lint-config/references/frontend-review-patterns.md",
-      "destination": "skills/flow-drive/references/dhpk-js-lint-config/references/frontend-review-patterns.md",
-      "kind": "reference",
-      "sha256": "e3d5302440ddda23af6b194cb64db0598145f4255b9f1e0f2abaa61195371765"
-    },
-    {
-      "skillId": "js-lint-config",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-js-lint-config/references/static-checks.md",
-      "destination": "skills/flow-drive/references/dhpk-js-lint-config/references/static-checks.md",
-      "kind": "reference",
-      "sha256": "fc99d723a9ad714cfb0710d7c6837d8a6c91f1f9dfb72524e5e8f1f466b4be6c"
-    },
-    {
       "skillId": "laravel-package-author",
       "ownerId": "flow-drive",
       "sourcePath": "skills/dhpk-laravel-package-author/SKILL.md",
@@ -1026,54 +767,6 @@
       "sha256": "dc6ef884397a2aef5f33a4c0b140008d45cb571f79c451d5d1f06f2eca125ce0"
     },
     {
-      "skillId": "nextjs-15-5-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-nextjs-15-5-notes/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-nextjs-15-5-notes/SKILL.md",
-      "kind": "reference",
-      "sha256": "3c9cd8bd5f71f628161d350f8b1002fe0f1dabc11984cb0d02c9dc0088369daa"
-    },
-    {
-      "skillId": "nextjs-15-5-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-nextjs-15-5-notes/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-nextjs-15-5-notes/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "fd335aef84cac1ce5a656bca6bb5a51f75444e356139c03abb3e7891a913db93"
-    },
-    {
-      "skillId": "nextjs-15-5-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-nextjs-15-5-notes/references/frontend-framework-routing.md",
-      "destination": "skills/flow-drive/references/dhpk-nextjs-15-5-notes/references/frontend-framework-routing.md",
-      "kind": "reference",
-      "sha256": "023bb806d566f57a6280cf9ea619502c6ad1c8e93ee666d65618ef6b0782e9c6"
-    },
-    {
-      "skillId": "nextjs-16-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-nextjs-16-notes/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-nextjs-16-notes/SKILL.md",
-      "kind": "reference",
-      "sha256": "b0f56ba82c4a749884ec10289a03dd5838895313f78c03b4cd1625cc07718569"
-    },
-    {
-      "skillId": "nextjs-16-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-nextjs-16-notes/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-nextjs-16-notes/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "34d8ed5a6ea3663e7f6becee1ef1eb1374bf86daaf0a2b2d93f54eeed304b30d"
-    },
-    {
-      "skillId": "nextjs-16-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-nextjs-16-notes/references/frontend-framework-routing.md",
-      "destination": "skills/flow-drive/references/dhpk-nextjs-16-notes/references/frontend-framework-routing.md",
-      "kind": "reference",
-      "sha256": "023bb806d566f57a6280cf9ea619502c6ad1c8e93ee666d65618ef6b0782e9c6"
-    },
-    {
       "skillId": "openspec-artifact-guard",
       "ownerId": "flow-drive",
       "sourcePath": "skills/dhpk-openspec-artifact-guard/SKILL.md",
@@ -1090,372 +783,12 @@
       "sha256": "79985685c0993c4fb20c74514a2fa70dae98ca89f257e31f4ef087831fac885e"
     },
     {
-      "skillId": "php-8x-features",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-8x-features/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-php-8x-features/SKILL.md",
-      "kind": "reference",
-      "sha256": "e74ec3169e1fd5f9b77e23fecb0cb6fb48b13269a42579a645aa3744d594c50b"
-    },
-    {
-      "skillId": "php-8x-features",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-8x-features/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-php-8x-features/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "a8b26c525f11d3b409428ea39b68c4df95f9e0764c42661f189a3ead211f8ba8"
-    },
-    {
-      "skillId": "php-8x-features",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-8x-features/references/feature-catalog.md",
-      "destination": "skills/flow-drive/references/dhpk-php-8x-features/references/feature-catalog.md",
-      "kind": "reference",
-      "sha256": "5a66b936b7b42afd26a71e57f93bf0252d0f21e8b284361ad04644ea818d5596"
-    },
-    {
-      "skillId": "php-modern-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-modern-pro/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-php-modern-pro/SKILL.md",
-      "kind": "reference",
-      "sha256": "1fe349af2da48c51fb8ce81f5bd31f4ac5c0e5dc983063e3e4a26b534f106e3c"
-    },
-    {
-      "skillId": "php-modern-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-modern-pro/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-php-modern-pro/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "593eee5eb287179628c7a30df40c8ef1f6ddd7e6c11fddb9705b99784c078e9b"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/SKILL.md",
-      "kind": "branch",
-      "sha256": "59134661d198e6891dd427ed1b7ee7cca4aa7d951146540cdebb752422560052"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/agents/openai.yaml",
-      "kind": "branch",
-      "sha256": "31286624632525831ae0193bb03c7424c149dd86343eb66f113389b21822e8c0"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/agent-extracts/architect-code-examples.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/architect-code-examples.md",
-      "kind": "branch",
-      "sha256": "056666cb84c5bb8369cea88791ff314d1d7a72f6e46035b379c541b8d8f4ea32"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md",
-      "kind": "branch",
-      "sha256": "ea8005e92895ff4408b02c1b46eefee5de8056eab953185facfa8217b46671a2"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md",
-      "kind": "branch",
-      "sha256": "8a755d4669224ef7bd31b5153e1e0ea558b510be3ae03579b8585ac7760ca6c3"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/async-patterns.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/async-patterns.md",
-      "kind": "branch",
-      "sha256": "221bd4da1ff10a27db6743d952c2c9b039d6b43d5f9d80a5edae7726755edd64"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-patterns.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-patterns.md",
-      "kind": "branch",
-      "sha256": "b7ff7d2efb20172bcb617c320ef8a991c2261940eeb7ce20e88a1b26f9a81335"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-projects.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-projects.md",
-      "kind": "branch",
-      "sha256": "a4a46b54b62b04c4b24eb43a71441131058624e6050c697eeb61a581883cd7c9"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-v10.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-v10.md",
-      "kind": "branch",
-      "sha256": "85fe81e3becd6cb2c787a5882f6bc658874138af30aade85e7439721512d6a20"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-v11-v12.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-v11-v12.md",
-      "kind": "branch",
-      "sha256": "895c83f3c4c07eb9511e52b99b309044d8230e83eeb7cc553540a58273200b84"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-version-checks.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-version-checks.md",
-      "kind": "branch",
-      "sha256": "05f76154f7f90c7f49dc67ee649c9f89680c301924445f4bf8489b6bac4f8c8b"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/modern-php-features.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/modern-php-features.md",
-      "kind": "branch",
-      "sha256": "08386e4ffeba86d0f35b17e96b8ecaee1011905b8c3bfc8de97e19d1c591cdbd"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/php56-legacy.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/php56-legacy.md",
-      "kind": "branch",
-      "sha256": "2df500b6a50d93d52aaebb59331de1aae762ffcb64a6dbd63c891ba476384492"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/phpunit57-php56-legacy.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/phpunit57-php56-legacy.md",
-      "kind": "branch",
-      "sha256": "ad6d3982ff45cea93b7c90425c2181bed0bcae2a227b22aca19e9a45750f07c6"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/symfony-patterns.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/symfony-patterns.md",
-      "kind": "branch",
-      "sha256": "c0efab6c589cfcd9fb96ec9c0f4735517f2ee3c17395df6cd9a6fa14218bea4e"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/testing-quality.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/testing-quality.md",
-      "kind": "branch",
-      "sha256": "f41ed61cd1aa35cb7b7fc79715dacbd3cfd6eeaf6d3066d68fc4d247e6d8e3a1"
-    },
-    {
-      "skillId": "php-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-php-runtime-router/references/yii1-1.md",
-      "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/yii1-1.md",
-      "kind": "branch",
-      "sha256": "c37ffa841e50c56f808f04c569df105b6d5837d82e367893816e91820449d95f"
-    },
-    {
-      "skillId": "python-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-python-pro/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-python-pro/SKILL.md",
-      "kind": "reference",
-      "sha256": "7d5bad436ab3fcfd84569c365fd404fe606ca6e30f3d9d8da4eb4f9cb6d3c8be"
-    },
-    {
-      "skillId": "python-pro",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-python-pro/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-python-pro/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "d401985204266e7bebaf0a4d79eed0387c12935c84649725a833fe6f9bbda919"
-    },
-    {
-      "skillId": "python-static-checks",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-python-static-checks/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-python-static-checks/SKILL.md",
-      "kind": "reference",
-      "sha256": "ba7c4cd828be3597ccd11b71c5c095ae3579d1ad041c71b513c8e99ffd66d9e4"
-    },
-    {
-      "skillId": "python-static-checks",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-python-static-checks/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-python-static-checks/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "f1fb7c37f60db3e9adba4b5a468c6f013fc83abe615b26a7585f1259ab9fce1c"
-    },
-    {
-      "skillId": "react-18-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-react-18-notes/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-react-18-notes/SKILL.md",
-      "kind": "reference",
-      "sha256": "c5913200d9d9d742a1a6fd2fbc85df523bc626692dc0c9ca67ab16bf487d1d44"
-    },
-    {
-      "skillId": "react-18-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-react-18-notes/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-react-18-notes/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "7d00ba7ff051b735335ea929f3501b4b117974cee26885a91d8af2cc922ed2ad"
-    },
-    {
-      "skillId": "react-18-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-react-18-notes/references/frontend-framework-routing.md",
-      "destination": "skills/flow-drive/references/dhpk-react-18-notes/references/frontend-framework-routing.md",
-      "kind": "reference",
-      "sha256": "023bb806d566f57a6280cf9ea619502c6ad1c8e93ee666d65618ef6b0782e9c6"
-    },
-    {
-      "skillId": "react-19-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-react-19-notes/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-react-19-notes/SKILL.md",
-      "kind": "reference",
-      "sha256": "8bc6311880eb73c02d51bf0499b2ebd3772d84812ef65fdd8e17dfccab111d90"
-    },
-    {
-      "skillId": "react-19-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-react-19-notes/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-react-19-notes/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "55f88140e40ed3c226d3625bbb28353c52dd541a6c4ee7a33c58083b4f10da82"
-    },
-    {
-      "skillId": "react-19-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-react-19-notes/references/frontend-framework-routing.md",
-      "destination": "skills/flow-drive/references/dhpk-react-19-notes/references/frontend-framework-routing.md",
-      "kind": "reference",
-      "sha256": "023bb806d566f57a6280cf9ea619502c6ad1c8e93ee666d65618ef6b0782e9c6"
-    },
-    {
-      "skillId": "swift-language",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swift-language/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-swift-language/SKILL.md",
-      "kind": "reference",
-      "sha256": "a76b5752d82ccd57e874b7993bfe1132021bf698b133489ee6bdc5f23df4fb60"
-    },
-    {
-      "skillId": "swift-language",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swift-language/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-swift-language/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "5efc97dda6acbe172518411cf0a1a807210d264e5cb269425e7999bb95bdf22f"
-    },
-    {
-      "skillId": "swift-language",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swift-language/references/approachable-concurrency.md",
-      "destination": "skills/flow-drive/references/dhpk-swift-language/references/approachable-concurrency.md",
-      "kind": "reference",
-      "sha256": "59b785ce22680b177110805cc624afe0e2ef4189dff44dad7152a7c89c209a13"
-    },
-    {
-      "skillId": "swift-language",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swift-language/references/concurrency.md",
-      "destination": "skills/flow-drive/references/dhpk-swift-language/references/concurrency.md",
-      "kind": "reference",
-      "sha256": "b0ee634a9ae46d30d2bb515bfa7701ffd16edb12ea028e9cbe3d59376e9f219d"
-    },
-    {
-      "skillId": "swift-language",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swift-language/references/error-handling.md",
-      "destination": "skills/flow-drive/references/dhpk-swift-language/references/error-handling.md",
-      "kind": "reference",
-      "sha256": "ee8ce8715391ff15c7d65387c01c62335aea4be71647d8f0bb8f73da350a72b9"
-    },
-    {
-      "skillId": "swift-language",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swift-language/references/swift5-compat-notes.md",
-      "destination": "skills/flow-drive/references/dhpk-swift-language/references/swift5-compat-notes.md",
-      "kind": "reference",
-      "sha256": "745ff8010cb030d3e369feed2c3558b90392daf759c3a28761561490972115f9"
-    },
-    {
-      "skillId": "swift-language",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swift-language/references/value-vs-reference.md",
-      "destination": "skills/flow-drive/references/dhpk-swift-language/references/value-vs-reference.md",
-      "kind": "reference",
-      "sha256": "92c2e4e11e36a79640bda1734b235ecd80b5dd3a71d73e5917b48a26ae6c26a9"
-    },
-    {
-      "skillId": "swiftui-architecture",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swiftui-architecture/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/SKILL.md",
-      "kind": "reference",
-      "sha256": "87d3572382076f40cf4199e051a999a412d8ba0964647331b735c58c6a96c5e4"
-    },
-    {
-      "skillId": "swiftui-architecture",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swiftui-architecture/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "d6567700cac4bcdd1dca0ff1b9ebd863763aefc58de4f8fd5309e83227ef3efd"
-    },
-    {
-      "skillId": "swiftui-architecture",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swiftui-architecture/references/interop.md",
-      "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/interop.md",
-      "kind": "reference",
-      "sha256": "5ad555cb830a53ec55b8911ef9fa5261bc62a75ce63404c628a390b24474f283"
-    },
-    {
-      "skillId": "swiftui-architecture",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swiftui-architecture/references/mvvm-coordinator.md",
-      "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/mvvm-coordinator.md",
-      "kind": "reference",
-      "sha256": "d53313c46dd10bd90f9c23b9c40ce3e2d2174519d95ea68de92f3b0e8117953f"
-    },
-    {
-      "skillId": "swiftui-architecture",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swiftui-architecture/references/navigation.md",
-      "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/navigation.md",
-      "kind": "reference",
-      "sha256": "d9dcad66217e3c71522c983d74e86f2e54efbfc5690cdd71b637b871f3fd86f6"
-    },
-    {
-      "skillId": "swiftui-architecture",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-swiftui-architecture/references/observation-state.md",
-      "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/observation-state.md",
-      "kind": "reference",
-      "sha256": "2e47703afab278ee11ad934fd36e6f9a7ce1c17af377efce4fc90fb58b25bb31"
-    },
-    {
       "skillId": "vue-2-notes",
       "ownerId": "flow-drive",
       "sourcePath": "skills/dhpk-vue-2-notes/SKILL.md",
       "destination": "skills/flow-drive/references/dhpk-vue-2-notes/SKILL.md",
       "kind": "reference",
-      "sha256": "f77b80a27b8bd501755a84e6894442141b1fd8fcc2647358b1bb85107bad7295"
+      "sha256": "5f3088120a3d214757900e7fc45bccc796df954d536c44384589e8b3ed15fedc"
     },
     {
       "skillId": "vue-2-notes",
@@ -1464,110 +797,6 @@
       "destination": "skills/flow-drive/references/dhpk-vue-2-notes/agents/openai.yaml",
       "kind": "reference",
       "sha256": "f820ba6c4f2809dedc201fcaff700424dddedabf4922b7d653b374b871c8967c"
-    },
-    {
-      "skillId": "xcode-build-tooling",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-xcode-build-tooling/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/SKILL.md",
-      "kind": "reference",
-      "sha256": "48a006253238eaf7250d03d459a01fdea24e0773237bf792c73f699d00ac1581"
-    },
-    {
-      "skillId": "xcode-build-tooling",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-xcode-build-tooling/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "b7aee68039d816884128fdce5d3c5a13a3cf9b5fadb92467d5fc83d86a6081d7"
-    },
-    {
-      "skillId": "xcode-build-tooling",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-xcode-build-tooling/references/scheme-signing.md",
-      "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/references/scheme-signing.md",
-      "kind": "reference",
-      "sha256": "f12c20feb61b1fcacb8ec8b6b4501746fd8a74b4e304572ff7cccd34d6dc632a"
-    },
-    {
-      "skillId": "xcode-build-tooling",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-xcode-build-tooling/references/swiftlint-config.md",
-      "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/references/swiftlint-config.md",
-      "kind": "reference",
-      "sha256": "40cc51ec807e1cd9eb72814d463294ab7225a040f2dd3fe1c72ec1105d042c19"
-    },
-    {
-      "skillId": "xcode-build-tooling",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-xcode-build-tooling/references/xcodebuild-spm.md",
-      "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/references/xcodebuild-spm.md",
-      "kind": "reference",
-      "sha256": "4d4fe6561fbf37a16566d3262db55f746865100429b59fab3b9a327e96591608"
-    },
-    {
-      "skillId": "php56-yii-dev",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-yii1-php56-development/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/SKILL.md",
-      "kind": "branch",
-      "sha256": "9f41452de9d8a7887e92dcb00c85725415655835f5323a428d7379027ba9b446"
-    },
-    {
-      "skillId": "php56-yii-dev",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-yii1-php56-development/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/agents/openai.yaml",
-      "kind": "branch",
-      "sha256": "11c4fcc2dfab17702ecbd3df79090aeb665fa284271fa6e5298490f2e4789c4d"
-    },
-    {
-      "skillId": "php56-yii-dev",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-yii1-php56-development/references/context7-sources-and-query-rules.md",
-      "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/context7-sources-and-query-rules.md",
-      "kind": "branch",
-      "sha256": "87d23a7407cad6201c0fbfa16ea57a56bd8025b5a964d424890920d4815867a7"
-    },
-    {
-      "skillId": "php56-yii-dev",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-yii1-php56-development/references/ddd-lite-for-yii1.md",
-      "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/ddd-lite-for-yii1.md",
-      "kind": "branch",
-      "sha256": "b0a957c1de07528d78d90518f4e6755bc0742d2a03a204350e2521f633bc2d5f"
-    },
-    {
-      "skillId": "php56-yii-dev",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-yii1-php56-development/references/php56-php7-safe-subset.md",
-      "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/php56-php7-safe-subset.md",
-      "kind": "branch",
-      "sha256": "761361c43eb6ed2ea6650d528bb46e258d6349506ce5d22c85d778b0e74fd44f"
-    },
-    {
-      "skillId": "php56-yii-dev",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-yii1-php56-development/references/phpunit57-legacy-test-traps.md",
-      "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/phpunit57-legacy-test-traps.md",
-      "kind": "branch",
-      "sha256": "137bc3dde2ce15fa44530f5b07879299b8a5e3fcbff19cd5078f9c5c82c67509"
-    },
-    {
-      "skillId": "php56-yii-dev",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-yii1-php56-development/references/tdd-workflow-and-test-strategy.md",
-      "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/tdd-workflow-and-test-strategy.md",
-      "kind": "branch",
-      "sha256": "e9204a3d8bc574d5aadf4f71b0dba124b02fffcfe0299c6bda85bee57b067a10"
-    },
-    {
-      "skillId": "php56-yii-dev",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-yii1-php56-development/references/yii1-backend-patterns.md",
-      "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/yii1-backend-patterns.md",
-      "kind": "branch",
-      "sha256": "8f3ce5ba8b2dc2a535c67838950a7ed8fcd6224b41e78a37f83d896994e2a6f8"
     },
     {
       "skillId": "flow-drive",
@@ -1762,42 +991,66 @@
       "sha256": "3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9"
     },
     {
-      "skillId": "js-static-check-strategy",
+      "skillId": "js-static-checks",
       "ownerId": "flow-drive",
-      "sourcePath": "skills/js-static-check-strategy/SKILL.md",
-      "destination": "skills/flow-drive/references/js-static-check-strategy/SKILL.md",
+      "sourcePath": "skills/js-static-checks/SKILL.md",
+      "destination": "skills/flow-drive/references/js-static-checks/SKILL.md",
       "kind": "reference",
-      "sha256": "7f74bf32356282b2423064689b2fd7daf49a5d65ea495917dc4d0b1ce11bb4cb"
+      "sha256": "fb392d4c6d993c3bc4c3fb454048da872cfc72eb5a010051dcbe97d0bfaab8f1"
     },
     {
-      "skillId": "js-static-check-strategy",
+      "skillId": "js-static-checks",
       "ownerId": "flow-drive",
-      "sourcePath": "skills/js-static-check-strategy/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/js-static-check-strategy/agents/openai.yaml",
+      "sourcePath": "skills/js-static-checks/agents/openai.yaml",
+      "destination": "skills/flow-drive/references/js-static-checks/agents/openai.yaml",
       "kind": "reference",
-      "sha256": "3853ce4283dcc6b5cf781d535b369ac0c463d40d180ff558c3177ac6a3b1687a"
+      "sha256": "ae878a5259aa364e74a9951be026a5f111443037a76dd95e7b7b4a125793baba"
     },
     {
-      "skillId": "js-static-check-strategy",
+      "skillId": "js-static-checks",
       "ownerId": "flow-drive",
-      "sourcePath": "skills/js-static-check-strategy/references/frontend-review-patterns.md",
-      "destination": "skills/flow-drive/references/js-static-check-strategy/references/frontend-review-patterns.md",
+      "sourcePath": "skills/js-static-checks/evals/evals.json",
+      "destination": "skills/flow-drive/references/js-static-checks/evals/evals.json",
       "kind": "reference",
-      "sha256": "e3d5302440ddda23af6b194cb64db0598145f4255b9f1e0f2abaa61195371765"
+      "sha256": "d8cb0f1b9c746fa6bff8ec6378431ba7e4c42bba0584a1c16ed6a09b46bb34ea"
     },
     {
-      "skillId": "js-static-check-strategy",
+      "skillId": "js-static-checks",
       "ownerId": "flow-drive",
-      "sourcePath": "skills/js-static-check-strategy/references/static-checks.md",
-      "destination": "skills/flow-drive/references/js-static-check-strategy/references/static-checks.md",
+      "sourcePath": "skills/js-static-checks/references/frontend-review-patterns.md",
+      "destination": "skills/flow-drive/references/js-static-checks/references/frontend-review-patterns.md",
       "kind": "reference",
-      "sha256": "fc99d723a9ad714cfb0710d7c6837d8a6c91f1f9dfb72524e5e8f1f466b4be6c"
+      "sha256": "cde1b5857b35f4f688c59272648a8549f1da0592ca7b0772e13db11829150f9b"
     },
     {
-      "skillId": "js-static-check-strategy",
+      "skillId": "js-static-checks",
       "ownerId": "flow-drive",
-      "sourcePath": "skills/js-static-check-strategy/scripts/status.js",
-      "destination": "skills/flow-drive/references/js-static-check-strategy/scripts/status.js",
+      "sourcePath": "skills/js-static-checks/references/rollout.md",
+      "destination": "skills/flow-drive/references/js-static-checks/references/rollout.md",
+      "kind": "reference",
+      "sha256": "385cc480564cd2b16048ec4bea2308ba312362fe169ea41832cfbf631d962908"
+    },
+    {
+      "skillId": "js-static-checks",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/js-static-checks/references/setup.md",
+      "destination": "skills/flow-drive/references/js-static-checks/references/setup.md",
+      "kind": "reference",
+      "sha256": "7bb77d75b05fe19ca2dc632b50e755c324159b33538dbaac683c7807ce0745b4"
+    },
+    {
+      "skillId": "js-static-checks",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/js-static-checks/references/static-checks.md",
+      "destination": "skills/flow-drive/references/js-static-checks/references/static-checks.md",
+      "kind": "reference",
+      "sha256": "7d106059bec76dcbc09f523d0b65c25ca93733a28e9d39049e9066c182a5fef3"
+    },
+    {
+      "skillId": "js-static-checks",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/js-static-checks/scripts/status.js",
+      "destination": "skills/flow-drive/references/js-static-checks/scripts/status.js",
       "kind": "reference",
       "sha256": "41e0b7f0b1288d0265b2d9f097bc1c437e6e63bb34d6a57c5c34899c936fb2e2"
     },
@@ -1807,7 +1060,7 @@
       "sourcePath": "skills/laravel/SKILL.md",
       "destination": "skills/flow-drive/references/laravel/SKILL.md",
       "kind": "branch",
-      "sha256": "9ec9c5b8c1e59d89357e3a1b437591f9a7ae3024abdc77f91907aa3efdd2b659"
+      "sha256": "94497fcc2b0eccc64e2b9828a9a3f7f0f3062ea033835fd205e4e9372d2c685e"
     },
     {
       "skillId": "laravel",
@@ -1839,7 +1092,7 @@
       "sourcePath": "skills/laravel/references/10.md",
       "destination": "skills/flow-drive/references/laravel/references/10.md",
       "kind": "branch",
-      "sha256": "c40428b9d31ebd2cfcd27c5370670d7a106c3bc21a19f1ccc405b4bae70d890e"
+      "sha256": "22e06fbe44542f71a1aa1d790a43e3225197fcdc1259ef798a59e1bc195329de"
     },
     {
       "skillId": "laravel",
@@ -1847,7 +1100,7 @@
       "sourcePath": "skills/laravel/references/11.md",
       "destination": "skills/flow-drive/references/laravel/references/11.md",
       "kind": "branch",
-      "sha256": "4bfcc184f0b3a8aa2f8d0c45ac41d872260e516c3acfbad73e8e9018bb694ef9"
+      "sha256": "27f25127f047703055de6799548f167be25b9f376d5b77947dac7f79ee45ef34"
     },
     {
       "skillId": "laravel",
@@ -1855,7 +1108,7 @@
       "sourcePath": "skills/laravel/references/5-4.md",
       "destination": "skills/flow-drive/references/laravel/references/5-4.md",
       "kind": "branch",
-      "sha256": "600e73222a0e2753deb082fd3f2e17d378f65b5a703f9b95e15f6cde077ac259"
+      "sha256": "a8f99a972ffd0a1b1fc77bba898ecea9fd52913c3d0e2ebf40d59550a63d61e6"
     },
     {
       "skillId": "laravel",
@@ -1863,7 +1116,7 @@
       "sourcePath": "skills/laravel/references/6.md",
       "destination": "skills/flow-drive/references/laravel/references/6.md",
       "kind": "branch",
-      "sha256": "a0a35506c6d2f788edc26d2df3491f69ad266e26ff0713392f276a31a59123e9"
+      "sha256": "1d8a2ae06b96c1af27de7e597c7c5da554a612e0b96c6756953ca107234b2fc7"
     },
     {
       "skillId": "laravel",
@@ -1887,7 +1140,7 @@
       "sourcePath": "skills/laravel/references/9.md",
       "destination": "skills/flow-drive/references/laravel/references/9.md",
       "kind": "branch",
-      "sha256": "38e92f9f75e3e66eaba9befa36f82f6b631411272e63409d024ec8cbcc12fbdd"
+      "sha256": "7db03ddf9be3918b1056f94446fd7ecc4c8dd49bd1a9f2a818804df343c6698a"
     },
     {
       "skillId": "laravel",
@@ -1895,7 +1148,7 @@
       "sourcePath": "skills/laravel/references/mix.md",
       "destination": "skills/flow-drive/references/laravel/references/mix.md",
       "kind": "branch",
-      "sha256": "c0d37bec1866fa90d3fc3c08a5f8b15d587e4c4f207f3248fdbcf0cb92b2b8c6"
+      "sha256": "7e031c2ae917b2be3c0039c1032ee57e11ec0eaf56094571dc91a4a088287785"
     },
     {
       "skillId": "laravel",
@@ -1930,12 +1183,220 @@
       "sha256": "480932e09bb5babf998941b7000129d6e4da6659fffb5be7741008a5c06797ac"
     },
     {
+      "skillId": "nextjs",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/nextjs/SKILL.md",
+      "destination": "skills/flow-drive/references/nextjs/SKILL.md",
+      "kind": "reference",
+      "sha256": "04dfd6c29286c24a43e5dd6dd369eeb9b8a5b97f08c6d32dd4f670bedf817d13"
+    },
+    {
+      "skillId": "nextjs",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/nextjs/agents/openai.yaml",
+      "destination": "skills/flow-drive/references/nextjs/agents/openai.yaml",
+      "kind": "reference",
+      "sha256": "b4def51f2b270ebc0a5e6a9fc2cf3d6204f0e1c2a9a0d31501a2945cda828cb4"
+    },
+    {
+      "skillId": "nextjs",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/nextjs/references/15.5.md",
+      "destination": "skills/flow-drive/references/nextjs/references/15.5.md",
+      "kind": "reference",
+      "sha256": "355b8dda34ae499dfc6f75825eb15843651039255cb93b92d253665d4b3e6e11"
+    },
+    {
+      "skillId": "nextjs",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/nextjs/references/16.md",
+      "destination": "skills/flow-drive/references/nextjs/references/16.md",
+      "kind": "reference",
+      "sha256": "e1729fc0e9b5a53854ea2c72edfddc8e6bfd8b7f2281d322302b6e77cbcf1732"
+    },
+    {
+      "skillId": "nextjs",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/nextjs/references/target-selection.md",
+      "destination": "skills/flow-drive/references/nextjs/references/target-selection.md",
+      "kind": "reference",
+      "sha256": "49d53ad74e0af31cc3bbb71db48556fc97785a885bcda93c867e702212f9d9c7"
+    },
+    {
       "skillId": "flow-drive",
       "ownerId": "flow-drive",
       "sourcePath": "skills/flow-drive/references/parent-cli-dispatch.md",
       "destination": "skills/flow-drive/references/parent-cli-dispatch.md",
       "kind": "entry",
       "sha256": "a66b4d519e888e54dca9edbaa4a6e6c8bffab21da8759a09248718d69d091c80"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/SKILL.md",
+      "destination": "skills/flow-drive/references/php/SKILL.md",
+      "kind": "branch",
+      "sha256": "1dc985f0b14cdb055d7a3deb6c6a923b0ec95dc9f5ffa512ab2a6174ebcc0660"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/agents/openai.yaml",
+      "destination": "skills/flow-drive/references/php/agents/openai.yaml",
+      "kind": "branch",
+      "sha256": "69c5850db12ae874a6f66be9f22da250b2ac10006ab499982092916792d8e217"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/evals/evals.json",
+      "destination": "skills/flow-drive/references/php/evals/evals.json",
+      "kind": "branch",
+      "sha256": "119ada5bc94f942b15d729d32d5b9e31a230979a9c36a48090bdd769942e3f57"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/7-4.md",
+      "destination": "skills/flow-drive/references/php/references/7-4.md",
+      "kind": "branch",
+      "sha256": "f09d8766d64fc59fcfc8ca300f372282941565dede2eb880434a34bb46679bee"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/8-x.md",
+      "destination": "skills/flow-drive/references/php/references/8-x.md",
+      "kind": "branch",
+      "sha256": "a620fae2a5f852b4bb1e25048e7947fda5986ba56a4a7ae993b05ac5f442be3a"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/agent-extracts/architect-code-examples.md",
+      "destination": "skills/flow-drive/references/php/references/agent-extracts/architect-code-examples.md",
+      "kind": "branch",
+      "sha256": "056666cb84c5bb8369cea88791ff314d1d7a72f6e46035b379c541b8d8f4ea32"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/agent-extracts/security-owasp-examples.md",
+      "destination": "skills/flow-drive/references/php/references/agent-extracts/security-owasp-examples.md",
+      "kind": "branch",
+      "sha256": "ea8005e92895ff4408b02c1b46eefee5de8056eab953185facfa8217b46671a2"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/agent-extracts/tdd-code-templates.md",
+      "destination": "skills/flow-drive/references/php/references/agent-extracts/tdd-code-templates.md",
+      "kind": "branch",
+      "sha256": "8a755d4669224ef7bd31b5153e1e0ea558b510be3ae03579b8585ac7760ca6c3"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/async-patterns.md",
+      "destination": "skills/flow-drive/references/php/references/async-patterns.md",
+      "kind": "branch",
+      "sha256": "221bd4da1ff10a27db6743d952c2c9b039d6b43d5f9d80a5edae7726755edd64"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/feature-catalog.md",
+      "destination": "skills/flow-drive/references/php/references/feature-catalog.md",
+      "kind": "branch",
+      "sha256": "2240fab8ec3119eedbf59e50a0db0939d40d09210f69e6f61f30edb50420f425"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/laravel-patterns.md",
+      "destination": "skills/flow-drive/references/php/references/laravel-patterns.md",
+      "kind": "branch",
+      "sha256": "b7ff7d2efb20172bcb617c320ef8a991c2261940eeb7ce20e88a1b26f9a81335"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/laravel-projects.md",
+      "destination": "skills/flow-drive/references/php/references/laravel-projects.md",
+      "kind": "branch",
+      "sha256": "a4a46b54b62b04c4b24eb43a71441131058624e6050c697eeb61a581883cd7c9"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/laravel-v10.md",
+      "destination": "skills/flow-drive/references/php/references/laravel-v10.md",
+      "kind": "branch",
+      "sha256": "85fe81e3becd6cb2c787a5882f6bc658874138af30aade85e7439721512d6a20"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/laravel-v11-v12.md",
+      "destination": "skills/flow-drive/references/php/references/laravel-v11-v12.md",
+      "kind": "branch",
+      "sha256": "895c83f3c4c07eb9511e52b99b309044d8230e83eeb7cc553540a58273200b84"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/laravel-version-checks.md",
+      "destination": "skills/flow-drive/references/php/references/laravel-version-checks.md",
+      "kind": "branch",
+      "sha256": "05f76154f7f90c7f49dc67ee649c9f89680c301924445f4bf8489b6bac4f8c8b"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/modern-php-features.md",
+      "destination": "skills/flow-drive/references/php/references/modern-php-features.md",
+      "kind": "branch",
+      "sha256": "08386e4ffeba86d0f35b17e96b8ecaee1011905b8c3bfc8de97e19d1c591cdbd"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/php56-legacy.md",
+      "destination": "skills/flow-drive/references/php/references/php56-legacy.md",
+      "kind": "branch",
+      "sha256": "734ba4e6bbc0e1d303fc21b23b180a4ffb2d0fa73f6c805dc8150b07fee10b52"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/phpunit57-php56-legacy.md",
+      "destination": "skills/flow-drive/references/php/references/phpunit57-php56-legacy.md",
+      "kind": "branch",
+      "sha256": "19a726df8375fa040b610291a0494b489d05a147f82d2e9bf71de285f7ddb388"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/static-checks.md",
+      "destination": "skills/flow-drive/references/php/references/static-checks.md",
+      "kind": "branch",
+      "sha256": "3bdd7441474f056c66ca1cd2989e5acfeb04476ed26820b22a2e17a1f02da38e"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/symfony-patterns.md",
+      "destination": "skills/flow-drive/references/php/references/symfony-patterns.md",
+      "kind": "branch",
+      "sha256": "c0efab6c589cfcd9fb96ec9c0f4735517f2ee3c17395df6cd9a6fa14218bea4e"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/references/testing-quality.md",
+      "destination": "skills/flow-drive/references/php/references/testing-quality.md",
+      "kind": "branch",
+      "sha256": "f41ed61cd1aa35cb7b7fc79715dacbd3cfd6eeaf6d3066d68fc4d247e6d8e3a1"
     },
     {
       "skillId": "flow-drive",
@@ -1954,6 +1415,102 @@
       "sha256": "4eb95ee9adc129bd0c629441f023aa20f5c8a59f96a6b40bb7260101b42620eb"
     },
     {
+      "skillId": "python",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/python/SKILL.md",
+      "destination": "skills/flow-drive/references/python/SKILL.md",
+      "kind": "reference",
+      "sha256": "411b0af974e29373fccc501570a41f590547c58e49de36cc90c138f953f4e97e"
+    },
+    {
+      "skillId": "python",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/python/agents/openai.yaml",
+      "destination": "skills/flow-drive/references/python/agents/openai.yaml",
+      "kind": "reference",
+      "sha256": "74cb681c917a00be6e493ffa9ae9f95b4daa2756799587c65a4bc60df81ac8fe"
+    },
+    {
+      "skillId": "python",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/python/evals/evals.json",
+      "destination": "skills/flow-drive/references/python/evals/evals.json",
+      "kind": "reference",
+      "sha256": "2b1cbf0435c63f1776a67c94ea342b040e86fd95e3a664aabfa15a01682f3c53"
+    },
+    {
+      "skillId": "python",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/python/references/fastapi.md",
+      "destination": "skills/flow-drive/references/python/references/fastapi.md",
+      "kind": "reference",
+      "sha256": "de15bbf31f3d957c560cb3ab59a55dc5080d89c118bde9670255f03e843f986d"
+    },
+    {
+      "skillId": "python",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/python/references/language.md",
+      "destination": "skills/flow-drive/references/python/references/language.md",
+      "kind": "reference",
+      "sha256": "d1996699ddbdd1b3b840594a7e1fc6dc857322c07ab03b82362828b92e89aeb9"
+    },
+    {
+      "skillId": "python",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/python/references/static.md",
+      "destination": "skills/flow-drive/references/python/references/static.md",
+      "kind": "reference",
+      "sha256": "0dd6ea9e79f07b1ee86f079bf3c7a89aec80f2db7c3b3fd6f5864e8f6f8f811b"
+    },
+    {
+      "skillId": "python",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/python/references/testing.md",
+      "destination": "skills/flow-drive/references/python/references/testing.md",
+      "kind": "reference",
+      "sha256": "d5aa7f4366ad1522b85cdff628bb389f94ed5e126f8fabfcdf59cd4c4cc5629c"
+    },
+    {
+      "skillId": "react",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/react/SKILL.md",
+      "destination": "skills/flow-drive/references/react/SKILL.md",
+      "kind": "reference",
+      "sha256": "a5f016b12a167f11933b2ac41d0521eb1dcbec63609cd9d14ebed580d346211e"
+    },
+    {
+      "skillId": "react",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/react/agents/openai.yaml",
+      "destination": "skills/flow-drive/references/react/agents/openai.yaml",
+      "kind": "reference",
+      "sha256": "3fe8e1b1863061499f340e044581d00d2b85c7f8e7de9cdf0781b88678a596a2"
+    },
+    {
+      "skillId": "react",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/react/references/18.md",
+      "destination": "skills/flow-drive/references/react/references/18.md",
+      "kind": "reference",
+      "sha256": "68ce89cc9ab39b0a4fa60b620ee74f1c320b77162ccc6546282c7bc6383b5c72"
+    },
+    {
+      "skillId": "react",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/react/references/19.md",
+      "destination": "skills/flow-drive/references/react/references/19.md",
+      "kind": "reference",
+      "sha256": "bbfad0501930d045078bddf06c76acb944d42631b03b3d75cf157eb2debba2aa"
+    },
+    {
+      "skillId": "react",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/react/references/target-selection.md",
+      "destination": "skills/flow-drive/references/react/references/target-selection.md",
+      "kind": "reference",
+      "sha256": "db2da2cd477d7e54c2dab9dddbf5257532da97138fc6565f0e155aa83aee2489"
+    },
+    {
       "skillId": "flow-drive",
       "ownerId": "flow-drive",
       "sourcePath": "skills/flow-drive/references/recovery.md",
@@ -1962,28 +1519,396 @@
       "sha256": "04d19a457d370ea71ed62ea63feaea337a832de650ebedc69dd34567823f8636"
     },
     {
-      "skillId": "review-pending",
+      "skillId": "swift",
       "ownerId": "flow-drive",
-      "sourcePath": "skills/review-pending/SKILL.md",
-      "destination": "skills/flow-drive/references/review-pending/SKILL.md",
+      "sourcePath": "skills/swift/SKILL.md",
+      "destination": "skills/flow-drive/references/swift/SKILL.md",
       "kind": "branch",
-      "sha256": "30d2bae7906b063277e85e817c116748a3eca6c2c7e15c444f9d100dbc2da3c0"
+      "sha256": "5230ce9aacb918a4e754960013152421ca482138104f097304b4f61d31339736"
     },
     {
-      "skillId": "review-pending",
+      "skillId": "swift",
       "ownerId": "flow-drive",
-      "sourcePath": "skills/review-pending/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/review-pending/agents/openai.yaml",
+      "sourcePath": "skills/swift/agents/openai.yaml",
+      "destination": "skills/flow-drive/references/swift/agents/openai.yaml",
       "kind": "branch",
-      "sha256": "7120eef5a069375319e8952ae3e02b63fd8e3b04188cf4f4143ec975df4fb477"
+      "sha256": "63cb493f66bb5b3f64eaab0a4186471c9fbb81336b223053b7a373ae5988818a"
     },
     {
-      "skillId": "review-pending",
+      "skillId": "swift",
       "ownerId": "flow-drive",
-      "sourcePath": "skills/review-pending/references/workflow.md",
-      "destination": "skills/flow-drive/references/review-pending/references/workflow.md",
+      "sourcePath": "skills/swift/evals/evals.json",
+      "destination": "skills/flow-drive/references/swift/evals/evals.json",
       "kind": "branch",
-      "sha256": "fda1499515c07280b2c9d595dce42abd6b5ee6fabce2feabe99820c136077d94"
+      "sha256": "23ca3501be90da2b886cec619dafb1b6b0fb765a213d932231f34420686f8de1"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/actor-persistence.md",
+      "destination": "skills/flow-drive/references/swift/references/actor-persistence.md",
+      "kind": "branch",
+      "sha256": "8b4efa741a95cfdd1f3fad3bbd1b5aa27b6afda5ae10897af767086456901711"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/approachable-concurrency.md",
+      "destination": "skills/flow-drive/references/swift/references/approachable-concurrency.md",
+      "kind": "branch",
+      "sha256": "59b785ce22680b177110805cc624afe0e2ef4189dff44dad7152a7c89c209a13"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/build.md",
+      "destination": "skills/flow-drive/references/swift/references/build.md",
+      "kind": "branch",
+      "sha256": "8e06d02764575ca66c929438ab3c4493452361e978596540285894d22eb64f9f"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/concurrency.md",
+      "destination": "skills/flow-drive/references/swift/references/concurrency.md",
+      "kind": "branch",
+      "sha256": "b0ee634a9ae46d30d2bb515bfa7701ffd16edb12ea028e9cbe3d59376e9f219d"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/coredata-encryption.md",
+      "destination": "skills/flow-drive/references/swift/references/coredata-encryption.md",
+      "kind": "branch",
+      "sha256": "abeaebd0021e32e8cfe3783f1536f9f08ba48f316f11010e0ae9e01024b17851"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/cryptokit-keychain.md",
+      "destination": "skills/flow-drive/references/swift/references/cryptokit-keychain.md",
+      "kind": "branch",
+      "sha256": "790fd8575ad85fcaca3efe10e93ecfc5c93af8f523c266aa2fd27fcaa56ebfea"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/error-handling.md",
+      "destination": "skills/flow-drive/references/swift/references/error-handling.md",
+      "kind": "branch",
+      "sha256": "ee8ce8715391ff15c7d65387c01c62335aea4be71647d8f0bb8f73da350a72b9"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/healthkit-read.md",
+      "destination": "skills/flow-drive/references/swift/references/healthkit-read.md",
+      "kind": "branch",
+      "sha256": "5c63e27a80c9df8c15a1d2f9e992e8465f97309d77f6e9563b61516e6f456cc4"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/icon.md",
+      "destination": "skills/flow-drive/references/swift/references/icon.md",
+      "kind": "branch",
+      "sha256": "a9c34004734181006d647f90926cd489cecda418017675ee6bf450ec7a13c493"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/interop.md",
+      "destination": "skills/flow-drive/references/swift/references/interop.md",
+      "kind": "branch",
+      "sha256": "5ad555cb830a53ec55b8911ef9fa5261bc62a75ce63404c628a390b24474f283"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/language.md",
+      "destination": "skills/flow-drive/references/swift/references/language.md",
+      "kind": "branch",
+      "sha256": "ca0c04441c2c2f3f8a92d9c62481fbfe8fa7fee4c451786b0181c6b6bc84733b"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/local-authentication.md",
+      "destination": "skills/flow-drive/references/swift/references/local-authentication.md",
+      "kind": "branch",
+      "sha256": "0ec2e3f447b3a643b7807b32888f376a1f81b585c27f9811ca93a032c582c47c"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/mvvm-coordinator.md",
+      "destination": "skills/flow-drive/references/swift/references/mvvm-coordinator.md",
+      "kind": "branch",
+      "sha256": "d53313c46dd10bd90f9c23b9c40ce3e2d2174519d95ea68de92f3b0e8117953f"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/navigation.md",
+      "destination": "skills/flow-drive/references/swift/references/navigation.md",
+      "kind": "branch",
+      "sha256": "d9dcad66217e3c71522c983d74e86f2e54efbfc5690cdd71b637b871f3fd86f6"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/notifications.md",
+      "destination": "skills/flow-drive/references/swift/references/notifications.md",
+      "kind": "branch",
+      "sha256": "5c8b16a1bef8fb97e67f1ca161213531b651d3586773f39b6d5834d8d03c40e8"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/observation-state.md",
+      "destination": "skills/flow-drive/references/swift/references/observation-state.md",
+      "kind": "branch",
+      "sha256": "2e47703afab278ee11ad934fd36e6f9a7ce1c17af377efce4fc90fb58b25bb31"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/platform.md",
+      "destination": "skills/flow-drive/references/swift/references/platform.md",
+      "kind": "branch",
+      "sha256": "4865fab9dbb381534e5d97f482bdec66389f297cce1645878805043099d5be0b"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/privacy-compliance.md",
+      "destination": "skills/flow-drive/references/swift/references/privacy-compliance.md",
+      "kind": "branch",
+      "sha256": "adbd510810a77af059390703bad9580c4d9c73576a231be3e77b03160a499156"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/protocol-di-host-testing.md",
+      "destination": "skills/flow-drive/references/swift/references/protocol-di-host-testing.md",
+      "kind": "branch",
+      "sha256": "eb3003c291bb292b19b169dc1e5833cc4d1412c22c4311d32f3746a726933ee4"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/scheme-signing.md",
+      "destination": "skills/flow-drive/references/swift/references/scheme-signing.md",
+      "kind": "branch",
+      "sha256": "f12c20feb61b1fcacb8ec8b6b4501746fd8a74b4e304572ff7cccd34d6dc632a"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/snapshot-testing.md",
+      "destination": "skills/flow-drive/references/swift/references/snapshot-testing.md",
+      "kind": "branch",
+      "sha256": "7eb48859c52999dcc25af3d40efb3908810333141c8094a084deeb8ab31aeda5"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/swift-testing-api.md",
+      "destination": "skills/flow-drive/references/swift/references/swift-testing-api.md",
+      "kind": "branch",
+      "sha256": "427e7084ec964b1a43e8a711ddda3e8f82ce11dc7c95a54dd78fd6ed926c0425"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/swift5-compat-notes.md",
+      "destination": "skills/flow-drive/references/swift/references/swift5-compat-notes.md",
+      "kind": "branch",
+      "sha256": "745ff8010cb030d3e369feed2c3558b90392daf759c3a28761561490972115f9"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/swiftlint-config.md",
+      "destination": "skills/flow-drive/references/swift/references/swiftlint-config.md",
+      "kind": "branch",
+      "sha256": "40cc51ec807e1cd9eb72814d463294ab7225a040f2dd3fe1c72ec1105d042c19"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/test-taxonomy.md",
+      "destination": "skills/flow-drive/references/swift/references/test-taxonomy.md",
+      "kind": "branch",
+      "sha256": "5becdbd85ddb3f250b70d81b1d3a6f0472de011ab214cbdbdc5afe484480634a"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/testing.md",
+      "destination": "skills/flow-drive/references/swift/references/testing.md",
+      "kind": "branch",
+      "sha256": "72724461cc7cfe3191b53158b5a79bdad991c36a833b18e8f514ba10d640b0b4"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/ui.md",
+      "destination": "skills/flow-drive/references/swift/references/ui.md",
+      "kind": "branch",
+      "sha256": "cd8dba4cac4642e75732aa4aebebd5a38c560beb685ba233ec9f7c554709bbc9"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/value-vs-reference.md",
+      "destination": "skills/flow-drive/references/swift/references/value-vs-reference.md",
+      "kind": "branch",
+      "sha256": "92c2e4e11e36a79640bda1734b235ecd80b5dd3a71d73e5917b48a26ae6c26a9"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/vision-ocr.md",
+      "destination": "skills/flow-drive/references/swift/references/vision-ocr.md",
+      "kind": "branch",
+      "sha256": "cc1afcd34901f8fa4546b9fa44cda27d695711473bd72d436ec536a3b73ae1f9"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/xcodebuild-spm.md",
+      "destination": "skills/flow-drive/references/swift/references/xcodebuild-spm.md",
+      "kind": "branch",
+      "sha256": "4d4fe6561fbf37a16566d3262db55f746865100429b59fab3b9a327e96591608"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/xctest-bridging.md",
+      "destination": "skills/flow-drive/references/swift/references/xctest-bridging.md",
+      "kind": "branch",
+      "sha256": "6215bedb6438e1ef84592ef7cdbe760b3d49e0de7fc33d28003c4efeee33d861"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/references/xcuitest.md",
+      "destination": "skills/flow-drive/references/swift/references/xcuitest.md",
+      "kind": "branch",
+      "sha256": "01057b573f64653b8c34c12d31823199498d3b197d73f31c8638b5bb397e4667"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/scripts/generate_icons.swift",
+      "destination": "skills/flow-drive/references/swift/scripts/generate_icons.swift",
+      "kind": "branch",
+      "sha256": "0dad47223dd5502cf986070950cd2dd0ceed7ff7d17d2600d9d8aeb24a4b3069"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/scripts/iconify_gen.sh",
+      "destination": "skills/flow-drive/references/swift/scripts/iconify_gen.sh",
+      "kind": "branch",
+      "sha256": "37a2f68c477bd60337cb8481b72c8ffc9e43634336a396949b6301bb09ee0d7d"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/SKILL.md",
+      "destination": "skills/flow-drive/references/yii1/SKILL.md",
+      "kind": "branch",
+      "sha256": "406c804c2fb7e0ac117288d484d7be2c88d52b6039acb4f3a918b9e385131681"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/agents/openai.yaml",
+      "destination": "skills/flow-drive/references/yii1/agents/openai.yaml",
+      "kind": "branch",
+      "sha256": "a8b7d5a473b0c67cf8d8820d9874fb341ad48cd8d25156253c6867c5028f905b"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/evals/evals.json",
+      "destination": "skills/flow-drive/references/yii1/evals/evals.json",
+      "kind": "branch",
+      "sha256": "6b0fe5ff2d1659a103576e166f5aadb1abda383a2c9e37f00b23d5599147258b"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/references/context7-sources-and-query-rules.md",
+      "destination": "skills/flow-drive/references/yii1/references/context7-sources-and-query-rules.md",
+      "kind": "branch",
+      "sha256": "87d23a7407cad6201c0fbfa16ea57a56bd8025b5a964d424890920d4815867a7"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/references/ddd-lite-for-yii1.md",
+      "destination": "skills/flow-drive/references/yii1/references/ddd-lite-for-yii1.md",
+      "kind": "branch",
+      "sha256": "b0a957c1de07528d78d90518f4e6755bc0742d2a03a204350e2521f633bc2d5f"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/references/development.md",
+      "destination": "skills/flow-drive/references/yii1/references/development.md",
+      "kind": "branch",
+      "sha256": "f801e7f91987ef4b4a39e889f90e2285cfd03baa442c19a18ffe1191075ada69"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/references/php56-php7-safe-subset.md",
+      "destination": "skills/flow-drive/references/yii1/references/php56-php7-safe-subset.md",
+      "kind": "branch",
+      "sha256": "761361c43eb6ed2ea6650d528bb46e258d6349506ce5d22c85d778b0e74fd44f"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/references/phpunit57-legacy-test-traps.md",
+      "destination": "skills/flow-drive/references/yii1/references/phpunit57-legacy-test-traps.md",
+      "kind": "branch",
+      "sha256": "6e149afe0ad82c3b25b1e738cc0d5d12225785439b5e2cbb20d1dfa1228d11ca"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/references/security.md",
+      "destination": "skills/flow-drive/references/yii1/references/security.md",
+      "kind": "branch",
+      "sha256": "56745fc82fec347babf8e8aefa0c16d50e8b0dd96f4afc885be0c88a426bfcf5"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/references/tdd-workflow-and-test-strategy.md",
+      "destination": "skills/flow-drive/references/yii1/references/tdd-workflow-and-test-strategy.md",
+      "kind": "branch",
+      "sha256": "e9204a3d8bc574d5aadf4f71b0dba124b02fffcfe0299c6bda85bee57b067a10"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/references/yii1-backend-patterns.md",
+      "destination": "skills/flow-drive/references/yii1/references/yii1-backend-patterns.md",
+      "kind": "branch",
+      "sha256": "8f3ce5ba8b2dc2a535c67838950a7ed8fcd6224b41e78a37f83d896994e2a6f8"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/references/yii1-security-patterns.md",
+      "destination": "skills/flow-drive/references/yii1/references/yii1-security-patterns.md",
+      "kind": "branch",
+      "sha256": "c1763816e7a1b8179032e5e5c2d603d6442e34e3dc9d87df4d0a25c9ffc3e3ba"
     },
     {
       "skillId": "flow-drive",
@@ -2223,7 +2148,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "9b294a7dd6b2f9cfd86decbd5beacf53be9b47fce408e58fef5b74ecfe25f0ba"
+      "sha256": "88a0ce756826174346d8e6ac2f28bdc2335472fbc37415c27501a5a4a9308870"
     },
     {
       "skillId": "flow-guide",
@@ -2527,7 +2452,7 @@
       "sourcePath": "skills/flow-guide/references/route-result.schema.json",
       "destination": "skills/flow-guide/references/route-result.schema.json",
       "kind": "entry",
-      "sha256": "48ce8ee3a8dbea9c42012214517eba2182ac43b98cd20c0b8a75d95d2514651a"
+      "sha256": "5a2b52beeed06dcc8ae975604761cd698c30fa79c23e2aecaa7bba3026937e58"
     },
     {
       "skillId": "flow-guide",
@@ -2535,7 +2460,7 @@
       "sourcePath": "skills/flow-guide/references/route-table.json",
       "destination": "skills/flow-guide/references/route-table.json",
       "kind": "entry",
-      "sha256": "d81329813b3d7df2fabed1d7225c0139dfe0909c8b05cc2e46a6eee58052b7b4"
+      "sha256": "174e29c6d4435a0475ffa28ac1e5dce1803bbbcf5476998dc90411b84a59d8da"
     },
     {
       "skillId": "flow-guide",
@@ -2655,7 +2580,7 @@
       "sourcePath": "skills/flow-guide/scripts/_lib/skill-usage.js",
       "destination": "skills/flow-guide/scripts/_lib/skill-usage.js",
       "kind": "entry",
-      "sha256": "82df4f96dea1de41b1012bd45d3f9c51b8ba4421a41d1252bf04694f4ad4a3fa"
+      "sha256": "1dda2cac0c6de2645e3c1d4ce039145670a24ca5d3785b8c2a2a7451aa4586b8"
     },
     {
       "skillId": "flow-guide",
@@ -2687,7 +2612,7 @@
       "sourcePath": "skills/flow-guide/scripts/pre-route.sh",
       "destination": "skills/flow-guide/scripts/pre-route.sh",
       "kind": "entry",
-      "sha256": "5a5bae48c991bbd35f38eee57330e4f991898cb2d4fdc289105c11f3cd2798a2"
+      "sha256": "7e31727e91e8a5a805ca5a4fa61c7fbb8897317849e81df80fbe80f807eb6536"
     },
     {
       "skillId": "flow-guide",
@@ -2711,7 +2636,7 @@
       "sourcePath": "skills/flow-guide/scripts/route-result.js",
       "destination": "skills/flow-guide/scripts/route-result.js",
       "kind": "entry",
-      "sha256": "10ef5a0f5de18d6d0ff7f7550c7e7d7c4f0cfd85f358a2ea7e7e67c1a62a5ed3"
+      "sha256": "5c023f6264c12d7a0281c8770f875abe630996bc1bd05d2f777c9b6f01436403"
     },
     {
       "skillId": "flow-guide",
@@ -2719,7 +2644,7 @@
       "sourcePath": "skills/flow-guide/scripts/usage-card.js",
       "destination": "skills/flow-guide/scripts/usage-card.js",
       "kind": "entry",
-      "sha256": "8a6b0a2a950fc15ccffed4bd830deba5f2a7f1c72e5d33834df4cd1376f2c976"
+      "sha256": "e906423d288e8f34107b64470f56176a459e5f4df49ab63a55f6f39792a22fbe"
     },
     {
       "skillId": "flow-guide",
@@ -2879,7 +2804,7 @@
       "sourcePath": "skills/opsx-apply-resume/SKILL.md",
       "destination": "skills/opsx-apply-resume/SKILL.md",
       "kind": "entry",
-      "sha256": "0e27e88ab00588aaa8fab09f8c749c62aa4e299fe8b6efa190756b57748a2c8e"
+      "sha256": "568c9851496e0a7f2b303400f57bef7edd70e44f9a3cb778e8a5a67eb56784ed"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2892,10 +2817,34 @@
     {
       "skillId": "opsx-apply-resume",
       "ownerId": "opsx-apply-resume",
+      "sourcePath": "skills/opsx-apply-resume/evals/evals.json",
+      "destination": "skills/opsx-apply-resume/evals/evals.json",
+      "kind": "entry",
+      "sha256": "450f6c414853d8df1afefe918a7e9bce7a3619d063de6d65117e3e30af0cacaf"
+    },
+    {
+      "skillId": "opsx-apply-resume",
+      "ownerId": "opsx-apply-resume",
+      "sourcePath": "skills/opsx-apply-resume/references/load-context.md",
+      "destination": "skills/opsx-apply-resume/references/load-context.md",
+      "kind": "entry",
+      "sha256": "a1ec93b8caefbfd6c4437a46192f4c9c7aaa8c1fa28418157ee5889339b8324d"
+    },
+    {
+      "skillId": "opsx-apply-resume",
+      "ownerId": "opsx-apply-resume",
+      "sourcePath": "skills/opsx-apply-resume/references/post-observation.md",
+      "destination": "skills/opsx-apply-resume/references/post-observation.md",
+      "kind": "entry",
+      "sha256": "ea4ab3ad1ca6216363b377cd9cad33f280ef26d2d6a4077a8bea2e94d8e277af"
+    },
+    {
+      "skillId": "opsx-apply-resume",
+      "ownerId": "opsx-apply-resume",
       "sourcePath": "skills/opsx-apply-resume/references/resume.md",
       "destination": "skills/opsx-apply-resume/references/resume.md",
       "kind": "entry",
-      "sha256": "2ca089d16dc49b14464d23e9d3739d7f6444834e92566d661f4ea16ac0dc410d"
+      "sha256": "dd5edb243cb29161962bea1dcf451e2fa7d7a0c3cc5029f16312a479e8f1e054"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2903,7 +2852,7 @@
       "sourcePath": "skills/opsx-apply-resume/references/save.md",
       "destination": "skills/opsx-apply-resume/references/save.md",
       "kind": "entry",
-      "sha256": "6b25b0927ea1fe7ed6b53a4f148fab258b20ce45028a893f695257727b4d928b"
+      "sha256": "3aceee3681cf1748b3f377fb3847f163352ec14eb03ee3e9d9de3b2f06eb048a"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2935,7 +2884,7 @@
       "sourcePath": "skills/opsx-apply-resume/scripts/post-obs.sh",
       "destination": "skills/opsx-apply-resume/scripts/post-obs.sh",
       "kind": "entry",
-      "sha256": "d26ec7c9cd9073470b8c8af1c21f972d437a29bc57e0417e7ba9f1b153b7a0c9"
+      "sha256": "813fa07e844756313d2d708243d36981940fb03a9704f36dcf85bd934f6da2f2"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2959,7 +2908,7 @@
       "sourcePath": "skills/precommit/SKILL.md",
       "destination": "skills/precommit/SKILL.md",
       "kind": "entry",
-      "sha256": "85c99dcecd1f9954715f223a2139ce3d557d7e72c05b759aaf0204790fb849be"
+      "sha256": "c6d85e899fe7e124f357a2ed6381ccb86cbda2e3882bc23085cff977393b8486"
     },
     {
       "skillId": "precommit",
@@ -3343,7 +3292,7 @@
       "sourcePath": "skills/repo-verify/SKILL.md",
       "destination": "skills/repo-verify/SKILL.md",
       "kind": "entry",
-      "sha256": "f9a27268fdacdca82d792c0550e40e456b417ab164f296b21b96542a515c6b70"
+      "sha256": "c5177b4d1dbf61ca5b8ca7e34e4aecc904e12fc527cd95ce1140ec75996fe952"
     },
     {
       "skillId": "repo-verify",
@@ -3530,86 +3479,6 @@
       "sha256": "4185ef7a40d2d04e349b603c659e5eb21e71c23eb357f2332f75912b94e92776"
     },
     {
-      "skillId": "pytest-async",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-pytest-async/SKILL.md",
-      "destination": "skills/tdd-workflow/references/dhpk-pytest-async/SKILL.md",
-      "kind": "reference",
-      "sha256": "0bfe727b2148babfdc95eb5eb8e655347355271ca37bf50764e2b8bd41da178e"
-    },
-    {
-      "skillId": "pytest-async",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-pytest-async/agents/openai.yaml",
-      "destination": "skills/tdd-workflow/references/dhpk-pytest-async/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "ad3c2a2d5017e03add8fa57581c71266bc552d5b35649a96cbefc106aa977194"
-    },
-    {
-      "skillId": "swift-test-strategy",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-swift-test-strategy/SKILL.md",
-      "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/SKILL.md",
-      "kind": "reference",
-      "sha256": "4a875518357d8af00b997c07c04d8d1fe34ecf5a9ea299b62a8e3a74d37f06b6"
-    },
-    {
-      "skillId": "swift-test-strategy",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-swift-test-strategy/agents/openai.yaml",
-      "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "2292d5d98fc41f557fda5c730d95f53533e1dd5046fcab6b69c133a3bf2e1f66"
-    },
-    {
-      "skillId": "swift-test-strategy",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-swift-test-strategy/references/protocol-di-host-testing.md",
-      "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/protocol-di-host-testing.md",
-      "kind": "reference",
-      "sha256": "eb3003c291bb292b19b169dc1e5833cc4d1412c22c4311d32f3746a726933ee4"
-    },
-    {
-      "skillId": "swift-test-strategy",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-swift-test-strategy/references/snapshot-testing.md",
-      "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/snapshot-testing.md",
-      "kind": "reference",
-      "sha256": "7eb48859c52999dcc25af3d40efb3908810333141c8094a084deeb8ab31aeda5"
-    },
-    {
-      "skillId": "swift-test-strategy",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-swift-test-strategy/references/swift-testing-api.md",
-      "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/swift-testing-api.md",
-      "kind": "reference",
-      "sha256": "427e7084ec964b1a43e8a711ddda3e8f82ce11dc7c95a54dd78fd6ed926c0425"
-    },
-    {
-      "skillId": "swift-test-strategy",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-swift-test-strategy/references/test-taxonomy.md",
-      "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/test-taxonomy.md",
-      "kind": "reference",
-      "sha256": "5becdbd85ddb3f250b70d81b1d3a6f0472de011ab214cbdbdc5afe484480634a"
-    },
-    {
-      "skillId": "swift-test-strategy",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-swift-test-strategy/references/xctest-bridging.md",
-      "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/xctest-bridging.md",
-      "kind": "reference",
-      "sha256": "6215bedb6438e1ef84592ef7cdbe760b3d49e0de7fc33d28003c4efeee33d861"
-    },
-    {
-      "skillId": "swift-test-strategy",
-      "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-swift-test-strategy/references/xcuitest.md",
-      "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/xcuitest.md",
-      "kind": "reference",
-      "sha256": "01057b573f64653b8c34c12d31823199498d3b197d73f31c8638b5bb397e4667"
-    },
-    {
       "skillId": "tdd",
       "ownerId": "tdd",
       "sourcePath": "skills/tdd-workflow/references/mocking.md",
@@ -3623,7 +3492,7 @@
       "sourcePath": "skills/phpunit/SKILL.md",
       "destination": "skills/tdd-workflow/references/phpunit/SKILL.md",
       "kind": "branch",
-      "sha256": "6f60b9a48ce1962ab37eac85a8d094c4e17940e28e50d2863f86a592ef8291ee"
+      "sha256": "6b83d4d2f68f5654fa36656ceaaa4759ad755c25bb97649e38db171dba4d33a6"
     },
     {
       "skillId": "phpunit",

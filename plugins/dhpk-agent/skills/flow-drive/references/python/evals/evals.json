@@ -1,0 +1,53 @@
+{
+  "skill_name": "python",
+  "evals": [
+    {
+      "id": 1,
+      "name": "python-api-tests",
+      "prompt": "Use $python to implement an async FastAPI receipt endpoint and its regression tests in backend/. pyproject.toml requires-python is >=3.11,<3.12, the lock pins FastAPI with Pydantic2 and SQLAlchemy2. Keep external mail calls offline in tests.",
+      "expected_output": "Use thin Router \u2192 Service \u2192 Repository, Depends session/auth injection, request/response schemas with explicit response_model/status_code, one transaction per use case, parameterized queries and eager loading. RED-first tests use asyncio_mode=auto, in-memory isolated SQLite and httpx AsyncClient+ASGITransport with dependency overrides; test validation/auth/error outcomes and opt-in live markers. Respect configured coverage floor, do not invent a universal threshold.",
+      "expected_read_trace": {
+        "required": [
+          "references/fastapi.md",
+          "references/testing.md"
+        ],
+        "forbidden": [
+          "references/static.md"
+        ]
+      },
+      "expected_action_trace": "Scoped implementation/tests authorized; no real provider/network, shared DB writes, migration execution, commit or push."
+    },
+    {
+      "id": 2,
+      "name": "python-static",
+      "prompt": "Use $python to configure ruff and pyright strict for backend/. It targets Python3.10 with requires-python >=3.10,<3.11. Keep existing runtime behavior unchanged and report the exact check commands.",
+      "expected_output": "Configure ruff target-version/line-length and explicit rule selection, distinct lint versus format-check gates, chosen pyright version and strict mode. Explain scoped specific suppressions with reasons and runner fallback. Do not introduce TaskGroup which requires3.11, or pretend missing tools passed.",
+      "expected_read_trace": {
+        "required": [
+          "references/static.md"
+        ],
+        "forbidden": [
+          "references/fastapi.md",
+          "references/testing.md"
+        ]
+      },
+      "expected_action_trace": "Only requested tooling config edits/checks; no auto-fix or application behavior edits beyond authorization."
+    },
+    {
+      "id": 3,
+      "name": "python-ambiguity",
+      "prompt": "Use $python to migrate our services to modern Python async patterns. packages/a requires >=3.9,<3.12 while packages/b requires >=3.11. I have not picked a package or destination version. The shell has Python3.13.",
+      "expected_output": "Ask for target package and explicit migration destination and wait. Explain broad ranges do not establish a3.11 floor; installed interpreter is environment evidence. No versioned guidance or dependent edits before the answer.",
+      "expected_read_trace": {
+        "required": [],
+        "forbidden": [
+          "references/language.md",
+          "references/fastapi.md",
+          "references/testing.md",
+          "references/static.md"
+        ]
+      },
+      "expected_action_trace": "Inspect configuration and clarify only. No blanket upgrades, type syntax changes or migrations."
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "skill_name": "php",
+  "evals": [
+    {
+      "id": 1,
+      "name": "php56-legacy",
+      "prompt": "Use $php to fix this generic PHP5.6 service and add isolated PHPUnit5.7 regression tests. composer.json explicitly targets PHP5.6, the only package is lib/, and the service has no framework dependencies. Keep deployment compatibility.",
+      "expected_output": "Use PHPDoc, no scalar/return types, strict_types, ??, arrows, typed properties, match, named args, or readonly. Use compatible PHPUnit5.7 test APIs and deterministic fake dependencies. Characterize observable success/failure before implementation; no Yii framework assumptions.",
+      "expected_read_trace": {
+        "required": [
+          "references/php56-legacy.md",
+          "references/phpunit57-php56-legacy.md"
+        ],
+        "forbidden": [
+          "references/7-4.md",
+          "references/8-x.md",
+          "references/feature-catalog.md"
+        ]
+      },
+      "expected_action_trace": "Scoped source/tests only; no Composer floor bump, framework scaffold, shared DB mutation, commit or push. Missing PHP5.6 runner is NOT_RUN not a successful compatibility proof."
+    },
+    {
+      "id": 2,
+      "name": "php-multiple-floors",
+      "prompt": "Use $php to compare three independent library targets: legacy explicitly5.6, compat explicitly7.4, and modern explicitly8.2. For compat I am intentionally overriding config.platform.php8.2 because composer.json promises ^7.4 || ^8.0. Decide whether typed properties, match, enums and readonly classes are safe. Advice only.",
+      "expected_output": "Group evidence/resources/output by target. 5.6: none of the listed syntax. 7.4: typed properties yes, match/enums/readonly classes no; same-file runtime conditions cannot hide parse errors. 8.2: all listed syntax available. Explicit intended7.4 floor overrides platform emulation; named arguments make public parameter names stable API; a floor bump is an explicit semver decision.",
+      "expected_read_trace": {
+        "required": [
+          "references/php56-legacy.md",
+          "references/7-4.md",
+          "references/8-x.md",
+          "references/feature-catalog.md"
+        ],
+        "forbidden": []
+      },
+      "expected_action_trace": "Read-only analysis; no composer edits/floor bump/installs. Do not silently merge target compatibility or infer floor from PHP executable."
+    },
+    {
+      "id": 3,
+      "name": "php-ambiguity",
+      "prompt": "Use $php to modernize this workspace and migrate it. packages/a composer php is >=5.6, packages/b php is ^7.4 || ^8.0, CI mentions8.3 and local php --version is8.4. I have not selected a package or destination.",
+      "expected_output": "Ask target package and explicit destination and wait before version-specific reference reads or dependent actions. Broad range and CI/local runtime do not remove older supported floors; conflicts remain unresolved.",
+      "expected_read_trace": {
+        "required": [],
+        "forbidden": [
+          "references/php56-legacy.md",
+          "references/7-4.md",
+          "references/8-x.md",
+          "references/feature-catalog.md"
+        ]
+      },
+      "expected_action_trace": "Configuration inspection/clarification only. No modern syntax suggestions, composer update, floor changes or migrations before answer."
+    }
+  ]
+}

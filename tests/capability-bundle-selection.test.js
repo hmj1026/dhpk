@@ -444,7 +444,7 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   }
 });
 
-test('checked-in common collection is the curated fifteen-entry default', () => {
+test('checked-in common collection is the curated fourteen-entry default', () => {
   const root = path.join(__dirname, '..');
   const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests/distribution-inventory.json'), 'utf8'));
   const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests/install-profiles.json'), 'utf8'));
@@ -452,13 +452,13 @@ test('checked-in common collection is the curated fifteen-entry default', () => 
   const expected = [
     'flow-guide', 'code-trace', 'change-verdict', 'flow-drive', 'git-smart-commit',
     'release-creator', 'tdd', 'create-pr', 'git-worktree', 'proposal-analyze',
-    'update-docs', 'precommit', 'dep-audit', 'repo-verify', 'ui-ux-verify',
+    'update-docs', 'precommit', 'repo-verify', 'ui-ux-verify',
   ];
   const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog });
   assert.strictEqual(result.ok, true, result.error && result.error.message);
   assert.strictEqual(result.value.profileId, 'common');
   assert.deepStrictEqual(result.value.selectedStableIds, expected);
-  assert.strictEqual(result.value.selectedStableIds.length, 15);
+  assert.strictEqual(result.value.selectedStableIds.length, 14);
   assert.deepStrictEqual(result.value.supportClosure.skillStableIds, []);
   assert.ok(result.value.supportClosure.files.every((file) => expected.includes(file.requiredBy)));
 });

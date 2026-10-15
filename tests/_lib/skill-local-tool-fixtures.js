@@ -41,7 +41,7 @@ function registerLocalToolFixtures() {
     });
   }
   registerFixture({
-    id: 'js-status-local-classification', skill: 'js-static-check-strategy',
+    id: 'js-status-local-classification', skill: 'js-static-checks',
     entry: 'scripts/status.js', args: ['--path', 'js'],
     expected: { status: 0, output: 'total=3 strict=1 nocheck=1 unmarked=1' },
     assert(result) {
@@ -58,7 +58,7 @@ function registerLocalToolFixtures() {
     },
   });
   registerFixture({
-    id: 'js-status-missing-directory', skill: 'js-static-check-strategy',
+    id: 'js-status-missing-directory', skill: 'js-static-checks',
     entry: 'scripts/status.js', args: ['--path', 'missing'],
     expected: { status: 0, output: '"status":"UNAVAILABLE"' },
     assert(result) {

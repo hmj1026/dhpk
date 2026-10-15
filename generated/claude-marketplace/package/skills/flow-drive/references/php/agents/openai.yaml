@@ -1,0 +1,4 @@
+interface:
+  display_name: "PHP"
+  short_description: "PHP5.6,7.4,8.x compatibility and runtime guidance"
+  default_prompt: "Use $php for the task, resolving package scope and supported floor before loading local version guidance."

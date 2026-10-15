@@ -287,8 +287,8 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **操作**：
   - **即時專業審查**：修改代碼後，依變更檔案路徑自動分派對應領域 Reviewer：
     ```text
-    /dhpk:review-pending                              # 審查當前所有修改中檔案
-    /dhpk:review-pending --files="app/Models/User.php" # 審查指定檔案清單
+    /dhpk:change-verdict pending                              # 審查當前所有修改中檔案
+    /dhpk:change-verdict pending --files="app/Models/User.php" # 審查指定檔案清單
     ```
   - **獨立品質裁決**：以唯讀方式評審代碼規範、安全漏洞、測試覆蓋或變更風險：
     ```text
@@ -475,10 +475,10 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
   /dhpk:change-verdict --mode docs docs/basic-operations.md
   ```
 
-#### 5. review-pending（待審變更即時派工）
+#### 5. change-verdict pending（待審變更審查）
 
-- **定位**：自動比對當前工作目錄變更，依據檔案副檔名與路徑派遣對應領域專業 Reviewer（代碼、資料庫、安全、前端等）。
-- **呼叫語法**：`/dhpk:review-pending [--files=<rel-paths>]`
+- **定位**：以唯讀方式審查當前工作目錄變更，依據選取路徑使用可用的專業 Reviewer；必要 reviewer 不可用時回報 `UNAVAILABLE`。
+- **呼叫語法**：`/dhpk:change-verdict pending [--files=<rel-paths>]`
 - **參數說明**：
 
   | 參數 | 類型 | 預設值 | 說明 |
@@ -488,10 +488,10 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
 - **實戰範例**：
   ```text
   # 審查所有當前修改中（Staged + Unstaged）的檔案
-  /dhpk:review-pending
+  /dhpk:change-verdict pending
 
   # 僅針對特定受影響檔案派發審查
-  /dhpk:review-pending --files="app/Models/User.php,routes/api.php"
+  /dhpk:change-verdict pending --files="app/Models/User.php,routes/api.php"
   ```
 
 #### 6. tdd-workflow（測試驅動開發工作流）

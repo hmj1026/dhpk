@@ -9,9 +9,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ALIASES = Object.freeze({
-  'opsx-load-context': 'dhpk-opsx-load-context',
-  'opsx-post-obs': 'dhpk-opsx-post-observation',
-  'opsx-post-observation': 'dhpk-opsx-post-observation',
   'opsx-apply-resume': 'opsx-apply-resume',
   'compact-save': null,
 });

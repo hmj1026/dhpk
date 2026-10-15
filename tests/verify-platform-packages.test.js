@@ -45,7 +45,7 @@ test('default common receipts retain canonical IDs and the platform verifier rep
     const version = JSON.parse(fs.readFileSync(path.join(sourceRoot, '.claude-plugin', 'plugin.json'), 'utf8')).version;
     const commonIds = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'install-profiles.json'), 'utf8'))
       .profiles.common.skillIds;
-    assert.strictEqual(commonIds.length, 15);
+    assert.strictEqual(commonIds.length, 14);
     const inventory = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/distribution-inventory.json'), 'utf8'));
     const selection = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/marketplace-selection.json'), 'utf8'));
     const byId = new Map(inventory.skills.map((entry) => [entry.id, entry]));
@@ -59,7 +59,7 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       const report = JSON.parse(result.stdout);
       const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
         && byId.get(entry.id).surfaces.includes(surface)).map((entry) => entry.id);
-      assert.deepStrictEqual(hostOnlyIds.sort(), surface === 'codex-native' ? ['opsx-load-context', 'opsx-post-obs'] : []);
+      assert.deepStrictEqual(hostOnlyIds.sort(), surface === 'codex-native' ? ['opsx-apply-resume'] : []);
       const expectedPhysicalIds = [...new Set([...commonIds, ...hostOnlyIds, ...inventory.internal_runtime_skills[surface]])].sort();
       assert.strictEqual(report.skillCount, expectedPhysicalIds.length, `${surface} must retain its declared physical entries`);
       assert.deepStrictEqual(fs.readdirSync(path.join(output, 'skills')).sort(), expectedPhysicalIds.map((id) => byId.get(id).name).sort());

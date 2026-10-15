@@ -30,7 +30,7 @@ terminal failures.
 ## When NOT to Use
 
 - A check should edit, format, build, or fix the repository.
-- Dependency security review is the goal (use `$dep-audit`).
+- Dependency security review is the goal (use `$change-verdict deps`).
 - Merge approval or code-review verdict is the goal.
 
 ## Output

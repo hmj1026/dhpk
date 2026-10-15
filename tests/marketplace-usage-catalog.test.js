@@ -12,7 +12,7 @@ const read = (file) => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8')
 const inventory = read('manifests/distribution-inventory.json');
 const selection = read('manifests/marketplace-selection.json');
 const publicNames = [
-  'change-verdict', 'code-trace', 'create-pr', 'dep-audit', 'flow-drive',
+  'change-verdict', 'code-trace', 'create-pr', 'flow-drive',
   'flow-guide', 'git-smart-commit', 'git-worktree', 'precommit',
   'proposal-analyze', 'release-creator', 'repo-verify', 'tdd-workflow',
   'ui-ux-verify', 'update-docs',
@@ -22,9 +22,11 @@ function view() {
   return selectionApi.compileMarketplacePublicationView({ inventory, selection });
 }
 
-test('official usage lists exactly the fifteen approved public owners', () => {
+test('official usage lists exactly the fourteen approved public owners', () => {
   const catalog = compileSkillUsageCatalog({ inventory, publicationView: view() });
   assert.deepStrictEqual(catalog.entries.map((entry) => entry.name).sort(), publicNames);
+  assert.strictEqual(catalog.runtimeIndex.targets['dep-audit'], undefined);
+  assert.strictEqual(catalog.runtimeIndex.targets['review-pending'], undefined);
 });
 
 test('known children and Host-only skills remain non-invokable diagnostic targets', () => {

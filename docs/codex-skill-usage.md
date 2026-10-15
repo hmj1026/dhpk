@@ -2,16 +2,16 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:0129decc4f364179ac002e916d8afa863df28fb02aa45e75e9964669981e8499`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:bccb30d379f121c82d8f29a1bc1f70f9f9db3a69222c1ca05601aed74c1c2f92`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
 ### `$change-verdict`
 
-Summary: Return an evidence-backed read-only change verdict
-Syntax: `$change-verdict [--mode=<mode>] [--coverage] [<target>]`
+Summary: Review changes or audit dependencies with bounded explicit fixes
+Syntax: `$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]`
 Invocation class: `implicit-eligible`
-Maximum authority: `read-only`
+Maximum authority: `workspace-write`
 
 Inputs:
 - `target` `<target>` (optional, string) — Change, PR, test, document, or risk target
@@ -23,13 +23,22 @@ Actions:
 - `tests` `$change-verdict --mode=tests [--coverage] [<target>]` — Judge test and coverage evidence
 - `docs` `$change-verdict --mode=docs [<target>]` — Judge documentation evidence
 - `risk` `$change-verdict --mode=risk [<target>]` — Judge change-risk evidence
+- `pending` `$change-verdict pending [--files=<paths>]` — Delegate a read-only pending-change review
+- `deps` `$change-verdict deps [--level=<severity>]` — Audit dependency risks without mutation
+- `deps-fix` `$change-verdict deps fix [--level=<severity>]` — Delegate requested bounded dependency remediation then obtain an independent verdict
 
 Options:
 - `mode` `--mode=<mode>` (optional, enum, values=code|pr|security|tests|docs|risk) — Select one verdict mode
 - `coverage` `--coverage` (optional, boolean, default=false) — Include coverage evidence in tests mode
+- `files` `--files=<paths>` (optional, string) — Comma-separated relative pending paths
+- `level` `--level=<severity>` (optional, enum, values=low|moderate|high|critical, default=moderate) — Minimum vulnerability severity
+- `fix` `--fix` (optional, boolean, default=false) — Explicitly request bounded dependency remediation
 
 Examples:
 - `$change-verdict --mode=tests --coverage` — Use change verdict with its declared interface
+- `$change-verdict pending --files=src/a.js` — Delegate pending review
+- `$change-verdict deps --level=high` — Audit dependencies without mutation
+- `$change-verdict deps fix` — Request bounded dependency remediation
 
 ### `$code-trace`
 
@@ -75,23 +84,6 @@ Options:
 
 Examples:
 - `$create-pr --dry-run` — Use create pr with its declared interface
-
-### `$dep-audit`
-
-Summary: Audit dependency risks with a separate explicit fix boundary
-Syntax: `$dep-audit [--level=<severity>] [--fix]`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Actions:
-- `audit` `$dep-audit` — Audit dependency vulnerabilities and optional fixes
-
-Options:
-- `level` `--level=<severity>` (optional, enum, values=low|moderate|high|critical, default=moderate) — Minimum severity to report
-- `fix` `--fix` (optional, boolean, default=false) — Run the explicitly requested fix operation
-
-Examples:
-- `$dep-audit --level=high` — Use dependency audit with its declared interface
 
 ### `$flow-drive`
 

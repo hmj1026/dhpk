@@ -1,0 +1,4 @@
+interface:
+  display_name: "JS static checks"
+  short_description: "Check status, configure lint tiers, and roll out type checking"
+  default_prompt: "Use $js-static-checks for the task and preserve check versus edit authority."

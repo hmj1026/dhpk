@@ -23,8 +23,8 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/dhpk:tdd-workflow test-generation` | 使用保留的 TDD skill 產生測試；review 使用 `change-verdict` 的 `tests` mode。 |
 | `/dhpk:change-verdict --mode tests --coverage` | 使用保留的唯讀 review skill 檢查 coverage。 |
 | `/dhpk:precommit` / `/dhpk:verify` | 提交前或完整驗證。 |
-| `/dhpk:dep-audit` | 依賴安全風險稽核。 |
-| `/dhpk:review-pending` | 針對指定路徑或目前 diff 派遣 code-reviewer 進行建議性審查。 |
+| `$change-verdict deps` | 依賴安全風險唯讀稽核；明確要求 `deps fix` 才進行限定修正。 |
+| `$change-verdict pending` | 針對指定路徑或目前 diff 派遣 code-reviewer 進行唯讀審查。 |
 
 ## Git、發布與工作區
 

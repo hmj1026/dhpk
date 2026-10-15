@@ -5,22 +5,21 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.1",
-  "sourceCommit": "0de71a6989f11c9963717f90c1c90ea2ce99e58c",
-  "generatedFromCommit": "0de71a6989f11c9963717f90c1c90ea2ce99e58c",
-  "generatedFromTree": "48da4c9fa009ebd3d4f34ea5a0ab32f80c71f11d",
-  "inventoryDigest": "74c25db73c57776e6d6fd85635951ee80ddb651ae0a9bb5ed6429d7e2629fd1d",
-  "inventoryRevision": "sha256:0129decc4f364179ac002e916d8afa863df28fb02aa45e75e9964669981e8499",
+  "sourceCommit": "e4f7b2906aabc00d486983e5b9eb4a8204f58830",
+  "generatedFromCommit": "e4f7b2906aabc00d486983e5b9eb4a8204f58830",
+  "generatedFromTree": "452c102730bc899684d3140cfd58b3d4b34dc505",
+  "inventoryDigest": "9bb1ab68e37bb28b003021021d937ce372a39e7fc9b8f5af76b4433da1c5ad4a",
+  "inventoryRevision": "sha256:bccb30d379f121c82d8f29a1bc1f70f9f9db3a69222c1ca05601aed74c1c2f92",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
   "runtimeSupportStableIds": [],
   "marketplacePublication": {
-    "selectionDigest": "5f9d35c642d1c09214e14a916cfbcb3cec6a7c327479a3598e9e1589a7b44e2f",
+    "selectionDigest": "2d3c88a251d94b3ab2492b776161ba960c6484ce1829c07adb333114dcb69e52",
     "publicEntryIds": [
       "change-verdict",
       "code-trace",
       "create-pr",
-      "dep-audit",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
@@ -36,12 +35,11 @@
     "hostOnlyIds": []
   },
   "bundledContentProvenance": {
-    "selectionDigest": "5f9d35c642d1c09214e14a916cfbcb3cec6a7c327479a3598e9e1589a7b44e2f",
+    "selectionDigest": "2d3c88a251d94b3ab2492b776161ba960c6484ce1829c07adb333114dcb69e52",
     "entryIds": [
       "change-verdict",
       "code-trace",
       "create-pr",
-      "dep-audit",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
@@ -59,13 +57,9 @@
       "composer-package-hygiene",
       "deploy-list",
       "doc-refactor",
-      "fastapi-pro",
       "feature-verify",
-      "ios-icon-gen",
-      "ios-platform",
       "issue-analyze",
-      "js-lint-config",
-      "js-static-check-strategy",
+      "js-static-checks",
       "laravel",
       "laravel-package-author",
       "laravel-testbench-matrix",
@@ -73,46 +67,47 @@
       "library-dual-testsuite-map",
       "matrix-cell-onboard",
       "merge-prep",
-      "nextjs-15-5-notes",
-      "nextjs-16-notes",
+      "nextjs",
       "openspec-artifact-guard",
-      "php-8x-features",
-      "php-modern-pro",
-      "php-pro",
-      "php56-yii-dev",
+      "php",
       "phpunit",
       "polyfill-version-matrix-audit",
       "pr-summary",
       "project-audit",
       "project-brief",
-      "pytest-async",
-      "python-pro",
-      "python-static-checks",
-      "react-18-notes",
-      "react-19-notes",
+      "python",
+      "react",
       "repo-intake",
-      "review-pending",
       "software-architecture",
-      "swift-language",
-      "swift-test-strategy",
-      "swiftui-architecture",
+      "swift",
       "update-codemaps",
       "vue-2-notes",
-      "xcode-build-tooling",
-      "yii1-security-audit"
+      "yii1"
     ],
     "sourceToDestination": [
       {
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "648f707cecfa11aaf226e17b406ed1fe6fc776e2"
+        "originalGitBlobDigest": "38109d3fcca57ec6ffdee69c7975cedf789fdd9d"
       },
       {
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/agents/openai.yaml",
         "destination": "skills/change-verdict/agents/openai.yaml",
-        "originalGitBlobDigest": "7ba5ad1337cf10c11335b8d17edee9d7a6bc00ea"
+        "originalGitBlobDigest": "4efb86511557074aa1b3cdbae24092c0bc6b3e3e"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/change-verdict/references/actions/deps.md",
+        "destination": "skills/change-verdict/references/actions/deps.md",
+        "originalGitBlobDigest": "8245c8123d3340c7bc2aac0836193d9228aae92d"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/change-verdict/references/actions/pending.md",
+        "destination": "skills/change-verdict/references/actions/pending.md",
+        "originalGitBlobDigest": "e588465a34420d18ad5533a2ceb354dc3009f5f5"
       },
       {
         "ownerId": "change-verdict",
@@ -136,7 +131,7 @@
         "ownerId": "change-verdict",
         "source": "skills/dhpk-composer-package-hygiene/SKILL.md",
         "destination": "skills/change-verdict/references/dhpk-composer-package-hygiene/SKILL.md",
-        "originalGitBlobDigest": "f027c966b9b8cd8f8d4bed7e9bc99479811a950d"
+        "originalGitBlobDigest": "cfd9ed86f8a3dd35bf4c9e5d6b17b98f758f0428"
       },
       {
         "ownerId": "change-verdict",
@@ -203,30 +198,6 @@
         "source": "skills/dhpk-project-audit/scripts/lib/runner-utils.js",
         "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/lib/runner-utils.js",
         "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-yii1-security-audit/SKILL.md",
-        "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/SKILL.md",
-        "originalGitBlobDigest": "57bca156c9b9134beeba7fa9be87e3788a1f323e"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-yii1-security-audit/agents/openai.yaml",
-        "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/agents/openai.yaml",
-        "originalGitBlobDigest": "1479ea9986bbff7692b4c8c18e659df6f01488b5"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-yii1-security-audit/evals/evals.json",
-        "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/evals/evals.json",
-        "originalGitBlobDigest": "3564be3f1c7f674bff6173a7a48a6cf8e0280486"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-yii1-security-audit/references/yii1-security-patterns.md",
-        "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/references/yii1-security-patterns.md",
-        "originalGitBlobDigest": "7a904b68d6074f36cf6329f3d090b84c7f53c7b6"
       },
       {
         "ownerId": "change-verdict",
@@ -607,24 +578,6 @@
         "originalGitBlobDigest": "ef21edbd133839001ee8d7a007da5f5478d9176f"
       },
       {
-        "ownerId": "dep-audit",
-        "source": "skills/dep-audit/SKILL.md",
-        "destination": "skills/dep-audit/SKILL.md",
-        "originalGitBlobDigest": "845a0c7a8cb8b354a78d7e366bd9094cf85fa8f5"
-      },
-      {
-        "ownerId": "dep-audit",
-        "source": "skills/dep-audit/agents/openai.yaml",
-        "destination": "skills/dep-audit/agents/openai.yaml",
-        "originalGitBlobDigest": "4c6b94eaaf1b14df459a48b8dd21f9709ed03de2"
-      },
-      {
-        "ownerId": "dep-audit",
-        "source": "skills/dep-audit/references/workflow.md",
-        "destination": "skills/dep-audit/references/workflow.md",
-        "originalGitBlobDigest": "8783e1a8d4ae035f73bdc11c27ef0e49e8148cb7"
-      },
-      {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/SKILL.md",
         "destination": "skills/flow-drive/SKILL.md",
@@ -674,126 +627,6 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/dhpk-fastapi-pro/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-fastapi-pro/SKILL.md",
-        "originalGitBlobDigest": "f49af2f0f59299b2fceb31176baad647739b0d3f"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-fastapi-pro/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-fastapi-pro/agents/openai.yaml",
-        "originalGitBlobDigest": "82d5f760afc9b574090f402f8ee6a6b75fef4b41"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-icon-gen/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/SKILL.md",
-        "originalGitBlobDigest": "043a41becfeec9fc5f2a4f927aef662b80000aa6"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-icon-gen/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/agents/openai.yaml",
-        "originalGitBlobDigest": "f6e26521eb61210a960929aa2b739c82114ebe70"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-icon-gen/scripts/generate_icons.swift",
-        "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/scripts/generate_icons.swift",
-        "originalGitBlobDigest": "fd1004cd714ccd64e7f9db0cd206c3ca77d0e82c"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-icon-gen/scripts/iconify_gen.sh",
-        "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/scripts/iconify_gen.sh",
-        "originalGitBlobDigest": "e95ec42d6ba2179aeeac03852114bc6d87b70a7f"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/SKILL.md",
-        "originalGitBlobDigest": "2e14874345dcc03a21636fb603bd07ff35c0ee1b"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/agents/openai.yaml",
-        "originalGitBlobDigest": "33db877600203b3c69e7bf430def9d141574d4f9"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/references/actor-persistence.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/actor-persistence.md",
-        "originalGitBlobDigest": "ead524ea57a5c7f4346510fd3f236373650603ee"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/references/coredata-encryption.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/coredata-encryption.md",
-        "originalGitBlobDigest": "4a0e36eb94f2c163803eb374017eb6961dbc0560"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/references/cryptokit-keychain.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/cryptokit-keychain.md",
-        "originalGitBlobDigest": "739d7a4728dead3547de04cec8f9730f90635e55"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/references/healthkit-read.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/healthkit-read.md",
-        "originalGitBlobDigest": "aef903d53003d5b0145c28d54e0777ffba92a29d"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/references/local-authentication.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/local-authentication.md",
-        "originalGitBlobDigest": "cb962819ad217fd0ce3471d801e06a9044381b0e"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/references/notifications.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/notifications.md",
-        "originalGitBlobDigest": "73675745207e848bb62f259fb1501e9282615beb"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/references/privacy-compliance.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/privacy-compliance.md",
-        "originalGitBlobDigest": "e036db5726aff52dea7206f583589bcdfc75c814"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-ios-platform/references/vision-ocr.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/vision-ocr.md",
-        "originalGitBlobDigest": "eeed4c4cef87a8f37068efe67e744a8a8d11773a"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-js-lint-config/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-js-lint-config/SKILL.md",
-        "originalGitBlobDigest": "5560f6e6b5bcfe51c02bad3e167dfaa1943970ac"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-js-lint-config/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-js-lint-config/agents/openai.yaml",
-        "originalGitBlobDigest": "bcf321a1b24dba98d115559e2e896e7db489857f"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-js-lint-config/references/frontend-review-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-js-lint-config/references/frontend-review-patterns.md",
-        "originalGitBlobDigest": "91f1cbeb6201a6302bc52efba705cdffa12aef43"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-js-lint-config/references/static-checks.md",
-        "destination": "skills/flow-drive/references/dhpk-js-lint-config/references/static-checks.md",
-        "originalGitBlobDigest": "115732039db883c91a1b7239c832b51eb1895980"
-      },
-      {
-        "ownerId": "flow-drive",
         "source": "skills/dhpk-laravel-package-author/SKILL.md",
         "destination": "skills/flow-drive/references/dhpk-laravel-package-author/SKILL.md",
         "originalGitBlobDigest": "5a5f22e95e33566e7c5a1c71473d760817cc723f"
@@ -812,42 +645,6 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/dhpk-nextjs-15-5-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-15-5-notes/SKILL.md",
-        "originalGitBlobDigest": "04fa2aa00e37e56f80cbe4139376f3af021021ed"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-nextjs-15-5-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-15-5-notes/agents/openai.yaml",
-        "originalGitBlobDigest": "2cd962f966ab5237ec4e21be6d265a022e8b7c31"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-nextjs-15-5-notes/references/frontend-framework-routing.md",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-15-5-notes/references/frontend-framework-routing.md",
-        "originalGitBlobDigest": "7281c131b308ce62cd239a1b18a386c5c9c7d179"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-nextjs-16-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-16-notes/SKILL.md",
-        "originalGitBlobDigest": "43effc74c1d80a376bed1ea7c90786aa33e24142"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-nextjs-16-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-16-notes/agents/openai.yaml",
-        "originalGitBlobDigest": "1f4b1f48a46c4646725ca16780e1f5595319fdac"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-nextjs-16-notes/references/frontend-framework-routing.md",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-16-notes/references/frontend-framework-routing.md",
-        "originalGitBlobDigest": "7281c131b308ce62cd239a1b18a386c5c9c7d179"
-      },
-      {
-        "ownerId": "flow-drive",
         "source": "skills/dhpk-openspec-artifact-guard/SKILL.md",
         "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/SKILL.md",
         "originalGitBlobDigest": "6225deedb017825ac33e14c82bf83ce2c509e4ad"
@@ -860,363 +657,15 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-8x-features/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-php-8x-features/SKILL.md",
-        "originalGitBlobDigest": "3f12a6a801c575c84d6b6bca2f4123baae25dd51"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-8x-features/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-php-8x-features/agents/openai.yaml",
-        "originalGitBlobDigest": "3e85e5f16ea75a542e8e0449e9518bf2b590579e"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-8x-features/references/feature-catalog.md",
-        "destination": "skills/flow-drive/references/dhpk-php-8x-features/references/feature-catalog.md",
-        "originalGitBlobDigest": "6ab6e0317b7b11327406d960fd761849ae15ddbb"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-modern-pro/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-php-modern-pro/SKILL.md",
-        "originalGitBlobDigest": "f7383af0627d60e0978c5d6d6157bf8592b781e3"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-modern-pro/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-php-modern-pro/agents/openai.yaml",
-        "originalGitBlobDigest": "b74ee5e63a6bb87ce92f555619753a87204345f6"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/SKILL.md",
-        "originalGitBlobDigest": "5bd6d61f04cc61d7fea67fd4415e9d07f1056e2b"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/agents/openai.yaml",
-        "originalGitBlobDigest": "5b397ea4ee1e8c8ce9641143d2e5bdc41be4ac0f"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/agent-extracts/architect-code-examples.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/architect-code-examples.md",
-        "originalGitBlobDigest": "bef08c03a9d533e0324fbc1069aeb324b51c2cd5"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md",
-        "originalGitBlobDigest": "95e552c1eb86d92e6a3d18f9bb351a90dcd61cb3"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md",
-        "originalGitBlobDigest": "2b63221eeed6c73e4608460fbccde6cc33317402"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/async-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/async-patterns.md",
-        "originalGitBlobDigest": "ea9c67ec131a0d352e7f2aaae10ffc7da33fa54c"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/laravel-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-patterns.md",
-        "originalGitBlobDigest": "fb540805949cc228c37692a509c6645fef8c7798"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/laravel-projects.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-projects.md",
-        "originalGitBlobDigest": "47646c1df76948bf0ea8ce35dc81cf81cf0c29d0"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/laravel-v10.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-v10.md",
-        "originalGitBlobDigest": "52511763cb277836293b1112cef825bfe66268b3"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/laravel-v11-v12.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-v11-v12.md",
-        "originalGitBlobDigest": "43d4202f0c94034e9d5bb6e8e5163b8ea0b11a0e"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/laravel-version-checks.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-version-checks.md",
-        "originalGitBlobDigest": "a00f29fc4561b16d5824ac7dbbc633d0360dfc7c"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/modern-php-features.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/modern-php-features.md",
-        "originalGitBlobDigest": "9b8ea7af2cea035322d2148bfa47eafeadce02a7"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/php56-legacy.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/php56-legacy.md",
-        "originalGitBlobDigest": "dcb57190381702c3c4cfe8989d9ae4b6b94520f5"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/phpunit57-php56-legacy.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/phpunit57-php56-legacy.md",
-        "originalGitBlobDigest": "ec466bb29aabc784225c1097dbcc7897bf96d51a"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/symfony-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/symfony-patterns.md",
-        "originalGitBlobDigest": "16d0b9c60251bd99ffe0e6eb4c14d1598d6360c2"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/testing-quality.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/testing-quality.md",
-        "originalGitBlobDigest": "b60a1e0a200f7b81829b725bfbc500ee56135640"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-php-runtime-router/references/yii1-1.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/yii1-1.md",
-        "originalGitBlobDigest": "5db2cff4a3f9419cd6e2935886f935757de9b59d"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-python-pro/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-python-pro/SKILL.md",
-        "originalGitBlobDigest": "aec84b7d6c8ce2f7b4aefa20fba61e85d7db433a"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-python-pro/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-python-pro/agents/openai.yaml",
-        "originalGitBlobDigest": "808ac007821726d20fdee0effda060ea16d31852"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-python-static-checks/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-python-static-checks/SKILL.md",
-        "originalGitBlobDigest": "d400322918ed126ad2662af0e001522ea86673bf"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-python-static-checks/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-python-static-checks/agents/openai.yaml",
-        "originalGitBlobDigest": "045fa84c1b4862d4f9109f3fcc2b54668ad15ffb"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-react-18-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-react-18-notes/SKILL.md",
-        "originalGitBlobDigest": "fcb3449e95a2c780b9b05cb9d22904f0cb9b5acc"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-react-18-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-react-18-notes/agents/openai.yaml",
-        "originalGitBlobDigest": "fd038ed9402b8c403b6c112686f89a896ed3f1be"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-react-18-notes/references/frontend-framework-routing.md",
-        "destination": "skills/flow-drive/references/dhpk-react-18-notes/references/frontend-framework-routing.md",
-        "originalGitBlobDigest": "7281c131b308ce62cd239a1b18a386c5c9c7d179"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-react-19-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-react-19-notes/SKILL.md",
-        "originalGitBlobDigest": "10d76a44c1d5a08e35e4799030bf66be3664748c"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-react-19-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-react-19-notes/agents/openai.yaml",
-        "originalGitBlobDigest": "631e397b613c9121e28c52094d3707c0ceb4dc35"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-react-19-notes/references/frontend-framework-routing.md",
-        "destination": "skills/flow-drive/references/dhpk-react-19-notes/references/frontend-framework-routing.md",
-        "originalGitBlobDigest": "7281c131b308ce62cd239a1b18a386c5c9c7d179"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swift-language/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/SKILL.md",
-        "originalGitBlobDigest": "091c85230d49f7293f461dd7174ec4957fb3e574"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swift-language/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/agents/openai.yaml",
-        "originalGitBlobDigest": "caa87e79e1769421e349b40cfa28e80be333765a"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swift-language/references/approachable-concurrency.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/approachable-concurrency.md",
-        "originalGitBlobDigest": "298879f83ee77ccfbcc368b6aaf69c6a30aaa481"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swift-language/references/concurrency.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/concurrency.md",
-        "originalGitBlobDigest": "02a1d2c07ee7d096f9a3f8b7c6256c4f19ce4d87"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swift-language/references/error-handling.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/error-handling.md",
-        "originalGitBlobDigest": "9eab9f8ad3e3a86a10c832fa03537bd61fc95e53"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swift-language/references/swift5-compat-notes.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/swift5-compat-notes.md",
-        "originalGitBlobDigest": "fd8fff6afe80a5a26d1e4652457ed71f4947449b"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swift-language/references/value-vs-reference.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/value-vs-reference.md",
-        "originalGitBlobDigest": "a248b412bb4e4c133cec2721d72ad5d165d6401d"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swiftui-architecture/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/SKILL.md",
-        "originalGitBlobDigest": "d2a3a10e630dc12080c815e1a72ddddb0a002d41"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swiftui-architecture/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/agents/openai.yaml",
-        "originalGitBlobDigest": "efd2e95d42d002196cc3b1593e3a60dac789dc5a"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swiftui-architecture/references/interop.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/interop.md",
-        "originalGitBlobDigest": "42fcd7b08f69a2fdbd2b1d6cf306fc2c2a86fbe4"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swiftui-architecture/references/mvvm-coordinator.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/mvvm-coordinator.md",
-        "originalGitBlobDigest": "138c25a00bcff408966ede7ff5dfc3ed01c364b0"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swiftui-architecture/references/navigation.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/navigation.md",
-        "originalGitBlobDigest": "5d288feb826e0f0fe5163a09c6b48840b203e653"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-swiftui-architecture/references/observation-state.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/observation-state.md",
-        "originalGitBlobDigest": "8b738b4a84aa5603994ece4b967a2fa07272306e"
-      },
-      {
-        "ownerId": "flow-drive",
         "source": "skills/dhpk-vue-2-notes/SKILL.md",
         "destination": "skills/flow-drive/references/dhpk-vue-2-notes/SKILL.md",
-        "originalGitBlobDigest": "ee098a80e9807bac138c542221b9bf67bb197da1"
+        "originalGitBlobDigest": "f51619d25be07721ba1febd49448dad361d42f04"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/dhpk-vue-2-notes/agents/openai.yaml",
         "destination": "skills/flow-drive/references/dhpk-vue-2-notes/agents/openai.yaml",
         "originalGitBlobDigest": "edfe81984e0ce9fd8c51a2c902b0f096520114ef"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-xcode-build-tooling/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/SKILL.md",
-        "originalGitBlobDigest": "29127d1119aaadb8b261db525cd42eea91db4608"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-xcode-build-tooling/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/agents/openai.yaml",
-        "originalGitBlobDigest": "4a8db68df36699212023ce312ee35ebfdb399e1e"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-xcode-build-tooling/references/scheme-signing.md",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/references/scheme-signing.md",
-        "originalGitBlobDigest": "255d953575325143ca477ec4c682ee55a8e7de94"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-xcode-build-tooling/references/swiftlint-config.md",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/references/swiftlint-config.md",
-        "originalGitBlobDigest": "81f6ebdc4ac6301a083e34a0208f3deaf139df1c"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-xcode-build-tooling/references/xcodebuild-spm.md",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/references/xcodebuild-spm.md",
-        "originalGitBlobDigest": "8d5cf6c5333222e88d7041a25f4fef001d507e0a"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-yii1-php56-development/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/SKILL.md",
-        "originalGitBlobDigest": "b69af60de3d1fae16b8e731ec3f8e3b35e7fc189"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-yii1-php56-development/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/agents/openai.yaml",
-        "originalGitBlobDigest": "01916989a11b4ac2efd6fff779b1477924eb3b49"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-yii1-php56-development/references/context7-sources-and-query-rules.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/context7-sources-and-query-rules.md",
-        "originalGitBlobDigest": "d0b46d70ee59dadd72e0c61ca251bad0769e2dc0"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-yii1-php56-development/references/ddd-lite-for-yii1.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/ddd-lite-for-yii1.md",
-        "originalGitBlobDigest": "f1673502d943a9d3b518172b69130900056eb377"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-yii1-php56-development/references/php56-php7-safe-subset.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/php56-php7-safe-subset.md",
-        "originalGitBlobDigest": "d1c0547db12e82accbe398b418ae2313cad19318"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-yii1-php56-development/references/phpunit57-legacy-test-traps.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/phpunit57-legacy-test-traps.md",
-        "originalGitBlobDigest": "cc90914f045e324609c5f98002c51c78fc2248dd"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-yii1-php56-development/references/tdd-workflow-and-test-strategy.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/tdd-workflow-and-test-strategy.md",
-        "originalGitBlobDigest": "f1b5efb59df98cd800956380488dcf1293f450d7"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-yii1-php56-development/references/yii1-backend-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/yii1-backend-patterns.md",
-        "originalGitBlobDigest": "5eaf932c9d5a0acd8d6e7ea82d4870cdb6340962"
       },
       {
         "ownerId": "flow-drive",
@@ -1364,39 +813,57 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/js-static-check-strategy/SKILL.md",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/SKILL.md",
-        "originalGitBlobDigest": "ebcfa9a02b362e0932cff756097039691e3f398f"
+        "source": "skills/js-static-checks/SKILL.md",
+        "destination": "skills/flow-drive/references/js-static-checks/SKILL.md",
+        "originalGitBlobDigest": "dd2755237981a8fe57926e2c49fad1f1afa68d9a"
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/js-static-check-strategy/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/agents/openai.yaml",
-        "originalGitBlobDigest": "be926e553b2295d0ab5dd023dcff072863f5bcf2"
+        "source": "skills/js-static-checks/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/js-static-checks/agents/openai.yaml",
+        "originalGitBlobDigest": "9b9d1813011c8f7bdc776d295ba056d9feb20d50"
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/js-static-check-strategy/references/frontend-review-patterns.md",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/references/frontend-review-patterns.md",
-        "originalGitBlobDigest": "91f1cbeb6201a6302bc52efba705cdffa12aef43"
+        "source": "skills/js-static-checks/evals/evals.json",
+        "destination": "skills/flow-drive/references/js-static-checks/evals/evals.json",
+        "originalGitBlobDigest": "13e46c2a50b3cd31621f9248fe8717d9f2c234e7"
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/js-static-check-strategy/references/static-checks.md",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/references/static-checks.md",
-        "originalGitBlobDigest": "115732039db883c91a1b7239c832b51eb1895980"
+        "source": "skills/js-static-checks/references/frontend-review-patterns.md",
+        "destination": "skills/flow-drive/references/js-static-checks/references/frontend-review-patterns.md",
+        "originalGitBlobDigest": "d64f885b4a9341522855e6ec2057d7995ce09bcf"
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/js-static-check-strategy/scripts/status.js",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/scripts/status.js",
+        "source": "skills/js-static-checks/references/rollout.md",
+        "destination": "skills/flow-drive/references/js-static-checks/references/rollout.md",
+        "originalGitBlobDigest": "1288774a6de404a74e91717c57fe6b16f4d13529"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/js-static-checks/references/setup.md",
+        "destination": "skills/flow-drive/references/js-static-checks/references/setup.md",
+        "originalGitBlobDigest": "7d99d4142eef39ccd12f3c6d99147c65abf60d9f"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/js-static-checks/references/static-checks.md",
+        "destination": "skills/flow-drive/references/js-static-checks/references/static-checks.md",
+        "originalGitBlobDigest": "9554a926b5e988f1a185b5cc23b456236d3e8fb4"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/js-static-checks/scripts/status.js",
+        "destination": "skills/flow-drive/references/js-static-checks/scripts/status.js",
         "originalGitBlobDigest": "2587c3da064d623741a77b6adda4f4defd820f24"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/SKILL.md",
         "destination": "skills/flow-drive/references/laravel/SKILL.md",
-        "originalGitBlobDigest": "df29fa5d102e68c62fed7a5c0de93d124bffc9c5"
+        "originalGitBlobDigest": "e66546ca78c042e7273505d26456b9a0871f3b24"
       },
       {
         "ownerId": "flow-drive",
@@ -1420,25 +887,25 @@
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/10.md",
         "destination": "skills/flow-drive/references/laravel/references/10.md",
-        "originalGitBlobDigest": "0d726b16e1c422fb561a3ce3ffa78d7c2a1c1169"
+        "originalGitBlobDigest": "9553deebb05fae40798fc774aa0e2b5cfe3762c8"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/11.md",
         "destination": "skills/flow-drive/references/laravel/references/11.md",
-        "originalGitBlobDigest": "3a920c69ae48c5ec69eb9bf4c950e399eb96268e"
+        "originalGitBlobDigest": "2087ca8248c015bc9e6142d7bfab4beb0c37c93e"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/5-4.md",
         "destination": "skills/flow-drive/references/laravel/references/5-4.md",
-        "originalGitBlobDigest": "87fb6808dace31581e49d785d7fdfa6680acdca9"
+        "originalGitBlobDigest": "22106e2d36b437be1fa6a4054f34a6cc51015429"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/6.md",
         "destination": "skills/flow-drive/references/laravel/references/6.md",
-        "originalGitBlobDigest": "d58fa8578e3b43b051fcd8abb356c42e0b99e386"
+        "originalGitBlobDigest": "a3926e5fc6e6795231890c82abbb8c134db5d53b"
       },
       {
         "ownerId": "flow-drive",
@@ -1456,13 +923,13 @@
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/9.md",
         "destination": "skills/flow-drive/references/laravel/references/9.md",
-        "originalGitBlobDigest": "e9b01c41be300b09369489643508e911c6eea899"
+        "originalGitBlobDigest": "f13040c36a6a71e2da971ded74f6d26c032cc63f"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/mix.md",
         "destination": "skills/flow-drive/references/laravel/references/mix.md",
-        "originalGitBlobDigest": "2b74aec48758fda4bdc3671aa6dc70d043b53865"
+        "originalGitBlobDigest": "337c95255122248b77f33457b7af0ac47e87c102"
       },
       {
         "ownerId": "flow-drive",
@@ -1490,9 +957,165 @@
       },
       {
         "ownerId": "flow-drive",
+        "source": "skills/nextjs/SKILL.md",
+        "destination": "skills/flow-drive/references/nextjs/SKILL.md",
+        "originalGitBlobDigest": "4bf37f91ae25d481b2ce64351c14dfa7a2c6a831"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/nextjs/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/nextjs/agents/openai.yaml",
+        "originalGitBlobDigest": "af08ac7d616d684e31c16c3051a10786f7466dfc"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/nextjs/references/15.5.md",
+        "destination": "skills/flow-drive/references/nextjs/references/15.5.md",
+        "originalGitBlobDigest": "0f19f21c8dd48fedc70401f72dd12c0c41ed4843"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/nextjs/references/16.md",
+        "destination": "skills/flow-drive/references/nextjs/references/16.md",
+        "originalGitBlobDigest": "0a39de293dd295abf5fb5eea15987a8a758a8cd3"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/nextjs/references/target-selection.md",
+        "destination": "skills/flow-drive/references/nextjs/references/target-selection.md",
+        "originalGitBlobDigest": "40274b4f9fa0182be2367e145515a3a8b4b66a8d"
+      },
+      {
+        "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/parent-cli-dispatch.md",
         "destination": "skills/flow-drive/references/parent-cli-dispatch.md",
         "originalGitBlobDigest": "665faee1e8b4efe285cbf81ab1ef200ddaa2148d"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/SKILL.md",
+        "destination": "skills/flow-drive/references/php/SKILL.md",
+        "originalGitBlobDigest": "e8c680cb97167429c41f6961e54d6ee1e17d7c0a"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/php/agents/openai.yaml",
+        "originalGitBlobDigest": "d0614b9b7e7f1739fa3b829105947821d231862e"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/evals/evals.json",
+        "destination": "skills/flow-drive/references/php/evals/evals.json",
+        "originalGitBlobDigest": "7a31c7d906b9ed3b51beb82bfc78b1cd4dee70b4"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/7-4.md",
+        "destination": "skills/flow-drive/references/php/references/7-4.md",
+        "originalGitBlobDigest": "8be89f1b303ff8926da2faf29d96ca906b8cb632"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/8-x.md",
+        "destination": "skills/flow-drive/references/php/references/8-x.md",
+        "originalGitBlobDigest": "67f3f92c796d2d7c00d0006c6025cd65f57c2c1c"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/agent-extracts/architect-code-examples.md",
+        "destination": "skills/flow-drive/references/php/references/agent-extracts/architect-code-examples.md",
+        "originalGitBlobDigest": "bef08c03a9d533e0324fbc1069aeb324b51c2cd5"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/agent-extracts/security-owasp-examples.md",
+        "destination": "skills/flow-drive/references/php/references/agent-extracts/security-owasp-examples.md",
+        "originalGitBlobDigest": "95e552c1eb86d92e6a3d18f9bb351a90dcd61cb3"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/agent-extracts/tdd-code-templates.md",
+        "destination": "skills/flow-drive/references/php/references/agent-extracts/tdd-code-templates.md",
+        "originalGitBlobDigest": "2b63221eeed6c73e4608460fbccde6cc33317402"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/async-patterns.md",
+        "destination": "skills/flow-drive/references/php/references/async-patterns.md",
+        "originalGitBlobDigest": "ea9c67ec131a0d352e7f2aaae10ffc7da33fa54c"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/feature-catalog.md",
+        "destination": "skills/flow-drive/references/php/references/feature-catalog.md",
+        "originalGitBlobDigest": "55122bbbacbd7bca2ba6eb0e49bd40a4b3ea9193"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/laravel-patterns.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-patterns.md",
+        "originalGitBlobDigest": "fb540805949cc228c37692a509c6645fef8c7798"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/laravel-projects.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-projects.md",
+        "originalGitBlobDigest": "47646c1df76948bf0ea8ce35dc81cf81cf0c29d0"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/laravel-v10.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-v10.md",
+        "originalGitBlobDigest": "52511763cb277836293b1112cef825bfe66268b3"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/laravel-v11-v12.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-v11-v12.md",
+        "originalGitBlobDigest": "43d4202f0c94034e9d5bb6e8e5163b8ea0b11a0e"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/laravel-version-checks.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-version-checks.md",
+        "originalGitBlobDigest": "a00f29fc4561b16d5824ac7dbbc633d0360dfc7c"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/modern-php-features.md",
+        "destination": "skills/flow-drive/references/php/references/modern-php-features.md",
+        "originalGitBlobDigest": "9b8ea7af2cea035322d2148bfa47eafeadce02a7"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/php56-legacy.md",
+        "destination": "skills/flow-drive/references/php/references/php56-legacy.md",
+        "originalGitBlobDigest": "6f4b8b379be87d75da4267297fd589c40ea6a87e"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/phpunit57-php56-legacy.md",
+        "destination": "skills/flow-drive/references/php/references/phpunit57-php56-legacy.md",
+        "originalGitBlobDigest": "c5f7503c22c70f85a8e00d6a47d83d23a38aae95"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/static-checks.md",
+        "destination": "skills/flow-drive/references/php/references/static-checks.md",
+        "originalGitBlobDigest": "bcdc2c3f6cd31f46f0bee8122a2197293a28f065"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/symfony-patterns.md",
+        "destination": "skills/flow-drive/references/php/references/symfony-patterns.md",
+        "originalGitBlobDigest": "16d0b9c60251bd99ffe0e6eb4c14d1598d6360c2"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/php/references/testing-quality.md",
+        "destination": "skills/flow-drive/references/php/references/testing-quality.md",
+        "originalGitBlobDigest": "b60a1e0a200f7b81829b725bfbc500ee56135640"
       },
       {
         "ownerId": "flow-drive",
@@ -1508,27 +1131,375 @@
       },
       {
         "ownerId": "flow-drive",
+        "source": "skills/python/SKILL.md",
+        "destination": "skills/flow-drive/references/python/SKILL.md",
+        "originalGitBlobDigest": "1851c13c52ff4f5f5af3a01d7fe1d72b16ac6def"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/python/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/python/agents/openai.yaml",
+        "originalGitBlobDigest": "4e9fb77399b4ba7efe1ffaa7540d4bf5b6046ced"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/python/evals/evals.json",
+        "destination": "skills/flow-drive/references/python/evals/evals.json",
+        "originalGitBlobDigest": "f8bc9951ec45cbead969ed504fc223ffec3f8451"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/python/references/fastapi.md",
+        "destination": "skills/flow-drive/references/python/references/fastapi.md",
+        "originalGitBlobDigest": "343e9c0d707bf949db1ce986b44f5da7a7b32995"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/python/references/language.md",
+        "destination": "skills/flow-drive/references/python/references/language.md",
+        "originalGitBlobDigest": "efe9da7ee1d034a71f67f32e16d6b08e84bf6678"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/python/references/static.md",
+        "destination": "skills/flow-drive/references/python/references/static.md",
+        "originalGitBlobDigest": "48c573be1c3ca0625127a70f4195be166a5de0ac"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/python/references/testing.md",
+        "destination": "skills/flow-drive/references/python/references/testing.md",
+        "originalGitBlobDigest": "efbd3cb3cc87af0abcba1ac2ffd3ed8a5fdc6ffe"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/react/SKILL.md",
+        "destination": "skills/flow-drive/references/react/SKILL.md",
+        "originalGitBlobDigest": "88d82d66e501e52d33ff0b93e4de4c049c0bb7b4"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/react/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/react/agents/openai.yaml",
+        "originalGitBlobDigest": "7cd20636b559624d29f31b78929231838d891e9e"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/react/references/18.md",
+        "destination": "skills/flow-drive/references/react/references/18.md",
+        "originalGitBlobDigest": "cbeb8f24777ec0963eedf461ba77ad445824e311"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/react/references/19.md",
+        "destination": "skills/flow-drive/references/react/references/19.md",
+        "originalGitBlobDigest": "a5fb71b32d049b63cbd8ace02eb77ad244748115"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/react/references/target-selection.md",
+        "destination": "skills/flow-drive/references/react/references/target-selection.md",
+        "originalGitBlobDigest": "222a05ae1c1db5b341c5176858e39e833d287c44"
+      },
+      {
+        "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/recovery.md",
         "destination": "skills/flow-drive/references/recovery.md",
         "originalGitBlobDigest": "2cfbbb77d0ec6b98171881c95791016e8f50b327"
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/review-pending/SKILL.md",
-        "destination": "skills/flow-drive/references/review-pending/SKILL.md",
-        "originalGitBlobDigest": "3f33c421b0851a3158c5a7b01ec2d4473b1bc004"
+        "source": "skills/swift/SKILL.md",
+        "destination": "skills/flow-drive/references/swift/SKILL.md",
+        "originalGitBlobDigest": "0b95fa8eb8ce25754168253a7daf0917b44bc778"
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/review-pending/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/review-pending/agents/openai.yaml",
-        "originalGitBlobDigest": "b440fc488e2f957fa6a5fa2fd974f68443b51431"
+        "source": "skills/swift/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/swift/agents/openai.yaml",
+        "originalGitBlobDigest": "2b1bc9a7a633e50c5c3324e4fb82df7e8813a9c1"
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/review-pending/references/workflow.md",
-        "destination": "skills/flow-drive/references/review-pending/references/workflow.md",
-        "originalGitBlobDigest": "2e078d965768a2fa3e62b9eb52053364063bebb5"
+        "source": "skills/swift/evals/evals.json",
+        "destination": "skills/flow-drive/references/swift/evals/evals.json",
+        "originalGitBlobDigest": "51aa3001960f2c2292ccd37d9cd78630f9581425"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/actor-persistence.md",
+        "destination": "skills/flow-drive/references/swift/references/actor-persistence.md",
+        "originalGitBlobDigest": "ead524ea57a5c7f4346510fd3f236373650603ee"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/approachable-concurrency.md",
+        "destination": "skills/flow-drive/references/swift/references/approachable-concurrency.md",
+        "originalGitBlobDigest": "298879f83ee77ccfbcc368b6aaf69c6a30aaa481"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/build.md",
+        "destination": "skills/flow-drive/references/swift/references/build.md",
+        "originalGitBlobDigest": "10daa120884189a03cbcb3fb04d3d4144fe9820e"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/concurrency.md",
+        "destination": "skills/flow-drive/references/swift/references/concurrency.md",
+        "originalGitBlobDigest": "02a1d2c07ee7d096f9a3f8b7c6256c4f19ce4d87"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/coredata-encryption.md",
+        "destination": "skills/flow-drive/references/swift/references/coredata-encryption.md",
+        "originalGitBlobDigest": "4a0e36eb94f2c163803eb374017eb6961dbc0560"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/cryptokit-keychain.md",
+        "destination": "skills/flow-drive/references/swift/references/cryptokit-keychain.md",
+        "originalGitBlobDigest": "739d7a4728dead3547de04cec8f9730f90635e55"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/error-handling.md",
+        "destination": "skills/flow-drive/references/swift/references/error-handling.md",
+        "originalGitBlobDigest": "9eab9f8ad3e3a86a10c832fa03537bd61fc95e53"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/healthkit-read.md",
+        "destination": "skills/flow-drive/references/swift/references/healthkit-read.md",
+        "originalGitBlobDigest": "aef903d53003d5b0145c28d54e0777ffba92a29d"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/icon.md",
+        "destination": "skills/flow-drive/references/swift/references/icon.md",
+        "originalGitBlobDigest": "8ed6f7f8de2e7a3eec3138b07a4f4474bc88381d"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/interop.md",
+        "destination": "skills/flow-drive/references/swift/references/interop.md",
+        "originalGitBlobDigest": "42fcd7b08f69a2fdbd2b1d6cf306fc2c2a86fbe4"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/language.md",
+        "destination": "skills/flow-drive/references/swift/references/language.md",
+        "originalGitBlobDigest": "4199e9354054e2abdb34a71b7b42ea58874df606"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/local-authentication.md",
+        "destination": "skills/flow-drive/references/swift/references/local-authentication.md",
+        "originalGitBlobDigest": "cb962819ad217fd0ce3471d801e06a9044381b0e"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/mvvm-coordinator.md",
+        "destination": "skills/flow-drive/references/swift/references/mvvm-coordinator.md",
+        "originalGitBlobDigest": "138c25a00bcff408966ede7ff5dfc3ed01c364b0"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/navigation.md",
+        "destination": "skills/flow-drive/references/swift/references/navigation.md",
+        "originalGitBlobDigest": "5d288feb826e0f0fe5163a09c6b48840b203e653"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/notifications.md",
+        "destination": "skills/flow-drive/references/swift/references/notifications.md",
+        "originalGitBlobDigest": "73675745207e848bb62f259fb1501e9282615beb"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/observation-state.md",
+        "destination": "skills/flow-drive/references/swift/references/observation-state.md",
+        "originalGitBlobDigest": "8b738b4a84aa5603994ece4b967a2fa07272306e"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/platform.md",
+        "destination": "skills/flow-drive/references/swift/references/platform.md",
+        "originalGitBlobDigest": "32bbcd4f6a8f13853c5b8ab3d65c7f4405a4412a"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/privacy-compliance.md",
+        "destination": "skills/flow-drive/references/swift/references/privacy-compliance.md",
+        "originalGitBlobDigest": "e036db5726aff52dea7206f583589bcdfc75c814"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/protocol-di-host-testing.md",
+        "destination": "skills/flow-drive/references/swift/references/protocol-di-host-testing.md",
+        "originalGitBlobDigest": "44288e1e7eeadb0490b4df08cbd68f1b52fac6a9"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/scheme-signing.md",
+        "destination": "skills/flow-drive/references/swift/references/scheme-signing.md",
+        "originalGitBlobDigest": "255d953575325143ca477ec4c682ee55a8e7de94"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/snapshot-testing.md",
+        "destination": "skills/flow-drive/references/swift/references/snapshot-testing.md",
+        "originalGitBlobDigest": "1205c21ab75cc519e3665864a4f6e44a29fe9bc6"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/swift-testing-api.md",
+        "destination": "skills/flow-drive/references/swift/references/swift-testing-api.md",
+        "originalGitBlobDigest": "744627399cdca2562481566fa8200d897ed4fa85"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/swift5-compat-notes.md",
+        "destination": "skills/flow-drive/references/swift/references/swift5-compat-notes.md",
+        "originalGitBlobDigest": "fd8fff6afe80a5a26d1e4652457ed71f4947449b"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/swiftlint-config.md",
+        "destination": "skills/flow-drive/references/swift/references/swiftlint-config.md",
+        "originalGitBlobDigest": "81f6ebdc4ac6301a083e34a0208f3deaf139df1c"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/test-taxonomy.md",
+        "destination": "skills/flow-drive/references/swift/references/test-taxonomy.md",
+        "originalGitBlobDigest": "a7bacbd330b82907375a115ed188b8e2ef8f05c1"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/testing.md",
+        "destination": "skills/flow-drive/references/swift/references/testing.md",
+        "originalGitBlobDigest": "5425c50227d3e74bfdb0ec41a8d9b8db6372e75e"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/ui.md",
+        "destination": "skills/flow-drive/references/swift/references/ui.md",
+        "originalGitBlobDigest": "ded4452a21e29028fdc4111b8846982ddd273d70"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/value-vs-reference.md",
+        "destination": "skills/flow-drive/references/swift/references/value-vs-reference.md",
+        "originalGitBlobDigest": "a248b412bb4e4c133cec2721d72ad5d165d6401d"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/vision-ocr.md",
+        "destination": "skills/flow-drive/references/swift/references/vision-ocr.md",
+        "originalGitBlobDigest": "eeed4c4cef87a8f37068efe67e744a8a8d11773a"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/xcodebuild-spm.md",
+        "destination": "skills/flow-drive/references/swift/references/xcodebuild-spm.md",
+        "originalGitBlobDigest": "8d5cf6c5333222e88d7041a25f4fef001d507e0a"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/xctest-bridging.md",
+        "destination": "skills/flow-drive/references/swift/references/xctest-bridging.md",
+        "originalGitBlobDigest": "e268d69b842910653c79916a77bbabac749f7c12"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/references/xcuitest.md",
+        "destination": "skills/flow-drive/references/swift/references/xcuitest.md",
+        "originalGitBlobDigest": "732259b3b4b978016d7946132e9923840ca1eab8"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/scripts/generate_icons.swift",
+        "destination": "skills/flow-drive/references/swift/scripts/generate_icons.swift",
+        "originalGitBlobDigest": "fd1004cd714ccd64e7f9db0cd206c3ca77d0e82c"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/swift/scripts/iconify_gen.sh",
+        "destination": "skills/flow-drive/references/swift/scripts/iconify_gen.sh",
+        "originalGitBlobDigest": "e95ec42d6ba2179aeeac03852114bc6d87b70a7f"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/SKILL.md",
+        "destination": "skills/flow-drive/references/yii1/SKILL.md",
+        "originalGitBlobDigest": "d6ce1b9002a6177cab37bafe111ea67741cfd2c3"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/yii1/agents/openai.yaml",
+        "originalGitBlobDigest": "551d6d4488e2e62fce81753a9c34ad1f6ed48d5c"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/evals/evals.json",
+        "destination": "skills/flow-drive/references/yii1/evals/evals.json",
+        "originalGitBlobDigest": "c23ae31a441f1a14b9f4138afa247d05fd17aeec"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/references/context7-sources-and-query-rules.md",
+        "destination": "skills/flow-drive/references/yii1/references/context7-sources-and-query-rules.md",
+        "originalGitBlobDigest": "d0b46d70ee59dadd72e0c61ca251bad0769e2dc0"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/references/ddd-lite-for-yii1.md",
+        "destination": "skills/flow-drive/references/yii1/references/ddd-lite-for-yii1.md",
+        "originalGitBlobDigest": "f1673502d943a9d3b518172b69130900056eb377"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/references/development.md",
+        "destination": "skills/flow-drive/references/yii1/references/development.md",
+        "originalGitBlobDigest": "cc111728692210b4305aa52a8ee839201403e598"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/references/php56-php7-safe-subset.md",
+        "destination": "skills/flow-drive/references/yii1/references/php56-php7-safe-subset.md",
+        "originalGitBlobDigest": "d1c0547db12e82accbe398b418ae2313cad19318"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/references/phpunit57-legacy-test-traps.md",
+        "destination": "skills/flow-drive/references/yii1/references/phpunit57-legacy-test-traps.md",
+        "originalGitBlobDigest": "70a07e21611b7f4e5b0a8e690e52d1f8d4621ae4"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/references/security.md",
+        "destination": "skills/flow-drive/references/yii1/references/security.md",
+        "originalGitBlobDigest": "29de09078f7f43e9329206accaa3e58146b2d1b7"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/references/tdd-workflow-and-test-strategy.md",
+        "destination": "skills/flow-drive/references/yii1/references/tdd-workflow-and-test-strategy.md",
+        "originalGitBlobDigest": "f1b5efb59df98cd800956380488dcf1293f450d7"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/references/yii1-backend-patterns.md",
+        "destination": "skills/flow-drive/references/yii1/references/yii1-backend-patterns.md",
+        "originalGitBlobDigest": "5eaf932c9d5a0acd8d6e7ea82d4870cdb6340962"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/yii1/references/yii1-security-patterns.md",
+        "destination": "skills/flow-drive/references/yii1/references/yii1-security-patterns.md",
+        "originalGitBlobDigest": "7a904b68d6074f36cf6329f3d090b84c7f53c7b6"
       },
       {
         "ownerId": "flow-drive",
@@ -1708,7 +1679,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "612717b55e332dfc3dcb6ea329f53b929ba7eaec"
+        "originalGitBlobDigest": "7cc169262b7fca6e0386ab3a8d855157384eea74"
       },
       {
         "ownerId": "flow-guide",
@@ -1936,13 +1907,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/route-result.schema.json",
         "destination": "skills/flow-guide/references/route-result.schema.json",
-        "originalGitBlobDigest": "5b6b9f8791dc7c421f680eaeeeb013da58d91094"
+        "originalGitBlobDigest": "fe438efaa923e38fb60fa90463058889a1816a1f"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/route-table.json",
         "destination": "skills/flow-guide/references/route-table.json",
-        "originalGitBlobDigest": "15c3cb49066eda7f34eec1fd2de7a83e00bdf42e"
+        "originalGitBlobDigest": "0ca0bfe1d564f0da282e6fa6cadbba300044c79c"
       },
       {
         "ownerId": "flow-guide",
@@ -2032,7 +2003,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/skill-usage.js",
         "destination": "skills/flow-guide/scripts/_lib/skill-usage.js",
-        "originalGitBlobDigest": "cc65e1b8bc5d4c1dae5ecad28742359513e5712f"
+        "originalGitBlobDigest": "c5435f89cb370b68a3759ce6a9bf2414252257a0"
       },
       {
         "ownerId": "flow-guide",
@@ -2056,7 +2027,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/pre-route.sh",
         "destination": "skills/flow-guide/scripts/pre-route.sh",
-        "originalGitBlobDigest": "792a9d45366157a0a5b0db939be2998df94f9866"
+        "originalGitBlobDigest": "a31b3e3a616165e5790c2a464a2596d293523f9d"
       },
       {
         "ownerId": "flow-guide",
@@ -2074,13 +2045,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/route-result.js",
         "destination": "skills/flow-guide/scripts/route-result.js",
-        "originalGitBlobDigest": "68b6f4c32a6c0a5803917a633630063c37e2ce33"
+        "originalGitBlobDigest": "f39a22edc7d9277f3df159bbfa9e8f48a5d7e876"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/usage-card.js",
         "destination": "skills/flow-guide/scripts/usage-card.js",
-        "originalGitBlobDigest": "c396a0d4edd49dad3ace76c308f552bbcdcb4236"
+        "originalGitBlobDigest": "fabbe872a70905a4914d4599ed82e7b2782febc8"
       },
       {
         "ownerId": "flow-guide",
@@ -2134,7 +2105,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/SKILL.md",
         "destination": "skills/precommit/SKILL.md",
-        "originalGitBlobDigest": "12917922324df4a7dd7500d61fff831865810b6a"
+        "originalGitBlobDigest": "59f63e3b3854bde5fd420b433db0a158044d9ff3"
       },
       {
         "ownerId": "precommit",
@@ -2422,7 +2393,7 @@
         "ownerId": "repo-verify",
         "source": "skills/repo-verify/SKILL.md",
         "destination": "skills/repo-verify/SKILL.md",
-        "originalGitBlobDigest": "4d67c325beae552b9f315da1434bd255bc0f996c"
+        "originalGitBlobDigest": "7a2453ca80dac6370b79de40bfdb8e5e2f4088e3"
       },
       {
         "ownerId": "repo-verify",
@@ -2564,66 +2535,6 @@
       },
       {
         "ownerId": "tdd",
-        "source": "skills/dhpk-pytest-async/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-pytest-async/SKILL.md",
-        "originalGitBlobDigest": "436b862a9ccc9015991a5f7fa4a4d889e380819c"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-pytest-async/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-pytest-async/agents/openai.yaml",
-        "originalGitBlobDigest": "af349f5d46e053615731baade7a40473a19906e2"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-swift-test-strategy/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/SKILL.md",
-        "originalGitBlobDigest": "b1b88809577b9d9fdb50c199ed60cbe2b4bd3cdd"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-swift-test-strategy/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/agents/openai.yaml",
-        "originalGitBlobDigest": "af20be58f94ee5ccf7685e7497a74c26acff303c"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-swift-test-strategy/references/protocol-di-host-testing.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/protocol-di-host-testing.md",
-        "originalGitBlobDigest": "44288e1e7eeadb0490b4df08cbd68f1b52fac6a9"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-swift-test-strategy/references/snapshot-testing.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/snapshot-testing.md",
-        "originalGitBlobDigest": "1205c21ab75cc519e3665864a4f6e44a29fe9bc6"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-swift-test-strategy/references/swift-testing-api.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/swift-testing-api.md",
-        "originalGitBlobDigest": "744627399cdca2562481566fa8200d897ed4fa85"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-swift-test-strategy/references/test-taxonomy.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/test-taxonomy.md",
-        "originalGitBlobDigest": "a7bacbd330b82907375a115ed188b8e2ef8f05c1"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-swift-test-strategy/references/xctest-bridging.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/xctest-bridging.md",
-        "originalGitBlobDigest": "e268d69b842910653c79916a77bbabac749f7c12"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-swift-test-strategy/references/xcuitest.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/xcuitest.md",
-        "originalGitBlobDigest": "732259b3b4b978016d7946132e9923840ca1eab8"
-      },
-      {
-        "ownerId": "tdd",
         "source": "skills/tdd-workflow/references/mocking.md",
         "destination": "skills/tdd-workflow/references/mocking.md",
         "originalGitBlobDigest": "401d750709f7b12fc6f88ed2c5d76c0df33bf530"
@@ -2632,7 +2543,7 @@
         "ownerId": "tdd",
         "source": "skills/phpunit/SKILL.md",
         "destination": "skills/tdd-workflow/references/phpunit/SKILL.md",
-        "originalGitBlobDigest": "0426ccf7aed8194857fbef012b2a2e4aa498fd3e"
+        "originalGitBlobDigest": "e6aa3365800dca7c73738464b8de8a0b1b501e03"
       },
       {
         "ownerId": "tdd",
@@ -2749,6 +2660,20 @@
       {
         "ownerId": "change-verdict",
         "skillId": "change-verdict",
+        "sourcePath": "skills/change-verdict/references/actions/deps.md",
+        "destination": "skills/change-verdict/references/actions/deps.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "change-verdict",
+        "sourcePath": "skills/change-verdict/references/actions/pending.md",
+        "destination": "skills/change-verdict/references/actions/pending.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "change-verdict",
         "sourcePath": "skills/change-verdict/references/code/codex-prompt-branch.md",
         "destination": "skills/change-verdict/references/code/codex-prompt-branch.md",
         "kind": "entry"
@@ -2849,34 +2774,6 @@
         "skillId": "project-audit",
         "sourcePath": "skills/dhpk-project-audit/scripts/lib/runner-utils.js",
         "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/lib/runner-utils.js",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "yii1-security-audit",
-        "sourcePath": "skills/dhpk-yii1-security-audit/SKILL.md",
-        "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/SKILL.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "yii1-security-audit",
-        "sourcePath": "skills/dhpk-yii1-security-audit/agents/openai.yaml",
-        "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/agents/openai.yaml",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "yii1-security-audit",
-        "sourcePath": "skills/dhpk-yii1-security-audit/evals/evals.json",
-        "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/evals/evals.json",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "yii1-security-audit",
-        "sourcePath": "skills/dhpk-yii1-security-audit/references/yii1-security-patterns.md",
-        "destination": "skills/change-verdict/references/dhpk-yii1-security-audit/references/yii1-security-patterns.md",
         "kind": "branch"
       },
       {
@@ -3321,27 +3218,6 @@
         "kind": "entry"
       },
       {
-        "ownerId": "dep-audit",
-        "skillId": "dep-audit",
-        "sourcePath": "skills/dep-audit/SKILL.md",
-        "destination": "skills/dep-audit/SKILL.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "dep-audit",
-        "skillId": "dep-audit",
-        "sourcePath": "skills/dep-audit/agents/openai.yaml",
-        "destination": "skills/dep-audit/agents/openai.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "dep-audit",
-        "skillId": "dep-audit",
-        "sourcePath": "skills/dep-audit/references/workflow.md",
-        "destination": "skills/dep-audit/references/workflow.md",
-        "kind": "entry"
-      },
-      {
         "ownerId": "flow-drive",
         "skillId": "flow-drive",
         "sourcePath": "skills/flow-drive/SKILL.md",
@@ -3399,146 +3275,6 @@
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "fastapi-pro",
-        "sourcePath": "skills/dhpk-fastapi-pro/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-fastapi-pro/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "fastapi-pro",
-        "sourcePath": "skills/dhpk-fastapi-pro/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-fastapi-pro/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-icon-gen",
-        "sourcePath": "skills/dhpk-ios-icon-gen/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/SKILL.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-icon-gen",
-        "sourcePath": "skills/dhpk-ios-icon-gen/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/agents/openai.yaml",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-icon-gen",
-        "sourcePath": "skills/dhpk-ios-icon-gen/scripts/generate_icons.swift",
-        "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/scripts/generate_icons.swift",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-icon-gen",
-        "sourcePath": "skills/dhpk-ios-icon-gen/scripts/iconify_gen.sh",
-        "destination": "skills/flow-drive/references/dhpk-ios-icon-gen/scripts/iconify_gen.sh",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/references/actor-persistence.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/actor-persistence.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/references/coredata-encryption.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/coredata-encryption.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/references/cryptokit-keychain.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/cryptokit-keychain.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/references/healthkit-read.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/healthkit-read.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/references/local-authentication.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/local-authentication.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/references/notifications.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/notifications.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/references/privacy-compliance.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/privacy-compliance.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "ios-platform",
-        "sourcePath": "skills/dhpk-ios-platform/references/vision-ocr.md",
-        "destination": "skills/flow-drive/references/dhpk-ios-platform/references/vision-ocr.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "js-lint-config",
-        "sourcePath": "skills/dhpk-js-lint-config/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-js-lint-config/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "js-lint-config",
-        "sourcePath": "skills/dhpk-js-lint-config/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-js-lint-config/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "js-lint-config",
-        "sourcePath": "skills/dhpk-js-lint-config/references/frontend-review-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-js-lint-config/references/frontend-review-patterns.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "js-lint-config",
-        "sourcePath": "skills/dhpk-js-lint-config/references/static-checks.md",
-        "destination": "skills/flow-drive/references/dhpk-js-lint-config/references/static-checks.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
         "skillId": "laravel-package-author",
         "sourcePath": "skills/dhpk-laravel-package-author/SKILL.md",
         "destination": "skills/flow-drive/references/dhpk-laravel-package-author/SKILL.md",
@@ -3560,48 +3296,6 @@
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "nextjs-15-5-notes",
-        "sourcePath": "skills/dhpk-nextjs-15-5-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-15-5-notes/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "nextjs-15-5-notes",
-        "sourcePath": "skills/dhpk-nextjs-15-5-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-15-5-notes/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "nextjs-15-5-notes",
-        "sourcePath": "skills/dhpk-nextjs-15-5-notes/references/frontend-framework-routing.md",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-15-5-notes/references/frontend-framework-routing.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "nextjs-16-notes",
-        "sourcePath": "skills/dhpk-nextjs-16-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-16-notes/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "nextjs-16-notes",
-        "sourcePath": "skills/dhpk-nextjs-16-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-16-notes/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "nextjs-16-notes",
-        "sourcePath": "skills/dhpk-nextjs-16-notes/references/frontend-framework-routing.md",
-        "destination": "skills/flow-drive/references/dhpk-nextjs-16-notes/references/frontend-framework-routing.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
         "skillId": "openspec-artifact-guard",
         "sourcePath": "skills/dhpk-openspec-artifact-guard/SKILL.md",
         "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/SKILL.md",
@@ -3612,321 +3306,6 @@
         "skillId": "openspec-artifact-guard",
         "sourcePath": "skills/dhpk-openspec-artifact-guard/agents/openai.yaml",
         "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-8x-features",
-        "sourcePath": "skills/dhpk-php-8x-features/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-php-8x-features/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-8x-features",
-        "sourcePath": "skills/dhpk-php-8x-features/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-php-8x-features/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-8x-features",
-        "sourcePath": "skills/dhpk-php-8x-features/references/feature-catalog.md",
-        "destination": "skills/flow-drive/references/dhpk-php-8x-features/references/feature-catalog.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-modern-pro",
-        "sourcePath": "skills/dhpk-php-modern-pro/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-php-modern-pro/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-modern-pro",
-        "sourcePath": "skills/dhpk-php-modern-pro/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-php-modern-pro/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/SKILL.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/agents/openai.yaml",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/agent-extracts/architect-code-examples.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/architect-code-examples.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/async-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/async-patterns.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-patterns.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-projects.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-projects.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-v10.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-v10.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-v11-v12.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-v11-v12.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/laravel-version-checks.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/laravel-version-checks.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/modern-php-features.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/modern-php-features.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/php56-legacy.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/php56-legacy.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/phpunit57-php56-legacy.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/phpunit57-php56-legacy.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/symfony-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/symfony-patterns.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/testing-quality.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/testing-quality.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php-pro",
-        "sourcePath": "skills/dhpk-php-runtime-router/references/yii1-1.md",
-        "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/yii1-1.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "python-pro",
-        "sourcePath": "skills/dhpk-python-pro/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-python-pro/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "python-pro",
-        "sourcePath": "skills/dhpk-python-pro/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-python-pro/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "python-static-checks",
-        "sourcePath": "skills/dhpk-python-static-checks/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-python-static-checks/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "python-static-checks",
-        "sourcePath": "skills/dhpk-python-static-checks/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-python-static-checks/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "react-18-notes",
-        "sourcePath": "skills/dhpk-react-18-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-react-18-notes/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "react-18-notes",
-        "sourcePath": "skills/dhpk-react-18-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-react-18-notes/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "react-18-notes",
-        "sourcePath": "skills/dhpk-react-18-notes/references/frontend-framework-routing.md",
-        "destination": "skills/flow-drive/references/dhpk-react-18-notes/references/frontend-framework-routing.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "react-19-notes",
-        "sourcePath": "skills/dhpk-react-19-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-react-19-notes/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "react-19-notes",
-        "sourcePath": "skills/dhpk-react-19-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-react-19-notes/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "react-19-notes",
-        "sourcePath": "skills/dhpk-react-19-notes/references/frontend-framework-routing.md",
-        "destination": "skills/flow-drive/references/dhpk-react-19-notes/references/frontend-framework-routing.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swift-language",
-        "sourcePath": "skills/dhpk-swift-language/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swift-language",
-        "sourcePath": "skills/dhpk-swift-language/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swift-language",
-        "sourcePath": "skills/dhpk-swift-language/references/approachable-concurrency.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/approachable-concurrency.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swift-language",
-        "sourcePath": "skills/dhpk-swift-language/references/concurrency.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/concurrency.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swift-language",
-        "sourcePath": "skills/dhpk-swift-language/references/error-handling.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/error-handling.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swift-language",
-        "sourcePath": "skills/dhpk-swift-language/references/swift5-compat-notes.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/swift5-compat-notes.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swift-language",
-        "sourcePath": "skills/dhpk-swift-language/references/value-vs-reference.md",
-        "destination": "skills/flow-drive/references/dhpk-swift-language/references/value-vs-reference.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swiftui-architecture",
-        "sourcePath": "skills/dhpk-swiftui-architecture/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swiftui-architecture",
-        "sourcePath": "skills/dhpk-swiftui-architecture/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swiftui-architecture",
-        "sourcePath": "skills/dhpk-swiftui-architecture/references/interop.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/interop.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swiftui-architecture",
-        "sourcePath": "skills/dhpk-swiftui-architecture/references/mvvm-coordinator.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/mvvm-coordinator.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swiftui-architecture",
-        "sourcePath": "skills/dhpk-swiftui-architecture/references/navigation.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/navigation.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "swiftui-architecture",
-        "sourcePath": "skills/dhpk-swiftui-architecture/references/observation-state.md",
-        "destination": "skills/flow-drive/references/dhpk-swiftui-architecture/references/observation-state.md",
         "kind": "reference"
       },
       {
@@ -3942,97 +3321,6 @@
         "sourcePath": "skills/dhpk-vue-2-notes/agents/openai.yaml",
         "destination": "skills/flow-drive/references/dhpk-vue-2-notes/agents/openai.yaml",
         "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "xcode-build-tooling",
-        "sourcePath": "skills/dhpk-xcode-build-tooling/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "xcode-build-tooling",
-        "sourcePath": "skills/dhpk-xcode-build-tooling/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "xcode-build-tooling",
-        "sourcePath": "skills/dhpk-xcode-build-tooling/references/scheme-signing.md",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/references/scheme-signing.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "xcode-build-tooling",
-        "sourcePath": "skills/dhpk-xcode-build-tooling/references/swiftlint-config.md",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/references/swiftlint-config.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "xcode-build-tooling",
-        "sourcePath": "skills/dhpk-xcode-build-tooling/references/xcodebuild-spm.md",
-        "destination": "skills/flow-drive/references/dhpk-xcode-build-tooling/references/xcodebuild-spm.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php56-yii-dev",
-        "sourcePath": "skills/dhpk-yii1-php56-development/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/SKILL.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php56-yii-dev",
-        "sourcePath": "skills/dhpk-yii1-php56-development/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/agents/openai.yaml",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php56-yii-dev",
-        "sourcePath": "skills/dhpk-yii1-php56-development/references/context7-sources-and-query-rules.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/context7-sources-and-query-rules.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php56-yii-dev",
-        "sourcePath": "skills/dhpk-yii1-php56-development/references/ddd-lite-for-yii1.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/ddd-lite-for-yii1.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php56-yii-dev",
-        "sourcePath": "skills/dhpk-yii1-php56-development/references/php56-php7-safe-subset.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/php56-php7-safe-subset.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php56-yii-dev",
-        "sourcePath": "skills/dhpk-yii1-php56-development/references/phpunit57-legacy-test-traps.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/phpunit57-legacy-test-traps.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php56-yii-dev",
-        "sourcePath": "skills/dhpk-yii1-php56-development/references/tdd-workflow-and-test-strategy.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/tdd-workflow-and-test-strategy.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "php56-yii-dev",
-        "sourcePath": "skills/dhpk-yii1-php56-development/references/yii1-backend-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-yii1-php56-development/references/yii1-backend-patterns.md",
-        "kind": "branch"
       },
       {
         "ownerId": "flow-drive",
@@ -4204,37 +3492,58 @@
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "js-static-check-strategy",
-        "sourcePath": "skills/js-static-check-strategy/SKILL.md",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/SKILL.md",
+        "skillId": "js-static-checks",
+        "sourcePath": "skills/js-static-checks/SKILL.md",
+        "destination": "skills/flow-drive/references/js-static-checks/SKILL.md",
         "kind": "reference"
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "js-static-check-strategy",
-        "sourcePath": "skills/js-static-check-strategy/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/agents/openai.yaml",
+        "skillId": "js-static-checks",
+        "sourcePath": "skills/js-static-checks/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/js-static-checks/agents/openai.yaml",
         "kind": "reference"
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "js-static-check-strategy",
-        "sourcePath": "skills/js-static-check-strategy/references/frontend-review-patterns.md",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/references/frontend-review-patterns.md",
+        "skillId": "js-static-checks",
+        "sourcePath": "skills/js-static-checks/evals/evals.json",
+        "destination": "skills/flow-drive/references/js-static-checks/evals/evals.json",
         "kind": "reference"
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "js-static-check-strategy",
-        "sourcePath": "skills/js-static-check-strategy/references/static-checks.md",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/references/static-checks.md",
+        "skillId": "js-static-checks",
+        "sourcePath": "skills/js-static-checks/references/frontend-review-patterns.md",
+        "destination": "skills/flow-drive/references/js-static-checks/references/frontend-review-patterns.md",
         "kind": "reference"
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "js-static-check-strategy",
-        "sourcePath": "skills/js-static-check-strategy/scripts/status.js",
-        "destination": "skills/flow-drive/references/js-static-check-strategy/scripts/status.js",
+        "skillId": "js-static-checks",
+        "sourcePath": "skills/js-static-checks/references/rollout.md",
+        "destination": "skills/flow-drive/references/js-static-checks/references/rollout.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "js-static-checks",
+        "sourcePath": "skills/js-static-checks/references/setup.md",
+        "destination": "skills/flow-drive/references/js-static-checks/references/setup.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "js-static-checks",
+        "sourcePath": "skills/js-static-checks/references/static-checks.md",
+        "destination": "skills/flow-drive/references/js-static-checks/references/static-checks.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "js-static-checks",
+        "sourcePath": "skills/js-static-checks/scripts/status.js",
+        "destination": "skills/flow-drive/references/js-static-checks/scripts/status.js",
         "kind": "reference"
       },
       {
@@ -4351,10 +3660,192 @@
       },
       {
         "ownerId": "flow-drive",
+        "skillId": "nextjs",
+        "sourcePath": "skills/nextjs/SKILL.md",
+        "destination": "skills/flow-drive/references/nextjs/SKILL.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "nextjs",
+        "sourcePath": "skills/nextjs/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/nextjs/agents/openai.yaml",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "nextjs",
+        "sourcePath": "skills/nextjs/references/15.5.md",
+        "destination": "skills/flow-drive/references/nextjs/references/15.5.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "nextjs",
+        "sourcePath": "skills/nextjs/references/16.md",
+        "destination": "skills/flow-drive/references/nextjs/references/16.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "nextjs",
+        "sourcePath": "skills/nextjs/references/target-selection.md",
+        "destination": "skills/flow-drive/references/nextjs/references/target-selection.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
         "skillId": "flow-drive",
         "sourcePath": "skills/flow-drive/references/parent-cli-dispatch.md",
         "destination": "skills/flow-drive/references/parent-cli-dispatch.md",
         "kind": "entry"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/SKILL.md",
+        "destination": "skills/flow-drive/references/php/SKILL.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/php/agents/openai.yaml",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/evals/evals.json",
+        "destination": "skills/flow-drive/references/php/evals/evals.json",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/7-4.md",
+        "destination": "skills/flow-drive/references/php/references/7-4.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/8-x.md",
+        "destination": "skills/flow-drive/references/php/references/8-x.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/agent-extracts/architect-code-examples.md",
+        "destination": "skills/flow-drive/references/php/references/agent-extracts/architect-code-examples.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/agent-extracts/security-owasp-examples.md",
+        "destination": "skills/flow-drive/references/php/references/agent-extracts/security-owasp-examples.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/agent-extracts/tdd-code-templates.md",
+        "destination": "skills/flow-drive/references/php/references/agent-extracts/tdd-code-templates.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/async-patterns.md",
+        "destination": "skills/flow-drive/references/php/references/async-patterns.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/feature-catalog.md",
+        "destination": "skills/flow-drive/references/php/references/feature-catalog.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/laravel-patterns.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-patterns.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/laravel-projects.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-projects.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/laravel-v10.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-v10.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/laravel-v11-v12.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-v11-v12.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/laravel-version-checks.md",
+        "destination": "skills/flow-drive/references/php/references/laravel-version-checks.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/modern-php-features.md",
+        "destination": "skills/flow-drive/references/php/references/modern-php-features.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/php56-legacy.md",
+        "destination": "skills/flow-drive/references/php/references/php56-legacy.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/phpunit57-php56-legacy.md",
+        "destination": "skills/flow-drive/references/php/references/phpunit57-php56-legacy.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/static-checks.md",
+        "destination": "skills/flow-drive/references/php/references/static-checks.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/symfony-patterns.md",
+        "destination": "skills/flow-drive/references/php/references/symfony-patterns.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "php",
+        "sourcePath": "skills/php/references/testing-quality.md",
+        "destination": "skills/flow-drive/references/php/references/testing-quality.md",
+        "kind": "branch"
       },
       {
         "ownerId": "flow-drive",
@@ -4372,6 +3863,90 @@
       },
       {
         "ownerId": "flow-drive",
+        "skillId": "python",
+        "sourcePath": "skills/python/SKILL.md",
+        "destination": "skills/flow-drive/references/python/SKILL.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "python",
+        "sourcePath": "skills/python/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/python/agents/openai.yaml",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "python",
+        "sourcePath": "skills/python/evals/evals.json",
+        "destination": "skills/flow-drive/references/python/evals/evals.json",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "python",
+        "sourcePath": "skills/python/references/fastapi.md",
+        "destination": "skills/flow-drive/references/python/references/fastapi.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "python",
+        "sourcePath": "skills/python/references/language.md",
+        "destination": "skills/flow-drive/references/python/references/language.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "python",
+        "sourcePath": "skills/python/references/static.md",
+        "destination": "skills/flow-drive/references/python/references/static.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "python",
+        "sourcePath": "skills/python/references/testing.md",
+        "destination": "skills/flow-drive/references/python/references/testing.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "react",
+        "sourcePath": "skills/react/SKILL.md",
+        "destination": "skills/flow-drive/references/react/SKILL.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "react",
+        "sourcePath": "skills/react/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/react/agents/openai.yaml",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "react",
+        "sourcePath": "skills/react/references/18.md",
+        "destination": "skills/flow-drive/references/react/references/18.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "react",
+        "sourcePath": "skills/react/references/19.md",
+        "destination": "skills/flow-drive/references/react/references/19.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "react",
+        "sourcePath": "skills/react/references/target-selection.md",
+        "destination": "skills/flow-drive/references/react/references/target-selection.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
         "skillId": "flow-drive",
         "sourcePath": "skills/flow-drive/references/recovery.md",
         "destination": "skills/flow-drive/references/recovery.md",
@@ -4379,23 +3954,345 @@
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "review-pending",
-        "sourcePath": "skills/review-pending/SKILL.md",
-        "destination": "skills/flow-drive/references/review-pending/SKILL.md",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/SKILL.md",
+        "destination": "skills/flow-drive/references/swift/SKILL.md",
         "kind": "branch"
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "review-pending",
-        "sourcePath": "skills/review-pending/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/review-pending/agents/openai.yaml",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/swift/agents/openai.yaml",
         "kind": "branch"
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "review-pending",
-        "sourcePath": "skills/review-pending/references/workflow.md",
-        "destination": "skills/flow-drive/references/review-pending/references/workflow.md",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/evals/evals.json",
+        "destination": "skills/flow-drive/references/swift/evals/evals.json",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/actor-persistence.md",
+        "destination": "skills/flow-drive/references/swift/references/actor-persistence.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/approachable-concurrency.md",
+        "destination": "skills/flow-drive/references/swift/references/approachable-concurrency.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/build.md",
+        "destination": "skills/flow-drive/references/swift/references/build.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/concurrency.md",
+        "destination": "skills/flow-drive/references/swift/references/concurrency.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/coredata-encryption.md",
+        "destination": "skills/flow-drive/references/swift/references/coredata-encryption.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/cryptokit-keychain.md",
+        "destination": "skills/flow-drive/references/swift/references/cryptokit-keychain.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/error-handling.md",
+        "destination": "skills/flow-drive/references/swift/references/error-handling.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/healthkit-read.md",
+        "destination": "skills/flow-drive/references/swift/references/healthkit-read.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/icon.md",
+        "destination": "skills/flow-drive/references/swift/references/icon.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/interop.md",
+        "destination": "skills/flow-drive/references/swift/references/interop.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/language.md",
+        "destination": "skills/flow-drive/references/swift/references/language.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/local-authentication.md",
+        "destination": "skills/flow-drive/references/swift/references/local-authentication.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/mvvm-coordinator.md",
+        "destination": "skills/flow-drive/references/swift/references/mvvm-coordinator.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/navigation.md",
+        "destination": "skills/flow-drive/references/swift/references/navigation.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/notifications.md",
+        "destination": "skills/flow-drive/references/swift/references/notifications.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/observation-state.md",
+        "destination": "skills/flow-drive/references/swift/references/observation-state.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/platform.md",
+        "destination": "skills/flow-drive/references/swift/references/platform.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/privacy-compliance.md",
+        "destination": "skills/flow-drive/references/swift/references/privacy-compliance.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/protocol-di-host-testing.md",
+        "destination": "skills/flow-drive/references/swift/references/protocol-di-host-testing.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/scheme-signing.md",
+        "destination": "skills/flow-drive/references/swift/references/scheme-signing.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/snapshot-testing.md",
+        "destination": "skills/flow-drive/references/swift/references/snapshot-testing.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/swift-testing-api.md",
+        "destination": "skills/flow-drive/references/swift/references/swift-testing-api.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/swift5-compat-notes.md",
+        "destination": "skills/flow-drive/references/swift/references/swift5-compat-notes.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/swiftlint-config.md",
+        "destination": "skills/flow-drive/references/swift/references/swiftlint-config.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/test-taxonomy.md",
+        "destination": "skills/flow-drive/references/swift/references/test-taxonomy.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/testing.md",
+        "destination": "skills/flow-drive/references/swift/references/testing.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/ui.md",
+        "destination": "skills/flow-drive/references/swift/references/ui.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/value-vs-reference.md",
+        "destination": "skills/flow-drive/references/swift/references/value-vs-reference.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/vision-ocr.md",
+        "destination": "skills/flow-drive/references/swift/references/vision-ocr.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/xcodebuild-spm.md",
+        "destination": "skills/flow-drive/references/swift/references/xcodebuild-spm.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/xctest-bridging.md",
+        "destination": "skills/flow-drive/references/swift/references/xctest-bridging.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/references/xcuitest.md",
+        "destination": "skills/flow-drive/references/swift/references/xcuitest.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/scripts/generate_icons.swift",
+        "destination": "skills/flow-drive/references/swift/scripts/generate_icons.swift",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "swift",
+        "sourcePath": "skills/swift/scripts/iconify_gen.sh",
+        "destination": "skills/flow-drive/references/swift/scripts/iconify_gen.sh",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/SKILL.md",
+        "destination": "skills/flow-drive/references/yii1/SKILL.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/yii1/agents/openai.yaml",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/evals/evals.json",
+        "destination": "skills/flow-drive/references/yii1/evals/evals.json",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/references/context7-sources-and-query-rules.md",
+        "destination": "skills/flow-drive/references/yii1/references/context7-sources-and-query-rules.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/references/ddd-lite-for-yii1.md",
+        "destination": "skills/flow-drive/references/yii1/references/ddd-lite-for-yii1.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/references/development.md",
+        "destination": "skills/flow-drive/references/yii1/references/development.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/references/php56-php7-safe-subset.md",
+        "destination": "skills/flow-drive/references/yii1/references/php56-php7-safe-subset.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/references/phpunit57-legacy-test-traps.md",
+        "destination": "skills/flow-drive/references/yii1/references/phpunit57-legacy-test-traps.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/references/security.md",
+        "destination": "skills/flow-drive/references/yii1/references/security.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/references/tdd-workflow-and-test-strategy.md",
+        "destination": "skills/flow-drive/references/yii1/references/tdd-workflow-and-test-strategy.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/references/yii1-backend-patterns.md",
+        "destination": "skills/flow-drive/references/yii1/references/yii1-backend-patterns.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "yii1",
+        "sourcePath": "skills/yii1/references/yii1-security-patterns.md",
+        "destination": "skills/flow-drive/references/yii1/references/yii1-security-patterns.md",
         "kind": "branch"
       },
       {
@@ -5604,76 +5501,6 @@
       },
       {
         "ownerId": "tdd",
-        "skillId": "pytest-async",
-        "sourcePath": "skills/dhpk-pytest-async/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-pytest-async/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "pytest-async",
-        "sourcePath": "skills/dhpk-pytest-async/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-pytest-async/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "swift-test-strategy",
-        "sourcePath": "skills/dhpk-swift-test-strategy/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "swift-test-strategy",
-        "sourcePath": "skills/dhpk-swift-test-strategy/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "swift-test-strategy",
-        "sourcePath": "skills/dhpk-swift-test-strategy/references/protocol-di-host-testing.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/protocol-di-host-testing.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "swift-test-strategy",
-        "sourcePath": "skills/dhpk-swift-test-strategy/references/snapshot-testing.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/snapshot-testing.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "swift-test-strategy",
-        "sourcePath": "skills/dhpk-swift-test-strategy/references/swift-testing-api.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/swift-testing-api.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "swift-test-strategy",
-        "sourcePath": "skills/dhpk-swift-test-strategy/references/test-taxonomy.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/test-taxonomy.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "swift-test-strategy",
-        "sourcePath": "skills/dhpk-swift-test-strategy/references/xctest-bridging.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/xctest-bridging.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "swift-test-strategy",
-        "sourcePath": "skills/dhpk-swift-test-strategy/references/xcuitest.md",
-        "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/xcuitest.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
         "skillId": "tdd",
         "sourcePath": "skills/tdd-workflow/references/mocking.md",
         "destination": "skills/tdd-workflow/references/mocking.md",
@@ -5807,7 +5634,6 @@
     "change-verdict",
     "code-trace",
     "create-pr",
-    "dep-audit",
     "flow-drive",
     "flow-guide",
     "git-smart-commit",
@@ -5824,7 +5650,6 @@
     "change-verdict",
     "code-trace",
     "create-pr",
-    "dep-audit",
     "flow-drive",
     "flow-guide",
     "git-smart-commit",
@@ -5913,11 +5738,6 @@
       "source": "deep-reasoner.md",
       "destination": "agents/deep-reasoner.md",
       "transform": "cursor-agents-frontmatter"
-    },
-    {
-      "source": "dep-audit.md",
-      "destination": "commands/dep-audit.md",
-      "transform": "cursor-commands-frontmatter"
     },
     {
       "source": "doc-refactor.md",
@@ -6042,7 +5862,6 @@
         "change-verdict",
         "code-trace",
         "create-pr",
-        "dep-audit",
         "flow-drive",
         "flow-guide",
         "git-smart-commit",
@@ -6080,11 +5899,6 @@
       "source": "refactor-cleaner.md",
       "destination": "agents/refactor-cleaner.md",
       "transform": "cursor-agents-frontmatter"
-    },
-    {
-      "source": "review-pending.md",
-      "destination": "commands/review-pending.md",
-      "transform": "cursor-commands-frontmatter"
     },
     {
       "source": "rust-build-resolver.md",
@@ -6175,19 +5989,18 @@
   "fingerprints": {
     "rules": "524590f703f1327a1514f8a84b8567652c05ff978f08d8a359825780c76454ee",
     "agents": "bd395e19c961273c6f267356c78e2d8713e47bd8b2da2dab7b326c26862e4e33",
-    "commands": "d0d936049a5339539912a2292923a665cb42d639899374e6859e154da9d0ff0e",
+    "commands": "57a661a7ff9423d2ee1da7e336163cfc7782cffc0cd15dadbc04ce5621fb47e9",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "a951a9bd84069f9cfe2f56dbd7055a6c61dcc3be4681025273038d5d35294c09",
+    "planId": "2d582d64b845a5dfe8be3ae596ae044197d514f54dd143317721d7f6c54a3a24",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
       "change-verdict",
       "code-trace",
       "create-pr",
-      "dep-audit",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
@@ -6205,7 +6018,6 @@
         "change-verdict",
         "code-trace",
         "create-pr",
-        "dep-audit",
         "flow-drive",
         "flow-guide",
         "git-smart-commit",
@@ -6226,10 +6038,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "a951a9bd84069f9cfe2f56dbd7055a6c61dcc3be4681025273038d5d35294c09",
-      "inventory": "74c25db73c57776e6d6fd85635951ee80ddb651ae0a9bb5ed6429d7e2629fd1d"
+      "plan": "2d582d64b845a5dfe8be3ae596ae044197d514f54dd143317721d7f6c54a3a24",
+      "inventory": "9bb1ab68e37bb28b003021021d937ce372a39e7fc9b8f5af76b4433da1c5ad4a"
     },
-    "rollbackIdentity": "573b5866d93b15cab00e14cc874a1a8dc2cfed15942e50974282c8ab7ff5c341"
+    "rollbackIdentity": "41cb1fdf4a6b36a01562bbcd000457a5fe558b01a7fcad49139ace255bb82f83"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6435,98 +6247,6 @@
         {
           "prompt": "$code-trace --mode=explore OrderService",
           "summary": "Trace callers and callees for an unfamiliar symbol"
-        }
-      ]
-    },
-    "change-verdict": {
-      "display_name": "Change Verdict",
-      "summary": "Return an evidence-backed read-only change verdict",
-      "syntax": "$change-verdict [--mode=<mode>] [--coverage] [<target>]",
-      "input_kind": "mixed",
-      "invocation_class": "implicit-eligible",
-      "effect_authority": "read-only",
-      "inputs": [
-        {
-          "id": "target",
-          "syntax": "<target>",
-          "value_kind": "string",
-          "required": false,
-          "summary": "Change, PR, test, document, or risk target"
-        }
-      ],
-      "actions": [
-        {
-          "id": "code",
-          "summary": "Judge code changes",
-          "syntax": "$change-verdict --mode=code [<target>]",
-          "input_kind": "mixed",
-          "effect_authority": "read-only"
-        },
-        {
-          "id": "pr",
-          "summary": "Judge pull-request evidence",
-          "syntax": "$change-verdict --mode=pr [<target>]",
-          "input_kind": "mixed",
-          "effect_authority": "read-only"
-        },
-        {
-          "id": "security",
-          "summary": "Judge security evidence",
-          "syntax": "$change-verdict --mode=security [<target>]",
-          "input_kind": "mixed",
-          "effect_authority": "read-only"
-        },
-        {
-          "id": "tests",
-          "summary": "Judge test and coverage evidence",
-          "syntax": "$change-verdict --mode=tests [--coverage] [<target>]",
-          "input_kind": "mixed",
-          "effect_authority": "read-only"
-        },
-        {
-          "id": "docs",
-          "summary": "Judge documentation evidence",
-          "syntax": "$change-verdict --mode=docs [<target>]",
-          "input_kind": "mixed",
-          "effect_authority": "read-only"
-        },
-        {
-          "id": "risk",
-          "summary": "Judge change-risk evidence",
-          "syntax": "$change-verdict --mode=risk [<target>]",
-          "input_kind": "mixed",
-          "effect_authority": "read-only"
-        }
-      ],
-      "options": [
-        {
-          "id": "mode",
-          "syntax": "--mode=<mode>",
-          "value_kind": "enum",
-          "required": false,
-          "summary": "Select one verdict mode",
-          "enum_values": [
-            "code",
-            "pr",
-            "security",
-            "tests",
-            "docs",
-            "risk"
-          ]
-        },
-        {
-          "id": "coverage",
-          "syntax": "--coverage",
-          "value_kind": "boolean",
-          "required": false,
-          "summary": "Include coverage evidence in tests mode",
-          "default": false
-        }
-      ],
-      "examples": [
-        {
-          "prompt": "$change-verdict --mode=tests --coverage",
-          "summary": "Use change verdict with its declared interface"
         }
       ]
     },
@@ -7030,54 +6750,6 @@
         }
       ]
     },
-    "dep-audit": {
-      "display_name": "Dependency Audit",
-      "summary": "Audit dependency risks with a separate explicit fix boundary",
-      "syntax": "$dep-audit [--level=<severity>] [--fix]",
-      "input_kind": "none",
-      "invocation_class": "implicit-eligible",
-      "effect_authority": "workspace-write",
-      "inputs": [],
-      "actions": [
-        {
-          "id": "audit",
-          "summary": "Audit dependency vulnerabilities and optional fixes",
-          "syntax": "$dep-audit",
-          "input_kind": "none",
-          "effect_authority": "workspace-write"
-        }
-      ],
-      "options": [
-        {
-          "id": "level",
-          "syntax": "--level=<severity>",
-          "value_kind": "enum",
-          "required": false,
-          "summary": "Minimum severity to report",
-          "default": "moderate",
-          "enum_values": [
-            "low",
-            "moderate",
-            "high",
-            "critical"
-          ]
-        },
-        {
-          "id": "fix",
-          "syntax": "--fix",
-          "value_kind": "boolean",
-          "required": false,
-          "summary": "Run the explicitly requested fix operation",
-          "default": false
-        }
-      ],
-      "examples": [
-        {
-          "prompt": "$dep-audit --level=high",
-          "summary": "Use dependency audit with its declared interface"
-        }
-      ]
-    },
     "repo-verify": {
       "display_name": "Repo Verify",
       "summary": "Run runner-first repository verification with explicit evidence",
@@ -7173,12 +6845,165 @@
           "summary": "Use ui ux verify with its declared interface"
         }
       ]
+    },
+    "change-verdict": {
+      "display_name": "Change Verdict",
+      "summary": "Review changes or audit dependencies with bounded explicit fixes",
+      "syntax": "$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]",
+      "input_kind": "mixed",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "target",
+          "syntax": "<target>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Change, PR, test, document, or risk target"
+        }
+      ],
+      "actions": [
+        {
+          "id": "code",
+          "summary": "Judge code changes",
+          "syntax": "$change-verdict --mode=code [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "pr",
+          "summary": "Judge pull-request evidence",
+          "syntax": "$change-verdict --mode=pr [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "security",
+          "summary": "Judge security evidence",
+          "syntax": "$change-verdict --mode=security [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "tests",
+          "summary": "Judge test and coverage evidence",
+          "syntax": "$change-verdict --mode=tests [--coverage] [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "docs",
+          "summary": "Judge documentation evidence",
+          "syntax": "$change-verdict --mode=docs [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "risk",
+          "summary": "Judge change-risk evidence",
+          "syntax": "$change-verdict --mode=risk [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "pending",
+          "summary": "Delegate a read-only pending-change review",
+          "syntax": "$change-verdict pending [--files=<paths>]",
+          "input_kind": "none",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "deps",
+          "summary": "Audit dependency risks without mutation",
+          "syntax": "$change-verdict deps [--level=<severity>]",
+          "input_kind": "none",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "deps-fix",
+          "summary": "Delegate requested bounded dependency remediation then obtain an independent verdict",
+          "syntax": "$change-verdict deps fix [--level=<severity>]",
+          "input_kind": "none",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [
+        {
+          "id": "mode",
+          "syntax": "--mode=<mode>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Select one verdict mode",
+          "enum_values": [
+            "code",
+            "pr",
+            "security",
+            "tests",
+            "docs",
+            "risk"
+          ]
+        },
+        {
+          "id": "coverage",
+          "syntax": "--coverage",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Include coverage evidence in tests mode",
+          "default": false
+        },
+        {
+          "id": "files",
+          "syntax": "--files=<paths>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Comma-separated relative pending paths"
+        },
+        {
+          "id": "level",
+          "syntax": "--level=<severity>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Minimum vulnerability severity",
+          "default": "moderate",
+          "enum_values": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ]
+        },
+        {
+          "id": "fix",
+          "syntax": "--fix",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Explicitly request bounded dependency remediation",
+          "default": false
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$change-verdict --mode=tests --coverage",
+          "summary": "Use change verdict with its declared interface"
+        },
+        {
+          "prompt": "$change-verdict pending --files=src/a.js",
+          "summary": "Delegate pending review"
+        },
+        {
+          "prompt": "$change-verdict deps --level=high",
+          "summary": "Audit dependencies without mutation"
+        },
+        {
+          "prompt": "$change-verdict deps fix",
+          "summary": "Request bounded dependency remediation"
+        }
+      ]
     }
   },
   "usageFingerprints": {
     "flow-guide": "5300a6121dae6a264abe9859a10cc42504b034b4908f06ca3343b2f88a7cd369",
     "code-trace": "48654b9393cc852db2f54b7801cc7b40eee7b13eeab8b85ee8244d8248a9d438",
-    "change-verdict": "6ca8496f176cb1bd7143d0091dcc876ddd44986763e5e3a685b73b7e8914f494",
     "flow-drive": "302776393f4628264a0fca0525eadaa38f0e9c27134f8ae3625efc4a5d2f4cb5",
     "git-smart-commit": "bf7f04db7306d231b79a4e95374595c27fd56c8cd665f04394085a23af15b9f5",
     "release-creator": "7e3c907d8a22657cdfb8f3ba4f4962b13368f6621905bf23e9b8210ef8ae0e8c",
@@ -7188,9 +7013,9 @@
     "proposal-analyze": "89e3a151663d1389f14f9c10b547d09fb58dee3ab10a126491f546f0070f5e33",
     "update-docs": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e",
     "precommit": "920521f2abafda14ea87a7e44569f5bb5aec2b4b245bff78d43271b5d54ea699",
-    "dep-audit": "6ab9eeed7127559c6b5075f06b7284a7fad7f6d4aa68472b0d5e0f1a1075506a",
     "repo-verify": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb",
-    "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd"
+    "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd",
+    "change-verdict": "1438a3b31e76f62c7a6050049854af2584fbe24c017673147a083892c358b1fe"
   },
   "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
   "consumer": {
@@ -7211,7 +7036,6 @@
     "proposal-analyze",
     "update-docs",
     "precommit",
-    "dep-audit",
     "repo-verify",
     "ui-ux-verify"
   ],
@@ -7228,7 +7052,6 @@
     "proposal-analyze",
     "update-docs",
     "precommit",
-    "dep-audit",
     "repo-verify",
     "ui-ux-verify"
   ],
@@ -7245,13 +7068,12 @@
     "proposal-analyze",
     "update-docs",
     "precommit",
-    "dep-audit",
     "repo-verify",
     "ui-ux-verify"
   ],
   "compatibilityMode": "profile",
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "0511ce16dd5101c4d7da79fa21100924cea4c3420deaf660ae84bb56e5858075",
-  "surfaceSelectionFingerprint": "d3c0240feba7f79d1b0d91e5551b7d52073b97d4ab1b1474c98a35c45d2dfa00",
-  "planFingerprint": "4235d8b020a2fcd4d412b40f1a7635bbaaae4797637c150c7da68e196c0bbb36"
+  "selectionFingerprint": "de23b73cdc0fbb67e62e7cb0fa84582e6e51a24b41497a4b731d0c2c3da02741",
+  "surfaceSelectionFingerprint": "db7eab3df0b6259e1cb1b9e7e32666415f065cf59e7b2417412b91759cb77afe",
+  "planFingerprint": "f2e104d7a10eb0bdc8eef529f3e59f4cdb0bc9a62e5d6697d9c49d8769b96d02"
 }

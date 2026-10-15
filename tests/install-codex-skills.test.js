@@ -33,7 +33,6 @@ const COMMON_SKILL_IDS = [
   'proposal-analyze',
   'update-docs',
   'precommit',
-  'dep-audit',
   'repo-verify',
   'ui-ux-verify',
 ];
@@ -174,9 +173,9 @@ test('enabled provider reports stale receipt and owned broken links before migra
 
     const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
     const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
-    const retired = 'dhpk-yii1-security-audit';
+    const retired = 'dhpk-legacy-characterization-tests';
     const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
-    assert.ok(retiredEntry, 'fixture needs its historical security-audit skill');
+    assert.ok(retiredEntry, 'fixture needs an active prefixed skill to retire');
 
     const installed = runInstaller(scratch, ['--force', '--skill', retiredEntry.id], fakePlugin);
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);

@@ -306,6 +306,21 @@ test('inventory regeneration preserves the project projection contract', () => {
     };
   }
 
+  const FAMILY_SUCCESSORS = Object.freeze({
+    'dep-audit': 'change-verdict',
+    'review-pending': 'change-verdict',
+    'js-static-check-strategy': 'js-static-checks',
+    'opsx-load-context': 'opsx-apply-resume',
+    'opsx-post-obs': 'opsx-apply-resume',
+    'php-pro': 'php',
+    'php56-yii-dev': 'yii1',
+    'yii1-security-audit': 'yii1',
+  });
+
+  function currentFamilyIds(historicalIds) {
+    return [...new Set(historicalIds.map((id) => FAMILY_SUCCESSORS[id] || id))].sort();
+  }
+
   test('baseline is deterministic and records the current Agent Plugin set as evidence only', () => {
     const first = buildBaseline({ root: ROOT, inventory: INVENTORY });
     const second = buildBaseline({ root: ROOT, inventory: INVENTORY });
@@ -314,17 +329,19 @@ test('inventory regeneration preserves the project projection contract', () => {
     assert.strictEqual(first.schema, FIXTURE.schema);
     assert.strictEqual(JSON.stringify(first), JSON.stringify(second));
     assert.strictEqual(first.selection.currentAgentPlugin.surface, FIXTURE.currentSelection.surface);
-    const retainedBaselineIds = FIXTURE.currentSelection.selectedStableIds.filter((id) => !id.startsWith('gitnexus-') && !['harness-govern', 'harness-audit', 'skill-scope', 'session-usage-audit', 'project-setup', 'prompt-optimize', 'opsx-apply-goal'].includes(id));
-    assert.deepStrictEqual(first.selection.currentAgentPlugin.selectedStableIds, retainedBaselineIds);
+    const historicalAgentIds = FIXTURE.currentSelection.selectedStableIds.filter((id) => !id.startsWith('gitnexus-') && !['harness-govern', 'harness-audit', 'skill-scope', 'session-usage-audit', 'project-setup', 'prompt-optimize', 'opsx-apply-goal'].includes(id));
+    const expectedCurrentAgentIds = currentFamilyIds(historicalAgentIds);
+    assert.deepStrictEqual(first.selection.currentAgentPlugin.selectedStableIds, expectedCurrentAgentIds);
     assert.strictEqual(first.selection.currentAgentPlugin.evidenceOnly, FIXTURE.currentSelection.evidenceOnly);
     assert.strictEqual(first.selection.currentAgentPlugin.portableCoreExpansion, FIXTURE.currentSelection.portableCoreExpansion);
     assert.strictEqual(first.selection.currentAgentPlugin.contract, FIXTURE.currentSelection.contract);
     const codex = first.hosts.find((host) => host.host === 'Codex');
     assert.strictEqual(codex.selection.count, codex.selection.selectedStableIds.length);
-    assert.deepStrictEqual(codex.selection.selectedStableIds, [...FIXTURE.compatibilityMatrix.currentCodexSyncSubset.selectedStableIds.filter((id) => !['harness-govern', 'harness-audit', 'skill-scope'].includes(id)), 'change-verdict', 'ui-ux-verify'].sort());
+    assert.deepStrictEqual(codex.selection.selectedStableIds, currentFamilyIds([...FIXTURE.compatibilityMatrix.currentCodexSyncSubset.selectedStableIds.filter((id) => !['harness-govern', 'harness-audit', 'skill-scope'].includes(id)), 'change-verdict', 'ui-ux-verify']));
     assert.strictEqual(first.selection.portableCore.declared, true);
     assert.strictEqual(first.selection.portableCore.profileId, FIXTURE.portableCore.profileId);
-    assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, retainedBaselineIds);
+    assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, expectedCurrentAgentIds);
+    assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, [...INVENTORY.project_agent_projection.profiles['portable-core'].stable_ids].sort());
     assert.strictEqual(first.selection.portableCore.evidenceOnly, true);
     assert.match(first.selection.portableCore.reason, /explicit|evidence/i);
   });

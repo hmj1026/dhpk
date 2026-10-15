@@ -43,12 +43,12 @@ function frontmatterName(file) {
   return match ? match[1].trim().replace(/^[a-z0-9-]+:/, '') : null;
 }
 
-test('the accepted catalog compiles to 15 public entries with every child folded under its owner', () => {
+test('the accepted catalog compiles to 14 public entries with every child folded under its owner', () => {
   const result = compile();
   assert.deepStrictEqual(result.errors, []);
-  assert.strictEqual(result.publicEntries.length, 15);
+  assert.strictEqual(result.publicEntries.length, 14);
   const folded = Object.values(result.bundledChildren).reduce((total, children) => total + children.length, 0);
-  assert.strictEqual(folded, 45);
+  assert.strictEqual(folded, 30);
   for (const owner of Object.keys(result.bundledChildren)) {
     assert.ok(result.publicEntries.some((entry) => entry.id === owner), `${owner} must be a public entry`);
   }
@@ -59,8 +59,8 @@ test('the accepted catalog compiles to 15 public entries with every child folded
 test('the publication view preserves full catalog descriptors and folds all common children', () => {
   const result = compilePublication();
   assert.deepStrictEqual(result.errors, []);
-  assert.strictEqual(result.publicEntries.length, 15);
-  assert.strictEqual(Object.values(result.bundledChildren).reduce((total, rows) => total + rows.length, 0), 45);
+  assert.strictEqual(result.publicEntries.length, 14);
+  assert.strictEqual(Object.values(result.bundledChildren).reduce((total, rows) => total + rows.length, 0), 30);
   assert.strictEqual(result.hostOnly.length, 0);
   assert.strictEqual(result.withdrawn.length, 0);
 
@@ -70,10 +70,10 @@ test('the publication view preserves full catalog descriptors and folds all comm
   assert.strictEqual(entry.path, 'skills/flow-guide');
   assert.deepStrictEqual(entry.versionCondition, []);
 
-  const child = result.bundledChildren['flow-drive'].find((row) => row.id === 'php56-yii-dev');
-  const childSource = INVENTORY.skills.find((row) => row.id === 'php56-yii-dev');
-  for (const [key, value] of Object.entries(childSource)) assert.deepStrictEqual(child[key], value, `php56-yii-dev.${key}`);
-  assert.strictEqual(child.path, 'skills/dhpk-yii1-php56-development');
+  const child = result.bundledChildren['flow-drive'].find((row) => row.id === 'yii1');
+  const childSource = INVENTORY.skills.find((row) => row.id === 'yii1');
+  for (const [key, value] of Object.entries(childSource)) assert.deepStrictEqual(child[key], value, `yii1.${key}`);
+  assert.strictEqual(child.path, 'skills/yii1');
   assert.deepStrictEqual(child.profiles, ['yii-1.1']);
   assert.deepStrictEqual(child.versionCondition, ['yii-1.1']);
   assert.strictEqual(child.owner, 'flow-drive');
@@ -85,7 +85,7 @@ test('common entries ignore old inventory surface membership in a host view', ()
   const result = compilePublication({ inventory, hostSurface: 'agent-plugin' });
   assert.deepStrictEqual(result.errors, []);
   assert.ok(result.publicEntries.some((entry) => entry.id === 'flow-drive'));
-  assert.strictEqual(result.publicEntries.length, 15);
+  assert.strictEqual(result.publicEntries.length, 14);
 });
 
 test('host-only rows follow the requested inventory surface and no surface is implied', () => {
@@ -141,10 +141,10 @@ test('the publication view freezes copied descriptors without freezing or changi
 
 test('an invalid selected child fails closed without partial publication data', () => {
   const selection = clone(SELECTION);
-  const child = selection.skills.find((skill) => skill.id === 'php56-yii-dev');
+  const child = selection.skills.find((skill) => skill.id === 'yii1');
   child.owner = 'missing-owner';
   const result = compilePublication({ selection });
-  assert.match(errorText(result), /php56-yii-dev/);
+  assert.match(errorText(result), /yii1/);
   assert.match(errorText(result), /owner/i);
   assert.deepStrictEqual(result.publicEntries, []);
   assert.deepStrictEqual(result.bundledChildren, {});
@@ -176,7 +176,7 @@ test('a host-only row without inventory surface data fails closed', () => {
 
 test('the recorded naming decision is the user decision to keep current names', () => {
   assert.strictEqual(SELECTION.naming_decision.decided_by, 'user');
-  assert.strictEqual(SELECTION.naming_decision.decided_on, '2026-10-02');
+  assert.strictEqual(SELECTION.naming_decision.decided_on, '2026-10-15');
   for (const entry of compile().publicEntries) {
     const skill = INVENTORY.skills.find((candidate) => candidate.id === entry.id);
     assert.strictEqual(entry.name, skill.name);

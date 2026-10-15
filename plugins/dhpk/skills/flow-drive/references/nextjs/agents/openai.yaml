@@ -1,0 +1,4 @@
+interface:
+  display_name: "Next.js"
+  short_description: "Target-scoped Next.js 15.5 and 16 guidance and migrations"
+  default_prompt: "Use $nextjs to resolve the target package and apply Next.js guidance for the requested task."

@@ -659,7 +659,7 @@ for (const id of ['release-unmerged-blocked', 'release-unrelated-change-blocked'
 // --- skill-resume-family-isolation ---
 {
 // Raw-directory behavior tests for the resume helper migration. Canonical
-// owner Skills and the synchronized resume copies are relocated into a fresh
+// owner Skill and its local helpers are relocated into a fresh
 // fixture project; no root helper path or peer Skill fallback is allowed.
 
 const path = require('node:path');
@@ -692,14 +692,12 @@ function runResumeFixture(id) {
   });
 }
 
-test('resume-family registry exposes canonical owners and synchronized local entries', () => {
+test('resume-family registry exposes the canonical owner and local entries', () => {
   const ids = Object.keys(FIXTURES).sort();
   assert.deepStrictEqual(ids, [
     'resume-detect-missing-handoff-save',
     'resume-detect-saved-old-resume',
-    'resume-extract-compact-copy',
     'resume-extract-compact-owner',
-    'resume-post-observation-copy-unavailable',
     'resume-post-observation-owner-unavailable',
     'resume-set-state-consuming',
     'resume-write-create-explicit',
@@ -715,10 +713,8 @@ test('resume-family registry exposes canonical owners and synchronized local ent
     'resume-write-missing-leaf-claude-symlink': ['opsx-apply-resume', 'scripts/write-handoff.sh'],
     'resume-write-missing-leaf-dhpk-symlink': ['opsx-apply-resume', 'scripts/write-handoff.sh'],
     'resume-write-missing-leaf-explicit-symlink': ['opsx-apply-resume', 'scripts/write-handoff.sh'],
-    'resume-extract-compact-owner': ['dhpk-opsx-load-context', 'scripts/extract-compact.sh'],
-    'resume-extract-compact-copy': ['opsx-apply-resume', 'scripts/extract-compact.sh'],
-    'resume-post-observation-owner-unavailable': ['dhpk-opsx-post-observation', 'scripts/post-obs.sh'],
-    'resume-post-observation-copy-unavailable': ['opsx-apply-resume', 'scripts/post-obs.sh'],
+    'resume-extract-compact-owner': ['opsx-apply-resume', 'scripts/extract-compact.sh'],
+    'resume-post-observation-owner-unavailable': ['opsx-apply-resume', 'scripts/post-obs.sh'],
   };
   for (const [id, fixture] of Object.entries(FIXTURES)) {
     assert.deepStrictEqual([fixture.skill, fixture.entry], expectedEntries[id], id);
@@ -757,17 +753,10 @@ test('canonical load-context extractor emits compact JSON fields', () => {
   runResumeFixture('resume-extract-compact-owner');
 });
 
-test('resume Skill receives the synchronized compact extractor copy', () => {
-  runResumeFixture('resume-extract-compact-copy');
-});
-
 test('canonical post-observation helper handles denied memory service safely', () => {
   runResumeFixture('resume-post-observation-owner-unavailable');
 });
 
-test('resume Skill receives the synchronized post-observation copy', () => {
-  runResumeFixture('resume-post-observation-copy-unavailable');
-});
 }
 
 run('skill-directory-isolation');

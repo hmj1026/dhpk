@@ -1,0 +1,4 @@
+interface:
+  display_name: "Python"
+  short_description: "Typed Python, async APIs, tests, and static checks"
+  default_prompt: "Use $python for the task, resolving target compatibility before selecting local resources."

@@ -233,7 +233,101 @@
         "destination": "templates/settings.local.json.example"
       }
     ],
-    "ios-platform": [
+    "opsx-apply-resume": [
+      {
+        "source": "scripts/hooks/_lib/portable-sed.sh",
+        "destination": "scripts/lib/portable-sed.sh"
+      }
+    ],
+    "precommit": [
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/lib/runner-utils.js"
+      }
+    ],
+    "project-audit": [
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/lib/runner-utils.js"
+      },
+      {
+        "source": "scripts/lib/command-namespace.js",
+        "destination": "scripts/lib/command-namespace.js"
+      }
+    ],
+    "repo-intake": [
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/lib/runner-utils.js"
+      }
+    ],
+    "repo-verify": [
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/lib/runner-utils.js"
+      }
+    ],
+    "swift": [
+      {
+        "source": "modules/swift/references/concurrency.md",
+        "destination": "references/concurrency.md"
+      },
+      {
+        "source": "modules/swift/references/approachable-concurrency.md",
+        "destination": "references/approachable-concurrency.md"
+      },
+      {
+        "source": "modules/swift/references/value-vs-reference.md",
+        "destination": "references/value-vs-reference.md"
+      },
+      {
+        "source": "modules/swift/references/error-handling.md",
+        "destination": "references/error-handling.md"
+      },
+      {
+        "source": "modules/swift/references/swift5-compat-notes.md",
+        "destination": "references/swift5-compat-notes.md"
+      },
+      {
+        "source": "modules/swiftui/references/mvvm-coordinator.md",
+        "destination": "references/mvvm-coordinator.md"
+      },
+      {
+        "source": "modules/swiftui/references/observation-state.md",
+        "destination": "references/observation-state.md"
+      },
+      {
+        "source": "modules/swiftui/references/navigation.md",
+        "destination": "references/navigation.md"
+      },
+      {
+        "source": "modules/swiftui/references/interop.md",
+        "destination": "references/interop.md"
+      },
+      {
+        "source": "modules/swift-testing/references/swift-testing-api.md",
+        "destination": "references/swift-testing-api.md"
+      },
+      {
+        "source": "modules/swift-testing/references/xctest-bridging.md",
+        "destination": "references/xctest-bridging.md"
+      },
+      {
+        "source": "modules/swift-testing/references/xcuitest.md",
+        "destination": "references/xcuitest.md"
+      },
+      {
+        "source": "modules/swift-testing/references/snapshot-testing.md",
+        "destination": "references/snapshot-testing.md"
+      },
+      {
+        "source": "modules/swift-testing/references/test-taxonomy.md",
+        "destination": "references/test-taxonomy.md"
+      },
+      {
+        "source": "modules/swift-testing/references/protocol-di-host-testing.md",
+        "destination": "references/protocol-di-host-testing.md"
+      },
       {
         "source": "modules/ios-platform/references/coredata-encryption.md",
         "destination": "references/coredata-encryption.md"
@@ -265,161 +359,7 @@
       {
         "source": "modules/ios-platform/references/actor-persistence.md",
         "destination": "references/actor-persistence.md"
-      }
-    ],
-    "js-lint-config": [
-      {
-        "source": "modules/js/references/static-checks.md",
-        "destination": "references/static-checks.md"
       },
-      {
-        "source": "modules/js/references/frontend-review-patterns.md",
-        "destination": "references/frontend-review-patterns.md"
-      }
-    ],
-    "js-static-check-strategy": [
-      {
-        "source": "modules/js/references/static-checks.md",
-        "destination": "references/static-checks.md"
-      },
-      {
-        "source": "modules/js/references/frontend-review-patterns.md",
-        "destination": "references/frontend-review-patterns.md"
-      }
-    ],
-    "nextjs-15-5-notes": [
-      {
-        "source": "docs/agent-guidance/frontend-framework-routing.md",
-        "destination": "references/frontend-framework-routing.md"
-      }
-    ],
-    "nextjs-16-notes": [
-      {
-        "source": "docs/agent-guidance/frontend-framework-routing.md",
-        "destination": "references/frontend-framework-routing.md"
-      }
-    ],
-    "opsx-apply-resume": [
-      {
-        "source": "skills/dhpk-opsx-load-context/scripts/extract-compact.sh",
-        "destination": "scripts/extract-compact.sh"
-      },
-      {
-        "source": "skills/dhpk-opsx-post-observation/scripts/post-obs.sh",
-        "destination": "scripts/post-obs.sh"
-      },
-      {
-        "source": "scripts/hooks/_lib/portable-sed.sh",
-        "destination": "scripts/lib/portable-sed.sh"
-      }
-    ],
-    "precommit": [
-      {
-        "source": "scripts/lib/runner-utils.js",
-        "destination": "scripts/lib/runner-utils.js"
-      }
-    ],
-    "project-audit": [
-      {
-        "source": "scripts/lib/runner-utils.js",
-        "destination": "scripts/lib/runner-utils.js"
-      },
-      {
-        "source": "scripts/lib/command-namespace.js",
-        "destination": "scripts/lib/command-namespace.js"
-      }
-    ],
-    "react-18-notes": [
-      {
-        "source": "docs/agent-guidance/frontend-framework-routing.md",
-        "destination": "references/frontend-framework-routing.md"
-      }
-    ],
-    "react-19-notes": [
-      {
-        "source": "docs/agent-guidance/frontend-framework-routing.md",
-        "destination": "references/frontend-framework-routing.md"
-      }
-    ],
-    "repo-intake": [
-      {
-        "source": "scripts/lib/runner-utils.js",
-        "destination": "scripts/lib/runner-utils.js"
-      }
-    ],
-    "repo-verify": [
-      {
-        "source": "scripts/lib/runner-utils.js",
-        "destination": "scripts/lib/runner-utils.js"
-      }
-    ],
-    "swift-language": [
-      {
-        "source": "modules/swift/references/concurrency.md",
-        "destination": "references/concurrency.md"
-      },
-      {
-        "source": "modules/swift/references/approachable-concurrency.md",
-        "destination": "references/approachable-concurrency.md"
-      },
-      {
-        "source": "modules/swift/references/value-vs-reference.md",
-        "destination": "references/value-vs-reference.md"
-      },
-      {
-        "source": "modules/swift/references/error-handling.md",
-        "destination": "references/error-handling.md"
-      },
-      {
-        "source": "modules/swift/references/swift5-compat-notes.md",
-        "destination": "references/swift5-compat-notes.md"
-      }
-    ],
-    "swift-test-strategy": [
-      {
-        "source": "modules/swift-testing/references/swift-testing-api.md",
-        "destination": "references/swift-testing-api.md"
-      },
-      {
-        "source": "modules/swift-testing/references/xctest-bridging.md",
-        "destination": "references/xctest-bridging.md"
-      },
-      {
-        "source": "modules/swift-testing/references/xcuitest.md",
-        "destination": "references/xcuitest.md"
-      },
-      {
-        "source": "modules/swift-testing/references/snapshot-testing.md",
-        "destination": "references/snapshot-testing.md"
-      },
-      {
-        "source": "modules/swift-testing/references/test-taxonomy.md",
-        "destination": "references/test-taxonomy.md"
-      },
-      {
-        "source": "modules/swift-testing/references/protocol-di-host-testing.md",
-        "destination": "references/protocol-di-host-testing.md"
-      }
-    ],
-    "swiftui-architecture": [
-      {
-        "source": "modules/swiftui/references/mvvm-coordinator.md",
-        "destination": "references/mvvm-coordinator.md"
-      },
-      {
-        "source": "modules/swiftui/references/observation-state.md",
-        "destination": "references/observation-state.md"
-      },
-      {
-        "source": "modules/swiftui/references/navigation.md",
-        "destination": "references/navigation.md"
-      },
-      {
-        "source": "modules/swiftui/references/interop.md",
-        "destination": "references/interop.md"
-      }
-    ],
-    "xcode-build-tooling": [
       {
         "source": "modules/xcode-tooling/references/swiftlint-config.md",
         "destination": "references/swiftlint-config.md"

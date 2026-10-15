@@ -14,18 +14,24 @@ Codex 使用 `$<public-name>` 呼叫已安裝的 skill；Claude 原有的
 | `smart-commit` | `$git-smart-commit` |
 | `create-release` | `$release-creator` |
 | `matrix-cell-onboard` | `$matrix-cell-onboard` |
-| `ts-check-status` | `$js-static-check-strategy status --path <directory>` |
+| `ts-check-status` | `$js-static-checks status --path <directory>` |
 
 退休 aliases 不再提供入口；請直接使用目前的 portable skill。
 
 其他通用流程直接使用目前的 command 名稱：`create-pr`、`git-worktree`、
 `merge-prep`、`pr-summary`、`project-brief`、`doc-refactor`、`update-docs`、
-`update-codemaps`、`precommit`、`dep-audit`、`review-pending`。目前的
+`update-codemaps`、`precommit`。依賴稽核與待提交變更審查由
+`change-verdict` 的 `deps` 與 `pending` 任務負責。目前的
 `flow-guide` 與 `flow-drive` 維持名稱。
 
-提交、發布、matrix onboarding、TDD 與 JS 靜態檢查的五個既有 skills
-移除 `dhpk-` 前綴；stable ID 與 capability ID 保持不變。
-其他帶前綴的 skills 不受影響。改名紀錄提供診斷，不發布重複的別名 skill。
+既有提交、發布、matrix onboarding 與 TDD 的 public-name 遷移仍保留
+stable ID 與 capability ID；改名紀錄提供診斷，不發布重複 aliases。
+
+自足的 `swift`、`python`、`js-static-checks`、`php`、`yii1` families
+在自己的目錄內選擇任務與 runtime 分支。React 與 Next.js 保持獨立的
+`react`、`nextjs` families；載入版本專用指引前先確認目標 package 與版本。
+Resume/save helpers 由 `opsx-apply-resume` 負責。這些 family owners
+取代原有專項入口，不發布相容 aliases。
 
 用途決策清單以 ADR 記錄 Skills 的新增；目前 active membership 以
 distribution inventory 為準。
@@ -87,9 +93,11 @@ probe 結果會另外記錄。
 ## 執行邊界
 
 - `repo-verify` 執行檢查；`precommit` 可能執行格式修正。
-- `dep-audit` 只有收到修正選項時才變更依賴。
+- `change-verdict deps` 與 `change-verdict pending` 預設唯讀。明確要求
+  `$change-verdict deps fix` 才能執行限定範圍的依賴修正，之後須進行獨立 security review；
+  修正結果與安全審查 verdict 分別回報。
 - `create-pr` 預設預覽；release 與 Git 操作保留明確執行及授權邊界。
-- `review-pending` 提供 reviewer 證據；gate clearance 是獨立的 runtime 操作。
+- `change-verdict pending` 提供 reviewer 證據；gate clearance 是獨立的 runtime 操作。
 - `harness-setup`、`opsx-apply-resume`、`ui-ux-verify` 有 Host 專用適配。
   Codex 發布需要 consumer 證據；工具或設定不足時明確回報不可用或受阻。
 

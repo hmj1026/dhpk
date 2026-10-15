@@ -30,7 +30,7 @@ reporting, and the final verdict. Read
 
 - A read-only verification loop is requested (use `$repo-verify`).
 - Dependency security evidence or a fix operation is requested (use
-  `$dep-audit`).
+  `$change-verdict deps`).
 - A one-off command is requested outside the deterministic precommit pipeline.
 
 ## Output

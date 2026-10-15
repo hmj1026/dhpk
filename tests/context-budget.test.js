@@ -99,7 +99,7 @@ test('aggregate default selection uses current install-profiles common skill IDs
   assert.strictEqual(report.profileId, 'common');
   assert.strictEqual(discoveryBudgets.aggregate.profile, 'common');
   assert.deepStrictEqual(report.selectedStableIds, commonIds);
-  assert.strictEqual(report.selectedEntries, 15);
+  assert.strictEqual(report.selectedEntries, 14);
 });
 
 test('aggregate budget excludes explicit-only entries and fails closed on count/reduction ceilings', () => {
@@ -157,7 +157,7 @@ test('aggregate CLI emits a JSON report with an exit code matching its verdict',
   const report = JSON.parse(result.stdout);
   assert.strictEqual(report.schema, 'dhpk.aggregate-discovery-report.v1');
   assert.strictEqual(report.profileId, 'common');
-  assert.strictEqual(report.selectedEntries, 15);
+  assert.strictEqual(report.selectedEntries, 14);
   assert.strictEqual(typeof report.ok, 'boolean');
   assert.strictEqual(result.status, report.ok ? 0 : 1, result.stderr);
 });
