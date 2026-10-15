@@ -48,7 +48,33 @@ const OWNER_GROUPS = Object.freeze([
   {
     name: 'installer',
     paths: [/^scripts\/install\//i, /^scripts\/install\.sh$/i, /^scripts\/dhpk-install\.js$/i, /^scripts\/hooks\/install-/i, /^scripts\/lib\/dhpk-install-lifecycle\.js$/i],
-    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js', 'install-codex-skills.test.js', 'install-codex-skills-planning.test.js', 'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js', 'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js', 'install-prompts.test.js', 'native-shared-skill-install.test.js', 'skill-pilot-install-migration.test.js', 'skill-pilot-isolation.test.js', 'skill-remaining-entry-isolation.test.js'],
+    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js', 'install-codex-skills.test.js', 'install-codex-skills-planning.test.js', 'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js', 'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js', 'install-prompts.test.js', 'native-shared-skill-install.test.js'],
+  },
+  {
+    name: 'skill-scripts',
+    // Only entries invoked by the operability suite belong to this owner.
+    // Internal modules and new scripts retain the full-verification fallback.
+    paths: [
+      /^skills\/change-verdict\/scripts\/(?:(?:check-unrelated-changes|review-cli)\.sh|risk-analyze\.js)$/,
+      /^skills\/code-trace\/scripts\/diagnose\/(?:analyze-function-calls|check-tools|find-polluter|generate-flow-diagram|search-database-queries|trace-data-flow)\.sh$/,
+      /^skills\/dhpk-deploy-list\/scripts\/(?:check-golden|deploy-list)\.sh$/,
+      /^skills\/dhpk-feature-verify\/scripts\/(?:api-exec|health-probe)\.sh$/,
+      /^skills\/dhpk-project-audit\/scripts\/audit\.js$/,
+      /^skills\/dhpk-repo-intake\/scripts\/(?:intake_cached|scan_delta|scan_repo)\.js$/,
+      /^skills\/flow-drive\/scripts\/(?:invocation|launch-dispatch)\.js$/,
+      /^skills\/flow-guide\/scripts\/(?:(?:action-runner|analyze|route-result|usage-card)\.js|(?:openspec_gate_check|prepare_dev_scope|prepare_workflow_profile|workflow_gate_check)\.py|pre-route\.sh)$/,
+      /^skills\/git-smart-commit\/scripts\/collect-changes\.js$/,
+      /^skills\/harness-setup\/scripts\/(?:install-assets|install-codex-project)\.sh$/,
+      /^skills\/js-static-checks\/scripts\/status\.js$/,
+      /^skills\/laravel\/scripts\/resolve-version\.js$/,
+      /^skills\/opsx-apply-resume\/scripts\/(?:detect-phase|extract-compact|post-obs|set-handoff-state|write-handoff)\.sh$/,
+      /^skills\/phpunit\/scripts\/resolve-version\.js$/,
+      /^skills\/precommit\/scripts\/precommit-runner\.js$/,
+      /^skills\/release-creator\/scripts\/release-runner\.sh$/,
+      /^skills\/repo-verify\/scripts\/verify-runner\.js$/,
+      /^skills\/swift\/scripts\/(?:generate_icons\.swift|iconify_gen\.sh)$/,
+    ],
+    tests: ['skill-script-operability.test.js'],
   },
   {
     name: 'resource',

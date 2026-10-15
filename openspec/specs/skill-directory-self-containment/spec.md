@@ -214,13 +214,19 @@ or session-context file can be created outside the selected target.
 
 ### Requirement: Completion evidence covers canonical Skills and consumers separately
 
-Verification SHALL include inventory-wide structure/resource coverage and
-isolated behavioral fixtures for declared executable entries, with appropriate
-reference/routing checks for instruction-only Skills. Generated packages,
-installation migration, and actual Host probes SHALL have separate evidence.
-Missing fixtures, failed checks, and unavailable Host probes SHALL remain
-visible non-pass states; neither a help-only check nor successful packaging
-SHALL substitute for representative runtime behavior.
+REQ-6 continued: Verification SHALL include inventory-wide structure/resource
+coverage and authoring fixture definitions for declared executable entries,
+with appropriate reference/routing checks for instruction-only Skills.
+Generated packages, installation migration, and actual Host probes SHALL have
+separate evidence. Missing fixture definitions, failed checks, and unavailable
+Host probes SHALL remain visible non-pass states. Routine CI SHALL classify packaged Skill-script files and execute recognized
+public CLI entries through the operability smoke suite (exit code and output
+shape). Internal modules SHALL retain their applicable existing behavior
+coverage. Routine CI SHALL NOT present that smoke as representative isolated
+runtime. Neither a help-only check nor successful packaging SHALL substitute
+for representative runtime behavior. Representative isolated runtime remains a
+publication or on-demand evidence class; daily CI MAY omit historical family
+isolation suites when the smoke suite invokes those public CLI entries.
 
 #### Scenario: Raw-directory behavior fails after package tests pass
 
@@ -234,6 +240,13 @@ SHALL substitute for representative runtime behavior.
   probe
 - **THEN** the report records `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE` and does not
   upgrade structural evidence into consumer runtime PASS
+
+#### Scenario: Operability smoke is not representative runtime
+
+- **WHEN** the Skill-script operability smoke passes using `--help` or a start
+  fixture in an isolated empty project
+- **THEN** reports SHALL NOT record representative isolated runtime as PASS
+  from that smoke alone
 
 ### Requirement: Publication preserves selection and verified ownership
 
@@ -262,6 +275,24 @@ revision; missing commit or publication authority SHALL remain an explicit gate.
   authorized clean source revision
 - **THEN** the operation is blocked without hand-editing receipts, fabricating
   provenance, or silently committing the worktree
+
+### Requirement: Coverage fixture definitions remain until remapped
+
+REQ-6: Inventory-wide skill-directory coverage SHALL continue to require a
+fixture definition for every declared executable entry. Authoring registration
+of those definitions SHALL remain valid after isolation-test deletion. Fixture
+modules that the coverage validator still imports SHALL NOT be deleted as
+orphans. Bridge, flow, resume, and skill-directory fixture helpers that other
+KEEP suites or the coverage validator require SHALL remain. A later remap of
+`fixture_ids` onto the operability smoke suite MAY retire family-specific
+definition modules only after coverage validation still passes.
+
+#### Scenario: Isolation tests are gone and coverage still validates
+
+- **WHEN** family isolation test files are deleted and the coverage validator
+  runs with the remaining fixture registrations
+- **THEN** every declared executable entry still has a known fixture id and
+  matching entry path, or coverage fails with the unknown fixture identity
 
 ### Requirement: Consolidated families include complete delivery resources
 

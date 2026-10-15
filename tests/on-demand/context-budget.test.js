@@ -4,16 +4,16 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { test, run, assert } = require('./_lib/tinytest');
+const { test, run, assert } = require('../_lib/tinytest');
 const {
   loadDiscoveryBudgets,
   inspectDiscoveryContext,
   inspectAggregateDiscoveryContext,
   renderBudgetReport,
-} = require('../scripts/ci/context-budget');
-const { evaluateAggregateDiscoveryBudget } = require('../scripts/lib/discovery-budget');
+} = require('../../scripts/ci/context-budget');
+const { evaluateAggregateDiscoveryBudget } = require('../../scripts/lib/discovery-budget');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(__dirname, '..', '..');
 
 test('discovery budgets are declared by lifecycle and host surface', () => {
   const budgets = loadDiscoveryBudgets(ROOT);
@@ -172,14 +172,14 @@ test('aggregate CLI emits a JSON report with an exit code matching its verdict',
 
   const { spawnSync } = require('node:child_process');
   const path = require('node:path');
-  const { test, assert } = require('./_lib/tinytest');
+  const { test, assert } = require('../_lib/tinytest');
   const {
     createDistributionArtifact,
     createDistributionPlan,
-  } = require('../scripts/lib/distribution-projection-contract');
-  const { inspectDiscoveryContext } = require('../scripts/ci/context-budget');
+  } = require('../../scripts/lib/distribution-projection-contract');
+  const { inspectDiscoveryContext } = require('../../scripts/ci/context-budget');
 
-  const ROOT = path.join(__dirname, '..');
+  const ROOT = path.join(__dirname, '..', '..');
   const CONTEXT_BUDGET_CLI = path.join(ROOT, 'scripts', 'ci', 'context-budget.js');
 
   // The new owner is intentionally loaded lazily so budget-boundary failures
@@ -187,7 +187,7 @@ test('aggregate CLI emits a JSON report with an exit code matching its verdict',
   let projectionParity = null;
   let projectionParityLoadError = null;
   try {
-    projectionParity = require('../scripts/lib/distribution-projection-parity');
+    projectionParity = require('../../scripts/lib/distribution-projection-parity');
   } catch (error) {
     projectionParityLoadError = error;
   }

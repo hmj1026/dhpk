@@ -518,4 +518,4 @@ function validateSkillDirectoryCoverage({ root, inventory, coverage, fixtures } 
   return result;
 }
 
-module.exports = { SCHEMA, callerReferencesHelper, validateSkillDirectoryCoverage };
+module.exports = { SCHEMA, EXECUTABLE_EXTENSIONS, callerReferencesHelper, validateSkillDirectoryCoverage };

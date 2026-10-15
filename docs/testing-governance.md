@@ -27,14 +27,18 @@ create a coverage ledger merely to pair every production file with a test.
 
 Daily pull-request CI remains the routine suite entry and uses the existing
 light/selected/full router. It uses the runner's positional-file mode for
-known script changes. The plan selects a union of coarse owner suites for
-hooks, installer lifecycle, skill resources, and manifest or adapter packages;
-a selected plan runs one shard with four workers. A full plan keeps four
-shards with four workers. Shared core, runner or CI changes, unknown paths,
-missing owner suites, and unavailable diffs fail closed to the full plan. The
-selected plan records its test files, and shard verification requires the
-trusted plan's exact union without omissions, extras, or duplicates. Installer
-owner changes also run the macOS installer job.
+known script changes. Daily CI's two operability gates are (a) Skill-script
+operability smoke (`tests/skill-script-operability.test.js`) and (b) the
+install/package keep-list suites. Help-only or start-fixture smoke MUST NOT
+be recorded as representative isolated runtime PASS. The plan selects a union
+of coarse owner suites for hooks, installer lifecycle, skill resources,
+Skill-script operability, and manifest or adapter packages; a selected plan
+runs one shard with four workers. A full plan keeps four shards with four
+workers. Shared core, runner or CI changes, unknown paths, missing owner
+suites, and unavailable diffs fail closed to the full plan. The selected plan
+records its test files, and shard verification requires the trusted plan's
+exact union without omissions, extras, or duplicates. Installer owner changes
+also run the macOS installer job.
 
 This routing is an execution optimization and does not create a
 script-to-test coverage obligation. Markdown prose remains outside automated
@@ -66,14 +70,16 @@ reports; they do not create a prose-correctness contract. Actual Host and packag
 compatibility constraints remain enforced where they affect shipped behavior.
 
 Model-driven or GUI sessions and live context, budget, count, or benchmark
-measurements are on-demand research, not routine CI gates. CI may retain
-redacted shard timing artifacts as execution evidence; performance benchmarks
-and comparisons remain on demand. Research CLIs and libraries remain available
-on demand, and stable fixture tests for their calculations and CLI behavior
-remain in the suite. Do not assert live checkout prose or variable numerical
-quotas. Run Host runtime checks only for a new integration, a loader, role, or
-tool-mapping change, a reproducible activation defect, or an explicitly
-authorized request.
+measurements are on-demand research, not routine CI gates. Those research
+budget and benchmark tests live under `tests/on-demand/` and run with
+`npm run test:research-budgets`; the aggregate runner skips that directory.
+CI may retain redacted shard timing artifacts as execution evidence;
+performance benchmarks and comparisons remain on demand. Research CLIs and
+libraries remain available on demand, and stable fixture tests for their
+calculations and CLI behavior remain in the suite. Do not assert live checkout
+prose or variable numerical quotas. Run Host runtime checks only for a new
+integration, a loader, role, or tool-mapping change, a reproducible activation
+defect, or an explicitly authorized request.
 
 This daily and change-scoped policy does not retire release or publication
 acceptance; those gates remain in the

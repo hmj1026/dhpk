@@ -2,7 +2,7 @@
 
 // Remaining raw-directory runtime fixtures.  Each definition names one
 // public Skill-relative entry and one observable command contract.  Execution
-// is performed by skill-remaining-entry-isolation.test.js through the trusted
+// is performed by skill-script-operability.test.js through the trusted
 // physical relocation helper; fixture tools are the only external boundary.
 
 const assert = require('node:assert/strict');

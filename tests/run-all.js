@@ -47,6 +47,7 @@ function findTests(dir) {
     const filePath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === '_lib') continue;
+      if (entry.name === 'on-demand') continue;
       out.push(...findTests(filePath));
     } else if (entry.name.endsWith('.test.js')) {
       out.push(filePath);
