@@ -2,7 +2,6 @@
 
 ## Purpose
 
-
 Defines validation of route-table entries and declared skill handoffs so each route and next action uses a valid, unique, supported target and malformed declarations fail clearly.
 
 ## Requirements

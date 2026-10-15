@@ -2,7 +2,6 @@
 
 ## Purpose
 
-
 Defines how routing guidance selects a workflow owner, communicates policy and next steps, and preserves implementation, verification, and archive as separate evidence-backed handoffs.
 
 ## Requirements
