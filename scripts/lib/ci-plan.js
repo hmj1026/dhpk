@@ -48,7 +48,12 @@ const OWNER_GROUPS = Object.freeze([
   {
     name: 'installer',
     paths: [/^scripts\/install\//i, /^scripts\/install\.sh$/i, /^scripts\/dhpk-install\.js$/i, /^scripts\/hooks\/install-/i, /^scripts\/lib\/dhpk-install-lifecycle\.js$/i],
-    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js', 'install-codex-skills.test.js', 'install-codex-skills-planning.test.js', 'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js', 'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js', 'install-prompts.test.js', 'native-shared-skill-install.test.js', 'skill-pilot-install-migration.test.js', 'skill-pilot-isolation.test.js', 'skill-remaining-entry-isolation.test.js'],
+    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js', 'install-codex-skills.test.js', 'install-codex-skills-planning.test.js', 'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js', 'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js', 'install-prompts.test.js', 'native-shared-skill-install.test.js'],
+  },
+  {
+    name: 'skill-scripts',
+    paths: [/^skills\/(?!flow-drive\/scripts\/(?:adapters|transport|dispatch-runtime)\/)[^/]+\/scripts\//],
+    tests: ['skill-script-operability.test.js'],
   },
   {
     name: 'resource',

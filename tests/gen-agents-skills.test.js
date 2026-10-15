@@ -1,10 +1,15 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { selectPortableSkills } = require('../scripts/lib/agent-plugin-package');
+const {
+  materializeAgentsSkillsProjection,
+  validateAgentsSkillsProjection,
+} = require('../scripts/lib/agents-skills-package');
 
 const ROOT = path.join(__dirname, '..');
 const GENERATOR = path.join(ROOT, 'scripts', 'ci', 'gen-agents-skills.js');
@@ -248,6 +253,465 @@ test('validate-agents-skills CLI still exits nonzero for unknown options', () =>
     assert.notStrictEqual(result.status, 0, `${result.stdout || ''}\n${result.stderr || ''}`);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+const RETIREMENT_ACTIVE = {
+  id: 'active',
+  name: 'dhpk-active-skill',
+  path: 'skills/dhpk-active-skill',
+  lifecycle: 'promoted',
+  surfaces: ['agent-plugin'],
+};
+
+const RETIREMENT_RETIRED = {
+  id: 'retired',
+  name: 'dhpk-retired-skill',
+  path: 'skills/dhpk-retired-skill',
+  lifecycle: 'promoted',
+  surfaces: ['agent-plugin'],
+};
+
+function retirementTmpDir() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-skills-retirement-'));
+}
+
+function retirementWrite(file, content) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, content);
+}
+
+function retirementRecord(overrides = {}) {
+  return {
+    id: RETIREMENT_RETIRED.id,
+    name: RETIREMENT_RETIRED.name,
+    canonicalPath: RETIREMENT_RETIRED.path,
+    priorSurfaces: ['agent-plugin'],
+    retiredIn: '0.54.0',
+    reasonCode: 'test-retirement',
+    replacements: [{ kind: 'skill', id: RETIREMENT_ACTIVE.id, mode: 'fixture-successor' }],
+    rollback: { release: '0.53.0' },
+    ...overrides,
+  };
+}
+
+function retirementInventory(skills, retiredSkills = []) {
+  return {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills,
+    surface_membership: {
+      'agent-plugin': skills.filter((skill) => skill.surfaces.includes('agent-plugin')).map((skill) => skill.id),
+    },
+    retired_skills: retiredSkills,
+  };
+}
+
+function retirementReadReceipt(outDir) {
+  return JSON.parse(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'));
+}
+
+function retirementSnapshotTree(directory) {
+  const entries = [];
+  const walk = (current, relative) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolute = path.join(current, entry.name);
+      const child = path.posix.join(relative, entry.name);
+      const stat = fs.lstatSync(absolute);
+      if (stat.isSymbolicLink()) {
+        entries.push([child, `symlink:${fs.readlinkSync(absolute)}`]);
+      } else if (stat.isDirectory()) {
+        walk(absolute, child);
+      } else {
+        entries.push([child, fs.readFileSync(absolute, 'utf8')]);
+      }
+    }
+  };
+  walk(directory, '');
+  return entries;
+}
+
+function retirementMakeFixture({ previouslySelected = true } = {}) {
+  const root = retirementTmpDir();
+  const outDir = path.join(root, '.agents', 'skills');
+  const priorInventory = retirementInventory(previouslySelected ? [RETIREMENT_ACTIVE, RETIREMENT_RETIRED] : [RETIREMENT_ACTIVE]);
+  const currentInventory = retirementInventory([RETIREMENT_ACTIVE], [retirementRecord()]);
+
+  retirementWrite(path.join(root, RETIREMENT_ACTIVE.path, 'SKILL.md'), [
+    '---',
+    `name: ${RETIREMENT_ACTIVE.name}`,
+    "description: 'Active fixture skill.'",
+    '---',
+    '# Active skill',
+    '',
+  ].join('\n'));
+  retirementWrite(path.join(root, RETIREMENT_ACTIVE.path, 'references', 'guide.md'), '# Active guide\n');
+  retirementWrite(path.join(root, RETIREMENT_RETIRED.path, 'SKILL.md'), [
+    '---',
+    `name: ${RETIREMENT_RETIRED.name}`,
+    "description: 'Retired fixture skill.'",
+    '---',
+    '# Retired skill',
+    '',
+  ].join('\n'));
+  retirementWrite(path.join(root, RETIREMENT_RETIRED.path, 'references', 'guide.md'), '# Retired guide\n');
+  retirementWrite(path.join(root, RETIREMENT_RETIRED.path, 'scripts', 'check.sh'), '#!/bin/sh\n');
+
+  materializeAgentsSkillsProjection({ root, inventory: priorInventory, outDir });
+
+  if (previouslySelected) {
+    const receipt = retirementReadReceipt(outDir);
+    receipt.selectedIds = receipt.selectedIds.filter((id) => id !== RETIREMENT_RETIRED.id);
+    fs.writeFileSync(path.join(outDir, '.dhpk-projection.json'), `${JSON.stringify(receipt)}\n`);
+  }
+
+  fs.rmSync(path.join(root, RETIREMENT_RETIRED.path), { recursive: true, force: true });
+  return { root, outDir, currentInventory };
+}
+
+function retirementMaterializeCurrent(fixture, options = {}) {
+  return materializeAgentsSkillsProjection({
+    root: fixture.root,
+    inventory: fixture.currentInventory,
+    outDir: fixture.outDir,
+    allowCanonicalChanges: true,
+    ...options,
+  });
+}
+
+function assertRejectedWithoutPublication(fixture, diagnostic) {
+  const before = retirementSnapshotTree(fixture.outDir);
+  const receiptPath = path.join(fixture.outDir, '.dhpk-projection.json');
+  const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+
+  assert.throws(() => retirementMaterializeCurrent(fixture), diagnostic);
+
+  assert.deepStrictEqual(retirementSnapshotTree(fixture.outDir), before, 'a rejected retirement must preserve all installed bytes and paths');
+  assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore, 'a rejected retirement must preserve the receipt');
+}
+
+test('owned unchanged retired output is removed from the package and receipt', () => {
+  const fixture = retirementMakeFixture();
+  const retiredDir = path.join(fixture.outDir, RETIREMENT_RETIRED.name);
+  const retiredShim = path.join(fixture.outDir, `${RETIREMENT_RETIRED.name}.md`);
+  try {
+    const oldReceipt = retirementReadReceipt(fixture.outDir);
+    const oldEntry = oldReceipt.entries.find((entry) => entry.id === RETIREMENT_RETIRED.id);
+    assert.ok(oldEntry, 'the carried retired identity must have a receipt entry');
+    assert.ok(Array.isArray(oldEntry.sourceFiles), 'the receipt must retain its source manifest');
+    assert.ok(oldReceipt.managedPaths.includes(`${RETIREMENT_RETIRED.name}/SKILL.md`));
+    assert.ok(oldReceipt.generatedFingerprints[`${RETIREMENT_RETIRED.name}/SKILL.md`]);
+    assert.ok(!oldReceipt.selectedIds.includes(RETIREMENT_RETIRED.id), 'the carried retired identity is absent from current selection');
+
+    retirementWrite(path.join(fixture.root, RETIREMENT_ACTIVE.path, 'references', 'guide.md'), '# Updated active guide\n');
+    retirementWrite(path.join(fixture.outDir, 'unmanaged', 'keep.md'), '# User-owned\n');
+
+    const result = retirementMaterializeCurrent(fixture);
+
+    assert.deepStrictEqual(result.selectedIds, [RETIREMENT_ACTIVE.id]);
+    assert.strictEqual(fs.existsSync(retiredDir), false);
+    assert.strictEqual(fs.existsSync(retiredShim), false);
+    assert.strictEqual(
+      fs.readFileSync(path.join(fixture.outDir, RETIREMENT_ACTIVE.name, 'references', 'guide.md'), 'utf8'),
+      '# Updated active guide\n',
+    );
+    assert.strictEqual(fs.readFileSync(path.join(fixture.outDir, 'unmanaged', 'keep.md'), 'utf8'), '# User-owned\n');
+
+    const receipt = retirementReadReceipt(fixture.outDir);
+    assert.deepStrictEqual(receipt.selectedIds, [RETIREMENT_ACTIVE.id]);
+    assert.ok(!receipt.entries.some((entry) => entry.id === RETIREMENT_RETIRED.id));
+    assert.ok(!receipt.managedPaths.some((managedPath) => (
+      managedPath === `${RETIREMENT_RETIRED.name}.md` || managedPath.startsWith(`${RETIREMENT_RETIRED.name}/`)
+    )));
+    assert.ok(!Object.keys(receipt.generatedFingerprints).some((managedPath) => (
+      managedPath === `${RETIREMENT_RETIRED.name}.md` || managedPath.startsWith(`${RETIREMENT_RETIRED.name}/`)
+    )));
+    assert.strictEqual(validateAgentsSkillsProjection({ root: fixture.root, inventory: fixture.currentInventory, outDir: fixture.outDir }).ok, true);
+
+    const firstUpdate = retirementSnapshotTree(fixture.outDir);
+    retirementMaterializeCurrent(fixture);
+    assert.deepStrictEqual(retirementSnapshotTree(fixture.outDir), firstUpdate, 'reconciliation remains deterministic on repeat');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('modified retired output is reported and preserved without publication', () => {
+  const fixture = retirementMakeFixture();
+  const changedPath = path.join(fixture.outDir, RETIREMENT_RETIRED.name, 'references', 'guide.md');
+  try {
+    retirementWrite(changedPath, '# Local modification\n');
+    assertRejectedWithoutPublication(fixture, /modified|fingerprint|conflict|orphan/i);
+    assert.strictEqual(fs.readFileSync(changedPath, 'utf8'), '# Local modification\n');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('retargeted retired output is reported and preserved without publication', () => {
+  const fixture = retirementMakeFixture();
+  const outside = retirementTmpDir();
+  const target = path.join(outside, 'keep.md');
+  const retiredGuide = path.join(fixture.outDir, RETIREMENT_RETIRED.name, 'references', 'guide.md');
+  try {
+    retirementWrite(target, '# Outside user content\n');
+    fs.rmSync(retiredGuide);
+    fs.symlinkSync(target, retiredGuide);
+    assertRejectedWithoutPublication(fixture, /symlink|retarget|conflict|orphan/i);
+    assert.strictEqual(fs.lstatSync(retiredGuide).isSymbolicLink(), true);
+    assert.strictEqual(fs.readlinkSync(retiredGuide), target);
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), '# Outside user content\n');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('missing receipt-owned retired output is reported without publication', () => {
+  const fixture = retirementMakeFixture();
+  const missingPath = path.join(fixture.outDir, RETIREMENT_RETIRED.name, 'references', 'guide.md');
+  try {
+    fs.rmSync(missingPath);
+    assertRejectedWithoutPublication(fixture, /missing|conflict|orphan/i);
+    assert.strictEqual(fs.existsSync(missingPath), false);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('unrecorded content inside a retired directory is reported and preserved', () => {
+  const fixture = retirementMakeFixture();
+  const unrecorded = path.join(fixture.outDir, RETIREMENT_RETIRED.name, 'local-notes.md');
+  try {
+    retirementWrite(unrecorded, '# Keep this local file\n');
+    assertRejectedWithoutPublication(fixture, /unrecorded|unowned|orphan|conflict/i);
+    assert.strictEqual(fs.readFileSync(unrecorded, 'utf8'), '# Keep this local file\n');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('retired ledger identity mismatches cannot authorize deleting installed output', () => {
+  for (const [field, value] of [
+    ['id', 'other-id'],
+    ['name', 'dhpk-other-skill'],
+    ['canonicalPath', 'skills/dhpk-other-skill'],
+  ]) {
+    const fixture = retirementMakeFixture();
+    try {
+      fixture.currentInventory.retired_skills[0] = {
+        ...fixture.currentInventory.retired_skills[0],
+        [field]: value,
+      };
+      assertRejectedWithoutPublication(fixture, /ledger|mismatch|conflict|orphan/i);
+      assert.strictEqual(fs.existsSync(path.join(fixture.outDir, `${RETIREMENT_RETIRED.name}.md`)), true);
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('never-selected retired paths remain unowned and are preserved', () => {
+  const fixture = retirementMakeFixture({ previouslySelected: false });
+  const retiredSkill = path.join(fixture.outDir, RETIREMENT_RETIRED.name, 'SKILL.md');
+  const retiredShim = path.join(fixture.outDir, `${RETIREMENT_RETIRED.name}.md`);
+  try {
+    retirementWrite(retiredSkill, '# User-owned skill file\n');
+    retirementWrite(retiredShim, '# User-owned shim\n');
+    assertRejectedWithoutPublication(fixture, /unowned|ownership|orphan|conflict/i);
+    assert.strictEqual(fs.readFileSync(retiredSkill, 'utf8'), '# User-owned skill file\n');
+    assert.strictEqual(fs.readFileSync(retiredShim, 'utf8'), '# User-owned shim\n');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('partial retirement publication failure restores retired paths and receipt', () => {
+  const fixture = retirementMakeFixture();
+  const before = retirementSnapshotTree(fixture.outDir);
+  const originalRenameSync = fs.renameSync;
+  let injected = false;
+  try {
+    fs.renameSync = function renameWithRetirementFailure(from, to) {
+      const source = path.resolve(String(from));
+      const retiredRoot = path.resolve(fixture.outDir, RETIREMENT_RETIRED.name);
+      const movingRetiredOutput = source === retiredRoot || source.startsWith(`${retiredRoot}${path.sep}`);
+      const moved = originalRenameSync.call(this, from, to);
+      if (movingRetiredOutput && !injected) {
+        injected = true;
+        throw new Error('injected retirement publish failure');
+      }
+      return moved;
+    };
+
+    assert.throws(() => retirementMaterializeCurrent(fixture), /injected retirement publish failure/);
+    assert.ok(injected, 'failure injection must occur after a retired path has moved');
+    fs.renameSync = originalRenameSync;
+    assert.deepStrictEqual(retirementSnapshotTree(fixture.outDir), before);
+  } finally {
+    fs.renameSync = originalRenameSync;
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('Claude and Cursor prior surfaces do not block receipt-owned cleanup', () => {
+  const fixture = retirementMakeFixture();
+  fixture.currentInventory.retired_skills[0] = retirementRecord({
+    priorSurfaces: ['claude-core', 'cursor-sync'],
+  });
+  try {
+    const result = retirementMaterializeCurrent(fixture);
+    const receipt = retirementReadReceipt(fixture.outDir);
+    const checked = validateAgentsSkillsProjection({
+      root: fixture.root,
+      inventory: fixture.currentInventory,
+      outDir: fixture.outDir,
+    });
+
+    assert.deepStrictEqual(result.selectedIds, [RETIREMENT_ACTIVE.id]);
+    assert.strictEqual(fs.existsSync(path.join(fixture.outDir, RETIREMENT_RETIRED.name)), false);
+    assert.strictEqual(fs.existsSync(path.join(fixture.outDir, `${RETIREMENT_RETIRED.name}.md`)), false);
+    assert.ok(!receipt.entries.some((entry) => entry.id === RETIREMENT_RETIRED.id));
+    assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('malformed retired receipt proofs are rejected before publication', () => {
+  const corruptions = [
+    ['missing sourceFiles', (entry) => { delete entry.sourceFiles; }],
+    ['null sourceFiles', (entry) => { entry.sourceFiles = null; }],
+    ['null sourceFiles item', (entry) => { entry.sourceFiles[0] = null; }],
+    ['bad digest', (entry) => { entry.sourceFiles[0].digest = 'bad'; }],
+    ['duplicate path', (entry) => { entry.sourceFiles.push({ ...entry.sourceFiles[0] }); }],
+    ['unsafe path', (entry) => { entry.sourceFiles.push({ path: '../escape', digest: '0'.repeat(64) }); }],
+    ['missing SKILL.md', (entry) => { entry.sourceFiles = entry.sourceFiles.filter((file) => file.path !== 'SKILL.md'); }],
+    ['managed set mismatch', (entry, receipt) => { receipt.managedPaths = receipt.managedPaths.filter((file) => file !== `${RETIREMENT_RETIRED.name}/SKILL.md`); }],
+    ['source fingerprint mismatch', (entry) => { entry.sourceFingerprint = '0'.repeat(64); }],
+  ];
+  const failures = [];
+  for (const [label, corrupt] of corruptions) {
+    const fixture = retirementMakeFixture();
+    try {
+      const receipt = retirementReadReceipt(fixture.outDir);
+      corrupt(receipt.entries.find((entry) => entry.id === RETIREMENT_RETIRED.id), receipt);
+      fs.writeFileSync(path.join(fixture.outDir, '.dhpk-projection.json'), `${JSON.stringify(receipt)}\n`);
+      try {
+        assertRejectedWithoutPublication(fixture, /manifest|receipt|source|fingerprint|path|conflict|orphan|escapes/i);
+      } catch (error) {
+        failures.push(`${label}: ${error.message}`);
+      }
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }
+  assert.deepStrictEqual(failures, []);
+});
+
+test('modified, missing, and symlinked retired shims are preserved', () => {
+  for (const kind of ['modified', 'missing', 'symlink']) {
+    const fixture = retirementMakeFixture();
+    const outside = retirementTmpDir();
+    const shim = path.join(fixture.outDir, `${RETIREMENT_RETIRED.name}.md`);
+    const target = path.join(outside, 'keep.md');
+    try {
+      if (kind === 'modified') retirementWrite(shim, '# Local shim edit\n');
+      if (kind === 'missing') fs.rmSync(shim);
+      if (kind === 'symlink') { retirementWrite(target, '# Keep target\n'); fs.rmSync(shim); fs.symlinkSync(target, shim); }
+      assertRejectedWithoutPublication(fixture, /shim|modified|missing|symlink|fingerprint|conflict|orphan|receipt/i);
+      if (kind === 'modified') assert.strictEqual(fs.readFileSync(shim, 'utf8'), '# Local shim edit\n');
+      if (kind === 'missing') assert.strictEqual(fs.existsSync(shim), false);
+      if (kind === 'symlink') assert.strictEqual(fs.readFileSync(target, 'utf8'), '# Keep target\n');
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  }
+});
+
+test('foreign Python cache artifacts inside retired output are preserved', () => {
+  const fixture = retirementMakeFixture();
+  const cacheFiles = [
+    [path.join(fixture.outDir, RETIREMENT_RETIRED.name, '__pycache__', 'local.cpython-312.pyc'), 'local pycache bytes'],
+    [path.join(fixture.outDir, RETIREMENT_RETIRED.name, 'local.pyc'), 'local pyc bytes'],
+  ];
+  try {
+    for (const [file, bytes] of cacheFiles) retirementWrite(file, bytes);
+    assertRejectedWithoutPublication(fixture, /unrecorded|unowned|orphan|conflict/i);
+    for (const [file, bytes] of cacheFiles) assert.strictEqual(fs.readFileSync(file, 'utf8'), bytes);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+// Historical identities and paths from the parent of removal commit 096cba21.
+const HISTORICAL_GITNEXUS = [
+  { id: 'gitnexus-cli', name: 'dhpk-gitnexus-cli', path: 'skills/dhpk-gitnexus-cli' },
+  { id: 'gitnexus-debugging', name: 'dhpk-gitnexus-debugging', path: 'skills/dhpk-gitnexus-debugging' },
+  { id: 'gitnexus-exploring', name: 'dhpk-gitnexus-exploring', path: 'skills/dhpk-gitnexus-exploring' },
+  { id: 'gitnexus-guide', name: 'dhpk-gitnexus-guide', path: 'skills/dhpk-gitnexus-guide' },
+  { id: 'gitnexus-impact-analysis', name: 'dhpk-gitnexus-impact-analysis', path: 'skills/dhpk-gitnexus-impact-analysis' },
+  { id: 'gitnexus-refactoring', name: 'dhpk-gitnexus-refactoring', path: 'skills/dhpk-gitnexus-refactoring' },
+];
+const GITNEXUS_IDS = HISTORICAL_GITNEXUS.map((entry) => entry.id);
+
+function gitnexusUpgradeFixture() {
+  const root = retirementTmpDir();
+  const outDir = path.join(root, '.agents', 'skills');
+  const historicSkills = HISTORICAL_GITNEXUS.map((entry) => ({
+    ...entry, lifecycle: 'promoted',
+    surfaces: ['agent-plugin'],
+  }));
+  for (const skill of [RETIREMENT_ACTIVE, ...historicSkills]) {
+    retirementWrite(path.join(root, skill.path, 'SKILL.md'), `---\nname: ${skill.name}\ndescription: Upgrade fixture\n---\n# ${skill.name}\n`);
+    retirementWrite(path.join(root, skill.path, 'references', 'guide.md'), '# Fixture resource\n');
+  }
+  materializeAgentsSkillsProjection({ root, outDir, inventory: retirementInventory([RETIREMENT_ACTIVE, ...historicSkills]) });
+  const historicalReceipt = retirementReadReceipt(outDir);
+  for (const skill of historicSkills) fs.rmSync(path.join(root, skill.path), { recursive: true });
+  const current = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const currentInventory = retirementInventory([RETIREMENT_ACTIVE], current.retired_skills.filter((entry) => GITNEXUS_IDS.includes(entry.id)));
+  return { root, outDir, currentInventory, historicalReceipt };
+}
+
+test('historical GitNexus projection upgrades through the current retirement ledger', () => {
+  const fixture = gitnexusUpgradeFixture();
+  try {
+    retirementMaterializeCurrent(fixture);
+    const validation = validateAgentsSkillsProjection({ root: fixture.root, outDir: fixture.outDir, inventory: fixture.currentInventory });
+    assert.deepStrictEqual(validation.errors, [], 'upgraded projection must validate without stale ownership');
+    const receipt = retirementReadReceipt(fixture.outDir);
+    const retiredPaths = fixture.historicalReceipt.entries
+      .filter((entry) => GITNEXUS_IDS.includes(entry.id))
+      .flatMap((entry) => fixture.historicalReceipt.managedPaths.filter((relative) => (
+        relative === `${entry.name}.md` || relative.startsWith(`${entry.name}/`)
+      )));
+    assert.ok(retiredPaths.length > 0, 'historical receipt must contain retired paths');
+    for (const relative of retiredPaths) {
+      assert.ok(!fs.existsSync(path.join(fixture.outDir, relative)), relative);
+      assert.ok(!receipt.managedPaths.includes(relative), relative);
+      assert.ok(!Object.hasOwn(receipt.generatedFingerprints, relative), relative);
+    }
+    assert.ok(!receipt.entries.some((entry) => GITNEXUS_IDS.includes(entry.id)));
+    retirementMaterializeCurrent(fixture);
+    assert.deepStrictEqual(validateAgentsSkillsProjection({ root: fixture.root, outDir: fixture.outDir, inventory: fixture.currentInventory }).errors, []);
+    const freshOut = path.join(fixture.root, 'fresh', 'skills');
+    materializeAgentsSkillsProjection({ root: fixture.root, outDir: freshOut, inventory: fixture.currentInventory });
+    assert.deepStrictEqual(validateAgentsSkillsProjection({ root: fixture.root, outDir: freshOut, inventory: fixture.currentInventory }).errors, []);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('GitNexus retirement preserves edited historical output without publication', () => {
+  const fixture = gitnexusUpgradeFixture();
+  try {
+    const edited = path.join(fixture.outDir, 'dhpk-gitnexus-cli', 'SKILL.md');
+    fs.appendFileSync(edited, '\nUser changes\n');
+    assertRejectedWithoutPublication(fixture, /modified|fingerprint|conflict|orphan/i);
+    assert.match(fs.readFileSync(edited, 'utf8'), /User changes/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 

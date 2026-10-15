@@ -3,7 +3,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
-const { test, run, assert } = require('./_lib/tinytest');
+const { test, run, assert } = require('../_lib/tinytest');
 const {
   buildBenchmarkPlan,
   buildClaudeArgs,
@@ -13,9 +13,9 @@ const {
   runBenchmark,
   parseArgs,
   validateEvidenceTarget,
-} = require('../scripts/ci/worker-context-benchmark');
+} = require('../../scripts/ci/worker-context-benchmark');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(__dirname, '..', '..');
 
 test('builds the canonical immutable A B C context plan', () => {
   const plan = buildBenchmarkPlan({ root: ROOT });

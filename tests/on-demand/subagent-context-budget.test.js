@@ -3,14 +3,14 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { test, run, assert } = require('./_lib/tinytest');
+const { test, run, assert } = require('../_lib/tinytest');
 const {
   SCHEMA,
   inspectSubagentContext,
   validateDispatchPacket,
-} = require('../scripts/ci/subagent-context-budget');
+} = require('../../scripts/ci/subagent-context-budget');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(__dirname, '..', '..');
 
 function fixtureRoot() {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-subagent-budget-')));

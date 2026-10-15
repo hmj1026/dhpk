@@ -31,6 +31,7 @@
     "test": "node tests/run-all.js",
     "test:hooks": "bash scripts/validate/test-hooks.sh",
     "test:one": "node",
+    "test:research-budgets": "node tests/on-demand/context-budget.test.js && node tests/on-demand/marketplace-catalog-budget.test.js && node tests/on-demand/subagent-context-budget.test.js && node tests/on-demand/worker-context-benchmark.test.js",
     "validate:agents": "node scripts/ci/validate-agents.js --strict",
     "validate:skills": "node scripts/ci/validate-skills.js --strict",
     "validate:commands": "node scripts/ci/validate-commands.js --strict",

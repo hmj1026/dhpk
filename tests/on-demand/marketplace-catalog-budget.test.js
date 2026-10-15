@@ -2,9 +2,9 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { test, run, assert } = require('./_lib/tinytest');
-const { compileMarketplacePublicationView } = require('../scripts/lib/marketplace-selection');
-const root = path.join(__dirname, '..');
+const { test, run, assert } = require('../_lib/tinytest');
+const { compileMarketplacePublicationView } = require('../../scripts/lib/marketplace-selection');
+const root = path.join(__dirname, '..', '..');
 const read = (file) => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
 const inventory = read('manifests/distribution-inventory.json');
 const selection = read('manifests/marketplace-selection.json');
