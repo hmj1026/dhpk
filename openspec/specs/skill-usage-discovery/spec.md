@@ -163,3 +163,56 @@ When supplied a compiled marketplace publication view, the usage compiler SHALL 
 
 - **WHEN** the compiler receives duplicate or non-inventory public IDs
 - **THEN** it rejects the view without emitting a partial usage catalog
+
+### Requirement: Consolidated families accept natural task input
+
+SCF-REQ-003: The consolidated families SHALL use `$<inventory-public-name> <natural-language-task>` as their default task interface. Short actions SHALL be optional conveniences, including `test`, `build`, and `icon` for `swift`; `check`, `setup`, and `rollout` for `js-static-checks`; and `pending` and `deps` for `change-verdict`. Callers SHALL NOT need to enumerate every responsibility, action, scope, and version selector before describing a task. Entry instructions SHALL remain concise indexes and SHALL load only task-relevant internal resources. Inventory usage and generated help SHALL preserve the applicable invocation class and mode-specific authority; help SHALL grant no execution authority.
+
+#### Scenario: User describes a task directly
+
+- **WHEN** a caller supplies a clear natural-language family task without a short action
+- **THEN** the family selects the matching bounded procedure and only its required resources without demanding a complete selector list
+
+#### Scenario: Short action is used
+
+- **WHEN** a caller uses a supported optional short action
+- **THEN** the same task boundary, selected resources, output, and authority apply as for the equivalent natural-language request
+
+#### Scenario: Usage projection is regenerated
+
+- **WHEN** a selected family's usage metadata changes
+- **THEN** applicable generated cards, prompts, hints, and guides reflect its inventory public name and action authority without publishing predecessor aliases or procedural reference bodies
+
+### Requirement: Consolidated families clarify target scope and version before dependent work
+
+SCF-REQ-004: A consolidated family SHALL identify the target package or subproject before resolving version-dependent guidance. An intentional explicit version override SHALL take precedence; otherwise resolution SHALL use reliable target project lock, manifest, or configuration evidence with its applicable precision. Installed runtimes SHALL describe execution environments rather than establish target compatibility. If missing, conflicting, or ambiguous scope/version evidence affects the task, the family MUST ask for clarification and wait before loading version-specific references or taking dependent actions. It MUST NOT guess the newest version. Migration tasks SHALL establish both inferred or declared source and explicit target versions; cross-version tasks SHALL group resources by their established targets rather than apply one version's rules to all targets. Runtime version resolution SHALL remain independent of dhpk publication manifests.
+
+#### Scenario: Project has no version evidence
+
+- **WHEN** a version-dependent task has no intentional override or reliable target project evidence
+- **THEN** the family asks for the target version and waits without loading version-specific guidance or starting dependent work
+
+#### Scenario: Constraint range or evidence is ambiguous
+
+- **WHEN** a range spans incompatible supported versions or lock/configuration evidence conflicts
+- **THEN** the family explains the unresolved evidence and waits for clarification rather than silently selecting a version
+
+#### Scenario: Monorepo target is unspecified
+
+- **WHEN** multiple subprojects could own the task and their relevant versions differ
+- **THEN** the family asks which package or subproject is targeted before selecting version-specific resources
+
+#### Scenario: Intentional override is supplied
+
+- **WHEN** a caller explicitly requests a target version for the selected package
+- **THEN** that override selects the matching resources while detected source/runtime information remains separately identified
+
+#### Scenario: Migration target is missing
+
+- **WHEN** a migration task permits source-version detection but supplies no target version
+- **THEN** the family asks for the target and waits before selecting target guidance or making target-dependent changes
+
+#### Scenario: Task covers multiple explicit targets
+
+- **WHEN** a caller establishes distinct versions for multiple target packages
+- **THEN** the family loads and applies resources per target and does not substitute one version's guidance for the others
