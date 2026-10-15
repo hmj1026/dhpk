@@ -17,5 +17,5 @@ triggers:
     extensions: []
     paths: [protected/migrations/]
 provides:
-  skills: [dhpk-yii1-php56-development, dhpk-yii1-security-audit]
+  skills: [yii1]
   references: [framework.md, patterns.md, security.md]

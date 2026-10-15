@@ -48,7 +48,11 @@
               "type": "string",
               "enum": ["implicit-eligible", "explicit-only", "not-configured"]
             },
-            "command": { "type": "string", "minLength": 1 }
+            "command": { "type": "string", "minLength": 1 },
+            "skillAction": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
           }
         }
       ]

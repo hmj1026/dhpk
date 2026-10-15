@@ -13,4 +13,4 @@ triggers:
     extensions: []
     paths: [auth/, oauth/, security/, ingestor/, login/]
 provides:
-  skills: [dhpk-fastapi-pro]
+  skills: [python]

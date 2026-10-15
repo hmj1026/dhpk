@@ -69,28 +69,6 @@
       "resource": "skills/proposal-analyze/SKILL.md"
     },
     {
-      "id": "dep-audit",
-      "path": "commands/dep-audit.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:dep-audit",
-      "argument_contract": "[--level <severity>] [--fix]",
-      "authority": "workspace-write",
-      "skill_owner": "dep-audit",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $dep-audit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/dep-audit.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/dep-audit.md"
-      ],
-      "resource": "skills/dep-audit/SKILL.md"
-    },
-    {
       "id": "doc-refactor",
       "path": "commands/doc-refactor.md",
       "host_surface": "claude-command",
@@ -311,28 +289,6 @@
       "resource": "skills/project-brief/SKILL.md"
     },
     {
-      "id": "review-pending",
-      "path": "commands/review-pending.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:review-pending",
-      "argument_contract": "\"[--files \\\"<rel-path,...>\\\"]\"",
-      "authority": "delegate",
-      "skill_owner": "review-pending",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $review-pending Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/review-pending.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/review-pending.md"
-      ],
-      "resource": "skills/review-pending/SKILL.md"
-    },
-    {
       "id": "setup",
       "path": "commands/setup.md",
       "host_surface": "claude-command",
@@ -493,10 +449,10 @@
       "public_name": "/dhpk:ts-check-status",
       "argument_contract": "[--path <directory>]",
       "authority": "read-only",
-      "skill_owner": "js-static-check-strategy",
-      "resource": "skills/js-static-check-strategy/SKILL.md",
+      "skill_owner": "js-static-checks",
+      "resource": "skills/js-static-checks/SKILL.md",
       "disposition": "thin-front-door",
-      "reason": "Canonical $js-static-check-strategy Skill owns status behavior; the module command preserves the status adapter grammar.",
+      "reason": "Canonical $js-static-checks owns check behavior; the module command preserves the status adapter grammar.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",

@@ -49,7 +49,7 @@ remain supported.
 
 ## When NOT to Use
 
-- Use `dhpk-php-runtime-router` for Laravel routing and general PHP runtime
+- Use `php` for Laravel routing and general PHP runtime
   family selection.
 - For PHPUnit 5, 6, or 7-only suites, use PHP 5.6-compatible test guidance
   instead of this modern family.

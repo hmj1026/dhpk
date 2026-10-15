@@ -64,6 +64,13 @@ const PORTABLE_FAMILY_NAMES = Object.freeze([
   'harness-govern',
   'laravel',
   'phpunit',
+  'react',
+  'nextjs',
+  'swift',
+  'python',
+  'js-static-checks',
+  'php',
+  'yii1',
 ]);
 const CAPABILITY_FAMILY_RETIREMENTS = Object.freeze({
   'skill-health-check': Object.freeze({ family: 'skill-scope', mode: 'health' }),
@@ -157,13 +164,6 @@ const RENAMED_SKILL_NAMES_0624 = Object.freeze({
     oldPath: 'skills/dhpk-tdd-workflow',
     newName: 'tdd-workflow',
     newPath: 'skills/tdd-workflow',
-    rollbackRelease: '0.62.4',
-  }),
-  'js-static-check-strategy': Object.freeze({
-    oldName: 'dhpk-js-static-check-strategy',
-    oldPath: 'skills/dhpk-js-static-check-strategy',
-    newName: 'js-static-check-strategy',
-    newPath: 'skills/js-static-check-strategy',
     rollbackRelease: '0.62.4',
   }),
 });

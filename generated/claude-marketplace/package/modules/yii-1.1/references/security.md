@@ -22,4 +22,4 @@
 
 PDO bind for SQL / IN via `CDbCriteria` / output via `CHtml::encode` / controller checks `!isGuest` + ownership / no hardcoded secrets / upload whitelist / cookie httponly+secure.
 
-> Examples → `php-pro` skill `references/php56-legacy.md`.
+> Examples → `php` family's local PHP 5.6 legacy reference; use `yii1` for Yii-specific security review.

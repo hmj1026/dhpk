@@ -1,59 +1,6 @@
 {
   "schema": "dhpk.skill-directory-coverage.v1",
   "skills": {
-    "fastapi-pro": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "ios-platform": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/actor-persistence.md",
-        "references/coredata-encryption.md",
-        "references/cryptokit-keychain.md",
-        "references/healthkit-read.md",
-        "references/local-authentication.md",
-        "references/notifications.md",
-        "references/privacy-compliance.md",
-        "references/vision-ocr.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "js-lint-config": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/frontend-review-patterns.md",
-        "references/static-checks.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "js-static-check-strategy": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/frontend-review-patterns.md",
-        "references/static-checks.md",
-        "scripts/status.js"
-      ],
-      "executable_entries": [
-        {
-          "path": "scripts/status.js",
-          "fixture_ids": [
-            "js-status-local-classification",
-            "js-status-missing-directory"
-          ]
-        }
-      ],
-      "host_capabilities": []
-    },
     "laravel": {
       "entry": "SKILL.md",
       "references": [
@@ -113,64 +60,6 @@
       "executable_entries": [],
       "host_capabilities": []
     },
-    "nextjs-15-5-notes": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/frontend-framework-routing.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "nextjs-16-notes": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/frontend-framework-routing.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "php-pro": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/agent-extracts/architect-code-examples.md",
-        "references/agent-extracts/security-owasp-examples.md",
-        "references/agent-extracts/tdd-code-templates.md",
-        "references/async-patterns.md",
-        "references/laravel-patterns.md",
-        "references/laravel-projects.md",
-        "references/laravel-v10.md",
-        "references/laravel-v11-v12.md",
-        "references/laravel-version-checks.md",
-        "references/modern-php-features.md",
-        "references/php56-legacy.md",
-        "references/phpunit57-php56-legacy.md",
-        "references/symfony-patterns.md",
-        "references/testing-quality.md",
-        "references/yii1-1.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "php-modern-pro": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "php-8x-features": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/feature-catalog.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
     "phpunit": {
       "entry": "SKILL.md",
       "references": [
@@ -208,147 +97,10 @@
       "executable_entries": [],
       "host_capabilities": []
     },
-    "pytest-async": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "python-pro": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "python-static-checks": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "react-18-notes": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/frontend-framework-routing.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "react-19-notes": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/frontend-framework-routing.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "swift-test-strategy": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/protocol-di-host-testing.md",
-        "references/snapshot-testing.md",
-        "references/swift-testing-api.md",
-        "references/test-taxonomy.md",
-        "references/xctest-bridging.md",
-        "references/xcuitest.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "swift-language": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/approachable-concurrency.md",
-        "references/concurrency.md",
-        "references/error-handling.md",
-        "references/swift5-compat-notes.md",
-        "references/value-vs-reference.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "swiftui-architecture": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/interop.md",
-        "references/mvvm-coordinator.md",
-        "references/navigation.md",
-        "references/observation-state.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
     "vue-2-notes": {
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "ios-icon-gen": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [
-        {
-          "path": "scripts/generate_icons.swift",
-          "fixture_ids": [
-            "remaining-ios-swift-list"
-          ]
-        },
-        {
-          "path": "scripts/iconify_gen.sh",
-          "fixture_ids": [
-            "remaining-ios-iconify-generate"
-          ]
-        }
-      ],
-      "host_capabilities": []
-    },
-    "xcode-build-tooling": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/scheme-signing.md",
-        "references/swiftlint-config.md",
-        "references/xcodebuild-spm.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "php56-yii-dev": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/context7-sources-and-query-rules.md",
-        "references/ddd-lite-for-yii1.md",
-        "references/php56-php7-safe-subset.md",
-        "references/phpunit57-legacy-test-traps.md",
-        "references/tdd-workflow-and-test-strategy.md",
-        "references/yii1-backend-patterns.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "yii1-security-audit": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "evals/evals.json",
-        "references/yii1-security-patterns.md"
       ],
       "executable_entries": [],
       "host_capabilities": []
@@ -597,6 +349,8 @@
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml",
+        "references/actions/deps.md",
+        "references/actions/pending.md",
         "references/code/codex-prompt-branch.md",
         "references/code/codex-prompt-fast.md",
         "references/code/codex-prompt-full.md",
@@ -638,6 +392,10 @@
           ]
         }
       ],
+      "host_capabilities": [
+        "independent-security-review",
+        "code-reviewer-role"
+      ],
       "internal_helpers": [
         {
           "path": "scripts/lib/runner-utils.js",
@@ -652,7 +410,16 @@
           ]
         }
       ],
-      "host_capabilities": []
+      "host_evidence": {
+        "independent-security-review": {
+          "status": "NOT_RUN",
+          "reason": "Only isolated static instruction contract checked; no independent Host review executed."
+        },
+        "code-reviewer-role": {
+          "status": "NOT_RUN",
+          "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
+        }
+      }
     },
     "flow-drive": {
       "entry": "SKILL.md",
@@ -935,37 +702,6 @@
       "executable_entries": [],
       "host_capabilities": []
     },
-    "opsx-load-context": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/extractor-resolution.md"
-      ],
-      "executable_entries": [
-        {
-          "path": "scripts/extract-compact.sh",
-          "fixture_ids": [
-            "resume-extract-compact-owner"
-          ]
-        }
-      ],
-      "host_capabilities": []
-    },
-    "opsx-post-obs": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [
-        {
-          "path": "scripts/post-obs.sh",
-          "fixture_ids": [
-            "resume-post-observation-owner-unavailable"
-          ]
-        }
-      ],
-      "host_capabilities": []
-    },
     "polyfill-version-matrix-audit": {
       "entry": "SKILL.md",
       "references": [
@@ -1185,23 +921,6 @@
       ],
       "host_capabilities": []
     },
-    "dep-audit": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/workflow.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": [
-        "independent-security-review"
-      ],
-      "host_evidence": {
-        "independent-security-review": {
-          "status": "NOT_RUN",
-          "reason": "Only isolated static instruction contract checked; no independent Host review executed."
-        }
-      }
-    },
     "repo-verify": {
       "entry": "SKILL.md",
       "references": [
@@ -1238,23 +957,6 @@
       ],
       "executable_entries": [],
       "host_capabilities": []
-    },
-    "review-pending": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/workflow.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": [
-        "code-reviewer-role"
-      ],
-      "host_evidence": {
-        "code-reviewer-role": {
-          "status": "NOT_RUN",
-          "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
-        }
-      }
     },
     "harness-setup": {
       "entry": "SKILL.md",
@@ -1304,10 +1006,25 @@
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml",
+        "evals/evals.json",
+        "references/load-context.md",
+        "references/post-observation.md",
         "references/resume.md",
         "references/save.md"
       ],
       "executable_entries": [
+        {
+          "path": "scripts/extract-compact.sh",
+          "fixture_ids": [
+            "resume-extract-compact-owner"
+          ]
+        },
+        {
+          "path": "scripts/post-obs.sh",
+          "fixture_ids": [
+            "resume-post-observation-owner-unavailable"
+          ]
+        },
         {
           "path": "scripts/detect-phase.sh",
           "fixture_ids": [
@@ -1328,18 +1045,6 @@
             "resume-write-missing-leaf-dhpk-symlink",
             "resume-write-missing-leaf-claude-symlink",
             "resume-write-missing-leaf-explicit-symlink"
-          ]
-        },
-        {
-          "path": "scripts/extract-compact.sh",
-          "fixture_ids": [
-            "resume-extract-compact-copy"
-          ]
-        },
-        {
-          "path": "scripts/post-obs.sh",
-          "fixture_ids": [
-            "resume-post-observation-copy-unavailable"
           ]
         }
       ],
@@ -1377,6 +1082,161 @@
           "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
         }
       }
+    },
+    "react": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/18.md",
+        "references/19.md",
+        "references/target-selection.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "nextjs": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/15.5.md",
+        "references/16.md",
+        "references/target-selection.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "swift": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "evals/evals.json",
+        "references/actor-persistence.md",
+        "references/approachable-concurrency.md",
+        "references/build.md",
+        "references/concurrency.md",
+        "references/coredata-encryption.md",
+        "references/cryptokit-keychain.md",
+        "references/error-handling.md",
+        "references/healthkit-read.md",
+        "references/icon.md",
+        "references/interop.md",
+        "references/language.md",
+        "references/local-authentication.md",
+        "references/mvvm-coordinator.md",
+        "references/navigation.md",
+        "references/notifications.md",
+        "references/observation-state.md",
+        "references/platform.md",
+        "references/privacy-compliance.md",
+        "references/protocol-di-host-testing.md",
+        "references/scheme-signing.md",
+        "references/snapshot-testing.md",
+        "references/swift-testing-api.md",
+        "references/swift5-compat-notes.md",
+        "references/swiftlint-config.md",
+        "references/test-taxonomy.md",
+        "references/testing.md",
+        "references/ui.md",
+        "references/value-vs-reference.md",
+        "references/vision-ocr.md",
+        "references/xcodebuild-spm.md",
+        "references/xctest-bridging.md",
+        "references/xcuitest.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/generate_icons.swift",
+          "fixture_ids": [
+            "remaining-ios-swift-list"
+          ]
+        },
+        {
+          "path": "scripts/iconify_gen.sh",
+          "fixture_ids": [
+            "remaining-ios-iconify-generate"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "python": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "evals/evals.json",
+        "references/fastapi.md",
+        "references/language.md",
+        "references/static.md",
+        "references/testing.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "js-static-checks": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "evals/evals.json",
+        "references/frontend-review-patterns.md",
+        "references/rollout.md",
+        "references/setup.md",
+        "references/static-checks.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/status.js",
+          "fixture_ids": [
+            "js-status-local-classification",
+            "js-status-missing-directory"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "php": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "evals/evals.json",
+        "references/7-4.md",
+        "references/8-x.md",
+        "references/agent-extracts/architect-code-examples.md",
+        "references/agent-extracts/security-owasp-examples.md",
+        "references/agent-extracts/tdd-code-templates.md",
+        "references/async-patterns.md",
+        "references/feature-catalog.md",
+        "references/laravel-patterns.md",
+        "references/laravel-projects.md",
+        "references/laravel-v10.md",
+        "references/laravel-v11-v12.md",
+        "references/laravel-version-checks.md",
+        "references/modern-php-features.md",
+        "references/php56-legacy.md",
+        "references/phpunit57-php56-legacy.md",
+        "references/static-checks.md",
+        "references/symfony-patterns.md",
+        "references/testing-quality.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "yii1": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "evals/evals.json",
+        "references/context7-sources-and-query-rules.md",
+        "references/ddd-lite-for-yii1.md",
+        "references/development.md",
+        "references/php56-php7-safe-subset.md",
+        "references/phpunit57-legacy-test-traps.md",
+        "references/security.md",
+        "references/tdd-workflow-and-test-strategy.md",
+        "references/yii1-backend-patterns.md",
+        "references/yii1-security-patterns.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
     }
   }
 }

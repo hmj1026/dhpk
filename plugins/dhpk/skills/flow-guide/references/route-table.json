@@ -39,8 +39,9 @@
       "pattern": "(code +review|review +(this|the|my)? *(diff|change|patch|pr|code)|quality +check|lint +everything|(程式碼|代碼)\\s*(審查|review)|(審查|review)\\s*.{0,6}(diff|變更|差異|patch|pr|程式碼|代碼))",
       "label": "manual code review",
       "target": {
-        "kind": "command",
-        "id": "review-pending"
+        "kind": "skill",
+        "id": "change-verdict",
+        "skillAction": "pending"
       }
     },
     {

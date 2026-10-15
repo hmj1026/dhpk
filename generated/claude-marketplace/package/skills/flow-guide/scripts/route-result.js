@@ -11,6 +11,8 @@ const AVAILABILITY = Object.freeze(['available', 'unavailable', 'not-configured'
 const DISPOSITIONS = Object.freeze([
   'advice', 'ready', 'explicit-required', 'blocked', 'unavailable',
 ]);
+const INVALID_SKILL_ACTION = Symbol('invalid-skill-action');
+const SKILL_ACTION_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const TARGET_KEYS = Object.freeze(['id', 'publicName', 'invocationClass', 'command']);
 const TOP_LEVEL_KEYS = Object.freeze([
   'schema', 'action', 'host', 'cleanedQuery', 'options', 'target',
@@ -127,11 +129,23 @@ function targetFromRule(raw, runtimeIndex) {
   if (!raw || typeof raw !== 'object' || !raw.id) return null;
   const metadata = indexedTarget(raw, runtimeIndex);
   const publicName = metadata ? metadata.publicName : String(raw.id);
+  const hasAction = Object.prototype.hasOwnProperty.call(raw, 'skillAction');
+  if (hasAction && (raw.kind !== 'skill' || typeof raw.skillAction !== 'string'
+    || !SKILL_ACTION_ID.test(raw.skillAction) || !metadata
+    || !metadata.actions || typeof metadata.actions !== 'object' || Array.isArray(metadata.actions)
+    || !Object.prototype.hasOwnProperty.call(metadata.actions, raw.skillAction))) {
+    return INVALID_SKILL_ACTION;
+  }
+  const command = hasAction ? metadata.actions[raw.skillAction] : metadata ? metadata.command : `$${publicName} <input>`;
+  if (hasAction && (typeof command !== 'string' || !command.startsWith(`$${publicName} `))) {
+    return INVALID_SKILL_ACTION;
+  }
   return {
     id: String(raw.id),
     publicName,
     invocationClass: metadata ? metadata.invocationClass : 'not-configured',
-    command: metadata ? metadata.command : `$${publicName} <input>`,
+    command,
+    ...(hasAction ? { skillAction: raw.skillAction } : {}),
   };
 }
 
@@ -198,7 +212,9 @@ function nextActionFor({ parsed, target, disposition }) {
   }
   if (disposition === 'ready') return `Produce one bounded handoff to ${target.command}; flow-guide does not execute it.`;
   if (disposition === 'explicit-required') return `Ask for direct human invocation of ${target.command}; flow-guide does not dispatch explicit-only work.`;
-  if (disposition === 'unavailable') return `Verify the consumer installation before invoking ${target.command}.`;
+  if (disposition === 'unavailable') return target
+    ? `Verify the consumer installation before invoking ${target.command}.`
+    : 'Select a canonical available skill action before handoff.';
   if (parsed.diagnostics.length > 0) return 'Remove the retired or unsupported routing option, then select one supported flow-guide action.';
   return 'Resolve the route or required invocation evidence before proceeding.';
 }
@@ -208,18 +224,24 @@ function createRouteResult(input = {}) {
   const parsed = parseFlags(input.argv);
   const table = input.routeTable || loadRouteTable(input.routeTablePath || DEFAULT_TABLE);
   const runtimeIndex = input.runtimeIndex || loadRuntimeIndex(input.catalogPath || DEFAULT_CATALOG);
-  const target = matchTarget(parsed.cleanedQuery, table, runtimeIndex);
-  const availability = computeAvailability(target, input.observed);
-  const disposition = resolveDisposition({ parsed, target, availability });
+  const matched = matchTarget(parsed.cleanedQuery, table, runtimeIndex);
+  const invalidAction = matched === INVALID_SKILL_ACTION;
+  const target = invalidAction ? null : matched;
+  const availability = invalidAction ? 'unavailable' : computeAvailability(target, input.observed);
+  const disposition = invalidAction && parsed.diagnostics.length === 0
+    ? 'unavailable' : resolveDisposition({ parsed, target, availability });
   const diagnostics = parsed.diagnostics.slice();
-  if (!target && parsed.cleanedQuery) diagnostics.push('No deterministic route matched; deliberate classification is required.');
+  if (invalidAction) diagnostics.push('The selected skill action is unavailable in canonical runtime metadata.');
+  else if (!target && parsed.cleanedQuery) diagnostics.push('No deterministic route matched; deliberate classification is required.');
   if (target && target.invocationClass === 'not-configured') {
     diagnostics.push(`Invocation class for ${target.publicName} is not configured in the selected consumer.`);
   }
   if (target && target.invocationClass === 'explicit-only' && parsed.options.go) {
     diagnostics.push(`Target ${target.publicName} is explicit-only; direct human invocation is required.`);
   }
-  const requiredEvidence = availabilityEvidence(target, availability, input.observed);
+  const requiredEvidence = invalidAction
+    ? ['The matched route requires a valid canonical skill action before handoff.']
+    : availabilityEvidence(target, availability, input.observed);
   const result = {
     schema: SCHEMA,
     action: 'route',
@@ -281,13 +303,19 @@ function validateRouteResult(result) {
   if (result.target !== null) {
     if (typeof result.target !== 'object') throwInvalid('invalid target');
     const targetKeys = Object.keys(result.target);
-    if (targetKeys.length !== TARGET_KEYS.length || targetKeys.some((key) => !TARGET_KEYS.includes(key))) {
+    const allowedKeys = [...TARGET_KEYS,
+      ...(Object.prototype.hasOwnProperty.call(result.target, 'skillAction') ? ['skillAction'] : [])];
+    if (targetKeys.length !== allowedKeys.length || targetKeys.some((key) => !allowedKeys.includes(key))) {
       throwInvalid('target has unknown or missing fields');
     }
     for (const key of TARGET_KEYS) {
       if (typeof result.target[key] !== 'string' || result.target[key].trim() === '') {
         throwInvalid(`invalid target.${key}`);
       }
+    }
+    if (Object.prototype.hasOwnProperty.call(result.target, 'skillAction')
+      && (typeof result.target.skillAction !== 'string' || !SKILL_ACTION_ID.test(result.target.skillAction))) {
+      throwInvalid('invalid target.skillAction');
     }
     if (!['implicit-eligible', 'explicit-only', 'not-configured'].includes(result.target.invocationClass)) {
       throwInvalid(`invalid target.invocationClass: ${result.target.invocationClass}`);

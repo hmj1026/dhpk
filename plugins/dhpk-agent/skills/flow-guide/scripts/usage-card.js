@@ -12,6 +12,7 @@ const {
   CATALOG_SCHEMA,
   renderSkillUsageCard,
   validateSkillUsage,
+  validateRuntimeIndex,
 } = loadRuntimeModule('skill-usage');
 
 const SKILL_ROOT = path.resolve(__dirname, '..');
@@ -84,26 +85,8 @@ function validateCatalog(catalog) {
     || !aliases || typeof aliases !== 'object' || Array.isArray(aliases)) {
     throw new Error('generated usage catalog runtimeIndex targets and aliases must be objects');
   }
-  for (const [id, target] of Object.entries(targets)) {
-    const keys = Object.keys(target || {}).sort().join(',');
-    if (keys !== 'codexInvokable,command,id,invocationClass,publicName') {
-      throw new Error(`runtimeIndex target '${id}' has an open or incomplete schema`);
-    }
-    if (target.id !== id || typeof target.publicName !== 'string' || !target.publicName
-      || typeof target.command !== 'string' || !target.command
-      || !['implicit-eligible', 'explicit-only', 'not-configured'].includes(target.invocationClass)
-      || typeof target.codexInvokable !== 'boolean') {
-      throw new Error(`runtimeIndex target '${id}' is invalid`);
-    }
-  }
-  for (const [alias, value] of Object.entries(aliases)) {
-    const keys = Object.keys(value || {}).sort().join(',');
-    if (keys !== 'disposition,target'
-      || typeof value.target !== 'string' || !value.target
-      || !['legacy', 'renamed', 'retired'].includes(value.disposition)) {
-      throw new Error(`runtimeIndex alias '${alias}' is invalid`);
-    }
-  }
+  const runtimeValidation = validateRuntimeIndex(catalog.runtimeIndex);
+  if (!runtimeValidation.ok) throw new Error(runtimeValidation.errors.join('; '));
   for (const entry of catalog.entries) {
     const name = entryName(entry);
     if (!name) throw new Error('generated usage catalog contains an entry without a public name');
