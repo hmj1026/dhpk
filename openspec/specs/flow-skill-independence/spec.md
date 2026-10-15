@@ -45,11 +45,26 @@ implementation contract's own validation path.
 
 ### Requirement: The two skills share neutral contracts only
 
-Each skill SHALL consume shared route, policy, Domain, and dispatch contracts
-without importing or loading the other's
+Each skill SHALL consume shared route, policy, Domain, dispatch, flow-handoff,
+and skill-next-map contracts without importing or loading the other's
 skill instructions, references, or
 implementation files. A shared contract SHALL not grant execution authority to
 `flow-guide`.
+
+The skill-next-map contract is nested `metadata.dhpk-next` (and optional
+`metadata.dhpk-modes`) on canonical skill files. `flow-guide` MAY parse that
+frontmatter as data through a bounded reader bundled locally with the Skill.
+The relocated reader SHALL NOT depend on repository manifests or import the
+CI parser; the CI nested parser/allowlist SSOT remains
+`scripts/ci/_lib/frontmatter.js`. It SHALL NOT load
+peer skill procedure bodies, references, or implementation files in order to
+choose a next route (SHF-REQ-004, SHF-REQ-008).
+
+Typed `next` and `route` handoffs SHALL reuse schema `dhpk.flow.handoff.v1`
+(`handoff_id`, `owner`, `host`, `disposition`, `next_action`,
+`execution: not-started`, evidence states
+`available|unavailable|not-run|blocked|not-configured`). This change SHALL NOT
+introduce a second handoff schema.
 
 #### Scenario: Shared route data is portable
 
@@ -62,6 +77,20 @@ implementation files. A shared contract SHALL not grant execution authority to
 - **WHEN** `flow-guide route --go` produces a bounded handoff
 - **THEN** the result identifies the next owner and evidence boundary but does
   not claim SubAgent or implementation execution
+
+#### Scenario: Guide reads peer frontmatter as data
+
+- **WHEN** `flow-guide next` resolves a declared next skill from another
+  skill's `metadata.dhpk-next`
+- **THEN** it uses only parsed frontmatter fields and the shared handoff
+  contract, does not load that peer's procedure body, and still reports
+  `execution: not-started`
+
+#### Scenario: Next handoff keeps the existing schema
+
+- **WHEN** `flow-guide next` emits a typed handoff
+- **THEN** the object validates as `dhpk.flow.handoff.v1` with a non-empty
+  `next_action` and does not declare a new schema id
 
 ### Requirement: Both skills expose Host-neutral invocation semantics
 
