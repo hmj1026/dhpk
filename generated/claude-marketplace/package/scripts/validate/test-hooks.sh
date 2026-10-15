@@ -235,7 +235,7 @@ out="$(bash "$PR" "幫我修一個 bug")"
 if [ "$(printf '%s' "$out" | cut -f2)" = "flow-guide" ]; then ok "CJK bug → MATCH flow-guide"; else fail "CJK bug route wrong ($out)"; fi
 
 out="$(bash "$PR" "review my diff please")"
-if [ "$(printf '%s' "$out" | cut -f2)" = "review-pending" ]; then ok "review → MATCH review-pending"; else fail "review route wrong ($out)"; fi
+if [ "$out" = $'MATCH\tchange-verdict\tmanual code review\tpending' ]; then ok "review → MATCH change-verdict pending"; else fail "review route wrong ($out)"; fi
 
 out="$(bash "$PR" "run a security audit for owasp issues")"
 if [ "$(printf '%s' "$out" | cut -f2)" = "change-verdict" ]; then ok "security → MATCH change-verdict (codex-free default)"; else fail "security route wrong ($out)"; fi
