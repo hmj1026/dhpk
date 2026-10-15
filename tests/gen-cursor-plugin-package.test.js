@@ -1186,6 +1186,41 @@ test('Cursor network-disabled probes reject symlinked or non-regular sandbox wra
   }
 });
 
+test('authenticated Cursor shared-network probes fail closed without a sandbox', () => {
+  const root = tmpDir('dhpk-cursor-shared-no-sandbox-');
+  const packageRoot = path.join(root, 'package');
+  const hostHome = path.join(root, 'home');
+  const bin = path.join(root, 'bin');
+  const marker = path.join(root, 'cursor-invoked');
+  const auth = path.join(hostHome, '.config', 'cursor', 'auth.json');
+  const executable = path.join(bin, 'cursor-agent');
+  try {
+    fs.mkdirSync(packageRoot, { recursive: true });
+    write(auth, '{}\n');
+    write(executable, `#!/bin/sh\nprintf invoked > '${marker}'\n`, 0o755);
+    const probe = runCursorConsumerProbe({
+      packageRoot,
+      pathValue: '/dhpk-test-path-without-bwrap',
+      executable,
+      args: ['--plugin-dir', packageRoot, '--output-format', 'json'],
+      timeoutMs: 500,
+      requireOutput: true,
+      requireJson: true,
+      requireDiscovery: true,
+      requirePackageChallenge: true,
+      networkMode: 'shared',
+      hostHome,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED', JSON.stringify(probe));
+    assert.strictEqual(probe.reason_code, 'SANDBOX_UNAVAILABLE');
+    assert.strictEqual(probe.network, 'unknown');
+    assert.ok(probe.session_files.includes('.config/cursor/auth.json'));
+    assert.strictEqual(fs.existsSync(marker), false, 'Cursor client must not be invoked without the sandbox');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('Cursor network-disabled fixtures retain a verified disabled-network backend', () => {
   if (process.platform !== 'linux') return;
   if (!networkSandboxProbe(process.env.PATH, 'disabled', true)) return;

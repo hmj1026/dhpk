@@ -235,6 +235,7 @@ function codexStub() {
       "const fs=require('node:fs');",
       "const input=fs.readFileSync(0,'utf8');",
       "if(process.env.CODEX_PROMPT_LOG)fs.writeFileSync(process.env.CODEX_PROMPT_LOG,input);",
+      "if(process.env.CODEX_ARGS_LOG)fs.writeFileSync(process.env.CODEX_ARGS_LOG,JSON.stringify(process.argv.slice(1)));",
       "process.stdout.write('fixture review output\\n');",
       "process.exitCode=0;",
     ].join(''),
@@ -370,11 +371,24 @@ function registerRemainingFixtures() {
     },
     {
       id: 'remaining-change-verdict-review-cli-stub', skill: 'change-verdict', entry: 'scripts/review-cli.sh',
-      args: ['--backend', 'cli', '--scope', 'tests', '--depth', 'fast', '--prompt', 'fixture prompt'],
+      argsFactory(context) {
+        const hostile = `$(touch ${path.join(context.projectDir, 'shell-substitution-executed')})`;
+        return ['--backend', 'cli', '--scope', 'tests', '--depth', 'fast', '--title', hostile, '--prompt', hostile];
+      },
       stubs: { ...fixtureTools('git'), codex: codexStub() }, prepare: prepareReviewRepository,
-      envFactory(context, state) { return { CODEX_PROMPT_LOG: state.promptLog }; },
+      envFactory(context, state) { return { CODEX_PROMPT_LOG: state.promptLog, CODEX_ARGS_LOG: path.join(context.projectDir, 'codex-args.json') }; },
       expected: { status: 0, output: ['CODEX CLI REVIEW (Uncommitted Changes)', 'fixture review output'] },
-      verify(_result, context, state) { const prompt = fs.readFileSync(state.promptLog, 'utf8'); assert.match(prompt, /Review scope: tests/); assert.match(prompt, /fixture prompt/); assert.match(prompt, /Pinned merge base:/); },
+      verify(_result, context, state) {
+        const sentinel = path.join(context.projectDir, 'shell-substitution-executed');
+        const hostile = `$(touch ${sentinel})`;
+        const prompt = fs.readFileSync(state.promptLog, 'utf8');
+        const args = JSON.parse(fs.readFileSync(path.join(context.projectDir, 'codex-args.json'), 'utf8'));
+        assert.match(prompt, /Review scope: tests/);
+        assert.ok(prompt.includes(hostile), 'custom prompt must remain literal');
+        assert.match(prompt, /Pinned merge base:/);
+        assert.strictEqual(args[args.indexOf('--title') + 1], hostile, 'title must remain one literal argument');
+        assert.strictEqual(fs.existsSync(sentinel), false, 'hostile title and prompt must not execute');
+      },
     },
     {
       id: 'remaining-flow-guide-pre-route-local-table', skill: 'flow-guide', entry: 'scripts/pre-route.sh',
