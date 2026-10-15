@@ -5,6 +5,14 @@ argument-hint: '<task | mode> <target>'
 allowed-tools: 'Read, Write, Edit, Grep, Glob, Bash'
 metadata:
   dhpk-invocation-class: implicit-eligible
+  dhpk-modes: [update, codemap, refactor]
+  dhpk-next:
+    PASS: none
+    FAIL: none
+    BLOCKED: none
+    NOT_RUN: none
+    UNAVAILABLE: none
+    update:PASS: git-smart-commit
 ---
 
 # Documentation maintenance

@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:96d01f6f6b5cc2704b82cb862c4bd131665ff1d8712c63faf1c29dc9facd6921",
+  "sourceInventoryRevision": "sha256:938ca786b9969a31e9b014c52fa1092031639beb669ec6db147d896e814b69fe",
   "entries": [
     {
       "id": "change-verdict",
@@ -531,7 +531,7 @@
       "usage": {
         "display_name": "Flow Guide",
         "summary": "Guide routes, rules, next steps, closeout, and usage help",
-        "syntax": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
+        "syntax": "$flow-guide <help|route|rules|next|close> [--go] [--host <host>] [<query>]",
         "input_kind": "action-first",
         "invocation_class": "implicit-eligible",
         "effect_authority": "delegate",
@@ -590,7 +590,7 @@
           {
             "id": "next",
             "summary": "Identify the next bounded workflow action",
-            "syntax": "$flow-guide next [<query>]",
+            "syntax": "$flow-guide next [--host <host>] [<query>]",
             "input_kind": "free-text",
             "effect_authority": "read-only"
           },
@@ -613,16 +613,39 @@
             "applies_to": [
               "route"
             ]
+          },
+          {
+            "id": "host",
+            "syntax": "--host",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Select next-action invocation formatting and handoff Host; Codex passes codex-cli",
+            "default": "claude-code",
+            "enum_values": [
+              "claude-code",
+              "codex-cli",
+              "agy",
+              "cursor",
+              "claude",
+              "codex"
+            ],
+            "applies_to": [
+              "next"
+            ]
           }
         ],
         "examples": [
           {
             "prompt": "$flow-guide help",
             "summary": "List the available Codex skill usage contracts"
+          },
+          {
+            "prompt": "$flow-guide next --host codex-cli",
+            "summary": "Resolve declared next steps using Codex invocation formatting"
           }
         ]
       },
-      "usageFingerprint": "5300a6121dae6a264abe9859a10cc42504b034b4908f06ca3343b2f88a7cd369"
+      "usageFingerprint": "5651f5d6d7823e350a348c7f34d0c07711e70acbb676ad755e61118a1f6e4bb5"
     },
     {
       "id": "git-smart-commit",
@@ -1133,13 +1156,13 @@
         "id": "flow-guide",
         "publicName": "flow-guide",
         "invocationClass": "implicit-eligible",
-        "command": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
+        "command": "$flow-guide <help|route|rules|next|close> [--go] [--host <host>] [<query>]",
         "codexInvokable": true,
         "actions": {
           "help": "$flow-guide help [<skill>]",
           "route": "$flow-guide route [--go] [<query>]",
           "rules": "$flow-guide rules [<query>]",
-          "next": "$flow-guide next [<query>]",
+          "next": "$flow-guide next [--host <host>] [<query>]",
           "close": "$flow-guide close [<query>]"
         }
       },

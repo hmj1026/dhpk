@@ -4,6 +4,12 @@ description: 'Run a repository verification loop with runner-first execution, de
 argument-hint: '[<mode>] [--integration=<path>] [--e2e=<path>]'
 metadata:
   dhpk-invocation-class: implicit-eligible
+  dhpk-next:
+    PASS: change-verdict:code
+    FAIL: tdd-workflow
+    BLOCKED: none
+    NOT_RUN: repo-verify
+    UNAVAILABLE: none
 ---
 
 # Repository Verify

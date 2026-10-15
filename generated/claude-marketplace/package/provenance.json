@@ -29,7 +29,7 @@
       "sourcePath": "skills/change-verdict/SKILL.md",
       "destination": "skills/change-verdict/SKILL.md",
       "kind": "entry",
-      "sha256": "439f3a05ecf427b65e97edcc2978a1a79c3ef84d77e7d5c4d6264bdcbb3062b9"
+      "sha256": "23d6090e1ef7873933749fbe31bee75c97cfcde7317d4a19c0fdee4c7179a6f9"
     },
     {
       "skillId": "change-verdict",
@@ -301,7 +301,7 @@
       "sourcePath": "skills/code-trace/SKILL.md",
       "destination": "skills/code-trace/SKILL.md",
       "kind": "entry",
-      "sha256": "fed1685690b012e43703424e0a8e9ffa040695770d223c80719b1f167f4148da"
+      "sha256": "ccc7149850c3445415cfc3e7d15113d477cb5ebf8351f1b61c7877781dc5cb49"
     },
     {
       "skillId": "code-trace",
@@ -573,7 +573,7 @@
       "sourcePath": "skills/create-pr/SKILL.md",
       "destination": "skills/create-pr/SKILL.md",
       "kind": "entry",
-      "sha256": "7e6f8f2ecb806b5e508dc58ae38c917000d9d5776e941a3312e410f504b61549"
+      "sha256": "38a7bcee304d3decf581e53b54c9967779df03fbcfde255f181e6a08247053ee"
     },
     {
       "skillId": "create-pr",
@@ -645,7 +645,7 @@
       "sourcePath": "skills/doc-maintain/SKILL.md",
       "destination": "skills/doc-maintain/SKILL.md",
       "kind": "entry",
-      "sha256": "861dd14e820089e8cd6f540e750426cd903c1505c9a72ec345e0410f72f1c812"
+      "sha256": "658ab8d496920251f930eda553208ac2ba83aed6567977bec952670e3fe09b14"
     },
     {
       "skillId": "doc-maintain",
@@ -685,7 +685,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "ca17c7e9748e0e89520de8d5e6caa44aa725e3da57054f275c67bccffc2b7537"
+      "sha256": "e10f94fc21a1ecb5563849c123b74708639698c5db1182446ddcb93511d9695f"
     },
     {
       "skillId": "flow-drive",
@@ -725,7 +725,7 @@
       "sourcePath": "skills/code-simplify/SKILL.md",
       "destination": "skills/flow-drive/references/code-simplify/SKILL.md",
       "kind": "branch",
-      "sha256": "60e0d0ae296a056fe69af9a8d85bac4e13aa4ca4b156bc59ac872d517b1a5e2a"
+      "sha256": "677fab03b03189e34a2fdb2ad7ec9f12584d781a4c99016f6ab9f55f54fda9f0"
     },
     {
       "skillId": "code-simplify",
@@ -2045,7 +2045,7 @@
       "sourcePath": "skills/flow-guide/SKILL.md",
       "destination": "skills/flow-guide/SKILL.md",
       "kind": "entry",
-      "sha256": "8d774e572db4c4f468a36288e9b745cfca249b17074e25fbadfea6d79cb2a723"
+      "sha256": "898ec5001443c500a03ceb2a7d68810f23f2d8f092fdba14e720a4c9f84c7ede"
     },
     {
       "skillId": "flow-guide",
@@ -2109,7 +2109,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "add79663ae4b0e621369e4f93432578d1f521d24cb4b71d56d923113566360c3"
+      "sha256": "89d4a33ebdfeeabde2758689e6d928411067b39f451c5cb60bee2f72bf3a1662"
     },
     {
       "skillId": "flow-guide",
@@ -2389,7 +2389,7 @@
       "sourcePath": "skills/flow-guide/references/progression-tables.md",
       "destination": "skills/flow-guide/references/progression-tables.md",
       "kind": "entry",
-      "sha256": "5c60423cdf7691d0841a762bc9a2e1cc9560079dbb6ddb178bbbc0f3196bd683"
+      "sha256": "ee621c56ffd019024cb0e7517c08c368cd6d59e2b3c0aff6b4b33169728f244e"
     },
     {
       "skillId": "flow-guide",
@@ -2522,6 +2522,14 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/scripts/_lib/frontmatter.js",
+      "destination": "skills/flow-guide/scripts/_lib/frontmatter.js",
+      "kind": "entry",
+      "sha256": "ebb87555ff5d516c8484e645f09253b7fea11d8c925743382e59e741247dbf39"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/scripts/_lib/runner-utils.js",
       "destination": "skills/flow-guide/scripts/_lib/runner-utils.js",
       "kind": "entry",
@@ -2538,6 +2546,14 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/scripts/_lib/skill-next-map.js",
+      "destination": "skills/flow-guide/scripts/_lib/skill-next-map.js",
+      "kind": "entry",
+      "sha256": "839f31ada88dcf34edd9bcee1b928a79f2accb23259fe1e107a81f71cbba2c28"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/scripts/_lib/skill-usage.js",
       "destination": "skills/flow-guide/scripts/_lib/skill-usage.js",
       "kind": "entry",
@@ -2549,7 +2565,7 @@
       "sourcePath": "skills/flow-guide/scripts/action-runner.js",
       "destination": "skills/flow-guide/scripts/action-runner.js",
       "kind": "entry",
-      "sha256": "fb2fe972e8375c0d3aed4999cb92f99d195da708de947d654592b01cd12d1f54"
+      "sha256": "c365a5e0a2589f99bf81d1cf0cc1ec04e02c0b561af9a32027aabbcc3603367c"
     },
     {
       "skillId": "flow-guide",
@@ -2557,7 +2573,7 @@
       "sourcePath": "skills/flow-guide/scripts/analyze.js",
       "destination": "skills/flow-guide/scripts/analyze.js",
       "kind": "entry",
-      "sha256": "9a4a6ad5698a0cb94882f70f45fc50cd0c430cbf3e48c9ca0a2579ba01e09906"
+      "sha256": "30761635610e710890e3538c7eb43aef33c6b3a815eaa8f72f7d4ab56d55e195"
     },
     {
       "skillId": "flow-guide",
@@ -2602,6 +2618,14 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/scripts/skill-next-actions.js",
+      "destination": "skills/flow-guide/scripts/skill-next-actions.js",
+      "kind": "entry",
+      "sha256": "4b9538e8b27965be6e74a952bd2795a0c8d4ccaa3f360a8859b1855d3355b3ea"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/scripts/usage-card.js",
       "destination": "skills/flow-guide/scripts/usage-card.js",
       "kind": "entry",
@@ -2621,7 +2645,7 @@
       "sourcePath": "skills/git-smart-commit/SKILL.md",
       "destination": "skills/git-smart-commit/SKILL.md",
       "kind": "entry",
-      "sha256": "0db779db199544428074f215d236415fe7daa0f16a200f2db598372061804713"
+      "sha256": "8013cd55adab7ddd734d7ec11b645b7eee406081f8a1e29f9b5d80a68fedbed6"
     },
     {
       "skillId": "git-smart-commit",
@@ -2853,7 +2877,7 @@
       "sourcePath": "skills/opsx-apply-resume/SKILL.md",
       "destination": "skills/opsx-apply-resume/SKILL.md",
       "kind": "entry",
-      "sha256": "568c9851496e0a7f2b303400f57bef7edd70e44f9a3cb778e8a5a67eb56784ed"
+      "sha256": "603c20254fa93fac3f298eb23f591460bd884053f9a80bf00ea6b663c488d941"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2957,7 +2981,7 @@
       "sourcePath": "skills/precommit/SKILL.md",
       "destination": "skills/precommit/SKILL.md",
       "kind": "entry",
-      "sha256": "c6d85e899fe7e124f357a2ed6381ccb86cbda2e3882bc23085cff977393b8486"
+      "sha256": "bb3c86d914a4560e1a742037b3350ff81c50ef545b6f7aa9127be2cda34e1a7d"
     },
     {
       "skillId": "precommit",
@@ -3341,7 +3365,7 @@
       "sourcePath": "skills/repo-verify/SKILL.md",
       "destination": "skills/repo-verify/SKILL.md",
       "kind": "entry",
-      "sha256": "c5177b4d1dbf61ca5b8ca7e34e4aecc904e12fc527cd95ce1140ec75996fe952"
+      "sha256": "24abb02db04c187092e9350777ee57ffb6095392912602e3944d92eba8a73db1"
     },
     {
       "skillId": "repo-verify",
@@ -3453,7 +3477,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "fe64180399ca9de6d8e8cf7236b81ca25180b6dc542ad82eb4d9adef156942be"
+      "sha256": "762c046573a1b65d284122d512c2fd618f0b4b50a0853182907903cbd89846f7"
     },
     {
       "skillId": "tdd",

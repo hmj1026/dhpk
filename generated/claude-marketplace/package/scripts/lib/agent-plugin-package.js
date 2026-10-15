@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
+const { extractMetadata } = require('../ci/_lib/frontmatter');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
@@ -296,11 +297,15 @@ function parseFrontmatter(content) {
   const duplicates = [];
   const seen = new Set();
   let inMetadata = false;
+  let metadataIndent = null;
   for (const line of lines) {
     if (/^\s+/.test(line)) {
       if (inMetadata) {
-        const nested = line.match(/^\s+([A-Za-z0-9_.-]+):\s*(.*)$/);
-        if (nested) metadata[nested[1]] = unquote(nested[2]);
+        const nested = line.match(/^(\s+)([A-Za-z0-9_.-]+):\s*(.*)$/);
+        if (nested) {
+          if (metadataIndent === null) metadataIndent = nested[1].length;
+          if (nested[1].length === metadataIndent) metadata[nested[2]] = unquote(nested[3]);
+        }
       }
       continue;
     }
@@ -312,6 +317,7 @@ function parseFrontmatter(content) {
     seen.add(key);
     if (key === 'metadata' && raw.trim() === '') {
       inMetadata = true;
+      metadataIndent = null;
       values[key] = metadata;
     } else {
       inMetadata = false;
@@ -335,7 +341,9 @@ function yamlScalar(value) {
 
 function normalizePortableFrontmatter(content, options = {}) {
   const parsed = parseFrontmatter(content);
-  const errors = [];
+  const metadata = extractMetadata(content);
+  const portableMetadata = { ...parsed.metadata, ...metadata.values };
+  const errors = [...metadata.errors];
   if (!parsed.present) errors.push('SKILL.md is missing YAML frontmatter');
   if (parsed.duplicates.length > 0) errors.push(`duplicate frontmatter keys: ${parsed.duplicates.join(', ')}`);
 
@@ -353,8 +361,8 @@ function normalizePortableFrontmatter(content, options = {}) {
     if (field === 'name' || field === 'description' || field === 'metadata') continue;
     if (Object.prototype.hasOwnProperty.call(values, field)) output[field] = String(values[field]);
   }
-  if (allowlist.includes('metadata') && Object.keys(parsed.metadata).length > 0) {
-    output.metadata = Object.fromEntries(Object.keys(parsed.metadata).sort().map((key) => [key, String(parsed.metadata[key])]));
+  if (allowlist.includes('metadata') && Object.keys(portableMetadata).length > 0) {
+    output.metadata = Object.fromEntries(Object.keys(portableMetadata).sort().map((key) => [key, portableMetadata[key]]));
   }
   // Values which are not part of the explicit portable allowlist are policy
   // owned by Claude/Codex/Cursor and intentionally omitted from the output.
@@ -367,7 +375,16 @@ function normalizePortableFrontmatter(content, options = {}) {
   }
   if (output.metadata && Object.keys(output.metadata).length > 0) {
     lines.push('metadata:');
-    for (const [key, value] of Object.entries(output.metadata)) lines.push(`  ${key}: ${yamlScalar(value)}`);
+    for (const [key, value] of Object.entries(output.metadata)) {
+      if (Array.isArray(value)) {
+        lines.push(`  ${key}: [${value.map(yamlScalar).join(', ')}]`);
+      } else if (value && typeof value === 'object') {
+        lines.push(`  ${key}:`);
+        for (const [state, target] of Object.entries(value)) lines.push(`    ${state}: ${yamlScalar(target)}`);
+      } else {
+        lines.push(`  ${key}: ${yamlScalar(value)}`);
+      }
+    }
   }
   lines.push('---');
   const header = `${lines.join('\n')}\n`;

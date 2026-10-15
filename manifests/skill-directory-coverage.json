@@ -232,7 +232,8 @@
         {
           "path": "references/execution-bundle/scripts/lib/flow-handoff-contract.js",
           "required_by": [
-            "scripts/route-result.js"
+            "scripts/route-result.js",
+            "scripts/skill-next-actions.js"
           ]
         },
         {
@@ -240,7 +241,8 @@
           "required_by": [
             "scripts/analyze.js",
             "scripts/usage-card.js",
-            "scripts/route-result.js"
+            "scripts/route-result.js",
+            "scripts/skill-next-actions.js"
           ]
         },
         {
@@ -252,7 +254,7 @@
         {
           "path": "scripts/_lib/command-namespace.js",
           "required_by": [
-            "scripts/analyze.js"
+            "scripts/_lib/skill-next-map.js"
           ]
         },
         {
@@ -265,6 +267,24 @@
           "path": "scripts/_lib/skill-usage.js",
           "required_by": [
             "scripts/usage-card.js"
+          ]
+        },
+        {
+          "path": "scripts/skill-next-actions.js",
+          "required_by": [
+            "scripts/analyze.js"
+          ]
+        },
+        {
+          "path": "scripts/_lib/skill-next-map.js",
+          "required_by": [
+            "scripts/skill-next-actions.js"
+          ]
+        },
+        {
+          "path": "scripts/_lib/frontmatter.js",
+          "required_by": [
+            "scripts/skill-next-actions.js"
           ]
         }
       ]

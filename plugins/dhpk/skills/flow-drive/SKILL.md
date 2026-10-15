@@ -5,6 +5,12 @@ description: 'Explicit-only implementation workflow for one task resolved by the
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
+  dhpk-next:
+    PASS: repo-verify
+    FAIL: none
+    BLOCKED: none
+    NOT_RUN: none
+    UNAVAILABLE: none
 ---
 
 # Flow Drive

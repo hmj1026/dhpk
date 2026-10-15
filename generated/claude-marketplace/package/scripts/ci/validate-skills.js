@@ -10,8 +10,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { extract, isEmpty } = require('./_lib/frontmatter');
+const { extract, isEmpty, extractMetadata } = require('./_lib/frontmatter');
 const { createReporter } = require('./_lib/report');
+const { validateNextGraph, FIRST_WAVE_SKILLS } = require('../lib/skill-next-map');
+const { checkProgressionTable } = require('./gen-skill-progression-tables');
+const skillMetadata = {};
 
 const ROOT = path.join(__dirname, '..', '..');
 const SKILLS_DIR = path.join(ROOT, 'skills');
@@ -57,7 +60,11 @@ function validateSkillMd(dir) {
     r.err(`${rel(skillMd)} — empty file`);
     return;
   }
+  const metadata = extractMetadata(content);
+  for (const error of metadata.errors) r.err(`${relative} — ${error}`);
   const fm = extract(content);
+  const name = fm.values.name || path.basename(dir);
+  skillMetadata[name] = metadata;
   if (!fm.present) return; // SKILL.md without frontmatter is allowed
   const unknownKeys = Object.keys(fm.values).filter((key) => !OFFICIAL_FRONTMATTER_KEYS.has(key));
   if (unknownKeys.length > 0) {
@@ -87,6 +94,12 @@ function walk(dir) {
 }
 walk(SKILLS_DIR);
 walk(MODULES_DIR);
+const graphErrors = validateNextGraph(skillMetadata, { requiredSkills: FIRST_WAVE_SKILLS.filter(name => Object.prototype.hasOwnProperty.call(skillMetadata, name)) });
+for (const error of graphErrors) r.err(error);
+const progressionTable = path.join(SKILLS_DIR, 'flow-guide', 'references', 'progression-tables.md');
+if (!graphErrors.length && fs.existsSync(progressionTable)) {
+  for (const error of checkProgressionTable(skillMetadata, fs.readFileSync(progressionTable, 'utf8'))) r.err(error);
+}
 
 // Orphan check: each immediate child of skills/ must be a skill or a container.
 for (const e of fs.readdirSync(SKILLS_DIR, { withFileTypes: true })) {

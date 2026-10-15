@@ -3,6 +3,15 @@ name: change-verdict
 description: "Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts and dependency audits are read-only; explicit dependency remediation delegates only the bounded fix to an available authorized writer, followed by independent security review. Not for arbitrary source repair, gate clearing, or architecture-only design. Output: evidence-backed findings, actual review status, and separate remediation/security results."
 metadata:
   dhpk-invocation-class: "implicit-eligible"
+  dhpk-modes: ["code", "pr", "security", "tests", "docs", "risk"]
+  dhpk-next:
+    PASS: "none"
+    FAIL: "none"
+    BLOCKED: "none"
+    NOT_RUN: "none"
+    UNAVAILABLE: "none"
+    code:PASS: "precommit"
+    docs:PASS: "git-smart-commit"
 ---
 
 # Change Verdict

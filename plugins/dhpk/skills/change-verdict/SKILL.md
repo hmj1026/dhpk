@@ -4,6 +4,15 @@ description: 'Review code, PRs, security, tests, documents, change risk, pending
 allowed-tools: 'Bash(git diff:*), Bash(git status:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git show:*), Bash(git log:*), Bash(git ls-files:*), Bash(git hash-object:*), Bash(gh pr view:*), Bash(node skills/change-verdict/scripts/risk-analyze.js:*), Bash(bash skills/change-verdict/scripts/check-unrelated-changes.sh:*), Bash(bash skills/change-verdict/scripts/review-cli.sh:*), Bash(codex review:*), Read, Grep, Glob, Task'
 metadata:
   dhpk-invocation-class: implicit-eligible
+  dhpk-modes: [code, pr, security, tests, docs, risk]
+  dhpk-next:
+    PASS: none
+    FAIL: none
+    BLOCKED: none
+    NOT_RUN: none
+    UNAVAILABLE: none
+    code:PASS: precommit
+    docs:PASS: git-smart-commit
 ---
 
 # Change Verdict

@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadRuntimeModule, resolveRuntimeFile } = require('./_lib/runtime-loader');
 const { runCapture, gitRepoRoot, gitShortHead } = loadRuntimeModule('runner-utils');
-const { qualifyCommand } = loadRuntimeModule('command-namespace');
+const { buildDeclaredNextActions, collectSkillMetadata, parseNextHost } = require('./skill-next-actions');
 const { resolveFeature: _resolveFeature } = loadRuntimeModule('feature-resolver');
 
 // ---------------------------------------------------------------------------
@@ -220,62 +220,8 @@ function detectPhase(gates, findings, reviewState, files) {
 // ---------------------------------------------------------------------------
 // Next actions builder
 // ---------------------------------------------------------------------------
-function buildNextActions(findings, phase, featureCtx) {
-  const actions = [];
-
-  // Extract commands from P0/P1 findings
-  for (const f of findings) {
-    if (f.priority !== 'P0' && f.priority !== 'P1') continue;
-    const suggestion = typeof f.suggestion === 'string' ? f.suggestion : '';
-    const cmdMatch = suggestion.match(/\/[\w-]+/);
-    if (cmdMatch) {
-      const cmd = cmdMatch[0];
-      // Extract path/flag args after command (skip prose words)
-      const afterCmd = suggestion.slice(suggestion.indexOf(cmd) + cmd.length).trim();
-      const argTokens = afterCmd.split(/\s+/).filter(t => t.startsWith('--') || t.includes('/') || t.includes('.'));
-      actions.push({
-        id: f.id,
-        command: qualifyCommand(cmd),
-        args: argTokens.length > 0 ? argTokens.join(' ') : null,
-        reason: f.message,
-        confidence: f.priority === 'P0' ? 1.0 : 0.8,
-      });
-    }
-    if (!cmdMatch && typeof f.guidance === 'string' && f.guidance.trim() !== '') {
-      actions.push({
-        id: f.id,
-        guidance: f.guidance,
-        reason: f.message,
-        confidence: f.priority === 'P0' ? 1.0 : 0.8,
-      });
-    }
-  }
-
-  // Phase-based suggestions
-  if (phase === 'post_precommit' && featureCtx.key) {
-    if (featureCtx.has_tech_spec) {
-      actions.push({
-        id: 'doc-sync',
-        command: qualifyCommand('/update-docs'),
-        args: `${featureCtx.docs_path}/2-tech-spec.md`,
-        reason: 'Precommit passed — sync docs with code changes',
-        confidence: 0.9,
-      });
-    }
-    if (featureCtx.has_requests) {
-      actions.push({
-        id: 'request-update',
-        guidance: 'Use the external $openspec-propose workflow to update request status.',
-        reason: 'Precommit passed — update request status through the external proposal workflow',
-        confidence: 0.8,
-      });
-    }
-  }
-
-  // Sort by confidence descending
-  actions.sort((a, b) => b.confidence - a.confidence);
-
-  return actions;
+function buildNextActions(findings, phase, featureCtx, reviewState) {
+  return buildDeclaredNextActions(findings, phase, featureCtx, collectSkillMetadata(), reviewState, parseNextHost(process.argv.slice(2)));
 }
 
 // ---------------------------------------------------------------------------
@@ -371,7 +317,8 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
         id: 'gate-missing-code',
         priority: 'P0',
         message: 'Code changed but code review has not passed',
-        suggestion: 'Run /dhpk:change-verdict --mode code before proceeding',
+        suggestion: 'Follow the declared code-review step before proceeding',
+        next_source: { name: 'repo-verify', state: 'PASS' },
       });
     }
 
@@ -381,7 +328,8 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
         id: 'gate-missing-doc',
         priority: 'P0',
         message: 'Documentation changed but doc review has not passed',
-        suggestion: 'Run /dhpk:change-verdict --mode docs before proceeding',
+        suggestion: 'Review the changed documentation before proceeding',
+        next_target: { name: 'change-verdict', mode: 'docs' },
       });
     }
 
@@ -391,7 +339,8 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
         id: 'gate-missing-precommit',
         priority: 'P0',
         message: 'Code review passed but precommit has not passed',
-        suggestion: 'Run /precommit before committing',
+        suggestion: 'Follow the declared step after code review',
+        next_source: { name: 'change-verdict', mode: 'code', state: 'PASS' },
       });
     }
   }
@@ -442,7 +391,8 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
       id: 'security-hotspot',
       priority: 'P1',
       message: `Security-sensitive file(s) touched: ${securityFiles.slice(0, 3).join(', ')}`,
-      suggestion: 'Run /dhpk:change-verdict --mode security before merging',
+      suggestion: 'Review security-sensitive changes before merging',
+      next_target: { name: 'change-verdict', mode: 'security' },
     });
   }
 
@@ -467,7 +417,8 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
         id: 'readme-missing',
         priority: 'P2',
         message: `New skill(s) added (${newSkills.map(f => f.file).join(', ')}) but README not updated`,
-        suggestion: 'Run /update-docs to sync README with new skills',
+        suggestion: 'Refresh README documentation for the new skills',
+        next_target: { name: 'doc-maintain', mode: 'update' },
       });
     }
   }
@@ -512,16 +463,6 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
     });
   }
 
-  // 12b. requirements-advisory: suggest /req-analyze when feature has tech-spec but no requirements doc
-  if (featureCtx && featureCtx.key && featureCtx.has_tech_spec && !featureCtx.has_requirements) {
-    findings.push({
-      id: 'requirements-advisory',
-      priority: 'P3',
-      message: `Feature "${featureCtx.key}" has tech-spec but no Phase 1 requirements doc (advisory)`,
-      suggestion: `/req-analyze ${featureCtx.key}`,
-    });
-  }
-
   // 13. doc-sync-needed: precommit passed + feature has tech-spec + code in diff
   if (reviewState && gates.precommit.passed && featureCtx && featureCtx.key) {
     if (featureCtx.has_tech_spec) {
@@ -531,7 +472,8 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
           id: 'doc-sync-needed',
           priority: 'P1',
           message: `Code changed with precommit passed — docs may be stale for feature "${featureCtx.key}"`,
-          suggestion: `/update-docs ${featureCtx.docs_path}/2-tech-spec.md`,
+          suggestion: `Refresh documentation for ${featureCtx.docs_path}/2-tech-spec.md`,
+          next_source: { name: 'precommit', state: 'PASS' },
         });
       }
     }
@@ -629,7 +571,7 @@ function buildOutput(inputs, root) {
   }
 
   const phase = detectPhase(gates, allFindings, inputs.reviewState, files);
-  const next_actions = buildNextActions(allFindings, phase, featureCtx);
+  const next_actions = buildNextActions(allFindings, phase, featureCtx, inputs.reviewState);
   const backlog = phase === 'feature_complete' ? buildBacklogContext(root) : null;
 
   return {

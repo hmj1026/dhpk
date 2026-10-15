@@ -67,7 +67,7 @@ function runAction(argv = process.argv.slice(2), io = {}) {
     return result.disposition === 'blocked' ? 2 : 0;
   }
   if (parsed.action === 'next') {
-    const result = spawnSync(process.execPath, [path.join(__dirname, 'analyze.js')], {
+    const result = spawnSync(process.execPath, [path.join(__dirname, 'analyze.js'), ...parsed.args], {
       cwd: process.cwd(),
       env: process.env,
       encoding: 'utf8',
