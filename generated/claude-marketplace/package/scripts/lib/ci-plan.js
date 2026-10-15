@@ -52,7 +52,29 @@ const OWNER_GROUPS = Object.freeze([
   },
   {
     name: 'skill-scripts',
-    paths: [/^skills\/(?!flow-drive\/scripts\/(?:adapters|transport|dispatch-runtime)\/)[^/]+\/scripts\//],
+    // Only entries invoked by the operability suite have this smoke owner.
+    // Internal modules and new entries retain the full-suite fallback.
+    paths: [
+      /^skills\/change-verdict\/scripts\/(?:check-unrelated-changes\.sh|review-cli\.sh|risk-analyze\.js)$/,
+      /^skills\/code-trace\/scripts\/diagnose\/(?:analyze-function-calls|check-tools|find-polluter|generate-flow-diagram|search-database-queries|trace-data-flow)\.sh$/,
+      /^skills\/dhpk-deploy-list\/scripts\/(?:check-golden|deploy-list)\.sh$/,
+      /^skills\/dhpk-feature-verify\/scripts\/(?:api-exec|health-probe)\.sh$/,
+      /^skills\/dhpk-project-audit\/scripts\/audit\.js$/,
+      /^skills\/dhpk-repo-intake\/scripts\/(?:intake_cached|scan_delta|scan_repo)\.js$/,
+      /^skills\/flow-drive\/scripts\/(?:invocation|launch-dispatch)\.js$/,
+      /^skills\/flow-guide\/scripts\/(?:action-runner|analyze|route-result|usage-card)\.js$/,
+      /^skills\/flow-guide\/scripts\/(?:openspec_gate_check|prepare_dev_scope|prepare_workflow_profile|workflow_gate_check)\.py$/,
+      /^skills\/flow-guide\/scripts\/pre-route\.sh$/,
+      /^skills\/git-smart-commit\/scripts\/collect-changes\.js$/,
+      /^skills\/harness-setup\/scripts\/(?:install-assets|install-codex-project)\.sh$/,
+      /^skills\/js-static-checks\/scripts\/status\.js$/,
+      /^skills\/(?:laravel|phpunit)\/scripts\/resolve-version\.js$/,
+      /^skills\/opsx-apply-resume\/scripts\/(?:detect-phase|extract-compact|post-obs|set-handoff-state|write-handoff)\.sh$/,
+      /^skills\/precommit\/scripts\/precommit-runner\.js$/,
+      /^skills\/release-creator\/scripts\/release-runner\.sh$/,
+      /^skills\/repo-verify\/scripts\/verify-runner\.js$/,
+      /^skills\/swift\/scripts\/(?:generate_icons\.swift|iconify_gen\.sh)$/,
+    ],
     tests: ['skill-script-operability.test.js'],
   },
   {
