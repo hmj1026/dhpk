@@ -179,6 +179,11 @@ else
             and ((.target.kind | type) == "string")
             and (.target.kind == "skill" or .target.kind == "command" or .target.kind == "agent")
             and ((.target.id | type) == "string") and ((.target.id | length) > 0)
+            and ((.target | keys - ["kind", "id", "skillAction"] | length) == 0)
+            and ((.target | has("skillAction") | not)
+                or (.target.kind == "skill"
+                    and ((.target.skillAction | type) == "string")
+                    and (.target.skillAction | test("^[a-z0-9]+(?:-[a-z0-9]+)*$"))))
         )
     ' "$ROUTE_TABLE" >/dev/null 2>&1; then
         fail "route-table.json rules 欄位無效（每條 rule 必須有非空 pattern、label、target.kind、target.id）"
@@ -220,12 +225,19 @@ else
     }
 
     if [[ $ROUTE_TABLE_VALID -eq 1 ]]; then
-      while IFS=$'\t' read -r pattern kind ident label; do
+      while IFS=$'\t' read -r pattern kind ident label skill_action; do
         [[ -z "$ident" ]] && continue
         RT_TOTAL=$((RT_TOTAL+1))
         # (a) target existence — resolve strictly by target.kind.
         case "$kind" in
             skill)
+                if [[ -n "$skill_action" ]] && ! jq -e --arg skill "$ident" --arg action "$skill_action" '
+                    any(.skills[]?;
+                        (.id == $skill or .name == $skill)
+                        and any(.usage.actions[]?; .id == $action))
+                ' "$ROOT/manifests/distribution-inventory.json" >/dev/null 2>&1; then
+                    fail "route-table selected skill action is not canonical: $ident/$skill_action"
+                fi
                 if ! [[ "$ident" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
                     fail "route-table skill target identifier 無效: $ident (expected lowercase kebab-case)"
                 elif [[ ! " $ROUTE_WHITELIST " == *" $ident "* ]]; then
@@ -260,7 +272,7 @@ else
         if ! printf '%s' "$pattern" | LC_ALL=C grep -qE '[^ -~]'; then
             warn "route-table 規則僅有英文（無中文 alternation）: [$label] $ident"
         fi
-      done < <(jq -r '.rules[] | [.pattern, .target.kind, .target.id, .label] | @tsv' "$ROUTE_TABLE")
+      done < <(jq -r '.rules[] | [.pattern, .target.kind, .target.id, .label, (.target.skillAction // "")] | @tsv' "$ROUTE_TABLE")
       # (d) unintended duplicate target.id → fail (whitelisted routers may legitimately repeat)
       while IFS= read -r ident; do
         [[ -z "$ident" ]] && continue

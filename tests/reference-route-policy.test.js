@@ -18,27 +18,28 @@ const {
 
 const ROOT = path.join(__dirname, '..');
 
-test('canonical opsx references resolve and legacy aliases resolve to one target', () => {
+test('canonical resume references resolve while retired helpers stay absent', () => {
   const registry = buildReferenceRegistry(ROOT);
-  assert.strictEqual(resolveReference(registry, 'dhpk-opsx-load-context').canonical, 'dhpk-opsx-load-context');
-  assert.strictEqual(resolveReference(registry, 'opsx-load-context').canonical, 'dhpk-opsx-load-context');
-  assert.strictEqual(resolveReference(registry, 'opsx-post-obs').canonical, 'dhpk-opsx-post-observation');
+  assert.strictEqual(resolveReference(registry, 'opsx-apply-resume').canonical, 'opsx-apply-resume');
+  for (const name of ['dhpk-opsx-load-context', 'opsx-load-context', 'opsx-post-obs']) {
+    assert.strictEqual(resolveReference(registry, name), null, `${name} must remain retired`);
+  }
   assert.strictEqual(resolveReference(registry, 'compact-save'), null);
 });
 
 test('natural-language handoff extraction records line and optional capability state', () => {
   const registry = buildReferenceRegistry(ROOT);
   const refs = extractNaturalLanguageReferences(
-    'Invoke the `dhpk-opsx-load-context` skill.\n' +
-    'Use `opsx-post-obs` when the optional provider is installed.\n' +
+    'Invoke the `opsx-apply-resume` skill.\n' +
+    'Use `opsx-apply-resume` when the optional provider is installed.\n' +
     'Run `compact-save` only when the optional capability is available.\n'
   );
   assert.deepStrictEqual(refs.map((ref) => ref.name), [
-    'dhpk-opsx-load-context',
-    'opsx-post-obs',
+    'opsx-apply-resume',
+    'opsx-apply-resume',
     'compact-save',
   ]);
-  assert.strictEqual(resolveReference(registry, refs[1].name).canonical, 'dhpk-opsx-post-observation');
+  assert.strictEqual(resolveReference(registry, refs[1].name).canonical, 'opsx-apply-resume');
   assert.strictEqual(refs[2].optional, true);
   assert.strictEqual(refs[0].line, 1);
 });

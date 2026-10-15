@@ -181,9 +181,11 @@ test('matching implicit-eligible class with no restrictive flags anywhere passes
 test('physical mirror sources are derived from the distribution inventory', () => {
   const sources = derivePhysicalSources(ROOT);
   assert.deepStrictEqual(sources['legacy-code-characterization'], 'skills/dhpk-legacy-characterization-tests');
-  assert.deepStrictEqual(sources['php56-yii-dev'], 'skills/dhpk-yii1-php56-development');
-  assert.deepStrictEqual(sources['php-pro'], 'skills/dhpk-php-runtime-router');
-  assert.deepStrictEqual(sources['yii1-security-audit'], 'skills/dhpk-yii1-security-audit');
+  assert.deepStrictEqual(sources.yii1, 'skills/yii1');
+  assert.deepStrictEqual(sources.php, 'skills/php');
+  for (const predecessor of ['php56-yii-dev', 'php-pro', 'yii1-security-audit']) {
+    assert.strictEqual(Object.hasOwn(sources, predecessor), false);
+  }
 });
 
 test('physical mirror contract diagnostics name missing fields and fingerprints', () => {

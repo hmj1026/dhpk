@@ -1,4 +1,4 @@
 interface:
   display_name: "Change Verdict"
-  short_description: "Read-only evidence-backed change verdicts"
-  default_prompt: "Use $change-verdict to inspect this change in the appropriate mode and return a read-only evidence-backed verdict."
+  short_description: "Review changes, pending work, and dependency risks"
+  default_prompt: "Use $change-verdict to review this task in the appropriate mode or action. Keep audits read-only; delegate an explicitly requested bounded dependency fix only to an available authorized writer and follow it with independent security review."

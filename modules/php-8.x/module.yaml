@@ -14,5 +14,5 @@ triggers:
     extensions: []
     paths: []
 provides:
-  skills: [dhpk-php-8x-features]
+  skills: [php]
   references: [conditional-features.md]

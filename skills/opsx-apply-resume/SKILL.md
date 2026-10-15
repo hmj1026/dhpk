@@ -1,6 +1,6 @@
 ---
 name: opsx-apply-resume
-argument-hint: '[<change-id>]'
+argument-hint: '[<save-or-resume-task>] [<change-id>]'
 description: 'Save and resume a long-running OpenSpec apply session from a live worktree, preserving optional gates and host-specific handoff artifacts. Not for: starting a new proposal, changing the external OpenSpec workflow, or treating a commit as a prerequisite. Output: a saved/resumed handoff report with lifecycle and next-action evidence.'
 disable-model-invocation: true
 metadata:
@@ -47,11 +47,15 @@ consumer's current working directory unchanged.
 
 ## Workflow
 
-1. Parse an optional `change-id`; priority is argument, latest visible apply
+1. Interpret the requested task: saving current apply progress selects Save;
+   restoring saved progress selects Resume. Optional `save` and `resume`
+   words express the same tasks. With only a change ID, detect the phase.
+   Parse an optional `change-id`; priority is argument, latest visible apply
    invocation, then the Host's native selection prompt. If no change can be
    selected, stop `BLOCKED`.
-2. Run the package-local phase detector with the explicit handoff path. A
-   recent save is a confirmation boundary; `consuming` is a recovery boundary.
+2. Run the package-local phase detector with the explicit handoff path. Honor
+   the requested phase after checking existing state: a recent save is a
+   confirmation boundary; `consuming` is a recovery boundary.
 3. Follow exactly one phase reference. Save writes a new `latest.md`; Resume
    loads it, validates the change, and archives it only after successful
    continuation.

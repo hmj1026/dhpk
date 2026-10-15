@@ -2,16 +2,16 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:0129decc4f364179ac002e916d8afa863df28fb02aa45e75e9964669981e8499`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:bccb30d379f121c82d8f29a1bc1f70f9f9db3a69222c1ca05601aed74c1c2f92`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
 ### `$change-verdict`
 
-摘要：Return an evidence-backed read-only change verdict
-語法：`$change-verdict [--mode=<mode>] [--coverage] [<target>]`
+摘要：Review changes or audit dependencies with bounded explicit fixes
+語法：`$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]`
 呼叫類別：`implicit-eligible`
-最高 authority：`read-only`
+最高 authority：`workspace-write`
 
 輸入：
 - `target` `<target>` (可選, string) — Change, PR, test, document, or risk target
@@ -23,13 +23,22 @@ Actions：
 - `tests` `$change-verdict --mode=tests [--coverage] [<target>]` — Judge test and coverage evidence
 - `docs` `$change-verdict --mode=docs [<target>]` — Judge documentation evidence
 - `risk` `$change-verdict --mode=risk [<target>]` — Judge change-risk evidence
+- `pending` `$change-verdict pending [--files=<paths>]` — Delegate a read-only pending-change review
+- `deps` `$change-verdict deps [--level=<severity>]` — Audit dependency risks without mutation
+- `deps-fix` `$change-verdict deps fix [--level=<severity>]` — Delegate requested bounded dependency remediation then obtain an independent verdict
 
 選項：
 - `mode` `--mode=<mode>` (可選, enum, values=code|pr|security|tests|docs|risk) — Select one verdict mode
 - `coverage` `--coverage` (可選, boolean, default=false) — Include coverage evidence in tests mode
+- `files` `--files=<paths>` (可選, string) — Comma-separated relative pending paths
+- `level` `--level=<severity>` (可選, enum, values=low|moderate|high|critical, default=moderate) — Minimum vulnerability severity
+- `fix` `--fix` (可選, boolean, default=false) — Explicitly request bounded dependency remediation
 
 範例：
 - `$change-verdict --mode=tests --coverage` — Use change verdict with its declared interface
+- `$change-verdict pending --files=src/a.js` — Delegate pending review
+- `$change-verdict deps --level=high` — Audit dependencies without mutation
+- `$change-verdict deps fix` — Request bounded dependency remediation
 
 ### `$code-trace`
 
@@ -75,23 +84,6 @@ Actions：
 
 範例：
 - `$create-pr --dry-run` — Use create pr with its declared interface
-
-### `$dep-audit`
-
-摘要：Audit dependency risks with a separate explicit fix boundary
-語法：`$dep-audit [--level=<severity>] [--fix]`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-Actions：
-- `audit` `$dep-audit` — Audit dependency vulnerabilities and optional fixes
-
-選項：
-- `level` `--level=<severity>` (可選, enum, values=low|moderate|high|critical, default=moderate) — Minimum severity to report
-- `fix` `--fix` (可選, boolean, default=false) — Run the explicitly requested fix operation
-
-範例：
-- `$dep-audit --level=high` — Use dependency audit with its declared interface
 
 ### `$flow-drive`
 

@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for skills/dhpk-opsx-post-observation/scripts/post-obs.sh.
+// Coverage for skills/opsx-apply-resume/scripts/post-obs.sh.
 // Every HTTP call is served by a local curl stub; this suite never uses a network.
 
 const fs = require('node:fs');
@@ -10,7 +10,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'skills', 'dhpk-opsx-post-observation', 'scripts', 'post-obs.sh');
+const SCRIPT = path.join(ROOT, 'skills', 'opsx-apply-resume', 'scripts', 'post-obs.sh');
 
 function makeWorkspace(payloadText = '') {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'post-obs-'));
@@ -94,11 +94,21 @@ test('successful worker health check posts exact payload bytes and deduplicates 
     assert.ok(resultPath.startsWith(workspace.tmpDir + path.sep + 'claude-mem-obs-result.'));
     assert.strictEqual(fs.readFileSync(workspace.resultPathFile, 'utf8'), resultPath);
     assert.ok(!fs.existsSync(resultPath), 'the response temp file must be removed after parsing');
-    assert.strictEqual(
-      fs.readdirSync(workspace.tmpDir).filter((name) => name.startsWith('claude-mem-obs-fp-')).length,
-      1,
-      'the dedup fingerprint must be stored under TMPDIR',
-    );
+    const cacheDirectories = fs.readdirSync(workspace.tmpDir)
+      .filter((name) => name.startsWith('claude-mem-obs-cache-'));
+    assert.strictEqual(cacheDirectories.length, 1, 'dedup must use one private cache directory');
+    const cacheDirectory = path.join(workspace.tmpDir, cacheDirectories[0]);
+    const cacheStat = fs.lstatSync(cacheDirectory);
+    assert.ok(cacheStat.isDirectory() && !cacheStat.isSymbolicLink());
+    assert.strictEqual(cacheStat.mode & 0o777, 0o700, 'cache directory must be private');
+    assert.strictEqual(cacheStat.uid, process.geteuid(), 'cache directory must belong to this user');
+    const cacheFiles = fs.readdirSync(cacheDirectory);
+    assert.strictEqual(cacheFiles.length, 1, 'the fingerprint must be stored in the private cache');
+    const cacheFileStat = fs.lstatSync(path.join(cacheDirectory, cacheFiles[0]));
+    assert.ok(cacheFileStat.isFile() && !cacheFileStat.isSymbolicLink());
+    assert.strictEqual(cacheFileStat.mode & 0o777, 0o600, 'cache entry must be private');
+    assert.strictEqual(cacheFileStat.uid, process.geteuid());
+    assert.strictEqual(cacheFileStat.nlink, 1, 'cache entry must not be hard-linked');
 
     const second = runScript(workspace, [workspace.payloadFile]);
     assert.strictEqual(second.status, 0, second.stderr);

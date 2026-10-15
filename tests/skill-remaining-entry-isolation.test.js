@@ -19,8 +19,8 @@ const ROOT = path.join(__dirname, '..');
 const FIXTURES = registerRemainingFixtures();
 
 const EXPECTED_ENTRIES = Object.freeze({
-  'remaining-ios-iconify-generate': ['ios-icon-gen', 'scripts/iconify_gen.sh'],
-  'remaining-ios-swift-list': ['ios-icon-gen', 'scripts/generate_icons.swift'],
+  'remaining-ios-iconify-generate': ['swift', 'scripts/iconify_gen.sh'],
+  'remaining-ios-swift-list': ['swift', 'scripts/generate_icons.swift'],
   'remaining-code-trace-analyze-function-calls': ['code-trace', 'scripts/diagnose/analyze-function-calls.sh'],
   'remaining-code-trace-check-tools-unavailable': ['code-trace', 'scripts/diagnose/check-tools.sh'],
   'remaining-code-trace-find-polluter-multi-file': ['code-trace', 'scripts/diagnose/find-polluter.sh'],

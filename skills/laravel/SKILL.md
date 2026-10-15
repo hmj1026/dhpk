@@ -1,6 +1,6 @@
 ---
 name: laravel
-description: 'Laravel framework guidance across 5.4, 6, 7, 8, 9, 10, 11, and optional Mix 5. Use when implementing or reviewing framework-touching Laravel code, planning an upgrade, or debugging a version-specific build. Not for Symfony, Yii, or frontend-only work; use dhpk-php-runtime-router for runtime selection. Output: one selected Laravel or Mix reference, compatibility constraints, and verification gates.'
+description: 'Laravel framework guidance across 5.4, 6, 7, 8, 9, 10, 11, and optional Mix 5. Use when implementing or reviewing framework-touching Laravel code, planning an upgrade, or debugging a version-specific build. Not for Symfony, Yii, or frontend-only work; use php for runtime selection. Output: one selected Laravel or Mix reference, compatibility constraints, and verification gates.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -55,7 +55,7 @@ an ask result has none.
 
 ## When NOT to Use
 
-- Use `dhpk-php-runtime-router` for Symfony, Yii, or general PHP runtime
+- Use `php` for Symfony, Yii, or general PHP runtime
   selection that is not Laravel-specific.
 - Use framework-neutral guidance for frontend-only work; select `mix` only
   when the project owns the Laravel Mix pipeline described above.

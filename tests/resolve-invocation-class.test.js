@@ -37,7 +37,7 @@ test('resolves a paired explicit-only command from a namespaced route target', (
 });
 
 test('resolves an implicit-eligible skill from a namespaced route target', () => {
-  assert.strictEqual(resolveInvocationClass(ROOT, 'dhpk:review-pending'), 'implicit-eligible');
+  assert.strictEqual(resolveInvocationClass(ROOT, 'dhpk:change-verdict'), 'implicit-eligible');
 });
 
 test('recognizes an existing agent route without treating it as a Skill-tool invocation class', () => {

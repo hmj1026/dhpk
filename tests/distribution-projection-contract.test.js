@@ -714,7 +714,7 @@ test('plans can derive the ownership binding from an inventory without changing 
   const ROOT = path.join(__dirname, '..');
 
   const priorInventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
-  const canonicalSourcePath = path.join(ROOT, 'skills', 'dhpk-fastapi-pro', 'SKILL.md');
+  const canonicalSourcePath = path.join(ROOT, 'skills', 'python', 'references', 'fastapi.md');
   const canonicalSourceBytesBeforeGeneration = fs.readFileSync(canonicalSourcePath);
   const priorGenerated = generateClaudeSkillRoots(priorInventory);
 
@@ -730,13 +730,13 @@ test('plans can derive the ownership binding from an inventory without changing 
     return snapshot;
   }
 
-  // Simulate a later change: deprecate fastapi's only skill. The v2 topology
+  // Simulate a later change: deprecate the Python family skill. The v2 topology
   // registers one flat Claude root, so the root remains while the generated
   // promoted skill-id set drops the deprecated entry.
   const laterInventory = JSON.parse(JSON.stringify(priorInventory));
-  const fastapiSkill = laterInventory.skills.find((s) => s.id === 'fastapi-pro');
-  fastapiSkill.lifecycle = 'deprecated';
-  fastapiSkill.deprecation = {
+  const pythonSkill = laterInventory.skills.find((s) => s.id === 'python');
+  pythonSkill.lifecycle = 'deprecated';
+  pythonSkill.deprecation = {
     since: '2026-07-27',
     compatibilityWindowEnds: '2026-10-27',
     migrationNote: 'Rollback-proof fixture only — not a real deprecation.',
@@ -746,8 +746,8 @@ test('plans can derive the ownership binding from an inventory without changing 
   test('the later (deprecated) inventory revision drops the skill from promotion without removing the flat root', () => {
     assert.ok(priorGenerated.roots.includes('./skills/'));
     assert.ok(laterGenerated.roots.includes('./skills/'));
-    assert.ok(priorGenerated.generatedSkillIds.includes('fastapi-pro'));
-    assert.ok(!laterGenerated.generatedSkillIds.includes('fastapi-pro'));
+    assert.ok(priorGenerated.generatedSkillIds.includes('python'));
+    assert.ok(!laterGenerated.generatedSkillIds.includes('python'));
   });
 
   test('rollback: regenerating from the prior revision again reproduces the original root set, without any canonical source having been touched', () => {
@@ -755,7 +755,7 @@ test('plans can derive the ownership binding from an inventory without changing 
 
     const rolledBackGenerated = generateClaudeSkillRoots(priorInventory);
     assert.deepStrictEqual(fs.readFileSync(canonicalSourcePath), canonicalSourceBytesBeforeGeneration);
-    assert.ok(rolledBackGenerated.generatedSkillIds.includes('fastapi-pro'));
+    assert.ok(rolledBackGenerated.generatedSkillIds.includes('python'));
     assert.deepStrictEqual(rolledBackGenerated, priorGenerated);
     assert.ok(rolledBackGenerated.roots.includes('./skills/'));
     assert.notDeepStrictEqual(rolledBackGenerated.generatedSkillIds, laterGenerated.generatedSkillIds);

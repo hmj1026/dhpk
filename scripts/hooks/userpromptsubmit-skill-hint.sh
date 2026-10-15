@@ -123,6 +123,7 @@ case "$HINT" in
     MATCH$'\t'*)
         skill="$(printf '%s' "$HINT" | cut -f2)"
         label="$(printf '%s' "$HINT" | cut -f3)"
+        skill_action="$(printf '%s' "$HINT" | cut -s -f4)"
         [ -z "$label" ] && label="$skill"
         if [ -n "$skill" ]; then
             # MATCH field 2 is target.id (kebab, no dhpk:/agent: prefix). Resolve
@@ -133,10 +134,30 @@ case "$HINT" in
                 invocation_class="$(CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" node "$PLUGIN_ROOT/scripts/lib/resolve-invocation-class.js" "agent:$skill" 2>/dev/null || true)"
             fi
             bare_skill="${skill#dhpk:}"
+            routed_command="/dhpk:$bare_skill"
+            if [ -n "$skill_action" ]; then
+                routed_command="$(node - "$PLUGIN_ROOT/skills/flow-guide/scripts/route-result.js" "$PROMPT" "${DHPK_ROUTE_TABLE:-}" "$skill_action" <<'NODE' 2>/dev/null
+'use strict';
+const [modulePath, prompt, tablePath, skillAction] = process.argv.slice(2);
+const { createRouteResult, validateRouteResult } = require(modulePath);
+const result = createRouteResult({
+  argv: [prompt],
+  ...(tablePath ? { routeTablePath: tablePath } : {}),
+});
+validateRouteResult(result);
+if (result.target && result.target.skillAction === skillAction
+  && result.disposition !== 'blocked' && result.disposition !== 'unavailable'
+  && result.target.command.startsWith('$')) {
+  process.stdout.write('/dhpk:' + result.target.command.slice(1));
+}
+NODE
+)"
+                [ -z "$routed_command" ] && exit 0
+            fi
             case "$invocation_class" in
                 explicit-only)
                     emit_additional_context "UserPromptSubmit" \
-                        "[skill-hint] This prompt looks like a $label task — run /dhpk:$bare_skill directly; do not call the generic Skill tool."
+                        "[skill-hint] This prompt looks like a $label task — run $routed_command directly; do not call the generic Skill tool."
                     ;;
                 agent)
                     emit_additional_context "UserPromptSubmit" \
@@ -144,7 +165,7 @@ case "$HINT" in
                     ;;
                 implicit-eligible)
                     emit_additional_context "UserPromptSubmit" \
-                        "[skill-hint] This prompt looks like a $label task — the /dhpk:$bare_skill workflow may fit. Suggest it (or run it) if appropriate."
+                        "[skill-hint] This prompt looks like a $label task — the $routed_command workflow may fit. Suggest it (or run it) if appropriate."
                     ;;
                 *)
                     # Missing or malformed canonical metadata fails closed. The
