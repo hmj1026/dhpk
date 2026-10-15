@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
       - id: plan
@@ -36,7 +36,7 @@ jobs:
         run: |
           node scripts/ci/ci-plan.js plan --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA" --checkout-sha "$CHECKOUT_SHA" --base-ref "$BASE_REF" --out "$RUNNER_TEMP/ci-plan.json" --github-output "$GITHUB_OUTPUT"
       - name: Upload complete CI plan
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/ci-plan.json
@@ -53,7 +53,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: needs.plan.outputs.mode == 'light'
         with:
           node-version: '24'
@@ -61,14 +61,14 @@ jobs:
         if: needs.plan.outputs.mode != 'light'
 
       - name: Download complete CI plan
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/dhpk-ci-plan
 
       - name: Validate workflow syntax
         if: needs.plan.outputs.mode == 'full'
-        uses: reviewdog/action-actionlint@1758727be30241166609dad4c97588b6ad411f32 # v1.79.1
+        uses: reviewdog/action-actionlint@a8ac3eea598697a830f7d8e701fc9fcbfde88974 # v1.80.0
         with:
           actionlint_flags: -color
           fail_level: error
@@ -182,7 +182,7 @@ jobs:
       - uses: ./.github/actions/setup-dhpk-test-env
 
       - name: Download complete CI plan
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/dhpk-ci-plan
@@ -217,7 +217,7 @@ jobs:
 
       - name: Upload test shard timing evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
           path: ${{ runner.temp }}/dhpk-test-timing.json
@@ -235,12 +235,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
       - name: Download complete CI plan
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/dhpk-ci-plan
@@ -274,14 +274,14 @@ jobs:
 
       - name: Download full test timing evidence
         if: needs.plan.outputs.mode == 'full'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-*
           path: ${{ runner.temp }}/dhpk-test-shards
 
       - name: Download selected test timing evidence
         if: needs.plan.outputs.mode == 'selected'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-0
           path: ${{ runner.temp }}/dhpk-test-shards/dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-0
@@ -305,7 +305,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
