@@ -452,7 +452,7 @@ test('checked-in common collection is the curated fourteen-entry default', () =>
   const expected = [
     'flow-guide', 'code-trace', 'change-verdict', 'flow-drive', 'git-smart-commit',
     'release-creator', 'tdd', 'create-pr', 'git-worktree', 'proposal-analyze',
-    'update-docs', 'precommit', 'repo-verify', 'ui-ux-verify',
+    'doc-maintain', 'precommit', 'repo-verify', 'ui-ux-verify',
   ];
   const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog });
   assert.strictEqual(result.ok, true, result.error && result.error.message);

@@ -14,7 +14,7 @@ are outputs under that root.
 
 ## When NOT to Use
 
-- The request is to update user or agent guides: use `$$doc-maintain mode `update``.
+- The request is to update user or agent guides: use `$doc-maintain update`.
 - Application source, tests, manifests, route rules, or runtime projections
   need editing: stop and hand off to their owner.
 - An existing codemap would change by more than 30% without confirmation:

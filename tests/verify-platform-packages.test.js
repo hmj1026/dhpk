@@ -59,7 +59,7 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       const report = JSON.parse(result.stdout);
       const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
         && byId.get(entry.id).surfaces.includes(surface)).map((entry) => entry.id);
-      assert.deepStrictEqual(hostOnlyIds.sort(), surface === 'codex-native' ? ['opsx-apply-resume'] : []);
+      assert.deepStrictEqual(hostOnlyIds.sort(), surface === 'codex-native' ? ['library-author', 'opsx-apply-resume'] : []);
       const expectedPhysicalIds = [...new Set([...commonIds, ...hostOnlyIds, ...inventory.internal_runtime_skills[surface]])].sort();
       assert.strictEqual(report.skillCount, expectedPhysicalIds.length, `${surface} must retain its declared physical entries`);
       assert.deepStrictEqual(fs.readdirSync(path.join(output, 'skills')).sort(), expectedPhysicalIds.map((id) => byId.get(id).name).sort());

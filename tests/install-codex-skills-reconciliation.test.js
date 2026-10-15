@@ -1374,7 +1374,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
 
     const first = runInstaller(
       scratch,
-      ['--copy', '--force', '--skill', 'code-simplify', '--skill', 'doc-maintain'],
+      ['--copy', '--force', '--skill', 'code-simplify', '--skill', 'js-static-checks'],
       fakePlugin,
     );
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
@@ -1391,7 +1391,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
       return entry.name;
     };
     const retired = skillName('code-simplify');
-    const modifiedRetired = skillName('doc-maintain');
+    const modifiedRetired = skillName('js-static-checks');
     const updated = skillName('flow-guide');
     const collision = skillName('tdd');
     const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills'));

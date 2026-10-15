@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:9c94f6cd4ecb19acae67da0bed18051b3d152172f0378ff73a79649aa2ab9131`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:96d01f6f6b5cc2704b82cb862c4bd131665ff1d8712c63faf1c29dc9facd6921`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -192,27 +192,6 @@ Options:
 
 Examples:
 - `$git-worktree list` — Use git worktree with its declared interface
-
-### `$library-author`
-
-Summary: Mode-specific library-author workflows
-Syntax: `$library-author <task | mode> <target>`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Inputs:
-- `task` `<task | mode>` (required, string) — Natural-language task or explicit mode
-
-Actions:
-- `author` `$library-author author <target>` — author workflow
-- `testbench` `$library-author testbench <target>` — testbench workflow
-- `composer` `$library-author composer <target>` — composer workflow
-- `polyfill-audit` `$library-author polyfill-audit <target>` — polyfill-audit workflow
-- `suite-map` `$library-author suite-map <target>` — suite-map workflow
-- `cell-onboard` `$library-author cell-onboard <target>` — cell-onboard workflow
-
-Examples:
-- `$library-author author provider design` — Run the selected mode
 
 ### `$precommit`
 
