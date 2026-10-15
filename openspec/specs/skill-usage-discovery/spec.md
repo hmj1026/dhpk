@@ -76,15 +76,19 @@ inputs, input kind, actions, options, enum values, legacy markers, examples,
 invocation class, maximum effect authority, and the evidence state of the
 generated catalog. Help SHALL not load the target skill's procedural
 references, invoke the target, or grant authority. An unknown name and a
-known non-Codex skill SHALL produce distinct diagnostics.
+known non-Codex skill SHALL produce distinct diagnostics. The Flow Drive
+grammar cutover in this requirement is tracked as `REQ-FDU-001` without
+renaming the existing requirement.
 
 #### Scenario: User requests one usage card
 
 - **WHEN** a user invokes `$flow-guide help flow-drive`
-- **THEN** the result returns the Worker Selector syntax,
-  `--worker-target=<provider>/<model>[:<effort>]`, bounded retired-option
-  diagnostics, and explicit-only authority without loading implementation
-  procedures
+- **THEN** the result returns the unified worker selector and exact-target syntax, reasoner target syntax, cross intent limited to auto candidates, plan scope, architect three-state selection, and explicit-only authority without loading implementation procedures
+
+#### Scenario: Removed Flow Drive options have no compatibility route
+
+- **WHEN** a removed Flow Drive option or value is queried or supplied
+- **THEN** an unknown or removed-input diagnostic shows the current grammar and never routes through an alias; retired-option diagnostics for other Skills retain their existing contracts
 
 #### Scenario: Usage card exposes enum values
 

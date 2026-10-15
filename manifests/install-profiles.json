@@ -130,7 +130,6 @@
       ],
       "skillIds": [
         "flow-guide",
-        "agy-fast-worker",
         "code-trace",
         "change-verdict",
         "composer-package-hygiene",
@@ -199,7 +198,6 @@
       "modules": [],
       "skillIds": [
         "flow-guide",
-        "agy-fast-worker",
         "code-trace",
         "change-verdict",
         "composer-package-hygiene",
