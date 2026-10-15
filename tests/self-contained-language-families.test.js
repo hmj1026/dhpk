@@ -6,10 +6,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { test: registerTest, run } = require('./_lib/tinytest');
 const root = path.resolve(__dirname, '..');
 const only = process.argv[2];
-let passed = 0;
-function test(name, fn) { if (!only || name.startsWith(only)) { fn(); passed++; console.log(`PASS ${name}`); } }
+function test(name, fn) { if (!only || name.startsWith(only)) registerTest(name, fn); }
 function relocated(family, fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-${family}-`));
   const copy = path.join(dir, family);
@@ -92,4 +92,5 @@ for (const [family, required] of Object.entries({ swift: 'references/testing.md'
     assert.throws(() => closure(copy), /external link/);
   }));
 }
-console.log(`${passed} focused checks passed; Host instruction behavior NOT_RUN by this test.`);
+console.log('Host instruction behavior NOT_RUN by this test.');
+run('self-contained-language-families');

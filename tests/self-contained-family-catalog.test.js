@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const test = require('node:test');
+const { test, run } = require('./_lib/tinytest');
 
 const root = path.resolve(__dirname, '..');
 const read = name => JSON.parse(fs.readFileSync(path.join(root, 'manifests', `${name}.json`), 'utf8'));
@@ -63,3 +63,5 @@ test('SCFREQ006: resource declarations and isolation coverage match family ident
     assert.equal(coverage[id].entry, 'SKILL.md');
   }
 });
+
+run('self-contained-family-catalog');

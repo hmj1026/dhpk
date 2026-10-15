@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const test = require('node:test');
+const { test, run } = require('./_lib/tinytest');
 const { withIsolatedSkill } = require('./_lib/skill-directory-isolation');
 
 const source = path.resolve(__dirname, '../skills/change-verdict');
@@ -76,3 +76,5 @@ test('change-verdict resource selection rejects parent-path escape', () => {
     assert.fail('escaping candidate must not execute');
   }), /resource escapes the Skill boundary/);
 });
+
+run('self-contained-verdict-family');

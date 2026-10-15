@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { test } = require('node:test');
+const { test, run } = require('./_lib/tinytest');
 
 const repository = path.resolve(__dirname, '..');
 const resources = {
@@ -68,3 +68,5 @@ for (const [family, expected] of Object.entries(resources)) {
     }
   });
 }
+
+run('self-contained-frontend-families');
