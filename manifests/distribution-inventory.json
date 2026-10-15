@@ -3305,12 +3305,9 @@
     "adapter": "agy-agent-frontmatter-v1",
     "transform": "agy-agent-frontmatter-v1",
     "agents": [
-      "agy-fast-worker.md",
       "agy-worker.md",
       "architect.md",
       "code-reviewer.md",
-      "codex-deep-reasoner.md",
-      "codex-fast-worker.md",
       "codex-reasoner.md",
       "codex-reviewer.md",
       "codex-worker.md",

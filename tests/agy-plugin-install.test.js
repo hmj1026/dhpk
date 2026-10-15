@@ -24,6 +24,15 @@ const { test, run, assert } = require('./_lib/tinytest');
 
   const COMMIT = 'b'.repeat(40);
 
+  test('canonical AGY package agent selections resolve to existing source files', () => {
+    const root = path.join(__dirname, '..');
+    const inventory = require('../manifests/distribution-inventory.json');
+    const missing = inventory.agy_plugin.agents.filter((agent) =>
+      !fs.existsSync(path.join(root, 'agents', agent)));
+
+    assert.deepStrictEqual(missing, [], 'AGY package selections must resolve before materialization');
+  });
+
   function tmp() {
     return fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-install-test-'));
   }

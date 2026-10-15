@@ -255,4 +255,17 @@ test('shared catalog and legacy request interfaces reject retired roles', () => 
   }
 });
 
+test('AGY package agent selection contains canonical successors without retired forwarders', () => {
+  const inventory = require('../manifests/distribution-inventory.json');
+  const agents = inventory.agy_plugin.agents;
+
+  for (const role of RETIRED_ROLES) {
+    assert.ok(!agents.includes(`${role.name}.md`), `${role.name} must leave AGY package selection`);
+    assert.strictEqual(agents.filter((agent) => agent === `${role.successor}.md`).length, 1,
+      `${role.successor} must appear exactly once in AGY package selection`);
+    assert.ok(fs.existsSync(path.join(ROOT, 'agents', `${role.successor}.md`)),
+      `${role.successor} must resolve to a canonical source agent`);
+  }
+});
+
 run('library-doc-forwarder-retirement');
