@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:9c94f6cd4ecb19acae67da0bed18051b3d152172f0378ff73a79649aa2ab9131`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:96d01f6f6b5cc2704b82cb862c4bd131665ff1d8712c63faf1c29dc9facd6921`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
@@ -192,27 +192,6 @@ Actions：
 
 範例：
 - `$git-worktree list` — Use git worktree with its declared interface
-
-### `$library-author`
-
-摘要：Mode-specific library-author workflows
-語法：`$library-author <task | mode> <target>`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `task` `<task | mode>` (必要, string) — Natural-language task or explicit mode
-
-Actions：
-- `author` `$library-author author <target>` — author workflow
-- `testbench` `$library-author testbench <target>` — testbench workflow
-- `composer` `$library-author composer <target>` — composer workflow
-- `polyfill-audit` `$library-author polyfill-audit <target>` — polyfill-audit workflow
-- `suite-map` `$library-author suite-map <target>` — suite-map workflow
-- `cell-onboard` `$library-author cell-onboard <target>` — cell-onboard workflow
-
-範例：
-- `$library-author author provider design` — Run the selected mode
 
 ### `$precommit`
 

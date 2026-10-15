@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:9c94f6cd4ecb19acae67da0bed18051b3d152172f0378ff73a79649aa2ab9131",
+  "sourceInventoryRevision": "sha256:96d01f6f6b5cc2704b82cb862c4bd131665ff1d8712c63faf1c29dc9facd6921",
   "entries": [
     {
       "id": "change-verdict",
@@ -750,79 +750,6 @@
       "usageFingerprint": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689"
     },
     {
-      "id": "library-author",
-      "name": "library-author",
-      "usage": {
-        "display_name": "Library Author",
-        "summary": "Mode-specific library-author workflows",
-        "syntax": "$library-author <task | mode> <target>",
-        "input_kind": "free-text",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "task",
-            "syntax": "<task | mode>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Natural-language task or explicit mode"
-          }
-        ],
-        "actions": [
-          {
-            "id": "author",
-            "summary": "author workflow",
-            "syntax": "$library-author author <target>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "testbench",
-            "summary": "testbench workflow",
-            "syntax": "$library-author testbench <target>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "composer",
-            "summary": "composer workflow",
-            "syntax": "$library-author composer <target>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "polyfill-audit",
-            "summary": "polyfill-audit workflow",
-            "syntax": "$library-author polyfill-audit <target>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "suite-map",
-            "summary": "suite-map workflow",
-            "syntax": "$library-author suite-map <target>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "cell-onboard",
-            "summary": "cell-onboard workflow",
-            "syntax": "$library-author cell-onboard <target>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$library-author author provider design",
-            "summary": "Run the selected mode"
-          }
-        ]
-      },
-      "usageFingerprint": "14052ef1f5adf7dd51882e8c59f8f4db9d927d9c064e34a5e788f4619f3b7948"
-    },
-    {
       "id": "precommit",
       "name": "precommit",
       "usage": {
@@ -1115,7 +1042,7 @@
       "usageFingerprint": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd"
     }
   ],
-  "sourceSelectionDigest": "1ca345a3669a2aa1ffb9d52799c53015b2c8e5330a9a5833ce60c5dc0132a98c",
+  "sourceSelectionDigest": "4be71fd7150e3946d7d48f90b0690f6eabcd1d245a4305534434d29261cfbeaf",
   "runtimeIndex": {
     "targets": {
       "change-verdict": {
@@ -1275,16 +1202,8 @@
         "id": "library-author",
         "publicName": "library-author",
         "invocationClass": "implicit-eligible",
-        "command": "$library-author <task | mode> <target>",
-        "codexInvokable": true,
-        "actions": {
-          "author": "$library-author author <target>",
-          "testbench": "$library-author testbench <target>",
-          "composer": "$library-author composer <target>",
-          "polyfill-audit": "$library-author polyfill-audit <target>",
-          "suite-map": "$library-author suite-map <target>",
-          "cell-onboard": "$library-author cell-onboard <target>"
-        }
+        "command": "$library-author <input>",
+        "codexInvokable": false
       },
       "merge-prep": {
         "id": "merge-prep",

@@ -661,7 +661,7 @@
       "sourcePath": "skills/doc-maintain/references/codemap.md",
       "destination": "skills/doc-maintain/references/codemap.md",
       "kind": "entry",
-      "sha256": "be6273bf84b199e27a83f580a23922bbaf4a10cdfed3678fc42daf755fb0061a"
+      "sha256": "b0fd62e87b9a94ebc7f51a59666eed9904d2cd877541de0494ddb020657ea508"
     },
     {
       "skillId": "doc-maintain",
@@ -677,7 +677,7 @@
       "sourcePath": "skills/doc-maintain/references/update.md",
       "destination": "skills/doc-maintain/references/update.md",
       "kind": "entry",
-      "sha256": "6303e1066030b5444d93392a6fdb1f98f8d4cb5d584ad32adf963cd0d6ddb4c5"
+      "sha256": "1e20ae9fbe43acbf8b7c73b9fc0b8d2173239256acf15ae0548945667fd5b508"
     },
     {
       "skillId": "flow-drive",
@@ -2109,7 +2109,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "3a0101360d48d372c4719b6a290522203a63ee7ab774aff374054ecfa7c45807"
+      "sha256": "add79663ae4b0e621369e4f93432578d1f521d24cb4b71d56d923113566360c3"
     },
     {
       "skillId": "flow-guide",
@@ -2693,7 +2693,7 @@
       "sourcePath": "skills/harness-setup/data/module-catalog.json",
       "destination": "skills/harness-setup/data/module-catalog.json",
       "kind": "entry",
-      "sha256": "2d0f60381e9e42a101e2ad41ee8c9790f4ac3a1fa7dc2a3e2346788be69e65a4"
+      "sha256": "cda7d094760ea54005c7cc2e350c5c8f7ab742790e455e02a87824959f64e1d5"
     },
     {
       "skillId": "harness-setup",

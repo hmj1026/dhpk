@@ -12,7 +12,7 @@ actual `$ARGUMENTS` from the invocation and keep the documented output boundary.
 
 ## When NOT to Use
 
-- Codemap generation is the goal: use `$$doc-maintain mode `codemap``.
+- Codemap generation is the goal: use `$doc-maintain codemap`.
 - A policy, link, or frontmatter verdict is needed: use a read-only document
   review workflow.
 - External-library research is needed: use the repository’s documentation
