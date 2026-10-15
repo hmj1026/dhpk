@@ -71,6 +71,8 @@ const PORTABLE_FAMILY_NAMES = Object.freeze([
   'js-static-checks',
   'php',
   'yii1',
+  'library-author',
+  'doc-maintain',
 ]);
 const CAPABILITY_FAMILY_RETIREMENTS = Object.freeze({
   'skill-health-check': Object.freeze({ family: 'skill-scope', mode: 'health' }),
@@ -927,6 +929,9 @@ function validateRenamedSkillNames({ inventory } = {}) {
   const activeById = new Map(activeSkills
     .filter((entry) => entry && typeof entry.id === 'string')
     .map((entry) => [entry.id, entry]));
+  const retiredById = new Map((Array.isArray(inventory.retired_skills) ? inventory.retired_skills : [])
+    .filter((entry) => entry && typeof entry.id === 'string')
+    .map((entry) => [entry.id, { name: entry.name, path: entry.canonicalPath }]));
   const fixedRows = { ...RENAMED_SKILL_NAMES_054, ...RENAMED_SKILL_NAMES_0624 };
   const fixedIds = Object.keys(fixedRows);
   const activeFixedIds = fixedIds.filter((id) => {
@@ -977,9 +982,9 @@ function validateRenamedSkillNames({ inventory } = {}) {
       if (!allowedFields.has(field)) errors.push(`${prefix} ${row.id || '<unknown>'} has unknown field '${field}'`);
     }
     const id = row.id;
-    const active = typeof id === 'string' ? activeById.get(id) : undefined;
+    const active = typeof id === 'string' ? (activeById.get(id) || retiredById.get(id)) : undefined;
     if (typeof id !== 'string' || id.trim() === '' || !active) {
-      errors.push(`${prefix} has unexpected stable id '${id || '<missing>'}'; must reference an active stable id`);
+      errors.push(`${prefix} has unexpected stable id '${id || '<missing>'}'; must reference an active or retired stable id`);
       return;
     }
     if (seenIds.has(id)) errors.push(`duplicate renamed skill id: ${id}`);
@@ -1605,8 +1610,7 @@ function resolveSkillIdentity({ inventory, identifier } = {}) {
   ));
   if (renamed) {
     const canonical = skills.find((entry) => entry && entry.id === renamed.id);
-    if (!canonical) return { state: 'unknown', identifier };
-    return {
+    if (canonical) return {
       state: 'renamed',
       stableId: canonical.id,
       publicName: canonical.name || renamed.newName,
@@ -1621,6 +1625,7 @@ function resolveSkillIdentity({ inventory, identifier } = {}) {
   const retiredEntry = retired.find((entry) => entry && (
     entry.id === identifier
     || entry.name === identifier
+    || (renamed && entry.id === renamed.id)
   ));
   if (retiredEntry) {
     return {
@@ -1680,7 +1685,8 @@ function formatSkillIdentityDiagnostic({ inventory, resolution } = {}) {
     return `${replacement.kind} ${identity}${mode}`;
   });
   const guidance = replacements.length > 0 ? replacements.join(', ') : 'no successor guidance';
-  return `run-skill: skill '${resolution.publicName || resolution.stableId}' retired in ${resolution.retiredIn || 'an earlier release'} (reason: ${resolution.reasonCode || 'unspecified'}); use ${guidance}.`;
+  const rollback = retiredEntry.rollback && retiredEntry.rollback.release;
+  return `run-skill: skill '${resolution.publicName || resolution.stableId}' retired in ${resolution.retiredIn || 'an earlier release'} (reason: ${resolution.reasonCode || 'unspecified'}); use ${guidance}.${rollback ? ` Rollback: pin release ${rollback}.` : ''}`;
 }
 
 function validateSurfaceMembership({ inventory, ids: skillIds = new Set() }) {

@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:bccb30d379f121c82d8f29a1bc1f70f9f9db3a69222c1ca05601aed74c1c2f92`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:9c94f6cd4ecb19acae67da0bed18051b3d152172f0378ff73a79649aa2ab9131`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -84,6 +84,24 @@ Options:
 
 Examples:
 - `$create-pr --dry-run` — Use create pr with its declared interface
+
+### `$doc-maintain`
+
+Summary: Mode-specific doc-maintain workflows
+Syntax: `$doc-maintain <task | mode> <target>`
+Invocation class: `implicit-eligible`
+Maximum authority: `workspace-write`
+
+Inputs:
+- `task` `<task | mode>` (required, string) — Natural-language task or explicit mode
+
+Actions:
+- `update` `$doc-maintain update <target>` — update workflow
+- `codemap` `$doc-maintain codemap <target>` — codemap workflow
+- `refactor` `$doc-maintain refactor <target>` — refactor workflow
+
+Examples:
+- `$doc-maintain update docs/guide.md` — Run the selected mode
 
 ### `$flow-drive`
 
@@ -174,6 +192,27 @@ Options:
 
 Examples:
 - `$git-worktree list` — Use git worktree with its declared interface
+
+### `$library-author`
+
+Summary: Mode-specific library-author workflows
+Syntax: `$library-author <task | mode> <target>`
+Invocation class: `implicit-eligible`
+Maximum authority: `workspace-write`
+
+Inputs:
+- `task` `<task | mode>` (required, string) — Natural-language task or explicit mode
+
+Actions:
+- `author` `$library-author author <target>` — author workflow
+- `testbench` `$library-author testbench <target>` — testbench workflow
+- `composer` `$library-author composer <target>` — composer workflow
+- `polyfill-audit` `$library-author polyfill-audit <target>` — polyfill-audit workflow
+- `suite-map` `$library-author suite-map <target>` — suite-map workflow
+- `cell-onboard` `$library-author cell-onboard <target>` — cell-onboard workflow
+
+Examples:
+- `$library-author author provider design` — Run the selected mode
 
 ### `$precommit`
 
@@ -280,19 +319,3 @@ Actions:
 
 Examples:
 - `$ui-ux-verify spec:openspec/changes/example/spec.md` — Use ui ux verify with its declared interface
-
-### `$update-docs`
-
-Summary: Update a bounded user or agent document from live evidence
-Syntax: `$update-docs <docs-path-or-workflow-keyword>`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Inputs:
-- `target` `<docs-path-or-workflow-keyword>` (required, string) — Documentation path or workflow keyword
-
-Actions:
-- `update` `$update-docs <docs-path-or-workflow-keyword>` — Update owned documentation and its locale pair
-
-Examples:
-- `$update-docs docs/configuration.md` — Use update docs with its declared interface

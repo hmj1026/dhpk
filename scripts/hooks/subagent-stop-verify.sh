@@ -77,7 +77,7 @@ remove_matching_active_entry() {
 SUBAGENT="$(extract_subagent_name "$PAYLOAD")"
 
 case "${SUBAGENT##*:}" in
-    fast-worker|codex-fast-worker|agy-fast-worker|codex-worker|agy-worker)
+    fast-worker|codex-worker|agy-worker)
         remove_matching_active_entry "$SESS/$DHPK_SIDECAR_FAST_WORKER_ACTIVE" "$SUBAGENT"
         ;;
 esac

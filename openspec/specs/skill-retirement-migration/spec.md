@@ -262,3 +262,97 @@ old path `skills/dhpk-phpunit`, new public name `phpunit`, new path
 - **WHEN** a generator, installer, receipt, or discovery manifest emits
   `dhpk-laravel` or `dhpk-phpunit` as an active alias after cutover
 - **THEN** validation fails and reports the rename row and emitted alias
+
+### Requirement: Wave-2 library, documentation, and forwarder identities retire without aliases
+
+REQ-4, REQ-5, REQ-7, REQ-8: The retirement ledger SHALL record exactly the
+following approved retirements with former public name, canonical path, prior
+surfaces, then-current retirement release explicitly frozen in W0 before
+ledger or retirement work, reason, rollback pin `0.66.1`,
+and one replacement row. No predecessor skill directory, agent file, generated
+alias package, command alias, routing alias, or discovery entry SHALL remain
+after cutover. Dhpk-owned dispatch, helper, package, and installation
+interfaces that intercept a retired stable ID, public name, or role name SHALL
+reject it with a stable retirement diagnostic and successor guidance. Unknown
+identifiers SHALL remain distinguishable from retired identifiers. Canonical
+deletion SHALL occur only after each successor owns the migrated unique
+behavior, every live route and reference resolves to an active identity,
+repository reference validation passes, inventory generation preserves the
+retirement ledger, and generated surfaces contain neither the retired package
+nor a discovery alias. Rollback SHALL pin release `0.66.1` rather than restore
+an alias. This set SHALL NOT alter the historical 21-ID `0.54.0` ledger or
+the SCF 25-ID personal-replacement mapping.
+
+Skill replacements:
+
+| Retired stable ID | Successor kind | Successor identity and mode | Reason |
+|---|---|---|---|
+| `laravel-package-author` | `skill` | `library-author`, mode `author` | `library-doc-family-consolidation` |
+| `laravel-testbench-matrix` | `skill` | `library-author`, mode `testbench` | `library-doc-family-consolidation` |
+| `composer-package-hygiene` | `skill` | `library-author`, mode `composer` | `library-doc-family-consolidation` |
+| `polyfill-version-matrix-audit` | `skill` | `library-author`, mode `polyfill-audit` | `library-doc-family-consolidation` |
+| `library-dual-testsuite-map` | `skill` | `library-author`, mode `suite-map` | `library-doc-family-consolidation` |
+| `matrix-cell-onboard` | `skill` | `library-author`, mode `cell-onboard` | `library-doc-family-consolidation` |
+| `update-docs` | `skill` | `doc-maintain`, mode `update` | `library-doc-family-consolidation` |
+| `update-codemaps` | `skill` | `doc-maintain`, mode `codemap` | `library-doc-family-consolidation` |
+| `doc-refactor` | `skill` | `doc-maintain`, mode `refactor` | `library-doc-family-consolidation` |
+
+Agent replacements:
+
+| Retired identity | Successor kind | Successor identity | Reason |
+|---|---|---|---|
+| `agy-fast-worker` | `agent` | `agy-worker` | `elapsed-one-release-forwarder` |
+| `codex-fast-worker` | `agent` | `codex-worker` | `elapsed-one-release-forwarder` |
+| `codex-deep-reasoner` | `agent` | `codex-reasoner` | `elapsed-one-release-forwarder` |
+
+Live-route closure before deletion includes inventory, install profiles,
+marketplace selection, command-skill dispositions, skill-directory coverage,
+skill-resources and skill-resource-copies, profile-projection-sets, skills
+index, route-table, generated flow-guide usage catalog, generated provenance
+embeddings, and pointers in `polyfill-reviewer`, `version-matrix-impact-reviewer`,
+and `doc-updater`. Regeneration of `generated/` SHALL follow the plugin
+development clean-checkout preflight. Unrelated retirement ledgers, external
+packages, receipt-owned conflicts, and keep-separate identities SHALL remain
+intact. Static catalog reduction SHALL NOT be reported as observed runtime
+savings.
+
+#### Scenario: Retired skill ID reaches a dhpk-owned interface
+
+- **WHEN** a dhpk-owned dispatcher, helper, package, or installation interface
+  receives `dhpk-laravel-package-author` or `update-docs` after cutover
+- **THEN** it exits non-zero and reports the retirement release, replacement
+  kind `skill`, and successor family identity plus mode, without publishing
+  the former package
+
+#### Scenario: Retired forwarder name reaches a dhpk-owned interface
+
+- **WHEN** a dhpk-owned role resolver or dispatcher receives `agy-fast-worker`,
+  `codex-fast-worker`, or `codex-deep-reasoner` after cutover
+- **THEN** it exits non-zero with a retirement diagnostic naming successor
+  `agy-worker`, `codex-worker`, or `codex-reasoner` and does not dispatch
+
+#### Scenario: A successor still delegates to a retired identity
+
+- **WHEN** an active skill, command, agent, rule, route table, test, or
+  generated projection still delegates to a retired wave-2 identity
+- **THEN** retirement validation fails and canonical deletion is not accepted
+
+#### Scenario: Compatibility alias is generated
+
+- **WHEN** a projection, installer, command index, or router attempts to emit
+  an alias for one of the retired wave-2 identities
+- **THEN** validation fails before publication and reports the predecessor and
+  generated path
+
+#### Scenario: Operator requests rollback
+
+- **WHEN** an operator must restore a retired wave-2 workflow after installing
+  the retiring release
+- **THEN** guidance pins release `0.66.1` and applies its receipt-bound
+  installation path instead of reconstructing an alias
+
+#### Scenario: SCF mapping is altered by this retirement
+
+- **WHEN** reconciliation adds, omits, or remaps a predecessor from the SCF
+  25-ID set
+- **THEN** validation fails and this wave's retirement is not accepted

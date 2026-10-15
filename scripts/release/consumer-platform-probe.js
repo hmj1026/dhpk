@@ -397,7 +397,7 @@ const AGY_PROJECT_DISCOVERY_PROMPT = 'Read only. Inspect the project-local gener
 function runAgyProjectProbe(root, structural, execute = false) {
   const receipt = structural && structural.receipt;
   const evidenceFingerprint = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value) ? `sha256:${value}` : value;
-  const command = `agy --mode plan --agent agy-fast-worker --print <project-artifact> --output-format text`;
+  const command = `agy --mode plan --agent agy-worker --print <project-artifact> --output-format text`;
   const blocked = (reason) => ({
     status: 'BLOCKED',
     reason,
@@ -482,7 +482,7 @@ function runAgyProjectProbe(root, structural, execute = false) {
     const args = [
       '--add-dir', stagedProject,
       '--mode', 'plan',
-      '--agent', 'agy-fast-worker',
+      '--agent', 'agy-worker',
       '--print', AGY_PROJECT_DISCOVERY_PROMPT.replace('%s', skillName),
       '--output-format', 'text',
     ];

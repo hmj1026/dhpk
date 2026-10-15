@@ -75,6 +75,136 @@ const { test, run, assert } = require('./_lib/tinytest');
     fs.writeFileSync(filePath, content);
   }
 
+  test('publisher emits skill namespace and typed v2 receipt when a module shares its ID', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-identity-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-identity-project-'));
+    const inventory = projectInventory();
+    inventory.modules = [{ ...inventory.skills[0], path: 'modules/sample' }];
+    inventory.project_agent_projection.profiles['portable-core'].stable_ids = ['skill:sample'];
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      const installed = publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory });
+      assert.strictEqual(installed.receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+      assert.deepStrictEqual(installed.receipt.selectedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
+      assert.deepStrictEqual(installed.receipt.emittedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
+      assert.strictEqual(installed.receipt.entries[0].entityKind, 'skill');
+      assert.ok(installed.receipt.sourceFingerprints['skill:sample']);
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory }).ok, true);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  for (const selectedOnly of ['none', 'unique', 'ambiguous']) {
+    test(`v1 receipt migration uses historical source proof and blocks ${selectedOnly} selected-only identity safely`, () => {
+      const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
+      const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v1-source-'));
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v1-project-'));
+      const inventory = projectInventory();
+      const options = { sourceRoot, projectRoot, inventory };
+      const receiptPath = path.join(projectRoot, '.agents/.dhpk-installed.json');
+      try {
+        write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Historical skill\n');
+        const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
+        const legacy = JSON.parse(JSON.stringify(installed.receipt));
+        legacy.schema = 'dhpk.project-agent-projection-receipt.v1';
+        delete legacy.selectedIdentities;
+        delete legacy.emittedIdentities;
+        delete legacy.entries[0].entityKind;
+        legacy.sourceFingerprints = { sample: legacy.entries[0].sourceFingerprint };
+        inventory.modules = [{ ...inventory.skills[0], path: 'modules/sample' }];
+        inventory.project_agent_projection.profiles['portable-core'].stable_ids = ['skill:sample'];
+        if (selectedOnly !== 'none') {
+          legacy.selectedIds.push('support');
+          inventory.modules.push({ id: 'support', name: 'support', path: 'modules/support' });
+          if (selectedOnly === 'ambiguous') inventory.skills.push({ id: 'support', name: 'support', path: 'skills/support' });
+        }
+        delete legacy.receiptFingerprint;
+        legacy.receiptFingerprint = fingerprint(legacy);
+        write(receiptPath, JSON.stringify(legacy));
+        const foreignPath = path.join(projectRoot, '.agents/skills/foreign/keep.txt');
+        write(foreignPath, 'foreign content');
+        const previousReceipt = fs.readFileSync(receiptPath);
+        const previousManaged = fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'));
+        if (selectedOnly === 'ambiguous') {
+          assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, selectedStableIds: ['skill:sample'], declaredSelection: true }), /historical evidence/);
+          const removed = publisher.uninstallAgentsSkillsProjection({ projectRoot, inventory });
+          assert.strictEqual(removed.ok, false);
+          assert.strictEqual(removed.state, 'BLOCKED');
+          assert.deepStrictEqual(fs.readFileSync(receiptPath), previousReceipt);
+          assert.deepStrictEqual(fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md')), previousManaged);
+        } else {
+          const updated = publisher.materializeRelocatableAgentsSkillsProjection(options);
+          assert.strictEqual(updated.receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+          assert.deepStrictEqual(updated.receipt.entries.map((entry) => entry.entityKind), ['skill']);
+          const rolledBack = publisher.rollbackAgentsSkillsProjection({ projectRoot, inventory });
+          assert.strictEqual(rolledBack.ok, true, rolledBack.error && rolledBack.error.message);
+          assert.strictEqual(rolledBack.receipt.schema, 'dhpk.project-agent-projection-receipt.v1');
+        }
+        assert.strictEqual(fs.readFileSync(foreignPath, 'utf8'), 'foreign content');
+      } finally {
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+  }
+
+  test('v2 receipt rejects a bare fingerprint-map identity before publication', () => {
+    const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-project-'));
+    const inventory = projectInventory();
+    const options = { sourceRoot, projectRoot, inventory };
+    const receiptPath = path.join(projectRoot, '.agents/.dhpk-installed.json');
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      const receipt = JSON.parse(JSON.stringify(installed.receipt));
+      receipt.sourceFingerprints.sample = receipt.sourceFingerprints['skill:sample'];
+      delete receipt.receiptFingerprint;
+      receipt.receiptFingerprint = fingerprint(receipt);
+      write(receiptPath, JSON.stringify(receipt));
+      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection(options), /invalid source fingerprint entry/);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('v1 emitted identity requires a normalized canonical skill source proof', () => {
+    const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-proof-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-proof-project-'));
+    const inventory = projectInventory();
+    const options = { sourceRoot, projectRoot, inventory };
+    const receiptPath = path.join(projectRoot, '.agents/.dhpk-installed.json');
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      for (const invalid of ['traversal', 'missing-proof']) {
+        const receipt = JSON.parse(JSON.stringify(installed.receipt));
+        receipt.schema = 'dhpk.project-agent-projection-receipt.v1';
+        delete receipt.selectedIdentities;
+        delete receipt.emittedIdentities;
+        delete receipt.entries[0].entityKind;
+        receipt.sourceFingerprints = { sample: receipt.entries[0].sourceFingerprint };
+        if (invalid === 'traversal') receipt.entries[0].source = 'skills/../modules/sample';
+        else {
+          receipt.emittedIds.push('unproved');
+          inventory.modules = [{ id: 'unproved', path: 'modules/unproved' }];
+        }
+        delete receipt.receiptFingerprint;
+        receipt.receiptFingerprint = fingerprint(receipt);
+        write(receiptPath, JSON.stringify(receipt));
+        assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection(options), /receipt source|emitted.*proof/);
+      }
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('project publisher fails closed when materialization inputs are incomplete', () => {
     assert.throws(
       () => publisher.materializeRelocatableAgentsSkillsProjection({}),

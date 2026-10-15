@@ -9,11 +9,13 @@ shared TDD guidance, bounded verification, and observable handoff evidence.
 
 ### Requirement: TDD guidance is shared by test-first and implementation workers
 
-The `tdd-guide`, `fast-worker`, `codex-fast-worker`, and `agy-fast-worker`
+The `tdd-guide`, `fast-worker`, `codex-worker`, and `agy-worker`
 agents SHALL preload the canonical `tdd-workflow` skill. A worker receiving an
 approved GREEN or test-scaffold handback SHALL use its named seam, files, and
 verification command while retaining `tdd-guide` ownership of RED and test
 strategy. Pure documentation work SHALL follow the skill's non-use boundary.
+Retired names `codex-fast-worker` and `agy-fast-worker` SHALL NOT remain in
+this preload set. REQ-7.
 
 #### Scenario: Worker implements an approved GREEN handback
 

@@ -32,6 +32,36 @@ function compile(inventory = fixture(), options = {}) {
   });
 }
 
+test('project identities distinguish skill and module namespaces without renaming stable IDs', () => {
+  const source = fixture();
+  source.skills.push({ ...source.modules[0] });
+  source.modules = [{ ...source.skills.find((entry) => entry.id === 'portable-b'), path: 'modules/portable-b', project_dependencies: { stable_ids: ['skill:runtime-support'], supporting_asset_ids: ['portable-manifest'] } }];
+  source.project_agent_projection.profiles['portable-core'].stable_ids = ['skill:portable-b', 'module:portable-b'];
+  source.skills.find((entry) => entry.id === 'portable-b').project_dependencies = ['skill:runtime-support'];
+  source.project_agent_projection.dependencies = {};
+  const result = compile(source);
+  assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.deepStrictEqual(result.value.selectedIdentities, [
+    { entityKind: 'module', stableId: 'portable-b' },
+    { entityKind: 'skill', stableId: 'portable-b' },
+  ]);
+  assert.deepStrictEqual(result.value.entries.map((entry) => [entry.entityKind, entry.stableId]), [['skill', 'portable-b'], ['skill', 'runtime-support']]);
+  assert.deepStrictEqual(result.value.dependencyClosure.supportingAssetIds, ['portable-manifest']);
+  assert.ok(result.value.dependencyClosure.identities.some((entry) => entry.entityKind === 'module'));
+});
+
+test('ambiguous bare selectors fail for roots and dependencies with both explicit choices', () => {
+  for (const dependency of [false, true]) {
+    const source = fixture();
+    source.skills.push({ ...source.modules[0] });
+    if (!dependency) source.project_agent_projection.profiles['portable-core'].stable_ids = ['runtime-support'];
+    const result = compile(source);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.error.message, /skill:runtime-support/);
+    assert.match(result.error.message, /module:runtime-support/);
+  }
+});
+
 test('checked-in portable-core plan is explicit, deterministic, and does not write files', () => {
   const source = fixture();
   const before = JSON.stringify(source);
@@ -41,7 +71,7 @@ test('checked-in portable-core plan is explicit, deterministic, and does not wri
   assert.strictEqual(first.ok, true, first.error && first.error.message);
   assert.strictEqual(second.ok, true, second.error && second.error.message);
   assert.deepStrictEqual(first.value.selectedStableIds, ['portable-b']);
-  assert.deepStrictEqual(first.value.emittedStableIds, ['portable-b', 'runtime-support']);
+  assert.deepStrictEqual(first.value.emittedStableIds, ['portable-b']);
   assert.deepStrictEqual(first.value.dependencyClosure.stableIds, ['portable-b', 'runtime-support']);
   assert.deepStrictEqual(first.value.dependencyClosure.supportingAssetIds, ['portable-manifest']);
   assert.deepStrictEqual(first.value.writes, []);
@@ -119,6 +149,14 @@ test('missing profiles and unknown hosts fail closed without substitution', () =
   const implicit = compile(fixture(), { profileId: 'minimal' });
   assert.strictEqual(implicit.ok, false);
   assert.strictEqual(implicit.error.code, 'INVALID_PROJECT_PROFILE');
+});
+
+test('duplicate dependency owner selectors fail before either declaration can be dropped', () => {
+  const source = fixture();
+  source.project_agent_projection.dependencies['skill:portable-b'] = { stable_ids: ['runtime-support'] };
+  const result = compile(source);
+  assert.strictEqual(result.ok, false);
+  assert.match(result.error.message, /duplicate.*dependency.*owner/i);
 });
 
 test('dependency cycles and missing dependencies fail closed', () => {
@@ -307,6 +345,14 @@ test('inventory regeneration preserves the project projection contract', () => {
   }
 
   const FAMILY_SUCCESSORS = Object.freeze({
+    'composer-package-hygiene': 'library-author',
+    'laravel-package-author': 'library-author',
+    'laravel-testbench-matrix': 'library-author',
+    'matrix-cell-onboard': 'library-author',
+    'polyfill-version-matrix-audit': 'library-author',
+    'update-docs': 'doc-maintain',
+    'update-codemaps': 'doc-maintain',
+    'doc-refactor': 'doc-maintain',
     'dep-audit': 'change-verdict',
     'review-pending': 'change-verdict',
     'js-static-check-strategy': 'js-static-checks',
@@ -340,7 +386,7 @@ test('inventory regeneration preserves the project projection contract', () => {
     assert.deepStrictEqual(codex.selection.selectedStableIds, currentFamilyIds([...FIXTURE.compatibilityMatrix.currentCodexSyncSubset.selectedStableIds.filter((id) => !['harness-govern', 'harness-audit', 'skill-scope'].includes(id)), 'change-verdict', 'ui-ux-verify']));
     assert.strictEqual(first.selection.portableCore.declared, true);
     assert.strictEqual(first.selection.portableCore.profileId, FIXTURE.portableCore.profileId);
-    assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, expectedCurrentAgentIds);
+    assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, expectedCurrentAgentIds.map((id) => id === 'library-author' ? 'skill:library-author' : id).sort());
     assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, [...INVENTORY.project_agent_projection.profiles['portable-core'].stable_ids].sort());
     assert.strictEqual(first.selection.portableCore.evidenceOnly, true);
     assert.match(first.selection.portableCore.reason, /explicit|evidence/i);

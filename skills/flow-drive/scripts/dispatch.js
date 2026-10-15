@@ -185,6 +185,7 @@ function validatePacket(packet, promptEvidence) {
 function resolvedCodexConfig(config, role, modelOverride, effortOverride) {
   const effectiveRole = role === 'worker' ? 'codex-worker' : 'codex-reasoner';
   const resolved = resolveConfig({ effectiveRole, config });
+  if (resolved.status === 'BLOCKED') throw new Error(resolved.reason);
   const model = modelOverride === null || modelOverride === undefined ? resolved.model.value : modelOverride;
   const effort = effortOverride === null || effortOverride === undefined ? resolved.effort.value : effortOverride;
   const timeout = resolved.timeout_secs.value;

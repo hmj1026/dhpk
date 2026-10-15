@@ -7,7 +7,7 @@ metadata:
 ---
 
 Forward `$ARGUMENTS` unchanged to the workspace-write canonical
-`$matrix-cell-onboard` Skill.
+`$library-author` mode `cell-onboard` Skill.
 It owns Composer/workflow bounds, Laravel-to-Testbench mapping, polyfill branch
 coverage, dual-testsuite gating, and the local dry-run.
 

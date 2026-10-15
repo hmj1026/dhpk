@@ -12,10 +12,10 @@ const read = (file) => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8')
 const inventory = read('manifests/distribution-inventory.json');
 const selection = read('manifests/marketplace-selection.json');
 const publicNames = [
-  'change-verdict', 'code-trace', 'create-pr', 'flow-drive',
+  'change-verdict', 'code-trace', 'create-pr', 'doc-maintain', 'flow-drive',
   'flow-guide', 'git-smart-commit', 'git-worktree', 'precommit',
   'proposal-analyze', 'release-creator', 'repo-verify', 'tdd-workflow',
-  'ui-ux-verify', 'update-docs',
+  'ui-ux-verify',
 ];
 function view() {
   assert.strictEqual(typeof selectionApi.compileMarketplacePublicationView, 'function');

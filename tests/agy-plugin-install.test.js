@@ -97,6 +97,33 @@ const { test, run, assert } = require('./_lib/tinytest');
     return { ...installed, target };
   }
 
+  test('AGY skill selection preserves canonical skills when a module shares the ID', () => {
+    const root = tmp();
+    try {
+      const source = path.join(root, 'source');
+      const inventory = fixture(source);
+      inventory.modules = [{ id: 'sample', path: 'modules/sample', surfaces: ['claude-module'] }];
+      const output = path.join(root, 'package');
+      materializeAgyPluginPackage({ root: source, inventory, outDir: output,
+        version: '0.39.0', sourceVersion: '0.39.0', sourceCommit: COMMIT });
+      assert.strictEqual(fs.readFileSync(path.join(output, 'skills/dhpk-sample/SKILL.md'), 'utf8'),
+        fs.readFileSync(path.join(source, 'skills/dhpk-sample/SKILL.md'), 'utf8'));
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  });
+
+  test('AGY skill selection rejects module-only IDs even when their path resembles a skill', () => {
+    const root = tmp();
+    try {
+      const source = path.join(root, 'source');
+      const inventory = fixture(source);
+      inventory.modules = inventory.skills;
+      inventory.skills = [];
+      assert.throws(() => materializeAgyPluginPackage({ root: source, inventory,
+        outDir: path.join(root, 'package'), version: '0.39.0', sourceVersion: '0.39.0', sourceCommit: COMMIT }),
+      /unknown skill ID: sample/);
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  });
+
   test('resolves the documented user AGY install location', () => {
     assert.strictEqual(resolveAgyInstallRoot('/tmp/demo-home'), '/tmp/demo-home/.gemini/antigravity-cli/plugins/dhpk');
   });

@@ -207,6 +207,7 @@ const COMMON_PROJECTION_SKILLS = Object.freeze([
   'change-verdict',
   'code-trace',
   'create-pr',
+  'doc-maintain',
   'flow-drive',
   'flow-guide',
   'git-smart-commit',
@@ -217,7 +218,6 @@ const COMMON_PROJECTION_SKILLS = Object.freeze([
   'repo-verify',
   'tdd',
   'ui-ux-verify',
-  'update-docs',
 ]);
 
 function readProjectionSets(base) {

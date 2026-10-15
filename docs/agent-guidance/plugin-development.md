@@ -143,7 +143,16 @@ For an external consumer project, pass `--source-root`, `--project-root`, the
 explicit `portable-core` profile, and the requested Hosts; the shared publisher
 then writes a self-contained artifact, a project receipt at
 `.agents/.dhpk-installed.json`, and a Claude discovery binding when Claude is
-selected. AGY sibling-package references remain forbidden unless a bounded
+selected. Project-only selectors accept `skill:<id>` and `module:<id>`; bare
+IDs require a unique inventory entity. Modules participate in dependency closure
+but only skills are emitted. Lifecycle receipts use
+`dhpk.project-agent-projection-receipt.v2` with typed selected/emitted identities
+and source-fingerprint keys. A validated v1 emitted `skills/` source proves skill
+identity; a selected-only v1 ID requires unique inventory resolution. Ambiguous
+legacy identity blocks publication and cleanup before mutation. The generated
+artifact manifest retains `dhpk.agents-skills-projection.v1`.
+
+AGY sibling-package references remain forbidden unless a bounded
 consumer probe passes. Keep Codex/Cursor/AGY agent and rule projections on their
 platform-native paths; `.agents` is not their shared configuration root.
 

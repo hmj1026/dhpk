@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change codex-flow-parity-and-do-openspec-flag. Update Purpose after archive.
+Define canonical Codex role discovery, generated role parity, authority and capability gates, and deterministic projections without executable retired forwarders.
 
 ## Requirements
 
@@ -93,10 +93,12 @@ reported as named-role runtime proof.
 The repository SHALL generate the curated Codex direct-role projection from
 canonical agent sources. Provider-specific roles SHALL use canonical IDs,
 including `codex-worker`, `codex-reasoner`, and `codex-reviewer` where their
-read/write contracts are supported. Legacy aliases SHALL be accepted only by
-the boundary resolver and SHALL not produce duplicate generated role files.
-Generic native Codex roles remain target-runtime roles and are not renamed by
-this provider vocabulary change.
+read/write contracts are supported. Retired names `codex-fast-worker` and
+`codex-deep-reasoner` SHALL NOT be accepted as executable boundary inputs and
+SHALL not produce generated role files. Previously retired `codex-bridge`
+SHALL not produce any generated role file. Generic native Codex roles
+remain target-runtime roles and are not renamed by this provider vocabulary
+change. REQ-7.
 
 #### Scenario: Canonical Codex worker is generated once
 
@@ -115,9 +117,9 @@ this provider vocabulary change.
 
 #### Scenario: Alias remains an input only
 
-- **WHEN** a legacy alias appears in a handoff or config fixture
-- **THEN** validation resolves it through the compatibility seam and does not
-  require a duplicate native role file
+- **WHEN** a retired forwarder name appears in a handoff or config fixture
+- **THEN** validation fails closed with successor guidance and does not
+  require or emit a duplicate native role file
 
 #### Scenario: Expanded allowlist is generated
 

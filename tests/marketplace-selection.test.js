@@ -43,12 +43,26 @@ function frontmatterName(file) {
   return match ? match[1].trim().replace(/^[a-z0-9-]+:/, '') : null;
 }
 
+test('optional library-author publishes only to its declared hosts and stays outside common', () => {
+  const row = SELECTION.skills.find((entry) => entry.id === 'library-author');
+  assert.strictEqual(row.selection, 'host-only');
+  assert.strictEqual(row.owner, 'library-author');
+  assert.ok(!readJson('manifests/install-profiles.json').profiles.common.skillIds.includes('library-author'));
+  for (const hostSurface of ['claude-core', 'codex-native', 'agent-plugin', 'cursor-plugin', 'agy-plugin']) {
+    const result = compilePublication({ hostSurface });
+    assert.deepStrictEqual(result.errors, []);
+    assert.strictEqual(result.hostOnly.some((entry) => entry.id === 'library-author'),
+      ['claude-core', 'codex-native'].includes(hostSurface), hostSurface);
+    assert.ok(!result.publicEntries.some((entry) => entry.id === 'library-author'));
+  }
+});
+
 test('the accepted catalog compiles to 14 public entries with every child folded under its owner', () => {
   const result = compile();
   assert.deepStrictEqual(result.errors, []);
   assert.strictEqual(result.publicEntries.length, 14);
   const folded = Object.values(result.bundledChildren).reduce((total, children) => total + children.length, 0);
-  assert.strictEqual(folded, 30);
+  assert.strictEqual(folded, 22);
   for (const owner of Object.keys(result.bundledChildren)) {
     assert.ok(result.publicEntries.some((entry) => entry.id === owner), `${owner} must be a public entry`);
   }
@@ -60,7 +74,7 @@ test('the publication view preserves full catalog descriptors and folds all comm
   const result = compilePublication();
   assert.deepStrictEqual(result.errors, []);
   assert.strictEqual(result.publicEntries.length, 14);
-  assert.strictEqual(Object.values(result.bundledChildren).reduce((total, rows) => total + rows.length, 0), 30);
+  assert.strictEqual(Object.values(result.bundledChildren).reduce((total, rows) => total + rows.length, 0), 22);
   assert.strictEqual(result.hostOnly.length, 0);
   assert.strictEqual(result.withdrawn.length, 0);
 

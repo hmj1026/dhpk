@@ -48,13 +48,10 @@ const OFFICIAL_STRICT_FAILURE_SET = [
   'phpunit',
   'flow-guide',
   'flow-drive',
-  'dhpk-laravel-package-author',
+  'library-author',
   'dhpk-openspec-artifact-guard',
-  'dhpk-composer-package-hygiene',
-  'matrix-cell-onboard',
+  'doc-maintain',
   'dhpk-vue-2-notes',
-  'dhpk-laravel-testbench-matrix',
-  'dhpk-library-dual-testsuite-map',
 ];
 
 function unquoteScalar(value) {

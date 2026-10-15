@@ -21,10 +21,10 @@ const SELECTION = readJson('manifests/marketplace-selection.json');
 const PROFILES = readJson('manifests/install-profiles.json');
 const MODULE_CATALOG = readJson('manifests/module-catalog.json');
 const COMMON_IDS = [
-  'change-verdict', 'code-trace', 'create-pr', 'flow-drive',
+  'change-verdict', 'code-trace', 'create-pr', 'doc-maintain', 'flow-drive',
   'flow-guide', 'git-smart-commit', 'git-worktree', 'precommit',
   'proposal-analyze', 'release-creator', 'repo-verify', 'tdd',
-  'ui-ux-verify', 'update-docs',
+  'ui-ux-verify',
 ];
 const HOSTS = [
   { name: 'Agent', surface: 'agent-plugin', generate: materializeAgentPluginPackage },
@@ -168,13 +168,13 @@ for (const host of HOSTS) {
     }
   }));
 
-  test(`${host.name} preserves all 30 owned child trees, contained references and resource provenance`, () => withFixture((state) => {
+  test(`${host.name} preserves all 22 owned child trees, contained references and resource provenance`, () => withFixture((state) => {
     generate(host, state);
     // Cursor's common content is physically owned by its Agent Plugin dependency.
     const commonRoot = host.name === 'Cursor' ? path.join(state.temp, 'shared-agent') : state.outDir;
     if (host.name === 'Cursor') generate(HOSTS[0], { ...state, outDir: commonRoot });
     const children = filesUnder(commonRoot).filter((relative) => /^skills\/[^/]+\/references\/[^/]+\/SKILL\.md$/.test(relative));
-    assert.strictEqual(children.length, 30);
+    assert.strictEqual(children.length, 22);
     const provenance = provenanceRecords(readReceipt(commonRoot));
     for (const child of CHILDREN) {
       const owner = inventoryById.get(child.owner);
@@ -233,7 +233,7 @@ test('common profile selection preserves Host publication identities and folded 
 
     const commonRoot = host.name === 'Cursor' ? outputs.get('Agent') : hostState.outDir;
     const childEntrypoints = filesUnder(commonRoot).filter((relative) => /^skills\/[^/]+\/references\/[^/]+\/SKILL\.md$/.test(relative));
-    assert.strictEqual(childEntrypoints.length, 30, `${host.name} common publication retains every folded child`);
+    assert.strictEqual(childEntrypoints.length, 22, `${host.name} common publication retains every folded child`);
 
     if (host.name === 'Cursor') {
       const receipt = readReceipt(hostState.outDir);

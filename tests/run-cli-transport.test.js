@@ -119,7 +119,7 @@ test('a Codex request labelled agy-worker blocks before provider launch', () => 
   });
 });
 
-test('legacy aliases retain the requested role while carrying a canonical effective role and digest', () => {
+test('retired aliases fail closed before provider execution', () => {
   withRequest(({ root, request }) => {
     for (const [requestedRole, effectiveRole, mode] of [
       ['codex-fast-worker', 'codex-worker', 'workspace-write'],
@@ -131,8 +131,10 @@ test('legacy aliases retain the requested role while carrying a canonical effect
       request.mode = mode;
       request.command = request.command.map((value) => value === 'workspace-write' || value === 'read-only' ? mode : value);
       const result = invoke(root, request);
-      assert.strictEqual(result.status, 0, `${requestedRole}: ${result.stderr}`);
-      fs.rmSync(request.receipt_path, { force: true });
+      assert.strictEqual(result.status, 65, `${requestedRole}: ${result.stderr}`);
+      assert.ok(result.stderr.includes(effectiveRole));
+      assert.ok(result.stderr.includes('0.66.1'));
+      assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
     }
   });
 });
