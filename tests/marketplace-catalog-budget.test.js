@@ -19,10 +19,10 @@ for (const surface of ['openai-submission', 'agent-plugin', 'codex-native', 'cur
       inventory, selection, ...(surface === 'openai-submission' ? {} : { hostSurface: surface }),
     });
     assert.deepStrictEqual(view.errors, []);
-    assert.strictEqual(view.publicEntries.length, 15);
+    assert.strictEqual(view.publicEntries.length, 14);
     assert.ok(view.publicEntries.length <= limits.maxCommonEntries);
     const children = Object.values(view.bundledChildren).flat();
-    assert.strictEqual(children.length, 45);
+    assert.strictEqual(children.length, 30);
     assert.ok(children.length <= limits.maxBundledChildren);
     assert.ok(view.hostOnly.length <= limits.maxHostOnlyRows[surface], `${surface}: ${view.hostOnly.length}`);
     assert.strictEqual(new Set([...view.publicEntries, ...children, ...view.hostOnly].map((row) => row.id)).size,

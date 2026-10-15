@@ -368,7 +368,7 @@ test('native structural verification returns stage-bound evidence instead of a l
     const result = validateNativeMembership({ candidateSkillNames, inventory, publicationView });
 
     assert.deepStrictEqual(publicationView.errors, []);
-    assert.strictEqual(expectedPublicIds.length, 15);
+    assert.strictEqual(expectedPublicIds.length, 14);
     assert.deepStrictEqual(result.errors, []);
     assert.ok(result.ok);
     assert.deepStrictEqual(candidateSkillNames.sort(), expectedNames);
@@ -624,13 +624,13 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     const inventory = {
       skills: [
         { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-        { id: 'php-pro', name: 'dhpk-php-runtime-router', path: 'skills/dhpk-php-runtime-router', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
+        { id: 'php', name: 'php', path: 'skills/php', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
       ],
     };
     const out = tmpDir('dhpk-native-optional-exception-');
     try {
       const result = materializeNativePackage({ inventory, root: ROOT, outDir: out });
-      assert.deepStrictEqual(result.skillIds, ['php-pro', 'tdd']);
+      assert.deepStrictEqual(result.skillIds, ['php', 'tdd']);
     } finally {
       fs.rmSync(out, { recursive: true, force: true });
     }
@@ -692,15 +692,15 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     const firstInventory = {
       skills: [
         { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-        { id: 'yii1-security-audit', name: 'dhpk-yii1-security-audit', path: 'skills/dhpk-yii1-security-audit', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+        { id: 'yii1', name: 'yii1', path: 'skills/yii1', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
       ],
     };
     const out = tmpDir('dhpk-native-regenerate-drop-');
     try {
       materializeNativePackage({ inventory: firstInventory, root: ROOT, outDir: out });
-      assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-yii1-security-audit')));
+      assert.ok(fs.existsSync(path.join(out, 'skills', 'yii1')));
 
-      // yii1-security-audit is de-listed from codex-native between releases.
+      // yii1 is de-listed from codex-native between releases.
       const secondInventory = {
         skills: [{ id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
       };
@@ -708,7 +708,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
 
       assert.deepStrictEqual(result.skillIds, ['tdd']);
       assert.ok(fs.existsSync(path.join(out, 'skills', 'tdd-workflow')), 'tdd must remain');
-      assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-yii1-security-audit')), 'stale yii1-security-audit directory must be removed on regeneration');
+      assert.ok(!fs.existsSync(path.join(out, 'skills', 'yii1')), 'stale yii1 directory must be removed on regeneration');
       assert.deepStrictEqual(Object.keys(result.fingerprints), ['tdd-workflow']);
     } finally {
       fs.rmSync(out, { recursive: true, force: true });
@@ -1071,7 +1071,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       const actualNames = fs.readdirSync(path.join(packageRoot, 'skills')).filter((name) => fs.existsSync(path.join(packageRoot, 'skills', name, 'SKILL.md'))).sort();
 
       assert.ok(verified.ok, verified.errors.join('\n'));
-      assert.strictEqual(commonIds.length, 15);
+      assert.strictEqual(commonIds.length, 14);
       assert.deepStrictEqual(actualNames, expectedIds.map((id) => inventoryById.get(id).name).sort());
       assert.deepStrictEqual(generated.skillIds, expectedIds);
       assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);

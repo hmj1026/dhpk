@@ -207,7 +207,6 @@ const COMMON_PROJECTION_SKILLS = Object.freeze([
   'change-verdict',
   'code-trace',
   'create-pr',
-  'dep-audit',
   'flow-drive',
   'flow-guide',
   'git-smart-commit',
@@ -251,7 +250,7 @@ test('every install profile declares a projection set for the cursor and codex-s
   }
 });
 
-test('the common profile projects the exact 15 core skills into Cursor and Codex-sync', () => {
+test('the common profile projects the exact 14 core skills into Cursor and Codex-sync', () => {
   const declared = readProjectionSets(ROOT).profiles.common;
   for (const host of PROJECTION_HOSTS) {
     assert.deepStrictEqual(declared[host], COMMON_PROJECTION_SKILLS,
