@@ -2,7 +2,7 @@
 name: update-docs
 description: "Research the current dhpk implementation and update user or agent docs without changing source semantics."
 ---
-Forward to the canonical [`$update-docs` skill](https://github.com/hmj1026/dhpk/blob/main/skills/update-docs/SKILL.md)
+Forward to the canonical [`$doc-maintain` mode `update` skill](https://github.com/hmj1026/dhpk/blob/main/skills/doc-maintain/SKILL.md)
 with `$ARGUMENTS` unchanged. It owns target discovery, live evidence, SSOT
 mapping, documentation-only edits, locale parity, and the handoff report.
 
