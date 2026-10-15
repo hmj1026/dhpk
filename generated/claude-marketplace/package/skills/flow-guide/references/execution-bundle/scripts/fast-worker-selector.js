@@ -125,6 +125,11 @@ const selectCanonical = (options) => {
 };
 
 const select = (options = {}, dependencies = {}) => {
+  const retired = { 'codex-fast-worker': 'codex-worker', 'agy-fast-worker': 'agy-worker', 'codex-deep-reasoner': 'codex-reasoner' };
+  if (Object.prototype.hasOwnProperty.call(retired, options.backend)) {
+    return blocked(options.backend, options.backend,
+      `retired role ${options.backend} in 0.66.2; use ${retired[options.backend]}; rollback 0.66.1`);
+  }
   if (options.request !== undefined || options.host_profile !== undefined || options.hostProfile !== undefined) {
     return selectCanonical(options);
   }

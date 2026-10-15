@@ -2,19 +2,19 @@
   "generatorVersion": "1.0.0",
   "surface": "agent-plugin",
   "skills": {
-    "change-verdict": "e7730a7152130f19fe2554c47c81521c5e34dae7fbac435c5adb72527585b4e9",
-    "code-trace": "2fc042b8ec1855103e19ea2f729754fe8af2d5c9b09fe17dbcd48ee623399e80",
+    "change-verdict": "a2c36b8ec7cf91823de0db23c441b6fbb14c860a59dcf5048479adeef88a9901",
+    "code-trace": "35fa44cd2af872fd300dff9b44fab140c6ea2981ecc3d34223b71ac6e93b7ef0",
     "create-pr": "2297f0347449373bf68696c23b11d763d88c2152faf2528e5d0882c8847c4298",
-    "flow-drive": "e3f77469823753d5602e69b0a4807d58b0314445a2741918247d280c446765a4",
-    "flow-guide": "a2336bdb3b43faef98c24d8d64b1414b409e7fbfa46669a6787e63d384b6995b",
+    "doc-maintain": "295093129a3b1d88c3e1f09347f3c147be80a35bfdd74162e52e787e803de0df",
+    "flow-drive": "310fae7599ae621685222f9dda73c5ba94b101716146f7c8a08929f62584547a",
+    "flow-guide": "ef9d7fbaf4f43c703f66f52650609a6c07273953f9cb97522190a0343eaf5d40",
     "git-smart-commit": "4d79f1b8b1f65c6ed2f78dcb23247886523ba5d203d2def3c4ed17b597978def",
     "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
     "precommit": "58d0dd6d3a38389be9a650390fbf81cfaa6e7308e678112c454f3e590b55ba4e",
     "proposal-analyze": "a51f5cec8c1126351ee64f61fa37dcc79c8c8579b74f0d68a4a2705bdc28150f",
-    "release-creator": "317bc878402b7e724cb3d7528c8d50b4e5bc921f11c378d43838e2fb78d9a96c",
+    "release-creator": "5ead056b6efa23013cf521c42e241abadb9d799d5c1a5d1132e5569fb837c0ee",
     "repo-verify": "97c9ef4330b1d68a89fdbd8ef1b04f763dd1300fa73fdf64364d97193278ccd4",
-    "tdd-workflow": "ba8b16f807e6a34cd1ba005dc6a21b805807994bfa19d56f75fdf1c18712aeab",
-    "ui-ux-verify": "f0f38aec3d091ebe2ff1f805292c5692d41d9f028c22ecd4a72a8f4ace85f2f0",
-    "update-docs": "f194607fafde76ed1b548717921c44bbf96178b565b5abe770bf3bebcd5dc90a"
+    "tdd-workflow": "da9ac61139a763d010fcc1b1038dbc91bdd4d513e5327fab370751575535ebf8",
+    "ui-ux-verify": "f0f38aec3d091ebe2ff1f805292c5692d41d9f028c22ecd4a72a8f4ace85f2f0"
   }
 }

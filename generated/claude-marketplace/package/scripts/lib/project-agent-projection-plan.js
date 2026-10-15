@@ -202,9 +202,9 @@ function validateProjectAgentProjection(input = {}) {
 }
 
 function allEntries(inventory) {
-  return [...(Array.isArray(inventory.skills) ? inventory.skills : []),
-    ...(Array.isArray(inventory.modules) ? inventory.modules : [])]
-    .filter(isObject);
+  return ['skill', 'module'].flatMap((entityKind) =>
+    (Array.isArray(inventory[`${entityKind}s`]) ? inventory[`${entityKind}s`] : [])
+      .filter(isObject).map((entry) => ({ ...entry, entityKind, stableId: entry.id, id: `${entityKind}:${entry.id}` })));
 }
 
 function dependencySpec(config, entry) {
@@ -258,7 +258,7 @@ function evidenceIds(inventory, host, entries) {
     }
     const paths = Array.isArray(row.source_paths) ? row.source_paths : [];
     if (paths.includes('skills/')) {
-      ids.push(...entries.map((entry) => entry.id));
+      ids.push(...entries.filter((entry) => entry.entityKind === 'skill').map((entry) => entry.id));
     } else if (paths.length > 0) {
       ids.push(...entries.filter((entry) => paths.some((prefix) => entry.path === prefix
         || (typeof prefix === 'string' && prefix.endsWith('/') && typeof entry.path === 'string' && entry.path.startsWith(prefix)))).map((entry) => entry.id));
@@ -273,14 +273,14 @@ function planEntry(entry) {
     source: entry.path,
     sourceFingerprint: entry.source_fingerprint || entry.sourceFingerprint || null,
     destination: entry.destination || entry.path,
-    owner: entry.owner || entry.id,
+    owner: entry.owner || entry.stableId,
     transform: entry.transform || { id: 'project-agent-source', version: '1' },
     expectedFingerprint: entry.expected_fingerprint || entry.expectedFingerprint || null,
     symlinkPolicy: entry.symlink_policy || entry.symlinkPolicy || 'forbid',
   };
   if (entry.usage !== undefined) {
-    value.skillId = entry.id;
-    value.publicName = entry.name || entry.publicName || entry.id;
+    value.skillId = entry.stableId;
+    value.publicName = entry.name || entry.publicName || entry.stableId;
     value.invocationClass = entry.invocation_class || entry.invocationClass;
     value.lifecycle = entry.lifecycle === undefined ? null : entry.lifecycle;
     value.usage = clone(entry.usage);
@@ -357,30 +357,44 @@ function compileProjectAgentProjection({
   const byId = new Map();
   const duplicateIds = new Set();
   for (const entry of entries) {
-    if (!nonEmptyString(entry.id) || !nonEmptyString(entry.path)) {
+    if (!nonEmptyString(entry.stableId) || !nonEmptyString(entry.path)) {
       return fail('INVALID_PROJECT_ENTRY', 'every project projection entry requires a stable id and source path');
     }
     if (byId.has(entry.id)) duplicateIds.add(entry.id);
     else byId.set(entry.id, entry);
   }
 
-  const selectedStableIds = Array.isArray(selectedOverride)
-    ? [...selectedOverride].sort()
-    : [...profile.stable_ids].sort();
-  if (selectedOverride !== undefined) {
-    if (!Array.isArray(selectedOverride) || selectedOverride.length === 0
-      || selectedOverride.some((id) => !nonEmptyString(id))
-      || new Set(selectedOverride).size !== selectedOverride.length) {
-      return fail('INVALID_PROJECT_ENTRY', 'selectedStableIds must be a unique non-empty string array');
+  const selectors = Array.isArray(selectedOverride) ? [...selectedOverride].sort() : [...profile.stable_ids].sort();
+  if (selectedOverride !== undefined && (!Array.isArray(selectedOverride) || selectedOverride.length === 0
+    || selectedOverride.some((id) => !nonEmptyString(id)) || new Set(selectedOverride).size !== selectedOverride.length)) {
+    return fail('INVALID_PROJECT_ENTRY', 'selectedStableIds must be a unique non-empty string array');
+  }
+  const resolve = (selector, missingCode) => {
+    const candidates = /^(skill|module):/.test(selector)
+      ? entries.filter((entry) => entry.id === selector)
+      : entries.filter((entry) => entry.stableId === selector);
+    if (candidates.length === 0) return fail(missingCode, `project selector '${selector}' is not present in inventory`, { stableIds: [selector] });
+    if (candidates.length !== 1 || duplicateIds.has(candidates[0].id)) {
+      return fail('INVALID_PROJECT_ENTRY', `ambiguous project selector '${selector}'; use ${candidates.map((entry) => entry.id).sort().join(' or ')}`, { stableIds: [selector] });
     }
+    return { ok: true, value: candidates[0].id };
+  };
+  const selectedStableIds = [];
+  for (const selector of selectors) {
+    const resolved = resolve(selector, 'PROJECT_PROFILE_ENTRY_MISSING');
+    if (!resolved.ok) return resolved;
+    if (selectedStableIds.includes(resolved.value)) return fail('INVALID_PROJECT_ENTRY', 'selectors resolve to duplicate project identities');
+    selectedStableIds.push(resolved.value);
   }
-  const missingSelected = selectedStableIds.filter((id) => !byId.has(id));
-  if (missingSelected.length > 0) {
-    return fail('PROJECT_PROFILE_ENTRY_MISSING', 'portable-core references unknown inventory entries', { stableIds: missingSelected });
-  }
-  const ambiguousSelected = selectedStableIds.filter((id) => duplicateIds.has(id));
-  if (ambiguousSelected.length > 0) {
-    return fail('INVALID_PROJECT_ENTRY', 'portable-core references ambiguous inventory entries', { stableIds: ambiguousSelected });
+  selectedStableIds.sort();
+  const dependencyOwners = new Set();
+  for (const selector of Object.keys(config.dependencies || {})) {
+    const resolved = resolve(selector, 'PROJECT_DEPENDENCY_MISSING');
+    if (!resolved.ok) return resolved;
+    if (dependencyOwners.has(resolved.value)) {
+      return fail('INVALID_PROJECT_ENTRY', `duplicate dependency owner selectors resolve to '${resolved.value}'`);
+    }
+    dependencyOwners.add(resolved.value);
   }
   const uniqueEntries = [...byId.values()];
   const selectedSet = new Set(selectedStableIds);
@@ -401,8 +415,16 @@ function compileProjectAgentProjection({
     if (closureIds.has(id)) return null;
     visiting.add(id);
     closureIds.add(id);
-    const spec = dependencySpec(config, byId.get(id));
-    dependencyById.set(id, spec.stableIds);
+    const entry = byId.get(id);
+    const configDependencies = config.dependencies || {};
+    const spec = dependencySpec({ ...config, dependencies: { [id]: configDependencies[id] || configDependencies[entry.stableId] } }, entry);
+    const resolvedDependencies = [];
+    for (const selector of spec.stableIds) {
+      const resolved = resolve(selector, 'PROJECT_DEPENDENCY_MISSING');
+      if (!resolved.ok) return resolved;
+      resolvedDependencies.push(resolved.value);
+    }
+    dependencyById.set(id, resolvedDependencies);
     for (const assetId of spec.supportingAssetIds) {
       if (!supportingAssets.has(assetId)) {
         return fail('PROJECT_SUPPORTING_ASSET_MISSING', `project dependency '${id}' references unknown supporting asset '${assetId}'`, { stableIds: [id] });
@@ -417,7 +439,7 @@ function compileProjectAgentProjection({
       }
       supportingAssetIds.add(assetId);
     }
-    for (const dependencyId of spec.stableIds) {
+    for (const dependencyId of resolvedDependencies) {
       dependencyEdges.push({ from: id, to: dependencyId });
       const result = visit(dependencyId, [...stack, id]);
       if (result) return result;
@@ -452,7 +474,7 @@ function compileProjectAgentProjection({
     for (const hostId of canonicalHosts) {
       const host = config.hosts[hostId];
       const evidence = evidenceByHost.get(hostId);
-      let supported = evidence.available && evidence.ids.has(id);
+      let supported = evidence.available && (evidence.ids.has(id) || evidence.ids.has(entry.stableId));
       let reasonCode = 'HOST_SUPPORTED';
       let reason = `declared ${host.evidence_source} evidence supports '${id}'`;
       if (declaredSelection) {
@@ -530,7 +552,7 @@ function compileProjectAgentProjection({
     const { ownUnsupported, ...publicDecision } = decision;
     return publicDecision;
   });
-  const emittedStableIds = capabilityDecisions.filter((entry) => entry.outcome === 'EMIT').map((entry) => entry.stableId).sort();
+  const emittedStableIds = capabilityDecisions.filter((entry) => entry.outcome === 'EMIT' && byId.get(entry.stableId).entityKind === 'skill').map((entry) => entry.stableId).sort();
   const selected = selectedStableIds.map((id) => {
     const decision = capabilityDecisions.find((entry) => entry.stableId === id);
     return {
@@ -634,7 +656,41 @@ function compileProjectAgentProjection({
     incompatible,
     writes: [],
   });
-  return plan;
+  if (!plan.ok) return plan;
+  // The generic contract normalizes IDs without namespace metadata. Restore the
+  // projector's typed identities here, leaving the shared compiler unchanged.
+  const identity = (key) => ({ entityKind: byId.get(key).entityKind, stableId: byId.get(key).stableId });
+  const originalIds = (keys) => keys.map((key) => byId.get(key).stableId).sort();
+  const typedEntry = (entry) => ({ ...entry, ...identity(entry.stableId) });
+  const body = {
+    ...plan.value,
+    entries: plan.value.entries.map(typedEntry),
+    selectionEntries: plan.value.selectionEntries.map(typedEntry),
+    selectedStableIds: originalIds(selectedStableIds),
+    emittedStableIds: originalIds(emittedStableIds),
+    selectedIdentities: selectedStableIds.map(identity),
+    emittedIdentities: emittedStableIds.map(identity),
+    capabilityDecisions: plan.value.capabilityDecisions.map(typedEntry),
+    selected: plan.value.selected.map(typedEntry),
+    skipped: plan.value.skipped.map(typedEntry),
+    incompatible: plan.value.incompatible.map(typedEntry),
+    dependencyClosure: {
+      ...dependencyClosure,
+      roots: originalIds(selectedStableIds),
+      stableIds: originalIds(closureStableIds),
+      identities: closureStableIds.map(identity),
+      rootIdentities: selectedStableIds.map(identity),
+    },
+    hostBindings: Object.fromEntries(Object.entries(plan.value.hostBindings).map(([host, binding]) => [host, {
+      ...binding,
+      selectedStableIds: originalIds(selectedStableIds),
+      emittedStableIds: originalIds(emittedStableIds),
+      selectedIdentities: selectedStableIds.map(identity),
+      emittedIdentities: emittedStableIds.map(identity),
+    }])),
+  };
+  delete body.planFingerprint;
+  return freeze({ ok: true, value: { ...body, planFingerprint: fingerprint(body) } });
 }
 
 module.exports = {

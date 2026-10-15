@@ -45,7 +45,7 @@ MAX_AUTHORITY = {
     "codex-reviewer": "read-only",
     "agy-worker": "workspace-write",
 }
-ROLE_ALIASES = {
+RETIRED_ROLES = {
     "codex-fast-worker": "codex-worker",
     "codex-deep-reasoner": "codex-reasoner",
     "agy-fast-worker": "agy-worker",
@@ -557,9 +557,11 @@ def reject_reserved_transport_placeholders(request):
 
 
 def canonical_role(requested_role, mode):
+    if requested_role in RETIRED_ROLES:
+        raise Blocked(f"retired role {requested_role} in 0.66.2; use {RETIRED_ROLES[requested_role]}; rollback 0.66.1")
     if mode not in ("read-only", "workspace-write"):
         raise Blocked("mode is invalid")
-    role = ROLE_ALIASES.get(requested_role, requested_role)
+    role = requested_role
     authority = MAX_AUTHORITY.get(role)
     if authority is None:
         raise Blocked("role contract role is unknown")

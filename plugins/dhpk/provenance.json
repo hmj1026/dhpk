@@ -4,87 +4,92 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.66.1",
-  "sourceCommit": "c06636e34701ab8fa6893df99ece4924ea64cea8",
-  "generatedFromCommit": "c06636e34701ab8fa6893df99ece4924ea64cea8",
-  "generatedFromTree": "c90f5347521e7b696c8ecbe4e645fa9f62147a00",
-  "inventoryDigest": "9bb1ab68e37bb28b003021021d937ce372a39e7fc9b8f5af76b4433da1c5ad4a",
-  "inventoryRevision": "sha256:bccb30d379f121c82d8f29a1bc1f70f9f9db3a69222c1ca05601aed74c1c2f92",
+  "sourceCommit": "0d282d66001c4288b7e98fe59875896a5149d8ad",
+  "generatedFromCommit": "0d282d66001c4288b7e98fe59875896a5149d8ad",
+  "generatedFromTree": "293acb2662433da5806f61f15c3f674a72893606",
+  "inventoryDigest": "5f32eade28b32a83949c2952338a71fe09ce2b322a2ccc4e78eff37014b7ef82",
+  "inventoryRevision": "sha256:16e5a4c47a84ca4eba7659ab0c00d305c221692ccb38d841b45746b40696fb74",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "change-verdict",
     "code-trace",
     "create-pr",
+    "doc-maintain",
     "flow-drive",
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
+    "library-author",
     "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
     "repo-verify",
     "tdd",
-    "ui-ux-verify",
-    "update-docs"
+    "ui-ux-verify"
   ],
   "selectedSkillNames": [
     "change-verdict",
     "code-trace",
     "create-pr",
+    "doc-maintain",
     "flow-drive",
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
+    "library-author",
     "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
     "repo-verify",
     "tdd-workflow",
-    "ui-ux-verify",
-    "update-docs"
+    "ui-ux-verify"
   ],
   "materializedSkillIds": [
     "change-verdict",
     "code-trace",
     "create-pr",
+    "doc-maintain",
     "flow-drive",
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
+    "library-author",
     "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
     "repo-verify",
     "tdd",
-    "ui-ux-verify",
-    "update-docs"
+    "ui-ux-verify"
   ],
   "materializedSkillNames": [
     "change-verdict",
     "code-trace",
     "create-pr",
+    "doc-maintain",
     "flow-drive",
     "flow-guide",
     "git-smart-commit",
     "git-worktree",
+    "library-author",
     "opsx-apply-resume",
     "precommit",
     "proposal-analyze",
     "release-creator",
     "repo-verify",
     "tdd-workflow",
-    "ui-ux-verify",
-    "update-docs"
+    "ui-ux-verify"
   ],
   "runtimeSupportStableIds": [],
   "marketplacePublication": {
-    "selectionDigest": "2d3c88a251d94b3ab2492b776161ba960c6484ce1829c07adb333114dcb69e52",
+    "selectionDigest": "4be71fd7150e3946d7d48f90b0690f6eabcd1d245a4305534434d29261cfbeaf",
     "publicEntryIds": [
       "change-verdict",
       "code-trace",
       "create-pr",
+      "doc-maintain",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
@@ -94,52 +99,46 @@
       "release-creator",
       "repo-verify",
       "tdd",
-      "ui-ux-verify",
-      "update-docs"
+      "ui-ux-verify"
     ],
     "hostOnlyIds": [
+      "library-author",
       "opsx-apply-resume"
     ]
   },
   "bundledContentProvenance": {
-    "selectionDigest": "2d3c88a251d94b3ab2492b776161ba960c6484ce1829c07adb333114dcb69e52",
+    "selectionDigest": "4be71fd7150e3946d7d48f90b0690f6eabcd1d245a4305534434d29261cfbeaf",
     "entryIds": [
       "change-verdict",
       "code-trace",
       "create-pr",
+      "doc-maintain",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
+      "library-author",
       "opsx-apply-resume",
       "precommit",
       "proposal-analyze",
       "release-creator",
       "repo-verify",
       "tdd",
-      "ui-ux-verify",
-      "update-docs"
+      "ui-ux-verify"
     ],
     "childIds": [
       "code-simplify",
-      "composer-package-hygiene",
       "deploy-list",
-      "doc-refactor",
       "feature-verify",
       "issue-analyze",
       "js-static-checks",
       "laravel",
-      "laravel-package-author",
-      "laravel-testbench-matrix",
       "legacy-code-characterization",
-      "library-dual-testsuite-map",
-      "matrix-cell-onboard",
       "merge-prep",
       "nextjs",
       "openspec-artifact-guard",
       "php",
       "phpunit",
-      "polyfill-version-matrix-audit",
       "pr-summary",
       "project-audit",
       "project-brief",
@@ -148,7 +147,6 @@
       "repo-intake",
       "software-architecture",
       "swift",
-      "update-codemaps",
       "vue-2-notes",
       "yii1"
     ],
@@ -194,36 +192,6 @@
         "source": "skills/change-verdict/references/code/codex-prompt-full.md",
         "destination": "skills/change-verdict/references/code/codex-prompt-full.md",
         "originalGitBlobDigest": "70cf6e053e10bed168806d179fa2c19f90c9484d"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-composer-package-hygiene/SKILL.md",
-        "destination": "skills/change-verdict/references/dhpk-composer-package-hygiene/SKILL.md",
-        "originalGitBlobDigest": "cfd9ed86f8a3dd35bf4c9e5d6b17b98f758f0428"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-composer-package-hygiene/agents/openai.yaml",
-        "destination": "skills/change-verdict/references/dhpk-composer-package-hygiene/agents/openai.yaml",
-        "originalGitBlobDigest": "b5e9f567c42545f216347d5c93360ff1d867bfd7"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-composer-package-hygiene/references/package-contracts.md",
-        "destination": "skills/change-verdict/references/dhpk-composer-package-hygiene/references/package-contracts.md",
-        "originalGitBlobDigest": "7b5fb9b100cc348f9739b06c85639f02651f6790"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-polyfill-version-matrix-audit/SKILL.md",
-        "destination": "skills/change-verdict/references/dhpk-polyfill-version-matrix-audit/SKILL.md",
-        "originalGitBlobDigest": "3b7bd3fbedc079987851b5f5ede87bdacfa46394"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-polyfill-version-matrix-audit/agents/openai.yaml",
-        "destination": "skills/change-verdict/references/dhpk-polyfill-version-matrix-audit/agents/openai.yaml",
-        "originalGitBlobDigest": "5396aa4365e016a2626d210771fc0a91a1ffce5a"
       },
       {
         "ownerId": "change-verdict",
@@ -415,7 +383,7 @@
         "ownerId": "code-trace",
         "source": "rules/execution-policy.md",
         "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
+        "originalGitBlobDigest": "8fd0886e821fb51b5e240fda75cdebaf715bd470"
       },
       {
         "ownerId": "code-trace",
@@ -646,6 +614,36 @@
         "originalGitBlobDigest": "ef21edbd133839001ee8d7a007da5f5478d9176f"
       },
       {
+        "ownerId": "doc-maintain",
+        "source": "skills/doc-maintain/SKILL.md",
+        "destination": "skills/doc-maintain/SKILL.md",
+        "originalGitBlobDigest": "d9249f202576369f801805d2e10e800f914fbd17"
+      },
+      {
+        "ownerId": "doc-maintain",
+        "source": "skills/doc-maintain/agents/openai.yaml",
+        "destination": "skills/doc-maintain/agents/openai.yaml",
+        "originalGitBlobDigest": "444381fb603b54c6ce70a2bb2c5633ad1b7bff88"
+      },
+      {
+        "ownerId": "doc-maintain",
+        "source": "skills/doc-maintain/references/codemap.md",
+        "destination": "skills/doc-maintain/references/codemap.md",
+        "originalGitBlobDigest": "0235f20438325b50d593c74e0736f3460f56ff19"
+      },
+      {
+        "ownerId": "doc-maintain",
+        "source": "skills/doc-maintain/references/refactor.md",
+        "destination": "skills/doc-maintain/references/refactor.md",
+        "originalGitBlobDigest": "414791eb77143849a3ea80459b209c205897d18a"
+      },
+      {
+        "ownerId": "doc-maintain",
+        "source": "skills/doc-maintain/references/update.md",
+        "destination": "skills/doc-maintain/references/update.md",
+        "originalGitBlobDigest": "04d7b046576370d5cf3fd2424e27583b33e6289d"
+      },
+      {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/SKILL.md",
         "destination": "skills/flow-drive/SKILL.md",
@@ -667,7 +665,7 @@
         "ownerId": "flow-drive",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
+        "originalGitBlobDigest": "8fd0886e821fb51b5e240fda75cdebaf715bd470"
       },
       {
         "ownerId": "flow-drive",
@@ -692,24 +690,6 @@
         "source": "skills/code-simplify/references/refactor-contract.md",
         "destination": "skills/flow-drive/references/code-simplify/references/refactor-contract.md",
         "originalGitBlobDigest": "4f83c5006e55745e3510ffad0f2c6f0b8cd1c1b6"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-laravel-package-author/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-laravel-package-author/SKILL.md",
-        "originalGitBlobDigest": "5a5f22e95e33566e7c5a1c71473d760817cc723f"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-laravel-package-author/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-laravel-package-author/agents/openai.yaml",
-        "originalGitBlobDigest": "7cba6aa80b16a10000dff816ab8798d1d0065d01"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-laravel-package-author/references/authoring-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-laravel-package-author/references/authoring-patterns.md",
-        "originalGitBlobDigest": "e94e1dd2ba3728ebb0d487fd39361a0ecba09169"
       },
       {
         "ownerId": "flow-drive",
@@ -751,7 +731,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
         "destination": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
-        "originalGitBlobDigest": "90a31bf52777a5c975828bf80cb6bc07cbee5b12"
+        "originalGitBlobDigest": "c59f53885a1f7fca5bb87f42f9339802b16ec771"
       },
       {
         "ownerId": "flow-drive",
@@ -769,13 +749,13 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
+        "originalGitBlobDigest": "8fd0886e821fb51b5e240fda75cdebaf715bd470"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "7596dc383a9e2dd401355eaeccf02bf1ca0e0dfb"
+        "originalGitBlobDigest": "586c3e3bdc208b8ba624e0b95acc3f3ea51711b9"
       },
       {
         "ownerId": "flow-drive",
@@ -787,7 +767,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js",
         "destination": "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js",
-        "originalGitBlobDigest": "c7419ce5c02924aa8961e6e2d75e72d9e046029f"
+        "originalGitBlobDigest": "2d6e24ed12bc05a556fa250321b564cdb97494a5"
       },
       {
         "ownerId": "flow-drive",
@@ -799,7 +779,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
         "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
-        "originalGitBlobDigest": "81b56743ebb6687b926a1fa553c9fa2d258f1823"
+        "originalGitBlobDigest": "eae2d378c30d3d344d76a3cead68b5179227ac59"
       },
       {
         "ownerId": "flow-drive",
@@ -853,13 +833,13 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "befe9b5227cfb9950d2a31a28d0a7034358815d9"
+        "originalGitBlobDigest": "d1b928e1ebaf958d54b44998273ccd4e2e45dd33"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "9d773688770cab02dadc4212835e8e1a506c75b0"
+        "originalGitBlobDigest": "fa5c3b524a1762f9863b9b46cfd5c5646dbbe87e"
       },
       {
         "ownerId": "flow-drive",
@@ -955,43 +935,43 @@
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/10.md",
         "destination": "skills/flow-drive/references/laravel/references/10.md",
-        "originalGitBlobDigest": "9553deebb05fae40798fc774aa0e2b5cfe3762c8"
+        "originalGitBlobDigest": "c0631adba9a6f41a67679b77a1364069e9e6fdbd"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/11.md",
         "destination": "skills/flow-drive/references/laravel/references/11.md",
-        "originalGitBlobDigest": "2087ca8248c015bc9e6142d7bfab4beb0c37c93e"
+        "originalGitBlobDigest": "f911bf306f0bd84fa56fb8c9b396cc415fbacc41"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/5-4.md",
         "destination": "skills/flow-drive/references/laravel/references/5-4.md",
-        "originalGitBlobDigest": "22106e2d36b437be1fa6a4054f34a6cc51015429"
+        "originalGitBlobDigest": "1fea496f816c826c7f4a58ac2988f1184525f797"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/6.md",
         "destination": "skills/flow-drive/references/laravel/references/6.md",
-        "originalGitBlobDigest": "a3926e5fc6e6795231890c82abbb8c134db5d53b"
+        "originalGitBlobDigest": "7426cdf6a13e3842c718e553bae98f439b0562bf"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/7.md",
         "destination": "skills/flow-drive/references/laravel/references/7.md",
-        "originalGitBlobDigest": "f2f1c1c3f49aa8ac3ebf9ab03e5cd6aa953ea83c"
+        "originalGitBlobDigest": "4199da6107eee9b411413d0fd1d65a9bc9137693"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/8.md",
         "destination": "skills/flow-drive/references/laravel/references/8.md",
-        "originalGitBlobDigest": "858420382d942cd0a256cb9827a19e08f02dfa95"
+        "originalGitBlobDigest": "8c6390dfe9345e88a04e7fc18e061c4a704b67b3"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/9.md",
         "destination": "skills/flow-drive/references/laravel/references/9.md",
-        "originalGitBlobDigest": "f13040c36a6a71e2da971ded74f6d26c032cc63f"
+        "originalGitBlobDigest": "851dbe7c6fecbe7c47a8cd7cbb8501cd6f8111ca"
       },
       {
         "ownerId": "flow-drive",
@@ -1010,18 +990,6 @@
         "source": "skills/laravel/scripts/version-resolver.js",
         "destination": "skills/flow-drive/references/laravel/scripts/version-resolver.js",
         "originalGitBlobDigest": "a6a5db7f7d86f5f0953d00c36902ac1ecb19f6eb"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/matrix-cell-onboard/SKILL.md",
-        "destination": "skills/flow-drive/references/matrix-cell-onboard/SKILL.md",
-        "originalGitBlobDigest": "3e0a3722cf164c064323620ab9d1a14191431272"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/matrix-cell-onboard/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/matrix-cell-onboard/agents/openai.yaml",
-        "originalGitBlobDigest": "50b041e88c691caa108626c1d57a473f58be0f3f"
       },
       {
         "ownerId": "flow-drive",
@@ -1591,13 +1559,13 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
         "destination": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
-        "originalGitBlobDigest": "04afc1fdc0b0079a812daade944a62ecab9162e3"
+        "originalGitBlobDigest": "1525f9345aa367d489dfa3b0306700ceac6ad30f"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
         "destination": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
-        "originalGitBlobDigest": "5a55781527015917e0b27b1ed81790fabbe61a8f"
+        "originalGitBlobDigest": "622b135dfbd8b7433b99ab8cdf132a6dcad046d4"
       },
       {
         "ownerId": "flow-drive",
@@ -1621,7 +1589,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/dispatch.js",
         "destination": "skills/flow-drive/scripts/dispatch.js",
-        "originalGitBlobDigest": "57c180ff632a0cecbca8b57af6ad2064f3003f85"
+        "originalGitBlobDigest": "57791c5c6f87f4e677305f18fd7b84c96ef37feb"
       },
       {
         "ownerId": "flow-drive",
@@ -1693,7 +1661,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/transport/run-cli-transport.py",
         "destination": "skills/flow-drive/scripts/transport/run-cli-transport.py",
-        "originalGitBlobDigest": "2815a8004f678ec5ea6a59de73c180d3dd7bce44"
+        "originalGitBlobDigest": "f60513a8b9f6a725dc8e727d4c2bef73269069ef"
       },
       {
         "ownerId": "flow-guide",
@@ -1723,7 +1691,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
+        "originalGitBlobDigest": "8fd0886e821fb51b5e240fda75cdebaf715bd470"
       },
       {
         "ownerId": "flow-guide",
@@ -1747,7 +1715,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "7cc169262b7fca6e0386ab3a8d855157384eea74"
+        "originalGitBlobDigest": "55afcd3cc38b9d8bfd59a4e3ce1d7f7d5470c013"
       },
       {
         "ownerId": "flow-guide",
@@ -1777,7 +1745,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/dispatch-and-gates.md",
         "destination": "skills/flow-guide/references/dispatch-and-gates.md",
-        "originalGitBlobDigest": "78e39a7ae45dfddaad665ab54ad876c3fcb6e604"
+        "originalGitBlobDigest": "2b6f96c9a8adec06b15c37c92758bfc287bc03c2"
       },
       {
         "ownerId": "flow-guide",
@@ -1795,7 +1763,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
         "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
-        "originalGitBlobDigest": "90a31bf52777a5c975828bf80cb6bc07cbee5b12"
+        "originalGitBlobDigest": "c59f53885a1f7fca5bb87f42f9339802b16ec771"
       },
       {
         "ownerId": "flow-guide",
@@ -1813,13 +1781,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "99208e742dbdcfb83017c5d23f5bb2200703437b"
+        "originalGitBlobDigest": "8fd0886e821fb51b5e240fda75cdebaf715bd470"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "7596dc383a9e2dd401355eaeccf02bf1ca0e0dfb"
+        "originalGitBlobDigest": "586c3e3bdc208b8ba624e0b95acc3f3ea51711b9"
       },
       {
         "ownerId": "flow-guide",
@@ -1831,7 +1799,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
-        "originalGitBlobDigest": "c7419ce5c02924aa8961e6e2d75e72d9e046029f"
+        "originalGitBlobDigest": "2d6e24ed12bc05a556fa250321b564cdb97494a5"
       },
       {
         "ownerId": "flow-guide",
@@ -1843,7 +1811,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
-        "originalGitBlobDigest": "81b56743ebb6687b926a1fa553c9fa2d258f1823"
+        "originalGitBlobDigest": "eae2d378c30d3d344d76a3cead68b5179227ac59"
       },
       {
         "ownerId": "flow-guide",
@@ -1885,13 +1853,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "befe9b5227cfb9950d2a31a28d0a7034358815d9"
+        "originalGitBlobDigest": "d1b928e1ebaf958d54b44998273ccd4e2e45dd33"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "9d773688770cab02dadc4212835e8e1a506c75b0"
+        "originalGitBlobDigest": "fa5c3b524a1762f9863b9b46cfd5c5646dbbe87e"
       },
       {
         "ownerId": "flow-guide",
@@ -1921,13 +1889,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "befe9b5227cfb9950d2a31a28d0a7034358815d9"
+        "originalGitBlobDigest": "d1b928e1ebaf958d54b44998273ccd4e2e45dd33"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/invocation-classification.md",
         "destination": "skills/flow-guide/references/invocation-classification.md",
-        "originalGitBlobDigest": "9d773688770cab02dadc4212835e8e1a506c75b0"
+        "originalGitBlobDigest": "fa5c3b524a1762f9863b9b46cfd5c5646dbbe87e"
       },
       {
         "ownerId": "flow-guide",
@@ -2170,6 +2138,72 @@
         "originalGitBlobDigest": "7b0d96aa07b0ef0200b4b1ab88cfc8e787dcf1ad"
       },
       {
+        "ownerId": "library-author",
+        "source": "skills/library-author/SKILL.md",
+        "destination": "skills/library-author/SKILL.md",
+        "originalGitBlobDigest": "2c40db7458b4cd2e9b351e4e36e3bcd4138773aa"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/agents/openai.yaml",
+        "destination": "skills/library-author/agents/openai.yaml",
+        "originalGitBlobDigest": "edbdcb42269cc3f0d91804e4eba82c931ea1c3a2"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/references/author.md",
+        "destination": "skills/library-author/references/author.md",
+        "originalGitBlobDigest": "d3bdfbf78852f3042b63d216c72b3fc9d54f5d88"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/references/authoring-patterns.md",
+        "destination": "skills/library-author/references/authoring-patterns.md",
+        "originalGitBlobDigest": "2c71d359fede3efd71c152631b77f850504b4f54"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/references/cell-onboard.md",
+        "destination": "skills/library-author/references/cell-onboard.md",
+        "originalGitBlobDigest": "fb28b2ef2cdaa23487739c53c5d05135378253a3"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/references/composer.md",
+        "destination": "skills/library-author/references/composer.md",
+        "originalGitBlobDigest": "242b71a0b9bea9299f222113e736d598b2125cb6"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/references/package-contracts.md",
+        "destination": "skills/library-author/references/package-contracts.md",
+        "originalGitBlobDigest": "7b5fb9b100cc348f9739b06c85639f02651f6790"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/references/polyfill-audit.md",
+        "destination": "skills/library-author/references/polyfill-audit.md",
+        "originalGitBlobDigest": "9bf31eb525d7114c33849b7798181f5cf3011351"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/references/suite-map.md",
+        "destination": "skills/library-author/references/suite-map.md",
+        "originalGitBlobDigest": "407b8415c1a46b24b9632faf45b2895031a21959"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/references/testbench-recipes.md",
+        "destination": "skills/library-author/references/testbench-recipes.md",
+        "originalGitBlobDigest": "dcc93aff2d1fb2ccf98679edc817cae9f7f62f69"
+      },
+      {
+        "ownerId": "library-author",
+        "source": "skills/library-author/references/testbench.md",
+        "destination": "skills/library-author/references/testbench.md",
+        "originalGitBlobDigest": "8ecdda749fa58a53d6998f125d05c579d21ebea6"
+      },
+      {
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/SKILL.md",
         "destination": "skills/opsx-apply-resume/SKILL.md",
@@ -2347,7 +2381,7 @@
         "ownerId": "release-creator",
         "source": "skills/release-creator/SKILL.md",
         "destination": "skills/release-creator/SKILL.md",
-        "originalGitBlobDigest": "ec0293ae15b3f6ca8f97b5340199682326966c99"
+        "originalGitBlobDigest": "e896ef7f5b1207e1cf97160e2298b1f37a834008"
       },
       {
         "ownerId": "release-creator",
@@ -2623,31 +2657,13 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "c11c605640d282a9cd1b81a2fdaa8f68f28c5ec4"
+        "originalGitBlobDigest": "d672fcb109a5a62b500a956868bc51cb39ce05fa"
       },
       {
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/agents/openai.yaml",
         "destination": "skills/tdd-workflow/agents/openai.yaml",
         "originalGitBlobDigest": "3fd83276c1886134f1b8536bdb8003282ea99d2b"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-laravel-testbench-matrix/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-laravel-testbench-matrix/SKILL.md",
-        "originalGitBlobDigest": "53288d7644715737badc0a1b672ad4ffe9407337"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-laravel-testbench-matrix/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-laravel-testbench-matrix/agents/openai.yaml",
-        "originalGitBlobDigest": "4ad22aa216cd5b839d46023a42b9876454e063b4"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-laravel-testbench-matrix/references/testbench-recipes.md",
-        "destination": "skills/tdd-workflow/references/dhpk-laravel-testbench-matrix/references/testbench-recipes.md",
-        "originalGitBlobDigest": "dcc93aff2d1fb2ccf98679edc817cae9f7f62f69"
       },
       {
         "ownerId": "tdd",
@@ -2666,18 +2682,6 @@
         "source": "skills/dhpk-legacy-characterization-tests/evals/evals.json",
         "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/evals/evals.json",
         "originalGitBlobDigest": "444d049d19dde703f2012b779b80b8c3e9cf41d7"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-library-dual-testsuite-map/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-library-dual-testsuite-map/SKILL.md",
-        "originalGitBlobDigest": "7f5b1d20dfaac5fac3fee314f0bef6f27f990e32"
-      },
-      {
-        "ownerId": "tdd",
-        "source": "skills/dhpk-library-dual-testsuite-map/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-library-dual-testsuite-map/agents/openai.yaml",
-        "originalGitBlobDigest": "13510db64ccb57c7f5a0998691857f91a659c06b"
       },
       {
         "ownerId": "tdd",
@@ -2750,42 +2754,6 @@
         "source": "skills/ui-ux-verify/references/verification.md",
         "destination": "skills/ui-ux-verify/references/verification.md",
         "originalGitBlobDigest": "0e6341a0fb2dce64b8b00e32a94df076097e7039"
-      },
-      {
-        "ownerId": "update-docs",
-        "source": "skills/update-docs/SKILL.md",
-        "destination": "skills/update-docs/SKILL.md",
-        "originalGitBlobDigest": "d80ab52f5c434b0dcbf89aded4ecac72e141d0c9"
-      },
-      {
-        "ownerId": "update-docs",
-        "source": "skills/update-docs/agents/openai.yaml",
-        "destination": "skills/update-docs/agents/openai.yaml",
-        "originalGitBlobDigest": "b0da037a95a8f417a901c5a45b01af14478e43a9"
-      },
-      {
-        "ownerId": "update-docs",
-        "source": "skills/doc-refactor/SKILL.md",
-        "destination": "skills/update-docs/references/doc-refactor/SKILL.md",
-        "originalGitBlobDigest": "662f2148cb684235cf3768c39f1cdb356d6f7a48"
-      },
-      {
-        "ownerId": "update-docs",
-        "source": "skills/doc-refactor/agents/openai.yaml",
-        "destination": "skills/update-docs/references/doc-refactor/agents/openai.yaml",
-        "originalGitBlobDigest": "9e4c9c4dd942c743ff5b1e85e8f3a3a5afd79db7"
-      },
-      {
-        "ownerId": "update-docs",
-        "source": "skills/update-codemaps/SKILL.md",
-        "destination": "skills/update-docs/references/update-codemaps/SKILL.md",
-        "originalGitBlobDigest": "27796396d423ee86d84b2a5922ab36ef1feaaab3"
-      },
-      {
-        "ownerId": "update-docs",
-        "source": "skills/update-codemaps/agents/openai.yaml",
-        "destination": "skills/update-docs/references/update-codemaps/agents/openai.yaml",
-        "originalGitBlobDigest": "03cb51c5780a28a77eb2b724c4201d7e8d2d3369"
       }
     ],
     "files": [
@@ -2837,41 +2805,6 @@
         "sourcePath": "skills/change-verdict/references/code/codex-prompt-full.md",
         "destination": "skills/change-verdict/references/code/codex-prompt-full.md",
         "kind": "entry"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "composer-package-hygiene",
-        "sourcePath": "skills/dhpk-composer-package-hygiene/SKILL.md",
-        "destination": "skills/change-verdict/references/dhpk-composer-package-hygiene/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "composer-package-hygiene",
-        "sourcePath": "skills/dhpk-composer-package-hygiene/agents/openai.yaml",
-        "destination": "skills/change-verdict/references/dhpk-composer-package-hygiene/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "composer-package-hygiene",
-        "sourcePath": "skills/dhpk-composer-package-hygiene/references/package-contracts.md",
-        "destination": "skills/change-verdict/references/dhpk-composer-package-hygiene/references/package-contracts.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "polyfill-version-matrix-audit",
-        "sourcePath": "skills/dhpk-polyfill-version-matrix-audit/SKILL.md",
-        "destination": "skills/change-verdict/references/dhpk-polyfill-version-matrix-audit/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "polyfill-version-matrix-audit",
-        "sourcePath": "skills/dhpk-polyfill-version-matrix-audit/agents/openai.yaml",
-        "destination": "skills/change-verdict/references/dhpk-polyfill-version-matrix-audit/agents/openai.yaml",
-        "kind": "reference"
       },
       {
         "ownerId": "change-verdict",
@@ -3364,6 +3297,41 @@
         "kind": "entry"
       },
       {
+        "ownerId": "doc-maintain",
+        "skillId": "doc-maintain",
+        "sourcePath": "skills/doc-maintain/SKILL.md",
+        "destination": "skills/doc-maintain/SKILL.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "doc-maintain",
+        "skillId": "doc-maintain",
+        "sourcePath": "skills/doc-maintain/agents/openai.yaml",
+        "destination": "skills/doc-maintain/agents/openai.yaml",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "doc-maintain",
+        "skillId": "doc-maintain",
+        "sourcePath": "skills/doc-maintain/references/codemap.md",
+        "destination": "skills/doc-maintain/references/codemap.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "doc-maintain",
+        "skillId": "doc-maintain",
+        "sourcePath": "skills/doc-maintain/references/refactor.md",
+        "destination": "skills/doc-maintain/references/refactor.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "doc-maintain",
+        "skillId": "doc-maintain",
+        "sourcePath": "skills/doc-maintain/references/update.md",
+        "destination": "skills/doc-maintain/references/update.md",
+        "kind": "entry"
+      },
+      {
         "ownerId": "flow-drive",
         "skillId": "flow-drive",
         "sourcePath": "skills/flow-drive/SKILL.md",
@@ -3418,27 +3386,6 @@
         "sourcePath": "skills/code-simplify/references/refactor-contract.md",
         "destination": "skills/flow-drive/references/code-simplify/references/refactor-contract.md",
         "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "laravel-package-author",
-        "sourcePath": "skills/dhpk-laravel-package-author/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-laravel-package-author/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "laravel-package-author",
-        "sourcePath": "skills/dhpk-laravel-package-author/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-laravel-package-author/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "laravel-package-author",
-        "sourcePath": "skills/dhpk-laravel-package-author/references/authoring-patterns.md",
-        "destination": "skills/flow-drive/references/dhpk-laravel-package-author/references/authoring-patterns.md",
-        "kind": "reference"
       },
       {
         "ownerId": "flow-drive",
@@ -3788,20 +3735,6 @@
         "skillId": "laravel",
         "sourcePath": "skills/laravel/scripts/version-resolver.js",
         "destination": "skills/flow-drive/references/laravel/scripts/version-resolver.js",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "matrix-cell-onboard",
-        "sourcePath": "skills/matrix-cell-onboard/SKILL.md",
-        "destination": "skills/flow-drive/references/matrix-cell-onboard/SKILL.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "matrix-cell-onboard",
-        "sourcePath": "skills/matrix-cell-onboard/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/matrix-cell-onboard/agents/openai.yaml",
         "kind": "branch"
       },
       {
@@ -5142,6 +5075,83 @@
         "kind": "entry"
       },
       {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/SKILL.md",
+        "destination": "skills/library-author/SKILL.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/agents/openai.yaml",
+        "destination": "skills/library-author/agents/openai.yaml",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/references/author.md",
+        "destination": "skills/library-author/references/author.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/references/authoring-patterns.md",
+        "destination": "skills/library-author/references/authoring-patterns.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/references/cell-onboard.md",
+        "destination": "skills/library-author/references/cell-onboard.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/references/composer.md",
+        "destination": "skills/library-author/references/composer.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/references/package-contracts.md",
+        "destination": "skills/library-author/references/package-contracts.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/references/polyfill-audit.md",
+        "destination": "skills/library-author/references/polyfill-audit.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/references/suite-map.md",
+        "destination": "skills/library-author/references/suite-map.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/references/testbench-recipes.md",
+        "destination": "skills/library-author/references/testbench-recipes.md",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "library-author",
+        "skillId": "library-author",
+        "sourcePath": "skills/library-author/references/testbench.md",
+        "destination": "skills/library-author/references/testbench.md",
+        "kind": "entry"
+      },
+      {
         "ownerId": "opsx-apply-resume",
         "skillId": "opsx-apply-resume",
         "sourcePath": "skills/opsx-apply-resume/SKILL.md",
@@ -5682,27 +5692,6 @@
       },
       {
         "ownerId": "tdd",
-        "skillId": "laravel-testbench-matrix",
-        "sourcePath": "skills/dhpk-laravel-testbench-matrix/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-laravel-testbench-matrix/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "laravel-testbench-matrix",
-        "sourcePath": "skills/dhpk-laravel-testbench-matrix/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-laravel-testbench-matrix/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "laravel-testbench-matrix",
-        "sourcePath": "skills/dhpk-laravel-testbench-matrix/references/testbench-recipes.md",
-        "destination": "skills/tdd-workflow/references/dhpk-laravel-testbench-matrix/references/testbench-recipes.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
         "skillId": "legacy-code-characterization",
         "sourcePath": "skills/dhpk-legacy-characterization-tests/SKILL.md",
         "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/SKILL.md",
@@ -5721,20 +5710,6 @@
         "sourcePath": "skills/dhpk-legacy-characterization-tests/evals/evals.json",
         "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/evals/evals.json",
         "kind": "branch"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "library-dual-testsuite-map",
-        "sourcePath": "skills/dhpk-library-dual-testsuite-map/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-library-dual-testsuite-map/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "tdd",
-        "skillId": "library-dual-testsuite-map",
-        "sourcePath": "skills/dhpk-library-dual-testsuite-map/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-library-dual-testsuite-map/agents/openai.yaml",
-        "kind": "reference"
       },
       {
         "ownerId": "tdd",
@@ -5819,77 +5794,37 @@
         "sourcePath": "skills/ui-ux-verify/references/verification.md",
         "destination": "skills/ui-ux-verify/references/verification.md",
         "kind": "entry"
-      },
-      {
-        "ownerId": "update-docs",
-        "skillId": "update-docs",
-        "sourcePath": "skills/update-docs/SKILL.md",
-        "destination": "skills/update-docs/SKILL.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "update-docs",
-        "skillId": "update-docs",
-        "sourcePath": "skills/update-docs/agents/openai.yaml",
-        "destination": "skills/update-docs/agents/openai.yaml",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "update-docs",
-        "skillId": "doc-refactor",
-        "sourcePath": "skills/doc-refactor/SKILL.md",
-        "destination": "skills/update-docs/references/doc-refactor/SKILL.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "update-docs",
-        "skillId": "doc-refactor",
-        "sourcePath": "skills/doc-refactor/agents/openai.yaml",
-        "destination": "skills/update-docs/references/doc-refactor/agents/openai.yaml",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "update-docs",
-        "skillId": "update-codemaps",
-        "sourcePath": "skills/update-codemaps/SKILL.md",
-        "destination": "skills/update-docs/references/update-codemaps/SKILL.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "update-docs",
-        "skillId": "update-codemaps",
-        "sourcePath": "skills/update-codemaps/agents/openai.yaml",
-        "destination": "skills/update-docs/references/update-codemaps/agents/openai.yaml",
-        "kind": "branch"
       }
     ]
   },
   "fingerprints": {
-    "change-verdict": "0ca9a7cd5eb4fc22ea2fdfe2281aee4e6ecd60dce18fb3facb92808c57cdb564",
-    "code-trace": "b421c8e7d84965778d837f769055a7cdf6ef778ba6eb62e93902eee8fefb5102",
+    "change-verdict": "dbcf7f6ff8798fb23bd9cbd006a08cbc0d8775ba2e80e643f8b0ddccd15a76b1",
+    "code-trace": "197c289a8c601efccbf56ac034318ca6aabedbccb3e46886d6fc554e7ff8f2db",
     "create-pr": "d078019e7dab7f3bec033df6231b97c631c5ad4827e9f2ee26122bbbefe4fa93",
-    "flow-drive": "526856c19e3b9f4c72f7d3a11a96e3271af66c5781f38cf87614d2a27629587d",
-    "flow-guide": "167a56ce72ad2ba79c85819b26b46eddad0ebf2a3e0eea344a6604bd4c16e6f6",
+    "doc-maintain": "77b7385363bca65c00e8bc9fc88dd135584b35fc74e3087c319cb25231a28c95",
+    "flow-drive": "96b4a1ec4f7b7ae6cf3318ce30c6b862ea7993dccfc0b53e56874f324d05978f",
+    "flow-guide": "981a99c656983fc4e1829a6b4cd4194708e322028c87112edaecb018d39c491c",
     "git-smart-commit": "70ae8512825b4375ad911a60d7a4fe92fa47e51ec61e1ef1a21056753d00fe00",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
+    "library-author": "2ff4df20e9f61c4b2a904ad57242427a1f4e267576c21028bcee6b330cd35636",
     "opsx-apply-resume": "3d01a723a3eea97777446b9fa9c1bfbecad12067b2b79b426aea71f3a5e0f0da",
     "precommit": "b71e830c43b69398e064782f07c4b2607af10d554b9a0a39f1bfc192d117eeda",
     "proposal-analyze": "e8921cb440426d8a96306b09a7affdb060248e7bbaf60abde749114d454b3818",
-    "release-creator": "e2dd86197a7461ed8493e36673db6a602d0acb9eb79442539c8205d1b19e9c63",
+    "release-creator": "a08a5b6dc9c141fbe63ed701c01f965ba5369fdb24031adf74183948637ad09c",
     "repo-verify": "49d56fd260be162449e525275940e28133498a97a7620cd0bae8316285465407",
-    "tdd-workflow": "1b004a5b0bb12a9d8208d2716cf24d4de7e4618b1e39b7ae3a04d3e55cd24162",
-    "ui-ux-verify": "a116cb22d82d85de9bc89862cdd585f3f7505a3ea4edb5dc1be803e6e696eb9a",
-    "update-docs": "0897ee969a5ebee4ed4b9d98b6fe01f1f7bb5404156e4c2a3aa1ec6e58d3d024"
+    "tdd-workflow": "afaf50dadbd2537834455f4b3a623fe88f558a54240093e6c79d92acc161fb49",
+    "ui-ux-verify": "a116cb22d82d85de9bc89862cdd585f3f7505a3ea4edb5dc1be803e6e696eb9a"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "6ff5b15fc0baf885328d53898f207bb1985995a9683b73e1e620293f0c4b4857",
+    "planId": "a7758463c94e431f1e0d7ba251c5b370f1a0938063381f66b5078e02d2cf181a",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
       "change-verdict",
       "code-trace",
       "create-pr",
+      "doc-maintain",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
@@ -5899,14 +5834,14 @@
       "release-creator",
       "repo-verify",
       "tdd",
-      "ui-ux-verify",
-      "update-docs"
+      "ui-ux-verify"
     ],
     "supportClosure": {
       "stableIds": [
         "change-verdict",
         "code-trace",
         "create-pr",
+        "doc-maintain",
         "flow-drive",
         "flow-guide",
         "git-smart-commit",
@@ -5916,8 +5851,7 @@
         "release-creator",
         "repo-verify",
         "tdd",
-        "ui-ux-verify",
-        "update-docs"
+        "ui-ux-verify"
       ]
     },
     "ownership": {
@@ -5927,10 +5861,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "6ff5b15fc0baf885328d53898f207bb1985995a9683b73e1e620293f0c4b4857",
-      "inventory": "9bb1ab68e37bb28b003021021d937ce372a39e7fc9b8f5af76b4433da1c5ad4a"
+      "plan": "a7758463c94e431f1e0d7ba251c5b370f1a0938063381f66b5078e02d2cf181a",
+      "inventory": "5f32eade28b32a83949c2952338a71fe09ce2b322a2ccc4e78eff37014b7ef82"
     },
-    "rollbackIdentity": "1427ee503b35fd509121e647923ba61f4ec6b49d9e1eea06fe88368372677a34"
+    "rollbackIdentity": "bfd1667b4c8bf10e73208c48efefc59cea2ab58eb74042cc54838f7ed1873a7a"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
@@ -6267,6 +6201,53 @@
         }
       ]
     },
+    "doc-maintain": {
+      "display_name": "Doc Maintain",
+      "summary": "Mode-specific doc-maintain workflows",
+      "syntax": "$doc-maintain <task | mode> <target>",
+      "input_kind": "free-text",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "task",
+          "syntax": "<task | mode>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "Natural-language task or explicit mode"
+        }
+      ],
+      "actions": [
+        {
+          "id": "update",
+          "summary": "update workflow",
+          "syntax": "$doc-maintain update <target>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "codemap",
+          "summary": "codemap workflow",
+          "syntax": "$doc-maintain codemap <target>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "refactor",
+          "summary": "refactor workflow",
+          "syntax": "$doc-maintain refactor <target>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$doc-maintain update docs/guide.md",
+          "summary": "Run the selected mode"
+        }
+      ]
+    },
     "flow-drive": {
       "display_name": "Flow Drive",
       "summary": "Execute one scoped task with diagnosis and acceptance evidence",
@@ -6599,6 +6580,74 @@
         }
       ]
     },
+    "library-author": {
+      "display_name": "Library Author",
+      "summary": "Mode-specific library-author workflows",
+      "syntax": "$library-author <task | mode> <target>",
+      "input_kind": "free-text",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "task",
+          "syntax": "<task | mode>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "Natural-language task or explicit mode"
+        }
+      ],
+      "actions": [
+        {
+          "id": "author",
+          "summary": "author workflow",
+          "syntax": "$library-author author <target>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "testbench",
+          "summary": "testbench workflow",
+          "syntax": "$library-author testbench <target>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "composer",
+          "summary": "composer workflow",
+          "syntax": "$library-author composer <target>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "polyfill-audit",
+          "summary": "polyfill-audit workflow",
+          "syntax": "$library-author polyfill-audit <target>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "suite-map",
+          "summary": "suite-map workflow",
+          "syntax": "$library-author suite-map <target>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "cell-onboard",
+          "summary": "cell-onboard workflow",
+          "syntax": "$library-author cell-onboard <target>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$library-author author provider design",
+          "summary": "Run the selected mode"
+        }
+      ]
+    },
     "opsx-apply-resume": {
       "display_name": "Opsx Apply Resume",
       "summary": "Save or resume an OpenSpec apply handoff",
@@ -6907,57 +6956,25 @@
           "summary": "Use ui ux verify with its declared interface"
         }
       ]
-    },
-    "update-docs": {
-      "display_name": "Update Docs",
-      "summary": "Update a bounded user or agent document from live evidence",
-      "syntax": "$update-docs <docs-path-or-workflow-keyword>",
-      "input_kind": "free-text",
-      "invocation_class": "implicit-eligible",
-      "effect_authority": "workspace-write",
-      "inputs": [
-        {
-          "id": "target",
-          "syntax": "<docs-path-or-workflow-keyword>",
-          "value_kind": "string",
-          "required": true,
-          "summary": "Documentation path or workflow keyword"
-        }
-      ],
-      "actions": [
-        {
-          "id": "update",
-          "summary": "Update owned documentation and its locale pair",
-          "syntax": "$update-docs <docs-path-or-workflow-keyword>",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        }
-      ],
-      "options": [],
-      "examples": [
-        {
-          "prompt": "$update-docs docs/configuration.md",
-          "summary": "Use update docs with its declared interface"
-        }
-      ]
     }
   },
   "usageFingerprints": {
     "change-verdict": "1438a3b31e76f62c7a6050049854af2584fbe24c017673147a083892c358b1fe",
     "code-trace": "48654b9393cc852db2f54b7801cc7b40eee7b13eeab8b85ee8244d8248a9d438",
     "create-pr": "f0da5b3f83857f6bb3b5f4a0cc91fde5a2e046f267c0899b0fce16276ba77ec0",
+    "doc-maintain": "8263cf5ab3a270870efee69d56234c1eacecf84a15fe7e2894546ecab68cabf9",
     "flow-drive": "302776393f4628264a0fca0525eadaa38f0e9c27134f8ae3625efc4a5d2f4cb5",
     "flow-guide": "5300a6121dae6a264abe9859a10cc42504b034b4908f06ca3343b2f88a7cd369",
     "git-smart-commit": "bf7f04db7306d231b79a4e95374595c27fd56c8cd665f04394085a23af15b9f5",
     "git-worktree": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689",
+    "library-author": "14052ef1f5adf7dd51882e8c59f8f4db9d927d9c064e34a5e788f4619f3b7948",
     "opsx-apply-resume": "b7f6b8da2093f3fca1d0d3d7d95c1dba9bc08566da7a8b5c7b81afdc3b63aa07",
     "precommit": "920521f2abafda14ea87a7e44569f5bb5aec2b4b245bff78d43271b5d54ea699",
     "proposal-analyze": "89e3a151663d1389f14f9c10b547d09fb58dee3ab10a126491f546f0070f5e33",
     "release-creator": "7e3c907d8a22657cdfb8f3ba4f4962b13368f6621905bf23e9b8210ef8ae0e8c",
     "repo-verify": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb",
     "tdd": "2b0cd39febeefaa18ff9fd70c8e0c9d068136599c488a35b3e06afa07eb20c6d",
-    "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd",
-    "update-docs": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
+    "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd"
   },
   "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
   "profileId": "common",
@@ -6972,7 +6989,7 @@
     "create-pr",
     "git-worktree",
     "proposal-analyze",
-    "update-docs",
+    "doc-maintain",
     "precommit",
     "repo-verify",
     "ui-ux-verify"
@@ -6988,7 +7005,7 @@
     "create-pr",
     "git-worktree",
     "proposal-analyze",
-    "update-docs",
+    "doc-maintain",
     "precommit",
     "repo-verify",
     "ui-ux-verify"
@@ -7004,13 +7021,13 @@
     "create-pr",
     "git-worktree",
     "proposal-analyze",
-    "update-docs",
+    "doc-maintain",
     "precommit",
     "repo-verify",
     "ui-ux-verify"
   ],
   "compatibilityMode": "profile",
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "de23b73cdc0fbb67e62e7cb0fa84582e6e51a24b41497a4b731d0c2c3da02741",
-  "surfaceSelectionFingerprint": "1e702dc27c048239432ab62fa68808f9211f2f9b71c2f538d70cd6b65b311fc3"
+  "selectionFingerprint": "a86a0bbb80c53d4430bf2e0b96f8e83711cc7a47277ddef9510d66fa66a5d335",
+  "surfaceSelectionFingerprint": "3e3df6811a3fd926f08f16d53d53c76b2cf5dd59bd77c2db7a0d6a03253bd036"
 }

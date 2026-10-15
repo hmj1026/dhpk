@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:bccb30d379f121c82d8f29a1bc1f70f9f9db3a69222c1ca05601aed74c1c2f92`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:9c94f6cd4ecb19acae67da0bed18051b3d152172f0378ff73a79649aa2ab9131`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
@@ -84,6 +84,24 @@ Actions：
 
 範例：
 - `$create-pr --dry-run` — Use create pr with its declared interface
+
+### `$doc-maintain`
+
+摘要：Mode-specific doc-maintain workflows
+語法：`$doc-maintain <task | mode> <target>`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `task` `<task | mode>` (必要, string) — Natural-language task or explicit mode
+
+Actions：
+- `update` `$doc-maintain update <target>` — update workflow
+- `codemap` `$doc-maintain codemap <target>` — codemap workflow
+- `refactor` `$doc-maintain refactor <target>` — refactor workflow
+
+範例：
+- `$doc-maintain update docs/guide.md` — Run the selected mode
 
 ### `$flow-drive`
 
@@ -174,6 +192,27 @@ Actions：
 
 範例：
 - `$git-worktree list` — Use git worktree with its declared interface
+
+### `$library-author`
+
+摘要：Mode-specific library-author workflows
+語法：`$library-author <task | mode> <target>`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `task` `<task | mode>` (必要, string) — Natural-language task or explicit mode
+
+Actions：
+- `author` `$library-author author <target>` — author workflow
+- `testbench` `$library-author testbench <target>` — testbench workflow
+- `composer` `$library-author composer <target>` — composer workflow
+- `polyfill-audit` `$library-author polyfill-audit <target>` — polyfill-audit workflow
+- `suite-map` `$library-author suite-map <target>` — suite-map workflow
+- `cell-onboard` `$library-author cell-onboard <target>` — cell-onboard workflow
+
+範例：
+- `$library-author author provider design` — Run the selected mode
 
 ### `$precommit`
 
@@ -280,19 +319,3 @@ Actions：
 
 範例：
 - `$ui-ux-verify spec:openspec/changes/example/spec.md` — Use ui ux verify with its declared interface
-
-### `$update-docs`
-
-摘要：Update a bounded user or agent document from live evidence
-語法：`$update-docs <docs-path-or-workflow-keyword>`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `target` `<docs-path-or-workflow-keyword>` (必要, string) — Documentation path or workflow keyword
-
-Actions：
-- `update` `$update-docs <docs-path-or-workflow-keyword>` — Update owned documentation and its locale pair
-
-範例：
-- `$update-docs docs/configuration.md` — Use update docs with its declared interface

@@ -84,7 +84,7 @@ proof of RED or GREEN. Distinguish expected failure from observed failure.
 
 ## Worker handback
 
-This includes `fast-worker`, `codex-fast-worker`, and `agy-fast-worker`
+This includes `fast-worker`, `codex-worker`, and `agy-worker`
 tasks with a settled owner:
 
 1. Preserve the dispatcher's target files, behavior, public seam, and command.

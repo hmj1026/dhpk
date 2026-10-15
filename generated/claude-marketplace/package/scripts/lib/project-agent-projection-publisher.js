@@ -38,7 +38,8 @@ const {
   validateReceiptBindings: validateHostReceiptBindings,
 } = require('./project-agent-host-binding-policy');
 
-const PROJECT_RECEIPT_SCHEMA = 'dhpk.project-agent-projection-receipt.v1';
+const PROJECT_RECEIPT_SCHEMA = 'dhpk.project-agent-projection-receipt.v2';
+const LEGACY_PROJECT_RECEIPT_SCHEMA = 'dhpk.project-agent-projection-receipt.v1';
 const PROJECT_ROLLBACK_SCHEMA = 'dhpk.project-agent-projection-rollback.v1';
 const PROJECT_TRANSACTION_SCHEMA = 'dhpk.project-agent-projection-transaction.v1';
 const GENERATOR_VERSION = '2.0.0';
@@ -335,9 +336,9 @@ function sourceManifest(sourceDirectory) {
 }
 
 function inventoryEntries(inventory) {
-  return [...(Array.isArray(inventory && inventory.skills) ? inventory.skills : []),
-    ...(Array.isArray(inventory && inventory.modules) ? inventory.modules : [])]
-    .filter((entry) => entry && typeof entry === 'object');
+  return ['skill', 'module'].flatMap((entityKind) =>
+    (Array.isArray(inventory && inventory[`${entityKind}s`]) ? inventory[`${entityKind}s`] : [])
+      .filter((entry) => entry && typeof entry === 'object').map((entry) => ({ ...entry, entityKind, identityKey: `${entityKind}:${entry.id}` })));
 }
 
 function projectionConfig(inventory) {
@@ -401,6 +402,7 @@ function resolveRoots({ sourceRoot = null, projectRoot, outDir, inventory, allow
     managedRoot: managed,
     receiptPath: receipt,
     config,
+    inventory,
   };
 }
 
@@ -443,7 +445,7 @@ function outputStableId(stableId, kind, relative) {
 }
 
 function sourceEntryFor(planEntry, byId) {
-  const source = byId.get(planEntry.stableId);
+  const source = byId.get(`${planEntry.entityKind || 'skill'}:${planEntry.stableId}`);
   if (!source) throw fail('PROJECT_ENTRY_MISSING', `compiled project entry is absent from inventory: ${planEntry.stableId}`, { stableIds: [planEntry.stableId] });
   return source;
 }
@@ -463,7 +465,7 @@ function buildArtifactInputs({
   preserveHostBindings = null,
   preserveBindingPaths = null,
 } = {}) {
-  const byId = new Map(inventoryEntries(inventory).map((entry) => [entry.id, entry]));
+  const byId = new Map(inventoryEntries(inventory).map((entry) => [entry.identityKey, entry]));
   const adapterEntries = (plan.entries || []).map((planEntry) => {
     const sourceEntry = sourceEntryFor(planEntry, byId);
     const name = safeName(sourceEntry.name || sourceEntry.publicName || path.basename(sourceEntry.path), `inventory entry '${planEntry.stableId}' name`);
@@ -533,7 +535,7 @@ function buildArtifactInputs({
     if (!parsed.present || parsed.values.name !== name || !parsed.values.description) {
       throw fail('INVALID_SKILL_FRONTMATTER', `canonical skill '${name}' has invalid frontmatter`, { stableIds: [planEntry.stableId] });
     }
-    sourceFingerprints[planEntry.stableId] = manifest.sourceFingerprint;
+    sourceFingerprints[`skill:${planEntry.stableId}`] = manifest.sourceFingerprint;
     const metadata = planEntryMetadata(planEntry);
     if (metadata.provenance && typeof metadata.provenance === 'object' && !Array.isArray(metadata.provenance)) {
       metadata.provenance = {
@@ -584,6 +586,7 @@ function buildArtifactInputs({
       generatedPaths.push(destination);
     }
     receiptEntries.push({
+      entityKind: 'skill',
       stableId: planEntry.stableId,
       name,
       ...(sourceEntry.discoveryVisible === false ? { discoveryVisible: false } : {}),
@@ -742,7 +745,7 @@ function readJsonFile(filePath, label) {
 
 function validateReceipt(receipt, roots) {
   if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) throw fail('INVALID_RECEIPT', 'project projection receipt must be an object');
-  if (receipt.schema !== PROJECT_RECEIPT_SCHEMA) throw fail('INVALID_RECEIPT', `project projection receipt must use ${PROJECT_RECEIPT_SCHEMA}`);
+  if (![PROJECT_RECEIPT_SCHEMA, LEGACY_PROJECT_RECEIPT_SCHEMA].includes(receipt.schema)) throw fail('INVALID_RECEIPT', `project projection receipt must use ${PROJECT_RECEIPT_SCHEMA}`);
   if (receipt.generatorVersion !== GENERATOR_VERSION) throw fail('INVALID_RECEIPT', `project projection receipt must use generator ${GENERATOR_VERSION}`);
   if (receipt.scope !== 'project' || receipt.managedRoot !== roots.config.managed_root || receipt.receiptPath !== roots.config.receipt) {
     throw fail('INVALID_RECEIPT', 'project projection receipt has an invalid ownership root');
@@ -793,11 +796,13 @@ function validateReceipt(receipt, roots) {
   for (const entry of receipt.entries) {
     if (!entry || typeof entry !== 'object' || typeof entry.stableId !== 'string' || typeof entry.name !== 'string') throw fail('INVALID_RECEIPT', 'project projection receipt has an invalid entry');
     if (ids.has(entry.stableId) || names.has(entry.name)) throw fail('INVALID_RECEIPT', 'project projection receipt has duplicate entries');
+    if (receipt.schema === PROJECT_RECEIPT_SCHEMA && entry.entityKind !== 'skill') throw fail('INVALID_RECEIPT', 'emitted receipt identity must be a skill');
     ids.add(entry.stableId);
     names.add(safeName(entry.name, 'receipt entry name'));
-    if (typeof entry.source !== 'string' || !entry.source.startsWith('skills/')) throw fail('INVALID_RECEIPT', `receipt source is invalid for '${entry.name}'`);
+    if (typeof entry.source !== 'string' || !/^skills\/[^/]+(?:\/[^/]+)*$/.test(entry.source)) throw fail('INVALID_RECEIPT', `receipt source is invalid for '${entry.name}'`);
+    assertSafeRelative(entry.source, 'receipt source');
     if (!DIGEST_PATTERN.test(entry.sourceFingerprint || '')) throw fail('INVALID_RECEIPT', `receipt source fingerprint is invalid for '${entry.name}'`);
-    if (!legacyUnbound && receipt.sourceFingerprints[entry.stableId] !== entry.sourceFingerprint) {
+    if (!legacyUnbound && receipt.sourceFingerprints[receipt.schema === PROJECT_RECEIPT_SCHEMA ? `skill:${entry.stableId}` : entry.stableId] !== entry.sourceFingerprint) {
       throw fail('INVALID_RECEIPT', `receipt source fingerprint map does not match '${entry.name}'`);
     }
     if (!Array.isArray(entry.sourceFiles)) throw fail('INVALID_RECEIPT', `receipt source manifest is missing for '${entry.name}'`);
@@ -812,7 +817,8 @@ function validateReceipt(receipt, roots) {
     }
   }
   for (const stableId of Object.keys(receipt.sourceFingerprints)) {
-    if (!ids.has(stableId) || !DIGEST_PATTERN.test(receipt.sourceFingerprints[stableId] || '')) {
+    if ((receipt.schema === PROJECT_RECEIPT_SCHEMA && !stableId.startsWith('skill:'))
+      || !ids.has(receipt.schema === PROJECT_RECEIPT_SCHEMA ? stableId.slice(6) : stableId) || !DIGEST_PATTERN.test(receipt.sourceFingerprints[stableId] || '')) {
       throw fail('INVALID_RECEIPT', `project projection receipt has an invalid source fingerprint entry: ${stableId}`);
     }
   }
@@ -822,6 +828,34 @@ function validateReceipt(receipt, roots) {
   }
   if (stableStringify(receipt.hostBindings) !== stableStringify(receipt.bindings)) {
     throw fail('INVALID_RECEIPT', 'project projection receipt Host binding aliases disagree');
+  }
+  if (receipt.schema === PROJECT_RECEIPT_SCHEMA) {
+    for (const [field, idsField] of [['selectedIdentities', 'selectedIds'], ['emittedIdentities', 'emittedIds']]) {
+      const identities = receipt[field];
+      if (!Array.isArray(identities) || identities.some((entry) => !entry || !['skill', 'module'].includes(entry.entityKind)
+        || typeof entry.stableId !== 'string' || entry.stableId.length === 0)
+        || new Set(identities.map((entry) => `${entry.entityKind}:${entry.stableId}`)).size !== identities.length
+        || stableStringify(identities.map((entry) => entry.stableId).sort()) !== stableStringify(receipt[idsField].slice().sort())) {
+        throw fail('INVALID_RECEIPT', `receipt ${field} must contain complete, unique typed identities`);
+      }
+    }
+    if (stableStringify(receipt.emittedIdentities.map((entry) => `${entry.entityKind}:${entry.stableId}`).sort())
+      !== stableStringify(receipt.entries.map((entry) => `skill:${entry.stableId}`).sort())) {
+      throw fail('INVALID_RECEIPT', 'receipt emitted identities disagree with source entries');
+    }
+  } else {
+    // Only validated emitted skills prove historical kind. A requested selection
+    // cannot establish ownership for selected-only legacy identities.
+    if (receipt.emittedIds.some((id) => !receipt.entries.some((entry) => entry.stableId === id))) {
+      throw fail('INVALID_RECEIPT', 'legacy receipt emitted identity is missing source proof');
+    }
+    for (const id of receipt.selectedIds) {
+      if (receipt.entries.some((entry) => entry.stableId === id)) continue;
+      const matches = inventoryEntries(roots.inventory).filter((entry) => entry.id === id);
+      if (matches.length !== 1) {
+        throw fail('AMBIGUOUS_LEGACY_IDENTITY', `legacy receipt identity '${id}' cannot be resolved uniquely; skill:${id} and module:${id} require historical evidence`);
+      }
+    }
   }
   validateReceiptBindings(receipt, roots);
   if (receipt.rollback !== null && receipt.rollback !== undefined) {
@@ -905,7 +939,7 @@ function adoptLegacyManifest(roots) {
     : [];
   const bindingPaths = inferLegacyBindingPaths(roots, entries);
   const adopted = sealReceipt({
-    schema: PROJECT_RECEIPT_SCHEMA,
+    schema: LEGACY_PROJECT_RECEIPT_SCHEMA,
     generatorVersion: GENERATOR_VERSION,
     scope: 'project',
     managedRoot: roots.config.managed_root,
@@ -971,7 +1005,7 @@ function validateManagedFiles(roots, receipt, { requireBindings = true } = {}) {
 }
 
 function approvedRenameIds(previous, inventory, plan) {
-  const entriesById = new Map(inventoryEntries(inventory).map((entry) => [entry.id, entry]));
+  const entriesById = new Map(inventoryEntries(inventory).map((entry) => [entry.identityKey, entry]));
   const rowsById = new Map();
   for (const row of (Array.isArray(inventory && inventory.renamed_skill_names) ? inventory.renamed_skill_names : [])) {
     if (!row || typeof row.id !== 'string') continue;
@@ -982,7 +1016,7 @@ function approvedRenameIds(previous, inventory, plan) {
   const approved = new Set();
   for (const entry of previous.entries || []) {
     if (!selectedIds.has(entry.stableId)) continue;
-    const current = entriesById.get(entry.stableId);
+    const current = entriesById.get(`skill:${entry.stableId}`);
     if (!current || current.name === entry.name) continue;
     const row = rowsById.get(entry.stableId);
     if (!row
@@ -1001,7 +1035,7 @@ function sourceDrift(previous, currentSourceFingerprints, allowCanonicalChanges,
   if (allowCanonicalChanges) return;
   for (const entry of previous.entries || []) {
     if (approvedRenames.has(entry.stableId)) continue;
-    if (currentSourceFingerprints[entry.stableId] && currentSourceFingerprints[entry.stableId] !== entry.sourceFingerprint) {
+    if (currentSourceFingerprints[`skill:${entry.stableId}`] && currentSourceFingerprints[`skill:${entry.stableId}`] !== entry.sourceFingerprint) {
       throw fail('SOURCE_DRIFT', `canonical source changed for receipt-owned entry '${entry.name}'; explicit update authority is required`, { stableIds: [entry.stableId] });
     }
   }
@@ -1471,6 +1505,8 @@ function receiptForArtifact({ roots, plan, staged, declaredSelection = false }) 
     ...(declaredSelection ? { declaredSelection: true } : {}),
     selectedIds: inputs.selectedIds,
     emittedIds: inputs.emittedIds,
+    selectedIdentities: clone(plan.selectedIdentities || []),
+    emittedIdentities: clone(plan.emittedIdentities || []),
     dependencyClosure: clone(plan.dependencyClosure || null),
     hostBindings: clone(inputs.hostBindings || plan.hostBindings || {}),
     bindings: clone(inputs.hostBindings || plan.hostBindings || {}),
@@ -1487,6 +1523,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
   const sourceRoot = options.sourceRoot || options.root;
   if (!sourceRoot || !options.inventory) throw fail('INVALID_INPUT', 'sourceRoot and inventory are required');
   const roots = resolveRoots({ sourceRoot, projectRoot: options.projectRoot, outDir: options.outDir, inventory: options.inventory });
+  readProjectProjectionReceipt(roots);
   ensureDirectory(roots.projectRoot, 'project root', roots.projectRoot);
   ensureDirectory(roots.agentsRoot, 'project agents root', roots.projectRoot);
   ensureDirectory(roots.managedRoot, 'project managed root', roots.projectRoot);
@@ -1657,13 +1694,15 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         plan: options.plan,
         profileId: options.profileId || receipt.profileId || 'portable-core',
         requestedHosts,
-        selectedStableIds: receipt.declaredSelection === true ? receipt.selectedIds : options.selectedStableIds,
+        selectedStableIds: receipt.declaredSelection === true ? (receipt.selectedIdentities
+          ? receipt.selectedIdentities.map((entry) => `${entry.entityKind}:${entry.stableId}`)
+          : receipt.selectedIds.map((id) => receipt.entries.some((entry) => entry.stableId === id) ? `skill:${id}` : id)) : options.selectedStableIds,
         declaredSelection: receipt.declaredSelection === true || options.declaredSelection,
       });
       if (plan.planFingerprint !== receipt.planFingerprint) errors.push('receipt plan fingerprint does not match the compiler-owned plan');
-      const byId = new Map(inventoryEntries(options.inventory).map((entry) => [entry.id, entry]));
+      const byId = new Map(inventoryEntries(options.inventory).map((entry) => [entry.identityKey, entry]));
       for (const entry of receipt.entries) {
-        const sourceEntry = byId.get(entry.stableId);
+        const sourceEntry = byId.get(`skill:${entry.stableId}`);
         if (!sourceEntry) continue;
         const sourceDirectory = path.resolve(roots.sourceRoot, sourceEntry.path);
         if (!lstatOrNull(sourceDirectory)) continue;
@@ -1706,6 +1745,7 @@ function operationRoots(options = {}) {
 function uninstallAgentsSkillsProjection(options = {}) {
   try {
     const roots = operationRoots(options);
+    readProjectProjectionReceipt(roots);
     ensureDirectory(roots.projectRoot, 'project root', roots.projectRoot);
     ensureDirectory(roots.agentsRoot, 'project agents root', roots.projectRoot);
     ensureDirectory(roots.managedRoot, 'project managed root', roots.projectRoot);
@@ -1762,6 +1802,7 @@ function snapshotReceipt(roots, receipt) {
 function rollbackAgentsSkillsProjection(options = {}) {
   try {
     const roots = operationRoots(options);
+    readProjectProjectionReceipt(roots);
     ensureDirectory(roots.projectRoot, 'project root', roots.projectRoot);
     ensureDirectory(roots.agentsRoot, 'project agents root', roots.projectRoot);
     ensureDirectory(roots.managedRoot, 'project managed root', roots.projectRoot);
