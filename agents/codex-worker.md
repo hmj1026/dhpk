@@ -27,7 +27,7 @@ accounting.
 ## When NOT
 
 - In-process default → `fast-worker`
-- agy CLI backend → `agy-fast-worker`
+- agy CLI backend → `agy-worker`
 - This file is only the Codex CLI backend of the same mechanical role — not a duplicate role.
 - Unknown root cause or an ambiguous spec → escalate (do not become `deep-reasoner`). Stop **without invoking the CLI backend**.
 

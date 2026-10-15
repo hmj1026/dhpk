@@ -17,7 +17,7 @@ SSOT 是 `@rules/execution-policy.md` 的 *Implementation dispatch*；本表只�
 | Workflow Type | 條件 | 調用（`orchestration_dispatch=on`） |
 |---|---|---|
 | Bug Investigation & Fix | 根因未知 | `subagent_type=dhpk:deep-reasoner`，產出 fix spec 交給下一列 |
-| Feature / Bug Fix | 機械式、規格明確，且分派有助於 ownership、focus 或 concurrency | shared selector 解出的 `dhpk:fast-worker` / `dhpk:codex-fast-worker` / `dhpk:agy-fast-worker` |
+| Feature / Bug Fix | 機械式、規格明確，且分派有助於 ownership、focus 或 concurrency | shared selector 解出的 `dhpk:fast-worker` / `dhpk:codex-worker` / `dhpk:agy-worker` |
 | Feature / Bug Fix | scope、ownership 與所需 verification 已明確，且 coordination need 低 | 無，inline；file count 不單獨決定 |
 | Lightweight Maintenance | — | 無，inline patch |
 

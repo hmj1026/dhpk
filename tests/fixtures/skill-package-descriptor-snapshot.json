@@ -272,6 +272,7 @@
     },
     "doc-refactor": {
       "path": "skills/doc-refactor",
+      "successor": { "id": "doc-maintain", "resource": "references/refactor.md" },
       "entry": "SKILL.md",
       "resources": [
         {
@@ -674,6 +675,7 @@
     },
     "update-codemaps": {
       "path": "skills/update-codemaps",
+      "successor": { "id": "doc-maintain", "resource": "references/codemap.md" },
       "entry": "SKILL.md",
       "resources": [
         {
@@ -692,6 +694,7 @@
     },
     "update-docs": {
       "path": "skills/update-docs",
+      "successor": { "id": "doc-maintain", "resource": "references/update.md" },
       "entry": "SKILL.md",
       "resources": [
         {

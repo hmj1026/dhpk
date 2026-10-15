@@ -75,9 +75,9 @@
       "public_name": "/dhpk:doc-refactor",
       "argument_contract": "<file path>",
       "authority": "workspace-write",
-      "skill_owner": "doc-refactor",
+      "skill_owner": "doc-maintain",
       "disposition": "thin-front-door",
-      "reason": "Canonical $doc-refactor Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "reason": "Stable Claude front door forwards normalized arguments to doc-maintain mode refactor.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -88,7 +88,8 @@
       "callers": [
         "commands/doc-refactor.md"
       ],
-      "resource": "skills/doc-refactor/SKILL.md"
+      "resource": "skills/doc-maintain/SKILL.md",
+      "mode": "refactor"
     },
     {
       "id": "flow-drive",
@@ -163,7 +164,7 @@
       "public_name": "/dhpk:matrix-cell-onboard",
       "argument_contract": "\"<php-version> <laravel-version> [phpunit] [monolog]\"  e.g. \"8.3 12 11 3\"",
       "authority": "workspace-write",
-      "skill_owner": "matrix-cell-onboard",
+      "skill_owner": "library-author",
       "disposition": "thin-front-door",
       "evidence": {
         "structural": "PASS",
@@ -175,8 +176,9 @@
       "callers": [
         "commands/matrix-cell-onboard.md"
       ],
-      "resource": "skills/matrix-cell-onboard/SKILL.md",
-      "reason": "Canonical $matrix-cell-onboard Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
+      "resource": "skills/library-author/SKILL.md",
+      "reason": "Stable Claude front door forwards normalized arguments to library-author mode cell-onboard.",
+      "mode": "cell-onboard"
     },
     {
       "id": "merge-prep",
@@ -383,9 +385,9 @@
       "public_name": "/dhpk:update-codemaps",
       "argument_contract": "",
       "authority": "workspace-write",
-      "skill_owner": "update-codemaps",
+      "skill_owner": "doc-maintain",
       "disposition": "thin-front-door",
-      "reason": "Canonical $update-codemaps Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "reason": "Stable Claude front door forwards normalized arguments to doc-maintain mode codemap.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -396,7 +398,8 @@
       "callers": [
         "commands/update-codemaps.md"
       ],
-      "resource": "skills/update-codemaps/SKILL.md"
+      "resource": "skills/doc-maintain/SKILL.md",
+      "mode": "codemap"
     },
     {
       "id": "update-docs",
@@ -405,9 +408,9 @@
       "public_name": "/dhpk:update-docs",
       "argument_contract": "<docs-path | workflow-keyword>",
       "authority": "workspace-write",
-      "skill_owner": "update-docs",
+      "skill_owner": "doc-maintain",
       "disposition": "thin-front-door",
-      "reason": "Canonical $update-docs Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "reason": "Stable Claude front door forwards normalized arguments to doc-maintain mode update.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -418,7 +421,8 @@
       "callers": [
         "commands/update-docs.md"
       ],
-      "resource": "skills/update-docs/SKILL.md"
+      "resource": "skills/doc-maintain/SKILL.md",
+      "mode": "update"
     },
     {
       "id": "verify",

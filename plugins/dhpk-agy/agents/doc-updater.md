@@ -18,7 +18,7 @@ English/Traditional Chinese pairs aligned with the current dhpk implementation.
 This agent may edit documentation only. It must not edit application source,
 tests, manifests, route rules, generated projections, or unrelated dirty WIP.
 
-Use `/dhpk:update-codemaps` for codemap generation. Use `doc-reviewer` or
+Use `$doc-maintain codemap` for codemap generation. Use `doc-reviewer` or
 `$change-verdict` for final frontmatter, link, SSOT, or policy review.
 Use `docs-lookup` for external library/framework research. The command-level
 contract and five writing checks live in

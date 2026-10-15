@@ -6,7 +6,7 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-Forward to the canonical [`$update-docs` skill](../skills/update-docs/SKILL.md)
+Forward to the canonical [`$doc-maintain` mode `update` skill](../skills/doc-maintain/SKILL.md)
 with `$ARGUMENTS` unchanged. It owns target discovery, live evidence, SSOT
 mapping, documentation-only edits, locale parity, and the handoff report.
 

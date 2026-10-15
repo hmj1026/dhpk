@@ -173,6 +173,7 @@ function buildContext(input = {}, { writeFile, diagnostics } = {}) {
   const scopeFailure = scopeError(input);
   if (scopeFailure) return blocked(scopeFailure, legacyReport(input, resolved, undefined, transport));
   const config = resolveConfig({ effectiveRole: resolved.effective_role, config: input.config || {} });
+  if (config.status === 'BLOCKED') return blocked(config.reason, legacyReport(input, resolved, undefined, transport));
   const timeoutFailure = numberOrBlocked(config.timeout_secs.value, 'resolved timeout_secs');
   if (timeoutFailure) return blocked(timeoutFailure, legacyReport(input, resolved, config, transport));
   if (executionProvider === 'agy' && !isNonEmptyString(config.model.value)) {

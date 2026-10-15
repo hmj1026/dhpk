@@ -15,7 +15,7 @@ description: |
       PHP/Laravel/PHPUnit cell to composer.json + CI workflow)
     - dual-testsuite (Core vs Laravel) review boundary helper
 
-  Pairs with — not duplicates — the polyfill-version-matrix-audit skill at
+  Pairs with the library-author skill's polyfill-audit mode at
   dhpk root (which is the manual-invoke deep audit) and the
   version-matrix-impact-reviewer agent (which is the blast-radius assessor).
   The Review Gate is the dispatch surface for those reviews; this module
@@ -39,9 +39,8 @@ triggers:
 provides:
   agents: [polyfill-reviewer]
   skills:
-    - matrix-cell-onboard
+    - library-author
     - dhpk-openspec-artifact-guard
-    - dhpk-library-dual-testsuite-map
   references:
     - polyfill-patterns.md
     - openspec-naming-gotchas.md

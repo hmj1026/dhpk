@@ -63,7 +63,9 @@ test('gen-agents-skills CLI can materialize outside the canonical source checkou
     const receipt = JSON.parse(fs.readFileSync(path.join(agentRoot, '.dhpk-installed.json'), 'utf8'));
     const skillPath = 'flow-guide/SKILL.md';
     const skillFile = path.join(agentRoot, 'skills', skillPath);
-    assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v1');
+    assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+    assert.ok(receipt.selectedIdentities.some((entry) => entry.entityKind === 'skill' && entry.stableId === 'library-author'));
+    assert.ok(receipt.emittedIdentities.every((entry) => entry.entityKind === 'skill'));
     assert.strictEqual(receipt.profileId, 'portable-core');
     assert.match(receipt.profileFingerprint, /^[a-f0-9]{64}$/);
     assert.match(receipt.selectionFingerprint, /^[a-f0-9]{64}$/);

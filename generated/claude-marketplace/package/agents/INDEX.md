@@ -45,12 +45,9 @@ roster navigation for the shipped worker/reasoner roles.
 |-------|-------|----------------|
 | [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
 | [codex-reasoner](codex-reasoner.md) | sonnet + codex CLI | **codex CLI available** — canonical `deep-reasoner` backend selected by `--reasoner=codex/<model>[:<effort>]` (default `gpt-6.1-sol` @ `high`), with a read-only sandbox, dispatcher-attested runtime/deadline, and the same conclusion contract; the retired `CODEX=on`/`--codex` review-peer switch cannot select it |
-| [codex-deep-reasoner](codex-deep-reasoner.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `deep-reasoner` backend via `--reasoner=codex/<model>[:<effort>]` (default `gpt-6.1-sol` @ `high`, read-only sandbox via `skills/flow-drive/scripts/adapters/run-codex.sh`); dispatcher-attested model, runtime and deadline; same read-only conclusion contract, never modifies the working tree; the retired `CODEX=on`/`--codex` review-peer switch cannot select it |
 | [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
 | [codex-worker](codex-worker.md) | sonnet + codex CLI | **codex CLI available** — canonical `fast-worker` backend (default `gpt-6-luna` @ `xhigh`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
-| [codex-fast-worker](codex-fast-worker.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `fast-worker` backend (default `gpt-6-luna` @ `xhigh`, via `skills/flow-drive/scripts/adapters/run-codex.sh`); dispatcher-attested model, runtime and deadline; the retired `CODEX=on`/`--codex` review-peer switch cannot select it, with the same task-spec and verification/edited-file accounting contract |
 | [agy-worker](agy-worker.md) | sonnet + agy CLI | **agy CLI available** — canonical mechanical worker on the agy backend (default `Gemini 3.8 Flash (High)`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
-| [agy-fast-worker](agy-fast-worker.md) | sonnet + agy CLI | **agy CLI available** — a `fast-worker` whose edits run on the agy CLI backend (default `Gemini 3.8 Flash (High)`, via `skills/flow-drive/scripts/adapters/run-agy.sh`); dispatcher-attested model, runtime and deadline, with the same task-spec contract + independent verification/edited-file accounting |
 | [codex-reviewer](codex-reviewer.md) | sonnet + codex CLI | Internal shared-runner read-only reviewer; capability-gated and not a native Codex dispatch target; routes through the canonical launcher only when the capability is available |
 
 Role models are configurable per project via `userConfig.deep_reasoner_model` / `userConfig.fast_worker_model` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
@@ -110,7 +107,7 @@ This index only lists the shipped roles above.
 ## Models
 
 - **opus**: deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
-- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-worker, agy-worker, codex-fast-worker, agy-fast-worker, codex-reasoner, codex-deep-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
+- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-worker, agy-worker, codex-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
 - **fable**: architect (Fable 5.1 is the highest per-token Claude tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
 

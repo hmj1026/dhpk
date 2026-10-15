@@ -1,6 +1,6 @@
 ---
 name: polyfill-reviewer
-description: 'Reviewer for multi-major-version polyfill code. Recommended after editing any .php file containing a runtime version guard (`version_compare`, `class_exists`, `interface_exists`, `method_exists`, `InstalledVersions::satisfies`, `PHP_VERSION_ID`). Audits whether each guard branch has a matrix cell that enters it AND a test that proves it. Companion to (not replacement for) the manual-invoke `polyfill-version-matrix-audit` skill and the diff-scope `version-matrix-impact-reviewer` agent. Asymmetric polyfill edits are the most common source of multi-major regression in this codebase.'
+description: 'Reviewer for multi-major-version polyfill code. Recommended after editing any .php file containing a runtime version guard (`version_compare`, `class_exists`, `interface_exists`, `method_exists`, `InstalledVersions::satisfies`, `PHP_VERSION_ID`). Audits whether each guard branch has a matrix cell that enters it AND a test that proves it. Companion to (not replacement for) the manual-invoke `library-author polyfill-audit` skill and the diff-scope `version-matrix-impact-reviewer` agent. Asymmetric polyfill edits are the most common source of multi-major regression in this codebase.'
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
@@ -23,7 +23,7 @@ marker files.
 
 ## When NOT
 
-- Deep audit of one guard across all files → skill `polyfill-version-matrix-audit` (manual `/dhpk:dhpk-polyfill-version-matrix-audit`)
+- Deep audit of one guard across all files → skill `$library-author polyfill-audit` (manual `$library-author polyfill-audit`)
 - Diff blast-radius across the full version matrix → `version-matrix-impact-reviewer`
 
 ## Process
@@ -41,7 +41,7 @@ marker files.
 2. **Enumerate every guard in the diff.**
    For each `version_compare` / `class_exists` / `interface_exists` /
    `method_exists` / `InstalledVersions::satisfies` / `PHP_VERSION_ID`
-   occurrence, classify per the table in `polyfill-version-matrix-audit`
+   occurrence, classify per the table in `library-author polyfill-audit`
    skill (do not duplicate the table here — `Read` that skill for the
    classification logic).
 
@@ -71,7 +71,7 @@ marker files.
 ## What this reviewer does NOT do
 
 - Does not deep-dive single guards across all files (that's
-  `/dhpk:dhpk-polyfill-version-matrix-audit` — manual invoke).
+  `$library-author polyfill-audit` — manual invoke).
 - Does not assess diff blast-radius across all 13 matrix cells (that's
   `version-matrix-impact-reviewer` agent).
 - Does not run tests. Only reads code + git log + composer/workflow YAML.
@@ -92,7 +92,7 @@ This file retains the version-guard branch and matrix-cell checks unique to
 |---------|-------|
 | Diff touches SQL / schema | `database-reviewer` (separate review) |
 | Diff touches auth / crypto | `security-reviewer` (separate review) |
-| Need deep audit of one guard | suggest manual `/dhpk:dhpk-polyfill-version-matrix-audit` |
+| Need deep audit of one guard | suggest manual `$library-author polyfill-audit` |
 | Need cross-cell blast-radius | suggest `version-matrix-impact-reviewer` agent |
 
 ## Output

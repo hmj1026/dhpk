@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change refine-opsx-orchestration-governance. Update Purpose after archive.
+Define explicit deterministic worker backend selection, bounded fallback and auditable execution reports while rejecting retired worker identities before dispatch.
 
 ## Requirements
 
@@ -84,14 +84,17 @@ Every selected fast-worker SHALL report Host, requested and selected Provider,
 requested and effective Model, normalized Effort, Transport, requested Role,
 effective canonical Role, fallback history, availability, verification, and a
 complete assigned-scope edited-file report. A Role label or alias SHALL not
-substitute for process or verification evidence.
+substitute for process or verification evidence. A request for retired names
+`codex-fast-worker` or `agy-fast-worker` SHALL NOT produce a dispatched worker
+report; it SHALL fail closed with retirement guidance naming `codex-worker` or
+`agy-worker`. REQ-7.
 
 #### Scenario: Legacy request is auditable
 
 - **WHEN** a caller requests `codex-fast-worker`
-- **THEN** the report preserves the requested alias, records effective Role
-  `worker` and compatibility Provider `codex-cli`, and includes independent
-  verification evidence
+- **THEN** the report is not a successful worker dispatch; it preserves the
+  requested name, records `BLOCKED` with successor `codex-worker`, and includes
+  no fabricated verification evidence
 
 #### Scenario: Parallel report separates sibling edits
 

@@ -31,7 +31,7 @@ const COMMON_SKILL_IDS = [
   'create-pr',
   'git-worktree',
   'proposal-analyze',
-  'update-docs',
+  'doc-maintain',
   'precommit',
   'repo-verify',
   'ui-ux-verify',

@@ -36,22 +36,6 @@
         }
       ]
     },
-    "library-dual-testsuite-map": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "matrix-cell-onboard": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
     "openspec-artifact-guard": {
       "entry": "SKILL.md",
       "references": [
@@ -575,15 +559,6 @@
         }
       ]
     },
-    "composer-package-hygiene": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/package-contracts.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
     "deploy-list": {
       "entry": "SKILL.md",
       "references": [
@@ -680,32 +655,6 @@
         "agents/openai.yaml",
         "references/classification.md",
         "references/report-template.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "laravel-package-author": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/authoring-patterns.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "laravel-testbench-matrix": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/testbench-recipes.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "polyfill-version-matrix-audit": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
       ],
       "executable_entries": [],
       "host_capabilities": []
@@ -862,30 +811,6 @@
       "host_capabilities": []
     },
     "project-brief": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "doc-refactor": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "update-docs": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
-    "update-codemaps": {
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml"
@@ -1234,6 +1159,34 @@
         "references/tdd-workflow-and-test-strategy.md",
         "references/yii1-backend-patterns.md",
         "references/yii1-security-patterns.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "library-author": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/author.md",
+        "references/authoring-patterns.md",
+        "references/cell-onboard.md",
+        "references/composer.md",
+        "references/package-contracts.md",
+        "references/polyfill-audit.md",
+        "references/suite-map.md",
+        "references/testbench-recipes.md",
+        "references/testbench.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "doc-maintain": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/codemap.md",
+        "references/refactor.md",
+        "references/update.md"
       ],
       "executable_entries": [],
       "host_capabilities": []

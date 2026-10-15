@@ -578,6 +578,11 @@ test('common Claude selection includes retained command-owning skills', () => {
   assert.deepStrictEqual(result.value.plan.profile.supportClosure, result.value.selection.supportClosure);
   assert.ok(result.value.selection.selectedStableIds.includes('git-smart-commit'));
   assert.ok(result.value.selection.selectedStableIds.includes('repo-verify'));
+  const commands = result.value.plan.entries.map((entry) => entry.source).filter((source) => source.startsWith('commands/'));
+  assert.ok(commands.includes('commands/update-docs.md'));
+  for (const command of ['doc-maintain', 'doc-refactor', 'update-codemaps']) {
+    assert.ok(!commands.includes(`commands/${command}.md`), command);
+  }
 });
 
 // BEGIN lexical source block: tests/gen-claude-profile-bundles.test.js

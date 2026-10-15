@@ -224,7 +224,7 @@ function readJson(filePath, label) {
 }
 
 function inventorySkillMap(inventory) {
-  return new Map([...(inventory && inventory.skills || []), ...(inventory && inventory.modules || [])].map((entry) => [entry.id, entry]));
+  return new Map((inventory && inventory.skills || []).map((entry) => [entry.id, entry]));
 }
 
 function selectedConfiguration(inventory, profileSelection = null, root = null, publicationView = null) {

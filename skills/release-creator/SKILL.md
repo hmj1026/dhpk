@@ -26,7 +26,7 @@ success from a local edit or an unassociated CI run.
 
 ## When NOT to Use
 
-- PHP package/library publishing: use `dhpk-composer-package-hygiene`.
+- PHP package/library publishing: use `$library-author composer`.
 - Ordinary feature or bug commits: use `$git-smart-commit`.
 - The integration branch or required tests are not ready.
 

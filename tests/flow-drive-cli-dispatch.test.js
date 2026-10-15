@@ -507,4 +507,20 @@ test('Codex dispatch rejects an artifact directory accessible to group or other 
   }
 });
 
+for (const suffix of ['model', 'effort']) {
+  test(`retired reasoner ${suffix} configuration reports migration guidance before public dispatch`, () => {
+    const harness = createHarness({ args: ['--worker=codex'],
+      config: { ...DEFAULT_CONFIG, [`codex_deep_reasoner_${suffix}`]: suffix === 'model' ? 'gpt-6.1-sol' : 'high' } });
+    try {
+      assert.throws(() => prepareInvocationDispatch(harness.packet, promptEvidence(harness.packet.prompt)),
+        new RegExp(`codex_reasoner_${suffix}.*0\\.66\\.1`));
+      const result = harness.run();
+      assert.notStrictEqual(result.status, 0);
+      assert.match(result.stderr, new RegExp(`codex_reasoner_${suffix}`));
+      assert.match(result.stderr, /0\.66\.1/);
+      assert.strictEqual(hasNoProviderStart(harness), true);
+    } finally { harness.cleanup(); }
+  });
+}
+
 run('flow-drive-cli-dispatch');

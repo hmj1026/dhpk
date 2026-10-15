@@ -64,7 +64,7 @@ backend or produce a reasoning result from your own analysis when the CLI is una
    ```
 3. Run the shared wrapper in **`read-only`** sandbox with the resolved model/effort
    (defaults `gpt-6.1-sol` / `high`; overridden by the dispatcher's resolved
-   `codex_deep_reasoner_model` / `codex_deep_reasoner_effort` or `--reasoner` segments):
+   `codex_reasoner_model` / `codex_reasoner_effort` or `--reasoner` segments):
 
    ```bash
    # The dispatcher created this 0600 context; this role must not fabricate it.
@@ -89,7 +89,7 @@ missing, invalid, or uncontained receipt is `BLOCKED`.
 
 No Edit/Write tool and a `read-only` codex sandbox by design — this agent cannot patch even
 when the fix looks trivial. If asked to also apply the fix, state that application goes
-through `fast-worker` / `codex-fast-worker` or an inline edit, then still return the full
+through `fast-worker` / `codex-worker` or an inline edit, then still return the full
 conclusion contract so the follow-up dispatch has everything it needs.
 
 ## Output

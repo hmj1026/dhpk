@@ -43,7 +43,7 @@ Wrapper degrade path (landed with `adapt-cli-wrappers-to-new-behaviors`):
   standalone bridge report schema is no longer a runtime dependency.
   `--ephemeral` / `--ignore-user-config` stay opt-in.
 
-## GPT-5.x section (codex-worker, codex-reasoner, codex-reviewer; aliases: codex-fast-worker, codex-deep-reasoner, internal mode-qualified bridge role)
+## GPT-5.x section (codex-worker, codex-reasoner, codex-reviewer; aliases: codex-worker, codex-reasoner, internal mode-qualified bridge role)
 
 The heading name is a stable contract (`openspec/specs/cli-prompt-composition`); it covers the GPT-6 routes.
 
@@ -63,7 +63,7 @@ The heading name is a stable contract (`openspec/specs/cli-prompt-composition`);
 - **`text.verbosity` and `reasoning.mode` are out of scope** — `codex exec` gives
   no control surface for either, so no prompt text should claim to set them.
 
-## Gemini section (agy-worker; alias: agy-fast-worker)
+## Gemini section (agy-worker; alias: agy-worker)
 
 - **Source**: official Gemini 3 family guidance. The dispatched model is
   Gemini 3.6 Flash — a minor-version gap; the family-level guidance below still

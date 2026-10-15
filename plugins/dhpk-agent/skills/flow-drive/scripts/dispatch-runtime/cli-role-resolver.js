@@ -9,11 +9,13 @@ const ROLE_MATRIX = Object.freeze({
   'agy-worker': Object.freeze({ provider: 'agy', authority: 'workspace-write', config: 'agy_worker' }),
 });
 
-const ALIASES = Object.freeze({
-  'codex-fast-worker': Object.freeze({ effectiveRole: 'codex-worker' }),
-  'codex-deep-reasoner': Object.freeze({ effectiveRole: 'codex-reasoner' }),
-  'agy-fast-worker': Object.freeze({ effectiveRole: 'agy-worker' }),
+const RETIRED_ROLES = Object.freeze({
+  'codex-fast-worker': 'codex-worker',
+  'codex-deep-reasoner': 'codex-reasoner',
+  'agy-fast-worker': 'agy-worker',
 });
+
+const ALIASES = Object.freeze({});
 
 const CANONICAL_ROLES = Object.freeze({
   planner: Object.freeze({ authority: 'read-only' }),
@@ -42,9 +44,7 @@ const LEGACY_CONFIG = Object.freeze({
   codex_worker: Object.freeze({
     model: 'codex_fast_worker_model', effort: 'codex_fast_worker_effort', timeout_secs: 'codex_fast_worker_timeout_secs',
   }),
-  codex_reasoner: Object.freeze({
-    model: 'codex_deep_reasoner_model', effort: 'codex_deep_reasoner_effort', timeout_secs: 'codex_deep_reasoner_timeout_secs',
-  }),
+  codex_reasoner: Object.freeze({ timeout_secs: 'codex_deep_reasoner_timeout_secs' }),
   codex_reviewer: Object.freeze({ timeout_secs: 'codex_bridge_timeout_secs' }),
   agy_worker: Object.freeze({ model: 'agy_fast_worker_model' }),
 });
@@ -68,6 +68,9 @@ function createSessionDiagnostics(emit = () => {}) {
 
 function resolveRole({ requestedRole, mode, provider, diagnostics } = {}) {
   if (typeof requestedRole !== 'string' || !requestedRole) return blocked('requested role is required');
+  if (Object.prototype.hasOwnProperty.call(RETIRED_ROLES, requestedRole)) {
+    return blocked(`retired role ${requestedRole} in 0.66.2; use ${RETIRED_ROLES[requestedRole]}; rollback 0.66.1`);
+  }
 
   let effectiveRole = requestedRole;
   let canonicalRole = requestedRole;
@@ -132,6 +135,12 @@ const configValue = (config, canonical, legacy) => {
 };
 
 function resolveConfig({ effectiveRole, config = {} } = {}) {
+  for (const suffix of ['model', 'effort']) {
+    const key = `codex_deep_reasoner_${suffix}`;
+    if (Object.prototype.hasOwnProperty.call(config, key)) {
+      return blocked(`retired config ${key} in 0.66.2; use codex_reasoner_${suffix}; rollback 0.66.1`);
+    }
+  }
   const canonicalDefinition = CANONICAL_ROLES[effectiveRole];
   const definition = ROLE_MATRIX[effectiveRole] || (canonicalDefinition ? {
     config: effectiveRole === 'worker' ? 'codex_worker' : effectiveRole,

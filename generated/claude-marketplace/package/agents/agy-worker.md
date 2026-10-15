@@ -27,7 +27,7 @@ verification and edited-file accounting.
 ## When NOT
 
 - In-process default → `fast-worker`
-- Codex CLI backend → `codex-fast-worker`
+- Codex CLI backend → `codex-worker`
 - This file is only the agy CLI backend of the same mechanical role — not a duplicate role.
 - Unknown root cause or an ambiguous spec → escalate (do not become `deep-reasoner`). Stop **without invoking the CLI backend**.
 
@@ -119,7 +119,7 @@ After the CLI completes:
 agy's internal iteration.** When the composed prompt tells agy to run the verification
 command and iterate on failures itself (per step 1 above), one dispatch that goes through
 several such internal iterations still counts as one attempt. This carve-out is deliberate
-to `agy-fast-worker` and is **not** applied to `codex-fast-worker` — there is no equivalent
+to `agy-worker` and is **not** applied to `codex-worker` — there is no equivalent
 OpenAI-side recommendation to iterate against a self-run verification command inside a
 single `codex exec` call.
 

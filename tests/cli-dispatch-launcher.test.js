@@ -317,7 +317,7 @@ test('adapter execution uses only the declared restricted runtime PATH', () => {
   }
 });
 
-test('public launcher emits one bounded legacy-alias diagnostic per session without changing authority or leaking inputs', () => {
+test('public launcher uses canonical worker and reasoner roles without leaking inputs', () => {
   const projected = projectedPackage();
   try {
     const workdir = path.join(projected.root, 'work');
@@ -339,8 +339,8 @@ test('public launcher emits one bounded legacy-alias diagnostic per session with
     });
 
     const dispatches = [
-      { requestedRole: 'codex-fast-worker', mode: 'workspace-write', attemptId: 'attempt-1' },
-      { requestedRole: 'codex-deep-reasoner', mode: 'read-only', attemptId: 'attempt-2' },
+      { requestedRole: 'codex-worker', mode: 'workspace-write', attemptId: 'attempt-1' },
+      { requestedRole: 'codex-reasoner', mode: 'read-only', attemptId: 'attempt-2' },
     ].map((dispatch) => {
       const artifactRoot = path.join(workdir, '.dhpk', dispatch.attemptId);
       fs.mkdirSync(artifactRoot, { recursive: true });
@@ -375,9 +375,7 @@ test('public launcher emits one bounded legacy-alias diagnostic per session with
 
     assert.strictEqual(probe.status, 0, probe.stderr);
     const diagnostics = probe.stderr.split('\n').filter((line) => line.includes('deprecated role alias'));
-    assert.deepStrictEqual(diagnostics, [
-      'launch-cli-dispatch: WARNING: deprecated role alias codex-fast-worker; use codex-worker',
-    ]);
+    assert.deepStrictEqual(diagnostics, []);
     assert.strictEqual(probe.stderr.includes('/private/secret/config.json'), false);
     assert.strictEqual(probe.stderr.includes('super-secret-value'), false);
 

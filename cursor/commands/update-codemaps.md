@@ -4,7 +4,7 @@ description: "掃描程式碼結構，產生或更新 docs/CODEMAPS/ 架構文�
 ---
 # Update Codemaps
 
-Forward to the canonical [`$update-codemaps` skill](https://github.com/hmj1026/dhpk/blob/main/skills/update-codemaps/SKILL.md)
+Forward to the canonical [`$doc-maintain` mode `codemap` skill](https://github.com/hmj1026/dhpk/blob/main/skills/doc-maintain/SKILL.md)
 with `$ARGUMENTS` unchanged (including an empty argument list). It owns the
 live structure scan, five codemap outputs, metadata header, 30% confirmation
 guard, and `.reports/codemap-diff.txt` report.

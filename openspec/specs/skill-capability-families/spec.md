@@ -296,3 +296,116 @@ SCF-REQ-006: `opsx-apply-resume` SHALL directly own the complete local procedure
 
 - **WHEN** the workflow enters Resume rather than Save
 - **THEN** it performs no observation-posting side effect
+
+### Requirement: Library and documentation families have a closed wave-2 mapping
+
+REQ-1: The library-and-documentation consolidation SHALL use exactly this
+stable-ID predecessor mapping. Each successor SHALL directly own its internal
+modes and SHALL NOT invoke a removed predecessor at runtime. Internal
+mode-specific references SHALL NOT become separately discovered skills. New
+successor stable IDs and inventory public names SHALL be `library-author` and
+`doc-maintain`. This mapping SHALL NOT add, omit, or remap any predecessor
+from the historical 0.54.0 family matrix or from the 25-ID
+`consolidate-self-contained-skill-families` mapping. `pr-summary` and
+`merge-prep` SHALL remain outside this closed set unless a later approved
+change adds them.
+
+| Predecessor stable ID | Old public name | Successor stable ID and public name | Mode |
+|---|---|---|---|
+| `laravel-package-author` | `dhpk-laravel-package-author` | `library-author` | `author` |
+| `laravel-testbench-matrix` | `dhpk-laravel-testbench-matrix` | `library-author` | `testbench` |
+| `composer-package-hygiene` | `dhpk-composer-package-hygiene` | `library-author` | `composer` |
+| `polyfill-version-matrix-audit` | `dhpk-polyfill-version-matrix-audit` | `library-author` | `polyfill-audit` |
+| `library-dual-testsuite-map` | `dhpk-library-dual-testsuite-map` | `library-author` | `suite-map` |
+| `matrix-cell-onboard` | `matrix-cell-onboard` | `library-author` | `cell-onboard` |
+| `update-docs` | `update-docs` | `doc-maintain` | `update` |
+| `update-codemaps` | `update-codemaps` | `doc-maintain` | `codemap` |
+| `doc-refactor` | `doc-refactor` | `doc-maintain` | `refactor` |
+
+`library-author` SHALL provide modes `author`, `testbench`, `composer`,
+`polyfill-audit`, `suite-map`, and `cell-onboard`. `doc-maintain` SHALL
+provide modes `update`, `codemap`, and `refactor`. Neither family SHALL
+require a `scripts/` directory. `modules/library-author/` SHALL remain a
+content module and SHALL NOT be treated as the skill directory.
+
+#### Scenario: Selected family replaces its predecessors
+
+- **WHEN** an affected selection installs `library-author` or `doc-maintain`
+- **THEN** the successor owns the mapped modes, old mapped entries are absent
+  from discovery, and mode-local references do not appear as peer skills
+
+#### Scenario: Mapping or SCF identity is changed
+
+- **WHEN** consolidation validation encounters an extra or remapped
+  predecessor, or a change to the SCF 25-ID mapping
+- **THEN** it fails with the identity and unexpected change instead of treating
+  directory count as authority to expand scope
+
+### Requirement: Wave-2 family modes preserve predecessor inputs, outputs, and authority
+
+REQ-2: Each `library-author` and `doc-maintain` mode SHALL preserve the
+applicable predecessor's input contract, output artifact, authorization
+boundary, and terminal evidence. Callers MAY supply a natural-language task
+that selects one mode; an explicit mode token SHALL select the same bounded
+procedure. Substantial mode-specific procedure SHALL load only for the
+selected mode. Consolidation SHALL NOT merge skills whose inputs, outputs, or
+authority differ into one undifferentiated procedure.
+
+`library-author` modes remain independently operable: `author` produces an
+authoring decision or package design; `testbench` produces a per-cell CI
+matrix and TestCase design; `composer` produces a contract verdict or release
+gate; `polyfill-audit` produces a branch-and-matrix-gap audit; `suite-map`
+produces selected suite names and commands; `cell-onboard` produces a cell
+plan with composer, workflow, polyfill, Testbench, and focused-test gates.
+
+`doc-maintain` modes remain independently operable: `update` may write
+documentation only and reports PASS, NOT_RUN, BLOCKED, or Need Human;
+`codemap` writes only CODEMAPS outputs and reports PASS, BLOCKED, or
+confirmation-required; `refactor` edits one bounded Markdown file and reports
+PASS, NOT_RUN, or BLOCKED. Documentation-only authority SHALL NOT extend to
+application source, tests, manifests, route tables, or generated projections.
+
+#### Scenario: Library author mode is selected
+
+- **WHEN** a caller requests Laravel package provider, facade, publishing, or
+  discovery design through `library-author`
+- **THEN** mode `author` runs and produces an authoring decision without
+  loading Testbench install, Composer semver, or polyfill-audit procedures
+
+#### Scenario: Documentation update mode is selected
+
+- **WHEN** a caller requests a stale-docs refresh through `doc-maintain`
+- **THEN** mode `update` writes documentation only, preserves
+  PASS/NOT_RUN/BLOCKED/Need Human, and does not refresh CODEMAPS or refactor
+  an unrelated Markdown file
+
+#### Scenario: Distinct mode contracts are flattened
+
+- **WHEN** a proposed family procedure uses one shared input/output contract
+  for two mapped predecessors whose SKILL descriptions declare different
+  inputs, outputs, or authority
+- **THEN** family validation fails and the predecessors remain unmerged
+
+### Requirement: Keep-separate skills retain independent ownership
+
+REQ-3: The following identities SHALL remain independently invokable and
+SHALL NOT become modes of `library-author`, `doc-maintain`, or each other in
+this change: `proposal-analyze`, `project-brief`, `issue-analyze` (public
+name `dhpk-issue-analyze`); `repo-intake` and `project-audit`; `repo-verify`
+and `precommit`; `ui-ux-verify` and `feature-verify`; `tdd` and
+`legacy-code-characterization`; `opsx-apply-resume` and
+`openspec-artifact-guard`; `vue-2-notes`. `pr-summary` and `merge-prep`
+SHALL also remain separate unless a later approved change adds them to a
+closed mapping.
+
+#### Scenario: Keep-separate skill is requested
+
+- **WHEN** a caller requests `repo-verify` or `precommit`
+- **THEN** routing selects that skill's existing public name and authority
+  rather than folding it into a sibling or a new family
+
+#### Scenario: Keep-separate identity is absorbed
+
+- **WHEN** a consolidation step maps a keep-separate stable ID onto
+  `library-author` or `doc-maintain`
+- **THEN** validation fails with the identity and the keep-separate reason

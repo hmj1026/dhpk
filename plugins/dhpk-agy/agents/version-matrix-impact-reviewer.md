@@ -1,6 +1,6 @@
 ---
 name: version-matrix-impact-reviewer
-description: 'Specialist for libraries shipping a CI matrix across multiple dependency-version cells (e.g. PHP × Laravel/Symfony, Yii 1×2). Use when editing version-specific source dirs (src/Laravel/, src/Symfony/), composer.json require constraints, or .github/workflows/ matrices, or before tagging a release. Identifies which matrix cells a diff could break and recommends the minimum local testsuite subset. Does NOT duplicate code-reviewer or database-reviewer; pairs with the polyfill-version-matrix-audit skill.'
+description: 'Specialist for libraries shipping a CI matrix across multiple dependency-version cells (e.g. PHP × Laravel/Symfony, Yii 1×2). Use when editing version-specific source dirs (src/Laravel/, src/Symfony/), composer.json require constraints, or .github/workflows/ matrices, or before tagging a release. Identifies which matrix cells a diff could break and recommends the minimum local testsuite subset. Does NOT duplicate code-reviewer or database-reviewer; pairs with the library-author polyfill-audit skill.'
 tools: ["view_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact"]
 model: pro
 ---
@@ -164,7 +164,7 @@ Don't produce a per-cell table when one row would do.
 ## What this agent does NOT do
 
 - Replace `code-reviewer` — quality / security review still runs separately
-- Replace the `polyfill-version-matrix-audit` skill — that audits a single
+- Replace the `library-author polyfill-audit` skill — that audits a single
   file's branch coverage in depth; this agent looks at a diff's blast
   radius across many files
 - Audit `composer.json` itself — that's `composer-package-hygiene`'s job

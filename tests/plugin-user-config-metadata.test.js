@@ -19,8 +19,8 @@ const legacyManifest = JSON.parse(fs.readFileSync(LEGACY_MANIFEST_PATH, 'utf8'))
 const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PATH, 'utf8'));
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
 
-const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 76;
-const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '53cc964a6a31d4c3a63bde9ab9a14951a9b1ebfc9440162a3f4ef0422b042b36';
+const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 74;
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '9a51435373066f13ae6d338d662382e1d30ff05f07f8f461e0b3100a9d05e492';
 const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
   'cross_provider',
   'worker_target',
@@ -132,7 +132,7 @@ test('legacy userConfig fixture contains exactly 59 options and preserves the le
   }
 });
 
-test('active userConfig preserves the canonical 76-key contract and metadata coverage', () => {
+test('active userConfig preserves the canonical 74-key contract and metadata coverage', () => {
   const activeEntries = contractEntries(activeManifest);
   const legacyKeys = Object.keys(legacyManifest.userConfig || {});
   const activeKeys = Object.keys(activeManifest.userConfig || {});
@@ -140,7 +140,7 @@ test('active userConfig preserves the canonical 76-key contract and metadata cov
 
   assert.strictEqual(activeEntries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);
   assert.strictEqual(digest(activeEntries), EXPECTED_ACTIVE_USER_CONFIG_SHA256);
-  for (const key of ['codex_deep_reasoner_model', 'codex_reasoner_model', 'codex_reviewer_model']) {
+  for (const key of ['codex_reasoner_model', 'codex_reviewer_model']) {
     assert.strictEqual(activeManifest.userConfig[key].default, 'gpt-6.1-sol', key);
   }
   assert.deepStrictEqual(canonicalOnlyKeys, EXPECTED_CANONICAL_ROLE_CONFIG_KEYS);

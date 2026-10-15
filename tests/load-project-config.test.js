@@ -232,16 +232,19 @@ test('DHPK_HOOK_PROFILE env one-shot override wins over settings file', () => {
     assert.strictEqual(res.stdout, '1200|project:codex_worker_timeout_secs|codex-worker');
   });
 
-  test('legacy role labels translate before timeout lookup while canonical keys retain precedence', () => {
+  test('retired worker labels block while mode-qualified bridge timeouts retain canonical precedence', () => {
     const root = tmpRoot();
     settings(root, {
       codex_worker_timeout_secs: '1200', codex_fast_worker_timeout_secs: '30',
       codex_reviewer_timeout_secs: '600', codex_bridge_timeout_secs: '15',
     });
     const worker = sh(root,
-      'dhpk_codex_timeout_export codex-fast-worker; printf "%s|%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE" "$DHPK_CODEX_ROLE"');
-    assert.strictEqual(worker.status, 0, worker.stderr);
-    assert.strictEqual(worker.stdout, '1200|project:codex_worker_timeout_secs|codex-worker');
+      'dhpk_codex_timeout_export codex-fast-worker');
+    assert.strictEqual(worker.status, 78, worker.stderr);
+    assert.match(worker.stderr, /codex-worker/);
+    assert.match(worker.stderr, /0\.66\.2/);
+    assert.match(worker.stderr, /0\.66\.1/);
+    assert.strictEqual(worker.stdout, '');
 
     const reviewer = sh(root,
       'dhpk_codex_timeout_export codex-bridge read-only; printf "%s|%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE" "$DHPK_CODEX_ROLE"');

@@ -14,18 +14,11 @@
       "selection": "common"
     },
     {
-      "id": "library-dual-testsuite-map",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "tdd",
-      "selection": "common"
-    },
-    {
-      "id": "matrix-cell-onboard",
+      "id": "library-author",
       "authority": "workspace-write",
-      "kind": "branch",
-      "owner": "flow-drive",
-      "selection": "common"
+      "kind": "entry",
+      "owner": "library-author",
+      "selection": "host-only"
     },
     {
       "id": "openspec-artifact-guard",
@@ -77,13 +70,6 @@
       "selection": "common"
     },
     {
-      "id": "composer-package-hygiene",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "change-verdict",
-      "selection": "common"
-    },
-    {
       "id": "deploy-list",
       "authority": "guidance-only",
       "kind": "branch",
@@ -109,27 +95,6 @@
       "authority": "guidance-only",
       "kind": "branch",
       "owner": "proposal-analyze",
-      "selection": "common"
-    },
-    {
-      "id": "laravel-package-author",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "laravel-testbench-matrix",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "tdd",
-      "selection": "common"
-    },
-    {
-      "id": "polyfill-version-matrix-audit",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "change-verdict",
       "selection": "common"
     },
     {
@@ -210,24 +175,10 @@
       "selection": "common"
     },
     {
-      "id": "doc-refactor",
-      "authority": "workspace-write",
-      "kind": "branch",
-      "owner": "update-docs",
-      "selection": "common"
-    },
-    {
-      "id": "update-docs",
+      "id": "doc-maintain",
       "authority": "workspace-write",
       "kind": "entry",
-      "owner": "update-docs",
-      "selection": "common"
-    },
-    {
-      "id": "update-codemaps",
-      "authority": "workspace-write",
-      "kind": "branch",
-      "owner": "update-docs",
+      "owner": "doc-maintain",
       "selection": "common"
     },
     {
