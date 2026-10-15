@@ -623,6 +623,61 @@ test('malformed shard timing JSON is rejected', () => {
     }
   });
 
+  for (const mode of ['selected', 'discovered']) {
+    for (const jobs of [1, 2]) {
+      for (const scenario of [
+        { name: 'missing summary', output: 'ordinary output', exit: 0, succeeds: false, evidence: 'UNAVAILABLE', counts: [null, null, null] },
+        { name: 'unparseable summary', output: 'fixture: unknown/unknown passed', exit: 0, succeeds: false, evidence: 'UNAVAILABLE', counts: [null, null, null] },
+        { name: 'observed pass', output: 'fixture: 1/1 passed', exit: 0, succeeds: true, evidence: 'OBSERVED', counts: [1, 1, 0] },
+        { name: 'observed zero assertions', output: 'fixture: 0/0 passed', exit: 0, succeeds: true, evidence: 'OBSERVED', counts: [0, 0, 0] },
+        { name: 'failed assertions with zero exit', output: 'fixture: 1/2 passed', exit: 0, succeeds: false, evidence: 'OBSERVED', counts: [2, 1, 1] },
+        { name: 'invalid assertion counts', output: 'fixture: 2/1 passed', exit: 0, succeeds: false, evidence: 'OBSERVED', counts: [1, 2, -1] },
+        { name: 'failed process with passing assertions', output: 'fixture: 1/1 passed', exit: 7, succeeds: false, evidence: 'OBSERVED', counts: [1, 1, 0] },
+      ]) {
+        test(`${mode} runner with ${jobs} jobs enforces ${scenario.name} and preserves timing evidence`, () => {
+          const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-local-assertions-'));
+          try {
+            const testsDir = path.join(directory, 'tests');
+            fs.mkdirSync(testsDir);
+            // Run the unchanged CLI in an isolated discovery tree, never the
+            // repository's recursive suite from inside this suite.
+            fs.copyFileSync(path.join(__dirname, 'run-all.js'), path.join(testsDir, 'run-all.js'));
+            fs.cpSync(path.join(__dirname, '..', 'scripts', 'lib'), path.join(directory, 'scripts', 'lib'), { recursive: true });
+            const fixture = path.join(testsDir, 'fixture.test.js');
+            const companion = path.join(testsDir, 'companion.test.js');
+            fs.writeFileSync(fixture, `console.log(${JSON.stringify(scenario.output)}); process.exitCode = ${scenario.exit};\n`);
+            fs.writeFileSync(companion, "console.log('companion: 1/1 passed');\n");
+            const timingFile = path.join(directory, 'timing.json');
+            const childEnv = { ...process.env, DHPK_TEST_TIMING_FILE: timingFile, DHPK_TEST_JOBS: String(jobs) };
+            delete childEnv.DHPK_TEST_TIMING_CHILD;
+            delete childEnv.DHPK_TEST_SHARD_INDEX;
+            delete childEnv.DHPK_TEST_SHARD_COUNT;
+            const args = [path.join(testsDir, 'run-all.js')];
+            if (mode === 'selected') args.push(fixture, companion);
+            const result = spawnSync(process.execPath, args, { cwd: directory, env: childEnv, encoding: 'utf8', timeout: 30000 });
+            const output = result.stdout + '\n' + result.stderr;
+            assert.strictEqual(result.error, undefined, output);
+            if (scenario.succeeds) assert.strictEqual(result.status, 0, output);
+            else assert.notStrictEqual(result.status, 0, `runner accepted ${scenario.name}:\n${output}`);
+            const report = JSON.parse(fs.readFileSync(timingFile, 'utf8'));
+            assert.strictEqual(report.totals.files, 2);
+            assert.strictEqual(report.totals.failed, scenario.succeeds ? 0 : 1);
+            assert.strictEqual(report.files.length, 2, 'retain every completed file, including failures');
+            const timing = report.files.find((entry) => entry.file === 'fixture.test.js');
+            assert.strictEqual(timing.status, scenario.succeeds ? 'PASS' : 'FAIL');
+            assert.strictEqual(timing.assertions.status, scenario.evidence);
+            assert.deepStrictEqual([timing.assertions.total, timing.assertions.passed, timing.assertions.failed], scenario.counts);
+            assert(Number.isFinite(timing.duration_ms) && timing.duration_ms >= 0);
+            if (!scenario.succeeds) assert.doesNotMatch(result.stdout, /PASS: 2\/2 test file/);
+            if (!scenario.succeeds && scenario.exit === 0) assert.match(result.stderr, /ASSERTION EVIDENCE:/);
+          } finally {
+            fs.rmSync(directory, { recursive: true, force: true });
+          }
+        });
+      }
+    }
+  }
+
   test('worker timing payloads are machine-readable and tolerate ordinary test output', () => {
     const payload = { duration_ms: 17, file_timings: [{ file: 'a.test.js', duration_ms: 17, status: 'PASS' }] };
     assert.deepStrictEqual(
