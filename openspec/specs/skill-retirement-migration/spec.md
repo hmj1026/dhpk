@@ -8,20 +8,41 @@ Define an alias-free, inventory-owned retirement contract that preserves success
 
 ### Requirement: Retired skills have stable migration identities
 
-Every retired skill SHALL have one non-discovery-visible inventory record
-containing its former stable ID, former public name, canonical path, prior
-surfaces, retirement release, reason, rollback pin, and one or more replacement
-rows. Each replacement row SHALL declare `skill`, `external-skill`, `agent`,
-`model-default`, or `operator-action` plus an identity or mode when applicable.
-An `external-skill` replacement SHALL identify an externally owned skill whose
-contract is not copied into DHPK. An `operator-action` replacement SHALL be
-guidance only and SHALL NOT be invoked by a resolver, dispatcher, installer, or
-projection. Retirement records MUST NOT be materialized as skill packages or
-discovery aliases.
+Every retired skill SHALL have one non-discovery-visible inventory record containing its former stable ID, former public name, canonical path, prior surfaces, retirement release, reason, rollback pin, and one or more replacement rows. Each replacement row SHALL declare `skill`, `external-skill`, `agent`, `model-default`, or `operator-action` plus an identity or mode when applicable. An `external-skill` replacement SHALL identify an externally owned skill whose contract is not copied into DHPK. An `operator-action` replacement SHALL be guidance only and SHALL NOT be invoked by a resolver, dispatcher, installer, or projection. Retirement records MUST NOT be materialized as skill packages or discovery aliases.
+
+SCF-REQ-008: A higher-priority scoped exception SHALL apply only to the following personal direct-replacement set for `consolidate-self-contained-skill-families`: these identities SHALL be tracked by the complete mapping below rather than classified as release-ledger retirements. They SHALL be removed from active inventory/discovery/usage/resource projections without aliases, shims, compatibility windows, release/rollback ledger records, or public retired announcements. The general release-ledger, diagnostic, and release-rollback requirements SHALL continue to apply to all other retirements and existing historical ledgers. The exception SHALL preserve verifiable identity mapping, successor behavior, family-local required resource closure, consistent inventory/profile/resource/usage projections, existing ownership protections, and unrelated provider/profile selections. A shared source with other consumers SHALL remain intact.
+
+| Replaced stable ID | Successor stable ID |
+| --- | --- |
+| `opsx-load-context` | `opsx-apply-resume` |
+| `opsx-post-obs` | `opsx-apply-resume` |
+| `swift-language` | `swift` |
+| `swiftui-architecture` | `swift` |
+| `swift-test-strategy` | `swift` |
+| `ios-platform` | `swift` |
+| `xcode-build-tooling` | `swift` |
+| `ios-icon-gen` | `swift` |
+| `react-18-notes` | `react` |
+| `react-19-notes` | `react` |
+| `nextjs-15-5-notes` | `nextjs` |
+| `nextjs-16-notes` | `nextjs` |
+| `python-pro` | `python` |
+| `python-static-checks` | `python` |
+| `pytest-async` | `python` |
+| `fastapi-pro` | `python` |
+| `js-lint-config` | `js-static-checks` |
+| `js-static-check-strategy` | `js-static-checks` |
+| `php-pro` | `php` |
+| `php-modern-pro` | `php` |
+| `php-8x-features` | `php` |
+| `php56-yii-dev` | `yii1` |
+| `yii1-security-audit` | `yii1` |
+| `review-pending` | `change-verdict` |
+| `dep-audit` | `change-verdict` |
 
 #### Scenario: Skill successor is another skill or mode
 
-- **WHEN** a caller resolves a retired Bug, Feature, post-development test, or brainstorm identifier
+- **WHEN** a caller resolves a retired Bug, Feature, post-development test, or brainstorm identifier outside the personal direct-replacement set
 - **THEN** the diagnostic names the former identity and its inventory-owned successor skill, mode, or agent route without publishing the former package
 
 #### Scenario: Skill retires to model-default behavior
@@ -32,9 +53,22 @@ discovery aliases.
 #### Scenario: Current wave uses an external or operator replacement
 
 - **WHEN** a caller resolves `tech-spec`, `create-request`, or `op-session`
-- **THEN** the diagnostic reports `external-skill` `openspec-propose` guidance
-  for the first two and `operator-action` `onepassword-cli` with mode `signin`
-  for the last, without invoking either replacement
+- **THEN** the diagnostic reports `external-skill` `openspec-propose` guidance for the first two and `operator-action` `onepassword-cli` with mode `signin` for the last, without invoking either replacement
+
+#### Scenario: Personal replacement is delivered
+
+- **WHEN** a mapped personal replacement passes its successor behavior and complete resource/selection checks
+- **THEN** its old entry is absent from active discovery/packages without a compatibility alias, public retirement announcement, or required release/rollback ledger entry
+
+#### Scenario: Unrelated historical retirement is reconciled
+
+- **WHEN** reconciliation processes an identity outside this closed personal set
+- **THEN** existing release-ledger, diagnostic, receipt-ownership, and rollback requirements remain applicable
+
+#### Scenario: Personal replacement loses resource or profile closure
+
+- **WHEN** a mapped successor lacks a required asset, retains an old active reference, or changes an unrelated selected identity
+- **THEN** consolidation validation fails despite the personal lifecycle exception
 
 ### Requirement: Retired invocation fails closed with guidance
 

@@ -293,3 +293,41 @@ definition modules only after coverage validation still passes.
   runs with the remaining fixture registrations
 - **THEN** every declared executable entry still has a known fixture id and
   matching entry path, or coverage fails with the unknown fixture identity
+
+### Requirement: Consolidated families include complete delivery resources
+
+SCF-REQ-002: Each family in the closed self-contained consolidation mapping SHALL include every required local procedure, document, reference, script, template, configuration, and transitive resource within its installed family directory. All local paths SHALL resolve from that directory without reading a source checkout, sibling skill, retired predecessor, repository manifest, or ambient parent. Shared canonical sources and deterministic authoring-time copies SHALL remain permitted. Missing required assets SHALL fail build, installation, or delivery validation; they SHALL NOT be an ordinary user workflow branch or an instruction to obtain the omitted package resource. Runtime missing-resource protection SHALL fail closed before dependent mutation and SHALL NOT excuse incomplete delivery.
+
+#### Scenario: Family survives relocation and predecessor deletion
+
+- **WHEN** a complete family directory is copied to an unrelated temporary location, ambient source variables and module paths are cleared, and predecessor/sibling skills are absent
+- **THEN** its representative supported task resolves all local resources and produces the expected output using only declared external capabilities and explicit task inputs
+
+#### Scenario: Required package asset is removed
+
+- **WHEN** a required local asset is deleted from a candidate family package while an ambient copy remains available
+- **THEN** delivery validation fails with the family identity and missing resource instead of borrowing the ambient copy or requesting that the user supply the omitted asset
+
+#### Scenario: Runtime detects tampering after delivery
+
+- **WHEN** a required bundled resource becomes unavailable before a dependent mutating action
+- **THEN** runtime protection returns a non-pass missing-resource result without performing that action or modifying the target
+
+### Requirement: Consolidated family acceptance observes representative tasks
+
+SCF-REQ-010: Every mapped successor family SHALL have representative public task fixtures covering selected resources/actions, observable output, required resource closure, scope/version clarification when relevant, and effect authority. Executable families SHALL be exercised in relocated directories with ambient dependencies removed; instruction-only branches SHALL have task-to-reference/output oracles beyond matching prose. Existing synthetic fixtures, static checks, and generated package success SHALL NOT substitute for family-specific behavior or actual Host runtime. External APIs MAY use bounded test substitutes, but reports SHALL identify the substitute and retain unavailable live evidence as `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE`.
+
+#### Scenario: Existing synthetic isolation tests pass
+
+- **WHEN** synthetic isolation tests pass but a consolidated family has no representative public-task fixture
+- **THEN** that family's behavioral acceptance remains incomplete rather than inheriting the synthetic result
+
+#### Scenario: External service is simulated
+
+- **WHEN** a family fixture uses a bounded substitute for an external API
+- **THEN** the report records the tested contract and substitute separately from live service and Host evidence
+
+#### Scenario: One family still reads a sibling
+
+- **WHEN** aggregate packaging passes but one relocated family fails without its sibling directory
+- **THEN** that family fails self-containment and overall consolidation acceptance remains non-pass

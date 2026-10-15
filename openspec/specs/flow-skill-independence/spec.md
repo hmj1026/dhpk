@@ -91,6 +91,18 @@ SHALL NOT alone block work; reusable evidence SHALL require current task,
 prompt, baseline, and dependency validation. Necessary independent review
 SHALL require distinct observed executor evidence.
 
+The installed raw Flow Drive Skill SHALL contain the transport, dispatch-context,
+Codex adapter, and AGY adapter resources formerly owned by
+`skills/dhpk-cli-transport`, `skills/dhpk-cli-dispatch-context`,
+`skills/dhpk-codex-bridge`, and `skills/dhpk-agy-fast-worker`, including transitive
+runtime helpers, before those source directories and registrations are deleted.
+It SHALL run from an arbitrary installation location and working directory
+without reading a sibling Skill or source checkout root. Authoring-time
+deterministic resource generation remains permitted and SHALL NOT create an
+installed fallback. The existing common engine SHALL remain the sole selection
+and authority policy owner. This consolidation obligation is tracked as
+`REQ-FDR-001` without renaming the existing requirement.
+
 #### Scenario: Native coordination in a blank consumer
 
 - **WHEN** a complete copied Skill runs a confirmed task with only an injected native Host and no canonical checkout visibility
@@ -105,3 +117,8 @@ SHALL require distinct observed executor evidence.
 
 - **WHEN** one cause is insufficient and a separate defect has sufficient diagnosis
 - **THEN** the first writer never launches and the independent defect retains its implementation, tests, and review evidence without claiming aggregate PASS
+
+#### Scenario: Four-source removal follows verified closure
+
+- **WHEN** the four predecessor dependencies and all transitive helpers are locally materialized and relocated raw Skill closure is proven without sibling or source checkout access
+- **THEN** atomic removal of their sources and registrations is permitted, while any missing required resource keeps deletion blocked
