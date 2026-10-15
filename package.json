@@ -48,6 +48,7 @@
     "validate": "npm run validate:agents && npm run validate:skills && npm run validate:commands && npm run validate:modules && npm run validate:plugin && npm run validate:distribution && npm run validate:workflow-policy && npm run validate:json-cli && npm run validate:js-guardrails && npm run validate:references && npm run validate:invocation-policy && npm run validate:cursor-sync && npm run validate:harness",
     "check:manifest": "node scripts/ci/gen-claude-manifest.js --check",
     "check:marketplace": "node scripts/ci/gen-claude-marketplace-package.js --check",
+    "check:skill-progression": "node scripts/ci/gen-skill-progression-tables.js --check",
     "check:skill-resources": "node scripts/ci/sync-skill-resources.js --check",
     "check:packages": "node scripts/ci/verify-platform-packages.js",
     "check:generated": "npm run check:manifest && npm run check:marketplace && npm run check:skill-resources && npm run check:packages",

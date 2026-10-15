@@ -4,6 +4,12 @@ description: 'Trace unfamiliar code, diagnose a reproducible failure, investigat
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(ls:*), Bash(find:*), Bash(npx gitnexus:*), Bash(cx:*), Bash(bash:*), Task'
 metadata:
   dhpk-invocation-class: implicit-eligible
+  dhpk-next:
+    PASS: none
+    FAIL: none
+    BLOCKED: none
+    NOT_RUN: none
+    UNAVAILABLE: none
 ---
 
 # Code Trace
