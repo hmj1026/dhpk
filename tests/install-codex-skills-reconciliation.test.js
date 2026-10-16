@@ -592,6 +592,17 @@ for (const brokenSymlink of [false, true]) {
     const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-outside-')));
     try {
       fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+      const fixtureSkills = path.join(fakePlugin, 'codex', 'skills');
+      for (const name of fs.readdirSync(fixtureSkills)) {
+        const skillRoot = path.join(fixtureSkills, name);
+        if (fs.lstatSync(skillRoot).isSymbolicLink()) {
+          const resolvedSource = fs.realpathSync(skillRoot);
+          fs.rmSync(skillRoot);
+          fs.cpSync(resolvedSource, skillRoot, { recursive: true, dereference: true });
+        }
+        assert.ok(fs.lstatSync(skillRoot).isDirectory(), 'fixture skill roots must be physical directories');
+        assert.ok(fs.realpathSync(skillRoot).startsWith(`${fakePlugin}${path.sep}`), 'fixture skill roots must remain inside the plugin');
+      }
       fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
       fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
       copyDistributionInventory(fakePlugin);
@@ -642,7 +653,11 @@ for (const brokenSymlink of [false, true]) {
           /^\.dhpk-transaction-.*\.json$/.test(name) && !journalsBefore.includes(name));
         assert.strictEqual(newJournals.length, 1, `failed update must record one terminal transaction: ${updated.stdout}\n${updated.stderr}`);
         const journal = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', newJournals[0]), 'utf8'));
-        assert.strictEqual(journal.phase, 'rolled_back');
+        assert.strictEqual(journal.phase, 'rolled_back', [
+          'retirement rollback must finish with a terminal rolled_back journal',
+          updated.stderr.split(scratch).join('<project>').split(fakePlugin).join('<plugin>').split(external).join('<external>').slice(-6000),
+          JSON.stringify(Object.fromEntries(Object.entries(journal).filter(([key]) => /phase|error|rollback/i.test(key)))).slice(0, 2500),
+        ].join('\n'));
       } else {
         assert.ok(fs.existsSync(retiredTarget), 'retirement target must be restored after later preflight failure');
       }
