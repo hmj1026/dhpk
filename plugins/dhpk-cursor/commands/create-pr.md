@@ -2,5 +2,5 @@
 name: create-pr
 description: "Create a GitHub pull request from a pushed branch with ticket-aware title and body generation. Not for: committing, pushing, merging, releasing, or editing an existing PR. Output: a dry-run gh pr create command by default, or the created PR URL after explicit execution."
 ---
-Load `skills/create-pr/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Load the canonical `$create-pr` Skill from [SKILL.md](https://github.com/hmj1026/dhpk/blob/main/skills/create-pr/SKILL.md) and follow it with `$ARGUMENTS`.
 Keep its argument contract, authority boundary, verification, and output.

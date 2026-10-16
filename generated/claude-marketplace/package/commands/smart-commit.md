@@ -7,5 +7,5 @@ metadata:
   dhpk-invocation-class: explicit-only
 ---
 
-Load `skills/git-smart-commit/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Load the canonical `$git-smart-commit` Skill from [SKILL.md](../skills/git-smart-commit/SKILL.md) and follow it with `$ARGUMENTS`.
 Keep its argument contract, authority boundary, verification, and output.
