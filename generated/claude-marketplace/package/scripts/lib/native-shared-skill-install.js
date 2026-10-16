@@ -48,6 +48,12 @@ function readPreviousReceipt(projectRoot) {
   }
 }
 
+function qualifySkillIds(ids, inventory) {
+  const skillIds = new Set((inventory.skills || []).map((entry) => entry.id));
+  const moduleIds = new Set((inventory.modules || []).map((entry) => entry.id));
+  return uniqueSorted(ids).map((id) => skillIds.has(id) && moduleIds.has(id) ? `skill:${id}` : id);
+}
+
 function installNativeSharedSkills({
   sourceRoot,
   projectRoot,
@@ -81,7 +87,8 @@ function installNativeSharedSkills({
       preserveBindingPaths[other] = previous.bindingPaths[other];
     }
   }
-  const unionIds = uniqueSorted([...thisIds, ...otherIds]);
+  const resolvedInventory = inventory || readInventory(sourceRoot);
+  const unionIds = qualifySkillIds([...thisIds, ...otherIds], resolvedInventory);
   const requestedHosts = uniqueSorted([host, ...Object.keys(preserveHostBindings)]);
   const hostSelections = { [host]: thisIds };
   for (const other of Object.keys(preserveHostBindings)) {
@@ -97,7 +104,7 @@ function installNativeSharedSkills({
   return materializeRelocatableAgentsSkillsProjection({
     sourceRoot,
     projectRoot,
-    inventory: inventory || readInventory(sourceRoot),
+    inventory: resolvedInventory,
     profileId: 'portable-core',
     requestedHosts,
     selectedStableIds: unionIds,
@@ -233,7 +240,7 @@ function uninstallNativeSharedSkills({
         .filter((entry) => !entry || !pruned.retiredPaths.has(entry.path));
     }
   }
-  const unionIds = uniqueSorted(remainingIds);
+  const unionIds = qualifySkillIds(remainingIds, resolvedInventory);
   if (unionIds.length === 0) {
     return throwIfUninstallFailed(uninstallAgentsSkillsProjection({
       sourceRoot,
