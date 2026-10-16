@@ -72,7 +72,7 @@ function isEmpty(val) {
 
 const KNOWN_INVOCATION_CLASSES = new Set(['explicit-only', 'implicit-eligible']);
 
-const KNOWN_METADATA_KEYS = new Set(['dhpk-invocation-class', 'dhpk-next', 'dhpk-modes']);
+const KNOWN_METADATA_KEYS = new Set(['dhpk-invocation-class', 'dhpk-name-style', 'dhpk-capability-id', 'dhpk-next', 'dhpk-modes']);
 const NEXT_IDENTITY = /^(?:none|[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?::[a-z][a-z0-9]*(?:-[a-z0-9]+)*)?)$/;
 const unquote = value => value.trim().replace(/^(['"])(.*)\1$/, '$2');
 

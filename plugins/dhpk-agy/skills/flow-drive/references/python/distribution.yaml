@@ -1,0 +1,77 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "evals/evals.json",
+      "references/fastapi.md",
+      "references/language.md",
+      "references/static.md",
+      "references/testing.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Python",
+    "summary": "Handle Python, async tests, static checks, and FastAPI tasks",
+    "syntax": "$python <task>",
+    "input_kind": "free-text",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "task",
+        "syntax": "<task>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Describe the task, package scope, and intended target"
+      }
+    ],
+    "actions": [
+      {
+        "id": "implement",
+        "summary": "Implement a Python task",
+        "syntax": "$python implement <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "review",
+        "summary": "Review Python code",
+        "syntax": "$python review <task>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "test",
+        "summary": "Write requested Python tests",
+        "syntax": "$python test <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "static",
+        "summary": "Inspect Python static-check results",
+        "syntax": "$python static <task>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "api",
+        "summary": "Implement a FastAPI task",
+        "syntax": "$python api <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$python review the selected package",
+        "summary": "Use natural task text and resolve the intended target"
+      }
+    ]
+  }
+}

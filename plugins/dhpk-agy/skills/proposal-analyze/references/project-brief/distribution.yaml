@@ -1,0 +1,74 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Project Brief",
+    "summary": "Convert one technical specification into an executive brief",
+    "syntax": "$project-brief <tech-spec-path> [--output=<output-path>]",
+    "input_kind": "path",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "tech-spec-path",
+        "syntax": "<tech-spec-path>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Readable technical specification"
+      }
+    ],
+    "actions": [
+      {
+        "id": "brief",
+        "summary": "Write an executive summary without changing the source",
+        "syntax": "$project-brief <tech-spec-path>",
+        "input_kind": "path",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [
+      {
+        "id": "output",
+        "syntax": "--output=<output-path>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Destination for the brief"
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$project-brief docs/spec.md --output=docs/brief.md",
+        "summary": "Use project brief with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "project-brief",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:project-brief",
+      "argument_contract": "<tech spec path> [--output <output path>]",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $project-brief Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/project-brief.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/project-brief.md"
+      ],
+      "allowed_tools": "Read, Grep, Glob, Write"
+    }
+  ]
+}

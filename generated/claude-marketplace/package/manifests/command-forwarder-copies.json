@@ -1,0 +1,25 @@
+{
+  "schema": "dhpk.command-forwarder-copies.v1",
+  "files": {
+    "commands/create-pr.md": "1c82ea99d672ad9e48e0d2dc30895210bfc261901bc3ec18770f286b44c94e5f",
+    "commands/create-release.md": "4cda1a0516d5cb565dbc374b3704e9d65a097e9b1666d983560d4cc88142db48",
+    "commands/deep-analyze.md": "081a77c21251c1824118ac23811bd12bd9fa0b13143cfedbe90a80646939867e",
+    "commands/doc-refactor.md": "166e543fa9941927e7b94b9f290fcda452156e685ffcfdd5421078d9f7b9438b",
+    "commands/flow-drive.md": "2ff097725b7a931c5355518122056e59beee2b6e717580e4d7f27c64c999e6ff",
+    "commands/flow-guide.md": "1e75232103cab19cffbe54e56d84d5029382ac2d0acecc423b9dca3a9e4cb2cb",
+    "commands/git-worktree.md": "4a5874cdaf5f6977ea5f31d96e8e513b6ec58b6f391ac5d5911925f801c0f7c3",
+    "commands/matrix-cell-onboard.md": "6aea371d12ca5a4a2bddcba56f82ad3a6dfc17fbb9cfa4c35f544c3659fd0185",
+    "commands/merge-prep.md": "c1f2bbaf9b98d51f6ba2340bdc98e63ebd5e09f0ce7506e14ae5a269fea2e77c",
+    "commands/opsx-apply-resume.md": "91177e638b12079a1f4a12a1701afbd3d633bf2d10eec8d4ab4cf4388d569e02",
+    "commands/pr-summary.md": "21128e8e38f561ec9d4b9586d53e88b85ca02b23cacb44aac895c077723aed46",
+    "commands/precommit.md": "b887ff87eea18c95fa2afc6181b020518abe78fb34a6b4af5ff231113340db45",
+    "commands/project-brief.md": "f634828aaa34a0384ace221a33bf5080c62336f04a0969540e9d9cdf2328ff98",
+    "commands/setup.md": "e096e55ddf78db915cecc51cbcd2f06317b6212cd1ffadfc03d0c4cb7bcd2787",
+    "commands/simplify.md": "32ffbce23a1a5400bbb614a94812279b21a5d32f6d9a8feafade2a9c72351986",
+    "commands/smart-commit.md": "06b1d91b84ed13645de873a7486c8980136eac23c8e7789bfb1d986c45f46ea5",
+    "commands/ui-ux-verify.md": "3f1ba0708498fa709631f25e2c61ed8d5004d2b91a9528a62fdc6e2c5e64a9f4",
+    "commands/update-codemaps.md": "24c10bbfd705d90a9fb22efa0e1e08e013bdaa9abd31bba81cdecfb33c1008c7",
+    "commands/update-docs.md": "12a45427a9492a88a8b6283f93f9f7c354416a45f4d7e63678b5d7141615d1df",
+    "commands/verify.md": "995b14935559873dba73a5030e5246a3c21e6a166002592ceea937f2096c01e9"
+  }
+}

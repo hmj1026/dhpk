@@ -1,15 +1,6 @@
 ---
 name: verify
-description: "Short Claude front door for the runner-first $repo-verify Skill."
+description: "Run a repository verification loop with runner-first execution, deterministic stages, and explicit PASS/FAIL/SKIP output. Use for fast or full validation of a consumer repository. Not for: mutation, fixing failures, dependency remediation, or merge approval. Output: runner summary or a complete fallback stage table."
 ---
-# `/dhpk:verify`
-
-Forward `[fast|full] [--integration <path>] [--e2e <path>]` unchanged to the
-canonical `$repo-verify` Skill. The public command remains `/dhpk:verify`,
-while `$repo-verify` owns normalization, runner precedence, fallback stages,
-and the PASS/FAIL/SKIP report. This front door adds no verification grammar.
-
-Not for: mutation, fixing failures, dependency remediation, or merge approval.
-
-Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
-`BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.
+Load `skills/repo-verify/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Keep its argument contract, authority boundary, verification, and output.

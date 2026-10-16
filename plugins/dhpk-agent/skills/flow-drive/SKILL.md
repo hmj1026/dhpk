@@ -2,7 +2,9 @@
 name: flow-drive
 description: "Explicit-only implementation workflow for one task resolved by the Host into a bounded goal, acceptance contract, and constraints. Not for route selection, standalone review, formal OpenSpec authoring, or release. Diagnosis within a confirmed outcome gates dependent writes. Output: distinct execution and acceptance evidence, or an explicit blocker."
 metadata:
+  dhpk-capability-id: "dhpk.skill.flow-drive"
   dhpk-invocation-class: "explicit-only"
+  dhpk-name-style: "portable-family"
   dhpk-next:
     PASS: "repo-verify"
     FAIL: "none"

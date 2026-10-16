@@ -6,6 +6,7 @@ context: fork
 agent: Explore
 disable-model-invocation: true
 metadata:
+  dhpk-capability-id: dhpk.skill.repo-intake
   dhpk-invocation-class: explicit-only
 ---
 

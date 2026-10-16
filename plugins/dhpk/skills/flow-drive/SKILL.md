@@ -4,6 +4,8 @@ argument-hint: '<task-text|task-file|confirmed-spec-or-change-id> [--worker=auto
 description: 'Explicit-only implementation workflow for one task resolved by the Host into a bounded goal, acceptance contract, and constraints. Not for route selection, standalone review, formal OpenSpec authoring, or release. Diagnosis within a confirmed outcome gates dependent writes. Output: distinct execution and acceptance evidence, or an explicit blocker.'
 disable-model-invocation: true
 metadata:
+  dhpk-capability-id: dhpk.skill.flow-drive
+  dhpk-name-style: portable-family
   dhpk-invocation-class: explicit-only
   dhpk-next:
     PASS: repo-verify

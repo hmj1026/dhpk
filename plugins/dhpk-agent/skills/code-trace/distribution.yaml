@@ -1,0 +1,174 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/diagnose/checklists.md",
+      "references/diagnose/condition-based-waiting.md",
+      "references/diagnose/defense-in-depth.md",
+      "references/diagnose/examples.md",
+      "references/diagnose/phase-templates.md",
+      "references/diagnose/reproduction-evidence.md",
+      "references/diagnose/root-cause-tracing.md",
+      "references/diagnose/scripts.md",
+      "references/diagnose/wait-for-helper.ts",
+      "references/explore/dual-perspective.md",
+      "references/explore/explain.md",
+      "references/explore/search-patterns.md",
+      "references/history/commands.md",
+      "references/history/wsl-traps.md",
+      "references/select-tool/decision-tree.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/diagnose/find-polluter.sh",
+        "fixture_ids": [
+          "remaining-code-trace-find-polluter-multi-file"
+        ]
+      },
+      {
+        "path": "scripts/diagnose/analyze-function-calls.sh",
+        "fixture_ids": [
+          "remaining-code-trace-analyze-function-calls"
+        ]
+      },
+      {
+        "path": "scripts/diagnose/check-tools.sh",
+        "fixture_ids": [
+          "remaining-code-trace-check-tools-unavailable"
+        ]
+      },
+      {
+        "path": "scripts/diagnose/generate-flow-diagram.sh",
+        "fixture_ids": [
+          "remaining-code-trace-generate-flow-diagram"
+        ]
+      },
+      {
+        "path": "scripts/diagnose/search-database-queries.sh",
+        "fixture_ids": [
+          "remaining-code-trace-search-database-queries"
+        ]
+      },
+      {
+        "path": "scripts/diagnose/trace-data-flow.sh",
+        "fixture_ids": [
+          "remaining-code-trace-trace-data-flow"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Code Trace",
+    "summary": "Trace code paths, causes, history, or navigation tools",
+    "syntax": "$code-trace [--mode=<mode>] <query>",
+    "input_kind": "mixed",
+    "inputs": [
+      {
+        "id": "query",
+        "syntax": "<query>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Describe the symbol, failure, or history to trace",
+        "applies_to": [
+          "explore",
+          "diagnose",
+          "history",
+          "select-tool"
+        ]
+      }
+    ],
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "read-only",
+    "actions": [
+      {
+        "id": "explore",
+        "summary": "Trace an unfamiliar symbol, file, module, or flow",
+        "syntax": "$code-trace --mode=explore <query>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "diagnose",
+        "summary": "Confirm the cause of a failure or regression",
+        "syntax": "$code-trace --mode=diagnose <query>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "history",
+        "summary": "Investigate when and why behavior changed",
+        "syntax": "$code-trace --mode=history <query>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "select-tool",
+        "summary": "Select one code-navigation tool and fallback",
+        "syntax": "$code-trace --mode=select-tool <query>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      }
+    ],
+    "options": [
+      {
+        "id": "mode",
+        "syntax": "--mode=<mode>",
+        "value_kind": "enum",
+        "required": false,
+        "enum_values": [
+          "explore",
+          "diagnose",
+          "history",
+          "select-tool"
+        ],
+        "summary": "Choose the code-trace mode"
+      },
+      {
+        "id": "dual",
+        "syntax": "--dual",
+        "value_kind": "boolean",
+        "required": false,
+        "default": false,
+        "summary": "Request an independent read-only perspective",
+        "applies_to": [
+          "explore"
+        ]
+      },
+      {
+        "id": "explain",
+        "syntax": "--explain",
+        "value_kind": "boolean",
+        "required": false,
+        "default": false,
+        "summary": "Request a bounded explanation of the trace",
+        "applies_to": [
+          "explore"
+        ]
+      },
+      {
+        "id": "depth",
+        "syntax": "--depth=<brief|normal|deep>",
+        "value_kind": "enum",
+        "required": false,
+        "enum_values": [
+          "brief",
+          "normal",
+          "deep"
+        ],
+        "summary": "Set the requested explanation depth",
+        "applies_to": [
+          "explore"
+        ]
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$code-trace --mode=explore OrderService",
+        "summary": "Trace callers and callees for an unfamiliar symbol"
+      }
+    ]
+  }
+}

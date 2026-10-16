@@ -1,0 +1,82 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/verification.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": [
+      "native-browser-capture"
+    ],
+    "host_evidence": {
+      "native-browser-capture": {
+        "status": "NOT_RUN",
+        "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
+      }
+    }
+  },
+  "usage": {
+    "display_name": "UI UX Verify",
+    "summary": "Audit one rendered page against one UI specification",
+    "syntax": "$ui-ux-verify [<url>] [spec:<spec-path>]",
+    "input_kind": "mixed",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "url",
+        "syntax": "<url>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Page URL"
+      },
+      {
+        "id": "spec-path",
+        "syntax": "<spec-path>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "OpenSpec UI specification"
+      }
+    ],
+    "actions": [
+      {
+        "id": "verify",
+        "summary": "Capture and report one read-only UI audit",
+        "syntax": "$ui-ux-verify [<url>] [spec:<spec-path>]",
+        "input_kind": "mixed",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$ui-ux-verify spec:openspec/changes/example/spec.md",
+        "summary": "Use ui ux verify with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "ui-ux-verify",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:ui-ux-verify",
+      "argument_contract": "[<url>] [spec:<path>]",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $ui-ux-verify Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/ui-ux-verify.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/ui-ux-verify.md"
+      ],
+      "allowed_tools": "Read, Grep, Glob, Bash(git:*), Skill, Task"
+    }
+  ]
+}

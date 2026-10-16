@@ -1,5 +1,5 @@
 ---
-description: 'Short Claude front door for explicit-only $opsx-apply-resume context handoffs.'
+description: 'Save and resume a long-running OpenSpec apply session from a live worktree, preserving optional gates and host-specific handoff artifacts. Not for: starting a new proposal, changing the external OpenSpec workflow, or treating a commit as a prerequisite. Output: a saved/resumed handoff report with lifecycle and next-action evidence.'
 argument-hint: '[change-id]'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill'
 disable-model-invocation: true
@@ -7,19 +7,5 @@ metadata:
   dhpk-invocation-class: explicit-only
 ---
 
-# `/dhpk:opsx-apply-resume`
-
-This is a thin Claude front door to the canonical `$opsx-apply-resume` Skill.
-Forward `$ARGUMENTS` unchanged; the Skill owns phase detection, handoff state,
-optional commit/precommit/compact/memory gates, and live-worktree evidence.
-
-Not for: starting a new proposal, changing the external OpenSpec workflow, or treating a commit as a prerequisite.
-
-The Skill keeps uncommitted files as the source of truth, uses the host's
-receipt/artifact root, and hands successful continuation to the canonical
-`openspec-apply-change` Skill. It must
-never pass the `opsx:apply` human-command alias to the Skill tool, and it does
-not change the external OpenSpec Skill.
-
-Completion: return the canonical Skill result and preserve its `saved`,
-`consuming`, `consumed`, `BLOCKED`, `UNAVAILABLE`, or `NOT_RUN` evidence state.
+Load `skills/opsx-apply-resume/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Keep its argument contract, authority boundary, verification, and output.

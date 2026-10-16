@@ -1,0 +1,70 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/mocking.md",
+      "references/tests.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "TDD",
+    "summary": "Drive behavior-first tests through a minimal red-green loop",
+    "syntax": "$tdd-workflow [test-generation] <task>",
+    "input_kind": "mixed",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "mode",
+        "syntax": "<test-generation>",
+        "value_kind": "enum",
+        "required": false,
+        "summary": "Optionally request test scaffold generation",
+        "enum_values": [
+          "test-generation"
+        ],
+        "applies_to": [
+          "test-generation"
+        ]
+      },
+      {
+        "id": "task",
+        "syntax": "<task>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Describe the behavior-first development task",
+        "applies_to": [
+          "tdd",
+          "test-generation"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "tdd",
+        "summary": "Guide a behavior-first test and implementation loop",
+        "syntax": "$tdd-workflow <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "test-generation",
+        "summary": "Generate a focused failing-test scaffold",
+        "syntax": "$tdd-workflow test-generation <target>",
+        "input_kind": "path",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$tdd-workflow test-generation tests/OrderTest.php",
+        "summary": "Use tdd with its declared interface"
+      }
+    ]
+  }
+}

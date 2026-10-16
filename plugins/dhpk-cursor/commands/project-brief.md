@@ -1,13 +1,6 @@
 ---
 name: project-brief
-description: "Convert a technical spec into a PM/CTO-readable executive summary. Simplify technical details, focus on business value."
+description: "Use when converting one readable technical specification into a PM or CTO executive brief. Not for editing the source specification or preserving implementation detail. Output: a saved executive-summary path and retained unresolved decisions."
 ---
-Forward to the canonical [`$project-brief` skill](https://github.com/hmj1026/dhpk/blob/main/skills/project-brief/SKILL.md).
-Pass the supplied `$ARGUMENTS` unchanged, including an optional `--output
-<path>`. The skill reads one source specification, writes the executive-summary
-shape, and reports the saved path plus retained unresolved decisions.
-
-Not for: editing the source specification or preserving implementation detail.
-
-The source remains read-only. Preserve the skill’s `BLOCKED` result when the
-source or output is unavailable; do not inline a second conversion procedure.
+Load `skills/project-brief/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Keep its argument contract, authority boundary, verification, and output.

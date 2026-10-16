@@ -2,19 +2,19 @@
   "generatorVersion": "1.0.0",
   "surface": "agent-plugin",
   "skills": {
-    "change-verdict": "a03d8ccd6c4b5fe2030a51753549ee6bc63cfca7b8e70c82c8b13e87643ba43d",
-    "code-trace": "80d1a0f9edf49fcc63dfbd91f7c7be6db5d07042bd2e1241f908960e6c31393f",
-    "create-pr": "9e1b75471dcbc0b1473d03e8a296e45dad053dc73a7071903c9f19238f630e80",
-    "doc-maintain": "d8db15d0f3b4cac8816295b36b8d7a704ea4b4f8af500517d3cac619b237eaa2",
-    "flow-drive": "efe95103eb35c02b5a2014b6fd14a714a9aef6e0f9e3981f7c5392356188ddfe",
-    "flow-guide": "15a67c6903d5e93df112f57b4db567d4e4edf18b8c986d28c706247039ef566f",
-    "git-smart-commit": "9023d62191a1d71ec5ecb007d1d927a8d49868abb8932ab97e1590aae6d04cc7",
-    "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
-    "precommit": "61aab481d4629cfd4c0c5f4fa3fca5eb344b541555196eea674c654a44a8e46a",
-    "proposal-analyze": "a51f5cec8c1126351ee64f61fa37dcc79c8c8579b74f0d68a4a2705bdc28150f",
-    "release-creator": "5ead056b6efa23013cf521c42e241abadb9d799d5c1a5d1132e5569fb837c0ee",
-    "repo-verify": "10a3c1af3d965d130e68277c12ef3327f7e0729f627ae6dd5411ab9e1d59b8b3",
-    "tdd-workflow": "3d5cd8c86f9128acbb59fa475c8fbd7e36ce4d59ba96e3915004f951f7b99874",
-    "ui-ux-verify": "f0f38aec3d091ebe2ff1f805292c5692d41d9f028c22ecd4a72a8f4ace85f2f0"
+    "change-verdict": "c607a3cc78a3a41349ad8a8beadfa52d62616c42cf399004d32244f9108dad2d",
+    "code-trace": "edce417db94ecaacefd7a98ec8b20bd6347ec11620c8af555f75e6667f4689f3",
+    "create-pr": "22353f2888cf51cc7e9c5e472b00fb51e5985fc76f41c05165bd98bf771de195",
+    "doc-maintain": "7d9386fa94ef9727fff56a7b3761ebb917c1339d29562b0424c35b2657429c02",
+    "flow-drive": "b5d92953fb24d6c4de41626bcae5a664705ef391a41d609d7af964cc2770e920",
+    "flow-guide": "384527a17b155bc8a81dda15858cae5715aa154eb6541ef9366704e20b5d3f9e",
+    "git-smart-commit": "f8ab012250fd2cc9b4689317d34892abc616b2bb7099065a8a6409c85e5915b2",
+    "git-worktree": "fba52cd48ff6c4f2cbdef58b63238c55735779e27b75f02000e89028ddb691dd",
+    "precommit": "15bf5b7c226e2256780299b5b4759ef5e3004ad0bbf14ca75cbc53a82e1174a3",
+    "proposal-analyze": "338bf2b72e9747a0d921e9dcfaf3cad6532a3a0109aa61915b90ff6517a15cbe",
+    "release-creator": "ecc03d28430d66eba2f257dd3a881064b11ee78ba60374e67f2469e43c1f1fac",
+    "repo-verify": "dd03404df1996c8177f42080c7bb95f76523fca8b679fed9b146852be8178fc1",
+    "tdd-workflow": "2a68bfd335f14bde311f6c8f14c9e2d404801cfe427a33bd32702d743eacea0e",
+    "ui-ux-verify": "658a109ff7b7614471a10ffa322eb854b74eb9dcef1487493fa91af7c2e33521"
   }
 }

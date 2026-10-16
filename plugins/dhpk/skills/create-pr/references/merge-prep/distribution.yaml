@@ -1,0 +1,75 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/workflow.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Merge Prep",
+    "summary": "Analyze a branch merge without mutating the repository",
+    "syntax": "$merge-prep <source-branch> [--target=<branch>]",
+    "input_kind": "identifier",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "read-only",
+    "inputs": [
+      {
+        "id": "source-branch",
+        "syntax": "<source-branch>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Branch to analyze"
+      }
+    ],
+    "actions": [
+      {
+        "id": "prepare",
+        "summary": "Analyze merge conflicts and manual commands",
+        "syntax": "$merge-prep <source-branch>",
+        "input_kind": "identifier",
+        "effect_authority": "read-only"
+      }
+    ],
+    "options": [
+      {
+        "id": "target",
+        "syntax": "--target=<branch>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Target branch for the analysis"
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$merge-prep feature/topic --target=main",
+        "summary": "Use merge prep with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "merge-prep",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:merge-prep",
+      "argument_contract": "<source-branch> [--target <branch>]",
+      "authority": "read-only",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $merge-prep Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/merge-prep.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/merge-prep.md"
+      ],
+      "allowed_tools": "Bash(git:*), Read, Grep, Glob, Skill"
+    }
+  ]
+}

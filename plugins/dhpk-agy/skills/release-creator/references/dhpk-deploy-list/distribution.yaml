@@ -1,0 +1,49 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "config.sh.example",
+      "evals/evals.json",
+      "evals/generic/expected/expected-fixture-01-php-yii.txt",
+      "evals/generic/expected/expected-fixture-02-laravel.txt",
+      "evals/generic/expected/expected-fixture-03-node.txt",
+      "evals/generic/expected/expected-fixture-04-python.txt",
+      "evals/generic/expected/expected-fixture-05-generic.txt",
+      "evals/generic/expected/expected-fixture-07-anchor-mode.txt",
+      "evals/generic/fixtures/fixture-01-php-yii.sh",
+      "evals/generic/fixtures/fixture-02-laravel.sh",
+      "evals/generic/fixtures/fixture-03-node.sh",
+      "evals/generic/fixtures/fixture-04-python.sh",
+      "evals/generic/fixtures/fixture-05-generic.sh",
+      "evals/generic/fixtures/fixture-07-anchor-mode.sh",
+      "i18n/en.sh",
+      "i18n/zh-TW.sh",
+      "presets/generic.sh",
+      "presets/laravel.sh",
+      "presets/node.sh",
+      "presets/php-yii.sh",
+      "presets/python.sh",
+      "references/extended-presets.example/php-yii-acmeshop.sh",
+      "references/presets.md",
+      "references/why-this-grouping.md",
+      "scripts/deploy-list.sh"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/check-golden.sh",
+        "fixture_ids": [
+          "remaining-deploy-list-check-golden"
+        ]
+      },
+      {
+        "path": "scripts/deploy-list.sh",
+        "fixture_ids": [
+          "remaining-deploy-list-generate"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  }
+}

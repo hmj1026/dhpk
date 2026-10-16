@@ -2,6 +2,8 @@
 name: nextjs
 description: "Next.js framework guidance for routing, typegen, typed routes, build tooling, async Request APIs, configuration, and Next.js 15.5/16 migrations. Use for version-specific Next.js implementation or review after resolving the target package. Not for standalone React APIs or generic JS tooling. Output: target-scoped guidance, migration traps, and verification evidence."
 metadata:
+  dhpk-capability-id: dhpk.skill.nextjs
+  dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
 ---
 

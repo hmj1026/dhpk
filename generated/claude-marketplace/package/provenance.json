@@ -29,7 +29,7 @@
       "sourcePath": "skills/change-verdict/SKILL.md",
       "destination": "skills/change-verdict/SKILL.md",
       "kind": "entry",
-      "sha256": "23d6090e1ef7873933749fbe31bee75c97cfcde7317d4a19c0fdee4c7179a6f9"
+      "sha256": "6ce1c8a154d3d90bea9def145ca9646c41126ffa2c04e580122f12bd5a96c789"
     },
     {
       "skillId": "change-verdict",
@@ -38,6 +38,14 @@
       "destination": "skills/change-verdict/agents/openai.yaml",
       "kind": "entry",
       "sha256": "0014b097131ca525efa070c9fb1e87a6cda47368f93b006669a2b76c27ac20f3"
+    },
+    {
+      "skillId": "change-verdict",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/change-verdict/distribution.yaml",
+      "destination": "skills/change-verdict/distribution.yaml",
+      "kind": "entry",
+      "sha256": "330749f49884fc982c51e275e52de4ed212df659a439ceb9fd5f5a113a623cd4"
     },
     {
       "skillId": "change-verdict",
@@ -85,7 +93,7 @@
       "sourcePath": "skills/dhpk-project-audit/SKILL.md",
       "destination": "skills/change-verdict/references/dhpk-project-audit/SKILL.md",
       "kind": "branch",
-      "sha256": "0a8e07c8f5a78b79fa5c5e2e31512dba5d000db069a89aecb619e2db6c8cc965"
+      "sha256": "8eeb2289907b78bf27a69bded663d909a48b7dbcc871505a7cd96aec9289a017"
     },
     {
       "skillId": "project-audit",
@@ -94,6 +102,14 @@
       "destination": "skills/change-verdict/references/dhpk-project-audit/agents/openai.yaml",
       "kind": "branch",
       "sha256": "5210cb7afffc0359bacbf60184d91eb80d893f941de292c310ffe2ffb1801618"
+    },
+    {
+      "skillId": "project-audit",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/dhpk-project-audit/distribution.yaml",
+      "destination": "skills/change-verdict/references/dhpk-project-audit/distribution.yaml",
+      "kind": "branch",
+      "sha256": "5cae75c9e195511817d1d557840b9a80ef31a36dbede7cfe28c4231119f2fa51"
     },
     {
       "skillId": "project-audit",
@@ -301,7 +317,7 @@
       "sourcePath": "skills/code-trace/SKILL.md",
       "destination": "skills/code-trace/SKILL.md",
       "kind": "entry",
-      "sha256": "ccc7149850c3445415cfc3e7d15113d477cb5ebf8351f1b61c7877781dc5cb49"
+      "sha256": "4b9194d968e7e69f6c9fb9422c4858f51e09011f34cb5af93fcbf17d7aefdcb3"
     },
     {
       "skillId": "code-trace",
@@ -310,6 +326,14 @@
       "destination": "skills/code-trace/agents/openai.yaml",
       "kind": "entry",
       "sha256": "84b7195f2b824024312383f017b3c6c43ea7c8275e4edb263b886e3ecaf06168"
+    },
+    {
+      "skillId": "code-trace",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/code-trace/distribution.yaml",
+      "destination": "skills/code-trace/distribution.yaml",
+      "kind": "entry",
+      "sha256": "67c151a8dea4ae1a831eb04fcd70ea662cb7df72555805f777b7c7fb3e4dcc60"
     },
     {
       "skillId": "code-trace",
@@ -349,7 +373,7 @@
       "sourcePath": "skills/dhpk-repo-intake/SKILL.md",
       "destination": "skills/code-trace/references/dhpk-repo-intake/SKILL.md",
       "kind": "branch",
-      "sha256": "f8c0dc2350963a723e47a5c24657273f9cf56b841cba44964569c84d80923fb0"
+      "sha256": "4a47d068df797e31f019e9b6037c1351530296772b78be87cdb896afe85586a2"
     },
     {
       "skillId": "repo-intake",
@@ -358,6 +382,14 @@
       "destination": "skills/code-trace/references/dhpk-repo-intake/agents/openai.yaml",
       "kind": "branch",
       "sha256": "c7abdefaab057bb1086af63e707adecbcb0fb3f9f49633d37461e16547abbad7"
+    },
+    {
+      "skillId": "repo-intake",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/dhpk-repo-intake/distribution.yaml",
+      "destination": "skills/code-trace/references/dhpk-repo-intake/distribution.yaml",
+      "kind": "branch",
+      "sha256": "e4ea295bd71416f82185c517846d86f595a576b20fb7f2d32c83706802b83ab2"
     },
     {
       "skillId": "repo-intake",
@@ -573,7 +605,7 @@
       "sourcePath": "skills/create-pr/SKILL.md",
       "destination": "skills/create-pr/SKILL.md",
       "kind": "entry",
-      "sha256": "38a7bcee304d3decf581e53b54c9967779df03fbcfde255f181e6a08247053ee"
+      "sha256": "98a64821f3cddd0b2b6f87be5814435522150b6d0c2ac90e65b6497ec6ad76b2"
     },
     {
       "skillId": "create-pr",
@@ -584,12 +616,20 @@
       "sha256": "7af82ea756906fc088934870694dcd94c51fd17c64b25488f778d418f10d1d1b"
     },
     {
+      "skillId": "create-pr",
+      "ownerId": "create-pr",
+      "sourcePath": "skills/create-pr/distribution.yaml",
+      "destination": "skills/create-pr/distribution.yaml",
+      "kind": "entry",
+      "sha256": "fcab4b07c4d6ac867a63b420734cae2eb2bba239765a58d809aab566cf6636b5"
+    },
+    {
       "skillId": "merge-prep",
       "ownerId": "create-pr",
       "sourcePath": "skills/merge-prep/SKILL.md",
       "destination": "skills/create-pr/references/merge-prep/SKILL.md",
       "kind": "branch",
-      "sha256": "7d32a861ba0dd89617f46efbbccff55913e129fd22b5423a6402534114a1c3bc"
+      "sha256": "19f622dcd1fd0391bcb7bf7fe78e9d239be5e454a8f9cbbfaf52b730f0ca5fe3"
     },
     {
       "skillId": "merge-prep",
@@ -598,6 +638,14 @@
       "destination": "skills/create-pr/references/merge-prep/agents/openai.yaml",
       "kind": "branch",
       "sha256": "17989b55c942e3086bd621b85790ee9269c02850d42d368a3db645e79a358144"
+    },
+    {
+      "skillId": "merge-prep",
+      "ownerId": "create-pr",
+      "sourcePath": "skills/merge-prep/distribution.yaml",
+      "destination": "skills/create-pr/references/merge-prep/distribution.yaml",
+      "kind": "branch",
+      "sha256": "9ca6e49cb68529d8ef9f113512367371066489aab6860a98bc6a2b8a1ee75120"
     },
     {
       "skillId": "merge-prep",
@@ -613,7 +661,7 @@
       "sourcePath": "skills/pr-summary/SKILL.md",
       "destination": "skills/create-pr/references/pr-summary/SKILL.md",
       "kind": "branch",
-      "sha256": "3dce1943081ca915ed450e51731b525c69699ea77e2607961ee59832623882a0"
+      "sha256": "1f5f830d831ca08a2976b29a9c3f0860ac7b1f6961d97029a2b5ada830ef6c84"
     },
     {
       "skillId": "pr-summary",
@@ -622,6 +670,14 @@
       "destination": "skills/create-pr/references/pr-summary/agents/openai.yaml",
       "kind": "branch",
       "sha256": "d581e58d37c8ab6f6c1e466d5f6c41038a3bafd86f5d8d4aadd47356f6d7f7f5"
+    },
+    {
+      "skillId": "pr-summary",
+      "ownerId": "create-pr",
+      "sourcePath": "skills/pr-summary/distribution.yaml",
+      "destination": "skills/create-pr/references/pr-summary/distribution.yaml",
+      "kind": "branch",
+      "sha256": "b2132a82b10ded686597df733e998cafda1f4576178b77b731b61b09fe6862f7"
     },
     {
       "skillId": "pr-summary",
@@ -645,7 +701,7 @@
       "sourcePath": "skills/doc-maintain/SKILL.md",
       "destination": "skills/doc-maintain/SKILL.md",
       "kind": "entry",
-      "sha256": "658ab8d496920251f930eda553208ac2ba83aed6567977bec952670e3fe09b14"
+      "sha256": "2698d7e0048f5366d5af2e3fe84427b8af4be51d956610ae62924287876f3767"
     },
     {
       "skillId": "doc-maintain",
@@ -654,6 +710,14 @@
       "destination": "skills/doc-maintain/agents/openai.yaml",
       "kind": "entry",
       "sha256": "4898e19f0d07ad2addd7b230866b35eed65e1e642981c2cbc9bf8627a48adb30"
+    },
+    {
+      "skillId": "doc-maintain",
+      "ownerId": "doc-maintain",
+      "sourcePath": "skills/doc-maintain/distribution.yaml",
+      "destination": "skills/doc-maintain/distribution.yaml",
+      "kind": "entry",
+      "sha256": "6e08975affa2b6676bab773336e2247ee4afe954d4f417091d6afecabe51260b"
     },
     {
       "skillId": "doc-maintain",
@@ -685,7 +749,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "e10f94fc21a1ecb5563849c123b74708639698c5db1182446ddcb93511d9695f"
+      "sha256": "99c210b2904259f450f5ce0650e4d1c4e17a5baf4bae62a0fac77bfee9b8d850"
     },
     {
       "skillId": "flow-drive",
@@ -694,6 +758,14 @@
       "destination": "skills/flow-drive/agents/openai.yaml",
       "kind": "entry",
       "sha256": "fb77b353b6d92248f62f5042b1c014dac04d2a850d4e38290676b5ea0157b47a"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/distribution.yaml",
+      "destination": "skills/flow-drive/distribution.yaml",
+      "kind": "entry",
+      "sha256": "eb92b89a415131159fba2540a8347523a0e3abe4f1ebc538033e63ef377f4b13"
     },
     {
       "skillId": "flow-drive",
@@ -725,7 +797,7 @@
       "sourcePath": "skills/code-simplify/SKILL.md",
       "destination": "skills/flow-drive/references/code-simplify/SKILL.md",
       "kind": "branch",
-      "sha256": "677fab03b03189e34a2fdb2ad7ec9f12584d781a4c99016f6ab9f55f54fda9f0"
+      "sha256": "7ee1e6e8a55be9c5848dc55492bb3b5f574fac87fe842d9c8f32bedb10b19a0c"
     },
     {
       "skillId": "code-simplify",
@@ -734,6 +806,14 @@
       "destination": "skills/flow-drive/references/code-simplify/agents/openai.yaml",
       "kind": "branch",
       "sha256": "aebc26d1201d2f8eb6e6dad3fc4582d8bde9ad2e310c98bd46f4ceed0523939b"
+    },
+    {
+      "skillId": "code-simplify",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/code-simplify/distribution.yaml",
+      "destination": "skills/flow-drive/references/code-simplify/distribution.yaml",
+      "kind": "branch",
+      "sha256": "7b9038e17df1b049a32579a7232068c58fcf3dc4ce12e639feef19febfb15dc3"
     },
     {
       "skillId": "code-simplify",
@@ -749,7 +829,7 @@
       "sourcePath": "skills/dhpk-openspec-artifact-guard/SKILL.md",
       "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/SKILL.md",
       "kind": "reference",
-      "sha256": "e053f42c139168f25005b81207d9c61fe7a92acb64e4491205a13d75e0bc5501"
+      "sha256": "75b7e94d5d16fe8cb56c072b1ddd458cb1b8bf3a49904a988de49ffe72249490"
     },
     {
       "skillId": "openspec-artifact-guard",
@@ -760,12 +840,20 @@
       "sha256": "79985685c0993c4fb20c74514a2fa70dae98ca89f257e31f4ef087831fac885e"
     },
     {
+      "skillId": "openspec-artifact-guard",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/dhpk-openspec-artifact-guard/distribution.yaml",
+      "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/distribution.yaml",
+      "kind": "reference",
+      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
+    },
+    {
       "skillId": "vue-2-notes",
       "ownerId": "flow-drive",
       "sourcePath": "skills/dhpk-vue-2-notes/SKILL.md",
       "destination": "skills/flow-drive/references/dhpk-vue-2-notes/SKILL.md",
       "kind": "reference",
-      "sha256": "5f3088120a3d214757900e7fc45bccc796df954d536c44384589e8b3ed15fedc"
+      "sha256": "9645705f175803380ef8df6030dd7a78fcdc737db3b1205fca39d62bf7b00496"
     },
     {
       "skillId": "vue-2-notes",
@@ -774,6 +862,14 @@
       "destination": "skills/flow-drive/references/dhpk-vue-2-notes/agents/openai.yaml",
       "kind": "reference",
       "sha256": "f820ba6c4f2809dedc201fcaff700424dddedabf4922b7d653b374b871c8967c"
+    },
+    {
+      "skillId": "vue-2-notes",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/dhpk-vue-2-notes/distribution.yaml",
+      "destination": "skills/flow-drive/references/dhpk-vue-2-notes/distribution.yaml",
+      "kind": "reference",
+      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
     },
     {
       "skillId": "flow-drive",
@@ -973,7 +1069,7 @@
       "sourcePath": "skills/js-static-checks/SKILL.md",
       "destination": "skills/flow-drive/references/js-static-checks/SKILL.md",
       "kind": "reference",
-      "sha256": "fb392d4c6d993c3bc4c3fb454048da872cfc72eb5a010051dcbe97d0bfaab8f1"
+      "sha256": "5f3f9134ecce73458754f4cfd3b3393c6755e109ecb4dc6e9403b32867bf5d49"
     },
     {
       "skillId": "js-static-checks",
@@ -982,6 +1078,14 @@
       "destination": "skills/flow-drive/references/js-static-checks/agents/openai.yaml",
       "kind": "reference",
       "sha256": "ae878a5259aa364e74a9951be026a5f111443037a76dd95e7b7b4a125793baba"
+    },
+    {
+      "skillId": "js-static-checks",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/js-static-checks/distribution.yaml",
+      "destination": "skills/flow-drive/references/js-static-checks/distribution.yaml",
+      "kind": "reference",
+      "sha256": "63ef46458084d3369102c8560f95adfa90ed13e3f08cebada21508b859c50227"
     },
     {
       "skillId": "js-static-checks",
@@ -1037,7 +1141,7 @@
       "sourcePath": "skills/laravel/SKILL.md",
       "destination": "skills/flow-drive/references/laravel/SKILL.md",
       "kind": "branch",
-      "sha256": "94497fcc2b0eccc64e2b9828a9a3f7f0f3062ea033835fd205e4e9372d2c685e"
+      "sha256": "25a8605a3865b52a2bcedd04ffbbea826a79e1dcc750f565c7f70d320c18911c"
     },
     {
       "skillId": "laravel",
@@ -1054,6 +1158,14 @@
       "destination": "skills/flow-drive/references/laravel/compatibility.md",
       "kind": "branch",
       "sha256": "47e9794557f8c6b70c58f4f8a22dc2e4725da4358af7ab7b82ab8527bc1a6afa"
+    },
+    {
+      "skillId": "laravel",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/laravel/distribution.yaml",
+      "destination": "skills/flow-drive/references/laravel/distribution.yaml",
+      "kind": "branch",
+      "sha256": "61084b747e9ab5b26ce1c4ee715673cefc0c6008020920c5b46a00f54583fbc0"
     },
     {
       "skillId": "laravel",
@@ -1149,7 +1261,7 @@
       "sourcePath": "skills/nextjs/SKILL.md",
       "destination": "skills/flow-drive/references/nextjs/SKILL.md",
       "kind": "reference",
-      "sha256": "04dfd6c29286c24a43e5dd6dd369eeb9b8a5b97f08c6d32dd4f670bedf817d13"
+      "sha256": "5c4bc5b0ae3d66a691a32e6ac8fa21197c68ed1e88725d438d428969436ab494"
     },
     {
       "skillId": "nextjs",
@@ -1158,6 +1270,14 @@
       "destination": "skills/flow-drive/references/nextjs/agents/openai.yaml",
       "kind": "reference",
       "sha256": "b4def51f2b270ebc0a5e6a9fc2cf3d6204f0e1c2a9a0d31501a2945cda828cb4"
+    },
+    {
+      "skillId": "nextjs",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/nextjs/distribution.yaml",
+      "destination": "skills/flow-drive/references/nextjs/distribution.yaml",
+      "kind": "reference",
+      "sha256": "8df1ac4f30c7af30870c18e73395bb366cf49040dad5d4a25a309d5856e6a2ef"
     },
     {
       "skillId": "nextjs",
@@ -1197,7 +1317,7 @@
       "sourcePath": "skills/php/SKILL.md",
       "destination": "skills/flow-drive/references/php/SKILL.md",
       "kind": "branch",
-      "sha256": "1dc985f0b14cdb055d7a3deb6c6a923b0ec95dc9f5ffa512ab2a6174ebcc0660"
+      "sha256": "34a08014634582d74a4157fc93c427a2384f377078701d736e0acf8d662a18cf"
     },
     {
       "skillId": "php",
@@ -1206,6 +1326,14 @@
       "destination": "skills/flow-drive/references/php/agents/openai.yaml",
       "kind": "branch",
       "sha256": "69c5850db12ae874a6f66be9f22da250b2ac10006ab499982092916792d8e217"
+    },
+    {
+      "skillId": "php",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/php/distribution.yaml",
+      "destination": "skills/flow-drive/references/php/distribution.yaml",
+      "kind": "branch",
+      "sha256": "ddca6921b3b304907ac2acba9d8e6efbb9ba53cf0be0967dbd7e060bf6b8f8e8"
     },
     {
       "skillId": "php",
@@ -1381,7 +1509,7 @@
       "sourcePath": "skills/python/SKILL.md",
       "destination": "skills/flow-drive/references/python/SKILL.md",
       "kind": "reference",
-      "sha256": "411b0af974e29373fccc501570a41f590547c58e49de36cc90c138f953f4e97e"
+      "sha256": "9ca9c8e11ca18d3b029f2ffd35315197c181c7b76951bb73045337a87286c322"
     },
     {
       "skillId": "python",
@@ -1390,6 +1518,14 @@
       "destination": "skills/flow-drive/references/python/agents/openai.yaml",
       "kind": "reference",
       "sha256": "74cb681c917a00be6e493ffa9ae9f95b4daa2756799587c65a4bc60df81ac8fe"
+    },
+    {
+      "skillId": "python",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/python/distribution.yaml",
+      "destination": "skills/flow-drive/references/python/distribution.yaml",
+      "kind": "reference",
+      "sha256": "1b9604dfbd3ae3d8b576bb69d361a418e715720cfdd6b97c79098bbd90c046e0"
     },
     {
       "skillId": "python",
@@ -1437,7 +1573,7 @@
       "sourcePath": "skills/react/SKILL.md",
       "destination": "skills/flow-drive/references/react/SKILL.md",
       "kind": "reference",
-      "sha256": "a5f016b12a167f11933b2ac41d0521eb1dcbec63609cd9d14ebed580d346211e"
+      "sha256": "54018dc160fa495d5b5f0fd48f4563fcf93930ded03cce5015ccf114fe890ee1"
     },
     {
       "skillId": "react",
@@ -1446,6 +1582,14 @@
       "destination": "skills/flow-drive/references/react/agents/openai.yaml",
       "kind": "reference",
       "sha256": "3fe8e1b1863061499f340e044581d00d2b85c7f8e7de9cdf0781b88678a596a2"
+    },
+    {
+      "skillId": "react",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/react/distribution.yaml",
+      "destination": "skills/flow-drive/references/react/distribution.yaml",
+      "kind": "reference",
+      "sha256": "a2ec09632cf800e7d1930aa1c847eaa128173266e6d74e7af81e96ac69a109ea"
     },
     {
       "skillId": "react",
@@ -1485,7 +1629,7 @@
       "sourcePath": "skills/swift/SKILL.md",
       "destination": "skills/flow-drive/references/swift/SKILL.md",
       "kind": "branch",
-      "sha256": "5230ce9aacb918a4e754960013152421ca482138104f097304b4f61d31339736"
+      "sha256": "8eadc32e8b7d9a283935bc14c2dde183d06d098b3b7a878154e0fb47cda86320"
     },
     {
       "skillId": "swift",
@@ -1494,6 +1638,14 @@
       "destination": "skills/flow-drive/references/swift/agents/openai.yaml",
       "kind": "branch",
       "sha256": "63cb493f66bb5b3f64eaab0a4186471c9fbb81336b223053b7a373ae5988818a"
+    },
+    {
+      "skillId": "swift",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/swift/distribution.yaml",
+      "destination": "skills/flow-drive/references/swift/distribution.yaml",
+      "kind": "branch",
+      "sha256": "9d56695eeb1734a75ee16967bccc490f12538514046ef127ad3ec7d4a2d29cb9"
     },
     {
       "skillId": "swift",
@@ -1781,7 +1933,7 @@
       "sourcePath": "skills/yii1/SKILL.md",
       "destination": "skills/flow-drive/references/yii1/SKILL.md",
       "kind": "branch",
-      "sha256": "406c804c2fb7e0ac117288d484d7be2c88d52b6039acb4f3a918b9e385131681"
+      "sha256": "b39a674e1ccb1ca81db98459b5936f16c1751d51a9a1dea66da522d2999ee5c0"
     },
     {
       "skillId": "yii1",
@@ -1790,6 +1942,14 @@
       "destination": "skills/flow-drive/references/yii1/agents/openai.yaml",
       "kind": "branch",
       "sha256": "a8b7d5a473b0c67cf8d8820d9874fb341ad48cd8d25156253c6867c5028f905b"
+    },
+    {
+      "skillId": "yii1",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/yii1/distribution.yaml",
+      "destination": "skills/flow-drive/references/yii1/distribution.yaml",
+      "kind": "branch",
+      "sha256": "21f5234ebf65df3b36a87e85cc228e9d26d80c9ceb8df5ecf7ebee1656bedccb"
     },
     {
       "skillId": "yii1",
@@ -2045,7 +2205,7 @@
       "sourcePath": "skills/flow-guide/SKILL.md",
       "destination": "skills/flow-guide/SKILL.md",
       "kind": "entry",
-      "sha256": "898ec5001443c500a03ceb2a7d68810f23f2d8f092fdba14e720a4c9f84c7ede"
+      "sha256": "beccdca379cb2cc15f6ebcf8db689bd8b1aef1fb290a132289c936d419881028"
     },
     {
       "skillId": "flow-guide",
@@ -2062,6 +2222,14 @@
       "destination": "skills/flow-guide/assets/dhpk-icon.svg",
       "kind": "entry",
       "sha256": "1b272fc46da1727efc0ae95d05af4532ec2bf514c448ca285512630bdc164bc3"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/distribution.yaml",
+      "destination": "skills/flow-guide/distribution.yaml",
+      "kind": "entry",
+      "sha256": "db4574fd92fadfa5d207e456832fc128af37a8df6cc64f5fed5498c4b6096c81"
     },
     {
       "skillId": "flow-guide",
@@ -2109,7 +2277,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "89d4a33ebdfeeabde2758689e6d928411067b39f451c5cb60bee2f72bf3a1662"
+      "sha256": "9f32a90280746370cb7a8caf05865c25dd26312607b3add8a03102f9046fe726"
     },
     {
       "skillId": "flow-guide",
@@ -2525,7 +2693,7 @@
       "sourcePath": "skills/flow-guide/scripts/_lib/frontmatter.js",
       "destination": "skills/flow-guide/scripts/_lib/frontmatter.js",
       "kind": "entry",
-      "sha256": "ebb87555ff5d516c8484e645f09253b7fea11d8c925743382e59e741247dbf39"
+      "sha256": "7d1891103482a4b9160075b9302ca7ef5811b86b049b5cc330a0b7a153845b21"
     },
     {
       "skillId": "flow-guide",
@@ -2645,7 +2813,7 @@
       "sourcePath": "skills/git-smart-commit/SKILL.md",
       "destination": "skills/git-smart-commit/SKILL.md",
       "kind": "entry",
-      "sha256": "8013cd55adab7ddd734d7ec11b645b7eee406081f8a1e29f9b5d80a68fedbed6"
+      "sha256": "27914fb053a18689e2a00f5bca58c513c22ea7603f78f32b2b0544cbd54f2343"
     },
     {
       "skillId": "git-smart-commit",
@@ -2654,6 +2822,14 @@
       "destination": "skills/git-smart-commit/agents/openai.yaml",
       "kind": "entry",
       "sha256": "49f67a450cd8ec991b6d9fa3da372bb158872723386e9abda15655c4cd28c426"
+    },
+    {
+      "skillId": "git-smart-commit",
+      "ownerId": "git-smart-commit",
+      "sourcePath": "skills/git-smart-commit/distribution.yaml",
+      "destination": "skills/git-smart-commit/distribution.yaml",
+      "kind": "entry",
+      "sha256": "0896ea4becddd7ecd4adb97c65b7e95ca8cfcde20362d286bfaa9ce5b7a7f186"
     },
     {
       "skillId": "git-smart-commit",
@@ -2677,7 +2853,7 @@
       "sourcePath": "skills/git-worktree/SKILL.md",
       "destination": "skills/git-worktree/SKILL.md",
       "kind": "entry",
-      "sha256": "8da543f3d80e28a4ca19d1dbb7f4fded94b3f6ef434a8d3bd971ac942eba6b5b"
+      "sha256": "f36326f905e3a1f859f99b410899b11e9208b35701c922fd76d1e9aceae105fb"
     },
     {
       "skillId": "git-worktree",
@@ -2686,6 +2862,14 @@
       "destination": "skills/git-worktree/agents/openai.yaml",
       "kind": "entry",
       "sha256": "1a2acb6589cf1c3ddb4d1f425d27de916d4140ee05ea8b68f158978a0f287877"
+    },
+    {
+      "skillId": "git-worktree",
+      "ownerId": "git-worktree",
+      "sourcePath": "skills/git-worktree/distribution.yaml",
+      "destination": "skills/git-worktree/distribution.yaml",
+      "kind": "entry",
+      "sha256": "7c15a7c66c0dd21cf70f1d7af5f9c8ab3bb0e57aaef2bf1b1bfb448be752c427"
     },
     {
       "skillId": "git-worktree",
@@ -2701,7 +2885,7 @@
       "sourcePath": "skills/harness-setup/SKILL.md",
       "destination": "skills/harness-setup/SKILL.md",
       "kind": "entry",
-      "sha256": "372382160a862158c10aba9e3e612c89ece9a3f0e757b16772f0dfff5ff09e2e"
+      "sha256": "45b75c9d574a49736cf694859466fa9f8eea5a7ac3b302065eee9509bf11e8a4"
     },
     {
       "skillId": "harness-setup",
@@ -2718,6 +2902,14 @@
       "destination": "skills/harness-setup/data/module-catalog.json",
       "kind": "entry",
       "sha256": "cda7d094760ea54005c7cc2e350c5c8f7ab742790e455e02a87824959f64e1d5"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "skills/harness-setup/distribution.yaml",
+      "destination": "skills/harness-setup/distribution.yaml",
+      "kind": "entry",
+      "sha256": "d3a53de6d2abd040a3956a026d2c6af0a7e6d1d0c0e40b0e6227baba979f0627"
     },
     {
       "skillId": "harness-setup",
@@ -2789,7 +2981,7 @@
       "sourcePath": "skills/library-author/SKILL.md",
       "destination": "skills/library-author/SKILL.md",
       "kind": "entry",
-      "sha256": "32a64f184520577cb926b5e95572edbad24987a14af9406d214344bb82bcf366"
+      "sha256": "5e5f16e0a441ebf2c776f22fbd5f36d6d94752362f83ad6e805c6dac3f29d521"
     },
     {
       "skillId": "library-author",
@@ -2798,6 +2990,14 @@
       "destination": "skills/library-author/agents/openai.yaml",
       "kind": "entry",
       "sha256": "3c8a234c3c3a9da56d236260392cac6290908053bd607934a9d0aa1a593db734"
+    },
+    {
+      "skillId": "library-author",
+      "ownerId": "library-author",
+      "sourcePath": "skills/library-author/distribution.yaml",
+      "destination": "skills/library-author/distribution.yaml",
+      "kind": "entry",
+      "sha256": "855a756df2ad268cf6223fe36663c571e53cb0b5e994bb6267a2bd88f7a09435"
     },
     {
       "skillId": "library-author",
@@ -2877,7 +3077,7 @@
       "sourcePath": "skills/opsx-apply-resume/SKILL.md",
       "destination": "skills/opsx-apply-resume/SKILL.md",
       "kind": "entry",
-      "sha256": "603c20254fa93fac3f298eb23f591460bd884053f9a80bf00ea6b663c488d941"
+      "sha256": "48c1ba758b2c3b99563280848947606e61141ce8afeb6c097f9cedf48d2d8a68"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2886,6 +3086,14 @@
       "destination": "skills/opsx-apply-resume/agents/openai.yaml",
       "kind": "entry",
       "sha256": "c052367232c9e15185ed011c41ffbfbaeb9f234208f3a56ef195d7c0a921af8f"
+    },
+    {
+      "skillId": "opsx-apply-resume",
+      "ownerId": "opsx-apply-resume",
+      "sourcePath": "skills/opsx-apply-resume/distribution.yaml",
+      "destination": "skills/opsx-apply-resume/distribution.yaml",
+      "kind": "entry",
+      "sha256": "c40bfd8ba52c2a6c9e20516a8225710629fd1b117b642aaeeed25a6e4607130e"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2981,7 +3189,7 @@
       "sourcePath": "skills/precommit/SKILL.md",
       "destination": "skills/precommit/SKILL.md",
       "kind": "entry",
-      "sha256": "bb3c86d914a4560e1a742037b3350ff81c50ef545b6f7aa9127be2cda34e1a7d"
+      "sha256": "f46cb126632e8958e70158e1c84077ea2858e52600366cb2c61f098f18697b34"
     },
     {
       "skillId": "precommit",
@@ -2990,6 +3198,14 @@
       "destination": "skills/precommit/agents/openai.yaml",
       "kind": "entry",
       "sha256": "67a50c1da92b1b251c980cb190b5d1c4c6b65c19ec87e89394f4906704019916"
+    },
+    {
+      "skillId": "precommit",
+      "ownerId": "precommit",
+      "sourcePath": "skills/precommit/distribution.yaml",
+      "destination": "skills/precommit/distribution.yaml",
+      "kind": "entry",
+      "sha256": "f3ce23ee8785adf6dc4c03981182b6226b81466d4e914ff364bb2d050d3793ef"
     },
     {
       "skillId": "precommit",
@@ -3021,7 +3237,7 @@
       "sourcePath": "skills/proposal-analyze/SKILL.md",
       "destination": "skills/proposal-analyze/SKILL.md",
       "kind": "entry",
-      "sha256": "6becd45aa105c2cc7ceb70da489ed3b0b171fa706bd6dba901d3529a239bbd7d"
+      "sha256": "927eb123b1533b3c4571c17c615c61ca45d74e6d2b8beeb64fa583711f72c202"
     },
     {
       "skillId": "proposal-analyze",
@@ -3032,12 +3248,20 @@
       "sha256": "22e0b40e5accf9745ab4816a83ec46e704b7969078a4592423d11fc625216eff"
     },
     {
+      "skillId": "proposal-analyze",
+      "ownerId": "proposal-analyze",
+      "sourcePath": "skills/proposal-analyze/distribution.yaml",
+      "destination": "skills/proposal-analyze/distribution.yaml",
+      "kind": "entry",
+      "sha256": "bcdbb13ff7a55cbb18f4943c8960bb1448cc792719e519816e1d02198ece00a6"
+    },
+    {
       "skillId": "issue-analyze",
       "ownerId": "proposal-analyze",
       "sourcePath": "skills/dhpk-issue-analyze/SKILL.md",
       "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/SKILL.md",
       "kind": "branch",
-      "sha256": "300c7bc346399b2101c5f2d85c73f90a4cb5c77f6999b7baf9785473f0a361e3"
+      "sha256": "16a42b0ca77e7e9d54fe3023a922c1e46910ff4426fd303da5231490751515a5"
     },
     {
       "skillId": "issue-analyze",
@@ -3046,6 +3270,14 @@
       "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/agents/openai.yaml",
       "kind": "branch",
       "sha256": "55364746aa63e451892130aef4a1a8c3b2bb44ffcd8b9d200b8e0e55d069e015"
+    },
+    {
+      "skillId": "issue-analyze",
+      "ownerId": "proposal-analyze",
+      "sourcePath": "skills/dhpk-issue-analyze/distribution.yaml",
+      "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/distribution.yaml",
+      "kind": "branch",
+      "sha256": "7f65eaddfec4e8a59c59dc7153cd5fae1c281ef3ff1fefaac8ad4a6cbcc9f017"
     },
     {
       "skillId": "issue-analyze",
@@ -3069,7 +3301,7 @@
       "sourcePath": "skills/module-design/SKILL.md",
       "destination": "skills/proposal-analyze/references/module-design/SKILL.md",
       "kind": "reference",
-      "sha256": "6d4633b1fac59371f46c8db35305fadd26c6b0b3a3fafadee59bbefe9874486a"
+      "sha256": "21b5a1e06cb31d8c21c7881b376815435ddef4fb0eb325465cbc7f6633ce66f7"
     },
     {
       "skillId": "software-architecture",
@@ -3078,6 +3310,14 @@
       "destination": "skills/proposal-analyze/references/module-design/agents/openai.yaml",
       "kind": "reference",
       "sha256": "7609b739f6ef95b5f7a1c492223cc4f676632e0ed297e04d152340b296d017bb"
+    },
+    {
+      "skillId": "software-architecture",
+      "ownerId": "proposal-analyze",
+      "sourcePath": "skills/module-design/distribution.yaml",
+      "destination": "skills/proposal-analyze/references/module-design/distribution.yaml",
+      "kind": "reference",
+      "sha256": "11f6b04e0730d9d7659fd9bfd27363d1cdb8278c386edd4f1ae7c98c18b3ad10"
     },
     {
       "skillId": "software-architecture",
@@ -3093,7 +3333,7 @@
       "sourcePath": "skills/project-brief/SKILL.md",
       "destination": "skills/proposal-analyze/references/project-brief/SKILL.md",
       "kind": "branch",
-      "sha256": "3ab63e35f4eb8fa40147c16c3d5de0edd210dc6b51ffb6edb50cda7691b5a135"
+      "sha256": "839da188e00ab0b01d01b6890dbd7f02b90a28eeba64aec45d7d2350f8fd0f4d"
     },
     {
       "skillId": "project-brief",
@@ -3104,12 +3344,20 @@
       "sha256": "5e3ab65bb15ec3cc4718af58e851bba568cd1146ce3e6e5ef830c49587a06e32"
     },
     {
+      "skillId": "project-brief",
+      "ownerId": "proposal-analyze",
+      "sourcePath": "skills/project-brief/distribution.yaml",
+      "destination": "skills/proposal-analyze/references/project-brief/distribution.yaml",
+      "kind": "branch",
+      "sha256": "2bb3735048e2d0ec99652914bf1bd8bb6922c9caaa5efed5b1dd2395e5a37a6c"
+    },
+    {
       "skillId": "release-creator",
       "ownerId": "release-creator",
       "sourcePath": "skills/release-creator/SKILL.md",
       "destination": "skills/release-creator/SKILL.md",
       "kind": "entry",
-      "sha256": "0eef366516696dee7be7cde52e1d071db3ef0f2a9f0eecf673a09e2b5dbb1dd9"
+      "sha256": "368e92185c587b727d400583bc0714ff92c1820e24d6b437296e9c2c05244317"
     },
     {
       "skillId": "release-creator",
@@ -3120,12 +3368,20 @@
       "sha256": "19820da9849cb15f39d20ffdf62894aad3a389f42659695954e6329d992f1a3b"
     },
     {
+      "skillId": "release-creator",
+      "ownerId": "release-creator",
+      "sourcePath": "skills/release-creator/distribution.yaml",
+      "destination": "skills/release-creator/distribution.yaml",
+      "kind": "entry",
+      "sha256": "eddb91c8aa279c3dcde80dc8af21fa3b64130110d54f683d1e8f7f4e28f35e56"
+    },
+    {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
       "sourcePath": "skills/dhpk-deploy-list/SKILL.md",
       "destination": "skills/release-creator/references/dhpk-deploy-list/SKILL.md",
       "kind": "branch",
-      "sha256": "d042c7b5c67f692f305edf80268cf8edf1b766770dcb33a369b4ec42c3e00c0a"
+      "sha256": "da7dbeb50074488a4e16d151f7aa8ce0a5ccd4cd5c8f2ea62c00e059494168df"
     },
     {
       "skillId": "deploy-list",
@@ -3142,6 +3398,14 @@
       "destination": "skills/release-creator/references/dhpk-deploy-list/config.sh.example",
       "kind": "branch",
       "sha256": "61eb1885feca5c72c1bef71542f5891a7545bec1c5b939dc8d0a03ed44f37062"
+    },
+    {
+      "skillId": "deploy-list",
+      "ownerId": "release-creator",
+      "sourcePath": "skills/dhpk-deploy-list/distribution.yaml",
+      "destination": "skills/release-creator/references/dhpk-deploy-list/distribution.yaml",
+      "kind": "branch",
+      "sha256": "9422a32eb08b994ac8154c47611dca606631d76007febf2cb5a1da4887224245"
     },
     {
       "skillId": "deploy-list",
@@ -3365,7 +3629,7 @@
       "sourcePath": "skills/repo-verify/SKILL.md",
       "destination": "skills/repo-verify/SKILL.md",
       "kind": "entry",
-      "sha256": "24abb02db04c187092e9350777ee57ffb6095392912602e3944d92eba8a73db1"
+      "sha256": "7b4c604c665bdb73b063aa60bae1e543171306955d4e873d6bb120b6979ecc65"
     },
     {
       "skillId": "repo-verify",
@@ -3376,12 +3640,20 @@
       "sha256": "43df43220e811bbb5adc149d27875515c3e8771e3cb0d63eea553b7ef339aad2"
     },
     {
+      "skillId": "repo-verify",
+      "ownerId": "repo-verify",
+      "sourcePath": "skills/repo-verify/distribution.yaml",
+      "destination": "skills/repo-verify/distribution.yaml",
+      "kind": "entry",
+      "sha256": "fab0fb338b329bd223ae716f73c3b8b41ccd5030e371b65e804eb40f14b836e5"
+    },
+    {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
       "sourcePath": "skills/dhpk-feature-verify/SKILL.md",
       "destination": "skills/repo-verify/references/dhpk-feature-verify/SKILL.md",
       "kind": "branch",
-      "sha256": "6fcecbd3440662ef924ad3808c00b7d212e35846c2726b20e55be45ded45f0a5"
+      "sha256": "aeb7066c056f805837e2642700d9958f8358194d3ddb4f04d13d7855349e109c"
     },
     {
       "skillId": "feature-verify",
@@ -3390,6 +3662,14 @@
       "destination": "skills/repo-verify/references/dhpk-feature-verify/agents/openai.yaml",
       "kind": "branch",
       "sha256": "23c26ded36bd12364cdd714539b15ebcdaf5b4ff0c63855fce91ab405f966289"
+    },
+    {
+      "skillId": "feature-verify",
+      "ownerId": "repo-verify",
+      "sourcePath": "skills/dhpk-feature-verify/distribution.yaml",
+      "destination": "skills/repo-verify/references/dhpk-feature-verify/distribution.yaml",
+      "kind": "branch",
+      "sha256": "9c446b38fc8d035f7771af60cd7471b6c6291bd5190f3d3ca086c2b6405587fb"
     },
     {
       "skillId": "feature-verify",
@@ -3477,7 +3757,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "762c046573a1b65d284122d512c2fd618f0b4b50a0853182907903cbd89846f7"
+      "sha256": "1876c34745dce242c5209dded28c9651ed46542c416373c31c332447a18fbb2d"
     },
     {
       "skillId": "tdd",
@@ -3488,12 +3768,20 @@
       "sha256": "b43fe6e8f22ebf197a88e6492bb90600b665309ce983e4fff7e5cdd8e502e633"
     },
     {
+      "skillId": "tdd",
+      "ownerId": "tdd",
+      "sourcePath": "skills/tdd-workflow/distribution.yaml",
+      "destination": "skills/tdd-workflow/distribution.yaml",
+      "kind": "entry",
+      "sha256": "89d309e6c05ba0726ea0031fb85ae0c6b50ed47acace2ee5bac6d1a9152314a6"
+    },
+    {
       "skillId": "legacy-code-characterization",
       "ownerId": "tdd",
       "sourcePath": "skills/dhpk-legacy-characterization-tests/SKILL.md",
       "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/SKILL.md",
       "kind": "branch",
-      "sha256": "5038b17c2eb278bc4cba5867427f9acb3e65e027352966d7909f3c2aed34a356"
+      "sha256": "c408b77413f2f3707188b3d3590a6df5bb7e62eecbb052737fe6d57aea3a38cc"
     },
     {
       "skillId": "legacy-code-characterization",
@@ -3502,6 +3790,14 @@
       "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/agents/openai.yaml",
       "kind": "branch",
       "sha256": "0ba9446f53da6069240b50a62a95dd5d16c1d9d56929d718800b2509f89e6032"
+    },
+    {
+      "skillId": "legacy-code-characterization",
+      "ownerId": "tdd",
+      "sourcePath": "skills/dhpk-legacy-characterization-tests/distribution.yaml",
+      "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/distribution.yaml",
+      "kind": "branch",
+      "sha256": "500aff1d33cb7388744bc33cb45818916fd5db757ebc05c2722dd7d611eb297b"
     },
     {
       "skillId": "legacy-code-characterization",
@@ -3525,7 +3821,7 @@
       "sourcePath": "skills/phpunit/SKILL.md",
       "destination": "skills/tdd-workflow/references/phpunit/SKILL.md",
       "kind": "branch",
-      "sha256": "6b83d4d2f68f5654fa36656ceaaa4759ad755c25bb97649e38db171dba4d33a6"
+      "sha256": "d7ae1450b52077dd5fb046cf37b9de1e6f98259ec735799d4636fb7287e031f2"
     },
     {
       "skillId": "phpunit",
@@ -3534,6 +3830,14 @@
       "destination": "skills/tdd-workflow/references/phpunit/agents/openai.yaml",
       "kind": "branch",
       "sha256": "f2f17fdea3f295a169f65cf65b0932ea5be82cde0b6aac83fe5bf915ac653a71"
+    },
+    {
+      "skillId": "phpunit",
+      "ownerId": "tdd",
+      "sourcePath": "skills/phpunit/distribution.yaml",
+      "destination": "skills/tdd-workflow/references/phpunit/distribution.yaml",
+      "kind": "branch",
+      "sha256": "bc2bea3babb5134043adbe129a6e48214288f12a48d0f31df2731d00b802d243"
     },
     {
       "skillId": "phpunit",
@@ -3589,7 +3893,7 @@
       "sourcePath": "skills/ui-ux-verify/SKILL.md",
       "destination": "skills/ui-ux-verify/SKILL.md",
       "kind": "entry",
-      "sha256": "843bf644d95863aad6bf926425bb8e2f83b20dc9eeed65f3a4a8e389f9f72c47"
+      "sha256": "e9725e96365f66e3238a36cf7bbb31f394dd8af33cbc84c5469786074b9cbc56"
     },
     {
       "skillId": "ui-ux-verify",
@@ -3598,6 +3902,14 @@
       "destination": "skills/ui-ux-verify/agents/openai.yaml",
       "kind": "entry",
       "sha256": "216ef12e9adc54f5c681610603cfee4f477aac6a6af844a8d7a04e76d565c0af"
+    },
+    {
+      "skillId": "ui-ux-verify",
+      "ownerId": "ui-ux-verify",
+      "sourcePath": "skills/ui-ux-verify/distribution.yaml",
+      "destination": "skills/ui-ux-verify/distribution.yaml",
+      "kind": "entry",
+      "sha256": "9032d4c38556b13dcf8ce257029004f2a768bd26b7f5af8dee652cc4ad93e7cc"
     },
     {
       "skillId": "ui-ux-verify",

@@ -539,7 +539,8 @@
       ],
       "legacy_names": [
         "openspec-artifact-guard"
-      ]
+      ],
+      "invocation_class": "implicit-eligible"
     },
     {
       "id": "phpunit",
@@ -627,7 +628,8 @@
       ],
       "legacy_names": [
         "vue-2-notes"
-      ]
+      ],
+      "invocation_class": "implicit-eligible"
     },
     {
       "id": "flow-guide",
@@ -1053,7 +1055,8 @@
       ],
       "legacy_names": [
         "deploy-list"
-      ]
+      ],
+      "invocation_class": "implicit-eligible"
     },
     {
       "id": "feature-verify",
@@ -1185,7 +1188,8 @@
       ],
       "legacy_names": [
         "project-audit"
-      ]
+      ],
+      "invocation_class": "implicit-eligible"
     },
     {
       "id": "release-creator",
@@ -1264,7 +1268,8 @@
       ],
       "legacy_names": [
         "repo-intake"
-      ]
+      ],
+      "invocation_class": "explicit-only"
     },
     {
       "id": "software-architecture",

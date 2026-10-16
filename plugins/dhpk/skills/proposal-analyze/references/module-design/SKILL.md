@@ -3,6 +3,8 @@ name: module-design
 argument-hint: '"<question>" [--context <files>] [--mode design|review|compare|adversarial] [--second-opinion=codex-exec]'
 description: 'Design or compare module responsibilities, public interfaces, and architecture trade-offs. Use when a boundary or adapter choice is unresolved. Supports design, review, compare, and bounded adversarial modes. Not for implementing a confirmed design, tracing code, or reviewing code correctness. Output: a bounded recommendation with evidence and verification needs.'
 metadata:
+  dhpk-capability-id: dhpk.skill.software-architecture
+  dhpk-name-style: portable-skill
   dhpk-invocation-class: implicit-eligible
 ---
 
