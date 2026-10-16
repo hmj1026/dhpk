@@ -1,0 +1,68 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "evals/evals.json",
+      "references/context7-sources-and-query-rules.md",
+      "references/ddd-lite-for-yii1.md",
+      "references/development.md",
+      "references/php56-php7-safe-subset.md",
+      "references/phpunit57-legacy-test-traps.md",
+      "references/security.md",
+      "references/tdd-workflow-and-test-strategy.md",
+      "references/yii1-backend-patterns.md",
+      "references/yii1-security-patterns.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Yii 1.1",
+    "summary": "Develop and audit Yii 1.1 with PHP 5.6 compatibility",
+    "syntax": "$yii1 <task>",
+    "input_kind": "free-text",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "task",
+        "syntax": "<task>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Describe the task, package scope, and intended target"
+      }
+    ],
+    "actions": [
+      {
+        "id": "develop",
+        "summary": "Implement a Yii 1.1 task",
+        "syntax": "$yii1 develop <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "review",
+        "summary": "Review Yii 1.1 code",
+        "syntax": "$yii1 review <task>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "security",
+        "summary": "Audit Yii 1.1 security boundaries",
+        "syntax": "$yii1 security <task>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$yii1 review the selected package",
+        "summary": "Use natural task text and resolve the intended target"
+      }
+    ]
+  }
+}

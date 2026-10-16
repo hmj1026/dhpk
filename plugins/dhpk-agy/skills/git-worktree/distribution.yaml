@@ -1,0 +1,92 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/workflow.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Git Worktree",
+    "summary": "Manage native Git worktrees with confirmation boundaries",
+    "syntax": "$git-worktree [<operation>] [--branch=<name>] [--base=<ref>]",
+    "input_kind": "action-first",
+    "invocation_class": "explicit-only",
+    "effect_authority": "git-write",
+    "inputs": [
+      {
+        "id": "operation",
+        "syntax": "<operation>",
+        "value_kind": "enum",
+        "required": false,
+        "summary": "Worktree operation",
+        "default": "list",
+        "enum_values": [
+          "add",
+          "list",
+          "remove",
+          "prune"
+        ],
+        "applies_to": [
+          "manage"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "manage",
+        "summary": "Add, list, remove, or prune a worktree",
+        "syntax": "$git-worktree [<operation>]",
+        "input_kind": "action-first",
+        "effect_authority": "git-write"
+      }
+    ],
+    "options": [
+      {
+        "id": "branch",
+        "syntax": "--branch=<name>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Branch used by add or remove"
+      },
+      {
+        "id": "base",
+        "syntax": "--base=<ref>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Base ref used when adding"
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$git-worktree list",
+        "summary": "Use git worktree with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "git-worktree",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:git-worktree",
+      "argument_contract": "[add|list|remove|prune] [--branch <name>] [--base <ref>]",
+      "authority": "git-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $git-worktree Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/git-worktree.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/git-worktree.md"
+      ],
+      "allowed_tools": "Bash(git:*), Read, Grep, Glob, Skill"
+    }
+  ]
+}

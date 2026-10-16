@@ -1,0 +1,45 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/check-catalog.md",
+      "references/output-template.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/audit.js",
+        "fixture_ids": [
+          "audit-project-audit-healthy",
+          "audit-project-audit-empty"
+        ]
+      }
+    ],
+    "internal_helpers": [
+      {
+        "path": "scripts/lib/runner-utils.js",
+        "required_by": [
+          "scripts/audit.js"
+        ]
+      },
+      {
+        "path": "scripts/lib/command-namespace.js",
+        "required_by": [
+          "scripts/audit.js"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  },
+  "resource_copies": [
+    {
+      "source": "scripts/lib/runner-utils.js",
+      "destination": "scripts/lib/runner-utils.js"
+    },
+    {
+      "source": "scripts/lib/command-namespace.js",
+      "destination": "scripts/lib/command-namespace.js"
+    }
+  ]
+}

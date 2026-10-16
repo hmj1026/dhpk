@@ -2,6 +2,7 @@
 name: dhpk-legacy-characterization-tests
 description: 'Write characterization tests for untested legacy code to lock current behavior before refactoring. Use when users want to safely refactor legacy controllers/models/services, add regression safety nets, or prepare code for extraction. Trigger words: characterization test, lock behavior, legacy test, safe refactor, 行為鎖定, 特徵測試, 安全重構. Not for: greenfield code, already well-tested modules, or pure bug fixes. Output: characterization test files + coverage delta report.'
 metadata:
+  dhpk-capability-id: dhpk.skill.legacy-code-characterization
   dhpk-invocation-class: implicit-eligible
 ---
 

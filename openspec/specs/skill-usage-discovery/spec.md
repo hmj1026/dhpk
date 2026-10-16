@@ -30,6 +30,13 @@ IDs, unknown `applies_to` action IDs, invalid enum defaults, empty examples,
 or child effect authority above the parent maximum SHALL fail. Skills not
 selected by either Codex surface MAY omit `usage`.
 
+REQ-5: The Skill directory SHALL declare that usage object. The distribution
+inventory SHALL store the compiled copy as the projection input. Canonical
+`invocation_class` in `SKILL.md` `metadata.dhpk-invocation-class` SHALL equal
+`usage.invocation_class`. `--check` SHALL fail when inventory `usage` differs
+from the Skill-directory declaration. Authors SHALL NOT treat the inventory
+copy as a second editable source.
+
 #### Scenario: A positional input lacks meaning metadata
 
 - **WHEN** a Codex skill declares an input without `value_kind`, `required`, or
@@ -66,6 +73,13 @@ selected by either Codex surface MAY omit `usage`.
 - **WHEN** a skill is not selected by either Codex surface and has no `usage`
   object
 - **THEN** the usage-contract gate does not require a fabricated Codex grammar
+
+#### Scenario: Inventory usage is edited without a directory change
+
+- **WHEN** a Codex-invokable Skill's inventory `usage` object differs from the
+  usage object declared in that Skill directory
+- **THEN** the usage drift check fails with the stable ID and does not treat
+  the inventory copy as authoritative
 
 ### Requirement: Usage help is progressively disclosed and read-only
 
@@ -127,6 +141,11 @@ projections; parameter meaning SHALL remain in structured metadata and Usage
 Cards. Broad hand-maintained cheat sheets MAY link to the generated guide but
 SHALL not become a second usage source of truth.
 
+REQ-5: Changing a usage contract SHALL require a Skill-directory edit. The
+inventory revision consumed by usage projections SHALL equal the compiled
+directory declarations. Directory-versus-inventory drift SHALL fail before
+projection parity is considered passing.
+
 #### Scenario: Inventory usage changes
 
 - **WHEN** an input, action, option, or legacy marker changes in the inventory
@@ -153,6 +172,13 @@ SHALL not become a second usage source of truth.
   references
 - **THEN** the usage schema rejects the unsupported field and keeps the
   procedural content in the skill-owned source
+
+#### Scenario: Directory usage changes before inventory regeneration
+
+- **WHEN** a Skill-directory usage declaration changes and the inventory copy
+  is not regenerated
+- **THEN** the directory-inventory usage drift check fails and projection
+  parity MUST NOT be reported as passing
 
 ### Requirement: Marketplace usage catalogs bind to the reviewed publication selection
 

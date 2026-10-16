@@ -1,0 +1,98 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/collector.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/collect-changes.js",
+        "fixture_ids": [
+          "remaining-git-smart-commit-collect-changes-scope-readonly"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Git Smart Commit",
+    "summary": "Group related changes into reviewable commits safely",
+    "syntax": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
+    "input_kind": "none",
+    "invocation_class": "explicit-only",
+    "effect_authority": "git-write",
+    "inputs": [],
+    "actions": [
+      {
+        "id": "group",
+        "summary": "Analyze changes and produce grouped commit steps",
+        "syntax": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
+        "input_kind": "none",
+        "effect_authority": "git-write"
+      }
+    ],
+    "options": [
+      {
+        "id": "scope",
+        "syntax": "--scope=<path>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Limit status and diff collection"
+      },
+      {
+        "id": "type",
+        "syntax": "--type=<type>",
+        "value_kind": "enum",
+        "required": false,
+        "summary": "Force a conventional commit type",
+        "enum_values": [
+          "feat",
+          "fix",
+          "docs",
+          "refactor",
+          "style",
+          "chore",
+          "test"
+        ]
+      },
+      {
+        "id": "ai-co-author",
+        "syntax": "--ai-co-author",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Opt into the project-approved AI trailer",
+        "default": false
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$git-smart-commit --scope=src/",
+        "summary": "Use git smart commit with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "smart-commit",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:smart-commit",
+      "argument_contract": "[--scope <path>] [--type <type>] [--ai-co-author]",
+      "authority": "git-write",
+      "disposition": "thin-front-door",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/smart-commit.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/smart-commit.md"
+      ],
+      "reason": "Canonical $git-smart-commit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "allowed_tools": "Bash(git:*), Read, Grep, Glob"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ disable-model-invocation: true
 description: 'GitHub Issue and PR review thread deep analysis with an optional blind verdict. Purpose: analyze issue root causes, classify problems, plan investigations, or triage PR review comments for actionability. Not for: fixing bugs (use flow-guide in bug mode), code exploration (use code-trace). Output: classified analysis + verdict assessment + investigation strategy.'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(gh:*), Bash(codex:*), Task'
 metadata:
+  dhpk-capability-id: dhpk.skill.issue-analyze
   dhpk-invocation-class: explicit-only
 ---
 

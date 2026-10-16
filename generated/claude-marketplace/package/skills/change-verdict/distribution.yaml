@@ -1,0 +1,243 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/actions/deps.md",
+      "references/actions/pending.md",
+      "references/code/codex-prompt-branch.md",
+      "references/code/codex-prompt-fast.md",
+      "references/code/codex-prompt-full.md",
+      "references/docs/codex-prompt-doc.md",
+      "references/docs/review-loop-doc.md",
+      "references/risk/output-template.md",
+      "references/risk/risk-dimensions.md",
+      "references/security/codex-prompt-security.md",
+      "references/security/examples.md",
+      "references/shared/cli-backend.md",
+      "references/shared/codex-research-instructions.md",
+      "references/shared/command-context.md",
+      "references/shared/review-common.md",
+      "references/shared/review-rubric.md",
+      "references/shared/review-workflow.md",
+      "references/tests/codex-prompt-ac-trace.md",
+      "references/tests/codex-prompt-test-review.md",
+      "templates/review_output.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/check-unrelated-changes.sh",
+        "fixture_ids": [
+          "remaining-change-verdict-unrelated-squash-warning",
+          "remaining-change-verdict-unrelated-merge-skip"
+        ]
+      },
+      {
+        "path": "scripts/review-cli.sh",
+        "fixture_ids": [
+          "remaining-change-verdict-review-cli-stub"
+        ]
+      },
+      {
+        "path": "scripts/risk-analyze.js",
+        "fixture_ids": [
+          "audit-change-verdict-clean",
+          "audit-change-verdict-unsupported-source"
+        ]
+      }
+    ],
+    "host_capabilities": [
+      "independent-security-review",
+      "code-reviewer-role"
+    ],
+    "internal_helpers": [
+      {
+        "path": "scripts/lib/runner-utils.js",
+        "required_by": [
+          "scripts/risk-analyze.js"
+        ]
+      },
+      {
+        "path": "scripts/lib/command-namespace.js",
+        "required_by": [
+          "scripts/risk-analyze.js"
+        ]
+      }
+    ],
+    "host_evidence": {
+      "independent-security-review": {
+        "status": "NOT_RUN",
+        "reason": "Only isolated static instruction contract checked; no independent Host review executed."
+      },
+      "code-reviewer-role": {
+        "status": "NOT_RUN",
+        "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
+      }
+    }
+  },
+  "resource_copies": [
+    {
+      "source": "scripts/lib/runner-utils.js",
+      "destination": "scripts/lib/runner-utils.js"
+    },
+    {
+      "source": "scripts/lib/command-namespace.js",
+      "destination": "scripts/lib/command-namespace.js"
+    }
+  ],
+  "usage": {
+    "display_name": "Change Verdict",
+    "summary": "Review changes or audit dependencies with bounded explicit fixes",
+    "syntax": "$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]",
+    "input_kind": "mixed",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "target",
+        "syntax": "<target>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Change, PR, test, document, or risk target"
+      }
+    ],
+    "actions": [
+      {
+        "id": "code",
+        "summary": "Judge code changes",
+        "syntax": "$change-verdict --mode=code [<target>]",
+        "input_kind": "mixed",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "pr",
+        "summary": "Judge pull-request evidence",
+        "syntax": "$change-verdict --mode=pr [<target>]",
+        "input_kind": "mixed",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "security",
+        "summary": "Judge security evidence",
+        "syntax": "$change-verdict --mode=security [<target>]",
+        "input_kind": "mixed",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "tests",
+        "summary": "Judge test and coverage evidence",
+        "syntax": "$change-verdict --mode=tests [--coverage] [<target>]",
+        "input_kind": "mixed",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "docs",
+        "summary": "Judge documentation evidence",
+        "syntax": "$change-verdict --mode=docs [<target>]",
+        "input_kind": "mixed",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "risk",
+        "summary": "Judge change-risk evidence",
+        "syntax": "$change-verdict --mode=risk [<target>]",
+        "input_kind": "mixed",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "pending",
+        "summary": "Delegate a read-only pending-change review",
+        "syntax": "$change-verdict pending [--files=<paths>]",
+        "input_kind": "none",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "deps",
+        "summary": "Audit dependency risks without mutation",
+        "syntax": "$change-verdict deps [--level=<severity>]",
+        "input_kind": "none",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "deps-fix",
+        "summary": "Delegate requested bounded dependency remediation then obtain an independent verdict",
+        "syntax": "$change-verdict deps fix [--level=<severity>]",
+        "input_kind": "none",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [
+      {
+        "id": "mode",
+        "syntax": "--mode=<mode>",
+        "value_kind": "enum",
+        "required": false,
+        "summary": "Select one verdict mode",
+        "enum_values": [
+          "code",
+          "pr",
+          "security",
+          "tests",
+          "docs",
+          "risk"
+        ]
+      },
+      {
+        "id": "coverage",
+        "syntax": "--coverage",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Include coverage evidence in tests mode",
+        "default": false
+      },
+      {
+        "id": "files",
+        "syntax": "--files=<paths>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Comma-separated relative pending paths"
+      },
+      {
+        "id": "level",
+        "syntax": "--level=<severity>",
+        "value_kind": "enum",
+        "required": false,
+        "summary": "Minimum vulnerability severity",
+        "default": "moderate",
+        "enum_values": [
+          "low",
+          "moderate",
+          "high",
+          "critical"
+        ]
+      },
+      {
+        "id": "fix",
+        "syntax": "--fix",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Explicitly request bounded dependency remediation",
+        "default": false
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$change-verdict --mode=tests --coverage",
+        "summary": "Use change verdict with its declared interface"
+      },
+      {
+        "prompt": "$change-verdict pending --files=src/a.js",
+        "summary": "Delegate pending review"
+      },
+      {
+        "prompt": "$change-verdict deps --level=high",
+        "summary": "Audit dependencies without mutation"
+      },
+      {
+        "prompt": "$change-verdict deps fix",
+        "summary": "Request bounded dependency remediation"
+      }
+    ]
+  }
+}

@@ -19,6 +19,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { extractInvocationClass } = require('../scripts/ci/_lib/frontmatter');
 
 const ROOT = path.join(__dirname, '..');
 const HOOK = path.join(ROOT, 'scripts', 'hooks', 'userpromptsubmit-skill-hint.sh');
@@ -126,8 +127,8 @@ function resolveInvocationClass(name) {
   const cmdFile = path.join(ROOT, 'commands', `${name}.md`);
   const file = fs.existsSync(skillFile) ? skillFile : fs.existsSync(cmdFile) ? cmdFile : null;
   if (!file) return null;
-  const m = fs.readFileSync(file, 'utf8').match(/^metadata:\s*\n\s+dhpk-invocation-class:\s*(\S+)/m);
-  return m ? m[1] : null;
+  const metadata = extractInvocationClass(fs.readFileSync(file, 'utf8'));
+  return metadata.present && !metadata.unknownValue ? metadata.value : null;
 }
 
 test('prompt matching the route pattern emits an additionalContext hint', () => {

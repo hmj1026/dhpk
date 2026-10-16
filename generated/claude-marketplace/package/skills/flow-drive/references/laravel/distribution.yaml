@@ -1,0 +1,38 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "compatibility.md",
+      "migration.md",
+      "references/10.md",
+      "references/11.md",
+      "references/5-4.md",
+      "references/6.md",
+      "references/7.md",
+      "references/8.md",
+      "references/9.md",
+      "references/mix.md",
+      "scripts/version-resolver.js"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/resolve-version.js",
+        "fixture_ids": [
+          "laravel-local-version-guidance",
+          "laravel-missing-version-blocked"
+        ]
+      }
+    ],
+    "host_capabilities": [],
+    "internal_helpers": [
+      {
+        "path": "scripts/version-resolver.js",
+        "required_by": [
+          "scripts/resolve-version.js"
+        ]
+      }
+    ]
+  }
+}

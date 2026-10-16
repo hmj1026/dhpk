@@ -1,0 +1,67 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/refactor-contract.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Code Simplify",
+    "summary": "Clean changed code without changing behavior",
+    "syntax": "$code-simplify [<target>]",
+    "input_kind": "free-text",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "target",
+        "syntax": "<target>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "PR, branch, file, or directory"
+      }
+    ],
+    "actions": [
+      {
+        "id": "simplify",
+        "summary": "Apply bounded cleanup with test evidence",
+        "syntax": "$code-simplify [<target>]",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$code-simplify src/",
+        "summary": "Use code simplify with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "simplify",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:simplify",
+      "argument_contract": "[<PR|branch|file|directory>]",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $code-simplify Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/simplify.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/simplify.md"
+      ],
+      "allowed_tools": "Read, Grep, Glob, Edit, Agent, Bash"
+    }
+  ]
+}

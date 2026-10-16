@@ -1,0 +1,47 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/archived/MIDWAY_HEURISTICS.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/intake_cached.js",
+        "fixture_ids": [
+          "audit-repo-intake-cached"
+        ]
+      },
+      {
+        "path": "scripts/scan_delta.js",
+        "fixture_ids": [
+          "audit-repo-intake-delta",
+          "audit-repo-intake-delta-no-git"
+        ]
+      },
+      {
+        "path": "scripts/scan_repo.js",
+        "fixture_ids": [
+          "audit-repo-intake-scan",
+          "audit-repo-intake-scan-no-git"
+        ]
+      }
+    ],
+    "internal_helpers": [
+      {
+        "path": "scripts/lib/runner-utils.js",
+        "required_by": [
+          "scripts/scan_repo.js"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  },
+  "resource_copies": [
+    {
+      "source": "scripts/lib/runner-utils.js",
+      "destination": "scripts/lib/runner-utils.js"
+    }
+  ]
+}

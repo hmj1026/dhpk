@@ -1,0 +1,31 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/10.md",
+      "references/11.md",
+      "references/9.md",
+      "scripts/version-resolver.js"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/resolve-version.js",
+        "fixture_ids": [
+          "phpunit-local-version-guidance",
+          "phpunit-missing-version-blocked"
+        ]
+      }
+    ],
+    "host_capabilities": [],
+    "internal_helpers": [
+      {
+        "path": "scripts/version-resolver.js",
+        "required_by": [
+          "scripts/resolve-version.js"
+        ]
+      }
+    ]
+  }
+}

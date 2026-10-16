@@ -2,6 +2,8 @@
 name: swift
 description: 'Swift and iOS development, SwiftUI architecture, async tests, SDK privacy, Xcode/SPM builds, and asset-catalog icons. Use for Swift/iOS tasks or test, build, icon actions. Not for web/Android assets or general raster editing. Output: target-compatible implementation or review, verification evidence, or an imageset.'
 metadata:
+  dhpk-capability-id: dhpk.skill.swift
+  dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
 ---
 

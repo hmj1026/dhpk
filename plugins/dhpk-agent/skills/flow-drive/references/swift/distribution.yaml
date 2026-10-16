@@ -1,0 +1,210 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "evals/evals.json",
+      "references/actor-persistence.md",
+      "references/approachable-concurrency.md",
+      "references/build.md",
+      "references/concurrency.md",
+      "references/coredata-encryption.md",
+      "references/cryptokit-keychain.md",
+      "references/error-handling.md",
+      "references/healthkit-read.md",
+      "references/icon.md",
+      "references/interop.md",
+      "references/language.md",
+      "references/local-authentication.md",
+      "references/mvvm-coordinator.md",
+      "references/navigation.md",
+      "references/notifications.md",
+      "references/observation-state.md",
+      "references/platform.md",
+      "references/privacy-compliance.md",
+      "references/protocol-di-host-testing.md",
+      "references/scheme-signing.md",
+      "references/snapshot-testing.md",
+      "references/swift-testing-api.md",
+      "references/swift5-compat-notes.md",
+      "references/swiftlint-config.md",
+      "references/test-taxonomy.md",
+      "references/testing.md",
+      "references/ui.md",
+      "references/value-vs-reference.md",
+      "references/vision-ocr.md",
+      "references/xcodebuild-spm.md",
+      "references/xctest-bridging.md",
+      "references/xcuitest.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/generate_icons.swift",
+        "fixture_ids": [
+          "remaining-ios-swift-list"
+        ]
+      },
+      {
+        "path": "scripts/iconify_gen.sh",
+        "fixture_ids": [
+          "remaining-ios-iconify-generate"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  },
+  "resource_copies": [
+    {
+      "source": "modules/swift/references/concurrency.md",
+      "destination": "references/concurrency.md"
+    },
+    {
+      "source": "modules/swift/references/approachable-concurrency.md",
+      "destination": "references/approachable-concurrency.md"
+    },
+    {
+      "source": "modules/swift/references/value-vs-reference.md",
+      "destination": "references/value-vs-reference.md"
+    },
+    {
+      "source": "modules/swift/references/error-handling.md",
+      "destination": "references/error-handling.md"
+    },
+    {
+      "source": "modules/swift/references/swift5-compat-notes.md",
+      "destination": "references/swift5-compat-notes.md"
+    },
+    {
+      "source": "modules/swiftui/references/mvvm-coordinator.md",
+      "destination": "references/mvvm-coordinator.md"
+    },
+    {
+      "source": "modules/swiftui/references/observation-state.md",
+      "destination": "references/observation-state.md"
+    },
+    {
+      "source": "modules/swiftui/references/navigation.md",
+      "destination": "references/navigation.md"
+    },
+    {
+      "source": "modules/swiftui/references/interop.md",
+      "destination": "references/interop.md"
+    },
+    {
+      "source": "modules/swift-testing/references/swift-testing-api.md",
+      "destination": "references/swift-testing-api.md"
+    },
+    {
+      "source": "modules/swift-testing/references/xctest-bridging.md",
+      "destination": "references/xctest-bridging.md"
+    },
+    {
+      "source": "modules/swift-testing/references/xcuitest.md",
+      "destination": "references/xcuitest.md"
+    },
+    {
+      "source": "modules/swift-testing/references/snapshot-testing.md",
+      "destination": "references/snapshot-testing.md"
+    },
+    {
+      "source": "modules/swift-testing/references/test-taxonomy.md",
+      "destination": "references/test-taxonomy.md"
+    },
+    {
+      "source": "modules/swift-testing/references/protocol-di-host-testing.md",
+      "destination": "references/protocol-di-host-testing.md"
+    },
+    {
+      "source": "modules/ios-platform/references/coredata-encryption.md",
+      "destination": "references/coredata-encryption.md"
+    },
+    {
+      "source": "modules/ios-platform/references/cryptokit-keychain.md",
+      "destination": "references/cryptokit-keychain.md"
+    },
+    {
+      "source": "modules/ios-platform/references/vision-ocr.md",
+      "destination": "references/vision-ocr.md"
+    },
+    {
+      "source": "modules/ios-platform/references/local-authentication.md",
+      "destination": "references/local-authentication.md"
+    },
+    {
+      "source": "modules/ios-platform/references/notifications.md",
+      "destination": "references/notifications.md"
+    },
+    {
+      "source": "modules/ios-platform/references/healthkit-read.md",
+      "destination": "references/healthkit-read.md"
+    },
+    {
+      "source": "modules/ios-platform/references/privacy-compliance.md",
+      "destination": "references/privacy-compliance.md"
+    },
+    {
+      "source": "modules/ios-platform/references/actor-persistence.md",
+      "destination": "references/actor-persistence.md"
+    },
+    {
+      "source": "modules/xcode-tooling/references/swiftlint-config.md",
+      "destination": "references/swiftlint-config.md"
+    },
+    {
+      "source": "modules/xcode-tooling/references/xcodebuild-spm.md",
+      "destination": "references/xcodebuild-spm.md"
+    },
+    {
+      "source": "modules/xcode-tooling/references/scheme-signing.md",
+      "destination": "references/scheme-signing.md"
+    }
+  ],
+  "usage": {
+    "display_name": "Swift",
+    "summary": "Handle Swift, SwiftUI, test, platform, build, and icon tasks",
+    "syntax": "$swift <task>",
+    "input_kind": "free-text",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "task",
+        "syntax": "<task>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Describe the task, package scope, and intended target"
+      }
+    ],
+    "actions": [
+      {
+        "id": "test",
+        "summary": "Write or run requested Swift tests",
+        "syntax": "$swift test <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "build",
+        "summary": "Inspect Swift build output",
+        "syntax": "$swift build <task>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "icon",
+        "summary": "Generate requested icon assets",
+        "syntax": "$swift icon <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$swift review the selected package",
+        "summary": "Use natural task text and resolve the intended target"
+      }
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/blackbox-testing.md",
+      "references/environments.md",
+      "references/output-template.md",
+      "references/safety-rules.md",
+      "references/verification-playbook.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/api-exec.sh",
+        "fixture_ids": [
+          "remaining-feature-verify-api-success",
+          "remaining-feature-verify-api-transport-failure"
+        ]
+      },
+      {
+        "path": "scripts/health-probe.sh",
+        "fixture_ids": [
+          "remaining-feature-verify-health-retry-success",
+          "remaining-feature-verify-health-retry-exhausted"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  }
+}

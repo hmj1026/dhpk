@@ -1,0 +1,74 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/workflow.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "PR Summary",
+    "summary": "Summarize open pull requests with evidence",
+    "syntax": "$pr-summary [--author=<user>] [--label=<label>]",
+    "input_kind": "none",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "read-only",
+    "inputs": [],
+    "actions": [
+      {
+        "id": "summarize",
+        "summary": "Group accessible open pull requests",
+        "syntax": "$pr-summary",
+        "input_kind": "none",
+        "effect_authority": "read-only"
+      }
+    ],
+    "options": [
+      {
+        "id": "author",
+        "syntax": "--author=<user>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Filter by pull-request author"
+      },
+      {
+        "id": "label",
+        "syntax": "--label=<label>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Filter by pull-request label"
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$pr-summary --label=ready",
+        "summary": "Use pr summary with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "pr-summary",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:pr-summary",
+      "argument_contract": "[--author <user>] [--label <label>]",
+      "authority": "read-only",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $pr-summary Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/pr-summary.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/pr-summary.md"
+      ],
+      "allowed_tools": "Bash(git:*), Bash(gh:*), Bash(bash:*), Skill"
+    }
+  ]
+}

@@ -4,6 +4,8 @@ description: '將雜亂的 git 變更依邏輯分群、逐批提交,適用於需
 argument-hint: '[--scope=<path>] [--type=<type>] [--ai-co-author]'
 disable-model-invocation: true
 metadata:
+  dhpk-capability-id: dhpk.skill.git-smart-commit
+  dhpk-name-style: portable-skill
   dhpk-invocation-class: explicit-only
   dhpk-next:
     PASS: change-verdict:pr

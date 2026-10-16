@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:938ca786b9969a31e9b014c52fa1092031639beb669ec6db147d896e814b69fe",
+  "sourceInventoryRevision": "sha256:80e713102f7939f3339a5d7a6a57695b37c3f124298ce3aec70c71d58ab88ba1",
   "entries": [
     {
       "id": "change-verdict",
@@ -1119,7 +1119,7 @@
       "deploy-list": {
         "id": "deploy-list",
         "publicName": "dhpk-deploy-list",
-        "invocationClass": "not-configured",
+        "invocationClass": "implicit-eligible",
         "command": "$dhpk-deploy-list <input>",
         "codexInvokable": false
       },
@@ -1245,7 +1245,7 @@
       "openspec-artifact-guard": {
         "id": "openspec-artifact-guard",
         "publicName": "dhpk-openspec-artifact-guard",
-        "invocationClass": "not-configured",
+        "invocationClass": "implicit-eligible",
         "command": "$dhpk-openspec-artifact-guard <input>",
         "codexInvokable": false
       },
@@ -1290,7 +1290,7 @@
       "project-audit": {
         "id": "project-audit",
         "publicName": "dhpk-project-audit",
-        "invocationClass": "not-configured",
+        "invocationClass": "implicit-eligible",
         "command": "$dhpk-project-audit <input>",
         "codexInvokable": false
       },
@@ -1338,7 +1338,7 @@
       "repo-intake": {
         "id": "repo-intake",
         "publicName": "dhpk-repo-intake",
-        "invocationClass": "not-configured",
+        "invocationClass": "explicit-only",
         "command": "$dhpk-repo-intake <input>",
         "codexInvokable": false
       },
@@ -1390,7 +1390,7 @@
       "vue-2-notes": {
         "id": "vue-2-notes",
         "publicName": "dhpk-vue-2-notes",
-        "invocationClass": "not-configured",
+        "invocationClass": "implicit-eligible",
         "command": "$dhpk-vue-2-notes <input>",
         "codexInvokable": false
       },

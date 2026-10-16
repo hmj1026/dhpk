@@ -1,15 +1,6 @@
 ---
 name: smart-commit
-description: "Smart batch commit — group changes by cohesion, generate commit messages matching project style, output git commands"
+description: "將雜亂的 git 變更依邏輯分群、逐批提交,適用於需要把多項變更拆成多個邏輯一致 commit 的情境。Not for: 單一小變更或只需要一個 commit（直接 commit 即可）。Output: 可直接執行的分組提交計畫與 commit 指令。"
 ---
-Forward `$ARGUMENTS` unchanged to the explicit-only, git-write
-`$git-smart-commit` Skill.
-It owns status/diff collection, sensitive-file handling, cohesive grouping,
-project-style messages, confirmation, and copy-pasteable git commands.
-
-Not for: a single small change that needs only one commit (commit it directly).
-
-Preserve the `--scope`, `--type`, and `--ai-co-author` options and the
-execution-policy git-pipeline boundary. Relay the owner’s plan or executed
-result; do not add a second commit grammar or claim commits were created from
-commands that were only proposed.
+Load the canonical `$git-smart-commit` Skill from [SKILL.md](https://github.com/hmj1026/dhpk/blob/main/skills/git-smart-commit/SKILL.md) and follow it with `$ARGUMENTS`.
+Keep its argument contract, authority boundary, verification, and output.

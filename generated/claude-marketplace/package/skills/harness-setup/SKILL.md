@@ -4,6 +4,8 @@ argument-hint: '[--show] [--source-artifact=<dir>] [--install=<group>] [--dry-ru
 description: 'Configure or inspect the dhpk harness, or install selected host assets. Not for: ordinary harness audits, application changes, or silent credential/configuration changes. Output: a host-specific setup report with preserved-file, receipt, and terminal evidence.'
 disable-model-invocation: true
 metadata:
+  dhpk-capability-id: dhpk.skill.harness-setup
+  dhpk-name-style: portable-skill
   dhpk-invocation-class: explicit-only
 ---
 

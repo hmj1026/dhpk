@@ -2,7 +2,9 @@
 name: flow-guide
 description: "Read-only workflow guidance and bounded routing. Use when work needs a route, policy lookup, next action, closeout gate, or Codex usage help. Not for implementation, review, code tracing, or skill authoring. Output: one typed report with evidence and a clear handoff."
 metadata:
+  dhpk-capability-id: "dhpk.skill.flow-guide"
   dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-family"
 ---
 
 # Flow Guide

@@ -1,0 +1,165 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "data/module-catalog.json",
+      "references/claude-setup.md",
+      "references/codex-setup.md",
+      "templates/settings.local.json.example"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/install-assets.sh",
+        "fixture_ids": [
+          "setup-harness-explicit-hooks-success",
+          "setup-harness-missing-local-writer",
+          "setup-harness-explicit-artifact-required",
+          "setup-harness-invalid-artifact-no-mutation"
+        ]
+      },
+      {
+        "path": "scripts/install-codex-project.sh",
+        "fixture_ids": [
+          "setup-codex-local-wrapper-valid-artifact",
+          "setup-codex-pinned-artifact-root"
+        ]
+      }
+    ],
+    "host_capabilities": [],
+    "api_entries": [],
+    "internal_helpers": [
+      {
+        "path": "scripts/lib/install-assets-writer.sh",
+        "required_by": [
+          "scripts/install-assets.sh"
+        ]
+      },
+      {
+        "path": "scripts/lib/install-codex-skills.sh",
+        "required_by": [
+          "scripts/install-codex-project.sh"
+        ]
+      }
+    ]
+  },
+  "resource_copies": [
+    {
+      "source": "scripts/setup/install-assets.sh",
+      "destination": "scripts/lib/install-assets-writer.sh"
+    },
+    {
+      "source": "scripts/hooks/install-codex-skills.sh",
+      "destination": "scripts/lib/install-codex-skills.sh"
+    },
+    {
+      "source": "manifests/module-catalog.json",
+      "destination": "data/module-catalog.json"
+    },
+    {
+      "source": "templates/settings.local.json.example",
+      "destination": "templates/settings.local.json.example"
+    }
+  ],
+  "usage": {
+    "display_name": "Harness Setup",
+    "summary": "Inspect or configure host harness assets",
+    "syntax": "$harness-setup [--show] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force] [--vendor]",
+    "input_kind": "none",
+    "invocation_class": "explicit-only",
+    "effect_authority": "workspace-write",
+    "inputs": [],
+    "actions": [
+      {
+        "id": "setup",
+        "summary": "Inspect or configure the host harness",
+        "syntax": "$harness-setup",
+        "input_kind": "none",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [
+      {
+        "id": "show",
+        "syntax": "--show",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Inspect effective state without writes",
+        "default": false
+      },
+      {
+        "id": "source-artifact",
+        "syntax": "--source-artifact=<dir>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Use an explicit distribution artifact as installation payload"
+      },
+      {
+        "id": "install",
+        "syntax": "--install=<group>",
+        "value_kind": "enum",
+        "required": false,
+        "summary": "Install one host asset group",
+        "enum_values": [
+          "hooks",
+          "rules",
+          "scripts",
+          "all"
+        ]
+      },
+      {
+        "id": "dry-run",
+        "syntax": "--dry-run",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Plan an install without writing",
+        "default": false
+      },
+      {
+        "id": "force",
+        "syntax": "--force",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Confirm an overwrite boundary",
+        "default": false
+      },
+      {
+        "id": "vendor",
+        "syntax": "--vendor",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Copy upstream rules instead of writing a project-delta stub",
+        "default": false
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$harness-setup --show",
+        "summary": "Use harness setup with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "setup",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:setup",
+      "argument_contract": "[--show] [--source-artifact <dir>] [--install hooks|rules|scripts|all] [--dry-run] [--force] [--vendor]",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $harness-setup Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/setup.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/setup.md"
+      ],
+      "allowed_tools": "Read, Grep, Glob, Bash(bash:*), Bash(node:*), Bash(git rev-parse:*), Bash(ls:*), Bash(mkdir:*), Bash(cp:*), Bash(chmod:*), Skill, AskUserQuestion"
+    }
+  ]
+}

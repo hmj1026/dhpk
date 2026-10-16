@@ -1,0 +1,13 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/classification.md",
+      "references/report-template.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  }
+}

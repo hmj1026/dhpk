@@ -65,6 +65,13 @@ test('the canonical generator uses the selection and refuses a missing selection
     fs.mkdirSync(path.join(directory, 'manifests'));
     fs.writeFileSync(path.join(directory, 'manifests/distribution-inventory.json'), JSON.stringify(inventory));
     fs.writeFileSync(path.join(directory, 'manifests/marketplace-selection.json'), JSON.stringify(selection));
+    for (const skill of inventory.skills) {
+      const target = path.join(directory, skill.path);
+      fs.mkdirSync(target, { recursive: true });
+      for (const file of ['SKILL.md', 'distribution.yaml']) {
+        fs.copyFileSync(path.join(root, skill.path, file), path.join(target, file));
+      }
+    }
     const execute = () => spawnSync(process.execPath, [
       path.join(root, 'scripts/ci/gen-skill-usage.js'), '--root', directory, '--write',
     ], { encoding: 'utf8' });

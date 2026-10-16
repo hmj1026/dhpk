@@ -2,6 +2,8 @@
 name: library-author
 description: 'Author and review published PHP/Laravel libraries, map testsuites, and plan version-matrix cells. Routes provider/facade design, Testbench setup, Composer contracts, polyfill audits, suite selection, and cell onboarding to separate modes. Not for application code or single-version framework advice. Output follows the selected mode.'
 metadata:
+  dhpk-capability-id: dhpk.skill.library-author
+  dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
 ---
 

@@ -4,6 +4,8 @@ description: 'Create a GitHub pull request from a pushed branch with ticket-awar
 argument-hint: '[--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]'
 disable-model-invocation: true
 metadata:
+  dhpk-capability-id: dhpk.skill.create-pr
+  dhpk-name-style: portable-skill
   dhpk-invocation-class: explicit-only
   dhpk-next:
     PASS: none

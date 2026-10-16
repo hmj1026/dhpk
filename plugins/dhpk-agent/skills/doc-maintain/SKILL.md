@@ -2,8 +2,10 @@
 name: doc-maintain
 description: "Maintain documentation through stale-doc refresh, architecture codemap generation, or a bounded Markdown refactor. Selects update, codemap, or refactor while preserving each output and evidence contract. Not for application source, tests, manifests, route tables, generated projections, or broad policy review."
 metadata:
+  dhpk-capability-id: "dhpk.skill.doc-maintain"
   dhpk-invocation-class: "implicit-eligible"
   dhpk-modes: ["update", "codemap", "refactor"]
+  dhpk-name-style: "portable-family"
   dhpk-next:
     PASS: "none"
     FAIL: "none"

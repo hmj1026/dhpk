@@ -199,4 +199,19 @@ test('first-wave skills must declare their next map when present', () => {
   }
 });
 
+test('directory identity keys use the shared nested metadata schema', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'fixture', '---\nname: fixture\ndescription: fixture\nmetadata:\n  dhpk-name-style: unprefixed\n  dhpk-capability-id: dhpk.skill.fixture\n---\n');
+    const valid = runValidator(tmp);
+    assert.strictEqual(valid.status, 0, valid.out);
+    writeSkill(tmp, 'fixture', '---\nname: fixture\nmetadata:\n  dhpk-typo: value\n---\n');
+    const invalid = runValidator(tmp);
+    assert.strictEqual(invalid.status, 1);
+    assert.match(invalid.out, /skills\/fixture\/SKILL\.md.*metadata\.dhpk-typo/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 run('validate-skills');
