@@ -640,7 +640,7 @@ test('CLI exposes the harness help contract', () => {
     assert.match(validate, /if:\s*always\(\)/);
     assert.match(validate, /needs\.preflight\.result/);
     assert.match(validate, /needs\.tests\.result/);
-    assert.match(validate, /actions\/setup-node@[0-9a-f]{40}\s+#\s*v7\.0\.0/);
+    assert.match(validate, /actions\/setup-node@[0-9a-f]{40}\s+#\s*v7\.1\.0/);
     assert.match(validate, /node-version:\s*['"]?24/);
     assert.match(validate, /verifyCiResults\(plan,/);
     assert.match(validate, /--count \"\$count\"/);

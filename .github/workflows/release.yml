@@ -72,7 +72,7 @@ jobs:
       # before it starts any consumer probe; it never regenerates a package or
       # treats a generic cache hit as evidence.
       - name: Upload trusted release artifact manifest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact-manifest.json
@@ -84,7 +84,7 @@ jobs:
       # repository-independent so that consumer can verify it without a
       # checkout or release-note regeneration.
       - name: Upload trusted publication bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dhpk-release-publication-bundle-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle.json
@@ -93,7 +93,7 @@ jobs:
 
       # Keep the extraction digest as an independent, run-bound consumer input.
       - name: Upload trusted publication notes digest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dhpk-release-publication-notes-digest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-notes-digest.json
@@ -103,7 +103,7 @@ jobs:
       # The consumer verifier has no repository dependencies and is shipped as
       # a separate run-bound artifact; its digest is bound by release-verify.sh.
       - name: Upload trusted publication bundle verifier
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dhpk-release-publication-bundle-verifier-${{ github.run_id }}
           path: scripts/release/verify-publication-bundle.js
@@ -121,24 +121,24 @@ jobs:
       contents: write
     steps:
       - name: Download trusted publication bundle
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-release-publication-bundle-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle
 
       - name: Download trusted publication notes digest
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-release-publication-notes-digest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-notes-digest
 
       - name: Download trusted publication bundle verifier
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-release-publication-bundle-verifier-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle-verifier
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -204,12 +204,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
       - name: Download trusted release artifact manifest
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact
