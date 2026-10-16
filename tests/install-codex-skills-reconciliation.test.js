@@ -592,6 +592,17 @@ for (const brokenSymlink of [false, true]) {
     const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-outside-')));
     try {
       fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+      const fixtureSkills = path.join(fakePlugin, 'codex', 'skills');
+      for (const name of fs.readdirSync(fixtureSkills)) {
+        const skillRoot = path.join(fixtureSkills, name);
+        if (fs.lstatSync(skillRoot).isSymbolicLink()) {
+          const resolvedSource = fs.realpathSync(skillRoot);
+          fs.rmSync(skillRoot);
+          fs.cpSync(resolvedSource, skillRoot, { recursive: true, dereference: true });
+        }
+        assert.ok(fs.lstatSync(skillRoot).isDirectory(), 'fixture skill roots must be physical directories');
+        assert.ok(fs.realpathSync(skillRoot).startsWith(`${fakePlugin}${path.sep}`), 'fixture skill roots must remain inside the plugin');
+      }
       fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
       fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
       copyDistributionInventory(fakePlugin);
