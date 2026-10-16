@@ -96,8 +96,8 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
-  for (const selectedOnly of ['none', 'unique', 'ambiguous']) {
-    test(`v1 receipt migration uses historical source proof and blocks ${selectedOnly} selected-only identity safely`, () => {
+  for (const selectedOnly of ['none', 'retired', 'unique', 'ambiguous']) {
+    test(`v1 receipt migration uses historical source proof and handles ${selectedOnly} selected-only identity safely`, () => {
       const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
       const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v1-source-'));
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v1-project-'));
@@ -115,7 +115,9 @@ const { test, run, assert } = require('./_lib/tinytest');
         legacy.sourceFingerprints = { sample: legacy.entries[0].sourceFingerprint };
         inventory.modules = [{ ...inventory.skills[0], path: 'modules/sample' }];
         inventory.project_agent_projection.profiles['portable-core'].stable_ids = ['skill:sample'];
-        if (selectedOnly !== 'none') {
+        if (selectedOnly === 'retired') {
+          legacy.selectedIds.push('retired-support');
+        } else if (selectedOnly !== 'none') {
           legacy.selectedIds.push('support');
           inventory.modules.push({ id: 'support', name: 'support', path: 'modules/support' });
           if (selectedOnly === 'ambiguous') inventory.skills.push({ id: 'support', name: 'support', path: 'skills/support' });
@@ -138,6 +140,11 @@ const { test, run, assert } = require('./_lib/tinytest');
           const updated = publisher.materializeRelocatableAgentsSkillsProjection(options);
           assert.strictEqual(updated.receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
           assert.deepStrictEqual(updated.receipt.entries.map((entry) => entry.entityKind), ['skill']);
+          if (selectedOnly === 'retired') {
+            assert.deepStrictEqual(updated.receipt.selectedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
+            assert.deepStrictEqual(updated.receipt.emittedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
+            assert.deepStrictEqual(updated.receipt.selectedIds, ['sample']);
+          }
           const rolledBack = publisher.rollbackAgentsSkillsProjection({ projectRoot, inventory });
           assert.strictEqual(rolledBack.ok, true, rolledBack.error && rolledBack.error.message);
           assert.strictEqual(rolledBack.receipt.schema, 'dhpk.project-agent-projection-receipt.v1');

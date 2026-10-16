@@ -502,6 +502,55 @@ test('uninstallNativeSharedSkills rejects invalid current inventories before ret
   }
 });
 
+test('installNativeSharedSkills prunes retired selections while preserving another Host active bindings', () => {
+  const sourceRoot = dualFixture();
+  const projectRoot = tmpDir('dhpk-native-shared-install-retired-');
+  try {
+    installNativeSharedSkills({ sourceRoot, projectRoot, host: 'cursor', selectedStableIds: ['sample', 'other'] });
+    const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
+    const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    const previous = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    previous.hostBindings.cursor.discovery.paths.push('.cursor/skills/dhpk-sample.md', '.cursor/custom/keep');
+    previous.bindings = previous.hostBindings;
+    delete previous.receiptFingerprint;
+    previous.receiptFingerprint = fingerprint(previous);
+    write(receiptPath, JSON.stringify(previous));
+    write(path.join(projectRoot, '.cursor', 'custom', 'keep'), '# consumer-owned\n');
+    const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const retiredInventory = {
+      ...inventory,
+      skills: inventory.skills.filter((skill) => skill.id !== 'sample'),
+      project_agent_projection: {
+        ...inventory.project_agent_projection,
+        profiles: {
+          ...inventory.project_agent_projection.profiles,
+          'portable-core': { ...inventory.project_agent_projection.profiles['portable-core'], stable_ids: ['other'] },
+        },
+      },
+    };
+    write(inventoryPath, `${JSON.stringify(retiredInventory, null, 2)}\n`);
+
+    const result = installNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex', selectedStableIds: ['other'], update: true });
+
+    assert.deepStrictEqual(result.receipt.selectedIds, ['other']);
+    assert.deepStrictEqual(result.receipt.emittedIds, ['other']);
+    assert.deepStrictEqual(result.receipt.hostBindings.cursor.selectedStableIds, ['other']);
+    assert.deepStrictEqual(result.receipt.hostBindings.cursor.emittedStableIds, ['other']);
+    assert.deepStrictEqual(result.receipt.hostBindings.cursor.bindings.map((binding) => binding.stableId), ['other']);
+    assert.deepStrictEqual(result.receipt.bindingPaths.cursor, [{ path: '.cursor/skills/dhpk-other', target: '../../.agents/skills/dhpk-other' }]);
+    assert.ok(result.receipt.hostBindings.cursor.discovery.paths.includes('.cursor/custom/keep'));
+    assert.ok(!result.receipt.hostBindings.cursor.discovery.paths.includes('.cursor/skills/dhpk-sample.md'));
+    assert.strictEqual(fs.readFileSync(path.join(projectRoot, '.cursor', 'custom', 'keep'), 'utf8'), '# consumer-owned\n');
+    assert.ok(fs.lstatSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-other')).isSymbolicLink());
+    const checked = validateRelocatableAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('uninstallNativeSharedSkills prunes a retired skill when removing an unbound Host', () => {
   const sourceRoot = dualFixture();
   const projectRoot = tmpDir('dhpk-native-shared-uninstall-retired-');
