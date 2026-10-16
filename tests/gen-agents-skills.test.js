@@ -80,6 +80,39 @@ test('gen-agents-skills CLI can materialize outside the canonical source checkou
   }
 });
 
+test('gen-agents-skills CLI updates a v1 receipt with a retired selected-only identity', () => {
+  const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-skills-retired-v1-'));
+  const args = ['--source-root', ROOT, '--project-root', projectRoot, '--profile', 'portable-core', '--host', 'codex'];
+  try {
+    const seeded = spawnSync(process.execPath, [GENERATOR, ...args], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(seeded.status, 0, seeded.stderr);
+    const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    const legacy = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    legacy.schema = 'dhpk.project-agent-projection-receipt.v1';
+    delete legacy.selectedIdentities;
+    delete legacy.emittedIdentities;
+    legacy.entries = legacy.entries.map(({ entityKind, ...entry }) => entry);
+    legacy.sourceFingerprints = Object.fromEntries(legacy.entries.map((entry) => [entry.stableId, entry.sourceFingerprint]));
+    legacy.selectedIds.push('retired-selected-only-fixture');
+    delete legacy.receiptFingerprint;
+    legacy.receiptFingerprint = fingerprint(legacy);
+    fs.writeFileSync(receiptPath, JSON.stringify(legacy));
+
+    const updated = spawnSync(process.execPath, [GENERATOR, ...args, '--update'], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(updated.status, 0, updated.stderr);
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+    assert.ok(!receipt.selectedIds.includes('retired-selected-only-fixture'));
+    assert.ok(!receipt.selectedIdentities.some((entry) => entry.stableId === 'retired-selected-only-fixture'));
+    assert.ok(receipt.emittedIdentities.some((entry) => entry.entityKind === 'skill' && entry.stableId === 'flow-guide'));
+    const checked = spawnSync(process.execPath, [VALIDATOR, '--source-root', ROOT, '--project-root', projectRoot], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(checked.status, 0, checked.stderr);
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 function projectWithClaudeSkillsAlias(target) {
   const projectRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-agents-skills-cli-alias-'));
   fs.mkdirSync(path.join(projectRoot, '.agents', 'skills'), { recursive: true });

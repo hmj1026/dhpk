@@ -845,14 +845,15 @@ function validateReceipt(receipt, roots) {
     }
   } else {
     // Only validated emitted skills prove historical kind. A requested selection
-    // cannot establish ownership for selected-only legacy identities.
+    // cannot establish ownership for selected-only legacy identities. Retired
+    // selected-only IDs need no kind because they will not enter the new plan.
     if (receipt.emittedIds.some((id) => !receipt.entries.some((entry) => entry.stableId === id))) {
       throw fail('INVALID_RECEIPT', 'legacy receipt emitted identity is missing source proof');
     }
     for (const id of receipt.selectedIds) {
       if (receipt.entries.some((entry) => entry.stableId === id)) continue;
       const matches = inventoryEntries(roots.inventory).filter((entry) => entry.id === id);
-      if (matches.length !== 1) {
+      if (matches.length > 1) {
         throw fail('AMBIGUOUS_LEGACY_IDENTITY', `legacy receipt identity '${id}' cannot be resolved uniquely; skill:${id} and module:${id} require historical evidence`);
       }
     }
