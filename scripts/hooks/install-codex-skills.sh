@@ -532,13 +532,13 @@ def is_within(path, root):
     return path == root or path.startswith(root + os.sep)
 
 
-def validate_source_tree(source, label='distribution source', allowed_roots=None):
-    """Reject broken or externally-targeted source links before any mutation."""
+def validate_source_tree(source, label='distribution source', allowed_roots=None, allow_broken_symlinks=False):
+    """Reject unsafe source links; rollback may retain broken links."""
     roots = tuple(allowed_roots or (PLUGIN_ROOT,))
     contained = lambda candidate: any(is_within(candidate, root) for root in roots)
     if not lexists(source) or not contained(source):
         raise ValueError(f'{label} escapes the plugin root: {source}')
-    if os.path.islink(source) and not os.path.exists(source):
+    if not allow_broken_symlinks and os.path.islink(source) and not os.path.exists(source):
         raise ValueError(f'{label} is a broken symlink: {source}')
     if not os.path.isdir(source):
         return
@@ -549,7 +549,7 @@ def validate_source_tree(source, label='distribution source', allowed_roots=None
                 continue
             if not contained(child):
                 raise ValueError(f'{label} symlink escapes the plugin root: {child}')
-            if not os.path.exists(child):
+            if not allow_broken_symlinks and not os.path.exists(child):
                 raise ValueError(f'{label} contains a broken symlink: {child}')
 
 
@@ -1046,7 +1046,7 @@ def backup_destination(relative, destination, reason):
     return backup_relative
 
 
-def restore_backup_copy(backup, destination):
+def restore_backup_copy(backup, destination, allow_broken_symlinks=False):
     """Restore a backup while retaining the rollback copy for evidence."""
     backup_relative = os.path.relpath(backup, CODEX_ROOT).replace(os.sep, '/')
     destination_relative = os.path.relpath(destination, CODEX_ROOT).replace(os.sep, '/')
@@ -1055,7 +1055,8 @@ def restore_backup_copy(backup, destination):
     if os.path.islink(backup) and (
             not (is_within(backup, CODEX_ROOT) or is_within(backup, PLUGIN_ROOT))):
         raise ValueError(f'rollback backup symlink escapes the {SURFACE_LABEL} root: {backup_relative}')
-    validate_source_tree(backup, 'rollback backup', allowed_roots=(CODEX_ROOT, PLUGIN_ROOT))
+    validate_source_tree(backup, 'rollback backup', allowed_roots=(CODEX_ROOT, PLUGIN_ROOT),
+                         allow_broken_symlinks=allow_broken_symlinks)
     backup_parent_relative, backup_name = os.path.split(backup_relative)
     destination_parent_relative, destination_name = os.path.split(destination_relative)
     backup_parent_fd = open_relative_directory(backup_parent_relative)
@@ -1258,7 +1259,7 @@ def restore_pending_prunes():
             errors.append(f'rollback backup missing: {pending.get("relative")}')
             continue
         try:
-            restore_backup_copy(backup, destination)
+            restore_backup_copy(backup, destination, allow_broken_symlinks=True)
         except (OSError, ValueError) as error:
             errors.append(f'{pending.get("relative")}: {error}')
     return errors

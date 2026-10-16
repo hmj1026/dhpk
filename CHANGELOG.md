@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.66.3 — 2026-10-16 — Refresh Codex deep-reasoner backend guidance, resolve overlapping skill and module IDs in native shared installs, and restore retired broken symlinks on rollback
+
+- **fix(codex-agents)** — Refresh generated deep-reasoner guidance to use the canonical codex/<model> backend selector.
+- **fix(installers)** — Resolve overlapping skill and module IDs in native shared installs and restore retired broken symlinks on rollback without blocking retries.
+
 ## 0.66.2 — 2026-10-16 — Consolidate library and documentation skill families, consolidate Flow Drive runtime, declare skill handoffs in frontmatter, derive skill directory manifests, and improve test assertion evidence and recovery guidance
 
 - **BREAKING(flow-drive)** — Flow Drive owns its transport, context, and adapter runtime and accepts unified role selectors, invocation-only cross candidates, and planner scopes. Retire the four predecessor skills and standalone bridge agent in 0.66.2; retain 0.66.1 as the compatible rollback release. External execution requires a current Host grant for the exact role, target, and authority.
