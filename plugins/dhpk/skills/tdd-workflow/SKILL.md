@@ -2,7 +2,15 @@
 name: tdd-workflow
 description: 'Use for test-first feature or bug implementation, regression tests, test-generation scaffolds, and choosing public test seams or boundary mocks. Guides framework-agnostic unit/integration RED-GREEN-REFACTOR and verified worker handbacks. Reuse adequate test-first evidence and settled ownership; explicit tdd-guide requirements remain binding. Not for Playwright journeys, post-hoc coverage audits, or documentation/formatting/rename-only work. Output: scoped tests or implementation with RED/GREEN evidence and honest verification status.'
 metadata:
+  dhpk-capability-id: dhpk.skill.tdd
+  dhpk-name-style: portable-skill
   dhpk-invocation-class: implicit-eligible
+  dhpk-next:
+    PASS: repo-verify
+    FAIL: tdd-workflow
+    BLOCKED: none
+    NOT_RUN: tdd-workflow
+    UNAVAILABLE: none
 ---
 
 # Test-Driven Development
@@ -84,7 +92,7 @@ proof of RED or GREEN. Distinguish expected failure from observed failure.
 
 ## Worker handback
 
-This includes `fast-worker`, `codex-fast-worker`, and `dhpk-agy-fast-worker`
+This includes `fast-worker`, `codex-worker`, and `agy-worker`
 tasks with a settled owner:
 
 1. Preserve the dispatcher's target files, behavior, public seam, and command.

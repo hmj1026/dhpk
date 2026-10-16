@@ -202,17 +202,56 @@ test('every required resource in the retained descriptor ledger remains physical
     assert.ok(!inventory.skills.some((entry) => entry.id === id), `${id} must not remain an active Skill`);
   }
 
+  const successorActions = Object.freeze({ 'dep-audit': 'deps', 'review-pending': 'pending' });
+  const successorOwner = inventory.skills.find((entry) => entry.id === 'change-verdict');
+  assert.ok(successorOwner, 'the current review family must own the folded resources');
+  assert.strictEqual(successorOwner.path, 'skills/change-verdict');
+  for (const id of Object.keys(successorActions)) {
+    assert.ok(snapshot.skills[id], `${id} must remain in the historical ledger`);
+    assert.ok(!inventory.skills.some((entry) => entry.id === id), `${id} must not become an active alias`);
+  }
+
   const missing = [];
+  const documentSuccessors = Object.freeze({
+    'doc-refactor': 'references/refactor.md',
+    'update-codemaps': 'references/codemap.md',
+    'update-docs': 'references/update.md',
+  });
+  const documentOwner = inventory.skills.find((entry) => entry.id === 'doc-maintain');
+  assert.ok(documentOwner, 'the document family must own the folded resources');
+  assert.strictEqual(documentOwner.path, 'skills/doc-maintain');
+  const documentEntry = path.join(ROOT, documentOwner.path, 'SKILL.md');
+  const documentEntryStat = fs.lstatSync(documentEntry);
+  assert.ok(documentEntryStat.isFile() && !documentEntryStat.isSymbolicLink(),
+    'the document successor entrypoint must remain physical');
+  assert.ok(fs.readFileSync(documentEntry).length > 0, 'the document successor entrypoint must remain readable');
+  for (const [id, resource] of Object.entries(documentSuccessors)) {
+    assert.deepStrictEqual(snapshot.skills[id].successor, { id: 'doc-maintain', resource });
+    assert.ok(!inventory.skills.some((entry) => entry.id === id), `${id} must not become an active alias`);
+  }
   for (const [id, record] of Object.entries(snapshot.skills)) {
     if (Object.prototype.hasOwnProperty.call(APPROVED_DESCRIPTOR_RETIREMENTS, id)) continue;
+    const action = Object.prototype.hasOwnProperty.call(successorActions, id) ? successorActions[id] : null;
+    const documentResource = documentSuccessors[id];
+    const ownerPath = documentResource ? documentOwner.path : action ? successorOwner.path : record.path;
     for (const resource of record.resources) {
       if (!resource.required) continue;
-      const target = path.join(ROOT, record.path, resource.path);
+      const resourcePath = documentResource && resource.path === 'SKILL.md' ? documentResource
+        : action && resource.path === 'references/workflow.md' ? `references/actions/${action}.md` : resource.path;
+      const target = path.join(ROOT, ownerPath, resourcePath);
       let stat = null;
       try { stat = fs.lstatSync(target); } catch (_) { /* reported below */ }
       if (!stat || stat.isSymbolicLink()) missing.push(`${id}: ${resource.path}`);
+      else if (action || documentResource) {
+        assert.ok(stat.isFile(), `${id}: ${resourcePath} must remain a physical file`);
+        assert.ok(fs.readFileSync(target).length > 0, `${id}: ${resourcePath} must remain readable`);
+      }
     }
   }
+  const sharedWorkflow = path.join(ROOT, successorOwner.path, 'references/shared/review-workflow.md');
+  const sharedStat = fs.lstatSync(sharedWorkflow);
+  assert.ok(sharedStat.isFile() && !sharedStat.isSymbolicLink(), 'the successor shared workflow must remain physical');
+  assert.ok(fs.readFileSync(sharedWorkflow).length > 0, 'the successor shared workflow must remain readable');
   assert.deepStrictEqual(missing, []);
 });
 

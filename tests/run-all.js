@@ -11,6 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { runNodeTest } = require('../scripts/lib/bounded-child-process');
+const { validateAssertionSummary } = require('../scripts/lib/assertion-evidence');
 
 const TESTS_DIR = __dirname;
 const MAX_JOBS = 8;
@@ -46,6 +47,7 @@ function findTests(dir) {
     const filePath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === '_lib') continue;
+      if (entry.name === 'on-demand') continue;
       out.push(...findTests(filePath));
     } else if (entry.name.endsWith('.test.js')) {
       out.push(filePath);
@@ -242,11 +244,13 @@ function summarizeTestOutput(output) {
 
 function createFileTiming(file, result, durationMs) {
   const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+  const assertions = summarizeTestOutput(output);
+  const assertionErrors = validateAssertionSummary(assertions, relativeTestFile(file));
   return {
     file: relativeTestFile(file),
     duration_ms: Math.round(durationMs),
-    status: result.error || result.status !== 0 ? 'FAIL' : 'PASS',
-    assertions: summarizeTestOutput(output),
+    status: result.error || result.status !== 0 || assertionErrors.length > 0 ? 'FAIL' : 'PASS',
+    assertions,
   };
 }
 
@@ -261,10 +265,14 @@ function runSequential(files, env, timeoutMs) {
     const result = runNodeTest(file, { env, timeoutMs: fileTimeoutMs(file, timeoutMs), captureOutput: true });
     if (result.stdout) process.stdout.write(result.stdout);
     if (result.stderr) process.stderr.write(result.stderr);
-    fileTimings.push(createFileTiming(file, result, elapsedMilliseconds(fileStartedAt)));
-    if (result.status !== 0 || result.error) {
+    const timing = createFileTiming(file, result, elapsedMilliseconds(fileStartedAt));
+    fileTimings.push(timing);
+    if (timing.status !== 'PASS') {
       failed += 1;
       if (result.error) console.error(`ERROR in ${relative}: ${result.error.message}`);
+      for (const error of validateAssertionSummary(timing.assertions, relative)) {
+        console.error(`ASSERTION EVIDENCE: ${error}`);
+      }
     }
   }
   return {

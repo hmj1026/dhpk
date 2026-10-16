@@ -1,0 +1,115 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/workflow.md",
+      "scripts/lib/runner-utils.js"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/verify-runner.js",
+        "fixture_ids": [
+          "pilot-repo-verify-fast-success",
+          "pilot-repo-verify-full-forwarding",
+          "pilot-repo-verify-first-step-failure",
+          "pilot-repo-verify-package-tool-unavailable"
+        ]
+      }
+    ],
+    "internal_helpers": [
+      {
+        "path": "scripts/lib/runner-utils.js",
+        "required_by": [
+          "scripts/verify-runner.js"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  },
+  "resource_copies": [
+    {
+      "source": "scripts/lib/runner-utils.js",
+      "destination": "scripts/lib/runner-utils.js"
+    }
+  ],
+  "usage": {
+    "display_name": "Repo Verify",
+    "summary": "Run runner-first repository verification with explicit evidence",
+    "syntax": "$repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]",
+    "input_kind": "action-first",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "read-only",
+    "inputs": [
+      {
+        "id": "mode",
+        "syntax": "<mode>",
+        "value_kind": "enum",
+        "required": false,
+        "summary": "Verification depth",
+        "default": "full",
+        "enum_values": [
+          "fast",
+          "full"
+        ],
+        "applies_to": [
+          "verify"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "verify",
+        "summary": "Run fast or full repository verification",
+        "syntax": "$repo-verify [<mode>]",
+        "input_kind": "action-first",
+        "effect_authority": "read-only"
+      }
+    ],
+    "options": [
+      {
+        "id": "integration",
+        "syntax": "--integration=<path>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Run the named integration stage"
+      },
+      {
+        "id": "e2e",
+        "syntax": "--e2e=<path>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Run the named end-to-end stage"
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$repo-verify fast",
+        "summary": "Use repo verify with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "verify",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:verify",
+      "argument_contract": "[fast|full] [--integration <path>] [--e2e <path>]",
+      "authority": "read-only",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $repo-verify Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/verify.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/verify.md"
+      ],
+      "allowed_tools": "Bash(node:*), Bash(pnpm:*), Bash(yarn:*), Bash(npm:*), Bash(npx:*), Bash(git:*), Bash(python*:*), Bash(pytest:*), Bash(ruff:*), Bash(mypy:*), Bash(cargo:*), Bash(go:*), Bash(golangci-lint:*), Bash(./gradlew:*), Bash(mvn:*), Bash(bundle:*), Read, Grep, Glob, Skill"
+    }
+  ]
+}

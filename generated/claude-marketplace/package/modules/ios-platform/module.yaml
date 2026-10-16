@@ -14,7 +14,7 @@ triggers:
     extensions: [".xcprivacy", ".entitlements", ".plist"]
     paths: [RxScanData/, RxScanApp/, babylon/]
 provides:
-  skills: [dhpk-ios-platform]
+  skills: [swift]
   references: [coredata-encryption.md, cryptokit-keychain.md, actor-persistence.md, vision-ocr.md, local-authentication.md, notifications.md, healthkit-read.md, privacy-compliance.md]
   commands: []
   agents: []

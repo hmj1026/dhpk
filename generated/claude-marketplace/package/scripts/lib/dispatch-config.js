@@ -15,7 +15,7 @@ const DEFAULTS = Object.freeze({
 
 const LEGACY_KEYS = Object.freeze({
   worker_target: ['fast_worker_backend', 'fast_worker_model', 'codex_fast_worker_model', 'agy_fast_worker_model'],
-  reasoner_target: ['deep_reasoner_model', 'codex_reasoner_model', 'codex_deep_reasoner_model'],
+  reasoner_target: ['deep_reasoner_model', 'codex_reasoner_model'],
   planner_target: ['planner_model'],
   reviewer_target: ['reviewer_model'],
 });
@@ -99,6 +99,15 @@ function layerValue(layers, canonical, legacyKeys) {
 function resolveDispatchConfig({ project = {}, global = {}, environment = {} } = {}) {
   const layers = [['project', project], ['global', global], ['environment', environment]];
   const diagnostics = [];
+  for (const [layerName, values] of layers) {
+    for (const suffix of ['model', 'effort']) {
+      const key = `codex_deep_reasoner_${suffix}`;
+      if (Object.prototype.hasOwnProperty.call(values, key)) {
+        diagnostics.push({ field: 'reasoner_target', status: 'BLOCKED', source: `${layerName}.${key}`,
+          reason: `retired config ${key} in 0.66.2; use codex_reasoner_${suffix}; rollback 0.66.1` });
+      }
+    }
+  }
   const result = { ...DEFAULTS, source: {}, legacy_sources: [] };
   const switchValue = layerValue(layers, 'orchestration_dispatch', []);
   try {

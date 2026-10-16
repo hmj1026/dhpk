@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change repair-open-issues-and-agent-guidance. Update Purpose after archive.
+Defines how routing guidance selects a workflow owner, communicates policy and next steps, and preserves implementation, verification, and archive as separate evidence-backed handoffs.
 
 ## Requirements
 
@@ -88,7 +88,10 @@ actions SHALL be exactly `help`, `route`, `rules`, `next`, and `close`:
   optional `--go` subject to invocation policy;
 - `rules` returns the applicable execution-policy guidance for a phase or
   question;
-- `next` inspects the supplied change or worktree and returns one next action;
+- `next` inspects the supplied change or worktree, determines the current
+  skill and result state from that evidence, and returns one next action
+  resolved from the current skill's declared frontmatter next map when that
+  map applies (SHF-REQ-004);
 - `close` performs the final edit-boundary checklist and reports open gates.
 
 `help`, `rules`, `next`, `close`, and `route` without `--go` SHALL be
@@ -103,6 +106,17 @@ accept only a confirmed specification or OpenSpec change for implementation.
 Audit, judge, stocktake, GitNexus, investigation, review, and implementation
 roles SHALL remain distinct and SHALL be represented as handoffs rather than
 silently merged into the guide.
+
+Progression advice and the `next` result SHALL store canonical skill `name`
+values from the declaration map and SHALL format Host-facing invocation at
+render time (SHF-REQ-006). They SHALL NOT emit a retired or unmatched slash
+command as the next route when a declaration applies. A typed handoff from
+`next` SHALL reuse `dhpk.flow.handoff.v1` and SHALL keep `execution` as
+`not-started`.
+
+Git status, review-state, and phase detection remain inputs to choosing the
+current skill and result state. They SHALL NOT be a second source of next-skill
+identity.
 
 #### Scenario: User asks for a route
 
@@ -122,7 +136,23 @@ silently merged into the guide.
 
 - **WHEN** a user invokes `$flow-guide next <change-or-worktree>`
 - **THEN** the guide records current evidence, required/skipped/unavailable
-  gates, and exactly one recommended next route
+  gates, and exactly one recommended next route whose skill identity comes from
+  the applicable declared next map, formatted for the current Host, and whose
+  typed handoff uses `dhpk.flow.handoff.v1`
+
+#### Scenario: Next follows a declared PASS mapping
+
+- **WHEN** worktree evidence selects a workflow-chain skill whose `dhpk-next`
+  maps `PASS` to canonical skill `repo-verify`
+- **THEN** `next` names `repo-verify` as the next route and does not name
+  `/verify` or another unmatched slash command as that route
+
+#### Scenario: Next does not revive a retired command string
+
+- **WHEN** phase detection would previously have suggested the retired
+  `/req-analyze` command
+- **THEN** `next` either names a declared canonical skill from the applicable
+  map or reports no skill route; it does not emit `/req-analyze`
 
 #### Scenario: User asks for closeout
 
@@ -170,3 +200,90 @@ Routing guidance SHALL keep stable purpose, positive trigger, boundary, and outp
 
 - **WHEN** a host publishes skill descriptions before activation or user selection
 - **THEN** each description remains within its lifecycle/surface budget and points to conditional detail rather than embedding the full reference body
+
+### Requirement: Workflow-chain skills declare host-neutral next maps
+
+SHF-REQ-001, SHF-REQ-002, SHF-REQ-006, SHF-REQ-007: Each skill in the closed
+first-wave workflow-chain set SHALL declare a nested `metadata` mapping
+`dhpk-next` in canonical `SKILL.md`. Keys SHALL be a closed result state
+(`PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `UNAVAILABLE`) or `mode:STATE` where
+`STATE` is in that set. Values SHALL be the terminal marker `none`, a
+canonical skill `name`, or `name:mode`. Stored values SHALL be Host-neutral
+skill identities, not `/command` or `$command` strings.
+
+The keys SHALL live under nested `metadata:` beside `dhpk-invocation-class`.
+A dotted top-level substitute (`metadata.dhpk-next`) SHALL fail validation.
+Optional `dhpk-modes` MAY list modes the skill exposes; a `name:mode` target
+SHALL name a mode from that list when the target skill declares it.
+
+Skills outside the first-wave set MAY omit `dhpk-next`. If they declare it,
+the same shape and closed sets SHALL apply. Invocation class metadata SHALL
+remain required and unchanged by this mapping. The closed first-wave set SHALL
+be `code-trace`, `tdd-workflow`, `repo-verify`, `change-verdict`, `precommit`,
+`code-simplify`, `doc-maintain`, `git-smart-commit`, `create-pr`, `flow-drive`,
+and `opsx-apply-resume`. Every declared target SHALL exist before enforcement.
+
+`precommit` `PASS` SHALL target `doc-maintain:update`. `doc-maintain` SHALL
+declare modes `update`, `codemap`, and `refactor`, set all five unprefixed
+states to `none`, and declare only `update:PASS` as the handoff to
+`git-smart-commit`. Mode outputs and documentation authority SHALL remain
+intact. An explicit-only target SHALL be presented with a wait boundary;
+metadata SHALL NOT authorize its execution.
+
+#### Scenario: First-wave skill omits the next map
+
+- **WHEN** a skill in the closed workflow-chain set has no nested `dhpk-next`
+  after enforcement
+- **THEN** validation fails with that skill's canonical path
+
+#### Scenario: Next map stores a slash command
+
+- **WHEN** a `dhpk-next` value is `/verify`, `/precommit`, or another slash or
+  `$` invocation string
+- **THEN** validation fails and names the illegal value
+
+#### Scenario: Dotted metadata key is substituted
+
+- **WHEN** frontmatter declares `metadata.dhpk-next` as a dotted top-level key
+- **THEN** validation fails with the expected nested YAML shape
+
+#### Scenario: Skill outside the chain omits the map
+
+- **WHEN** a distributed skill is not in the first-wave workflow-chain set and
+  has no `dhpk-next`
+- **THEN** validation does not require the map and still enforces
+  `dhpk-invocation-class`
+
+#### Scenario: Documentation update has its own handoff
+
+- **WHEN** the current skill is `doc-maintain`, mode `update`, with state `PASS`
+- **THEN** advice names `git-smart-commit` and presents its explicit-only wait
+  boundary without executing it
+
+#### Scenario: Other documentation modes do not inherit update handoff
+
+- **WHEN** `doc-maintain` reports `PASS` for `codemap`, `refactor`, or an unknown mode
+- **THEN** lookup returns unprefixed `none`, preserves the selected mode's output
+  and authority, and does not select the `update:PASS` handoff
+
+### Requirement: Progression advice is generated from declared next maps
+
+SHF-REQ-005: Agent-facing progression tables SHALL be derived from declared
+`dhpk-next` maps and SHALL NOT be an independently edited source of next-skill
+identity. A checked-in table MAY exist only as a generated fallback. Manual
+edits to that fallback SHALL NOT be accepted as the chain SSOT; regeneration
+or removal SHALL restore declaration ownership. `flow-guide next` SHALL read
+declarations, not the table, to choose the next skill.
+
+#### Scenario: Table disagrees with declarations
+
+- **WHEN** a checked-in progression table names a next step that is absent
+  from the producing skill's `dhpk-next` map
+- **THEN** the table is nonconforming until regenerated or removed, and
+  `next` still follows the declaration
+
+#### Scenario: Generated fallback is current
+
+- **WHEN** progression tables are regenerated from valid `dhpk-next` maps
+- **THEN** every next-step skill identity in the table matches a declared
+  canonical `name` or `none`

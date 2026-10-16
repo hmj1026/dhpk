@@ -2,6 +2,8 @@
 name: phpunit
 description: 'Use when writing, reviewing, or migrating PHPUnit 9, 10, or 11 tests, resolving a project version, or choosing assertion, metadata, provider, mock, hook, runner, or coverage APIs. Not for PHPUnit 5/6/7-only suites, everyday assertion writing without a version decision, or Laravel routing. Output: selected version boundary, applicable reference, migration guidance, and verification evidence.'
 metadata:
+  dhpk-capability-id: dhpk.skill.phpunit
+  dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
 ---
 
@@ -49,7 +51,7 @@ remain supported.
 
 ## When NOT to Use
 
-- Use `dhpk-php-runtime-router` for Laravel routing and general PHP runtime
+- Use `php` for Laravel routing and general PHP runtime
   family selection.
 - For PHPUnit 5, 6, or 7-only suites, use PHP 5.6-compatible test guidance
   instead of this modern family.

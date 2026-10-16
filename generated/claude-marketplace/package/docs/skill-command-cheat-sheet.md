@@ -51,7 +51,7 @@ $flow-guide route <task>
 $flow-guide route --go <task>
 $code-trace --mode=diagnose <failure>
 $flow-drive <confirmed-spec-or-change-id>
-/dhpk:review-pending
+$change-verdict pending
 ```
 
 Proposal authoring belongs to the external `$openspec-propose` owner. Git,

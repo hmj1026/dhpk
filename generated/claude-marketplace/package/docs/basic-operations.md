@@ -292,9 +292,9 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
 - **Implementation & Dispatch Policy (Co-located Rules)**:
   - **Pre-Implementation Decision State**: Every task must begin with an explicit state label: `CLEAR`, `REASONER_REQUIRED`, `HUMAN_REQUIRED`, or `BLOCKED`. Domain boundary questions consult `architect`; unresolved uncertainty requires a read-only Reasoner before any Writer runs.
   - **OpenSpec Lifecycle**: Cross-session or complex initiatives author `openspec/changes/<id>/` artifacts via `/opsx:new`. Completion requires all task checkboxes, verification gates, and review obligations resolved before archiving; passing tests or approved plans alone are not archival clearance.
-  - **Planner Consult Scope**: `--plan` supports `--plan-mode=bounded` (max 4 direct reads, 0 child agent) or `--plan-mode=discovery` (up to 12 reads, 2 child agents). Defaults to `auto` (chooses bounded when evidence is clear and no Material Risk Signal applies).
+  - **Planner Consult Scope**: `--plan` supports `--plan=bounded` (max 4 direct reads, 0 child agent) or `--plan=discovery` (up to 12 reads, 2 child agents). Defaults to `auto` (chooses bounded when evidence is clear and no Material Risk Signal applies).
   - **Worker Dispatch**: When `orchestration_dispatch=on` (default), changes up to 2 files stay inline; larger mechanical batches designate `--worker=<claude|codex|agy>`.
-  - **Codex CLI Integration**: dhpk is Codex-free by default. Use `--worker=codex` for CLI mechanical execution, `--reasoner=codex-cli/<model>[:<effort>]` for independent reasoning passes, or `--second-opinion=codex-exec` for single blind reviews. Missing binaries report unavailable optional backends without bypassing security gates.
+  - **Codex CLI Integration**: dhpk is Codex-free by default. Use `--worker=codex` for CLI mechanical execution, `--reasoner=codex/<model>[:<effort>]` for independent reasoning passes, or `--second-opinion=codex-exec` for single blind reviews. Missing binaries report unavailable optional backends without bypassing security gates.
 - **Completion Criterion**: All changes carry focused verification and all-green test evidence; no unexplained skipped checks remain.
 
 #### Step 4: Review, Audit & Quality Gates
@@ -302,8 +302,8 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
 - **Actions**:
   - **Advisory Specialist Review**: Dispatch matching reviewers based on modified file extensions and paths:
     ```text
-    /dhpk:review-pending                              # review all currently modified files
-    /dhpk:review-pending --files="app/Models/User.php" # review designated file subset
+    /dhpk:change-verdict pending                              # review all currently modified files
+    /dhpk:change-verdict pending --files="app/Models/User.php" # review designated file subset
     ```
   - **Standalone Quality Verdicts**: Evaluate code standards, security vulnerabilities, test adequacy, or change risk:
     ```text
@@ -402,13 +402,11 @@ The following sections provide comprehensive parameter references, types, defaul
   | Parameter | Type / Choices | Default | Description |
   |---|---|---|---|
   | `<task-text\|task-file\|confirmed-spec-or-change-id>` | String | (Required) | Task text, task file, or confirmed specification / OpenSpec Change ID. |
-  | `--plan[=<model>:<effort>]` | String (optional value) | None | Request pre-implementation critique by a Planner; optionally specify model and reasoning effort (e.g., `opus:xhigh`, `sonnet:high`). |
-  | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner consult scope (requires `--plan`). `bounded` limits to max 4 direct reads with no child agent; `discovery` allows at most 12 direct reads and 2 read-only children. |
-  | `--worker=<worker>` | `claude` \| `codex` \| `agy` \| `auto` | `auto` | Select mechanical Worker type for this change (typically uses current model). |
-  | `--worker-target=<target>` | `<provider>/<model>[:<effort>]` | None | Explicitly designate execution target provider and model (e.g., `anthropic/claude-3-7-sonnet`). |
-  | `--cross-provider` | Boolean flag | Off | Allow external cross-provider candidates (such as Codex) when `--worker=auto` is used. |
-  | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | None | Request a read-only Reasoner pass for architecture or complex decisions (e.g., `codex-cli/gpt-6.1-sol:high`). |
-  | `--architect` / `--no-architect` | Boolean flag | Policy default | Explicitly enable or bypass the architectural design review pass. |
+  | `--plan[=auto\|bounded\|discovery]` | String (optional value) | None | Request pre-implementation critique by a Planner; select `auto`, `bounded`, or `discovery` scope using the current Host declared effective target. |
+  | `--worker=auto\|provider[/model[:effort]]` | `claude`, `codex`, `agy`, or an exact target | `auto` | Automatic native candidates by default; external intent still requires a current exact Host role/target/authority grant. |
+  | `--cross` | Boolean flag | Off | Allow external cross-provider candidates (such as Codex) when `--worker=auto` is used. |
+  | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | None | Request a read-only Reasoner pass for architecture or complex decisions (e.g., `codex/gpt-6.1-sol:high`). |
+  | `--architect` / `--no-architect` | Boolean flag | Policy default | Request consultation (currently UNAVAILABLE in the portable runner), or suppress an optional consult while preserving required gates. |
 
 - **Practical Examples**:
   ```text
@@ -416,18 +414,18 @@ The following sections provide comprehensive parameter references, types, defaul
   /dhpk:flow-drive change-add-user-avatar
 
   # Implementation with bounded Planner consult
-  /dhpk:flow-drive change-add-user-avatar --plan --plan-mode=bounded
+  /dhpk:flow-drive change-add-user-avatar --plan=bounded
 
-  # High-effort planning model and designated Worker
-  /dhpk:flow-drive payment-webhook-retry --plan=opus:xhigh --worker=claude
+  # Discovery-scope planning with the current Host target and a designated Worker
+  /dhpk:flow-drive payment-webhook-retry --plan=discovery --worker=claude
 
   # Implementation with CLI Reasoner second opinion and architecture pass
-  /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex-cli/gpt-6.1-sol:high
+  /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex/gpt-6.1-sol:high
   ```
 
-On Claude Code, the parent session launches Codex workers and reasoners through the bundled launcher. Follow [parent CLI dispatch](../skills/flow-drive/references/parent-cli-dispatch.md) for the private attempt directory, packet, and context procedure. Explicit `--worker=codex` needs no `--cross-provider` flag and still requires current access and capability evidence.
+On Claude Code, the parent session launches Codex workers and reasoners through the bundled launcher. Follow [parent CLI dispatch](../skills/flow-drive/references/parent-cli-dispatch.md) for the private attempt directory, packet, and context procedure. Explicit `--worker=codex` needs no `--cross` flag and still requires current access and capability evidence.
 
-For programmatic `runFlowDrive` integration, follow the [portable runner contract](../skills/flow-drive/references/portable-runner.md): its `--cross-provider` opens an authorization question and grants nothing by itself; planner, reasoner, and architect selections use the Host procedure instead.
+For programmatic `runFlowDrive` integration, follow the [portable runner contract](../skills/flow-drive/references/portable-runner.md): its `--cross` opens an authorization question and grants nothing by itself; planner, reasoner, and architect selections use the Host procedure instead.
 
 #### 3. code-trace (Code Exploration, Root-Cause Diagnosis & Tool Selection)
 
@@ -492,10 +490,10 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
   /dhpk:change-verdict --mode docs docs/basic-operations.md
   ```
 
-#### 5. review-pending (Pending Changes Review Dispatcher)
+#### 5. change-verdict pending (Pending Changes Review)
 
-- **Purpose**: Automatically inspects working tree changes and dispatches specialist reviewers (code, database, security, frontend, docs) based on edited file paths.
-- **Invocation Syntax**: `/dhpk:review-pending [--files=<rel-paths>]`
+- **Purpose**: Performs a read-only review of working tree changes, using the matching available reviewers for the selected paths. If the required reviewer is unavailable, report `UNAVAILABLE`.
+- **Invocation Syntax**: `/dhpk:change-verdict pending [--files=<rel-paths>]`
 - **Parameter Breakdown**:
 
   | Parameter | Type | Default | Description |
@@ -505,10 +503,10 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
 - **Practical Examples**:
   ```text
   # Review all currently modified (staged + unstaged) files
-  /dhpk:review-pending
+  /dhpk:change-verdict pending
 
   # Review only designated critical files
-  /dhpk:review-pending --files="app/Models/User.php,routes/api.php"
+  /dhpk:change-verdict pending --files="app/Models/User.php,routes/api.php"
   ```
 
 #### 6. tdd-workflow (Test-Driven Development Workflow)

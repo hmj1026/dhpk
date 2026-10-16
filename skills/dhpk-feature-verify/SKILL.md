@@ -5,6 +5,7 @@ description: 'Feature verification (READ-ONLY, P0-P5). Purpose: verify feature b
 allowed-tools: 'Read, Grep, Glob, Bash, Bash(codex:*), WebFetch, Task, Skill'
 context: fork
 metadata:
+  dhpk-capability-id: dhpk.skill.feature-verify
   dhpk-invocation-class: explicit-only
 ---
 

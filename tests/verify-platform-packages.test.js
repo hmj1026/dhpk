@@ -45,7 +45,10 @@ test('default common receipts retain canonical IDs and the platform verifier rep
     const version = JSON.parse(fs.readFileSync(path.join(sourceRoot, '.claude-plugin', 'plugin.json'), 'utf8')).version;
     const commonIds = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'install-profiles.json'), 'utf8'))
       .profiles.common.skillIds;
-    assert.strictEqual(commonIds.length, 15);
+    assert.strictEqual(commonIds.length, 14);
+    const inventory = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/distribution-inventory.json'), 'utf8'));
+    const selection = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/marketplace-selection.json'), 'utf8'));
+    const byId = new Map(inventory.skills.map((entry) => [entry.id, entry]));
     const verificationFailures = [];
     for (const surface of ['agent-plugin', 'agy-plugin', 'codex-native']) {
       const output = path.join(root, surface);
@@ -54,9 +57,16 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       ], { cwd: sourceRoot, encoding: 'utf8' });
       assert.strictEqual(result.status, 0, result.stdout + result.stderr);
       const report = JSON.parse(result.stdout);
-      const expectedPhysicalCount = surface === 'codex-native' ? 19 : 17;
-      assert.strictEqual(report.skillCount, expectedPhysicalCount, `${surface} must retain its Host-only physical entries`);
+      const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
+        && byId.get(entry.id).surfaces.includes(surface)).map((entry) => entry.id);
+      assert.deepStrictEqual(hostOnlyIds.sort(), surface === 'codex-native' ? ['library-author', 'opsx-apply-resume'] : []);
+      const expectedPhysicalIds = [...new Set([...commonIds, ...hostOnlyIds, ...inventory.internal_runtime_skills[surface]])].sort();
+      assert.strictEqual(report.skillCount, expectedPhysicalIds.length, `${surface} must retain its declared physical entries`);
+      assert.deepStrictEqual(fs.readdirSync(path.join(output, 'skills')).sort(), expectedPhysicalIds.map((id) => byId.get(id).name).sort());
+      for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) assert.ok(!expectedPhysicalIds.includes(id), id);
+      assert.strictEqual(typeof require(path.join(output, 'skills/flow-drive/scripts/run.js')).runFlowDrive, 'function');
       const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
+      if (surface === 'codex-native') assert.deepStrictEqual(provenance.runtimeSupportStableIds, inventory.internal_runtime_skills[surface]);
       assert.strictEqual(provenance.profileId, 'common', `${surface} must record the default common selection`);
       assert.deepStrictEqual(provenance.selectedStableIds, commonIds, `${surface} must retain canonical public selection IDs`);
       assert.deepStrictEqual(provenance.emittedStableIds, commonIds, `${surface} must not claim Host-only entries as public selection IDs`);

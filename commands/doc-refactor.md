@@ -1,17 +1,10 @@
 ---
-description: 'Refactor one bounded Markdown document without losing information; disclose branch-only reference and visualize relationships only when it improves comprehension.'
+description: 'Maintain documentation through stale-doc refresh, architecture codemap generation, or a bounded Markdown refactor. Selects update, codemap, or refactor while preserving each output and evidence contract. Not for application source, tests, manifests, route tables, generated projections, or broad policy review.'
 argument-hint: '<file path>'
 allowed-tools: 'Read, Grep, Glob, Edit'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-Forward to the canonical [`$doc-refactor` skill](../skills/doc-refactor/SKILL.md)
-with `$ARGUMENTS` unchanged. It owns the bounded-file guard, fact/pointer map,
-structure edit, and Markdownlint/link validation.
-
-Not for: cross-file policy changes, generated projections, or broad documentation audits.
-
-Preserve its `PASS`, `NOT_RUN`, or `BLOCKED` result and the original/simplified
-line counts. This command does not add cross-file policy, generated-projection,
-or broad-audit procedure.
+Load the canonical `$doc-maintain` Skill from [SKILL.md](../skills/doc-maintain/SKILL.md) and follow it with `refactor $ARGUMENTS`.
+Keep its argument contract, authority boundary, verification, and output.

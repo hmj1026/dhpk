@@ -1,0 +1,126 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/codemap.md",
+      "references/refactor.md",
+      "references/update.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Doc Maintain",
+    "summary": "Mode-specific doc-maintain workflows",
+    "syntax": "$doc-maintain <task | mode> <target>",
+    "input_kind": "free-text",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "task",
+        "syntax": "<task | mode>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Natural-language task or explicit mode"
+      }
+    ],
+    "actions": [
+      {
+        "id": "update",
+        "summary": "update workflow",
+        "syntax": "$doc-maintain update <target>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "codemap",
+        "summary": "codemap workflow",
+        "syntax": "$doc-maintain codemap <target>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "refactor",
+        "summary": "refactor workflow",
+        "syntax": "$doc-maintain refactor <target>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$doc-maintain update docs/guide.md",
+        "summary": "Run the selected mode"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "doc-refactor",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:doc-refactor",
+      "argument_contract": "<file path>",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Stable Claude front door forwards normalized arguments to doc-maintain mode refactor.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/doc-refactor.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/doc-refactor.md"
+      ],
+      "mode": "refactor",
+      "allowed_tools": "Read, Grep, Glob, Edit"
+    },
+    {
+      "id": "update-codemaps",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:update-codemaps",
+      "argument_contract": "",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Stable Claude front door forwards normalized arguments to doc-maintain mode codemap.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/update-codemaps.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/update-codemaps.md"
+      ],
+      "mode": "codemap",
+      "allowed_tools": "Read, Grep, Glob, Bash(ls:*), Bash(git:*), Write, Edit"
+    },
+    {
+      "id": "update-docs",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:update-docs",
+      "argument_contract": "<docs-path | workflow-keyword>",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Stable Claude front door forwards normalized arguments to doc-maintain mode update.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/update-docs.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/update-docs.md"
+      ],
+      "mode": "update",
+      "allowed_tools": "Read, Write, Edit, Grep, Glob, Bash(bash:*), Bash(cx:*), Bash(git:*), Bash(ls:*), Bash(node:*)"
+    }
+  ]
+}

@@ -2,7 +2,9 @@
 name: proposal-analyze
 description: "Use when turning an initial proposal or proposal file into an evidence-backed implementation roadmap. Not for applying an approved OpenSpec change or writing OpenSpec artifacts. Output: validated assumptions, code-research summary, roadmap, alternatives, risks, and immediate actions."
 metadata:
+  dhpk-capability-id: "dhpk.skill.proposal-analyze"
   dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-skill"
 ---
 
 # Proposal analysis

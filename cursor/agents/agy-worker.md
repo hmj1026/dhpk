@@ -24,7 +24,7 @@ verification and edited-file accounting.
 ## When NOT
 
 - In-process default → `fast-worker`
-- Codex CLI backend → `codex-fast-worker`
+- Codex CLI backend → `codex-worker`
 - This file is only the agy CLI backend of the same mechanical role — not a duplicate role.
 - Unknown root cause or an ambiguous spec → escalate (do not become `deep-reasoner`). Stop **without invoking the CLI backend**.
 
@@ -72,7 +72,7 @@ task/semantic, and timeout/interruption failures stay on their existing policy p
    # Supplied by the dispatcher; AGY wrapper blocks without it.
    export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
    before="$(git status --porcelain)"
-   bash "${CURSOR_PLUGIN_ROOT}/skills/dhpk-agy-fast-worker/scripts/run-agy.sh" \
+   bash "${CURSOR_PLUGIN_ROOT}/skills/flow-drive/scripts/adapters/run-agy.sh" \
      "<workdir>" "<prompt-file>" "<model>"
    after="$(git status --porcelain)"
    ```
@@ -116,7 +116,7 @@ After the CLI completes:
 agy's internal iteration.** When the composed prompt tells agy to run the verification
 command and iterate on failures itself (per step 1 above), one dispatch that goes through
 several such internal iterations still counts as one attempt. This carve-out is deliberate
-to `agy-fast-worker` and is **not** applied to `codex-fast-worker` — there is no equivalent
+to `agy-worker` and is **not** applied to `codex-worker` — there is no equivalent
 OpenAI-side recommendation to iterate against a self-run verification command inside a
 single `codex exec` call.
 

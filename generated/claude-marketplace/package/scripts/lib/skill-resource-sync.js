@@ -353,6 +353,29 @@ function loadInputs(root) {
   const inventory = readJson(root, 'manifests/distribution-inventory.json', 'distribution inventory', rootPin);
   const map = readJson(root, MAP_RELATIVE, 'skill resource map', rootPin);
   const ledger = readJson(root, LEDGER_RELATIVE, 'skill resource ledger', rootPin);
+  const { readSkillDirectory } = require('./skill-distribution-source');
+  const { skillMapDrift } = require('./skill-distribution-compile');
+  const authored = {};
+  const authoringSnapshots = {};
+  for (const row of inventory.value.skills || []) {
+    const skillRelative = `${row.path}/SKILL.md`;
+    const skill = readPinnedFile(root, skillRelative, `Skill ${row.id}`, rootPin);
+    authoringSnapshots[`skill:${row.id}`] = skill;
+    const authoringRelative = `${row.path}/distribution.yaml`;
+    let distribution;
+    const authoringPin = capturePathPin(root, authoringRelative, { rootPin, allowMissing: true, label: `Skill ${row.id} distribution` });
+    if (authoringPin.missingIndex === null) {
+      const snapshot = readPinnedFile(root, authoringRelative, `Skill ${row.id} distribution`, rootPin, authoringPin);
+      authoringSnapshots[`distribution:${row.id}`] = snapshot;
+      distribution = snapshot.bytes.toString('utf8');
+    } else authoringSnapshots[`distribution:${row.id}`] = { absent: true, pin: authoringPin };
+    let directory;
+    try { directory = readSkillDirectory(root, path.join(root, row.path), { skill: skill.bytes.toString('utf8'), distribution }); }
+    catch (error) { fail(error.message); }
+    if (directory.distribution.resource_copies !== undefined) authored[row.id] = directory.distribution.resource_copies;
+  }
+  const drift = skillMapDrift(map.value, { skills: authored }, 'resource_copies');
+  if (drift.length) fail(drift.join('; '));
   return {
     rootPin,
     inventory: inventory.value,
@@ -362,6 +385,7 @@ function loadInputs(root) {
       inventory: inventory.snapshot,
       map: map.snapshot,
       ledger: ledger.snapshot,
+      ...authoringSnapshots,
     },
   };
 }
@@ -827,8 +851,12 @@ function verifyMetadataSnapshots({
   verifyLedger = true,
 }) {
   if (!metadataSnapshots) return;
-  for (const name of ['inventory', 'map']) {
+  for (const name of Object.keys(metadataSnapshots).filter(key => key !== 'ledger')) {
     const expected = metadataSnapshots[name];
+    if (expected.absent) {
+      verifyPathPin(root, expected.pin, `skill resource ${name}`, { allowMissing: true });
+      continue;
+    }
     const actual = readPinnedFile(root, expected.pin.relative, `skill resource ${name}`, rootPin, expected.pin);
     if (!sameState(stateFromSnapshot(actual), stateFromSnapshot(expected))) {
       fail(`skill resource ${name} changed during synchronization`);

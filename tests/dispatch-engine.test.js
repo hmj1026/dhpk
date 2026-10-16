@@ -936,13 +936,13 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     }), /host_profile\.access\.openai\.status/);
   });
 
-  test('v1 compatibility translation preserves alias while leaving Provider selection to the Host policy', () => {
+  test('v1 compatibility translation preserves canonical provider role without pinning Provider', () => {
     const translated = translateLegacyRequest({
       schema: 'dhpk.cli.request.v1',
       host_profile: HOST_PROFILE,
       task_id: 'legacy-task-1',
       attempt_id: 'legacy-attempt-1',
-      requested_role: 'codex-fast-worker',
+      requested_role: 'codex-worker',
       mode: 'workspace-write',
       model: 'gpt-5.6-luna',
       effort: 'high',
@@ -952,35 +952,21 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.strictEqual(translated.request.schema, SCHEMAS.REQUEST);
     assert.strictEqual(translated.request.role, 'worker');
     assert.strictEqual(translated.request.target, undefined);
-    assert.strictEqual(translated.compatibility.requested_alias, 'codex-fast-worker');
+    assert.strictEqual(translated.compatibility.requested_alias, 'codex-worker');
     assert.strictEqual(translated.compatibility.canonical_role, 'worker');
     assert.strictEqual(translated.compatibility.provider_constraint, null);
     assert.strictEqual(translated.compatibility.deprecated, true);
   });
 
-  test('codex-bridge translation requires explicit mode and never guesses a Role', () => {
-    assert.throws(() => translateLegacyRequest({
-      schema: 'dhpk.cli.context.v1',
-      host_profile: HOST_PROFILE,
-      task_id: 'legacy-task-2',
-      attempt_id: 'legacy-attempt-2',
-      requested_role: 'codex-bridge',
-      task: { description_digest: 'd'.repeat(64) },
-      scope: request().scope,
-    }), /explicit.*mode/i);
-
-    const reviewer = translateLegacyRequest({
-      schema: 'dhpk.cli.context.v1',
-      host_profile: HOST_PROFILE,
-      task_id: 'legacy-task-3',
-      attempt_id: 'legacy-attempt-3',
-      requested_role: 'codex-bridge',
-      mode: 'read-only',
-      task: { description_digest: 'e'.repeat(64) },
-      scope: request().scope,
-    });
-    assert.strictEqual(reviewer.request.role, 'reviewer');
-    assert.strictEqual(reviewer.request.authority, 'read-only');
+  test('the retired codex-bridge legacy request is rejected for every mode', () => {
+    for (const mode of [undefined, 'read-only', 'workspace-write']) {
+      assert.throws(() => translateLegacyRequest({
+        schema: 'dhpk.cli.context.v1', host_profile: HOST_PROFILE,
+        task_id: 'legacy-task-2', attempt_id: 'legacy-attempt-2',
+        requested_role: 'codex-bridge', mode,
+        task: { description_digest: 'd'.repeat(64) }, scope: request().scope,
+      }), /unknown legacy role/);
+    }
   });
 
   test('v2 receipt identifies target and verification without raw prompt, output, or secret content', () => {
@@ -1038,7 +1024,7 @@ test('Codex Host native fallback is derived from its Host profile', () => {
       host_profile: HOST_PROFILE,
       task_id: 'legacy-task-4',
       attempt_id: 'legacy-attempt-4',
-      requested_role: 'codex-fast-worker',
+      requested_role: 'codex-worker',
       mode: 'workspace-write',
       backend: 'codex',
       model: 'gpt-5.6-luna',
@@ -1514,7 +1500,7 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   test('legacy Role aliases carry only canonical Role and authority', () => {
     const translated = translateLegacyRequest({
       schema: 'dhpk.cli.request.v1', host_profile: profile, task_id: 'legacy-p1', attempt_id: 'attempt-p1',
-      requested_role: 'codex-fast-worker', mode: 'workspace-write', model: 'gpt-5.6-luna', effort: 'high',
+      requested_role: 'codex-worker', mode: 'workspace-write', model: 'gpt-5.6-luna', effort: 'high',
       task: { description_digest: 'a'.repeat(64) },
       scope: { workdir: '/workspace', assigned_files: [], prompt_evidence: { path: '/workspace/prompt', dev: 1, ino: 2, sha256: 'b'.repeat(64) } },
     });

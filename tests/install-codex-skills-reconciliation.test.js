@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-const fixtures = require('./_lib/install-codex-skills-fixtures');
+const fixtures = require('./_lib/native-installer-lifecycle-fixture');
 
 const {
   ROOT,
@@ -1374,7 +1374,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
 
     const first = runInstaller(
       scratch,
-      ['--copy', '--force', '--skill', 'code-simplify', '--skill', 'update-codemaps'],
+      ['--copy', '--force', '--skill', 'code-simplify', '--skill', 'js-static-checks'],
       fakePlugin,
     );
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
@@ -1391,7 +1391,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
       return entry.name;
     };
     const retired = skillName('code-simplify');
-    const modifiedRetired = skillName('update-codemaps');
+    const modifiedRetired = skillName('js-static-checks');
     const updated = skillName('flow-guide');
     const collision = skillName('tdd');
     const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills'));

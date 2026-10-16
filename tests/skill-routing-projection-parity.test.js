@@ -138,7 +138,7 @@ test('builds every Laravel and PHPUnit alias from the normalized router on claud
     stableId,
     name: PROJECTION_INVENTORY.skills.find((skill) => skill.id === stableId).name,
     familyId,
-    routerId: 'php-pro',
+    routerId: 'php',
     selector,
     target,
     invocationClass: 'implicit-eligible',
@@ -239,21 +239,19 @@ test('comparison does not mask duplicate stable IDs', () => {
   assert.ok(result.mismatches.some((item) => item.type === 'duplicate' && item.stableId === duplicateId));
 });
 
-test('React and Next version entries remain separate and are not folded into family routing', () => {
+test('React and Next families remain separate from PHP routing', () => {
   const result = projection();
   const frontend = INVENTORY.skills
-    .filter((skill) => ['react-18-notes', 'react-19-notes', 'nextjs-15-5-notes', 'nextjs-16-notes'].includes(skill.id))
+    .filter((skill) => ['react', 'nextjs'].includes(skill.id))
     .map((skill) => ({ id: skill.id, path: skill.path }))
     .sort((left, right) => left.id.localeCompare(right.id));
 
   assert.deepStrictEqual(frontend, [
-    { id: 'nextjs-15-5-notes', path: 'skills/dhpk-nextjs-15-5-notes' },
-    { id: 'nextjs-16-notes', path: 'skills/dhpk-nextjs-16-notes' },
-    { id: 'react-18-notes', path: 'skills/dhpk-react-18-notes' },
-    { id: 'react-19-notes', path: 'skills/dhpk-react-19-notes' },
+    { id: 'nextjs', path: 'skills/nextjs' },
+    { id: 'react', path: 'skills/react' },
   ]);
   assert.deepStrictEqual(
-    result.entries.filter((entry) => /^(react|nextjs)-/.test(entry.stableId)),
+    result.entries.filter((entry) => /^(react|nextjs)(?:-|$)/.test(entry.stableId)),
     [],
   );
 });
@@ -422,55 +420,58 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
 {
   // Named source-suite block consolidated from skill-routing-frontend-regression.test.js.
 
-  // Regression guard for the frontend identity contract. React 18/19 and
-  // Next.js 15.5/16 are intentionally separate module/skill pairs; changing an
-  // ID, source path, profile mapping, or module-provided skill must fail closed.
+  // Regression guard for the frontend identity contract. Versioned modules
+  // share their family Skill while retaining each explicit profile mapping.
 
   const { test, assert } = require('./_lib/tinytest');
   const inventory = INVENTORY;
 
   // Keep these values literal: this test is the canary against accidental
-  // consolidation or source remapping in the inventory itself.
+  // cross-family or source remapping in the inventory itself.
   const EXPECTED_FRONTEND_MAPPINGS = [
     {
       moduleId: 'react-18',
       modulePath: 'modules/react-18',
-      moduleSkill: 'dhpk-react-18-notes',
-      skillId: 'react-18-notes',
-      skillName: 'dhpk-react-18-notes',
-      skillPath: 'skills/dhpk-react-18-notes',
-      capabilityId: 'dhpk.skill.react-18-notes',
+      moduleSkill: 'react',
+      skillId: 'react',
+      skillName: 'react',
+      skillPath: 'skills/react',
+      capabilityId: 'dhpk.skill.react',
       profile: 'react-18',
+      profiles: ['react-18', 'react-19'],
     },
     {
       moduleId: 'react-19',
       modulePath: 'modules/react-19',
-      moduleSkill: 'dhpk-react-19-notes',
-      skillId: 'react-19-notes',
-      skillName: 'dhpk-react-19-notes',
-      skillPath: 'skills/dhpk-react-19-notes',
-      capabilityId: 'dhpk.skill.react-19-notes',
+      moduleSkill: 'react',
+      skillId: 'react',
+      skillName: 'react',
+      skillPath: 'skills/react',
+      capabilityId: 'dhpk.skill.react',
       profile: 'react-19',
+      profiles: ['react-18', 'react-19'],
     },
     {
       moduleId: 'nextjs-15.5',
       modulePath: 'modules/nextjs-15.5',
-      moduleSkill: 'dhpk-nextjs-15-5-notes',
-      skillId: 'nextjs-15-5-notes',
-      skillName: 'dhpk-nextjs-15-5-notes',
-      skillPath: 'skills/dhpk-nextjs-15-5-notes',
-      capabilityId: 'dhpk.skill.nextjs-15-5-notes',
+      moduleSkill: 'nextjs',
+      skillId: 'nextjs',
+      skillName: 'nextjs',
+      skillPath: 'skills/nextjs',
+      capabilityId: 'dhpk.skill.nextjs',
       profile: 'nextjs-15.5',
+      profiles: ['nextjs-15.5', 'nextjs-16'],
     },
     {
       moduleId: 'nextjs-16',
       modulePath: 'modules/nextjs-16',
-      moduleSkill: 'dhpk-nextjs-16-notes',
-      skillId: 'nextjs-16-notes',
-      skillName: 'dhpk-nextjs-16-notes',
-      skillPath: 'skills/dhpk-nextjs-16-notes',
-      capabilityId: 'dhpk.skill.nextjs-16-notes',
+      moduleSkill: 'nextjs',
+      skillId: 'nextjs',
+      skillName: 'nextjs',
+      skillPath: 'skills/nextjs',
+      capabilityId: 'dhpk.skill.nextjs',
       profile: 'nextjs-16',
+      profiles: ['nextjs-15.5', 'nextjs-16'],
     },
   ];
 
@@ -492,7 +493,7 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
     return name[1];
   }
 
-  test('React and Next frontend IDs remain separate with literal inventory mappings', () => {
+  test('React and Next families retain literal mappings from all four versioned modules', () => {
     const actual = EXPECTED_FRONTEND_MAPPINGS.map((expected) => {
       const skill = inventory.skills.find((entry) => entry.id === expected.skillId);
       assert.ok(skill, `missing skill inventory entry: ${expected.skillId}`);
@@ -507,7 +508,8 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
         skillName: skill.name,
         skillPath: skill.path,
         capabilityId: skill.capability_id,
-        profile: skill.profiles[0],
+        profile: skill.profiles.find((profile) => profile === module.id),
+        profiles: skill.profiles,
       };
     });
 
@@ -518,10 +520,10 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
     );
     assert.deepStrictEqual(
       actual.map((entry) => entry.skillId),
-      ['react-18-notes', 'react-19-notes', 'nextjs-15-5-notes', 'nextjs-16-notes'],
+      ['react', 'react', 'nextjs', 'nextjs'],
     );
     assert.strictEqual(new Set(actual.map((entry) => entry.moduleId)).size, 4);
-    assert.strictEqual(new Set(actual.map((entry) => entry.skillId)).size, 4);
+    assert.strictEqual(new Set(actual.map((entry) => entry.skillId)).size, 2);
   });
 
   test('frontend inventory mappings point to the declared source skills and claude module surface', () => {
@@ -531,7 +533,8 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
       assert.deepStrictEqual(skill.surfaces, ['claude-module'], expected.skillId);
       assert.strictEqual(skill.lifecycle, 'optional', expected.skillId);
       assert.strictEqual(skill.tier, 'optional', expected.skillId);
-      assert.deepStrictEqual(skill.profiles, [expected.profile], `${expected.skillId} must own exactly its expected profile`);
+      assert.deepStrictEqual(skill.profiles, expected.profiles, `${expected.skillId} must own exactly its family profiles`);
+      assert.ok(skill.profiles.includes(expected.profile), `${expected.moduleId} profile must route to its family`);
       assert.strictEqual(skillFrontmatterName(skill.path), expected.skillName);
       assert.deepStrictEqual(providedSkills(module.id), [expected.moduleSkill], expected.moduleId);
     }
@@ -1119,7 +1122,7 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
     for (const [familyId, contract] of Object.entries(FAMILY_CONTRACTS)) {
       const family = familyById.get(familyId);
       assert.ok(family, `${familyId} routing family must exist`);
-      assert.strictEqual(family.router_id, 'php-pro');
+      assert.strictEqual(family.router_id, 'php');
       assert.strictEqual(family.invocation_class, 'implicit-eligible');
       const familyEntry = inventory.skills.find((skill) => skill.id === familyId);
       assert.ok(familyEntry, `${familyId} family skill must have a canonical inventory entry`);
@@ -1169,7 +1172,7 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
   function routingFixture() {
     return {
       id: 'laravel',
-      router_id: 'php-pro',
+      router_id: 'php',
       invocation_class: 'implicit-eligible',
       surfaces: ['claude-module'],
       selectors: { '8': 'skills/laravel/references/8.md' },
@@ -1185,7 +1188,7 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
   function validateRoutingFixture(families) {
     return validateSkillRoutingFamilies({
       families,
-      skillIds: new Set(['php-pro']),
+      skillIds: new Set(['php']),
       skills: [],
     });
   }

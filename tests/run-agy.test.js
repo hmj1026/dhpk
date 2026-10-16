@@ -9,7 +9,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { buildToolsOnlyDir } = require('./_lib/restricted-path');
 
 const ROOT = path.join(__dirname, '..');
-const WRAPPER = path.join(ROOT, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh');
+const WRAPPER = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-agy.sh');
 const REQUIRED_TOOLS = ['mktemp', 'rm', 'cat', 'bash', 'python3'];
 const SYSTEM_PYTHON = '/usr/bin/python3';
 
@@ -65,8 +65,8 @@ function writeContext(ctx, overrides = {}) {
   fs.chmodSync(artifactRoot, 0o700);
   const sequence = (ctx.sequence = (ctx.sequence || 0) + 1);
   const model = overrides.model === undefined ? 'Gemini 3.8 Flash (High)' : overrides.model;
-  const requestedRole = overrides.role || 'agy-fast-worker';
-  const effectiveRole = requestedRole === 'agy-fast-worker' ? 'agy-worker' : requestedRole;
+  const requestedRole = overrides.role || 'agy-worker';
+  const effectiveRole = requestedRole === 'agy-worker' ? 'agy-worker' : requestedRole;
   const context = {
     schema: 'dhpk.cli.context.v1', provider: 'agy',
     requested_role: requestedRole, effective_role: effectiveRole,
@@ -249,8 +249,8 @@ test('provider failure and an empty structured report remain terminal FAILED rec
 test('AGY wrapper resolves transport only from its physical Skill-local directory', () => {
   const source = fs.readFileSync(WRAPPER, 'utf8');
   assert.match(source, /SCRIPT_DIR=.*pwd -P/);
-  assert.match(source, /PREPARE="\$SCRIPT_DIR\/cli-transport\/prepare-cli-request\.py"/);
-  assert.match(source, /RUNNER="\$SCRIPT_DIR\/cli-transport\/run-cli-transport\.py"/);
+  assert.match(source, /PREPARE="\$SCRIPT_DIR\/\.\.\/transport\/prepare-cli-request\.py"/);
+  assert.match(source, /RUNNER="\$SCRIPT_DIR\/\.\.\/transport\/run-cli-transport\.py"/);
   assert.doesNotMatch(source, /PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|skills\/dhpk-cli-transport/);
 });
 

@@ -1,10 +1,18 @@
 ---
 name: flow-drive
-argument-hint: '<task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]'
+argument-hint: '<task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]'
 description: 'Explicit-only implementation workflow for one task resolved by the Host into a bounded goal, acceptance contract, and constraints. Not for route selection, standalone review, formal OpenSpec authoring, or release. Diagnosis within a confirmed outcome gates dependent writes. Output: distinct execution and acceptance evidence, or an explicit blocker.'
 disable-model-invocation: true
 metadata:
+  dhpk-capability-id: dhpk.skill.flow-drive
+  dhpk-name-style: portable-family
   dhpk-invocation-class: explicit-only
+  dhpk-next:
+    PASS: repo-verify
+    FAIL: none
+    BLOCKED: none
+    NOT_RUN: none
+    UNAVAILABLE: none
 ---
 
 # Flow Drive
@@ -48,10 +56,10 @@ preserved even when a caller presents a ready-looking route.
 
 Code that embeds or invokes the exported `runFlowDrive(...)` API uses the
 [portable runner reference](references/portable-runner.md). User-facing
-`$flow-drive` invocations follow the advanced legacy Host procedure below.
-These are separate interfaces; their `--cross-provider` semantics differ.
+`$flow-drive` invocations follow the Host procedure below. Both interfaces use
+the same grammar and keep selection intent separate from Host grants.
 
-## User-facing Host procedure (advanced legacy path)
+## User-facing Host procedure
 
 0. Before anything else, run the parser as one shell command, exactly
    `cd <this Skill directory> && node scripts/invocation.js <identifier> [options] && cd <project root>`,
@@ -102,42 +110,32 @@ action.
 
 ## Implementation options
 
-- `--plan[=<model>:<effort>]` explicitly requests a pre-implementation planner
-  consult on supported implementation-class routes.
-- `--plan-mode=auto|bounded|discovery` selects that consult's scope. It
-  requires `--plan`, is independent of option order, and does not change the
-  planner's work mode or model/effort. An enabled plan with no mode defaults to
-  `auto`; a disabled plan has mode `null`. The parser checks grammar only.
-  Flow Drive applies the scope-selection policy in
-  [`execution-policy.md`](references/execution-bundle/rules/execution-policy.md#planner-consult-scope),
-  reports its selection and evidence, and preserves the required authority and
-  specialist gates.
-- `--worker=<claude|codex|agy|auto>` selects the Worker Selector and preserves
-  the existing worker-routing enum.
-- `--worker-target=<provider>/<model>[:<effort>]` selects an explicit
-  Provider/Model/Effort Execution Target. It is distinct from `--worker` and
-  is not an alias for the selector.
-- `--cross-provider` enables additional automatic candidates within current
-  Host policy and access; it grants no additional authority. An explicit
-  `--worker-target` is limited to that Worker tuple.
-- `--reasoner=<provider>[/<model>[:<effort>]]` requests a bounded second opinion
-  with a Provider-scoped target; canonical Role remains `reasoner`.
-- `--architect` or `--no-architect` controls the architecture pass.
-- `--codex` is a retired diagnostic and produces a blocking report; it never
-  grants a peer, backend, or execution shortcut.
+- `--worker=auto|provider[/model[:effort]]` selects native automatic candidates
+  by default, one Provider, or an exact Worker target. Providers are
+  `claude`, `codex`, and `agy`; model and effort stay literal.
+- `--reasoner=provider[/model[:effort]]` selects a separate read-only reasoner.
+  Dependent writers require its verified `READY_FOR_DISPATCH` conclusion.
+- `--cross` expands automatic candidates for this invocation only. Explicit
+  Provider intent needs no redundant flag, but still requires a current Host
+  grant for the selected role/target/authority before external probe or launch.
+  Legacy cross-provider environment/configuration cannot broaden Flow Drive.
+- `--plan[=auto|bounded|discovery]` selects consult scope; bare `--plan`
+  equals `--plan=auto`. The current Host supplies its effective declared
+  planner target/default; missing or invalid support blocks clearly.
+  The portable runner consumes that profile and has no separate adapter for
+  legacy `planner_target` or Claude planner settings.
+- `--architect` requests consultation. The current portable Host contract
+  reports `UNAVAILABLE` because it declares no architecture route/receipt.
+  Omission preserves Host policy; `--no-architect` suppresses an optional
+  consultation while preserving required design gates.
+- Removed `--worker-target`, `--cross-provider`, `--plan-mode`,
+  `--plan=model:effort`, and provider aliases reject before dispatch.
+  `--codex` remains a blocking retirement diagnostic.
 
-These options refine confirmed implementation work; they do not change its
-owner or completion contract.
-
-Host support: on Claude Code, Codex workers and reasoners use the bundled CLI
-launcher from the parent session. `--reasoner=codex` uses the resolved role
-configuration; `--reasoner=codex/gpt-6.1-sol:high` overrides model and effort.
-`codex-cli` is a compatibility spelling. Parser readiness establishes valid
-syntax; launch still checks current access, supported model/effort, and scope.
-AGY workers and AGY worker targets remain blocked on this Host until their
-Flow Drive launch integration is delivered.
-The `--plan` effort is not applied there either: the planner runs at its
-configured effort and the parser reports that as a notice.
+On Claude Code, Codex workers and reasoners use the parent-session CLI launcher
+and a current exact Host grant. AGY dispatch remains unsupported on that Host.
+Parser readiness proves grammar only; capability, grant, observed target,
+receipt, and independent acceptance remain separate.
 
 ## Output
 
@@ -166,7 +164,8 @@ verification, and archive as separate states.
   mandatory peer Skill dependency.
 - `references/parent-cli-dispatch.md` — Claude Code parent-session Codex launch;
   `scripts/launch-dispatch.js` consumes its explicit dispatcher packet and the
-  self-contained runtime under `references/cli-dispatch/scripts/`.
+  self-contained runtime under `scripts/dispatch-runtime/`, `scripts/adapters/`, and
+  `scripts/transport/`.
 - `skills/flow-guide/SKILL.md` — optional separately invoked route guidance;
   Flow Drive does not load it as a prerequisite.
 - An optional consumer-project writing-for-agents guide may be supplied when the

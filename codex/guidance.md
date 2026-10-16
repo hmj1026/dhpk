@@ -23,7 +23,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 
 The default projection is hybrid: `codex/skills/` and inventory-declared supporting assets are symlinked into the project, while every `.codex/agents/*.toml` is materialized as a physical file. `--copy` makes the entire projection physical. `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-v3 `.dhpk-installed.json` receipt, including each entry's effective mode and each skill's stable ID/current public name, and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
 
-The current Codex projection contains 32 skill entries: 30 invokable skills and
+The current Codex projection contains 28 skill entries: 26 invokable skills and
 two internal transport/dispatch-context runtimes. The inventory and generated
 receipt, not this file, own that selection.
 
@@ -105,11 +105,12 @@ precede dependent writes. Current bound Host capabilities and explicit Provider
 grants govern each selected target. `--cross-provider` requests a scope question
 and grants nothing without an answer. Its `--plan-mode` selects planner
 consult scope only. Codex CLI has no `/dhpk:do` command or dhpk
-slash-command router. The six portable families
-(`flow-guide`, `flow-drive`, `change-verdict`,
-`code-trace`, `laravel`, and `phpunit`) use their unprefixed
-public names; other first-party skills retain the `dhpk-` prefix. The standalone
-`git-smart-commit` skill keeps its existing public name (`$git-smart-commit`).
+slash-command router. The nine portable families
+(`flow-guide`, `flow-drive`, `change-verdict`, `code-trace`, `laravel`,
+`phpunit`, `js-static-checks`, `php`, and `yii1`) use their unprefixed
+public names. For every other skill, use its inventory-declared public name
+without inferring a prefix. The standalone `git-smart-commit` skill keeps its
+existing public name (`$git-smart-commit`).
 Codex built-in commands such as `/hooks` and `/agent` are not custom dhpk
 `/dhpk:*` commands; Claude plugin slash commands and sentinel hooks are
 Claude-only.
@@ -225,8 +226,8 @@ each canonical role is classified exactly once:
 
 | Coverage outcome | Canonical roles |
 |------|--------------------|
-| `merged` | `codex-deep-reasoner`, `codex-fast-worker`, `fast-worker`, `performance-analyzer`, `refactor-cleaner`, `silent-failure-hunter`, `type-design-analyzer` |
-| `skill/manual-fallback` | `agy-fast-worker`, `doc-updater`, `docs-lookup`, `harness-reviser`, `python-build-resolver`, `rust-build-resolver`, `swift-build-resolver`, `version-matrix-impact-reviewer` |
+| `merged` | `codex-reasoner`, `codex-worker`, `fast-worker`, `performance-analyzer`, `refactor-cleaner`, `silent-failure-hunter`, `type-design-analyzer` |
+| `skill/manual-fallback` | `agy-worker`, `doc-updater`, `docs-lookup`, `harness-reviser`, `python-build-resolver`, `rust-build-resolver`, `swift-build-resolver`, `version-matrix-impact-reviewer` |
 | `capability-gated` | `polyfill-reviewer`, `smoke-tester`, `ui-ux-verifier` |
 | `intentionally-unavailable` | `codex-bridge` |
 

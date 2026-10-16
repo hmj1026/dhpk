@@ -61,7 +61,7 @@ Notes on close calls:
 All implicit-eligible: these are stack reference/guidance packages (language
 and framework "notes," lint/type-check strategy, test strategy) loaded to
 inform in-scope implementation or review. None can setup, install, commit,
-release, or write externally. This includes `matrix-cell-onboard` (a guided
+release, or write externally. This includes `library-author cell-onboard` (a guided
 checklist for CI-matrix cells — no elevated tools, editing stays within the
 already-authorized library-authoring request).
 
@@ -73,7 +73,7 @@ Host-only adapters retain their owning Skill contracts.
 `create-pr`, `create-release`, `deep-analyze`,
 `dep-audit`, `doc-refactor`, `flow-drive`, `flow-guide`, `git-worktree`,
 `harness-audit`, `harness-govern`,
-`matrix-cell-onboard`, `merge-prep`, `opsx-apply-resume`,
+`library-author cell-onboard`, `merge-prep`, `opsx-apply-resume`,
 `pr-summary`, `precommit`, `project-brief`, `review-pending`,
 `setup`, `simplify`, `smart-commit`, `ui-ux-verify`,
 `update-codemaps`, `update-docs`, and `verify`.

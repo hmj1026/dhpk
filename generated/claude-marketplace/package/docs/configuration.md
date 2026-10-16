@@ -46,7 +46,7 @@ Reconfigure or inspect the effective config at any time from inside Claude Code:
 
 A handful of boolean/mode knobs additionally support a **one-shot environment-variable override** for a single session — see the "Env override" column below.
 
-For automatic fast-worker dispatch, the one-shot `--cross-provider` flag has
+For automatic fast-worker dispatch, the one-shot `--cross` flag has
 the highest precedence and enables cross-Agent candidates only for that
 invocation. It does not force a different-vendor Model through a CLI when the
 current Host can invoke that Model natively. Without the flag, project
@@ -104,7 +104,7 @@ selections are independent from Model default/fallback pairs.
 ## Core dispatch & review
 
 Planner consult scope is selected per invocation with
-`--plan-mode=auto|bounded|discovery` and requires `--plan`; an enabled `--plan`
+`--plan[=auto|bounded|discovery]` and requires `--plan`; an enabled `--plan`
 without a mode defaults to `auto`. This is not a `userConfig` key and does not
 change the `planner_model` / `planner_effort` defaults or the planner's work
 mode. See [Basic Operations](./basic-operations.md)
@@ -124,8 +124,8 @@ for the selection rule.
 | `codex_worker_model` | string | `gpt-6-luna` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-worker` dispatches. Resolved via the standard layering (project pluginConfigs > global pluginConfigs > shipped default) and passed into `run-codex.sh`. Codex model names rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Legacy alias: `codex_fast_worker_model`. |
 | `codex_worker_effort` | string | `xhigh` | any effort the codex CLI accepts (e.g. `low` \| `medium` \| `high` \| `xhigh`) | `model_reasoning_effort` passed to the codex CLI backend for `codex-worker` dispatches — the strong mechanical tier. Legacy alias: `codex_fast_worker_effort`. |
 | `codex_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-worker`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_fast_worker_timeout_secs`. |
-| `codex_reasoner_model` | string | `gpt-6.1-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reasoner` dispatches via `--reasoner=codex-cli/<model>[:<effort>]` in a read-only sandbox. The bare `--reasoner=codex` value is a compatibility shorthand. Legacy alias: `codex_deep_reasoner_model`. |
-| `codex_reasoner_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reasoner` dispatches. Legacy alias: `codex_deep_reasoner_effort`. |
+| `codex_reasoner_model` | string | `gpt-6.1-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reasoner` dispatches via `--reasoner=codex/<model>[:<effort>]` in a read-only sandbox. The bare `--reasoner=codex` value is a compatibility shorthand. Retired key `codex_deep_reasoner_model` fails closed; use the canonical key. |
+| `codex_reasoner_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reasoner` dispatches. Retired key `codex_deep_reasoner_effort` fails closed; use the canonical key. |
 | `codex_reasoner_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reasoner`. It wins over the shared value in the same scope; project values win over global values. Invalid values fail closed at dispatch time. Legacy alias: `codex_deep_reasoner_timeout_secs`. |
 | `codex_reviewer_model` | string | `gpt-6.1-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reviewer` (internal-only in this rollout; not directly dispatchable). |
 | `codex_reviewer_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reviewer` dispatches. |
@@ -159,7 +159,7 @@ native-only unless cross-provider dispatch is explicitly enabled.
 To opt in for a project, add the setting under
 `pluginConfigs.dhpk@dhpk.options` in `.claude/settings.local.json` (or the
 project `settings.json`). To opt in for one automatic selection only, use
-`--worker=auto --cross-provider`. The one-shot flag has precedence over project
+`--worker=auto --cross`. The one-shot flag has precedence over project
 and installed-user configuration. Setting the project value to `false` rolls
 back to native-only automatic selection; removing the project override instead
 re-exposes the installed-user value, so verify that value is also unset or
@@ -182,7 +182,7 @@ Current dhpk capabilities run with the in-process model or an explicit CLI
 backend. No active skill or command requires a Codex MCP server. The current
 CLI-only review path is `change-verdict --mode code --backend cli`;
 its sibling CLI roles are `codex-worker`, `codex-reasoner`, `codex-reviewer`,
-and `dhpk-codex-bridge`. Use `--worker=codex`, `--reasoner=codex-cli/<model>[:<effort>]`, or an
+and implementation-scoped Flow Drive adapters. Use `--worker=codex`, `--reasoner=codex/<model>[:<effort>]`, or an
 explicit `codex exec` second opinion when a Codex CLI transport is wanted.
 
 ### Historical: Codex MCP server (retired)
@@ -227,8 +227,8 @@ the retired MCP mechanism and needs no server registration.
 The `CODEX=on` and `/dhpk:do --codex` flags were legacy per-session MCP-peer
 interfaces. They are removed, are not persisted `userConfig` values, and are
 not silently reinterpreted as `codex exec`, `--worker=codex`,
-`--reasoner=codex-cli/<model>[:<effort>]`, or the external plugin. The bare
-`--reasoner=codex` value remains a compatibility shorthand. Use `/dhpk:flow-drive` for
+`--reasoner=codex/<model>[:<effort>]`, or the external plugin. The bare
+`--reasoner=codex` value selects the current role configuration. Use `/dhpk:flow-drive` for
 current-model implementation, select a CLI role explicitly when needed, and
 request a second opinion by its named `codex exec` opt-in.
 
@@ -342,3 +342,10 @@ claude plugin install dhpk@dhpk \
 ```
 
 See `manifests/install-profiles.json` for curated module bundles and `manifests/module-catalog.json` for the full stack/version catalog (SSOT).
+
+Flow Drive uses invocation-only `--cross`; legacy cross environment/configuration
+cannot broaden its automatic candidates. `--worker=provider[/model[:effort]]`
+and reasoner selection express intent and still require current Host grants
+before external probes/launches. `--plan[=auto|bounded|discovery]` consumes the
+current Host declared effective planner tuple; the portable runner imports no
+Claude planner settings. The standalone bridge retires in 0.66.2.

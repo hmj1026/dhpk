@@ -13,9 +13,11 @@ const {
   exactWorkerTarget,
   createAuthorizationLedgerBuilder,
   askForProviderScope,
+  askForTargetScope,
   capabilityRefreshScope,
 } = require('./provider-permissions');
 const { evaluateTargetPolicy, selectCapabilityEvidence } = require('./target-policy');
+const { requestedRoleIntents, requestedRoleIssue } = require('./role-intents');
 const { createCapabilityEvidence } = require('../references/execution-bundle/scripts/lib/dispatch-capability-evidence');
 const { executeSchedule } = require('../references/execution-bundle/scripts/lib/dispatch-scheduler');
 
@@ -171,6 +173,15 @@ function targetMatches(actual, expected) {
 }
 
 function observedTargetIssue(observed, resolved, strictRequested) {
+  if (strictRequested) {
+    if (!isRecord(observed)) return 'strict requested target requires observed execution identity';
+    for (const key of ['provider', 'target_agent', 'model_id', 'effort']) {
+      if (strictRequested[key] !== undefined && strictRequested[key] !== null
+        && (observed[key] === undefined || observed[key] === null)) {
+        return `strict requested target requires observed ${key}`;
+      }
+    }
+  }
   if (!isRecord(observed)) return null;
   for (const key of ['provider', 'target_agent', 'model_id', 'effort']) {
     if (observed[key] !== undefined && observed[key] !== null && typeof observed[key] !== 'string') {
@@ -265,21 +276,15 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
     return makeReport({ parser, blockers: ['Host does not implement the Flow Drive runner contract'] });
   }
 
-  const legacyOptions = [];
-  if (invocation.options.plan.enabled) legacyOptions.push('--plan');
-  if (invocation.options.reasoner) legacyOptions.push('--reasoner');
-  if (invocation.options.architect === true) legacyOptions.push('--architect');
-  if (legacyOptions.length > 0) {
-    notices.push(`${legacyOptions.join(', ')} remain supported by the legacy Flow Drive path; the native single-task runner does not execute those extra roles.`);
-    parser = parserReport();
-    return makeReport({ parser, blockers: [`unsupported advanced selection: ${legacyOptions.join(', ')}`] });
+  if (invocation.options.architect === true) {
+    return makeReport({ parser, blockers: ['architect UNAVAILABLE: the current Host contract declares no architecture consultation route or receipt'] });
   }
   if (invocation.options.architect === false) {
-    notices.push('--no-architect is retained as a compatibility option; the native single-task runner does not start an architecture pass.');
+    notices.push('--no-architect suppresses an optional consultation; required Host design and reasoner gates remain in force.');
     parser = parserReport();
   }
   if (invocation.options.crossProvider) {
-    notices.push('--cross-provider opens a Provider-scope question when the Host supports it; the flag alone grants nothing.');
+    notices.push('--cross opens a Provider-scope question for automatic candidates; the flag alone grants nothing.');
     parser = parserReport();
   }
 
@@ -319,6 +324,18 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
   const currentProvider = canonicalProvider(capabilities.host_profile.native_provider);
   if (!currentProvider) return makeReport({ parser, blockers: ['the current Provider is unknown'] });
   const currentHost = capabilities.host_profile.host;
+  let requestedRoles;
+  try { requestedRoles = requestedRoleIntents(invocation, capabilities.host_profile); }
+  catch (error) { return makeReport({ parser, blockers: [error.message] }); }
+  if (invocation.options.plan.enabled) {
+    const plannerTask = { ...resolvedTask, constraints: { ...resolvedTask.constraints, authority: 'read-only', assigned_files: [] } };
+    const target = selectedTarget({ target: requestedRoles.planner.target });
+    try {
+      const prepared = prepareDispatch(dispatchRequest(plannerTask, path.resolve(workdir), capabilities, target, target.effort,
+        [currentProvider], null, { session_id: sessionId, binding_id: bindingId }, true, 'planner'));
+      if (prepared.resolution.status !== 'RESOLVED') throw new Error(prepared.resolution.reason);
+    } catch (error) { return makeReport({ parser, blockers: [`planner UNAVAILABLE: ${error.message}`] }); }
+  }
   let hostAllowedProviders = Object.freeze(Array.isArray(capabilities.host_profile.allowed_providers)
     ? [...new Set(capabilities.host_profile.allowed_providers.map(canonicalProvider).filter(Boolean))]
     : [currentProvider]);
@@ -331,8 +348,10 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
 
   const cliTarget = exactWorkerTarget(invocation);
   const ledgerBuilder = createAuthorizationLedgerBuilder(currentProvider, authorizationEvidence, cliTarget);
-  if (invocation.options.crossProvider) await askForProviderScope(host, capabilities, currentProvider, ledgerBuilder);
-  const authorizationLedger = ledgerBuilder.snapshot();
+  if (invocation.options.crossProvider && invocation.options.worker === 'auto') {
+    await askForProviderScope(host, capabilities, currentProvider, ledgerBuilder);
+  }
+  let authorizationLedger = ledgerBuilder.snapshot();
   let capabilityHistory = [];
   const refreshForSelectedTargets = async (targets) => {
     const refreshScope = capabilityRefreshScope(
@@ -442,12 +461,36 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
   try {
     decision = await host.coordinate(resolvedTask, {
       invocation, capabilities, workdir,
+      requested_roles: requestedRoles,
       authorization_ledger: authorizationLedger,
       allow_external_probe: false,
     });
   } catch (_) {
     return makeReport({ parser, blockers: ['Host could not coordinate the task'] });
   }
+  const roleIssue = requestedRoleIssue(decision, requestedRoles);
+  if (roleIssue) return makeReport({ parser, blockers: [roleIssue] });
+  const selectedNodes = decision && decision.mode === 'coordinated' ? decision.nodes : [
+    { role: 'worker', authority: resolvedTask.constraints.authority, target: decision && decision.target },
+  ];
+  const explicitTargets = (Array.isArray(selectedNodes) ? selectedNodes : []).flatMap((node) => {
+    const option = node.role === 'worker' ? invocation.options.workerTarget
+      || (invocation.options.worker !== 'auto' ? { provider: invocation.options.worker } : null)
+      : node.role === 'reasoner' && invocation.options.reasoner
+        ? { provider: invocation.options.reasoner.backend, model: invocation.options.reasoner.model, effort: invocation.options.reasoner.effort } : null;
+    const target = selectedTarget({ target: node.target });
+    if (!option || !target) return [];
+    const flat = { provider: target.provider, target_agent: target.target.target_agent,
+      model_id: target.target.model_id, ...(target.effort ? { effort: target.effort } : {}),
+      role: node.role, authority: node.authority };
+    if (flat.provider !== ({ claude: 'anthropic', codex: 'openai', agy: 'google' })[option.provider]
+      || option.model && flat.model_id !== option.model || option.effort && flat.effort !== option.effort
+      || !hostAllowedProviders.includes(flat.provider) || !hostPermitsScopedQuery(flat.provider)) return [];
+    return [flat];
+  });
+  await askForTargetScope(host, explicitTargets, ledgerBuilder,
+    { session_id: sessionId, binding_id: bindingId, task_id: taskIdentity(resolvedTask).taskId });
+  authorizationLedger = ledgerBuilder.snapshot();
   if (decision && decision.mode === 'coordinated') {
     let graph;
     try { graph = validateTaskGraph(decision, resolvedTask.constraints); } catch (error) {

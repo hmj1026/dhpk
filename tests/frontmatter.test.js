@@ -4,7 +4,7 @@
 // (extract/isEmpty), not just transitively via validate-agents-behavior.test.js.
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { extract, isEmpty, extractInvocationClass } = require('../scripts/ci/_lib/frontmatter');
+const { extract, isEmpty, extractInvocationClass, extractMetadata } = require('../scripts/ci/_lib/frontmatter');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -40,26 +40,18 @@ function claudeCliUnusable(result, what) {
   return false;
 }
 const OFFICIAL_STRICT_FAILURE_SET = [
-  'dhpk-ios-platform',
+  'swift',
+  'php',
+  'python',
+  'js-static-checks',
   'laravel',
   'phpunit',
   'flow-guide',
   'flow-drive',
-  'dhpk-laravel-package-author',
+  'library-author',
   'dhpk-openspec-artifact-guard',
-  'dhpk-swiftui-architecture',
-  'dhpk-php-modern-pro',
-  'dhpk-python-static-checks',
-  'dhpk-composer-package-hygiene',
-  'matrix-cell-onboard',
-  'dhpk-js-lint-config',
-  'js-static-check-strategy',
-  'dhpk-swift-language',
-  'dhpk-ios-icon-gen',
-  'dhpk-php-8x-features',
+  'doc-maintain',
   'dhpk-vue-2-notes',
-  'dhpk-laravel-testbench-matrix',
-  'dhpk-library-dual-testsuite-map',
 ];
 
 function unquoteScalar(value) {
@@ -241,6 +233,32 @@ test('extractInvocationClass does not see a metadata block that never nests the 
   const r = extractInvocationClass(content);
   assert.strictEqual(r.present, false);
   assert.strictEqual(r.value, null);
+});
+
+test('extractMetadata reads nested next maps and modes alongside invocation policy', () => {
+  const parsed = extractMetadata('---\nmetadata:\n  dhpk-invocation-class: explicit-only\n  dhpk-modes: [code, docs]\n  dhpk-next:\n    PASS: none\n    code:PASS: precommit\n---\n');
+  assert.deepStrictEqual(parsed.errors, []);
+  assert.deepStrictEqual(parsed.values['dhpk-modes'], ['code', 'docs']);
+  assert.strictEqual(parsed.values['dhpk-next']['code:PASS'], 'precommit');
+  assert.strictEqual(parsed.values['dhpk-invocation-class'], 'explicit-only');
+});
+
+test('extractMetadata rejects dotted keys, unknown dhpk keys, and Host syntax values', () => {
+  for (const body of [
+    'metadata.dhpk-next: none',
+    'metadata:\n  dhpk-mystery: value',
+    'metadata:\n  dhpk-next:\n    PASS: /repo-verify',
+    'metadata:\n  dhpk-next:\n    PASS: $repo-verify',
+  ]) {
+    assert.ok(extractMetadata(`---\n${body}\n---\n`).errors.length > 0, body);
+  }
+});
+
+test('distribution identity metadata preserves handoff keys and rejects unknown siblings', () => {
+  const parsed = extractMetadata('---\nmetadata:\n  dhpk-name-style: unprefixed\n  dhpk-capability-id: dhpk.skill.fixture\n  dhpk-invocation-class: explicit-only\n  dhpk-modes: [code]\n  dhpk-handoff-reserved: value\n---\n');
+  assert.deepStrictEqual(parsed.errors, []);
+  assert.strictEqual(parsed.values['dhpk-capability-id'], 'dhpk.skill.fixture');
+  assert.ok(extractMetadata('---\nmetadata:\n  dhpk-unregistered: value\n---\n').errors.some(error => error.includes('dhpk-unregistered')));
 });
 
 run('frontmatter');

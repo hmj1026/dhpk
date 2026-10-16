@@ -39,14 +39,13 @@ const MAX_AUTHORITY = Object.freeze({
   reviewer: 'read-only',
 });
 
-const LEGACY_ROLE_ALIASES = Object.freeze({
-  // Legacy Role aliases translate only Role and authority.  A provider-bound
-  // alias must not silently constrain the canonical target; explicit target
-  // selection remains an input-edge concern.
-  'codex-fast-worker': Object.freeze({ role: 'worker', authority: 'workspace-write' }),
-  'codex-deep-reasoner': Object.freeze({ role: 'reasoner', authority: 'read-only' }),
-  'agy-fast-worker': Object.freeze({ role: 'worker', authority: 'workspace-write' }),
+const RETIRED_ROLES = Object.freeze({
+  'codex-fast-worker': 'codex-worker',
+  'codex-deep-reasoner': 'codex-reasoner',
+  'agy-fast-worker': 'agy-worker',
 });
+
+const LEGACY_ROLE_ALIASES = Object.freeze({});
 
 // Policy-facing names are deliberately a thin alias layer.  They describe a
 // Role and its authority ceiling only; target Agent/Provider selection stays
@@ -330,6 +329,11 @@ function createProviderModelCatalog(input) {
   requiredString(catalog.version, 'provider_model_catalog.version');
   isoTimestamp(catalog.observed_at, 'provider_model_catalog.observed_at');
   const roleAliasesInput = catalog.role_aliases === undefined ? ROLE_ALIASES : requiredRecord(catalog.role_aliases, 'provider_model_catalog.role_aliases');
+  for (const alias of Object.keys(roleAliasesInput)) {
+    if (Object.prototype.hasOwnProperty.call(RETIRED_ROLES, alias)) {
+      throw new TypeError(`retired role ${alias} in 0.66.2; use ${RETIRED_ROLES[alias]}; rollback 0.66.1`);
+    }
+  }
   const roleAliases = {};
   for (const [alias, rawAlias] of Object.entries(roleAliasesInput)) {
     identifier(alias, `provider_model_catalog.role_aliases.${alias}`);
@@ -749,14 +753,11 @@ function translateLegacyRequest(input) {
   oneOf(legacy.schema, LEGACY_SCHEMAS, 'legacy request.schema');
   const requestedAlias = legacy.requested_role || legacy.role;
   requiredString(requestedAlias, 'legacy requested role');
+  if (Object.prototype.hasOwnProperty.call(RETIRED_ROLES, requestedAlias)) {
+    throw new TypeError(`retired role ${requestedAlias} in 0.66.2; use ${RETIRED_ROLES[requestedAlias]}; rollback 0.66.1`);
+  }
   let mapping = ROLE_ALIASES[requestedAlias] || LEGACY_ROLE_ALIASES[requestedAlias];
   if (!mapping && CANONICAL_ROLES.includes(requestedAlias)) mapping = { role: requestedAlias };
-  if (!mapping && requestedAlias === 'codex-bridge') {
-    if (!AUTHORITIES.includes(legacy.mode)) throw new TypeError('codex-bridge requires an explicit read-only or workspace-write mode');
-    mapping = legacy.mode === 'read-only'
-      ? { role: 'reviewer', authority: 'read-only' }
-      : { role: 'worker', authority: 'workspace-write' };
-  }
   if (!mapping) throw new TypeError(`unknown legacy role: ${requestedAlias}`);
   const authority = mapping.authority || legacy.authority || legacy.mode || MAX_AUTHORITY[mapping.role];
   if (legacy.mode !== undefined && legacy.mode !== authority) throw new TypeError(`legacy role ${requestedAlias} conflicts with authority ${legacy.mode}`);

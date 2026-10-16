@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change cli-prompt-composition-and-agy-flags. Update Purpose after archive.
+Define the shared prompt-composition baseline and provider-specific loading boundaries for canonical CLI agents, preserving security guidance and excluding retired composition surfaces.
 
 ## Requirements
 
@@ -22,22 +22,27 @@ The plugin SHALL ship `agent-traps/_common/cli-prompt-composition.md`, an on-dem
 
 ### Requirement: Every CLI-backed prompt-composition surface loads the baseline
 
-Each surface that composes a prompt for an external model SHALL carry a load directive naming the baseline's Shared section **and its applicable per-model section**. Shared SHALL always be loaded — only the per-model half is a choice — because Shared carries the discipline (state each instruction once; a flag beats prose) that the per-model sections depend on and do not restate. The surfaces SHALL be `agents/codex-worker.md`, `agents/codex-reasoner.md`, `agents/agy-worker.md`, and `skills/dhpk-codex-bridge/SKILL.md` (legacy alias files `agents/codex-fast-worker.md`, `agents/codex-deep-reasoner.md`, and `agents/agy-fast-worker.md` remain for the compatibility window). The directive SHALL be placed at the prompt-composition step, not the agent preamble, so the load happens when needed.
+Each surface that composes a prompt for an external model SHALL carry a load directive naming the baseline's Shared section **and its applicable per-model section**. Shared SHALL always be loaded — only the per-model half is a choice — because Shared carries the discipline (state each instruction once; a flag beats prose) that the per-model sections depend on and do not restate. The surfaces SHALL be `agents/codex-worker.md`, `agents/codex-reasoner.md`, and `agents/agy-worker.md`. Retired compatibility files `agents/codex-fast-worker.md`, `agents/codex-deep-reasoner.md`, and `agents/agy-fast-worker.md` SHALL NOT remain as prompt-composition surfaces. The directive SHALL be placed at the prompt-composition step, not the agent preamble, so the load happens when needed. REQ-7.
 
 #### Scenario: Codex-family surfaces name the Shared and GPT-5.x sections
 
-- **WHEN** `codex-worker` (legacy alias: `codex-fast-worker`), `codex-reasoner` (legacy alias: `codex-deep-reasoner`), or the `codex-bridge` skill reaches its prompt-composition step
+- **WHEN** `codex-worker` or `codex-reasoner` reaches its prompt-composition step
 - **THEN** the directive loads the baseline's Shared and GPT-5.x sections and not the Gemini section
 
 #### Scenario: Agy surface names the Shared and Gemini sections
 
-- **WHEN** `agy-worker` (legacy alias: `agy-fast-worker`) reaches its prompt-composition step
+- **WHEN** `agy-worker` reaches its prompt-composition step
 - **THEN** the directive loads the baseline's Shared and Gemini sections and not the GPT-5.x section
 
 #### Scenario: codex-bridge is wired at the skill, not the agent
 
-- **WHEN** the load directive is added for the codex-bridge path
-- **THEN** it is placed in `skills/dhpk-codex-bridge/SKILL.md` because `agents/codex-bridge.md` already delegates prompt discipline to that skill, and the agent file gains no competing directive
+- **WHEN** the historical bridge skill/agent composition route is examined after its earlier retirement
+- **THEN** both retired files remain absent, no load directive is added to either, and the old wiring is not restored
+
+#### Scenario: Retired forwarder file is used as a composition surface
+
+- **WHEN** a prompt-composition path still names `agents/codex-fast-worker.md`, `agents/codex-deep-reasoner.md`, or `agents/agy-fast-worker.md` after cutover
+- **THEN** validation fails and those files are not accepted as live surfaces
 
 ### Requirement: Composed prompts carry an autonomy boundary and a report shape
 

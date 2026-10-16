@@ -2,6 +2,7 @@
 name: dhpk-vue-2-notes
 description: 'Vue 2 (^2.5.17, Options API era) component structure and the reactivity caveats that bite when mutating reactive state. Use when writing or reviewing .vue single-file components in a Vue 2 project (resources/assets/js), or a codebase whose package.json pins vue ^2.5.x. Covers the data() / computed / methods / watch + lifecycle shape, props-down + $emit events-up, vue-loader SFC compilation, the Vue.set / array-mutation traps, and @vue/test-utils 1.x + vue-jest 3 testing. Not for Vue 3 or 2.7 Composition API (predates setup() / <script setup>) — load when touching components or planning a Vue 2 → 3 migration. Output: Vue 2 component guidance, migration traps, and verification gates.'
 metadata:
+  dhpk-capability-id: dhpk.skill.vue-2-notes
   dhpk-invocation-class: implicit-eligible
 ---
 
@@ -213,7 +214,7 @@ relaxing the single-root rule, and converting global API calls
 Not for Vue 3 or the 2.7 Composition API — this baseline predates `setup()` /
 `<script setup>`, so `ref` / `reactive` / composables do not exist. Not for the
 build pipeline (see the `laravel` family skill's `mix` selector) or non-`.vue` JS (see
-`js-static-check-strategy`). Load when touching `.vue` SFCs in a `vue ^2.5.x`
+`js-static-checks`). Load when touching `.vue` SFCs in a `vue ^2.5.x`
 codebase, or planning a 2 → 3 migration.
 
 ## Output
@@ -237,5 +238,5 @@ Options-API `.vue` components with `data()` as a function, props-down /
 
 - `skills/laravel/SKILL.md` (`mix` selector) — the webpack build that compiles
   these `.vue` SFCs and maps them to `public/`
-- `skills/js-static-check-strategy/SKILL.md` — ESLint /
+- `skills/js-static-checks/SKILL.md` — ESLint /
   TypeScript tier strategy that governs the `.vue` and `.js` sources

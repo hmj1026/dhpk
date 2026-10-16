@@ -18,12 +18,13 @@ it is path notation, not an ambient environment variable or repository-root
 lookup. Resolve it before invoking helpers from an arbitrary consumer cwd.
 
 Pass `HANDOFF_PATH` explicitly as the phase/state helpers' trailing path
-argument and to any available optional context loader. The package-local
+argument and to the local context procedure. The package-local
 `"$SKILL_DIR/scripts/set-handoff-state.sh"` accepts the explicit path for
-`consuming` and `saved` recovery; the loader accepts the same path rather than
-assuming a Claude directory. Missing required helper assets are
-`BLOCKED_RESOURCE_MISSING`; without a context loader, perform the fallback
-steps below directly.
+`consuming` and `saved` recovery. Missing required package assets are
+`BLOCKED_RESOURCE_MISSING`. Missing state/continuation resources stop before
+dependent mutation or external apply. The context procedure preserves the
+compact extractor diagnostic while allowing embedded-handoff recovery; this
+does not establish complete package delivery.
 
 ## Context check
 
@@ -41,21 +42,11 @@ Codex may continue in the current turn or start a new turn, with no required
    malformed handoff is `BLOCKED`. A missing legacy `model_suggestion` is
    displayed as `unavailable`; display an existing suggestion as advisory,
    without recalculating it from task count or switching models automatically.
-2. **Load context with the fallback chain.** Stop at the first successful tier
-   and record `CONTEXT_SOURCE`:
-
-   - A pinned memory observation, when an integer ID exists and the provider is
-     available.
-   - The explicit `compact_json_path`, otherwise the newest compact JSON, via
-     the synchronized local `"$SKILL_DIR/scripts/extract-compact.sh"` copy
-     owned by this Skill. Mark heuristic discovery when applicable.
-   - The embedded handoff summary (`handoff only`). If it is absent or empty,
-     return `BLOCKED` with `CONTEXT_UNAVAILABLE`; do not fabricate context.
-
-   Optional cross-session search uses the first Next Action as a short hint;
-   failure returns an empty observation list and never blocks Resume. A
-   hard-rule escalation or fresh unattended `.resume-note.md` takes precedence
-   when the Host package declares that optional source.
+2. **Load context.** Follow [load-context](load-context.md) with the explicit
+   handoff path and parsed fields. It owns memory → compact JSON → handoff,
+   usable-content checks, optional carry-forward precedence, and cross-session
+   context. Stop before mutation on its blocking result. Resume never posts
+   observations.
 3. **Validate the change.** Confirm
    `openspec/changes/<change-id>/tasks.md` exists. If it does not, stop and
    report that the change may have been archived or renamed; do not continue.
@@ -72,8 +63,9 @@ Codex may continue in the current turn or start a new turn, with no required
    with `<change-id>`; never pass the `/opsx:apply` alias to a Skill tool and
    never edit the external skill. Claude may use native Skill dispatch; Codex
    uses an available projected `openspec-apply-change` skill. If no such skill
-   is available, record `UNAVAILABLE`, keep `consuming` recoverable, and stop
-   with one resume command.
+   is available, record `UNAVAILABLE`, preserve the current `saved` or
+   `consuming` state without starting a new transition, and stop with one
+   resume command.
 7. **Archive only after success.** After successful completion, set `consumed`
    and move `latest.md` to a timestamped `consumed-*.md` beside it. Never
    delete the handoff. If apply did not complete, keep `latest.md` in

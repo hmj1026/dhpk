@@ -1,6 +1,6 @@
 ---
 name: codex-reasoner
-description: 'CLI-backed read-only deep-reasoning worker — the codex variant of `deep-reasoner`. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase when the `--reasoner=codex-cli/<model>[:<effort>]` target is selected (default `gpt-6.1-sol` @ `high`) instead of the in-process opus deep-reasoner. The bare `--reasoner=codex` value is a compatibility shorthand. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Runs `codex exec` in a read-only sandbox (never modifies the working tree), then returns the deep-reasoner conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture to `architect`. BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected. Not a reviewer.'
+description: 'CLI-backed read-only deep-reasoning worker — the codex variant of `deep-reasoner`. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase when the `--reasoner=codex/<model>[:<effort>]` target is selected (default `gpt-6.1-sol` @ `high`) instead of the in-process opus deep-reasoner. The bare `--reasoner=codex` value is a compatibility shorthand. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Runs `codex exec` in a read-only sandbox (never modifies the working tree), then returns the deep-reasoner conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture to `architect`. BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected. Not a reviewer.'
 tools: ["view_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_query"]
 model: pro
 ---
@@ -65,12 +65,12 @@ backend or produce a reasoning result from your own analysis when the CLI is una
    ```
 3. Run the shared wrapper in **`read-only`** sandbox with the resolved model/effort
    (defaults `gpt-6.1-sol` / `high`; overridden by the dispatcher's resolved
-   `codex_deep_reasoner_model` / `codex_deep_reasoner_effort` or `--reasoner` segments):
+   `codex_reasoner_model` / `codex_reasoner_effort` or `--reasoner` segments):
 
    ```bash
    # The dispatcher created this 0600 context; this role must not fabricate it.
    export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/flow-drive/scripts/adapters/run-codex.sh" \
      read-only "<workdir>" "$prompt_file" "<model>" "<effort>"
    ```
 
@@ -90,7 +90,7 @@ missing, invalid, or uncontained receipt is `BLOCKED`.
 
 No Edit/Write tool and a `read-only` codex sandbox by design — this agent cannot patch even
 when the fix looks trivial. If asked to also apply the fix, state that application goes
-through `fast-worker` / `codex-fast-worker` or an inline edit, then still return the full
+through `fast-worker` / `codex-worker` or an inline edit, then still return the full
 conclusion contract so the follow-up dispatch has everything it needs.
 
 ## Output

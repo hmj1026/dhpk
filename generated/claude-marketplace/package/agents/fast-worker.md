@@ -43,8 +43,8 @@ every handoff; never silently switch or retry from inside the worker.
 ## When NOT
 
 - Unknown root cause or an ambiguous spec that needs analysis first → `deep-reasoner` (this agent escalates; it does not become the reasoner).
-- Selector-resolved Codex CLI backend → `codex-fast-worker` (same mechanical role, different backend — not a duplicate role).
-- Selector-resolved agy CLI backend → `agy-fast-worker` (same mechanical role, different backend — not a duplicate role).
+- Selector-resolved Codex CLI backend → `codex-worker` (same mechanical role, different backend — not a duplicate role).
+- Selector-resolved agy CLI backend → `agy-worker` (same mechanical role, different backend — not a duplicate role).
 
 ## Task spec contract (input — required)
 

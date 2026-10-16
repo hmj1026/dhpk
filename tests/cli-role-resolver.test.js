@@ -38,19 +38,22 @@ test('canonical provider role IDs resolve to their fixed mode and immutable role
   }
 });
 
-test('legacy aliases resolve at the boundary and codex-bridge is explicitly mode-qualified', () => {
-  const aliases = [
+test('retired worker and reasoner aliases fail closed at the boundary', () => {
+  for (const [requestedRole, mode, successor] of [
     ['codex-fast-worker', 'workspace-write', 'codex-worker'],
     ['codex-deep-reasoner', 'read-only', 'codex-reasoner'],
     ['agy-fast-worker', 'workspace-write', 'agy-worker'],
-    ['codex-bridge', 'read-only', 'codex-reviewer'],
-    ['codex-bridge', 'workspace-write', 'codex-worker'],
-  ];
-  for (const [requestedRole, mode, effectiveRole] of aliases) {
+  ]) {
     const result = resolveRole({ requestedRole, mode });
-    assert.strictEqual(result.status, 'RESOLVED');
-    assert.strictEqual(result.effective_role, effectiveRole);
-    assert.strictEqual(result.deprecated_alias, true);
+    assert.strictEqual(result.status, 'BLOCKED');
+    assert.ok(result.reason.includes(successor));
+    assert.ok(result.reason.includes('0.66.1'));
+  }
+});
+
+test('the retired standalone bridge role rejects both authorities', () => {
+  for (const mode of ['read-only', 'workspace-write']) {
+    assert.strictEqual(resolveRole({ requestedRole: 'codex-bridge', mode }).status, 'BLOCKED');
   }
 });
 
@@ -78,13 +81,11 @@ test('a provider cannot resolve a role that belongs to a different dispatch iden
   });
 });
 
-test('legacy alias deprecation diagnostic is bounded to exactly once per session', () => {
+test('retired aliases do not emit an executable deprecation warning', () => {
   const diagnostics = [];
   const session = createSessionDiagnostics((message) => diagnostics.push(message));
-  resolveRole({ requestedRole: 'codex-fast-worker', mode: 'workspace-write', diagnostics: session });
-  resolveRole({ requestedRole: 'codex-deep-reasoner', mode: 'read-only', diagnostics: session });
-  assert.strictEqual(diagnostics.length, 1);
-  assert.ok(diagnostics[0].includes('deprecated role alias'));
+  assert.strictEqual(resolveRole({ requestedRole: 'codex-fast-worker', mode: 'workspace-write', diagnostics: session }).status, 'BLOCKED');
+  assert.strictEqual(diagnostics.length, 0);
 });
 
 test('provider-neutral roles resolve authority independently from an optional Provider constraint', () => {
@@ -101,12 +102,11 @@ test('provider-neutral roles resolve authority independently from an optional Pr
   assert.strictEqual(reviewer.provider_constraint, 'agy');
 });
 
-test('legacy aliases expose canonical Role and compatibility Provider metadata', () => {
-  const result = resolveRole({ requestedRole: 'codex-fast-worker', mode: 'workspace-write' });
+test('canonical provider roles expose canonical Role and Provider metadata', () => {
+  const result = resolveRole({ requestedRole: 'codex-worker', mode: 'workspace-write' });
   assert.strictEqual(result.canonical_role, 'worker');
   assert.strictEqual(result.provider_constraint, 'codex-cli');
-  assert.strictEqual(result.compatibility_source, 'legacy-role-alias');
-  assert.ok(result.deprecation_evidence.includes('codex-fast-worker'));
+  assert.strictEqual(result.compatibility_source, 'legacy-provider-role');
 });
 
 test('canonical config wins over a legacy key and only declared aliases are considered', () => {
@@ -150,8 +150,8 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
   const path = require('node:path');
   const { spawnSync } = require('node:child_process');
   const { test, assert } = require('./_lib/tinytest');
-  const { createSessionDiagnostics } = require('../skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver');
-  const { buildContext } = require('../skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context');
+  const { createSessionDiagnostics } = require('../skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver');
+  const { buildContext } = require('../skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context');
 
   const ROOT = path.join(__dirname, '..');
 
@@ -159,7 +159,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
     return {
       dispatching_agent: 'claude',
       execution_provider: 'codex',
-      requested_role: 'codex-fast-worker',
+      requested_role: 'codex-worker',
       mode: 'workspace-write',
       config: {
         codex_worker_model: 'canonical-codex-model',
@@ -184,7 +184,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
     };
   }
 
-  test('Codex alias context keeps requested identity, uses canonical configuration, and emits one session diagnostic', () => {
+  test('Codex canonical context keeps requested identity and uses canonical configuration', () => {
     const diagnostics = [];
     const session = createSessionDiagnostics((message) => diagnostics.push(message));
     const writes = [];
@@ -192,7 +192,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
 
     const first = buildContext(dispatchInput(), { writeFile, diagnostics: session });
     const second = buildContext(dispatchInput({
-      requested_role: 'codex-deep-reasoner',
+      requested_role: 'codex-reasoner',
       mode: 'read-only',
       config: { codex_reasoner_timeout_secs: 90 },
     }), { diagnostics: session });
@@ -200,7 +200,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
     assert.strictEqual(first.status, 'READY');
     assert.strictEqual(Object.isFrozen(first), true);
     assert.strictEqual(Object.isFrozen(first.context), true);
-    assert.strictEqual(first.context.requested_role, 'codex-fast-worker');
+    assert.strictEqual(first.context.requested_role, 'codex-worker');
     assert.strictEqual(first.context.effective_role, 'codex-worker');
     assert.strictEqual(first.context.dispatching_agent, 'claude');
     assert.strictEqual(first.context.execution_provider, 'codex');
@@ -210,7 +210,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
     assert.strictEqual(first.context.requested_model, 'canonical-codex-model');
     assert.strictEqual(first.context.requested_effort, 'high');
     assert.strictEqual(first.context.timeout_secs, 90);
-    assert.strictEqual(first.legacyReport.requested_role, 'codex-fast-worker');
+    assert.strictEqual(first.legacyReport.requested_role, 'codex-worker');
     assert.strictEqual(first.legacyReport.model_source, 'codex_worker_model');
     assert.strictEqual(writes.length, 1);
     const independentlyComputedSha256 = crypto.createHash('sha256')
@@ -222,8 +222,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
       payload: JSON.stringify(first.context),
       options: { mode: 0o600, atomic: true, noFollow: true },
     }]);
-    assert.strictEqual(diagnostics.length, 1);
-    assert.ok(diagnostics[0].includes('codex-fast-worker'));
+    assert.strictEqual(diagnostics.length, 0);
     assert.strictEqual(second.status, 'READY');
   });
 
@@ -324,7 +323,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
       requested_backend: 'codex',
       selected_backend: 'codex',
       fallback: 'none',
-      requested_role: 'codex-fast-worker',
+      requested_role: 'codex-worker',
       effective_role: 'codex-worker',
       provider: 'codex',
       mode: 'workspace-write',
@@ -372,12 +371,12 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
   });
 
   test('projected builder loads the resolver from its package-local source', () => {
-    const sourceBuilder = path.join(ROOT, 'skills', 'dhpk-cli-dispatch-context', 'scripts', 'build-cli-dispatch-context.js');
-    const sourceResolver = path.join(ROOT, 'skills', 'dhpk-cli-dispatch-context', 'scripts', 'cli-role-resolver.js');
+    const sourceBuilder = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime', 'build-cli-dispatch-context.js');
+    const sourceResolver = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime', 'cli-role-resolver.js');
 
     const projectionRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cli-dispatch-context-projection-'));
     try {
-      const scripts = path.join(projectionRoot, 'skills', 'dhpk-cli-dispatch-context', 'scripts');
+      const scripts = path.join(projectionRoot, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime');
       fs.mkdirSync(scripts, { recursive: true });
       fs.copyFileSync(sourceBuilder, path.join(scripts, 'build-cli-dispatch-context.js'));
       fs.copyFileSync(sourceResolver, path.join(scripts, 'cli-role-resolver.js'));

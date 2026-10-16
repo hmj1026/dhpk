@@ -463,7 +463,7 @@ test('write-handoff reports an unavailable Python capability without a shell fal
   const ROOT = path.join(__dirname, '..');
   const DETECT = path.join(ROOT, 'skills', 'opsx-apply-resume', 'scripts', 'detect-phase.sh');
   const SET_STATE = path.join(ROOT, 'skills', 'opsx-apply-resume', 'scripts', 'set-handoff-state.sh');
-  const STATUS = path.join(ROOT, 'skills', 'js-static-check-strategy', 'scripts', 'status.js');
+  const STATUS = path.join(ROOT, 'skills', 'js-static-checks', 'scripts', 'status.js');
 
   function makeTemp(prefix) {
     return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

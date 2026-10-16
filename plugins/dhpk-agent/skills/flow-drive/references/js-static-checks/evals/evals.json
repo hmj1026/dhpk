@@ -1,0 +1,49 @@
+{
+  "skill_name": "js-static-checks",
+  "evals": [
+    {
+      "id": 1,
+      "name": "js-check",
+      "prompt": "Use $js-static-checks check --path js/ to report rollout status only. js/a.js starts with // @ts-check; js/b.js has // @ts-nocheck and a TODO mentioning @ts-check; js/c.js has only the TODO; nested/js/d.js is strict. Do not modify anything.",
+      "expected_output": "Run the local status runner in consumer cwd with explicit path. Count only immediate regular JS files: total3 strict1 nocheck1 unmarked1. Dedicated anchored directives only, nocheck precedence, deterministic buckets; unavailable path yields UNAVAILABLE without fabricated counts.",
+      "expected_read_trace": {
+        "required": [
+          "references/rollout.md"
+        ],
+        "forbidden": [
+          "references/setup.md"
+        ]
+      },
+      "expected_action_trace": "Read-only scan; snapshot source/config unchanged; no directive rewrites or npm installs. Use bundled scripts/status.js, not old skill or repository module."
+    },
+    {
+      "id": 2,
+      "name": "js-setup-rollout",
+      "prompt": "Use $js-static-checks setup to add a shaped legacy global ReceiptStore for frontend/ and plan a one-leaf rollout. Existing project uses ESLint9 flat config and TypeScript5 with checkJs:false. The core bundle has cross-leaf late-init globals; one leaf only needs a wider typedef. I authorize configuration edits, not runtime refactors.",
+      "expected_output": "Keep ESLint tier exemptions explicit, use canonical AJAX facade outside exemptions, synchronize ESLint globals+ambient d.ts+shaped JSDoc typedef. Classify typedef-widening fixable separately from permanent exclude, preserve core exclusion, use anchored progress and tsc --noEmit evidence. Do not flip project-wide checkJs merely because one leaf is green.",
+      "expected_read_trace": {
+        "required": [
+          "references/setup.md",
+          "references/rollout.md"
+        ],
+        "forbidden": []
+      },
+      "expected_action_trace": "Scoped requested tooling configuration edits only; plan leaf changes; no core runtime rewrite, blanket disable, vendor edits, commits or pushes."
+    },
+    {
+      "id": 3,
+      "name": "js-ambiguity",
+      "prompt": "Use $js-static-checks to migrate this monorepo to current ESLint. packages/old uses ESLint8 .eslintrc and packages/new uses ESLint9 flat config. I have not selected the package or migration destination.",
+      "expected_output": "Ask which package and explicit target ESLint/TypeScript versions, then wait before version-specific resources or dependent configuration writes. Installed npm/node versions do not resolve target compatibility.",
+      "expected_read_trace": {
+        "required": [],
+        "forbidden": [
+          "references/setup.md",
+          "references/rollout.md",
+          "references/static-checks.md"
+        ]
+      },
+      "expected_action_trace": "Inspect target evidence and clarify only; no npm install or config rewrite before answer."
+    }
+  ]
+}

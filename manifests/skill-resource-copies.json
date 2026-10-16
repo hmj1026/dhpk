@@ -13,126 +13,6 @@
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     },
-    "skills/dhpk-agy-fast-worker/scripts/cli-transport/prepare-cli-request.py": {
-      "skill_id": "agy-fast-worker",
-      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
-      "mode": "0755"
-    },
-    "skills/dhpk-agy-fast-worker/scripts/cli-transport/run-cli-transport.py": {
-      "skill_id": "agy-fast-worker",
-      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
-      "mode": "0755"
-    },
-    "skills/dhpk-cli-dispatch-context/scripts/cli-transport/prepare-cli-request.py": {
-      "skill_id": "cli-dispatch-context",
-      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
-      "mode": "0755"
-    },
-    "skills/dhpk-cli-dispatch-context/scripts/cli-transport/run-cli-transport.py": {
-      "skill_id": "cli-dispatch-context",
-      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
-      "mode": "0755"
-    },
-    "skills/dhpk-cli-dispatch-context/scripts/run-agy.sh": {
-      "skill_id": "cli-dispatch-context",
-      "source": "skills/dhpk-agy-fast-worker/scripts/run-agy.sh",
-      "sha256": "sha256:820a761a17af96812de9896f0de1bce3d107cee2a1ea479c43ba26ba84e95fbd",
-      "mode": "0755"
-    },
-    "skills/dhpk-cli-dispatch-context/scripts/run-codex.sh": {
-      "skill_id": "cli-dispatch-context",
-      "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
-      "sha256": "sha256:c53f3c806c3545822f0c6c5a45cd653dab86f482f92faa8c517e48af2293b140",
-      "mode": "0755"
-    },
-    "skills/dhpk-codex-bridge/scripts/cli-transport/prepare-cli-request.py": {
-      "skill_id": "codex-bridge",
-      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
-      "mode": "0755"
-    },
-    "skills/dhpk-codex-bridge/scripts/cli-transport/run-cli-transport.py": {
-      "skill_id": "codex-bridge",
-      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
-      "mode": "0755"
-    },
-    "skills/dhpk-ios-platform/references/actor-persistence.md": {
-      "skill_id": "ios-platform",
-      "source": "modules/ios-platform/references/actor-persistence.md",
-      "sha256": "sha256:8b4efa741a95cfdd1f3fad3bbd1b5aa27b6afda5ae10897af767086456901711",
-      "mode": "0644"
-    },
-    "skills/dhpk-ios-platform/references/coredata-encryption.md": {
-      "skill_id": "ios-platform",
-      "source": "modules/ios-platform/references/coredata-encryption.md",
-      "sha256": "sha256:abeaebd0021e32e8cfe3783f1536f9f08ba48f316f11010e0ae9e01024b17851",
-      "mode": "0644"
-    },
-    "skills/dhpk-ios-platform/references/cryptokit-keychain.md": {
-      "skill_id": "ios-platform",
-      "source": "modules/ios-platform/references/cryptokit-keychain.md",
-      "sha256": "sha256:790fd8575ad85fcaca3efe10e93ecfc5c93af8f523c266aa2fd27fcaa56ebfea",
-      "mode": "0644"
-    },
-    "skills/dhpk-ios-platform/references/healthkit-read.md": {
-      "skill_id": "ios-platform",
-      "source": "modules/ios-platform/references/healthkit-read.md",
-      "sha256": "sha256:5c63e27a80c9df8c15a1d2f9e992e8465f97309d77f6e9563b61516e6f456cc4",
-      "mode": "0644"
-    },
-    "skills/dhpk-ios-platform/references/local-authentication.md": {
-      "skill_id": "ios-platform",
-      "source": "modules/ios-platform/references/local-authentication.md",
-      "sha256": "sha256:0ec2e3f447b3a643b7807b32888f376a1f81b585c27f9811ca93a032c582c47c",
-      "mode": "0644"
-    },
-    "skills/dhpk-ios-platform/references/notifications.md": {
-      "skill_id": "ios-platform",
-      "source": "modules/ios-platform/references/notifications.md",
-      "sha256": "sha256:5c8b16a1bef8fb97e67f1ca161213531b651d3586773f39b6d5834d8d03c40e8",
-      "mode": "0644"
-    },
-    "skills/dhpk-ios-platform/references/privacy-compliance.md": {
-      "skill_id": "ios-platform",
-      "source": "modules/ios-platform/references/privacy-compliance.md",
-      "sha256": "sha256:adbd510810a77af059390703bad9580c4d9c73576a231be3e77b03160a499156",
-      "mode": "0644"
-    },
-    "skills/dhpk-ios-platform/references/vision-ocr.md": {
-      "skill_id": "ios-platform",
-      "source": "modules/ios-platform/references/vision-ocr.md",
-      "sha256": "sha256:cc1afcd34901f8fa4546b9fa44cda27d695711473bd72d436ec536a3b73ae1f9",
-      "mode": "0644"
-    },
-    "skills/dhpk-js-lint-config/references/frontend-review-patterns.md": {
-      "skill_id": "js-lint-config",
-      "source": "modules/js/references/frontend-review-patterns.md",
-      "sha256": "sha256:e3d5302440ddda23af6b194cb64db0598145f4255b9f1e0f2abaa61195371765",
-      "mode": "0644"
-    },
-    "skills/dhpk-js-lint-config/references/static-checks.md": {
-      "skill_id": "js-lint-config",
-      "source": "modules/js/references/static-checks.md",
-      "sha256": "sha256:fc99d723a9ad714cfb0710d7c6837d8a6c91f1f9dfb72524e5e8f1f466b4be6c",
-      "mode": "0644"
-    },
-    "skills/dhpk-nextjs-15-5-notes/references/frontend-framework-routing.md": {
-      "skill_id": "nextjs-15-5-notes",
-      "source": "docs/agent-guidance/frontend-framework-routing.md",
-      "sha256": "sha256:023bb806d566f57a6280cf9ea619502c6ad1c8e93ee666d65618ef6b0782e9c6",
-      "mode": "0644"
-    },
-    "skills/dhpk-nextjs-16-notes/references/frontend-framework-routing.md": {
-      "skill_id": "nextjs-16-notes",
-      "source": "docs/agent-guidance/frontend-framework-routing.md",
-      "sha256": "sha256:023bb806d566f57a6280cf9ea619502c6ad1c8e93ee666d65618ef6b0782e9c6",
-      "mode": "0644"
-    },
     "skills/dhpk-project-audit/scripts/lib/command-namespace.js": {
       "skill_id": "project-audit",
       "source": "scripts/lib/command-namespace.js",
@@ -145,179 +25,11 @@
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     },
-    "skills/dhpk-react-18-notes/references/frontend-framework-routing.md": {
-      "skill_id": "react-18-notes",
-      "source": "docs/agent-guidance/frontend-framework-routing.md",
-      "sha256": "sha256:023bb806d566f57a6280cf9ea619502c6ad1c8e93ee666d65618ef6b0782e9c6",
-      "mode": "0644"
-    },
-    "skills/dhpk-react-19-notes/references/frontend-framework-routing.md": {
-      "skill_id": "react-19-notes",
-      "source": "docs/agent-guidance/frontend-framework-routing.md",
-      "sha256": "sha256:023bb806d566f57a6280cf9ea619502c6ad1c8e93ee666d65618ef6b0782e9c6",
-      "mode": "0644"
-    },
     "skills/dhpk-repo-intake/scripts/lib/runner-utils.js": {
       "skill_id": "repo-intake",
       "source": "scripts/lib/runner-utils.js",
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
-    },
-    "skills/dhpk-swift-language/references/approachable-concurrency.md": {
-      "skill_id": "swift-language",
-      "source": "modules/swift/references/approachable-concurrency.md",
-      "sha256": "sha256:59b785ce22680b177110805cc624afe0e2ef4189dff44dad7152a7c89c209a13",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-language/references/concurrency.md": {
-      "skill_id": "swift-language",
-      "source": "modules/swift/references/concurrency.md",
-      "sha256": "sha256:b0ee634a9ae46d30d2bb515bfa7701ffd16edb12ea028e9cbe3d59376e9f219d",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-language/references/error-handling.md": {
-      "skill_id": "swift-language",
-      "source": "modules/swift/references/error-handling.md",
-      "sha256": "sha256:ee8ce8715391ff15c7d65387c01c62335aea4be71647d8f0bb8f73da350a72b9",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-language/references/swift5-compat-notes.md": {
-      "skill_id": "swift-language",
-      "source": "modules/swift/references/swift5-compat-notes.md",
-      "sha256": "sha256:745ff8010cb030d3e369feed2c3558b90392daf759c3a28761561490972115f9",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-language/references/value-vs-reference.md": {
-      "skill_id": "swift-language",
-      "source": "modules/swift/references/value-vs-reference.md",
-      "sha256": "sha256:92c2e4e11e36a79640bda1734b235ecd80b5dd3a71d73e5917b48a26ae6c26a9",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-test-strategy/references/protocol-di-host-testing.md": {
-      "skill_id": "swift-test-strategy",
-      "source": "modules/swift-testing/references/protocol-di-host-testing.md",
-      "sha256": "sha256:eb3003c291bb292b19b169dc1e5833cc4d1412c22c4311d32f3746a726933ee4",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-test-strategy/references/snapshot-testing.md": {
-      "skill_id": "swift-test-strategy",
-      "source": "modules/swift-testing/references/snapshot-testing.md",
-      "sha256": "sha256:7eb48859c52999dcc25af3d40efb3908810333141c8094a084deeb8ab31aeda5",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-test-strategy/references/swift-testing-api.md": {
-      "skill_id": "swift-test-strategy",
-      "source": "modules/swift-testing/references/swift-testing-api.md",
-      "sha256": "sha256:427e7084ec964b1a43e8a711ddda3e8f82ce11dc7c95a54dd78fd6ed926c0425",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-test-strategy/references/test-taxonomy.md": {
-      "skill_id": "swift-test-strategy",
-      "source": "modules/swift-testing/references/test-taxonomy.md",
-      "sha256": "sha256:5becdbd85ddb3f250b70d81b1d3a6f0472de011ab214cbdbdc5afe484480634a",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-test-strategy/references/xctest-bridging.md": {
-      "skill_id": "swift-test-strategy",
-      "source": "modules/swift-testing/references/xctest-bridging.md",
-      "sha256": "sha256:6215bedb6438e1ef84592ef7cdbe760b3d49e0de7fc33d28003c4efeee33d861",
-      "mode": "0644"
-    },
-    "skills/dhpk-swift-test-strategy/references/xcuitest.md": {
-      "skill_id": "swift-test-strategy",
-      "source": "modules/swift-testing/references/xcuitest.md",
-      "sha256": "sha256:01057b573f64653b8c34c12d31823199498d3b197d73f31c8638b5bb397e4667",
-      "mode": "0644"
-    },
-    "skills/dhpk-swiftui-architecture/references/interop.md": {
-      "skill_id": "swiftui-architecture",
-      "source": "modules/swiftui/references/interop.md",
-      "sha256": "sha256:5ad555cb830a53ec55b8911ef9fa5261bc62a75ce63404c628a390b24474f283",
-      "mode": "0644"
-    },
-    "skills/dhpk-swiftui-architecture/references/mvvm-coordinator.md": {
-      "skill_id": "swiftui-architecture",
-      "source": "modules/swiftui/references/mvvm-coordinator.md",
-      "sha256": "sha256:d53313c46dd10bd90f9c23b9c40ce3e2d2174519d95ea68de92f3b0e8117953f",
-      "mode": "0644"
-    },
-    "skills/dhpk-swiftui-architecture/references/navigation.md": {
-      "skill_id": "swiftui-architecture",
-      "source": "modules/swiftui/references/navigation.md",
-      "sha256": "sha256:d9dcad66217e3c71522c983d74e86f2e54efbfc5690cdd71b637b871f3fd86f6",
-      "mode": "0644"
-    },
-    "skills/dhpk-swiftui-architecture/references/observation-state.md": {
-      "skill_id": "swiftui-architecture",
-      "source": "modules/swiftui/references/observation-state.md",
-      "sha256": "sha256:2e47703afab278ee11ad934fd36e6f9a7ce1c17af377efce4fc90fb58b25bb31",
-      "mode": "0644"
-    },
-    "skills/dhpk-xcode-build-tooling/references/scheme-signing.md": {
-      "skill_id": "xcode-build-tooling",
-      "source": "modules/xcode-tooling/references/scheme-signing.md",
-      "sha256": "sha256:f12c20feb61b1fcacb8ec8b6b4501746fd8a74b4e304572ff7cccd34d6dc632a",
-      "mode": "0644"
-    },
-    "skills/dhpk-xcode-build-tooling/references/swiftlint-config.md": {
-      "skill_id": "xcode-build-tooling",
-      "source": "modules/xcode-tooling/references/swiftlint-config.md",
-      "sha256": "sha256:40cc51ec807e1cd9eb72814d463294ab7225a040f2dd3fe1c72ec1105d042c19",
-      "mode": "0644"
-    },
-    "skills/dhpk-xcode-build-tooling/references/xcodebuild-spm.md": {
-      "skill_id": "xcode-build-tooling",
-      "source": "modules/xcode-tooling/references/xcodebuild-spm.md",
-      "sha256": "sha256:4d4fe6561fbf37a16566d3262db55f746865100429b59fab3b9a327e96591608",
-      "mode": "0644"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/build-cli-dispatch-context.js": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-      "sha256": "sha256:a8330be39319fc8fcf6c71d7a17dfe61b62ee851c2b9753594fef21b7d62446e",
-      "mode": "0644"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/cli-role-resolver.js": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-      "sha256": "sha256:5bca594d35d92312e56b8ebe179f7d7f6bda5ac384372dd650e7202431d7e7fb",
-      "mode": "0644"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
-      "mode": "0755"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/run-cli-transport.py": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
-      "mode": "0755"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/launch-cli-dispatch.js": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-      "sha256": "sha256:3471c66782fdcffa564da411623232b62cfb3b2fdff4d395b80db07f638b9db6",
-      "mode": "0755"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/physical-file.js": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-      "sha256": "sha256:fc3698a983dca798bbe66899606d4f98f308cd5c7bfedc85254966cfc4b24b77",
-      "mode": "0644"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-      "sha256": "sha256:cdd78e8637b09e7816e4b32e25223a63f8597d04db538085861015eab929504c",
-      "mode": "0644"
-    },
-    "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh": {
-      "skill_id": "flow-drive",
-      "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
-      "sha256": "sha256:c53f3c806c3545822f0c6c5a45cd653dab86f482f92faa8c517e48af2293b140",
-      "mode": "0755"
     },
     "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md": {
       "skill_id": "flow-drive",
@@ -334,7 +46,7 @@
     "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-drive",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:9d70971569a0ef052adaf241589cd975aaf367dcb513a13069539e6f2e583736",
+      "sha256": "sha256:217bf7d513f22e413d6ccc2adaefdcc851ff2eabf5c7784aa8bcc3dba6e97921",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md": {
@@ -352,13 +64,13 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6",
+      "sha256": "sha256:775b9717f36e518a80ad572592724141937b64baf52ca62d90989f6d74249401",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-drive",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:f5b6cedfa72f393ace35460cbb39d72160f4f484b4a68192f0857f794a792ac7",
+      "sha256": "sha256:3fbe935b973caad6a58159d76901f9910dc78be903e06e5dca8aa11092f03092",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/tool-routing.md": {
@@ -370,7 +82,7 @@
     "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js": {
       "skill_id": "flow-drive",
       "source": "scripts/fast-worker-selector.js",
-      "sha256": "sha256:c67e86cb8352afb08864aacae10a0403166581f01d4adf2709b888ace2d6e976",
+      "sha256": "sha256:1568fd179cffe72cc04c9a3bfe21ddcac4309947daaf2b509513046993425373",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js": {
@@ -382,7 +94,7 @@
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef",
+      "sha256": "sha256:3fb5d5841cf32fefbdaec7777cd3af99b1267c7f48fb87e8cbbfa82796e7d889",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js": {
@@ -436,13 +148,13 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:6fc9a29eb62aafd3ae8d62f5d02a25d099324a359d812d93d3cab43d0a961389",
+      "sha256": "sha256:d3f12d1cd13ec20fa93c3bcb00118e19190210f95f4cf196884de105a416dbdb",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/invocation-classification.md",
-      "sha256": "sha256:6b3e68ab289e6d1fa84afe1df4c19eb42092c14c7507bd909b2ff0062c555bc5",
+      "sha256": "sha256:c5aea4a94f48b3888be31c928a9384bf93ca178e99006958f68da1d0932470bc",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md": {
@@ -478,7 +190,7 @@
     "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-guide",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:9d70971569a0ef052adaf241589cd975aaf367dcb513a13069539e6f2e583736",
+      "sha256": "sha256:217bf7d513f22e413d6ccc2adaefdcc851ff2eabf5c7784aa8bcc3dba6e97921",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md": {
@@ -496,13 +208,13 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6",
+      "sha256": "sha256:775b9717f36e518a80ad572592724141937b64baf52ca62d90989f6d74249401",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:f5b6cedfa72f393ace35460cbb39d72160f4f484b4a68192f0857f794a792ac7",
+      "sha256": "sha256:3fbe935b973caad6a58159d76901f9910dc78be903e06e5dca8aa11092f03092",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
@@ -514,7 +226,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js": {
       "skill_id": "flow-guide",
       "source": "scripts/fast-worker-selector.js",
-      "sha256": "sha256:c67e86cb8352afb08864aacae10a0403166581f01d4adf2709b888ace2d6e976",
+      "sha256": "sha256:1568fd179cffe72cc04c9a3bfe21ddcac4309947daaf2b509513046993425373",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js": {
@@ -526,7 +238,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:608bc0be56e8965f0d276dc61bea0b6e634d7be95fcc8cdde196ed61d5d4f5ef",
+      "sha256": "sha256:3fb5d5841cf32fefbdaec7777cd3af99b1267c7f48fb87e8cbbfa82796e7d889",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js": {
@@ -568,13 +280,13 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:6fc9a29eb62aafd3ae8d62f5d02a25d099324a359d812d93d3cab43d0a961389",
+      "sha256": "sha256:d3f12d1cd13ec20fa93c3bcb00118e19190210f95f4cf196884de105a416dbdb",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/invocation-classification.md",
-      "sha256": "sha256:6b3e68ab289e6d1fa84afe1df4c19eb42092c14c7507bd909b2ff0062c555bc5",
+      "sha256": "sha256:c5aea4a94f48b3888be31c928a9384bf93ca178e99006958f68da1d0932470bc",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md": {
@@ -607,22 +319,34 @@
       "sha256": "sha256:8a3ba85f1381877a61d3b65f5382977916ed884547fbc5c4d5465c97fd60062d",
       "mode": "0644"
     },
+    "skills/flow-guide/scripts/_lib/frontmatter.js": {
+      "skill_id": "flow-guide",
+      "source": "scripts/ci/_lib/frontmatter.js",
+      "sha256": "sha256:7d1891103482a4b9160075b9302ca7ef5811b86b049b5cc330a0b7a153845b21",
+      "mode": "0644"
+    },
     "skills/flow-guide/scripts/_lib/runner-utils.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/runner-utils.js",
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     },
+    "skills/flow-guide/scripts/_lib/skill-next-map.js": {
+      "skill_id": "flow-guide",
+      "source": "scripts/lib/skill-next-map.js",
+      "sha256": "sha256:839f31ada88dcf34edd9bcee1b928a79f2accb23259fe1e107a81f71cbba2c28",
+      "mode": "0644"
+    },
     "skills/flow-guide/scripts/_lib/skill-usage.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/skill-usage.js",
-      "sha256": "sha256:82df4f96dea1de41b1012bd45d3f9c51b8ba4421a41d1252bf04694f4ad4a3fa",
+      "sha256": "sha256:1dda2cac0c6de2645e3c1d4ce039145670a24ca5d3785b8c2a2a7451aa4586b8",
       "mode": "0644"
     },
     "skills/harness-setup/data/module-catalog.json": {
       "skill_id": "harness-setup",
       "source": "manifests/module-catalog.json",
-      "sha256": "sha256:00327ef2b5dc4280c8a1a7942200dd1160eba3d592ce3d95a4fcbd344787675b",
+      "sha256": "sha256:cda7d094760ea54005c7cc2e350c5c8f7ab742790e455e02a87824959f64e1d5",
       "mode": "0644"
     },
     "skills/harness-setup/scripts/lib/install-assets-writer.sh": {
@@ -643,35 +367,11 @@
       "sha256": "sha256:aa4b88f7f19c6637fb5b05c20e274e96dee4891459d8f418cbd1b1edf82a9ea5",
       "mode": "0644"
     },
-    "skills/js-static-check-strategy/references/frontend-review-patterns.md": {
-      "skill_id": "js-static-check-strategy",
-      "source": "modules/js/references/frontend-review-patterns.md",
-      "sha256": "sha256:e3d5302440ddda23af6b194cb64db0598145f4255b9f1e0f2abaa61195371765",
-      "mode": "0644"
-    },
-    "skills/js-static-check-strategy/references/static-checks.md": {
-      "skill_id": "js-static-check-strategy",
-      "source": "modules/js/references/static-checks.md",
-      "sha256": "sha256:fc99d723a9ad714cfb0710d7c6837d8a6c91f1f9dfb72524e5e8f1f466b4be6c",
-      "mode": "0644"
-    },
-    "skills/opsx-apply-resume/scripts/extract-compact.sh": {
-      "skill_id": "opsx-apply-resume",
-      "source": "skills/dhpk-opsx-load-context/scripts/extract-compact.sh",
-      "sha256": "sha256:2c59d38ad387b67ae5d3ceb360c76d4288b65c49ca4be649d561bcbfb3fdb8af",
-      "mode": "0755"
-    },
     "skills/opsx-apply-resume/scripts/lib/portable-sed.sh": {
       "skill_id": "opsx-apply-resume",
       "source": "scripts/hooks/_lib/portable-sed.sh",
       "sha256": "sha256:97127f494c0a178f3012d7e138d81357f2721d41fa6ce43d616256783fde68f1",
       "mode": "0644"
-    },
-    "skills/opsx-apply-resume/scripts/post-obs.sh": {
-      "skill_id": "opsx-apply-resume",
-      "source": "skills/dhpk-opsx-post-observation/scripts/post-obs.sh",
-      "sha256": "sha256:d26ec7c9cd9073470b8c8af1c21f972d437a29bc57e0417e7ba9f1b153b7a0c9",
-      "mode": "0755"
     },
     "skills/precommit/scripts/lib/runner-utils.js": {
       "skill_id": "precommit",
@@ -683,6 +383,162 @@
       "skill_id": "repo-verify",
       "source": "scripts/lib/runner-utils.js",
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "mode": "0644"
+    },
+    "skills/swift/references/actor-persistence.md": {
+      "skill_id": "swift",
+      "source": "modules/ios-platform/references/actor-persistence.md",
+      "sha256": "sha256:8b4efa741a95cfdd1f3fad3bbd1b5aa27b6afda5ae10897af767086456901711",
+      "mode": "0644"
+    },
+    "skills/swift/references/approachable-concurrency.md": {
+      "skill_id": "swift",
+      "source": "modules/swift/references/approachable-concurrency.md",
+      "sha256": "sha256:59b785ce22680b177110805cc624afe0e2ef4189dff44dad7152a7c89c209a13",
+      "mode": "0644"
+    },
+    "skills/swift/references/concurrency.md": {
+      "skill_id": "swift",
+      "source": "modules/swift/references/concurrency.md",
+      "sha256": "sha256:b0ee634a9ae46d30d2bb515bfa7701ffd16edb12ea028e9cbe3d59376e9f219d",
+      "mode": "0644"
+    },
+    "skills/swift/references/coredata-encryption.md": {
+      "skill_id": "swift",
+      "source": "modules/ios-platform/references/coredata-encryption.md",
+      "sha256": "sha256:abeaebd0021e32e8cfe3783f1536f9f08ba48f316f11010e0ae9e01024b17851",
+      "mode": "0644"
+    },
+    "skills/swift/references/cryptokit-keychain.md": {
+      "skill_id": "swift",
+      "source": "modules/ios-platform/references/cryptokit-keychain.md",
+      "sha256": "sha256:790fd8575ad85fcaca3efe10e93ecfc5c93af8f523c266aa2fd27fcaa56ebfea",
+      "mode": "0644"
+    },
+    "skills/swift/references/error-handling.md": {
+      "skill_id": "swift",
+      "source": "modules/swift/references/error-handling.md",
+      "sha256": "sha256:ee8ce8715391ff15c7d65387c01c62335aea4be71647d8f0bb8f73da350a72b9",
+      "mode": "0644"
+    },
+    "skills/swift/references/healthkit-read.md": {
+      "skill_id": "swift",
+      "source": "modules/ios-platform/references/healthkit-read.md",
+      "sha256": "sha256:5c63e27a80c9df8c15a1d2f9e992e8465f97309d77f6e9563b61516e6f456cc4",
+      "mode": "0644"
+    },
+    "skills/swift/references/interop.md": {
+      "skill_id": "swift",
+      "source": "modules/swiftui/references/interop.md",
+      "sha256": "sha256:5ad555cb830a53ec55b8911ef9fa5261bc62a75ce63404c628a390b24474f283",
+      "mode": "0644"
+    },
+    "skills/swift/references/local-authentication.md": {
+      "skill_id": "swift",
+      "source": "modules/ios-platform/references/local-authentication.md",
+      "sha256": "sha256:0ec2e3f447b3a643b7807b32888f376a1f81b585c27f9811ca93a032c582c47c",
+      "mode": "0644"
+    },
+    "skills/swift/references/mvvm-coordinator.md": {
+      "skill_id": "swift",
+      "source": "modules/swiftui/references/mvvm-coordinator.md",
+      "sha256": "sha256:d53313c46dd10bd90f9c23b9c40ce3e2d2174519d95ea68de92f3b0e8117953f",
+      "mode": "0644"
+    },
+    "skills/swift/references/navigation.md": {
+      "skill_id": "swift",
+      "source": "modules/swiftui/references/navigation.md",
+      "sha256": "sha256:d9dcad66217e3c71522c983d74e86f2e54efbfc5690cdd71b637b871f3fd86f6",
+      "mode": "0644"
+    },
+    "skills/swift/references/notifications.md": {
+      "skill_id": "swift",
+      "source": "modules/ios-platform/references/notifications.md",
+      "sha256": "sha256:5c8b16a1bef8fb97e67f1ca161213531b651d3586773f39b6d5834d8d03c40e8",
+      "mode": "0644"
+    },
+    "skills/swift/references/observation-state.md": {
+      "skill_id": "swift",
+      "source": "modules/swiftui/references/observation-state.md",
+      "sha256": "sha256:2e47703afab278ee11ad934fd36e6f9a7ce1c17af377efce4fc90fb58b25bb31",
+      "mode": "0644"
+    },
+    "skills/swift/references/privacy-compliance.md": {
+      "skill_id": "swift",
+      "source": "modules/ios-platform/references/privacy-compliance.md",
+      "sha256": "sha256:adbd510810a77af059390703bad9580c4d9c73576a231be3e77b03160a499156",
+      "mode": "0644"
+    },
+    "skills/swift/references/protocol-di-host-testing.md": {
+      "skill_id": "swift",
+      "source": "modules/swift-testing/references/protocol-di-host-testing.md",
+      "sha256": "sha256:eb3003c291bb292b19b169dc1e5833cc4d1412c22c4311d32f3746a726933ee4",
+      "mode": "0644"
+    },
+    "skills/swift/references/scheme-signing.md": {
+      "skill_id": "swift",
+      "source": "modules/xcode-tooling/references/scheme-signing.md",
+      "sha256": "sha256:f12c20feb61b1fcacb8ec8b6b4501746fd8a74b4e304572ff7cccd34d6dc632a",
+      "mode": "0644"
+    },
+    "skills/swift/references/snapshot-testing.md": {
+      "skill_id": "swift",
+      "source": "modules/swift-testing/references/snapshot-testing.md",
+      "sha256": "sha256:7eb48859c52999dcc25af3d40efb3908810333141c8094a084deeb8ab31aeda5",
+      "mode": "0644"
+    },
+    "skills/swift/references/swift-testing-api.md": {
+      "skill_id": "swift",
+      "source": "modules/swift-testing/references/swift-testing-api.md",
+      "sha256": "sha256:427e7084ec964b1a43e8a711ddda3e8f82ce11dc7c95a54dd78fd6ed926c0425",
+      "mode": "0644"
+    },
+    "skills/swift/references/swift5-compat-notes.md": {
+      "skill_id": "swift",
+      "source": "modules/swift/references/swift5-compat-notes.md",
+      "sha256": "sha256:745ff8010cb030d3e369feed2c3558b90392daf759c3a28761561490972115f9",
+      "mode": "0644"
+    },
+    "skills/swift/references/swiftlint-config.md": {
+      "skill_id": "swift",
+      "source": "modules/xcode-tooling/references/swiftlint-config.md",
+      "sha256": "sha256:40cc51ec807e1cd9eb72814d463294ab7225a040f2dd3fe1c72ec1105d042c19",
+      "mode": "0644"
+    },
+    "skills/swift/references/test-taxonomy.md": {
+      "skill_id": "swift",
+      "source": "modules/swift-testing/references/test-taxonomy.md",
+      "sha256": "sha256:5becdbd85ddb3f250b70d81b1d3a6f0472de011ab214cbdbdc5afe484480634a",
+      "mode": "0644"
+    },
+    "skills/swift/references/value-vs-reference.md": {
+      "skill_id": "swift",
+      "source": "modules/swift/references/value-vs-reference.md",
+      "sha256": "sha256:92c2e4e11e36a79640bda1734b235ecd80b5dd3a71d73e5917b48a26ae6c26a9",
+      "mode": "0644"
+    },
+    "skills/swift/references/vision-ocr.md": {
+      "skill_id": "swift",
+      "source": "modules/ios-platform/references/vision-ocr.md",
+      "sha256": "sha256:cc1afcd34901f8fa4546b9fa44cda27d695711473bd72d436ec536a3b73ae1f9",
+      "mode": "0644"
+    },
+    "skills/swift/references/xcodebuild-spm.md": {
+      "skill_id": "swift",
+      "source": "modules/xcode-tooling/references/xcodebuild-spm.md",
+      "sha256": "sha256:4d4fe6561fbf37a16566d3262db55f746865100429b59fab3b9a327e96591608",
+      "mode": "0644"
+    },
+    "skills/swift/references/xctest-bridging.md": {
+      "skill_id": "swift",
+      "source": "modules/swift-testing/references/xctest-bridging.md",
+      "sha256": "sha256:6215bedb6438e1ef84592ef7cdbe760b3d49e0de7fc33d28003c4efeee33d861",
+      "mode": "0644"
+    },
+    "skills/swift/references/xcuitest.md": {
+      "skill_id": "swift",
+      "source": "modules/swift-testing/references/xcuitest.md",
+      "sha256": "sha256:01057b573f64653b8c34c12d31823199498d3b197d73f31c8638b5bb397e4667",
       "mode": "0644"
     }
   }

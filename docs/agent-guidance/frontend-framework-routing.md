@@ -1,27 +1,29 @@
 # Frontend Framework Routing
 
-This file is the shared family-routing SSOT for the versioned React and
-Next.js skills. Read it before choosing a versioned note; the selected skill
-then owns API details, migration traps, and verification gates for that major.
+Use the `react` family for React APIs and the separate `nextjs` family for
+Next.js framework behavior. Each family owns its version selection and local
+references; a cross-stack task may load both families.
 
 ## Selection
 
-1. Read `package.json` (or the lockfile) for the `react`, `react-dom`, and
-   `next` constraints.
-2. Load exactly one React note when the task is React-language work and exactly
-   one Next.js note when the task is Next framework work. Load both for a
-   cross-stack change.
-3. Keep versioned IDs separate. A migration task loads the source and target
-   notes only when their compatibility details are needed.
+1. Identify the target package and read its `package.json` (or lockfile) for
+   `react`, `react-dom`, and `next` constraints. An explicit task target takes
+   precedence over a repository-wide guess.
+2. Resolve each family independently. For a monorepo, inspect the package that
+   owns the changed files; select each target separately for a multi-target task.
+3. Pause before versioned guidance or edits when the package, version range,
+   manifest evidence, or React/React DOM versions conflict or remain ambiguous.
+   Report the evidence needed to continue.
+4. For migrations, distinguish the source version from the requested target.
+   Load source and target references only when their compatibility details are
+   needed.
 
 ## Compatibility map
 
-| Next.js family | React family | Routing note |
+| Next.js branch | React branch | Routing note |
 | --- | --- | --- |
-| 15.5 | 18 or 19 | Pair `dhpk-nextjs-15-5-notes` with the selected React note. |
-| 16 | 18.2+ or 19 | Pair `dhpk-nextjs-16-notes` with the selected React note. |
-| standalone | 18 or 19 | Use the matching React note without a Next.js note. |
+| 15.5 | 18 or 19 | Use `nextjs` for Next.js and `react` for the selected React version. |
+| 16 | 18.2+ or 19 | Resolve the Next.js and React versions independently. |
+| standalone | 18 or 19 | Use `react` without loading `nextjs`. |
 
-Do not copy this matrix into a versioned skill. If package constraints are
-ambiguous, report the missing evidence and stop before applying versioned
-guidance.
+The selected family owns API details, migration traps, and verification gates.

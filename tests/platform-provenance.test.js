@@ -349,6 +349,19 @@ test('rollback guard refuses to mutate a different surface owner', () => {
         entry.assertFormat(value);
       }
     });
+
+    test('Cursor may omit a local skills field only with a complete shared Agent owner', () => {
+      const cursor = PLATFORM_CONFORMANCE.find((entry) => entry.platform === 'cursor');
+      const value = manifest(cursor.manifest);
+      const temporary = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-cursor-conformance-'));
+      try {
+        const missingOwner = createHostProjectionConformance({ root: temporary, assert }).find((entry) => entry.platform === 'cursor');
+        assert.throws(() => missingOwner.assertFormat(value), /provenance|ENOENT|shared/i);
+        assert.throws(() => cursor.assertFormat({ ...value, skills: './missing-skills/' }), /missing|skills/i);
+      } finally {
+        fs.rmSync(temporary, { recursive: true, force: true });
+      }
+    });
   }
 
 run('platform-provenance');

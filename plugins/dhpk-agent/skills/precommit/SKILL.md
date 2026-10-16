@@ -2,7 +2,15 @@
 name: precommit
 description: "Run the deterministic pre-commit pipeline in fast or full mode through the packaged runner. Use when handing off repository changes. Not for: ad hoc replacement checks, dependency audits, or read-only verification. Output: runner-owned changed-file reporting and final verdict."
 metadata:
+  dhpk-capability-id: "dhpk.skill.precommit"
   dhpk-invocation-class: "implicit-eligible"
+  dhpk-name-style: "portable-skill"
+  dhpk-next:
+    PASS: "doc-maintain:update"
+    FAIL: "none"
+    BLOCKED: "none"
+    NOT_RUN: "none"
+    UNAVAILABLE: "none"
 ---
 
 # Precommit
@@ -30,7 +38,7 @@ reporting, and the final verdict. Read
 
 - A read-only verification loop is requested (use `$repo-verify`).
 - Dependency security evidence or a fix operation is requested (use
-  `$dep-audit`).
+  `$change-verdict deps`).
 - A one-off command is requested outside the deterministic precommit pipeline.
 
 ## Output

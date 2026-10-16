@@ -1,0 +1,97 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/workflow.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Create PR",
+    "summary": "Create a ticket-aware pull request with a safe dry-run boundary",
+    "syntax": "$create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]",
+    "input_kind": "none",
+    "invocation_class": "explicit-only",
+    "effect_authority": "external-write",
+    "inputs": [],
+    "actions": [
+      {
+        "id": "create",
+        "summary": "Create or preview one pull request",
+        "syntax": "$create-pr [--execute]",
+        "input_kind": "none",
+        "effect_authority": "external-write"
+      }
+    ],
+    "options": [
+      {
+        "id": "head",
+        "syntax": "--head=<branch>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Use this source branch"
+      },
+      {
+        "id": "base",
+        "syntax": "--base=<branch>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Use this target branch"
+      },
+      {
+        "id": "title",
+        "syntax": "--title=<text>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Override the generated title"
+      },
+      {
+        "id": "execute",
+        "syntax": "--execute",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Perform the explicit remote create",
+        "default": false
+      },
+      {
+        "id": "dry-run",
+        "syntax": "--dry-run",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Preview without remote mutation",
+        "default": true
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$create-pr --dry-run",
+        "summary": "Use create pr with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "create-pr",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:create-pr",
+      "argument_contract": "[--head <branch>] [--base <branch>] [--title <text>] [--execute] [--dry-run]",
+      "authority": "external-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $create-pr Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/create-pr.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/create-pr.md"
+      ],
+      "allowed_tools": "Bash(git:*), Bash(gh:*), Read, Grep, Glob, Skill"
+    }
+  ]
+}

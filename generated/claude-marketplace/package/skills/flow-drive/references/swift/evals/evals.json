@@ -1,0 +1,69 @@
+{
+  "skill_name": "swift",
+  "evals": [
+    {
+      "id": 1,
+      "name": "swift-test-build",
+      "prompt": "Use $swift to add deterministic async unit tests for this Swift 6 package and tell me how to build and test it. Package.swift specifies swift-tools-version: 6.0 and the only target is ReceiptCore. Existing behavior must stay unchanged.",
+      "expected_output": "Choose Swift Testing for unit/integration and await actor code; inject fakes, avoid device stores; distinguish XCTest UI/performance. Provide swift build and swift test for the pure package, not an app simulator command. Preserve test-first evidence and three-layer plan.",
+      "expected_read_trace": {
+        "required": [
+          "references/testing.md",
+          "references/build.md"
+        ],
+        "forbidden": [
+          "references/icon.md",
+          "references/platform.md"
+        ]
+      },
+      "expected_action_trace": "Read package evidence and selected testing/build resources. Scope authorized test edits only; do not commit/push or access real PHI/network."
+    },
+    {
+      "id": 2,
+      "name": "swift-platform-ui",
+      "prompt": "Use $swift to design the encrypted local receipt-image store and its SwiftUI screen. The sole target is iOS 17, SWIFT_VERSION=5.10, strict concurrency complete. This is design only; HealthKit data, if read, must remain local.",
+      "expected_output": "Keep view rendering thin and state ownership explicit; MainActor view model and protocol DI; encrypt images with AES.GCM and protect files, keep keys device-only and non-synchronizable, exclude PHI backup/iCloud. Preserve manual OCR fallback and read-only HealthKit. No Swift6.2-only defaults.",
+      "expected_read_trace": {
+        "required": [
+          "references/platform.md",
+          "references/ui.md"
+        ],
+        "forbidden": [
+          "references/icon.md",
+          "references/approachable-concurrency.md"
+        ]
+      },
+      "expected_action_trace": "Inspect scoped evidence and selected resources; no implementation edits, database writes or device operations for a design-only request."
+    },
+    {
+      "id": 3,
+      "name": "swift-icon",
+      "prompt": "Use $swift icon to generate a receipt glyph named receipt for ./Assets.xcassets/icons at 24px using Iconify. Keep the existing outline style. I authorize writing that imageset only. Search and preview first.",
+      "expected_output": "Search and preview the requested style, call local iconify_gen.sh with explicit output, asset name and size; verify receipt.png, receipt@2x.png, receipt@3x.png and Contents.json. Inspect the 2x image; report unavailable external tools honestly and no fabricated visual success.",
+      "expected_read_trace": {
+        "required": [
+          "references/icon.md"
+        ],
+        "forbidden": [
+          "references/testing.md",
+          "references/platform.md"
+        ]
+      },
+      "expected_action_trace": "Only network search/preview and requested imageset writes. No AppIcon generation, arbitrary source edits, commit or publish."
+    },
+    {
+      "id": 4,
+      "name": "swift-ambiguity",
+      "prompt": "Use $swift to migrate this monorepo to the new concurrency defaults. It has AppA (Swift5.10, iOS17) and AppB (Swift6.2, iOS26). I have not selected a target or a destination version.",
+      "expected_output": "Ask which package/target and explicit migration destination; wait for an answer before versioned resources or changes. swift --version cannot settle this.",
+      "expected_read_trace": {
+        "required": [],
+        "forbidden": [
+          "references/approachable-concurrency.md",
+          "references/concurrency.md"
+        ]
+      },
+      "expected_action_trace": "Clarification only after target configuration inspection; no version-specific reads or dependent build/code edits before the answer."
+    }
+  ]
+}

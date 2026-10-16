@@ -8,20 +8,41 @@ Define an alias-free, inventory-owned retirement contract that preserves success
 
 ### Requirement: Retired skills have stable migration identities
 
-Every retired skill SHALL have one non-discovery-visible inventory record
-containing its former stable ID, former public name, canonical path, prior
-surfaces, retirement release, reason, rollback pin, and one or more replacement
-rows. Each replacement row SHALL declare `skill`, `external-skill`, `agent`,
-`model-default`, or `operator-action` plus an identity or mode when applicable.
-An `external-skill` replacement SHALL identify an externally owned skill whose
-contract is not copied into DHPK. An `operator-action` replacement SHALL be
-guidance only and SHALL NOT be invoked by a resolver, dispatcher, installer, or
-projection. Retirement records MUST NOT be materialized as skill packages or
-discovery aliases.
+Every retired skill SHALL have one non-discovery-visible inventory record containing its former stable ID, former public name, canonical path, prior surfaces, retirement release, reason, rollback pin, and one or more replacement rows. Each replacement row SHALL declare `skill`, `external-skill`, `agent`, `model-default`, or `operator-action` plus an identity or mode when applicable. An `external-skill` replacement SHALL identify an externally owned skill whose contract is not copied into DHPK. An `operator-action` replacement SHALL be guidance only and SHALL NOT be invoked by a resolver, dispatcher, installer, or projection. Retirement records MUST NOT be materialized as skill packages or discovery aliases.
+
+SCF-REQ-008: A higher-priority scoped exception SHALL apply only to the following personal direct-replacement set for `consolidate-self-contained-skill-families`: these identities SHALL be tracked by the complete mapping below rather than classified as release-ledger retirements. They SHALL be removed from active inventory/discovery/usage/resource projections without aliases, shims, compatibility windows, release/rollback ledger records, or public retired announcements. The general release-ledger, diagnostic, and release-rollback requirements SHALL continue to apply to all other retirements and existing historical ledgers. The exception SHALL preserve verifiable identity mapping, successor behavior, family-local required resource closure, consistent inventory/profile/resource/usage projections, existing ownership protections, and unrelated provider/profile selections. A shared source with other consumers SHALL remain intact.
+
+| Replaced stable ID | Successor stable ID |
+| --- | --- |
+| `opsx-load-context` | `opsx-apply-resume` |
+| `opsx-post-obs` | `opsx-apply-resume` |
+| `swift-language` | `swift` |
+| `swiftui-architecture` | `swift` |
+| `swift-test-strategy` | `swift` |
+| `ios-platform` | `swift` |
+| `xcode-build-tooling` | `swift` |
+| `ios-icon-gen` | `swift` |
+| `react-18-notes` | `react` |
+| `react-19-notes` | `react` |
+| `nextjs-15-5-notes` | `nextjs` |
+| `nextjs-16-notes` | `nextjs` |
+| `python-pro` | `python` |
+| `python-static-checks` | `python` |
+| `pytest-async` | `python` |
+| `fastapi-pro` | `python` |
+| `js-lint-config` | `js-static-checks` |
+| `js-static-check-strategy` | `js-static-checks` |
+| `php-pro` | `php` |
+| `php-modern-pro` | `php` |
+| `php-8x-features` | `php` |
+| `php56-yii-dev` | `yii1` |
+| `yii1-security-audit` | `yii1` |
+| `review-pending` | `change-verdict` |
+| `dep-audit` | `change-verdict` |
 
 #### Scenario: Skill successor is another skill or mode
 
-- **WHEN** a caller resolves a retired Bug, Feature, post-development test, or brainstorm identifier
+- **WHEN** a caller resolves a retired Bug, Feature, post-development test, or brainstorm identifier outside the personal direct-replacement set
 - **THEN** the diagnostic names the former identity and its inventory-owned successor skill, mode, or agent route without publishing the former package
 
 #### Scenario: Skill retires to model-default behavior
@@ -32,9 +53,22 @@ discovery aliases.
 #### Scenario: Current wave uses an external or operator replacement
 
 - **WHEN** a caller resolves `tech-spec`, `create-request`, or `op-session`
-- **THEN** the diagnostic reports `external-skill` `openspec-propose` guidance
-  for the first two and `operator-action` `onepassword-cli` with mode `signin`
-  for the last, without invoking either replacement
+- **THEN** the diagnostic reports `external-skill` `openspec-propose` guidance for the first two and `operator-action` `onepassword-cli` with mode `signin` for the last, without invoking either replacement
+
+#### Scenario: Personal replacement is delivered
+
+- **WHEN** a mapped personal replacement passes its successor behavior and complete resource/selection checks
+- **THEN** its old entry is absent from active discovery/packages without a compatibility alias, public retirement announcement, or required release/rollback ledger entry
+
+#### Scenario: Unrelated historical retirement is reconciled
+
+- **WHEN** reconciliation processes an identity outside this closed personal set
+- **THEN** existing release-ledger, diagnostic, receipt-ownership, and rollback requirements remain applicable
+
+#### Scenario: Personal replacement loses resource or profile closure
+
+- **WHEN** a mapped successor lacks a required asset, retains an old active reference, or changes an unrelated selected identity
+- **THEN** consolidation validation fails despite the personal lifecycle exception
 
 ### Requirement: Retired invocation fails closed with guidance
 
@@ -228,3 +262,97 @@ old path `skills/dhpk-phpunit`, new public name `phpunit`, new path
 - **WHEN** a generator, installer, receipt, or discovery manifest emits
   `dhpk-laravel` or `dhpk-phpunit` as an active alias after cutover
 - **THEN** validation fails and reports the rename row and emitted alias
+
+### Requirement: Wave-2 library, documentation, and forwarder identities retire without aliases
+
+REQ-4, REQ-5, REQ-7, REQ-8: The retirement ledger SHALL record exactly the
+following approved retirements with former public name, canonical path, prior
+surfaces, then-current retirement release explicitly frozen in W0 before
+ledger or retirement work, reason, rollback pin `0.66.1`,
+and one replacement row. No predecessor skill directory, agent file, generated
+alias package, command alias, routing alias, or discovery entry SHALL remain
+after cutover. Dhpk-owned dispatch, helper, package, and installation
+interfaces that intercept a retired stable ID, public name, or role name SHALL
+reject it with a stable retirement diagnostic and successor guidance. Unknown
+identifiers SHALL remain distinguishable from retired identifiers. Canonical
+deletion SHALL occur only after each successor owns the migrated unique
+behavior, every live route and reference resolves to an active identity,
+repository reference validation passes, inventory generation preserves the
+retirement ledger, and generated surfaces contain neither the retired package
+nor a discovery alias. Rollback SHALL pin release `0.66.1` rather than restore
+an alias. This set SHALL NOT alter the historical 21-ID `0.54.0` ledger or
+the SCF 25-ID personal-replacement mapping.
+
+Skill replacements:
+
+| Retired stable ID | Successor kind | Successor identity and mode | Reason |
+|---|---|---|---|
+| `laravel-package-author` | `skill` | `library-author`, mode `author` | `library-doc-family-consolidation` |
+| `laravel-testbench-matrix` | `skill` | `library-author`, mode `testbench` | `library-doc-family-consolidation` |
+| `composer-package-hygiene` | `skill` | `library-author`, mode `composer` | `library-doc-family-consolidation` |
+| `polyfill-version-matrix-audit` | `skill` | `library-author`, mode `polyfill-audit` | `library-doc-family-consolidation` |
+| `library-dual-testsuite-map` | `skill` | `library-author`, mode `suite-map` | `library-doc-family-consolidation` |
+| `matrix-cell-onboard` | `skill` | `library-author`, mode `cell-onboard` | `library-doc-family-consolidation` |
+| `update-docs` | `skill` | `doc-maintain`, mode `update` | `library-doc-family-consolidation` |
+| `update-codemaps` | `skill` | `doc-maintain`, mode `codemap` | `library-doc-family-consolidation` |
+| `doc-refactor` | `skill` | `doc-maintain`, mode `refactor` | `library-doc-family-consolidation` |
+
+Agent replacements:
+
+| Retired identity | Successor kind | Successor identity | Reason |
+|---|---|---|---|
+| `agy-fast-worker` | `agent` | `agy-worker` | `elapsed-one-release-forwarder` |
+| `codex-fast-worker` | `agent` | `codex-worker` | `elapsed-one-release-forwarder` |
+| `codex-deep-reasoner` | `agent` | `codex-reasoner` | `elapsed-one-release-forwarder` |
+
+Live-route closure before deletion includes inventory, install profiles,
+marketplace selection, command-skill dispositions, skill-directory coverage,
+skill-resources and skill-resource-copies, profile-projection-sets, skills
+index, route-table, generated flow-guide usage catalog, generated provenance
+embeddings, and pointers in `polyfill-reviewer`, `version-matrix-impact-reviewer`,
+and `doc-updater`. Regeneration of `generated/` SHALL follow the plugin
+development clean-checkout preflight. Unrelated retirement ledgers, external
+packages, receipt-owned conflicts, and keep-separate identities SHALL remain
+intact. Static catalog reduction SHALL NOT be reported as observed runtime
+savings.
+
+#### Scenario: Retired skill ID reaches a dhpk-owned interface
+
+- **WHEN** a dhpk-owned dispatcher, helper, package, or installation interface
+  receives `dhpk-laravel-package-author` or `update-docs` after cutover
+- **THEN** it exits non-zero and reports the retirement release, replacement
+  kind `skill`, and successor family identity plus mode, without publishing
+  the former package
+
+#### Scenario: Retired forwarder name reaches a dhpk-owned interface
+
+- **WHEN** a dhpk-owned role resolver or dispatcher receives `agy-fast-worker`,
+  `codex-fast-worker`, or `codex-deep-reasoner` after cutover
+- **THEN** it exits non-zero with a retirement diagnostic naming successor
+  `agy-worker`, `codex-worker`, or `codex-reasoner` and does not dispatch
+
+#### Scenario: A successor still delegates to a retired identity
+
+- **WHEN** an active skill, command, agent, rule, route table, test, or
+  generated projection still delegates to a retired wave-2 identity
+- **THEN** retirement validation fails and canonical deletion is not accepted
+
+#### Scenario: Compatibility alias is generated
+
+- **WHEN** a projection, installer, command index, or router attempts to emit
+  an alias for one of the retired wave-2 identities
+- **THEN** validation fails before publication and reports the predecessor and
+  generated path
+
+#### Scenario: Operator requests rollback
+
+- **WHEN** an operator must restore a retired wave-2 workflow after installing
+  the retiring release
+- **THEN** guidance pins release `0.66.1` and applies its receipt-bound
+  installation path instead of reconstructing an alias
+
+#### Scenario: SCF mapping is altered by this retirement
+
+- **WHEN** reconciliation adds, omits, or remaps a predecessor from the SCF
+  25-ID set
+- **THEN** validation fails and this wave's retirement is not accepted

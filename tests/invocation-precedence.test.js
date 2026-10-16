@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { extractInvocationClass } = require('../scripts/ci/_lib/frontmatter');
 
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -15,8 +16,8 @@ function resolveInvocationClass(name) {
   const cmdFile = path.join(ROOT, 'commands', `${name}.md`);
   const file = fs.existsSync(skillFile) ? skillFile : fs.existsSync(cmdFile) ? cmdFile : null;
   if (!file) return null;
-  const m = fs.readFileSync(file, 'utf8').match(/^metadata:\s*\n\s+dhpk-invocation-class:\s*(\S+)/m);
-  return m ? m[1] : null;
+  const metadata = extractInvocationClass(fs.readFileSync(file, 'utf8'));
+  return metadata.present && !metadata.unknownValue ? metadata.value : null;
 }
 
 function resolveAgentRoute(kind, id) {
@@ -51,11 +52,13 @@ test('every skill-local route-table.json target resolves to an invocation class 
 test('real route-table explicit-only targets retain their canonical classes', () => {
   const routeTable = JSON.parse(read('skills/flow-guide/references/route-table.json'));
   const explicitTargets = new Set(['create-pr', 'release-creator', 'smart-commit']);
-  const implicitTargets = new Set(['review-pending']);
+  const implicitTargets = new Set(['change-verdict']);
   for (const target of explicitTargets) {
     assert.ok(routeTable.rules.some((rule) => rule.target && rule.target.id === target), `route table must contain ${target}`);
     assert.strictEqual(resolveInvocationClass(target), 'explicit-only', `${target} must remain explicit-only`);
   }
+  const pendingReview = routeTable.rules.find((rule) => rule.label === 'manual code review');
+  assert.deepStrictEqual(pendingReview.target, { kind: 'skill', id: 'change-verdict', skillAction: 'pending' });
   for (const target of implicitTargets) {
     assert.ok(routeTable.rules.some((rule) => rule.target && rule.target.id === target), `route table must contain ${target}`);
     assert.strictEqual(resolveInvocationClass(target), 'implicit-eligible', `${target} must remain implicit-eligible`);

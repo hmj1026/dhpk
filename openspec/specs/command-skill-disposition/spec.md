@@ -21,6 +21,14 @@ Skill owner; several command entry points MAY share that owner. A forwarding
 record names the selected action and fixed argument tokens. Legacy v2
 inventories remain readable with their historical root-only scope.
 
+REQ-4: For Skill-owned thin front doors under `commands/`, the disposition row
+(`skill_owner`, `disposition`, `resource`, `argument_contract`, public name,
+and authority) SHALL be generated from the owning Skill's declared command
+metadata. `--write` / `--check` SHALL fail when the aggregate diverges from
+those declarations. Host-only, retired, and module-hosted commands that a
+Skill does not declare MAY remain manifest-authored. Conflicting declarations
+across Skills SHALL fail before projection.
+
 #### Scenario: Command inventory is complete
 
 - **WHEN** the disposition compiler processes the canonical command inventory
@@ -31,6 +39,13 @@ inventories remain readable with their historical root-only scope.
 
 - **WHEN** a command points to more than one Skill owner or front door
 - **THEN** validation fails before projection and reports the conflicting owners
+
+#### Scenario: A Skill-owned disposition is edited only in the aggregate
+
+- **WHEN** `command-skill-dispositions.json` changes `skill_owner`,
+  `argument_contract`, or `resource` for a `commands/` thin front door without
+  a matching Skill-directory declaration change
+- **THEN** the disposition drift check fails and names the command id
 
 ### Requirement: Promotion to a Portable Skill is bounded by reuse and authority
 
@@ -60,6 +75,21 @@ Skill's public identity, arguments, authority, and terminal evidence. It SHALL
 not add workflow logic, silently broaden authority, or define a second Usage
 Grammar.
 
+REQ-4: Canonical `commands/*.md` thin front doors SHALL be generated from the
+owning Skill's declared command metadata. The generated file SHALL remain a
+forwarder: description, argument hint, invocation class, and body SHALL not
+introduce a second procedure. `--check` SHALL fail on hand-edited generated
+front-door bytes. `modules/*/commands/` files remain outside this generator
+unless a Skill declares them. `validate:commands` frontmatter checks remain
+necessary and SHALL NOT substitute for generation drift.
+
+Generated front doors SHALL preserve declared Host controls: explicit-only
+owners SHALL emit `disable-model-invocation: true`, and each front door's
+optional `allowed-tools` grant SHALL come from its own command declaration,
+without inheriting a broader owner grant. A generated fingerprint ledger SHALL
+identify managed front doors so declaration removal can retire only unchanged
+regular files; modified, unowned, Host-only, and module files SHALL be preserved.
+
 #### Scenario: Thin front door forwards valid arguments
 
 - **WHEN** a user invokes an approved thin front door with valid arguments
@@ -70,6 +100,13 @@ Grammar.
 
 - **WHEN** a front door attempts to grant more authority than its Skill owner
 - **THEN** validation fails and the front door is not published
+
+#### Scenario: A generated front door is hand-edited
+
+- **WHEN** a generated `commands/<id>.md` differs from the bytes produced from
+  the owning Skill's declared command metadata
+- **THEN** the command-generation drift check exits non-zero and names the
+  command path
 
 ### Requirement: Public skill renames preserve stable identity
 
@@ -119,3 +156,29 @@ observed execution, separately from structural and package checks.
 - **WHEN** a retained Claude command forwards to its migrated Skill owner
 - **THEN** the normalized arguments, authority and terminal evidence remain
   unchanged despite removal of the legacy script path
+
+### Requirement: Documentation commands remain thin front doors to doc-maintain modes
+
+REQ-6: The canonical commands `commands/update-docs.md`,
+`commands/update-codemaps.md`, and `commands/doc-refactor.md` SHALL remain
+thin front doors. Claude command names `/dhpk:update-docs`,
+`/dhpk:update-codemaps`, and `/dhpk:doc-refactor` SHALL stay stable. Each
+front door SHALL forward to skill owner `doc-maintain` with a fixed mode
+(`update`, `codemap`, `refactor`) while preserving the predecessor's
+arguments, documentation-only authority, and terminal evidence. A front door
+SHALL NOT add workflow logic, silently broaden authority, define a second
+Usage Grammar, or keep a retired skill directory as its owner.
+
+#### Scenario: Update-docs command forwards to the family mode
+
+- **WHEN** a user invokes `/dhpk:update-docs` with a docs path or workflow
+  keyword
+- **THEN** `doc-maintain` mode `update` receives the same normalized arguments
+  and the result reports the skill-owned PASS, NOT_RUN, BLOCKED, or Need Human
+  evidence
+
+#### Scenario: Front door retains a retired skill owner
+
+- **WHEN** a disposition still names `update-docs`, `update-codemaps`, or
+  `doc-refactor` as the skill owner after cutover
+- **THEN** validation fails and the front door is not published

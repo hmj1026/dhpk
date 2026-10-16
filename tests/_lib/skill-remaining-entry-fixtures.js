@@ -2,7 +2,7 @@
 
 // Remaining raw-directory runtime fixtures.  Each definition names one
 // public Skill-relative entry and one observable command contract.  Execution
-// is performed by skill-remaining-entry-isolation.test.js through the trusted
+// is performed by skill-script-operability.test.js through the trusted
 // physical relocation helper; fixture tools are the only external boundary.
 
 const assert = require('node:assert/strict');
@@ -17,7 +17,7 @@ const { withIsolatedSkill } = require('./skill-directory-isolation');
 const ROOT = path.join(__dirname, '..', '..');
 
 const SOURCES = Object.freeze({
-  'ios-icon-gen': 'dhpk-ios-icon-gen',
+  swift: 'swift',
   'code-trace': 'code-trace',
   'deploy-list': 'dhpk-deploy-list',
   'feature-verify': 'dhpk-feature-verify',
@@ -248,7 +248,7 @@ function registerRemainingFixtures() {
 
   const definitions = [
     {
-      id: 'remaining-ios-iconify-generate', skill: 'ios-icon-gen', entry: 'scripts/iconify_gen.sh',
+      id: 'remaining-ios-iconify-generate', skill: 'swift', entry: 'scripts/iconify_gen.sh',
       args: ['mdi:receipt-text-outline', 'fixture-icon', '--output', 'icons', '--color', '#ff00aa', '--size', '12'],
       stubs: { curl: curlStub(), 'rsvg-convert': rasterizerStub() },
       env: { CURL_FIXTURE: 'iconify' },
@@ -264,7 +264,7 @@ function registerRemainingFixtures() {
       },
     },
     {
-      id: 'remaining-ios-swift-list', skill: 'ios-icon-gen', entry: 'scripts/generate_icons.swift',
+      id: 'remaining-ios-swift-list', skill: 'swift', entry: 'scripts/generate_icons.swift',
       args: ['--list'], allowUnavailable: true,
       expected: { status: 0, output: ['Browse symbols in SF Symbols.app'] },
     },

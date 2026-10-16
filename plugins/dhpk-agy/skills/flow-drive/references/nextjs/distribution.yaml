@@ -1,0 +1,54 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/15.5.md",
+      "references/16.md",
+      "references/target-selection.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Nextjs",
+    "summary": "Handle Next.js tasks with explicit target-version resolution",
+    "syntax": "$nextjs <task>",
+    "input_kind": "free-text",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "task",
+        "syntax": "<task>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Describe the task, package scope, and intended target"
+      }
+    ],
+    "actions": [
+      {
+        "id": "review",
+        "summary": "Review Next.js code",
+        "syntax": "$nextjs review <task>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "migrate",
+        "summary": "Apply the requested Next.js migration",
+        "syntax": "$nextjs migrate <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$nextjs review the selected package",
+        "summary": "Use natural task text and resolve the intended target"
+      }
+    ]
+  }
+}

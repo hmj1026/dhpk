@@ -35,6 +35,13 @@ const TOP_LEVEL_KEYS = Object.freeze([
   'availability', 'diagnostics', 'disposition', 'requiredEvidence', 'nextAction',
 ]);
 const TARGET_KEYS = Object.freeze(['id', 'publicName', 'invocationClass', 'command']);
+const PENDING_REVIEW_TARGET = Object.freeze({
+  id: 'change-verdict',
+  publicName: 'change-verdict',
+  invocationClass: 'implicit-eligible',
+  command: '$change-verdict pending [--files=<paths>]',
+  skillAction: 'pending',
+});
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 // Current retained route-table order is independently locked.
@@ -43,7 +50,7 @@ const EXPECTED_TYPED_ROUTES = Object.freeze([
   { label: 'adaptive dev workflow (python build)', kind: 'skill', id: 'flow-guide' },
   { label: 'adaptive dev workflow (rust build)', kind: 'skill', id: 'flow-guide' },
   { label: 'adaptive dev workflow (bug)', kind: 'skill', id: 'flow-guide' },
-  { label: 'manual code review', kind: 'command', id: 'review-pending' },
+  { label: 'manual code review', kind: 'skill', id: 'change-verdict', skillAction: 'pending' },
   { label: 'security review', kind: 'skill', id: 'change-verdict' },
   { label: 'code exploration', kind: 'skill', id: 'code-trace' },
   { label: 'project audit', kind: 'skill', id: 'dhpk-project-audit' },
@@ -98,7 +105,7 @@ function routeV3(input) {
   return parser.createRouteResult(input);
 }
 
-function assertV3Shape(result) {
+function assertV3Shape(result, expectedSkillAction = null) {
   assert.deepStrictEqual(Object.keys(result), [...TOP_LEVEL_KEYS]);
   assert.strictEqual(result.schema, 'dhpk.route-result.v3');
   assert.strictEqual(result.action, 'route');
@@ -107,7 +114,11 @@ function assertV3Shape(result) {
   assert.deepStrictEqual(Object.keys(result.options), ['go']);
   assert.strictEqual(typeof result.options.go, 'boolean');
   assert.ok(result.target === null || typeof result.target === 'object');
-  if (result.target) assert.deepStrictEqual(Object.keys(result.target), [...TARGET_KEYS]);
+  if (result.target) {
+    const expectedKeys = expectedSkillAction === null ? [...TARGET_KEYS] : [...TARGET_KEYS, 'skillAction'];
+    assert.deepStrictEqual(Object.keys(result.target), expectedKeys);
+    if (expectedSkillAction !== null) assert.strictEqual(result.target.skillAction, expectedSkillAction);
+  }
   assert.ok(AVAILABILITY.includes(result.availability));
   assert.ok(DISPOSITIONS.includes(result.disposition));
   for (const key of ['diagnostics', 'requiredEvidence']) {
@@ -193,10 +204,16 @@ test('[2.1] route table remains typed and preserves the ordered retained intent 
     assert.strictEqual(typeof rule.pattern, 'string');
     assert.ok(rule.pattern.length > 0, `rule[${index}] pattern must be non-empty`);
     assert.strictEqual(rule.label, expected.label, `rule[${index}] label`);
-    assert.deepStrictEqual(rule.target && { label: rule.label, kind: rule.target.kind, id: rule.target.id }, {
+    assert.deepStrictEqual(rule.target && {
+      label: rule.label,
+      kind: rule.target.kind,
+      id: rule.target.id,
+      ...(Object.prototype.hasOwnProperty.call(rule.target, 'skillAction') ? { skillAction: rule.target.skillAction } : {}),
+    }, {
       label: expected.label,
       kind: expected.kind,
       id: expected.id,
+      ...(Object.prototype.hasOwnProperty.call(expected, 'skillAction') ? { skillAction: expected.skillAction } : {}),
     });
     assert.ok(KEBAB.test(rule.target.id), `rule[${index}] target id must be kebab-case`);
     if (rule.target.kind !== 'command') assert.strictEqual(rule.target.portable_skill_id, undefined);
@@ -240,7 +257,8 @@ test('[2.2] retired routing controls are stripped and fail closed', () => {
 
 test('[2.2] retired --codex is diagnostic-only and cannot select a peer', () => {
   const result = parseV3(['--codex', 'review', 'this', 'diff']);
-  assertV3Shape(result);
+  assertV3Shape(result, 'pending');
+  assert.deepStrictEqual(result.target, PENDING_REVIEW_TARGET);
   assert.deepStrictEqual(result.options, { go: false });
   assert.strictEqual(result.cleanedQuery, 'review this diff');
   assert.ok(result.diagnostics.some((item) => /--codex.*retired/i.test(item)));
@@ -278,7 +296,8 @@ test('[2.2] v3 result is recursively frozen and supports claude|cursor|codex hos
 
 test('[2.2] --codex on host=codex remains blocked without a replacement route', () => {
   const result = routeV3({ host: 'codex', argv: ['--codex', 'review', 'this', 'diff'] });
-  assertV3Shape(result);
+  assertV3Shape(result, 'pending');
+  assert.deepStrictEqual(result.target, PENDING_REVIEW_TARGET);
   assert.deepStrictEqual(result.options, { go: false });
   assert.strictEqual(result.disposition, 'blocked');
   assert.ok(result.diagnostics.some((item) => /--codex.*retired/i.test(item)));

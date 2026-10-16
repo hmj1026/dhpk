@@ -1,39 +1,11 @@
 {
   "schema": "dhpk.marketplace-selection.v1",
   "naming_decision": {
-    "decided_on": "2026-10-02",
+    "decided_on": "2026-10-15",
     "decided_by": "user",
-    "summary": "Keep every current inventory name; no broader rename; the six ID-to-name slug differences stay unchanged; unprefixed names keep no dhpk- prefix."
+    "summary": "Keep unrelated inventory names; directly consolidate the approved 25 predecessors into nine task-family owners without aliases. Preserve selected module/profile membership."
   },
   "skills": [
-    {
-      "id": "fastapi-pro",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "ios-platform",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "js-lint-config",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "js-static-check-strategy",
-      "authority": "read-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
     {
       "id": "laravel",
       "authority": "guidance-only",
@@ -42,56 +14,14 @@
       "selection": "common"
     },
     {
-      "id": "library-dual-testsuite-map",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "tdd",
-      "selection": "common"
-    },
-    {
-      "id": "matrix-cell-onboard",
+      "id": "library-author",
       "authority": "workspace-write",
-      "kind": "branch",
-      "owner": "flow-drive",
-      "selection": "common"
+      "kind": "entry",
+      "owner": "library-author",
+      "selection": "host-only"
     },
     {
       "id": "openspec-artifact-guard",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "nextjs-15-5-notes",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "nextjs-16-notes",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "php-pro",
-      "authority": "read-only",
-      "kind": "branch",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "php-modern-pro",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "php-8x-features",
       "authority": "guidance-only",
       "kind": "reference",
       "owner": "flow-drive",
@@ -112,94 +42,10 @@
       "selection": "common"
     },
     {
-      "id": "pytest-async",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "tdd",
-      "selection": "common"
-    },
-    {
-      "id": "python-pro",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "python-static-checks",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "react-18-notes",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "react-19-notes",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "swift-test-strategy",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "tdd",
-      "selection": "common"
-    },
-    {
-      "id": "swift-language",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "swiftui-architecture",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
       "id": "vue-2-notes",
       "authority": "guidance-only",
       "kind": "reference",
       "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "ios-icon-gen",
-      "authority": "guidance-only",
-      "kind": "branch",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "xcode-build-tooling",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "php56-yii-dev",
-      "authority": "workspace-write",
-      "kind": "branch",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "yii1-security-audit",
-      "authority": "read-only",
-      "kind": "branch",
-      "owner": "change-verdict",
       "selection": "common"
     },
     {
@@ -210,13 +56,6 @@
       "selection": "common"
     },
     {
-      "id": "agy-fast-worker",
-      "authority": "guidance-only",
-      "kind": "entry",
-      "owner": "agy-fast-worker",
-      "selection": "host-only"
-    },
-    {
       "id": "code-trace",
       "authority": "read-only",
       "kind": "entry",
@@ -224,45 +63,10 @@
       "selection": "common"
     },
     {
-      "id": "cli-dispatch-context",
-      "authority": "transport-internal",
-      "kind": "internal",
-      "owner": "codex-bridge",
-      "selection": "host-only"
-    },
-    {
-      "id": "cli-transport",
-      "authority": "transport-internal",
-      "kind": "internal",
-      "owner": "codex-bridge",
-      "selection": "host-only"
-    },
-    {
-      "id": "codex-bridge",
-      "authority": "guidance-only",
-      "kind": "entry",
-      "owner": "codex-bridge",
-      "selection": "host-only"
-    },
-    {
-      "id": "change-verdict",
-      "authority": "read-only",
-      "kind": "entry",
-      "owner": "change-verdict",
-      "selection": "common"
-    },
-    {
       "id": "flow-drive",
       "authority": "workspace-write",
       "kind": "entry",
       "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "composer-package-hygiene",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "change-verdict",
       "selection": "common"
     },
     {
@@ -291,41 +95,6 @@
       "authority": "guidance-only",
       "kind": "branch",
       "owner": "proposal-analyze",
-      "selection": "common"
-    },
-    {
-      "id": "laravel-package-author",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
-      "id": "laravel-testbench-matrix",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "tdd",
-      "selection": "common"
-    },
-    {
-      "id": "opsx-load-context",
-      "authority": "read-only",
-      "kind": "entry",
-      "owner": "opsx-load-context",
-      "selection": "host-only"
-    },
-    {
-      "id": "opsx-post-obs",
-      "authority": "delegate",
-      "kind": "entry",
-      "owner": "opsx-post-obs",
-      "selection": "host-only"
-    },
-    {
-      "id": "polyfill-version-matrix-audit",
-      "authority": "guidance-only",
-      "kind": "reference",
-      "owner": "change-verdict",
       "selection": "common"
     },
     {
@@ -406,24 +175,10 @@
       "selection": "common"
     },
     {
-      "id": "doc-refactor",
-      "authority": "workspace-write",
-      "kind": "branch",
-      "owner": "update-docs",
-      "selection": "common"
-    },
-    {
-      "id": "update-docs",
+      "id": "doc-maintain",
       "authority": "workspace-write",
       "kind": "entry",
-      "owner": "update-docs",
-      "selection": "common"
-    },
-    {
-      "id": "update-codemaps",
-      "authority": "workspace-write",
-      "kind": "branch",
-      "owner": "update-docs",
+      "owner": "doc-maintain",
       "selection": "common"
     },
     {
@@ -431,13 +186,6 @@
       "authority": "workspace-write",
       "kind": "entry",
       "owner": "precommit",
-      "selection": "common"
-    },
-    {
-      "id": "dep-audit",
-      "authority": "workspace-write",
-      "kind": "entry",
-      "owner": "dep-audit",
       "selection": "common"
     },
     {
@@ -455,18 +203,18 @@
       "selection": "common"
     },
     {
-      "id": "review-pending",
-      "authority": "delegate",
-      "kind": "branch",
-      "owner": "flow-drive",
-      "selection": "common"
-    },
-    {
       "id": "harness-setup",
       "authority": "workspace-write",
       "kind": "entry",
       "owner": "harness-setup",
       "selection": "host-only"
+    },
+    {
+      "id": "ui-ux-verify",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "ui-ux-verify",
+      "selection": "common"
     },
     {
       "id": "opsx-apply-resume",
@@ -476,10 +224,59 @@
       "selection": "host-only"
     },
     {
-      "id": "ui-ux-verify",
+      "id": "react",
+      "authority": "workspace-write",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "nextjs",
+      "authority": "workspace-write",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "swift",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "python",
+      "authority": "workspace-write",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "js-static-checks",
+      "authority": "workspace-write",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "php",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "yii1",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "change-verdict",
       "authority": "workspace-write",
       "kind": "entry",
-      "owner": "ui-ux-verify",
+      "owner": "change-verdict",
       "selection": "common"
     }
   ]

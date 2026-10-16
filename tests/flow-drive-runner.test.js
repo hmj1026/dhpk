@@ -41,6 +41,34 @@ test('the invocation parser rejects multiple positional task inputs', () => {
   assert.ok(parsed.diagnostics.some((diagnostic) => diagnostic.includes('only one task input is allowed')));
 });
 
+test('unified selectors preserve exact targets and plan scope without legacy aliases', () => {
+  const parsed = parseInvocation(['Repair.', '--worker=codex/gpt-6-luna:xhigh',
+    '--reasoner=claude/claude-opus-5-5:high', '--plan=bounded', '--cross']);
+  assert.strictEqual(parsed.status, 'ready', parsed.diagnostics.join('; '));
+  assert.deepStrictEqual(parsed.options.workerTarget, { provider: 'codex', model: 'gpt-6-luna', effort: 'xhigh' });
+  assert.deepStrictEqual(parsed.options.reasoner, { backend: 'claude', model: 'claude-opus-5-5', effort: 'high' });
+  assert.strictEqual(parsed.options.plan.mode, 'bounded');
+  assert.strictEqual(parsed.options.crossProvider, true);
+  assert.strictEqual(parseInvocation(['Repair.', '--plan']).options.plan.mode, 'auto');
+});
+
+test('removed and malformed grammar stops before any Host callback', async () => {
+  for (const options of [
+    ['--worker-target=codex/gpt-6-luna:high'], ['--cross-provider'], ['--plan-mode=bounded'],
+    ['--plan=opus:high'], ['--reasoner=codex-cli'], ['--reasoner=codex:gpt-6.1-sol:high'],
+    ['--worker=codex/'], ['--worker=codex/:high'], ['--worker=codex/gpt-6-luna:'],
+    ['--worker=codex/gpt-6-luna:high:extra'], ['--worker=codex/gpt-6-luna:bad'],
+    ['--worker=codex', '--worker=claude'], ['--cross', '--cross'], ['--architect', '--no-architect'], ['--unknown'],
+  ]) {
+    const fixture = createRunnerFixture();
+    try {
+      const report = await runFlowDrive(['Repair.', ...options], { host: fixture.host, workdir: fixture.workdir });
+      assert.strictEqual(report.parser.status, 'blocked', options.join(' '));
+      assert.deepStrictEqual(fixture.calls, [], options.join(' '));
+    } finally { fixture.cleanup(); }
+  }
+});
+
 test('a native task reaches the executor and reports parser, execution, and acceptance separately', async () => {
   const fixture = createRunnerFixture();
   const report = await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
@@ -182,7 +210,7 @@ test('solo verification failure still inspects post scope and cannot pass accept
   }
 });
 
-test('an external provider selection is blocked when --cross-provider has no exact authorization', async () => {
+test('an external provider selection is blocked when --cross has no exact authorization', async () => {
   const fixture = createRunnerFixture({
     task: {
       goal: 'Update the receipt total display.',
@@ -194,7 +222,7 @@ test('an external provider selection is blocked when --cross-provider has no exa
       mode: 'solo',
     },
   });
-  const report = await runFlowDrive(['Fix the receipt total.', '--cross-provider'], {
+  const report = await runFlowDrive(['Fix the receipt total.', '--cross'], {
     host: fixture.host,
     workdir: fixture.workdir,
   });
@@ -202,7 +230,7 @@ test('an external provider selection is blocked when --cross-provider has no exa
   assert.strictEqual(report.status, 'BLOCKED');
   assert.strictEqual(report.execution.status, 'NOT_RUN');
   assert.strictEqual(report.acceptance.status, 'NOT_RUN');
-  assert.ok(report.parser.notices.some((notice) => notice.includes('--cross-provider')));
+  assert.ok(report.parser.notices.some((notice) => notice.includes('--cross')));
   assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
   assert.strictEqual(fixture.calls.some((call) => call.method === 'verify'), false);
 });
@@ -228,7 +256,8 @@ test('an exact external target resolves only when the task constraint permits th
       mode: 'solo',
     },
   });
-  const report = await runFlowDrive(['#918', '--worker-target=codex/gpt-6-luna:high'], {
+  fixture.host.askProviderScope = async (question) => ({ status: 'ANSWERED', answer_id: 'exact-target-consent', targets: question.selected_targets });
+  const report = await runFlowDrive(['#918', '--worker=codex/gpt-6-luna:high'], {
     host: fixture.host,
     workdir: fixture.workdir,
   });
@@ -247,7 +276,7 @@ test('an exact alternate target tuple remains within the current Provider', asyn
       mode: 'solo',
     },
   });
-  const report = await runFlowDrive(['Fix the receipt total.', '--worker-target=codex/gpt-6-luna:high'], {
+  const report = await runFlowDrive(['Fix the receipt total.', '--worker=codex/gpt-6-luna:high'], {
     host: fixture.host,
     workdir: fixture.workdir,
   });
@@ -256,7 +285,7 @@ test('an exact alternate target tuple remains within the current Provider', asyn
   assert.strictEqual(report.targets.resolved.provider, 'openai');
   assert.strictEqual(report.targets.resolved.route, 'native');
   assert.strictEqual(report.targets.resolved.effort, 'high');
-  assert.strictEqual(report.parser.notices.some((notice) => notice.includes('--cross-provider')), false);
+  assert.strictEqual(report.parser.notices.some((notice) => notice.includes('--cross')), false);
 });
 
 test('a task Provider constraint takes precedence over an exact legacy worker target', async () => {
@@ -267,7 +296,7 @@ test('a task Provider constraint takes precedence over an exact legacy worker ta
       mode: 'solo',
     },
   });
-  const report = await runFlowDrive(['Fix the receipt total.', '--worker-target=claude/claude-opus-5-5:max'], {
+  const report = await runFlowDrive(['Fix the receipt total.', '--worker=claude/claude-opus-5-5:max'], {
     host: fixture.host,
     workdir: fixture.workdir,
   });
@@ -355,8 +384,8 @@ test('unsupported advanced selection returns a migration notice instead of being
 
     assert.strictEqual(report.status, 'BLOCKED', option);
     assert.strictEqual(report.parser.status, 'ready', option);
-    assert.ok(report.parser.notices.some((notice) => notice.includes('legacy Flow Drive path')), option);
-    assert.strictEqual(fixture.calls.some((call) => call.method === 'resolveTask'), false, option);
+    assert.ok(report.blockers.length > 0, option);
+    assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false, option);
   }
 });
 

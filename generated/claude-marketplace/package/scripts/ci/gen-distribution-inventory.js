@@ -1,22 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-// Bootstrap generator for manifests/distribution-inventory.json.
-//   node scripts/ci/gen-distribution-inventory.js            print a summary of
-//                                                             the checked-in file
-//   node scripts/ci/gen-distribution-inventory.js --write    (re)generate the file
-//                                                             from the deterministic
-//                                                             default classification
-//
-// Default classification (task 1.3): root skills/ -> promoted/claude-core, module
-// skills/modules -> optional/claude-module, codex-sync added wherever codex/skills/
-// already mirrors the entry. Run --write once to bootstrap a new canonical skill's
-// entry, then hand-edit lifecycle/surfaces for any deliberate reclassification (e.g.
-// deprecating a skill) — a manual edit is expected to diverge from the default and
-// is not itself a drift failure. Coverage/reconciliation (missing entries, invalid
-// lifecycle, duplicate surfaces, deprecated-leak, module-catalog/codex-mirror
-// consistency) is enforced by the always-current scripts/ci/validate-distribution.js
-// gate, not by this generator.
+// Compile directory-owned Skill facts into the v2 projection input while
+// preserving editorial lifecycle, surfaces, profiles and inventory contracts.
+// --check is read-only; --write updates compiled fields; no args prints a summary.
+// Legacy v1 bootstrap and supporting-digest refresh remain separate routes.
 
 const fs = require('fs');
 const path = require('path');
@@ -29,6 +17,7 @@ const {
   compileClaudeProjection,
 } = require('../lib/distribution-inventory');
 const { classifyWritePolicy } = require('../lib/distribution-inventory-regeneration');
+const { compileDirectoryInventory, inventoryDrift } = require('../lib/skill-distribution-compile');
 
 const ROOT = path.join(__dirname, '..', '..');
 const OUT = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -86,13 +75,14 @@ function run(options = {}) {
 
   if (argv.includes('--write')) {
     const policy = classifyWritePolicy(outputExists, existing);
-    if (policy.action === 'reject') {
+    if (policy.action === 'reject' && (!existing || existing.schema !== 'dhpk.distribution-inventory.v2' || !Array.isArray(existing.skills) || !Array.isArray(existing.modules))) {
       error(`gen-distribution-inventory: ${policy.diagnostic}`);
       return { status: 1, stdout, stderr };
     }
     let generated;
     try {
       generated = preserveProjectionContract(classifyCanonicalInventory(root), existing);
+      if (existing && existing.schema === 'dhpk.distribution-inventory.v2') generated = compileDirectoryInventory(root, existing, generated);
     } catch (cause) {
       error(`gen-distribution-inventory: ${cause.message}`);
       return { status: 1, stdout, stderr };
@@ -101,6 +91,17 @@ function run(options = {}) {
     (options.writeInventory || writeInventoryAtomically)(out, serializeInventory(generated));
     print(`gen-distribution-inventory --write: wrote ${generated.skills.length} skills + ${generated.modules.length} modules.`);
     return { status: 0, stdout, stderr };
+  }
+
+  if (argv.includes('--check')) {
+    try {
+      if (!existing || existing.schema !== 'dhpk.distribution-inventory.v2') throw new Error('--check requires an existing v2 inventory');
+      const generated = compileDirectoryInventory(root, existing, { skills: [] });
+      const drift = inventoryDrift(existing, generated);
+      if (drift.length) throw new Error(drift.join('; '));
+      print(`PASS [distribution-inventory]: ${generated.skills.length} directory-authored Skill rows`);
+      return { status: 0, stdout, stderr };
+    } catch (cause) { error(`gen-distribution-inventory: ${cause.message}`); return { status: 1, stdout, stderr }; }
   }
 
   let inv;

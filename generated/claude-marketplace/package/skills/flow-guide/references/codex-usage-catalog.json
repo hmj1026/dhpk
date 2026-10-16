@@ -1,17 +1,17 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727",
+  "sourceInventoryRevision": "sha256:80e713102f7939f3339a5d7a6a57695b37c3f124298ce3aec70c71d58ab88ba1",
   "entries": [
     {
       "id": "change-verdict",
       "name": "change-verdict",
       "usage": {
         "display_name": "Change Verdict",
-        "summary": "Return an evidence-backed read-only change verdict",
-        "syntax": "$change-verdict [--mode=<mode>] [--coverage] [<target>]",
+        "summary": "Review changes or audit dependencies with bounded explicit fixes",
+        "syntax": "$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]",
         "input_kind": "mixed",
         "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
+        "effect_authority": "workspace-write",
         "inputs": [
           {
             "id": "target",
@@ -63,6 +63,27 @@
             "syntax": "$change-verdict --mode=risk [<target>]",
             "input_kind": "mixed",
             "effect_authority": "read-only"
+          },
+          {
+            "id": "pending",
+            "summary": "Delegate a read-only pending-change review",
+            "syntax": "$change-verdict pending [--files=<paths>]",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "deps",
+            "summary": "Audit dependency risks without mutation",
+            "syntax": "$change-verdict deps [--level=<severity>]",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "deps-fix",
+            "summary": "Delegate requested bounded dependency remediation then obtain an independent verdict",
+            "syntax": "$change-verdict deps fix [--level=<severity>]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
           }
         ],
         "options": [
@@ -88,16 +109,57 @@
             "required": false,
             "summary": "Include coverage evidence in tests mode",
             "default": false
+          },
+          {
+            "id": "files",
+            "syntax": "--files=<paths>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Comma-separated relative pending paths"
+          },
+          {
+            "id": "level",
+            "syntax": "--level=<severity>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Minimum vulnerability severity",
+            "default": "moderate",
+            "enum_values": [
+              "low",
+              "moderate",
+              "high",
+              "critical"
+            ]
+          },
+          {
+            "id": "fix",
+            "syntax": "--fix",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Explicitly request bounded dependency remediation",
+            "default": false
           }
         ],
         "examples": [
           {
             "prompt": "$change-verdict --mode=tests --coverage",
             "summary": "Use change verdict with its declared interface"
+          },
+          {
+            "prompt": "$change-verdict pending --files=src/a.js",
+            "summary": "Delegate pending review"
+          },
+          {
+            "prompt": "$change-verdict deps --level=high",
+            "summary": "Audit dependencies without mutation"
+          },
+          {
+            "prompt": "$change-verdict deps fix",
+            "summary": "Request bounded dependency remediation"
           }
         ]
       },
-      "usageFingerprint": "6ca8496f176cb1bd7143d0091dcc876ddd44986763e5e3a685b73b7e8914f494"
+      "usageFingerprint": "1438a3b31e76f62c7a6050049854af2584fbe24c017673147a083892c358b1fe"
     },
     {
       "id": "code-trace",
@@ -284,57 +346,56 @@
       "usageFingerprint": "f0da5b3f83857f6bb3b5f4a0cc91fde5a2e046f267c0899b0fce16276ba77ec0"
     },
     {
-      "id": "dep-audit",
-      "name": "dep-audit",
+      "id": "doc-maintain",
+      "name": "doc-maintain",
       "usage": {
-        "display_name": "Dependency Audit",
-        "summary": "Audit dependency risks with a separate explicit fix boundary",
-        "syntax": "$dep-audit [--level=<severity>] [--fix]",
-        "input_kind": "none",
+        "display_name": "Doc Maintain",
+        "summary": "Mode-specific doc-maintain workflows",
+        "syntax": "$doc-maintain <task | mode> <target>",
+        "input_kind": "free-text",
         "invocation_class": "implicit-eligible",
         "effect_authority": "workspace-write",
-        "inputs": [],
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task | mode>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Natural-language task or explicit mode"
+          }
+        ],
         "actions": [
           {
-            "id": "audit",
-            "summary": "Audit dependency vulnerabilities and optional fixes",
-            "syntax": "$dep-audit",
-            "input_kind": "none",
+            "id": "update",
+            "summary": "update workflow",
+            "syntax": "$doc-maintain update <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "codemap",
+            "summary": "codemap workflow",
+            "syntax": "$doc-maintain codemap <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "refactor",
+            "summary": "refactor workflow",
+            "syntax": "$doc-maintain refactor <target>",
+            "input_kind": "free-text",
             "effect_authority": "workspace-write"
           }
         ],
-        "options": [
-          {
-            "id": "level",
-            "syntax": "--level=<severity>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Minimum severity to report",
-            "default": "moderate",
-            "enum_values": [
-              "low",
-              "moderate",
-              "high",
-              "critical"
-            ]
-          },
-          {
-            "id": "fix",
-            "syntax": "--fix",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Run the explicitly requested fix operation",
-            "default": false
-          }
-        ],
+        "options": [],
         "examples": [
           {
-            "prompt": "$dep-audit --level=high",
-            "summary": "Use dependency audit with its declared interface"
+            "prompt": "$doc-maintain update docs/guide.md",
+            "summary": "Run the selected mode"
           }
         ]
       },
-      "usageFingerprint": "6ab9eeed7127559c6b5075f06b7284a7fad7f6d4aa68472b0d5e0f1a1075506a"
+      "usageFingerprint": "8263cf5ab3a270870efee69d56234c1eacecf84a15fe7e2894546ecab68cabf9"
     },
     {
       "id": "flow-drive",
@@ -342,7 +403,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Execute one scoped task with diagnosis and acceptance evidence",
-        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
@@ -370,21 +431,10 @@
         "options": [
           {
             "id": "plan",
-            "syntax": "--plan[=<model>:<effort>]",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "plan-mode",
-            "syntax": "--plan-mode=auto|bounded|discovery",
+            "syntax": "--plan[=auto|bounded|discovery]",
             "value_kind": "enum",
             "required": false,
-            "summary": "Select the consult scope; requires --plan and defaults to auto when enabled",
-            "default": "auto",
+            "summary": "Request a planner scope using the current Host declared effective target",
             "enum_values": [
               "auto",
               "bounded",
@@ -396,36 +446,21 @@
           },
           {
             "id": "worker",
-            "syntax": "--worker=<worker>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Select an explicitly requested implementation worker",
-            "enum_values": [
-              "claude",
-              "codex",
-              "agy",
-              "auto"
-            ],
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "worker-target",
-            "syntax": "--worker-target=<provider>/<model>[:<effort>]",
+            "syntax": "--worker=auto|provider[/model[:effort]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target",
+            "summary": "Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant",
+            "default": "auto",
             "applies_to": [
               "apply"
             ]
           },
           {
-            "id": "cross-provider",
-            "syntax": "--cross-provider",
+            "id": "cross",
+            "syntax": "--cross",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh",
+            "summary": "Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches",
             "default": false,
             "applies_to": [
               "apply"
@@ -436,7 +471,7 @@
             "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+            "summary": "Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers",
             "applies_to": [
               "apply"
             ]
@@ -446,7 +481,7 @@
             "syntax": "--architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+            "summary": "Request consultation; report UNAVAILABLE when the current Host has no supported architecture route",
             "applies_to": [
               "apply"
             ]
@@ -456,7 +491,7 @@
             "syntax": "--no-architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Compatibility notice only in the portable task runner",
+            "summary": "Suppress an optional consult while preserving required Host gates",
             "applies_to": [
               "apply"
             ]
@@ -470,7 +505,7 @@
             "legacy": {
               "replacement_id": "worker",
               "diagnostic_only": true,
-              "reason": "Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut"
+              "reason": "Use an explicit worker or reasoner instead of the retired Codex shortcut"
             },
             "applies_to": [
               "apply"
@@ -483,12 +518,12 @@
             "summary": "Resolve and implement a bounded task with explicit acceptance"
           },
           {
-            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
+            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross",
             "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
           }
         ]
       },
-      "usageFingerprint": "d78ea140b33fb6d1fdc2f2d733f584904194e0819ac3ff7e801c4f91ea460886"
+      "usageFingerprint": "302776393f4628264a0fca0525eadaa38f0e9c27134f8ae3625efc4a5d2f4cb5"
     },
     {
       "id": "flow-guide",
@@ -496,7 +531,7 @@
       "usage": {
         "display_name": "Flow Guide",
         "summary": "Guide routes, rules, next steps, closeout, and usage help",
-        "syntax": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
+        "syntax": "$flow-guide <help|route|rules|next|close> [--go] [--host <host>] [<query>]",
         "input_kind": "action-first",
         "invocation_class": "implicit-eligible",
         "effect_authority": "delegate",
@@ -555,7 +590,7 @@
           {
             "id": "next",
             "summary": "Identify the next bounded workflow action",
-            "syntax": "$flow-guide next [<query>]",
+            "syntax": "$flow-guide next [--host <host>] [<query>]",
             "input_kind": "free-text",
             "effect_authority": "read-only"
           },
@@ -578,16 +613,39 @@
             "applies_to": [
               "route"
             ]
+          },
+          {
+            "id": "host",
+            "syntax": "--host",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Select next-action invocation formatting and handoff Host; Codex passes codex-cli",
+            "default": "claude-code",
+            "enum_values": [
+              "claude-code",
+              "codex-cli",
+              "agy",
+              "cursor",
+              "claude",
+              "codex"
+            ],
+            "applies_to": [
+              "next"
+            ]
           }
         ],
         "examples": [
           {
             "prompt": "$flow-guide help",
             "summary": "List the available Codex skill usage contracts"
+          },
+          {
+            "prompt": "$flow-guide next --host codex-cli",
+            "summary": "Resolve declared next steps using Codex invocation formatting"
           }
         ]
       },
-      "usageFingerprint": "5300a6121dae6a264abe9859a10cc42504b034b4908f06ca3343b2f88a7cd369"
+      "usageFingerprint": "5651f5d6d7823e350a348c7f34d0c07711e70acbb676ad755e61118a1f6e4bb5"
     },
     {
       "id": "git-smart-commit",
@@ -1005,76 +1063,28 @@
         ]
       },
       "usageFingerprint": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd"
-    },
-    {
-      "id": "update-docs",
-      "name": "update-docs",
-      "usage": {
-        "display_name": "Update Docs",
-        "summary": "Update a bounded user or agent document from live evidence",
-        "syntax": "$update-docs <docs-path-or-workflow-keyword>",
-        "input_kind": "free-text",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "target",
-            "syntax": "<docs-path-or-workflow-keyword>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Documentation path or workflow keyword"
-          }
-        ],
-        "actions": [
-          {
-            "id": "update",
-            "summary": "Update owned documentation and its locale pair",
-            "syntax": "$update-docs <docs-path-or-workflow-keyword>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$update-docs docs/configuration.md",
-            "summary": "Use update docs with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
     }
   ],
-  "sourceSelectionDigest": "a42dec33b2edcc51c4c43544e8e1e2dadf31e14df02edfcc66a065e930416c59",
+  "sourceSelectionDigest": "4be71fd7150e3946d7d48f90b0690f6eabcd1d245a4305534434d29261cfbeaf",
   "runtimeIndex": {
     "targets": {
-      "agy-fast-worker": {
-        "id": "agy-fast-worker",
-        "publicName": "dhpk-agy-fast-worker",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-agy-fast-worker <input>",
-        "codexInvokable": false
-      },
       "change-verdict": {
         "id": "change-verdict",
         "publicName": "change-verdict",
         "invocationClass": "implicit-eligible",
-        "command": "$change-verdict [--mode=<mode>] [--coverage] [<target>]",
-        "codexInvokable": true
-      },
-      "cli-dispatch-context": {
-        "id": "cli-dispatch-context",
-        "publicName": "dhpk-cli-dispatch-context",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-cli-dispatch-context <input>",
-        "codexInvokable": false
-      },
-      "cli-transport": {
-        "id": "cli-transport",
-        "publicName": "dhpk-cli-transport",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-cli-transport <input>",
-        "codexInvokable": false
+        "command": "$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]",
+        "codexInvokable": true,
+        "actions": {
+          "code": "$change-verdict --mode=code [<target>]",
+          "pr": "$change-verdict --mode=pr [<target>]",
+          "security": "$change-verdict --mode=security [<target>]",
+          "tests": "$change-verdict --mode=tests [--coverage] [<target>]",
+          "docs": "$change-verdict --mode=docs [<target>]",
+          "risk": "$change-verdict --mode=risk [<target>]",
+          "pending": "$change-verdict pending [--files=<paths>]",
+          "deps": "$change-verdict deps [--level=<severity>]",
+          "deps-fix": "$change-verdict deps fix [--level=<severity>]"
+        }
       },
       "code-simplify": {
         "id": "code-simplify",
@@ -1088,56 +1098,42 @@
         "publicName": "code-trace",
         "invocationClass": "implicit-eligible",
         "command": "$code-trace [--mode=<mode>] <query>",
-        "codexInvokable": true
-      },
-      "codex-bridge": {
-        "id": "codex-bridge",
-        "publicName": "dhpk-codex-bridge",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-codex-bridge <input>",
-        "codexInvokable": false
-      },
-      "composer-package-hygiene": {
-        "id": "composer-package-hygiene",
-        "publicName": "dhpk-composer-package-hygiene",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-composer-package-hygiene <input>",
-        "codexInvokable": false
+        "codexInvokable": true,
+        "actions": {
+          "explore": "$code-trace --mode=explore <query>",
+          "diagnose": "$code-trace --mode=diagnose <query>",
+          "history": "$code-trace --mode=history <query>",
+          "select-tool": "$code-trace --mode=select-tool <query>"
+        }
       },
       "create-pr": {
         "id": "create-pr",
         "publicName": "create-pr",
         "invocationClass": "explicit-only",
         "command": "$create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]",
-        "codexInvokable": true
-      },
-      "dep-audit": {
-        "id": "dep-audit",
-        "publicName": "dep-audit",
-        "invocationClass": "implicit-eligible",
-        "command": "$dep-audit [--level=<severity>] [--fix]",
-        "codexInvokable": true
+        "codexInvokable": true,
+        "actions": {
+          "create": "$create-pr [--execute]"
+        }
       },
       "deploy-list": {
         "id": "deploy-list",
         "publicName": "dhpk-deploy-list",
-        "invocationClass": "not-configured",
+        "invocationClass": "implicit-eligible",
         "command": "$dhpk-deploy-list <input>",
         "codexInvokable": false
       },
-      "doc-refactor": {
-        "id": "doc-refactor",
-        "publicName": "doc-refactor",
+      "doc-maintain": {
+        "id": "doc-maintain",
+        "publicName": "doc-maintain",
         "invocationClass": "implicit-eligible",
-        "command": "$doc-refactor <input>",
-        "codexInvokable": false
-      },
-      "fastapi-pro": {
-        "id": "fastapi-pro",
-        "publicName": "dhpk-fastapi-pro",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-fastapi-pro <input>",
-        "codexInvokable": false
+        "command": "$doc-maintain <task | mode> <target>",
+        "codexInvokable": true,
+        "actions": {
+          "update": "$doc-maintain update <target>",
+          "codemap": "$doc-maintain codemap <target>",
+          "refactor": "$doc-maintain refactor <target>"
+        }
       },
       "feature-verify": {
         "id": "feature-verify",
@@ -1150,49 +1146,51 @@
         "id": "flow-drive",
         "publicName": "flow-drive",
         "invocationClass": "explicit-only",
-        "command": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
-        "codexInvokable": true
+        "command": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]",
+        "codexInvokable": true,
+        "actions": {
+          "apply": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id>"
+        }
       },
       "flow-guide": {
         "id": "flow-guide",
         "publicName": "flow-guide",
         "invocationClass": "implicit-eligible",
-        "command": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
-        "codexInvokable": true
+        "command": "$flow-guide <help|route|rules|next|close> [--go] [--host <host>] [<query>]",
+        "codexInvokable": true,
+        "actions": {
+          "help": "$flow-guide help [<skill>]",
+          "route": "$flow-guide route [--go] [<query>]",
+          "rules": "$flow-guide rules [<query>]",
+          "next": "$flow-guide next [--host <host>] [<query>]",
+          "close": "$flow-guide close [<query>]"
+        }
       },
       "git-smart-commit": {
         "id": "git-smart-commit",
         "publicName": "git-smart-commit",
         "invocationClass": "explicit-only",
         "command": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
-        "codexInvokable": true
+        "codexInvokable": true,
+        "actions": {
+          "group": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]"
+        }
       },
       "git-worktree": {
         "id": "git-worktree",
         "publicName": "git-worktree",
         "invocationClass": "explicit-only",
         "command": "$git-worktree [<operation>] [--branch=<name>] [--base=<ref>]",
-        "codexInvokable": true
+        "codexInvokable": true,
+        "actions": {
+          "manage": "$git-worktree [<operation>]"
+        }
       },
       "harness-setup": {
         "id": "harness-setup",
         "publicName": "harness-setup",
         "invocationClass": "explicit-only",
         "command": "$harness-setup <input>",
-        "codexInvokable": false
-      },
-      "ios-icon-gen": {
-        "id": "ios-icon-gen",
-        "publicName": "dhpk-ios-icon-gen",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-ios-icon-gen <input>",
-        "codexInvokable": false
-      },
-      "ios-platform": {
-        "id": "ios-platform",
-        "publicName": "dhpk-ios-platform",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-ios-platform <input>",
         "codexInvokable": false
       },
       "issue-analyze": {
@@ -1202,18 +1200,11 @@
         "command": "$dhpk-issue-analyze <input>",
         "codexInvokable": false
       },
-      "js-lint-config": {
-        "id": "js-lint-config",
-        "publicName": "dhpk-js-lint-config",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-js-lint-config <input>",
-        "codexInvokable": false
-      },
-      "js-static-check-strategy": {
-        "id": "js-static-check-strategy",
-        "publicName": "js-static-check-strategy",
+      "js-static-checks": {
+        "id": "js-static-checks",
+        "publicName": "js-static-checks",
         "invocationClass": "implicit-eligible",
-        "command": "$js-static-check-strategy <input>",
+        "command": "$js-static-checks <input>",
         "codexInvokable": false
       },
       "laravel": {
@@ -1223,20 +1214,6 @@
         "command": "$laravel <input>",
         "codexInvokable": false
       },
-      "laravel-package-author": {
-        "id": "laravel-package-author",
-        "publicName": "dhpk-laravel-package-author",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-laravel-package-author <input>",
-        "codexInvokable": false
-      },
-      "laravel-testbench-matrix": {
-        "id": "laravel-testbench-matrix",
-        "publicName": "dhpk-laravel-testbench-matrix",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-laravel-testbench-matrix <input>",
-        "codexInvokable": false
-      },
       "legacy-code-characterization": {
         "id": "legacy-code-characterization",
         "publicName": "dhpk-legacy-characterization-tests",
@@ -1244,18 +1221,11 @@
         "command": "$dhpk-legacy-characterization-tests <input>",
         "codexInvokable": false
       },
-      "library-dual-testsuite-map": {
-        "id": "library-dual-testsuite-map",
-        "publicName": "dhpk-library-dual-testsuite-map",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-library-dual-testsuite-map <input>",
-        "codexInvokable": false
-      },
-      "matrix-cell-onboard": {
-        "id": "matrix-cell-onboard",
-        "publicName": "matrix-cell-onboard",
+      "library-author": {
+        "id": "library-author",
+        "publicName": "library-author",
         "invocationClass": "implicit-eligible",
-        "command": "$matrix-cell-onboard <input>",
+        "command": "$library-author <input>",
         "codexInvokable": false
       },
       "merge-prep": {
@@ -1265,24 +1235,17 @@
         "command": "$merge-prep <input>",
         "codexInvokable": false
       },
-      "nextjs-15-5-notes": {
-        "id": "nextjs-15-5-notes",
-        "publicName": "dhpk-nextjs-15-5-notes",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-nextjs-15-5-notes <input>",
-        "codexInvokable": false
-      },
-      "nextjs-16-notes": {
-        "id": "nextjs-16-notes",
-        "publicName": "dhpk-nextjs-16-notes",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-nextjs-16-notes <input>",
+      "nextjs": {
+        "id": "nextjs",
+        "publicName": "nextjs",
+        "invocationClass": "implicit-eligible",
+        "command": "$nextjs <input>",
         "codexInvokable": false
       },
       "openspec-artifact-guard": {
         "id": "openspec-artifact-guard",
         "publicName": "dhpk-openspec-artifact-guard",
-        "invocationClass": "not-configured",
+        "invocationClass": "implicit-eligible",
         "command": "$dhpk-openspec-artifact-guard <input>",
         "codexInvokable": false
       },
@@ -1293,46 +1256,11 @@
         "command": "$opsx-apply-resume <input>",
         "codexInvokable": false
       },
-      "opsx-load-context": {
-        "id": "opsx-load-context",
-        "publicName": "dhpk-opsx-load-context",
+      "php": {
+        "id": "php",
+        "publicName": "php",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-opsx-load-context <input>",
-        "codexInvokable": false
-      },
-      "opsx-post-obs": {
-        "id": "opsx-post-obs",
-        "publicName": "dhpk-opsx-post-observation",
-        "invocationClass": "implicit-eligible",
-        "command": "$dhpk-opsx-post-observation <input>",
-        "codexInvokable": false
-      },
-      "php-8x-features": {
-        "id": "php-8x-features",
-        "publicName": "dhpk-php-8x-features",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-php-8x-features <input>",
-        "codexInvokable": false
-      },
-      "php-modern-pro": {
-        "id": "php-modern-pro",
-        "publicName": "dhpk-php-modern-pro",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-php-modern-pro <input>",
-        "codexInvokable": false
-      },
-      "php-pro": {
-        "id": "php-pro",
-        "publicName": "dhpk-php-runtime-router",
-        "invocationClass": "implicit-eligible",
-        "command": "$dhpk-php-runtime-router <input>",
-        "codexInvokable": false
-      },
-      "php56-yii-dev": {
-        "id": "php56-yii-dev",
-        "publicName": "dhpk-yii1-php56-development",
-        "invocationClass": "implicit-eligible",
-        "command": "$dhpk-yii1-php56-development <input>",
+        "command": "$php <input>",
         "codexInvokable": false
       },
       "phpunit": {
@@ -1340,13 +1268,6 @@
         "publicName": "phpunit",
         "invocationClass": "implicit-eligible",
         "command": "$phpunit <input>",
-        "codexInvokable": false
-      },
-      "polyfill-version-matrix-audit": {
-        "id": "polyfill-version-matrix-audit",
-        "publicName": "dhpk-polyfill-version-matrix-audit",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-polyfill-version-matrix-audit <input>",
         "codexInvokable": false
       },
       "pr-summary": {
@@ -1361,12 +1282,15 @@
         "publicName": "precommit",
         "invocationClass": "implicit-eligible",
         "command": "$precommit [--fast]",
-        "codexInvokable": true
+        "codexInvokable": true,
+        "actions": {
+          "run": "$precommit [--fast]"
+        }
       },
       "project-audit": {
         "id": "project-audit",
         "publicName": "dhpk-project-audit",
-        "invocationClass": "not-configured",
+        "invocationClass": "implicit-eligible",
         "command": "$dhpk-project-audit <input>",
         "codexInvokable": false
       },
@@ -1382,41 +1306,23 @@
         "publicName": "proposal-analyze",
         "invocationClass": "implicit-eligible",
         "command": "$proposal-analyze <proposal>",
-        "codexInvokable": true
+        "codexInvokable": true,
+        "actions": {
+          "analyze": "$proposal-analyze <proposal>"
+        }
       },
-      "pytest-async": {
-        "id": "pytest-async",
-        "publicName": "dhpk-pytest-async",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-pytest-async <input>",
+      "python": {
+        "id": "python",
+        "publicName": "python",
+        "invocationClass": "implicit-eligible",
+        "command": "$python <input>",
         "codexInvokable": false
       },
-      "python-pro": {
-        "id": "python-pro",
-        "publicName": "dhpk-python-pro",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-python-pro <input>",
-        "codexInvokable": false
-      },
-      "python-static-checks": {
-        "id": "python-static-checks",
-        "publicName": "dhpk-python-static-checks",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-python-static-checks <input>",
-        "codexInvokable": false
-      },
-      "react-18-notes": {
-        "id": "react-18-notes",
-        "publicName": "dhpk-react-18-notes",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-react-18-notes <input>",
-        "codexInvokable": false
-      },
-      "react-19-notes": {
-        "id": "react-19-notes",
-        "publicName": "dhpk-react-19-notes",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-react-19-notes <input>",
+      "react": {
+        "id": "react",
+        "publicName": "react",
+        "invocationClass": "implicit-eligible",
+        "command": "$react <input>",
         "codexInvokable": false
       },
       "release-creator": {
@@ -1424,12 +1330,15 @@
         "publicName": "release-creator",
         "invocationClass": "explicit-only",
         "command": "$release-creator <version> [--execute]",
-        "codexInvokable": true
+        "codexInvokable": true,
+        "actions": {
+          "release": "$release-creator <version> [--execute]"
+        }
       },
       "repo-intake": {
         "id": "repo-intake",
         "publicName": "dhpk-repo-intake",
-        "invocationClass": "not-configured",
+        "invocationClass": "explicit-only",
         "command": "$dhpk-repo-intake <input>",
         "codexInvokable": false
       },
@@ -1438,14 +1347,10 @@
         "publicName": "repo-verify",
         "invocationClass": "implicit-eligible",
         "command": "$repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]",
-        "codexInvokable": true
-      },
-      "review-pending": {
-        "id": "review-pending",
-        "publicName": "review-pending",
-        "invocationClass": "implicit-eligible",
-        "command": "$review-pending <input>",
-        "codexInvokable": false
+        "codexInvokable": true,
+        "actions": {
+          "verify": "$repo-verify [<mode>]"
+        }
       },
       "software-architecture": {
         "id": "software-architecture",
@@ -1454,25 +1359,11 @@
         "command": "$module-design <input>",
         "codexInvokable": false
       },
-      "swift-language": {
-        "id": "swift-language",
-        "publicName": "dhpk-swift-language",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-swift-language <input>",
-        "codexInvokable": false
-      },
-      "swift-test-strategy": {
-        "id": "swift-test-strategy",
-        "publicName": "dhpk-swift-test-strategy",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-swift-test-strategy <input>",
-        "codexInvokable": false
-      },
-      "swiftui-architecture": {
-        "id": "swiftui-architecture",
-        "publicName": "dhpk-swiftui-architecture",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-swiftui-architecture <input>",
+      "swift": {
+        "id": "swift",
+        "publicName": "swift",
+        "invocationClass": "implicit-eligible",
+        "command": "$swift <input>",
         "codexInvokable": false
       },
       "tdd": {
@@ -1480,64 +1371,38 @@
         "publicName": "tdd-workflow",
         "invocationClass": "implicit-eligible",
         "command": "$tdd-workflow [test-generation] <task>",
-        "codexInvokable": true
+        "codexInvokable": true,
+        "actions": {
+          "tdd": "$tdd-workflow <task>",
+          "test-generation": "$tdd-workflow test-generation <target>"
+        }
       },
       "ui-ux-verify": {
         "id": "ui-ux-verify",
         "publicName": "ui-ux-verify",
         "invocationClass": "implicit-eligible",
         "command": "$ui-ux-verify [<url>] [spec:<spec-path>]",
-        "codexInvokable": true
-      },
-      "update-codemaps": {
-        "id": "update-codemaps",
-        "publicName": "update-codemaps",
-        "invocationClass": "implicit-eligible",
-        "command": "$update-codemaps <input>",
-        "codexInvokable": false
-      },
-      "update-docs": {
-        "id": "update-docs",
-        "publicName": "update-docs",
-        "invocationClass": "implicit-eligible",
-        "command": "$update-docs <docs-path-or-workflow-keyword>",
-        "codexInvokable": true
+        "codexInvokable": true,
+        "actions": {
+          "verify": "$ui-ux-verify [<url>] [spec:<spec-path>]"
+        }
       },
       "vue-2-notes": {
         "id": "vue-2-notes",
         "publicName": "dhpk-vue-2-notes",
-        "invocationClass": "not-configured",
+        "invocationClass": "implicit-eligible",
         "command": "$dhpk-vue-2-notes <input>",
         "codexInvokable": false
       },
-      "xcode-build-tooling": {
-        "id": "xcode-build-tooling",
-        "publicName": "dhpk-xcode-build-tooling",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-xcode-build-tooling <input>",
-        "codexInvokable": false
-      },
-      "yii1-security-audit": {
-        "id": "yii1-security-audit",
-        "publicName": "dhpk-yii1-security-audit",
+      "yii1": {
+        "id": "yii1",
+        "publicName": "yii1",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-yii1-security-audit <input>",
+        "command": "$yii1 <input>",
         "codexInvokable": false
       }
     },
     "aliases": {
-      "agy-fast-worker": {
-        "target": "dhpk-agy-fast-worker",
-        "disposition": "legacy"
-      },
-      "codex-bridge": {
-        "target": "dhpk-codex-bridge",
-        "disposition": "legacy"
-      },
-      "composer-package-hygiene": {
-        "target": "dhpk-composer-package-hygiene",
-        "disposition": "legacy"
-      },
       "deploy-list": {
         "target": "dhpk-deploy-list",
         "disposition": "legacy"
@@ -1554,6 +1419,10 @@
         "target": "git-smart-commit",
         "disposition": "retired"
       },
+      "dhpk-agy-fast-worker": {
+        "target": "flow-drive",
+        "disposition": "retired"
+      },
       "dhpk-bug-fix": {
         "target": "flow-guide",
         "disposition": "retired"
@@ -1564,6 +1433,14 @@
       },
       "dhpk-claude-health": {
         "target": "harness-govern",
+        "disposition": "retired"
+      },
+      "dhpk-cli-dispatch-context": {
+        "target": "flow-drive",
+        "disposition": "retired"
+      },
+      "dhpk-cli-transport": {
+        "target": "flow-drive",
         "disposition": "retired"
       },
       "dhpk-codebase-exploration": {
@@ -1578,8 +1455,16 @@
         "target": "module-design",
         "disposition": "retired"
       },
+      "dhpk-codex-bridge": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
       "dhpk-codex-implement": {
         "target": "flow-drive",
+        "disposition": "retired"
+      },
+      "dhpk-composer-package-hygiene": {
+        "target": "library-author",
         "disposition": "retired"
       },
       "dhpk-create-request": {
@@ -1670,10 +1555,6 @@
         "target": "flow-drive",
         "disposition": "retired"
       },
-      "dhpk-js-static-check-strategy": {
-        "target": "js-static-check-strategy",
-        "disposition": "renamed"
-      },
       "dhpk-laravel": {
         "target": "laravel",
         "disposition": "renamed"
@@ -1710,6 +1591,18 @@
         "target": "laravel",
         "disposition": "retired"
       },
+      "dhpk-laravel-package-author": {
+        "target": "library-author",
+        "disposition": "retired"
+      },
+      "dhpk-laravel-testbench-matrix": {
+        "target": "library-author",
+        "disposition": "retired"
+      },
+      "dhpk-library-dual-testsuite-map": {
+        "target": "library-author",
+        "disposition": "retired"
+      },
       "dhpk-matrix-cell-onboard": {
         "target": "matrix-cell-onboard",
         "disposition": "renamed"
@@ -1744,6 +1637,10 @@
       },
       "dhpk-phpunit-9-modern": {
         "target": "phpunit",
+        "disposition": "retired"
+      },
+      "dhpk-polyfill-version-matrix-audit": {
+        "target": "library-author",
         "disposition": "retired"
       },
       "dhpk-post-dev-test": {
@@ -1818,9 +1715,9 @@
         "target": "code-trace",
         "disposition": "retired"
       },
-      "fastapi-pro": {
-        "target": "dhpk-fastapi-pro",
-        "disposition": "legacy"
+      "doc-refactor": {
+        "target": "doc-maintain",
+        "disposition": "retired"
       },
       "feature-verify": {
         "target": "dhpk-feature-verify",
@@ -1834,100 +1731,24 @@
         "target": "flow-guide",
         "disposition": "retired"
       },
-      "ios-icon-gen": {
-        "target": "dhpk-ios-icon-gen",
-        "disposition": "legacy"
-      },
-      "ios-platform": {
-        "target": "dhpk-ios-platform",
-        "disposition": "legacy"
-      },
       "issue-analyze": {
         "target": "dhpk-issue-analyze",
-        "disposition": "legacy"
-      },
-      "js-lint-config": {
-        "target": "dhpk-js-lint-config",
-        "disposition": "legacy"
-      },
-      "laravel-package-author": {
-        "target": "dhpk-laravel-package-author",
-        "disposition": "legacy"
-      },
-      "laravel-testbench-matrix": {
-        "target": "dhpk-laravel-testbench-matrix",
         "disposition": "legacy"
       },
       "legacy-code-characterization": {
         "target": "dhpk-legacy-characterization-tests",
         "disposition": "legacy"
       },
-      "library-dual-testsuite-map": {
-        "target": "dhpk-library-dual-testsuite-map",
-        "disposition": "legacy"
-      },
-      "nextjs-15-5-notes": {
-        "target": "dhpk-nextjs-15-5-notes",
-        "disposition": "legacy"
-      },
-      "nextjs-16-notes": {
-        "target": "dhpk-nextjs-16-notes",
-        "disposition": "legacy"
+      "matrix-cell-onboard": {
+        "target": "library-author",
+        "disposition": "retired"
       },
       "openspec-artifact-guard": {
         "target": "dhpk-openspec-artifact-guard",
         "disposition": "legacy"
       },
-      "opsx-load-context": {
-        "target": "dhpk-opsx-load-context",
-        "disposition": "legacy"
-      },
-      "opsx-post-obs": {
-        "target": "dhpk-opsx-post-observation",
-        "disposition": "legacy"
-      },
-      "php-8x-features": {
-        "target": "dhpk-php-8x-features",
-        "disposition": "legacy"
-      },
-      "php-modern-pro": {
-        "target": "dhpk-php-modern-pro",
-        "disposition": "legacy"
-      },
-      "php-pro": {
-        "target": "dhpk-php-runtime-router",
-        "disposition": "legacy"
-      },
-      "php56-yii-dev": {
-        "target": "dhpk-yii1-php56-development",
-        "disposition": "legacy"
-      },
-      "polyfill-version-matrix-audit": {
-        "target": "dhpk-polyfill-version-matrix-audit",
-        "disposition": "legacy"
-      },
       "project-audit": {
         "target": "dhpk-project-audit",
-        "disposition": "legacy"
-      },
-      "pytest-async": {
-        "target": "dhpk-pytest-async",
-        "disposition": "legacy"
-      },
-      "python-pro": {
-        "target": "dhpk-python-pro",
-        "disposition": "legacy"
-      },
-      "python-static-checks": {
-        "target": "dhpk-python-static-checks",
-        "disposition": "legacy"
-      },
-      "react-18-notes": {
-        "target": "dhpk-react-18-notes",
-        "disposition": "legacy"
-      },
-      "react-19-notes": {
-        "target": "dhpk-react-19-notes",
         "disposition": "legacy"
       },
       "repo-intake": {
@@ -1950,28 +1771,16 @@
         "target": "flow-guide",
         "disposition": "retired"
       },
-      "swift-language": {
-        "target": "dhpk-swift-language",
-        "disposition": "legacy"
+      "update-codemaps": {
+        "target": "doc-maintain",
+        "disposition": "retired"
       },
-      "swift-test-strategy": {
-        "target": "dhpk-swift-test-strategy",
-        "disposition": "legacy"
-      },
-      "swiftui-architecture": {
-        "target": "dhpk-swiftui-architecture",
-        "disposition": "legacy"
+      "update-docs": {
+        "target": "doc-maintain",
+        "disposition": "retired"
       },
       "vue-2-notes": {
         "target": "dhpk-vue-2-notes",
-        "disposition": "legacy"
-      },
-      "xcode-build-tooling": {
-        "target": "dhpk-xcode-build-tooling",
-        "disposition": "legacy"
-      },
-      "yii1-security-audit": {
-        "target": "dhpk-yii1-security-audit",
         "disposition": "legacy"
       }
     }

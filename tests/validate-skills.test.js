@@ -171,4 +171,47 @@ test('strict validation accepts a long skill without a size exception', () => {
   }
 });
 
+test('nested metadata and graph errors fail the public validator', () => {
+  for (const metadata of [
+    'metadata.dhpk-next: none',
+    'metadata:\n  dhpk-unknown: bad',
+    'metadata:\n  dhpk-next:\n    PASS: missing\n    FAIL: none\n    BLOCKED: none\n    NOT_RUN: none\n    UNAVAILABLE: none',
+  ]) {
+    const tmp = makeTempRepo();
+    try {
+      writeSkill(tmp, 'source', `---\nname: source\n${metadata}\n---\n`);
+      assert.strictEqual(runValidator(tmp).status, 1, metadata);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }
+});
+
+test('first-wave skills must declare their next map when present', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'precommit', '---\nname: precommit\n---\n');
+    const result = runValidator(tmp);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.out, /dhpk-next/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('directory identity keys use the shared nested metadata schema', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'fixture', '---\nname: fixture\ndescription: fixture\nmetadata:\n  dhpk-name-style: unprefixed\n  dhpk-capability-id: dhpk.skill.fixture\n---\n');
+    const valid = runValidator(tmp);
+    assert.strictEqual(valid.status, 0, valid.out);
+    writeSkill(tmp, 'fixture', '---\nname: fixture\nmetadata:\n  dhpk-typo: value\n---\n');
+    const invalid = runValidator(tmp);
+    assert.strictEqual(invalid.status, 1);
+    assert.match(invalid.out, /skills\/fixture\/SKILL\.md.*metadata\.dhpk-typo/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 run('validate-skills');

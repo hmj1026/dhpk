@@ -1,0 +1,71 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "evals/evals.json",
+      "references/frontend-review-patterns.md",
+      "references/rollout.md",
+      "references/setup.md",
+      "references/static-checks.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/status.js",
+        "fixture_ids": [
+          "js-status-local-classification",
+          "js-status-missing-directory"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "JS Static Checks",
+    "summary": "Inspect, configure, or progressively roll out static checks",
+    "syntax": "$js-static-checks <task>",
+    "input_kind": "free-text",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "task",
+        "syntax": "<task>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Describe the task, package scope, and intended target"
+      }
+    ],
+    "actions": [
+      {
+        "id": "check",
+        "summary": "Report static-check status",
+        "syntax": "$js-static-checks check <task>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "setup",
+        "summary": "Configure requested static checks",
+        "syntax": "$js-static-checks setup <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "rollout",
+        "summary": "Plan progressive static checks",
+        "syntax": "$js-static-checks rollout <task>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$js-static-checks review the selected package",
+        "summary": "Use natural task text and resolve the intended target"
+      }
+    ]
+  }
+}

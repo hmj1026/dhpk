@@ -1,0 +1,66 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Proposal Analyze",
+    "summary": "Turn a proposal into an evidence-backed implementation roadmap",
+    "syntax": "$proposal-analyze <proposal>",
+    "input_kind": "free-text",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "proposal",
+        "syntax": "<proposal>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Proposal text or file path"
+      }
+    ],
+    "actions": [
+      {
+        "id": "analyze",
+        "summary": "Research a proposal and produce a roadmap",
+        "syntax": "$proposal-analyze <proposal>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$proposal-analyze openspec/changes/example/proposal.md",
+        "summary": "Use proposal analyze with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "deep-analyze",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:deep-analyze",
+      "argument_contract": "<initial proposal description or file path>",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $proposal-analyze Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/deep-analyze.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/deep-analyze.md"
+      ],
+      "allowed_tools": "Read, Grep, Glob, Bash(git:*), Bash(node:*), Write"
+    }
+  ]
+}

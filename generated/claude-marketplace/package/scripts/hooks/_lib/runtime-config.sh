@@ -183,8 +183,15 @@ _dhpk_codex_timeout_outer_status() {
 _dhpk_codex_timeout_role() {
     local _requested="${1:-}" _mode="${2:-}" _effective="" _authority=""
     case "$_requested" in
-        codex-fast-worker) _effective='codex-worker'; _authority='workspace-write' ;;
-        codex-deep-reasoner) _effective='codex-reasoner'; _authority='read-only' ;;
+        codex-fast-worker|codex-deep-reasoner|agy-fast-worker)
+            local _successor='codex-worker'
+            case "$_requested" in
+                codex-deep-reasoner) _successor='codex-reasoner' ;;
+                agy-fast-worker) _successor='agy-worker' ;;
+            esac
+            printf 'runtime-config: retired role %s in 0.66.2; use %s; rollback 0.66.1\n' "$_requested" "$_successor" >&2
+            return 78
+            ;;
         codex-worker) _effective='codex-worker'; _authority='workspace-write' ;;
         codex-reasoner) _effective='codex-reasoner'; _authority='read-only' ;;
         codex-reviewer) _effective='codex-reviewer'; _authority='read-only' ;;

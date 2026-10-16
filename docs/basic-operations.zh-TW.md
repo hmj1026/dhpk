@@ -277,9 +277,9 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **實作決策與調度規範（Co-located Rules）**：
   - **決策前置狀態**：開始實作前必須具備明確狀態標記：`CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或 `BLOCKED`。若涉及領域邊界應先諮詢 `architect`；仍有不確定性時取得唯讀 Reasoner 結果後才允許 Writer 介入。
   - **OpenSpec 生命週期**：跨 session 或複雜大型工作，應先以 `/opsx:new` 建立 `openspec/changes/<id>/` artifacts。實作完成必須滿足所有 Task 核選、通過適用驗證門禁、解決 Review 意見，才能執行歸檔（Archive）；測試通過或 Plan 批准不等於歸檔憑證。
-  - **Planner 諮詢範疇**：`--plan` 可搭配 `--plan-mode=bounded`（限制最多 4 次直接讀取且無子代理）或 `--plan-mode=discovery`（最多 12 次讀取與 2 個子代理）。未指定時預設 `auto`，在無 Material Risk Signal 且依據充足時自動採 bounded。
+  - **Planner 諮詢範疇**：`--plan` 可搭配 `--plan=bounded`（限制最多 4 次直接讀取且無子代理）或 `--plan=discovery`（最多 12 次讀取與 2 個子代理）。未指定時預設 `auto`，在無 Material Risk Signal 且依據充足時自動採 bounded。
   - **Worker 調度邊界**：`orchestration_dispatch=on`（預設）時，雙檔案以下明確任務可留在 inline；大型機械化變更指定 `--worker=<claude|codex|agy>`。
-  - **Codex CLI 整合**：dhpk 預設不啟用 Codex。使用 `--worker=codex` 走 CLI 機械 Worker；`--reasoner=codex-cli/<model>[:<effort>]` 走獨立推理；`--second-opinion=codex-exec` 取得單次盲審意見。缺少執行檔時回報可選後端不可用，不繞過安全檢查。
+  - **Codex CLI 整合**：dhpk 預設不啟用 Codex。使用 `--worker=codex` 走 CLI 機械 Worker；`--reasoner=codex/<model>[:<effort>]` 走獨立推理；`--second-opinion=codex-exec` 取得單次盲審意見。缺少執行檔時回報可選後端不可用，不繞過安全檢查。
 - **完成標準**：所有變更均具備聚焦驗證（Focused Verification）與綠燈測試證據；不遺留未說明的測試跳過。
 
 #### 步驟四：變更審查與品質門禁
@@ -287,8 +287,8 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **操作**：
   - **即時專業審查**：修改代碼後，依變更檔案路徑自動分派對應領域 Reviewer：
     ```text
-    /dhpk:review-pending                              # 審查當前所有修改中檔案
-    /dhpk:review-pending --files="app/Models/User.php" # 審查指定檔案清單
+    /dhpk:change-verdict pending                              # 審查當前所有修改中檔案
+    /dhpk:change-verdict pending --files="app/Models/User.php" # 審查指定檔案清單
     ```
   - **獨立品質裁決**：以唯讀方式評審代碼規範、安全漏洞、測試覆蓋或變更風險：
     ```text
@@ -387,13 +387,11 @@ inspect → verify surface → route → plan/classify → implement → review 
   | 參數 | 類型 / 選項 | 預設值 | 說明 |
   |---|---|---|---|
   | `<task-text\|task-file\|confirmed-spec-or-change-id>` | 字串 | （必填） | 任務文字、任務檔案或已確認的規格／OpenSpec Change ID。 |
-  | `--plan[=<model>:<effort>]` | 字串（可選值） | 無 | 在實作前啟動 Planner 進行審查；可選指定模型與強度（例如 `opus:xhigh`、`sonnet:high`）。 |
-  | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner 審查範圍（需搭配 `--plan`）。`bounded` 嚴格限制最多 4 次讀取且無子代理；`discovery` 最多 12 次直接讀取及 2 個唯讀子代理。 |
-  | `--worker=<worker>` | `claude` \| `codex` \| `agy` \| `auto` | `auto` | 指定本次變更實作的 Worker 類型（通常使用當前模型）。 |
-  | `--worker-target=<target>` | `<provider>/<model>[:<effort>]` | 無 | 明確指定 Worker 的供應商與模型目標（例如 `anthropic/claude-3-7-sonnet`）。 |
-  | `--cross-provider` | 布林旗標 | 關閉 | 在 `--worker=auto` 時允許考慮外部跨供應商候選（如 Codex），不影響明確指定的 target。 |
-  | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | 無 | 請求獨立 Reasoner 進行唯讀架構或複雜決策審查（例如 `codex-cli/gpt-6.1-sol:high`）。 |
-  | `--architect` / `--no-architect` | 布林旗標 | 依政策 | 控制本次實作是否強制執行架構層面審查。 |
+  | `--plan[=auto\|bounded\|discovery]` | 字串（可選值） | 無 | 在實作前啟動 Planner 進行審查；選擇 `auto`、`bounded` 或 `discovery` 範圍，使用當前 Host 宣告的有效目標。 |
+  | `--worker=auto\|provider[/model[:effort]]` | `claude`、`codex`、`agy` 或精確目標 | `auto` | auto 預設 native；外部選取仍須當前 Host 的精確 role/target/authority grant。 |
+  | `--cross` | 布林旗標 | 關閉 | 在 `--worker=auto` 時允許考慮外部跨供應商候選（如 Codex），不影響明確指定的 target。 |
+  | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | 無 | 請求獨立 Reasoner 進行唯讀架構或複雜決策審查（例如 `codex/gpt-6.1-sol:high`）。 |
+  | `--architect` / `--no-architect` | 布林旗標 | 依政策 | 要求 consultation（portable runner 目前回報 UNAVAILABLE）或停用可選 consult；不得繞過必要 gate。 |
 
 - **實戰範例**：
   ```text
@@ -401,18 +399,18 @@ inspect → verify surface → route → plan/classify → implement → review 
   /dhpk:flow-drive change-add-user-avatar
 
   # 包含限定範圍（Bounded）的 Planner 審查
-  /dhpk:flow-drive change-add-user-avatar --plan --plan-mode=bounded
+  /dhpk:flow-drive change-add-user-avatar --plan=bounded
 
-  # 使用高強度模型進行規劃並指定 Worker
-  /dhpk:flow-drive payment-webhook-retry --plan=opus:xhigh --worker=claude
+  # 以當前 Host planner 進行 discovery 規劃並指定 Worker
+  /dhpk:flow-drive payment-webhook-retry --plan=discovery --worker=claude
 
   # 包含外部 CLI Reasoner 第二意見與架構審查
-  /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex-cli/gpt-6.1-sol:high
+  /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex/gpt-6.1-sol:high
   ```
 
-Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launcher；建立私有 attempt 目錄、packet 與 context 的完整流程見 [parent CLI dispatch](../skills/flow-drive/references/parent-cli-dispatch.md)。明確的 `--worker=codex` 不需要 `--cross-provider`，仍須通過目前的 access 與 capability 檢查。
+Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launcher；建立私有 attempt 目錄、packet 與 context 的完整流程見 [parent CLI dispatch](../skills/flow-drive/references/parent-cli-dispatch.md)。明確的 `--worker=codex` 不需要 `--cross`，仍須通過目前的 access 與 capability 檢查。
 
-若以程式整合 `runFlowDrive`，請依 [portable runner contract](../skills/flow-drive/references/portable-runner.md)：此路徑的 `--cross-provider` 只開啟授權問題，旗標本身不授權；planner、reasoner、architect 選項需使用 Host 操作流程。
+若以程式整合 `runFlowDrive`，請依 [portable runner contract](../skills/flow-drive/references/portable-runner.md)：此路徑的 `--cross` 只開啟授權問題，旗標本身不授權；planner、reasoner、architect 選項需使用 Host 操作流程。
 
 #### 3. code-trace（程式碼追蹤、根因診斷與工具選取）
 
@@ -477,10 +475,10 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
   /dhpk:change-verdict --mode docs docs/basic-operations.md
   ```
 
-#### 5. review-pending（待審變更即時派工）
+#### 5. change-verdict pending（待審變更審查）
 
-- **定位**：自動比對當前工作目錄變更，依據檔案副檔名與路徑派遣對應領域專業 Reviewer（代碼、資料庫、安全、前端等）。
-- **呼叫語法**：`/dhpk:review-pending [--files=<rel-paths>]`
+- **定位**：以唯讀方式審查當前工作目錄變更，依據選取路徑使用可用的專業 Reviewer；必要 reviewer 不可用時回報 `UNAVAILABLE`。
+- **呼叫語法**：`/dhpk:change-verdict pending [--files=<rel-paths>]`
 - **參數說明**：
 
   | 參數 | 類型 | 預設值 | 說明 |
@@ -490,10 +488,10 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
 - **實戰範例**：
   ```text
   # 審查所有當前修改中（Staged + Unstaged）的檔案
-  /dhpk:review-pending
+  /dhpk:change-verdict pending
 
   # 僅針對特定受影響檔案派發審查
-  /dhpk:review-pending --files="app/Models/User.php,routes/api.php"
+  /dhpk:change-verdict pending --files="app/Models/User.php,routes/api.php"
   ```
 
 #### 6. tdd-workflow（測試驅動開發工作流）

@@ -52,8 +52,31 @@ function createHostProjectionConformance({ root, assert }) {
       platform: 'cursor',
       manifest: 'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
       assertFormat(value) {
-        for (const field of ['skills', 'rules', 'agents', 'commands', 'hooks']) {
+        for (const field of ['rules', 'agents', 'commands', 'hooks']) {
           assert.ok(typeof value[field] === 'string', `Cursor manifest must expose ${field}`);
+        }
+        const cursorRoot = resolve('plugins/dhpk-cursor');
+        const provenance = JSON.parse(fs.readFileSync(path.join(cursorRoot, 'provenance.json'), 'utf8'));
+        if (value.skills !== undefined) {
+          assert.strictEqual(typeof value.skills, 'string', 'Cursor skills must be a path');
+          assert.ok(fs.statSync(path.join(cursorRoot, value.skills)).isDirectory(), 'missing Cursor skills directory');
+        } else {
+          assert.strictEqual(provenance.skillProjectionMode, 'shared');
+          assert.deepStrictEqual(provenance.selectedSkillIds, [], 'an overlay requires a Cursor skills field');
+        }
+        if (provenance.sharedSkillSurface) {
+          assert.strictEqual(provenance.sharedSkillSurface, 'agent-plugin');
+          assert.strictEqual(provenance.sharedSkillSource, 'plugins/dhpk-agent/skills/');
+          const owner = JSON.parse(fs.readFileSync(resolve('plugins/dhpk-agent/provenance.json'), 'utf8'));
+          assert.deepStrictEqual(provenance.sharedSkillIds, owner.marketplacePublication.publicEntryIds);
+          assert.deepStrictEqual(provenance.sharedSkillNames, owner.selectedSkillNames);
+          assert.ok(provenance.sharedSkillIds.includes('flow-drive'));
+          assert.strictEqual(provenance.sharedSkillNames.length, provenance.sharedSkillIds.length);
+          for (const name of provenance.sharedSkillNames) {
+            assert.ok(fs.statSync(resolve(`${provenance.sharedSkillSource}${name}/SKILL.md`)).isFile(), `missing shared Skill ${name}`);
+          }
+        } else {
+          assert.strictEqual(typeof value.skills, 'string', 'standalone Cursor requires skills');
         }
       },
     },

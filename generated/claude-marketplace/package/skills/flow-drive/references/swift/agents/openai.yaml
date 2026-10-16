@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swift"
+  short_description: "Swift, SwiftUI, iOS, testing, builds, and icon assets"
+  default_prompt: "Use $swift for the Swift or iOS task, resolving the target before selecting local references."

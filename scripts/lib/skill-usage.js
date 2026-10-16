@@ -694,6 +694,9 @@ function compileRuntimeIndex(inventory, normalizedUsageById, publicIds = null) {
       invocationClass: runtimeInvocationClass(skill),
       command: runtimeCommand(name, usage),
       codexInvokable: publicIds ? publicIds.has(id) : hasCodexSurface(skill),
+      ...(usage && Array.isArray(usage.actions) && usage.actions.length > 0
+        ? { actions: Object.fromEntries(usage.actions.map((action) => [action.id, action.syntax])) }
+        : {}),
     };
   }
 
@@ -744,7 +747,9 @@ function validateRuntimeIndex(runtimeIndex) {
     return { ok: false, errors: Object.freeze(['runtimeIndex targets and aliases must be objects']) };
   }
   for (const [id, target] of Object.entries(runtimeIndex.targets)) {
-    if (!isRecord(target) || JSON.stringify(Object.keys(target).sort()) !== JSON.stringify([...RUNTIME_INDEX_TARGET_KEYS].sort())) {
+    const expectedKeys = [...RUNTIME_INDEX_TARGET_KEYS,
+      ...(isRecord(target) && hasOwn(target, 'actions') ? ['actions'] : [])];
+    if (!isRecord(target) || JSON.stringify(Object.keys(target).sort()) !== JSON.stringify(expectedKeys.sort())) {
       errors.push(`runtimeIndex target '${id}' has an open or incomplete schema`);
       continue;
     }
@@ -753,6 +758,19 @@ function validateRuntimeIndex(runtimeIndex) {
       || !['implicit-eligible', 'explicit-only', 'not-configured'].includes(target.invocationClass)
       || typeof target.codexInvokable !== 'boolean') {
       errors.push(`runtimeIndex target '${id}' is invalid`);
+    }
+    if (hasOwn(target, 'actions')) {
+      if (!isRecord(target.actions) || Object.keys(target.actions).length === 0) {
+        errors.push(`runtimeIndex target '${id}' actions must be a nonempty object`);
+      } else {
+        for (const [actionId, syntax] of Object.entries(target.actions)) {
+          if (!IDENTIFIER.test(actionId) || typeof syntax !== 'string'
+            || syntax.trim() === '' || syntax.length > 512
+            || !startsWithPublicCommand(syntax, target.publicName)) {
+            errors.push(`runtimeIndex target '${id}' action '${actionId}' is invalid`);
+          }
+        }
+      }
     }
   }
   for (const [alias, value] of Object.entries(runtimeIndex.aliases)) {

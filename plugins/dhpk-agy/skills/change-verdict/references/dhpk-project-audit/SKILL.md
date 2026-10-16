@@ -3,6 +3,7 @@ name: dhpk-project-audit
 argument-hint: '[--dir <path>]'
 description: 'Project health audit with deterministic scoring. Use when: evaluating project quality, onboarding to new codebase, periodic health checks. Not for: runtime performance analysis, security-specific audits (use /dhpk:change-verdict --mode security). Output: 5-dimension score + actionable findings.'
 metadata:
+  dhpk-capability-id: dhpk.skill.project-audit
   dhpk-invocation-class: implicit-eligible
 ---
 

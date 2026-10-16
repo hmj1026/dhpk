@@ -19,6 +19,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { extractInvocationClass } = require('../scripts/ci/_lib/frontmatter');
 
 const ROOT = path.join(__dirname, '..');
 const HOOK = path.join(ROOT, 'scripts', 'hooks', 'userpromptsubmit-skill-hint.sh');
@@ -126,8 +127,8 @@ function resolveInvocationClass(name) {
   const cmdFile = path.join(ROOT, 'commands', `${name}.md`);
   const file = fs.existsSync(skillFile) ? skillFile : fs.existsSync(cmdFile) ? cmdFile : null;
   if (!file) return null;
-  const m = fs.readFileSync(file, 'utf8').match(/^metadata:\s*\n\s+dhpk-invocation-class:\s*(\S+)/m);
-  return m ? m[1] : null;
+  const metadata = extractInvocationClass(fs.readFileSync(file, 'utf8'));
+  return metadata.present && !metadata.unknownValue ? metadata.value : null;
 }
 
 test('prompt matching the route pattern emits an additionalContext hint', () => {
@@ -232,16 +233,56 @@ test('real explicit-only routes emit exact commands without Skill-tool advice', 
 });
 
 test('real implicit-eligible route retains generic advisory wording', () => {
-  assert.strictEqual(resolveInvocationClass('review-pending'), 'implicit-eligible');
+  assert.strictEqual(resolveInvocationClass('change-verdict'), 'implicit-eligible');
   const res = runHookAgainstRealRoutes('please review this diff');
   const context = assertHintOutput(
     res,
-    '[skill-hint] This prompt looks like a manual code review task — the /dhpk:review-pending workflow may fit. Suggest it (or run it) if appropriate.',
+    '[skill-hint] This prompt looks like a manual code review task — the /dhpk:change-verdict pending [--files=<paths>] workflow may fit. Suggest it (or run it) if appropriate.',
     'implicit route hint'
   );
-  assert.ok(context.includes('/dhpk:review-pending'), `expected implicit route command: ${context}`);
+  assert.ok(context.includes('/dhpk:change-verdict pending'), `expected implicit route command: ${context}`);
   assert.ok(context.includes('Suggest it (or run it)'), `expected generic wording: ${context}`);
   assert.ok(!/do not call the generic Skill tool/i.test(context), `implicit route must not get explicit-only restriction: ${context}`);
+});
+
+function mkSkillActionRouteTable(target, fallback = false) {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-uph-action-')));
+  const file = path.join(dir, 'route-table.json');
+  const rules = [{ pattern: 'review', label: 'selected pending review', target }];
+  if (fallback) rules.push({ pattern: 'review', label: 'fallback review', target: { kind: 'skill', id: 'change-verdict' } });
+  fs.writeFileSync(file, JSON.stringify({ schema: 'dhpk.route-table.v2', rules }));
+  return { dir, file };
+}
+
+test('a selected skill action hint preserves its complete canonical syntax', () => {
+  const route = mkSkillActionRouteTable({ kind: 'skill', id: 'change-verdict', skillAction: 'pending' });
+  const result = runHookWithRoute('please review this diff', route.file);
+  assertHintOutput(
+    result,
+    '[skill-hint] This prompt looks like a selected pending review task — the /dhpk:change-verdict pending [--files=<paths>] workflow may fit. Suggest it (or run it) if appropriate.',
+    'selected action hint',
+  );
+});
+
+test('unknown or malformed action selectors suppress hints without matching a fallback', () => {
+  for (const skillAction of ['missing', '', 'pending extra', 'pending;echo unsafe', 1, null, ['pending']]) {
+    const route = mkSkillActionRouteTable({ kind: 'skill', id: 'change-verdict', skillAction }, true);
+    const result = runHookWithRoute('please review this diff', route.file);
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(result.stdout.trim(), '', `invalid selector must suppress the hint: ${JSON.stringify(skillAction)}`);
+  }
+});
+
+test('command and agent targets cannot select a skill action hint', () => {
+  for (const target of [
+    { kind: 'command', id: 'change-verdict', skillAction: 'pending' },
+    { kind: 'agent', id: 'e2e-runner', skillAction: 'pending' },
+  ]) {
+    const route = mkSkillActionRouteTable(target, true);
+    const result = runHookWithRoute('please review this diff', route.file);
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(result.stdout.trim(), '', `${target.kind} must not select a skill action`);
+  }
 });
 
 test('real Playwright route emits an explicit unavailable agent dispatch hint without remapping', () => {

@@ -2,16 +2,16 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:80e713102f7939f3339a5d7a6a57695b37c3f124298ce3aec70c71d58ab88ba1`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
 ### `$change-verdict`
 
-摘要：Return an evidence-backed read-only change verdict
-語法：`$change-verdict [--mode=<mode>] [--coverage] [<target>]`
+摘要：Review changes or audit dependencies with bounded explicit fixes
+語法：`$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]`
 呼叫類別：`implicit-eligible`
-最高 authority：`read-only`
+最高 authority：`workspace-write`
 
 輸入：
 - `target` `<target>` (可選, string) — Change, PR, test, document, or risk target
@@ -23,13 +23,22 @@ Actions：
 - `tests` `$change-verdict --mode=tests [--coverage] [<target>]` — Judge test and coverage evidence
 - `docs` `$change-verdict --mode=docs [<target>]` — Judge documentation evidence
 - `risk` `$change-verdict --mode=risk [<target>]` — Judge change-risk evidence
+- `pending` `$change-verdict pending [--files=<paths>]` — Delegate a read-only pending-change review
+- `deps` `$change-verdict deps [--level=<severity>]` — Audit dependency risks without mutation
+- `deps-fix` `$change-verdict deps fix [--level=<severity>]` — Delegate requested bounded dependency remediation then obtain an independent verdict
 
 選項：
 - `mode` `--mode=<mode>` (可選, enum, values=code|pr|security|tests|docs|risk) — Select one verdict mode
 - `coverage` `--coverage` (可選, boolean, default=false) — Include coverage evidence in tests mode
+- `files` `--files=<paths>` (可選, string) — Comma-separated relative pending paths
+- `level` `--level=<severity>` (可選, enum, values=low|moderate|high|critical, default=moderate) — Minimum vulnerability severity
+- `fix` `--fix` (可選, boolean, default=false) — Explicitly request bounded dependency remediation
 
 範例：
 - `$change-verdict --mode=tests --coverage` — Use change verdict with its declared interface
+- `$change-verdict pending --files=src/a.js` — Delegate pending review
+- `$change-verdict deps --level=high` — Audit dependencies without mutation
+- `$change-verdict deps fix` — Request bounded dependency remediation
 
 ### `$code-trace`
 
@@ -76,27 +85,28 @@ Actions：
 範例：
 - `$create-pr --dry-run` — Use create pr with its declared interface
 
-### `$dep-audit`
+### `$doc-maintain`
 
-摘要：Audit dependency risks with a separate explicit fix boundary
-語法：`$dep-audit [--level=<severity>] [--fix]`
+摘要：Mode-specific doc-maintain workflows
+語法：`$doc-maintain <task | mode> <target>`
 呼叫類別：`implicit-eligible`
 最高 authority：`workspace-write`
 
-Actions：
-- `audit` `$dep-audit` — Audit dependency vulnerabilities and optional fixes
+輸入：
+- `task` `<task | mode>` (必要, string) — Natural-language task or explicit mode
 
-選項：
-- `level` `--level=<severity>` (可選, enum, values=low|moderate|high|critical, default=moderate) — Minimum severity to report
-- `fix` `--fix` (可選, boolean, default=false) — Run the explicitly requested fix operation
+Actions：
+- `update` `$doc-maintain update <target>` — update workflow
+- `codemap` `$doc-maintain codemap <target>` — codemap workflow
+- `refactor` `$doc-maintain refactor <target>` — refactor workflow
 
 範例：
-- `$dep-audit --level=high` — Use dependency audit with its declared interface
+- `$doc-maintain update docs/guide.md` — Run the selected mode
 
 ### `$flow-drive`
 
 摘要：Execute one scoped task with diagnosis and acceptance evidence
-語法：`$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
+語法：`$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]`
 呼叫類別：`explicit-only`
 最高 authority：`workspace-write`
 
@@ -107,26 +117,24 @@ Actions：
 - `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance
 
 選項：
-- `plan` `--plan[=<model>:<effort>]` (可選, string) — Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker
-- `plan-mode` `--plan-mode=auto|bounded|discovery` (可選, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
-- `worker` `--worker=<worker>` (可選, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
-- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (可選, string) — Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target
-- `cross-provider` `--cross-provider` (可選, boolean, default=false) — Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh
-- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (可選, string) — Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker
-- `architect` `--architect` (可選, boolean) — Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker
-- `no-architect` `--no-architect` (可選, boolean) — Compatibility notice only in the portable task runner
+- `plan` `--plan[=auto|bounded|discovery]` (可選, enum, values=auto|bounded|discovery) — Request a planner scope using the current Host declared effective target
+- `worker` `--worker=auto|provider[/model[:effort]]` (可選, string, default=auto) — Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant
+- `cross` `--cross` (可選, boolean, default=false) — Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches
+- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (可選, string) — Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers
+- `architect` `--architect` (可選, boolean) — Request consultation; report UNAVAILABLE when the current Host has no supported architecture route
+- `no-architect` `--no-architect` (可選, boolean) — Suppress an optional consult while preserving required Host gates
 
 Legacy diagnostic（非主要語法）：
-- `--codex` — Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut
+- `--codex` — Use an explicit worker or reasoner instead of the retired Codex shortcut
 
 範例：
 - `$flow-drive "Fix the receipt total and verify it matches the receipt lines."` — Resolve and implement a bounded task with explicit acceptance
-- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross-provider` — Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes
+- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross` — Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes
 
 ### `$flow-guide`
 
 摘要：Guide routes, rules, next steps, closeout, and usage help
-語法：`$flow-guide <help|route|rules|next|close> [--go] [<query>]`
+語法：`$flow-guide <help|route|rules|next|close> [--go] [--host <host>] [<query>]`
 呼叫類別：`implicit-eligible`
 最高 authority：`delegate`
 
@@ -138,14 +146,16 @@ Actions：
 - `help` `$flow-guide help [<skill>]` — Show available Codex usage or one usage card
 - `route` `$flow-guide route [--go] [<query>]` — Select the smallest workflow owner for a task
 - `rules` `$flow-guide rules [<query>]` — Look up the governing workflow rules
-- `next` `$flow-guide next [<query>]` — Identify the next bounded workflow action
+- `next` `$flow-guide next [--host <host>] [<query>]` — Identify the next bounded workflow action
 - `close` `$flow-guide close [<query>]` — Check closeout evidence and remaining gates
 
 選項：
 - `go` `--go` (可選, boolean, default=false) — Request one bounded handoff when the route is eligible
+- `host` `--host` (可選, enum, values=claude-code|codex-cli|agy|cursor|claude|codex, default=claude-code) — Select next-action invocation formatting and handoff Host; Codex passes codex-cli
 
 範例：
 - `$flow-guide help` — List the available Codex skill usage contracts
+- `$flow-guide next --host codex-cli` — Resolve declared next steps using Codex invocation formatting
 
 ### `$git-smart-commit`
 
@@ -290,19 +300,3 @@ Actions：
 
 範例：
 - `$ui-ux-verify spec:openspec/changes/example/spec.md` — Use ui ux verify with its declared interface
-
-### `$update-docs`
-
-摘要：Update a bounded user or agent document from live evidence
-語法：`$update-docs <docs-path-or-workflow-keyword>`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `target` `<docs-path-or-workflow-keyword>` (必要, string) — Documentation path or workflow keyword
-
-Actions：
-- `update` `$update-docs <docs-path-or-workflow-keyword>` — Update owned documentation and its locale pair
-
-範例：
-- `$update-docs docs/configuration.md` — Use update docs with its declared interface

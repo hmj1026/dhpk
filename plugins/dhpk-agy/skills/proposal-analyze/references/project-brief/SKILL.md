@@ -4,6 +4,8 @@ argument-hint: '<tech-spec-path> [--output=<output-path>]'
 description: 'Use when converting one readable technical specification into a PM or CTO executive brief. Not for editing the source specification or preserving implementation detail. Output: a saved executive-summary path and retained unresolved decisions.'
 allowed-tools: 'Read, Grep, Glob, Write'
 metadata:
+  dhpk-capability-id: dhpk.skill.project-brief
+  dhpk-name-style: portable-skill
   dhpk-invocation-class: implicit-eligible
 ---
 

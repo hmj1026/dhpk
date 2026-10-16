@@ -1,0 +1,85 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/release-presets.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/release-runner.sh",
+        "fixture_ids": [
+          "release-unmerged-blocked",
+          "release-unrelated-change-blocked",
+          "release-prepare-explicit-files"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Release Creator",
+    "summary": "Prepare or publish a validated release with a human gate",
+    "syntax": "$release-creator <version> [--execute]",
+    "input_kind": "identifier",
+    "invocation_class": "explicit-only",
+    "effect_authority": "external-write",
+    "inputs": [
+      {
+        "id": "version",
+        "syntax": "<version>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Release version"
+      }
+    ],
+    "actions": [
+      {
+        "id": "release",
+        "summary": "Prepare or publish one release",
+        "syntax": "$release-creator <version> [--execute]",
+        "input_kind": "identifier",
+        "effect_authority": "external-write"
+      }
+    ],
+    "options": [
+      {
+        "id": "execute",
+        "syntax": "--execute",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Proceed past the human release gate",
+        "default": false
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$release-creator 0.62.4 --execute",
+        "summary": "Use release creator with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "create-release",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:create-release",
+      "argument_contract": "<version> [--execute]",
+      "authority": "external-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $release-creator Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/create-release.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/create-release.md"
+      ],
+      "allowed_tools": "Bash(git:*), Bash(gh:*), Bash(jq:*), Bash(test:*), Read, Grep, Glob"
+    }
+  ]
+}

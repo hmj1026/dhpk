@@ -1,0 +1,93 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/workflow.md",
+      "scripts/lib/runner-utils.js"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/precommit-runner.js",
+        "fixture_ids": [
+          "pilot-precommit-fast-success",
+          "pilot-precommit-full-success",
+          "pilot-precommit-first-step-failure",
+          "pilot-precommit-package-tool-unavailable"
+        ]
+      }
+    ],
+    "internal_helpers": [
+      {
+        "path": "scripts/lib/runner-utils.js",
+        "required_by": [
+          "scripts/precommit-runner.js"
+        ]
+      }
+    ],
+    "host_capabilities": []
+  },
+  "resource_copies": [
+    {
+      "source": "scripts/lib/runner-utils.js",
+      "destination": "scripts/lib/runner-utils.js"
+    }
+  ],
+  "usage": {
+    "display_name": "Precommit",
+    "summary": "Run the packaged deterministic pre-commit pipeline",
+    "syntax": "$precommit [--fast]",
+    "input_kind": "none",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [],
+    "actions": [
+      {
+        "id": "run",
+        "summary": "Run fast or full pre-commit stages",
+        "syntax": "$precommit [--fast]",
+        "input_kind": "none",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [
+      {
+        "id": "fast",
+        "syntax": "--fast",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Run the fast stage set",
+        "default": false
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$precommit --fast",
+        "summary": "Use precommit with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "precommit",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:precommit",
+      "argument_contract": "[--fast]",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $precommit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/precommit.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/precommit.md"
+      ],
+      "allowed_tools": "Bash(node:*), Bash(git:*), Read, Skill"
+    }
+  ]
+}

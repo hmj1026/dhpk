@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## 0.66.2 — 2026-10-16 — Consolidate library and documentation skill families, consolidate Flow Drive runtime, declare skill handoffs in frontmatter, derive skill directory manifests, and improve test assertion evidence and recovery guidance
+
+- **BREAKING(flow-drive)** — Flow Drive owns its transport, context, and adapter runtime and accepts unified role selectors, invocation-only cross candidates, and planner scopes. Retire the four predecessor skills and standalone bridge agent in 0.66.2; retain 0.66.1 as the compatible rollback release. External execution requires a current Host grant for the exact role, target, and authority.
+- **BREAKING(skills, agents, dispatch, docs)** — consolidate library/doc modes and retire superseded forwarders
+
+### Library and documentation families; retirement planned for 0.66.2
+
+- Replace six library skills with `library-author` modes `author`, `testbench`,
+  `composer`, `polyfill-audit`, `suite-map`, and `cell-onboard`.
+- Replace three documentation skills with `doc-maintain` modes `update`,
+  `codemap`, and `refactor`. Claude documentation command names remain stable;
+  the existing matrix-cell-onboard command forwards to the library family.
+- Retire executable agent names `agy-fast-worker`, `codex-fast-worker`, and
+  `codex-deep-reasoner`. Use `agy-worker`, `codex-worker`, and `codex-reasoner`.
+  Retired requests fail closed with migration guidance. Use canonical
+  `codex_reasoner_model` and `codex_reasoner_effort` configuration keys.
+- Keep prior `codex-bridge` retirement and its BLOCKED execution behavior.
+  Keep `pr-summary`, `merge-prep`, and the approved keep-separate skills independent.
+- Rollback pins release `0.66.1` using the receipt-bound installation path.
+  This change does not create a release tag or publish a release.
+- **feat(skills)** — Declare workflow successors in skill frontmatter and let flow-guide resolve canonical next steps with advisory handoffs.
+- **feat(distribution)** — Compile directory-owned Skill distribution facts and thin command front doors with fail-closed aggregate drift checks while preserving editorial overlays and relocated runtime independence.
+- **fix(local test runner and hosted assertion evidence validation)** — Local full and selected test runs now fail when a completed test file lacks valid observed assertion evidence, using the same assertion-summary validation as hosted shard verification.
+- **fix(native installers and shared skill projection recovery)** — Correct guidance for receipt-owned skills replaced by symlinks or missing files; document recovery from physical backups verified against the current receipt while preserving ownership and fingerprint checks.
+- **refactor(skills)** — Consolidate the selected workflow and language skills into nine self-contained task families, with target-version clarification and read-only dependency audits plus explicitly delegated bounded remediation.
+
 ## 0.66.1 — 2026-10-14 — Add Git Smart Commit change collector, fix Flow Drive private dispatch context permissions under restrictive umask, reorganize TDD workflow guidance, and repair CI validation
 
 - **fix(flow-drive)** — Preserve private Codex dispatch context permissions under restrictive umask and clarify fresh attempt preparation and Host versus portable runner instructions.

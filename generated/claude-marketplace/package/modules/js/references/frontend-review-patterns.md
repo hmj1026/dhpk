@@ -55,7 +55,7 @@ Tier 1 strict rules. Verify:
 Reject substring-match grep usage (`grep -l '@ts-check'`) in any newly
 added script. The valid form is the line-anchored regex
 `^\s*//\s*@ts-check\s*$`. See the
-`js-static-check-strategy` skill for the rationale and the trap pattern.
+`js-static-checks` per-leaf rollout task for the rationale and the trap pattern.
 
 ## Vendored / minified files
 

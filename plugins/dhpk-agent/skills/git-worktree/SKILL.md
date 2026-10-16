@@ -2,7 +2,9 @@
 name: git-worktree
 description: "Manage Git worktree lifecycle with exact native git targets, branch/path validation, and dirty-worktree safety. Covers adding, listing, removing, and pruning worktrees. Not for: branch merging, broad cleanup, or removing or pruning without confirmation. Output: exact commands plus resulting worktree status."
 metadata:
+  dhpk-capability-id: "dhpk.skill.git-worktree"
   dhpk-invocation-class: "explicit-only"
+  dhpk-name-style: "portable-skill"
 ---
 
 # Git Worktree

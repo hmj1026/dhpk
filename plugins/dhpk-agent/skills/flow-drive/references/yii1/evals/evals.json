@@ -1,0 +1,53 @@
+{
+  "skill_name": "yii1",
+  "evals": [
+    {
+      "id": 1,
+      "name": "yii1-development",
+      "prompt": "Use $yii1 to fix this known Yii1.1 bug: findById DAO uses queryRow() and treats no row as null. The sole app is protected/, production is PHP5.6 and PHPUnit5.7. Add an isolated failing-first regression test and keep controller thin.",
+      "expected_output": "Recognize queryRow returns false, preserve queryAll params second argument, parameter binding and scenario validation. Keep application/service/repository seam small, test missing row plus success before implementation, PHPDoc-only compatible code/tests. Do not inject PHP7 return types or PHPUnit6+ APIs.",
+      "expected_read_trace": {
+        "required": [
+          "references/development.md",
+          "references/yii1-backend-patterns.md",
+          "references/phpunit57-legacy-test-traps.md"
+        ],
+        "forbidden": [
+          "references/security.md"
+        ]
+      },
+      "expected_action_trace": "Scope bugfix/test edits only; no shared DB fixtures, DDL, runtime upgrades, commit or push. Missing external Context7 source is disclosed rather than fabricated."
+    },
+    {
+      "id": 2,
+      "name": "yii1-security",
+      "prompt": "Use $yii1 to audit this Yii1.1 controller and config for security. Evidence: Yii::createWebApplication entry, protected controllers/models/views, CController/CActiveRecord inheritance. Include accessRules action coverage, RBAC+resource ownership, CSRF, encoded output, bound SQL, mass assignment scenario, uploads and session cookies. Static audit only; do not modify the app or execute requests.",
+      "expected_output": "At least three framework evidence points; findings first with AUTH/CSRF/XSS/SQL/CFG/LOGIC/FILE mapping, file:line, source-to-sink/ownership evidence, observable nonexecuted verification framework and concrete Yii1.1 API fix. Distinguish safe parameter binding from interpolation, queryRow false, queryAll params second argument. Report each eight-category result and verification gaps; no fabricated exploit results.",
+      "expected_read_trace": {
+        "required": [
+          "references/security.md",
+          "references/yii1-security-patterns.md"
+        ],
+        "forbidden": [
+          "references/development.md"
+        ]
+      },
+      "expected_action_trace": "Read source/config only plus requested report artifact; no app mutations, dynamic exploit/request execution, DB changes or automatic fixes. Review does not clear gates."
+    },
+    {
+      "id": 3,
+      "name": "yii1-ambiguity",
+      "prompt": "Use $yii1 to migrate our backend. Workspace contains a legacy Yii1.1/PHP5.6 app and a Yii2/PHP8 app. I have not selected an app or a destination framework/runtime.",
+      "expected_output": "Ask target application and explicit migration destination and wait before framework/version-specific references or actions. Identify Yii2 as outside this family instead of applying Yii1 APIs. Installed PHP cannot select target.",
+      "expected_read_trace": {
+        "required": [],
+        "forbidden": [
+          "references/development.md",
+          "references/security.md",
+          "references/php56-php7-safe-subset.md"
+        ]
+      },
+      "expected_action_trace": "Configuration/framework identity inspection and clarification only; no source, composer, DB or framework migration actions before answer."
+    }
+  ]
+}

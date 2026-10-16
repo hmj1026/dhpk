@@ -2,6 +2,12 @@
 
 Status: accepted
 
+Ownership update for 0.66.2: Flow Drive owns the complete physical transport,
+context, and adapter closure. The four predecessor Skills and standalone
+bridge agent retire; compatible release rollback is 0.66.1. Bundled files do
+not establish Host support, permission, or execution. The native-only and
+capability/grant boundaries below remain applicable to legacy routes.
+
 The `codex-sync` and `codex-native` projections expose `flow-drive` and the
 shared CLI dispatch context, but they do not publish the Claude-side
 `agy-fast-worker` or `codex-bridge` adapters. Legacy headless external worker
@@ -16,9 +22,9 @@ adapter.
 This boundary applies to those legacy adapter paths on Codex projections.
 Under #917, the portable Flow Drive runner may use a separately injected Host
 executor only when the trusted Provider grant, Host allowed set, current bound
-capability, and common Dispatch Engine validate the selected tuple. This scoped
-Host contract does not install the missing adapters or make legacy headless
-selection available. Claude- and Cursor-side
+capability, and common Dispatch Engine validate the selected tuple. Bundled Flow Drive
+adapters do not make legacy headless selection available without current
+Host route, grant, and capability evidence. Claude- and Cursor-side
 documentation may continue to describe external worker options where those
 surfaces publish the required adapters, but those claims must remain scoped to
 the surface that actually supports them.

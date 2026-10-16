@@ -3,15 +3,11 @@
   "issue": 498,
   "currentSelection": {
     "surface": "agent-plugin",
-    "expectedCount": 52,
+    "expectedCount": 48,
     "selectedStableIds": [
-      "agy-fast-worker",
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-simplify",
       "code-trace",
-      "codex-bridge",
       "composer-package-hygiene",
       "create-pr",
       "dep-audit",
@@ -59,6 +55,7 @@
       "update-docs"
     ],
     "contract": "current-agent-plugin-selection",
+    "retirementDelta": "Flow Drive owns the implementation runtime; agy-fast-worker, cli-dispatch-context, cli-transport, and codex-bridge retired in 0.66.2.",
     "evidenceOnly": true,
     "portableCoreExpansion": false
   },
@@ -81,10 +78,8 @@
     ],
     "currentCodexSyncSubset": {
       "surface": "codex-sync",
-      "expectedCount": 33,
+      "expectedCount": 31,
       "selectedStableIds": [
-        "cli-dispatch-context",
-        "cli-transport",
         "code-simplify",
         "code-trace",
         "create-pr",

@@ -2,16 +2,16 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:50514b622452fe0b102192e1938a0faf4eab47303b0c9ca3e9bd3b9171726727`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:80e713102f7939f3339a5d7a6a57695b37c3f124298ce3aec70c71d58ab88ba1`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
 ### `$change-verdict`
 
-Summary: Return an evidence-backed read-only change verdict
-Syntax: `$change-verdict [--mode=<mode>] [--coverage] [<target>]`
+Summary: Review changes or audit dependencies with bounded explicit fixes
+Syntax: `$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]`
 Invocation class: `implicit-eligible`
-Maximum authority: `read-only`
+Maximum authority: `workspace-write`
 
 Inputs:
 - `target` `<target>` (optional, string) — Change, PR, test, document, or risk target
@@ -23,13 +23,22 @@ Actions:
 - `tests` `$change-verdict --mode=tests [--coverage] [<target>]` — Judge test and coverage evidence
 - `docs` `$change-verdict --mode=docs [<target>]` — Judge documentation evidence
 - `risk` `$change-verdict --mode=risk [<target>]` — Judge change-risk evidence
+- `pending` `$change-verdict pending [--files=<paths>]` — Delegate a read-only pending-change review
+- `deps` `$change-verdict deps [--level=<severity>]` — Audit dependency risks without mutation
+- `deps-fix` `$change-verdict deps fix [--level=<severity>]` — Delegate requested bounded dependency remediation then obtain an independent verdict
 
 Options:
 - `mode` `--mode=<mode>` (optional, enum, values=code|pr|security|tests|docs|risk) — Select one verdict mode
 - `coverage` `--coverage` (optional, boolean, default=false) — Include coverage evidence in tests mode
+- `files` `--files=<paths>` (optional, string) — Comma-separated relative pending paths
+- `level` `--level=<severity>` (optional, enum, values=low|moderate|high|critical, default=moderate) — Minimum vulnerability severity
+- `fix` `--fix` (optional, boolean, default=false) — Explicitly request bounded dependency remediation
 
 Examples:
 - `$change-verdict --mode=tests --coverage` — Use change verdict with its declared interface
+- `$change-verdict pending --files=src/a.js` — Delegate pending review
+- `$change-verdict deps --level=high` — Audit dependencies without mutation
+- `$change-verdict deps fix` — Request bounded dependency remediation
 
 ### `$code-trace`
 
@@ -76,27 +85,28 @@ Options:
 Examples:
 - `$create-pr --dry-run` — Use create pr with its declared interface
 
-### `$dep-audit`
+### `$doc-maintain`
 
-Summary: Audit dependency risks with a separate explicit fix boundary
-Syntax: `$dep-audit [--level=<severity>] [--fix]`
+Summary: Mode-specific doc-maintain workflows
+Syntax: `$doc-maintain <task | mode> <target>`
 Invocation class: `implicit-eligible`
 Maximum authority: `workspace-write`
 
-Actions:
-- `audit` `$dep-audit` — Audit dependency vulnerabilities and optional fixes
+Inputs:
+- `task` `<task | mode>` (required, string) — Natural-language task or explicit mode
 
-Options:
-- `level` `--level=<severity>` (optional, enum, values=low|moderate|high|critical, default=moderate) — Minimum severity to report
-- `fix` `--fix` (optional, boolean, default=false) — Run the explicitly requested fix operation
+Actions:
+- `update` `$doc-maintain update <target>` — update workflow
+- `codemap` `$doc-maintain codemap <target>` — codemap workflow
+- `refactor` `$doc-maintain refactor <target>` — refactor workflow
 
 Examples:
-- `$dep-audit --level=high` — Use dependency audit with its declared interface
+- `$doc-maintain update docs/guide.md` — Run the selected mode
 
 ### `$flow-drive`
 
 Summary: Execute one scoped task with diagnosis and acceptance evidence
-Syntax: `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
+Syntax: `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]`
 Invocation class: `explicit-only`
 Maximum authority: `workspace-write`
 
@@ -107,26 +117,24 @@ Actions:
 - `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance
 
 Options:
-- `plan` `--plan[=<model>:<effort>]` (optional, string) — Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker
-- `plan-mode` `--plan-mode=auto|bounded|discovery` (optional, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
-- `worker` `--worker=<worker>` (optional, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
-- `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (optional, string) — Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target
-- `cross-provider` `--cross-provider` (optional, boolean, default=false) — Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh
-- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (optional, string) — Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker
-- `architect` `--architect` (optional, boolean) — Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker
-- `no-architect` `--no-architect` (optional, boolean) — Compatibility notice only in the portable task runner
+- `plan` `--plan[=auto|bounded|discovery]` (optional, enum, values=auto|bounded|discovery) — Request a planner scope using the current Host declared effective target
+- `worker` `--worker=auto|provider[/model[:effort]]` (optional, string, default=auto) — Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant
+- `cross` `--cross` (optional, boolean, default=false) — Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches
+- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (optional, string) — Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers
+- `architect` `--architect` (optional, boolean) — Request consultation; report UNAVAILABLE when the current Host has no supported architecture route
+- `no-architect` `--no-architect` (optional, boolean) — Suppress an optional consult while preserving required Host gates
 
 Legacy diagnostics (not primary syntax):
-- `--codex` — Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut
+- `--codex` — Use an explicit worker or reasoner instead of the retired Codex shortcut
 
 Examples:
 - `$flow-drive "Fix the receipt total and verify it matches the receipt lines."` — Resolve and implement a bounded task with explicit acceptance
-- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross-provider` — Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes
+- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross` — Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes
 
 ### `$flow-guide`
 
 Summary: Guide routes, rules, next steps, closeout, and usage help
-Syntax: `$flow-guide <help|route|rules|next|close> [--go] [<query>]`
+Syntax: `$flow-guide <help|route|rules|next|close> [--go] [--host <host>] [<query>]`
 Invocation class: `implicit-eligible`
 Maximum authority: `delegate`
 
@@ -138,14 +146,16 @@ Actions:
 - `help` `$flow-guide help [<skill>]` — Show available Codex usage or one usage card
 - `route` `$flow-guide route [--go] [<query>]` — Select the smallest workflow owner for a task
 - `rules` `$flow-guide rules [<query>]` — Look up the governing workflow rules
-- `next` `$flow-guide next [<query>]` — Identify the next bounded workflow action
+- `next` `$flow-guide next [--host <host>] [<query>]` — Identify the next bounded workflow action
 - `close` `$flow-guide close [<query>]` — Check closeout evidence and remaining gates
 
 Options:
 - `go` `--go` (optional, boolean, default=false) — Request one bounded handoff when the route is eligible
+- `host` `--host` (optional, enum, values=claude-code|codex-cli|agy|cursor|claude|codex, default=claude-code) — Select next-action invocation formatting and handoff Host; Codex passes codex-cli
 
 Examples:
 - `$flow-guide help` — List the available Codex skill usage contracts
+- `$flow-guide next --host codex-cli` — Resolve declared next steps using Codex invocation formatting
 
 ### `$git-smart-commit`
 
@@ -290,19 +300,3 @@ Actions:
 
 Examples:
 - `$ui-ux-verify spec:openspec/changes/example/spec.md` — Use ui ux verify with its declared interface
-
-### `$update-docs`
-
-Summary: Update a bounded user or agent document from live evidence
-Syntax: `$update-docs <docs-path-or-workflow-keyword>`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Inputs:
-- `target` `<docs-path-or-workflow-keyword>` (required, string) — Documentation path or workflow keyword
-
-Actions:
-- `update` `$update-docs <docs-path-or-workflow-keyword>` — Update owned documentation and its locale pair
-
-Examples:
-- `$update-docs docs/configuration.md` — Use update docs with its declared interface

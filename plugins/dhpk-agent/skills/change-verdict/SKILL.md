@@ -1,15 +1,29 @@
 ---
 name: change-verdict
-description: "Read-only verdicts for code changes, pull requests, security, tests, documents, or change risk. Use when judging an existing change or evidence set. Not for implementing fixes, generating tests, editing documents, clearing gates, or architecture-only design. Output: evidence-backed findings, degradation state, and READY, BLOCKED, or INCONCLUSIVE."
+description: "Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts and dependency audits are read-only; explicit dependency remediation delegates only the bounded fix to an available authorized writer, followed by independent security review. Not for arbitrary source repair, gate clearing, or architecture-only design. Output: evidence-backed findings, actual review status, and separate remediation/security results."
 metadata:
+  dhpk-capability-id: "dhpk.skill.change-verdict"
   dhpk-invocation-class: "implicit-eligible"
+  dhpk-modes: ["code", "pr", "security", "tests", "docs", "risk"]
+  dhpk-name-style: "portable-family"
+  dhpk-next:
+    PASS: "none"
+    FAIL: "none"
+    BLOCKED: "none"
+    NOT_RUN: "none"
+    UNAVAILABLE: "none"
+    code:PASS: "precommit"
+    docs:PASS: "git-smart-commit"
 ---
 
 # Change Verdict
 
-Use the smallest mode and scope that answer the request. This skill reads
-evidence and returns a verdict with text-only recommendations; it does not
-change repository or review state.
+Use the smallest mode or action and scope that answer the request. The six
+modes, `pending`, and default `deps` read evidence and return results without
+changing workspace or review state. Explicit dependency-remediation authority
+permits only a bounded `deps fix` delegation to an available authorized writer.
+The parent retains its read-only command grants; neither action metadata nor
+the user's fix request adds direct shell, `Write`, or `Edit` capability.
 
 ## Modes
 
@@ -26,9 +40,22 @@ Choose one mode. If the mode or requested scope is ambiguous or cannot be
 resolved, return `INCONCLUSIVE` and state the minimum evidence or clarification
 needed.
 
+## Actions
+
+Natural-language pending-review and dependency requests select these actions;
+selectors are optional when the task is clear. Select one action or mode per
+observation and load only its local procedure.
+
+| Action | Procedure and authority |
+|---|---|
+| `pending [--files "<rel-path,...>"]` | Read [`references/actions/pending.md`](references/actions/pending.md). Delegate read-only to the available `code-reviewer` and relay its report. Missing reviewer returns `UNAVAILABLE`, with no substitute. |
+| `deps [--level <severity>]` | Read [`references/actions/deps.md`](references/actions/deps.md). Use an available read-only audit capability and obtain a separate independent security verdict. |
+| `deps fix [--level <severity>]` or `deps --fix` | Read the same dependency procedure. Delegate only the explicitly authorized dependency scope to an available writer, followed by an independent read-only security verdict. Missing bounded writer capability returns `UNAVAILABLE`; reuse existing authority for that scope. |
+
 ## When NOT to Use
 
-- Implement or fix a finding: use `flow-drive`.
+- Implement or fix a source finding: use `flow-drive`. Explicit dependency
+  remediation belongs to `deps fix` within its declared bound.
 - Trace an unfamiliar code path: use `code-trace`.
 - Specialized skill governance scoring or stocktake: the former audit capability is retired. For an existing skill document or change, select this skill's `docs` or `risk` mode within its declared scope.
 
@@ -72,12 +99,17 @@ not the primary conclusion. Keep the CLI result separate, redact it, and
 record its status. The primary review is complete without this optional check;
 an unavailable CLI is reported as degraded evidence.
 
-## Read-only boundary
+## Authority boundary
 
-Return the review in the response. Keep repository state unchanged: do not run
-formatters, fixers, generators, staging, commits, artifact writers, gate or
-sentinel emitters, or a writer-dispatch loop. A re-review is a new observation
-of a caller-supplied snapshot.
+Return review results in the response. The six modes, `pending`, and default
+`deps` keep tracked/untracked files, index, and lockfiles unchanged. Their
+read-only scope excludes fixers, generators, staging, commits, artifact
+writers, gate/sentinel emitters, and writer dispatch. `deps fix` is the sole
+bounded writer-delegation exception described above; fix success cannot clear a gate or
+replace the independent security verdict. A re-review is a new observation
+of a caller-supplied snapshot. Missing required local resources fail closed
+before dependent action; obtain no replacement from sibling skills or an
+ambient source checkout.
 
 ## References
 
@@ -86,13 +118,18 @@ of a caller-supplied snapshot.
 - `references/shared/review-rubric.md` — severity and final verdict definitions.
 - `references/shared/codex-research-instructions.md` — research guidance used by code prompts.
 - `references/shared/cli-backend.md` — explicit CLI transport contract.
+- `references/actions/pending.md`, `references/actions/deps.md` — delegated
+  pending review and dependency audit/remediation procedures.
 - `references/code/`, `references/security/`, `references/tests/`, `references/docs/`, `references/risk/` — mode-specific instructions.
 - `scripts/review-cli.sh`, `scripts/check-unrelated-changes.sh`, `scripts/risk-analyze.js` — read-only helpers.
 
 ## Completion check
 
-- One mode and a readable, resolved scope are recorded.
+- One mode or action and a readable, resolved scope are recorded.
 - The reported fixed point and evidence anchors match the reviewed snapshot.
 - Findings are normalized and ranked; missing evidence remains visible.
 - Only an explicitly requested CLI opinion is reported, with its actual status.
-- No repository state or review artifact was written.
+- Read-only observations leave repository state unchanged; an explicit
+  dependency fix records the authorized writer, bounded changes, and a
+  separate independent security result. No review artifact, gate, or
+  sentinel was written.

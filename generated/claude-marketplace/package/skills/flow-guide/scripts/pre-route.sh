@@ -9,7 +9,7 @@
 #   echo "<query>" | pre-route.sh      # or on stdin (when no args given)
 #
 # Output (exactly one line, tab-separated):
-#   MATCH<TAB><id><TAB><label>   a route-table pattern matched (first wins)
+#   MATCH<TAB><id><TAB><label>[<TAB><skillAction>]   first matching route
 #   NO_MATCH                     nothing matched (caller should classify deliberately)
 #   NO_QUERY                     no query text supplied
 #
@@ -58,7 +58,14 @@ for rule in table.get("rules", []):
     _ = kind
     try:
         if re.search(pat, q, re.IGNORECASE):
-            print("MATCH\t" + ident + "\t" + label)
+            action = target.get("skillAction")
+            if "skillAction" in target:
+                if kind != "skill" or not isinstance(action, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", action):
+                    print("NO_MATCH")
+                    sys.exit(0)
+                print("MATCH\t" + ident + "\t" + label + "\t" + action)
+            else:
+                print("MATCH\t" + ident + "\t" + label)
             sys.exit(0)
     except re.error:
         continue

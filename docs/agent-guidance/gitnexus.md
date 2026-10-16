@@ -19,6 +19,10 @@ this page carries only the tool order and the recovery paths.
 
 - **Stale index:** run `node .gitnexus/run.cjs analyze --index-only` from the
   repository root before relying on impact or process results.
+- In Git repositories, GitNexus checks both the indexed commit and working-tree
+  dirtiness. A successful analysis can update changed-file content from the
+  working tree; a new or changed symbol is available only after that content is
+  indexed and included by the scanner. Absence from an older index is unresolved.
 - **"Trying to read a database file with a different version":** the global
   `gitnexus` that `run.cjs` selects first is older than the one that built the
   index. Compare `gitnexus --version` with `cliVersion` in
@@ -27,5 +31,16 @@ this page carries only the tool order and the recovery paths.
 - **Ambiguous `impact` target:** a name shared by many symbols returns
   `risk: UNKNOWN` with a candidate list; narrow it with the file path or
   `target_uid` before treating the result as evidence.
+- **Large `impact` output:** use `--summary-only` for counts and risk, or
+  `--limit` with `--offset` to page symbol details. A summary omits symbol
+  details, and a page contains only the returned slice; neither alone
+  establishes the full blast radius. Treat `UNKNOWN`, `partial`, or `truncated`
+  output as unresolved.
+- **Search capability:** unavailable `VECTOR` does not by itself establish that
+  semantic search is unavailable; check `doctor` for the reported fallback,
+  such as exact-scan, and its limits. BM25/full-text keyword search is a
+  separate lane; missing embeddings or vector acceleration alone does not show
+  that lexical search is unavailable. Check the reported capability and query
+  result completeness separately.
 - **Sibling worktree hides changes:** use `detect-changes --scope all` or
   `--scope compare` and inspect the real diff/status.

@@ -163,7 +163,7 @@ APIs differ. This skill is only for the Mix 5 asset pipeline itself.
 - `skills/dhpk-vue-2-notes/SKILL.md` — Vue 2 SFCs are compiled
   through Mix via `vue-loader`; the two modules pair on the frontend
   build
-- `skills/dhpk-js-lint-config/SKILL.md` — ESLint tier strategy
+- `skills/js-static-checks/SKILL.md` — ESLint tier strategy
   and progressive TypeScript for the JS that Mix bundles
-- `skills/js-static-check-strategy/SKILL.md` — static-check
+- `skills/js-static-checks/SKILL.md` — static-check
   tiers for the same `resources/assets/` sources Mix consumes

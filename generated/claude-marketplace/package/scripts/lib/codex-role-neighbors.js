@@ -10,6 +10,7 @@ const EXECUTION_CONTEXT_GLOBAL = /\b(dispatch|delegate|handoff|hand off|invoke|s
 const FENCE_START = /^\s*(`{3,}|~{3,})/;
 const FENCE_END = /^\s*(`{3,}|~{3,})\s*$/;
 const LIST_ITEM = /^(\s*)(?:[-+*]|\d+[.)])\s+/;
+const RETIRED_ROLES = Object.freeze({ 'agy-fast-worker': 'agy-worker', 'codex-fast-worker': 'codex-worker', 'codex-deep-reasoner': 'codex-reasoner' });
 
 function asSet(values) {
   return values instanceof Set ? values : new Set(Array.isArray(values) ? values : []);
@@ -167,6 +168,9 @@ function hasExecutionContext(text) {
 
 function diagnostic({ file, sourceRole, token, status, lineNumber, detail }) {
   const location = file ? `${file}:${lineNumber}` : `${sourceRole}:${lineNumber}`;
+  if (Object.prototype.hasOwnProperty.call(RETIRED_ROLES, token)) {
+    return `${location} — retired role ${token} in 0.66.2; use ${RETIRED_ROLES[token]}; rollback 0.66.1`;
+  }
   const suffix = detail ? ` (${detail})` : '';
   return `${location} — Codex role neighbor source role '${sourceRole}', token '${token}', status '${status}'; use a direct Codex role or an explicit manual fallback${suffix}`;
 }
@@ -218,7 +222,7 @@ function collectCodexRoleNeighborErrors({
         }
       }
 
-      const knownNonDirect = hasEntry && status !== 'direct';
+      const knownNonDirect = (hasEntry && status !== 'direct') || Object.prototype.hasOwnProperty.call(RETIRED_ROLES, token);
       const unresolvedDirect = hasEntry && status === 'direct' && detail;
       const unknownExecutable = !hasEntry && hasExecutionContext(unit.text);
       if (!knownNonDirect && !unresolvedDirect && !unknownExecutable) continue;

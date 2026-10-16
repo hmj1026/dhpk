@@ -1,0 +1,6 @@
+interface:
+  display_name: "Opsx Apply Resume"
+  short_description: "Save and resume long-running apply context"
+  default_prompt: "Use $opsx-apply-resume to save or resume long-running apply context."
+policy:
+  allow_implicit_invocation: false

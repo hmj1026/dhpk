@@ -49,10 +49,10 @@ family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 colli
 
 ```text
 $flow-drive <change-id> --plan
-$flow-drive <change-id> --plan=opus:xhigh
+$flow-drive <change-id> --plan=discovery
 $flow-drive <change-id> --worker=claude|codex|agy|auto
-$flow-drive <change-id> --worker-target=<provider>/<model>[:<effort>] [--cross-provider]
-$flow-drive <change-id> --reasoner=codex-cli/gpt-6.1-sol:high
+$flow-drive <change-id> --worker=<provider>/<model>[:<effort>] [--cross]
+$flow-drive <change-id> --reasoner=codex/gpt-6.1-sol:high
 $flow-drive <change-id> --architect
 $flow-drive <change-id> --no-architect
 ```
@@ -68,9 +68,9 @@ $flow-drive <change-id> --no-architect
 |---|---|---|
 | [`tdd-workflow`](../skills/tdd-workflow/SKILL.md) | 需要 tests-first RED/GREEN/REFACTOR | 不負責瀏覽器旅程或未確認的需求 authoring |
 | [`module-design`](../skills/proposal-analyze/references/module-design/SKILL.md) | 需要 module boundary、deep-module 或 architecture decision | 不取代 OpenSpec proposal owner |
-| [`dhpk-php-runtime-router`](../skills/flow-drive/references/dhpk-php-runtime-router/SKILL.md) | PHP/Laravel/Symfony/Yii runtime 需要分流 | 先判斷 runtime，再載入一條 reference |
-| [`dhpk-yii1-php56-development`](../skills/flow-drive/references/dhpk-yii1-php56-development/SKILL.md) | Yii 1.x / PHP 5.6 backend 工作 | 不用於前端或非 PHP 專案 |
-| [`dhpk-yii1-security-audit`](../skills/change-verdict/references/dhpk-yii1-security-audit/SKILL.md) | Yii 1.1 安全白盒審計 | 不用於 Yii2 或非 PHP 專案 |
+| [`dhpk-php-runtime-router`](../skills/dhpk-php-runtime-router/SKILL.md) | PHP/Laravel/Symfony/Yii runtime 需要分流 | 先判斷 runtime，再載入一條 reference |
+| [`dhpk-yii1-php56-development`](../skills/dhpk-yii1-php56-development/SKILL.md) | Yii 1.x / PHP 5.6 backend 工作 | 不用於前端或非 PHP 專案 |
+| [`dhpk-yii1-security-audit`](../skills/dhpk-yii1-security-audit/SKILL.md) | Yii 1.1 安全白盒審計 | 不用於 Yii2 或非 PHP 專案 |
 | [`dhpk-legacy-characterization-tests`](../skills/tdd-workflow/references/dhpk-legacy-characterization-tests/SKILL.md) | 重構前鎖定 legacy behavior | 不代替功能設計或一般 TDD |
 
 Git、release、setup、review 與其他 slash command 的完整清單在

@@ -8,7 +8,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const RUNNER = path.join(ROOT, 'skills', 'dhpk-cli-transport', 'scripts', 'run-cli-transport.py');
+const RUNNER = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'transport', 'run-cli-transport.py');
 const SUCCESS = `#!/bin/sh
 out=""; previous=""
 for value in "$@"; do [ "$previous" = "--output-last-message" ] && out="$value"; previous="$value"; done
@@ -119,13 +119,11 @@ test('a Codex request labelled agy-worker blocks before provider launch', () => 
   });
 });
 
-test('legacy aliases retain the requested role while carrying a canonical effective role and digest', () => {
+test('retired aliases fail closed before provider execution', () => {
   withRequest(({ root, request }) => {
     for (const [requestedRole, effectiveRole, mode] of [
       ['codex-fast-worker', 'codex-worker', 'workspace-write'],
       ['codex-deep-reasoner', 'codex-reasoner', 'read-only'],
-      ['codex-bridge', 'codex-reviewer', 'read-only'],
-      ['codex-bridge', 'codex-worker', 'workspace-write'],
     ]) {
       request.requested_role = requestedRole;
       request.effective_role = effectiveRole;
@@ -133,9 +131,21 @@ test('legacy aliases retain the requested role while carrying a canonical effect
       request.mode = mode;
       request.command = request.command.map((value) => value === 'workspace-write' || value === 'read-only' ? mode : value);
       const result = invoke(root, request);
-      assert.strictEqual(result.status, 0, `${requestedRole}: ${result.stderr}`);
-      fs.rmSync(request.receipt_path, { force: true });
+      assert.strictEqual(result.status, 65, `${requestedRole}: ${result.stderr}`);
+      assert.ok(result.stderr.includes(effectiveRole));
+      assert.ok(result.stderr.includes('0.66.1'));
+      assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
     }
+  });
+});
+
+test('the retired standalone bridge role cannot launch through the contained transport', () => {
+  withRequest(({ root, request }) => {
+    request.requested_role = 'codex-bridge';
+    request.role_contract = roleContract('codex-worker', 'workspace-write', 'codex-bridge');
+    const result = invoke(root, request);
+    assert.strictEqual(result.status, 65, result.stderr);
+    assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
   });
 });
 

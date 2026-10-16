@@ -1,0 +1,4 @@
+interface:
+  display_name: "Library Author"
+  short_description: "Author, review and test multi-version PHP libraries"
+  default_prompt: "Use $library-author to select the appropriate package authoring, matrix, contract, audit, suite or cell mode."

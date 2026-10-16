@@ -1,0 +1,400 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/parent-cli-dispatch.md",
+      "references/execution-bundle/docs/subagent-prompt-template.md",
+      "references/execution-bundle/manifests/host-profiles.json",
+      "references/execution-bundle/manifests/provider-model-catalog.json",
+      "references/execution-bundle/rules/anti-rationalization.md",
+      "references/execution-bundle/rules/execution-policy-kernel.md",
+      "references/execution-bundle/rules/execution-policy.md",
+      "references/execution-bundle/rules/model-economics.md",
+      "references/execution-bundle/rules/tool-routing.md",
+      "references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+      "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+      "references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+      "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+      "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+      "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+      "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+      "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+      "references/portability.md",
+      "references/recovery.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/launch-dispatch.js",
+        "fixture_ids": [
+          "flow-drive-cli-missing-packet"
+        ]
+      },
+      {
+        "path": "scripts/invocation.js",
+        "fixture_ids": [
+          "flow-drive-confirmed-input",
+          "flow-drive-retired-codex-block"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/scripts/fast-worker-selector.js",
+        "fixture_ids": [
+          "flow-drive-bundled-selector-native"
+        ]
+      }
+    ],
+    "host_capabilities": [],
+    "api_entries": [
+      {
+        "path": "scripts/dispatch.js",
+        "fixture_ids": [
+          "flow-drive-dispatch-valid",
+          "flow-drive-dispatch-invalid-authority"
+        ]
+      },
+      {
+        "path": "scripts/run.js",
+        "fixture_ids": [
+          "flow-drive-public-runner-native"
+        ]
+      }
+    ],
+    "internal_helpers": [
+      {
+        "path": "scripts/role-intents.js",
+        "required_by": [
+          "scripts/run.js"
+        ]
+      },
+      {
+        "path": "scripts/dispatch-runtime/launch-cli-dispatch.js",
+        "required_by": [
+          "scripts/launch-dispatch.js"
+        ]
+      },
+      {
+        "path": "scripts/dispatch-runtime/build-cli-dispatch-context.js",
+        "required_by": [
+          "scripts/dispatch-runtime/launch-cli-dispatch.js"
+        ]
+      },
+      {
+        "path": "scripts/dispatch-runtime/cli-role-resolver.js",
+        "required_by": [
+          "scripts/dispatch-runtime/build-cli-dispatch-context.js",
+          "scripts/dispatch.js"
+        ]
+      },
+      {
+        "path": "scripts/dispatch-runtime/physical-file.js",
+        "required_by": [
+          "scripts/dispatch-runtime/launch-cli-dispatch.js"
+        ]
+      },
+      {
+        "path": "scripts/dispatch-runtime/physical-file.py",
+        "required_by": [
+          "scripts/dispatch-runtime/physical-file.js"
+        ]
+      },
+      {
+        "path": "scripts/adapters/run-codex.sh",
+        "required_by": [
+          "scripts/dispatch-runtime/launch-cli-dispatch.js"
+        ]
+      },
+      {
+        "path": "scripts/transport/prepare-cli-request.py",
+        "required_by": [
+          "scripts/adapters/run-codex.sh",
+          "scripts/adapters/run-agy.sh"
+        ]
+      },
+      {
+        "path": "scripts/transport/run-cli-transport.py",
+        "required_by": [
+          "scripts/adapters/run-codex.sh",
+          "scripts/adapters/run-agy.sh"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/scripts/lib/dispatch-contract.js",
+        "required_by": [
+          "references/execution-bundle/scripts/fast-worker-selector.js",
+          "scripts/dispatch.js",
+          "references/execution-bundle/scripts/lib/dispatch-engine.js"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/scripts/lib/dispatch-engine.js",
+        "required_by": [
+          "references/execution-bundle/scripts/fast-worker-selector.js",
+          "scripts/dispatch.js"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+        "required_by": [
+          "references/execution-bundle/scripts/fast-worker-selector.js"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+        "required_by": [
+          "scripts/dispatch.js"
+        ]
+      },
+      {
+        "path": "scripts/adapters/run-agy.sh",
+        "required_by": [
+          "scripts/dispatch-runtime/launch-cli-dispatch.js"
+        ]
+      }
+    ]
+  },
+  "resource_copies": [
+    {
+      "source": "scripts/lib/dispatch-scheduler.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-scheduler.js"
+    },
+    {
+      "source": "scripts/lib/dispatch-writer-lease.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-writer-lease.js"
+    },
+    {
+      "source": "rules/execution-policy.md",
+      "destination": "references/execution-bundle/rules/execution-policy.md"
+    },
+    {
+      "source": "rules/execution-policy-kernel.md",
+      "destination": "references/execution-bundle/rules/execution-policy-kernel.md"
+    },
+    {
+      "source": "rules/model-economics.md",
+      "destination": "references/execution-bundle/rules/model-economics.md"
+    },
+    {
+      "source": "rules/anti-rationalization.md",
+      "destination": "references/execution-bundle/rules/anti-rationalization.md"
+    },
+    {
+      "source": "rules/tool-routing.md",
+      "destination": "references/execution-bundle/rules/tool-routing.md"
+    },
+    {
+      "source": "docs/subagent-prompt-template.md",
+      "destination": "references/execution-bundle/docs/subagent-prompt-template.md"
+    },
+    {
+      "source": "skills/flow-guide/references/invocation-precedence.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+    },
+    {
+      "source": "skills/flow-guide/references/invocation-classification.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+    },
+    {
+      "source": "skills/flow-guide/references/implementation-dispatch.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+    },
+    {
+      "source": "skills/flow-guide/references/premise-verification.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+    },
+    {
+      "source": "skills/flow-guide/references/deterministic-first.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+    },
+    {
+      "source": "skills/flow-guide/references/testing-policy.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+    },
+    {
+      "source": "skills/flow-guide/references/component-addition-policy.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+    },
+    {
+      "source": "scripts/fast-worker-selector.js",
+      "destination": "references/execution-bundle/scripts/fast-worker-selector.js"
+    },
+    {
+      "source": "scripts/lib/dispatch-contract.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
+    },
+    {
+      "source": "scripts/lib/dispatch-capability-evidence.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-capability-evidence.js"
+    },
+    {
+      "source": "scripts/lib/dispatch-engine.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
+    },
+    {
+      "source": "scripts/lib/native-dispatch-policy.js",
+      "destination": "references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+    },
+    {
+      "source": "scripts/lib/partial-writer-handoff.js",
+      "destination": "references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+    },
+    {
+      "source": "scripts/lib/flow-handoff-contract.js",
+      "destination": "references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+    },
+    {
+      "source": "manifests/provider-model-catalog.json",
+      "destination": "references/execution-bundle/manifests/provider-model-catalog.json"
+    },
+    {
+      "source": "manifests/host-profiles.json",
+      "destination": "references/execution-bundle/manifests/host-profiles.json"
+    }
+  ],
+  "usage": {
+    "display_name": "Flow Drive",
+    "summary": "Execute one scoped task with diagnosis and acceptance evidence",
+    "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]",
+    "input_kind": "mixed",
+    "inputs": [
+      {
+        "id": "task-input",
+        "syntax": "<task-text|task-file|confirmed-spec-or-change-id>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Provide one task text argument, task file path, or confirmed specification/change ID; quote text and paths containing spaces",
+        "applies_to": [
+          "apply"
+        ]
+      }
+    ],
+    "invocation_class": "explicit-only",
+    "effect_authority": "workspace-write",
+    "actions": [
+      {
+        "id": "apply",
+        "summary": "Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance",
+        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id>",
+        "input_kind": "mixed",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [
+      {
+        "id": "plan",
+        "syntax": "--plan[=auto|bounded|discovery]",
+        "value_kind": "enum",
+        "required": false,
+        "summary": "Request a planner scope using the current Host declared effective target",
+        "applies_to": [
+          "apply"
+        ],
+        "enum_values": [
+          "auto",
+          "bounded",
+          "discovery"
+        ]
+      },
+      {
+        "id": "worker",
+        "syntax": "--worker=auto|provider[/model[:effort]]",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant",
+        "applies_to": [
+          "apply"
+        ],
+        "default": "auto"
+      },
+      {
+        "id": "cross",
+        "syntax": "--cross",
+        "value_kind": "boolean",
+        "required": false,
+        "default": false,
+        "summary": "Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches",
+        "applies_to": [
+          "apply"
+        ]
+      },
+      {
+        "id": "reasoner",
+        "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers",
+        "applies_to": [
+          "apply"
+        ]
+      },
+      {
+        "id": "architect",
+        "syntax": "--architect",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Request consultation; report UNAVAILABLE when the current Host has no supported architecture route",
+        "applies_to": [
+          "apply"
+        ]
+      },
+      {
+        "id": "no-architect",
+        "syntax": "--no-architect",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Suppress an optional consult while preserving required Host gates",
+        "applies_to": [
+          "apply"
+        ]
+      },
+      {
+        "id": "codex",
+        "syntax": "--codex",
+        "value_kind": "boolean",
+        "required": false,
+        "summary": "Request the retired Codex diagnostic",
+        "legacy": {
+          "replacement_id": "worker",
+          "diagnostic_only": true,
+          "reason": "Use an explicit worker or reasoner instead of the retired Codex shortcut"
+        },
+        "applies_to": [
+          "apply"
+        ]
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$flow-drive \"Fix the receipt total and verify it matches the receipt lines.\"",
+        "summary": "Resolve and implement a bounded task with explicit acceptance"
+      },
+      {
+        "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross",
+        "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "flow-drive",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:flow-drive",
+      "argument_contract": "<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/flow-drive.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/flow-drive.md"
+      ],
+      "reason": "Canonical $flow-drive Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "allowed_tools": "Read, Grep, Glob, Bash, Skill, Agent"
+    }
+  ]
+}

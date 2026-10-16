@@ -39,12 +39,11 @@ Wrapper degrade path (landed with `adapt-cli-wrappers-to-new-behaviors`):
   `settings.json` permissions hint; classify print-mode slash-command errors as
   not a permissions retry; emit version-drift when installed ≠
   `AGY_VERIFIED_BASELINE` 1.1.13. Do not bump the baseline from a drift notice.
-- **Codex** — `--output-last-message` on every role; `--output-schema` (OpenAI-strict
-  `skills/dhpk-codex-bridge/scripts/report-schema.json`) only when
-  `DHPK_CODEX_ROLE=codex-worker` (requested-role alias: `codex-fast-worker`). Do not adopt `ultra`. `--ephemeral` /
-  `--ignore-user-config` stay opt-in.
+- **Codex** — `--output-last-message` on every contained role. The retired
+  standalone bridge report schema is no longer a runtime dependency.
+  `--ephemeral` / `--ignore-user-config` stay opt-in.
 
-## GPT-5.x section (codex-worker, codex-reasoner, codex-reviewer; aliases: codex-fast-worker, codex-deep-reasoner, codex-bridge skill)
+## GPT-5.x section (codex-worker, codex-reasoner, codex-reviewer; aliases: codex-worker, codex-reasoner, internal mode-qualified bridge role)
 
 The heading name is a stable contract (`openspec/specs/cli-prompt-composition`); it covers the GPT-6 routes.
 
@@ -64,7 +63,7 @@ The heading name is a stable contract (`openspec/specs/cli-prompt-composition`);
 - **`text.verbosity` and `reasoning.mode` are out of scope** — `codex exec` gives
   no control surface for either, so no prompt text should claim to set them.
 
-## Gemini section (agy-worker; alias: agy-fast-worker)
+## Gemini section (agy-worker; alias: agy-worker)
 
 - **Source**: official Gemini 3 family guidance. The dispatched model is
   Gemini 3.6 Flash — a minor-version gap; the family-level guidance below still

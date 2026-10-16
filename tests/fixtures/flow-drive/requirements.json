@@ -47,7 +47,7 @@
       "tests": [
         {
           "suite": "tests/flow-drive-provider-permissions.test.js",
-          "test": "--cross-provider asks for real provider scope before a scoped capability refresh"
+          "test": "--cross asks for real provider scope before a scoped capability refresh"
         },
         {
           "suite": "tests/flow-drive-dev-qa.test.js",
@@ -195,7 +195,7 @@
         },
         {
           "suite": "tests/flow-drive-cli-dispatch.test.js",
-          "test": "an explicit Codex worker target wins over the native worker selector"
+          "test": "a unified exact Codex worker selection reaches the literal target"
         },
         {
           "suite": "tests/flow-drive-provider-permissions.test.js",
@@ -265,7 +265,7 @@
     },
     {
       "id": "REQ-04",
-      "scenario": "--cross-provider 且選擇一個額外供應商",
+      "scenario": "--cross 且選擇一個額外供應商",
       "expected": "問答確認前沒有外部探測或執行；確認後只考慮已允許集合。",
       "requirement": "REQ-04"
     },

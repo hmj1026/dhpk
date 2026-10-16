@@ -69,37 +69,15 @@
       "resource": "skills/proposal-analyze/SKILL.md"
     },
     {
-      "id": "dep-audit",
-      "path": "commands/dep-audit.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:dep-audit",
-      "argument_contract": "[--level <severity>] [--fix]",
-      "authority": "workspace-write",
-      "skill_owner": "dep-audit",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $dep-audit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/dep-audit.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/dep-audit.md"
-      ],
-      "resource": "skills/dep-audit/SKILL.md"
-    },
-    {
       "id": "doc-refactor",
       "path": "commands/doc-refactor.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:doc-refactor",
       "argument_contract": "<file path>",
       "authority": "workspace-write",
-      "skill_owner": "doc-refactor",
+      "skill_owner": "doc-maintain",
       "disposition": "thin-front-door",
-      "reason": "Canonical $doc-refactor Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "reason": "Stable Claude front door forwards normalized arguments to doc-maintain mode refactor.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -110,7 +88,8 @@
       "callers": [
         "commands/doc-refactor.md"
       ],
-      "resource": "skills/doc-refactor/SKILL.md"
+      "resource": "skills/doc-maintain/SKILL.md",
+      "mode": "refactor"
     },
     {
       "id": "flow-drive",
@@ -185,7 +164,7 @@
       "public_name": "/dhpk:matrix-cell-onboard",
       "argument_contract": "\"<php-version> <laravel-version> [phpunit] [monolog]\"  e.g. \"8.3 12 11 3\"",
       "authority": "workspace-write",
-      "skill_owner": "matrix-cell-onboard",
+      "skill_owner": "library-author",
       "disposition": "thin-front-door",
       "evidence": {
         "structural": "PASS",
@@ -197,8 +176,9 @@
       "callers": [
         "commands/matrix-cell-onboard.md"
       ],
-      "resource": "skills/matrix-cell-onboard/SKILL.md",
-      "reason": "Canonical $matrix-cell-onboard Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
+      "resource": "skills/library-author/SKILL.md",
+      "reason": "Stable Claude front door forwards normalized arguments to library-author mode cell-onboard.",
+      "mode": "cell-onboard"
     },
     {
       "id": "merge-prep",
@@ -311,28 +291,6 @@
       "resource": "skills/project-brief/SKILL.md"
     },
     {
-      "id": "review-pending",
-      "path": "commands/review-pending.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:review-pending",
-      "argument_contract": "\"[--files \\\"<rel-path,...>\\\"]\"",
-      "authority": "delegate",
-      "skill_owner": "review-pending",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $review-pending Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/review-pending.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/review-pending.md"
-      ],
-      "resource": "skills/review-pending/SKILL.md"
-    },
-    {
       "id": "setup",
       "path": "commands/setup.md",
       "host_surface": "claude-command",
@@ -427,9 +385,9 @@
       "public_name": "/dhpk:update-codemaps",
       "argument_contract": "",
       "authority": "workspace-write",
-      "skill_owner": "update-codemaps",
+      "skill_owner": "doc-maintain",
       "disposition": "thin-front-door",
-      "reason": "Canonical $update-codemaps Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "reason": "Stable Claude front door forwards normalized arguments to doc-maintain mode codemap.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -440,7 +398,8 @@
       "callers": [
         "commands/update-codemaps.md"
       ],
-      "resource": "skills/update-codemaps/SKILL.md"
+      "resource": "skills/doc-maintain/SKILL.md",
+      "mode": "codemap"
     },
     {
       "id": "update-docs",
@@ -449,9 +408,9 @@
       "public_name": "/dhpk:update-docs",
       "argument_contract": "<docs-path | workflow-keyword>",
       "authority": "workspace-write",
-      "skill_owner": "update-docs",
+      "skill_owner": "doc-maintain",
       "disposition": "thin-front-door",
-      "reason": "Canonical $update-docs Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "reason": "Stable Claude front door forwards normalized arguments to doc-maintain mode update.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -462,7 +421,8 @@
       "callers": [
         "commands/update-docs.md"
       ],
-      "resource": "skills/update-docs/SKILL.md"
+      "resource": "skills/doc-maintain/SKILL.md",
+      "mode": "update"
     },
     {
       "id": "verify",
@@ -493,10 +453,10 @@
       "public_name": "/dhpk:ts-check-status",
       "argument_contract": "[--path <directory>]",
       "authority": "read-only",
-      "skill_owner": "js-static-check-strategy",
-      "resource": "skills/js-static-check-strategy/SKILL.md",
+      "skill_owner": "js-static-checks",
+      "resource": "skills/js-static-checks/SKILL.md",
       "disposition": "thin-front-door",
-      "reason": "Canonical $js-static-check-strategy Skill owns status behavior; the module command preserves the status adapter grammar.",
+      "reason": "Canonical $js-static-checks owns check behavior; the module command preserves the status adapter grammar.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",

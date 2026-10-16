@@ -1,0 +1,4 @@
+interface:
+  display_name: "React"
+  short_description: "Target-scoped React 18 and 19 guidance and migrations"
+  default_prompt: "Use $react to resolve the target package and apply React guidance for the requested task."

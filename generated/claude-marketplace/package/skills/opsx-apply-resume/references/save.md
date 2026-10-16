@@ -12,10 +12,8 @@ lookup. Resolve it before invoking helpers from an arbitrary consumer cwd.
 Use the package-local `"$SKILL_DIR/scripts/"` helpers:
 
 - `"$SKILL_DIR/scripts/detect-phase.sh"` — phase token before entering Save.
-- `"$SKILL_DIR/scripts/extract-compact.sh"` — synchronized local copy of the canonical
-  `dhpk-opsx-load-context` extractor.
-- `"$SKILL_DIR/scripts/post-obs.sh"` — synchronized local copy of the canonical
-  `dhpk-opsx-post-observation` observer.
+- `"$SKILL_DIR/scripts/extract-compact.sh"` — family-owned compact extractor.
+- `"$SKILL_DIR/scripts/post-obs.sh"` — family-owned optional observation client.
 - `"$SKILL_DIR/scripts/set-handoff-state.sh"` — recoverable `saved|consuming|consumed` transition.
 - `"$SKILL_DIR/scripts/write-handoff.sh"` — atomically writes the complete handoff payload from
   stdin to one explicit path; it requires the `python3` capability.
@@ -48,11 +46,11 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
    source. A file is recorded as `COMPACT_JSON_PATH`; use the package-local
    `"$SKILL_DIR/scripts/extract-compact.sh"` to read `L0`, `session_goal`, `completed`, `in_progress`,
    `key_decisions`, and `failed_approaches`.
-4. **Optional memory provider.** If the package-local observation provider is
-   available, build one JSON payload from the compact fields and launch its
-   post non-blocking. Collect the result before the handoff write. Record an
-   integer `claude_mem_obs_id` or `null`; either is valid. Codex may use a
-   native provider or the package-local helper, but never requires Claude-mem.
+4. **Optional memory provider.** When enabled and permitted, follow
+   [post-observation](post-observation.md) to build the payload and launch the
+   post without waiting. Preserve its PID/result path while Steps 5–6 run.
+   Codex may use a native provider with the same collection contract; memory
+   service availability is optional.
 5. **Identify the change.** Select `change-id` in this order: command
    argument, most recent visible `/opsx:apply <name>`, then the Host's native
    selection prompt. Announce the selected name. Read only unchecked and
@@ -72,13 +70,17 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
    `unavailable`; do not infer a model from task count, task type, or vendor
    tiers, and do not require a dhpk catalog or a resource from another
    repository. The suggestion is advisory and never changes the active model.
-7. **Write the handoff.** Create the host artifact directory and assemble the
+7. **Collect and write the handoff.** First collect any pending observation
+   through [post-observation](post-observation.md#collect-before-writing).
+   Record its integer ID or `null` and the actual memory provider state; a null
+   result does not prove observation persistence. Then create the host artifact
+   directory and assemble the
    handoff payload with frontmatter containing:
 
    ```text
    change_id, saved_at, state: saved, model_suggestion, risk_level,
    precommit, commit, compact, remaining_tasks_count, compact_json_path,
-   claude_mem_obs_id, claude_mem_tags
+   claude_mem_obs_id, claude_mem_tags, memory
    ```
 
    Embed `## Compact Summary`, `### Completed`, `### In Progress`,

@@ -213,4 +213,22 @@ test('generator check mode rejects a drifted catalog after accepting a valid bas
   }
 });
 
+test('directory usage drift fails before catalog parity can pass', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-usage-directory-'));
+  try {
+    fs.mkdirSync(path.join(root, 'skills/alpha'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'manifests'));
+    const inv = inventoryFixture();
+    inv.skills = inv.skills.filter(row => row.id === 'alpha');
+    inv.modules = [];
+    fs.writeFileSync(path.join(root, 'manifests/distribution-inventory.json'), JSON.stringify(inv));
+    fs.writeFileSync(path.join(root, 'skills/alpha/SKILL.md'), '---\nname: alpha\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\n');
+    fs.writeFileSync(path.join(root, 'skills/alpha/distribution.yaml'), JSON.stringify({ schema: 'dhpk.skill-distribution.v1', usage: usage('alpha', { summary: 'Directory-owned changed summary' }) }));
+    const result = runGenerator(['--check', '--root', root, '--inventory', 'manifests/distribution-inventory.json']);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.stderr, /alpha.*usage.*Skill directory/);
+    assert.doesNotMatch(result.stderr, /generated catalog missing/);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 run('gen-skill-usage');

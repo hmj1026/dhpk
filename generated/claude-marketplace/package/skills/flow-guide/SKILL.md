@@ -1,9 +1,11 @@
 ---
 name: flow-guide
-argument-hint: '<help|route|rules|next|close> [--go] [<query>]'
+argument-hint: '<help|route|rules|next|close> [--go] [--host <host>] [<query>]'
 description: 'Read-only workflow guidance and bounded routing. Use when work needs a route, policy lookup, next action, closeout gate, or Codex usage help. Not for implementation, review, code tracing, or skill authoring. Output: one typed report with evidence and a clear handoff.'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 metadata:
+  dhpk-capability-id: dhpk.skill.flow-guide
+  dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
 ---
 
@@ -72,7 +74,7 @@ Return the source pointer, applicable gate, and one next handoff.
 Run `node skills/flow-guide/scripts/action-runner.js next` (which delegates to
 the package-local analyzer) and parse its JSON. Report the
 current branch/worktree evidence, each required or unavailable gate, and one
-next route. If the script cannot run, record the fallback evidence and the
+next route. For `next`, pass `--host codex-cli` on Codex, `--host cursor` on Cursor, or `--host agy` on AGY; the omitted Host defaults to `claude-code`. Supported Host names match the shared handoff contract (`claude-code`, `codex-cli`, `agy`, `cursor`, `claude`, `codex`). The Host changes invocation formatting and handoff evidence only. If the script cannot run, record the fallback evidence and the
 reason instead of treating the missing check as a pass.
 
 When the request is an inbound issue with unsettled intent or acceptance, use
@@ -119,7 +121,7 @@ repository inventory, environment variable, or upward search is consulted.
   progressively disclosed Codex grammar.
 - `references/execution-bundle/skills/flow-guide/references/invocation-precedence.md` — competing-owner resolution.
 - `references/projects-index.md` — project-specific policy references.
-- `references/progression-tables.md` — fallback progression for `next`.
+- `references/progression-tables.md` — generated agent fallback for `next`; canonical frontmatter owns progression.
 - `references/handoff-and-verification.md` — conditional handoff evidence.
 - `rules`: load `references/execution-bundle/skills/flow-guide/references/deterministic-first.md`,
   `references/dispatch-and-gates.md`, `references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md`,

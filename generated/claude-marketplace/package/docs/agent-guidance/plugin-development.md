@@ -70,12 +70,14 @@ applicable reviewers from the execution-policy trigger table is recommended.
 
 ## CI preflight for generated and release-shaped changes
 
-When a change touches the distribution inventory, canonical skills, profiles,
-plugin manifests, package generators, or generated package files, first
-regenerate the usage catalog and include any resulting catalog diff in the
-canonical-source commit. The provenance-bound distribution generators then run
-from that clean commit, followed by the generated-output commit and the
-clean-checkout verifier. Do not stop after a single projection passes:
+When a change touches the distribution inventory, canonical skills, bundled
+documentation, profiles, plugin manifests, package generators, or generated
+package files, first regenerate the usage catalog and include any resulting
+catalog diff in the canonical-source commit. The provenance-bound distribution
+generators then run from that clean commit. Complete all four external package
+generations before updating any tracked generated output, then regenerate the
+Claude marketplace and commit the owned outputs together. The final local gate
+runs from that clean generated-output commit:
 
 ```bash
 node scripts/ci/gen-skill-usage.js --write
@@ -89,15 +91,26 @@ bin/dhpk distribution agent-plugin generate --output "$dhpk_packages/dhpk-agent"
 bin/dhpk distribution cursor-plugin generate --output "$dhpk_packages/dhpk-cursor" --version=<version> --json
 bin/dhpk distribution codex-native generate --output "$dhpk_packages/dhpk" --version=<version> --json
 bin/dhpk distribution agy-plugin generate --output "$dhpk_packages/dhpk-agy" --version=<version> --json
+# All four formal generations are complete; tracked outputs may now change.
+npm run gen:marketplace
+npm run check:marketplace
 # Copy only the owned outputs, then commit the generated projections once.
 rsync -a --delete "$dhpk_packages/dhpk-agent/" plugins/dhpk-agent/
 rsync -a --delete "$dhpk_packages/dhpk-cursor/" plugins/dhpk-cursor/
 rsync -a --delete "$dhpk_packages/dhpk/" plugins/dhpk/
 rsync -a --delete "$dhpk_packages/dhpk-agy/" plugins/dhpk-agy/
-git add plugins/dhpk-agent plugins/dhpk-cursor plugins/dhpk plugins/dhpk-agy
+git add plugins/dhpk-agent plugins/dhpk-cursor plugins/dhpk plugins/dhpk-agy generated/claude-marketplace/package
 git commit -m "chore: refresh generated platform packages"
-node scripts/ci/verify-platform-packages.js
+npm run ci
 ```
+
+Use focused or selected checks during iteration according to
+[testing governance](../testing-governance.md). Their success closes the scoped
+obligation. Before handoff, `npm run ci` on the clean generated-output commit
+is the final local aggregate: repository validation, generated-output checks
+(including Claude marketplace and all four platform packages), catalog checks,
+and the complete test suite. Report its actual verdict separately from focused
+results and hosted CI.
 
 For daily CI, `verify-platform-packages.js --surface <name>` accepts the
 affected package subset; selecting Cursor automatically includes its Agent
@@ -111,8 +124,11 @@ changes use the full route. Release verification and an explicit unfiltered
 platform-validation request retain the complete four-surface check.
 
 The distribution generators and `verify-platform-packages.js` are
-provenance-bound and require a clean checkout. Run the generators after the
-canonical-source commit, commit their outputs, then run the verifier.
+provenance-bound and require a clean checkout. Run all four generators after the
+canonical-source commit, then regenerate the Claude marketplace and commit all
+owned outputs before `npm run ci` invokes the verifier. Dirty-source previews
+remain review evidence with `releaseEligible: false`; they cannot replace formal
+generation or the clean-checkout gate.
 
 The project-local `.agents/skills` compatibility projection is generated from
 the same canonical `skills/` tree and is not hand-edited:
@@ -127,7 +143,16 @@ For an external consumer project, pass `--source-root`, `--project-root`, the
 explicit `portable-core` profile, and the requested Hosts; the shared publisher
 then writes a self-contained artifact, a project receipt at
 `.agents/.dhpk-installed.json`, and a Claude discovery binding when Claude is
-selected. AGY sibling-package references remain forbidden unless a bounded
+selected. Project-only selectors accept `skill:<id>` and `module:<id>`; bare
+IDs require a unique inventory entity. Modules participate in dependency closure
+but only skills are emitted. Lifecycle receipts use
+`dhpk.project-agent-projection-receipt.v2` with typed selected/emitted identities
+and source-fingerprint keys. A validated v1 emitted `skills/` source proves skill
+identity; a selected-only v1 ID requires unique inventory resolution. Ambiguous
+legacy identity blocks publication and cleanup before mutation. The generated
+artifact manifest retains `dhpk.agents-skills-projection.v1`.
+
+AGY sibling-package references remain forbidden unless a bounded
 consumer probe passes. Keep Codex/Cursor/AGY agent and rule projections on their
 platform-native paths; `.agents` is not their shared configuration root.
 

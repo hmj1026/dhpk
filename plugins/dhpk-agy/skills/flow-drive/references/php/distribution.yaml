@@ -1,0 +1,84 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "evals/evals.json",
+      "references/7-4.md",
+      "references/8-x.md",
+      "references/agent-extracts/architect-code-examples.md",
+      "references/agent-extracts/security-owasp-examples.md",
+      "references/agent-extracts/tdd-code-templates.md",
+      "references/async-patterns.md",
+      "references/feature-catalog.md",
+      "references/laravel-patterns.md",
+      "references/laravel-projects.md",
+      "references/laravel-v10.md",
+      "references/laravel-v11-v12.md",
+      "references/laravel-version-checks.md",
+      "references/modern-php-features.md",
+      "references/php56-legacy.md",
+      "references/phpunit57-php56-legacy.md",
+      "references/static-checks.md",
+      "references/symfony-patterns.md",
+      "references/testing-quality.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Php",
+    "summary": "Handle PHP 5.6, 7.4, and 8.x tasks safely",
+    "syntax": "$php <task>",
+    "input_kind": "free-text",
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "task",
+        "syntax": "<task>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Describe the task, package scope, and intended target"
+      }
+    ],
+    "actions": [
+      {
+        "id": "implement",
+        "summary": "Implement compatible PHP code",
+        "syntax": "$php implement <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "review",
+        "summary": "Review PHP compatibility",
+        "syntax": "$php review <task>",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "test",
+        "summary": "Write compatible PHP tests",
+        "syntax": "$php test <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "migrate",
+        "summary": "Apply the requested PHP migration",
+        "syntax": "$php migrate <task>",
+        "input_kind": "free-text",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$php review the selected package",
+        "summary": "Use natural task text and resolve the intended target"
+      }
+    ]
+  }
+}

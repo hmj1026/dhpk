@@ -31,9 +31,8 @@ const COMMON_SKILL_IDS = [
   'create-pr',
   'git-worktree',
   'proposal-analyze',
-  'update-docs',
+  'doc-maintain',
   'precommit',
-  'dep-audit',
   'repo-verify',
   'ui-ux-verify',
 ];
@@ -55,13 +54,13 @@ test('fresh Codex install selects the common collection and keeps runtime suppor
     assert.strictEqual(receipt.profileId, 'common');
     assert.deepStrictEqual([...receipt.selectedStableIds].sort(), [...COMMON_SKILL_IDS].sort());
     assert.deepStrictEqual([...receipt.emittedStableIds].sort(), [...COMMON_SKILL_IDS].sort());
-    assert.deepStrictEqual(receipt.runtimeSupportStableIds, [
-      'cli-dispatch-context',
-      'cli-transport',
-    ]);
-    for (const name of ['dhpk-cli-dispatch-context', 'dhpk-cli-transport']) {
-      assert.ok(receipt.managed_entries.skills[name], `${name} must remain installed as runtime support`);
+    assert.deepStrictEqual(receipt.runtimeSupportStableIds, []);
+    for (const name of ['dhpk-cli-dispatch-context', 'dhpk-cli-transport', 'dhpk-codex-bridge', 'dhpk-agy-fast-worker']) {
+      assert.ok(!receipt.managed_entries.skills[name], `${name} must remain retired`);
     }
+    const runtime = path.join(scratch, '.codex', 'skills', 'flow-drive', 'scripts', 'run.js');
+    const loaded = spawnSync(process.execPath, ['-e', 'require(process.argv[1])', runtime], { cwd: scratch, encoding: 'utf8' });
+    assert.strictEqual(loaded.status, 0, loaded.stderr);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -174,9 +173,9 @@ test('enabled provider reports stale receipt and owned broken links before migra
 
     const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
     const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
-    const retired = 'dhpk-yii1-security-audit';
+    const retired = 'dhpk-legacy-characterization-tests';
     const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
-    assert.ok(retiredEntry, 'fixture needs its historical security-audit skill');
+    assert.ok(retiredEntry, 'fixture needs an active prefixed skill to retire');
 
     const installed = runInstaller(scratch, ['--force', '--skill', retiredEntry.id], fakePlugin);
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
@@ -480,9 +479,13 @@ test('Codex sync installs its transport runtime without granting it profile capa
     assert.ok(!receipt.selectedStableIds.includes('cli-transport'));
     assert.ok(!receipt.emittedStableIds.includes('cli-dispatch-context'));
     assert.ok(!receipt.emittedStableIds.includes('cli-transport'));
-    assert.deepStrictEqual(receipt.runtimeSupportStableIds, ['cli-dispatch-context', 'cli-transport']);
-    assert.ok(receipt.managed_entries.skills['dhpk-cli-dispatch-context']);
-    assert.ok(receipt.managed_entries.skills['dhpk-cli-transport']);
+    assert.deepStrictEqual(receipt.runtimeSupportStableIds, []);
+    assert.ok(!receipt.managed_entries.skills['dhpk-cli-dispatch-context']);
+    assert.ok(!receipt.managed_entries.skills['dhpk-cli-transport']);
+    assert.ok(receipt.emittedStableIds.includes('flow-drive'));
+    for (const resource of ['transport/run-cli-transport.py', 'dispatch-runtime/launch-cli-dispatch.js', 'adapters/run-codex.sh', 'adapters/run-agy.sh']) {
+      assert.ok(fs.statSync(path.join(scratch, '.codex/skills/flow-drive/scripts', resource)).isFile(), resource);
+    }
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

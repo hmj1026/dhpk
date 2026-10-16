@@ -13,7 +13,7 @@ const { resolveTarget } = bundleModule(path.join('scripts', 'lib', 'dispatch-eng
 const { VALID_BACKENDS, resolveDispatchPlan } = bundleModule(path.join('scripts', 'lib', 'native-dispatch-policy'));
 const DEFAULT_CATALOG = require(path.join(EXECUTION_BUNDLE_ROOT, 'manifests', 'provider-model-catalog.json'));
 const HOST_PROFILES = require(path.join(EXECUTION_BUNDLE_ROOT, 'manifests', 'host-profiles.json'));
-const { resolveConfig } = require(path.join(SKILL_ROOT, 'references', 'cli-dispatch', 'scripts', 'cli-role-resolver'));
+const { resolveConfig } = require('./dispatch-runtime/cli-role-resolver');
 
 const INVOCATION_SCHEMA = 'dhpk.flow-drive-invocation.v1';
 const REQUEST_SCHEMA = 'dhpk.dispatch.request.v2';
@@ -165,7 +165,7 @@ function validatePacket(packet, promptEvidence) {
   }
   if (options.reasoner !== null && options.reasoner !== undefined) {
     requireRecord(options.reasoner, 'invocation.options.reasoner');
-    if (!['claude', 'codex'].includes(options.reasoner.backend)) throw new TypeError('invocation reasoner backend is invalid');
+    if (!['claude', 'codex', 'agy'].includes(options.reasoner.backend)) throw new TypeError('invocation reasoner backend is invalid');
   }
 
   requireRecord(promptEvidence, 'prompt evidence');
@@ -185,6 +185,7 @@ function validatePacket(packet, promptEvidence) {
 function resolvedCodexConfig(config, role, modelOverride, effortOverride) {
   const effectiveRole = role === 'worker' ? 'codex-worker' : 'codex-reasoner';
   const resolved = resolveConfig({ effectiveRole, config });
+  if (resolved.status === 'BLOCKED') throw new Error(resolved.reason);
   const model = modelOverride === null || modelOverride === undefined ? resolved.model.value : modelOverride;
   const effort = effortOverride === null || effortOverride === undefined ? resolved.effort.value : effortOverride;
   const timeout = resolved.timeout_secs.value;
@@ -230,15 +231,6 @@ function configuredBackendOrder(config) {
     throw new TypeError('fast_worker_backend_order must list claude, codex, or agy');
   }
   return [...new Set(order)];
-}
-
-function configuredCrossProvider(config) {
-  const value = config.cross_provider === undefined ? config.fast_worker_cross_provider : config.cross_provider;
-  if (value === undefined) return false;
-  if (typeof value === 'boolean') return value;
-  if (value === 'true' || value === '1') return true;
-  if (value === 'false' || value === '0') return false;
-  throw new TypeError('cross_provider config must be boolean');
 }
 
 function nativeBackend(profile) {
@@ -303,7 +295,7 @@ function prepareInvocationDispatch(packet, promptEvidence) {
       const pair = profilePair(hostProfile, 'reasoner', backend);
       if (!pair) throw new Error(`Host profile has no ${backend} reasoner target`);
       request.target = profileCandidate(hostProfile, 'reasoner', backend, { model: options.reasoner.model, includeEffort: false });
-      request.effort = pair.effort;
+      request.effort = options.reasoner.effort || pair.effort;
     }
   } else if (options.workerTarget) {
     const backend = options.workerTarget.provider;
@@ -317,22 +309,16 @@ function prepareInvocationDispatch(packet, promptEvidence) {
       const pair = profilePair(hostProfile, 'worker', backend);
       if (!pair) throw new Error(`Host profile has no ${backend} worker target`);
       request.target = profileCandidate(hostProfile, 'worker', backend, { model: options.workerTarget.model, includeEffort: false });
-      request.effort = pair.effort;
+      request.effort = options.workerTarget.effort || pair.effort;
     }
   } else {
-    const configuredBackend = config.fast_worker_backend;
-    if (configuredBackend !== undefined && !['auto', ...VALID_BACKENDS].includes(configuredBackend)) {
-      throw new TypeError('fast_worker_backend must be auto, claude, codex, or agy');
-    }
-    const requestedBackend = options.worker === 'auto'
-      ? configuredBackend || 'auto'
-      : options.worker;
+    const requestedBackend = options.worker;
     const plan = resolveDispatchPlan({
       role: 'worker',
       requestedBackend,
       configuredOrder: configuredBackendOrder(config),
       nativeBackend: nativeBackend(hostProfile),
-      crossProvider: options.crossProvider || configuredCrossProvider(config),
+      crossProvider: options.crossProvider,
     });
     preferenceOrder = [];
     for (const backend of plan.candidates) {
@@ -364,9 +350,21 @@ function prepareInvocationDispatch(packet, promptEvidence) {
     request.effort = pair && pair.effort;
   }
 
+  if (options.workerTarget || role === 'reasoner' && options.reasoner.model) request.strict_target = true;
   if (!prepared) prepared = prepareDispatch({ change, request, preferenceOrder });
   let boundConfig = config;
   const resolvedTarget = prepared.resolution.target;
+  if (prepared.resolution.status === 'RESOLVED' && resolvedTarget
+      && resolvedTarget.provider !== hostProfile.native_provider) {
+    const grant = packet.provider_grant;
+    const expected = { task_id: packet.task_id, attempt_id: packet.attempt_id, role,
+      authority: ROLE_AUTHORITY[role], provider: resolvedTarget.provider, target_agent: resolvedTarget.target_agent,
+      model_id: resolvedTarget.model_id, effort: resolvedTarget.effort };
+    if (!isRecord(grant) || grant.status !== 'GRANTED' || typeof grant.answer_id !== 'string' || !grant.answer_id.trim()
+        || Object.entries(expected).some(([key, value]) => grant[key] !== value)) {
+      throw new Error('external dispatch requires a current exact Host provider grant before launch');
+    }
+  }
   if (prepared.resolution.status === 'RESOLVED' && resolvedTarget
       && resolvedTarget.target_agent === 'codex-cli'
       && resolvedTarget.provider === 'openai'

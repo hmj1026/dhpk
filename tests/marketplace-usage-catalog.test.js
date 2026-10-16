@@ -12,19 +12,21 @@ const read = (file) => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8')
 const inventory = read('manifests/distribution-inventory.json');
 const selection = read('manifests/marketplace-selection.json');
 const publicNames = [
-  'change-verdict', 'code-trace', 'create-pr', 'dep-audit', 'flow-drive',
+  'change-verdict', 'code-trace', 'create-pr', 'doc-maintain', 'flow-drive',
   'flow-guide', 'git-smart-commit', 'git-worktree', 'precommit',
   'proposal-analyze', 'release-creator', 'repo-verify', 'tdd-workflow',
-  'ui-ux-verify', 'update-docs',
+  'ui-ux-verify',
 ];
 function view() {
   assert.strictEqual(typeof selectionApi.compileMarketplacePublicationView, 'function');
   return selectionApi.compileMarketplacePublicationView({ inventory, selection });
 }
 
-test('official usage lists exactly the fifteen approved public owners', () => {
+test('official usage lists exactly the fourteen approved public owners', () => {
   const catalog = compileSkillUsageCatalog({ inventory, publicationView: view() });
   assert.deepStrictEqual(catalog.entries.map((entry) => entry.name).sort(), publicNames);
+  assert.strictEqual(catalog.runtimeIndex.targets['dep-audit'], undefined);
+  assert.strictEqual(catalog.runtimeIndex.targets['review-pending'], undefined);
 });
 
 test('known children and Host-only skills remain non-invokable diagnostic targets', () => {
@@ -63,6 +65,13 @@ test('the canonical generator uses the selection and refuses a missing selection
     fs.mkdirSync(path.join(directory, 'manifests'));
     fs.writeFileSync(path.join(directory, 'manifests/distribution-inventory.json'), JSON.stringify(inventory));
     fs.writeFileSync(path.join(directory, 'manifests/marketplace-selection.json'), JSON.stringify(selection));
+    for (const skill of inventory.skills) {
+      const target = path.join(directory, skill.path);
+      fs.mkdirSync(target, { recursive: true });
+      for (const file of ['SKILL.md', 'distribution.yaml']) {
+        fs.copyFileSync(path.join(root, skill.path, file), path.join(target, file));
+      }
+    }
     const execute = () => spawnSync(process.execPath, [
       path.join(root, 'scripts/ci/gen-skill-usage.js'), '--root', directory, '--write',
     ], { encoding: 'utf8' });

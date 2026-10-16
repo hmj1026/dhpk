@@ -168,18 +168,6 @@ function registerResumeFamilyFixtures() {
     })),
     shellDefinition({
       id: 'resume-extract-compact-owner',
-      skill: 'dhpk-opsx-load-context',
-      entry: 'scripts/extract-compact.sh',
-      args: ['compact.json'],
-      prepare: prepareCompact,
-      stubs: {},
-      expected: {
-        status: 0,
-        output: ['L0: resume fixture headline', 'session_goal: preserve context across a boundary', '  - phase two', '[use local scripts] no peer checkout'],
-      },
-    }),
-    shellDefinition({
-      id: 'resume-extract-compact-copy',
       skill: 'opsx-apply-resume',
       entry: 'scripts/extract-compact.sh',
       args: ['compact.json'],
@@ -192,17 +180,6 @@ function registerResumeFamilyFixtures() {
     }),
     shellDefinition({
       id: 'resume-post-observation-owner-unavailable',
-      skill: 'dhpk-opsx-post-observation',
-      entry: 'scripts/post-obs.sh',
-      args: ['payload.json'],
-      prepare: preparePayload,
-      stubs: { curl: NETWORK_DENIED_CURL },
-      expected: { status: 0, output: ['null'] },
-    }, (result) => {
-      assert.strictEqual(result.stdout.trim(), 'null');
-    }),
-    shellDefinition({
-      id: 'resume-post-observation-copy-unavailable',
       skill: 'opsx-apply-resume',
       entry: 'scripts/post-obs.sh',
       args: ['payload.json'],

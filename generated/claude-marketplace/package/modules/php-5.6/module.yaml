@@ -14,5 +14,5 @@ triggers:
     extensions: []
     paths: []
 provides:
-  skills: [dhpk-php-runtime-router]
+  skills: [php]
   references: [coding-style.md]

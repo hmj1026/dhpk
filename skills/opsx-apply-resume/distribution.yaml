@@ -1,0 +1,142 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "evals/evals.json",
+      "references/load-context.md",
+      "references/post-observation.md",
+      "references/resume.md",
+      "references/save.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/extract-compact.sh",
+        "fixture_ids": [
+          "resume-extract-compact-owner"
+        ]
+      },
+      {
+        "path": "scripts/post-obs.sh",
+        "fixture_ids": [
+          "resume-post-observation-owner-unavailable"
+        ]
+      },
+      {
+        "path": "scripts/detect-phase.sh",
+        "fixture_ids": [
+          "resume-detect-missing-handoff-save",
+          "resume-detect-saved-old-resume"
+        ]
+      },
+      {
+        "path": "scripts/set-handoff-state.sh",
+        "fixture_ids": [
+          "resume-set-state-consuming"
+        ]
+      },
+      {
+        "path": "scripts/write-handoff.sh",
+        "fixture_ids": [
+          "resume-write-create-explicit",
+          "resume-write-missing-leaf-dhpk-symlink",
+          "resume-write-missing-leaf-claude-symlink",
+          "resume-write-missing-leaf-explicit-symlink"
+        ]
+      }
+    ],
+    "host_capabilities": [
+      "host-session-save-resume"
+    ],
+    "internal_helpers": [
+      {
+        "path": "scripts/lib/portable-sed.sh",
+        "required_by": [
+          "scripts/set-handoff-state.sh"
+        ]
+      }
+    ],
+    "host_evidence": {
+      "host-session-save-resume": {
+        "status": "NOT_RUN",
+        "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
+      }
+    }
+  },
+  "resource_copies": [
+    {
+      "source": "scripts/hooks/_lib/portable-sed.sh",
+      "destination": "scripts/lib/portable-sed.sh"
+    }
+  ],
+  "usage": {
+    "display_name": "Opsx Apply Resume",
+    "summary": "Save or resume an OpenSpec apply handoff",
+    "syntax": "$opsx-apply-resume [<save-or-resume-task>] [<change-id>]",
+    "input_kind": "identifier",
+    "invocation_class": "explicit-only",
+    "effect_authority": "workspace-write",
+    "inputs": [
+      {
+        "id": "save-or-resume-task",
+        "syntax": "<save-or-resume-task>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Describe the save or resume task"
+      },
+      {
+        "id": "change-id",
+        "syntax": "<change-id>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "OpenSpec change identifier"
+      }
+    ],
+    "actions": [
+      {
+        "id": "save",
+        "summary": "Save one apply handoff",
+        "syntax": "$opsx-apply-resume save [<change-id>]",
+        "input_kind": "identifier",
+        "effect_authority": "workspace-write"
+      },
+      {
+        "id": "resume",
+        "summary": "Resume one apply handoff",
+        "syntax": "$opsx-apply-resume resume [<change-id>]",
+        "input_kind": "identifier",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$opsx-apply-resume portable-command-skills",
+        "summary": "Use opsx apply resume with its declared interface"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "opsx-apply-resume",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:opsx-apply-resume",
+      "argument_contract": "[change-id]",
+      "authority": "workspace-write",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $opsx-apply-resume Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/opsx-apply-resume.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/opsx-apply-resume.md"
+      ],
+      "allowed_tools": "Read, Grep, Glob, Bash, Skill"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Yii1"
+  short_description: "Yii1.1 development and static framework security audit"
+  default_prompt: "Use $yii1 for the task, preserving PHP target compatibility and mode-specific authority."

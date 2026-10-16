@@ -341,9 +341,10 @@ from the distribution inventory's explicit `codex-native` surface — not from
 (see [ADR-0006](adr/0006-codex-native-publication-artifact.md)),
 never generated fresh at install time.
 
-**Native package membership.** Inventory currently materializes 16
-Codex-sync/native entries: 14 invokable skills plus the non-invokable
-`cli-transport` and `cli-dispatch-context` runtime packages.
+**Native package membership.** The inventory owns native package membership.
+Flow Drive now contains its transport, context, and adapter runtime; the
+standalone `cli-transport` and `cli-dispatch-context` entries retire in 0.66.2.
+Package generation/provenance and actual Host discovery remain separate gates.
 `codex-sync` and `codex-native` are separately published and acquired surfaces
 with independent acquisition/update/verification contracts — adding an
 invokable skill to one does not add it to the other. `codex-sync` is the

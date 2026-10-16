@@ -87,13 +87,9 @@
     "agy-plugin"
   ],
   "agent_roster": [
-    "agy-fast-worker",
     "agy-worker",
     "architect",
     "code-reviewer",
-    "codex-bridge",
-    "codex-deep-reasoner",
-    "codex-fast-worker",
     "codex-reasoner",
     "codex-reviewer",
     "codex-worker",
@@ -124,7 +120,7 @@
   "skill_routing_families": [
     {
       "id": "laravel",
-      "router_id": "php-pro",
+      "router_id": "php",
       "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-module"
@@ -142,7 +138,7 @@
     },
     {
       "id": "phpunit",
-      "router_id": "php-pro",
+      "router_id": "php",
       "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-module"
@@ -465,7 +461,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "3810d74a9a857a1736ddf5c2ba668802e1d16e1a09df3668953196dd4899a5d6",
+      "canonical_digest": "775b9717f36e518a80ad572592724141937b64baf52ca62d90989f6d74249401",
       "projection_digest": "9b9ebc35a257180c19d8c8b56a9b91f46e1afa8511d94dafad51f08c14547cee",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -481,7 +477,7 @@
       "id": "codex-supporting-agent-traps-_common-cli-prompt-composition-md",
       "source": "codex/supporting/agent-traps/_common/cli-prompt-composition.md",
       "canonical_source": "agent-traps/_common/cli-prompt-composition.md",
-      "canonical_digest": "566306b9a9757b5cb413181e8d9c73ffbd0122757853df1dcdd2b60444741e4c",
+      "canonical_digest": "3292f4160f3778a38d5145c860b50d87205f678821026ce44fe2b7abaa0985d9",
       "projection_digest": "ce688871d91c199c68f8395ac8a6614237dca27dc94d651dfc5c2b98a46b879c",
       "destination": "dhpk/agent-traps/_common/cli-prompt-composition.md"
     },
@@ -506,109 +502,6 @@
   ],
   "skills": [
     {
-      "id": "fastapi-pro",
-      "name": "dhpk-fastapi-pro",
-      "path": "skills/dhpk-fastapi-pro",
-      "capability_id": "dhpk.skill.fastapi-pro",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "fastapi"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "fastapi-pro"
-      ]
-    },
-    {
-      "id": "ios-platform",
-      "name": "dhpk-ios-platform",
-      "path": "skills/dhpk-ios-platform",
-      "capability_id": "dhpk.skill.ios-platform",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "ios-platform"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "ios-platform"
-      ]
-    },
-    {
-      "id": "js-lint-config",
-      "name": "dhpk-js-lint-config",
-      "path": "skills/dhpk-js-lint-config",
-      "capability_id": "dhpk.skill.js-lint-config",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "js"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "js-lint-config"
-      ]
-    },
-    {
-      "id": "js-static-check-strategy",
-      "name": "js-static-check-strategy",
-      "path": "skills/js-static-check-strategy",
-      "capability_id": "dhpk.skill.js-static-check-strategy",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "js"
-      ],
-      "surfaces": [
-        "claude-module",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "name_style": "portable-skill",
-      "invocation_class": "implicit-eligible",
-      "usage": {
-        "display_name": "JS Static Check Strategy",
-        "summary": "Plan staged TypeScript checks and inspect strict-check progress",
-        "syntax": "$js-static-check-strategy status [--path=<path>]",
-        "input_kind": "none",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [],
-        "actions": [
-          {
-            "id": "status",
-            "summary": "Report the current static-check status",
-            "syntax": "$js-static-check-strategy status [--path=<path>]",
-            "input_kind": "none",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "path",
-            "syntax": "--path=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Frontend root to scan"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$js-static-check-strategy status --path=js/",
-            "summary": "Use js static check strategy with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "laravel",
       "name": "laravel",
       "path": "skills/laravel",
@@ -632,96 +525,6 @@
       "name_style": "portable-family"
     },
     {
-      "id": "library-dual-testsuite-map",
-      "name": "dhpk-library-dual-testsuite-map",
-      "path": "skills/dhpk-library-dual-testsuite-map",
-      "capability_id": "dhpk.skill.library-dual-testsuite-map",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "library-author"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "library-dual-testsuite-map"
-      ]
-    },
-    {
-      "id": "matrix-cell-onboard",
-      "name": "matrix-cell-onboard",
-      "path": "skills/matrix-cell-onboard",
-      "capability_id": "dhpk.skill.matrix-cell-onboard",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "library-author"
-      ],
-      "surfaces": [
-        "claude-module",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "name_style": "portable-skill",
-      "invocation_class": "implicit-eligible",
-      "usage": {
-        "display_name": "Matrix Cell Onboard",
-        "summary": "Plan and optionally apply one multi-major CI matrix cell",
-        "syntax": "$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]",
-        "input_kind": "mixed",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "php-version",
-            "syntax": "<php-version>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "PHP runtime version"
-          },
-          {
-            "id": "laravel-version",
-            "syntax": "<laravel-version>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Laravel version"
-          },
-          {
-            "id": "phpunit",
-            "syntax": "<phpunit>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "PHPUnit version"
-          },
-          {
-            "id": "monolog",
-            "syntax": "<monolog>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Monolog version"
-          }
-        ],
-        "actions": [
-          {
-            "id": "onboard",
-            "summary": "Plan and apply one matrix cell",
-            "syntax": "$matrix-cell-onboard <php-version> <laravel-version>",
-            "input_kind": "mixed",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$matrix-cell-onboard 8.3 12 11 3",
-            "summary": "Use matrix cell onboard with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "openspec-artifact-guard",
       "name": "dhpk-openspec-artifact-guard",
       "path": "skills/dhpk-openspec-artifact-guard",
@@ -736,128 +539,8 @@
       ],
       "legacy_names": [
         "openspec-artifact-guard"
-      ]
-    },
-    {
-      "id": "nextjs-15-5-notes",
-      "name": "dhpk-nextjs-15-5-notes",
-      "path": "skills/dhpk-nextjs-15-5-notes",
-      "capability_id": "dhpk.skill.nextjs-15-5-notes",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "nextjs-15.5"
       ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "nextjs-15-5-notes"
-      ]
-    },
-    {
-      "id": "nextjs-16-notes",
-      "name": "dhpk-nextjs-16-notes",
-      "path": "skills/dhpk-nextjs-16-notes",
-      "capability_id": "dhpk.skill.nextjs-16-notes",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "nextjs-16"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "nextjs-16-notes"
-      ]
-    },
-    {
-      "id": "php-pro",
-      "name": "dhpk-php-runtime-router",
-      "path": "skills/dhpk-php-runtime-router",
-      "capability_id": "dhpk.skill.php-pro",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "php-5.6"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-module",
-        "codex-sync",
-        "codex-native"
-      ],
-      "legacy_names": [
-        "php-pro"
-      ],
-      "usage": {
-        "display_name": "Php Pro",
-        "summary": "Detect PHP runtime and select safe framework guidance",
-        "syntax": "$dhpk-php-runtime-router <php-task>",
-        "input_kind": "free-text",
-        "inputs": [
-          {
-            "id": "php-task",
-            "syntax": "<php-task>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Describe the PHP or framework task"
-          }
-        ],
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "actions": [
-          {
-            "id": "route",
-            "summary": "Detect the runtime and select matching references",
-            "syntax": "$dhpk-php-runtime-router <php-task>",
-            "input_kind": "free-text",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-php-runtime-router review this Yii 1.1 controller",
-            "summary": "Select PHP-compatible guidance for a backend task"
-          }
-        ]
-      }
-    },
-    {
-      "id": "php-modern-pro",
-      "name": "dhpk-php-modern-pro",
-      "path": "skills/dhpk-php-modern-pro",
-      "capability_id": "dhpk.skill.php-modern-pro",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "php-7.4"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "php-modern-pro"
-      ]
-    },
-    {
-      "id": "php-8x-features",
-      "name": "dhpk-php-8x-features",
-      "path": "skills/dhpk-php-8x-features",
-      "capability_id": "dhpk.skill.php-8x-features",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "php-8.x"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "php-8x-features"
-      ]
+      "invocation_class": "implicit-eligible"
     },
     {
       "id": "phpunit",
@@ -931,142 +614,6 @@
       }
     },
     {
-      "id": "pytest-async",
-      "name": "dhpk-pytest-async",
-      "path": "skills/dhpk-pytest-async",
-      "capability_id": "dhpk.skill.pytest-async",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "pytest"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "pytest-async"
-      ]
-    },
-    {
-      "id": "python-pro",
-      "name": "dhpk-python-pro",
-      "path": "skills/dhpk-python-pro",
-      "capability_id": "dhpk.skill.python-pro",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "python"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "python-pro"
-      ]
-    },
-    {
-      "id": "python-static-checks",
-      "name": "dhpk-python-static-checks",
-      "path": "skills/dhpk-python-static-checks",
-      "capability_id": "dhpk.skill.python-static-checks",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "python"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "python-static-checks"
-      ]
-    },
-    {
-      "id": "react-18-notes",
-      "name": "dhpk-react-18-notes",
-      "path": "skills/dhpk-react-18-notes",
-      "capability_id": "dhpk.skill.react-18-notes",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "react-18"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "react-18-notes"
-      ]
-    },
-    {
-      "id": "react-19-notes",
-      "name": "dhpk-react-19-notes",
-      "path": "skills/dhpk-react-19-notes",
-      "capability_id": "dhpk.skill.react-19-notes",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "react-19"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "react-19-notes"
-      ]
-    },
-    {
-      "id": "swift-test-strategy",
-      "name": "dhpk-swift-test-strategy",
-      "path": "skills/dhpk-swift-test-strategy",
-      "capability_id": "dhpk.skill.swift-test-strategy",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "swift-testing"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "swift-test-strategy"
-      ]
-    },
-    {
-      "id": "swift-language",
-      "name": "dhpk-swift-language",
-      "path": "skills/dhpk-swift-language",
-      "capability_id": "dhpk.skill.swift-language",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "swift"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "swift-language"
-      ]
-    },
-    {
-      "id": "swiftui-architecture",
-      "name": "dhpk-swiftui-architecture",
-      "path": "skills/dhpk-swiftui-architecture",
-      "capability_id": "dhpk.skill.swiftui-architecture",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "swiftui"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "swiftui-architecture"
-      ]
-    },
-    {
       "id": "vue-2-notes",
       "name": "dhpk-vue-2-notes",
       "path": "skills/dhpk-vue-2-notes",
@@ -1081,161 +628,8 @@
       ],
       "legacy_names": [
         "vue-2-notes"
-      ]
-    },
-    {
-      "id": "ios-icon-gen",
-      "name": "dhpk-ios-icon-gen",
-      "path": "skills/dhpk-ios-icon-gen",
-      "capability_id": "dhpk.skill.ios-icon-gen",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "xcode-tooling"
       ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "ios-icon-gen"
-      ]
-    },
-    {
-      "id": "xcode-build-tooling",
-      "name": "dhpk-xcode-build-tooling",
-      "path": "skills/dhpk-xcode-build-tooling",
-      "capability_id": "dhpk.skill.xcode-build-tooling",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "xcode-tooling"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "xcode-build-tooling"
-      ]
-    },
-    {
-      "id": "php56-yii-dev",
-      "name": "dhpk-yii1-php56-development",
-      "path": "skills/dhpk-yii1-php56-development",
-      "capability_id": "dhpk.skill.php56-yii-dev",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "yii-1.1"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-module",
-        "codex-sync",
-        "codex-native"
-      ],
-      "legacy_names": [
-        "php56-yii-dev"
-      ],
-      "usage": {
-        "display_name": "php56-yii-dev",
-        "summary": "Implement Yii 1.x backend changes with PHP 5.6-safe tests",
-        "syntax": "$dhpk-yii1-php56-development <backend-task>",
-        "input_kind": "free-text",
-        "inputs": [
-          {
-            "id": "backend-task",
-            "syntax": "<backend-task>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Describe the Yii backend implementation task"
-          }
-        ],
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "actions": [
-          {
-            "id": "implement",
-            "summary": "Design, test, and implement a Yii 1.x backend change",
-            "syntax": "$dhpk-yii1-php56-development <backend-task>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-yii1-php56-development fix this Yii 1.1 controller",
-            "summary": "Apply PHP 5.6-safe backend implementation guidance"
-          }
-        ]
-      }
-    },
-    {
-      "id": "yii1-security-audit",
-      "name": "dhpk-yii1-security-audit",
-      "path": "skills/dhpk-yii1-security-audit",
-      "capability_id": "dhpk.skill.yii1-security-audit",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "yii-1.1"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-module",
-        "codex-sync",
-        "codex-native"
-      ],
-      "legacy_names": [
-        "yii1-security-audit"
-      ],
-      "usage": {
-        "display_name": "Yii1 Security Audit",
-        "summary": "Audit Yii 1.1 security boundaries with evidence and fixes",
-        "syntax": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
-        "input_kind": "path",
-        "inputs": [
-          {
-            "id": "source-path",
-            "syntax": "<source-path>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Select the Yii source path to audit",
-            "applies_to": [
-              "audit"
-            ]
-          }
-        ],
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "actions": [
-          {
-            "id": "audit",
-            "summary": "Inspect Yii 1.1 framework security boundaries",
-            "syntax": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
-            "input_kind": "path",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "output-path",
-            "syntax": "--output-path=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Choose the audit report output directory",
-            "applies_to": [
-              "audit"
-            ]
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$dhpk-yii1-security-audit protected",
-            "summary": "Audit a Yii 1.1 project for framework security issues"
-          }
-        ]
-      }
+      "invocation_class": "implicit-eligible"
     },
     {
       "id": "flow-guide",
@@ -1258,7 +652,7 @@
       "usage": {
         "display_name": "Flow Guide",
         "summary": "Guide routes, rules, next steps, closeout, and usage help",
-        "syntax": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
+        "syntax": "$flow-guide <help|route|rules|next|close> [--go] [--host <host>] [<query>]",
         "input_kind": "action-first",
         "inputs": [
           {
@@ -1317,7 +711,7 @@
           {
             "id": "next",
             "summary": "Identify the next bounded workflow action",
-            "syntax": "$flow-guide next [<query>]",
+            "syntax": "$flow-guide next [--host <host>] [<query>]",
             "input_kind": "free-text",
             "effect_authority": "read-only"
           },
@@ -1340,33 +734,38 @@
             "applies_to": [
               "route"
             ]
+          },
+          {
+            "id": "host",
+            "syntax": "--host",
+            "value_kind": "enum",
+            "required": false,
+            "default": "claude-code",
+            "summary": "Select next-action invocation formatting and handoff Host; Codex passes codex-cli",
+            "enum_values": [
+              "claude-code",
+              "codex-cli",
+              "agy",
+              "cursor",
+              "claude",
+              "codex"
+            ],
+            "applies_to": [
+              "next"
+            ]
           }
         ],
         "examples": [
           {
             "prompt": "$flow-guide help",
             "summary": "List the available Codex skill usage contracts"
+          },
+          {
+            "prompt": "$flow-guide next --host codex-cli",
+            "summary": "Resolve declared next steps using Codex invocation formatting"
           }
         ]
       }
-    },
-    {
-      "id": "agy-fast-worker",
-      "name": "dhpk-agy-fast-worker",
-      "path": "skills/dhpk-agy-fast-worker",
-      "capability_id": "dhpk.skill.agy-fast-worker",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "agy-fast-worker"
-      ]
     },
     {
       "id": "code-trace",
@@ -1499,181 +898,6 @@
       }
     },
     {
-      "id": "cli-dispatch-context",
-      "name": "dhpk-cli-dispatch-context",
-      "path": "skills/dhpk-cli-dispatch-context",
-      "capability_id": "dhpk.skill.cli-dispatch-context",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "claude-module",
-        "codex-sync",
-        "codex-native",
-        "agent-plugin",
-        "cursor-plugin",
-        "cursor-sync",
-        "agy-plugin"
-      ],
-      "invokable": false,
-      "discoveryVisible": false
-    },
-    {
-      "id": "cli-transport",
-      "name": "dhpk-cli-transport",
-      "path": "skills/dhpk-cli-transport",
-      "capability_id": "dhpk.skill.cli-transport",
-      "lifecycle": "optional",
-      "tier": "optional",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "claude-module",
-        "codex-sync",
-        "codex-native",
-        "agent-plugin",
-        "cursor-plugin",
-        "cursor-sync",
-        "agy-plugin"
-      ],
-      "invokable": false,
-      "discoveryVisible": false
-    },
-    {
-      "id": "codex-bridge",
-      "name": "dhpk-codex-bridge",
-      "path": "skills/dhpk-codex-bridge",
-      "capability_id": "dhpk.skill.codex-bridge",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "codex-bridge"
-      ]
-    },
-    {
-      "id": "change-verdict",
-      "name": "change-verdict",
-      "name_style": "portable-family",
-      "path": "skills/change-verdict",
-      "capability_id": "dhpk.skill.change-verdict",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync",
-        "codex-sync",
-        "codex-native"
-      ],
-      "usage": {
-        "display_name": "Change Verdict",
-        "summary": "Return an evidence-backed read-only change verdict",
-        "syntax": "$change-verdict [--mode=<mode>] [--coverage] [<target>]",
-        "input_kind": "mixed",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [
-          {
-            "id": "target",
-            "syntax": "<target>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Change, PR, test, document, or risk target"
-          }
-        ],
-        "actions": [
-          {
-            "id": "code",
-            "summary": "Judge code changes",
-            "syntax": "$change-verdict --mode=code [<target>]",
-            "input_kind": "mixed",
-            "effect_authority": "read-only"
-          },
-          {
-            "id": "pr",
-            "summary": "Judge pull-request evidence",
-            "syntax": "$change-verdict --mode=pr [<target>]",
-            "input_kind": "mixed",
-            "effect_authority": "read-only"
-          },
-          {
-            "id": "security",
-            "summary": "Judge security evidence",
-            "syntax": "$change-verdict --mode=security [<target>]",
-            "input_kind": "mixed",
-            "effect_authority": "read-only"
-          },
-          {
-            "id": "tests",
-            "summary": "Judge test and coverage evidence",
-            "syntax": "$change-verdict --mode=tests [--coverage] [<target>]",
-            "input_kind": "mixed",
-            "effect_authority": "read-only"
-          },
-          {
-            "id": "docs",
-            "summary": "Judge documentation evidence",
-            "syntax": "$change-verdict --mode=docs [<target>]",
-            "input_kind": "mixed",
-            "effect_authority": "read-only"
-          },
-          {
-            "id": "risk",
-            "summary": "Judge change-risk evidence",
-            "syntax": "$change-verdict --mode=risk [<target>]",
-            "input_kind": "mixed",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "mode",
-            "syntax": "--mode=<mode>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Select one verdict mode",
-            "enum_values": [
-              "code",
-              "pr",
-              "security",
-              "tests",
-              "docs",
-              "risk"
-            ]
-          },
-          {
-            "id": "coverage",
-            "syntax": "--coverage",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Include coverage evidence in tests mode",
-            "default": false
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$change-verdict --mode=tests --coverage",
-            "summary": "Use change verdict with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "flow-drive",
       "name": "flow-drive",
       "name_style": "portable-family",
@@ -1694,7 +918,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Execute one scoped task with diagnosis and acceptance evidence",
-        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--cross-provider] [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "inputs": [
           {
@@ -1722,63 +946,37 @@
         "options": [
           {
             "id": "plan",
-            "syntax": "--plan[=<model>:<effort>]",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Request a planning pass before implementation; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "plan-mode",
-            "syntax": "--plan-mode=auto|bounded|discovery",
+            "syntax": "--plan[=auto|bounded|discovery]",
             "value_kind": "enum",
             "required": false,
-            "default": "auto",
+            "summary": "Request a planner scope using the current Host declared effective target",
+            "applies_to": [
+              "apply"
+            ],
             "enum_values": [
               "auto",
               "bounded",
               "discovery"
-            ],
-            "summary": "Select the consult scope; requires --plan and defaults to auto when enabled",
-            "applies_to": [
-              "apply"
             ]
           },
           {
             "id": "worker",
-            "syntax": "--worker=<worker>",
-            "value_kind": "enum",
-            "required": false,
-            "enum_values": [
-              "claude",
-              "codex",
-              "agy",
-              "auto"
-            ],
-            "summary": "Select an explicitly requested implementation worker",
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "worker-target",
-            "syntax": "--worker-target=<provider>/<model>[:<effort>]",
+            "syntax": "--worker=auto|provider[/model[:effort]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Select a legacy Agent alias/model/effort tuple; grant only that exact Worker target",
+            "summary": "Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant",
             "applies_to": [
               "apply"
-            ]
+            ],
+            "default": "auto"
           },
           {
-            "id": "cross-provider",
-            "syntax": "--cross-provider",
+            "id": "cross",
+            "syntax": "--cross",
             "value_kind": "boolean",
             "required": false,
             "default": false,
-            "summary": "Host procedure: enable additional automatic candidates under current policy/access; portable API: ask for Provider scope before selected external refresh",
+            "summary": "Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches",
             "applies_to": [
               "apply"
             ]
@@ -1788,7 +986,7 @@
             "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
             "value_kind": "string",
             "required": false,
-            "summary": "Request a bounded second opinion; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+            "summary": "Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers",
             "applies_to": [
               "apply"
             ]
@@ -1798,7 +996,7 @@
             "syntax": "--architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Enable the architecture pass; advanced legacy procedure owns this path and the portable runner reports a migration blocker",
+            "summary": "Request consultation; report UNAVAILABLE when the current Host has no supported architecture route",
             "applies_to": [
               "apply"
             ]
@@ -1808,7 +1006,7 @@
             "syntax": "--no-architect",
             "value_kind": "boolean",
             "required": false,
-            "summary": "Compatibility notice only in the portable task runner",
+            "summary": "Suppress an optional consult while preserving required Host gates",
             "applies_to": [
               "apply"
             ]
@@ -1822,7 +1020,7 @@
             "legacy": {
               "replacement_id": "worker",
               "diagnostic_only": true,
-              "reason": "Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut"
+              "reason": "Use an explicit worker or reasoner instead of the retired Codex shortcut"
             },
             "applies_to": [
               "apply"
@@ -1835,29 +1033,11 @@
             "summary": "Resolve and implement a bounded task with explicit acceptance"
           },
           {
-            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross-provider",
+            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross",
             "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
           }
         ]
       }
-    },
-    {
-      "id": "composer-package-hygiene",
-      "name": "dhpk-composer-package-hygiene",
-      "path": "skills/dhpk-composer-package-hygiene",
-      "capability_id": "dhpk.skill.composer-package-hygiene",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "composer-package-hygiene"
-      ]
     },
     {
       "id": "deploy-list",
@@ -1875,7 +1055,8 @@
       ],
       "legacy_names": [
         "deploy-list"
-      ]
+      ],
+      "invocation_class": "implicit-eligible"
     },
     {
       "id": "feature-verify",
@@ -1992,160 +1173,6 @@
       ]
     },
     {
-      "id": "laravel-package-author",
-      "name": "dhpk-laravel-package-author",
-      "path": "skills/dhpk-laravel-package-author",
-      "capability_id": "dhpk.skill.laravel-package-author",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "laravel-package-author"
-      ]
-    },
-    {
-      "id": "laravel-testbench-matrix",
-      "name": "dhpk-laravel-testbench-matrix",
-      "path": "skills/dhpk-laravel-testbench-matrix",
-      "capability_id": "dhpk.skill.laravel-testbench-matrix",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "laravel-testbench-matrix"
-      ]
-    },
-    {
-      "id": "opsx-load-context",
-      "name": "dhpk-opsx-load-context",
-      "path": "skills/dhpk-opsx-load-context",
-      "capability_id": "dhpk.skill.opsx-load-context",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "opsx-load-context"
-      ],
-      "usage": {
-        "display_name": "Opsx Load Context",
-        "summary": "Load resume context through the deterministic fallback chain",
-        "syntax": "$dhpk-opsx-load-context",
-        "input_kind": "none",
-        "inputs": [],
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "actions": [
-          {
-            "id": "load",
-            "summary": "Resolve the best available resume context",
-            "syntax": "$dhpk-opsx-load-context",
-            "input_kind": "none",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-opsx-load-context",
-            "summary": "Load context for an opsx-apply-resume session"
-          }
-        ]
-      }
-    },
-    {
-      "id": "opsx-post-obs",
-      "name": "dhpk-opsx-post-observation",
-      "path": "skills/dhpk-opsx-post-observation",
-      "capability_id": "dhpk.skill.opsx-post-obs",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "opsx-post-obs"
-      ],
-      "usage": {
-        "display_name": "Opsx Post Obs",
-        "summary": "Post one resume observation through the observer boundary",
-        "syntax": "$dhpk-opsx-post-observation <observation-context>",
-        "input_kind": "free-text",
-        "inputs": [
-          {
-            "id": "observation-context",
-            "syntax": "<observation-context>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Describe the compact session observation"
-          }
-        ],
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "delegate",
-        "actions": [
-          {
-            "id": "post",
-            "summary": "Submit the compact session observation",
-            "syntax": "$dhpk-opsx-post-observation <observation-context>",
-            "input_kind": "free-text",
-            "effect_authority": "delegate"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-opsx-post-observation save-phase summary",
-            "summary": "Post the observation during opsx save phase"
-          }
-        ]
-      }
-    },
-    {
-      "id": "polyfill-version-matrix-audit",
-      "name": "dhpk-polyfill-version-matrix-audit",
-      "path": "skills/dhpk-polyfill-version-matrix-audit",
-      "capability_id": "dhpk.skill.polyfill-version-matrix-audit",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "polyfill-version-matrix-audit"
-      ]
-    },
-    {
       "id": "project-audit",
       "name": "dhpk-project-audit",
       "path": "skills/dhpk-project-audit",
@@ -2161,7 +1188,8 @@
       ],
       "legacy_names": [
         "project-audit"
-      ]
+      ],
+      "invocation_class": "implicit-eligible"
     },
     {
       "id": "release-creator",
@@ -2240,7 +1268,8 @@
       ],
       "legacy_names": [
         "repo-intake"
-      ]
+      ],
+      "invocation_class": "explicit-only"
     },
     {
       "id": "software-architecture",
@@ -2729,154 +1758,6 @@
       }
     },
     {
-      "id": "doc-refactor",
-      "name": "doc-refactor",
-      "name_style": "portable-skill",
-      "path": "skills/doc-refactor",
-      "capability_id": "dhpk.skill.doc-refactor",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Doc Refactor",
-        "summary": "Refactor one bounded Markdown document while preserving facts",
-        "syntax": "$doc-refactor <file-path>",
-        "input_kind": "path",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "file-path",
-            "syntax": "<file-path>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "One Markdown document"
-          }
-        ],
-        "actions": [
-          {
-            "id": "refactor",
-            "summary": "Rewrite one bounded document and validate its links",
-            "syntax": "$doc-refactor <file-path>",
-            "input_kind": "path",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$doc-refactor docs/guide.md",
-            "summary": "Use doc refactor with its declared interface"
-          }
-        ]
-      }
-    },
-    {
-      "id": "update-docs",
-      "name": "update-docs",
-      "name_style": "portable-skill",
-      "path": "skills/update-docs",
-      "capability_id": "dhpk.skill.update-docs",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Update Docs",
-        "summary": "Update a bounded user or agent document from live evidence",
-        "syntax": "$update-docs <docs-path-or-workflow-keyword>",
-        "input_kind": "free-text",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "target",
-            "syntax": "<docs-path-or-workflow-keyword>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Documentation path or workflow keyword"
-          }
-        ],
-        "actions": [
-          {
-            "id": "update",
-            "summary": "Update owned documentation and its locale pair",
-            "syntax": "$update-docs <docs-path-or-workflow-keyword>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$update-docs docs/configuration.md",
-            "summary": "Use update docs with its declared interface"
-          }
-        ]
-      }
-    },
-    {
-      "id": "update-codemaps",
-      "name": "update-codemaps",
-      "name_style": "portable-skill",
-      "path": "skills/update-codemaps",
-      "capability_id": "dhpk.skill.update-codemaps",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Update Codemaps",
-        "summary": "Refresh architecture codemaps from the live project structure",
-        "syntax": "$update-codemaps",
-        "input_kind": "none",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [],
-        "actions": [
-          {
-            "id": "update",
-            "summary": "Refresh the bounded architecture codemaps",
-            "syntax": "$update-codemaps",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$update-codemaps",
-            "summary": "Use update codemaps with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "precommit",
       "name": "precommit",
       "name_style": "portable-skill",
@@ -2925,73 +1806,6 @@
           {
             "prompt": "$precommit --fast",
             "summary": "Use precommit with its declared interface"
-          }
-        ]
-      }
-    },
-    {
-      "id": "dep-audit",
-      "name": "dep-audit",
-      "name_style": "portable-skill",
-      "path": "skills/dep-audit",
-      "capability_id": "dhpk.skill.dep-audit",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Dependency Audit",
-        "summary": "Audit dependency risks with a separate explicit fix boundary",
-        "syntax": "$dep-audit [--level=<severity>] [--fix]",
-        "input_kind": "none",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [],
-        "actions": [
-          {
-            "id": "audit",
-            "summary": "Audit dependency vulnerabilities and optional fixes",
-            "syntax": "$dep-audit",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [
-          {
-            "id": "level",
-            "syntax": "--level=<severity>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Minimum severity to report",
-            "default": "moderate",
-            "enum_values": [
-              "low",
-              "moderate",
-              "high",
-              "critical"
-            ]
-          },
-          {
-            "id": "fix",
-            "syntax": "--fix",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Run the explicitly requested fix operation",
-            "default": false
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$dep-audit --level=high",
-            "summary": "Use dependency audit with its declared interface"
           }
         ]
       }
@@ -3124,58 +1938,6 @@
       }
     },
     {
-      "id": "review-pending",
-      "name": "review-pending",
-      "name_style": "portable-skill",
-      "path": "skills/review-pending",
-      "capability_id": "dhpk.skill.review-pending",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Review Pending",
-        "summary": "Delegate a read-only pending-change review",
-        "syntax": "$review-pending [--files=<rel-paths>]",
-        "input_kind": "none",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "delegate",
-        "inputs": [],
-        "actions": [
-          {
-            "id": "review",
-            "summary": "Delegate the selected pending files to code-reviewer",
-            "syntax": "$review-pending",
-            "input_kind": "none",
-            "effect_authority": "delegate"
-          }
-        ],
-        "options": [
-          {
-            "id": "files",
-            "syntax": "--files=<rel-paths>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Comma-separated relative file paths"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$review-pending --files=src/a.js",
-            "summary": "Use review pending with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "harness-setup",
       "name": "harness-setup",
       "name_style": "portable-skill",
@@ -3271,56 +2033,6 @@
       }
     },
     {
-      "id": "opsx-apply-resume",
-      "name": "opsx-apply-resume",
-      "name_style": "portable-skill",
-      "path": "skills/opsx-apply-resume",
-      "capability_id": "dhpk.skill.opsx-apply-resume",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "explicit-only",
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Opsx Apply Resume",
-        "summary": "Save or resume an OpenSpec apply handoff",
-        "syntax": "$opsx-apply-resume [<change-id>]",
-        "input_kind": "identifier",
-        "invocation_class": "explicit-only",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "change-id",
-            "syntax": "<change-id>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "OpenSpec change identifier"
-          }
-        ],
-        "actions": [
-          {
-            "id": "resume",
-            "summary": "Save or resume one apply handoff",
-            "syntax": "$opsx-apply-resume [<change-id>]",
-            "input_kind": "identifier",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$opsx-apply-resume portable-command-skills",
-            "summary": "Use opsx apply resume with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "ui-ux-verify",
       "name": "ui-ux-verify",
       "name_style": "portable-skill",
@@ -3375,6 +2087,865 @@
           {
             "prompt": "$ui-ux-verify spec:openspec/changes/example/spec.md",
             "summary": "Use ui ux verify with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "opsx-apply-resume",
+      "name": "opsx-apply-resume",
+      "name_style": "portable-skill",
+      "path": "skills/opsx-apply-resume",
+      "capability_id": "dhpk.skill.opsx-apply-resume",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "explicit-only",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Opsx Apply Resume",
+        "summary": "Save or resume an OpenSpec apply handoff",
+        "syntax": "$opsx-apply-resume [<save-or-resume-task>] [<change-id>]",
+        "input_kind": "identifier",
+        "invocation_class": "explicit-only",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "save-or-resume-task",
+            "syntax": "<save-or-resume-task>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Describe the save or resume task"
+          },
+          {
+            "id": "change-id",
+            "syntax": "<change-id>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "OpenSpec change identifier"
+          }
+        ],
+        "actions": [
+          {
+            "id": "save",
+            "summary": "Save one apply handoff",
+            "syntax": "$opsx-apply-resume save [<change-id>]",
+            "input_kind": "identifier",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "resume",
+            "summary": "Resume one apply handoff",
+            "syntax": "$opsx-apply-resume resume [<change-id>]",
+            "input_kind": "identifier",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$opsx-apply-resume portable-command-skills",
+            "summary": "Use opsx apply resume with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "react",
+      "name": "react",
+      "name_style": "portable-family",
+      "path": "skills/react",
+      "capability_id": "dhpk.skill.react",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "react-18",
+        "react-19"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-module"
+      ],
+      "usage": {
+        "display_name": "React",
+        "summary": "Handle React tasks with explicit target-version resolution",
+        "syntax": "$react <task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the task, package scope, and intended target"
+          }
+        ],
+        "actions": [
+          {
+            "id": "review",
+            "summary": "Review React code",
+            "syntax": "$react review <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "migrate",
+            "summary": "Apply the requested React migration",
+            "syntax": "$react migrate <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$react review the selected package",
+            "summary": "Use natural task text and resolve the intended target"
+          }
+        ]
+      }
+    },
+    {
+      "id": "nextjs",
+      "name": "nextjs",
+      "name_style": "portable-family",
+      "path": "skills/nextjs",
+      "capability_id": "dhpk.skill.nextjs",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "nextjs-15.5",
+        "nextjs-16"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-module"
+      ],
+      "usage": {
+        "display_name": "Nextjs",
+        "summary": "Handle Next.js tasks with explicit target-version resolution",
+        "syntax": "$nextjs <task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the task, package scope, and intended target"
+          }
+        ],
+        "actions": [
+          {
+            "id": "review",
+            "summary": "Review Next.js code",
+            "syntax": "$nextjs review <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "migrate",
+            "summary": "Apply the requested Next.js migration",
+            "syntax": "$nextjs migrate <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$nextjs review the selected package",
+            "summary": "Use natural task text and resolve the intended target"
+          }
+        ]
+      }
+    },
+    {
+      "id": "swift",
+      "name": "swift",
+      "name_style": "portable-family",
+      "path": "skills/swift",
+      "capability_id": "dhpk.skill.swift",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "ios-platform",
+        "swift-testing",
+        "swift",
+        "swiftui",
+        "xcode-tooling"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-module"
+      ],
+      "usage": {
+        "display_name": "Swift",
+        "summary": "Handle Swift, SwiftUI, test, platform, build, and icon tasks",
+        "syntax": "$swift <task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the task, package scope, and intended target"
+          }
+        ],
+        "actions": [
+          {
+            "id": "test",
+            "summary": "Write or run requested Swift tests",
+            "syntax": "$swift test <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "build",
+            "summary": "Inspect Swift build output",
+            "syntax": "$swift build <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "icon",
+            "summary": "Generate requested icon assets",
+            "syntax": "$swift icon <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$swift review the selected package",
+            "summary": "Use natural task text and resolve the intended target"
+          }
+        ]
+      }
+    },
+    {
+      "id": "python",
+      "name": "python",
+      "name_style": "portable-family",
+      "path": "skills/python",
+      "capability_id": "dhpk.skill.python",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "fastapi",
+        "pytest",
+        "python"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-module"
+      ],
+      "usage": {
+        "display_name": "Python",
+        "summary": "Handle Python, async tests, static checks, and FastAPI tasks",
+        "syntax": "$python <task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the task, package scope, and intended target"
+          }
+        ],
+        "actions": [
+          {
+            "id": "implement",
+            "summary": "Implement a Python task",
+            "syntax": "$python implement <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "review",
+            "summary": "Review Python code",
+            "syntax": "$python review <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "test",
+            "summary": "Write requested Python tests",
+            "syntax": "$python test <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "static",
+            "summary": "Inspect Python static-check results",
+            "syntax": "$python static <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "api",
+            "summary": "Implement a FastAPI task",
+            "syntax": "$python api <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$python review the selected package",
+            "summary": "Use natural task text and resolve the intended target"
+          }
+        ]
+      }
+    },
+    {
+      "id": "js-static-checks",
+      "name": "js-static-checks",
+      "name_style": "portable-family",
+      "path": "skills/js-static-checks",
+      "capability_id": "dhpk.skill.js-static-checks",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "js"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "JS Static Checks",
+        "summary": "Inspect, configure, or progressively roll out static checks",
+        "syntax": "$js-static-checks <task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the task, package scope, and intended target"
+          }
+        ],
+        "actions": [
+          {
+            "id": "check",
+            "summary": "Report static-check status",
+            "syntax": "$js-static-checks check <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "setup",
+            "summary": "Configure requested static checks",
+            "syntax": "$js-static-checks setup <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "rollout",
+            "summary": "Plan progressive static checks",
+            "syntax": "$js-static-checks rollout <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$js-static-checks review the selected package",
+            "summary": "Use natural task text and resolve the intended target"
+          }
+        ]
+      }
+    },
+    {
+      "id": "php",
+      "name": "php",
+      "name_style": "portable-family",
+      "path": "skills/php",
+      "capability_id": "dhpk.skill.php",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "php-5.6",
+        "php-7.4",
+        "php-8.x"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-module",
+        "codex-sync",
+        "codex-native"
+      ],
+      "usage": {
+        "display_name": "Php",
+        "summary": "Handle PHP 5.6, 7.4, and 8.x tasks safely",
+        "syntax": "$php <task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the task, package scope, and intended target"
+          }
+        ],
+        "actions": [
+          {
+            "id": "implement",
+            "summary": "Implement compatible PHP code",
+            "syntax": "$php implement <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "review",
+            "summary": "Review PHP compatibility",
+            "syntax": "$php review <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "test",
+            "summary": "Write compatible PHP tests",
+            "syntax": "$php test <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "migrate",
+            "summary": "Apply the requested PHP migration",
+            "syntax": "$php migrate <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$php review the selected package",
+            "summary": "Use natural task text and resolve the intended target"
+          }
+        ]
+      }
+    },
+    {
+      "id": "yii1",
+      "name": "yii1",
+      "name_style": "portable-family",
+      "path": "skills/yii1",
+      "capability_id": "dhpk.skill.yii1",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "yii-1.1"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-module",
+        "codex-sync",
+        "codex-native"
+      ],
+      "usage": {
+        "display_name": "Yii 1.1",
+        "summary": "Develop and audit Yii 1.1 with PHP 5.6 compatibility",
+        "syntax": "$yii1 <task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the task, package scope, and intended target"
+          }
+        ],
+        "actions": [
+          {
+            "id": "develop",
+            "summary": "Implement a Yii 1.1 task",
+            "syntax": "$yii1 develop <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "review",
+            "summary": "Review Yii 1.1 code",
+            "syntax": "$yii1 review <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "security",
+            "summary": "Audit Yii 1.1 security boundaries",
+            "syntax": "$yii1 security <task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$yii1 review the selected package",
+            "summary": "Use natural task text and resolve the intended target"
+          }
+        ]
+      }
+    },
+    {
+      "id": "change-verdict",
+      "name": "change-verdict",
+      "name_style": "portable-family",
+      "path": "skills/change-verdict",
+      "capability_id": "dhpk.skill.change-verdict",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "surfaces": [
+        "claude-core",
+        "cursor-sync",
+        "codex-sync",
+        "codex-native"
+      ],
+      "usage": {
+        "display_name": "Change Verdict",
+        "summary": "Review changes or audit dependencies with bounded explicit fixes",
+        "syntax": "$change-verdict [--mode=<mode>] [<target>] | pending [--files=<paths>] | deps [fix] [--level=<severity>]",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "target",
+            "syntax": "<target>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Change, PR, test, document, or risk target"
+          }
+        ],
+        "actions": [
+          {
+            "id": "code",
+            "summary": "Judge code changes",
+            "syntax": "$change-verdict --mode=code [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "pr",
+            "summary": "Judge pull-request evidence",
+            "syntax": "$change-verdict --mode=pr [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "security",
+            "summary": "Judge security evidence",
+            "syntax": "$change-verdict --mode=security [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "tests",
+            "summary": "Judge test and coverage evidence",
+            "syntax": "$change-verdict --mode=tests [--coverage] [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "docs",
+            "summary": "Judge documentation evidence",
+            "syntax": "$change-verdict --mode=docs [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "risk",
+            "summary": "Judge change-risk evidence",
+            "syntax": "$change-verdict --mode=risk [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "pending",
+            "summary": "Delegate a read-only pending-change review",
+            "syntax": "$change-verdict pending [--files=<paths>]",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "deps",
+            "summary": "Audit dependency risks without mutation",
+            "syntax": "$change-verdict deps [--level=<severity>]",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "deps-fix",
+            "summary": "Delegate requested bounded dependency remediation then obtain an independent verdict",
+            "syntax": "$change-verdict deps fix [--level=<severity>]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "mode",
+            "syntax": "--mode=<mode>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Select one verdict mode",
+            "enum_values": [
+              "code",
+              "pr",
+              "security",
+              "tests",
+              "docs",
+              "risk"
+            ]
+          },
+          {
+            "id": "coverage",
+            "syntax": "--coverage",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Include coverage evidence in tests mode",
+            "default": false
+          },
+          {
+            "id": "files",
+            "syntax": "--files=<paths>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Comma-separated relative pending paths"
+          },
+          {
+            "id": "level",
+            "syntax": "--level=<severity>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Minimum vulnerability severity",
+            "default": "moderate",
+            "enum_values": [
+              "low",
+              "moderate",
+              "high",
+              "critical"
+            ]
+          },
+          {
+            "id": "fix",
+            "syntax": "--fix",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Explicitly request bounded dependency remediation",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$change-verdict --mode=tests --coverage",
+            "summary": "Use change verdict with its declared interface"
+          },
+          {
+            "prompt": "$change-verdict pending --files=src/a.js",
+            "summary": "Delegate pending review"
+          },
+          {
+            "prompt": "$change-verdict deps --level=high",
+            "summary": "Audit dependencies without mutation"
+          },
+          {
+            "prompt": "$change-verdict deps fix",
+            "summary": "Request bounded dependency remediation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "library-author",
+      "name": "library-author",
+      "path": "skills/library-author",
+      "capability_id": "dhpk.skill.library-author",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core",
+        "library-author"
+      ],
+      "surfaces": [
+        "claude-core",
+        "cursor-sync",
+        "claude-module",
+        "codex-sync",
+        "codex-native"
+      ],
+      "name_style": "portable-family",
+      "usage": {
+        "display_name": "Library Author",
+        "summary": "Mode-specific library-author workflows",
+        "syntax": "$library-author <task | mode> <target>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task | mode>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Natural-language task or explicit mode"
+          }
+        ],
+        "actions": [
+          {
+            "id": "author",
+            "summary": "author workflow",
+            "syntax": "$library-author author <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "testbench",
+            "summary": "testbench workflow",
+            "syntax": "$library-author testbench <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "composer",
+            "summary": "composer workflow",
+            "syntax": "$library-author composer <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "polyfill-audit",
+            "summary": "polyfill-audit workflow",
+            "syntax": "$library-author polyfill-audit <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "suite-map",
+            "summary": "suite-map workflow",
+            "syntax": "$library-author suite-map <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "cell-onboard",
+            "summary": "cell-onboard workflow",
+            "syntax": "$library-author cell-onboard <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$library-author author provider design",
+            "summary": "Run the selected mode"
+          }
+        ]
+      }
+    },
+    {
+      "id": "doc-maintain",
+      "name": "doc-maintain",
+      "path": "skills/doc-maintain",
+      "capability_id": "dhpk.skill.doc-maintain",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "name_style": "portable-family",
+      "usage": {
+        "display_name": "Doc Maintain",
+        "summary": "Mode-specific doc-maintain workflows",
+        "syntax": "$doc-maintain <task | mode> <target>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "task",
+            "syntax": "<task | mode>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Natural-language task or explicit mode"
+          }
+        ],
+        "actions": [
+          {
+            "id": "update",
+            "summary": "update workflow",
+            "syntax": "$doc-maintain update <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "codemap",
+            "summary": "codemap workflow",
+            "syntax": "$doc-maintain codemap <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "refactor",
+            "summary": "refactor workflow",
+            "syntax": "$doc-maintain refactor <target>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$doc-maintain update docs/guide.md",
+            "summary": "Run the selected mode"
           }
         ]
       }
@@ -3632,32 +3203,22 @@
   ],
   "surface_membership": {
     "agent-plugin": [
-      "agy-fast-worker",
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-simplify",
       "code-trace",
-      "codex-bridge",
-      "composer-package-hygiene",
+      "library-author",
       "create-pr",
-      "dep-audit",
       "deploy-list",
-      "doc-refactor",
+      "doc-maintain",
       "feature-verify",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
       "issue-analyze",
-      "js-static-check-strategy",
-      "laravel-package-author",
-      "laravel-testbench-matrix",
-      "matrix-cell-onboard",
+      "js-static-checks",
       "merge-prep",
-      "opsx-load-context",
-      "opsx-post-obs",
-      "polyfill-version-matrix-audit",
+      "opsx-apply-resume",
       "pr-summary",
       "precommit",
       "project-audit",
@@ -3666,25 +3227,17 @@
       "release-creator",
       "repo-intake",
       "repo-verify",
-      "review-pending",
       "software-architecture",
-      "tdd",
-      "update-codemaps",
-      "update-docs"
+      "tdd"
     ],
     "cursor-plugin": [
-      "agy-fast-worker",
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-simplify",
       "code-trace",
-      "codex-bridge",
-      "composer-package-hygiene",
+      "library-author",
       "create-pr",
-      "dep-audit",
       "deploy-list",
-      "doc-refactor",
+      "doc-maintain",
       "feature-verify",
       "flow-drive",
       "flow-guide",
@@ -3692,15 +3245,9 @@
       "git-worktree",
       "harness-setup",
       "issue-analyze",
-      "js-static-check-strategy",
-      "laravel-package-author",
-      "laravel-testbench-matrix",
-      "matrix-cell-onboard",
+      "js-static-checks",
       "merge-prep",
       "opsx-apply-resume",
-      "opsx-load-context",
-      "opsx-post-obs",
-      "polyfill-version-matrix-audit",
       "pr-summary",
       "precommit",
       "project-audit",
@@ -3709,40 +3256,27 @@
       "release-creator",
       "repo-intake",
       "repo-verify",
-      "review-pending",
       "software-architecture",
       "tdd",
-      "ui-ux-verify",
-      "update-codemaps",
-      "update-docs"
+      "ui-ux-verify"
     ],
     "agy-plugin": [
-      "agy-fast-worker",
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-simplify",
       "code-trace",
-      "codex-bridge",
-      "composer-package-hygiene",
+      "library-author",
       "create-pr",
-      "dep-audit",
       "deploy-list",
-      "doc-refactor",
+      "doc-maintain",
       "feature-verify",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
       "issue-analyze",
-      "js-static-check-strategy",
-      "laravel-package-author",
-      "laravel-testbench-matrix",
-      "matrix-cell-onboard",
+      "js-static-checks",
       "merge-prep",
-      "opsx-load-context",
-      "opsx-post-obs",
-      "polyfill-version-matrix-audit",
+      "opsx-apply-resume",
       "pr-summary",
       "precommit",
       "project-audit",
@@ -3751,25 +3285,17 @@
       "release-creator",
       "repo-intake",
       "repo-verify",
-      "review-pending",
       "software-architecture",
-      "tdd",
-      "update-codemaps",
-      "update-docs"
+      "tdd"
     ],
     "cursor-sync": [
-      "agy-fast-worker",
       "change-verdict",
-      "cli-dispatch-context",
-      "cli-transport",
       "code-simplify",
       "code-trace",
-      "codex-bridge",
-      "composer-package-hygiene",
+      "library-author",
       "create-pr",
-      "dep-audit",
       "deploy-list",
-      "doc-refactor",
+      "doc-maintain",
       "feature-verify",
       "flow-drive",
       "flow-guide",
@@ -3777,15 +3303,9 @@
       "git-worktree",
       "harness-setup",
       "issue-analyze",
-      "js-static-check-strategy",
-      "laravel-package-author",
-      "laravel-testbench-matrix",
-      "matrix-cell-onboard",
+      "js-static-checks",
       "merge-prep",
       "opsx-apply-resume",
-      "opsx-load-context",
-      "opsx-post-obs",
-      "polyfill-version-matrix-audit",
       "pr-summary",
       "precommit",
       "project-audit",
@@ -3794,38 +3314,18 @@
       "release-creator",
       "repo-intake",
       "repo-verify",
-      "review-pending",
       "software-architecture",
       "tdd",
-      "ui-ux-verify",
-      "update-codemaps",
-      "update-docs"
+      "ui-ux-verify"
     ]
   },
   "internal_runtime_skills": {
-    "agent-plugin": [
-      "agy-fast-worker",
-      "cli-dispatch-context",
-      "cli-transport",
-      "codex-bridge"
-    ],
-    "cursor-plugin": [
-      "agy-fast-worker",
-      "cli-dispatch-context",
-      "cli-transport",
-      "codex-bridge"
-    ],
+    "agent-plugin": [],
+    "cursor-plugin": [],
     "agy-plugin": [
-      "agy-fast-worker",
-      "cli-dispatch-context",
-      "cli-transport",
-      "codex-bridge",
       "flow-guide"
     ],
-    "codex-native": [
-      "cli-dispatch-context",
-      "cli-transport"
-    ]
+    "codex-native": []
   },
   "agy_plugin": {
     "source_root": "plugins/dhpk-agy",
@@ -3833,13 +3333,9 @@
     "adapter": "agy-agent-frontmatter-v1",
     "transform": "agy-agent-frontmatter-v1",
     "agents": [
-      "agy-fast-worker.md",
       "agy-worker.md",
       "architect.md",
       "code-reviewer.md",
-      "codex-bridge.md",
-      "codex-deep-reasoner.md",
-      "codex-fast-worker.md",
       "codex-reasoner.md",
       "codex-reviewer.md",
       "codex-worker.md",
@@ -5539,6 +5035,299 @@
       "rollback": {
         "release": "0.64.4"
       }
+    },
+    {
+      "id": "agy-fast-worker",
+      "name": "dhpk-agy-fast-worker",
+      "canonicalPath": "skills/dhpk-agy-fast-worker",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "flow-drive-runtime-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-drive"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "cli-dispatch-context",
+      "name": "dhpk-cli-dispatch-context",
+      "canonicalPath": "skills/dhpk-cli-dispatch-context",
+      "priorSurfaces": [
+        "claude-core",
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "agent-plugin",
+        "cursor-plugin",
+        "cursor-sync",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "flow-drive-runtime-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-drive"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "cli-transport",
+      "name": "dhpk-cli-transport",
+      "canonicalPath": "skills/dhpk-cli-transport",
+      "priorSurfaces": [
+        "claude-core",
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "agent-plugin",
+        "cursor-plugin",
+        "cursor-sync",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "flow-drive-runtime-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-drive"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "codex-bridge",
+      "name": "dhpk-codex-bridge",
+      "canonicalPath": "skills/dhpk-codex-bridge",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "standalone-bridge-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "laravel-package-author",
+      "name": "dhpk-laravel-package-author",
+      "canonicalPath": "skills/dhpk-laravel-package-author",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "library-doc-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "library-author",
+          "mode": "author"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "laravel-testbench-matrix",
+      "name": "dhpk-laravel-testbench-matrix",
+      "canonicalPath": "skills/dhpk-laravel-testbench-matrix",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "library-doc-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "library-author",
+          "mode": "testbench"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "composer-package-hygiene",
+      "name": "dhpk-composer-package-hygiene",
+      "canonicalPath": "skills/dhpk-composer-package-hygiene",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "library-doc-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "library-author",
+          "mode": "composer"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "polyfill-version-matrix-audit",
+      "name": "dhpk-polyfill-version-matrix-audit",
+      "canonicalPath": "skills/dhpk-polyfill-version-matrix-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "library-doc-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "library-author",
+          "mode": "polyfill-audit"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "library-dual-testsuite-map",
+      "name": "dhpk-library-dual-testsuite-map",
+      "canonicalPath": "skills/dhpk-library-dual-testsuite-map",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "library-doc-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "library-author",
+          "mode": "suite-map"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "matrix-cell-onboard",
+      "name": "matrix-cell-onboard",
+      "canonicalPath": "skills/matrix-cell-onboard",
+      "priorSurfaces": [
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "library-doc-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "library-author",
+          "mode": "cell-onboard"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "update-docs",
+      "name": "update-docs",
+      "canonicalPath": "skills/update-docs",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "library-doc-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "doc-maintain",
+          "mode": "update"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "update-codemaps",
+      "name": "update-codemaps",
+      "canonicalPath": "skills/update-codemaps",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "library-doc-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "doc-maintain",
+          "mode": "codemap"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
+    },
+    {
+      "id": "doc-refactor",
+      "name": "doc-refactor",
+      "canonicalPath": "skills/doc-refactor",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.2",
+      "reasonCode": "library-doc-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "doc-maintain",
+          "mode": "refactor"
+        }
+      ],
+      "rollback": {
+        "release": "0.66.1"
+      }
     }
   ],
   "external_skill_packages": [],
@@ -5612,16 +5401,6 @@
       "rollback": {
         "release": "0.62.4"
       }
-    },
-    {
-      "id": "js-static-check-strategy",
-      "oldName": "dhpk-js-static-check-strategy",
-      "oldPath": "skills/dhpk-js-static-check-strategy",
-      "newName": "js-static-check-strategy",
-      "newPath": "skills/js-static-check-strategy",
-      "rollback": {
-        "release": "0.62.4"
-      }
     }
   ],
   "project_agent_projection": {
@@ -5635,32 +5414,22 @@
         "version": "portable-core-v1",
         "compatibility_mode": "portable-core",
         "stable_ids": [
-          "agy-fast-worker",
           "change-verdict",
-          "cli-dispatch-context",
-          "cli-transport",
           "code-simplify",
           "code-trace",
-          "codex-bridge",
-          "composer-package-hygiene",
+          "skill:library-author",
           "create-pr",
-          "dep-audit",
           "deploy-list",
-          "doc-refactor",
+          "doc-maintain",
           "feature-verify",
           "flow-drive",
           "flow-guide",
           "git-smart-commit",
           "git-worktree",
           "issue-analyze",
-          "js-static-check-strategy",
-          "laravel-package-author",
-          "laravel-testbench-matrix",
-          "matrix-cell-onboard",
+          "js-static-checks",
           "merge-prep",
-          "opsx-load-context",
-          "opsx-post-obs",
-          "polyfill-version-matrix-audit",
+          "opsx-apply-resume",
           "pr-summary",
           "precommit",
           "project-audit",
@@ -5669,11 +5438,8 @@
           "release-creator",
           "repo-intake",
           "repo-verify",
-          "review-pending",
           "software-architecture",
-          "tdd",
-          "update-codemaps",
-          "update-docs"
+          "tdd"
         ],
         "hosts": [
           "agy",

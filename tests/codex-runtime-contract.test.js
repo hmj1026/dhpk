@@ -51,21 +51,11 @@ const EXPECTED_DIRECT_RUNTIME = {
 
 const UNAVAILABLE_HANDOFFS = /`(?:silent-failure-hunter|type-design-analyzer|ui-ux-verifier|fast-worker)`/;
 const CODEX_BRIDGE_SURFACES = [
-  'agents/codex-bridge.md',
   'agents/INDEX.md',
   'agent-traps/_common/cli-prompt-composition.md',
   'rules/execution-policy.md',
-  'skills/dhpk-codex-bridge/SKILL.md',
-  'skills/flow-guide/references/implementation-dispatch.md',
-  'cursor/agents/codex-bridge.md',
   'cursor/rules/execution-policy.mdc',
-  'plugins/dhpk-agent/skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md',
-  'plugins/dhpk-agent/skills/flow-guide/references/implementation-dispatch.md',
-  'plugins/dhpk-agy/agents/codex-bridge.md',
   'plugins/dhpk-agy/rules/execution-policy.md',
-  'plugins/dhpk-agy/skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md',
-  'plugins/dhpk-agy/skills/flow-guide/references/implementation-dispatch.md',
-  'plugins/dhpk-cursor/agents/codex-bridge.md',
   'plugins/dhpk-cursor/rules/execution-policy.mdc',
 ];
 

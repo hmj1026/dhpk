@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doc Maintain"
+  short_description: "Refresh docs, codemaps or one Markdown document"
+  default_prompt: "Use $doc-maintain to select update, codemap or refactor and preserve its documentation-only authority."

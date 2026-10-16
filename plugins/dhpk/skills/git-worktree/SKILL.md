@@ -4,6 +4,8 @@ description: 'Manage Git worktree lifecycle with exact native git targets, branc
 argument-hint: '[<operation>] [--branch=<name>] [--base=<ref>]'
 disable-model-invocation: true
 metadata:
+  dhpk-capability-id: dhpk.skill.git-worktree
+  dhpk-name-style: portable-skill
   dhpk-invocation-class: explicit-only
 ---
 

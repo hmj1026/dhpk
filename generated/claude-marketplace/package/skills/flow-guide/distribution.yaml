@@ -1,0 +1,456 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "references/anti-loop.md",
+      "references/codex-mode.md",
+      "references/codex-usage-catalog.json",
+      "references/component-addition-policy.md",
+      "references/delivery-core.md",
+      "references/delivery-loop-gate.md",
+      "references/deterministic-first.md",
+      "references/dispatch-and-gates.md",
+      "references/execution-bundle/docs/subagent-prompt-template.md",
+      "references/execution-bundle/manifests/host-profiles.json",
+      "references/execution-bundle/manifests/provider-model-catalog.json",
+      "references/execution-bundle/rules/anti-rationalization.md",
+      "references/execution-bundle/rules/execution-policy-kernel.md",
+      "references/execution-bundle/rules/execution-policy.md",
+      "references/execution-bundle/rules/model-economics.md",
+      "references/execution-bundle/rules/tool-routing.md",
+      "references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+      "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+      "references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+      "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+      "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+      "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+      "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+      "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+      "references/handoff-and-verification.md",
+      "references/implementation-dispatch.md",
+      "references/invocation-classification.md",
+      "references/invocation-precedence.md",
+      "references/output-shape.md",
+      "references/premise-verification.md",
+      "references/profile-and-project-overrides.md",
+      "references/progression-tables.md",
+      "references/projects-generic.md",
+      "references/projects-index.md",
+      "references/route-result.schema.json",
+      "references/route-table.json",
+      "references/script-operations.md",
+      "references/squash-merge-hygiene.md",
+      "references/task-modes.md",
+      "references/testing-policy.md",
+      "references/work-item-and-gates.md",
+      "references/workflow-analysis.md",
+      "references/workflow-bugfix.md",
+      "references/workflow-checklists.md",
+      "references/workflow-feature-delivery.md",
+      "references/workflow-lightweight.md"
+    ],
+    "executable_entries": [
+      {
+        "path": "scripts/action-runner.js",
+        "fixture_ids": [
+          "flow-guide-help-unknown",
+          "flow-guide-help-known-non-codex",
+          "flow-guide-help-retired-name",
+          "flow-guide-rules-local-policy",
+          "flow-guide-close-local-resources"
+        ]
+      },
+      {
+        "path": "scripts/usage-card.js",
+        "fixture_ids": [
+          "flow-guide-usage-local-card"
+        ]
+      },
+      {
+        "path": "scripts/analyze.js",
+        "fixture_ids": [
+          "flow-guide-analyze-consumer"
+        ]
+      },
+      {
+        "path": "scripts/prepare_workflow_profile.py",
+        "fixture_ids": [
+          "flow-guide-prepare-consumer-profile"
+        ]
+      },
+      {
+        "path": "scripts/prepare_dev_scope.py",
+        "fixture_ids": [
+          "flow-guide-prepare-consumer-scope"
+        ]
+      },
+      {
+        "path": "scripts/workflow_gate_check.py",
+        "fixture_ids": [
+          "flow-guide-workflow-missing-evidence"
+        ]
+      },
+      {
+        "path": "scripts/openspec_gate_check.py",
+        "fixture_ids": [
+          "flow-guide-openspec-ready-fixture"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/scripts/fast-worker-selector.js",
+        "fixture_ids": [
+          "flow-guide-bundled-selector-native"
+        ]
+      },
+      {
+        "path": "scripts/pre-route.sh",
+        "fixture_ids": [
+          "remaining-flow-guide-pre-route-local-table"
+        ]
+      }
+    ],
+    "host_capabilities": [],
+    "api_entries": [
+      {
+        "path": "scripts/route-result.js",
+        "fixture_ids": [
+          "flow-guide-route-explicit-authority"
+        ]
+      }
+    ],
+    "internal_helpers": [
+      {
+        "path": "references/execution-bundle/scripts/lib/dispatch-contract.js",
+        "required_by": [
+          "references/execution-bundle/scripts/fast-worker-selector.js",
+          "references/execution-bundle/scripts/lib/dispatch-engine.js"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/scripts/lib/dispatch-engine.js",
+        "required_by": [
+          "references/execution-bundle/scripts/fast-worker-selector.js"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+        "required_by": [
+          "references/execution-bundle/scripts/fast-worker-selector.js"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+        "required_by": [
+          "scripts/route-result.js",
+          "scripts/skill-next-actions.js"
+        ]
+      },
+      {
+        "path": "scripts/_lib/runtime-loader.js",
+        "required_by": [
+          "scripts/analyze.js",
+          "scripts/usage-card.js",
+          "scripts/route-result.js",
+          "scripts/skill-next-actions.js"
+        ]
+      },
+      {
+        "path": "scripts/_lib/runner-utils.js",
+        "required_by": [
+          "scripts/analyze.js"
+        ]
+      },
+      {
+        "path": "scripts/_lib/command-namespace.js",
+        "required_by": [
+          "scripts/_lib/skill-next-map.js"
+        ]
+      },
+      {
+        "path": "scripts/_lib/feature-resolver.js",
+        "required_by": [
+          "scripts/analyze.js"
+        ]
+      },
+      {
+        "path": "scripts/_lib/skill-usage.js",
+        "required_by": [
+          "scripts/usage-card.js"
+        ]
+      },
+      {
+        "path": "scripts/skill-next-actions.js",
+        "required_by": [
+          "scripts/analyze.js"
+        ]
+      },
+      {
+        "path": "scripts/_lib/skill-next-map.js",
+        "required_by": [
+          "scripts/skill-next-actions.js"
+        ]
+      },
+      {
+        "path": "scripts/_lib/frontmatter.js",
+        "required_by": [
+          "scripts/skill-next-actions.js"
+        ]
+      }
+    ]
+  },
+  "resource_copies": [
+    {
+      "source": "rules/execution-policy.md",
+      "destination": "references/execution-bundle/rules/execution-policy.md"
+    },
+    {
+      "source": "rules/execution-policy-kernel.md",
+      "destination": "references/execution-bundle/rules/execution-policy-kernel.md"
+    },
+    {
+      "source": "rules/model-economics.md",
+      "destination": "references/execution-bundle/rules/model-economics.md"
+    },
+    {
+      "source": "rules/anti-rationalization.md",
+      "destination": "references/execution-bundle/rules/anti-rationalization.md"
+    },
+    {
+      "source": "rules/tool-routing.md",
+      "destination": "references/execution-bundle/rules/tool-routing.md"
+    },
+    {
+      "source": "docs/subagent-prompt-template.md",
+      "destination": "references/execution-bundle/docs/subagent-prompt-template.md"
+    },
+    {
+      "source": "skills/flow-guide/references/invocation-precedence.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+    },
+    {
+      "source": "skills/flow-guide/references/invocation-classification.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+    },
+    {
+      "source": "skills/flow-guide/references/implementation-dispatch.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+    },
+    {
+      "source": "skills/flow-guide/references/premise-verification.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+    },
+    {
+      "source": "skills/flow-guide/references/deterministic-first.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+    },
+    {
+      "source": "skills/flow-guide/references/testing-policy.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+    },
+    {
+      "source": "skills/flow-guide/references/component-addition-policy.md",
+      "destination": "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+    },
+    {
+      "source": "scripts/fast-worker-selector.js",
+      "destination": "references/execution-bundle/scripts/fast-worker-selector.js"
+    },
+    {
+      "source": "scripts/lib/dispatch-contract.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
+    },
+    {
+      "source": "scripts/lib/dispatch-capability-evidence.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-capability-evidence.js"
+    },
+    {
+      "source": "scripts/lib/dispatch-engine.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
+    },
+    {
+      "source": "scripts/lib/native-dispatch-policy.js",
+      "destination": "references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+    },
+    {
+      "source": "scripts/lib/partial-writer-handoff.js",
+      "destination": "references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+    },
+    {
+      "source": "scripts/lib/flow-handoff-contract.js",
+      "destination": "references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+    },
+    {
+      "source": "manifests/provider-model-catalog.json",
+      "destination": "references/execution-bundle/manifests/provider-model-catalog.json"
+    },
+    {
+      "source": "manifests/host-profiles.json",
+      "destination": "references/execution-bundle/manifests/host-profiles.json"
+    },
+    {
+      "source": "scripts/lib/runner-utils.js",
+      "destination": "scripts/_lib/runner-utils.js"
+    },
+    {
+      "source": "scripts/lib/command-namespace.js",
+      "destination": "scripts/_lib/command-namespace.js"
+    },
+    {
+      "source": "scripts/lib/skill-usage.js",
+      "destination": "scripts/_lib/skill-usage.js"
+    },
+    {
+      "source": "scripts/lib/feature-resolver.js",
+      "destination": "scripts/_lib/feature-resolver.js"
+    },
+    {
+      "source": "scripts/lib/skill-next-map.js",
+      "destination": "scripts/_lib/skill-next-map.js"
+    },
+    {
+      "source": "scripts/ci/_lib/frontmatter.js",
+      "destination": "scripts/_lib/frontmatter.js"
+    }
+  ],
+  "usage": {
+    "display_name": "Flow Guide",
+    "summary": "Guide routes, rules, next steps, closeout, and usage help",
+    "syntax": "$flow-guide <help|route|rules|next|close> [--go] [--host <host>] [<query>]",
+    "input_kind": "action-first",
+    "inputs": [
+      {
+        "id": "action",
+        "syntax": "<help|route|rules|next|close>",
+        "value_kind": "enum",
+        "required": true,
+        "summary": "Choose one read-only guide action",
+        "enum_values": [
+          "help",
+          "route",
+          "rules",
+          "next",
+          "close"
+        ]
+      },
+      {
+        "id": "query",
+        "syntax": "<query>",
+        "value_kind": "string",
+        "required": false,
+        "summary": "Provide the action-specific skill or workflow text",
+        "applies_to": [
+          "help",
+          "route",
+          "rules",
+          "next",
+          "close"
+        ]
+      }
+    ],
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "delegate",
+    "actions": [
+      {
+        "id": "help",
+        "summary": "Show available Codex usage or one usage card",
+        "syntax": "$flow-guide help [<skill>]",
+        "input_kind": "identifier",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "route",
+        "summary": "Select the smallest workflow owner for a task",
+        "syntax": "$flow-guide route [--go] [<query>]",
+        "input_kind": "free-text",
+        "effect_authority": "delegate"
+      },
+      {
+        "id": "rules",
+        "summary": "Look up the governing workflow rules",
+        "syntax": "$flow-guide rules [<query>]",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "next",
+        "summary": "Identify the next bounded workflow action",
+        "syntax": "$flow-guide next [--host <host>] [<query>]",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      },
+      {
+        "id": "close",
+        "summary": "Check closeout evidence and remaining gates",
+        "syntax": "$flow-guide close [<query>]",
+        "input_kind": "free-text",
+        "effect_authority": "read-only"
+      }
+    ],
+    "options": [
+      {
+        "id": "go",
+        "syntax": "--go",
+        "value_kind": "boolean",
+        "required": false,
+        "default": false,
+        "summary": "Request one bounded handoff when the route is eligible",
+        "applies_to": [
+          "route"
+        ]
+      },
+      {
+        "id": "host",
+        "syntax": "--host",
+        "value_kind": "enum",
+        "required": false,
+        "default": "claude-code",
+        "summary": "Select next-action invocation formatting and handoff Host; Codex passes codex-cli",
+        "enum_values": [
+          "claude-code",
+          "codex-cli",
+          "agy",
+          "cursor",
+          "claude",
+          "codex"
+        ],
+        "applies_to": [
+          "next"
+        ]
+      }
+    ],
+    "examples": [
+      {
+        "prompt": "$flow-guide help",
+        "summary": "List the available Codex skill usage contracts"
+      },
+      {
+        "prompt": "$flow-guide next --host codex-cli",
+        "summary": "Resolve declared next steps using Codex invocation formatting"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "flow-guide",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:flow-guide",
+      "argument_contract": "<help|route|rules|next|close> [--go] [<query>]",
+      "authority": "delegate",
+      "disposition": "thin-front-door",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/flow-guide.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/flow-guide.md"
+      ],
+      "reason": "Canonical $flow-guide Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
+      "allowed_tools": "Read, Grep, Glob, Bash, Skill, Agent"
+    }
+  ]
+}

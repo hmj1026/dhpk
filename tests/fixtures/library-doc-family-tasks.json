@@ -1,0 +1,69 @@
+{
+  "schema": "dhpk.library-doc.consumer-fixtures.v1",
+  "evidence": "Local relocated instruction consumer tasks; installed Host and live provider acceptance are separate.",
+  "cases": [
+    {
+      "id": "library-author-author", "family": "library-author", "mode": "author",
+      "task": "Design a Laravel package service provider, facade and published config for Acme\\Widget, supporting Laravel 7 and 11. Return the authoring decision only; do not implement or install dependencies.",
+      "files": { "composer.json": "{\"require\":{\"php\":\"^7.2 || ^8.2\",\"laravel/framework\":\"^7.0 || ^11.0\"},\"extra\":{\"laravel\":{\"providers\":[\"Acme\\\\Widget\\\\WidgetServiceProvider\"],\"aliases\":{\"Widget\":\"Acme\\\\Widget\\\\Facades\\\\Widget\"}}}}" },
+      "expected": ["register bindings/config merges vs boot publishing", "facade accessor and binding agree", "discovery consumer check explicitly NOT_RUN", "version branches paired with cells", "no Testbench installation or semver audit procedure"],
+      "authority": "decision only; all project files unchanged"
+    },
+    {
+      "id": "library-author-testbench", "family": "library-author", "mode": "testbench",
+      "task": "Plan the Testbench CI matrix for Laravel 7/PHP 7.4 and Laravel 11/PHP 8.2. Local package metadata confirms Testbench 5 for Laravel 7 and 9 for Laravel 11, PHPUnit 8 for the older cell and 10 for the newer. Return a matrix and shared TestCase design, without installing dependencies.",
+      "files": { "composer.json": "{\"require\":{\"php\":\"^7.4 || ^8.2\",\"laravel/framework\":\"^7.0 || ^11.0\"},\"require-dev\":{\"orchestra/testbench\":\"^5.0 || ^9.0\",\"phpunit/phpunit\":\"^8.0 || ^10.0\"}}" },
+      "expected": ["two cells with Testbench 5 and 9", "PHP floors preserved", "shared TestCase registers provider and aliases", "prefer-lowest prefer-stable floor cell", "consumer discovery NOT_RUN", "no semver verdict"],
+      "authority": "plan only; all project files unchanged"
+    },
+    {
+      "id": "library-author-composer", "family": "library-author", "mode": "composer",
+      "task": "Review the release contract: proposed change removes a documented public @api method fetch() from version 1.4.0 without replacement. Return the semver verdict and evidence; do not release or edit files.",
+      "files": { "composer.json": "{\"name\":\"acme/widget\",\"require\":{\"php\":\"^7.4 || ^8.0\"},\"autoload\":{\"psr-4\":{\"Acme\\\\Widget\\\\\":\"src/\"}}}", "src/Widget.php": "<?php\nnamespace Acme\\Widget;\nclass Widget { /** @api */ public function fetch() {} }\n" },
+      "expected": ["major verdict because removing documented public API breaks consumers", "composer validate NOT_RUN", "registry/tag visibility NOT_RUN", "no provider/Testbench design"],
+      "authority": "read-only contract review; no publication"
+    },
+    {
+      "id": "library-author-polyfill-audit", "family": "library-author", "mode": "polyfill-audit",
+      "task": "Audit src/Format.php against the local CI/tests. Report branch enumeration and gaps. History is unavailable in this fixture and must remain NOT_RUN. Do not modify files.",
+      "files": { "composer.json": "{\"require\":{\"monolog/monolog\":\"^2.0 || ^3.0\"}}", "src/Format.php": "<?php\nfunction format($value) { if (class_exists('Monolog\\\\LogRecord')) return 'v3:' . $value; return 'v2:' . $value; }\n", ".github/workflows/test.yml": "strategy:\n  matrix:\n    monolog: ['^2.0', '^3.0']\n", "tests/FormatTest.php": "<?php\n// v3 cell only\nassert(format('hello') === 'v3:hello');\n", "phpunit.xml": "<phpunit><testsuites><testsuite name=\"unit\"><directory>tests</directory></testsuite></testsuites></phpunit>" },
+      "expected": ["Monolog 3 guard and Monolog 2 fallback separately enumerated", "both potential matrix cells identified", "v2 branch uncovered despite CI cell", "history NOT_RUN", "no assertion that a smoke pass proves branch coverage"],
+      "authority": "read-only audit"
+    },
+    {
+      "id": "library-author-suite-map", "family": "library-author", "mode": "suite-map",
+      "task": "Only src/Core/Storage.php changed. Select the testsuite command and check its architectural boundary. Do not run tests or modify files.",
+      "files": { "src/Core/Storage.php": "<?php\nuse Illuminate\\Support\\Collection;\nclass Storage {}\n", "phpunit.xml": "<phpunit><testsuites><testsuite name=\"core\"><directory>tests/Core</directory></testsuite><testsuite name=\"laravel\"><directory>tests/Laravel</directory></testsuite></testsuites></phpunit>", "composer.json": "{\"scripts\":{\"test:core\":\"phpunit --testsuite=core\",\"test:laravel\":\"phpunit --testsuite=laravel\",\"test:unit\":[\"@test:core\",\"@test:laravel\"]}}" },
+      "expected": ["composer test:core selected from actual XML", "Illuminate import in Core separately flagged as boundary violation", "execution NOT_RUN", "no Testbench matrix output"],
+      "authority": "read-only selection"
+    },
+    {
+      "id": "library-author-cell-onboard", "family": "library-author", "mode": "cell-onboard",
+      "task": "Plan adding PHP 8.3/Laravel 12/Testbench 10/PHPUnit 11/Monolog 3. The tuple is already confirmed by local metadata. Do not apply changes or install dependencies.",
+      "files": { "composer.json": "{\"require\":{\"php\":\"^8.2\",\"laravel/framework\":\"^11.0\",\"monolog/monolog\":\"^3.0\"},\"require-dev\":{\"orchestra/testbench\":\"^9.0\",\"phpunit/phpunit\":\"^10.0\"}}", ".github/workflows/test.yml": "strategy:\n  matrix:\n    include:\n      - php: '8.2'\n        laravel: '^11.0'\n        testbench: '^9.0'\n        phpunit: '^10.0'\n        monolog: '^3.0'\n", "phpunit.xml": "<phpunit><testsuites><testsuite name=\"core\"><directory>tests/Core</directory></testsuite><testsuite name=\"laravel\"><directory>tests/Laravel</directory></testsuite></testsuites></phpunit>", "src/Widget.php": "<?php\nclass Widget {}\n" },
+      "expected": ["Laravel/Testbench/PHPUnit constraints need extension", "PHP 8.3 and Monolog 3 admitted", "exact new pinned include row", "both suites planned", "no version guards found rather than fabricated branch proof", "dry-run NOT_RUN"],
+      "authority": "plan only; no Composer/workflow writes"
+    },
+    {
+      "id": "doc-maintain-update", "family": "doc-maintain", "mode": "update",
+      "task": "Refresh docs/configuration.md from src/config.json. Return proposed replacement text and the mode report only; no writes are authorized in this fixture. Locale pair absent. Next command should be one concrete validation command.",
+      "files": { "src/config.json": "{\"retry_limit\":3}", "docs/configuration.md": "# Configuration\n\nretry_limit defaults to 1.\n" },
+      "expected": ["retry_limit 3 from live fixture source", "exact docs target and no locale partner fabricated", "documentation-only authority", "writes and unavailable checks NOT_RUN", "one recommended next command", "no codemap refresh"],
+      "authority": "proposed documentation only; source/tests/manifests unchanged"
+    },
+    {
+      "id": "doc-maintain-codemap", "family": "doc-maintain", "mode": "codemap",
+      "task": "Plan architecture codemap refresh for this small Node application. Existing architecture.md would require replacing all its content, over 30%; no overwrite confirmation is given. Report the gate and proposed bounded outputs without writes.",
+      "files": { "package.json": "{\"name\":\"fixture-app\",\"main\":\"src/main.js\"}", "src/main.js": "const http = require('node:http');\nhttp.createServer((req, res) => res.end('ok'));\n", "docs/CODEMAPS/architecture.md": "# Old PHP application\n\nEntry: index.php\nDatabase: legacy mysql\n" },
+      "expected": ["BLOCKED or CONFIRMATION_REQUIRED for over-30% overwrite", "existing map unchanged", "only five CODEMAPS paths plus .reports/codemap-diff.txt proposed", "live Node entry used", "scan metadata and diff percentage reported", "no application edits"],
+      "authority": "documentation-only; no overwrite without confirmation"
+    },
+    {
+      "id": "doc-maintain-refactor", "family": "doc-maintain", "mode": "refactor",
+      "task": "Refactor only docs/guide.md. Return proposed replacement text and the mode report; do not write files in this fixture. Preserve all facts and frontmatter. Markdownlint is unavailable.",
+      "files": { "docs/guide.md": "---\nname: example\n---\n# Guide\n\nRun node app.js to start.\n\n## Notes\n\nRetry limit is 3.\n\n## More notes\n\nRun node app.js to start.\n\nSee [config](config.md).\n", "docs/config.md": "# Config\n\nRetry limit is 3.\n" },
+      "expected": ["one bounded target", "original/proposed line counts", "node app.js and retry 3 facts retained", "frontmatter and config.md link retained", "Markdownlint NOT_RUN", "no edits to linked config or broader policy"],
+      "authority": "one proposed Markdown target; all project files unchanged"
+    }
+  ]
+}

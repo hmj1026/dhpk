@@ -4,7 +4,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills index
 
-This index describes the 68 canonical skill packages currently published. The inventory is
+This index describes the 39 canonical skill packages currently published. The inventory is
 the source of truth for lifecycle, stable IDs, public names, profile selection,
 and publication surfaces; this page is a navigation aid. Every package lives
 under `skills/<public-name>/SKILL.md` and keeps its procedure and completion
@@ -22,17 +22,26 @@ do not copy its grammar into a skill procedure.
 
 ## Portable capability families
 
-These are the six recognizable family entry points. Family modes and selectors
+These are the recognizable family entry points. Family modes and selectors
 are finite and disclosed by the family package.
 
 | Public skill | Stable ID | Interface |
 | --- | --- | --- |
 | [flow-guide](flow-guide/SKILL.md) | `flow-guide` | `help`, `route`, `rules`, `next`, `close` |
 | [flow-drive](flow-drive/SKILL.md) | `flow-drive` | confirmed specification or change; no mode |
-| [change-verdict](change-verdict/SKILL.md) | `change-verdict` | `code`, `pr`, `security`, `tests`, `docs`, `risk` |
+| [change-verdict](change-verdict/SKILL.md) | `change-verdict` | Six verdict modes, `pending`, dependency audit and explicit bounded fix |
 | [code-trace](code-trace/SKILL.md) | `code-trace` | `explore`, `diagnose`, `history`, `select-tool` |
 | [laravel](laravel/SKILL.md) | `laravel` | selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, `mix` |
 | [phpunit](phpunit/SKILL.md) | `phpunit` | selectors `9`, `10`, `11` |
+| [react](react/SKILL.md) | `react` | React tasks; target 18 or 19 resolved before specialized guidance |
+| [nextjs](nextjs/SKILL.md) | `nextjs` | Next.js tasks; target 15.5 or 16 resolved before specialized guidance |
+| [swift](swift/SKILL.md) | `swift` | Swift, SwiftUI, tests, platform, build, and icons |
+| [python](python/SKILL.md) | `python` | Python, async tests, static checks, and FastAPI |
+| [js-static-checks](js-static-checks/SKILL.md) | `js-static-checks` | Natural tasks or optional `check`, `setup`, `rollout` |
+| [php](php/SKILL.md) | `php` | Runtime-compatible PHP 5.6, 7.4, and 8.x tasks |
+| [yii1](yii1/SKILL.md) | `yii1` | Yii 1.1 development, review, and security |
+| [library-author](library-author/SKILL.md) | `library-author` | `author`, `testbench`, `composer`, `polyfill-audit`, `suite-map`, `cell-onboard` |
+| [doc-maintain](doc-maintain/SKILL.md) | `doc-maintain` | `update`, `codemap`, `refactor` |
 
 `git-smart-commit` remains a standalone capability with its existing public
 name. It is not replaced by a new commit family.
@@ -46,8 +55,6 @@ front doors. Invoke the public name directly from Codex.
 | --- | --- | --- |
 | [code-simplify](code-simplify/SKILL.md) | `code-simplify` | Bounded behavior-preserving cleanup |
 | [create-pr](create-pr/SKILL.md) | `create-pr` | Dry-run or explicitly execute a pull request |
-| [dep-audit](dep-audit/SKILL.md) | `dep-audit` | Evidence-only dependency security audit |
-| [doc-refactor](doc-refactor/SKILL.md) | `doc-refactor` | Bounded Markdown refactoring |
 | [git-worktree](git-worktree/SKILL.md) | `git-worktree` | Safe native Git worktree lifecycle |
 | [harness-setup](harness-setup/SKILL.md) | `harness-setup` | Explicit harness setup and host assets |
 | [merge-prep](merge-prep/SKILL.md) | `merge-prep` | Read-only branch merge analysis |
@@ -57,28 +64,17 @@ front doors. Invoke the public name directly from Codex.
 | [project-brief](project-brief/SKILL.md) | `project-brief` | Technical-spec executive brief |
 | [proposal-analyze](proposal-analyze/SKILL.md) | `proposal-analyze` | Evidence-backed proposal roadmap |
 | [repo-verify](repo-verify/SKILL.md) | `repo-verify` | Runner-first repository verification |
-| [review-pending](review-pending/SKILL.md) | `review-pending` | Delegate a read-only pending-change review |
 | [ui-ux-verify](ui-ux-verify/SKILL.md) | `ui-ux-verify` | Read-only rendered UI verification |
-| [update-codemaps](update-codemaps/SKILL.md) | `update-codemaps` | Refresh structural code maps |
-| [update-docs](update-docs/SKILL.md) | `update-docs` | Refresh stale live workflow documentation |
 
 ## Promoted workflow and integration skills
 
 | Public skill | Stable ID | Purpose |
 | --- | --- | --- |
-| [dhpk-agy-fast-worker](dhpk-agy-fast-worker/SKILL.md) | `agy-fast-worker` | Explicit AGY worker handoff |
-| [dhpk-codex-bridge](dhpk-codex-bridge/SKILL.md) | `codex-bridge` | Explicit external CLI bridge |
-| [dhpk-composer-package-hygiene](dhpk-composer-package-hygiene/SKILL.md) | `composer-package-hygiene` | Composer package and public API hygiene |
 | [dhpk-deploy-list](dhpk-deploy-list/SKILL.md) | `deploy-list` | Deployment file-list and checklist |
 | [dhpk-feature-verify](dhpk-feature-verify/SKILL.md) | `feature-verify` | Read-only post-deploy verification |
 | [git-smart-commit](git-smart-commit/SKILL.md) | `git-smart-commit` | Group and execute cohesive Git commits |
 | [dhpk-issue-analyze](dhpk-issue-analyze/SKILL.md) | `issue-analyze` | GitHub issue and review-thread triage |
-| [dhpk-laravel-package-author](dhpk-laravel-package-author/SKILL.md) | `laravel-package-author` | Laravel package publication patterns |
-| [dhpk-laravel-testbench-matrix](dhpk-laravel-testbench-matrix/SKILL.md) | `laravel-testbench-matrix` | Laravel package Testbench matrix |
 | [module-design](module-design/SKILL.md) | `software-architecture` | Architecture boundaries and deep-module design |
-| [dhpk-opsx-load-context](dhpk-opsx-load-context/SKILL.md) | `opsx-load-context` | Resume context loading |
-| [dhpk-opsx-post-observation](dhpk-opsx-post-observation/SKILL.md) | `opsx-post-obs` | Save-phase observation posting |
-| [dhpk-polyfill-version-matrix-audit](dhpk-polyfill-version-matrix-audit/SKILL.md) | `polyfill-version-matrix-audit` | Cross-version polyfill coverage audit |
 | [dhpk-project-audit](dhpk-project-audit/SKILL.md) | `project-audit` | Deterministic project health audit |
 | [release-creator](release-creator/SKILL.md) | `release-creator` | Release preparation workflow |
 | [dhpk-repo-intake](dhpk-repo-intake/SKILL.md) | `repo-intake` | Repository inventory onboarding |
@@ -92,34 +88,9 @@ transport contract.
 
 | Public skill | Stable ID | Scope |
 | --- | --- | --- |
-| [dhpk-cli-dispatch-context](dhpk-cli-dispatch-context/SKILL.md) | `cli-dispatch-context` | CLI context dispatch |
-| [dhpk-cli-transport](dhpk-cli-transport/SKILL.md) | `cli-transport` | Hardened CLI transport |
-| [dhpk-fastapi-pro](dhpk-fastapi-pro/SKILL.md) | `fastapi-pro` | FastAPI and SQLAlchemy |
-| [dhpk-ios-icon-gen](dhpk-ios-icon-gen/SKILL.md) | `ios-icon-gen` | iOS icon generation |
-| [dhpk-ios-platform](dhpk-ios-platform/SKILL.md) | `ios-platform` | iOS platform APIs |
-| [dhpk-js-lint-config](dhpk-js-lint-config/SKILL.md) | `js-lint-config` | JavaScript lint configuration |
-| [js-static-check-strategy](js-static-check-strategy/SKILL.md) | `js-static-check-strategy` | Incremental JS static checks |
 | [dhpk-legacy-characterization-tests](dhpk-legacy-characterization-tests/SKILL.md) | `legacy-code-characterization` | Legacy behavior locking |
-| [dhpk-library-dual-testsuite-map](dhpk-library-dual-testsuite-map/SKILL.md) | `library-dual-testsuite-map` | Dual test-suite mapping |
-| [matrix-cell-onboard](matrix-cell-onboard/SKILL.md) | `matrix-cell-onboard` | CI matrix cell onboarding |
-| [dhpk-nextjs-15-5-notes](dhpk-nextjs-15-5-notes/SKILL.md) | `nextjs-15-5-notes` | Next.js 15.5 guidance |
-| [dhpk-nextjs-16-notes](dhpk-nextjs-16-notes/SKILL.md) | `nextjs-16-notes` | Next.js 16 guidance |
 | [dhpk-openspec-artifact-guard](dhpk-openspec-artifact-guard/SKILL.md) | `openspec-artifact-guard` | OpenSpec artifact guard |
-| [dhpk-php-8x-features](dhpk-php-8x-features/SKILL.md) | `php-8x-features` | PHP 8.x feature boundaries |
-| [dhpk-php-modern-pro](dhpk-php-modern-pro/SKILL.md) | `php-modern-pro` | Modern PHP compatibility |
-| [dhpk-php-runtime-router](dhpk-php-runtime-router/SKILL.md) | `php-pro` | PHP runtime and framework routing |
-| [dhpk-pytest-async](dhpk-pytest-async/SKILL.md) | `pytest-async` | Async pytest guidance |
-| [dhpk-python-pro](dhpk-python-pro/SKILL.md) | `python-pro` | Python backend guidance |
-| [dhpk-python-static-checks](dhpk-python-static-checks/SKILL.md) | `python-static-checks` | Python static-check strategy |
-| [dhpk-react-18-notes](dhpk-react-18-notes/SKILL.md) | `react-18-notes` | React 18 guidance |
-| [dhpk-react-19-notes](dhpk-react-19-notes/SKILL.md) | `react-19-notes` | React 19 guidance |
-| [dhpk-swift-language](dhpk-swift-language/SKILL.md) | `swift-language` | Swift language guidance |
-| [dhpk-swift-test-strategy](dhpk-swift-test-strategy/SKILL.md) | `swift-test-strategy` | Swift test strategy |
-| [dhpk-swiftui-architecture](dhpk-swiftui-architecture/SKILL.md) | `swiftui-architecture` | SwiftUI architecture |
 | [dhpk-vue-2-notes](dhpk-vue-2-notes/SKILL.md) | `vue-2-notes` | Vue 2 guidance |
-| [dhpk-xcode-build-tooling](dhpk-xcode-build-tooling/SKILL.md) | `xcode-build-tooling` | Xcode and SPM tooling |
-| [dhpk-yii1-php56-development](dhpk-yii1-php56-development/SKILL.md) | `php56-yii-dev` | Yii 1.1 / PHP 5.6 development |
-| [dhpk-yii1-security-audit](dhpk-yii1-security-audit/SKILL.md) | `yii1-security-audit` | Yii 1.1 security audit |
 
 ## Discovery rules
 

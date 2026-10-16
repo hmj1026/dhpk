@@ -15,20 +15,27 @@ runtime availability are separate evidence.
 | `smart-commit` | `$git-smart-commit` |
 | `create-release` | `$release-creator` |
 | `matrix-cell-onboard` | `$matrix-cell-onboard` |
-| `ts-check-status` | `$js-static-check-strategy status --path <directory>` |
+| `ts-check-status` | `$js-static-checks status --path <directory>` |
 
 Retired aliases no longer provide entry points; use the current portable skill
 directly.
 
 The other generic command workflows use the command's name directly:
 `create-pr`, `git-worktree`, `merge-prep`, `pr-summary`, `project-brief`,
-`doc-refactor`, `update-docs`, `update-codemaps`, `precommit`, `dep-audit`,
-and `review-pending`. Current `flow-guide` and `flow-drive` keep their names.
+`doc-refactor`, `update-docs`, `update-codemaps`, and `precommit`. Dependency
+audit and pending-change review use the `change-verdict` tasks `deps` and
+`pending`. Current `flow-guide` and `flow-drive` keep their names.
 
-The five existing `dhpk-` names for commit, release, matrix onboarding, TDD,
-and JS static-check guidance migrate to the names above. Their stable IDs and
-capability identities do not change. Other prefixed Skills are unaffected.
-The rename ledger supplies diagnostics; it does not publish duplicate aliases.
+The earlier commit, release, matrix onboarding, and TDD public-name migrations
+retain their stable IDs and capability identities; the rename ledger supplies
+diagnostics without publishing duplicate aliases.
+
+The self-contained families `swift`, `python`, `js-static-checks`, `php`, and
+`yii1` select task and runtime branches within their own directories. React
+and Next.js remain separate families, `react` and `nextjs`; resolve each target
+package and version before loading version-specific guidance. Resume/save
+helpers belong to `opsx-apply-resume`. These family owners replace their former
+specialist entry points without publishing compatibility aliases.
 
 The purpose ledger records Skills as ADR-backed additions. The distribution
 inventory owns current active membership.
@@ -99,11 +106,14 @@ after publication.
 ## Execution boundaries
 
 - `repo-verify` runs checks; `precommit` may run format fixes.
-- `dep-audit` changes dependencies only with the requested fix option.
+- `change-verdict deps` and `change-verdict pending` are read-only by default.
+  An explicit `$change-verdict deps fix` request permits bounded dependency remediation followed
+  by independent security review; report the fix result and security verdict
+  separately.
 - `create-pr` previews by default; release and Git operations retain their
   explicit execution and authorization boundaries.
-- `review-pending` returns reviewer evidence; gate clearance remains a separate
-  runtime operation.
+- `change-verdict pending` returns reviewer evidence; gate clearance remains
+  a separate runtime operation.
 - `harness-setup`, `opsx-apply-resume`, and `ui-ux-verify` have Host-specific
   adapters. Their Codex publication requires consumer evidence; missing tools
   or configuration produce an explicit unavailable or blocked result.
