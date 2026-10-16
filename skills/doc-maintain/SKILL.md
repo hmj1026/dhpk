@@ -4,6 +4,8 @@ description: 'Maintain documentation through stale-doc refresh, architecture cod
 argument-hint: '<task | mode> <target>'
 allowed-tools: 'Read, Write, Edit, Grep, Glob, Bash'
 metadata:
+  dhpk-capability-id: dhpk.skill.doc-maintain
+  dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
   dhpk-modes: [update, codemap, refactor]
   dhpk-next:

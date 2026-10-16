@@ -254,4 +254,11 @@ test('extractMetadata rejects dotted keys, unknown dhpk keys, and Host syntax va
   }
 });
 
+test('distribution identity metadata preserves handoff keys and rejects unknown siblings', () => {
+  const parsed = extractMetadata('---\nmetadata:\n  dhpk-name-style: unprefixed\n  dhpk-capability-id: dhpk.skill.fixture\n  dhpk-invocation-class: explicit-only\n  dhpk-modes: [code]\n  dhpk-handoff-reserved: value\n---\n');
+  assert.deepStrictEqual(parsed.errors, []);
+  assert.strictEqual(parsed.values['dhpk-capability-id'], 'dhpk.skill.fixture');
+  assert.ok(extractMetadata('---\nmetadata:\n  dhpk-unregistered: value\n---\n').errors.some(error => error.includes('dhpk-unregistered')));
+});
+
 run('frontmatter');

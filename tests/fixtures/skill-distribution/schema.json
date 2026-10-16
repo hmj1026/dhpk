@@ -1,0 +1,7 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "compact_metadata": ["dhpk-invocation-class", "dhpk-name-style", "dhpk-capability-id"],
+  "bulk_keys": ["usage", "resource_copies", "coverage", "standalone_dependencies", "commands"],
+  "missing_file": "empty maps",
+  "yaml_subset": "mappings, sequences, quoted/plain scalars, JSON flow values, comments"
+}

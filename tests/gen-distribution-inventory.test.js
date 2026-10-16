@@ -23,6 +23,39 @@ const generator = require('../scripts/ci/gen-distribution-inventory');
 const ROOT = path.join(__dirname, '..');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
 
+test('directory fields regenerate while editorial overlays and catalogs stay byte-stable', () => {
+  const root = demoRoot();
+  const out = path.join(root, 'manifests/distribution-inventory.json');
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  const original = { schema: 'dhpk.distribution-inventory.v2', skills: [{ id: 'demo', name: 'demo', path: 'skills/demo', capability_id: 'dhpk.skill.demo', lifecycle: 'experimental', surfaces: ['claude-core'], tier: 'optional', profiles: ['editorial'] }], modules: [] };
+  fs.writeFileSync(out, JSON.stringify(original, null, 2) + '\n');
+  fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), '---\nname: renamed-demo\n---\n');
+  fs.writeFileSync(path.join(root, 'manifests/install-profiles.json'), 'profiles untouched\n');
+  fs.writeFileSync(path.join(root, 'manifests/marketplace-selection.json'), 'selection untouched\n');
+  try {
+    const drift = invokeRoute(['--check'], root, out);
+    assert.strictEqual(statusOf(drift.result), 1);
+    assert.match(drift.stderr, /demo.*name/);
+    const written = invokeWrite(root, out);
+    assert.strictEqual(statusOf(written.result), 0, written.stderr);
+    const row = JSON.parse(fs.readFileSync(out)).skills[0];
+    assert.strictEqual(row.name, 'renamed-demo');
+    assert.strictEqual(row.lifecycle, 'experimental');
+    assert.deepStrictEqual(row.surfaces, ['claude-core']);
+    assert.deepStrictEqual(row.profiles, ['editorial']);
+    assert.strictEqual(fs.readFileSync(path.join(root, 'manifests/install-profiles.json'), 'utf8'), 'profiles untouched\n');
+    assert.strictEqual(fs.readFileSync(path.join(root, 'manifests/marketplace-selection.json'), 'utf8'), 'selection untouched\n');
+    assert.strictEqual(statusOf(invokeRoute(['--check'], root, out).result), 0);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('existing compact invocation declarations compile for the five formerly omitted rows', () => {
+  const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+  for (const [id, invocationClass] of [['openspec-artifact-guard', 'implicit-eligible'], ['vue-2-notes', 'implicit-eligible'], ['deploy-list', 'implicit-eligible'], ['project-audit', 'implicit-eligible'], ['repo-intake', 'explicit-only']]) {
+    assert.strictEqual(inventory.skills.find(row => row.id === id).invocation_class, invocationClass, id);
+  }
+});
+
 function writableCapture() {
   let value = '';
   return {
@@ -178,7 +211,7 @@ test('refresh-supporting-digests remains available separately from v2 write refu
   }
 });
 
-test('checked-in v2 refresh succeeds and subsequent write refusal preserves refreshed bytes', () => {
+test('checked-in v2 refresh and directory regeneration preserve refreshed bytes', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-generator-v2-refresh-'));
   const output = path.join(temp, 'inventory.json');
   fs.copyFileSync(MANIFEST, output);
@@ -194,8 +227,8 @@ test('checked-in v2 refresh succeeds and subsequent write refusal preserves refr
     const refreshedBytes = fs.readFileSync(output, 'utf8');
     assert.strictEqual(JSON.parse(refreshedBytes).schema, 'dhpk.distribution-inventory.v2');
 
-    const refused = invokeWrite(ROOT, output);
-    assert.notStrictEqual(statusOf(refused.result), 0);
+    const regenerated = invokeWrite(ROOT, output);
+    assert.strictEqual(statusOf(regenerated.result), 0, regenerated.stderr);
     assert.strictEqual(fs.readFileSync(output, 'utf8'), refreshedBytes);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });

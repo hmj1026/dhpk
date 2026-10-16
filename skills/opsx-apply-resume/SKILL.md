@@ -4,6 +4,8 @@ argument-hint: '[<save-or-resume-task>] [<change-id>]'
 description: 'Save and resume a long-running OpenSpec apply session from a live worktree, preserving optional gates and host-specific handoff artifacts. Not for: starting a new proposal, changing the external OpenSpec workflow, or treating a commit as a prerequisite. Output: a saved/resumed handoff report with lifecycle and next-action evidence.'
 disable-model-invocation: true
 metadata:
+  dhpk-capability-id: dhpk.skill.opsx-apply-resume
+  dhpk-name-style: portable-skill
   dhpk-invocation-class: explicit-only
   dhpk-next:
     PASS: none

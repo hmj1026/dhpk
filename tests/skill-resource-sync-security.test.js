@@ -27,7 +27,10 @@ function fixture(callback) {
   const map = { schema: 'dhpk.skill-resources.v1', skills: {
     example: [{ source: 'shared/runtime.js', destination: 'scripts/runtime.js' }],
   } };
-  const saveMap = () => put('manifests/skill-resources.json', JSON.stringify(map, null, 2) + '\n');
+  const saveMap = () => {
+    put('skills/example/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', resource_copies: map.skills.example || [] }) + '\n');
+    return put('manifests/skill-resources.json', JSON.stringify(map, null, 2) + '\n');
+  };
   put('manifests/distribution-inventory.json', JSON.stringify({
     schema: 'dhpk.distribution-inventory.v2',
     skills: [{ id: 'example', name: 'public-example', path: 'skills/example', legacy_names: ['old-example'] }],
@@ -40,6 +43,50 @@ function fixture(callback) {
   const ledger = path.join(root, 'manifests/skill-resource-copies.json');
   try { callback({ outer, root, put, map, saveMap, output, ledger }); }
   finally { fs.rmSync(outer, { recursive: true, force: true }); }
+}
+
+test('aggregate-only resource mapping fails before copies or ledger change', () => fixture(ctx => {
+  ctx.put('skills/example/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', resource_copies: ctx.map.skills.example }));
+  synchronizer().writeSkillResources({ root: ctx.root });
+  ctx.map.skills.example.push({ source: 'shared/runtime.js', destination: 'scripts/aggregate-only.js' });
+  ctx.put('manifests/skill-resources.json', JSON.stringify(ctx.map));
+  const before = snapshotTree(ctx.outer);
+  assert.throws(() => synchronizer().writeSkillResources({ root: ctx.root }), /example.*resource_copies/);
+  assert.strictEqual(snapshotTree(ctx.outer), before);
+}));
+
+for (const mutation of ['skill header', 'distribution declaration', 'absent declaration']) {
+  for (const timing of ['before publication', 'after resource publication']) {
+    test(`authoring ${mutation} change ${timing} preserves copies and ledger`, () => fixture(ctx => {
+      if (mutation === 'absent declaration') {
+        const inventory = JSON.parse(fs.readFileSync(path.join(ctx.root, 'manifests/distribution-inventory.json')));
+        inventory.skills.push({ id: 'peer', name: 'peer', path: 'skills/peer' });
+        ctx.put('manifests/distribution-inventory.json', JSON.stringify(inventory));
+        ctx.put('skills/peer/SKILL.md', '---\nname: peer\n---\n');
+      }
+      const ledgerBefore = fs.readFileSync(ctx.ledger);
+      const change = () => {
+        if (mutation === 'skill header') fs.appendFileSync(path.join(ctx.root, 'skills/example/SKILL.md'), '\nchanged header\n');
+        else if (mutation === 'distribution declaration') ctx.put('skills/example/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', resource_copies: [] }));
+        else ctx.put('skills/peer/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1' }));
+      };
+      const originalRename = fs.renameSync;
+      let changed = false;
+      try {
+        if (timing === 'after resource publication') fs.renameSync = function(source, destination) {
+          const result = originalRename.call(fs, source, destination);
+          if (!changed && String(source).includes('.skill-resource-sync-stage-') && String(destination) === ctx.output) { changed = true; change(); }
+          return result;
+        };
+        assert.throws(() => synchronizer().writeSkillResources({ root: ctx.root, hooks: {
+          beforeCommit() { if (timing === 'before publication') { changed = true; change(); } },
+        } }), /skill-resource-sync:/);
+      } finally { fs.renameSync = originalRename; }
+      assert.strictEqual(changed, true);
+      assert.strictEqual(fs.existsSync(ctx.output), false);
+      assert.deepStrictEqual(fs.readFileSync(ctx.ledger), ledgerBefore);
+    }));
+  }
 }
 
 function snapshotTree(root) {
@@ -521,6 +568,7 @@ test('ledger tampering during promotion rolls back all accepted resources and le
     fs.writeFileSync(path.join(root, ACTIVE_PATH, 'unrelated.txt'), 'consumer-owned\n');
     writeJson(path.join(root, 'manifests', 'distribution-inventory.json'), inventory);
     writeJson(path.join(root, 'manifests', 'skill-resources.json'), map);
+    writeJson(path.join(root, ACTIVE_PATH, 'distribution.yaml'), { schema: 'dhpk.skill-distribution.v1', resource_copies: map.skills[ACTIVE_ID] });
     writeJson(path.join(root, 'manifests', 'skill-resource-copies.json'), ledger);
     return { root, inventory, map, ledger };
   }
@@ -533,6 +581,7 @@ test('ledger tampering during promotion rolls back all accepted resources and le
   }
   function replaceMap(root, map) {
     writeJson(path.join(root, 'manifests', 'skill-resources.json'), map);
+    writeJson(path.join(root, ACTIVE_PATH, 'distribution.yaml'), { schema: 'dhpk.skill-distribution.v1', resource_copies: map.skills[ACTIVE_ID] || [] });
   }
 
   function digest(file) {

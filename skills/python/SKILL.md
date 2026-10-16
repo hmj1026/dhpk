@@ -2,6 +2,8 @@
 name: python
 description: 'Python service implementation or review, async FastAPI/SQLAlchemy APIs, pytest tests, and ruff/pyright/mypy setup or triage. Use for backend Python tasks. Not for frontend or non-Python work. Output: compatible typed code, offline tests, API guidance, or static-check configuration with evidence.'
 metadata:
+  dhpk-capability-id: dhpk.skill.python
+  dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
 ---
 

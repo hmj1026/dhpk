@@ -9,6 +9,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { compileMarketplacePublicationView } = require('../lib/marketplace-selection');
+const { assertDirectoryInventory } = require('../lib/skill-distribution-compile');
 
 const {
   compileSkillUsageCatalog,
@@ -190,6 +191,7 @@ function run(argv, io) {
   let catalog;
   try {
     inventory = readJson(inventoryPath, 'distribution inventory');
+    if (inventoryPath === path.join(root, 'manifests/distribution-inventory.json')) assertDirectoryInventory(root, inventory);
     const publicationView = args.selection !== null || args.inventory === null
       ? compileMarketplacePublicationView({
         inventory,

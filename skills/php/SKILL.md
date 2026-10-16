@@ -2,6 +2,8 @@
 name: php
 description: 'PHP implementation, review, tests, runtime compatibility, and feature or library-floor decisions across PHP5.6,7.4,8.x. Use for language/runtime tasks and mixed-floor packages. Not for frontend-only work or Yii framework security/development ownership. Output: compatibility-safe code or decisions with runtime-matched verification.'
 metadata:
+  dhpk-capability-id: dhpk.skill.php
+  dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
 ---
 

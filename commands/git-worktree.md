@@ -1,20 +1,11 @@
 ---
-description: 'Short Claude front door for the $git-worktree Skill and native Git worktree lifecycle.'
+description: 'Manage Git worktree lifecycle with exact native git targets, branch/path validation, and dirty-worktree safety. Covers adding, listing, removing, and pruning worktrees. Not for: branch merging, broad cleanup, or removing or pruning without confirmation. Output: exact commands plus resulting worktree status.'
 argument-hint: '[add|list|remove|prune] [--branch <name>] [--base <ref>]'
 allowed-tools: 'Bash(git:*), Read, Grep, Glob, Skill'
+disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
-disable-model-invocation: true
 ---
 
-# `/dhpk:git-worktree`
-
-Forward the supplied sub-command and options unchanged to the canonical
-`$git-worktree` Skill. It owns native Git target resolution, dirty checks,
-`wt-{repo-shortname}-{purpose}` naming, confirmation for remove/prune, and
-the resulting status. This command adds no lifecycle procedure.
-
-Not for: branch merging, broad cleanup, or removing or pruning without confirmation.
-
-Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
-`BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.
+Load `skills/git-worktree/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Keep its argument contract, authority boundary, verification, and output.

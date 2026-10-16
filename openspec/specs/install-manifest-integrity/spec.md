@@ -106,17 +106,40 @@ The manifest-integrity validation SHALL reconcile the distribution inventory wit
 
 ### Requirement: Generated distribution artifacts are drift-checked
 
-The standard test entry point SHALL regenerate publication metadata in check mode for each declared profile and fail when checked-in or release-staged output differs from deterministic generation. The check SHALL compare profile IDs, selected stable IDs, compatibility mode, provenance, and output fingerprints in addition to bytes and paths.
+The standard test entry point SHALL regenerate publication metadata in check
+mode for each declared profile and fail when checked-in or release-staged
+output differs from deterministic generation. The check SHALL compare profile
+IDs, selected stable IDs, compatibility mode, provenance, and output
+fingerprints in addition to bytes and paths.
+
+REQ-2, REQ-3, REQ-6: The same entry point SHALL also drift-check generated
+per-skill aggregates compiled from Skill directories (inventory per-skill
+fields, skill-resources, skill-directory-coverage, command-skill-dispositions,
+and generated `commands/*.md` once that phase is active). A manual edit of a
+generated per-skill field or front-door file SHALL fail without updating
+publication surfaces. Hand-editing `generated/` outputs remains forbidden.
 
 #### Scenario: Manual manifest edit bypasses the inventory
 
-- **WHEN** a contributor manually adds a skill registration without updating the distribution inventory or selected profile
-- **THEN** the generation drift check exits non-zero and reports the unexpected registration and selection identity
+- **WHEN** a contributor manually adds a skill registration without updating
+  the distribution inventory or selected profile
+- **THEN** the generation drift check exits non-zero and reports the
+  unexpected registration and selection identity
 
 #### Scenario: Profile generation is repeatable
 
-- **WHEN** the same profile, inventory, and canonical sources are generated twice
-- **THEN** the check observes identical selected IDs, provenance, fingerprints, and output bytes
+- **WHEN** the same profile, inventory, and canonical sources are generated
+  twice
+- **THEN** the check observes identical selected IDs, provenance,
+  fingerprints, and output bytes
+
+#### Scenario: Manual per-skill aggregate edit bypasses the Skill directory
+
+- **WHEN** a contributor edits a generated per-skill inventory, coverage,
+  resource, or disposition row, or a generated `commands/*.md` file, without
+  changing the owning Skill directory
+- **THEN** the corresponding `--check` exits non-zero and names the Skill or
+  command identity
 
 ### Requirement: Static and installed validations have distinct verdicts
 
@@ -126,3 +149,83 @@ Plugin validation SHALL report repository path/manifest consistency separately f
 
 - **WHEN** static manifest validation passes and installed-cache discovery fails
 - **THEN** the combined report records static PASS, installed FAIL, and an overall native-support FAIL
+
+### Requirement: Per-skill inventory fields are compiled from Skill directories
+
+REQ-2: A generator SHALL compile each Skill's per-skill inventory fields from
+that Skill's directory: `path`, `name` / `id`, `capability_id`,
+`invocation_class`, `usage`, and `standalone_dependencies`. `--write` SHALL
+update those generated fields; `--check` SHALL fail when checked-in generated
+fields differ from the directory declaration. Editorial overlays SHALL remain
+manifest-owned and SHALL be preserved across `--write`: `lifecycle`,
+`surfaces`, `tier`, profile membership in `install-profiles.json`, and
+marketplace curation in `marketplace-selection.json`. Default classification
+MAY seed lifecycle and surfaces for a newly discovered Skill; a subsequent
+editorial overlay SHALL survive regeneration.
+
+#### Scenario: Generated per-skill fields drift from the directory
+
+- **WHEN** a contributor edits an inventory `usage`, `invocation_class`, or
+  `standalone_dependencies` value without changing the owning Skill directory
+- **THEN** the inventory per-skill drift check exits non-zero and names the
+  Skill identity and field
+
+#### Scenario: An editorial lifecycle overlay is preserved
+
+- **WHEN** `--write` regenerates per-skill inventory fields after a Skill
+  directory change, and that Skill already has a non-default `lifecycle` or
+  `surfaces` overlay
+- **THEN** the overlay remains and only directory-owned fields change
+
+#### Scenario: Profile membership is not inferred from the Skill directory
+
+- **WHEN** a Skill directory is added or removed
+- **THEN** `install-profiles.json` and `marketplace-selection.json` are
+  unchanged by the per-skill generator
+
+### Requirement: Directory-owned coverage aggregates are drift-checked
+
+REQ-3: `manifests/skill-directory-coverage.json` SHALL be generated from each
+Skill's `distribution.yaml` coverage declaration (`entry`, `references`,
+`executable_entries`, `fixture_ids`, `internal_helpers`, and
+`host_capabilities`). `--write` / `--check` SHALL fail closed on missing,
+extra, or stale rows. Coverage remains an authoring completeness record;
+fixture execution and Host probes stay separate evidence states.
+
+#### Scenario: Coverage is edited only in the aggregate
+
+- **WHEN** a coverage row is added to `manifests/skill-directory-coverage.json`
+  without a matching Skill-directory declaration
+- **THEN** the coverage drift check fails and names the Skill identity
+
+#### Scenario: A Skill removes a declared reference
+
+- **WHEN** `distribution.yaml` drops a required `references` path and `--check`
+  runs
+- **THEN** the check fails until `--write` updates the aggregate, and the
+  completeness validator still fails if the file is required and missing
+
+### Requirement: Per-skill manifest migration is phased and reversible
+
+REQ-6: Generators SHALL migrate one aggregate at a time (coverage, resource
+map, inventory per-skill fields, command dispositions, then command front-door
+files). After each phase, `--check` for already-migrated aggregates AND
+existing checks for not-yet-migrated aggregates SHALL pass. Rollback of a
+phase SHALL restore the prior checked-in bytes of that aggregate without
+requiring Skill-directory rewrites or hand-edits of `generated/` outputs. Host
+publication surfaces and install behaviour SHALL remain unchanged by the
+migration.
+
+#### Scenario: One aggregate is migrated
+
+- **WHEN** only the coverage aggregate has been switched to directory
+  generation
+- **THEN** coverage `--check` passes against Skill directories, and the
+  remaining inventory, resource, disposition, and command-file checks that
+  still use their prior sources also pass
+
+#### Scenario: A phase is rolled back
+
+- **WHEN** a migrated aggregate's prior checked-in bytes are restored and
+  `--check` runs in the pre-phase mode
+- **THEN** that aggregate's check passes and other aggregates are unaffected

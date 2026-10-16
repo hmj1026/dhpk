@@ -55,4 +55,42 @@ for (const skill of ['flow-guide', 'flow-drive']) {
   });
 }
 
+test('relocated Laravel public task ignores distribution authoring data without manifests', () => {
+  withIsolatedSkill({ source: path.join(ROOT, 'skills/laravel'), files: ['SKILL.md', 'distribution.yaml', 'scripts/resolve-version.js', 'scripts/version-resolver.js', 'references/11.md'] }, context => {
+    fs.writeFileSync(path.join(context.skillDir, 'distribution.yaml'), 'schema: invalid\nusage: [unparseable authoring metadata\n');
+    fs.writeFileSync(path.join(context.projectDir, 'composer.lock'), JSON.stringify({ packages: [{ name: 'laravel/framework', version: 'v11.0.7' }], 'packages-dev': [] }));
+    fs.writeFileSync(path.join(context.projectDir, 'composer.json'), JSON.stringify({ require: { 'laravel/framework': '^10.0' } }));
+    fs.writeFileSync(path.join(context.skillDir, 'probe.js'), [
+      "const fs = require('node:fs');",
+      "const reads = [];",
+      "for (const method of ['readFileSync', 'openSync']) { const original = fs[method]; fs[method] = function (file, ...args) { const name = String(file); reads.push(name); if (/distribution\\.yaml|[/\\\\]manifests[/\\\\]|[/\\\\]scripts[/\\\\]ci[/\\\\]/.test(name)) throw new Error('forbidden authoring read: ' + name); return original.call(fs, file, ...args); }; }",
+      "require('./scripts/resolve-version.js');",
+      "process.stderr.write(JSON.stringify(reads));",
+    ].join('\n'));
+    const copiedRuntime = path.join(context.skillDir, 'scripts/resolve-version.js');
+    const acceptedRuntime = fs.readFileSync(copiedRuntime);
+    const runtimeText = acceptedRuntime.toString('utf8');
+    assert.ok(runtimeText.startsWith('#!/usr/bin/env node\n\'use strict\';\n'));
+    try {
+      fs.writeFileSync(copiedRuntime, runtimeText.replace("'use strict';", "'use strict';\nrequire('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'distribution.yaml'), 'utf8');"));
+      const negativeControl = context.run('probe.js', ['--json']);
+      assert.notStrictEqual(negativeControl.status, 0, 'authoring-read mutation must fail');
+      assert.match(negativeControl.stderr, /Error: forbidden authoring read: [^\n]+[/\\]distribution\.yaml/);
+    } finally {
+      fs.writeFileSync(copiedRuntime, acceptedRuntime);
+    }
+    assert.deepStrictEqual(fs.readFileSync(copiedRuntime), acceptedRuntime);
+    const result = context.run('probe.js', ['--json']);
+    assert.strictEqual(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.deepStrictEqual([report.status, report.family, report.selector, report.source, report.reference, report.loadedReferences], ['resolved', 'laravel', '11', 'composer.lock', 'references/11.md', ['references/11.md']]);
+    assert.strictEqual(report.guidance, fs.readFileSync(path.join(context.skillDir, 'references/11.md'), 'utf8'));
+    const reads = JSON.parse(result.stderr);
+    assert.ok(reads.some(file => file.endsWith('references/11.md')));
+    assert.ok(!reads.some(file => file.endsWith('distribution.yaml')));
+    assert.ok(!fs.existsSync(path.join(context.skillDir, 'manifests')));
+    assert.strictEqual(result.hostStatus, 'NOT_RUN');
+  });
+});
+
 run('skill-runtime-path-contract');

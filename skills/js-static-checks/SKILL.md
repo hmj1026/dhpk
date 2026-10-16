@@ -2,6 +2,8 @@
 name: js-static-checks
 description: 'JavaScript/TypeScript static-check status, ESLint tier setup, legacy-global synchronization, and progressive checkJs rollout. Use for lint/typecheck configuration or rollout tasks and check, setup, rollout actions. Not for everyday JS business logic. Output: read-only status, scoped configuration, or leaf migration evidence.'
 metadata:
+  dhpk-capability-id: dhpk.skill.js-static-checks
+  dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
 ---
 
