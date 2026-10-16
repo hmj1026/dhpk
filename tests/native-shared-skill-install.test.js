@@ -167,6 +167,54 @@ function dualFixture() {
   return sourceRoot;
 }
 
+function addOverlappingModule(sourceRoot) {
+  const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+  inventory.modules = [{ ...inventory.skills[0], path: 'modules/sample' }];
+  inventory.project_agent_projection.profiles['portable-core'].stable_ids = ['skill:sample', 'other'];
+  fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+}
+
+for (const scenario of ['initial selection', 'prior Host selection', 'remaining Host selection']) {
+  test(`native shared lifecycle treats ${scenario} as a skill when a module shares its ID`, () => {
+    const sourceRoot = dualFixture();
+    const projectRoot = tmpDir('dhpk-native-shared-overlap-');
+    try {
+      if (scenario === 'initial selection') addOverlappingModule(sourceRoot);
+      let result = installNativeSharedSkills({
+        sourceRoot, projectRoot, host: 'cursor', selectedStableIds: ['sample'], declaredSelection: true,
+      });
+      if (scenario !== 'initial selection') {
+        if (scenario === 'prior Host selection') addOverlappingModule(sourceRoot);
+        result = installNativeSharedSkills({
+          sourceRoot, projectRoot, host: 'codex', selectedStableIds: ['other'], declaredSelection: true,
+        });
+        if (scenario === 'remaining Host selection') {
+          addOverlappingModule(sourceRoot);
+          result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex' });
+          assert.strictEqual(result.ok, true, result.error && result.error.message);
+          assert.strictEqual(result.receipt.hostBindings.codex, undefined);
+        } else {
+          assert.deepStrictEqual(result.receipt.hostBindings.codex.selectedStableIds, ['other']);
+          assert.ok(fs.existsSync(path.join(projectRoot, '.agents/skills/dhpk-other/SKILL.md')));
+        }
+      }
+      assert.deepStrictEqual(result.receipt.hostBindings.cursor.selectedStableIds, ['sample']);
+      const expectedIds = scenario === 'prior Host selection' ? ['other', 'sample'] : ['sample'];
+      assert.deepStrictEqual(result.receipt.selectedIds, expectedIds);
+      assert.deepStrictEqual(result.receipt.emittedIds, expectedIds);
+      assert.deepStrictEqual(result.receipt.entries.map((entry) => entry.stableId).sort(), expectedIds);
+      assert.ok(fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'), 'utf8').includes('# Sample skill'));
+      assert.strictEqual(fs.readlinkSync(path.join(projectRoot, '.cursor/skills/dhpk-sample')), '../../.agents/skills/dhpk-sample');
+      const checked = validateRelocatableAgentsSkillsProjection({ projectRoot });
+      assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+}
+
 function hiddenVisibleFixture() {
   const sourceRoot = fixture();
   const visiblePath = path.join(sourceRoot, 'skills', 'dhpk-sample');

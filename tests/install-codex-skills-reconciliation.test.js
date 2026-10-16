@@ -467,44 +467,49 @@ test('skill sources fail closed when distribution metadata is incomplete', () =>
   }
 });
 
-test('external source symlink is rejected before receipt mutation', () => {
-  const scratch = projectRoot();
-  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-plugin-')));
-  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-outside-')));
-  try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
-    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
-    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
-    copyDistributionInventory(fakePlugin);
+for (const brokenSource of [false, true]) {
+  test(`${brokenSource ? 'broken' : 'external'} source symlink is rejected before receipt mutation`, () => {
+    const scratch = projectRoot();
+    const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-plugin-')));
+    const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-outside-')));
+    try {
+      fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+      fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+      fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+      copyDistributionInventory(fakePlugin);
 
-    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
-    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-    const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
-    const malicious = 'flow-guide';
-    assert.ok(sourceNames.includes(malicious), 'fixture needs a selected common skill source');
+      const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+      assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+      const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
+      const malicious = 'flow-guide';
+      assert.ok(sourceNames.includes(malicious), 'fixture needs a selected common skill source');
 
-    const outsideSource = path.join(outside, malicious);
-    fs.mkdirSync(outsideSource, { recursive: true });
-    fs.writeFileSync(path.join(outsideSource, 'escaped.txt'), 'outside source\n');
-    const maliciousSource = path.join(fakePlugin, 'codex', 'skills', malicious);
-    fs.rmSync(maliciousSource, { recursive: true, force: true });
-    fs.symlinkSync(outsideSource, maliciousSource, 'dir');
+      const outsideSource = path.join(outside, malicious);
+      fs.mkdirSync(outsideSource, { recursive: true });
+      fs.writeFileSync(path.join(outsideSource, 'escaped.txt'), 'outside source\n');
+      const maliciousSource = path.join(fakePlugin, 'codex', 'skills', malicious);
+      fs.rmSync(maliciousSource, { recursive: true, force: true });
+      const sourceLinkTarget = brokenSource ? path.join(fakePlugin, 'codex/skills/missing-target') : outsideSource;
+      fs.symlinkSync(sourceLinkTarget, maliciousSource, 'dir');
 
-    const receiptBefore = fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8');
-    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
-    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
-    assert.match(`${updated.stdout}\n${updated.stderr}`, /(source|symlink|outside|escape)/i);
-    assert.strictEqual(
-      fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'),
-      receiptBefore,
-      'source validation must fail before receipt mutation',
-    );
-  } finally {
-    fs.rmSync(scratch, { recursive: true, force: true });
-    fs.rmSync(fakePlugin, { recursive: true, force: true });
-    fs.rmSync(outside, { recursive: true, force: true });
-  }
-});
+      const receiptBefore = fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8');
+      const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+      assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+      assert.match(`${updated.stdout}\n${updated.stderr}`, brokenSource ? /broken symlink/i : /(source|symlink|outside|escape)/i);
+      assert.ok(fs.lstatSync(maliciousSource).isSymbolicLink());
+      assert.strictEqual(fs.readlinkSync(maliciousSource), sourceLinkTarget);
+      assert.strictEqual(
+        fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'),
+        receiptBefore,
+        'source validation must fail before receipt mutation',
+      );
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(fakePlugin, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+}
 
 test('malformed retirement metadata fails closed before receipt mutation', () => {
   const scratch = projectRoot();
@@ -580,56 +585,83 @@ test('agent retirement successors must exist in the inventory-owned roster', () 
   }
 });
 
-test('retirement prune rolls back when a later destination path fails preflight', () => {
-  const scratch = projectRoot();
-  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-plugin-')));
-  const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-outside-')));
-  try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
-    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
-    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
-    copyDistributionInventory(fakePlugin);
-    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
-    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+for (const brokenSymlink of [false, true]) {
+  test(`retirement prune restores ${brokenSymlink ? 'a broken symlink' : 'a directory'} when a later destination path fails preflight`, () => {
+    const scratch = projectRoot();
+    const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-plugin-')));
+    const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-outside-')));
+    try {
+      fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+      fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+      fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+      copyDistributionInventory(fakePlugin);
+      const first = runInstaller(scratch, [...(brokenSymlink ? [] : ['--copy']), '--force', '--skill', 'legacy-code-characterization'], fakePlugin);
+      assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
 
-    const retired = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort()[0];
-    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
-    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
-    const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
-    inventory.skills = inventory.skills.filter((entry) => entry.name !== retired);
-    inventory.retired_skills = [{
-      id: retiredEntry.id,
-      name: retiredEntry.name,
-      canonicalPath: retiredEntry.path,
-      retiredIn: '0.47.0',
-      reasonCode: 'test-retirement',
-      priorSurfaces: retiredEntry.surfaces,
-      replacements: [{ kind: 'skill', id: 'tdd', mode: 'test-successor' }],
-      rollback: { release: '0.46.1' },
-    }];
-    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
-    fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
+      const retired = 'dhpk-legacy-characterization-tests';
+      const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+      const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+      const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
+      inventory.skills = inventory.skills.filter((entry) => entry.name !== retired);
+      inventory.retired_skills = [{
+        id: retiredEntry.id,
+        name: retiredEntry.name,
+        canonicalPath: retiredEntry.path,
+        retiredIn: '0.47.0',
+        reasonCode: 'test-retirement',
+        priorSurfaces: retiredEntry.surfaces,
+        replacements: [{ kind: 'skill', id: 'tdd', mode: 'test-successor' }],
+        rollback: { release: '0.46.1' },
+      }];
+      fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+      fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
 
-    const externalDhpk = path.join(external, 'dhpk');
-    fs.mkdirSync(externalDhpk, { recursive: true });
-    fs.writeFileSync(path.join(externalDhpk, 'keep.txt'), 'external keep\n');
-    fs.rmSync(path.join(scratch, '.codex', 'dhpk'), { recursive: true, force: true });
-    fs.symlinkSync(externalDhpk, path.join(scratch, '.codex', 'dhpk'), 'dir');
-    const retiredTarget = path.join(scratch, '.codex', 'skills', retired);
-    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
-    const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+      const externalDhpk = path.join(external, 'dhpk');
+      fs.mkdirSync(externalDhpk, { recursive: true });
+      fs.writeFileSync(path.join(externalDhpk, 'keep.txt'), 'external keep\n');
+      fs.rmSync(path.join(scratch, '.codex', 'dhpk'), { recursive: true, force: true });
+      fs.symlinkSync(externalDhpk, path.join(scratch, '.codex', 'dhpk'), 'dir');
+      const retiredTarget = path.join(scratch, '.codex', 'skills', retired);
+      const brokenLinkTarget = path.join(fakePlugin, 'codex', 'skills', retired);
+      if (brokenSymlink) {
+        assert.ok(fs.lstatSync(retiredTarget).isSymbolicLink());
+        assert.strictEqual(fs.readlinkSync(retiredTarget), brokenLinkTarget);
+        assert.ok(!fs.existsSync(retiredTarget), 'retired source removal must leave a dangling managed link');
+      }
+      const journalsBefore = fs.readdirSync(path.join(scratch, '.codex'));
+      const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+      const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
 
-    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
-    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
-    assert.ok(fs.existsSync(retiredTarget), 'retirement target must be restored after later preflight failure');
-    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore, 'failed transaction must retain the prior receipt');
-    assert.strictEqual(fs.readFileSync(path.join(externalDhpk, 'keep.txt'), 'utf8'), 'external keep\n');
-  } finally {
-    fs.rmSync(scratch, { recursive: true, force: true });
-    fs.rmSync(fakePlugin, { recursive: true, force: true });
-    fs.rmSync(external, { recursive: true, force: true });
-  }
-});
+      const updated = runInstaller(scratch, ['--copy', '--migrate', '--update', '--force'], fakePlugin);
+      assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+      if (brokenSymlink) {
+        assert.doesNotThrow(() => fs.lstatSync(retiredTarget), 'retired broken symlink must be restored');
+        assert.ok(fs.lstatSync(retiredTarget).isSymbolicLink());
+        assert.strictEqual(fs.readlinkSync(retiredTarget), brokenLinkTarget);
+        const newJournals = fs.readdirSync(path.join(scratch, '.codex')).filter((name) =>
+          /^\.dhpk-transaction-.*\.json$/.test(name) && !journalsBefore.includes(name));
+        assert.strictEqual(newJournals.length, 1, `failed update must record one terminal transaction: ${updated.stdout}\n${updated.stderr}`);
+        const journal = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', newJournals[0]), 'utf8'));
+        assert.strictEqual(journal.phase, 'rolled_back');
+      } else {
+        assert.ok(fs.existsSync(retiredTarget), 'retirement target must be restored after later preflight failure');
+      }
+      assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore, 'failed transaction must retain the prior receipt');
+      assert.strictEqual(fs.readFileSync(path.join(externalDhpk, 'keep.txt'), 'utf8'), 'external keep\n');
+      if (brokenSymlink) {
+        fs.unlinkSync(path.join(scratch, '.codex', 'dhpk'));
+        const retried = runInstaller(scratch, ['--copy', '--migrate', '--update', '--force'], fakePlugin);
+        assert.strictEqual(retried.status, 0, `${retried.stdout}\n${retried.stderr}`);
+        assert.ok(!fs.existsSync(retiredTarget));
+        assert.throws(() => fs.lstatSync(retiredTarget), { code: 'ENOENT' });
+      }
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(fakePlugin, { recursive: true, force: true });
+      fs.rmSync(external, { recursive: true, force: true });
+    }
+  });
+}
 
 test('receipt failure rolls back ordinary updates and recovers the transaction journal', () => {
   const scratch = projectRoot();
