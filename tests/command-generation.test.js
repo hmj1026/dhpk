@@ -46,7 +46,7 @@ test('duplicate command identity fails before any aggregate publication', () => 
 test('command forwarders have deterministic bytes and detect hand edits', () => fixture(ctx => {
   assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0, ctx.messages.join(''));
   const file = path.join(ctx.root, 'commands/inspect.md');
-  const expected = "---\ndescription: 'Inspect the target'\nargument-hint: '<target>'\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\n\nLoad `skills/fixture/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.\nKeep its argument contract, authority boundary, verification, and output.\n";
+  const expected = "---\ndescription: 'Inspect the target'\nargument-hint: '<target>'\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\n\nLoad the canonical `$fixture` Skill from [SKILL.md](../skills/fixture/SKILL.md) and follow it with `$ARGUMENTS`.\nKeep its argument contract, authority boundary, verification, and output.\n";
   assert.strictEqual(fs.readFileSync(file, 'utf8'), expected);
   assert.strictEqual(ctx.invoke(forwarders, '--check').status, 0);
   fs.appendFileSync(file, '\nmanual edit\n');
@@ -58,7 +58,7 @@ test('explicit-only generated commands retain the Host invocation lock', () => f
   ctx.put('skills/fixture/SKILL.md', '---\nname: fixture\ndescription: Explicit task\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\n');
   assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0);
   const bytes = fs.readFileSync(path.join(ctx.root, 'commands/inspect.md'), 'utf8');
-  assert.strictEqual(bytes, "---\ndescription: 'Explicit task'\nargument-hint: '<target>'\ndisable-model-invocation: true\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\n\nLoad `skills/fixture/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.\nKeep its argument contract, authority boundary, verification, and output.\n");
+  assert.strictEqual(bytes, "---\ndescription: 'Explicit task'\nargument-hint: '<target>'\ndisable-model-invocation: true\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\n\nLoad the canonical `$fixture` Skill from [SKILL.md](../skills/fixture/SKILL.md) and follow it with `$ARGUMENTS`.\nKeep its argument contract, authority boundary, verification, and output.\n");
 }));
 
 test('existing folded Skill descriptions generate a valid compact forwarder', () => fixture(ctx => {

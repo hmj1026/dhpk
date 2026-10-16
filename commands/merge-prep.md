@@ -6,5 +6,5 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-Load `skills/merge-prep/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Load the canonical `$merge-prep` Skill from [SKILL.md](../skills/merge-prep/SKILL.md) and follow it with `$ARGUMENTS`.
 Keep its argument contract, authority boundary, verification, and output.

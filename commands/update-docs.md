@@ -6,5 +6,5 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-Load `skills/doc-maintain/SKILL.md` and follow the owning Skill with `update $ARGUMENTS`.
+Load the canonical `$doc-maintain` Skill from [SKILL.md](../skills/doc-maintain/SKILL.md) and follow it with `update $ARGUMENTS`.
 Keep its argument contract, authority boundary, verification, and output.

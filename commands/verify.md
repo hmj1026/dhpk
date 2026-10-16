@@ -6,5 +6,5 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-Load `skills/repo-verify/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Load the canonical `$repo-verify` Skill from [SKILL.md](../skills/repo-verify/SKILL.md) and follow it with `$ARGUMENTS`.
 Keep its argument contract, authority boundary, verification, and output.

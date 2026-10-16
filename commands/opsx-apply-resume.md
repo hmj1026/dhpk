@@ -7,5 +7,5 @@ metadata:
   dhpk-invocation-class: explicit-only
 ---
 
-Load `skills/opsx-apply-resume/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Load the canonical `$opsx-apply-resume` Skill from [SKILL.md](../skills/opsx-apply-resume/SKILL.md) and follow it with `$ARGUMENTS`.
 Keep its argument contract, authority boundary, verification, and output.

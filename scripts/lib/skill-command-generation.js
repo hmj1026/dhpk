@@ -67,7 +67,7 @@ function forwarder({ skill, declaration }) {
     'metadata:',
     `  dhpk-invocation-class: ${skill.invocation_class || 'implicit-eligible'}`,
     '---', '',
-    `Load \`${skill.path}/SKILL.md\` and follow the owning Skill with \`${args}\`.`,
+    `Load the canonical \`$${skill.name}\` Skill from [SKILL.md](../${skill.path}/SKILL.md) and follow it with \`${args}\`.`,
     'Keep its argument contract, authority boundary, verification, and output.', '',
   ].join('\n');
 }

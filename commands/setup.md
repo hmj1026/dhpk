@@ -7,5 +7,5 @@ metadata:
   dhpk-invocation-class: explicit-only
 ---
 
-Load `skills/harness-setup/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Load the canonical `$harness-setup` Skill from [SKILL.md](../skills/harness-setup/SKILL.md) and follow it with `$ARGUMENTS`.
 Keep its argument contract, authority boundary, verification, and output.

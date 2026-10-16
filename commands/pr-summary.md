@@ -6,5 +6,5 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-Load `skills/pr-summary/SKILL.md` and follow the owning Skill with `$ARGUMENTS`.
+Load the canonical `$pr-summary` Skill from [SKILL.md](../skills/pr-summary/SKILL.md) and follow it with `$ARGUMENTS`.
 Keep its argument contract, authority boundary, verification, and output.
