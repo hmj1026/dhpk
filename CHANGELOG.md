@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.66.4 — 2026-10-16 — Migrate legacy project receipts with retired selected-only identities and prune retired selections from preserved Host bindings during native installer updates
+
+- **fix(installation)** — Migrate legacy project receipts with retired selected-only identities and prune retired selections from preserved Host bindings during native installer updates.
+
 ## 0.66.3 — 2026-10-16 — Refresh Codex deep-reasoner backend guidance, resolve overlapping skill and module IDs in native shared installs, and restore retired broken symlinks on rollback
 
 - **fix(codex-agents)** — Refresh generated deep-reasoner guidance to use the canonical codex/<model> backend selector.
