@@ -212,6 +212,81 @@ function outputOf(result) {
   return `${result.stdout}\n${result.stderr}`;
 }
 for (const entrypoint of sharedSkillRecoveryEntrypoints) {
+  test(`${entrypoint.host} migrates a 0.65.x v1 receipt and retires another Host stale selection`, () => {
+    const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
+    const project = projectRoot();
+    const plugin = fakePlugin();
+    const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-legacy-installer-home-'));
+    const env = { HOME: isolatedHome };
+    try {
+      write(path.join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '0.65.9' }));
+      const inventoryPath = path.join(plugin, 'manifests', 'distribution-inventory.json');
+      const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+      const oldInventory = {
+        ...inventory,
+        skills: [...inventory.skills, { id: 'retired', name: 'dhpk-retired', path: 'skills/dhpk-retired', lifecycle: 'promoted', surfaces: ['codex-sync', 'codex-native', 'cursor-sync', 'cursor-plugin'], legacy_names: [] }],
+        project_agent_projection: {
+          ...inventory.project_agent_projection,
+          profiles: { 'portable-core': { ...inventory.project_agent_projection.profiles['portable-core'], stable_ids: ['codex-only', 'portable', 'retired'] } },
+        },
+      };
+      write(inventoryPath, JSON.stringify(oldInventory));
+      const profilesPath = path.join(plugin, 'manifests', 'profile-projection-sets.json');
+      const profiles = JSON.parse(fs.readFileSync(profilesPath, 'utf8'));
+      write(profilesPath, JSON.stringify({ ...profiles, profiles: { common: { cursor: ['portable', 'retired'], 'codex-sync': ['codex-only', 'retired'] } } }));
+      for (const surface of ['skills', 'codex/skills', 'cursor/skills']) {
+        write(path.join(plugin, surface, 'dhpk-retired', 'SKILL.md'), skillBody('dhpk-retired', 'Retired'));
+      }
+      for (const previousEntrypoint of sharedSkillRecoveryEntrypoints) {
+        const installed = previousEntrypoint.run(project, ['--copy', '--force'], plugin, env);
+        assert.strictEqual(installed.status, 0, outputOf(installed));
+      }
+      const receiptPath = path.join(project, '.agents', '.dhpk-installed.json');
+      const legacy = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      legacy.schema = 'dhpk.project-agent-projection-receipt.v1';
+      delete legacy.selectedIdentities;
+      delete legacy.emittedIdentities;
+      legacy.entries = legacy.entries.map(({ entityKind, ...entry }) => entry);
+      legacy.sourceFingerprints = Object.fromEntries(legacy.entries.map((entry) => [entry.stableId, entry.sourceFingerprint]));
+      legacy.selectedIds.push('retired-selected-only');
+      delete legacy.receiptFingerprint;
+      legacy.receiptFingerprint = fingerprint(legacy);
+      write(receiptPath, JSON.stringify(legacy));
+      write(inventoryPath, JSON.stringify(inventory));
+      write(profilesPath, JSON.stringify(profiles));
+      write(path.join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
+      for (const surface of ['skills', 'codex/skills', 'cursor/skills']) {
+        fs.rmSync(path.join(plugin, surface, 'dhpk-retired'), { recursive: true, force: true });
+      }
+      write(path.join(project, '.agents', 'skills', 'consumer-owned', 'README.md'), '# keep\n');
+
+      const migrated = entrypoint.run(project, ['--copy', '--migrate', '--update', '--force'], plugin, env);
+
+      assert.strictEqual(migrated.status, 0, outputOf(migrated));
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+      assert.deepStrictEqual(receipt.selectedIds, ['codex-only', 'portable']);
+      assert.deepStrictEqual(receipt.emittedIds, ['codex-only', 'portable']);
+      assert.ok(!receipt.selectedIdentities.some((identity) => identity.stableId === 'retired-selected-only'));
+      const otherHost = entrypoint.host === 'codex' ? 'cursor' : 'codex';
+      const otherId = entrypoint.host === 'codex' ? 'portable' : 'codex-only';
+      const otherName = entrypoint.host === 'codex' ? 'dhpk-portable' : 'dhpk-codex-only';
+      assert.deepStrictEqual(receipt.hostBindings[otherHost].selectedStableIds, [otherId]);
+      assert.deepStrictEqual(receipt.hostBindings[otherHost].emittedStableIds, [otherId]);
+      assert.deepStrictEqual(receipt.hostBindings[otherHost].bindings.map((binding) => binding.stableId), [otherId]);
+      assert.deepStrictEqual(receipt.bindingPaths[otherHost], [{ path: `.${otherHost}/skills/${otherName}`, target: `../../.agents/skills/${otherName}` }]);
+      assert.ok(fs.lstatSync(path.join(project, `.${otherHost}`, 'skills', otherName)).isSymbolicLink());
+      assert.ok(!fs.existsSync(path.join(project, '.agents', 'skills', 'dhpk-retired')));
+      assert.ok(!fs.existsSync(path.join(project, `.${otherHost}`, 'skills', 'dhpk-retired')));
+      assert.strictEqual(fs.readFileSync(path.join(project, '.agents', 'skills', 'consumer-owned', 'README.md'), 'utf8'), '# keep\n');
+      assert.deepStrictEqual(fs.readdirSync(isolatedHome), []);
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
+      fs.rmSync(plugin, { recursive: true, force: true });
+      fs.rmSync(isolatedHome, { recursive: true, force: true });
+    }
+  });
+
   test(`${entrypoint.host} symlink and missing-content diagnostics point to receipt recovery`, () => {
     const scenario = prepareManagedSkillSymlinkScenario(entrypoint);
     const foreignBefore = snapshotTree(scenario.externalRoot);

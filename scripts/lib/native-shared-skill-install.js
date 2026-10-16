@@ -79,15 +79,35 @@ function installNativeSharedSkills({
     && !Array.isArray(previous.hostBindings)
     ? previous.hostBindings
     : {};
+  const resolvedInventory = inventory || readInventory(sourceRoot);
+  const currentIds = new Set([
+    ...(Array.isArray(resolvedInventory.skills) ? resolvedInventory.skills : []),
+    ...(Array.isArray(resolvedInventory.modules) ? resolvedInventory.modules : []),
+  ].map((entry) => entry && entry.id).filter((id) => typeof id === 'string'));
+  const originalEntries = previous && Array.isArray(previous.entries) ? previous.entries : [];
+  const originalIds = [
+    ...(previous && Array.isArray(previous.selectedIds) ? previous.selectedIds : []),
+    ...(previous && Array.isArray(previous.emittedIds) ? previous.emittedIds : []),
+    ...originalEntries.map((entry) => entry && entry.stableId),
+    ...Object.values(previousBindings).flatMap((binding) => [
+      ...(binding && Array.isArray(binding.selectedStableIds) ? binding.selectedStableIds : []),
+      ...(binding && Array.isArray(binding.emittedStableIds) ? binding.emittedStableIds : []),
+      ...(binding && Array.isArray(binding.bindings) ? binding.bindings.map((entry) => entry && entry.stableId) : []),
+    ]),
+  ];
+  const retiredIds = new Set(originalIds.filter((id) => typeof id === 'string' && !currentIds.has(id)));
+  const retiredNames = originalEntries.filter((entry) => entry && retiredIds.has(entry.stableId))
+    .map((entry) => entry.name).filter((name) => typeof name === 'string');
   for (const other of Object.keys(previousBindings)) {
     if (other === host) continue;
-    preserveHostBindings[other] = previousBindings[other];
-    otherIds.push(...boundStableIds(previousBindings[other]));
+    const pruned = pruneRetiredHostBinding(previousBindings[other], retiredIds, retiredNames);
+    preserveHostBindings[other] = pruned.binding;
+    otherIds.push(...boundStableIds(pruned.binding));
     if (previous.bindingPaths && Array.isArray(previous.bindingPaths[other])) {
-      preserveBindingPaths[other] = previous.bindingPaths[other];
+      preserveBindingPaths[other] = previous.bindingPaths[other]
+        .filter((entry) => !entry || !pruned.retiredPaths.has(entry.path));
     }
   }
-  const resolvedInventory = inventory || readInventory(sourceRoot);
   const unionIds = qualifySkillIds([...thisIds, ...otherIds], resolvedInventory);
   const requestedHosts = uniqueSorted([host, ...Object.keys(preserveHostBindings)]);
   const hostSelections = { [host]: thisIds };
