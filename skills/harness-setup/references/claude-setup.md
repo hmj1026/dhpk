@@ -32,10 +32,9 @@ bytes at $SKILL_DIR/scripts/lib/install-assets-writer.sh.
 3. `--show` prints the effective harness values and the four-role dispatch
    summary, then exits. It never prompts, writes, or adds interactive
    model-selection steps. Build the dispatch summary with the existing
-   `resolveDispatchConfig` / `createDispatchConfigReport` seam from
-   `scripts/lib/dispatch-config.js`, using the settings already read in
-   step 2 as the project layer and the known Claude Host Profile from
-   `manifests/host-profiles.json`. Do not search for additional settings
+   `resolveDispatchConfig` / `createDispatchConfigReport` seam, using the
+   settings already read in step 2 as the project layer and the known Claude
+   Host Profile. Do not search for additional settings
    files or invent a new precedence. If global install-time config was not
    loaded, disclose that in `covered_inputs` instead of claiming a complete
    final config. If the Host were unknown, leave effective targets
