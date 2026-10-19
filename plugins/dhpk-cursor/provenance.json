@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.4",
-  "sourceCommit": "3b8f991021c740ce552d26a19445dc627d7b980b",
-  "generatedFromCommit": "3b8f991021c740ce552d26a19445dc627d7b980b",
-  "generatedFromTree": "232fa4970c41221ffb7e4bbfc78b409e42556e81",
+  "sourceCommit": "f3f575aef60985fff232a0f1e8627f11719e44b8",
+  "generatedFromCommit": "f3f575aef60985fff232a0f1e8627f11719e44b8",
+  "generatedFromTree": "58a058476e6c7a0def26c42ec5aef416399a260a",
   "inventoryDigest": "911215f4d143b1dab7154d601161d2d3fbbfbe7924910661571a2bb9d7d4b14f",
   "inventoryRevision": "sha256:b42ffd92ab377ef9046dcb46a45267bd80a4d7d9b4d72e4c836047e689584111",
   "generatorVersion": "1.0.0",
@@ -1713,7 +1713,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/SKILL.md",
         "destination": "skills/flow-guide/SKILL.md",
-        "originalGitBlobDigest": "19d2ebfa8dc361af4022ec7749f55b72e4852891"
+        "originalGitBlobDigest": "b5a8d429103091ff05b137338773afe2a75ba49b"
       },
       {
         "ownerId": "flow-guide",
@@ -2109,13 +2109,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/action-runner.js",
         "destination": "skills/flow-guide/scripts/action-runner.js",
-        "originalGitBlobDigest": "8f07426640c0ad0edfbc81452b6e66b3c87b1201"
+        "originalGitBlobDigest": "3adc4c023460cfeee3b25db4d288d52693fe119c"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/analyze.js",
         "destination": "skills/flow-guide/scripts/analyze.js",
-        "originalGitBlobDigest": "a43d7fc6b74bb771ee5dce2a4dd5a2cba21f90dc"
+        "originalGitBlobDigest": "365756f6d1e27a542eb73fb50db80a99766adabb"
       },
       {
         "ownerId": "flow-guide",
