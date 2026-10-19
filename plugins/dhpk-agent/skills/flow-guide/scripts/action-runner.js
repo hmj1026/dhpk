@@ -14,7 +14,11 @@ function parseAction(argv = []) {
   const first = tokens.shift() || null;
   const action = first && first.startsWith('$flow-guide') ? first.slice('$flow-guide'.length) || tokens.shift() : first;
   if (!action || !ACTIONS.includes(action)) diagnostics.push(`exactly one action is required: ${ACTIONS.join(', ')}.`);
-  const extraActions = tokens.filter((token) => ACTIONS.includes(token));
+  // The first token is the only action. A later action name is a second action
+  // only when the rest of the positionals are action names; otherwise it is query text.
+  const positionals = tokens.filter((token) => !token.startsWith('-'));
+  const queryWords = positionals.filter((token) => !ACTIONS.includes(token));
+  const extraActions = queryWords.length === 0 ? positionals.filter((token) => ACTIONS.includes(token)) : [];
   if (extraActions.length > 0) diagnostics.push(`exactly one action is allowed; unexpected action token(s): ${extraActions.join(', ')}.`);
   const goIndex = tokens.indexOf('--go');
   if (goIndex >= 0 && action !== 'route') diagnostics.push('--go is only valid for the route action.');

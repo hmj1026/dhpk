@@ -155,24 +155,60 @@ function fileTypeCounts(files) {
 // ---------------------------------------------------------------------------
 // Gates
 // ---------------------------------------------------------------------------
-function evaluateGates(reviewState, files) {
+function diffIdentity(files, diffStatRaw = '') {
+  const rows = (Array.isArray(files) ? files : [])
+    .map((entry) => `${entry && entry.status ? entry.status : ''}\t${entry && entry.file ? entry.file : ''}`)
+    .sort();
+  return `${rows.join('\n')}\n--\n${diffStatRaw || ''}`;
+}
+
+function recordedDiff(reviewState) {
+  if (!reviewState || typeof reviewState !== 'object') return null;
+  if (typeof reviewState.diff === 'string') return reviewState.diff;
+  if (reviewState.scope && typeof reviewState.scope === 'object' && typeof reviewState.scope.diff === 'string') {
+    return reviewState.scope.diff;
+  }
+  return null;
+}
+
+function gateApplicability(reviewState, files, context) {
+  if (!reviewState || typeof reviewState !== 'object' || Array.isArray(reviewState)) return 'unobserved';
+  const recordedHead = typeof reviewState.head === 'string' ? reviewState.head : '';
+  if (!recordedHead) return 'unbound';
+  const head = context && typeof context.head === 'string' ? context.head : '';
+  if (!head || recordedHead !== head) return 'stale';
+  const recorded = recordedDiff(reviewState);
+  const current = context && typeof context.diffIdentity === 'string' ? context.diffIdentity : null;
+  if (files.length === 0 && recorded == null) return 'applicable';
+  if (recorded == null || current == null) return 'unbound';
+  if (recorded !== current) return 'scope-changed';
+  return 'applicable';
+}
+
+function classifyGate(record, applies) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    return { passed: false, evidence: 'unobserved' };
+  }
+  if (applies !== 'applicable') return { passed: false, evidence: applies };
+  if (record.skipped === true || record.state === 'SKIPPED' || record.status === 'skipped') {
+    return { passed: false, evidence: 'skipped' };
+  }
+  if (record.passed === true) return { passed: true, evidence: 'applicable' };
+  return { passed: false, evidence: 'failed' };
+}
+
+function evaluateGates(reviewState, files, context = {}) {
   const nonVendorFiles = files.filter(f =>
     !IGNORE_PREFIXES.some(prefix => f.file.startsWith(prefix))
   );
   const hasCode = nonVendorFiles.some(f => CODE_EXTS.includes(path.extname(f.file)));
   const hasDocs = nonVendorFiles.some(f => DOC_EXTS.includes(path.extname(f.file)));
-
+  const applies = gateApplicability(reviewState, files, context);
   const gates = {
-    code_review: { required: hasCode, passed: false },
-    doc_review: { required: hasDocs, passed: false },
-    precommit: { required: hasCode, passed: false },
+    code_review: { required: hasCode, ...classifyGate(reviewState && reviewState.code_review, applies) },
+    doc_review: { required: hasDocs, ...classifyGate(reviewState && reviewState.doc_review, applies) },
+    precommit: { required: hasCode, ...classifyGate(reviewState && reviewState.precommit, applies) },
   };
-
-  if (reviewState) {
-    if (reviewState.code_review) gates.code_review.passed = !!reviewState.code_review.passed;
-    if (reviewState.doc_review) gates.doc_review.passed = !!reviewState.doc_review.passed;
-    if (reviewState.precommit) gates.precommit.passed = !!reviewState.precommit.passed;
-  }
 
   return gates;
 }
@@ -553,7 +589,8 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
 function buildOutput(inputs, root) {
   const { summary, files } = parseDiffSummary(inputs.nameStatusLines, inputs.porcelainLines, root);
   const types = fileTypeCounts(files);
-  const gates = evaluateGates(inputs.reviewState, files);
+  const currentDiff = diffIdentity(files, inputs.diffStatRaw);
+  const gates = evaluateGates(inputs.reviewState, files, { head: inputs.head, diffIdentity: currentDiff });
   const changedPaths = files.map(f => f.file);
   const featureCtx = resolveFeatureContext(root, inputs.branch, changedPaths);
   const allFindings = runHeuristics(inputs, files, gates, root, featureCtx);
@@ -581,6 +618,7 @@ function buildOutput(inputs, root) {
     head: inputs.head,
     diff_summary: summary,
     file_types: types,
+    diff_identity: currentDiff,
     gates,
     findings,
     finding_count: findingCount,
@@ -611,7 +649,7 @@ function formatMarkdown(output) {
   lines.push('|------|----------|--------|');
   for (const [name, g] of Object.entries(output.gates)) {
     const req = g.required ? 'Yes' : 'No';
-    const pass = g.required ? (g.passed ? 'Yes' : '**No**') : 'N/A';
+    const pass = g.required ? (g.passed ? 'Yes' : `**No** (${g.evidence || 'unobserved'})`) : 'N/A';
     lines.push(`| ${name} | ${req} | ${pass} |`);
   }
   lines.push('');
@@ -696,7 +734,11 @@ async function main() {
   process.exit(0);
 }
 
-main().catch(err => {
-  console.error('analyze.js error:', err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(err => {
+    console.error('analyze.js error:', err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { diffIdentity, evaluateGates, detectPhase };
