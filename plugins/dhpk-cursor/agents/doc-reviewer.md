@@ -162,7 +162,7 @@ paired file for the same finding pattern already identified above:
 - Word count, section length.
 - Code-block contents (only flag a sample that would actively mislead
   a reader; do not audit its implementation).
-- Commit message / PR description (those belong to `/review-pending` or
+- Commit message / PR description (those belong to `change-verdict pending` or
   `change-verdict` PR mode).
 
 ## Shared reviewer contract
