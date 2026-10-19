@@ -357,7 +357,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "e70d0150d76c1d55675d1e4bce5850e4135faff198fd50ce97dc070d588e4911"
+      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
     },
     {
       "skillId": "code-trace",
@@ -781,7 +781,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "e70d0150d76c1d55675d1e4bce5850e4135faff198fd50ce97dc070d588e4911"
+      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
     },
     {
       "skillId": "flow-drive",
@@ -917,7 +917,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "e70d0150d76c1d55675d1e4bce5850e4135faff198fd50ce97dc070d588e4911"
+      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
     },
     {
       "skillId": "flow-drive",
@@ -2245,7 +2245,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "e70d0150d76c1d55675d1e4bce5850e4135faff198fd50ce97dc070d588e4911"
+      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
     },
     {
       "skillId": "flow-guide",
@@ -2277,7 +2277,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "9f32a90280746370cb7a8caf05865c25dd26312607b3add8a03102f9046fe726"
+      "sha256": "52ec61265d8a7d476b13db6a3313970c917d66ba26a50b6db612c38a00865d8d"
     },
     {
       "skillId": "flow-guide",
@@ -2365,7 +2365,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "e70d0150d76c1d55675d1e4bce5850e4135faff198fd50ce97dc070d588e4911"
+      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
     },
     {
       "skillId": "flow-guide",
