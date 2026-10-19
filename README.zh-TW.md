@@ -84,7 +84,7 @@ Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整�
 | 元件 | 數量 | 說明 |
 |------|----:|------|
 | Agents | Role-based agents | Trigger table 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
-| Commands | 已註冊的 command surface | `/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:ui-ux-verify` 等 |
+| Commands | 已註冊的 command surface | `/dhpk:precommit`、`/dhpk:setup`、`/dhpk:change-verdict pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:ui-ux-verify` 等 |
 | Canonical skills | Inventory 管理的 package | 每個 capability 只有一個具名 package，來源固定在 `skills/<public-name>/`；非 family package 維持 `skills/dhpk-*/` contract；portable family 負責整併介面。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 3 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git branch-safety gate）、SessionStart（module activation）、SubagentStop（fast-worker liveness cleanup） |
@@ -124,12 +124,12 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 2. **規格確認後實作**：需求與邊界確認後，呼叫實作入口（或由 `tdd-workflow` 引導測試先寫）：
    ```text
    /dhpk:flow-drive <confirmed-spec-or-change-id> --plan                     # 實作已確認 change
-   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan --plan-mode=bounded # 限定 planner 審查範圍
+   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan=bounded             # 限定 planner 審查範圍
    /dhpk:flow-drive <confirmed-spec-or-change-id> --worker=codex             # 指定本次執行的 Worker
    ```
 3. **變更審查**：程式碼修改完成後，派遣各專業領域 Reviewer：
    ```text
-   /dhpk:review-pending                              # 觸發適用路徑的 reviewer（代碼、安全、資料庫等）
+   /dhpk:change-verdict pending                       # 觸發適用路徑的 reviewer（代碼、安全、資料庫等）
    /dhpk:change-verdict --mode code                  # 產出獨立且不可修改的唯讀評審結論
    ```
 4. **提交前驗證**：品質把關，確保 Lint、型別與測試全數通過：
@@ -145,7 +145,7 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 
 `flow-guide` 是唯讀的 help、route、rules、next、close owner。`route` 不帶 `--go` 只
 提供建議；`route --go` 最多 handoff 一個可用的 implicit-eligible target，絕不執行
-explicit-only target。`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan-mode`
+explicit-only target。`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan[=auto|bounded|discovery]`
 只選擇 optional planner consult scope。它只接受已確認的 specification 或 change ID。
 提案 authoring 由外部 `$openspec-propose` skill 負責。另見
 [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md) 與

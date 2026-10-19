@@ -87,7 +87,7 @@ key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保�
 ## 核心派發與 Review
 
 Planner consult scope 使用逐次 invocation 旗標
-`--plan[=auto|bounded|discovery]` 選擇，且必須搭配 `--plan`；啟用 `--plan` 但省略
+`--plan[=auto|bounded|discovery]` 選擇；啟用 `--plan` 但省略
 mode 時預設為 `auto`。這不是 `userConfig` 設定，不會改變 `planner_model` 的 `opus`、
 `planner_effort` 的 `high`，也不會改變 planner work mode。範圍預算見
 [基本操作](./basic-operations.zh-TW.md)，選擇規則見

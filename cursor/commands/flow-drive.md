@@ -17,8 +17,8 @@ Not for: route selection, proposal authoring, review, diagnosis without a settle
 `--worker-target=<provider>/<model>[:<effort>]` for an explicit execution
 target. The retired `--codex` diagnostic remains owned by the canonical Skill.
 The command has no route or workflow mode of its own. When supplied with
-`--plan`, `--plan-mode=auto|bounded|discovery` is forwarded unchanged as the
-planner consult scope.
+`--plan[=auto|bounded|discovery]` is the planner consult scope; bare `--plan`
+equals `--plan=auto`.
 
 This front door does not add a separate route or workflow mode, route
 selection, proposal-authoring procedure, or second Usage Grammar.
