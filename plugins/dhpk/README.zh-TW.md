@@ -46,10 +46,10 @@ source checkout，再確認 14 個可呼叫 native skill 與內部 transport、d
 
 這仍是 **experimental** support tier。結構與 consumer proof 通過，是未來 graduation
 決策的必要證據，但不會自動升級支援等級。正式支援的 Codex 路徑仍是 project-local
-sync：
+sync。必須從 repository checkout 執行；已安裝的 Claude plugin 不含 `codex/`：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
 
 完整 surface、gate 與安全模型見

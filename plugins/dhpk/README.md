@@ -63,8 +63,8 @@ consumer proof is necessary evidence for a future support-graduation
 decision, but it does not itself change the public support tier (see
 [ADR-0006](../../docs/adr/0006-codex-native-publication-artifact.md)). The
 **supported** Codex path remains the project-local sync flow documented in
-the repo README:
+the repo README. Sync requires a repository checkout; an installed Claude plugin does not include `codex/`:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
