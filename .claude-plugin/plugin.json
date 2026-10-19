@@ -87,19 +87,19 @@
     "deep_reasoner_model": {
       "type": "string",
       "title": "deep-reasoner model",
-      "description": "Model tier for dhpk:deep-reasoner Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch) — applied per dispatch via the Agent call `model` param when it differs from the agent's frontmatter default. Valid values: at minimum haiku | sonnet | opus (whatever the running Claude Code version supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'opus' (the shipped frontmatter default).",
+      "description": "Legacy compatibility input for reasoner_target. Published aliases such as opus are normalized to Catalog model IDs and judged by existing Host route/effort checks. Invalid values fail closed. Default 'opus'.",
       "default": "opus"
     },
     "fast_worker_model": {
       "type": "string",
       "title": "fast-worker model",
-      "description": "Model tier for dhpk:fast-worker Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch). Same validation/fallback behavior as deep_reasoner_model. Default 'sonnet' (the shipped frontmatter default).",
+      "description": "Legacy compatibility input for worker_target. Published aliases such as sonnet are normalized to Catalog model IDs and judged by existing Host route/effort checks. Invalid values fail closed. Default 'sonnet'.",
       "default": "sonnet"
     },
     "planner_model": {
       "type": "string",
       "title": "planner model",
-      "description": "Model tier for dhpk:planner Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch) — applied per dispatch via the Agent call `model` param when it differs from the agent's frontmatter default. Valid values: at minimum haiku | sonnet | opus (whatever the running Claude Code version supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'opus' (the shipped frontmatter default).",
+      "description": "Legacy compatibility input for planner_target. Published aliases such as opus are normalized to Catalog model IDs and judged by existing Host route/effort checks. Invalid values fail closed. Default 'opus'.",
       "default": "opus"
     },
     "orchestration_dispatch": {
@@ -117,25 +117,25 @@
     "worker_target": {
       "type": "string",
       "title": "Provider-neutral worker target",
-      "description": "Optional Provider/Model/Effort target for worker dispatch, using provider/model[:effort]. 'auto' uses the current Host-native target and configured preference order; legacy backend keys remain compatibility inputs.",
+      "description": "Optional worker dispatch target using agent/model[:effort]. 'auto' uses the current Host-native target and configured preference order; legacy backend and model keys remain compatibility inputs. Invalid values fail closed.",
       "default": "auto"
     },
     "reasoner_target": {
       "type": "string",
       "title": "Provider-neutral reasoner target",
-      "description": "Optional Provider/Model/Effort target for reasoner dispatch, using provider/model[:effort]. 'auto' uses the current Host-native target; the target does not grant write authority.",
+      "description": "Optional reasoner dispatch target using agent/model[:effort]. 'auto' uses the current Host-native target; the target does not grant write authority. Invalid values fail closed.",
       "default": "auto"
     },
     "planner_target": {
       "type": "string",
       "title": "Provider-neutral planner target",
-      "description": "Optional Provider/Model/Effort target for planner dispatch, using provider/model[:effort]. 'auto' uses the current Host-native target; planner authority remains read-only.",
+      "description": "Optional planner dispatch target using agent/model[:effort]. 'auto' uses the current Host-native target; planner authority remains read-only. Invalid values fail closed.",
       "default": "auto"
     },
     "reviewer_target": {
       "type": "string",
       "title": "Provider-neutral reviewer target",
-      "description": "Optional Provider/Model/Effort target for reviewer dispatch, using provider/model[:effort]. 'auto' uses the current Host-native target; reviewer authority remains read-only.",
+      "description": "Public reviewer dispatch target using agent/model[:effort]. Distinct from the legacy reviewer_model compatibility input. 'auto' uses the current Host-native target; reviewer authority remains read-only. Invalid values fail closed.",
       "default": "auto"
     },
     "preference_order": {
@@ -178,13 +178,13 @@
     "deep_reasoner_effort": {
       "type": "string",
       "title": "deep-reasoner effort",
-      "description": "Reasoning effort for dhpk:deep-reasoner Agent-call dispatches (see rules/model-economics.md master cost rules) — applied per dispatch via the Agent call `effort` param when it differs from the agent's frontmatter default. Valid values: low | medium | high | xhigh | max (whatever the running Claude Code supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'high' (the shipped frontmatter default).",
+      "description": "Legacy compatibility effort paired with deep_reasoner_model from the same source layer, then judged by existing Host route/effort checks. Invalid values fail closed. Default 'high'.",
       "default": "high"
     },
     "fast_worker_effort": {
       "type": "string",
       "title": "fast-worker effort",
-      "description": "Reasoning effort for dhpk:fast-worker Agent-call dispatches (see rules/model-economics.md master cost rules). Same validation/fallback behavior as deep_reasoner_effort. Default 'medium' (the shipped frontmatter default); the decision layer runs higher and execution de-escalates.",
+      "description": "Legacy compatibility effort paired with fast_worker_model from the same source layer, then judged by existing Host route/effort checks. Invalid values fail closed. Default 'medium'.",
       "default": "medium"
     },
     "codex_fast_worker_model": {
@@ -280,13 +280,13 @@
     "architect_model": {
       "type": "string",
       "title": "architect model",
-      "description": "Model tier for dhpk:architect Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch + rules/model-economics.md). Applied per dispatch via the Agent call `model` param when it differs from the agent's frontmatter default. Same validation/fallback behavior as deep_reasoner_model: an invalid value warns once per session and falls back to the frontmatter default; up-only escalation applies for HIGH-risk architecture decisions. Default 'fable' (the shipped frontmatter default — the cheap architecture-consult tier).",
+      "description": "Unsupported dispatch input with no effect. architect_model is not mapped onto reasoner_target and dispatch is unaffected. Default 'fable' names the architecture-consult role in current pricing evidence (highest per-token Claude tier), not a runtime override.",
       "default": "fable"
     },
     "architect_effort": {
       "type": "string",
       "title": "architect effort",
-      "description": "Reasoning effort for dhpk:architect Agent-call dispatches (see rules/model-economics.md master cost rules). Same validation/fallback behavior as deep_reasoner_effort. Default 'low' (the shipped frontmatter default; raise for HIGH-risk architecture judgment).",
+      "description": "Unsupported dispatch input with no effect. architect_effort is not mapped onto reasoner_target and dispatch is unaffected. Default 'low'.",
       "default": "low"
     },
     "agy_fast_worker_model": {
@@ -304,7 +304,7 @@
     "planner_effort": {
       "type": "string",
       "title": "planner effort",
-      "description": "Reasoning effort for dhpk:planner Agent-call dispatches (see rules/model-economics.md master cost rules) — applied per dispatch via the Agent call `effort` param when it differs from the agent's frontmatter default. Valid values: low | medium | high | xhigh | max (whatever the running Claude Code supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'high' (the shipped frontmatter default); the warm-review invocation de-escalates to medium.",
+      "description": "Legacy compatibility effort paired with planner_model from the same source layer, then judged by existing Host route/effort checks. Invalid values fail closed. Default 'high'.",
       "default": "high"
     },
     "docker_containers": {

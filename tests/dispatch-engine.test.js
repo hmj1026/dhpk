@@ -729,6 +729,103 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.strictEqual(applied.effort, 'high');
     assert.strictEqual(applied.fallback.allow, true);
   });
+
+  const claude = profiles.profiles.find((profile) => profile.host === 'claude-code');
+
+  test('published Claude aliases resolve to Catalog IDs with a Host route', () => {
+    const reasoner = resolveDispatchConfig({
+      project: { deep_reasoner_model: 'opus' },
+      global: { deep_reasoner_effort: 'low' },
+    });
+    assert.strictEqual(reasoner.reasoner_target.target_agent, 'claude-code');
+    assert.strictEqual(reasoner.reasoner_target.model_id, 'opus5');
+    assert.ok(!Object.prototype.hasOwnProperty.call(reasoner.reasoner_target, 'effort'));
+    assert.ok(!reasoner.diagnostics.some((entry) => entry.field === 'reasoner_target'));
+    const reasonerRoute = diagnoseDispatchConfig({
+      config: reasoner, catalog, hostProfile: claude, role: 'reasoner', authority: 'read-only', effort: 'high',
+    });
+    assert.strictEqual(reasonerRoute.catalog_support, 'SUPPORTED');
+
+    const worker = resolveDispatchConfig({
+      project: { fast_worker_model: 'sonnet', fast_worker_effort: 'medium' },
+    });
+    assert.strictEqual(worker.worker_target.target_agent, 'claude-code');
+    assert.strictEqual(worker.worker_target.model_id, 'sonnet5');
+    assert.strictEqual(worker.worker_target.effort, 'medium');
+    const workerRoute = diagnoseDispatchConfig({
+      config: worker, catalog, hostProfile: claude, role: 'worker', authority: 'workspace-write', effort: 'medium',
+    });
+    assert.strictEqual(workerRoute.catalog_support, 'SUPPORTED');
+  });
+
+  test('published Codex model+effort resolves through the Catalog/Host route', () => {
+    const config = resolveDispatchConfig({
+      project: { codex_worker_model: 'gpt-6-luna', codex_worker_effort: 'xhigh' },
+    });
+    assert.strictEqual(config.worker_target.target_agent, 'codex-cli');
+    assert.strictEqual(config.worker_target.model_id, 'gpt-6-luna');
+    assert.strictEqual(config.worker_target.effort, 'xhigh');
+    const result = diagnoseDispatchConfig({
+      config, catalog, hostProfile: claude, role: 'worker', authority: 'workspace-write', effort: 'xhigh',
+    });
+    assert.strictEqual(result.catalog_support, 'SUPPORTED');
+  });
+
+  test('AGY display names normalize to Catalog model IDs before Host routing', () => {
+    const config = resolveDispatchConfig({
+      project: { agy_worker_model: 'Gemini 3.8 Flash (High)' },
+    });
+    assert.strictEqual(config.worker_target.target_agent, 'agy');
+    assert.strictEqual(config.worker_target.model_id, 'gemini-3.8-flash-high');
+    const result = diagnoseDispatchConfig({
+      config, catalog, hostProfile: claude, role: 'worker', authority: 'workspace-write', effort: 'high',
+    });
+    assert.strictEqual(result.catalog_support, 'SUPPORTED');
+  });
+
+  test('unsupported legacy combinations stay explicit after a successful parse', () => {
+    const config = resolveDispatchConfig({ project: { codex_reasoner_model: 'gpt-6-luna' } });
+    assert.strictEqual(config.reasoner_target.model_id, 'gpt-6-luna');
+    assert.ok(!config.diagnostics.some((entry) => entry.field === 'reasoner_target' && entry.status === 'BLOCKED'));
+    const result = diagnoseDispatchConfig({
+      config, catalog, hostProfile: claude, role: 'reasoner', authority: 'read-only', effort: 'high',
+    });
+    assert.strictEqual(result.catalog_support, 'UNSUPPORTED');
+    assert.match(String(result.reason || ''), /unsupported|catalog|migrat/i);
+  });
+
+  test('architect keys are no-effect and do not change reasoner_target', () => {
+    const config = resolveDispatchConfig({
+      project: { architect_model: 'fable', architect_effort: 'low' },
+    });
+    assert.strictEqual(config.reasoner_target, null);
+    assert.ok(config.diagnostics.some((entry) => (
+      /architect/i.test(entry.field)
+      && /unsupported|no-effect/i.test(entry.status)
+      && /unaffected|no-effect|no dispatch effect/i.test(entry.reason)
+    )));
+  });
+
+  test('retired codex_deep_reasoner keys remain fail-closed', () => {
+    const config = resolveDispatchConfig({
+      project: { codex_deep_reasoner_model: 'gpt-6.1-sol', codex_deep_reasoner_effort: 'high' },
+    });
+    assert.strictEqual(config.reasoner_target, null);
+    assert.ok(config.diagnostics.some((entry) => entry.field === 'reasoner_target' && entry.status === 'BLOCKED' && /codex_deep_reasoner_model/.test(entry.reason)));
+    assert.ok(config.diagnostics.some((entry) => entry.field === 'reasoner_target' && entry.status === 'BLOCKED' && /codex_deep_reasoner_effort/.test(entry.reason)));
+  });
+
+  test('canonical reasoner_target still wins over a published Claude alias', () => {
+    const config = resolveDispatchConfig({
+      project: { reasoner_target: 'claude-code/opus5:high', deep_reasoner_model: 'sonnet' },
+    });
+    assert.deepStrictEqual(config.reasoner_target, { target_agent: 'claude-code', model_id: 'opus5', effort: 'high' });
+    assert.strictEqual(config.source.reasoner_target, 'project.reasoner_target');
+    const result = diagnoseDispatchConfig({
+      config, catalog, hostProfile: claude, role: 'reasoner', authority: 'read-only', effort: 'high',
+    });
+    assert.strictEqual(result.catalog_support, 'SUPPORTED');
+  });
 }
 
 // Source suite: dispatch-config-report.test.js
