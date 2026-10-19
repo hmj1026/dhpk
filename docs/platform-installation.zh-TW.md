@@ -18,13 +18,13 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Surface | 安裝 | 更新／移除 | 驗證 | 支援邊界 |
 |---|---|---|---|---|
 | Claude Code 預設 | `bash scripts/install.sh` → `dhpk@dhpk` | 使用 receipt-owned update／rollback 路徑 | Fresh-session `/dhpk:flow-guide help` | 結構檢查可通過；consumer discovery 在實際觀察前維持 `NOT_RUN` |
-| Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
+| Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`。sync 需使用 repository checkout；已安裝的 Claude plugin 不含 `codex/` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
 | Codex legacy/native | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe | Experimental；只可在 disposable isolated `CODEX_HOME` 測試；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | OpenAI Public Plugin Directory（Codex 與 ChatGPT Work） | 公開 listing 出現後，在產品 Plugins Directory 搜尋 DHPK | 使用該產品的 plugin manager | 核准的公開 listing，以及每個 Host 的 fresh-session workflow probe | 目前僅為 candidate，狀態 `NOT_PUBLISHED`；local/repository marketplace 僅供開發 |
 | Standard Agent Plugin | 透過已驗證 client route 發布／安裝 `plugins/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
 | Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
-| Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
+| Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`。sync 需使用 repository checkout；已安裝的 Claude plugin 不含 `cursor/` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
 | Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；release probe 使用隔離的 shared-network bubblewrap namespace，不得 unrestricted 執行 |
 | AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`、明確的 `migrate`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
 
@@ -299,22 +299,22 @@ Prerequisites：Codex project-local loader、POSIX shell，以及上表第一列
 schema-v3 receipt contract。client version 必須等 release evidence 記錄後才算
 已建立。
 
-請從 project root 執行 checkout 版本：
+請從 project root 執行。Codex project-local sync 需使用 repository checkout；
+已安裝的 Claude plugin 不含 `codex/`。checkout 版本：
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
 
-在 Claude plugin runtime 使用 `${CLAUDE_PLUGIN_ROOT}`。installer 會使用
-project-root heuristic，預設採 hybrid materialization：skill 與 supporting asset
-維持 relative symlink，但 `.codex/agents/*.toml` 一律為實體檔，供 Codex 作為
-configuration layer 載入。`--copy` 會把整個 projection 改為實體檔：
+installer 會使用 project-root heuristic，預設採 hybrid materialization：skill
+與 supporting asset 維持 relative symlink，但 `.codex/agents/*.toml` 一律為實體檔，
+供 Codex 作為 configuration layer 載入。`--copy` 會把整個 projection 改為實體檔：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --copy
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --copy
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --update
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --migrate --update
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --uninstall
 ```
 
 `codex-sync` 是支援且 canonical 的日常使用路徑。在 `install`、`update`、
@@ -341,7 +341,7 @@ collision 時以非零狀態結束，避免把 partial receipt 誤認為 current
 若 projection stale 或有 unowned collision，先執行唯讀 plan：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh \
   --update --plan --json
 ```
 
@@ -350,7 +350,7 @@ source fingerprint 帶入 adoption。省略 `--copy`，installer 會沿用 recei
 原本的 projection mode，避免重新 materialize 無關的 managed entries：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh \
   --update \
   --adopt='skills/flow-guide@<destination-fingerprint>@<source-fingerprint>'
 ```
@@ -810,20 +810,20 @@ version 與 local packages 或 planned `plugin_version` 不一致時，會回報
 project-local receipt。除非 Cursor 已卸載該 marketplace plugin，否則不要
 手刪 hash cache。
 
-請從 project root 執行 checkout 版本：
+請從 project root 執行。Cursor project-local sync 需使用 repository checkout；
+已安裝的 Claude plugin 不含 `cursor/`。checkout 版本：
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh
 ```
 
-Claude plugin runtime 使用 `${CLAUDE_PLUGIN_ROOT}`。installer 使用
-project-root heuristic，預設建立相對 symlink，並支援 `--copy`：
+installer 使用 project-root heuristic，預設建立相對 symlink，並支援 `--copy`：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --copy
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --update
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --migrate --update
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --copy
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --update
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --migrate --update
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --uninstall
 ```
 
 Cursor 新安裝同樣使用 `common`，支援既有 additive `--skill` overlay，拒絕公開 `--profile`。歷史 named-profile receipt 的 read、plan、uninstall、recovery 保留精確 stored scope，update 在 mutation 前 `BLOCKED`；未標註舊 receipt 使用既有 structural migration 路徑。新選取中的 unknown、retired、deprecated、duplicate 或 surface 不相容 ID 會在修改 `.cursor/` 前拒絕。
@@ -837,7 +837,7 @@ collision 時以非零狀態結束，避免把 partial receipt 誤認為 current
 對 stale 或 unowned projection，先檢查再變更：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh \
   --update --plan --json
 ```
 
@@ -846,7 +846,7 @@ explicit adoption request。省略 `--copy`：installer 會保留 receipt 既有
 projection mode：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh \
   --update \
   --adopt='skills/flow-guide@<destination-fingerprint>@<source-fingerprint>'
 ```

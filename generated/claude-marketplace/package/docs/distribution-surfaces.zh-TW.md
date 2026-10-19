@@ -235,8 +235,10 @@ evidence。Claude probe 使用 `claude plugin list --json`，將適用且已啟�
 支援的 Codex consumer 路徑是：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
+
+已安裝的 Claude plugin 不含 `codex/`；sync 需使用 repository checkout。
 
 目前 `codex/skills/` 有 16 個指向 canonical `skills/` 的相對 symlink（14 個可呼叫 skill
 加上內部 `cli-transport` 與 `cli-dispatch-context` runtime）。專案同步可

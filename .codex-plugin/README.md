@@ -83,7 +83,8 @@ every release where a `codex` binary is available.
 > passing consumer proof is evidence toward a future graduation decision, not
 > the decision itself (design.md decision 7). The Supported path today
 > remains the manual sync script:
-> `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`.
+> `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`.
+> An installed Claude plugin cannot supply `codex/`.
 
 ## Notes
 
