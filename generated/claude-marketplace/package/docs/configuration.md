@@ -46,12 +46,16 @@ Reconfigure or inspect the effective config at any time from inside Claude Code:
 
 A handful of boolean/mode knobs additionally support a **one-shot environment-variable override** for a single session — see the "Env override" column below.
 
-For automatic fast-worker dispatch, the one-shot `--cross` flag has
-the highest precedence and enables cross-Agent candidates only for that
-invocation. It does not force a different-vendor Model through a CLI when the
-current Host can invoke that Model natively. Without the flag, project
-configuration wins over the installed user setting, and the shipped default is
-`false`.
+Persistent dispatch-config resolution uses project > global > environment.
+Within the same layer, a canonical `*_target` wins over legacy keys. `auto`
+takes its effective target from the known Host Profile `role_defaults` for
+that Role. `--worker` and `--reasoner` are one-shot invocation choices for
+that call; they are not persistent config-layer overrides, and a setup or
+config report does not include them unless that invocation is in scope.
+`--plan` selects planner consult scope and is not a planner model override.
+`--cross` is a one-shot cross-provider opt-in for that invocation; it is not
+a planner or reviewer model override, and it is not a worker-target rule
+above project.
 
 ### Provider-neutral dispatch settings
 
@@ -78,7 +82,9 @@ the public target; these are target-Agent aliases, not Model or Provider names.
 | `preference_order` | string[] | `[]` | Legacy compatibility order only; it does not replace the Host Profile's declared fallback pairs. |
 | `fallback_allow` | boolean | `true` | Permit only the Host Profile's declared fallback pairs after confirmed pre-side-effect availability failure. |
 
-Project values take precedence over installed-user values. Invalid fields are
+The dispatch resolver layers are project > global > environment. Same-layer
+canonical `*_target` keys take precedence over legacy model/effort keys.
+`auto` uses the known Host/Role profile defaults. Invalid fields are
 reported as `BLOCKED` without invalidating unrelated settings. Diagnostics keep
 catalog support, Host access, runtime availability, and fallback permission
 separate; static catalog membership or package discovery is never runtime proof.
@@ -166,8 +172,10 @@ native-only unless cross-provider dispatch is explicitly enabled.
 To opt in for a project, add the setting under
 `pluginConfigs.dhpk@dhpk.options` in `.claude/settings.local.json` (or the
 project `settings.json`). To opt in for one automatic selection only, use
-`--worker=auto --cross`. The one-shot flag has precedence over project
-and installed-user configuration. Setting the project value to `false` rolls
+`--worker=auto --cross`. `--cross` is a one-shot invocation opt-in for that
+call's cross-provider candidate set; it does not replace the persistent
+project > global > environment resolver or override `*_target` model
+selection. Setting the project value to `false` rolls
 back to native-only automatic selection; removing the project override instead
 re-exposes the installed-user value, so verify that value is also unset or
 `false` before treating removal as a rollback. The retired `CODEX=on` and

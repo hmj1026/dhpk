@@ -306,9 +306,158 @@ function diagnoseDispatchConfig({ config, catalog, hostProfile, role = 'worker',
   });
 }
 
-function createDispatchConfigReport({ config } = {}) {
+const REPORT_ROLES = Object.freeze(['planner', 'reasoner', 'worker', 'reviewer']);
+const TARGET_AGENT_PROVIDERS = Object.freeze({
+  'claude-code': 'anthropic',
+  'codex-cli': 'openai',
+  agy: 'google',
+  cursor: 'cursor',
+});
+
+function publicTargetFields(target) {
+  if (!target || !isRecord(target)) return null;
+  const out = {};
+  for (const key of ['target_agent', 'provider', 'model_id', 'effort', 'route']) {
+    if (target[key] !== undefined && target[key] !== null) out[key] = target[key];
+  }
+  return Object.keys(out).length ? Object.freeze(out) : null;
+}
+
+function coveredInputsReport(coveredInputs) {
+  if (!isRecord(coveredInputs)) {
+    return Object.freeze({ declared: false, complete: false });
+  }
+  const layers = Array.isArray(coveredInputs.layers) ? coveredInputs.layers.slice() : [];
+  return Object.freeze({
+    declared: true,
+    complete: coveredInputs.complete === true,
+    layers: Object.freeze(layers),
+    project: coveredInputs.project === true,
+    global: coveredInputs.global === true,
+    environment: coveredInputs.environment === true,
+    ...(typeof coveredInputs.scope === 'string' ? { scope: coveredInputs.scope } : {}),
+  });
+}
+
+function blockedRoleDiagnostic(diagnostics, role) {
+  return (diagnostics || []).find((entry) => entry.field === `${role}_target` && entry.status === 'BLOCKED') || null;
+}
+
+function diagnoseRoleStatus({ config, catalog, hostProfile, role, selected }) {
+  const fallback = config.fallback_allow === true ? 'allowed' : 'disabled';
+  const empty = Object.freeze({
+    catalog_support: 'NOT_RUN',
+    host_access: 'NOT_RUN',
+    runtime: 'NOT_RUN',
+    fallback,
+  });
+  if (!selected || !hostProfile) return empty;
+  try {
+    const result = diagnoseDispatchConfig({
+      config: { ...config, [`${role}_target`]: selected },
+      catalog,
+      hostProfile,
+      role,
+      authority: role === 'worker' ? 'workspace-write' : 'read-only',
+      effort: selected.effort || 'high',
+    });
+    return Object.freeze({
+      catalog_support: result.catalog_support,
+      host_access: result.host_access,
+      runtime: 'NOT_RUN',
+      fallback,
+      ...(result.reason ? { reason: result.reason } : {}),
+    });
+  } catch {
+    return empty;
+  }
+}
+
+function enrichExplicitTarget(selected, profile, catalogData, role) {
+  const targetAgent = selected.target_agent;
+  const provider = canonicalProvider(selected.provider) || TARGET_AGENT_PROVIDERS[targetAgent];
+  const modelId = selected.model_id;
+  const effort = selected.effort;
+  const fields = {
+    ...(targetAgent ? { target_agent: targetAgent } : {}),
+    ...(provider ? { provider } : {}),
+    ...(modelId ? { model_id: modelId } : {}),
+    ...(effort ? { effort } : {}),
+  };
+  if (profile && catalogData && Array.isArray(catalogData.routes)) {
+    const match = catalogData.routes.find((route) => route.host === profile.host
+      && route.provider === provider
+      && (!targetAgent || route.target_agent === targetAgent)
+      && (!modelId || route.model_id === modelId)
+      && route.roles.includes(role)
+      && (!effort || route.efforts.includes(effort)));
+    if (match && match.route) fields.route = match.route;
+  }
+  return publicTargetFields(fields);
+}
+
+function createDispatchConfigReport({ config, hostProfile, catalog, coveredInputs } = {}) {
   if (!config || !isRecord(config)) throw new TypeError('config is required');
-  const targets = Object.fromEntries(['worker', 'reasoner', 'planner', 'reviewer'].map((role) => [role, config[`${role}_target`] || null]));
+  const targets = Object.fromEntries(REPORT_ROLES.map((role) => [role, config[`${role}_target`] || null]));
+  const diagnostics = config.diagnostics || [];
+  const profile = hostProfile ? createHostProfile(hostProfile) : null;
+  const catalogInput = catalog || DEFAULT_CATALOG;
+  let catalogData = null;
+  try {
+    catalogData = createProviderModelCatalog(catalogInput);
+  } catch {
+    catalogData = null;
+  }
+
+  const roles = {};
+  for (const role of REPORT_ROLES) {
+    const canonical = `${role}_target`;
+    const blocked = blockedRoleDiagnostic(diagnostics, role);
+    const selected = config[canonical] || null;
+    const configuredSource = (config.source && config.source[canonical])
+      || (blocked && blocked.source)
+      || 'default';
+    const configuredTarget = blocked ? null : (selected ? publicTargetFields(selected) : 'auto');
+    const defaultPair = profile && profile.role_defaults ? profile.role_defaults[role] : null;
+    const defaultSource = defaultPair ? `host_profile.role_defaults.${role}` : null;
+    let effectiveTarget = null;
+    let effectiveSource = null;
+    if (blocked) {
+      effectiveTarget = null;
+      effectiveSource = null;
+    } else if (selected) {
+      effectiveTarget = enrichExplicitTarget(selected, profile, catalogData, role);
+      effectiveSource = configuredSource;
+    } else if (defaultPair) {
+      effectiveTarget = publicTargetFields(defaultPair);
+      effectiveSource = defaultSource;
+    }
+    const fallbackCandidates = profile && Array.isArray(profile.role_fallbacks[role])
+      ? profile.role_fallbacks[role].map((pair) => publicTargetFields(pair)).filter(Boolean)
+      : [];
+    roles[role] = Object.freeze({
+      configured_target: configuredTarget,
+      configured_source: configuredSource,
+      effective_target: effectiveTarget,
+      effective_source: effectiveSource,
+      default_source: defaultSource,
+      status: diagnoseRoleStatus({
+        config,
+        catalog: catalogInput,
+        hostProfile: profile,
+        role,
+        selected: blocked ? null : (selected || defaultPair),
+      }),
+      fallback: Object.freeze({
+        allow: config.fallback_allow === true,
+        kind: 'candidate_policy',
+        selected: false,
+        executed: false,
+        candidates: Object.freeze(fallbackCandidates),
+      }),
+    });
+  }
+
   const report = {
     schema: 'dhpk.dispatch.config-report.v1',
     orchestration_dispatch: config.orchestration_dispatch,
@@ -321,7 +470,12 @@ function createDispatchConfigReport({ config } = {}) {
       runtime: 'NOT_RUN',
       fallback: config.fallback_allow === true ? 'allowed' : 'disabled',
     },
-    diagnostics: config.diagnostics || [],
+    diagnostics,
+    covered_inputs: coveredInputsReport(coveredInputs),
+    host: profile
+      ? Object.freeze({ id: profile.host, status: 'known', execution: 'not executed' })
+      : Object.freeze({ id: null, status: 'unresolved', execution: 'not executed' }),
+    roles: Object.freeze(roles),
   };
   return Object.freeze(report);
 }

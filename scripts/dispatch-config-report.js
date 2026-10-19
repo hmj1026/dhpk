@@ -34,7 +34,17 @@ function shouldReport(environment = process.env) {
 function main(environment = process.env) {
   if (!shouldReport(environment)) return 0;
   const config = resolveDispatchConfig({ environment: environmentOptions(environment) });
-  const report = createDispatchConfigReport({ config });
+  const report = createDispatchConfigReport({
+    config,
+    coveredInputs: {
+      layers: ['environment'],
+      project: false,
+      global: false,
+      environment: true,
+      complete: false,
+      scope: 'environment-only',
+    },
+  });
   process.stdout.write(`${JSON.stringify(report)}\n`);
   return 0;
 }

@@ -45,9 +45,14 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **76 個 active `userConfig` 旋
 
 部分布林/模式類旋鈕額外支援**單次環境變數覆寫**（僅限當次 session）——見下表「Env 覆寫」欄。
 
-對自動 fast-worker 派發而言，單次 `--cross` flag 的優先序最高，
-只在該次呼叫開放外部候選。沒有 flag 時，專案設定優先於安裝後的使用者設定，
-而 shipped 預設為 `false`。
+持續性 dispatch-config 解析層為 project > global > environment。同層
+canonical `*_target` 優先於 legacy keys。`auto` 的有效值來自已知 Host
+Profile 該 Role 的 `role_defaults`。`--worker` 與 `--reasoner` 是該次
+invocation 的單次選擇，不是持續設定層覆寫；setup 或設定報告未取得該次
+invocation 時，不得宣稱已納入這些 CLI 選擇。`--plan` 選擇 planner consult
+scope，不是 planner 模型覆寫。`--cross` 是該次 invocation 的跨供應商
+opt-in，不是 planner／reviewer 模型覆寫，也不是高於 project 的 worker
+target 規則。
 
 ### Provider-neutral 派發設定
 
@@ -66,7 +71,9 @@ Transport。公開 target 格式為 `agent/model[:effort]`，四個 canonical ke
 | `preference_order` | string[] | `[]` | 自動解析時的 Provider 或 Provider/Model 順序。 |
 | `fallback_allow` | boolean | `true` | 只允許 side effect 前已確認的 availability failure fallback。 |
 
-專案設定優先於安裝後的使用者設定。欄位無效時只將該欄位標為
+dispatch resolver 層為 project > global > environment。同層 canonical
+`*_target` 優先於 legacy model／effort keys。`auto` 使用已知 Host／Role
+profile 預設值。欄位無效時只將該欄位標為
 `BLOCKED`，不會污染其他設定。diagnostics 分開記錄 catalog support、Host
 access、runtime availability 與 fallback permission；靜態 catalog 或 package
 discovery 絕不是 runtime proof。既有 `fast_worker_*`、Provider-specific Model
@@ -133,8 +140,9 @@ native-only。
 
 要對單一專案 opt-in，請在 `.claude/settings.local.json`（或 project
 `settings.json`）的 `pluginConfigs.dhpk@dhpk.options` 下加入設定。只對單次
-automatic selection opt-in 則使用 `--worker=auto --cross`。單次 flag
-優先於 project 與 installed-user 設定。將 project 值設為 `false` 可回到
+automatic selection opt-in 則使用 `--worker=auto --cross`。`--cross` 是該次
+invocation 的跨供應商候選 opt-in，不會取代 project > global > environment
+解析層，也不覆寫 `*_target` 模型選擇。將 project 值設為 `false` 可回到
 native-only automatic selection；移除 project override 則會重新暴露 installed-user
 值，因此只有在該值也未設定或為 `false` 時，才能把移除視為 rollback。已退休的
 `CODEX=on` 與 `--codex` 不是遷移 alias。

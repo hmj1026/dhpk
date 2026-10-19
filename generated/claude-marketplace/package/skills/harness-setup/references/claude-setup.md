@@ -29,7 +29,17 @@ bytes at $SKILL_DIR/scripts/lib/install-assets-writer.sh.
    the existing configuration shape; current installations commonly store
    options under `pluginConfigs["dhpk@dhpk"].options`. Never invent a second
    namespace when an existing shape is present.
-3. `--show` prints the effective values and exits. It never prompts or writes.
+3. `--show` prints the effective harness values and the four-role dispatch
+   summary, then exits. It never prompts, writes, or adds interactive
+   model-selection steps. Build the dispatch summary with the existing
+   `resolveDispatchConfig` / `createDispatchConfigReport` seam, using the
+   settings already read in step 2 as the project layer and the known Claude
+   Host Profile. Do not search for additional settings
+   files or invent a new precedence. If global install-time config was not
+   loaded, disclose that in `covered_inputs` instead of claiming a complete
+   final config. If the Host were unknown, leave effective targets
+   unresolved; do not guess `claude-code`. The report is static:
+   `runtime` remains `NOT_RUN`.
 
 ## Asset installation
 
@@ -96,13 +106,19 @@ session.
 ## Output and verification
 
 Return a confirmation block containing `modules`, `docker_containers`,
-`review_agents`, and `hook_profile`, each with before/after
-values, followed by exactly one next action. Mark missing dependencies or
-unsupported operations `UNAVAILABLE`/`BLOCKED`; never turn a skipped prompt
-into a successful configuration.
+`review_agents`, `hook_profile`, and the four-role dispatch summary
+(`planner`, `reasoner`, `worker`, `reviewer`) from the config report,
+each with before/after values where settings changed, followed by exactly
+one next action. The dispatch summary is read-only: show configured and
+effective targets, separate config-layer and Host Profile default sources,
+static fallback candidates, and `runtime: NOT_RUN`. Mark missing
+dependencies or unsupported operations `UNAVAILABLE`/`BLOCKED`; never turn
+a skipped prompt into a successful configuration.
 
 - [ ] Catalog was read as the only source for stacks, versions, slots, and
       hook profiles.
+- [ ] `--show` included the four-role dispatch summary without model-selection
+      prompts.
 - [ ] Existing settings and unknown keys were preserved.
 - [ ] Asset-install exit/JSON evidence was recorded when used.
 - [ ] The active Host's detection/render capability remains `NOT_RUN` until a
