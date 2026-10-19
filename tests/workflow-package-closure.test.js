@@ -273,6 +273,32 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
     assert.match(crossAction.stderr, /only valid for the route action/i);
   });
 
+  test('route query words that match action names stay in the query', () => {
+    const { parseAction } = require('../skills/flow-guide/scripts/action-runner');
+    const helpQuery = parseAction(['route', 'help', 'me', 'fix', 'login']);
+    assert.strictEqual(helpQuery.status, 'ready');
+    assert.strictEqual(helpQuery.action, 'route');
+    assert.deepStrictEqual([...helpQuery.args], ['help', 'me', 'fix', 'login']);
+    const nextQuery = parseAction(['route', 'implement', 'next', 'page', 'pagination']);
+    assert.strictEqual(nextQuery.status, 'ready');
+    assert.strictEqual(nextQuery.action, 'route');
+    assert.strictEqual(parseAction(['route', 'fix', 'login']).status, 'ready');
+    const bareSecond = parseAction(['route', 'rules']);
+    assert.strictEqual(bareSecond.status, 'blocked');
+    assert.match(bareSecond.diagnostics.join(' '), /exactly one action/i);
+    const unknown = parseAction(['frobnicate', 'login']);
+    assert.strictEqual(unknown.status, 'blocked');
+    assert.match(unknown.diagnostics.join(' '), /exactly one action/i);
+    const cross = parseAction(['help', '--go']);
+    assert.strictEqual(cross.status, 'blocked');
+    assert.match(cross.diagnostics.join(' '), /only valid for the route action/i);
+    const retired = spawnSync(process.execPath, [
+      path.join(ROOT, 'skills/flow-guide/scripts/action-runner.js'), 'route', '--plan', 'bounded',
+    ], { encoding: 'utf8' });
+    assert.strictEqual(retired.status, 2, retired.stdout + '\n' + retired.stderr);
+    assert.match(`${retired.stdout}\n${retired.stderr}`, /retired or unsupported/i);
+  });
+
   test('runtime loader resolves only the physical Skill tree and ignores ambient roots', () => {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-runtime-loader-'));
     try {
