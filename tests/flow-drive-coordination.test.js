@@ -329,6 +329,31 @@ test('graph strict target contradiction blocks before execution', async () => {
   assert.strictEqual(fixture.calls.some((call) => call.method === 'execute'), false);
 });
 
+test('graph contradictory node.target.effort and node.effort blocks before execution', async () => {
+  const fixture = createRunnerFixture({
+    task: { ...DEFAULT_TASK, constraints: { ...DEFAULT_TASK.constraints, delegation: 'coordinated' } },
+    decision: {
+      mode: 'coordinated',
+      nodes: [{
+        id: 'contradictory-effort',
+        goal: 'write',
+        acceptance: ['done'],
+        role: 'worker',
+        authority: 'workspace-write',
+        assigned_files: ['src/receipt.js'],
+        dependencies: [],
+        target: DEFAULT_TARGET,
+        effort: 'high',
+      }],
+    },
+  });
+  try {
+    const report = await runFlowDrive(['Repair.'], { host: fixture.host, workdir: fixture.workdir });
+    assert.strictEqual(report.acceptance.status, 'BLOCKED', JSON.stringify(report.blockers));
+    assert.strictEqual(fixture.calls.filter((call) => call.method === 'execute').length, 0);
+  } finally { fixture.cleanup(); }
+});
+
 test('parent reasoner requirement cannot be bypassed by omitted node role', async () => {
   const fixture = createRunnerFixture({
     task: { ...DEFAULT_TASK, constraints: { ...DEFAULT_TASK.constraints, delegation: 'coordinated', decision_state: 'REASONER_REQUIRED' } },
