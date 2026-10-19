@@ -446,6 +446,7 @@ test('malformed shard timing JSON is rejected', () => {
   test('installer and harness-release files keep a longer timeout than the default 180s budget', () => {
     assert.strictEqual(fileTimeoutMs('tests/install-codex-skills.test.js', 180000), 180000);
     assert.strictEqual(fileTimeoutMs('tests/install-codex-skills-reconciliation.test.js', 180000), 300000);
+    assert.strictEqual(fileTimeoutMs('tests/macos-installer-darwin.test.js', 180000), 240000);
     assert.strictEqual(fileTimeoutMs('tests/harness-facade-cli.test.js', 180000), 240000);
     assert.strictEqual(fileTimeoutMs('tests/alpha.test.js', 180000), 180000);
     assert.strictEqual(fileTimeoutMs('tests/install-codex-skills-reconciliation.test.js', 400000), 400000);
@@ -956,7 +957,7 @@ test('public CI plan validation rejects forged identity, missing fields, and una
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
-test('public CI plan selects existing owner suites and enables macOS only for installers', () => {
+test('public CI plan selects existing hook owner suites and requires macOS', () => {
   const fixture = gitFixture((root) => {
     fs.mkdirSync(path.join(root, 'scripts', 'hooks'), { recursive: true });
     fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
@@ -969,7 +970,7 @@ test('public CI plan selects existing owner suites and enables macOS only for in
     assert.strictEqual(fixture.plan.mode, 'selected');
     assert.deepStrictEqual(fixture.plan.testFiles, ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']);
     assert.strictEqual(fixture.plan.shardCount, 1);
-    assert.ok(fixture.plan.skippedJobs.includes('macos-installer'));
+    assert.ok(fixture.plan.requiredJobs.includes('macos-installer'));
     const runner = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), 'tests/utils.test.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
     assert.strictEqual(runner.status, 0, runner.stderr);
     const plan = createCiPlan({ root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
@@ -984,8 +985,11 @@ test('known resource families select their existing owner suites', () => {
     fs.writeFileSync(path.join(root, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-agy.sh'), 'old\n');
     for (const owner of ['modules.test.js', 'run-agy.test.js', 'run-codex.test.js', 'run-cli-transport.test.js', 'cli-dispatch-launcher.test.js', 'cli-role-resolver.test.js', 'flow-drive-cli-dispatch.test.js', 'flow-drive-relocation.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js']) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
   }, (root) => fs.writeFileSync(path.join(root, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-agy.sh'), 'new\n'));
-  try { assert.strictEqual(fixture.plan.mode, 'selected'); assert.ok(fixture.plan.testFiles.includes('run-agy.test.js')); }
-  finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+  try {
+    assert.strictEqual(fixture.plan.mode, 'selected');
+    assert.ok(fixture.plan.testFiles.includes('run-agy.test.js'));
+    assert.ok(fixture.plan.requiredJobs.includes('macos-installer'));
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
 test('selected package changes carry only their affected platform surfaces', () => {
