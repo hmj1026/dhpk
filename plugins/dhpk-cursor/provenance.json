@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.4",
-  "sourceCommit": "bacbe015c262627bf00070636ee4a49cbff24678",
-  "generatedFromCommit": "bacbe015c262627bf00070636ee4a49cbff24678",
-  "generatedFromTree": "bc7dfdea549dd206524ed9d22402b286bb4ff43b",
+  "sourceCommit": "1bb746821fcdddb58a6dedcc9027fc20ab12cc0b",
+  "generatedFromCommit": "1bb746821fcdddb58a6dedcc9027fc20ab12cc0b",
+  "generatedFromTree": "b53f53e38d02330ea4fcf2f25561dafa07321918",
   "inventoryDigest": "b5f9e73fee9a71260198db830a5cb74b5d30b74381d92bbe711e5c1c6dc807a9",
   "inventoryRevision": "sha256:6b7699d42a6ea2c40dcdc02ed968f1340aa70f52a6582acf52a61521ea725109",
   "generatorVersion": "1.0.0",
@@ -1641,7 +1641,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/graph-runner.js",
         "destination": "skills/flow-drive/scripts/graph-runner.js",
-        "originalGitBlobDigest": "8a37f3c46d8e1f4833116633e28ffabd1c200ec1"
+        "originalGitBlobDigest": "2ed1da2dd2cc0f38e82f963b90e60648d3529bd5"
       },
       {
         "ownerId": "flow-drive",
@@ -1671,7 +1671,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/run.js",
         "destination": "skills/flow-drive/scripts/run.js",
-        "originalGitBlobDigest": "afff875b6ec4abaa25a4b98768f04e116e01ff72"
+        "originalGitBlobDigest": "d2f1bff8befbb63a24cf708ea0b6842e0281536b"
       },
       {
         "ownerId": "flow-drive",
@@ -1683,7 +1683,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/target-policy.js",
         "destination": "skills/flow-drive/scripts/target-policy.js",
-        "originalGitBlobDigest": "deeb612914f218a1785321d8e8a1043311d26a64"
+        "originalGitBlobDigest": "3ff009323f0f35d2f6ffacfacdd4a1295a159392"
       },
       {
         "ownerId": "flow-drive",
@@ -1695,7 +1695,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/task-graph.js",
         "destination": "skills/flow-drive/scripts/task-graph.js",
-        "originalGitBlobDigest": "b9cedbce3c24c04ae9edfdf7b00b70fc6273bdfe"
+        "originalGitBlobDigest": "dcb310dc4ccf915653b8755053c82026c0d1a4ae"
       },
       {
         "ownerId": "flow-drive",
