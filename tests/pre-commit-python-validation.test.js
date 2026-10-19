@@ -342,7 +342,14 @@ test('a missing deadline mechanism does not start ruff or record a pass', () => 
         }
       }
     }
-    writeStub(binDir, 'ruff');
+    fs.writeFileSync(path.join(binDir, 'ruff'), `#!/bin/sh
+case "$1" in
+  --version) exit 0 ;;
+esac
+printf '%s\\n' "$1" >> "$ARGV_LOG"
+exit 0
+`);
+    fs.chmodSync(path.join(binDir, 'ruff'), 0o755);
     writeRel(repo, 'pyproject.toml', '[project]\nname = "demo"\n');
     writeRel(repo, 'demo.py');
     stage(repo, ['pyproject.toml', 'demo.py']);
@@ -355,7 +362,10 @@ test('a missing deadline mechanism does not start ruff or record a pass', () => 
     assert.strictEqual(res.status, 2, res.stderr || (res.error && res.error.message));
     assert.match(res.stderr, /deadline unavailable/);
     assert.doesNotMatch(res.stderr, /all configured checks passed/);
-    assert.deepStrictEqual(callsNamed(readLog(logPath), 'check'), []);
+    const started = fs.existsSync(logPath)
+      ? fs.readFileSync(logPath, 'utf8').split('\n').filter((line) => line === 'check')
+      : [];
+    assert.deepStrictEqual(started, []);
   } finally {
     rmRepo(repo);
     fs.rmSync(binDir, { recursive: true, force: true });
