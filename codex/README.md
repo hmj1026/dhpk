@@ -17,14 +17,14 @@ Plugin routes, see the [platform installation SSOT](../docs/platform-installatio
 
 From the project root:
 
-`CLAUDE_PLUGIN_ROOT` is available in Claude Code's plugin-runtime shell. In an
-ordinary terminal, invoke the same script from a persistent checkout, for
-example set `DHPK_ROOT=/absolute/path/to/dhpk` and run
+An installed Claude plugin cannot supply `codex/`. Invoke the installer from a
+persistent checkout: set `DHPK_ROOT=/absolute/path/to/dhpk` and run
 `bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"`. Do not rely on an
 ephemeral marketplace-cache path.
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
+DHPK_ROOT=/absolute/path/to/dhpk
+bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"
 ```
 
 By default the script uses a **hybrid projection**: skills and receipt-managed supporting assets are symlinked back to the source, while every `<project>/.codex/agents/*.toml` is a physical file so Codex can load it as a configuration layer. Re-run with `--update` after a plugin version bump; existing receipt-owned agent links are migrated to physical files without rematerializing skill links. The receipt is an ownership boundary: only entries recorded in `.dhpk-installed.json` whose destination still matches its marker can be replaced or removed.
@@ -53,7 +53,7 @@ The script copies `config.toml.example` next to (not over) any existing `.codex/
 ## After a plugin update
 
 1. `claude plugin update dhpk@dhpk`
-2. From each project that uses Codex: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update`
+2. From each project that uses Codex: `bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --update`
 
 The script detects the version delta from `.dhpk-installed.json` and re-syncs everything.
 
@@ -104,4 +104,4 @@ definitions and dispatch guidance live in `guidance.md`.
 
 ## Uninstall
 
-From the project root run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall`. The command removes only unchanged receipt-owned entries. Edited managed entries are marked orphaned and retained, and unrelated `.codex` content is never deleted. `--force` is unnecessary for uninstall and cannot force deletion; it only bypasses the normal project-root heuristic. Do not remove the whole `.codex` directory when it contains project-owned assets.
+From the project root run `bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --uninstall`. The command removes only unchanged receipt-owned entries. Edited managed entries are marked orphaned and retained, and unrelated `.codex` content is never deleted. `--force` is unnecessary for uninstall and cannot force deletion; it only bypasses the normal project-root heuristic. Do not remove the whole `.codex` directory when it contains project-owned assets.

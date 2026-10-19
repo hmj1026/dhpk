@@ -372,8 +372,9 @@ The statusline renders `[branch] +staged ~modified | docker:status | profile=<p>
 
 For projects using both Claude Code and the standalone Codex CLI (separate
 from the retired MCP mechanism above), the supported path is `bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`. Its default
-hybrid projection keeps skills/supporting assets linked to the plugin root but
+/path/to/dhpk/scripts/hooks/install-codex-skills.sh`. Sync requires a
+repository checkout; an installed Claude plugin does not include `codex/`.
+Its default hybrid projection keeps skills/supporting assets linked to the plugin root but
 always materializes agent TOMLs as physical files; `--copy` is the fully
 physical portable fallback. It creates the curated Codex projection in the
 project's `.codex/`. The clean-install materialization proof for [issue #88](https://github.com/hmj1026/dhpk/issues/88)
@@ -385,8 +386,9 @@ policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.
 
 For projects that want Cursor to load dhpk skills, subagents, `.mdc` rules, and
 commands from the project itself (not only from `~/.cursor/plugins/local/`),
-the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"`.
-Cursor retains its all-symlink default; `--copy` is the portable fallback. The
+the supported path is `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`.
+Sync requires a repository checkout; an installed Claude plugin does not include
+`cursor/`. Cursor retains its all-symlink default; `--copy` is the portable fallback. The
 installer writes a schema-v3 receipt at `.cursor/.dhpk-installed.json` and does
 not write `.cursor/hooks.json`. Keep `plugins/dhpk-cursor/` for the marketplace
 / user-plugin route. Full policy: **[`docs/platform-installation.md`](./docs/platform-installation.md)**.

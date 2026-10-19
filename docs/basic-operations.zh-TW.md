@@ -186,10 +186,10 @@ project scope 安裝必須加上 `--scope project`；在非 TTY 或 CI 環境請
 在 Claude Code 內也可使用 `/plugin update dhpk@dhpk`、`/plugin uninstall dhpk@dhpk`、
 `/plugin marketplace remove dhpk`。
 
-使用支援的 Codex projection 時，先更新 Claude，再重新整理 project-local 檔案。
-`CLAUDE_PLUGIN_ROOT` 只在 Claude Code plugin runtime（hooks、commands、Bash tools）內
-自動 export；普通 terminal 請明確指定持久 checkout，例如 `DHPK_ROOT=/absolute/path/to/dhpk`，
-不要把 ephemeral marketplace cache path 寫進 project command。
+使用支援的 Codex projection 時，先更新 Claude，再從持久 checkout 重新整理
+project-local 檔案。已安裝的 Claude plugin 不含 `codex/`。請設定
+`DHPK_ROOT=/absolute/path/to/dhpk`，不要把 ephemeral marketplace cache path 寫進
+project command。
 
 ```bash
 claude plugin update -y dhpk@dhpk
@@ -662,8 +662,8 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
 
 同時使用 Claude Code 與 Codex CLI 的 project：
 
-以下 `${CLAUDE_PLUGIN_ROOT}` 形式適用於 Claude Code plugin-runtime shell；普通 terminal 請使用
-[更新／移除](#更新移除) 中的 persistent-checkout 形式。
+已安裝的 Claude plugin 不含 `codex/`；請從 repository checkout 執行 installer。
+普通 terminal 請使用 [更新／移除](#更新移除) 中的 persistent-checkout 形式。
 
 ```bash
 # From any project root and a persistent local dhpk checkout:
@@ -671,7 +671,6 @@ DHPK_ROOT=/absolute/path/to/dhpk
 bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"
 ```
 
-在 Claude plugin-runtime shell 內可用 `${CLAUDE_PLUGIN_ROOT}` 作為等價 root。普通 terminal
 必須明確設定 `DHPK_ROOT`；不要把 ephemeral marketplace-cache path 複製到 project command。
 
 此 script 是支援的 Codex distribution path，預設採 hybrid，另有整體實體化 fallback：

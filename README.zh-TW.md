@@ -347,7 +347,8 @@ Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> |
 
 適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方已退休的 MCP 機制不同，
 這條路徑不需要 MCP server），支援路徑是 `bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`。預設 hybrid
+/path/to/dhpk/scripts/hooks/install-codex-skills.sh`。sync 需使用 repository
+checkout；已安裝的 Claude plugin 不含 `codex/`。預設 hybrid
 projection 讓 skill/supporting asset 連回 plugin root，但 agent TOML 一律 materialize
 為實體檔；`--copy` 則是整體實體化的可攜 fallback。它會把明確策展的 Codex projection
 放進專案 `.codex/`。[issue #88](https://github.com/hmj1026/dhpk/issues/88) 的乾淨安裝
@@ -359,7 +360,8 @@ materialization 驗證目前已對正式實體 package 通過；Codex Plugin Mar
 
 若希望 Cursor 從專案本身載入 dhpk skills、subagents、`.mdc` rules 與 commands
 （而不只依賴 `~/.cursor/plugins/local/`），支援路徑是
-`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"`。預設
+`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`。sync 需使用
+repository checkout；已安裝的 Claude plugin 不含 `cursor/`。預設
 仍採全 symlink 預設；`--copy` 是可攜 fallback。installer 會寫入
 schema-v3 receipt `.cursor/.dhpk-installed.json`，且不會寫入
 `.cursor/hooks.json`。`plugins/dhpk-cursor/` 仍留給 marketplace／user-plugin
