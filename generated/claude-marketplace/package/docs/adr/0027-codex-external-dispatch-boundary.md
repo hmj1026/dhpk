@@ -1,5 +1,7 @@
 # Keep Codex projections native-only for external worker dispatch
 
+原編號 0019，因重複於 2026-10 改號。
+
 Status: accepted
 
 Ownership update for 0.66.2: Flow Drive owns the complete physical transport,
