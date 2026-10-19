@@ -1,39 +1,58 @@
 # Create PR workflow
 
-1. Resolve the target repository with `gh repo view --json nameWithOwner` and
-   record the current branch, selected head, selected base, recent commits,
-   and diff statistics. A missing repository, branch, or base is a terminal
-   `BLOCKED` result.
-2. Extract the first branch ticket matching the configured
-   `{TICKET_PATTERN}`. The default is `[A-Z]+-\d+`. Use the repository's
-   ticket URL convention when building the ticket link. If no ticket can be
-   resolved, state that in the report rather than inventing one.
-3. Derive the title as `<type>: [<TICKET>] <summary>` unless `--title` is
+1. Resolve the selected head and base once. An explicit `--head` is the
+   selected head. When `--head` is omitted, the selected head is the current
+   branch from `git rev-parse --abbrev-ref HEAD`. An explicit `--base` is the
+   selected base. When `--base` is omitted, use `{TARGET_BRANCH}` and then
+   `main`. Confirm both refs with `git rev-parse --verify`. A missing
+   repository, or a head or base that does not resolve, is a terminal
+   `BLOCKED` result. Do not substitute the checkout branch, `HEAD`, or
+   another ref, and do not commit, check out, or push.
+2. Record the checkout branch separately from the selected head. Gather
+   recent commits and the pull-request diff for the selected range only:
+
+   ```bash
+   git log --oneline <selected-base>..<selected-head>
+   git diff --stat <selected-base>...<selected-head>
+   ```
+
+   The two-dot log is the commit list. The three-dot diff is the change from
+   the merge base, which is the pull-request comparison. Keep those formulas
+   distinct, and do not replace either one with checkout `HEAD`.
+3. Extract the first ticket matching `{TICKET_PATTERN}` from the selected
+   head name. The default is `[A-Z]+-\d+`. Use the repository's ticket URL
+   convention when building the ticket link. If no ticket can be resolved,
+   state that in the report rather than inventing one.
+4. Derive the title as `<type>: [<TICKET>] <summary>` unless `--title` is
    supplied. Build a concise body with the summary, the ticket link when
    resolved, and a verification section. List commands and results only for
-   checks actually observed; put planned or unavailable checks under `NOT RUN`
-   with the reason. For a behavior change, show a compact before/after example
-   or evidence, and label an unobserved after-state as expected with its check
+   checks observed on the selected range. A result observed only on a
+   different checkout is `NOT RUN` for this request, and the reason names
+   that checkout. Put planned or unavailable checks under `NOT RUN` with the
+   reason. For a behavior change, show a compact before/after example or
+   evidence, and label an unobserved after-state as expected with its check
    marked `NOT RUN`. Include rollback and blast-radius details only when they
    materially affect review. Add a visual aid only when it clarifies the
    change; do not include one by default. Keep shell quoting intact in the
    emitted command.
-4. Resolve `{TARGET_BRANCH}` first and `main` second when `--base` is absent.
-   Run:
+5. Count commits on the selected range:
 
    ```bash
-   git rev-list --count <base>..HEAD
+   git rev-list --count <selected-base>..<selected-head>
    ```
 
-   If the result is `0`, stop before any `gh pr create` call and report:
-   `No commits between <base> and HEAD — nothing to open a PR for`.
-5. Verify the selected head has a remote ref (the workflow does not push it),
-   and query existing PRs for the same head/base. An unpushed head or an
-   existing matching PR is a terminal `BLOCKED` result.
-6. Construct the `gh pr create` command with `--head`, `--base`, `--title`,
-   and `--body`. `--dry-run` and omitted mode print the command only. Do not
-   call `gh pr create` in that mode.
-7. For `--execute`, show the final command, ask for confirmation, and call it
+   If the result is `0`, stop before any `gh pr create` call and report
+   `No commits between <selected-base> and <selected-head> — nothing to open a PR for`.
+   The message names the refs actually selected. A zero count on the checkout
+   does not reject a selected head that has commits. A non-zero count on the
+   checkout does not allow a selected head whose selected range is empty.
+6. Verify the selected head has a remote ref. The workflow does not push it.
+   Query existing PRs for that same head and base. An unpushed selected head
+   or an existing matching PR is a terminal `BLOCKED` result.
+7. Construct the `gh pr create` command with `--head <selected-head>`,
+   `--base <selected-base>`, `--title`, and `--body`. `--dry-run` and omitted
+   mode print the command only. Do not call `gh pr create` in that mode.
+8. For `--execute`, show the final command, ask for confirmation, and call it
    only after confirmation. Use the caller's existing `gh` credentials and
    report the returned URL. A rejected confirmation, auth error, or command
    failure is `FAIL`, not a created PR.

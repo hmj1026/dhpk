@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.4",
-  "sourceCommit": "dcb5f202326d9971698e65dfee0ef90fab0c3f97",
-  "generatedFromCommit": "dcb5f202326d9971698e65dfee0ef90fab0c3f97",
-  "generatedFromTree": "f3ed95da5417b3697ca8d0c8bfedc05e8f025172",
+  "sourceCommit": "3b8f991021c740ce552d26a19445dc627d7b980b",
+  "generatedFromCommit": "3b8f991021c740ce552d26a19445dc627d7b980b",
+  "generatedFromTree": "232fa4970c41221ffb7e4bbfc78b409e42556e81",
   "inventoryDigest": "911215f4d143b1dab7154d601161d2d3fbbfbe7924910661571a2bb9d7d4b14f",
   "inventoryRevision": "sha256:b42ffd92ab377ef9046dcb46a45267bd80a4d7d9b4d72e4c836047e689584111",
   "generatorVersion": "1.0.0",
@@ -513,7 +513,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/SKILL.md",
         "destination": "skills/create-pr/SKILL.md",
-        "originalGitBlobDigest": "92bd48d651ca769d3212c1523844e924e4041f8b"
+        "originalGitBlobDigest": "1e39686f873f6b978965fc506035ed4a519cae6a"
       },
       {
         "ownerId": "create-pr",
@@ -579,7 +579,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/references/workflow.md",
         "destination": "skills/create-pr/references/workflow.md",
-        "originalGitBlobDigest": "ef21edbd133839001ee8d7a007da5f5478d9176f"
+        "originalGitBlobDigest": "48f3f1595d5587640bb69bf1f0ec32209fcd3cef"
       },
       {
         "ownerId": "doc-maintain",
