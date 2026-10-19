@@ -170,7 +170,7 @@ test('uninstall rejects receipt traversal paths without deleting outside .codex'
   }
 });
 
-test('uninstall rejects symlinked .codex parents without deleting the external tree', () => {
+test('uninstall preserves an external tree reached through a symlinked .codex/skills parent', () => {
   const scratch = projectRoot();
   const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-external-codex-')));
   try {
@@ -182,8 +182,9 @@ test('uninstall rejects symlinked .codex parents without deleting the external t
     fs.renameSync(originalSkills, externalSkills);
     fs.symlinkSync(externalSkills, originalSkills, 'dir');
     const res = runInstaller(scratch, ['--uninstall', '--force']);
-    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     assert.ok(fs.existsSync(path.join(externalSkills, skillName, 'SKILL.md')));
+    assert.ok(fs.lstatSync(originalSkills).isSymbolicLink());
     assert.match(`${res.stdout}\n${res.stderr}`, /symlink|unsafe|ancestor/i);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
