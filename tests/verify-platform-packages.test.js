@@ -76,13 +76,13 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       const tracked = path.join(sourceRoot, packagePath);
       fs.rmSync(tracked, { recursive: true, force: true });
       fs.cpSync(output, tracked, { recursive: true });
-      for (const args of [['config', 'user.email', 'test@example.invalid'], ['config', 'user.name', 'common-verifier-fixture']]) {
-        const configured = spawnSync('git', args, { cwd: sourceRoot, encoding: 'utf8' });
-        assert.strictEqual(configured.status, 0, configured.stdout + configured.stderr);
-      }
       const added = spawnSync('git', ['add', packagePath], { cwd: sourceRoot, encoding: 'utf8' });
       assert.strictEqual(added.status, 0, added.stdout + added.stderr);
-      const committed = spawnSync('git', ['commit', '--quiet', '-m', `refresh ${surface} common fixture`], { cwd: sourceRoot, encoding: 'utf8' });
+      const committed = spawnSync('git', [
+        '-c', 'user.name=common-verifier-fixture',
+        '-c', 'user.email=test@example.invalid',
+        'commit', '--quiet', '-m', `refresh ${surface} common fixture`,
+      ], { cwd: sourceRoot, encoding: 'utf8' });
       assert.strictEqual(committed.status, 0, committed.stdout + committed.stderr);
 
       const verified = spawnSync(process.execPath, [
