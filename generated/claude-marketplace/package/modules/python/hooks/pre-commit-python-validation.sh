@@ -46,58 +46,73 @@ fi
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 ROOT="$(git rev-parse --show-toplevel)"
 
-# Collect non-vendor staged .py files.
+# Collect non-vendor staged .py files. NUL keeps spaces, quotes, and newlines
+# as path data; the names are never joined back into a shell command.
 staged_py=()
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
     [ -z "$f" ] && continue
     case "$f" in *.py) ;; *) continue ;; esac
     case "$f" in vendor/*|*/vendor/*|.venv/*|*/.venv/*|*/site-packages/*) continue ;; esac
     staged_py+=("$ROOT/$f")
-done < <(git -C "$ROOT" diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
+done < <(git -C "$ROOT" diff --cached -z --name-only --diff-filter=ACMR 2>/dev/null || true)
 
 [ "${#staged_py[@]}" -eq 0 ] && exit 0
 
 RUFF_BIN="${CLAUDE_PLUGIN_OPTION_RUFF_BIN:-ruff}"
 PREFIX="$(py_runner_prefix)"
+prefix_rc=$?
+if [ "$prefix_rc" -eq 2 ]; then
+    echo "[pre-commit-py] FAIL: PYTHON_RUNNER contains shell syntax and was not executed." >&2
+    exit 2
+fi
 TC="${CLAUDE_PLUGIN_OPTION_PYTHON_TYPECHECKER:-pyright}"
 RUFF_TIMEOUT_SECS=60
 TYPECHECK_TIMEOUT_SECS=120
 
-# Group staged files by owning project dir.
-PDIRS=""
+# Group by the full project directory. A comma or space in that path is data.
+pdirs=()
 for f in "${staged_py[@]}"; do
     pdir="$(py_project_dir "$f" "$ROOT")"
     [ -n "$pdir" ] || continue
-    case ",$PDIRS," in *",$pdir,"*) ;; *) PDIRS="${PDIRS:+$PDIRS,}$pdir" ;; esac
+    seen=0
+    for existing in "${pdirs[@]}"; do
+        [ "$existing" = "$pdir" ] && seen=1 && break
+    done
+    [ "$seen" -eq 0 ] && pdirs+=("$pdir")
 done
-[ -n "$PDIRS" ] && echo "[pre-commit-py] ${#staged_py[@]} staged .py file(s) detected; running checks..." >&2
+[ "${#pdirs[@]}" -gt 0 ] && echo "[pre-commit-py] ${#staged_py[@]} staged .py file(s) detected; running checks..." >&2
 
-run_tool() {  # <project_dir> <tool_bin> <args-string> <timeout_secs>
-    local pdir="$1" tool="$2" args="$3" tsec="$4"
-    local tcmd=""
-    command -v timeout >/dev/null 2>&1 && tcmd="timeout $tsec"
-    if [ -n "$PREFIX" ]; then
-        ( cd "$pdir" && eval "$tcmd $PREFIX \"$tool\" $args" >&2 )
-    else
-        ( cd "$pdir" && eval "$tcmd \"$tool\" $args" >&2 )
+# run_tool <project_dir> <tool_bin> <timeout_secs> <argv...>
+#   Each path and runner word is one argument. timeout stays a command, not text.
+run_tool() {
+    local pdir="$1" tool="$2" tsec="$3"
+    shift 3
+    local -a cmd
+    cmd=()
+    if command -v timeout >/dev/null 2>&1; then
+        cmd+=(timeout "$tsec")
     fi
+    if [ -n "$PREFIX" ]; then
+        py_runner_words "$PREFIX" || return 2
+        cmd+=("${PY_RUNNER_WORDS[@]}")
+    fi
+    cmd+=("$tool" "$@")
+    ( cd "$pdir" && "${cmd[@]}" ) >&2
 }
 
 status=0
-oldifs="$IFS"; IFS=','
-for pdir in $PDIRS; do
-    IFS="$oldifs"
-    quoted=""
+for pdir in "${pdirs[@]}"; do
+    files=()
     for f in "${staged_py[@]}"; do
-        [ "$(py_project_dir "$f" "$ROOT")" = "$pdir" ] && quoted="$quoted \"$f\""
+        [ "$(py_project_dir "$f" "$ROOT")" = "$pdir" ] && files+=("$f")
     done
-    [ -z "$quoted" ] && { IFS=','; continue; }
+    [ "${#files[@]}" -eq 0 ] && continue
 
     # 1 + 2. ruff check + format --check. ruff exit codes: 0 = clean, 1 = findings
     # (block the commit), >=2 = internal/config error (WARN only — a broken
     # pyproject.toml or corrupt venv must not masquerade as a lint failure).
     if py_tool_ok "$pdir" "$PREFIX" "$RUFF_BIN"; then
-        run_tool "$pdir" "$RUFF_BIN" "check$quoted" "$RUFF_TIMEOUT_SECS"; rc=$?
+        run_tool "$pdir" "$RUFF_BIN" "$RUFF_TIMEOUT_SECS" check "${files[@]}"; rc=$?
         if [ "$rc" -eq 1 ]; then
             echo "[pre-commit-py] FAIL: ruff check found issues. Run 'ruff check --fix', or add '[skip-python-lint]' to commit msg." >&2
             status=2
@@ -107,7 +122,7 @@ for pdir in $PDIRS; do
         elif [ "$rc" -ge 2 ]; then
             echo "[pre-commit-py] WARN: ruff check exited $rc (internal/config error) — not blocking; fix your ruff config." >&2
         fi
-        run_tool "$pdir" "$RUFF_BIN" "format --check$quoted" "$RUFF_TIMEOUT_SECS"; rc=$?
+        run_tool "$pdir" "$RUFF_BIN" "$RUFF_TIMEOUT_SECS" format --check "${files[@]}"; rc=$?
         if [ "$rc" -eq 1 ]; then
             echo "[pre-commit-py] FAIL: ruff format --check failed. Run 'ruff format .' or add '[skip-python-lint]'." >&2
             status=2
@@ -129,7 +144,7 @@ for pdir in $PDIRS; do
             *)       tcbin="" ;;
         esac
         if [ -n "$tcbin" ] && py_tool_ok "$pdir" "$PREFIX" "$tcbin"; then
-            run_tool "$pdir" "$tcbin" "." "$TYPECHECK_TIMEOUT_SECS"; rc=$?
+            run_tool "$pdir" "$tcbin" "$TYPECHECK_TIMEOUT_SECS" .; rc=$?
             if [ "$rc" -eq 124 ]; then
                 echo "[pre-commit-py] FAIL: $TC timed out after ${TYPECHECK_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-python-lint]'." >&2
                 status=2
@@ -139,9 +154,7 @@ for pdir in $PDIRS; do
             fi
         fi
     fi
-    IFS=','
 done
-IFS="$oldifs"
 
 [ "$status" -eq 0 ] && echo "[pre-commit-py] OK: all configured checks passed" >&2
 exit "$status"
