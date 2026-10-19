@@ -77,6 +77,44 @@ test('active OpenSpec task listing allows an existing lint config by basename', 
   }
 });
 
+function openspecLintConfig() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-edit-guard-'));
+  const config = path.join(root, 'eslint.config.mjs');
+  const change = path.join(root, 'openspec', 'changes', 'lint-policy');
+  fs.mkdirSync(change, { recursive: true });
+  fs.writeFileSync(config, 'export default [];\n');
+  fs.writeFileSync(path.join(change, 'tasks.md'), '- [ ] Intentionally update `eslint.config.mjs`\n');
+  return { root, config };
+}
+
+test('OpenSpec lint-config allow does not skip a matching GUARD_EXTRA_PATTERNS rule', () => {
+  const { root, config } = openspecLintConfig();
+  try {
+    const res = runHook(config, {
+      CLAUDE_PROJECT_DIR: root,
+      GUARD_EXTRA_PATTERNS: 'eslint\\.config\\.mjs$',
+    });
+    assert.strictEqual(res.status, 2, res.stderr);
+    assert.ok(res.stderr.includes('blocked by GUARD_EXTRA_PATTERNS'), res.stderr);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('OpenSpec lint-config allow does not skip an invalid GUARD_EXTRA_PATTERNS regex', () => {
+  const { root, config } = openspecLintConfig();
+  try {
+    const res = runHook(config, {
+      CLAUDE_PROJECT_DIR: root,
+      GUARD_EXTRA_PATTERNS: '(',
+    });
+    assert.strictEqual(res.status, 2, res.stderr);
+    assert.ok(res.stderr.includes('invalid GUARD_EXTRA_PATTERNS'), res.stderr);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('unlisted existing lint config remains blocked', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-edit-guard-'));
   try {
