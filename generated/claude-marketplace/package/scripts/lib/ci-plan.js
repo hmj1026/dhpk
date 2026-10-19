@@ -12,6 +12,7 @@ const FULL_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'macos-in
 const SELECTED_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'lint']);
 const PACKAGE_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
 const FULL_GENERATED_CHECKS = Object.freeze(['claude-marketplace']);
+const MACOS_OWNERS = Object.freeze(['hooks', 'installer', 'resource']);
 // Light plans skip the full validate job, so they check the retained generated
 // Claude marketplace package when canonical docs/content edits may affect it.
 const LIGHT_GENERATED_CHECKS = Object.freeze([...FULL_GENERATED_CHECKS].sort());
@@ -48,7 +49,7 @@ const OWNER_GROUPS = Object.freeze([
   {
     name: 'installer',
     paths: [/^scripts\/install\//i, /^scripts\/install\.sh$/i, /^scripts\/dhpk-install\.js$/i, /^scripts\/hooks\/install-/i, /^scripts\/lib\/dhpk-install-lifecycle\.js$/i],
-    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js', 'install-codex-skills.test.js', 'install-codex-skills-planning.test.js', 'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js', 'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js', 'install-prompts.test.js', 'native-shared-skill-install.test.js'],
+    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js', 'install-codex-skills.test.js', 'install-codex-skills-planning.test.js', 'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js', 'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js', 'macos-installer-files.test.js', 'native-shared-skill-install.test.js'],
   },
   {
     name: 'skill-scripts',
@@ -287,8 +288,8 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
         testFiles: discoveredTestFiles(root), shardCount: 4, packageSurfaces: PACKAGE_SURFACES.slice(), generatedChecks: FULL_GENERATED_CHECKS.slice(), identities,
       };
     }
-    const installer = selected.owners.includes('installer');
-    const requiredJobs = [...SELECTED_REQUIRED, ...(installer ? ['macos-installer'] : [])];
+    const needsMacos = selected.owners.some((owner) => MACOS_OWNERS.includes(owner));
+    const requiredJobs = [...SELECTED_REQUIRED, ...(needsMacos ? ['macos-installer'] : [])];
     const skippedJobs = JOBS.filter((job) => !requiredJobs.includes(job));
     return {
       ...classified,
