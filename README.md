@@ -453,7 +453,7 @@ dhpk/
 ├── docs/                        # versioned guides, ADRs, and contracts (see docs/README.md)
 │   ├── design/, evidence/       # ignored local development records
 ├── openspec/specs/              # versioned accepted behavior specifications
-├── README.md, README.zh-TW.md, CHANGELOG.md, LICENSE, .gitignore
+├── README.md, README.zh-TW.md, SECURITY.md, CHANGELOG.md, LICENSE, .gitignore
 ```
 
 ## Development
@@ -468,6 +468,10 @@ claude --plugin-dir ~/projects/dhpk
 Edits to plugin files take effect after `/reload-plugins` (hooks, MCP, LSP) or session restart (monitors, skill listings).
 
 The marketplace install path (`claude plugin install`) copies the plugin into `~/.claude/plugins/cache/`, so edits to the source repo do NOT take effect there until `claude plugin update dhpk@dhpk`.
+
+## Security
+
+Report vulnerabilities privately; do not open a public issue. See the [security policy](./SECURITY.md) for supported versions, the reporting channel, and response targets.
 
 ## License
 
