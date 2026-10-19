@@ -426,7 +426,7 @@ dhpk/
 ├── docs/                        # 版控的指南、ADR 與契約（見 docs/README.md）
 │   ├── design/, evidence/       # 忽略版控的本機開發紀錄
 ├── openspec/specs/              # 版控的已接受行為規格
-├── README.md、README.zh-TW.md、CHANGELOG.md、LICENSE、.gitignore
+├── README.md、README.zh-TW.md、SECURITY.md、CHANGELOG.md、LICENSE、.gitignore
 ```
 
 ## 開發
@@ -441,6 +441,10 @@ claude --plugin-dir ~/projects/dhpk
 對插件檔案的編輯，需要 `/reload-plugins` 後才會生效（hook、MCP、LSP），或重啟 session（monitor、skill 列表）。
 
 Marketplace 安裝路徑（`claude plugin install`）會把插件複製到 `~/.claude/plugins/cache/`，所以對原始 repo 的編輯在那裡不會生效，必須 `claude plugin update dhpk@dhpk` 才會更新。
+
+## 安全
+
+漏洞請私下回報，不要開公開 issue。支援版本、回報管道與回應時程見[安全政策](./SECURITY.zh-TW.md)。
 
 ## 授權
 
