@@ -282,4 +282,43 @@ test('skip marker bypasses the tool without reading staged paths as code', () =>
   }
 });
 
+test('a commit -C checks that repository and a foreign skip marker does not bypass it', () => {
+  const session = mkRepo({ prefix: 'dhpk-py-session-', gitConfig: true });
+  const target = mkRepo({ prefix: 'dhpk-py-target-', gitConfig: true });
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-py-bin-'));
+  const logPath = path.join(target, 'argv.log');
+  try {
+    writeStub(binDir, 'ruff');
+    writeRel(session, 'pyproject.toml', '[project]\nname = "session"\n');
+    writeRel(session, 'session.py');
+    writeRel(target, 'pyproject.toml', '[project]\nname = "target"\n');
+    writeRel(target, 'target.py');
+    stage(session, ['pyproject.toml', 'session.py']);
+    stage(target, ['pyproject.toml', 'target.py']);
+    const env = {
+      ARGV_LOG: logPath,
+      PATH: `${binDir}:${process.env.PATH}`,
+      CLAUDE_PLUGIN_OPTION_PYTHON_RUNNER: '',
+      CLAUDE_PLUGIN_OPTION_PYTHON_TYPECHECKER: 'none',
+    };
+    const checked = runPyHook(session, env, `echo '[skip-python-lint]'; git -C ${target} commit -m test`);
+    assert.strictEqual(checked.status, 0, checked.stderr);
+    const checks = callsNamed(readLog(logPath), 'check');
+    assert.deepStrictEqual(checks, [{
+      cwd: target,
+      argv: ['check', path.join(target, 'target.py')],
+    }]);
+
+    fs.writeFileSync(logPath, '');
+    const unresolved = runPyHook(session, env, 'git -C "$UNRESOLVED_REPO" commit -m test');
+    assert.strictEqual(unresolved.status, 0, unresolved.stderr);
+    assert.match(unresolved.stderr, /not a literal path/);
+    assert.deepStrictEqual(readLog(logPath), []);
+  } finally {
+    rmRepo(session);
+    rmRepo(target);
+    fs.rmSync(binDir, { recursive: true, force: true });
+  }
+});
+
 run('pre-commit-python-validation');
