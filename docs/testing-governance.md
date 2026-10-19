@@ -37,8 +37,9 @@ runs one shard with four workers. A full plan keeps four shards with four
 workers. Shared core, runner or CI changes, unknown paths, missing owner
 suites, and unavailable diffs fail closed to the full plan. The selected plan
 records its test files, and shard verification requires the trusted plan's
-exact union without omissions, extras, or duplicates. Installer owner changes
-also run the macOS installer job.
+exact union without omissions, extras, or duplicates. Installer, hook, and
+resource-runtime owner changes also run the macOS installer job. Unknown
+paths still fail closed to the full plan, which keeps that job.
 
 This routing is an execution optimization and does not create a
 script-to-test coverage obligation. Markdown prose remains outside automated
@@ -87,8 +88,12 @@ acceptance; those gates remain in the
 
 ## Darwin installer subset
 
-The macOS CI job `macos-installer` executes the files in
-`tests/_lib/macos-installer-files.js` (`MACOS_INSTALLER_FILES`). Adding or
-removing a Host-unique installer suite from the Ubuntu aggregate runner must
-update that list in the same change; the job already runs the list.
-`consumer-gate-cli` keeps `TMPDIR=/private/tmp` on Darwin.
+The macOS CI job `macos-installer` executes the Darwin-differential files in
+`tests/_lib/macos-installer-files.js` (`MACOS_INSTALLER_FILES`). That list is
+filesystem, symlink-canonicalization, descriptor-relative writer, portable
+runner, and Host-unique installer smoke — not a replay of Linux owner
+matrices. Schema, receipt-variant, evidence-normalization, and stub-CLI
+suites stay on Ubuntu. Adding or removing a Host-unique installer suite from
+the Ubuntu aggregate runner must update that list in the same change; the job
+already runs the list. `macos-installer-darwin` keeps `TMPDIR=/private/tmp` on
+Darwin. Linux PASS does not stand in for Darwin PASS.

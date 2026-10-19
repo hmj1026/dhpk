@@ -15,6 +15,23 @@ const RESOURCE_SUITES = [
   'flow-drive-relocation.test.js', 'skill-resource-sync-security.test.js',
   'skill-runtime-path-contract.test.js',
 ];
+const HOOK_SUITES = [
+  'hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js',
+  'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js',
+  'pretool-branch-safety-dedup.test.js', 'session-end.test.js',
+  'session-install-health-ask.test.js', 'session-install-health-version.test.js',
+  'session-start.test.js', 'stop-advisory-dispatch-graduation.test.js',
+  'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js',
+  'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js',
+];
+const INSTALLER_SUITES = [
+  'dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js',
+  'install-codex-skills.test.js', 'install-codex-skills-planning.test.js',
+  'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js',
+  'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js',
+  'install-prompts.test.js', 'macos-installer-darwin.test.js',
+  'macos-installer-files.test.js', 'native-shared-skill-install.test.js',
+];
 const AVAILABLE_SUITES = [SMOKE_SUITE, ...RESOURCE_SUITES, 'utils.test.js'];
 
 function withChangedFiles(files, check, suites = AVAILABLE_SUITES) {
@@ -134,9 +151,24 @@ for (const file of [
       assert.strictEqual(plan.mode, 'selected');
       assert.deepStrictEqual(plan.testFiles, RESOURCE_SUITES.slice().sort());
       assert.strictEqual(plan.shardCount, 1);
+      assert.ok(plan.requiredJobs.includes('macos-installer'));
     });
   });
 }
+
+test('hook owner changes require the macOS installer job', () => {
+  withChangedFiles(['scripts/hooks/sample.sh'], (plan) => {
+    assert.strictEqual(plan.mode, 'selected');
+    assert.ok(plan.requiredJobs.includes('macos-installer'));
+  }, HOOK_SUITES);
+});
+
+test('installer owner changes require the macOS installer job', () => {
+  withChangedFiles(['scripts/install.sh'], (plan) => {
+    assert.strictEqual(plan.mode, 'selected');
+    assert.ok(plan.requiredJobs.includes('macos-installer'));
+  }, INSTALLER_SUITES);
+});
 
 test('CLI changes fail closed when the smoke suite is unavailable', () => {
   withChangedFiles(['skills/flow-drive/scripts/launch-dispatch.js'], (plan) => {
