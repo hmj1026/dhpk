@@ -64,13 +64,13 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:775b9717f36e518a80ad572592724141937b64baf52ca62d90989f6d74249401",
+      "sha256": "sha256:e70d0150d76c1d55675d1e4bce5850e4135faff198fd50ce97dc070d588e4911",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-drive",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:3fbe935b973caad6a58159d76901f9910dc78be903e06e5dca8aa11092f03092",
+      "sha256": "sha256:0dd48ced7bd295b2bf42eabe9e4a73f7a4ddc65c08f7f742128c5494cff3febd",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/tool-routing.md": {
@@ -208,13 +208,13 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:775b9717f36e518a80ad572592724141937b64baf52ca62d90989f6d74249401",
+      "sha256": "sha256:e70d0150d76c1d55675d1e4bce5850e4135faff198fd50ce97dc070d588e4911",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:3fbe935b973caad6a58159d76901f9910dc78be903e06e5dca8aa11092f03092",
+      "sha256": "sha256:0dd48ced7bd295b2bf42eabe9e4a73f7a4ddc65c08f7f742128c5494cff3febd",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
