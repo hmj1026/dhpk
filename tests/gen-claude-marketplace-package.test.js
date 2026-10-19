@@ -7,6 +7,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
@@ -259,6 +260,74 @@ test('cache-like names cannot hide escaping source symlinks or output symlinks',
     fs.symlinkSync(external, path.join(fixture.out, 'scripts/__pycache__/unsafe.pyc'));
     assert.throws(() => GENERATOR.check(fixture), /unsupported entry|symlink/);
   } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
+});
+
+function hasGitAncestor(start) {
+  let current = fs.realpathSync(start);
+  while (true) {
+    if (fs.existsSync(path.join(current, '.git'))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function artifactInstallerEnv(artifact) {
+  const env = { ...process.env, CLAUDE_PLUGIN_ROOT: artifact };
+  delete env.DHPK_PLUGIN_ROOT;
+  delete env.DHPK_INSTALLER_ROOT;
+  delete env.DHPK_SRC_REL;
+  delete env.DHPK_INSTALLER_NAME;
+  return env;
+}
+
+test('artifact-only Claude package requires a checkout for Codex and Cursor sync', () => {
+  assert.ok(!GENERATOR.PACKAGE_PATHS.includes('codex'), 'PACKAGE_PATHS must keep excluding codex/');
+  assert.ok(!GENERATOR.PACKAGE_PATHS.includes('cursor'), 'PACKAGE_PATHS must keep excluding cursor/');
+
+  const tmpRoot = fs.realpathSync(os.tmpdir());
+  assert.ok(!tmpRoot.startsWith(`${ROOT}${path.sep}`) && tmpRoot !== ROOT,
+    `temp root '${tmpRoot}' must not live under the repository`);
+
+  const generatedParent = fs.mkdtempSync(path.join(tmpRoot, 'dhpk-artifact-generated-'));
+  const isolatedParent = fs.mkdtempSync(path.join(tmpRoot, 'dhpk-artifact-isolated-'));
+  const project = fs.mkdtempSync(path.join(tmpRoot, 'dhpk-artifact-project-'));
+  try {
+    const generatedOut = path.join(generatedParent, 'package');
+    GENERATOR.materialize({ root: ROOT, out: generatedOut });
+    const artifact = path.join(isolatedParent, 'package');
+    fs.cpSync(generatedOut, artifact, { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(project, '.git'));
+
+    assert.strictEqual(hasGitAncestor(artifact), null,
+      `artifact '${artifact}' must not have a repository ancestor`);
+    assert.ok(!fs.existsSync(path.join(artifact, 'codex')), 'generated package must omit codex/');
+    assert.ok(!fs.existsSync(path.join(artifact, 'cursor')), 'generated package must omit cursor/');
+
+    const env = artifactInstallerEnv(artifact);
+    for (const name of ['install-codex-skills.sh', 'install-cursor-harness.sh']) {
+      const result = spawnSync('bash', [
+        path.join(artifact, 'scripts', 'hooks', name),
+        '--plan', '--json',
+      ], {
+        cwd: project,
+        env,
+        encoding: 'utf8',
+        timeout: 30_000,
+      });
+      const output = `${result.stdout}\n${result.stderr}`;
+      assert.notEqual(result.status, 0, `${name} must fail without a checkout:\n${output}`);
+      assert.notEqual(result.status, null, `${name} timed out:\n${output}`);
+      assert.match(output, /require a repository checkout/i,
+        `${name} must print a checkout-required diagnostic:\n${output}`);
+      assert.match(output, new RegExp(`bash /path/to/dhpk/scripts/hooks/${name.replace('.', '\\.')}`),
+        `${name} must give the existing checkout command:\n${output}`);
+    }
+  } finally {
+    fs.rmSync(generatedParent, { recursive: true, force: true });
+    fs.rmSync(isolatedParent, { recursive: true, force: true });
+    fs.rmSync(project, { recursive: true, force: true });
+  }
 });
 
 run('gen-claude-marketplace-package');
