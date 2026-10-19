@@ -20,13 +20,13 @@ callable only after the named consumer probe discovers the projected content.
 | Surface | Install | Update / remove | Verify | Support boundary |
 |---|---|---|---|---|
 | Claude Code default | `bash scripts/install.sh` → `dhpk@dhpk` | Use the receipt-owned update/rollback route | Fresh-session `/dhpk:flow-guide help` | Structural checks can pass; consumer discovery stays `NOT_RUN` until observed |
-| Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, managed entries, `$dhpk-<name>` discovery | Supported Codex path and canonical daily-use route; install does not prove runtime callability |
+| Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`. Sync requires a repository checkout; an installed Claude plugin does not include `codex/` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, managed entries, `$dhpk-<name>` discovery | Supported Codex path and canonical daily-use route; install does not prove runtime callability |
 | Codex legacy/native | `codex plugin marketplace add <repo-or-path>` then `codex plugin add dhpk@dhpk` where the real CLI supports it | Client marketplace commands; regenerate from source and check provenance | `plugins/dhpk/.codex-plugin/plugin.json`, physical `skills/`, provenance/fingerprints, real CLI probe | Experimental; test only in a disposable isolated `CODEX_HOME`; missing CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | OpenAI Public Plugin Directory (Codex and ChatGPT Work) | Search for DHPK in the product's Plugins Directory after the public listing appears | Use that product's plugin manager | Approved public listing and a fresh-session workflow probe per Host | Candidate only; currently `NOT_PUBLISHED`; local/repository marketplaces are development sources |
 | Standard Agent Plugin | Publish or install `plugins/dhpk-agent/` through a verified client route | Client-owned update/remove; replace only the generated package | Root `plugin.json`, Agent Plugins schema, fixed `skills/`, optional `mcp.json`, provenance | Structural conformance is not Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins, or local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove or replace that local package | Root `plugin.json`, discovered portable skills/MCP, client version | Portable skills/MCP only; no Cursor-native parity claim |
 | Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `plugins/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
-| Cursor project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3, `.mdc` rules, managed entries | Supported Cursor project-local path; native hooks are out of v1; install does not prove runtime callability |
+| Cursor project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`. Sync requires a repository checkout; an installed Claude plugin does not include `cursor/` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3, `.mdc` rules, managed entries | Supported Cursor project-local path; native hooks are out of v1; install does not prove runtime callability |
 | Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; release probes use an isolated shared-network bubblewrap namespace, never unrestricted execution |
 | AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to the inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`, explicit `migrate`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
 
@@ -318,23 +318,24 @@ Prerequisites: the Codex project-local loader, a POSIX shell, and the
 schema-v3 receipt contract from the first row above. The client version is not
 established until release evidence records it.
 
-Run from the project root. The standalone checkout form is:
+Run from the project root. Codex project-local sync requires a repository
+checkout; an installed Claude plugin does not include `codex/`. The
+standalone checkout form is:
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
 
-Inside the Claude plugin runtime use `${CLAUDE_PLUGIN_ROOT}`. The installer
-uses the project-root heuristic and a hybrid default: skills and supporting
-assets are relative symlinks, while `.codex/agents/*.toml` are always physical
-files because Codex must load them as configuration layers. `--copy` makes the
-entire projection physical:
+The installer uses the project-root heuristic and a hybrid default: skills and
+supporting assets are relative symlinks, while `.codex/agents/*.toml` are always
+physical files because Codex must load them as configuration layers. `--copy`
+makes the entire projection physical:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --copy
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --copy
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --update
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --migrate --update
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --uninstall
 ```
 
 `codex-sync` is the supported and canonical daily-use route. Before an
@@ -364,7 +365,7 @@ remains, so a partial receipt cannot be mistaken for a current projection.
 For a stale or unowned projection, inspect before changing anything:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh \
   --update --plan --json
 ```
 
@@ -374,7 +375,7 @@ installer preserves the receipt's existing projection mode so unrelated managed
 entries are not rematerialized:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh \
   --update \
   --adopt='skills/flow-guide@<destination-fingerprint>@<source-fingerprint>'
 ```
@@ -905,21 +906,22 @@ Cursor UI and keep the local packages plus the project-local receipt.
 Do not hand-delete the hash cache unless Cursor has already uninstalled
 that marketplace plugin.
 
-Run from the project root. The standalone checkout form is:
+Run from the project root. Cursor project-local sync requires a repository
+checkout; an installed Claude plugin does not include `cursor/`. The
+standalone checkout form is:
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh
 ```
 
-Inside the Claude plugin runtime use `${CLAUDE_PLUGIN_ROOT}`. The installer
-uses the project-root heuristic, creates relative symlinks by default, and
-supports `--copy` for a physical portable projection:
+The installer uses the project-root heuristic, creates relative symlinks by
+default, and supports `--copy` for a physical portable projection:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --copy
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --update
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --migrate --update
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --copy
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --update
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --migrate --update
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh --uninstall
 ```
 
 New Cursor installs also use `common`, retain additive `--skill` overlays, and reject public `--profile` flags. Historical named-profile receipts preserve exact stored scope for read, plan, uninstall, and recovery; update is `BLOCKED` before mutation. Unannotated older receipts retain the existing structural migration route. Unknown, retired, deprecated, duplicate, or surface-incompatible IDs in new selections fail before changing `.cursor/`.
@@ -934,7 +936,7 @@ remains, so a partial receipt cannot be mistaken for a current projection.
 For a stale or unowned projection, inspect before changing anything:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh \
   --update --plan --json
 ```
 
@@ -944,7 +946,7 @@ installer preserves the receipt's existing projection mode so unrelated managed
 entries are not rematerialized:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh \
   --update \
   --adopt='skills/flow-guide@<destination-fingerprint>@<source-fingerprint>'
 ```

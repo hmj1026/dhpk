@@ -192,14 +192,10 @@ environments.
 The same actions are available as `/plugin update dhpk@dhpk`, `/plugin uninstall dhpk@dhpk`, `/plugin marketplace remove dhpk` inside Claude Code.
 
 For a project that uses the supported Codex projection, update Claude first and
-then refresh the project-local files:
-
-`CLAUDE_PLUGIN_ROOT` is exported inside the Claude Code plugin runtime (hooks,
-commands, and Bash tools launched from that session); an ordinary terminal does
-not receive it automatically. From a normal shell, point at a persistent local
-checkout instead, for example `DHPK_ROOT=/absolute/path/to/dhpk` and run
-`bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" ...`. Do not hard-code
-an ephemeral marketplace cache path.
+then refresh the project-local files from a persistent checkout. An installed
+Claude plugin cannot supply `codex/`. Set `DHPK_ROOT=/absolute/path/to/dhpk` and
+run `bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" ...`. Do not
+hard-code an ephemeral marketplace cache path.
 
 ```bash
 claude plugin update -y dhpk@dhpk
@@ -677,8 +673,8 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
 
 Projects using both Claude Code and Codex CLI:
 
-The `${CLAUDE_PLUGIN_ROOT}` form below is for a Claude Code plugin-runtime
-shell. In an ordinary terminal use the persistent-checkout form documented in
+An installed Claude plugin cannot supply `codex/`; run the installer from a
+repository checkout. Use the persistent-checkout form documented in
 [Update / Uninstall](#update--uninstall).
 
 ```bash
@@ -687,9 +683,8 @@ DHPK_ROOT=/absolute/path/to/dhpk
 bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"
 ```
 
-Inside a Claude plugin-runtime shell, `${CLAUDE_PLUGIN_ROOT}` may be used as an
-equivalent root. A normal terminal must set `DHPK_ROOT` explicitly; never copy
-an ephemeral marketplace-cache path into a project command.
+Set `DHPK_ROOT` explicitly; never copy an ephemeral marketplace-cache path into
+a project command.
 
 The script is the supported Codex distribution path, with a hybrid default
 and a fully physical fallback:

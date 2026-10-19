@@ -92,6 +92,8 @@ PROJECT_ROOT="$(pwd)"
 
 if [ ! -d "$CODEX_SRC" ]; then
     echo "[$INSTALLER_NAME] ERROR: plugin $SRC_REL/ source not found" >&2
+    echo "[$INSTALLER_NAME] Codex and Cursor project-local sync require a repository checkout; an installed Claude plugin does not include this tree." >&2
+    echo "[$INSTALLER_NAME] From a dhpk checkout, run: bash /path/to/dhpk/scripts/hooks/${INSTALLER_NAME}.sh" >&2
     exit 2
 fi
 if ! command -v python3 >/dev/null 2>&1; then

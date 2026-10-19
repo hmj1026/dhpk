@@ -350,7 +350,7 @@ recoverable.
 Run from the project root after updating the Claude plugin:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --migrate --update
 ```
 
 The schema-v3 receipt records stable id, public name, destination, source,
