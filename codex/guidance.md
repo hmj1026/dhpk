@@ -104,7 +104,7 @@ explicit-only and has no route/workflow mode. Unknown causes may be diagnosed
 within that confirmed outcome; sufficient cause and verification evidence must
 precede dependent writes. Current bound Host capabilities and explicit Provider
 grants govern each selected target. `--cross-provider` requests a scope question
-and grants nothing without an answer. Its `--plan-mode` selects planner
+and grants nothing without an answer. Its `--plan[=auto|bounded|discovery]` selects planner
 consult scope only. Codex CLI has no `/dhpk:do` command or dhpk
 slash-command router. The nine portable families
 (`flow-guide`, `flow-drive`, `change-verdict`, `code-trace`, `laravel`,

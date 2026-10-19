@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.66.4",
-  "sourceCommit": "1bb746821fcdddb58a6dedcc9027fc20ab12cc0b",
-  "generatedFromCommit": "1bb746821fcdddb58a6dedcc9027fc20ab12cc0b",
-  "generatedFromTree": "b53f53e38d02330ea4fcf2f25561dafa07321918",
-  "inventoryDigest": "b5f9e73fee9a71260198db830a5cb74b5d30b74381d92bbe711e5c1c6dc807a9",
-  "inventoryRevision": "sha256:6b7699d42a6ea2c40dcdc02ed968f1340aa70f52a6582acf52a61521ea725109",
+  "sourceCommit": "dcb5f202326d9971698e65dfee0ef90fab0c3f97",
+  "generatedFromCommit": "dcb5f202326d9971698e65dfee0ef90fab0c3f97",
+  "generatedFromTree": "f3ed95da5417b3697ca8d0c8bfedc05e8f025172",
+  "inventoryDigest": "911215f4d143b1dab7154d601161d2d3fbbfbe7924910661571a2bb9d7d4b14f",
+  "inventoryRevision": "sha256:b42ffd92ab377ef9046dcb46a45267bd80a4d7d9b4d72e4c836047e689584111",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "change-verdict",
@@ -905,7 +905,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "d1b928e1ebaf958d54b44998273ccd4e2e45dd33"
+        "originalGitBlobDigest": "b4868810e0b5168debc4e30a4953bf35c975a5e4"
       },
       {
         "ownerId": "flow-drive",
@@ -1841,7 +1841,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "cbc6ae873277c2d6aba514d0cac030e7b6966c5d"
+        "originalGitBlobDigest": "5f44b14f94304305a6821a0e4769e935d6a84942"
       },
       {
         "ownerId": "flow-guide",
@@ -1979,7 +1979,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "d1b928e1ebaf958d54b44998273ccd4e2e45dd33"
+        "originalGitBlobDigest": "b4868810e0b5168debc4e30a4953bf35c975a5e4"
       },
       {
         "ownerId": "flow-guide",
@@ -2015,7 +2015,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "d1b928e1ebaf958d54b44998273ccd4e2e45dd33"
+        "originalGitBlobDigest": "b4868810e0b5168debc4e30a4953bf35c975a5e4"
       },
       {
         "ownerId": "flow-guide",
@@ -6335,8 +6335,8 @@
     "code-trace": "217bfbb50c55795ce18dff16f6750fd489b108f75dc4c5d59951ab12f13c3a03",
     "create-pr": "129253c4313646466dc15283679355e944245ee2d804ef49efb012386e1ac513",
     "doc-maintain": "a1077137778cb2353840c78ef50079268c82077bf276c1d849c77548b299accd",
-    "flow-drive": "bcfa3407126c0dee2199157d1446808c9149ef3e6f1f64cd4fe550cac44501bd",
-    "flow-guide": "f94a81ea1cd019420da02f647d0d8b45b3daf420b2442168d5aec842ef0e92a6",
+    "flow-drive": "be20c4c2dd0813f337e308f7164f7e499b16b8911eaee1b2d50e71b17068cf19",
+    "flow-guide": "6c70801ed1dda51a0a33627b2477239cd817105ef0061f607a21cddbee7fdae9",
     "git-smart-commit": "24e163dc8b535fd5c6adde9d52a047426160f9f539058fde928686ae60715aa0",
     "git-worktree": "07d997decebc844ae8e2b68771810a27a12c5f34fc3ae43ebda14102c1c64585",
     "library-author": "d43c5329860a3e2c9737c320312aaee87008b212aa2cc11ffb028cbebb7509d3",
@@ -6350,7 +6350,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "a2ecac15746b8eff7d25206398b751ccdb16ae953e70af72566f628b6e2d3023",
+    "planId": "773d3778b85a58926d4b7ff2c9256fa1a60f5ec6dcd7c00bd5d798108360d73d",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -6394,10 +6394,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "a2ecac15746b8eff7d25206398b751ccdb16ae953e70af72566f628b6e2d3023",
-      "inventory": "b5f9e73fee9a71260198db830a5cb74b5d30b74381d92bbe711e5c1c6dc807a9"
+      "plan": "773d3778b85a58926d4b7ff2c9256fa1a60f5ec6dcd7c00bd5d798108360d73d",
+      "inventory": "911215f4d143b1dab7154d601161d2d3fbbfbe7924910661571a2bb9d7d4b14f"
     },
-    "rollbackIdentity": "c5e61e8df4a4047996bdbaabd328cbfd5c841125ebaf857b735c43e3e3eb86a1"
+    "rollbackIdentity": "09b7ff3fa3ef79c57826a7a1ccf77b73e9a015d9cab5595e050dfb713bf28950"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

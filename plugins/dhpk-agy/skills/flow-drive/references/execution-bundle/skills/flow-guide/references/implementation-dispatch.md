@@ -38,8 +38,8 @@ existing parser and capability rules; where it overlaps another planning need,
 one consult can satisfy both. #815 owns option grammar, model/effort resolution,
 and bounded-consult budgets. Task count alone does not require planner.
 
-`--plan-mode=auto|bounded|discovery` sets the scope of that consult and requires
-an enabled `--plan`; an enabled legacy handoff without a mode uses `auto`. The
+`--plan[=auto|bounded|discovery]` sets the scope of that consult; bare `--plan`
+equals `--plan=auto`. An enabled legacy handoff without a mode uses `auto`. The
 parser validates grammar, while Flow Drive selects scope from the supplied
 brief according to the single policy in
 `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Planner consult scope.

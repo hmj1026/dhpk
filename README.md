@@ -86,7 +86,7 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 | Component | Count | Notes |
 |-----------|------:|-------|
 | Agents | Role-based agents | Trigger-table-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
-| Commands | dhpk commands | `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:review-pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:ui-ux-verify`, etc. |
+| Commands | dhpk commands | `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:change-verdict pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:ui-ux-verify`, etc. |
 | Canonical skills | Inventory-owned packages | One named package per capability, rooted at `skills/<public-name>/`; non-family packages retain the `skills/dhpk-*/` contract; portable families provide consolidated interfaces. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 3 events | PreToolUse (Edit guard and combined Bash safety/Git branch-safety gate), SessionStart (module activation), SubagentStop (fast-worker liveness cleanup) |
@@ -127,12 +127,12 @@ After installation, daily development follows this 5-step standard workflow (usi
 2. **Implement Confirmed Work**: Once requirements and boundaries are settled, invoke implementation (or lead test-first via `tdd-workflow`):
    ```text
    /dhpk:flow-drive <confirmed-spec-or-change-id> --plan                     # implement confirmed change
-   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan --plan-mode=bounded # limit planner consult scope
+   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan=bounded             # limit planner consult scope
    /dhpk:flow-drive <confirmed-spec-or-change-id> --worker=codex             # explicit worker override
    ```
 3. **Review Changes**: After editing code, dispatch specialized reviewers:
    ```text
-   /dhpk:review-pending                              # trigger applicable reviewers (code, security, db)
+   /dhpk:change-verdict pending                       # trigger applicable reviewers (code, security, db)
    /dhpk:change-verdict --mode code                  # produce read-only change verdict
    ```
 4. **Pre-Commit Verification**: Run pre-commit quality gates (lint, typecheck, tests):
@@ -149,7 +149,7 @@ After installation, daily development follows this 5-step standard workflow (usi
 `flow-guide` is the read-only owner of help, route, rules, next, and close.
 `route` without `--go` is advice; `route --go` can hand off one available
 implicit-eligible target and never executes an explicit-only target.
-`flow-drive` is explicit-only and has no route or workflow mode; `--plan-mode`
+`flow-drive` is explicit-only and has no route or workflow mode; `--plan[=auto|bounded|discovery]`
 selects only the optional planner consult scope. It accepts a confirmed
 specification or change ID. Proposal authoring belongs to the external
 `$openspec-propose` skill. See the [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md)

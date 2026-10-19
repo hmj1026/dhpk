@@ -117,7 +117,7 @@ selections are independent from Model default/fallback pairs.
 ## Core dispatch & review
 
 Planner consult scope is selected per invocation with
-`--plan[=auto|bounded|discovery]` and requires `--plan`; an enabled `--plan`
+`--plan[=auto|bounded|discovery]`; an enabled `--plan`
 without a mode defaults to `auto`. This is not a `userConfig` key and does not
 change the `planner_model` / `planner_effort` defaults or the planner's work
 mode. See [Basic Operations](./basic-operations.md)
