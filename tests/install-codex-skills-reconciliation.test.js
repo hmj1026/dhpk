@@ -43,12 +43,9 @@ function tddRenamePlugin() {
   const currentName = 'tdd-workflow';
   const legacyName = 'dhpk-tdd-workflow';
   const codexSkills = path.join(fakePlugin, 'codex', 'skills');
-  fs.mkdirSync(codexSkills, { recursive: true });
-  fs.cpSync(
-    path.join(ROOT, 'plugins', 'dhpk', 'skills', currentName),
-    path.join(codexSkills, currentName),
-    { recursive: true, dereference: true },
-  );
+  const skillDir = path.join(codexSkills, currentName);
+  fs.mkdirSync(skillDir, { recursive: true });
+  fs.writeFileSync(path.join(skillDir, 'SKILL.md'), `---\nname: ${currentName}\ndescription: Synthetic legacy-name fixture.\n---\n\nFixture skill.\n`);
   fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
   fs.mkdirSync(path.join(fakePlugin, 'manifests'), { recursive: true });
