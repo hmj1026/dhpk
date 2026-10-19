@@ -19,13 +19,16 @@ set -o pipefail
 
 . "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/command-inspect.sh"
 
 PAYLOAD="$(dhpk_read_payload)"
 CMD="$(extract_tool_input command "$PAYLOAD")"
 [ -z "$CMD" ] && exit 0
 
-# Strip shell comments before matching — avoids false-positives on text after `#`.
-CMD_STRIPPED="$(printf '%s' "$CMD" | sed 's/[[:space:]]*#.*//')"
+# Quote-aware comment strip. A '#' inside quotes stays data, so it cannot
+# hide a later flag or redirect.
+dhpk_inspect_command "$CMD"
+CMD_STRIPPED="$DHPK_STRIPPED"
 
 # Pattern 1: rm -rf on root or sensitive top-level dirs.
 # Whitelist approach: only block known-dangerous targets to avoid false-positives
@@ -57,21 +60,24 @@ if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:];&|])chmod[[:space:]]+(-
     exit 2
 fi
 
-# Pattern 5: git commit / push with --no-verify — bypasses the pre-commit /
-# pre-push hook gates (lint, type-check, test baseline, etc.) the harness and
-# projects install. Block the explicit long form (unambiguous for both commit
-# and push; short `-n` is overloaded — push's `-n` means --dry-run — so it is
-# intentionally NOT matched). Fix the failing gate instead of skipping it.
+# Pattern 5: git commit / push with --no-verify. The flag must be an argv of
+# that invocation. A quoted message, a real comment, or push -n (dry-run) does
+# not count, and one segment cannot exempt another.
 # Opt out for a session: DHPK_ALLOW_NO_VERIFY=1
-# Strip quoted runs (commit messages, etc.) before matching the flag — a real
-# `--no-verify` flag is never inside quotes, so this avoids false-positives like
-# `git commit -m "do not skip --no-verify"`.
-CMD_FLAGS="$(printf '%s' "$CMD_STRIPPED" | sed "s/'[^']*'//g; s/\"[^\"]*\"//g")"
-if [ "${DHPK_ALLOW_NO_VERIFY:-0}" = "0" ] && \
-   printf '%s' "$CMD_FLAGS" | grep -Eq '(^|[[:space:]])git[[:space:]]+(commit|push)([[:space:]]|$)' && \
-   printf '%s' "$CMD_FLAGS" | grep -Eq '(^|[[:space:]])--no-verify([[:space:]]|=|$)'; then
-    echo "[bash-guard] blocked: '--no-verify' bypasses the pre-commit/pre-push gates. Fix the failing check; if you must bypass, set DHPK_ALLOW_NO_VERIFY=1 or run outside Claude." >&2
-    exit 2
+if [ "${DHPK_ALLOW_NO_VERIFY:-0}" = "0" ]; then
+    _nv_i=0
+    while [ "$_nv_i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
+        case "${DHPK_GIT_SUB[$_nv_i]}" in
+            commit|push)
+                if [ "${DHPK_GIT_NO_VERIFY[$_nv_i]}" = "1" ]; then
+                    echo "[bash-guard] blocked: '--no-verify' bypasses the pre-commit/pre-push gates. Fix the failing check; if you must bypass, set DHPK_ALLOW_NO_VERIFY=1 or run outside Claude." >&2
+                    exit 2
+                fi
+                ;;
+        esac
+        _nv_i=$((_nv_i + 1))
+    done
+    unset _nv_i
 fi
 
 # Pattern 6: shell writes into .env files (redirection / tee) — closes the

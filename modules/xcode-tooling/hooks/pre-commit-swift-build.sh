@@ -29,6 +29,7 @@
 set -o pipefail
 
 . "$(dirname "$0")/../../../scripts/hooks/_lib/payload.sh"
+. "$(dirname "$0")/../../../scripts/hooks/_lib/command-inspect.sh"
 
 stdin_data="$(cat 2>/dev/null || true)"
 [ -z "$stdin_data" ] && exit 0
@@ -36,31 +37,21 @@ stdin_data="$(cat 2>/dev/null || true)"
 cmd="$(extract_tool_input command "$stdin_data")"
 [ -z "$cmd" ] && exit 0
 
-# Only intercept real `git commit*`; skip plumbing `git commit-tree`.
-case "$cmd" in
-    *"git commit-tree"*) exit 0 ;;
-    *"git commit"*) ;;
-    *) exit 0 ;;
-esac
+dhpk_inspect_command "$cmd"
+dhpk_load_commit_roots '[skip-swift-build]' 'pre-commit-swift' || exit 0
 
-if echo "$cmd" | grep -Fq '[skip-swift-build]'; then
-    echo "[pre-commit-swift] [skip-swift-build] skip marker found; bypassing build gate" >&2
-    exit 0
-fi
+swift_check_root() {
+local ROOT="$1"
+cd "$ROOT" || return 0
 
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
-
-staged="$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)"
-[ -z "$staged" ] && exit 0
+staged="$(git -C "$ROOT" diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)"
+[ -z "$staged" ] && return 0
 
 has_swift=0
 while IFS= read -r f; do
     case "$f" in *.swift) has_swift=1; break ;; esac
 done <<< "$staged"
-[ "$has_swift" -eq 1 ] || exit 0
-
-ROOT="$(git rev-parse --show-toplevel)"
-cd "$ROOT" || exit 0
+[ "$has_swift" -eq 1 ] || return 0
 . "$(dirname "$0")/../../../scripts/hooks/_lib/load-project-config.sh"
 
 SCHEME="${CLAUDE_PLUGIN_OPTION_XCODE_SCHEME:-}"
@@ -108,7 +99,7 @@ ls "$ROOT"/*.xcodeproj  >/dev/null 2>&1 && has_xcode_project=1
 if command -v xcodebuild >/dev/null 2>&1 && [ "$has_xcode_project" -eq 1 ]; then
     if [ -z "$SCHEME" ]; then
         echo "[pre-commit-swift] WARN: xcode project present but xcode_scheme unset; skipping build gate (set pluginConfigs.dhpk@dhpk.options.xcode_scheme to enable)" >&2
-        exit 0
+        return 0
     fi
     echo "[pre-commit-swift] staged .swift detected; xcodebuild build (scheme=$SCHEME, dest=$BUILD_DEST)..." >&2
     $BUILD_TIMEOUT_CMD xcodebuild build -scheme "$SCHEME" -destination "$BUILD_DEST" -quiet >&2
@@ -119,7 +110,7 @@ if command -v xcodebuild >/dev/null 2>&1 && [ "$has_xcode_project" -eq 1 ]; then
         else
             echo "[pre-commit-swift] FAIL: build failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
         fi
-        exit 2
+        return 2
     fi
     if [ "$SKIP_TESTS" != "true" ]; then
         test_dest="$DEST"
@@ -143,12 +134,12 @@ if command -v xcodebuild >/dev/null 2>&1 && [ "$has_xcode_project" -eq 1 ]; then
                 else
                     echo "[pre-commit-swift] FAIL: tests failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
                 fi
-                exit 2
+                return 2
             fi
         fi
     fi
     if [ "$SKIP_TESTS" = "true" ]; then echo "[pre-commit-swift] OK: build passed (tests skipped)" >&2; else echo "[pre-commit-swift] OK: build + tests passed" >&2; fi
-    exit 0
+    return 0
 fi
 
 if command -v swift >/dev/null 2>&1 && [ -f "$ROOT/Package.swift" ]; then
@@ -161,7 +152,7 @@ if command -v swift >/dev/null 2>&1 && [ -f "$ROOT/Package.swift" ]; then
         else
             echo "[pre-commit-swift] FAIL: swift build failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
         fi
-        exit 2
+        return 2
     fi
     if [ "$SKIP_TESTS" != "true" ]; then
         echo "[pre-commit-swift] swift test..." >&2
@@ -173,12 +164,19 @@ if command -v swift >/dev/null 2>&1 && [ -f "$ROOT/Package.swift" ]; then
             else
                 echo "[pre-commit-swift] FAIL: swift test failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
             fi
-            exit 2
+            return 2
         fi
     fi
     echo "[pre-commit-swift] OK: swift build/test passed" >&2
-    exit 0
+    return 0
 fi
 
 echo "[pre-commit-swift] WARN: no xcodebuild+scheme or swift+Package.swift found; skipping build gate" >&2
-exit 0
+return 0
+}
+
+swift_status=0
+for ROOT in "${DHPK_COMMIT_ROOTS[@]}"; do
+    swift_check_root "$ROOT" || swift_status=$?
+done
+exit "$swift_status"

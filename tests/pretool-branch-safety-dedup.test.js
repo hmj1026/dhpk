@@ -31,10 +31,10 @@ function mkTempRepo() {
   return dir;
 }
 
-function runHook(cwd, tmpdir, extraEnv, sessionId = 'testsess1') {
+function runHook(cwd, tmpdir, extraEnv, sessionId = 'testsess1', command = 'git commit -m x') {
   const payload = {
     session_id: sessionId,
-    tool_input: { command: 'git commit -m x' },
+    tool_input: { command },
   };
   return runHookRaw(HOOK, {
     cwd,
@@ -127,6 +127,57 @@ test('block mode is never deduped (5.3)', () => {
     assert.strictEqual(second.status, 2, `second run should also exit 2; stderr: ${second.stderr}`);
     assert.ok(second.stderr.includes('BLOCKED'),
       `second run stderr should also contain BLOCKED (no dedup in block mode); stderr: ${second.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('git -C uses that repository and not the session checkout', () => {
+  const session = mkTempRepo();
+  const other = mkTempRepo();
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bs-state-'));
+  try {
+    spawnSync('git', ['checkout', '-q', '-b', 'feature'], { cwd: other });
+    const elsewhere = runHook(session, stateDir, {}, 'sess-target', `git -C ${other} commit -m x`);
+    assert.strictEqual(elsewhere.status, 0, elsewhere.stderr);
+    assert.ok(!elsewhere.stdout.includes('[branch-safety] REMINDER'), elsewhere.stdout);
+
+    const here = runHook(session, stateDir, {}, 'sess-target-here', 'git commit -m x');
+    assert.strictEqual(here.status, 0, here.stderr);
+    assert.ok(here.stdout.includes('[branch-safety] REMINDER'), here.stdout);
+  } finally {
+    fs.rmSync(session, { recursive: true, force: true });
+    fs.rmSync(other, { recursive: true, force: true });
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('a dry-run segment does not exempt a later commit', () => {
+  const repo = mkTempRepo();
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bs-state-'));
+  try {
+    const res = runHook(repo, stateDir, {}, 'sess-dry', 'git commit --dry-run; git commit -m x');
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(res.stdout.includes('[branch-safety] REMINDER'), res.stdout);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('commit-tree alone does not warn, and an unknown mode is not off', () => {
+  const repo = mkTempRepo();
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bs-state-'));
+  try {
+    const plumbing = runHook(repo, stateDir, {}, 'sess-tree', 'git commit-tree HEAD');
+    assert.strictEqual(plumbing.status, 0, plumbing.stderr);
+    assert.ok(!plumbing.stdout.includes('[branch-safety] REMINDER'), plumbing.stdout);
+
+    const unknown = runHook(repo, stateDir, { DHPK_BRANCH_SAFETY: 'disabled' }, 'sess-typo');
+    assert.strictEqual(unknown.status, 0, unknown.stderr);
+    assert.match(unknown.stderr, /branch_safety value 'disabled'/);
+    assert.ok(unknown.stdout.includes('[branch-safety] REMINDER'), unknown.stdout);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
     fs.rmSync(stateDir, { recursive: true, force: true });

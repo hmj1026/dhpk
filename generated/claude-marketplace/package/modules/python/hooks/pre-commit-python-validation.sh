@@ -23,6 +23,7 @@
 set -o pipefail
 
 . "$(dirname "$0")/../../../scripts/hooks/_lib/payload.sh"
+. "$(dirname "$0")/../../../scripts/hooks/_lib/command-inspect.sh"
 . "$(dirname "$0")/_lib/python-env.sh"
 
 stdin_data="$(cat 2>/dev/null || true)"
@@ -31,20 +32,11 @@ stdin_data="$(cat 2>/dev/null || true)"
 cmd="$(extract_tool_input command "$stdin_data")"
 [ -z "$cmd" ] && exit 0
 
-# Only intercept real `git commit*`; skip plumbing `git commit-tree`.
-case "$cmd" in
-    *"git commit-tree"*) exit 0 ;;
-    *"git commit"*) ;;
-    *) exit 0 ;;
-esac
+dhpk_inspect_command "$cmd"
+dhpk_load_commit_roots '[skip-python-lint]' 'pre-commit-py' || exit 0
 
-if echo "$cmd" | grep -Fq '[skip-python-lint]'; then
-    echo "[pre-commit-py] [skip-python-lint] skip marker found in command; bypassing" >&2
-    exit 0
-fi
-
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
-ROOT="$(git rev-parse --show-toplevel)"
+py_check_root() {
+local ROOT="$1"
 
 # Collect non-vendor staged .py files. NUL keeps spaces, quotes, and newlines
 # as path data; the names are never joined back into a shell command.
@@ -56,14 +48,14 @@ while IFS= read -r -d '' f; do
     staged_py+=("$ROOT/$f")
 done < <(git -C "$ROOT" diff --cached -z --name-only --diff-filter=ACMR 2>/dev/null || true)
 
-[ "${#staged_py[@]}" -eq 0 ] && exit 0
+[ "${#staged_py[@]}" -eq 0 ] && return 0
 
 RUFF_BIN="${CLAUDE_PLUGIN_OPTION_RUFF_BIN:-ruff}"
 PREFIX="$(py_runner_prefix)"
 prefix_rc=$?
 if [ "$prefix_rc" -eq 2 ]; then
     echo "[pre-commit-py] FAIL: PYTHON_RUNNER contains shell syntax and was not executed." >&2
-    exit 2
+    return 2
 fi
 TC="${CLAUDE_PLUGIN_OPTION_PYTHON_TYPECHECKER:-pyright}"
 RUFF_TIMEOUT_SECS=60
@@ -157,4 +149,11 @@ for pdir in "${pdirs[@]}"; do
 done
 
 [ "$status" -eq 0 ] && echo "[pre-commit-py] OK: all configured checks passed" >&2
-exit "$status"
+return "$status"
+}
+
+py_status=0
+for ROOT in "${DHPK_COMMIT_ROOTS[@]}"; do
+    py_check_root "$ROOT" || py_status=$?
+done
+exit "$py_status"

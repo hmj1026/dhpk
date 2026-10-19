@@ -65,6 +65,35 @@ test('git commit and git push with --no-verify are blocked', () => {
   }
 });
 
+test('a quoted hash does not hide a later --no-verify flag', () => {
+  const res = runHook('git commit -m "fix #1" --no-verify');
+  assert.strictEqual(res.status, 2, res.stderr);
+  assert.match(res.stderr, /--no-verify/i);
+});
+
+test('a quoted message that mentions --no-verify is not a flag', () => {
+  const res = runHook('git commit -m "do not skip --no-verify"');
+  assert.strictEqual(res.status, 0, res.stderr);
+});
+
+test('a real comment does not count as --no-verify, and push -n is not that flag', () => {
+  for (const command of ['git commit -m x # --no-verify', 'git push -n origin main', "echo 'git commit --no-verify'"]) {
+    const res = runHook(command);
+    assert.strictEqual(res.status, 0, `${command}: ${res.stderr}`);
+  }
+});
+
+test('commit-tree does not exempt a later commit --no-verify', () => {
+  const res = runHook('git commit-tree HEAD; git commit -m x --no-verify');
+  assert.strictEqual(res.status, 2, res.stderr);
+});
+
+test('a quoted hash does not hide an .env redirect', () => {
+  const res = runHook('echo "foo # bar" > .env');
+  assert.strictEqual(res.status, 2, res.stderr);
+  assert.match(res.stderr, /\.env/);
+});
+
 test('heredoc write to .env via cat > is blocked (D6 bypass closed)', () => {
   const res = runHook("cat > .env <<'EOF'");
   assert.strictEqual(res.status, 2, `expected blocked, got: ${res.status} / ${res.stderr}`);

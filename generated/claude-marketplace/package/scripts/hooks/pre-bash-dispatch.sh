@@ -46,12 +46,11 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
     # (bash + payload parse + jq) per active module on every command.
     # The hooks still self-skip on non-commit payloads, so this is purely perf.
     . "$PLUGIN_ROOT/scripts/hooks/_lib/payload.sh"
+    . "$PLUGIN_ROOT/scripts/hooks/_lib/command-inspect.sh"
     _cmd="$(extract_tool_input command "$payload")"
     _is_commit=0
-    case "$_cmd" in
-        *"git commit-tree"*) _is_commit=0 ;;
-        *"git commit"*)      _is_commit=1 ;;
-    esac
+    dhpk_inspect_command "$_cmd"
+    dhpk_command_has_commit && _is_commit=1
 
     # Process substitution keeps this loop in the current shell, so the
     # `exit "$rc"` below still aborts the whole bash call on a gate failure.
