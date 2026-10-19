@@ -9,7 +9,7 @@ files without blocking legitimate session scratchpad work.
 
 ### Requirement: Lint-config protection honors an active OpenSpec change's tasks.md
 
-Before blocking an edit to a protected lint/formatter config file, `pre-edit-guard.sh` SHALL check whether the file's basename is listed in any active (non-archived) `openspec/changes/*/tasks.md`; on a match it SHALL allow the edit and print a one-line notice naming the change. The `DHPK_PROTECT_LINT_CONFIGS=0` escape SHALL keep working.
+Before blocking an edit to a protected lint/formatter config file, `pre-edit-guard.sh` SHALL check whether the file's basename is listed in any active (non-archived) `openspec/changes/*/tasks.md`. On a match it SHALL skip only that lint-config block, print a one-line notice naming the change, and continue later independent checks. A match SHALL NOT skip `GUARD_EXTRA_PATTERNS`, including the fail-closed diagnostic for an invalid regex. The `DHPK_PROTECT_LINT_CONFIGS=0` escape SHALL keep working.
 
 #### Scenario: tasks.md-listed config edit is allowed
 
