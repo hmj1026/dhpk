@@ -52,6 +52,10 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
     dhpk_inspect_command "$_cmd"
     dhpk_command_has_commit && _is_commit=1
 
+    # Outer Host budget is NOT_RUN. hooks.json sets no timeout on this Bash
+    # hook, and this change did not measure the Host default. Each module
+    # tool keeps its own deadline. Do not raise those deadlines to hide an
+    # unknown outer limit, and do not treat an unmeasured Host as blocking.
     # Process substitution keeps this loop in the current shell, so the
     # `exit "$rc"` below still aborts the whole bash call on a gate failure.
     while IFS= read -r _m; do

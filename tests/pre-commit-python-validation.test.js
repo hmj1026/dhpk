@@ -244,6 +244,8 @@ test('ruff findings block, internal errors warn, and a missing tool skips', () =
     assert.strictEqual(internal.status, 0, internal.stderr);
     assert.match(internal.stderr, /WARN: ruff check exited 2/);
     assert.doesNotMatch(internal.stderr, /FAIL: ruff check/);
+    assert.doesNotMatch(internal.stderr, /all configured checks passed/);
+    assert.match(internal.stderr, /not recorded as a pass/);
     const missing = runPyHook(repo, {
       ...base,
       PATH: '/usr/bin:/bin',
@@ -251,6 +253,8 @@ test('ruff findings block, internal errors warn, and a missing tool skips', () =
     });
     assert.strictEqual(missing.status, 0, missing.stderr);
     assert.match(missing.stderr, /ruff not invokable/);
+    assert.doesNotMatch(missing.stderr, /all configured checks passed/);
+    assert.match(missing.stderr, /not recorded as a pass/);
   } finally {
     rmRepo(repo);
     fs.rmSync(binDir, { recursive: true, force: true });
@@ -317,6 +321,43 @@ test('a commit -C checks that repository and a foreign skip marker does not bypa
   } finally {
     rmRepo(session);
     rmRepo(target);
+    fs.rmSync(binDir, { recursive: true, force: true });
+  }
+});
+
+test('a missing deadline mechanism does not start ruff or record a pass', () => {
+  const repo = mkRepo({ prefix: 'dhpk-py-deadline-', gitConfig: true });
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-py-bin-'));
+  const logPath = path.join(repo, 'argv.log');
+  const hidden = new Set(['timeout', 'gtimeout', 'perl', 'ruff']);
+  try {
+    for (const source of ['/usr/bin', '/bin']) {
+      if (!fs.existsSync(source)) continue;
+      for (const name of fs.readdirSync(source)) {
+        if (hidden.has(name) || fs.existsSync(path.join(binDir, name))) continue;
+        try {
+          fs.symlinkSync(path.join(source, name), path.join(binDir, name));
+        } catch {
+          // Skip entries that cannot be linked; the hook only needs the usual tools.
+        }
+      }
+    }
+    writeStub(binDir, 'ruff');
+    writeRel(repo, 'pyproject.toml', '[project]\nname = "demo"\n');
+    writeRel(repo, 'demo.py');
+    stage(repo, ['pyproject.toml', 'demo.py']);
+    const res = runPyHook(repo, {
+      ARGV_LOG: logPath,
+      PATH: binDir,
+      CLAUDE_PLUGIN_OPTION_PYTHON_RUNNER: '',
+      CLAUDE_PLUGIN_OPTION_PYTHON_TYPECHECKER: 'none',
+    });
+    assert.strictEqual(res.status, 2, res.stderr || (res.error && res.error.message));
+    assert.match(res.stderr, /deadline unavailable/);
+    assert.doesNotMatch(res.stderr, /all configured checks passed/);
+    assert.deepStrictEqual(callsNamed(readLog(logPath), 'check'), []);
+  } finally {
+    rmRepo(repo);
     fs.rmSync(binDir, { recursive: true, force: true });
   }
 });
