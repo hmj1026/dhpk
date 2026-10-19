@@ -24,6 +24,7 @@ set -o pipefail
 
 . "$(dirname "$0")/../../../scripts/hooks/_lib/payload.sh"
 . "$(dirname "$0")/../../../scripts/hooks/_lib/command-inspect.sh"
+. "$(dirname "$0")/../../../scripts/hooks/_lib/portable-timeout.sh"
 . "$(dirname "$0")/_lib/python-env.sh"
 
 stdin_data="$(cat 2>/dev/null || true)"
@@ -75,24 +76,23 @@ done
 [ "${#pdirs[@]}" -gt 0 ] && echo "[pre-commit-py] ${#staged_py[@]} staged .py file(s) detected; running checks..." >&2
 
 # run_tool <project_dir> <tool_bin> <timeout_secs> <argv...>
-#   Each path and runner word is one argument. timeout stays a command, not text.
+#   Each path and runner word is one argument. The deadline helper owns the
+#   clock; a missing deadline mechanism returns 125 and does not start the tool.
 run_tool() {
     local pdir="$1" tool="$2" tsec="$3"
     shift 3
     local -a cmd
     cmd=()
-    if command -v timeout >/dev/null 2>&1; then
-        cmd+=(timeout "$tsec")
-    fi
     if [ -n "$PREFIX" ]; then
         py_runner_words "$PREFIX" || return 2
         cmd+=("${PY_RUNNER_WORDS[@]}")
     fi
     cmd+=("$tool" "$@")
-    ( cd "$pdir" && "${cmd[@]}" ) >&2
+    ( cd "$pdir" && run_with_timeout "$tsec" "${cmd[@]}" ) >&2
 }
 
 status=0
+incomplete=0
 for pdir in "${pdirs[@]}"; do
     files=()
     for f in "${staged_py[@]}"; do
@@ -111,8 +111,12 @@ for pdir in "${pdirs[@]}"; do
         elif [ "$rc" -eq 124 ]; then
             echo "[pre-commit-py] FAIL: ruff check timed out after ${RUFF_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-python-lint]'." >&2
             status=2
+        elif [ "$rc" -eq 125 ]; then
+            echo "[pre-commit-py] FAIL: deadline unavailable; ruff check was not started." >&2
+            status=2
         elif [ "$rc" -ge 2 ]; then
             echo "[pre-commit-py] WARN: ruff check exited $rc (internal/config error) — not blocking; fix your ruff config." >&2
+            incomplete=1
         fi
         run_tool "$pdir" "$RUFF_BIN" "$RUFF_TIMEOUT_SECS" format --check "${files[@]}"; rc=$?
         if [ "$rc" -eq 1 ]; then
@@ -121,11 +125,16 @@ for pdir in "${pdirs[@]}"; do
         elif [ "$rc" -eq 124 ]; then
             echo "[pre-commit-py] FAIL: ruff format --check timed out after ${RUFF_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-python-lint]'." >&2
             status=2
+        elif [ "$rc" -eq 125 ]; then
+            echo "[pre-commit-py] FAIL: deadline unavailable; ruff format was not started." >&2
+            status=2
         elif [ "$rc" -ge 2 ]; then
             echo "[pre-commit-py] WARN: ruff format exited $rc (internal/config error) — not blocking." >&2
+            incomplete=1
         fi
     else
         echo "[pre-commit-py] WARN: ruff not invokable under ${pdir#$ROOT/} (runner='${PREFIX:-PATH}') — style gate skipped" >&2
+        incomplete=1
     fi
 
     # 3. type checker (project-wide)
@@ -140,15 +149,25 @@ for pdir in "${pdirs[@]}"; do
             if [ "$rc" -eq 124 ]; then
                 echo "[pre-commit-py] FAIL: $TC timed out after ${TYPECHECK_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-python-lint]'." >&2
                 status=2
+            elif [ "$rc" -eq 125 ]; then
+                echo "[pre-commit-py] FAIL: deadline unavailable; $TC was not started." >&2
+                status=2
             elif [ "$rc" -ne 0 ]; then
                 echo "[pre-commit-py] FAIL: $TC reported type errors. Fix them or add '[skip-python-lint]'." >&2
                 status=2
             fi
+        elif [ -n "$tcbin" ]; then
+            echo "[pre-commit-py] WARN: $TC not invokable — type check skipped" >&2
+            incomplete=1
         fi
     fi
 done
 
-[ "$status" -eq 0 ] && echo "[pre-commit-py] OK: all configured checks passed" >&2
+if [ "$status" -eq 0 ] && [ "$incomplete" -eq 0 ]; then
+    echo "[pre-commit-py] OK: all configured checks passed" >&2
+elif [ "$status" -eq 0 ]; then
+    echo "[pre-commit-py] WARN: configured checks were skipped or reported an internal error; not recorded as a pass" >&2
+fi
 return "$status"
 }
 

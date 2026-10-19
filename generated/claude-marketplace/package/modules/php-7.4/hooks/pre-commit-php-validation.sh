@@ -26,6 +26,7 @@ set -o pipefail
 
 . "$(dirname "$0")/../../../scripts/hooks/_lib/payload.sh"
 . "$(dirname "$0")/../../../scripts/hooks/_lib/command-inspect.sh"
+. "$(dirname "$0")/../../../scripts/hooks/_lib/portable-timeout.sh"
 
 stdin_data="$(cat 2>/dev/null || true)"
 [ -z "$stdin_data" ] && exit 0
@@ -96,23 +97,18 @@ echo "[pre-commit-php] ${#staged_php[@]} staged .php file(s) detected; running c
 CS_FIXER_TIMEOUT_SECS=60
 PHPSTAN_TIMEOUT_SECS=120
 PSALM_TIMEOUT_SECS=240
-CS_FIXER_TIMEOUT_CMD=""
-PHPSTAN_TIMEOUT_CMD=""
-PSALM_TIMEOUT_CMD=""
-if command -v timeout >/dev/null 2>&1; then
-    CS_FIXER_TIMEOUT_CMD="timeout $CS_FIXER_TIMEOUT_SECS"
-    PHPSTAN_TIMEOUT_CMD="timeout $PHPSTAN_TIMEOUT_SECS"
-    PSALM_TIMEOUT_CMD="timeout $PSALM_TIMEOUT_SECS"
-fi
+php_incomplete=0
 
 # --- 1. php-cs-fixer (style) ---
 if [ -n "$cs_cfg" ] && [ -n "$cs_bin" ]; then
-    $CS_FIXER_TIMEOUT_CMD "$cs_bin" fix --dry-run --using-cache=no --no-interaction \
+    run_with_timeout "$CS_FIXER_TIMEOUT_SECS" "$cs_bin" fix --dry-run --using-cache=no --no-interaction \
             --path-mode=intersection "${staged_php[@]}" >&2
     rc=$?
     if [ "$rc" -ne 0 ]; then
         if [ "$rc" -eq 124 ]; then
             echo "[pre-commit-php] FAIL: php-cs-fixer timed out after ${CS_FIXER_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-php-lint]' to commit msg." >&2
+        elif [ "$rc" -eq 125 ]; then
+            echo "[pre-commit-php] FAIL: deadline unavailable; php-cs-fixer was not started." >&2
         else
             echo "[pre-commit-php] FAIL: php-cs-fixer found style issues. Run 'php-cs-fixer fix' or add '[skip-php-lint]' to commit msg." >&2
         fi
@@ -120,16 +116,19 @@ if [ -n "$cs_cfg" ] && [ -n "$cs_bin" ]; then
     fi
 elif [ -n "$cs_cfg" ]; then
     echo "[pre-commit-php] WARN: $cs_cfg present but php-cs-fixer binary missing (run 'composer install')" >&2
+    php_incomplete=1
 fi
 
 # --- 2. phpstan (static analysis) ---
 if [ -n "$phpstan_cfg" ] && [ -n "$phpstan_bin" ]; then
-    $PHPSTAN_TIMEOUT_CMD "$phpstan_bin" analyse --no-interaction --no-progress \
+    run_with_timeout "$PHPSTAN_TIMEOUT_SECS" "$phpstan_bin" analyse --no-interaction --no-progress \
             -c "$phpstan_cfg" "${staged_php[@]}" >&2
     rc=$?
     if [ "$rc" -ne 0 ]; then
         if [ "$rc" -eq 124 ]; then
             echo "[pre-commit-php] FAIL: phpstan analyse timed out after ${PHPSTAN_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-php-lint]' to commit msg." >&2
+        elif [ "$rc" -eq 125 ]; then
+            echo "[pre-commit-php] FAIL: deadline unavailable; phpstan was not started." >&2
         else
             echo "[pre-commit-php] FAIL: phpstan analyse failed. Fix errors or add '[skip-php-lint]' to commit msg." >&2
         fi
@@ -137,6 +136,7 @@ if [ -n "$phpstan_cfg" ] && [ -n "$phpstan_bin" ]; then
     fi
 elif [ -n "$phpstan_cfg" ]; then
     echo "[pre-commit-php] WARN: $phpstan_cfg present but phpstan binary missing (run 'composer install')" >&2
+    php_incomplete=1
 fi
 
 # --- 3. psalm (static analysis) ---
@@ -144,11 +144,13 @@ fi
 # project. Cost is acceptable because psalm uses its own cache by default —
 # the 240s ceiling is sized for a cold-cache run, not a typical warm one.
 if [ -n "$psalm_cfg" ] && [ -n "$psalm_bin" ]; then
-    $PSALM_TIMEOUT_CMD "$psalm_bin" --no-progress --config="$psalm_cfg" >&2
+    run_with_timeout "$PSALM_TIMEOUT_SECS" "$psalm_bin" --no-progress --config="$psalm_cfg" >&2
     rc=$?
     if [ "$rc" -ne 0 ]; then
         if [ "$rc" -eq 124 ]; then
             echo "[pre-commit-php] FAIL: psalm timed out after ${PSALM_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-php-lint]' to commit msg." >&2
+        elif [ "$rc" -eq 125 ]; then
+            echo "[pre-commit-php] FAIL: deadline unavailable; psalm was not started." >&2
         else
             echo "[pre-commit-php] FAIL: psalm failed. Fix errors or add '[skip-php-lint]' to commit msg." >&2
         fi
@@ -156,9 +158,14 @@ if [ -n "$psalm_cfg" ] && [ -n "$psalm_bin" ]; then
     fi
 elif [ -n "$psalm_cfg" ]; then
     echo "[pre-commit-php] WARN: $psalm_cfg present but psalm binary missing (run 'composer install')" >&2
+    php_incomplete=1
 fi
 
-echo "[pre-commit-php] OK: all configured checks passed" >&2
+if [ "$php_incomplete" -eq 0 ]; then
+    echo "[pre-commit-php] OK: all configured checks passed" >&2
+else
+    echo "[pre-commit-php] WARN: configured checks were skipped; not recorded as a pass" >&2
+fi
 return 0
 }
 

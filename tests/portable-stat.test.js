@@ -365,6 +365,55 @@ test('file_mtime_epoch returns empty output successfully for a missing file with
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test('missing timeout, gtimeout, and perl does not start the command', () => {
+    const dir = makeTempDir();
+    try {
+      const bin = path.join(dir, 'bin');
+      const side = path.join(dir, 'side');
+      fs.mkdirSync(bin);
+      const res = runBash(
+        'source "$PORTABLE_TIMEOUT_LIB"; run_with_timeout 1 /bin/touch "$DHPK_SIDE"',
+        { ...process.env, PATH: bin, DHPK_SIDE: side },
+      );
+      assert.strictEqual(res.status, 125, res.stderr);
+      assert.match(res.stderr, /unavailable/);
+      assert.strictEqual(fs.existsSync(side), false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('perl deadline stops a same-group grandchild and does not claim other groups', () => {
+    const dir = makeTempDir();
+    try {
+      const bin = path.join(dir, 'bin');
+      const pidFile = path.join(dir, 'child.pid');
+      fs.mkdirSync(bin);
+      const perlPath = process.env.PATH.split(path.delimiter)
+        .map((entry) => path.join(entry, 'perl'))
+        .find((candidate) => fs.existsSync(candidate));
+      assert.ok(perlPath, 'a host Perl executable is required for the fallback probe');
+      fs.symlinkSync(perlPath, path.join(bin, 'perl'));
+      const sleepPath = ['/bin/sleep', '/usr/bin/sleep'].find((candidate) => fs.existsSync(candidate));
+      assert.ok(sleepPath, 'sleep is required on a fixed path');
+      const res = runBash(
+        `source "$PORTABLE_TIMEOUT_LIB"; run_with_timeout 1 /bin/sh -c "${sleepPath} 30 & echo \\$! > \\"$DHPK_PID_FILE\\"; wait"`,
+        { ...process.env, PATH: bin, DHPK_PID_FILE: pidFile },
+        10000,
+      );
+      assert.strictEqual(res.status, 124, res.stderr);
+      assert.ok(fs.existsSync(pidFile), 'grandchild pid was not recorded');
+      const pid = fs.readFileSync(pidFile, 'utf8').trim();
+      const alive = spawnSync('kill', ['-0', pid]);
+      if (alive.status === 0) {
+        spawnSync('kill', ['-9', pid]);
+      }
+      assert.notStrictEqual(alive.status, 0, `grandchild ${pid} kept running`);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 }
 
 run('portable-stat');
