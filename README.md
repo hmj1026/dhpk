@@ -154,6 +154,12 @@ selects only the optional planner consult scope. It accepts a confirmed
 specification or change ID. Proposal authoring belongs to the external
 `$openspec-propose` skill. See the [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md)
 and [feasibility comparison guidance](./docs/agent-guidance/feasibility-comparison.md).
+This 5-step list is the generic cadence, not a required pipeline. File count
+does not start it. Skip a step when its evidence already exists and still
+applies. Concrete shapes — bug, feature, legacy change, and PR prep — are in
+[Task scenarios](./docs/basic-operations.md#task-scenarios)
+([繁體中文](./docs/basic-operations.zh-TW.md#task-scenarios)).
+
 Use the [basic operations guide](./docs/basic-operations.md)
 for the full inspect → route → implement → review → verify → handoff flow.
 

@@ -238,6 +238,83 @@ inspect → verify surface → route → plan/classify → implement → review 
 
 快速查閱清單可參考：[技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
+### 任務情境<a id="task-scenarios"></a>
+
+依目標、風險、依賴與手上已有證據選入口。這四例不是四份五步流程。檔案數量
+不會自動啟動 OpenSpec、`flow-guide` 或整套管線。計畫、診斷、審查或驗證只要
+仍適用就直接重用，不因案例列出某個具名代理就重跑。
+
+技能能獨立使用，仍需要 Host 能力與已聲明的必要資源。缺可選輔助技能不應自動
+阻塞。缺必要能力時精確回報 `BLOCKED`、`UNAVAILABLE` 或 `NOT_RUN`，不要默默
+改走別條路。可否獨立安裝依 dependency-closure 與分發契約判定；裸 `SKILL.md`
+不是可執行 runtime。
+
+`flow-guide` 是唯讀建議；`flow-drive` 是 explicit-only 實作。以下案例都不授
+權 commit、push、merge 或 deploy。Claude 用 `/dhpk:<name>`；Codex 在
+project-local sync 之後用 `$<name>`；Cursor 用產生出來的本地 command。完整
+Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到什麼) 與
+[Codex skill 用法](./codex-skill-usage.zh-TW.md)。
+
+若這次有派發子代理，人工檢視一份代表性交接即可：必要輸入、讀寫範圍與工具、
+預期輸出、驗收方式，以及前序已確認結論。仍適用的上下文直接沿用；缺關鍵資料
+就明確阻塞。不要求每個案例都派發子代理。
+
+#### 修 bug
+
+單技能起步：先診斷。
+
+- **輸入**：仍缺原因的失敗現象（錯誤、失敗測試、或 log）。
+- **入口**：`/dhpk:code-trace --mode diagnose <symptom>`。
+- **產物**：可證偽的原因。原因確認後，有界修復（`tdd-workflow` 或
+  `/dhpk:flow-drive <confirmed-spec>`）加上同一行為的驗證。
+- **完成**：原現象已被解釋，且同一項檢查通過。
+- **阻塞**：沒有重現證據，或檢查所需的 Host／runtime 缺失。
+- **可跳過**：入口已是 `code-trace` 或 `flow-drive` 時不必再跑
+  `flow-guide`；已知原因的修復不必 OpenSpec；審查／驗證證據若仍對應此
+  diff 就不必重跑。
+
+#### 新增功能
+
+按需串接：實作已確認契約。
+
+- **輸入**：已確認的需求與驗收條件。
+- **入口**：`/dhpk:flow-drive <confirmed-spec-or-change-id>`。
+- **產物**：符合驗收的實作，再對**最終** diff 做適用審查與驗證。
+- **完成**：最終 diff 上的驗收檢查通過；被觸發路徑的必要審查仍有效。
+- **阻塞**：缺少驗收條件；必要能力不可用；未明確呼叫 `flow-drive`
+  （它是 explicit-only）。
+- **可跳過**：已有充分規格時不必 OpenSpec；實作 owner 已知時不必
+  `flow-guide`；非必要資源的可選技能。檔案數量不會啟動這條鏈。
+
+#### 舊系統變更
+
+在相容契約下做最小修改。
+
+- **輸入**：版本或相容限制，以及必須保留的行為。
+- **入口**：擁有該契約的 family skill（例如
+  `legacy-code-characterization` 或作用中的 stack module），或把該契約當
+  成 confirmed spec 交給 `/dhpk:flow-drive`。
+- **產物**：保留契約的最小 diff，加上必要回歸證據。
+- **完成**：相容行為仍成立；必要回歸仍有效。
+- **阻塞**：相容契約不明，或無法證明它的 runtime 缺失。
+- **可跳過**：功能交付規劃、OpenSpec，以及最終 diff 未觸發的 reviewer。
+
+#### 準備 PR
+
+重用證據；會改檔的檢查先跑完，再審查最終 diff。
+
+- **輸入**：選定變更，加上仍適用的計畫、診斷、審查或測試證據。
+- **入口**：先跑會改檔的 `/dhpk:precommit`（或專案格式化）直到 diff
+  穩定，再對**該** diff 跑 `/dhpk:change-verdict pending`，最後
+  `/dhpk:create-pr`（預設 dry-run；`--execute` 才建立 PR）。
+- **產物**：最終 diff、受影響路徑的有效證據，以及 `gh pr create` 指令或
+  PR URL。
+- **完成**：此 diff 的必要 gate 仍有效，且已明確使用 create-pr 入口。
+- **阻塞**：會改檔的檢查失敗，或後續修改讓審查／驗證證據過期。
+- **可跳過**：不必重跑所有 reviewer；已定案的原因不必再診斷；不必
+  OpenSpec。審查後若又改檔，只重查受影響證據。`create-pr` 不會
+  commit、push、merge 或 deploy。
+
 ### 標準五步開發工作流
 
 日常開發請遵循以下 5 步標準推進節奏，每一步均有明確的輸入、執行指令與完成門禁（Completion Criteria）：

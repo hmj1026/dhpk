@@ -150,6 +150,11 @@ explicit-only target。`flow-drive` 是 explicit-only，沒有 route/workflow mo
 提案 authoring 由外部 `$openspec-propose` skill 負責。另見
 [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md) 與
 [feasibility comparison guidance](./docs/agent-guidance/feasibility-comparison.md)。
+這五步是通用節奏，不是必跑管線。檔案數量不會啟動它。該步證據若已存在且
+仍適用就跳過。具體任務形狀（修 bug、新增功能、舊系統變更、準備 PR）見
+[任務情境](./docs/basic-operations.zh-TW.md#task-scenarios)
+（[English](./docs/basic-operations.md#task-scenarios)）。
+
 完整的 inspect → route → implement → review → verify → handoff 流程請看
 **[基本操作指南](./docs/basic-operations.zh-TW.md)**。
 

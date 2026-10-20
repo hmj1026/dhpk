@@ -249,6 +249,102 @@ When you know the outcome but haven't decided which capability to dispatch, Clau
 
 For a fast lookup, see the cheat sheet: [Skill and Slash Command Cheat Sheet](./skill-command-cheat-sheet.md) · [繁體中文](./skill-command-cheat-sheet.zh-TW.md).
 
+### Task scenarios<a id="task-scenarios"></a>
+
+Pick an entry from the goal, risk, dependencies, and evidence already in
+hand. These four cases are not four copies of the 5-step cadence. File count
+does not start OpenSpec, `flow-guide`, or the full pipeline. A sufficient
+plan, diagnosis, review, or verification is reused; do not rerun named agents
+because a case lists them.
+
+Skills still need the Host capability and their declared required resources.
+Optional helpers do not block. A missing required capability is
+`BLOCKED`, `UNAVAILABLE`, or `NOT_RUN` — not a silent fallback.
+Installability follows dependency-closure and the distribution contract; a
+bare `SKILL.md` is not a standalone runtime.
+
+`flow-guide` is read-only advice. `flow-drive` is explicit-only
+implementation. Neither case below authorizes commit, push, merge, or deploy.
+Claude uses `/dhpk:<name>`; Codex uses `$<name>` after project-local sync;
+Cursor uses the generated local command. Full Host grammar stays in
+[README — What you get](../README.md#what-you-get) and
+[Codex skill usage](./codex-skill-usage.md).
+
+If a run dispatches a subagent, one representative packet is enough: required
+inputs, write/read scope and tools, expected output, acceptance check, and
+confirmed prior conclusions. Reuse still-applicable context; block when a
+critical input is missing. Not every case needs a subagent.
+
+#### Bug fix
+
+Single-skill start: diagnose first.
+
+- **Input**: a failing observation (error, failing test, or log) that still
+  needs a cause.
+- **Entry**: `/dhpk:code-trace --mode diagnose <symptom>`.
+- **Output**: a falsifiable cause. After the cause is confirmed, a bounded
+  repair (`tdd-workflow` or `/dhpk:flow-drive <confirmed-spec>`) plus the
+  same-behavior check.
+- **Done**: the original observation is explained and that same check passes.
+- **Blocked**: no reproducing evidence, or the Host/runtime required for the
+  check is missing.
+- **Skip**: `flow-guide` when the owner is already `code-trace` or
+  `flow-drive`; OpenSpec on a known-cause repair; extra reviewers or
+  verifiers whose evidence still matches this diff.
+
+#### New feature
+
+On-demand chain: implement a confirmed contract.
+
+- **Input**: confirmed requirements and acceptance criteria.
+- **Entry**: `/dhpk:flow-drive <confirmed-spec-or-change-id>`.
+- **Output**: an implementation that meets acceptance, then applicable review
+  and verification of the **final** diff.
+- **Done**: acceptance checks pass on that diff; required reviews for
+  triggered paths are current.
+- **Blocked**: acceptance is missing; a required capability is unavailable;
+  `flow-drive` was not invoked (it is explicit-only).
+- **Skip**: OpenSpec when a sufficient spec already exists; `flow-guide` when
+  the implement owner is already known; optional skills that are not required
+  resources. File count does not start this chain.
+
+#### Legacy change
+
+Minimal edit under a compatibility contract.
+
+- **Input**: the version or compatibility limit and the behavior that must
+  stay.
+- **Entry**: the family skill that owns that contract (for example
+  `legacy-code-characterization` or the active stack module), or
+  `/dhpk:flow-drive` with that contract as the confirmed spec.
+- **Output**: the smallest diff that preserves the contract, plus the
+  required regression evidence.
+- **Done**: compatibility behavior still holds; required regression is
+  current.
+- **Blocked**: the compatibility contract is unknown, or the runtime needed
+  to prove it is missing.
+- **Skip**: feature-delivery planning, OpenSpec, and reviewers that the
+  final diff does not trigger.
+
+#### Prepare a PR
+
+Reuse evidence; mutate first, then review the final diff.
+
+- **Input**: the selected change plus any still-applicable plan, diagnosis,
+  review, or test evidence.
+- **Entry**: mutating `/dhpk:precommit` (or the project's formatter) until
+  the diff is stable, then `/dhpk:change-verdict pending` on **that** diff,
+  then `/dhpk:create-pr` (dry-run by default; `--execute` creates the PR).
+- **Output**: a final diff, current evidence for the affected paths, and a
+  `gh pr create` command or PR URL.
+- **Done**: required gates for this diff are current, and the create-pr
+  entry was used explicitly.
+- **Blocked**: mutating checks fail, or later edits left review/verify
+  evidence stale.
+- **Skip**: re-running every reviewer; re-diagnosing a settled cause;
+  OpenSpec. After a post-review edit, recheck only the affected evidence.
+  `create-pr` does not commit, push, merge, or deploy.
+
 ### Standard 5-Step Development Workflow
 
 Follow this 5-step standard cadence for day-to-day work, where each step defines clear inputs, execution commands, and explicit completion criteria:
