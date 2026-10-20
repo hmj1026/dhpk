@@ -17,15 +17,13 @@ exit 2
 `, { mode: 0o755 });
 process.on('exit', () => fs.rmSync(CODEX_STUB_BIN, { recursive: true, force: true }));
 const GENERATOR = path.join(ROOT, 'scripts', 'gen-codex-agents.js');
-const { collectCodexRuntimeErrors } = require(
-  path.join(ROOT, 'scripts', 'ci', '_lib', 'codex-runtime')
-);
-const { collectCodexProjectionReferenceErrors } = require(
-  path.join(ROOT, 'scripts', 'ci', '_lib', 'codex-runtime')
-);
-const { collectCodexCoverageErrors } = require(
-  path.join(ROOT, 'scripts', 'ci', '_lib', 'codex-runtime')
-);
+const {
+  collectCodexRuntimeErrors,
+  collectCodexProjectionReferenceErrors,
+  collectCodexCoverageErrors,
+  collectCodexCanonicalRoleDefaultErrors,
+} = require(path.join(ROOT, 'scripts', 'ci', '_lib', 'codex-runtime'));
+const { RUNTIME_METADATA } = require(path.join(ROOT, 'scripts', 'gen-codex-agents'));
 
 const EXPECTED_RUNTIME = {
   architect: ['gpt-6.1-sol', 'high'],
@@ -525,6 +523,61 @@ test('mutation: module-agent removal and default effort drift are reported', () 
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('Codex host-profile role_defaults match canonical agent runtime metadata', () => {
+  assert.deepStrictEqual(collectCodexCanonicalRoleDefaultErrors(ROOT), []);
+});
+
+test('a drifted Codex role_defaults value names the canonical role', () => {
+  const root = cloneProjectionFixture('codex-role-defaults-drift');
+  try {
+    const file = path.join(root, 'manifests', 'host-profiles.json');
+    const profiles = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const codex = profiles.profiles.find((profile) => profile.host === 'codex-cli');
+    codex.role_defaults.planner.effort = 'low';
+    fs.writeFileSync(file, `${JSON.stringify(profiles, null, 2)}\n`);
+    const errors = collectCodexCanonicalRoleDefaultErrors(root);
+    assert.ok(errors.some((error) => /planner/.test(error)), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a drifted RUNTIME_METADATA value names the canonical role', () => {
+  const drifted = {
+    ...RUNTIME_METADATA,
+    planner: { ...RUNTIME_METADATA.planner, effort: 'low' },
+  };
+  const errors = collectCodexCanonicalRoleDefaultErrors(ROOT, { runtimeMetadata: drifted });
+  assert.ok(errors.some((error) => /planner/.test(error)), errors.join('\n'));
+});
+
+test('a drifted worker toml value names the canonical role', () => {
+  const root = cloneProjectionFixture('codex-worker-toml-drift');
+  try {
+    const file = path.join(root, 'codex', 'agents', 'worker.toml');
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(
+      /model_reasoning_effort\s*=\s*"max"/,
+      'model_reasoning_effort = "low"',
+    ));
+    const errors = collectCodexCanonicalRoleDefaultErrors(root);
+    assert.ok(errors.some((error) => /worker/.test(error)), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('an explicit exception list documents a canonical role mismatch', () => {
+  const drifted = {
+    ...RUNTIME_METADATA,
+    planner: { ...RUNTIME_METADATA.planner, effort: 'low' },
+  };
+  const errors = collectCodexCanonicalRoleDefaultErrors(ROOT, {
+    runtimeMetadata: drifted,
+    exceptions: { planner: { model: RUNTIME_METADATA.planner.model, effort: 'low' } },
+  });
+  assert.deepStrictEqual(errors, []);
 });
 
 run('codex-runtime-contract');
