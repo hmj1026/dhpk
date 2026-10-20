@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { loadRuntimeModule, resolveRuntimeFile } = require('./_lib/runtime-loader');
@@ -39,32 +40,56 @@ const FEATURE_KEY = argVal('--feature');
 // Shared incomplete status taxonomy — used by request-stale, backlog, feature-complete
 const INCOMPLETE_STATUSES = ['pending', 'in development', 'in progress', 'nearly complete'];
 
+const REVIEW_STATE_FILE = '.claude_review_state.json';
+
+function commandOk(result) {
+  return !!result && result.code === 0 && typeof result.stdout === 'string';
+}
+
+// Index content that is not already represented by the worktree.
+// A fully staged change matches the worktree, so it must not get a second hash:
+// recording a pass and then staging the same bytes has to keep matching.
+function indexExtra(indexVsWorktree, cachedVsHead) {
+  if (!commandOk(indexVsWorktree)) return null;
+  if (indexVsWorktree.stdout.length === 0) return '';
+  if (!commandOk(cachedVsHead)) return null;
+  return cachedVsHead.stdout;
+}
+
 // ---------------------------------------------------------------------------
-// Input collection (4 git commands + 1 file read)
+// Input collection (git commands + review state)
 // ---------------------------------------------------------------------------
 async function collectInputs(root) {
-  const [nameStatus, porcelain, branch, diffStat] = await Promise.all([
+  const [nameStatus, porcelain, branch, diffStat, worktreeDiff, indexVsWorktree, cachedVsHead] = await Promise.all([
     runCapture('git', ['diff', '--name-status', 'HEAD'], { cwd: root }),
     runCapture('git', ['status', '--porcelain'], { cwd: root }),
     runCapture('git', ['branch', '--show-current'], { cwd: root }),
     runCapture('git', ['diff', '--stat', 'HEAD'], { cwd: root }),
+    runCapture('git', ['diff', 'HEAD'], { cwd: root }),
+    runCapture('git', ['diff', '--raw', '--abbrev=40'], { cwd: root }),
+    runCapture('git', ['diff', '--raw', '--abbrev=40', '--cached', 'HEAD'], { cwd: root }),
   ]);
 
   const head = await gitShortHead(root);
 
   let reviewState = null;
   try {
-    const raw = fs.readFileSync(path.join(root, '.claude_review_state.json'), 'utf8');
+    const raw = fs.readFileSync(path.join(root, REVIEW_STATE_FILE), 'utf8');
     reviewState = JSON.parse(raw);
   } catch {
     // no state file — graceful fallback
   }
 
+  const listedCommands = [nameStatus, porcelain, diffStat, worktreeDiff];
+  const extra = indexExtra(indexVsWorktree, cachedVsHead);
   return {
     nameStatusLines: (nameStatus.stdout || '').trim().split('\n').filter(Boolean),
     porcelainLines: (porcelain.stdout || '').trim().split('\n').filter(Boolean),
     branch: (branch.stdout || '').trim(),
     diffStatRaw: (diffStat.stdout || '').trim(),
+    worktreePatch: commandOk(worktreeDiff) ? worktreeDiff.stdout : null,
+    indexExtra: extra,
+    commandsOk: listedCommands.every(commandOk) && extra !== null,
     head: head || 'unknown',
     reviewState,
   };
@@ -155,11 +180,54 @@ function fileTypeCounts(files) {
 // ---------------------------------------------------------------------------
 // Gates
 // ---------------------------------------------------------------------------
-function diffIdentity(files, diffStatRaw = '') {
+function hashChunk(hash, label, data) {
+  const buf = Buffer.isBuffer(data) ? data : Buffer.from(String(data), 'utf8');
+  hash.update(String(label));
+  hash.update('\0');
+  hash.update(String(buf.length));
+  hash.update('\0');
+  hash.update(buf);
+  hash.update('\0');
+}
+
+function pathInsideRoot(root, rel) {
+  const base = path.resolve(root);
+  const abs = path.resolve(base, rel);
+  return abs === base || abs.startsWith(base + path.sep);
+}
+
+function contentDigest(root, files, worktreePatch, indexExtraRaw) {
+  if (typeof worktreePatch !== 'string' || typeof indexExtraRaw !== 'string') return null;
+  const hash = crypto.createHash('sha256');
+  hashChunk(hash, 'worktree-patch', worktreePatch);
+  hashChunk(hash, 'index-extra', indexExtraRaw);
+  // Skip the review state itself. It stores this identity, so hashing it would
+  // change the digest every time a pass is recorded and a saved result could never match.
+  const paths = (Array.isArray(files) ? files : [])
+    .filter((entry) => entry && entry.status !== 'D' && entry.file && entry.file !== REVIEW_STATE_FILE)
+    .map((entry) => entry.file)
+    .sort();
+  for (const rel of paths) {
+    if (!pathInsideRoot(root, rel)) return null;
+    try {
+      hashChunk(hash, `path:${rel}`, fs.readFileSync(path.resolve(root, rel)));
+    } catch {
+      return null;
+    }
+  }
+  return hash.digest('hex');
+}
+
+function diffIdentity(files, diffStatRaw = '', digest = null) {
+  if (typeof digest !== 'string' || !/^[0-9a-f]{64}$/.test(digest)) return null;
   const rows = (Array.isArray(files) ? files : [])
     .map((entry) => `${entry && entry.status ? entry.status : ''}\t${entry && entry.file ? entry.file : ''}`)
     .sort();
-  return `${rows.join('\n')}\n--\n${diffStatRaw || ''}`;
+  return `content ${digest}\n${rows.join('\n')}\n--\n${diffStatRaw || ''}`;
+}
+
+function hasContentProof(value) {
+  return typeof value === 'string' && /^content [0-9a-f]{64}$/m.test(value);
 }
 
 function recordedDiff(reviewState) {
@@ -177,10 +245,12 @@ function gateApplicability(reviewState, files, context) {
   if (!recordedHead) return 'unbound';
   const head = context && typeof context.head === 'string' ? context.head : '';
   if (!head || recordedHead !== head) return 'stale';
+  if (context && context.diffReadable === false) return 'unbound';
   const recorded = recordedDiff(reviewState);
   const current = context && typeof context.diffIdentity === 'string' ? context.diffIdentity : null;
   if (files.length === 0 && recorded == null) return 'applicable';
   if (recorded == null || current == null) return 'unbound';
+  if (!hasContentProof(recorded) || !hasContentProof(current)) return 'unbound';
   if (recorded !== current) return 'scope-changed';
   return 'applicable';
 }
@@ -589,8 +659,15 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
 function buildOutput(inputs, root) {
   const { summary, files } = parseDiffSummary(inputs.nameStatusLines, inputs.porcelainLines, root);
   const types = fileTypeCounts(files);
-  const currentDiff = diffIdentity(files, inputs.diffStatRaw);
-  const gates = evaluateGates(inputs.reviewState, files, { head: inputs.head, diffIdentity: currentDiff });
+  const digest = inputs.commandsOk
+    ? contentDigest(root, files, inputs.worktreePatch, inputs.indexExtra)
+    : null;
+  const currentDiff = diffIdentity(files, inputs.diffStatRaw, digest);
+  const gates = evaluateGates(inputs.reviewState, files, {
+    head: inputs.head,
+    diffIdentity: currentDiff,
+    diffReadable: currentDiff !== null,
+  });
   const changedPaths = files.map(f => f.file);
   const featureCtx = resolveFeatureContext(root, inputs.branch, changedPaths);
   const allFindings = runHeuristics(inputs, files, gates, root, featureCtx);

@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "c934cae56d4dfc9c7f35f2506b78cf086ecca4e5",
-  "generatedFromCommit": "c934cae56d4dfc9c7f35f2506b78cf086ecca4e5",
-  "generatedFromTree": "5bb2d767a3857f0fbb907f43d313bafdd30ac7f5",
+  "sourceCommit": "6d8fc4707ba7c7dc8a315d3ff7629790fd721dec",
+  "generatedFromCommit": "6d8fc4707ba7c7dc8a315d3ff7629790fd721dec",
+  "generatedFromTree": "d5a1c4e2ac80ab6c1004c5d29001c218b58eae4f",
   "inventoryDigest": "911215f4d143b1dab7154d601161d2d3fbbfbe7924910661571a2bb9d7d4b14f",
   "inventoryRevision": "sha256:b42ffd92ab377ef9046dcb46a45267bd80a4d7d9b4d72e4c836047e689584111",
   "generatorVersion": "1.0.0",
@@ -2115,7 +2115,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/analyze.js",
         "destination": "skills/flow-guide/scripts/analyze.js",
-        "originalGitBlobDigest": "365756f6d1e27a542eb73fb50db80a99766adabb"
+        "originalGitBlobDigest": "76ca06e243d7250fe42851b05c4243347dfa82eb"
       },
       {
         "ownerId": "flow-guide",
