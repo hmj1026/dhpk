@@ -2,8 +2,9 @@
 'use strict';
 
 // Check mode (default): validate changelog.d/ fragment schema, and — when
-// --diff-base is given — that the diff since that ref carries a fragment or
-// .none marker for any non-test-only change.
+// --diff-base is given — that this diff adds or modifies a fragment or
+// .none marker for any non-test-only change. A fragment already pending at
+// the base does not count.
 //
 // Write mode (--write): promote the current fragment set into CHANGELOG.md
 // and delete the consumed fragments. Never runs implicitly from check mode.

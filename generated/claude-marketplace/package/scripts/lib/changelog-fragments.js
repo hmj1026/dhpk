@@ -160,6 +160,13 @@ function isInternalOnlyPath(filePath) {
 // empty by construction. Coverage for those files was enforced on the feature
 // PRs that introduced them; the promoted section is the standing evidence.
 // Re-demanding a pending fragment here would make every release PR unmergeable.
+// A fragment or marker counts only when this diff adds or modifies it. A file
+// left pending by an earlier PR is still validated for shape, but it does not
+// cover a later change.
+function fragmentChangedInDiff(name, changedFiles) {
+  return changedFiles.includes(`changelog.d/${name}`);
+}
+
 function checkCoverage({ changedFiles, fragments, markers, releaseSectionAdded = false, botAuthored = false }) {
   if (botAuthored) {
     return { ok: true, uncovered: [] };
@@ -168,7 +175,9 @@ function checkCoverage({ changedFiles, fragments, markers, releaseSectionAdded =
   if (userVisible.length === 0) {
     return { ok: true, uncovered: [] };
   }
-  if (fragments.length > 0 || markers.length > 0) {
+  const coveredByThisDiff = fragments.some((frag) => fragmentChangedInDiff(frag.file, changedFiles))
+    || markers.some((slug) => fragmentChangedInDiff(`${slug}.none`, changedFiles));
+  if (coveredByThisDiff) {
     return { ok: true, uncovered: [] };
   }
   if (releaseSectionAdded) {
