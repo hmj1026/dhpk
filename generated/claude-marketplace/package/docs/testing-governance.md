@@ -60,7 +60,19 @@ for canonical prose; physical package checks follow the affected surfaces.
 Unknown generated data, executables, generated-only changes, and runtime or
 script changes remain full-plan work; the route does not skip their behavioral
 suites. Existing CI plans retain the source harness structure, permission,
-and route-safety checks.
+and route-safety checks. Preflight also runs `shellcheck --severity=warning`
+on `scripts/hooks/*.sh` and `scripts/hooks/_lib/*.sh` for full and selected
+plans, using a pinned GitHub-release binary. Canonical-content light plans
+skip that step because those diffs cannot change hook scripts. Required CI
+fails if the binary is missing, mismatched, or the install fails; a local
+optional mode may SKIP when the tool is absent and must not claim PASS.
+This repository has no npm lockfile, so this change does not add OSV or a
+lockfile solely for scanning. The two extra workflow-policy rules
+(`persist-credentials: false` on read-only `actions/checkout`, and no
+`${{ }}` interpolation inside `run:` shells) are bounded repository-owned
+checks beside actionlint; they do not replace `zizmor` and are not a weekly
+`security.yml` scanner. If a later gap is concrete, evaluate that tool's
+incremental coverage against pin and false-positive cost separately.
 
 Skill and guidance Markdown is reviewed by people. Automated checks may parse
 machine-readable metadata or verify required resources through shared tools,

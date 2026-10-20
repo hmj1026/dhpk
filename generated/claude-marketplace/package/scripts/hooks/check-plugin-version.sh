@@ -46,10 +46,14 @@ except Exception:
 if [ -n "$_running" ]; then
     VERSIONS="$_running"
 elif [ -d "$DHPK_CACHE" ]; then
-    # while-read instead of mapfile — stock macOS bash 3.2 has no mapfile.
-    while IFS= read -r _v; do
-        [ -n "$_v" ] && VERSIONS="$VERSIONS $_v"
-    done < <(ls -1 "$DHPK_CACHE" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+(\.[0-9]+)?$')
+    # Glob instead of ls | grep (SC2010). Unexpanded "*" is skipped by -d.
+    for _dir in "$DHPK_CACHE"/*; do
+        [ -d "$_dir" ] || continue
+        _v="${_dir##*/}"
+        if printf '%s\n' "$_v" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+            VERSIONS="$VERSIONS $_v"
+        fi
+    done
 fi
 VERSIONS="$(echo "$VERSIONS" | xargs)"
 [ -z "$VERSIONS" ] && exit 0
