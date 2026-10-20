@@ -153,6 +153,19 @@ test('git -C uses that repository and not the session checkout', () => {
   }
 });
 
+test('a commit message of --dry-run does not skip the protected-branch check', () => {
+  const repo = mkTempRepo();
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bs-state-'));
+  try {
+    const res = runHook(repo, stateDir, { DHPK_BRANCH_SAFETY: 'block' }, 'sess-msg-dry', 'git commit -m "--dry-run"');
+    assert.strictEqual(res.status, 2, res.stderr);
+    assert.match(res.stderr, /BLOCKED/);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
 test('a dry-run segment does not exempt a later commit', () => {
   const repo = mkTempRepo();
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bs-state-'));

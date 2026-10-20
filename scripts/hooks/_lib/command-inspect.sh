@@ -8,8 +8,10 @@
 #   inside quotes is data. Quoted words are single argv elements.
 #   A git command is an argv whose first word is git, 'command git', or a
 #   path whose basename is git, after leading VAR=value assignments.
-#   Literal 'cd <path>' and 'git -C <path>' select the repository. A path
-#   containing '$', a backtick, '~', or a glob is unresolved. --git-dir,
+#   Literal 'cd <path>' and 'git -C <path>' select the repository. Each -C is
+#   applied in order; a relative -C starts from the directory already chosen.
+#   A value of a known option (such as -m or --message) is not a flag.
+#   A path containing '$', a backtick, '~', or a glob is unresolved. --git-dir,
 #   --work-tree, an unknown global option, a subshell, or 'cd' in the same
 #   pipeline also leaves the repository unresolved. Unresolved does not fall
 #   back to the session checkout.
@@ -61,8 +63,22 @@ _dhpk_ci_flush_word() {
     _dhpk_ci_word_open=0
 }
 
+# True when $1 is an option whose next argv is its value, not a new flag.
+# Joined forms (--message=--dry-run, -m--no-verify) keep the value in $1.
+_dhpk_ci_option_consumes_next() {
+    case "$1" in
+        -m|--message|-F|--file|--author|--date|--trailer|--cleanup|-t|--template|--fixup|--squash|--reuse-message|--reedit-message|--pathspec-from-file|-C|-c)
+            return 0
+            ;;
+        -[a-zA-Z][mFCct]|-[a-zA-Z][a-zA-Z][mFCct])
+            return 0
+            ;;
+    esac
+    return 1
+}
+
 _dhpk_ci_record_git() {
-    local i=0 n="${#_dhpk_ci_words[@]}" sub="" state="cwd" repo="$_dhpk_ci_cwd" c_path="" no_verify=0 exempt=0
+    local i=0 n="${#_dhpk_ci_words[@]}" sub="" state="cwd" repo="$_dhpk_ci_cwd" c_path="" c_base="" no_verify=0 exempt=0
     local word dyn
     while [ "$i" -lt "$n" ]; do
         word="${_dhpk_ci_words[$i]}"
@@ -98,13 +114,20 @@ _dhpk_ci_record_git() {
                 if [ "$i" -ge "$n" ] || [ "${_dhpk_ci_dyn[$i]}" = "1" ]; then
                     state="unresolved"
                 else
-                    c_path="${_dhpk_ci_words[$i]}"
+                    [ -n "$c_base" ] || c_base="$_dhpk_ci_cwd"
+                    c_base="$(dhpk_norm_path "$c_base" "${_dhpk_ci_words[$i]}")"
+                    c_path="$c_base"
                 fi
                 i=$((i + 1))
                 ;;
             -C*)
-                c_path="${word#-C}"
-                [ "$dyn" = "1" ] && state="unresolved"
+                if [ "$dyn" = "1" ]; then
+                    state="unresolved"
+                else
+                    [ -n "$c_base" ] || c_base="$_dhpk_ci_cwd"
+                    c_base="$(dhpk_norm_path "$c_base" "${word#-C}")"
+                    c_path="$c_base"
+                fi
                 i=$((i + 1))
                 ;;
             --git-dir|--work-tree|--exec-path|--namespace|--super-prefix|--config-env|--list-cmds|-c)
@@ -134,7 +157,11 @@ _dhpk_ci_record_git() {
             --no-verify|--no-verify=*) no_verify=1 ;;
             --help|-h|--dry-run|--abort|--continue|--skip|--quit) exempt=1 ;;
         esac
-        j=$((j + 1))
+        if _dhpk_ci_option_consumes_next "$word"; then
+            j=$((j + 2))
+        else
+            j=$((j + 1))
+        fi
     done
     if [ "$_dhpk_ci_pipeline_cd" -eq 1 ] || [ "$_dhpk_ci_cwd_state" != "literal" ]; then
         state="unresolved"
