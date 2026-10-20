@@ -103,6 +103,96 @@ test('an observed reasoner model mismatch cannot satisfy an exact requested reas
   }
 });
 
+test('task graph rejects a reasoner dependency that is not a read-only reasoner', () => {
+  const parent = { authority: 'workspace-write', assigned_files: ['src/receipt.js'] };
+  for (const role of ['worker', 'planner', 'reviewer']) {
+    assert.throws(() => validateTaskGraph({ mode: 'coordinated', nodes: [
+      { id: 'diagnosis', goal: 'inspect', acceptance: ['seen'], role, authority: 'read-only', assigned_files: [], dependencies: [] },
+      { id: 'repair', goal: 'repair', acceptance: ['done'], role: 'worker', authority: 'workspace-write', assigned_files: ['src/receipt.js'], dependencies: ['diagnosis'], reasoner_dependencies: ['diagnosis'], decision_state: 'REASONER_REQUIRED' },
+    ] }, parent), /read-only reasoner/);
+  }
+  assert.doesNotThrow(() => validateTaskGraph({ mode: 'coordinated', nodes: [
+    { id: 'diagnosis', goal: 'inspect', acceptance: ['seen'], role: 'reasoner', authority: 'read-only', assigned_files: [], dependencies: [] },
+    { id: 'repair', goal: 'repair', acceptance: ['done'], role: 'worker', authority: 'workspace-write', assigned_files: ['src/receipt.js'], dependencies: ['diagnosis'], reasoner_dependencies: ['diagnosis'], decision_state: 'REASONER_REQUIRED' },
+  ] }, parent));
+});
+
+test('REASONER_REQUIRED rejects worker, planner, and reviewer conclusions before the writer runs', async () => {
+  for (const role of ['worker', 'planner', 'reviewer']) {
+    const workdir = makeWorkdir(`non-reasoner-${role}`);
+    fs.mkdirSync(path.join(workdir, 'src'));
+    const artifact = path.join(workdir, 'src/receipt.js');
+    const fixture = createRunnerFixture({
+      task: { ...DEFAULT_TASK, constraints: { ...DEFAULT_TASK.constraints, delegation: 'coordinated', decision_state: 'REASONER_REQUIRED' } },
+      decision: { mode: 'coordinated', nodes: [
+        { id: 'diagnosis', goal: 'Inspect receipt', acceptance: ['Root cause established'], role, authority: 'read-only', assigned_files: [], dependencies: [], target: DEFAULT_TARGET },
+        { id: 'repair', goal: 'Repair receipt', acceptance: ['Receipt repaired'], role: 'worker', authority: 'workspace-write', assigned_files: ['src/receipt.js'], dependencies: ['diagnosis'], reasoner_dependencies: ['diagnosis'], decision_state: 'REASONER_REQUIRED', target: DEFAULT_TARGET },
+      ] },
+    });
+    const executed = [];
+    fixture.host.execute = async (_target, task, context) => {
+      executed.push(context.node.id);
+      if (context.node.id === 'repair') fs.writeFileSync(path.join(workdir, task.constraints.assigned_files[0]), 'repaired');
+      return {
+        status: 'SUCCEEDED',
+        side_effects: context.node.id === 'diagnosis' ? 'none' : 'observed',
+        conclusion: { status: 'READY_FOR_DISPATCH', source_evidence: 'Read fixture input', root_cause: 'Fixture mismatch', repair: 'Update assigned receipt', verification: 'Read assigned receipt' },
+      };
+    };
+    try {
+      const report = await runFlowDrive(['Repair after required reasoner.'], { host: fixture.host, workdir });
+      assert.strictEqual(report.acceptance.status, 'BLOCKED', role);
+      assert.strictEqual(fs.existsSync(artifact), false, role);
+      assert.strictEqual(executed.includes('repair'), false, `${role} executed ${executed.join(',')}`);
+      assert.ok((report.blockers || []).some((item) => /read-only reasoner/.test(item)), JSON.stringify(report.blockers));
+    } finally {
+      fixture.cleanup();
+      fs.rmSync(workdir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('a reused non-reasoner outcome cannot satisfy REASONER_REQUIRED', async () => {
+  const workdir = makeWorkdir('reused-non-reasoner');
+  fs.mkdirSync(path.join(workdir, 'src'));
+  const fixture = createRunnerFixture({
+    task: { ...DEFAULT_TASK, constraints: { ...DEFAULT_TASK.constraints, delegation: 'coordinated', decision_state: 'REASONER_REQUIRED' } },
+  });
+  fixture.host.coordinate = async (task) => {
+    const diagnosis = { id: 'diagnosis', goal: 'diagnose receipt mismatch', acceptance: ['cause established'], role: 'worker', authority: 'read-only', assigned_files: [], dependencies: [] };
+    const diagnosisTask = { ...task, goal: diagnosis.goal, acceptance: [...diagnosis.acceptance], constraints: { ...task.constraints, authority: 'read-only', assigned_files: [] } };
+    return { mode: 'coordinated', nodes: [
+      { ...diagnosis, target: DEFAULT_TARGET, reuse: { prompt_sha256: task.constraints.prompt_evidence.sha256, task_digest: nodeTaskDigest(diagnosis, diagnosisTask, workdir), baseline_identity: 'reuse-baseline' } },
+      { id: 'repair', goal: 'repair receipt mismatch', acceptance: ['receipt file updated'], role: 'worker', authority: 'workspace-write', assigned_files: ['src/receipt.js'], dependencies: ['diagnosis'], reasoner_dependencies: ['diagnosis'], decision_state: 'REASONER_REQUIRED', target: DEFAULT_TARGET },
+    ] };
+  };
+  let reused = false;
+  fixture.host.inspectScope = async () => ({ identity: 'reuse-baseline', within_scope: true, wip_preserved: true });
+  fixture.host.verifyReuse = async () => {
+    reused = true;
+    return {
+      status: 'PASSED',
+      evidence: 'prior worker receipt',
+      executor_identity: { agent_id: 'prior-worker', session_id: 'prior-session' },
+      conclusion: { status: 'READY_FOR_DISPATCH', source_evidence: 'receipt lines', root_cause: 'stale total', repair: 'update total', verification: 'compare output' },
+    };
+  };
+  fixture.host.execute = async (_target, _task, context) => {
+    if (context.node.id === 'repair') fs.writeFileSync(path.join(workdir, 'src/receipt.js'), 'updated');
+    return { status: 'SUCCEEDED', conclusion: { status: 'READY_FOR_DISPATCH', source_evidence: 'Read fixture input', root_cause: 'Fixture mismatch', repair: 'Update assigned receipt', verification: 'Read assigned receipt' } };
+  };
+  try {
+    const report = await runFlowDrive(['Reuse a non-reasoner diagnosis.'], { host: fixture.host, workdir });
+    assert.strictEqual(report.acceptance.status, 'BLOCKED');
+    assert.strictEqual(fs.existsSync(path.join(workdir, 'src/receipt.js')), false);
+    assert.strictEqual(reused, false);
+    assert.ok((report.blockers || []).some((item) => /read-only reasoner/.test(item)), JSON.stringify(report.blockers));
+  } finally {
+    fixture.cleanup();
+    fs.rmSync(workdir, { recursive: true, force: true });
+  }
+});
+
 test('task graph rejects duplicate, unknown, and cyclic dependencies', () => {
   assert.throws(() => validateTaskGraph({ mode: 'coordinated', nodes: [
     { id: 'a', goal: 'a', acceptance: ['a'], dependencies: ['missing'], role: 'reasoner', authority: 'read-only', assigned_files: [] },

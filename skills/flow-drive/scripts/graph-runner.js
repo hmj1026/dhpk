@@ -2,6 +2,7 @@
 
 const path = require('node:path');
 const { createNodeTask } = require('./task-contract');
+const { isRequiredReasonerSource } = require('./task-graph');
 const { executeAttempt } = require('./attempt-executor');
 const { exactWorkerTarget } = require('./provider-permissions');
 const { evaluateTargetPolicy, selectCapabilityEvidence } = require('./target-policy');
@@ -159,8 +160,10 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
         const dependencies = Array.isArray(node.reasoner_dependencies) ? node.reasoner_dependencies : [];
         if (node.decision_state !== 'REASONER_REQUIRED' || dependencies.length === 0 || !dependencies.every((id) => {
           const result = completed.get(id);
-          // scheduler retains the complete prior dispatch result for semantic gates
-          return result && result.status === 'SUCCEEDED' && validConclusion(result.outcome);
+          const source = nodeById.get(id);
+          // Fresh and reused outcomes both have to come from a read-only reasoner.
+          return result && result.status === 'SUCCEEDED' && validConclusion(result.outcome)
+            && isRequiredReasonerSource(source);
         })) return false;
       }
       return resolution.status === 'RESOLVED';
