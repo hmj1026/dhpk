@@ -639,6 +639,29 @@ test('runnable script declarations require public coverage while prose examples 
   }
 });
 
+test('checkout-root $PROJECT_DIR script pointers in bundled policy copies stay non-public', () => {
+  const root = physicalTemp('skill coverage project-dir pointer-');
+  const row = skillRow('project-dir-pointer', 'skills/project-dir-pointer');
+  try {
+    writeSkill(root, row.path, {
+      body: 'See [model economics](references/execution-bundle/rules/model-economics.md).\n',
+      references: {
+        'references/execution-bundle/rules/model-economics.md': [
+          'Generated agents are owned by `RUNTIME_METADATA` in',
+          '`$PROJECT_DIR/scripts/gen-codex-agents.js`.',
+          '',
+        ].join('\n'),
+      },
+    });
+    const result = validate(oneSkillInput(root, row.id, row.path, record({
+      references: ['references/execution-bundle/rules/model-economics.md'],
+    })));
+    assert.strictEqual(result.ok, true, errorText(result));
+  } finally {
+    remove(root);
+  }
+});
+
 test('every script basename declared by a canonical Skill has an explicit coverage role', () => {
   const root = physicalTemp('skill coverage bare-basename-');
   const row = skillRow('bare-basename', 'skills/bare-basename');
