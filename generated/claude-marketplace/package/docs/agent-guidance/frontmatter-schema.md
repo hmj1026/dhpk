@@ -55,7 +55,7 @@ when to load the skill.
 | `argument-hint` | Autocomplete hint. |
 | `arguments` | Named positional `$name` substitution. |
 | `disable-model-invocation` | `true` → user-invoked only; not auto-loaded or preloaded into subagents. |
-| `user-invocable` | `false` → hidden from `/` and not runnable as `/name`. |
+| `user-invocable` | Official Claude meaning: `false` hides the skill from `/` and blocks `/name`. dhpk does not accept that value; see Local policy. |
 | `allowed-tools` | Turn-scoped permission grant; does not restrict the tool pool. |
 | `disallowed-tools` | Turn-scoped removal from the tool pool. |
 | `model` | Same values as `/model`, or `inherit`. |
@@ -73,6 +73,16 @@ when to load the skill.
 Command files under `commands/` support the same frontmatter except `name`
 and `paths`, which Claude Code ignores there. Skill `SKILL.md` bodies are
 out of scope for this schema page.
+
+`scripts/ci/validate-skills.js` accepts every field in this table and rejects
+any other top-level key. That allowlist is the documented Claude skill
+contract above. It is not a pass for every newer official key, and it does
+not add a host matrix.
+
+`user-invocable` is a recognized skill field. The value `false` is not
+supported: invocation-policy validation rejects it because the supported
+harnesses cannot yet represent a model-only class. A misspelled key remains
+an unknown-field error.
 
 ## Local policy
 
