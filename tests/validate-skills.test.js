@@ -145,6 +145,46 @@ test('an unknown top-level frontmatter key fails', () => {
   }
 });
 
+test('documented skill frontmatter fields are accepted', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'documented', [
+      '---',
+      'name: documented',
+      'description: does a thing',
+      'when_to_use: extra invocation context',
+      'arguments: target',
+      'user-invocable: true',
+      'disallowed-tools: Bash',
+      'effort: high',
+      'background: false',
+      'hooks: session',
+      'paths: "**/*.js"',
+      'shell: bash',
+      '---',
+      'body',
+      '',
+    ].join('\n'));
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 0, out);
+    assert.doesNotMatch(out, /unknown frontmatter key/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('a misspelled documented frontmatter key still fails', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'misspelled', '---\nname: misspelled\ndescription: does a thing\nwhen-to-use: extra\n---\nbody\n');
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /unknown frontmatter key\(s\): when-to-use/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('the agent tools key fails on a skill', () => {
   const tmp = makeTempRepo();
   try {
