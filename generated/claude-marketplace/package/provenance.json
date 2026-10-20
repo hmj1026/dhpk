@@ -1493,7 +1493,7 @@
       "sourcePath": "skills/flow-drive/references/portability.md",
       "destination": "skills/flow-drive/references/portability.md",
       "kind": "entry",
-      "sha256": "41f1da2022294c168a8ba8d90315c7ab9719504241d1edd5eff103514c8166f8"
+      "sha256": "519d3295e62c912c02b29c910b657fec8d42b8762d6c9153cd7a2fd5be28b2d2"
     },
     {
       "skillId": "flow-drive",
@@ -1501,7 +1501,7 @@
       "sourcePath": "skills/flow-drive/references/portable-runner.md",
       "destination": "skills/flow-drive/references/portable-runner.md",
       "kind": "entry",
-      "sha256": "4eb95ee9adc129bd0c629441f023aa20f5c8a59f96a6b40bb7260101b42620eb"
+      "sha256": "e5456f4ef96d0d73395e6ae47d0249d5dd234e3aa729ba1f3302664c3481a2f3"
     },
     {
       "skillId": "python",
@@ -1621,7 +1621,7 @@
       "sourcePath": "skills/flow-drive/references/recovery.md",
       "destination": "skills/flow-drive/references/recovery.md",
       "kind": "entry",
-      "sha256": "04d19a457d370ea71ed62ea63feaea337a832de650ebedc69dd34567823f8636"
+      "sha256": "e4040068db8dde403351444ff18c4ef7f30d59a699eadcf5e04158f677ec505a"
     },
     {
       "skillId": "swift",
@@ -2109,7 +2109,7 @@
       "sourcePath": "skills/flow-drive/scripts/graph-runner.js",
       "destination": "skills/flow-drive/scripts/graph-runner.js",
       "kind": "entry",
-      "sha256": "d723a9b8151dbb6c53585b32e3cd36daab8bc2ceed812646a9f7a162a37379f8"
+      "sha256": "061fc5af001f9dd575dd0642dad454b2c62f3b2516cf0b605bb109e7b91d2047"
     },
     {
       "skillId": "flow-drive",
@@ -2173,7 +2173,7 @@
       "sourcePath": "skills/flow-drive/scripts/task-contract.js",
       "destination": "skills/flow-drive/scripts/task-contract.js",
       "kind": "entry",
-      "sha256": "34d96a631c45eac4193c3f0a2bf6a66399a4d91978e8b8f66d1104e6cc4ad5d9"
+      "sha256": "5215d11c390f184c8f0cdbc0b2817dfef2ceabaa71b7c636097b78736c05e16b"
     },
     {
       "skillId": "flow-drive",

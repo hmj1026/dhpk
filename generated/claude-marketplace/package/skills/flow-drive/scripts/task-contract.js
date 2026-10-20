@@ -36,7 +36,7 @@ function cloneAndFreezeTaskValue(value) {
   return freezeTaskValue(cloneTaskValue(value));
 }
 
-function createNodeTask(parentTask, node) {
+function createNodeTask(parentTask, node, handoff) {
   const task = cloneTaskValue(parentTask);
   task.goal = node.goal;
   task.acceptance = [...node.acceptance];
@@ -45,6 +45,7 @@ function createNodeTask(parentTask, node) {
     authority: node.authority,
     assigned_files: [...node.assigned_files],
   };
+  if (Array.isArray(handoff) && handoff.length > 0) task.constraints.verified_dependencies = handoff;
   return freezeTaskValue(task);
 }
 
