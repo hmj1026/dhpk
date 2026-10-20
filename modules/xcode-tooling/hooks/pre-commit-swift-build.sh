@@ -45,13 +45,12 @@ swift_check_root() {
 local ROOT="$1"
 cd "$ROOT" || return 0
 
-staged="$(git -C "$ROOT" diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)"
-[ -z "$staged" ] && return 0
-
+# NUL records keep a quoted or newline .swift path from being split before the suffix check.
 has_swift=0
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
+    [ -z "$f" ] && continue
     case "$f" in *.swift) has_swift=1; break ;; esac
-done <<< "$staged"
+done < <(git -C "$ROOT" diff --cached -z --name-only --diff-filter=ACMR 2>/dev/null || true)
 [ "$has_swift" -eq 1 ] || return 0
 . "$(dirname "$0")/../../../scripts/hooks/_lib/load-project-config.sh"
 
