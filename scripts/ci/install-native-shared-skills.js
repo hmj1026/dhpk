@@ -58,6 +58,21 @@ try {
       projectRoot: path.resolve(args.projectRoot),
       host: args.host,
     });
+    if (result && result.ok === false) {
+      if (args.json) {
+        console.log(JSON.stringify({
+          ok: false,
+          host: args.host,
+          state: result.state || 'BLOCKED',
+          code: result.code || (result.error && result.error.code) || null,
+          selectedIds: [],
+        }));
+      } else {
+        const detail = result.error && result.error.message ? result.error.message : (result.state || 'uninstall blocked');
+        console.error(`FAIL [install-native-shared-skills]: ${detail}`);
+      }
+      process.exit(1);
+    }
     if (args.json) {
       console.log(JSON.stringify({
         ok: result.ok !== false,
