@@ -896,7 +896,11 @@ test('Codex Host native fallback is derived from its Host profile', () => {
 
 // Source suite: dispatch-config-report.test.js
 {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
   const { test, assert } = require('./_lib/tinytest');
+  const { resolveDispatchConfig } = require('../scripts/lib/dispatch-config');
   const { environmentOptions, main, shouldReport } = require('../scripts/dispatch-config-report');
 
   function captureStdout(action) {
@@ -910,40 +914,234 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     }
   }
 
+  function isolatedRoots() {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-report-'));
+    return {
+      projectRoot,
+      globalSettingsPath: path.join(projectRoot, 'missing-global-settings.json'),
+      cleanup() { fs.rmSync(projectRoot, { recursive: true, force: true }); },
+    };
+  }
+
+  function writePluginOptions(file, options) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `${JSON.stringify({ pluginConfigs: { 'dhpk@dhpk': { options } } })}\n`);
+  }
+
+  function readReport(environment, options) {
+    const captured = captureStdout(() => main(environment, options));
+    assert.strictEqual(captured.result, 0, captured.output);
+    assert.ok(captured.output.endsWith('\n'), captured.output);
+    const lines = captured.output.slice(0, -1).split(/\r?\n/u);
+    assert.strictEqual(lines.length, 1, captured.output);
+    return JSON.parse(lines[0]);
+  }
+
   test('config report only emits for explicit non-default dispatch settings', () => {
-    assert.strictEqual(shouldReport({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'auto' }), false);
-    assert.strictEqual(shouldReport({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }), true);
-    assert.deepStrictEqual(environmentOptions({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }), {
-      worker_target: 'codex-cli/sol5.6:high',
-    });
-    const defaults = captureStdout(() => main({}));
-    assert.strictEqual(defaults.result, 0);
-    assert.strictEqual(defaults.output, '');
+    const roots = isolatedRoots();
+    try {
+      assert.strictEqual(shouldReport({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'auto' }), false);
+      assert.strictEqual(shouldReport({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }), true);
+      assert.strictEqual(shouldReport({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet' }), true);
+      assert.strictEqual(shouldReport({ CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH: 'off' }), true);
+      assert.strictEqual(shouldReport({ CLAUDE_PLUGIN_OPTION_FALLBACK_ALLOW: 'false' }), true);
+      assert.strictEqual(shouldReport({ CLAUDE_PLUGIN_OPTION_PREFERENCE_ORDER: 'codex,claude' }), true);
+      assert.strictEqual(shouldReport({
+        CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'auto',
+        CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH: 'on',
+        CLAUDE_PLUGIN_OPTION_FALLBACK_ALLOW: 'true',
+      }), false);
+      assert.deepStrictEqual(environmentOptions({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }), {
+        worker_target: 'codex-cli/sol5.6:high',
+      });
+      assert.deepStrictEqual(environmentOptions({
+        CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet',
+        CLAUDE_PLUGIN_OPTION_FAST_WORKER_EFFORT: 'high',
+        CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_MODEL: 'gpt-5.6-sol-high',
+        CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL: 'opus',
+        CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER: 'codex,claude',
+        CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK: 'none',
+      }), {
+        fast_worker_model: 'sonnet',
+        fast_worker_effort: 'high',
+        codex_deep_reasoner_model: 'gpt-5.6-sol-high',
+        architect_model: 'opus',
+        fast_worker_backend_order: 'codex,claude',
+        fast_worker_fallback: 'none',
+      });
+      const defaults = captureStdout(() => main({}, roots));
+      assert.strictEqual(defaults.result, 0);
+      assert.strictEqual(defaults.output, '');
+    } finally {
+      roots.cleanup();
+    }
   });
 
   test('config report is bounded JSON and reports invalid values without failing startup', () => {
-    const explicit = captureStdout(() => main({
-      CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high',
-    }));
-    assert.strictEqual(explicit.result, 0);
-    assert.ok(explicit.output.endsWith('\n'));
-    const lines = explicit.output.slice(0, -1).split(/\r?\n/u);
-    assert.strictEqual(lines.length, 1);
-    const report = JSON.parse(lines[0]);
-    assert.strictEqual(report.schema, 'dhpk.dispatch.config-report.v1');
-    assert.strictEqual(report.status.catalog_support, 'NOT_RUN');
-    assert.deepStrictEqual(report.covered_inputs.layers, ['environment']);
-    assert.strictEqual(report.covered_inputs.project, false);
-    assert.strictEqual(report.covered_inputs.global, false);
-    assert.strictEqual(report.covered_inputs.environment, true);
-    assert.strictEqual(report.covered_inputs.complete, false);
-    assert.strictEqual(report.covered_inputs.scope, 'environment-only');
+    const roots = isolatedRoots();
+    try {
+      const report = readReport({
+        CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high',
+      }, roots);
+      assert.strictEqual(report.schema, 'dhpk.dispatch.config-report.v1');
+      assert.strictEqual(report.status.catalog_support, 'NOT_RUN');
+      assert.strictEqual(report.status.runtime, 'NOT_RUN');
+      assert.strictEqual(report.host.status, 'unresolved');
+      assert.strictEqual(report.host.id, null);
+      assert.deepStrictEqual(report.covered_inputs.layers, ['environment']);
+      assert.strictEqual(report.covered_inputs.project, false);
+      assert.strictEqual(report.covered_inputs.global, false);
+      assert.strictEqual(report.covered_inputs.environment, true);
+      assert.strictEqual(report.covered_inputs.complete, false);
+      assert.strictEqual(report.covered_inputs.scope, 'environment-only');
+      assert.strictEqual(report.covered_inputs.unreadable, undefined);
 
-    const invalid = captureStdout(() => main({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'bare-model' }));
-    assert.strictEqual(invalid.result, 0);
-    const invalidReport = JSON.parse(invalid.output);
-    assert.strictEqual(invalidReport.schema, 'dhpk.dispatch.config-report.v1');
-    assert.ok(invalidReport.diagnostics.some((entry) => entry.field === 'worker_target'));
+      const invalid = captureStdout(() => main({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'bare-model' }, roots));
+      assert.strictEqual(invalid.result, 0);
+      const invalidReport = JSON.parse(invalid.output);
+      assert.strictEqual(invalidReport.schema, 'dhpk.dispatch.config-report.v1');
+      assert.ok(invalidReport.diagnostics.some((entry) => entry.field === 'worker_target'));
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('project and global legacy model settings keep resolver precedence and sources', () => {
+    const roots = isolatedRoots();
+    try {
+      writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), {
+        fast_worker_model: 'sonnet',
+      });
+      const projectOnly = readReport({}, roots);
+      const projectResolved = resolveDispatchConfig({ project: { fast_worker_model: 'sonnet' } });
+      assert.strictEqual(projectOnly.sources.worker_target, 'project.fast_worker_model');
+      assert.strictEqual(projectOnly.sources.worker_target, projectResolved.source.worker_target);
+      assert.deepStrictEqual(projectOnly.targets.worker, projectResolved.worker_target);
+      assert.ok(projectOnly.legacy_sources.some((entry) => entry.source === 'project.fast_worker_model'));
+      assert.strictEqual(projectOnly.roles.worker.effective_target.target_agent, 'claude-code');
+      assert.strictEqual(projectOnly.roles.worker.effective_target.model_id, 'sonnet5');
+      assert.strictEqual(projectOnly.roles.worker.effective_target.provider, 'anthropic');
+      assert.strictEqual(projectOnly.roles.worker.status.runtime, 'NOT_RUN');
+      assert.strictEqual(projectOnly.host.status, 'unresolved');
+      assert.strictEqual(projectOnly.host.id, null);
+      assert.strictEqual(projectOnly.covered_inputs.project, true);
+      assert.strictEqual(projectOnly.covered_inputs.scope === 'environment-only', false);
+
+      roots.cleanup();
+      const globalRoots = isolatedRoots();
+      writePluginOptions(globalRoots.globalSettingsPath, { fast_worker_model: 'sonnet' });
+      const globalOnly = readReport({}, globalRoots);
+      assert.strictEqual(globalOnly.sources.worker_target, 'global.fast_worker_model');
+      assert.ok(globalOnly.legacy_sources.some((entry) => entry.source === 'global.fast_worker_model'));
+      assert.strictEqual(globalOnly.roles.worker.effective_target.model_id, 'sonnet5');
+      assert.strictEqual(globalOnly.covered_inputs.global, true);
+      assert.strictEqual(globalOnly.covered_inputs.project, false);
+      globalRoots.cleanup();
+
+      const layered = isolatedRoots();
+      writePluginOptions(path.join(layered.projectRoot, '.claude', 'settings.local.json'), {
+        worker_target: 'codex-cli/sol5.6:high',
+        fast_worker_model: 'sonnet',
+      });
+      writePluginOptions(layered.globalSettingsPath, { fast_worker_model: 'sonnet' });
+      const precedence = readReport({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet' }, layered);
+      const expected = resolveDispatchConfig({
+        project: { worker_target: 'codex-cli/sol5.6:high', fast_worker_model: 'sonnet' },
+        global: { fast_worker_model: 'sonnet' },
+        environment: { fast_worker_model: 'sonnet' },
+      });
+      assert.strictEqual(precedence.sources.worker_target, 'project.worker_target');
+      assert.strictEqual(precedence.sources.worker_target, expected.source.worker_target);
+      assert.deepStrictEqual(precedence.targets.worker, expected.worker_target);
+      assert.ok(!precedence.legacy_sources.some((entry) => entry.field === 'worker_target'));
+      assert.deepStrictEqual(precedence.covered_inputs.layers, ['project', 'global', 'environment']);
+      assert.strictEqual(precedence.covered_inputs.project, true);
+      assert.strictEqual(precedence.covered_inputs.global, true);
+      assert.strictEqual(precedence.covered_inputs.environment, true);
+      assert.strictEqual(precedence.covered_inputs.complete, true);
+      assert.notStrictEqual(precedence.covered_inputs.scope, 'environment-only');
+      layered.cleanup();
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('environment legacy keys are not dropped, and a project overlay is not relabeled as environment', () => {
+    const roots = isolatedRoots();
+    try {
+      const report = readReport({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet' }, roots);
+      assert.strictEqual(report.sources.worker_target, 'environment.fast_worker_model');
+      assert.ok(report.legacy_sources.some((entry) => entry.source === 'environment.fast_worker_model'));
+
+      writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), {
+        fast_worker_model: 'sonnet',
+      });
+      const overlaid = readReport({
+        CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet',
+        DHPK_PROJECT_OPTION_FAST_WORKER_MODEL: 'sonnet',
+      }, roots);
+      assert.strictEqual(overlaid.sources.worker_target, 'project.fast_worker_model');
+      assert.ok(!overlaid.legacy_sources.some((entry) => entry.source === 'environment.fast_worker_model'));
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('invalid legacy config blocks only that role and still reports retired keys', () => {
+    const roots = isolatedRoots();
+    try {
+      writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), {
+        fast_worker_model: 'not-a-real-model',
+        reviewer_model: 'sonnet',
+        codex_deep_reasoner_model: 'gpt-5.6-sol-high',
+        architect_model: 'opus',
+      });
+      const report = readReport({}, roots);
+      assert.ok(report.diagnostics.some((entry) => entry.field === 'worker_target' && entry.status === 'BLOCKED'));
+      assert.strictEqual(report.roles.worker.configured_target, null);
+      assert.strictEqual(report.sources.reviewer_target, 'project.reviewer_model');
+      assert.strictEqual(report.roles.reviewer.effective_target.model_id, 'sonnet5');
+      assert.ok(report.diagnostics.some((entry) => entry.field === 'reasoner_target' && entry.status === 'BLOCKED' && /retired config/.test(entry.reason)));
+      assert.ok(report.diagnostics.some((entry) => entry.field === 'architect_model' && entry.status === 'UNSUPPORTED'));
+      assert.strictEqual(report.status.runtime, 'NOT_RUN');
+      assert.strictEqual(report.host.status, 'unresolved');
+      assert.notStrictEqual(report.host.id, 'claude-code');
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('a missing settings file is absent, and an unreadable higher layer is not a complete result', () => {
+    const missing = isolatedRoots();
+    try {
+      writePluginOptions(missing.globalSettingsPath, { fast_worker_model: 'sonnet' });
+      const absent = readReport({}, missing);
+      assert.strictEqual(absent.sources.worker_target, 'global.fast_worker_model');
+      assert.strictEqual(absent.covered_inputs.project, false);
+      assert.strictEqual(absent.covered_inputs.global, true);
+      assert.strictEqual(absent.covered_inputs.complete, false);
+      assert.strictEqual(absent.covered_inputs.unreadable, undefined);
+      assert.notStrictEqual(absent.covered_inputs.scope, 'incomplete');
+      assert.notStrictEqual(absent.covered_inputs.scope, 'environment-only');
+    } finally {
+      missing.cleanup();
+    }
+
+    const invalid = isolatedRoots();
+    try {
+      fs.mkdirSync(path.join(invalid.projectRoot, '.claude'), { recursive: true });
+      fs.writeFileSync(path.join(invalid.projectRoot, '.claude', 'settings.local.json'), '{');
+      writePluginOptions(invalid.globalSettingsPath, { fast_worker_model: 'sonnet' });
+      const report = readReport({ CLAUDE_PLUGIN_OPTION_REVIEWER_TARGET: 'codex-cli/sol5.6:high' }, invalid);
+      assert.strictEqual(report.sources.worker_target, 'global.fast_worker_model');
+      assert.strictEqual(report.sources.reviewer_target, 'environment.reviewer_target');
+      assert.strictEqual(report.covered_inputs.project, false);
+      assert.strictEqual(report.covered_inputs.complete, false);
+      assert.strictEqual(report.covered_inputs.scope, 'incomplete');
+      assert.deepStrictEqual(report.covered_inputs.unreadable, [{ layer: 'project', reason: 'invalid-json' }]);
+    } finally {
+      invalid.cleanup();
+    }
   });
 }
 

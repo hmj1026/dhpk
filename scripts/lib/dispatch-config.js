@@ -336,6 +336,9 @@ function coveredInputsReport(coveredInputs) {
     global: coveredInputs.global === true,
     environment: coveredInputs.environment === true,
     ...(typeof coveredInputs.scope === 'string' ? { scope: coveredInputs.scope } : {}),
+    ...(Array.isArray(coveredInputs.unreadable) && coveredInputs.unreadable.length > 0
+      ? { unreadable: Object.freeze(coveredInputs.unreadable.map((entry) => Object.freeze({ ...entry }))) }
+      : {}),
   });
 }
 
@@ -499,4 +502,4 @@ function applyDispatchConfig({ config, role = 'worker', request } = {}) {
   });
 }
 
-module.exports = Object.freeze({ APPLY_ROLE_CONFIG: applyDispatchConfig, DEFAULTS, LEGACY_KEYS, LEGACY_REMOVAL_VERSION, applyDispatchConfig, createDispatchConfigReport, diagnoseDispatchConfig, parseTarget, resolveDispatchConfig });
+module.exports = Object.freeze({ APPLY_ROLE_CONFIG: applyDispatchConfig, DEFAULTS, LEGACY_EFFORT_KEYS, LEGACY_KEYS, LEGACY_REMOVAL_VERSION, applyDispatchConfig, createDispatchConfigReport, diagnoseDispatchConfig, parseTarget, resolveDispatchConfig });

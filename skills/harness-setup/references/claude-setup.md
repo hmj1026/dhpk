@@ -32,14 +32,18 @@ bytes at $SKILL_DIR/scripts/lib/install-assets-writer.sh.
 3. `--show` prints the effective harness values and the four-role dispatch
    summary, then exits. It never prompts, writes, or adds interactive
    model-selection steps. Build the dispatch summary with the existing
-   `resolveDispatchConfig` / `createDispatchConfigReport` seam, using the
-   settings already read in step 2 as the project layer and the known Claude
-   Host Profile. Do not search for additional settings
-   files or invent a new precedence. If global install-time config was not
-   loaded, disclose that in `covered_inputs` instead of claiming a complete
-   final config. If the Host were unknown, leave effective targets
-   unresolved; do not guess `claude-code`. The report is static:
-   `runtime` remains `NOT_RUN`.
+   `resolveDispatchConfig` / `createDispatchConfigReport` seam. Pass the
+   settings already read in step 2 as the project layer, pass
+   `~/.claude/settings.json` `pluginConfigs["dhpk@dhpk"].options` as the
+   global layer (the install-time source Claude uses for
+   `CLAUDE_PLUGIN_OPTION_*`), and pass the known Claude Host Profile. Do not
+   invent another settings file, search path, or precedence. Project wins
+   over global, and global wins over environment. A missing settings file is
+   an absent layer. If a higher-priority file cannot be read, show the values
+   that were read and disclose the failure in `covered_inputs`; do not claim
+   the lower layer is the complete final config. If the Host were unknown,
+   leave effective targets unresolved; do not guess `claude-code`. The report
+   is static: `runtime` remains `NOT_RUN`.
 
 ## Asset installation
 
