@@ -105,6 +105,7 @@ fi
 # The library performs no I/O and is safe to source more than once.
 _dhpk_runtime_config_lib="${BASH_SOURCE[0]%/*}/runtime-config.sh"
 if [ -f "$_dhpk_runtime_config_lib" ]; then
+    # shellcheck source=runtime-config.sh
     . "$_dhpk_runtime_config_lib"
 fi
 unset _dhpk_runtime_config_lib

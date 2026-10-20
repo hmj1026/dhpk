@@ -191,7 +191,9 @@ dhpk_inspect_command() {
     DHPK_GIT_SUB=()
     DHPK_GIT_REPO=()
     DHPK_GIT_REPO_STATE=()
+    # shellcheck disable=SC2034  # filled for pre-bash-guard / pretool-git-gate after source
     DHPK_GIT_NO_VERIFY=()
+    # shellcheck disable=SC2034  # filled for pre-bash-guard / pretool-git-gate after source
     DHPK_GIT_EXEMPT=()
     DHPK_GIT_SEGMENT=()
     DHPK_STRIPPED=""

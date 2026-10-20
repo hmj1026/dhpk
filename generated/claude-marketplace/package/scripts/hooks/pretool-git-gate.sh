@@ -97,7 +97,7 @@ Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
             for pat in "${_branches[@]}"; do
                 pat="$(echo "$pat" | xargs)"
                 [ -z "$pat" ] && continue
-                # shellcheck disable=SC2053  # intentional glob match, not equality
+                # shellcheck disable=SC2053,SC2254  # intentional glob match, not equality
                 case "$BRANCH" in
                     $pat) matched=1; break ;;
                 esac

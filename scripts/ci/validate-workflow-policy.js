@@ -44,6 +44,14 @@ const RELEASE_JOB_PERMISSIONS = Object.freeze({
   'sync-develop': Object.freeze({ contents: 'write' }),
 });
 
+// Explicit workflow/job pairs that git-push with the job token. Job names
+// containing "push" are not exemptions.
+const CHECKOUT_CREDENTIAL_EXEMPTIONS = Object.freeze({
+  'release.yml': Object.freeze({
+    'sync-develop': 'pushes the unchanged develop ref onto the released main tree',
+  }),
+});
+
 function unquote(value) {
   const trimmed = String(value).trim().replace(/\s+#.*$/, '');
   if ((trimmed.startsWith("'") && trimmed.endsWith("'")) || (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
@@ -279,6 +287,53 @@ function permissionMap(job) {
   return permissions;
 }
 
+function fileLineForStep(job, step) {
+  const offset = job.lines.findIndex((entry) => entry === step.lines[0]);
+  return offset === -1 ? job.line : job.line + offset;
+}
+
+function persistCredentialsValue(withSection) {
+  const match = withSection.match(/^\s*persist-credentials:\s*(.+?)\s*$/m);
+  return match ? unquote(match[1]) : null;
+}
+
+function validateCheckoutCredentials(root, file, content, errors) {
+  const basename = path.basename(file);
+  const exemptions = CHECKOUT_CREDENTIAL_EXEMPTIONS[basename] || {};
+  for (const job of jobBlocks(content)) {
+    if (Object.prototype.hasOwnProperty.call(exemptions, job.name)) continue;
+    for (const step of stepBlocks(job.lines.join('\n'))) {
+      if (!step.lines.some((line) => /(?:-\s*)?uses:\s*actions\/checkout@/.test(line))) continue;
+      const value = persistCredentialsValue(stepSections(step)('with'));
+      if (value !== 'false') {
+        addError(
+          errors,
+          root,
+          file,
+          fileLineForStep(job, step),
+          `job '${job.name}' actions/checkout must set persist-credentials: false`,
+        );
+      }
+    }
+  }
+}
+
+function validateRunInterpolation(root, file, content, errors) {
+  for (const job of jobBlocks(content)) {
+    for (const step of stepBlocks(job.lines.join('\n'))) {
+      const runSection = stepSections(step)('run');
+      if (!runSection || !/\$\{\{/.test(runSection)) continue;
+      addError(
+        errors,
+        root,
+        file,
+        fileLineForStep(job, step),
+        `job '${job.name}' run: must not interpolate GitHub expressions; bind them via env: and expand a shell variable`,
+      );
+    }
+  }
+}
+
 function validateReleasePolicy(root, file, content, errors) {
   if (path.basename(file) !== 'release.yml') return;
 
@@ -348,6 +403,8 @@ function main(root = ROOT) {
     validateTimeouts(root, file, content, errors);
     validateLinuxRunner(root, file, content, errors);
     validateCheckoutlessRepoContext(root, file, content, errors);
+    validateCheckoutCredentials(root, file, content, errors);
+    validateRunInterpolation(root, file, content, errors);
     validateReleasePolicy(root, file, content, errors);
   }
   return { errors, warnings: [], files: [...files, ...actionFiles].map((file) => path.relative(root, file)) };
@@ -360,4 +417,10 @@ if (require.main === module) {
   else console.log(`workflow-policy: checked ${result.files.length} workflow/action file(s)`);
 }
 
-module.exports = { main, NODE_BASELINE, LINUX_RUNNER_BASELINE, WORKFLOW_TIMEOUTS };
+module.exports = {
+  main,
+  NODE_BASELINE,
+  LINUX_RUNNER_BASELINE,
+  WORKFLOW_TIMEOUTS,
+  CHECKOUT_CREDENTIAL_EXEMPTIONS,
+};
