@@ -357,7 +357,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
+      "sha256": "1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c"
     },
     {
       "skillId": "code-trace",
@@ -781,7 +781,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
+      "sha256": "1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c"
     },
     {
       "skillId": "flow-drive",
@@ -917,7 +917,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
+      "sha256": "1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c"
     },
     {
       "skillId": "flow-drive",
@@ -2245,7 +2245,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
+      "sha256": "1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c"
     },
     {
       "skillId": "flow-guide",
@@ -2365,7 +2365,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34"
+      "sha256": "1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c"
     },
     {
       "skillId": "flow-guide",
@@ -2917,7 +2917,7 @@
       "sourcePath": "skills/harness-setup/references/claude-setup.md",
       "destination": "skills/harness-setup/references/claude-setup.md",
       "kind": "entry",
-      "sha256": "662834898f04bf5f69eece937d4f4d21e184daa7273ac8e7e7d8acb6e9463e2a"
+      "sha256": "3d08a7d4917fa7759cc7da6ac150eeb45b6f3e809b7107fa0e3dec72d3c79361"
     },
     {
       "skillId": "harness-setup",
