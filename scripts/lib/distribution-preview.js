@@ -159,7 +159,7 @@ function createPreviewSourceSnapshot(sourceRoot) {
     const patchPath = path.join(parent, 'source.patch');
     runGitToFile(resolvedSource, ['diff', '--no-textconv', '--binary', '--full-index', baseCommit, '--'], patchPath);
     if (fs.statSync(patchPath).size > 0) {
-      runGit(snapshotRoot, ['apply', '--binary', '--directory', '.', patchPath]);
+      runGit(snapshotRoot, ['apply', '--binary', patchPath]);
     }
     fs.rmSync(patchPath, { force: true });
     for (const entry of statusEntries.filter(({ status }) => status === '??' || status[0] === '?' || status[1] === '?')) {

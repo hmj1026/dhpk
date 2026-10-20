@@ -342,6 +342,39 @@ test('preview snapshot retains tracked files that match ignore rules', () => {
   }
 });
 
+test('dirty tracked text preview snapshot matches the source worktree', () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-preview-tracked-text-')));
+  try {
+    fs.writeFileSync(path.join(root, 'CONTEXT.md'), 'old\n');
+    execFileSync('git', ['init', '-q'], { cwd: root });
+    execFileSync('git', ['config', 'user.name', 'Preview Test'], { cwd: root });
+    execFileSync('git', ['config', 'user.email', 'preview-test@example.invalid'], { cwd: root });
+    execFileSync('git', ['add', 'CONTEXT.md'], { cwd: root });
+    execFileSync('git', ['commit', '-qm', 'base'], { cwd: root });
+    fs.writeFileSync(path.join(root, 'CONTEXT.md'), 'new\n');
+    const before = {
+      head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }),
+      index: execFileSync('git', ['diff', '--cached', '--binary'], { cwd: root, encoding: 'buffer' }),
+      worktree: fs.readFileSync(path.join(root, 'CONTEXT.md')),
+    };
+    const snapshot = createPreviewSourceSnapshot(root);
+    try {
+      assert.strictEqual(fs.readFileSync(path.join(snapshot.root, 'CONTEXT.md'), 'utf8'), 'new\n');
+      assert.strictEqual(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }), before.head);
+      assert.deepStrictEqual(execFileSync('git', ['diff', '--cached', '--binary'], { cwd: root, encoding: 'buffer' }), before.index);
+      assert.deepStrictEqual(fs.readFileSync(path.join(root, 'CONTEXT.md')), before.worktree);
+      const snapshotRoot = snapshot.root;
+      snapshot.cleanup();
+      assert.strictEqual(fs.existsSync(snapshotRoot), false);
+    } catch (error) {
+      snapshot.cleanup();
+      throw error;
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('validate and verify still run on a dirty checkout because they do not write provenance', () => {
   const worktreeParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-dirty-read-'));
   const worktreeRoot = path.join(worktreeParent, 'checkout');
