@@ -127,9 +127,20 @@ coordinated calls never overlap. Every node must execute and pass its own
 verification before the aggregate acceptance can pass. A reasoner conclusion
 must carry attributable source, root-cause, repair, and verification evidence
 before a dependent writer is eligible; confidence text or a role name alone is
-insufficient. Required independent review needs a distinct observed executor
-identity. Optional peer absence alone is not a blocker, but a missing review
-gate cannot become PASS. The sanitized DEV QA fixtures in
+insufficient. Passing that gate only admits the writer. It does not deliver
+the conclusion. The node task passed to `host.execute` carries
+`constraints.verified_dependencies` for direct dependencies that passed the
+verified-conclusion gate. Each record has `source_node_id`, `status`
+(`fresh` or `reused`), `conclusion` (`status`, `source_evidence`,
+`root_cause`, `repair`, `verification`), and `evidence`. Fresh and reused
+records use that same shape. Indirect nodes, blocked or failed nodes, and
+successes without a verified conclusion are omitted. The existing task digest
+includes this list, so a downstream reuse receipt matches only the handoff
+that node receives. A fresh prerequisite still invalidates downstream reuse.
+The same handoff content can still be reused when the existing prompt, task,
+baseline, and Host checks pass. Required independent review needs a distinct
+observed executor identity. Optional peer absence alone is not a blocker, but
+a missing review gate cannot become PASS. The sanitized DEV QA fixtures in
 `tests/fixtures/flow-drive/` exercise partial acceptance: an unknown cause
 blocks its writer while a separate repaired item retains tests and independent
 review evidence. Fixture success does not prove real DEV, database, Provider

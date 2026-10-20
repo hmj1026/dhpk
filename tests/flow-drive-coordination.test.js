@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { runFlowDrive } = require('../skills/flow-drive/scripts/run');
 const { validateTaskGraph, nodeTaskDigest } = require('../skills/flow-drive/scripts/task-graph');
+const { createNodeTask } = require('../skills/flow-drive/scripts/task-contract');
 const { createRunnerFixture, DEFAULT_TASK, DEFAULT_TARGET, CODEX_PROFILE, CATALOG } = require('./_lib/flow-drive-runner-fixtures');
 const REASONER_TARGET = Object.freeze({ target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-6.1-sol', effort: 'high' });
 
@@ -668,6 +669,116 @@ test('reuse receipt from an earlier write scope does not skip the current scope'
     fixture.cleanup();
     fs.rmSync(workdir, { recursive: true, force: true });
   }
+});
+
+function readyConclusion(repair) {
+  return { status: 'READY_FOR_DISPATCH', source_evidence: 'observed', root_cause: 'known', repair, verification: 'test' };
+}
+
+test('direct verified conclusions are handed to the dependent execute call', async () => {
+  const fixture = createRunnerFixture({
+    task: { ...DEFAULT_TASK, constraints: { ...DEFAULT_TASK.constraints, delegation: 'coordinated' } },
+    decision: { mode: 'coordinated', nodes: [
+      { id: 'diagnose', goal: 'diagnose', acceptance: ['diagnosed'], role: 'reasoner', authority: 'read-only', assigned_files: [], dependencies: [], target: DEFAULT_TARGET },
+      { id: 'notes', goal: 'notes', acceptance: ['noted'], role: 'reasoner', authority: 'read-only', assigned_files: [], dependencies: [], target: DEFAULT_TARGET },
+      { id: 'aside', goal: 'aside', acceptance: ['aside'], role: 'reasoner', authority: 'read-only', assigned_files: [], dependencies: [], target: DEFAULT_TARGET },
+      { id: 'blocked', goal: 'blocked', acceptance: ['blocked'], role: 'reasoner', authority: 'read-only', assigned_files: [], dependencies: [], target: DEFAULT_TARGET },
+      { id: 'repair', goal: 'repair', acceptance: ['repaired'], role: 'worker', authority: 'workspace-write', assigned_files: ['src/receipt.js'], dependencies: ['diagnose', 'notes'], reasoner_dependencies: ['diagnose'], decision_state: 'REASONER_REQUIRED', target: DEFAULT_TARGET },
+    ] },
+  });
+  fixture.host.inspectScope = async () => ({ within_scope: true, wip_preserved: true, identity: 'baseline-1' });
+  const conclusions = {
+    diagnose: readyConclusion('edit'),
+    notes: { status: 'NOT_READY', source_evidence: 'partial', root_cause: 'ungated-note', repair: '', verification: '' },
+    aside: readyConclusion('aside-only'),
+    blocked: readyConclusion('blocked-secret'),
+  };
+  let handoff = null;
+  fixture.host.execute = async (_target, task, context) => {
+    if (context.node.id === 'repair') handoff = task.constraints.verified_dependencies || null;
+    if (context.node.id === 'blocked') return { status: 'BLOCKED', conclusion: conclusions.blocked };
+    const conclusion = conclusions[context.node.id];
+    return conclusion
+      ? { status: 'SUCCEEDED', conclusion, executor_identity: { agent_id: context.node.id, session_id: 's1' } }
+      : { status: 'SUCCEEDED', executor_identity: { agent_id: 'worker', session_id: 's2' } };
+  };
+  await runFlowDrive(['Fix the receipt total.'], { host: fixture.host, workdir: fixture.workdir });
+  assert.ok(Array.isArray(handoff), 'worker execute did not receive verified dependencies');
+  assert.strictEqual(handoff.length, 1);
+  assert.deepStrictEqual(handoff[0], {
+    source_node_id: 'diagnose',
+    status: 'fresh',
+    conclusion: conclusions.diagnose,
+    evidence: 'receipt total matches the literal acceptance example',
+  });
+  const serialized = JSON.stringify(handoff);
+  assert.strictEqual(serialized.includes('ungated-note'), false);
+  assert.strictEqual(serialized.includes('aside-only'), false);
+  assert.strictEqual(serialized.includes('blocked-secret'), false);
+});
+
+test('a reused prerequisite is handed in the same shape and binds downstream reuse', async () => {
+  const conclusionA = { status: 'READY_FOR_DISPATCH', source_evidence: 'receipt lines', root_cause: 'stale total', repair: 'update total', verification: 'compare output' };
+  const conclusionB = { ...conclusionA, repair: 'replace formatter' };
+  const diagnosisEvidence = 'prior diagnosis receipt verified';
+  const run = async (conclusion, { reuseWorker = false, freshDiagnosis = false } = {}) => {
+    const workdir = makeWorkdir('handoff-reuse');
+    fs.mkdirSync(path.join(workdir, 'src'));
+    const seen = [];
+    const executed = [];
+    const fixture = createRunnerFixture({ task: { ...DEFAULT_TASK, constraints: { ...DEFAULT_TASK.constraints, delegation: 'coordinated' } } });
+    fixture.host.coordinate = async (task) => {
+      const diagnosis = { id: 'diagnosis', goal: 'diagnose receipt mismatch', acceptance: ['cause established'], role: 'reasoner', authority: 'read-only', assigned_files: [], dependencies: [] };
+      const repair = { id: 'repair', goal: 'repair receipt mismatch', acceptance: ['receipt file updated'], role: 'worker', authority: 'workspace-write', assigned_files: ['src/receipt.js'], dependencies: ['diagnosis'], reasoner_dependencies: ['diagnosis'], decision_state: 'REASONER_REQUIRED', target: DEFAULT_TARGET };
+      const diagnosisTask = createNodeTask(task, diagnosis);
+      const status = freshDiagnosis ? 'fresh' : 'reused';
+      const evidence = freshDiagnosis ? 'receipt total matches the literal acceptance example' : diagnosisEvidence;
+      const handoff = [{ source_node_id: 'diagnosis', status, conclusion: conclusionA, evidence }];
+      const repairTask = createNodeTask(task, repair, handoff);
+      return { mode: 'coordinated', nodes: [
+        { ...diagnosis, target: REASONER_TARGET, ...(freshDiagnosis ? {} : { reuse: { prompt_sha256: task.constraints.prompt_evidence.sha256, task_digest: nodeTaskDigest(diagnosis, diagnosisTask, workdir), baseline_identity: 'reuse-baseline' } }) },
+        { ...repair, ...(reuseWorker ? { reuse: { prompt_sha256: task.constraints.prompt_evidence.sha256, task_digest: nodeTaskDigest(repair, repairTask, workdir), baseline_identity: 'reuse-baseline' } } : {}) },
+      ] };
+    };
+    fixture.host.inspectScope = async () => ({ identity: 'reuse-baseline', within_scope: true, wip_preserved: true });
+    fixture.host.verifyReuse = async (_reuse, context) => {
+      seen.push({ id: context.node.id, handoff: context.task.constraints.verified_dependencies || null });
+      if (context.node.id === 'diagnosis') {
+        return { status: 'PASSED', evidence: diagnosisEvidence, conclusion, executor_identity: { agent_id: 'prior-reasoner', session_id: 'prior-session' } };
+      }
+      return { status: 'PASSED', evidence: 'prior repair receipt verified', executor_identity: { agent_id: 'prior-worker', session_id: 'prior-worker-session' } };
+    };
+    fixture.host.execute = async (_target, task, context) => {
+      executed.push(context.node.id);
+      seen.push({ id: context.node.id, handoff: task.constraints.verified_dependencies || null });
+      if (context.node.id === 'diagnosis') return { status: 'SUCCEEDED', conclusion: conclusionA, executor_identity: { agent_id: 'reasoner', session_id: 's1' } };
+      fs.writeFileSync(path.join(workdir, 'src/receipt.js'), task.constraints.verified_dependencies[0].conclusion.repair);
+      return { status: 'SUCCEEDED', executor_identity: { agent_id: 'repair-worker', session_id: 'current-session' } };
+    };
+    const report = await runFlowDrive(['Reuse verified diagnosis.'], { host: fixture.host, workdir });
+    fixture.cleanup();
+    return { report, seen, executed };
+  };
+  const reused = await run(conclusionA);
+  const repairHandoff = reused.seen.find((item) => item.id === 'repair').handoff;
+  assert.deepStrictEqual(repairHandoff, [{
+    source_node_id: 'diagnosis', status: 'reused', conclusion: conclusionA, evidence: diagnosisEvidence,
+  }]);
+  assert.strictEqual(reused.executed.includes('diagnosis'), false);
+  assert.strictEqual(reused.report.acceptance.status, 'PASSED');
+
+  const changed = await run(conclusionB, { reuseWorker: true });
+  assert.strictEqual(changed.executed.includes('repair'), true);
+  assert.strictEqual(changed.seen.some((item) => item.id === 'repair' && item.handoff[0].conclusion.repair === 'replace formatter'), true);
+  assert.strictEqual(changed.seen.some((item) => item.id === 'repair' && item.handoff === null), false);
+
+  const same = await run(conclusionA, { reuseWorker: true });
+  assert.strictEqual(same.executed.includes('repair'), false);
+  assert.deepStrictEqual(same.seen.find((item) => item.id === 'repair').handoff[0].conclusion, conclusionA);
+
+  const fresh = await run(conclusionA, { reuseWorker: true, freshDiagnosis: true });
+  assert.strictEqual(fresh.executed.includes('repair'), true);
+  assert.strictEqual(fresh.seen.some((item) => item.id === 'repair' && item.handoff && item.handoff[0].status === 'fresh'), true);
 });
 
 test('graph executor failure inspects scope with its baseline before releasing the next writer', async () => {
