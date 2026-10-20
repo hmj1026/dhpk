@@ -36,6 +36,15 @@ function uniqueIds(values) {
   return selected;
 }
 
+function receiptMissing(projectRoot) {
+  try {
+    fs.lstatSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'));
+    return false;
+  } catch (error) {
+    return Boolean(error && error.code === 'ENOENT');
+  }
+}
+
 function readPreviousReceipt(projectRoot) {
   const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
   try {
@@ -209,7 +218,16 @@ function uninstallNativeSharedSkills({
   }
   const previous = readPreviousReceipt(projectRoot);
   if (!previous) {
-    return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot };
+    if (receiptMissing(projectRoot)) {
+      return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot };
+    }
+    // A present receipt that this lenient reader cannot use is not absence.
+    // The strict projection uninstaller reports INVALID_RECEIPT and keeps files.
+    return uninstallAgentsSkillsProjection({
+      sourceRoot,
+      projectRoot,
+      inventory: inventory || readInventory(sourceRoot),
+    });
   }
   const previousBindings = previous.hostBindings && typeof previous.hostBindings === 'object'
     && !Array.isArray(previous.hostBindings)
