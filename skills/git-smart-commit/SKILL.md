@@ -27,9 +27,9 @@ metadata:
 
 ## Public options and execution guard
 
-`--scope <path>` limits collection; `--type <type>` forces the reviewed conventional type; `--ai-co-author` opts into the approved trailer. Before proposing or running commits, read `rules/execution-policy.md`, preserve its manual/automatic boundary, require code precommit success, and treat plans as unexecuted.
+`--scope <path>` limits collection; `--type <type>` forces the reviewed conventional type; `--ai-co-author` opts into the approved trailer. Before proposing or running commits, read `$SKILL_DIR/references/_dependencies/rules/execution-policy.md`, preserve its manual/automatic boundary, require code precommit success, and treat plans as unexecuted. `$SKILL_DIR` is the installed directory containing this `SKILL.md`. If that policy file is missing, run `node "$SKILL_DIR/scripts/collect-changes.js" --require-policy` and stop on a non-zero result: do not stage or commit, and do not search the consumer checkout or a sibling skill.
 
-## 流程 — SSOT: `rules/execution-policy.md` owns commit/review safety; this skill owns grouping evidence
+## 流程 — SSOT: `$SKILL_DIR/references/_dependencies/rules/execution-policy.md` owns commit/review safety; this skill owns grouping evidence
 
 ### 1. 收集摘要並閱讀相關變更
 
@@ -92,7 +92,7 @@ Commit 計畫（共 N 個 commit）
 授權狀態：依既有明確授權執行；若尚未授權，先等待使用者確認。
 ```
 
-遵守 `rules/execution-policy.md` 的授權邊界。若目前任務已明確授權這些範圍與分組，依該授權執行，不重複要求確認；新增分組或超出授權範圍時，先取得對該變更的實際授權。
+遵守 `$SKILL_DIR/references/_dependencies/rules/execution-policy.md` 的授權邊界。若目前任務已明確授權這些範圍與分組，依該授權執行，不重複要求確認；新增分組或超出授權範圍時，先取得對該變更的實際授權。政策檔不存在時停止，不進行 staging 或 commit。
 
 ---
 

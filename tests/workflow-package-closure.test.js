@@ -7,6 +7,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   isIgnoredTreeName,
@@ -328,5 +329,80 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
     }
   });
 }
+
+test('installed flow-guide help and next use the skill directory and the consumer repository', () => {
+  const skill = fs.readFileSync(path.join(ROOT, 'skills/flow-guide/SKILL.md'), 'utf8');
+  assert.match(skill, /node "\$SKILL_DIR\/scripts\/action-runner\.js" help/);
+  assert.match(skill, /node "\$SKILL_DIR\/scripts\/action-runner\.js" next/);
+  assert.doesNotMatch(skill, /node skills\/flow-guide\/scripts\/action-runner\.js/);
+  const name = `consumer-evidence-${process.pid}`;
+  const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-flow-guide-consumer-')));
+  const consumer = path.join(parent, name);
+  fs.mkdirSync(consumer);
+  const git = (args) => execFileSync('git', args, { cwd: consumer, encoding: 'utf8' }).trim();
+  git(['init', '-q', '-b', 'consumer-branch']);
+  git(['config', 'user.email', 'consumer@example.invalid']);
+  git(['config', 'user.name', 'Consumer']);
+  fs.writeFileSync(path.join(consumer, 'README.md'), 'consumer\n');
+  git(['add', 'README.md']);
+  git(['commit', '-qm', 'consumer base']);
+  const head = git(['rev-parse', '--short', 'HEAD']);
+  const script = path.join(ROOT, 'skills/flow-guide/scripts/action-runner.js');
+  try {
+    const help = spawnSync(process.execPath, [script, 'help'], { cwd: consumer, encoding: 'utf8' });
+    assert.strictEqual(help.status, 0, help.stderr);
+    const next = spawnSync(process.execPath, [script, 'next'], { cwd: consumer, encoding: 'utf8' });
+    assert.strictEqual(next.status, 0, next.stderr);
+    const report = JSON.parse(next.stdout);
+    assert.strictEqual(report.repo, name);
+    assert.strictEqual(report.branch, 'consumer-branch');
+    assert.strictEqual(report.head, head);
+    assert.notStrictEqual(report.head, execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim());
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('change-verdict authorizes the installed helper paths without unrestricted Bash', () => {
+  const skill = fs.readFileSync(path.join(ROOT, 'skills/change-verdict/SKILL.md'), 'utf8');
+  const allowed = skill.split('\n').find((line) => line.startsWith('allowed-tools:'));
+  for (const helper of [
+    'Bash(node $SKILL_DIR/scripts/risk-analyze.js:*)',
+    'Bash(bash $SKILL_DIR/scripts/check-unrelated-changes.sh:*)',
+    'Bash(bash $SKILL_DIR/scripts/review-cli.sh:*)',
+  ]) assert.ok(allowed.includes(helper), helper);
+  assert.doesNotMatch(allowed, /skills\/change-verdict\/scripts/);
+  assert.doesNotMatch(allowed, /(?:^|,\s*)Bash(?!\()/);
+  assert.doesNotMatch(allowed, /Bash\(node:\*\)/);
+  const backend = fs.readFileSync(path.join(ROOT, 'skills/change-verdict/references/shared/cli-backend.md'), 'utf8');
+  assert.match(backend, /\$SKILL_DIR\/scripts\/review-cli\.sh/);
+  assert.doesNotMatch(backend, /skills\/change-verdict\/scripts\/review-cli\.sh/);
+});
+
+test('standalone git-smart-commit ships its policy and stops when that file is missing', () => {
+  const { compileMarketplaceSkillContent } = require('../scripts/lib/marketplace-skill-content');
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
+  const declared = inventory.standalone_dependencies['git-smart-commit'];
+  assert.ok(declared.files.some((file) => file.destination === 'rules/execution-policy.md'));
+  const compiled = compileMarketplaceSkillContent({
+    root: ROOT,
+    inventory,
+    publicationView: {
+      publicEntries: [{ id: 'git-smart-commit' }],
+      bundledChildren: {},
+      hostOnly: [],
+      selectionDigest: 'a'.repeat(64),
+      errors: [],
+    },
+  });
+  assert.strictEqual(compiled.ok, true, compiled.errors && compiled.errors.join('\n'));
+  const policy = compiled.files.find((file) => file.path === 'skills/git-smart-commit/references/_dependencies/rules/execution-policy.md');
+  assert.ok(policy, 'standalone policy dependency');
+  assert.match(policy.bytes.toString('utf8'), /manual\/automatic|Implementation dispatch/);
+  const packaged = compiled.files.find((file) => file.path === 'skills/git-smart-commit/SKILL.md').bytes.toString('utf8');
+  assert.match(packaged, /\$SKILL_DIR\/references\/_dependencies\/rules\/execution-policy\.md/);
+  assert.match(packaged, /--require-policy/);
+  assert.doesNotMatch(packaged, /read `rules\/execution-policy\.md`/);
+});
 
 run('workflow-package-closure');
