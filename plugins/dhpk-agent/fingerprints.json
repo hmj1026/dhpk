@@ -10,10 +10,10 @@
     "flow-guide": "5bee3ae2797c0ee36bf5ff2c381cc3ad9fa82db24506ed762fccfcb7233c84b2",
     "git-smart-commit": "f8ab012250fd2cc9b4689317d34892abc616b2bb7099065a8a6409c85e5915b2",
     "git-worktree": "fba52cd48ff6c4f2cbdef58b63238c55735779e27b75f02000e89028ddb691dd",
-    "precommit": "15bf5b7c226e2256780299b5b4759ef5e3004ad0bbf14ca75cbc53a82e1174a3",
+    "precommit": "54a73d019193eade49834a941c254504e60c7f0b4485d9d360b465033a34f669",
     "proposal-analyze": "338bf2b72e9747a0d921e9dcfaf3cad6532a3a0109aa61915b90ff6517a15cbe",
     "release-creator": "ecc03d28430d66eba2f257dd3a881064b11ee78ba60374e67f2469e43c1f1fac",
-    "repo-verify": "dd03404df1996c8177f42080c7bb95f76523fca8b679fed9b146852be8178fc1",
+    "repo-verify": "48ec570354ab0f06fb3ae3f0cd05488c735db14dfebd7313a2c25af86cf45c04",
     "tdd-workflow": "2a68bfd335f14bde311f6c8f14c9e2d404801cfe427a33bd32702d743eacea0e",
     "ui-ux-verify": "658a109ff7b7614471a10ffa322eb854b74eb9dcef1487493fa91af7c2e33521"
   }

@@ -3229,7 +3229,7 @@
       "sourcePath": "skills/precommit/scripts/precommit-runner.js",
       "destination": "skills/precommit/scripts/precommit-runner.js",
       "kind": "entry",
-      "sha256": "1f50c81e78b5b3b5cfa3971a1a00316bf934fb1565dce436462da33ee5c1710b"
+      "sha256": "7e1e7f1797d4446ed48255958d1b76025181f4037e15c6f6f7a265d207f9f616"
     },
     {
       "skillId": "proposal-analyze",
@@ -3749,7 +3749,7 @@
       "sourcePath": "skills/repo-verify/scripts/verify-runner.js",
       "destination": "skills/repo-verify/scripts/verify-runner.js",
       "kind": "entry",
-      "sha256": "22a8e3a701974f21f40043f79bca97683cd8c978d1ab64f75b8023c300cb881a"
+      "sha256": "fc34fb3ece8eb6f89601eaf4391b76efa521c467911854d7afa6cccdfeb419f4"
     },
     {
       "skillId": "tdd",
