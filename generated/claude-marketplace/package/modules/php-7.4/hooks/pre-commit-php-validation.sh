@@ -41,9 +41,9 @@ php_check_root() {
 local ROOT="$1"
 cd "$ROOT" || return 0
 
-# Collect non-vendor staged .php files.
+# Collect non-vendor staged .php files. NUL keeps quotes and newlines in the path.
 staged_php=()
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
     [ -z "$f" ] && continue
     case "$f" in
         *.php) ;;
@@ -51,7 +51,7 @@ while IFS= read -r f; do
     esac
     case "$f" in vendor/*|*/vendor/*) continue ;; esac
     staged_php+=("$f")
-done < <(git -C "$ROOT" diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
+done < <(git -C "$ROOT" diff --cached -z --name-only --diff-filter=ACMR 2>/dev/null || true)
 
 [ "${#staged_php[@]}" -eq 0 ] && return 0
 

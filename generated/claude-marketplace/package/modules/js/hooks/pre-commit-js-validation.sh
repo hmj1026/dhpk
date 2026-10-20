@@ -40,24 +40,18 @@ js_check_root() {
 local ROOT="$1"
 cd "$ROOT" || return 0
 
-staged="$(git -C "$ROOT" diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)"
-[ -z "$staged" ] && return 0
-
-# Filter staged paths through the tier detector — only `frontend` tier files
-# trigger the gate. Vendor / non-js paths skip.
-_dhpk_js_load_config
-has_frontend=0
-while IFS= read -r f; do
+# NUL records keep quoted and newline paths intact. Only frontend-tier files open the gate.
+staged_js=()
+while IFS= read -r -d '' f; do
     [ -z "$f" ] && continue
     case "$f" in *.js|*.ts|*.jsx|*.tsx|*.mjs|*.cjs|*.vue|*.svelte) ;; *) continue ;; esac
     detect_js_tier "$f"
     if [ "$JS_TIER" = "frontend" ]; then
-        has_frontend=1
-        break
+        staged_js+=("$f")
     fi
-done <<< "$staged"
+done < <(git -C "$ROOT" diff --cached -z --name-only --diff-filter=ACMR 2>/dev/null || true)
 
-[ "$has_frontend" -eq 1 ] || return 0
+[ "${#staged_js[@]}" -eq 0 ] && return 0
 
 if [ ! -d node_modules ]; then
     echo "[pre-commit-js] WARN: node_modules missing; skipping lint+typecheck (run 'npm i' to enable gate)" >&2
