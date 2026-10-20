@@ -17,6 +17,10 @@ function safeFiles(value, label) {
   return Object.freeze([...value]);
 }
 
+function isRequiredReasonerSource(node) {
+  return Boolean(node && node.role === 'reasoner' && node.authority === 'read-only');
+}
+
 function nodeTaskDigest(node, task, workdir) {
   const normalized = { id: node.id, role: node.role, goal: task.goal, acceptance: [...task.acceptance], workdir,
     constraints: { ...task.constraints, prompt_evidence: { sha256: task.constraints.prompt_evidence.sha256 }, assigned_files: [...task.constraints.assigned_files].sort() } };
@@ -99,8 +103,9 @@ function validateTaskGraph(decision, parentConstraints = {}) {
     const ancestry = new Set(); const pending = [...node.dependencies];
     while (pending.length) { const current = pending.pop(); if (ancestry.has(current)) continue; ancestry.add(current); const parent = byId.get(current); if (parent) pending.push(...parent.dependencies); }
     if (node.reasoner_dependencies.some((id) => !ancestry.has(id))) throw new Error(`reasoner dependencies for ${node.id} must reference dependency ancestry`);
+    if (node.reasoner_dependencies.some((id) => !isRequiredReasonerSource(byId.get(id)))) throw new Error(`reasoner dependencies for ${node.id} must reference a read-only reasoner`);
   });
   return Object.freeze({ mode: 'coordinated', nodes });
 }
 
-module.exports = Object.freeze({ validateTaskGraph, nodeTaskDigest });
+module.exports = Object.freeze({ validateTaskGraph, nodeTaskDigest, isRequiredReasonerSource });
