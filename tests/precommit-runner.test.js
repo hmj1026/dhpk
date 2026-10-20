@@ -151,6 +151,51 @@ test('no matching scripts: all steps are skipped and structured overall status i
   }
 }));
 
+test('--help prints usage without running steps, including outside a git repo', () => withScratchArtifacts(({ dir, cacheDir, marker }) => {
+  let repo;
+  try {
+    repo = mkScratchRepo({
+      'lint:fix': markerCommand('lint'),
+      test: markerCommand('test'),
+    });
+    const helped = runScript(repo, ['--help'], cacheDir, { ORDER_MARKER: marker });
+    assert.strictEqual(helped.status, 0, helped.stderr);
+    assert.match(helped.stdout, /Usage: precommit-runner\.js/);
+    assert.ok(!fs.existsSync(marker), 'help must not run lint or tests');
+    assert.ok(!fs.existsSync(cacheDir), 'help must not create a cache');
+
+    const outside = runScript(dir, ['-h'], cacheDir);
+    assert.strictEqual(outside.status, 0, outside.stderr);
+    assert.match(outside.stdout, /Usage: precommit-runner\.js/);
+    assert.ok(!outside.stdout.includes('Not inside a git repo'));
+    assert.ok(!fs.existsSync(cacheDir));
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
+test('unknown, missing, and invalid arguments exit before any step or cache write', () => withScratchArtifacts(({ dir, cacheDir, marker }) => {
+  let repo;
+  try {
+    repo = mkScratchRepo({
+      'lint:fix': markerCommand('lint'),
+      test: markerCommand('test'),
+    });
+    for (const args of [['--bogus'], ['--mode'], ['--mode', 'nope'], ['--tail', 'nope'], ['--tail']]) {
+      const res = runScript(repo, args, cacheDir, { ORDER_MARKER: marker });
+      assert.notStrictEqual(res.status, 0, `${args.join(' ')} should fail`);
+      assert.match(res.stderr, /Usage: precommit-runner\.js/);
+      assert.ok(!fs.existsSync(marker), `${args.join(' ')} ran a step`);
+      assert.ok(!fs.existsSync(cacheDir), `${args.join(' ')} wrote a cache`);
+    }
+    const kept = runScript(repo, ['--mode', 'fast'], cacheDir, { ORDER_MARKER: marker });
+    assert.strictEqual(kept.status, 0, kept.stderr);
+    assert.deepStrictEqual(fs.readFileSync(marker, 'utf8').trim().split('\n'), ['lint', 'test']);
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
 test('a failing test step is recorded as FAIL with its exit code and overall status', () => withScratchArtifacts(({ dir, cacheDir }) => {
   let repo;
   try {
@@ -220,6 +265,48 @@ test('a failing test step is recorded as FAIL with its exit code and overall sta
   function cleanup(...dirs) {
     for (const d of dirs) if (d) fs.rmSync(d, { recursive: true, force: true });
   }
+
+  test('--help prints usage without scheduling steps, including outside a git repo', () => {
+    const repo = mkScratchRepo({ lint: 0, test: 0 });
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-help-'));
+    let helped;
+    let bare;
+    try {
+      helped = runScript(repo, ['--help']);
+      assert.strictEqual(helped.status, 0, helped.stderr);
+      assert.match(helped.stdout, /Usage: verify-runner\.js/);
+      assert.ok(!helped.stdout.includes('lint ran'));
+      assert.deepStrictEqual(fs.readdirSync(helped.cacheDir), []);
+      bare = runScript(outside, ['-h']);
+      assert.strictEqual(bare.status, 0, bare.stderr);
+      assert.match(bare.stdout, /Usage: verify-runner\.js/);
+      assert.ok(!bare.stdout.includes('Not inside a git repo'));
+      assert.deepStrictEqual(fs.readdirSync(bare.cacheDir), []);
+    } finally {
+      cleanup(repo, outside, helped && helped.cacheDir, bare && bare.cacheDir);
+    }
+  });
+
+  test('unknown, missing, and invalid arguments do not start verification', () => {
+    const repo = mkScratchRepo({ lint: 0, test: 0 });
+    const caches = [];
+    try {
+      for (const args of [['--bogus'], ['--mode'], ['--mode', 'sideways'], ['--tail', 'lots'], ['--e2e']]) {
+        const res = runScript(repo, args);
+        caches.push(res.cacheDir);
+        assert.notStrictEqual(res.status, 0, args.join(' '));
+        assert.match(res.stderr, /Usage: verify-runner\.js/);
+        assert.ok(!res.stdout.includes('lint ran'), args.join(' '));
+        assert.deepStrictEqual(fs.readdirSync(res.cacheDir), [], args.join(' '));
+      }
+      const kept = runScript(repo, ['fast']);
+      caches.push(kept.cacheDir);
+      assert.strictEqual(kept.status, 0, kept.stderr);
+      assert.ok(kept.stdout.includes('# Verify (fast)'), kept.stdout);
+    } finally {
+      cleanup(repo, ...caches);
+    }
+  });
 
   test('outside a git repo: prints "Not inside a git repo" and exits 0', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-nongit-'));
