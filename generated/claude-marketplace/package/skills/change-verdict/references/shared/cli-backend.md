@@ -5,7 +5,7 @@ review is appropriate. It validates `--backend cli`, `--scope`, and `--depth`,
 passes arguments as a shell array, and returns the CLI's exit status.
 
 ```bash
-bash skills/change-verdict/scripts/review-cli.sh \
+bash $SKILL_DIR/scripts/review-cli.sh \
   --backend cli --scope diff --depth fast
 ```
 

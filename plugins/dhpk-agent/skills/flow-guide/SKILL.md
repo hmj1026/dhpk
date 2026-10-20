@@ -35,13 +35,14 @@ keep required, skipped, unavailable, and failed evidence distinct.
 
 ## `help`
 
-Run `node skills/flow-guide/scripts/action-runner.js help` (or `usage-card.js`) for the generated Codex catalog, or add one public skill name for a single usage card.
+Run `node "$SKILL_DIR/scripts/action-runner.js" help` or `node "$SKILL_DIR/scripts/usage-card.js"` for the generated Codex catalog, or add one public skill name for a single usage card.
+`$SKILL_DIR` is the installed directory containing this `SKILL.md`. Keep the working directory on the consumer repository; do not `cd` into the package to inspect that repository.
 Help is metadata only: it never invokes the named skill, loads procedural references, or grants workspace/Git/external-write authority.
 Unknown and known non-Codex skill names receive different diagnostics.
 
 ## `route`
 
-1. Parse the action query with `scripts/action-runner.js`; its route branch
+1. Parse the action query with `node "$SKILL_DIR/scripts/action-runner.js"`; its route branch
    delegates to `scripts/route-result.js`.
 2. Match `references/route-table.json` through `scripts/pre-route.sh`; the
    first precise match wins. A miss remains a deliberate-classification case.
@@ -69,7 +70,7 @@ Return the source pointer, applicable gate, and one next handoff.
 
 ## `next`
 
-Run `node skills/flow-guide/scripts/action-runner.js next` (which delegates to
+Run `node "$SKILL_DIR/scripts/action-runner.js" next` (which delegates to
 the package-local analyzer) and parse its JSON. Report the
 current branch/worktree evidence, each required or unavailable gate, and one
 next route. A recorded `passed` value applies to the current change only when

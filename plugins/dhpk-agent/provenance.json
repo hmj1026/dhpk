@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "ad957a0e22204e7481fc10e9585ac2db639d3591",
-  "generatedFromCommit": "ad957a0e22204e7481fc10e9585ac2db639d3591",
-  "generatedFromTree": "a0b0e6a52913615d8c99e4932fdf8a974dd5b8b4",
+  "sourceCommit": "1c5ba4880530414f1baef7f572d81e5bdc96f87c",
+  "generatedFromCommit": "1c5ba4880530414f1baef7f572d81e5bdc96f87c",
+  "generatedFromTree": "51ce9bdbd10f0f9297d2826ad7adaf7d2f1ec19d",
   "inventoryDigest": "47ae5bd5e0eab225974884b6b64199d09a34c52057073183aa2d371ebd11e7af",
-  "inventoryRevision": "sha256:85061e5b0aab4929126b5b5441c974eb3ebb0df8eeddd38d9d49ad7337d9d9be",
+  "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -126,7 +126,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "22e354c019c85a206ea7af7421d2cf8ef2a03fd7"
+        "originalGitBlobDigest": "9ad61fbeb51ac3b592a19f9345a8f9c25bbd798a"
       },
       {
         "ownerId": "change-verdict",
@@ -258,7 +258,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/references/shared/cli-backend.md",
         "destination": "skills/change-verdict/references/shared/cli-backend.md",
-        "originalGitBlobDigest": "c541b2867edc7f4265bb994d206371d4e9551441"
+        "originalGitBlobDigest": "85fd5b5b23eb6afc40dfddd516998c284811b090"
       },
       {
         "ownerId": "change-verdict",
@@ -306,7 +306,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/scripts/check-unrelated-changes.sh",
         "destination": "skills/change-verdict/scripts/check-unrelated-changes.sh",
-        "originalGitBlobDigest": "3326a153b4d51c0d9dcb9653acffc7bf8249c399"
+        "originalGitBlobDigest": "25e4f151617a4789f7f24e548602c41735e64e4b"
       },
       {
         "ownerId": "change-verdict",
@@ -1758,7 +1758,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/SKILL.md",
         "destination": "skills/flow-guide/SKILL.md",
-        "originalGitBlobDigest": "b5a8d429103091ff05b137338773afe2a75ba49b"
+        "originalGitBlobDigest": "44f56f31b3cd769579f0cca2229f744d817c0ca6"
       },
       {
         "ownerId": "flow-guide",
@@ -1812,7 +1812,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "efb9541d35d526d587fa8bb202d96f6cff9efd11"
+        "originalGitBlobDigest": "2417478d06e6baa223412f38af4bb8609a41d379"
       },
       {
         "ownerId": "flow-guide",
@@ -2214,7 +2214,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/SKILL.md",
         "destination": "skills/git-smart-commit/SKILL.md",
-        "originalGitBlobDigest": "fbc26d272be10bd893b30ba3cb3b06ba13b97b34"
+        "originalGitBlobDigest": "cf00c3254d5539a138a3bae7a34e4198889202e8"
       },
       {
         "ownerId": "git-smart-commit",
@@ -2226,7 +2226,19 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/distribution.yaml",
         "destination": "skills/git-smart-commit/distribution.yaml",
-        "originalGitBlobDigest": "c58931b2a6f8757cbf4b8dd04b42322fb06ffe6a"
+        "originalGitBlobDigest": "2691f7cdabe574db60fd7f844d661701b47c576c"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "source": "rules/execution-policy-kernel.md",
+        "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy-kernel.md",
+        "originalGitBlobDigest": "7bf78f3596badace1823b2ab25bbd975c24b56b3"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "source": "rules/execution-policy.md",
+        "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy.md",
+        "originalGitBlobDigest": "54edc3caff87966b2b478909c0615620a823c722"
       },
       {
         "ownerId": "git-smart-commit",
@@ -2238,7 +2250,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/scripts/collect-changes.js",
         "destination": "skills/git-smart-commit/scripts/collect-changes.js",
-        "originalGitBlobDigest": "33e0d34cb46e061563c0b21a9508061732b50b93"
+        "originalGitBlobDigest": "77903aec76603675a8417f364b21f680d64d15cd"
       },
       {
         "ownerId": "git-worktree",
@@ -5278,6 +5290,20 @@
       {
         "ownerId": "git-smart-commit",
         "skillId": "git-smart-commit",
+        "sourcePath": "rules/execution-policy-kernel.md",
+        "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy-kernel.md",
+        "kind": "dependency"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "skillId": "git-smart-commit",
+        "sourcePath": "rules/execution-policy.md",
+        "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy.md",
+        "kind": "dependency"
+      },
+      {
+        "ownerId": "git-smart-commit",
+        "skillId": "git-smart-commit",
         "sourcePath": "skills/git-smart-commit/references/collector.md",
         "destination": "skills/git-smart-commit/references/collector.md",
         "kind": "entry"
@@ -5966,13 +5992,13 @@
   "skippedSkills": [],
   "mcpServerNames": [],
   "fingerprints": {
-    "change-verdict": "c607a3cc78a3a41349ad8a8beadfa52d62616c42cf399004d32244f9108dad2d",
+    "change-verdict": "e50053321e799889b803337c8da3938ea2693b346ffe8722c8363f2b637db3e5",
     "code-trace": "d09d82ed06ce71c21ff1a0f4318cd2ab321825e4ac03ffeb89fb07da514ee584",
     "create-pr": "d90d47a0d45a71fc0edff46e20cb3b727ed0b35c4d0304da0bc311a7a653d6d5",
     "doc-maintain": "7d9386fa94ef9727fff56a7b3761ebb917c1339d29562b0424c35b2657429c02",
     "flow-drive": "d459b72f7d353a2b5c2236c8ac4c3040bf86466f50797bb5315ad670751b3bab",
-    "flow-guide": "200426c0bb919ace6ffc31f06f441df6977302475d40698aa969a9601cd139ce",
-    "git-smart-commit": "f8ab012250fd2cc9b4689317d34892abc616b2bb7099065a8a6409c85e5915b2",
+    "flow-guide": "65e2e5039094b4fa049d89538195205d3bdb9050cc1330c89ebb58f05eefbc39",
+    "git-smart-commit": "e53029fc23a1f2d1d3f6c31c913f2ed1ed566493fc922a2ab5e60d806b201eea",
     "git-worktree": "fba52cd48ff6c4f2cbdef58b63238c55735779e27b75f02000e89028ddb691dd",
     "precommit": "54a73d019193eade49834a941c254504e60c7f0b4485d9d360b465033a34f669",
     "proposal-analyze": "338bf2b72e9747a0d921e9dcfaf3cad6532a3a0109aa61915b90ff6517a15cbe",
@@ -7079,6 +7105,6 @@
   ],
   "compatibilityMode": "profile",
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "f42f55850d0a8046464a8a81ddb3136a029f4616112bf02ee908059e728928f0",
-  "surfaceSelectionFingerprint": "2becb288ba5d89a4db546236ec569aa159b47b8e110107b4b38f56d26810013d"
+  "selectionFingerprint": "7ff3f13912bcc756fdc92491526ab8e5e2a553e2cab6e91f93cb50377ef472e6",
+  "surfaceSelectionFingerprint": "83a29e2f21a512f9663f2c233893671140883ee86326658b6d67555b10837ac0"
 }

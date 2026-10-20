@@ -29,7 +29,7 @@
       "sourcePath": "skills/change-verdict/SKILL.md",
       "destination": "skills/change-verdict/SKILL.md",
       "kind": "entry",
-      "sha256": "6ce1c8a154d3d90bea9def145ca9646c41126ffa2c04e580122f12bd5a96c789"
+      "sha256": "ef0630757d2b73235ac47554f180c63d7226a3be661a3d7e72ad32bb65947edd"
     },
     {
       "skillId": "change-verdict",
@@ -205,7 +205,7 @@
       "sourcePath": "skills/change-verdict/references/shared/cli-backend.md",
       "destination": "skills/change-verdict/references/shared/cli-backend.md",
       "kind": "entry",
-      "sha256": "dc27213b0631d011382f7854e01ad4a36132e00eb39dd7104124a42049efbcc9"
+      "sha256": "8dda096aed1305b977c080c9ef1f13a9bd7f8be3b1b9235e8a76e4cb45af98d0"
     },
     {
       "skillId": "change-verdict",
@@ -269,7 +269,7 @@
       "sourcePath": "skills/change-verdict/scripts/check-unrelated-changes.sh",
       "destination": "skills/change-verdict/scripts/check-unrelated-changes.sh",
       "kind": "entry",
-      "sha256": "3b8c009a51a61aae10b36ffc55b11f1054505204dd173cdf1e5cd8ec6b5c7c71"
+      "sha256": "24f6f1d2a9e1c5a94f940700c328ab8603c148166a2bca0d671023a4b3fe4d46"
     },
     {
       "skillId": "change-verdict",
@@ -2205,7 +2205,7 @@
       "sourcePath": "skills/flow-guide/SKILL.md",
       "destination": "skills/flow-guide/SKILL.md",
       "kind": "entry",
-      "sha256": "317b12c8e557f9f2e295cf1ade6089f5693b5ab8dc3cca5deef0fc36f43b6cc1"
+      "sha256": "9004a44998368be96a735c1afee7daa0283bef4a9f1aac48a558fd8d1a21b17e"
     },
     {
       "skillId": "flow-guide",
@@ -2277,7 +2277,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "04cac6cff44918778b410f3e3d3aa75ba038e8f19b260a9781da53b7a7905f15"
+      "sha256": "5aa73d7c39c4b75a00b4aae5c4c3bf282fa0a00834e7cd6ee2b9cec187a44462"
     },
     {
       "skillId": "flow-guide",
@@ -2813,7 +2813,7 @@
       "sourcePath": "skills/git-smart-commit/SKILL.md",
       "destination": "skills/git-smart-commit/SKILL.md",
       "kind": "entry",
-      "sha256": "27914fb053a18689e2a00f5bca58c513c22ea7603f78f32b2b0544cbd54f2343"
+      "sha256": "0a8b5b2304f144312bab12177b37b4a2a137649906813ae6627753ba8dd940c0"
     },
     {
       "skillId": "git-smart-commit",
@@ -2829,7 +2829,23 @@
       "sourcePath": "skills/git-smart-commit/distribution.yaml",
       "destination": "skills/git-smart-commit/distribution.yaml",
       "kind": "entry",
-      "sha256": "0896ea4becddd7ecd4adb97c65b7e95ca8cfcde20362d286bfaa9ce5b7a7f186"
+      "sha256": "bdb62366c324b63110b4c20fd0fbe2ba01cfa09a2c7472b37c323fcc927decae"
+    },
+    {
+      "skillId": "git-smart-commit",
+      "ownerId": "git-smart-commit",
+      "sourcePath": "rules/execution-policy-kernel.md",
+      "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy-kernel.md",
+      "kind": "dependency",
+      "sha256": "485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a"
+    },
+    {
+      "skillId": "git-smart-commit",
+      "ownerId": "git-smart-commit",
+      "sourcePath": "rules/execution-policy.md",
+      "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy.md",
+      "kind": "dependency",
+      "sha256": "1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c"
     },
     {
       "skillId": "git-smart-commit",
@@ -2845,7 +2861,7 @@
       "sourcePath": "skills/git-smart-commit/scripts/collect-changes.js",
       "destination": "skills/git-smart-commit/scripts/collect-changes.js",
       "kind": "entry",
-      "sha256": "25fb39005052ba4edcffe9e55bcbdf72a09346e46f5cc22ec4a11bcd59ad69f4"
+      "sha256": "c21b93202c15f0a718e46e39613906a56376a310f4992864c3155b5ae6ee12be"
     },
     {
       "skillId": "git-worktree",

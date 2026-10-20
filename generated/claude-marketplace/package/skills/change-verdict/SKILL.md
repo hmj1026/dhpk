@@ -1,7 +1,7 @@
 ---
 name: change-verdict
 description: 'Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts and dependency audits are read-only; explicit dependency remediation delegates only the bounded fix to an available authorized writer, followed by independent security review. Not for arbitrary source repair, gate clearing, or architecture-only design. Output: evidence-backed findings, actual review status, and separate remediation/security results.'
-allowed-tools: 'Bash(git diff:*), Bash(git status:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git show:*), Bash(git log:*), Bash(git ls-files:*), Bash(git hash-object:*), Bash(gh pr view:*), Bash(node skills/change-verdict/scripts/risk-analyze.js:*), Bash(bash skills/change-verdict/scripts/check-unrelated-changes.sh:*), Bash(bash skills/change-verdict/scripts/review-cli.sh:*), Bash(codex review:*), Read, Grep, Glob, Task'
+allowed-tools: 'Bash(git diff:*), Bash(git status:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git show:*), Bash(git log:*), Bash(git ls-files:*), Bash(git hash-object:*), Bash(gh pr view:*), Bash(node $SKILL_DIR/scripts/risk-analyze.js:*), Bash(bash $SKILL_DIR/scripts/check-unrelated-changes.sh:*), Bash(bash $SKILL_DIR/scripts/review-cli.sh:*), Bash(codex review:*), Read, Grep, Glob, Task'
 metadata:
   dhpk-capability-id: dhpk.skill.change-verdict
   dhpk-name-style: portable-family
@@ -72,7 +72,7 @@ Load only the selected mode's references:
   full prompt matching the selected depth. The shared code research instructions
   own Git reads; apply the code-only Standards and Spec status rules in
   [`references/shared/review-common.md`](references/shared/review-common.md).
-- `pr`: read PR metadata and use `scripts/check-unrelated-changes.sh` only as a
+- `pr`: read PR metadata and use `bash $SKILL_DIR/scripts/check-unrelated-changes.sh` only as a
   read-only advisory scan when PR metadata is available.
 - `security`: use `references/security/codex-prompt-security.md` and label
   findings with their OWASP category.
@@ -83,8 +83,12 @@ Load only the selected mode's references:
 - `docs`: read the full target and enough source or configuration to check it.
   Load `references/docs/review-loop-doc.md` only when a prior snapshot is
   supplied.
-- `risk`: run `scripts/risk-analyze.js --json` on the current read-only tree and
+- `risk`: run `node $SKILL_DIR/scripts/risk-analyze.js --json` on the current read-only tree and
   use `references/risk/` to interpret its score.
+
+`$SKILL_DIR` is the installed directory containing this `SKILL.md`. The working
+directory stays the consumer repository. Those helper commands are the same
+paths granted by `allowed-tools`; the grant is not unrestricted Bash.
 
 For every mode, report evidence gaps and use the response shape in
 [`templates/review_output.md`](templates/review_output.md). The code-only
@@ -95,7 +99,7 @@ verdict meanings are owned by
 ## Optional CLI second opinion
 
 Only explicit `--second-opinion=codex-exec` may invoke
-`scripts/review-cli.sh --backend cli`. Pass the selected scope and fixed point,
+`bash $SKILL_DIR/scripts/review-cli.sh --backend cli`. Pass the selected scope and fixed point,
 not the primary conclusion. Keep the CLI result separate, redact it, and
 record its status. The primary review is complete without this optional check;
 an unavailable CLI is reported as degraded evidence.
