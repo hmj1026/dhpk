@@ -2,7 +2,7 @@
 # check-unrelated-changes.sh — advisory PR description scanner
 #
 # Usage:
-#   bash skills/change-verdict/scripts/check-unrelated-changes.sh <pr-number> [--merge-method squash|merge|rebase]
+#   bash $SKILL_DIR/scripts/check-unrelated-changes.sh <pr-number> [--merge-method squash|merge|rebase]
 #
 # Behavior:
 #   1. Require explicit merge metadata from the caller (or DHPK_PR_MERGE_METHOD)
