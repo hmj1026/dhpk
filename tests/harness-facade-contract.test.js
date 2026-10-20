@@ -645,7 +645,7 @@ test('CLI exposes the harness help contract', () => {
     assert.match(validate, /verifyCiResults\(plan,/);
     assert.match(validate, /--count \"\$count\"/);
     assert.match(validate, /node scripts\/ci\/verify-test-shards\.js/);
-    assert.match(validate, /if \[ "\$\{\{\s*needs\.plan\.outputs\.mode\s*\}\}" = "selected" \]; then count=1; fi/);
+    assert.match(validate, /if \[ "\$CI_PLAN_MODE" = "selected" \]; then count=1; fi/);
     assert.match(validate, /name: Download full test timing evidence[\s\S]*if: needs\.plan\.outputs\.mode == 'full'[\s\S]*pattern: dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-\*/);
     assert.match(validate, /name: Download selected test timing evidence[\s\S]*if: needs\.plan\.outputs\.mode == 'selected'[\s\S]*name: dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-0[\s\S]*path: \$\{\{ runner\.temp \}\}\/dhpk-test-shards\/dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-0/);
     assert.match(workflow, /Validate bounded generated companions/);

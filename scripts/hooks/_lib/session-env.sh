@@ -32,6 +32,7 @@
 # were retired with the rest of Sentinel (#376/#377) — see
 # docs/adr/0018-production-migration-observation-checkpoint.md.
 
+# shellcheck disable=SC2034  # sourced consumers read these sidecar basenames
 DHPK_SIDECAR_MODULE_FINDINGS=".module-findings"
 DHPK_SIDECAR_FAST_WORKER_ACTIVE=".active-fast-worker"
 
