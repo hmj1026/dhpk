@@ -19,7 +19,7 @@ debugging nightmare downstream.
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.
 
-1-2. Loader: `.cursor/dhpk/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `silent-failure-hunter`). Loaded sheets carry stack-specific swallow patterns.
+1-2. Loader: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `silent-failure-hunter`). Loaded sheets carry stack-specific swallow patterns.
 3. No sheet matches → apply only the generic Hunt Targets below.
 
 ## Scope boundary

@@ -11,7 +11,7 @@ Zero tolerance for failures that disappear without a trace. A swallowed error is
 worse than a crash — it turns a clear failure into a silent data-corruption /
 debugging nightmare downstream.
 
-> Use `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`, not bulk `Read`.
+> Use `cx` / `gitnexus` per `rules/tool-routing.md`, not bulk `Read`.
 
 ## When NOT
 
@@ -22,7 +22,7 @@ debugging nightmare downstream.
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.
 
-1-2. Loader: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `silent-failure-hunter`). Loaded sheets carry stack-specific swallow patterns.
+1-2. Loader: `agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `silent-failure-hunter`). Loaded sheets carry stack-specific swallow patterns.
 3. No sheet matches → apply only the generic Hunt Targets below.
 
 ## Scope boundary

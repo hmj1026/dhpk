@@ -9,7 +9,7 @@ model: pro
 
 Remove dead code, merge dupes, split files >800 lines.
 
-> Lookup and rename: `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
+> Lookup and rename: `rules/tool-routing.md`.
 
 ## When NOT
 
@@ -19,7 +19,7 @@ Remove dead code, merge dupes, split files >800 lines.
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.
 
-1-2. Loader: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `refactor-cleaner`).
+1-2. Loader: `agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `refactor-cleaner`).
 3. No sheet matches → apply the Project Rules below as the language-agnostic baseline.
 
 ## Project Rules

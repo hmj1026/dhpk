@@ -18,7 +18,7 @@ Audit query performance in the Repository (data-access) layer. `database-reviewe
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/MySQL change against another stack's perf rules, or vice-versa.
 
-1. **Shared detection**: follow `.cursor/dhpk/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `performance-analyzer`). Do not paste its detection order here.
+1. **Shared detection**: follow `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `performance-analyzer`). Do not paste its detection order here.
 2. **Exceptions (keep inline)**:
    - Extra: root `pyproject.toml` `sqlalchemy` / `alembic` remain this agent's performance-specific detail.
    - Map module ids to the trap-sheet stack id before lookup: `js` / `vue-2` / React / Next → `frontend`; `swiftui` / `ios-platform` → `swift`. (Perf sheets are named `frontend.md` / `swift.md`.)

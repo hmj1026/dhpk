@@ -7,7 +7,7 @@ model: pro
 
 # Migration Reviewer
 
-> Lookup: `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
+> Lookup: `cx` / `gitnexus` per `rules/tool-routing.md`.
 > Domain DB context: `database-reviewer` (parent specialist for SQL correctness).
 
 ## When NOT
@@ -28,14 +28,14 @@ Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / 
 ## Diff scope
 
 The orchestrator supplies the changed-file scope. Apply the reviewer rules in
-`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. Back-stop fallback restricts to
+`rules/execution-policy.md`. Back-stop fallback restricts to
 `'**/migrations/**'` (or the project's equivalent path).
 
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/SQL migration against Core Data rules, or vice-versa.
 
-1-2. Loader: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `migration-reviewer`). Manifest detection also covers `*.xcdatamodeld`.
+1-2. Loader: `agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `migration-reviewer`). Manifest detection also covers `*.xcdatamodeld`.
 3. No sheet matches → apply only the framework-agnostic Audit Checklist below.
 
 The Audit Checklist below is a decision checklist. Each item applies only when
