@@ -186,10 +186,10 @@ project scope 安裝必須加上 `--scope project`；在非 TTY 或 CI 環境請
 在 Claude Code 內也可使用 `/plugin update dhpk@dhpk`、`/plugin uninstall dhpk@dhpk`、
 `/plugin marketplace remove dhpk`。
 
-使用支援的 Codex projection 時，先更新 Claude，再重新整理 project-local 檔案。
-`CLAUDE_PLUGIN_ROOT` 只在 Claude Code plugin runtime（hooks、commands、Bash tools）內
-自動 export；普通 terminal 請明確指定持久 checkout，例如 `DHPK_ROOT=/absolute/path/to/dhpk`，
-不要把 ephemeral marketplace cache path 寫進 project command。
+使用支援的 Codex projection 時，先更新 Claude，再從持久 checkout 重新整理
+project-local 檔案。已安裝的 Claude plugin 不含 `codex/`。請設定
+`DHPK_ROOT=/absolute/path/to/dhpk`，不要把 ephemeral marketplace cache path 寫進
+project command。
 
 ```bash
 claude plugin update -y dhpk@dhpk
@@ -238,6 +238,83 @@ inspect → verify surface → route → plan/classify → implement → review 
 
 快速查閱清單可參考：[技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
+### 任務情境<a id="task-scenarios"></a>
+
+依目標、風險、依賴與手上已有證據選入口。這四例不是四份五步流程。檔案數量
+不會自動啟動 OpenSpec、`flow-guide` 或整套管線。計畫、診斷、審查或驗證只要
+仍適用就直接重用，不因案例列出某個具名代理就重跑。
+
+技能能獨立使用，仍需要 Host 能力與已聲明的必要資源。缺可選輔助技能不應自動
+阻塞。缺必要能力時精確回報 `BLOCKED`、`UNAVAILABLE` 或 `NOT_RUN`，不要默默
+改走別條路。可否獨立安裝依 dependency-closure 與分發契約判定；裸 `SKILL.md`
+不是可執行 runtime。
+
+`flow-guide` 是唯讀建議；`flow-drive` 是 explicit-only 實作。以下案例都不授
+權 commit、push、merge 或 deploy。Claude 用 `/dhpk:<name>`；Codex 在
+project-local sync 之後用 `$<name>`；Cursor 用產生出來的本地 command。完整
+Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到什麼) 與
+[Codex skill 用法](./codex-skill-usage.zh-TW.md)。
+
+若這次有派發子代理，人工檢視一份代表性交接即可：必要輸入、讀寫範圍與工具、
+預期輸出、驗收方式，以及前序已確認結論。仍適用的上下文直接沿用；缺關鍵資料
+就明確阻塞。不要求每個案例都派發子代理。
+
+#### 修 bug
+
+單技能起步：先診斷。
+
+- **輸入**：仍缺原因的失敗現象（錯誤、失敗測試、或 log）。
+- **入口**：`/dhpk:code-trace --mode diagnose <symptom>`。
+- **產物**：可證偽的原因。原因確認後，有界修復（`tdd-workflow` 或
+  `/dhpk:flow-drive <confirmed-spec>`）加上同一行為的驗證。
+- **完成**：原現象已被解釋，且同一項檢查通過。
+- **阻塞**：沒有重現證據，或檢查所需的 Host／runtime 缺失。
+- **可跳過**：入口已是 `code-trace` 或 `flow-drive` 時不必再跑
+  `flow-guide`；已知原因的修復不必 OpenSpec；審查／驗證證據若仍對應此
+  diff 就不必重跑。
+
+#### 新增功能
+
+按需串接：實作已確認契約。
+
+- **輸入**：已確認的需求與驗收條件。
+- **入口**：`/dhpk:flow-drive <confirmed-spec-or-change-id>`。
+- **產物**：符合驗收的實作，再對**最終** diff 做適用審查與驗證。
+- **完成**：最終 diff 上的驗收檢查通過；被觸發路徑的必要審查仍有效。
+- **阻塞**：缺少驗收條件；必要能力不可用；未明確呼叫 `flow-drive`
+  （它是 explicit-only）。
+- **可跳過**：已有充分規格時不必 OpenSpec；實作 owner 已知時不必
+  `flow-guide`；非必要資源的可選技能。檔案數量不會啟動這條鏈。
+
+#### 舊系統變更
+
+在相容契約下做最小修改。
+
+- **輸入**：版本或相容限制，以及必須保留的行為。
+- **入口**：擁有該契約的 family skill（例如
+  `/dhpk:dhpk-legacy-characterization-tests` 或作用中的 stack module），或把該契約當
+  成 confirmed spec 交給 `/dhpk:flow-drive`。
+- **產物**：保留契約的最小 diff，加上必要回歸證據。
+- **完成**：相容行為仍成立；必要回歸仍有效。
+- **阻塞**：相容契約不明，或無法證明它的 runtime 缺失。
+- **可跳過**：功能交付規劃、OpenSpec，以及最終 diff 未觸發的 reviewer。
+
+#### 準備 PR
+
+重用證據；會改檔的檢查先跑完，再審查最終 diff。
+
+- **輸入**：選定變更，加上仍適用的計畫、診斷、審查或測試證據。
+- **入口**：先跑會改檔的 `/dhpk:precommit`（或專案格式化）直到 diff
+  穩定，再對**該** diff 跑 `/dhpk:change-verdict pending`，最後
+  `/dhpk:create-pr`（預設 dry-run；`--execute` 才建立 PR）。
+- **產物**：最終 diff、受影響路徑的有效證據，以及 `gh pr create` 指令或
+  PR URL。
+- **完成**：此 diff 的必要 gate 仍有效，且已明確使用 create-pr 入口。
+- **阻塞**：會改檔的檢查失敗，或後續修改讓審查／驗證證據過期。
+- **可跳過**：不必重跑所有 reviewer；已定案的原因不必再診斷；不必
+  OpenSpec。審查後若又改檔，只重查受影響證據。`create-pr` 不會
+  commit、push、merge 或 deploy。
+
 ### 標準五步開發工作流
 
 日常開發請遵循以下 5 步標準推進節奏，每一步均有明確的輸入、執行指令與完成門禁（Completion Criteria）：
@@ -278,7 +355,7 @@ inspect → verify surface → route → plan/classify → implement → review 
   - **決策前置狀態**：開始實作前必須具備明確狀態標記：`CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或 `BLOCKED`。若涉及領域邊界應先諮詢 `architect`；仍有不確定性時取得唯讀 Reasoner 結果後才允許 Writer 介入。
   - **OpenSpec 生命週期**：跨 session 或複雜大型工作，應先以 `/opsx:new` 建立 `openspec/changes/<id>/` artifacts。實作完成必須滿足所有 Task 核選、通過適用驗證門禁、解決 Review 意見，才能執行歸檔（Archive）；測試通過或 Plan 批准不等於歸檔憑證。
   - **Planner 諮詢範疇**：`--plan` 可搭配 `--plan=bounded`（限制最多 4 次直接讀取且無子代理）或 `--plan=discovery`（最多 12 次讀取與 2 個子代理）。未指定時預設 `auto`，在無 Material Risk Signal 且依據充足時自動採 bounded。
-  - **Worker 調度邊界**：`orchestration_dispatch=on`（預設）時，雙檔案以下明確任務可留在 inline；大型機械化變更指定 `--worker=<claude|codex|agy>`。
+  - **Worker 調度邊界**：`orchestration_dispatch=on`（預設）時，依 [Implementation dispatch](../rules/execution-policy.md#implementation-dispatch) 選擇 inline 或 `--worker=<claude|codex|agy>`；檔案數量單獨不能決定。
   - **Codex CLI 整合**：dhpk 預設不啟用 Codex。使用 `--worker=codex` 走 CLI 機械 Worker；`--reasoner=codex/<model>[:<effort>]` 走獨立推理；`--second-opinion=codex-exec` 取得單次盲審意見。缺少執行檔時回報可選後端不可用，不繞過安全檢查。
 - **完成標準**：所有變更均具備聚焦驗證（Focused Verification）與綠燈測試證據；不遺留未說明的測試跳過。
 
@@ -662,8 +739,8 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
 
 同時使用 Claude Code 與 Codex CLI 的 project：
 
-以下 `${CLAUDE_PLUGIN_ROOT}` 形式適用於 Claude Code plugin-runtime shell；普通 terminal 請使用
-[更新／移除](#更新移除) 中的 persistent-checkout 形式。
+已安裝的 Claude plugin 不含 `codex/`；請從 repository checkout 執行 installer。
+普通 terminal 請使用 [更新／移除](#更新移除) 中的 persistent-checkout 形式。
 
 ```bash
 # From any project root and a persistent local dhpk checkout:
@@ -671,7 +748,6 @@ DHPK_ROOT=/absolute/path/to/dhpk
 bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"
 ```
 
-在 Claude plugin-runtime shell 內可用 `${CLAUDE_PLUGIN_ROOT}` 作為等價 root。普通 terminal
 必須明確設定 `DHPK_ROOT`；不要把 ephemeral marketplace-cache path 複製到 project command。
 
 此 script 是支援的 Codex distribution path，預設採 hybrid，另有整體實體化 fallback：

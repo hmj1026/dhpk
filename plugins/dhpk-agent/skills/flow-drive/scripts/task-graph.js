@@ -55,7 +55,21 @@ function validateTaskGraph(decision, parentConstraints = {}) {
     if (node.reuse !== undefined && (!node.reuse || typeof node.reuse !== 'object' || Array.isArray(node.reuse)
       || typeof node.reuse.prompt_sha256 !== 'string' || typeof node.reuse.task_digest !== 'string'
       || typeof node.reuse.baseline_identity !== 'string')) throw new TypeError(`coordination node ${node.id}.reuse must contain prior prompt, task, and baseline identities`);
-    return Object.freeze({ ...node, id: node.id, goal: node.goal, acceptance: Object.freeze([...node.acceptance]), role, authority, assigned_files: assignedFiles, dependencies, decision_state: decisionState });
+    const targetRecord = node.target && typeof node.target === 'object' && !Array.isArray(node.target) ? node.target : null;
+    const targetEffort = targetRecord && typeof targetRecord.effort === 'string' && targetRecord.effort.trim() !== ''
+      ? targetRecord.effort : null;
+    const nodeEffort = typeof node.effort === 'string' && node.effort.trim() !== '' ? node.effort : null;
+    if (targetEffort && nodeEffort && targetEffort !== nodeEffort) {
+      throw new TypeError(`coordination node ${node.id} has contradictory effort`);
+    }
+    const effort = nodeEffort || targetEffort;
+    const target = targetRecord ? Object.freeze({ ...targetRecord, ...(effort ? { effort } : {}) }) : node.target;
+    return Object.freeze({
+      ...node, id: node.id, goal: node.goal, acceptance: Object.freeze([...node.acceptance]), role, authority,
+      assigned_files: assignedFiles, dependencies, decision_state: decisionState,
+      ...(target !== undefined ? { target } : {}),
+      ...(effort ? { effort } : {}),
+    });
   });
   const byId = new Map(nodes.map((node) => [node.id, node]));
   if (parentConstraints.decision_state === 'REASONER_REQUIRED' && nodes.some((node) => node.authority === 'workspace-write' && node.decision_state === 'CLEAR')) throw new Error('parent REASONER_REQUIRED cannot be downgraded by a CLEAR writer node');

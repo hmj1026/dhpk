@@ -16,11 +16,14 @@ function flattenTarget(target) {
   const targetAgent = canonicalAgent(body.target_agent || body.targetAgent);
   const modelId = Object.prototype.hasOwnProperty.call(body, 'model_id') ? body.model_id : (body.model === undefined ? null : body.model);
   if (!provider || !targetAgent || (modelId !== null && (typeof modelId !== 'string' || modelId.trim() === ''))) return null;
+  const outerEffort = typeof target.effort === 'string' && target.effort.trim() !== '' ? target.effort : null;
+  const innerEffort = typeof body.effort === 'string' && body.effort.trim() !== '' ? body.effort : null;
+  if (outerEffort && innerEffort && outerEffort !== innerEffort) return null;
   return {
     provider,
     target_agent: targetAgent,
     model_id: modelId,
-    effort: target.effort || body.effort || null,
+    effort: outerEffort || innerEffort || null,
     ...(body.route ? { route: body.route } : {}),
     ...(body.transport ? { transport: body.transport } : {}),
   };

@@ -128,4 +128,104 @@ test('an isolated analyzer consumes declarations and keeps explicit-only handoff
   }
 });
 
+function gitOk(root, args) {
+  const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+  assert.strictEqual(result.status, 0, `${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
+  return result;
+}
+
+test('stale or unbound gate passes do not become the current progress claim', () => {
+  const { evaluateGates } = require('../skills/flow-guide/scripts/analyze');
+  const isolated = evaluateGates(
+    { head: 'old', code_review: { passed: true }, precommit: { passed: true } },
+    [{ status: 'A', file: 'src/new-behavior.js' }],
+    { head: 'abc1234', diffIdentity: 'A\tsrc/new-behavior.js\n--\n src/new-behavior.js | 1 +\n' },
+  );
+  assert.strictEqual(isolated.code_review.passed, false);
+  assert.strictEqual(isolated.precommit.passed, false);
+  assert.strictEqual(isolated.code_review.evidence, 'stale');
+  assert.strictEqual(isolated.precommit.evidence, 'stale');
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-gate-evidence-'));
+  const analyze = path.join(__dirname, '..', 'skills', 'flow-guide', 'scripts', 'analyze.js');
+  const statePath = path.join(root, '.claude_review_state.json');
+  try {
+    gitOk(root, ['init', '-q']);
+    gitOk(root, ['config', 'user.email', 'test@example.invalid']);
+    gitOk(root, ['config', 'user.name', 'Test']);
+    gitOk(root, ['commit', '--allow-empty', '-qm', 'fixture']);
+    fs.mkdirSync(path.join(root, 'lib'));
+    fs.writeFileSync(path.join(root, 'lib', 'sample.js'), 'module.exports = 1;\n');
+    const runState = (state) => {
+      const before = JSON.stringify(state);
+      fs.writeFileSync(statePath, before);
+      const result = spawnSync(process.execPath, [analyze, '--json'], { cwd: root, encoding: 'utf8' });
+      assert.strictEqual(fs.readFileSync(statePath, 'utf8'), before);
+      const report = JSON.parse(result.stdout);
+      return { result, report };
+    };
+    const completed = ['post_precommit', 'ready_to_commit', 'feature_complete', 'clean'];
+    const stale = runState({ head: 'old', code_review: { passed: true }, precommit: { passed: true } });
+    assert.strictEqual(stale.report.gates.code_review.passed, false);
+    assert.strictEqual(stale.report.gates.precommit.passed, false);
+    assert.strictEqual(stale.report.gates.code_review.evidence, 'stale');
+    assert.ok(!completed.includes(stale.report.phase), stale.report.phase);
+    assert.ok(!stale.report.next_actions.some((item) => /required gates passed|precommit passed/i.test(item.reason)));
+
+    const unbound = runState({ code_review: { passed: true }, precommit: { passed: true } });
+    assert.strictEqual(unbound.report.gates.code_review.evidence, 'unbound');
+    assert.strictEqual(unbound.report.gates.code_review.passed, false);
+    assert.ok(!completed.includes(unbound.report.phase), unbound.report.phase);
+
+    const headOnly = runState({ head: stale.report.head, code_review: { passed: true }, precommit: { passed: true } });
+    assert.strictEqual(headOnly.report.gates.code_review.evidence, 'unbound');
+    assert.strictEqual(headOnly.report.gates.code_review.passed, false);
+
+    const moved = runState({
+      head: stale.report.head,
+      diff: `${stale.report.diff_identity}-stale`,
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.strictEqual(moved.report.gates.code_review.evidence, 'scope-changed');
+    assert.strictEqual(moved.report.gates.precommit.passed, false);
+    assert.ok(!completed.includes(moved.report.phase), moved.report.phase);
+
+    const reused = runState({
+      head: stale.report.head,
+      diff: stale.report.diff_identity,
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.strictEqual(reused.report.gates.code_review.passed, true);
+    assert.strictEqual(reused.report.gates.precommit.passed, true);
+    assert.strictEqual(reused.report.gates.code_review.evidence, 'applicable');
+    assert.strictEqual(reused.report.phase, 'post_precommit');
+    assert.ok(reused.report.next_actions.some((item) => /precommit passed/i.test(item.reason)));
+
+    const scoped = runState({
+      head: stale.report.head,
+      scope: { diff: stale.report.diff_identity },
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.strictEqual(scoped.report.gates.code_review.passed, true);
+    assert.strictEqual(scoped.report.gates.code_review.evidence, 'applicable');
+
+    const distinct = runState({
+      head: stale.report.head,
+      diff: stale.report.diff_identity,
+      code_review: { passed: false },
+      doc_review: { skipped: true },
+    });
+    assert.strictEqual(distinct.report.gates.code_review.evidence, 'failed');
+    assert.strictEqual(distinct.report.gates.code_review.passed, false);
+    assert.strictEqual(distinct.report.gates.doc_review.evidence, 'skipped');
+    assert.strictEqual(distinct.report.gates.precommit.evidence, 'unobserved');
+    assert.notStrictEqual(distinct.report.phase, 'ready_to_commit');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 run('skill-next-map');

@@ -46,12 +46,16 @@ Reconfigure or inspect the effective config at any time from inside Claude Code:
 
 A handful of boolean/mode knobs additionally support a **one-shot environment-variable override** for a single session — see the "Env override" column below.
 
-For automatic fast-worker dispatch, the one-shot `--cross` flag has
-the highest precedence and enables cross-Agent candidates only for that
-invocation. It does not force a different-vendor Model through a CLI when the
-current Host can invoke that Model natively. Without the flag, project
-configuration wins over the installed user setting, and the shipped default is
-`false`.
+Persistent dispatch-config resolution uses project > global > environment.
+Within the same layer, a canonical `*_target` wins over legacy keys. `auto`
+takes its effective target from the known Host Profile `role_defaults` for
+that Role. `--worker` and `--reasoner` are one-shot invocation choices for
+that call; they are not persistent config-layer overrides, and a setup or
+config report does not include them unless that invocation is in scope.
+`--plan` selects planner consult scope and is not a planner model override.
+`--cross` is a one-shot cross-provider opt-in for that invocation; it is not
+a planner or reviewer model override, and it is not a worker-target rule
+above project.
 
 ### Provider-neutral dispatch settings
 
@@ -78,7 +82,9 @@ the public target; these are target-Agent aliases, not Model or Provider names.
 | `preference_order` | string[] | `[]` | Legacy compatibility order only; it does not replace the Host Profile's declared fallback pairs. |
 | `fallback_allow` | boolean | `true` | Permit only the Host Profile's declared fallback pairs after confirmed pre-side-effect availability failure. |
 
-Project values take precedence over installed-user values. Invalid fields are
+The dispatch resolver layers are project > global > environment. Same-layer
+canonical `*_target` keys take precedence over legacy model/effort keys.
+`auto` uses the known Host/Role profile defaults. Invalid fields are
 reported as `BLOCKED` without invalidating unrelated settings. Diagnostics keep
 catalog support, Host access, runtime availability, and fallback permission
 separate; static catalog membership or package discovery is never runtime proof.
@@ -94,7 +100,14 @@ values such as `xhigh` remain Provider-specific compatibility values and are
 translated inside the Adapter.
 Legacy `fast_worker_*`, provider-specific model keys, and provider-bound Role
 aliases remain accepted only at the compatibility boundary and are recorded as
-translation evidence.
+translation evidence. `reviewer_target` is the public reviewer entry;
+`reviewer_model` is a legacy compatibility input, not a second public
+authority. `architect_model` / `architect_effort` have no dispatch effect and
+are not mapped onto `reasoner_target`.
+`scripts/hooks/session-start.sh` emits a conditional config report only when
+an explicit non-default canonical target is set, or when
+`DHPK_DISPATCH_CONFIG_REPORT=1`. It does not apply a native Agent model
+override.
 
 Former skill-bundle selections, including `compat-v1`, remain only as historical
 receipt metadata. The current main installation default is the `common`
@@ -104,7 +117,7 @@ selections are independent from Model default/fallback pairs.
 ## Core dispatch & review
 
 Planner consult scope is selected per invocation with
-`--plan[=auto|bounded|discovery]` and requires `--plan`; an enabled `--plan`
+`--plan[=auto|bounded|discovery]`; an enabled `--plan`
 without a mode defaults to `auto`. This is not a `userConfig` key and does not
 change the `planner_model` / `planner_effort` defaults or the planner's work
 mode. See [Basic Operations](./basic-operations.md)
@@ -115,12 +128,12 @@ for the selection rule.
 |-----|------|---------|---------|---------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Verbosity of active deterministic hook output. Retired Stop reminders are not default-wired. |
 | `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by advisory reviewer dispatch, in role order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
-| `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus` (whatever the running Claude Code version supports) | Model tier for `dhpk:deep-reasoner` Agent-call dispatches (reasoning-heavy implementation work). Applied per dispatch via the Agent call's `model` param when it differs from the agent's frontmatter default. Invalid value warns once per session and falls back to the frontmatter default — never fails the dispatch. |
-| `fast_worker_model` | string | `sonnet` | same as above | Model tier for `dhpk:fast-worker` Agent-call dispatches (mechanical implementation work). Same validation/fallback behavior as `deep_reasoner_model`. |
-| `planner_model` | string | `opus` | same as above | Model tier for `dhpk:planner` Agent-call dispatches (the opt-in `/dhpk:flow-drive --plan` pre-implementation critique / post-implementation warm review). Same validation/fallback behavior as `deep_reasoner_model`. |
-| `deep_reasoner_effort` | string | `high` | `low` \| `medium` \| `high` \| `xhigh` \| `max` (whatever the running Claude Code version supports) | Reasoning effort for `dhpk:deep-reasoner` Agent-call dispatches. Applied per dispatch via the Agent call's `effort` param when it differs from the agent's frontmatter default. Invalid value warns once per session and falls back to the frontmatter default — never fails the dispatch. |
-| `fast_worker_effort` | string | `medium` | same as above | Reasoning effort for `dhpk:fast-worker` Agent-call dispatches. Same validation/fallback behavior as `deep_reasoner_effort`; the decision layer (`deep-reasoner`) runs higher effort and execution (`fast-worker`) de-escalates. |
-| `planner_effort` | string | `high` | same as above | Reasoning effort for `dhpk:planner` Agent-call dispatches. Same validation/fallback behavior as `deep_reasoner_effort`; the warm-review (post-implementation) invocation de-escalates to `medium`. |
+| `deep_reasoner_model` | string | `opus` | Catalog model ID or published alias (for example `opus`) | Legacy compatibility input for `reasoner_target`. Normalized to a Catalog model ID and judged by existing Host route/effort checks. Invalid values fail closed. |
+| `fast_worker_model` | string | `sonnet` | Catalog model ID or published alias (for example `sonnet`) | Legacy compatibility input for `worker_target`. Same Catalog/Host normalization and fail-closed behavior as `deep_reasoner_model`. |
+| `planner_model` | string | `opus` | Catalog model ID or published alias (for example `opus`) | Legacy compatibility input for `planner_target`. Same Catalog/Host normalization and fail-closed behavior as `deep_reasoner_model`. |
+| `deep_reasoner_effort` | string | `high` | Host/model contract efforts for the resolved Catalog route | Legacy compatibility effort paired with `deep_reasoner_model` from the same source layer. Invalid values fail closed. |
+| `fast_worker_effort` | string | `medium` | Host/model contract efforts for the resolved Catalog route | Legacy compatibility effort paired with `fast_worker_model` from the same source layer. Invalid values fail closed. |
+| `planner_effort` | string | `high` | Host/model contract efforts for the resolved Catalog route | Legacy compatibility effort paired with `planner_model` from the same source layer. Invalid values fail closed. |
 | `codex_worker_model` | string | `gpt-6-luna` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-worker` dispatches. Resolved via the standard layering (project pluginConfigs > global pluginConfigs > shipped default) and passed into `run-codex.sh`. Codex model names rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Legacy alias: `codex_fast_worker_model`. |
 | `codex_worker_effort` | string | `xhigh` | any effort the codex CLI accepts (e.g. `low` \| `medium` \| `high` \| `xhigh`) | `model_reasoning_effort` passed to the codex CLI backend for `codex-worker` dispatches — the strong mechanical tier. Legacy alias: `codex_fast_worker_effort`. |
 | `codex_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-worker`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_fast_worker_timeout_secs`. |
@@ -132,8 +145,8 @@ for the selection rule.
 | `codex_reviewer_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reviewer`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_bridge_timeout_secs`. |
 | `codex_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Shared dispatcher deadline for all Codex CLI roles. Precedence is project role-specific > project shared > global role-specific > global shared > shipped default; malformed values fail closed before dispatch. The resolved value is copied into the immutable transport context, never read by a wrapper from its environment. |
 | `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
-| `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
-| `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
+| `architect_model` | string | `fable` | no dispatch effect | Unsupported dispatch input. Not mapped onto `reasoner_target`; dispatch is unaffected. Default `fable` names the architecture-consult role in current pricing evidence, not a runtime override. |
+| `architect_effort` | string | `low` | no dispatch effect | Unsupported dispatch input. Not mapped onto `reasoner_target`; dispatch is unaffected. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive; applicable verification gates remain active, and planner applicability follows missing outcomes or an explicit consult request rather than task count. |
 | `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for cross-Agent candidates during automatic fast-worker selection. `false` keeps `auto` on the current Host's native/default path; `true` allows declared cross-Agent fallback candidates to be checked. An explicit `--worker=<target>` remains directional and does not open other target Agents. |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:flow-drive --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
@@ -159,8 +172,10 @@ native-only unless cross-provider dispatch is explicitly enabled.
 To opt in for a project, add the setting under
 `pluginConfigs.dhpk@dhpk.options` in `.claude/settings.local.json` (or the
 project `settings.json`). To opt in for one automatic selection only, use
-`--worker=auto --cross`. The one-shot flag has precedence over project
-and installed-user configuration. Setting the project value to `false` rolls
+`--worker=auto --cross`. `--cross` is a one-shot invocation opt-in for that
+call's cross-provider candidate set; it does not replace the persistent
+project > global > environment resolver or override `*_target` model
+selection. Setting the project value to `false` rolls
 back to native-only automatic selection; removing the project override instead
 re-exposes the installed-user value, so verify that value is also unset or
 `false` before treating removal as a rollback. The retired `CODEX=on` and

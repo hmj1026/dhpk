@@ -51,26 +51,63 @@ _py_root_allowed() {
     return 1
 }
 
+# py_runner_words <runner>
+#   Split a runner prefix into PY_RUNNER_WORDS. Empty is bare PATH (return 0).
+#   The supported form is whitespace-separated words made of letters, digits,
+#   and _ . / : + = -, such as "uv run" or "uv run --frozen". Quotes, globs,
+#   and shell control characters are rejected with return 2 and are never
+#   executed. Callers must diagnose that status; this function does not eval.
+py_runner_words() {
+    PY_RUNNER_WORDS=()
+    local runner="$1" oldifs
+    [ -z "$runner" ] && return 0
+    case "$runner" in
+        *[![:alnum:][:space:]_./:+=-]*) return 2 ;;
+    esac
+    oldifs="$IFS"
+    set -f
+    IFS=$' \t\n'
+    # shellcheck disable=SC2086
+    set -- $runner
+    set +f
+    IFS="$oldifs"
+    [ "$#" -eq 0 ] && return 0
+    PY_RUNNER_WORDS=("$@")
+    return 0
+}
+
 # py_runner_prefix
-#   Echo the runner prefix (e.g. "uv run") IF its first token resolves on PATH;
-#   else echo nothing — the caller then runs the tool bare off PATH.
+#   Echo the runner prefix (e.g. "uv run") IF it is a supported word list and
+#   its first token resolves on PATH. Echo nothing when the runner is empty or
+#   its command is absent — the caller then runs the tool bare off PATH.
+#   Return 2 when the runner contains shell syntax. Nothing is echoed, and the
+#   caller must not execute that value.
 py_runner_prefix() {
     local runner="${CLAUDE_PLUGIN_OPTION_PYTHON_RUNNER-uv run}"
     [ -z "$runner" ] && return 0
-    # shellcheck disable=SC2086
-    set -- $runner
-    command -v "$1" >/dev/null 2>&1 && printf '%s' "$runner"
+    py_runner_words "$runner" || return 2
+    [ "${#PY_RUNNER_WORDS[@]}" -eq 0 ] && return 0
+    command -v "${PY_RUNNER_WORDS[0]}" >/dev/null 2>&1 || return 0
+    printf '%s' "$runner"
     return 0
 }
 
 # py_tool_ok <project_dir> <runner_prefix> <tool_bin>
 #   Probe whether <tool_bin> is actually invokable (handles `uv run ruff` where
-#   ruff is a project dep, and bare `ruff` on PATH). Returns 0 when runnable.
+#   ruff is a project dep, and bare `ruff` on PATH). The runner prefix and the
+#   tool path are argv, never a second shell parse. Returns 0 when runnable.
 py_tool_ok() {
     local pdir="$1" prefix="$2" tool="$3"
+    local -a cmd
+    cmd=()
     if [ -n "$prefix" ]; then
-        ( cd "$pdir" 2>/dev/null && eval "$prefix \"$tool\" --version" ) >/dev/null 2>&1
+        py_runner_words "$prefix" || return 1
+        [ "${#PY_RUNNER_WORDS[@]}" -gt 0 ] || return 1
+        command -v "${PY_RUNNER_WORDS[0]}" >/dev/null 2>&1 || return 1
+        cmd+=("${PY_RUNNER_WORDS[@]}")
     else
-        command -v "$tool" >/dev/null 2>&1
+        command -v "$tool" >/dev/null 2>&1 || return 1
     fi
+    cmd+=("$tool" "--version")
+    ( cd "$pdir" 2>/dev/null && "${cmd[@]}" ) >/dev/null 2>&1
 }

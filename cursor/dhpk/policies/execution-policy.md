@@ -74,7 +74,7 @@ partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 
 ## Planner consult scope
 
-Flow Drive's `--plan-mode=auto|bounded|discovery` requires `--plan` and selects
+Flow Drive's `--plan[=auto|bounded|discovery]` selects
 consult scope, independently of planner work mode and model/effort. Enabled
 planning without a mode, including legacy handoffs, uses `auto`; disabled
 planning has no scope. The parser validates grammar only. The orchestrator

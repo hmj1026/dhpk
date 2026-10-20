@@ -72,7 +72,12 @@ Return the source pointer, applicable gate, and one next handoff.
 Run `node skills/flow-guide/scripts/action-runner.js next` (which delegates to
 the package-local analyzer) and parse its JSON. Report the
 current branch/worktree evidence, each required or unavailable gate, and one
-next route. For `next`, pass `--host codex-cli` on Codex, `--host cursor` on Cursor, or `--host agy` on AGY; the omitted Host defaults to `claude-code`. Supported Host names match the shared handoff contract (`claude-code`, `codex-cli`, `agy`, `cursor`, `claude`, `codex`). The Host changes invocation formatting and handoff evidence only. If the script cannot run, record the fallback evidence and the
+next route. A recorded `passed` value applies to the current change only when
+its `head` equals the analyzer's current HEAD and, if the worktree differs
+from HEAD, its `diff` (or `scope.diff`) equals the current diff identity.
+The same HEAD alone does not prove an uncommitted diff is unchanged. Unbound,
+stale, and scope-changed records stay readable and are not a current pass;
+unobserved, failed, and skipped stay distinct. For `next`, pass `--host codex-cli` on Codex, `--host cursor` on Cursor, or `--host agy` on AGY; the omitted Host defaults to `claude-code`. Supported Host names match the shared handoff contract (`claude-code`, `codex-cli`, `agy`, `cursor`, `claude`, `codex`). The Host changes invocation formatting and handoff evidence only. If the script cannot run, record the fallback evidence and the
 reason instead of treating the missing check as a pass.
 
 When the request is an inbound issue with unsettled intent or acceptance, use

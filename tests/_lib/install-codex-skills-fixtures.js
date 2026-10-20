@@ -189,12 +189,12 @@ function waitForFile(file, timeoutMs = 2000) {
   return fs.existsSync(file);
 }
 
-function rewriteAgentAsHistoricalManagedSymlink(scratch, agentName, targetOverride = null) {
+function rewriteAgentAsHistoricalManagedSymlink(scratch, agentName, targetOverride = null, sourceRoot = ROOT) {
   const codex = path.join(scratch, '.codex');
   const receiptPath = path.join(codex, '.dhpk-installed.json');
   const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
   const relative = `agents/${agentName}`;
-  const source = path.join(ROOT, 'codex', 'agents', agentName);
+  const source = path.join(sourceRoot, 'codex', 'agents', agentName);
   const destination = path.join(codex, relative);
   const linkTarget = targetOverride || source;
 
@@ -254,32 +254,22 @@ function collisionFixture() {
   const fakeCodexSkills = path.join(fakePlugin, 'codex', 'skills');
   fs.mkdirSync(fakeCodexSkills, { recursive: true });
   for (const name of collisionSkills) {
-    fs.cpSync(
-      path.join(ROOT, 'plugins', 'dhpk', 'skills', name),
-      path.join(fakeCodexSkills, name),
-      { recursive: true, dereference: true },
-    );
+    const skillDir = path.join(fakeCodexSkills, name);
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), `---\nname: ${name}\ndescription: Synthetic collision fixture.\n---\n\nFixture skill.\n`);
   }
   fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
-  const distributionInventory = JSON.parse(
-    fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'),
-  );
-  const skillMetadata = collisionSkills.map((name) => {
-    const skill = distributionInventory.skills.find((entry) => entry.name === name);
-    assert.ok(skill, `expected distribution inventory entry for ${name}`);
-    return {
-      id: skill.id,
-      name: skill.name,
-      path: skill.path,
-      legacy_names: skill.legacy_names || [],
-      lifecycle: skill.lifecycle,
-      tier: skill.tier,
-      invokable: skill.invokable,
-      profiles: skill.profiles || [],
-      surfaces: skill.surfaces || [],
-    };
-  });
+  const skillMetadata = collisionSkills.map((name) => ({
+    id: name === 'tdd-workflow' ? 'tdd' : name,
+    name,
+    path: `skills/${name}`,
+    legacy_names: [],
+    lifecycle: 'promoted',
+    invokable: true,
+    profiles: [],
+    surfaces: ['codex-native', 'codex-sync'],
+  }));
   fs.mkdirSync(path.join(fakePlugin, 'manifests'), { recursive: true });
   fs.writeFileSync(path.join(fakePlugin, 'manifests', 'distribution-inventory.json'), JSON.stringify({
     skills: skillMetadata,

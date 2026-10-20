@@ -64,13 +64,13 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:775b9717f36e518a80ad572592724141937b64baf52ca62d90989f6d74249401",
+      "sha256": "sha256:299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-drive",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:3fbe935b973caad6a58159d76901f9910dc78be903e06e5dca8aa11092f03092",
+      "sha256": "sha256:6adf2889d4e9a633f5003be06f4fba819e070773916ceaa0b5ccd0cdaf9ab185",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/tool-routing.md": {
@@ -148,7 +148,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:d3f12d1cd13ec20fa93c3bcb00118e19190210f95f4cf196884de105a416dbdb",
+      "sha256": "sha256:121e64138243ec3362964c2b75a7aaacfa6927bcebfff6e90ce482ceffd0e93e",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -208,13 +208,13 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:775b9717f36e518a80ad572592724141937b64baf52ca62d90989f6d74249401",
+      "sha256": "sha256:299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:3fbe935b973caad6a58159d76901f9910dc78be903e06e5dca8aa11092f03092",
+      "sha256": "sha256:6adf2889d4e9a633f5003be06f4fba819e070773916ceaa0b5ccd0cdaf9ab185",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
@@ -280,7 +280,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:d3f12d1cd13ec20fa93c3bcb00118e19190210f95f4cf196884de105a416dbdb",
+      "sha256": "sha256:121e64138243ec3362964c2b75a7aaacfa6927bcebfff6e90ce482ceffd0e93e",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -358,7 +358,7 @@
     "skills/harness-setup/scripts/lib/install-codex-skills.sh": {
       "skill_id": "harness-setup",
       "source": "scripts/hooks/install-codex-skills.sh",
-      "sha256": "sha256:103f8646cdb4555946cfaf4e00711e087840530a5d616915507e549744c8b5cb",
+      "sha256": "sha256:8d4989df0155d2aabbfc99bce97d3482ea55ff9dc543011e3b9ce83e23cba451",
       "mode": "0755"
     },
     "skills/harness-setup/templates/settings.local.json.example": {

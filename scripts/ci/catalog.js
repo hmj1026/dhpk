@@ -36,6 +36,7 @@ const RETIRED_CODEX_MCP_SURFACE = Object.freeze({ skills: 0, commands: 0, comman
 // Explicit ownership for newly added top-level test suites. Keep keys exact so
 // a similarly named suite cannot inherit another suite's owner by accident.
 const SUITE_OWNER_REGISTRY = Object.freeze({
+  'tests/check-hook-shellcheck.test.js': 'scripts/ci/check-hook-shellcheck.js',
 });
 
 function computeCounts() {

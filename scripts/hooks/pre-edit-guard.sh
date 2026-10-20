@@ -71,6 +71,9 @@ if [ "${DHPK_PROTECT_LINT_CONFIGS:-1}" != "0" ] && [ -f "$file_path" ]; then
             config_basename="$(basename "$file_path")"
             config_pattern="$(printf '%s' "$config_basename" | sed 's/[][\\.^$*+?{}|()]/\\&/g')"
             changes_root="$(dhpk_root)/openspec/changes"
+            # The tasks.md match lifts only this lint-config block. Later
+            # checks, including GUARD_EXTRA_PATTERNS, still run.
+            lint_listed=0
             if [ -d "$changes_root" ]; then
                 for tasks_file in "$changes_root"/*/tasks.md; do
                     [ -f "$tasks_file" ] || continue
@@ -78,13 +81,17 @@ if [ "${DHPK_PROTECT_LINT_CONFIGS:-1}" != "0" ] && [ -f "$file_path" ]; then
                     [ "$change_name" = "archive" ] && continue
                     if grep -Eq "(^|[^[:alnum:]_.-])${config_pattern}([^[:alnum:]_.-]|$)" "$tasks_file"; then
                         echo "[edit-guard] lint config allowed: listed in $change_name/tasks.md" >&2
-                        exit 0
+                        lint_listed=1
+                        break
                     fi
                 done
             fi
-            echo "[edit-guard] blocked lint/formatter config edit: $file_path" >&2
-            echo "[edit-guard] Fix the code to satisfy the rule — don't weaken the gate. To change policy intentionally, edit outside Claude or set DHPK_PROTECT_LINT_CONFIGS=0 for this session." >&2
-            exit 2 ;;
+            if [ "$lint_listed" -eq 0 ]; then
+                echo "[edit-guard] blocked lint/formatter config edit: $file_path" >&2
+                echo "[edit-guard] Fix the code to satisfy the rule — don't weaken the gate. To change policy intentionally, edit outside Claude or set DHPK_PROTECT_LINT_CONFIGS=0 for this session." >&2
+                exit 2
+            fi
+            ;;
     esac
 fi
 

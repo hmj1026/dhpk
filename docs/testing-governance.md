@@ -37,8 +37,9 @@ runs one shard with four workers. A full plan keeps four shards with four
 workers. Shared core, runner or CI changes, unknown paths, missing owner
 suites, and unavailable diffs fail closed to the full plan. The selected plan
 records its test files, and shard verification requires the trusted plan's
-exact union without omissions, extras, or duplicates. Installer owner changes
-also run the macOS installer job.
+exact union without omissions, extras, or duplicates. Installer, hook, and
+resource-runtime owner changes also run the macOS installer job. Unknown
+paths still fail closed to the full plan, which keeps that job.
 
 This routing is an execution optimization and does not create a
 script-to-test coverage obligation. Markdown prose remains outside automated
@@ -59,7 +60,19 @@ for canonical prose; physical package checks follow the affected surfaces.
 Unknown generated data, executables, generated-only changes, and runtime or
 script changes remain full-plan work; the route does not skip their behavioral
 suites. Existing CI plans retain the source harness structure, permission,
-and route-safety checks.
+and route-safety checks. Preflight also runs `shellcheck --severity=warning`
+on `scripts/hooks/*.sh` and `scripts/hooks/_lib/*.sh` for full and selected
+plans, using a pinned GitHub-release binary. Canonical-content light plans
+skip that step because those diffs cannot change hook scripts. Required CI
+fails if the binary is missing, mismatched, or the install fails; a local
+optional mode may SKIP when the tool is absent and must not claim PASS.
+This repository has no npm lockfile, so this change does not add OSV or a
+lockfile solely for scanning. The two extra workflow-policy rules
+(`persist-credentials: false` on read-only `actions/checkout`, and no
+`${{ }}` interpolation inside `run:` shells) are bounded repository-owned
+checks beside actionlint; they do not replace `zizmor` and are not a weekly
+`security.yml` scanner. If a later gap is concrete, evaluate that tool's
+incremental coverage against pin and false-positive cost separately.
 
 Skill and guidance Markdown is reviewed by people. Automated checks may parse
 machine-readable metadata or verify required resources through shared tools,
@@ -87,8 +100,12 @@ acceptance; those gates remain in the
 
 ## Darwin installer subset
 
-The macOS CI job `macos-installer` executes the files in
-`tests/_lib/macos-installer-files.js` (`MACOS_INSTALLER_FILES`). Adding or
-removing a Host-unique installer suite from the Ubuntu aggregate runner must
-update that list in the same change; the job already runs the list.
-`consumer-gate-cli` keeps `TMPDIR=/private/tmp` on Darwin.
+The macOS CI job `macos-installer` executes the Darwin-differential files in
+`tests/_lib/macos-installer-files.js` (`MACOS_INSTALLER_FILES`). That list is
+filesystem, symlink-canonicalization, descriptor-relative writer, portable
+runner, and Host-unique installer smoke — not a replay of Linux owner
+matrices. Schema, receipt-variant, evidence-normalization, and stub-CLI
+suites stay on Ubuntu. Adding or removing a Host-unique installer suite from
+the Ubuntu aggregate runner must update that list in the same change; the job
+already runs the list. `macos-installer-darwin` keeps `TMPDIR=/private/tmp` on
+Darwin. Linux PASS does not stand in for Darwin PASS.

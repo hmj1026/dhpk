@@ -23,6 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -51,6 +52,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -74,6 +76,23 @@ jobs:
           fail_level: error
       - name: Validate workflow policy
         run: node scripts/ci/validate-workflow-policy.js
+      - name: Install pinned ShellCheck
+        if: needs.plan.outputs.mode != 'light'
+        env:
+          SHELLCHECK_VERSION: '0.11.0'
+          SHELLCHECK_SHA256: '8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198'
+        run: |
+          archive="shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/$archive"
+          echo "${SHELLCHECK_SHA256}  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          sudo install -m 0755 "$RUNNER_TEMP/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+          test "$(shellcheck --version | awk '/^version:/ { print $2 }')" = "$SHELLCHECK_VERSION"
+      - name: ShellCheck hook scripts
+        if: needs.plan.outputs.mode != 'light'
+        env:
+          SHELLCHECK_VERSION: '0.11.0'
+        run: node scripts/ci/check-hook-shellcheck.js --mode required --expect-version "$SHELLCHECK_VERSION"
       - name: Validate JSON CLI termination
         run: node scripts/ci/validate-json-cli-termination.js
       - name: Validate JavaScript guardrails
@@ -106,9 +125,11 @@ jobs:
         run: node scripts/ci/validate-references.js
       - name: Validate retained distribution packages
         if: needs.plan.outputs.mode != 'light' || needs.plan.outputs.surfaces != '[]'
+        env:
+          CI_PLAN_MODE: ${{ needs.plan.outputs.mode }}
         run: |
           args=()
-          if [ "${{ needs.plan.outputs.mode }}" != "full" ]; then
+          if [ "$CI_PLAN_MODE" != "full" ]; then
             node -e 'const fs = require("node:fs"); const path = require("node:path"); for (const surface of JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "dhpk-ci-plan/ci-plan.json"), "utf8")).packageSurfaces) console.log(surface)' > "$RUNNER_TEMP/ci-package-surfaces.txt"
             mapfile -t surfaces < "$RUNNER_TEMP/ci-package-surfaces.txt"
             if [ "${#surfaces[@]}" -eq 0 ]; then
@@ -177,6 +198,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-dhpk-test-env
@@ -200,13 +222,15 @@ jobs:
           DHPK_TEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           DHPK_TEST_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
           DHPK_TEST_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          CI_PLAN_MODE: ${{ needs.plan.outputs.mode }}
+          SHARD_INDEX: ${{ matrix.shard }}
         run: |
-          if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then
+          if [ "$CI_PLAN_MODE" = "selected" ]; then
             node -e 'const fs = require("node:fs"); const path = require("node:path"); for (const file of JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "dhpk-ci-plan/ci-plan.json"), "utf8")).testFiles) console.log("tests/" + file)' > "$RUNNER_TEMP/ci-selected-tests.txt"
             mapfile -t selected_files < "$RUNNER_TEMP/ci-selected-tests.txt"
             ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js "${selected_files[@]}"
           else
-            ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js --shard-index ${{ matrix.shard }} --shard-count 4
+            ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js --shard-index "$SHARD_INDEX" --shard-count 4
           fi
 
       - name: Summarize test shard timing
@@ -233,6 +257,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -288,12 +313,20 @@ jobs:
 
       - name: Verify shard coverage and timing evidence
         if: needs.plan.outputs.mode != 'light'
+        env:
+          CI_PLAN_MODE: ${{ needs.plan.outputs.mode }}
+          GH_RUN_ID: ${{ github.run_id }}
+          GH_RUN_ATTEMPT: ${{ github.run_attempt }}
+          CHECKOUT_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           plan_file="$RUNNER_TEMP/dhpk-ci-plan/ci-plan.json"
           count=4
-          if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then count=1; fi
-          args=(--directory "$RUNNER_TEMP/dhpk-test-shards" --count "$count" --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --checkout-sha '${{ github.sha }}' --head-sha '${{ github.event.pull_request.head.sha }}' --summary "$GITHUB_STEP_SUMMARY")
-          if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then args+=(--plan "$plan_file" --base-sha '${{ github.event.pull_request.base.sha }}' --base-ref '${{ github.event.pull_request.base.ref }}'); fi
+          if [ "$CI_PLAN_MODE" = "selected" ]; then count=1; fi
+          args=(--directory "$RUNNER_TEMP/dhpk-test-shards" --count "$count" --run-id "$GH_RUN_ID" --run-attempt "$GH_RUN_ATTEMPT" --checkout-sha "$CHECKOUT_SHA" --head-sha "$HEAD_SHA" --summary "$GITHUB_STEP_SUMMARY")
+          if [ "$CI_PLAN_MODE" = "selected" ]; then args+=(--plan "$plan_file" --base-sha "$BASE_SHA" --base-ref "$BASE_REF"); fi
           node scripts/ci/verify-test-shards.js "${args[@]}"
 
   macos-installer:
@@ -304,6 +337,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -330,6 +365,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-dhpk-test-env
@@ -391,6 +427,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: markdownlint
         uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24.2.0
         with:

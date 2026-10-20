@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.zh-TW.md#codex-project-local-syncsupported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.zh-TW.md#cursor-project-local-syncsupported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.zh-TW.md#surface-matrix)
 
-通用、安裝即用的 Claude Code harness。內含 **34 個角色導向 agent**（33 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、六個 task-shaped capability family、跨 session 學習 DB（預設關閉）、建議性的 reviewer 派工（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **30 個角色導向 agent**（29 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、六個 task-shaped capability family、跨 session 學習 DB（預設關閉）、建議性的 reviewer 派工（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
 
 > **Harness engineering 重於 prompt engineering。** dhpk 把 agent 的運作環境——hooks、reviewer 派工、路由規則、技術棧感知模組——當作施力點。你安裝的不是逐次微調的 one-off prompt，而是一套可重用的 harness，讓正確的檢查自動觸發，並讓模型跨 session 維持在軌道上。
 
@@ -84,7 +84,7 @@ Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整�
 | 元件 | 數量 | 說明 |
 |------|----:|------|
 | Agents | Role-based agents | Trigger table 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
-| Commands | 已註冊的 command surface | `/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:ui-ux-verify` 等 |
+| Commands | 已註冊的 command surface | `/dhpk:precommit`、`/dhpk:setup`、`/dhpk:change-verdict pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:ui-ux-verify` 等 |
 | Canonical skills | Inventory 管理的 package | 每個 capability 只有一個具名 package，來源固定在 `skills/<public-name>/`；非 family package 維持 `skills/dhpk-*/` contract；portable family 負責整併介面。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 3 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git branch-safety gate）、SessionStart（module activation）、SubagentStop（fast-worker liveness cleanup） |
@@ -124,12 +124,12 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 2. **規格確認後實作**：需求與邊界確認後，呼叫實作入口（或由 `tdd-workflow` 引導測試先寫）：
    ```text
    /dhpk:flow-drive <confirmed-spec-or-change-id> --plan                     # 實作已確認 change
-   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan --plan-mode=bounded # 限定 planner 審查範圍
+   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan=bounded             # 限定 planner 審查範圍
    /dhpk:flow-drive <confirmed-spec-or-change-id> --worker=codex             # 指定本次執行的 Worker
    ```
 3. **變更審查**：程式碼修改完成後，派遣各專業領域 Reviewer：
    ```text
-   /dhpk:review-pending                              # 觸發適用路徑的 reviewer（代碼、安全、資料庫等）
+   /dhpk:change-verdict pending                       # 觸發適用路徑的 reviewer（代碼、安全、資料庫等）
    /dhpk:change-verdict --mode code                  # 產出獨立且不可修改的唯讀評審結論
    ```
 4. **提交前驗證**：品質把關，確保 Lint、型別與測試全數通過：
@@ -145,11 +145,16 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 
 `flow-guide` 是唯讀的 help、route、rules、next、close owner。`route` 不帶 `--go` 只
 提供建議；`route --go` 最多 handoff 一個可用的 implicit-eligible target，絕不執行
-explicit-only target。`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan-mode`
+explicit-only target。`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan[=auto|bounded|discovery]`
 只選擇 optional planner consult scope。它只接受已確認的 specification 或 change ID。
 提案 authoring 由外部 `$openspec-propose` skill 負責。另見
 [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md) 與
 [feasibility comparison guidance](./docs/agent-guidance/feasibility-comparison.md)。
+這五步是通用節奏，不是必跑管線。檔案數量不會啟動它。該步證據若已存在且
+仍適用就跳過。具體任務形狀（修 bug、新增功能、舊系統變更、準備 PR）見
+[任務情境](./docs/basic-operations.zh-TW.md#task-scenarios)
+（[English](./docs/basic-operations.md#task-scenarios)）。
+
 完整的 inspect → route → implement → review → verify → handoff 流程請看
 **[基本操作指南](./docs/basic-operations.zh-TW.md)**。
 
@@ -347,7 +352,8 @@ Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> |
 
 適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方已退休的 MCP 機制不同，
 這條路徑不需要 MCP server），支援路徑是 `bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`。預設 hybrid
+/path/to/dhpk/scripts/hooks/install-codex-skills.sh`。sync 需使用 repository
+checkout；已安裝的 Claude plugin 不含 `codex/`。預設 hybrid
 projection 讓 skill/supporting asset 連回 plugin root，但 agent TOML 一律 materialize
 為實體檔；`--copy` 則是整體實體化的可攜 fallback。它會把明確策展的 Codex projection
 放進專案 `.codex/`。[issue #88](https://github.com/hmj1026/dhpk/issues/88) 的乾淨安裝
@@ -359,7 +365,8 @@ materialization 驗證目前已對正式實體 package 通過；Codex Plugin Mar
 
 若希望 Cursor 從專案本身載入 dhpk skills、subagents、`.mdc` rules 與 commands
 （而不只依賴 `~/.cursor/plugins/local/`），支援路徑是
-`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"`。預設
+`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`。sync 需使用
+repository checkout；已安裝的 Claude plugin 不含 `cursor/`。預設
 仍採全 symlink 預設；`--copy` 是可攜 fallback。installer 會寫入
 schema-v3 receipt `.cursor/.dhpk-installed.json`，且不會寫入
 `.cursor/hooks.json`。`plugins/dhpk-cursor/` 仍留給 marketplace／user-plugin
@@ -376,7 +383,7 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
-├── agents/                       # 34 個角色 agent（33 root + 1 模組 reviewer；INDEX.md 為導覽用）
+├── agents/                       # 30 個角色 agent（29 root + 1 模組 reviewer；INDEX.md 為導覽用）
 ├── commands/                     # slash 指令（review、setup、smart-commit、opsx-apply-resume 等）
 ├── skills/                       # SSOT：68 個扁平 canonical package，根目錄為 skills/<public-name>/（六個 portable family 名稱不加前綴）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
@@ -426,7 +433,7 @@ dhpk/
 ├── docs/                        # 版控的指南、ADR 與契約（見 docs/README.md）
 │   ├── design/, evidence/       # 忽略版控的本機開發紀錄
 ├── openspec/specs/              # 版控的已接受行為規格
-├── README.md、README.zh-TW.md、CHANGELOG.md、LICENSE、.gitignore
+├── README.md、README.zh-TW.md、SECURITY.md、CHANGELOG.md、LICENSE、.gitignore
 ```
 
 ## 開發
@@ -441,6 +448,10 @@ claude --plugin-dir ~/projects/dhpk
 對插件檔案的編輯，需要 `/reload-plugins` 後才會生效（hook、MCP、LSP），或重啟 session（monitor、skill 列表）。
 
 Marketplace 安裝路徑（`claude plugin install`）會把插件複製到 `~/.claude/plugins/cache/`，所以對原始 repo 的編輯在那裡不會生效，必須 `claude plugin update dhpk@dhpk` 才會更新。
+
+## 安全
+
+漏洞請私下回報，不要開公開 issue。支援版本、回報管道與回應時程見[安全政策](./SECURITY.zh-TW.md)。
 
 ## 授權
 

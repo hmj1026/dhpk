@@ -2,6 +2,8 @@
 
 const { resolveTarget } = require('./dispatch-engine');
 const { createHostProfile, createProviderModelCatalog, PROVIDERS, SUPPORT_STATUSES } = require('./dispatch-contract');
+const DEFAULT_CATALOG = require('../../manifests/provider-model-catalog.json');
+const DEFAULT_HOST_PROFILES = require('../../manifests/host-profiles.json');
 
 const DEFAULTS = Object.freeze({
   orchestration_dispatch: 'on',
@@ -14,12 +16,36 @@ const DEFAULTS = Object.freeze({
 });
 
 const LEGACY_KEYS = Object.freeze({
-  worker_target: ['fast_worker_backend', 'fast_worker_model', 'codex_fast_worker_model', 'agy_fast_worker_model'],
+  worker_target: ['fast_worker_backend', 'fast_worker_model', 'codex_worker_model', 'codex_fast_worker_model', 'agy_worker_model', 'agy_fast_worker_model'],
   reasoner_target: ['deep_reasoner_model', 'codex_reasoner_model'],
   planner_target: ['planner_model'],
-  reviewer_target: ['reviewer_model'],
+  reviewer_target: ['reviewer_model', 'codex_reviewer_model'],
 });
-const LEGACY_REMOVAL_VERSION = '0.62.0';
+const LEGACY_REMOVAL_VERSION = 'unscheduled';
+const LEGACY_KEY_AGENTS = Object.freeze({
+  fast_worker_model: 'claude-code',
+  deep_reasoner_model: 'claude-code',
+  planner_model: 'claude-code',
+  reviewer_model: 'claude-code',
+  codex_worker_model: 'codex-cli',
+  codex_fast_worker_model: 'codex-cli',
+  codex_reasoner_model: 'codex-cli',
+  codex_reviewer_model: 'codex-cli',
+  agy_worker_model: 'agy',
+  agy_fast_worker_model: 'agy',
+});
+const LEGACY_EFFORT_KEYS = Object.freeze({
+  fast_worker_model: ['fast_worker_effort'],
+  deep_reasoner_model: ['deep_reasoner_effort'],
+  planner_model: ['planner_effort'],
+  reviewer_model: ['reviewer_effort'],
+  codex_worker_model: ['codex_worker_effort', 'codex_fast_worker_effort'],
+  codex_fast_worker_model: ['codex_worker_effort', 'codex_fast_worker_effort'],
+  codex_reasoner_model: ['codex_reasoner_effort'],
+  codex_reviewer_model: ['codex_reviewer_effort'],
+  agy_worker_model: [],
+  agy_fast_worker_model: [],
+});
 const PROVIDER_ALIASES = Object.freeze({
   'claude-code': 'anthropic',
   'codex-cli': 'openai',
@@ -96,6 +122,82 @@ function layerValue(layers, canonical, legacyKeys) {
   return { value: undefined, source: undefined, legacy: false };
 }
 
+function firstPresent(values, keys) {
+  for (const key of keys || []) {
+    if (isRecord(values) && Object.prototype.hasOwnProperty.call(values, key) && values[key] !== undefined && values[key] !== '') {
+      return values[key];
+    }
+  }
+  return undefined;
+}
+
+function hostedModelIds(hostProfiles = DEFAULT_HOST_PROFILES) {
+  const ids = new Set();
+  for (const profile of hostProfiles.profiles || []) {
+    if (profile.native_model) ids.add(profile.native_model);
+    for (const roleDefault of Object.values(profile.role_defaults || {})) {
+      if (roleDefault && roleDefault.model_id) ids.add(roleDefault.model_id);
+    }
+  }
+  return ids;
+}
+
+function resolveCatalogModel(raw, catalog = DEFAULT_CATALOG, hostProfiles = DEFAULT_HOST_PROFILES) {
+  if (typeof raw !== 'string' || raw === '') return null;
+  const models = Object.values(catalog.models || {});
+  const exact = models.filter((model) => model.model_id === raw);
+  if (exact.length === 1) return exact[0];
+  const named = models.filter((model) => model.display_name === raw);
+  if (named.length === 1) return named[0];
+  const aliased = models.filter((model) => model.model_id.startsWith(raw) && model.model_id !== raw && /^[.-]?\d/.test(model.model_id.slice(raw.length)));
+  if (aliased.length === 1) return aliased[0];
+  if (aliased.length > 1) {
+    const hosted = hostedModelIds(hostProfiles);
+    const preferred = aliased.filter((model) => hosted.has(model.model_id));
+    if (preferred.length === 1) return preferred[0];
+  }
+  return null;
+}
+
+function translateLegacyTarget({ role, sourceKey, value, layerValues }) {
+  if (typeof value === 'string' && !value.includes('/') && sourceKey && sourceKey.includes('backend')) {
+    const legacyProvider = { claude: 'claude-code', codex: 'codex-cli', agy: 'agy', native: 'cursor-native' }[value];
+    if (legacyProvider) {
+      const modelKeys = legacyProvider === 'codex-cli'
+        ? (role === 'reasoner' ? ['codex_reasoner_model'] : ['codex_worker_model', 'codex_fast_worker_model'])
+        : legacyProvider === 'agy'
+          ? ['agy_worker_model', 'agy_fast_worker_model']
+          : [role === 'worker' ? 'fast_worker_model' : role === 'reasoner' ? 'deep_reasoner_model' : `${role}_model`];
+      const effortKeys = legacyProvider === 'codex-cli'
+        ? (role === 'reasoner' ? ['codex_reasoner_effort'] : ['codex_worker_effort', 'codex_fast_worker_effort'])
+        : [role === 'worker' ? 'fast_worker_effort' : role === 'reasoner' ? 'deep_reasoner_effort' : `${role}_effort`];
+      const rawModel = firstPresent(layerValues, modelKeys);
+      const identity = rawModel === undefined ? null : resolveCatalogModel(rawModel);
+      const modelId = identity ? identity.model_id : rawModel;
+      const effort = firstPresent(layerValues, effortKeys);
+      return {
+        provider: legacyProvider,
+        ...(modelId === undefined ? {} : { model: modelId }),
+        ...(effort === undefined ? {} : { effort }),
+      };
+    }
+  }
+  if (typeof value === 'string' && !value.includes('/') && LEGACY_KEY_AGENTS[sourceKey]) {
+    const identity = resolveCatalogModel(value);
+    if (!identity) {
+      throw new TypeError(`${sourceKey} value ${JSON.stringify(value)} is not a Catalog model ID or published alias; migrate to agent/model[:effort]`);
+    }
+    const effort = firstPresent(layerValues, LEGACY_EFFORT_KEYS[sourceKey]);
+    return {
+      target_agent: LEGACY_KEY_AGENTS[sourceKey],
+      model_id: identity.model_id,
+      provider: identity.provider,
+      ...(effort === undefined ? {} : { effort }),
+    };
+  }
+  return value;
+}
+
 function resolveDispatchConfig({ project = {}, global = {}, environment = {} } = {}) {
   const layers = [['project', project], ['global', global], ['environment', environment]];
   const diagnostics = [];
@@ -105,6 +207,16 @@ function resolveDispatchConfig({ project = {}, global = {}, environment = {} } =
       if (Object.prototype.hasOwnProperty.call(values, key)) {
         diagnostics.push({ field: 'reasoner_target', status: 'BLOCKED', source: `${layerName}.${key}`,
           reason: `retired config ${key} in 0.66.2; use codex_reasoner_${suffix}; rollback 0.66.1` });
+      }
+    }
+    for (const key of ['architect_model', 'architect_effort']) {
+      if (Object.prototype.hasOwnProperty.call(values, key)) {
+        diagnostics.push({
+          field: key,
+          status: 'UNSUPPORTED',
+          source: `${layerName}.${key}`,
+          reason: `${key} has no dispatch effect; it is not mapped onto reasoner_target and dispatch is unaffected`,
+        });
       }
     }
   }
@@ -120,21 +232,15 @@ function resolveDispatchConfig({ project = {}, global = {}, environment = {} } =
     const selected = layerValue(layers, canonical, LEGACY_KEYS[canonical]);
     try {
       let targetValue = selected.value;
-      if (selected.legacy && typeof targetValue === 'string' && !targetValue.includes('/')) {
+      if (selected.legacy) {
         const sourceParts = selected.source.split('.');
         const layer = layers.find(([name]) => name === sourceParts[0]);
-        const sourceKey = sourceParts[1];
-        const legacyProvider = { claude: 'claude-code', codex: 'codex-cli', agy: 'agy', native: 'cursor-native' }[targetValue];
-        if (sourceKey && sourceKey.includes('backend') && layer && legacyProvider) {
-          const values = layer[1];
-          const modelKey = legacyProvider === 'codex-cli' ? (role === 'reasoner' ? 'codex_reasoner_model' : 'codex_fast_worker_model') : legacyProvider === 'agy' ? 'agy_fast_worker_model' : `${role}_model`;
-          const effortKey = legacyProvider === 'codex-cli' ? (role === 'reasoner' ? 'codex_reasoner_effort' : 'codex_fast_worker_effort') : `${role}_effort`;
-          targetValue = {
-            provider: legacyProvider,
-            ...(values[modelKey] === undefined ? {} : { model: values[modelKey] }),
-            ...(values[effortKey] === undefined ? {} : { effort: values[effortKey] }),
-          };
-        }
+        targetValue = translateLegacyTarget({
+          role,
+          sourceKey: sourceParts[1],
+          value: targetValue,
+          layerValues: layer ? layer[1] : {},
+        });
       }
       result[canonical] = targetValue === undefined ? null : parseTarget(targetValue, canonical);
       result.source[canonical] = selected.source || 'default';
@@ -188,12 +294,170 @@ function diagnoseDispatchConfig({ config, catalog, hostProfile, role = 'worker',
     const resolution = resolveTarget({ ...task, host_profile: profile, role, authority, effort: selectedEffort, target: selected, scope }, { catalog: catalogData });
     runtime = resolution.status === 'RESOLVED' ? 'AVAILABLE' : resolution.status;
   }
-  return Object.freeze({ catalog_support: catalogSupport, host_access: hostAccess, runtime, fallback: config.fallback_allow ? 'allowed' : 'disabled', source: config.source[`${role}_target`] || 'default' });
+  return Object.freeze({
+    catalog_support: catalogSupport,
+    host_access: hostAccess,
+    runtime,
+    fallback: config.fallback_allow ? 'allowed' : 'disabled',
+    source: config.source[`${role}_target`] || 'default',
+    ...(catalogSupport === SUPPORT_STATUSES[1] ? {
+      reason: `unsupported Host/Role/model/effort combination for ${canonicalAgent}/${modelId}:${selectedEffort} on ${profile.host}; migrate to a Catalog route using agent/model[:effort]`,
+    } : {}),
+  });
 }
 
-function createDispatchConfigReport({ config } = {}) {
+const REPORT_ROLES = Object.freeze(['planner', 'reasoner', 'worker', 'reviewer']);
+const TARGET_AGENT_PROVIDERS = Object.freeze({
+  'claude-code': 'anthropic',
+  'codex-cli': 'openai',
+  agy: 'google',
+  cursor: 'cursor',
+});
+
+function publicTargetFields(target) {
+  if (!target || !isRecord(target)) return null;
+  const out = {};
+  for (const key of ['target_agent', 'provider', 'model_id', 'effort', 'route']) {
+    if (target[key] !== undefined && target[key] !== null) out[key] = target[key];
+  }
+  return Object.keys(out).length ? Object.freeze(out) : null;
+}
+
+function coveredInputsReport(coveredInputs) {
+  if (!isRecord(coveredInputs)) {
+    return Object.freeze({ declared: false, complete: false });
+  }
+  const layers = Array.isArray(coveredInputs.layers) ? coveredInputs.layers.slice() : [];
+  return Object.freeze({
+    declared: true,
+    complete: coveredInputs.complete === true,
+    layers: Object.freeze(layers),
+    project: coveredInputs.project === true,
+    global: coveredInputs.global === true,
+    environment: coveredInputs.environment === true,
+    ...(typeof coveredInputs.scope === 'string' ? { scope: coveredInputs.scope } : {}),
+  });
+}
+
+function blockedRoleDiagnostic(diagnostics, role) {
+  return (diagnostics || []).find((entry) => entry.field === `${role}_target` && entry.status === 'BLOCKED') || null;
+}
+
+function diagnoseRoleStatus({ config, catalog, hostProfile, role, selected }) {
+  const fallback = config.fallback_allow === true ? 'allowed' : 'disabled';
+  const empty = Object.freeze({
+    catalog_support: 'NOT_RUN',
+    host_access: 'NOT_RUN',
+    runtime: 'NOT_RUN',
+    fallback,
+  });
+  if (!selected || !hostProfile) return empty;
+  try {
+    const result = diagnoseDispatchConfig({
+      config: { ...config, [`${role}_target`]: selected },
+      catalog,
+      hostProfile,
+      role,
+      authority: role === 'worker' ? 'workspace-write' : 'read-only',
+      effort: selected.effort || 'high',
+    });
+    return Object.freeze({
+      catalog_support: result.catalog_support,
+      host_access: result.host_access,
+      runtime: 'NOT_RUN',
+      fallback,
+      ...(result.reason ? { reason: result.reason } : {}),
+    });
+  } catch {
+    return empty;
+  }
+}
+
+function enrichExplicitTarget(selected, profile, catalogData, role) {
+  const targetAgent = selected.target_agent;
+  const provider = canonicalProvider(selected.provider) || TARGET_AGENT_PROVIDERS[targetAgent];
+  const modelId = selected.model_id;
+  const effort = selected.effort;
+  const fields = {
+    ...(targetAgent ? { target_agent: targetAgent } : {}),
+    ...(provider ? { provider } : {}),
+    ...(modelId ? { model_id: modelId } : {}),
+    ...(effort ? { effort } : {}),
+  };
+  if (profile && catalogData && Array.isArray(catalogData.routes)) {
+    const match = catalogData.routes.find((route) => route.host === profile.host
+      && route.provider === provider
+      && (!targetAgent || route.target_agent === targetAgent)
+      && (!modelId || route.model_id === modelId)
+      && route.roles.includes(role)
+      && (!effort || route.efforts.includes(effort)));
+    if (match && match.route) fields.route = match.route;
+  }
+  return publicTargetFields(fields);
+}
+
+function createDispatchConfigReport({ config, hostProfile, catalog, coveredInputs } = {}) {
   if (!config || !isRecord(config)) throw new TypeError('config is required');
-  const targets = Object.fromEntries(['worker', 'reasoner', 'planner', 'reviewer'].map((role) => [role, config[`${role}_target`] || null]));
+  const targets = Object.fromEntries(REPORT_ROLES.map((role) => [role, config[`${role}_target`] || null]));
+  const diagnostics = config.diagnostics || [];
+  const profile = hostProfile ? createHostProfile(hostProfile) : null;
+  const catalogInput = catalog || DEFAULT_CATALOG;
+  let catalogData = null;
+  try {
+    catalogData = createProviderModelCatalog(catalogInput);
+  } catch {
+    catalogData = null;
+  }
+
+  const roles = {};
+  for (const role of REPORT_ROLES) {
+    const canonical = `${role}_target`;
+    const blocked = blockedRoleDiagnostic(diagnostics, role);
+    const selected = config[canonical] || null;
+    const configuredSource = (config.source && config.source[canonical])
+      || (blocked && blocked.source)
+      || 'default';
+    const configuredTarget = blocked ? null : (selected ? publicTargetFields(selected) : 'auto');
+    const defaultPair = profile && profile.role_defaults ? profile.role_defaults[role] : null;
+    const defaultSource = defaultPair ? `host_profile.role_defaults.${role}` : null;
+    let effectiveTarget = null;
+    let effectiveSource = null;
+    if (blocked) {
+      effectiveTarget = null;
+      effectiveSource = null;
+    } else if (selected) {
+      effectiveTarget = enrichExplicitTarget(selected, profile, catalogData, role);
+      effectiveSource = configuredSource;
+    } else if (defaultPair) {
+      effectiveTarget = publicTargetFields(defaultPair);
+      effectiveSource = defaultSource;
+    }
+    const fallbackCandidates = profile && Array.isArray(profile.role_fallbacks[role])
+      ? profile.role_fallbacks[role].map((pair) => publicTargetFields(pair)).filter(Boolean)
+      : [];
+    roles[role] = Object.freeze({
+      configured_target: configuredTarget,
+      configured_source: configuredSource,
+      effective_target: effectiveTarget,
+      effective_source: effectiveSource,
+      default_source: defaultSource,
+      status: diagnoseRoleStatus({
+        config,
+        catalog: catalogInput,
+        hostProfile: profile,
+        role,
+        selected: blocked ? null : (selected || defaultPair),
+      }),
+      fallback: Object.freeze({
+        allow: config.fallback_allow === true,
+        kind: 'candidate_policy',
+        selected: false,
+        executed: false,
+        candidates: Object.freeze(fallbackCandidates),
+      }),
+    });
+  }
+
   const report = {
     schema: 'dhpk.dispatch.config-report.v1',
     orchestration_dispatch: config.orchestration_dispatch,
@@ -206,7 +470,12 @@ function createDispatchConfigReport({ config } = {}) {
       runtime: 'NOT_RUN',
       fallback: config.fallback_allow === true ? 'allowed' : 'disabled',
     },
-    diagnostics: config.diagnostics || [],
+    diagnostics,
+    covered_inputs: coveredInputsReport(coveredInputs),
+    host: profile
+      ? Object.freeze({ id: profile.host, status: 'known', execution: 'not executed' })
+      : Object.freeze({ id: null, status: 'unresolved', execution: 'not executed' }),
+    roles: Object.freeze(roles),
   };
   return Object.freeze(report);
 }

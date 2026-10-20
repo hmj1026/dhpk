@@ -27,16 +27,10 @@ copies into `.cursor/dhpk/`.
 
 ## Installer
 
-From a checkout, run at the consumer project root:
+From a repository checkout, run at the consumer project root. An installed Claude plugin does not include `cursor/`:
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh
-```
-
-Inside a Claude plugin runtime:
-
-```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"
 ```
 
 Flags match the Codex installer: default symlink, `--copy`, `--update`,

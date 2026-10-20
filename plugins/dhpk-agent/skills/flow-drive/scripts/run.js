@@ -143,6 +143,9 @@ function selectedTarget(decision) {
   if (!provider || (model !== null && (typeof model !== 'string' || model.trim() === '')) || input.route !== undefined) return null;
   const targetAgent = agent || AGENT_FOR_PROVIDER[provider];
   if (!targetAgent) return null;
+  const targetEffort = typeof input.effort === 'string' && input.effort.trim() !== '' ? input.effort : null;
+  const nodeEffort = typeof decision.effort === 'string' && decision.effort.trim() !== '' ? decision.effort : null;
+  if (targetEffort && nodeEffort && targetEffort !== nodeEffort) return null;
   return {
     target: {
       target_agent: targetAgent,
@@ -151,7 +154,7 @@ function selectedTarget(decision) {
       ...(input.transport ? { transport: input.transport } : {}),
     },
     provider,
-    effort: input.effort || null,
+    effort: nodeEffort || targetEffort || null,
   };
 }
 
@@ -470,7 +473,13 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
   }
   const roleIssue = requestedRoleIssue(decision, requestedRoles);
   if (roleIssue) return makeReport({ parser, blockers: [roleIssue] });
-  const selectedNodes = decision && decision.mode === 'coordinated' ? decision.nodes : [
+  let graph;
+  if (decision && decision.mode === 'coordinated') {
+    try { graph = validateTaskGraph(decision, resolvedTask.constraints); } catch (error) {
+      return makeReport({ parser, acceptanceStatus: 'BLOCKED', blockers: [error.message] });
+    }
+  }
+  const selectedNodes = graph ? graph.nodes : [
     { role: 'worker', authority: resolvedTask.constraints.authority, target: decision && decision.target },
   ];
   const explicitTargets = (Array.isArray(selectedNodes) ? selectedNodes : []).flatMap((node) => {
@@ -478,7 +487,7 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
       || (invocation.options.worker !== 'auto' ? { provider: invocation.options.worker } : null)
       : node.role === 'reasoner' && invocation.options.reasoner
         ? { provider: invocation.options.reasoner.backend, model: invocation.options.reasoner.model, effort: invocation.options.reasoner.effort } : null;
-    const target = selectedTarget({ target: node.target });
+    const target = selectedTarget(node);
     if (!option || !target) return [];
     const flat = { provider: target.provider, target_agent: target.target.target_agent,
       model_id: target.target.model_id, ...(target.effort ? { effort: target.effort } : {}),
@@ -491,13 +500,9 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
   await askForTargetScope(host, explicitTargets, ledgerBuilder,
     { session_id: sessionId, binding_id: bindingId, task_id: taskIdentity(resolvedTask).taskId });
   authorizationLedger = ledgerBuilder.snapshot();
-  if (decision && decision.mode === 'coordinated') {
-    let graph;
-    try { graph = validateTaskGraph(decision, resolvedTask.constraints); } catch (error) {
-      return makeReport({ parser, acceptanceStatus: 'BLOCKED', blockers: [error.message] });
-    }
+  if (graph) {
     const evaluateGraphPolicies = () => graph.nodes.map((node) => {
-      const target = selectedTarget({ target: node.target });
+      const target = selectedTarget(node);
       return {
         node,
         policy: evaluateTargetPolicy({

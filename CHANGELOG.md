@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.66.5 — 2026-10-20 — Add a security policy with private vulnerability reporting, latest-minor support, and response targets
+
+- **docs(security)** — Add a security policy with private vulnerability reporting, latest-minor support, and response targets, linked from both READMEs.
+
 ## 0.66.4 — 2026-10-16 — Migrate legacy project receipts with retired selected-only identities and prune retired selections from preserved Host bindings during native installer updates
 
 - **fix(installation)** — Migrate legacy project receipts with retired selected-only identities and prune retired selections from preserved Host bindings during native installer updates.

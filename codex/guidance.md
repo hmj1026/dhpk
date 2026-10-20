@@ -15,10 +15,11 @@ loader, role registration, tool mapping, activation defect, or explicit native
 acceptance request is in scope. `codex plugin list` remains management evidence;
 it cannot promote `NOT_RUN`, `UNAVAILABLE`, or `BLOCKED` to runtime `PASS`.
 
-When a user runs the bundled installer:
+When a user runs the bundled installer from a repository checkout (an
+installed Claude plugin cannot supply `codex/`):
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
 
 The default projection is hybrid: `codex/skills/` and inventory-declared supporting assets are symlinked into the project, while every `.codex/agents/*.toml` is materialized as a physical file. `--copy` makes the entire projection physical. `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-v3 `.dhpk-installed.json` receipt, including each entry's effective mode and each skill's stable ID/current public name, and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
@@ -77,7 +78,7 @@ and must not be copied into `codex/skills/`.
 ```bash
 claude plugin update dhpk@dhpk
 # Then, in each project that uses Codex:
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --update
 ```
 
 The script detects the version delta from `.codex/.dhpk-installed.json` and re-syncs everything.
@@ -103,7 +104,7 @@ explicit-only and has no route/workflow mode. Unknown causes may be diagnosed
 within that confirmed outcome; sufficient cause and verification evidence must
 precede dependent writes. Current bound Host capabilities and explicit Provider
 grants govern each selected target. `--cross-provider` requests a scope question
-and grants nothing without an answer. Its `--plan-mode` selects planner
+and grants nothing without an answer. Its `--plan[=auto|bounded|discovery]` selects planner
 consult scope only. Codex CLI has no `/dhpk:do` command or dhpk
 slash-command router. The nine portable families
 (`flow-guide`, `flow-drive`, `change-verdict`, `code-trace`, `laravel`,

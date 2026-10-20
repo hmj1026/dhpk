@@ -108,11 +108,9 @@ discovery, and named-role runtime evidence. They SHALL retain existing
 `--migrate` guidance for structural receipt migration, but SHALL NOT present it
 as a way to change a retired profile selection.
 
-For project-local sync, the guide SHALL show both supported invocation forms:
-`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh` from a standalone
-checkout and `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`
-when executed inside the Claude plugin runtime. The guide SHALL explain that the
-script resolves its own checkout root when `CLAUDE_PLUGIN_ROOT` is absent.
+For project-local sync, the guide SHALL show the checkout invocation
+`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`. The guide SHALL
+state that an installed Claude plugin cannot supply `codex/` or `cursor/`.
 
 #### Scenario: Project-local Codex setup is documented
 

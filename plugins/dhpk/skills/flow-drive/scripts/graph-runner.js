@@ -40,7 +40,7 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
   ])];
 
   const executeNode = async (node, { request, writerLease } = {}) => {
-    const target = selectedTarget({ target: node.target });
+    const target = selectedTarget(node);
     if (!target) return { id: node.id, status: 'BLOCKED', reason: `node ${node.id} has no valid target` };
     const policy = evaluateTargetPolicy({
       target,
@@ -107,14 +107,14 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
   };
 
   const requests = graph.nodes.map((node) => {
-    const target = selectedTarget({ target: node.target });
+    const target = selectedTarget(node);
     const nodeTask = createNodeTask(resolvedTask, node);
     const evidenceSelection = selectCapabilityEvidence(
       capabilities, target, node.role, node.authority, { session_id: sessionId, binding_id: bindingId },
     );
     const packet = dispatchRequest(nodeTask, path.resolve(workdir), capabilities,
       target || { target: { target_agent: 'cursor', provider: currentProvider, model_id: capabilities.host_profile.native_model }, effort: null },
-      node.effort || target && target.effort, authorizedProviders,
+      target && target.effort, authorizedProviders,
       evidenceSelection.status === 'selected' ? evidenceSelection.evidence : null,
       { session_id: sessionId, binding_id: bindingId }, Boolean(requestedNodeTarget(node)), node.role);
     return { ...packet.request, task_id: node.id, parallelism: { dependencies: [...node.dependencies], max_concurrency: graph.nodes.length } };

@@ -309,7 +309,7 @@ TTY 的環境（例如 CI）執行更新時，請加上 `-y`／`--yes`。
 更新 Claude plugin 後，在專案根目錄執行：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --migrate --update
 ```
 
 Schema-v3 receipt 會記錄每個 managed skill、agent 與 supporting asset 的 stable id、

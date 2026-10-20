@@ -192,14 +192,10 @@ environments.
 The same actions are available as `/plugin update dhpk@dhpk`, `/plugin uninstall dhpk@dhpk`, `/plugin marketplace remove dhpk` inside Claude Code.
 
 For a project that uses the supported Codex projection, update Claude first and
-then refresh the project-local files:
-
-`CLAUDE_PLUGIN_ROOT` is exported inside the Claude Code plugin runtime (hooks,
-commands, and Bash tools launched from that session); an ordinary terminal does
-not receive it automatically. From a normal shell, point at a persistent local
-checkout instead, for example `DHPK_ROOT=/absolute/path/to/dhpk` and run
-`bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" ...`. Do not hard-code
-an ephemeral marketplace cache path.
+then refresh the project-local files from a persistent checkout. An installed
+Claude plugin cannot supply `codex/`. Set `DHPK_ROOT=/absolute/path/to/dhpk` and
+run `bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" ...`. Do not
+hard-code an ephemeral marketplace cache path.
 
 ```bash
 claude plugin update -y dhpk@dhpk
@@ -253,6 +249,102 @@ When you know the outcome but haven't decided which capability to dispatch, Clau
 
 For a fast lookup, see the cheat sheet: [Skill and Slash Command Cheat Sheet](./skill-command-cheat-sheet.md) · [繁體中文](./skill-command-cheat-sheet.zh-TW.md).
 
+### Task scenarios<a id="task-scenarios"></a>
+
+Pick an entry from the goal, risk, dependencies, and evidence already in
+hand. These four cases are not four copies of the 5-step cadence. File count
+does not start OpenSpec, `flow-guide`, or the full pipeline. A sufficient
+plan, diagnosis, review, or verification is reused; do not rerun named agents
+because a case lists them.
+
+Skills still need the Host capability and their declared required resources.
+Optional helpers do not block. A missing required capability is
+`BLOCKED`, `UNAVAILABLE`, or `NOT_RUN` — not a silent fallback.
+Installability follows dependency-closure and the distribution contract; a
+bare `SKILL.md` is not a standalone runtime.
+
+`flow-guide` is read-only advice. `flow-drive` is explicit-only
+implementation. None of the cases below authorizes commit, push, merge, or deploy.
+Claude uses `/dhpk:<name>`; Codex uses `$<name>` after project-local sync;
+Cursor uses the generated local command. Full Host grammar stays in
+[README — What you get](../README.md#what-you-get) and
+[Codex skill usage](./codex-skill-usage.md).
+
+If a run dispatches a subagent, one representative packet is enough: required
+inputs, write/read scope and tools, expected output, acceptance check, and
+confirmed prior conclusions. Reuse still-applicable context; block when a
+critical input is missing. Not every case needs a subagent.
+
+#### Bug fix
+
+Single-skill start: diagnose first.
+
+- **Input**: a failing observation (error, failing test, or log) that still
+  needs a cause.
+- **Entry**: `/dhpk:code-trace --mode diagnose <symptom>`.
+- **Output**: a falsifiable cause. After the cause is confirmed, a bounded
+  repair (`tdd-workflow` or `/dhpk:flow-drive <confirmed-spec>`) plus the
+  same-behavior check.
+- **Done**: the original observation is explained and that same check passes.
+- **Blocked**: no reproducing evidence, or the Host/runtime required for the
+  check is missing.
+- **Skip**: `flow-guide` when the owner is already `code-trace` or
+  `flow-drive`; OpenSpec on a known-cause repair; extra reviewers or
+  verifiers whose evidence still matches this diff.
+
+#### New feature
+
+On-demand chain: implement a confirmed contract.
+
+- **Input**: confirmed requirements and acceptance criteria.
+- **Entry**: `/dhpk:flow-drive <confirmed-spec-or-change-id>`.
+- **Output**: an implementation that meets acceptance, then applicable review
+  and verification of the **final** diff.
+- **Done**: acceptance checks pass on that diff; required reviews for
+  triggered paths are current.
+- **Blocked**: acceptance is missing; a required capability is unavailable;
+  `flow-drive` was not invoked (it is explicit-only).
+- **Skip**: OpenSpec when a sufficient spec already exists; `flow-guide` when
+  the implement owner is already known; optional skills that are not required
+  resources. File count does not start this chain.
+
+#### Legacy change
+
+Minimal edit under a compatibility contract.
+
+- **Input**: the version or compatibility limit and the behavior that must
+  stay.
+- **Entry**: the family skill that owns that contract (for example
+  `/dhpk:dhpk-legacy-characterization-tests` or the active stack module), or
+  `/dhpk:flow-drive` with that contract as the confirmed spec.
+- **Output**: the smallest diff that preserves the contract, plus the
+  required regression evidence.
+- **Done**: compatibility behavior still holds; required regression is
+  current.
+- **Blocked**: the compatibility contract is unknown, or the runtime needed
+  to prove it is missing.
+- **Skip**: feature-delivery planning, OpenSpec, and reviewers that the
+  final diff does not trigger.
+
+#### Prepare a PR
+
+Reuse evidence; mutate first, then review the final diff.
+
+- **Input**: the selected change plus any still-applicable plan, diagnosis,
+  review, or test evidence.
+- **Entry**: mutating `/dhpk:precommit` (or the project's formatter) until
+  the diff is stable, then `/dhpk:change-verdict pending` on **that** diff,
+  then `/dhpk:create-pr` (dry-run by default; `--execute` creates the PR).
+- **Output**: a final diff, current evidence for the affected paths, and a
+  `gh pr create` command or PR URL.
+- **Done**: required gates for this diff are current, and the create-pr
+  entry was used explicitly.
+- **Blocked**: mutating checks fail, or later edits left review/verify
+  evidence stale.
+- **Skip**: re-running every reviewer; re-diagnosing a settled cause;
+  OpenSpec. After a post-review edit, recheck only the affected evidence.
+  `create-pr` does not commit, push, merge, or deploy.
+
 ### Standard 5-Step Development Workflow
 
 Follow this 5-step standard cadence for day-to-day work, where each step defines clear inputs, execution commands, and explicit completion criteria:
@@ -293,7 +385,7 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
   - **Pre-Implementation Decision State**: Every task must begin with an explicit state label: `CLEAR`, `REASONER_REQUIRED`, `HUMAN_REQUIRED`, or `BLOCKED`. Domain boundary questions consult `architect`; unresolved uncertainty requires a read-only Reasoner before any Writer runs.
   - **OpenSpec Lifecycle**: Cross-session or complex initiatives author `openspec/changes/<id>/` artifacts via `/opsx:new`. Completion requires all task checkboxes, verification gates, and review obligations resolved before archiving; passing tests or approved plans alone are not archival clearance.
   - **Planner Consult Scope**: `--plan` supports `--plan=bounded` (max 4 direct reads, 0 child agent) or `--plan=discovery` (up to 12 reads, 2 child agents). Defaults to `auto` (chooses bounded when evidence is clear and no Material Risk Signal applies).
-  - **Worker Dispatch**: When `orchestration_dispatch=on` (default), changes up to 2 files stay inline; larger mechanical batches designate `--worker=<claude|codex|agy>`.
+  - **Worker Dispatch**: When `orchestration_dispatch=on` (default), choose inline or `--worker=<claude|codex|agy>` from [Implementation dispatch](../rules/execution-policy.md#implementation-dispatch); file count alone does not decide.
   - **Codex CLI Integration**: dhpk is Codex-free by default. Use `--worker=codex` for CLI mechanical execution, `--reasoner=codex/<model>[:<effort>]` for independent reasoning passes, or `--second-opinion=codex-exec` for single blind reviews. Missing binaries report unavailable optional backends without bypassing security gates.
 - **Completion Criterion**: All changes carry focused verification and all-green test evidence; no unexplained skipped checks remain.
 
@@ -677,8 +769,8 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
 
 Projects using both Claude Code and Codex CLI:
 
-The `${CLAUDE_PLUGIN_ROOT}` form below is for a Claude Code plugin-runtime
-shell. In an ordinary terminal use the persistent-checkout form documented in
+An installed Claude plugin cannot supply `codex/`; run the installer from a
+repository checkout. Use the persistent-checkout form documented in
 [Update / Uninstall](#update--uninstall).
 
 ```bash
@@ -687,9 +779,8 @@ DHPK_ROOT=/absolute/path/to/dhpk
 bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"
 ```
 
-Inside a Claude plugin-runtime shell, `${CLAUDE_PLUGIN_ROOT}` may be used as an
-equivalent root. A normal terminal must set `DHPK_ROOT` explicitly; never copy
-an ephemeral marketplace-cache path into a project command.
+Set `DHPK_ROOT` explicitly; never copy an ephemeral marketplace-cache path into
+a project command.
 
 The script is the supported Codex distribution path, with a hybrid default
 and a fully physical fallback:

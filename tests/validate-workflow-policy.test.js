@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { main, LINUX_RUNNER_BASELINE } = require('../scripts/ci/validate-workflow-policy');
+const { main, LINUX_RUNNER_BASELINE, CHECKOUT_CREDENTIAL_EXEMPTIONS } = require('../scripts/ci/validate-workflow-policy');
 
 const ROOT = path.join(__dirname, '..');
 const ACTIONS = {
@@ -41,7 +41,7 @@ function runInTemp(workflows, dependabot = null, nodeVersion = '24') {
 }
 
 function genericWorkflow({ action = ACTIONS.checkout, nodeVersion = '24', timeout = 7, runner = 'ubuntu-26.04' } = {}) {
-  return `name: Generic\non: push\njobs:\n  build:\n    runs-on: ${runner}\n    steps:\n      - uses: ${action}\n      - uses: ${ACTIONS.setupNode}\n        with:\n          node-version: ${nodeVersion}\n    timeout-minutes: ${timeout}\n`;
+  return `name: Generic\non: push\njobs:\n  build:\n    runs-on: ${runner}\n    steps:\n      - uses: ${action}\n        with:\n          persist-credentials: false\n      - uses: ${ACTIONS.setupNode}\n        with:\n          node-version: ${nodeVersion}\n    timeout-minutes: ${timeout}\n`;
 }
 
 function realRepoResult() {
@@ -255,7 +255,7 @@ test('a checkout-less job invoking git fails closed', () => {
 });
 
 test('a job that checks out the repository may use git and gh without GH_REPO', () => {
-  const workflow = `name: Generic\non: push\njobs:\n  build:\n    runs-on: ubuntu-26.04\n    timeout-minutes: 5\n    steps:\n      - uses: ${ACTIONS.checkout}\n      - name: Resolve\n        run: |\n          git rev-parse HEAD\n          gh pr list\n`;
+  const workflow = `name: Generic\non: push\njobs:\n  build:\n    runs-on: ubuntu-26.04\n    timeout-minutes: 5\n    steps:\n      - uses: ${ACTIONS.checkout}\n        with:\n          persist-credentials: false\n      - name: Resolve\n        run: |\n          git rev-parse HEAD\n          gh pr list\n`;
   const result = runInTemp({ 'custom.yml': workflow });
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
 });
@@ -305,6 +305,134 @@ test('the real repository composite actions are covered by the policy scan', () 
     result.files.includes(path.join('.github', 'actions', 'setup-dhpk-test-env', 'action.yml')),
     result.files.join('\n'),
   );
+});
+
+function checkoutWorkflow({ job = 'build', withBlock = '', extraStep = '' } = {}) {
+  const withYaml = withBlock ? `        with:\n${withBlock}` : '';
+  return `name: Generic
+on: push
+jobs:
+  ${job}:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 7
+    steps:
+      - uses: ${ACTIONS.checkout}
+${withYaml}
+      - uses: ${ACTIONS.setupNode}
+        with:
+          node-version: 24
+${extraStep}`;
+}
+
+test('actions/checkout without persist-credentials: false fails closed', () => {
+  const result = runInTemp({ 'custom.yml': checkoutWorkflow() });
+  assert.ok(
+    result.errors.some((error) => /persist-credentials:\s*false/i.test(error) && /build/.test(error)),
+    result.errors.join('\n'),
+  );
+});
+
+test('actions/checkout persist-credentials: true fails closed', () => {
+  const result = runInTemp({
+    'custom.yml': checkoutWorkflow({ withBlock: '          persist-credentials: true\n' }),
+  });
+  assert.ok(
+    result.errors.some((error) => /persist-credentials:\s*false/i.test(error)),
+    result.errors.join('\n'),
+  );
+});
+
+test('actions/checkout persist-credentials: false is accepted', () => {
+  const result = runInTemp({
+    'custom.yml': checkoutWorkflow({ withBlock: '          persist-credentials: false\n' }),
+  });
+  assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+});
+
+test('checkout credential exemptions are explicit workflow/job pairs', () => {
+  assert.deepStrictEqual(Object.keys(CHECKOUT_CREDENTIAL_EXEMPTIONS), ['release.yml']);
+  assert.deepStrictEqual(Object.keys(CHECKOUT_CREDENTIAL_EXEMPTIONS['release.yml']), ['sync-develop']);
+  assert.ok(CHECKOUT_CREDENTIAL_EXEMPTIONS['release.yml']['sync-develop'].length > 0);
+});
+
+test('a job whose name contains push is not a checkout-credential exemption', () => {
+  const result = runInTemp({
+    'custom.yml': checkoutWorkflow({ job: 'push-changes' }),
+  });
+  assert.ok(
+    result.errors.some((error) => /persist-credentials:\s*false/i.test(error) && /push-changes/.test(error)),
+    result.errors.join('\n'),
+  );
+});
+
+test('inline run interpolating a GitHub expression fails closed', () => {
+  const result = runInTemp({
+    'custom.yml': checkoutWorkflow({
+      withBlock: '          persist-credentials: false\n',
+      extraStep: '      - name: Go\n        run: echo ${{ github.sha }}\n',
+    }),
+  });
+  assert.ok(
+    result.errors.some((error) => /run:.*GitHub expression|interpolat/i.test(error)),
+    result.errors.join('\n'),
+  );
+});
+
+test('block scalar run interpolating a GitHub expression fails closed', () => {
+  const result = runInTemp({
+    'custom.yml': checkoutWorkflow({
+      withBlock: '          persist-credentials: false\n',
+      extraStep: '      - name: Go\n        run: |\n          echo ${{ github.sha }}\n',
+    }),
+  });
+  assert.ok(
+    result.errors.some((error) => /run:.*GitHub expression|interpolat/i.test(error)),
+    result.errors.join('\n'),
+  );
+});
+
+test('folded scalar run interpolating a GitHub expression fails closed', () => {
+  const result = runInTemp({
+    'custom.yml': checkoutWorkflow({
+      withBlock: '          persist-credentials: false\n',
+      extraStep: '      - name: Go\n        run: >\n          echo ${{ github.sha }}\n',
+    }),
+  });
+  assert.ok(
+    result.errors.some((error) => /run:.*GitHub expression|interpolat/i.test(error)),
+    result.errors.join('\n'),
+  );
+});
+
+test('run may use an env-bound GitHub expression as a shell variable', () => {
+  const result = runInTemp({
+    'custom.yml': checkoutWorkflow({
+      withBlock: '          persist-credentials: false\n',
+      extraStep: [
+        '      - name: Go',
+        '        env:',
+        '          HEAD_SHA: ${{ github.sha }}',
+        '        run: echo "$HEAD_SHA"',
+        '',
+      ].join('\n'),
+    }),
+  });
+  assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+});
+
+test('if: and with: GitHub expressions are outside the run interpolation rule', () => {
+  const result = runInTemp({
+    'custom.yml': checkoutWorkflow({
+      withBlock: '          persist-credentials: false\n',
+      extraStep: [
+        '      - name: Go',
+        '        if: ${{ always() }}',
+        '        run: echo ok',
+        '',
+      ].join('\n'),
+    }),
+  });
+  assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
 });
 
 run('workflow-policy');

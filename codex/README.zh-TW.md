@@ -17,14 +17,14 @@ package 的 repo-relative symlink；這個 projection 沒有實體 skill copy。
 
 在專案根目錄執行：
 
-`CLAUDE_PLUGIN_ROOT` 只會出現在 Claude Code 的 plugin-runtime shell。普通 terminal
-請從持久的 checkout 呼叫相同 script，例如先設
+已安裝的 Claude plugin 不含 `codex/`。請從持久 checkout 呼叫 installer：先設
 `DHPK_ROOT=/absolute/path/to/dhpk`，再執行
 `bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"`；不要依賴暫時性的
 marketplace cache path。
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
+DHPK_ROOT=/absolute/path/to/dhpk
+bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"
 ```
 
 預設採 **hybrid projection**：skill 與 receipt-managed supporting asset 會
@@ -63,7 +63,7 @@ updated、migrated、preserved、collision、pruned 與 orphaned 數量，不暴
 
 1. `claude plugin update dhpk@dhpk`
 2. 在每個 Codex 專案執行：
-   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update`
+   `bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --update`
 
 若從整併前版本升級，第一次改用 `--migrate --update`。完整名稱對照與 rollback 見
 [`../docs/skill-platform-migration.zh-TW.md`](../docs/skill-platform-migration.zh-TW.md)。
@@ -101,7 +101,7 @@ GPT-6 family model 換掉；診斷邊界見 [`guidance.md`](guidance.md#role-dis
 ## 移除
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
+bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --uninstall
 ```
 
 只會移除未變更且 receipt-owned 的項目。已編輯 managed entry 會標記為 orphan 並

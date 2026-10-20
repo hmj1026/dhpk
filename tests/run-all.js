@@ -21,6 +21,7 @@ const MAX_JOBS = 8;
 // deterministic for synthetic paths used by unit tests and future shards.
 const WEIGHT_HINTS = Object.freeze({
   'install-codex-skills.test.js': 20,
+  'macos-installer-darwin.test.js': 30,
   'install-codex-skills-reconciliation.test.js': 60,
   'install-codex-skills-planning.test.js': 60,
   'install-codex-skills-uninstall.test.js': 20,
@@ -38,6 +39,7 @@ const WEIGHT_HINTS = Object.freeze({
 // CI contention inside a 2G cgroup.
 const TIMEOUT_HINTS = Object.freeze({
   'install-codex-skills-reconciliation.test.js': 300000,
+  'macos-installer-darwin.test.js': 240000,
   'harness-facade-cli.test.js': 240000,
 });
 
