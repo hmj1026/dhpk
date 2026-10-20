@@ -47,7 +47,10 @@ verification remain valid. A missing necessary reasoner conclusion or observed
 reviewer independence produces its concrete dispatch or acceptance blocker;
 an unavailable helper name does not substitute for that evidence. Fresh
 prerequisite results invalidate dependent reuse as described in
-[recovery](recovery.md).
+[recovery](recovery.md). A dependency succeeding is not the same as handing
+its conclusion to the next `host.execute`. Direct verified conclusions travel
+on `constraints.verified_dependencies`, and that handoff is part of the
+existing task digest.
 
 The environment must provide a Node runtime satisfying the selected release's
 declared version, the injected Host hooks, and access to the task workspace.

@@ -158,9 +158,13 @@ async function relocationDriver() {
       if (task.constraints.authority === 'workspace-write') {
         activeWriters += 1; maxWriters = Math.max(maxWriters, activeWriters);
         await new Promise((resolve) => setTimeout(resolve, 5));
+        const needsDiagnosis = context.node && Array.isArray(context.node.dependencies) && context.node.dependencies.includes('reasoner');
+        const handed = needsDiagnosis && Array.isArray(task.constraints.verified_dependencies)
+          && task.constraints.verified_dependencies.some((item) => item.source_node_id === 'reasoner' && item.conclusion && item.conclusion.repair === conclusion.repair);
         for (const file of task.constraints.assigned_files) {
           fs.mkdirSync(path.dirname(path.join(input.projectDir, file)), { recursive: true });
-          fs.writeFileSync(path.join(input.projectDir, file), file.endsWith('.js') ? 'total=12' : 'diagnosis applied');
+          const body = !needsDiagnosis || handed ? (file.endsWith('.js') ? 'total=12' : 'diagnosis applied') : 'missing handoff';
+          fs.writeFileSync(path.join(input.projectDir, file), body);
         }
       }
       return { status: 'SUCCEEDED', observed_target: { provider: target.provider, target_agent: target.target_agent,

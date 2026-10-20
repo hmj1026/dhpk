@@ -18,6 +18,38 @@ function validConclusion(result) {
     && ['source_evidence', 'root_cause', 'repair', 'verification'].every((key) => typeof conclusion[key] === 'string' && conclusion[key].trim() !== ''));
 }
 
+function verifiedConclusion(result) {
+  let cursor = result;
+  for (let depth = 0; cursor && depth < 4; depth += 1) {
+    if (cursor.conclusion && typeof cursor.conclusion === 'object') return cursor.conclusion;
+    cursor = cursor.outcome;
+  }
+  return null;
+}
+
+function verifiedDependencyHandoff(node, outcomes) {
+  const records = [];
+  for (const id of node.dependencies || []) {
+    const result = outcomes.get(id);
+    if (!validConclusion(result)) continue;
+    const conclusion = verifiedConclusion(result);
+    const verification = result.verification;
+    records.push({
+      source_node_id: id,
+      status: result.reused === true ? 'reused' : 'fresh',
+      conclusion: {
+        status: conclusion.status,
+        source_evidence: conclusion.source_evidence,
+        root_cause: conclusion.root_cause,
+        repair: conclusion.repair,
+        verification: conclusion.verification,
+      },
+      evidence: verification && typeof verification.evidence === 'string' ? verification.evidence : '',
+    });
+  }
+  return records;
+}
+
 function sameIdentity(left, right) {
   return left && right && typeof left.agent_id === 'string' && typeof left.session_id === 'string'
     && left.agent_id === right.agent_id;
@@ -52,7 +84,7 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
       hostAllowedProviders: capabilities.host_profile.allowed_providers,
     });
     if (!policy.allowed) return { id: node.id, status: 'BLOCKED', reason: policy.reason };
-    const nodeTask = createNodeTask(resolvedTask, node);
+    const nodeTask = createNodeTask(resolvedTask, node, verifiedDependencyHandoff(node, outcomes));
     const currentTaskDigest = nodeTaskDigest(node, nodeTask, workdir);
     const evidenceSelection = selectCapabilityEvidence(
       capabilities, target, node.role, node.authority, { session_id: sessionId, binding_id: bindingId },
