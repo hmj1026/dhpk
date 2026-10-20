@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "66a005e55aa051bc4c4f158cef23442887f22aab",
-  "generatedFromCommit": "66a005e55aa051bc4c4f158cef23442887f22aab",
-  "generatedFromTree": "5120c9876ce2711b9eec65d72a37865b4f23b3c4",
+  "sourceCommit": "c934cae56d4dfc9c7f35f2506b78cf086ecca4e5",
+  "generatedFromCommit": "c934cae56d4dfc9c7f35f2506b78cf086ecca4e5",
+  "generatedFromTree": "5bb2d767a3857f0fbb907f43d313bafdd30ac7f5",
   "inventoryDigest": "392e7f69eb3dc4dd78ffcbc30e585ed8ec33e2d509550f078986339854a02bf3",
   "inventoryRevision": "sha256:b42ffd92ab377ef9046dcb46a45267bd80a4d7d9b4d72e4c836047e689584111",
   "generatorVersion": "1.0.0",
@@ -2298,7 +2298,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/scripts/precommit-runner.js",
         "destination": "skills/precommit/scripts/precommit-runner.js",
-        "originalGitBlobDigest": "45903e67a150524b4e543bb6c42b6915ee5ab878"
+        "originalGitBlobDigest": "b13415fcf98f10b3f4cafde58b4a24bbffafe6be"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2688,7 +2688,7 @@
         "ownerId": "repo-verify",
         "source": "skills/repo-verify/scripts/verify-runner.js",
         "destination": "skills/repo-verify/scripts/verify-runner.js",
-        "originalGitBlobDigest": "300ffe0d8792730d5baabc6d6c8748701fd9299c"
+        "originalGitBlobDigest": "569e2a2eaf2e5f2c336850a5956ca9e14a84b219"
       },
       {
         "ownerId": "tdd",
@@ -5974,18 +5974,18 @@
     "flow-guide": "5bee3ae2797c0ee36bf5ff2c381cc3ad9fa82db24506ed762fccfcb7233c84b2",
     "git-smart-commit": "f8ab012250fd2cc9b4689317d34892abc616b2bb7099065a8a6409c85e5915b2",
     "git-worktree": "fba52cd48ff6c4f2cbdef58b63238c55735779e27b75f02000e89028ddb691dd",
-    "precommit": "15bf5b7c226e2256780299b5b4759ef5e3004ad0bbf14ca75cbc53a82e1174a3",
+    "precommit": "54a73d019193eade49834a941c254504e60c7f0b4485d9d360b465033a34f669",
     "proposal-analyze": "338bf2b72e9747a0d921e9dcfaf3cad6532a3a0109aa61915b90ff6517a15cbe",
     "release-creator": "ecc03d28430d66eba2f257dd3a881064b11ee78ba60374e67f2469e43c1f1fac",
-    "repo-verify": "dd03404df1996c8177f42080c7bb95f76523fca8b679fed9b146852be8178fc1",
+    "repo-verify": "48ec570354ab0f06fb3ae3f0cd05488c735db14dfebd7313a2c25af86cf45c04",
     "tdd-workflow": "2a68bfd335f14bde311f6c8f14c9e2d404801cfe427a33bd32702d743eacea0e",
     "ui-ux-verify": "658a109ff7b7614471a10ffa322eb854b74eb9dcef1487493fa91af7c2e33521"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "c73318cebbb9751c3284977c420460e16e84caab7ece3dc351012ef24acc75ae",
+    "planId": "29769fa9eb8cc5277eb02895e8d4638c5693e716bfc7021292f2d96791ce3b59",
     "scope": "project",
-    "profileId": "surface-default",
+    "profileId": "common",
     "selectedStableIds": [
       "change-verdict",
       "code-trace",
@@ -6027,10 +6027,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "c73318cebbb9751c3284977c420460e16e84caab7ece3dc351012ef24acc75ae",
+      "plan": "29769fa9eb8cc5277eb02895e8d4638c5693e716bfc7021292f2d96791ce3b59",
       "inventory": "392e7f69eb3dc4dd78ffcbc30e585ed8ec33e2d509550f078986339854a02bf3"
     },
-    "rollbackIdentity": "cc96e5bf02cf234e7f72959d4a270dc6a07e37f15c4c1490ae8e990d865d41f1"
+    "rollbackIdentity": "4b5b27e0e5479558fd0d06186db170ad605a0e523a904cae0a7617a84f10b9f9"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -7043,5 +7043,42 @@
     "tdd": "2b0cd39febeefaa18ff9fd70c8e0c9d068136599c488a35b3e06afa07eb20c6d",
     "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd"
   },
-  "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  "externalSkillPackagesFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "profileId": "common",
+  "selectedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "doc-maintain",
+    "precommit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "emittedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "doc-maintain",
+    "precommit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "compatibilityMode": "profile",
+  "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
+  "selectionFingerprint": "f42f55850d0a8046464a8a81ddb3136a029f4616112bf02ee908059e728928f0",
+  "surfaceSelectionFingerprint": "2becb288ba5d89a4db546236ec569aa159b47b8e110107b4b38f56d26810013d"
 }
