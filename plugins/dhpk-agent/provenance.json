@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.4",
-  "sourceCommit": "7797f7c5b40b1ce5e4fbac2ee193bd083091b5a2",
-  "generatedFromCommit": "7797f7c5b40b1ce5e4fbac2ee193bd083091b5a2",
-  "generatedFromTree": "249a1a7695243b299f9cf148753363cea1e2702f",
+  "sourceCommit": "c743791ae135f0e283e23dcb495a4d316b22cef2",
+  "generatedFromCommit": "c743791ae135f0e283e23dcb495a4d316b22cef2",
+  "generatedFromTree": "6334322a655783cc025c0c8c866c07a330e16143",
   "inventoryDigest": "392e7f69eb3dc4dd78ffcbc30e585ed8ec33e2d509550f078986339854a02bf3",
   "inventoryRevision": "sha256:b42ffd92ab377ef9046dcb46a45267bd80a4d7d9b4d72e4c836047e689584111",
   "generatorVersion": "1.0.0",
@@ -798,7 +798,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "3e4701e29edca46e81e6acfef9c1d6580dfa08bf"
+        "originalGitBlobDigest": "0e702c61af8a3bf85ad1d6d9a227e62c3d1acaef"
       },
       {
         "ownerId": "flow-drive",
@@ -1884,7 +1884,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "3e4701e29edca46e81e6acfef9c1d6580dfa08bf"
+        "originalGitBlobDigest": "0e702c61af8a3bf85ad1d6d9a227e62c3d1acaef"
       },
       {
         "ownerId": "flow-guide",
@@ -5970,8 +5970,8 @@
     "code-trace": "88fd6ef664bba679b7ce8284dfc85f3ace963ef8aae5e6240eb45ca9fd95c126",
     "create-pr": "d90d47a0d45a71fc0edff46e20cb3b727ed0b35c4d0304da0bc311a7a653d6d5",
     "doc-maintain": "7d9386fa94ef9727fff56a7b3761ebb917c1339d29562b0424c35b2657429c02",
-    "flow-drive": "e22be8d072d12de832ff97e55d9cea377c08486fa4cf0be237fb61efa06af83c",
-    "flow-guide": "9316e95756c14e10f9b1635dc5169fdc7e6feda924883c0a41e2a35324e2dea6",
+    "flow-drive": "d1c45e372080c8004e12a302136f361f39f4ada548e61eeb73247861f0bb65f3",
+    "flow-guide": "5bee3ae2797c0ee36bf5ff2c381cc3ad9fa82db24506ed762fccfcb7233c84b2",
     "git-smart-commit": "f8ab012250fd2cc9b4689317d34892abc616b2bb7099065a8a6409c85e5915b2",
     "git-worktree": "fba52cd48ff6c4f2cbdef58b63238c55735779e27b75f02000e89028ddb691dd",
     "precommit": "15bf5b7c226e2256780299b5b4759ef5e3004ad0bbf14ca75cbc53a82e1174a3",

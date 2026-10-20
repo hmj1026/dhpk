@@ -42,7 +42,7 @@ for its current rates and effort support.
 
 Do not copy live `model` / `model_reasoning_effort` values into this page.
 Generated Codex agents are owned by `RUNTIME_METADATA` in
-`scripts/gen-codex-agents.js`. The four hand-maintained roles
+`$PROJECT_DIR/scripts/gen-codex-agents.js`. The four hand-maintained roles
 (`bug-investigator`, `explorer`, `monitor`, `worker`) pin their values in
 `codex/agents/*.toml`. Host dispatch defaults for `planner`, `reasoner`, and
 `worker` live in `manifests/host-profiles.json` (`host: codex-cli`

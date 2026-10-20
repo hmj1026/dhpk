@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.4",
-  "sourceCommit": "7797f7c5b40b1ce5e4fbac2ee193bd083091b5a2",
-  "generatedFromCommit": "7797f7c5b40b1ce5e4fbac2ee193bd083091b5a2",
-  "generatedFromTree": "249a1a7695243b299f9cf148753363cea1e2702f",
+  "sourceCommit": "c743791ae135f0e283e23dcb495a4d316b22cef2",
+  "generatedFromCommit": "c743791ae135f0e283e23dcb495a4d316b22cef2",
+  "generatedFromTree": "6334322a655783cc025c0c8c866c07a330e16143",
   "inventoryDigest": "911215f4d143b1dab7154d601161d2d3fbbfbe7924910661571a2bb9d7d4b14f",
   "inventoryRevision": "sha256:b42ffd92ab377ef9046dcb46a45267bd80a4d7d9b4d72e4c836047e689584111",
   "generatorVersion": "1.0.0",
@@ -753,7 +753,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "3e4701e29edca46e81e6acfef9c1d6580dfa08bf"
+        "originalGitBlobDigest": "0e702c61af8a3bf85ad1d6d9a227e62c3d1acaef"
       },
       {
         "ownerId": "flow-drive",
@@ -1839,7 +1839,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "3e4701e29edca46e81e6acfef9c1d6580dfa08bf"
+        "originalGitBlobDigest": "0e702c61af8a3bf85ad1d6d9a227e62c3d1acaef"
       },
       {
         "ownerId": "flow-guide",
@@ -6263,7 +6263,7 @@
     }
   ],
   "fingerprints": {
-    "rules": "9101cfee1bf6a3ad42522157d6786a4848b8e3a59ce3f1d9d86d37e0c02cf3aa",
+    "rules": "b39b4c0241c385dd97a7b594d46c2ede3bfa64abeb35e80362a5d1c41d99803a",
     "agents": "827abcab7a5054f45ea742d57193d9cfe8487cb6964952633bbf9183bd28e27b",
     "commands": "dff2453ecc4e44aff8e4b4531063d78cefef128824f2e327d15ef7b484f369df",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
@@ -7388,5 +7388,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "f42f55850d0a8046464a8a81ddb3136a029f4616112bf02ee908059e728928f0",
   "surfaceSelectionFingerprint": "e33251030f7db3f9f247232d6ea95fc1782881b03e7a58ada4e1960adcee55fb",
-  "planFingerprint": "869a1027097bb48a3b049140a65150a999e15284801cef0bce4f1e2e719042f7"
+  "planFingerprint": "06d68151af874b7f1fb902ae834365c7f9d497005a7dc8a3005f3d79dc4f11ba"
 }
