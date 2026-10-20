@@ -314,8 +314,8 @@ test('file_mtime_epoch returns empty output successfully for a missing file with
       const fakeGtimeout = [
         '#!/bin/bash',
         'printf "%s\\0" "$@" > "$GTimeout_ARGV_FILE"',
-        'if [ "$1" != "5" ]; then exit 93; fi',
-        'shift',
+        'if [ "$1" != "-k" ] || [ "$2" != "1" ] || [ "$3" != "5" ]; then exit 93; fi',
+        'shift 3',
         'exec "$@"',
       ].join('\n');
       writeExecutable(path.join(bin, 'gtimeout'), fakeGtimeout);
@@ -330,7 +330,7 @@ test('file_mtime_epoch returns empty output successfully for a missing file with
       assert.strictEqual(res.status, 7, res.stderr);
       assert.deepStrictEqual(
         fs.readFileSync(argvFile).toString().split('\0').filter(Boolean),
-        ['5', '/bin/sh', '-c', 'exit 7'],
+        ['-k', '1', '5', '/bin/sh', '-c', 'exit 7'],
       );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -410,6 +410,102 @@ test('file_mtime_epoch returns empty output successfully for a missing file with
         spawnSync('kill', ['-9', pid]);
       }
       assert.notStrictEqual(alive.status, 0, `grandchild ${pid} kept running`);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  function writeIgnoreTerm(file) {
+    fs.writeFileSync(file, [
+      '#!/usr/bin/env perl',
+      '$SIG{TERM} = "IGNORE";',
+      'sleep 30;',
+      'exit 0;',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    fs.chmodSync(file, 0o755);
+  }
+
+  function assertDeadlineFailure(res, started) {
+    const elapsed = Date.now() - started;
+    assert.strictEqual(res.error, undefined, res.error && res.error.message);
+    assert.strictEqual(res.status, 124, `expected 124, got ${res.status} after ${elapsed}ms / ${res.stderr}`);
+    assert.ok(elapsed < 8000, `elapsed ${elapsed}ms exceeded deadline plus 1s grace`);
+  }
+
+  test('GNU timeout kills a command that ignores TERM and does not return success', () => {
+    const dir = makeTempDir();
+    try {
+      const cmd = path.join(dir, 'ignore-term');
+      writeIgnoreTerm(cmd);
+      const started = Date.now();
+      const res = runBash(
+        'source "$PORTABLE_TIMEOUT_LIB"; run_with_timeout 1 "$DHPK_IGNORE_TERM"',
+        { ...process.env, DHPK_IGNORE_TERM: cmd },
+        10000,
+      );
+      assertDeadlineFailure(res, started);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('Perl fallback kills a command that ignores TERM and does not treat a later exit 0 as success', () => {
+    const dir = makeTempDir();
+    try {
+      const bin = path.join(dir, 'bin');
+      fs.mkdirSync(bin);
+      const perlPath = process.env.PATH.split(path.delimiter)
+        .map((entry) => path.join(entry, 'perl'))
+        .find((candidate) => fs.existsSync(candidate));
+      assert.ok(perlPath, 'a host Perl executable is required for the fallback probe');
+      fs.symlinkSync(perlPath, path.join(bin, 'perl'));
+      const cmd = path.join(dir, 'ignore-term');
+      writeIgnoreTerm(cmd);
+      const started = Date.now();
+      const res = runBash(
+        'source "$PORTABLE_TIMEOUT_LIB"; run_with_timeout 1 "$DHPK_IGNORE_TERM"',
+        { ...process.env, PATH: bin, DHPK_IGNORE_TERM: cmd },
+        10000,
+      );
+      assertDeadlineFailure(res, started);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('py_tool_ok bounds a version probe and does not pass when no deadline mechanism exists', () => {
+    const dir = makeTempDir();
+    try {
+      const bin = path.join(dir, 'bin');
+      const proj = path.join(dir, 'proj');
+      const side = path.join(dir, 'side');
+      fs.mkdirSync(bin);
+      fs.mkdirSync(proj);
+      const hang = path.join(bin, 'ruff');
+      writeIgnoreTerm(hang);
+      const pythonEnv = path.join(ROOT, 'modules/python/hooks/_lib/python-env.sh');
+      const started = Date.now();
+      const bounded = runBash(
+        'source "$DHPK_PY_ENV"; py_tool_ok "$DHPK_PROJ" "" ruff; printf "RC:%s\\n" "$?"',
+        { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, DHPK_PY_ENV: pythonEnv, DHPK_PROJ: proj },
+        15000,
+      );
+      const elapsed = Date.now() - started;
+      assert.strictEqual(bounded.error, undefined, bounded.error && bounded.error.message);
+      assert.match(bounded.stdout, /RC:124/);
+      assert.ok(elapsed < 12000, `probe elapsed ${elapsed}ms`);
+
+      const bare = path.join(bin, 'touch-side');
+      fs.writeFileSync(bare, '#!/bin/sh\ntouch "$DHPK_SIDE"\nexit 0\n', { mode: 0o755 });
+      fs.chmodSync(bare, 0o755);
+      const blocked = runBash(
+        'source "$DHPK_PY_ENV"; py_tool_ok "$DHPK_PROJ" "" touch-side; printf "RC:%s\\n" "$?"',
+        { ...process.env, PATH: bin, DHPK_PY_ENV: pythonEnv, DHPK_PROJ: proj, DHPK_SIDE: side },
+        10000,
+      );
+      assert.match(blocked.stdout, /RC:125/);
+      assert.strictEqual(fs.existsSync(side), false);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
