@@ -746,10 +746,84 @@ function collectCodexRuntimeErrors(root) {
   return errors;
 }
 
+const CODEX_CANONICAL_ROLE_AGENTS = Object.freeze({
+  planner: 'planner',
+  reasoner: 'deep-reasoner',
+  worker: 'worker',
+});
+
+function loadCodexRuntimeMetadata() {
+  return require('../../gen-codex-agents.js').RUNTIME_METADATA;
+}
+
+function agentRuntimePair(runtimeMetadata, root, agent) {
+  const generated = runtimeMetadata && runtimeMetadata[agent];
+  if (generated && typeof generated.model === 'string' && typeof generated.effort === 'string') {
+    return { model: generated.model, effort: generated.effort };
+  }
+  const file = path.join(root, 'codex', 'agents', `${agent}.toml`);
+  if (!fs.existsSync(file)) return null;
+  const source = readFileBounded(file).toString('utf8');
+  const model = tomlStringField(source, 'model');
+  const effort = tomlStringField(source, 'model_reasoning_effort');
+  if (!model || !effort) return null;
+  return { model, effort };
+}
+
+function collectCodexCanonicalRoleDefaultErrors(root, {
+  runtimeMetadata,
+  exceptions = {},
+} = {}) {
+  const errors = [];
+  const profilesPath = path.join(root, 'manifests', 'host-profiles.json');
+  if (!fs.existsSync(profilesPath)) {
+    errors.push('manifests/host-profiles.json — Codex host profiles are missing');
+    return errors;
+  }
+  let profiles;
+  try {
+    profiles = JSON.parse(readFileBounded(profilesPath).toString('utf8'));
+  } catch (error) {
+    errors.push(`manifests/host-profiles.json — is not valid JSON: ${error.message}`);
+    return errors;
+  }
+  const codex = Array.isArray(profiles && profiles.profiles)
+    ? profiles.profiles.find((profile) => profile && profile.host === 'codex-cli')
+    : null;
+  if (!codex || !codex.role_defaults || typeof codex.role_defaults !== 'object') {
+    errors.push('manifests/host-profiles.json — codex-cli role_defaults are missing');
+    return errors;
+  }
+  const metadata = runtimeMetadata || loadCodexRuntimeMetadata();
+  for (const [role, agent] of Object.entries(CODEX_CANONICAL_ROLE_AGENTS)) {
+    if (exceptions[role]) continue;
+    const expected = agentRuntimePair(metadata, root, agent);
+    const defaults = codex.role_defaults[role];
+    if (!expected) {
+      errors.push(`canonical role '${role}' (agent '${agent}'): Codex runtime metadata is missing`);
+      continue;
+    }
+    if (!defaults || typeof defaults !== 'object') {
+      errors.push(`canonical role '${role}' (agent '${agent}'): host-profiles role_defaults are missing`);
+      continue;
+    }
+    const actualModel = defaults.model_id;
+    const actualEffort = defaults.effort;
+    if (expected.model !== actualModel || expected.effort !== actualEffort) {
+      errors.push(
+        `canonical role '${role}' (agent '${agent}'): ${expected.model}/${expected.effort} `
+        + `vs host-profiles role_defaults ${actualModel}/${actualEffort}`,
+      );
+    }
+  }
+  return errors;
+}
+
 module.exports = {
   collectCodexRoleMetadataErrors,
   collectCodexRoleOwnershipErrors,
   collectCodexCoverageErrors,
   collectCodexProjectionReferenceErrors,
   collectCodexRuntimeErrors,
+  collectCodexCanonicalRoleDefaultErrors,
 };

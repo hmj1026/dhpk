@@ -45,21 +45,40 @@ tier and stays an explicit opt-in, never a role default. See the
 [GPT-6.1 Sol model page](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
 for its current rates and effort support.
 
-| Codex roles | Model | Effort | Cost/quality rationale |
-|---|---|---|---|
-| `architect`, `bug-investigator`, `deep-reasoner`, `migration-reviewer`, `planner`, `security-reviewer` | `gpt-6.1-sol` | `high` | Design, root-cause, migration-risk, and spec judgment have high failure/retry cost; use the agentic-coding tier without defaulting to `max` or Astra. |
-| `code-reviewer` | `gpt-6.1-sol` | `medium` | High-frequency review baseline; enough reasoning for normal diffs, with explicit escalation for high-risk changes. |
-| `database-reviewer`, `e2e-runner`, `frontend-reviewer` | `gpt-6.1-sol` | `high` | Structured specialist checks benefit from more reasoning while avoiding Astra cost; E2E remains quality-sensitive and fail-loud when the browser capability is absent. |
-| `explorer` | `gpt-6.1-sol` | `medium` | Read-heavy evidence gathering needs breadth and coherent synthesis, but not frontier judgment by default. |
-| `worker`, `tdd-guide` | `gpt-6-luna` | `max` | Explicit quality-first exception: implementation and RED→GREEN guidance have high accepted-outcome and retry cost, so maximum effort on the efficient tier is cheaper than repeated weaker passes. |
-| `doc-reviewer` | `gpt-6-luna` | `medium` | Deterministic frontmatter/link/SSOT checks are narrow and frequent. |
-| `monitor` | `gpt-6-luna` | `low` | Polling and state-change reporting are low-complexity, high-volume work. |
+Do not copy live `model` / `model_reasoning_effort` values into this page.
+Generated Codex agents are owned by `RUNTIME_METADATA` in
+`$PROJECT_DIR/scripts/gen-codex-agents.js`. The four hand-maintained roles
+(`bug-investigator`, `explorer`, `monitor`, `worker`) pin their values in
+`codex/agents/*.toml`. Host dispatch defaults for `planner`, `reasoner`, and
+`worker` live in `manifests/host-profiles.json` (`host: codex-cli`
+`role_defaults`); `reviewer` has no single generated-agent mapping. A JSON
+compare in `tests/codex-runtime-contract.test.js` fails closed when a mapped
+canonical role drifts, unless the drift is listed in that compare's exception
+object.
 
-Global Codex defaults are `gpt-6-luna` at `medium`; every direct role pins
-its own exception in its TOML file. `worker` and `tdd-guide` being `max` is
-intentional and does not make `max` the global default. Escalate only when the
-acceptance contract or observed retries justify it, and calculate accepted
-outcome cost across parallel calls rather than comparing one-call prices.
+Cost/quality rationale, without restating the live values:
+
+- Design, root-cause, migration-risk, and spec judgment have high failure/retry
+  cost; use the agentic-coding tier without defaulting to maximum effort or
+  Astra.
+- High-frequency review stays below that peak, with explicit escalation for
+  high-risk changes.
+- Structured specialist checks benefit from more reasoning while avoiding
+  Astra; E2E remains quality-sensitive and fail-loud when the browser
+  capability is absent.
+- Read-heavy evidence gathering needs breadth and coherent synthesis, not
+  frontier judgment by default.
+- Implementation and RED→GREEN guidance are an explicit quality-first
+  exception on the efficient tier, because accepted-outcome and retry cost
+  dominate one-call price.
+- Deterministic frontmatter/link/SSOT checks are narrow and frequent.
+- Polling and state-change reporting are low-complexity, high-volume work.
+
+Global Codex defaults live in `codex/config.toml.example`. Direct roles pin
+their own exceptions in TOML rather than inheriting those defaults. Escalate
+only when the acceptance contract or observed retries justify it, and
+calculate accepted outcome cost across parallel calls rather than comparing
+one-call prices.
 
 Routing (which role for which work shape) is the `execution-policy` §Implementation dispatch table — see it, do not restate it here.
 

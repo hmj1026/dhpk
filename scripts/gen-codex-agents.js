@@ -521,9 +521,13 @@ function main() {
   console.log(`Generated ${summary.length} Codex role file(s).`);
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(error.message);
-  process.exit(1);
+module.exports = { RUNTIME_METADATA, generate };
+
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
 }
