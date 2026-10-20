@@ -292,7 +292,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
 
 - **輸入**：版本或相容限制，以及必須保留的行為。
 - **入口**：擁有該契約的 family skill（例如
-  `legacy-code-characterization` 或作用中的 stack module），或把該契約當
+  `/dhpk:dhpk-legacy-characterization-tests` 或作用中的 stack module），或把該契約當
   成 confirmed spec 交給 `/dhpk:flow-drive`。
 - **產物**：保留契約的最小 diff，加上必要回歸證據。
 - **完成**：相容行為仍成立；必要回歸仍有效。
@@ -355,7 +355,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
   - **決策前置狀態**：開始實作前必須具備明確狀態標記：`CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或 `BLOCKED`。若涉及領域邊界應先諮詢 `architect`；仍有不確定性時取得唯讀 Reasoner 結果後才允許 Writer 介入。
   - **OpenSpec 生命週期**：跨 session 或複雜大型工作，應先以 `/opsx:new` 建立 `openspec/changes/<id>/` artifacts。實作完成必須滿足所有 Task 核選、通過適用驗證門禁、解決 Review 意見，才能執行歸檔（Archive）；測試通過或 Plan 批准不等於歸檔憑證。
   - **Planner 諮詢範疇**：`--plan` 可搭配 `--plan=bounded`（限制最多 4 次直接讀取且無子代理）或 `--plan=discovery`（最多 12 次讀取與 2 個子代理）。未指定時預設 `auto`，在無 Material Risk Signal 且依據充足時自動採 bounded。
-  - **Worker 調度邊界**：`orchestration_dispatch=on`（預設）時，雙檔案以下明確任務可留在 inline；大型機械化變更指定 `--worker=<claude|codex|agy>`。
+  - **Worker 調度邊界**：`orchestration_dispatch=on`（預設）時，依 [Implementation dispatch](../rules/execution-policy.md#implementation-dispatch) 選擇 inline 或 `--worker=<claude|codex|agy>`；檔案數量單獨不能決定。
   - **Codex CLI 整合**：dhpk 預設不啟用 Codex。使用 `--worker=codex` 走 CLI 機械 Worker；`--reasoner=codex/<model>[:<effort>]` 走獨立推理；`--second-opinion=codex-exec` 取得單次盲審意見。缺少執行檔時回報可選後端不可用，不繞過安全檢查。
 - **完成標準**：所有變更均具備聚焦驗證（Focused Verification）與綠燈測試證據；不遺留未說明的測試跳過。
 
