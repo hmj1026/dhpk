@@ -12,6 +12,14 @@
 #   PYRIGHT_BIN           pyright executable (default: "pyright")
 #   MYPY_BIN              mypy executable (default: "mypy")
 
+# Version probes share the portable deadline. A missing mechanism is not a pass.
+# Locate the helper from this file, not PATH, so a stripped PATH still fail-closes.
+_py_env_src="${BASH_SOURCE[0]}"
+_py_env_dir="${_py_env_src%/*}"
+# shellcheck disable=SC1091
+. "${_py_env_dir}/../../../../scripts/hooks/_lib/portable-timeout.sh"
+PY_TOOL_PROBE_SECS=5
+
 # py_project_dir <file_abs> <repo_root>
 #   Walk up from dirname(file) to repo_root; echo the first dir containing a
 #   pyproject.toml / setup.cfg / setup.py. When PYTHON_PROJECT_ROOTS is set the
@@ -109,5 +117,15 @@ py_tool_ok() {
         command -v "$tool" >/dev/null 2>&1 || return 1
     fi
     cmd+=("$tool" "--version")
-    ( cd "$pdir" 2>/dev/null && "${cmd[@]}" ) >/dev/null 2>&1
+    local rc=0
+    (
+        cd "$pdir" 2>/dev/null || exit 1
+        run_with_timeout "$PY_TOOL_PROBE_SECS" "${cmd[@]}"
+    ) >/dev/null 2>&1
+    rc=$?
+    # 124/125 stay distinct so callers can fail closed instead of skipping.
+    case "$rc" in
+        0|124|125) return "$rc" ;;
+        *) return 1 ;;
+    esac
 }

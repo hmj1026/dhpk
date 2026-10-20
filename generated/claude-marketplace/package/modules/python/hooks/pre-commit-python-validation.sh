@@ -103,7 +103,18 @@ for pdir in "${pdirs[@]}"; do
     # 1 + 2. ruff check + format --check. ruff exit codes: 0 = clean, 1 = findings
     # (block the commit), >=2 = internal/config error (WARN only — a broken
     # pyproject.toml or corrupt venv must not masquerade as a lint failure).
-    if py_tool_ok "$pdir" "$PREFIX" "$RUFF_BIN"; then
+    py_tool_ok "$pdir" "$PREFIX" "$RUFF_BIN"
+    probe=$?
+    if [ "$probe" -eq 125 ]; then
+        echo "[pre-commit-py] FAIL: deadline unavailable; ruff was not started." >&2
+        status=2
+    elif [ "$probe" -eq 124 ]; then
+        echo "[pre-commit-py] FAIL: ruff version probe timed out after ${PY_TOOL_PROBE_SECS}s (possible hang)." >&2
+        status=2
+    elif [ "$probe" -ne 0 ]; then
+        echo "[pre-commit-py] WARN: ruff not invokable under ${pdir#$ROOT/} (runner='${PREFIX:-PATH}') — style gate skipped" >&2
+        incomplete=1
+    else
         run_tool "$pdir" "$RUFF_BIN" "$RUFF_TIMEOUT_SECS" check "${files[@]}"; rc=$?
         if [ "$rc" -eq 1 ]; then
             echo "[pre-commit-py] FAIL: ruff check found issues. Run 'ruff check --fix', or add '[skip-python-lint]' to commit msg." >&2
@@ -132,9 +143,6 @@ for pdir in "${pdirs[@]}"; do
             echo "[pre-commit-py] WARN: ruff format exited $rc (internal/config error) — not blocking." >&2
             incomplete=1
         fi
-    else
-        echo "[pre-commit-py] WARN: ruff not invokable under ${pdir#$ROOT/} (runner='${PREFIX:-PATH}') — style gate skipped" >&2
-        incomplete=1
     fi
 
     # 3. type checker (project-wide)
@@ -144,7 +152,19 @@ for pdir in "${pdirs[@]}"; do
             mypy)    tcbin="${CLAUDE_PLUGIN_OPTION_MYPY_BIN:-mypy}" ;;
             *)       tcbin="" ;;
         esac
-        if [ -n "$tcbin" ] && py_tool_ok "$pdir" "$PREFIX" "$tcbin"; then
+        if [ -n "$tcbin" ]; then
+        py_tool_ok "$pdir" "$PREFIX" "$tcbin"
+        probe=$?
+        if [ "$probe" -eq 125 ]; then
+            echo "[pre-commit-py] FAIL: deadline unavailable; $TC was not started." >&2
+            status=2
+        elif [ "$probe" -eq 124 ]; then
+            echo "[pre-commit-py] FAIL: $TC version probe timed out after ${PY_TOOL_PROBE_SECS}s (possible hang)." >&2
+            status=2
+        elif [ "$probe" -ne 0 ]; then
+            echo "[pre-commit-py] WARN: $TC not invokable — type check skipped" >&2
+            incomplete=1
+        else
             run_tool "$pdir" "$tcbin" "$TYPECHECK_TIMEOUT_SECS" .; rc=$?
             if [ "$rc" -eq 124 ]; then
                 echo "[pre-commit-py] FAIL: $TC timed out after ${TYPECHECK_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-python-lint]'." >&2
@@ -156,9 +176,7 @@ for pdir in "${pdirs[@]}"; do
                 echo "[pre-commit-py] FAIL: $TC reported type errors. Fix them or add '[skip-python-lint]'." >&2
                 status=2
             fi
-        elif [ -n "$tcbin" ]; then
-            echo "[pre-commit-py] WARN: $TC not invokable — type check skipped" >&2
-            incomplete=1
+        fi
         fi
     fi
 done
