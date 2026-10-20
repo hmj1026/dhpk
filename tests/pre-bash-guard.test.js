@@ -76,6 +76,13 @@ test('a quoted message that mentions --no-verify is not a flag', () => {
   assert.strictEqual(res.status, 0, res.stderr);
 });
 
+test('a message that is exactly --no-verify is not a bypass flag', () => {
+  for (const command of ['git commit -m "--no-verify"', 'git commit --message=--no-verify', 'git commit -m--no-verify']) {
+    const res = runHook(command);
+    assert.strictEqual(res.status, 0, `${command}: ${res.stderr}`);
+  }
+});
+
 test('a real comment does not count as --no-verify, and push -n is not that flag', () => {
   for (const command of ['git commit -m x # --no-verify', 'git push -n origin main', "echo 'git commit --no-verify'"]) {
     const res = runHook(command);
