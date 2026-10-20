@@ -228,4 +228,179 @@ test('stale or unbound gate passes do not become the current progress claim', ()
   }
 });
 
+function withoutContentProof(identity) {
+  return String(identity).replace(/^content [0-9a-f]{64}\n/, '');
+}
+
+function initContentRepo() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-diff-content-'));
+  gitOk(root, ['init', '-q']);
+  gitOk(root, ['config', 'user.email', 'test@example.invalid']);
+  gitOk(root, ['config', 'user.name', 'Test']);
+  gitOk(root, ['commit', '--allow-empty', '-qm', 'fixture']);
+  fs.mkdirSync(path.join(root, 'lib'));
+  return root;
+}
+
+function runAnalyze(root, state) {
+  const statePath = path.join(root, '.claude_review_state.json');
+  const before = JSON.stringify(state);
+  fs.writeFileSync(statePath, before);
+  const analyze = path.join(__dirname, '..', 'skills', 'flow-guide', 'scripts', 'analyze.js');
+  const result = spawnSync(process.execPath, [analyze, '--json'], { cwd: root, encoding: 'utf8' });
+  assert.strictEqual(fs.readFileSync(statePath, 'utf8'), before);
+  return JSON.parse(result.stdout);
+}
+
+test('an old diff identity without content proof cannot pass', () => {
+  const { evaluateGates } = require('../skills/flow-guide/scripts/analyze');
+  const old = 'M\tlib/sample.js\n--\n lib/sample.js | 2 +-';
+  const gates = evaluateGates(
+    { head: 'abc1234', diff: old, code_review: { passed: true }, precommit: { passed: true } },
+    [{ status: 'M', file: 'lib/sample.js' }],
+    { head: 'abc1234', diffIdentity: old },
+  );
+  assert.strictEqual(gates.code_review.passed, false);
+  assert.strictEqual(gates.precommit.passed, false);
+  assert.strictEqual(gates.code_review.evidence, 'unbound');
+  assert.strictEqual(gates.precommit.evidence, 'unbound');
+
+  const unreadable = evaluateGates(
+    { head: 'abc1234', code_review: { passed: true }, precommit: { passed: true } },
+    [],
+    { head: 'abc1234', diffReadable: false },
+  );
+  assert.strictEqual(unreadable.code_review.passed, false);
+  assert.strictEqual(unreadable.precommit.passed, false);
+  assert.strictEqual(unreadable.code_review.evidence, 'unbound');
+});
+
+test('same path and diff stat do not reuse a pass after tracked content changes', () => {
+  const root = initContentRepo();
+  const file = path.join(root, 'lib', 'sample.js');
+  try {
+    fs.writeFileSync(file, 'module.exports = 0;\n');
+    gitOk(root, ['add', 'lib/sample.js']);
+    gitOk(root, ['commit', '-qm', 'sample']);
+    fs.writeFileSync(file, 'module.exports = 1;\n');
+    const first = runAnalyze(root, { head: 'placeholder' });
+    fs.writeFileSync(file, 'module.exports = 2;\n');
+    const second = runAnalyze(root, {
+      head: first.head,
+      diff: first.diff_identity,
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.match(first.diff_identity, /^content [0-9a-f]{64}\n/);
+    assert.strictEqual(withoutContentProof(second.diff_identity), withoutContentProof(first.diff_identity));
+    assert.notStrictEqual(second.diff_identity, first.diff_identity);
+    assert.strictEqual(second.gates.code_review.passed, false);
+    assert.strictEqual(second.gates.precommit.passed, false);
+    assert.strictEqual(second.gates.code_review.evidence, 'scope-changed');
+    assert.strictEqual(second.gates.precommit.evidence, 'scope-changed');
+
+    fs.writeFileSync(file, 'module.exports = 2;\n');
+    const same = runAnalyze(root, {
+      head: second.head,
+      diff: second.diff_identity,
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.strictEqual(same.diff_identity, second.diff_identity);
+    assert.strictEqual(same.gates.code_review.passed, true);
+    assert.strictEqual(same.gates.precommit.passed, true);
+    assert.strictEqual(same.gates.code_review.evidence, 'applicable');
+
+    gitOk(root, ['add', 'lib/sample.js']);
+    const staged = runAnalyze(root, {
+      head: same.head,
+      diff: same.diff_identity,
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.strictEqual(staged.diff_identity, same.diff_identity);
+    assert.strictEqual(staged.gates.code_review.passed, true);
+    assert.strictEqual(staged.gates.precommit.evidence, 'applicable');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('staged content hidden from the worktree still invalidates a saved pass', () => {
+  const root = initContentRepo();
+  const file = path.join(root, 'lib', 'sample.js');
+  try {
+    fs.writeFileSync(file, 'module.exports = 0;\n');
+    gitOk(root, ['add', 'lib/sample.js']);
+    gitOk(root, ['commit', '-qm', 'sample']);
+    const headCopy = gitOk(root, ['show', 'HEAD:lib/sample.js']).stdout;
+    fs.writeFileSync(file, 'module.exports = 1;\n');
+    gitOk(root, ['add', 'lib/sample.js']);
+    fs.writeFileSync(file, headCopy);
+    const first = runAnalyze(root, { head: 'placeholder' });
+    fs.writeFileSync(file, 'module.exports = 2;\n');
+    gitOk(root, ['add', 'lib/sample.js']);
+    fs.writeFileSync(file, headCopy);
+    const second = runAnalyze(root, {
+      head: first.head,
+      diff: first.diff_identity,
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.strictEqual(withoutContentProof(second.diff_identity), withoutContentProof(first.diff_identity));
+    assert.notStrictEqual(second.diff_identity, first.diff_identity);
+    assert.strictEqual(second.gates.code_review.passed, false);
+    assert.strictEqual(second.gates.precommit.passed, false);
+    assert.strictEqual(second.gates.code_review.evidence, 'scope-changed');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('untracked content changes and unreadable content do not reuse a pass', () => {
+  const root = initContentRepo();
+  const file = path.join(root, 'lib', 'new.js');
+  try {
+    fs.writeFileSync(file, 'module.exports = 1;\n');
+    const first = runAnalyze(root, { head: 'placeholder' });
+    fs.writeFileSync(file, 'module.exports = 2;\n');
+    const second = runAnalyze(root, {
+      head: first.head,
+      diff: first.diff_identity,
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.strictEqual(withoutContentProof(second.diff_identity), withoutContentProof(first.diff_identity));
+    assert.notStrictEqual(second.diff_identity, first.diff_identity);
+    assert.strictEqual(second.gates.code_review.passed, false);
+    assert.strictEqual(second.gates.precommit.passed, false);
+    assert.strictEqual(second.gates.code_review.evidence, 'scope-changed');
+
+    const oldFormat = runAnalyze(root, {
+      head: second.head,
+      diff: withoutContentProof(second.diff_identity),
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.strictEqual(oldFormat.gates.code_review.passed, false);
+    assert.strictEqual(oldFormat.gates.precommit.passed, false);
+    assert.strictEqual(oldFormat.gates.code_review.evidence, 'unbound');
+
+    fs.chmodSync(file, 0);
+    const unreadable = runAnalyze(root, {
+      head: second.head,
+      diff: second.diff_identity,
+      code_review: { passed: true },
+      precommit: { passed: true },
+    });
+    assert.strictEqual(unreadable.gates.code_review.passed, false);
+    assert.strictEqual(unreadable.gates.precommit.passed, false);
+    assert.strictEqual(unreadable.gates.code_review.evidence, 'unbound');
+    assert.strictEqual(unreadable.diff_identity, null);
+  } finally {
+    fs.chmodSync(file, 0o644);
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 run('skill-next-map');

@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "c934cae56d4dfc9c7f35f2506b78cf086ecca4e5",
-  "generatedFromCommit": "c934cae56d4dfc9c7f35f2506b78cf086ecca4e5",
-  "generatedFromTree": "5bb2d767a3857f0fbb907f43d313bafdd30ac7f5",
+  "sourceCommit": "6d8fc4707ba7c7dc8a315d3ff7629790fd721dec",
+  "generatedFromCommit": "6d8fc4707ba7c7dc8a315d3ff7629790fd721dec",
+  "generatedFromTree": "d5a1c4e2ac80ab6c1004c5d29001c218b58eae4f",
   "inventoryDigest": "392e7f69eb3dc4dd78ffcbc30e585ed8ec33e2d509550f078986339854a02bf3",
   "inventoryRevision": "sha256:b42ffd92ab377ef9046dcb46a45267bd80a4d7d9b4d72e4c836047e689584111",
   "generatorVersion": "1.0.0",
@@ -2160,7 +2160,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/analyze.js",
         "destination": "skills/flow-guide/scripts/analyze.js",
-        "originalGitBlobDigest": "365756f6d1e27a542eb73fb50db80a99766adabb"
+        "originalGitBlobDigest": "76ca06e243d7250fe42851b05c4243347dfa82eb"
       },
       {
         "ownerId": "flow-guide",
@@ -5971,7 +5971,7 @@
     "create-pr": "d90d47a0d45a71fc0edff46e20cb3b727ed0b35c4d0304da0bc311a7a653d6d5",
     "doc-maintain": "7d9386fa94ef9727fff56a7b3761ebb917c1339d29562b0424c35b2657429c02",
     "flow-drive": "d1c45e372080c8004e12a302136f361f39f4ada548e61eeb73247861f0bb65f3",
-    "flow-guide": "5bee3ae2797c0ee36bf5ff2c381cc3ad9fa82db24506ed762fccfcb7233c84b2",
+    "flow-guide": "f3e0416c227ee98dfe9395ba53896a37f6d1917b2e901631b3a1dfd8f3dce441",
     "git-smart-commit": "f8ab012250fd2cc9b4689317d34892abc616b2bb7099065a8a6409c85e5915b2",
     "git-worktree": "fba52cd48ff6c4f2cbdef58b63238c55735779e27b75f02000e89028ddb691dd",
     "precommit": "54a73d019193eade49834a941c254504e60c7f0b4485d9d360b465033a34f669",
