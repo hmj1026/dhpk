@@ -19,7 +19,8 @@ const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { compileDistribution } = require('./distribution-compiler');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
-const { collectStandalonePackageAssets } = require('./standalone-package-assets');
+const { NATIVE_AGENT_TRAP_FILES, collectStandalonePackageAssets } = require('./standalone-package-assets');
+const { rewriteAgyNativeAgentBody, agyNativeAgentClosureErrors } = require('./native-agent-support');
 const { physicalSkillTree } = require('./workflow-package-closure');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
@@ -437,7 +438,8 @@ function materializeAgyPluginPackage({
     ensureDirectory(path.dirname(target), 'AGY agent parent');
     const sourceContent = readFileBounded(source).toString('utf8');
     const adapted = adaptFrontmatter(sourceContent, { filePath: source });
-    fs.writeFileSync(target, sanitizeMarkdownLinks(adapted.text, source, sourceRoot), { mode: 0o644 });
+    const linked = sanitizeMarkdownLinks(adapted.text, source, sourceRoot);
+    fs.writeFileSync(target, rewriteAgyNativeAgentBody(linked), { mode: 0o644 });
   }
 
   const rulesDestination = ensureDirectory(path.join(outputRoot, 'rules'), 'AGY rules directory');
@@ -452,6 +454,13 @@ function materializeAgyPluginPackage({
   }
 
   const standaloneAssets = collectStandalonePackageAssets({ root: sourceRoot, inventory, profileSelection });
+  for (const relative of NATIVE_AGENT_TRAP_FILES) {
+    const source = path.join(sourceRoot, ...relative.split('/'));
+    if (!lstatOrNull(source)) continue;
+    const target = path.join(outputRoot, ...relative.split('/'));
+    if (lstatOrNull(target)) continue;
+    copyFileContained(source, target, sourceRoot, outputRoot);
+  }
   for (const asset of standaloneAssets) {
     const target = path.join(outputRoot, asset.destination);
     if (lstatOrNull(target)) continue;
@@ -525,7 +534,7 @@ function materializeAgyPluginPackage({
     }),
     inventoryRevision,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
-    route: { sourceRoot: 'agents/, rules/, skills/', packageRoot: 'plugins/dhpk-agy/' },
+    route: { sourceRoot: 'agents/, rules/, skills/, agent-traps/', packageRoot: 'plugins/dhpk-agy/' },
     generatorVersion,
     profileId: profileSelection && (profileSelection.profileId || profileSelection.id),
     selectedStableIds: profileSelection && profileSelection.selectedStableIds,
@@ -639,6 +648,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   const expectedComponentFiles = selected
     ? new Set([...expectedAgentFiles, ...expectedRuleFiles, ...expectedSkillFiles])
     : null;
+  const expectedNativeTrapFiles = new Set(NATIVE_AGENT_TRAP_FILES);
   const expectedStandaloneFiles = profileSelection && profileSelection.selectionMode === 'standalone'
     ? new Set([
       ...(profileSelection.dependencyClosure && Array.isArray(profileSelection.dependencyClosure.files)
@@ -658,12 +668,13 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     assertSafeRelative(relative, 'AGY package file');
     const base = relative.split('/')[0];
     if (!PACKAGE_FILES.has(relative) && !COMPONENT_ROOTS.has(base) && !OPTIONAL_FILES.has(relative)
-      && !expectedStandaloneFiles.has(relative)) {
+      && !expectedStandaloneFiles.has(relative) && !expectedNativeTrapFiles.has(relative)) {
       errors.push(`undeclared AGY package component: ${relative}`);
     }
     const isExpectedSkillFile = expectedSkillRoots.some((prefix) => relative.startsWith(prefix));
     if (expectedComponentFiles && COMPONENT_ROOTS.has(base)
       && !expectedComponentFiles.has(relative) && !expectedStandaloneFiles.has(relative)
+      && !expectedNativeTrapFiles.has(relative)
       && !isExpectedSkillFile) {
       errors.push(`undeclared AGY package file: ${relative}`);
     }
@@ -717,6 +728,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     })) errors.push('provenance selected IDs do not match inventory');
   }
 
+  errors.push(...agyNativeAgentClosureErrors(root));
   return {
     ok: errors.length === 0,
     errors,
