@@ -83,6 +83,12 @@ rewrites them:
 | General workflow (`fast-worker`, reviewers, `planner`, `deep-reasoner`, build-resolvers, …) | `cursor-grok-4.6-high` |
 | `doc-reviewer`, `docs-lookup`, `doc-updater` | `composer-2.5-fast` |
 
+These names are selectors for a native Cursor agent. They are not flow-drive
+role routes. The Cursor host worker default stays `composer-2.5`.
+`composer-2.5-fast` is a catalog identity and has no dispatch route.
+`cursor-grok-4.6-high` keeps its existing worker and `workspace-write` route
+only; a read-only projection that names that selector does not widen the route.
+
 External CLI wrappers (`codex-*`, `agy-worker`) stay in the tree; they
 are not part of the initial Cursor workflow. Their Cursor-side wrapper still
 uses Grok 4.6. The Claude `model-economics` rule remains the Claude/Codex
