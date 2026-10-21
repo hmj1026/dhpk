@@ -20,6 +20,24 @@ them; optional events are not registered by default and are not silently active.
 Docker, inspect install health, inject prompt hints, or emit orchestration
 advice.
 
+## Bash outer ceiling
+
+The Bash `PreToolUse` command declares `timeout: 2100` and `onFailure: "block"`.
+Claude Code 2.1.295 and newer can block the triggering command when that hook
+times out or cannot run. Older versions are not claimed to fail closed the same
+way. This declaration is not a measured 2100-second wait.
+
+The supported default envelope is one commit root each for JS, Python, Swift,
+and PHP, one Python project group on that root, and Swift build/test settings
+no higher than 360/480 seconds. Inner deadlines plus one second of grace are
+JS 212, Python 255, Swift 842, and PHP 423, totaling 1732 seconds. The
+remaining 368 seconds are for preparation and cleanup. Steps with no inner
+deadline are outside that sum. Extra roots, extra groups, a larger Swift
+override, or any run that reaches the ceiling can be interrupted. An
+interrupted or unfinished check is not PASS, and the triggering Bash command
+is not released past the ceiling. Inner deadlines stay unchanged.
+`SubagentStop` is outside this ceiling.
+
 ## Reviewer evidence
 
 Reviewer dispatch is orchestrator-owned and advisory. A reviewer writes a
