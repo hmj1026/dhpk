@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "0277f016f931cb3c62ca984e22fec5555398249a",
-  "generatedFromCommit": "0277f016f931cb3c62ca984e22fec5555398249a",
-  "generatedFromTree": "c74cbc775e3a1b6413c3486ee1a1e0a7e86d1b6e",
+  "sourceCommit": "19fa4415af7e3bc19112e6a2d293deb0027ba9e8",
+  "generatedFromCommit": "19fa4415af7e3bc19112e6a2d293deb0027ba9e8",
+  "generatedFromTree": "e43a4e2d9eb0b08cffc47db0f6d5c19037761180",
   "inventoryDigest": "c4f2f381c150148ccce795bdf4e2434caab752d8cccf8614de6b5a552278f975",
   "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "1.0.0",
@@ -729,7 +729,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
         "destination": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
-        "originalGitBlobDigest": "728af83dfd14a2c11917528874af8ff290243a65"
+        "originalGitBlobDigest": "b7d78b9cf50d215d9e243a41517735de3dc22a99"
       },
       {
         "ownerId": "flow-drive",
@@ -753,7 +753,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "0e702c61af8a3bf85ad1d6d9a227e62c3d1acaef"
+        "originalGitBlobDigest": "101f20fdc3e09e92d73380c792dc0c9112a4519f"
       },
       {
         "ownerId": "flow-drive",
@@ -1815,7 +1815,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
         "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
-        "originalGitBlobDigest": "728af83dfd14a2c11917528874af8ff290243a65"
+        "originalGitBlobDigest": "b7d78b9cf50d215d9e243a41517735de3dc22a99"
       },
       {
         "ownerId": "flow-guide",
@@ -1839,7 +1839,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "0e702c61af8a3bf85ad1d6d9a227e62c3d1acaef"
+        "originalGitBlobDigest": "101f20fdc3e09e92d73380c792dc0c9112a4519f"
       },
       {
         "ownerId": "flow-guide",
@@ -6289,7 +6289,7 @@
     }
   ],
   "fingerprints": {
-    "rules": "61df39b8fae2338ba775641a55df09c7873eace5387d67b95676010ece3d8473",
+    "rules": "e115e549d923a531fb56385a126117b2bef9edc38d628e88a1d753c2a4341ae0",
     "agents": "43ec5426263da1f9404667ed62bb7b0f7cb0e4680230daa812f06c70ce02d721",
     "commands": "dff2453ecc4e44aff8e4b4531063d78cefef128824f2e327d15ef7b484f369df",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a",
@@ -7415,5 +7415,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "7ff3f13912bcc756fdc92491526ab8e5e2a553e2cab6e91f93cb50377ef472e6",
   "surfaceSelectionFingerprint": "a1b64b5127bf6b0021ac83800027c272b18b8bb43a73c335a45de536fea48cf5",
-  "planFingerprint": "95edc47800360a3be322abae1fad5883317d28b7e456d272b484669282a0736f"
+  "planFingerprint": "789b5982ede1579d9f0e90670776431b0be9cee077d1f6b34ec01a606a5a64c7"
 }
