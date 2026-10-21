@@ -75,8 +75,10 @@ verdict: APPROVE | WARNING | BLOCK   # or PASS | WARNING | FAIL — see below
 
 Two verdict vocabularies are both in current use — pick the one matching the agent's own body, don't invent a third:
 
-- **APPROVE | WARNING | BLOCK** (`code-reviewer`, `doc-reviewer`, `frontend-reviewer`, `polyfill-reviewer`, and others with a `Verdict:` line convention): APPROVE = no CRITICAL/HIGH finding; WARNING = HIGH only; BLOCK = any CRITICAL finding.
-- **PASS | WARNING | FAIL** (`database-reviewer`, `security-reviewer`, `migration-reviewer`, `performance-analyzer`, `tdd-guide`): used by audit/analysis-style agents; each agent's own body defines what PASS vs FAIL means for its domain (e.g. `tdd-guide` ties it to `coverage_pct`).
+- **APPROVE | WARNING | BLOCK** (`code-reviewer`, `frontend-reviewer`, `polyfill-reviewer`): BLOCK = any CRITICAL finding. `doc-reviewer`: BLOCK = any HIGH finding. Other roles that use this family keep the threshold written in their own body.
+- **PASS | WARNING | FAIL** (`database-reviewer`, `security-reviewer`, `migration-reviewer`, `performance-analyzer`, `tdd-guide`): each agent's own body defines what PASS vs FAIL means for its domain (e.g. `tdd-guide` ties it to `coverage_pct`).
+
+`BLOCK` and `FAIL` are defect judgments made from checked evidence at that reviewer's own threshold. `BLOCKED` means required capability or evidence is missing, so no reliable judgment was formed. It is not a worse defect, and it is not a synonym of `BLOCK` or `FAIL`. A review that did not run stays `NOT_RUN` or `UNAVAILABLE`; do not record that as `PASS` or as a confirmed defect. The change-verdict response gate (`READY`, `BLOCKED`, `INCONCLUSIVE`) is a separate contract and is not mapped onto these verdicts.
 
 Non-reviewer agents keep their own extra fields documented inline, not centralized here — they're genuinely agent-specific:
 
