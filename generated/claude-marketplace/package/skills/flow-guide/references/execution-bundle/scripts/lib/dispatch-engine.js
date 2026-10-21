@@ -133,6 +133,30 @@ function candidateModel({ provider, model, request, catalog, targetAgent, route,
   });
 }
 
+function missingBoundEvidenceReason(request, provider, model, target) {
+  const binding = request.execution_binding;
+  const bindingText = binding && binding.session_id && binding.binding_id
+    ? 'missing session-bound capability evidence for the injected executor binding'
+    : 'missing session/executor binding and missing session-bound capability evidence';
+  const selector = model && model.id ? model.id : 'unselected';
+  return [
+    `Host ${request.host_profile.host}`,
+    `role ${request.role}`,
+    `authority ${request.authority}`,
+    `Target Agent ${target && target.target_agent ? target.target_agent : 'unselected'}`,
+    `Provider ${provider}`,
+    `selector ${selector}`,
+    `route ${target && target.route ? target.route : 'unselected'}`,
+    `transport ${target && target.transport ? target.transport : 'unselected'}`,
+    bindingText,
+    'resolution stays NOT_RUN',
+    'selector is not an observed model',
+    'Host.getCapabilities',
+    'existing capability schema',
+    'static AVAILABLE, an arbitrary fallback, and a model list do not replace that evidence',
+  ].join('; ');
+}
+
 function evaluateCandidate(request, candidate, catalog) {
   const targetAgent = canonicalAgent(candidate.target_agent || candidate.targetAgent);
   const requestedProvider = canonicalProvider(candidate.provider);
@@ -204,7 +228,12 @@ function evaluateCandidate(request, candidate, catalog) {
     return { status: 'UNAVAILABLE', provider, model: model.id, target, reason: `Model ${provider}/${model.id} does not support Transport ${transport}`, probe_performed: false, fallback_eligible: false };
   }
   if (access.status !== 'AVAILABLE') {
-    return { status: access.status, provider, model: model.id, target, reason: access.evidence, probe_performed: false, fallback_eligible: access.status === 'UNAVAILABLE' };
+    const diagnostic = missingBoundEvidenceReason(effectiveRequest, provider, model, target);
+    const combined = `${access.evidence}; ${diagnostic}`;
+    const reason = access.status === 'NOT_RUN'
+      ? (combined.length <= 512 ? combined : diagnostic)
+      : access.evidence;
+    return { status: access.status, provider, model: model.id, target, reason, probe_performed: false, fallback_eligible: access.status === 'UNAVAILABLE' };
   }
   return {
     status: 'AVAILABLE', provider, model: model.id, target, request: effectiveRequest,

@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "266e6768b2e4e3e4e9450938725b86491e0b20cb",
-  "generatedFromCommit": "266e6768b2e4e3e4e9450938725b86491e0b20cb",
-  "generatedFromTree": "2e71fe10b75bc69290946a00e13e6f84dbea476b",
+  "sourceCommit": "c7057079fa9dac65b5982d0339762ec19ffe9b55",
+  "generatedFromCommit": "c7057079fa9dac65b5982d0339762ec19ffe9b55",
+  "generatedFromTree": "d5cac286f543dd5622c1c9464b13cea9bea72227",
   "inventoryDigest": "c4f2f381c150148ccce795bdf4e2434caab752d8cccf8614de6b5a552278f975",
   "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "1.0.0",
@@ -783,7 +783,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js",
         "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js",
-        "originalGitBlobDigest": "136c1536a86d7610dd1a86e6a9efaeb36542487c"
+        "originalGitBlobDigest": "8f0d054cb7631a6700271f447d419851d37abcb5"
       },
       {
         "ownerId": "flow-drive",
@@ -1635,7 +1635,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/dispatch.js",
         "destination": "skills/flow-drive/scripts/dispatch.js",
-        "originalGitBlobDigest": "57791c5c6f87f4e677305f18fd7b84c96ef37feb"
+        "originalGitBlobDigest": "f5c97b213aaa1de1ca9429d78b50c0236ccd85f4"
       },
       {
         "ownerId": "flow-drive",
@@ -1671,7 +1671,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/run.js",
         "destination": "skills/flow-drive/scripts/run.js",
-        "originalGitBlobDigest": "d2f1bff8befbb63a24cf708ea0b6842e0281536b"
+        "originalGitBlobDigest": "bd6c78bc0bd114291807f24ed823d4cd01f5d71a"
       },
       {
         "ownerId": "flow-drive",
@@ -1869,7 +1869,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js",
-        "originalGitBlobDigest": "136c1536a86d7610dd1a86e6a9efaeb36542487c"
+        "originalGitBlobDigest": "8f0d054cb7631a6700271f447d419851d37abcb5"
       },
       {
         "ownerId": "flow-guide",
