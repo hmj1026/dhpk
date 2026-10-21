@@ -22,7 +22,11 @@ for (const surface of ['openai-submission', 'agent-plugin', 'codex-native', 'cur
     assert.strictEqual(view.publicEntries.length, 14);
     assert.ok(view.publicEntries.length <= limits.maxCommonEntries);
     const children = Object.values(view.bundledChildren).flat();
-    assert.strictEqual(children.length, 30);
+    const expectedChildren = selection.skills
+      .filter((row) => row.selection === 'common' && row.kind !== 'entry')
+      .map((row) => row.id)
+      .sort();
+    assert.deepStrictEqual(children.map((row) => row.id).sort(), expectedChildren);
     assert.ok(children.length <= limits.maxBundledChildren);
     assert.ok(view.hostOnly.length <= limits.maxHostOnlyRows[surface], `${surface}: ${view.hostOnly.length}`);
     assert.strictEqual(new Set([...view.publicEntries, ...children, ...view.hostOnly].map((row) => row.id)).size,
