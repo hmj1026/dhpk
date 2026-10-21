@@ -2,7 +2,8 @@
 
 Status: accepted
 
-Supersedes: [0017](0017-implement-review-gate-as-a-local-event-module.md),
+Supersedes: [0014](0014-standardize-the-reviewer-contract.md),
+[0017](0017-implement-review-gate-as-a-local-event-module.md),
 [0018](0018-production-migration-observation-checkpoint.md)
 
 ## Context

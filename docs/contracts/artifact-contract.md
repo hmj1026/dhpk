@@ -58,12 +58,11 @@ scope: [path/a, path/b]
 ---
 ```
 
-For the retired reviewer-sentinel compatibility path, this frontmatter had to
-be the leading,
-delimited block of a canonical filename
-`<agent>-YYYYMMDD-HHMMSS-<slug>.md`. Body text that merely resembles YAML is
-not evidence; `subagent-stop-verify.sh` accepts only `APPROVE` or `PASS` after
-these fields validate.
+The retired reviewer-sentinel path once required this frontmatter as the
+leading, delimited block of `<agent>-YYYYMMDD-HHMMSS-<slug>.md`.
+`subagent-stop-verify.sh` used to accept only `APPROVE` or `PASS` after those
+fields validated. [ADR 0026](../adr/0026-remove-review-gate.md) retired that
+hook check; it is not current behavior.
 
 ## Reviewer-family extension
 
