@@ -893,7 +893,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
       "destination": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
       "kind": "entry",
-      "sha256": "217bf7d513f22e413d6ccc2adaefdcc851ff2eabf5c7784aa8bcc3dba6e97921"
+      "sha256": "cebd8f4f25c647e72eae9300e897b82b5c9e4ad320cdd97b84320a4092b7e0bb"
     },
     {
       "skillId": "flow-drive",
@@ -2341,7 +2341,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
       "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
       "kind": "entry",
-      "sha256": "217bf7d513f22e413d6ccc2adaefdcc851ff2eabf5c7784aa8bcc3dba6e97921"
+      "sha256": "cebd8f4f25c647e72eae9300e897b82b5c9e4ad320cdd97b84320a4092b7e0bb"
     },
     {
       "skillId": "flow-guide",
