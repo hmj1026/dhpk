@@ -49,6 +49,14 @@ verdict: APPROVE | WARNING | BLOCK
 Audit-style roles may use `PASS | WARNING | FAIL` instead. Non-reviewer roles
 document their own extra fields inline; do not invent a third verdict vocabulary.
 
+`BLOCK` and `FAIL` record a defect from checked evidence at that role's own
+threshold. `code-reviewer`, `frontend-reviewer`, and `polyfill-reviewer` use
+`BLOCK` for any CRITICAL finding; `doc-reviewer` uses `BLOCK` for any HIGH
+finding. `BLOCKED` means required capability or evidence is missing. It is not
+a worse defect and not a synonym of `BLOCK` or `FAIL`. A review that did not
+run stays `NOT_RUN` or `UNAVAILABLE`. change-verdict `READY` / `BLOCKED` /
+`INCONCLUSIVE` is a separate response gate and is not mapped here.
+
 ## Retention and degradation
 
 Retention is advisory: prune old reports for navigability, never as a runtime
