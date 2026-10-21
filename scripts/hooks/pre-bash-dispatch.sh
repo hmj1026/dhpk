@@ -52,10 +52,16 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
     dhpk_inspect_command "$_cmd"
     dhpk_command_has_commit && _is_commit=1
 
-    # Outer Host budget is NOT_RUN. hooks.json sets no timeout on this Bash
-    # hook, and this change did not measure the Host default. Each module
-    # tool keeps its own deadline. Do not raise those deadlines to hide an
-    # unknown outer limit, and do not treat an unmeasured Host as blocking.
+    # Claude Code 2.1.295+ reads timeout 2100 and onFailure block from the
+    # Bash PreToolUse entry in hooks.json. That ceiling covers one commit
+    # root each for JS, Python, Swift, and PHP, one Python group, and Swift
+    # build/test settings no higher than 360/480 seconds. Inner deadlines
+    # plus one second of grace are JS 212, Python 255, Swift 842, and PHP
+    # 423 (1732 seconds); 368 seconds remain for preparation and cleanup.
+    # Extra roots, groups, a larger Swift override, or any run that reaches
+    # the ceiling can be interrupted. An interrupted check is not PASS.
+    # Do not raise the inner deadlines. An unobserved host is not evidence
+    # that this ceiling blocked the command.
     # Process substitution keeps this loop in the current shell, so the
     # `exit "$rc"` below still aborts the whole bash call on a gate failure.
     while IFS= read -r _m; do

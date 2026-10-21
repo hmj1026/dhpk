@@ -347,6 +347,53 @@ test('active module pass hooks compose in order and a block stops later hooks', 
     if (pluginRoot) fs.rmSync(pluginRoot, { recursive: true, force: true });
   }
 });
+
+test('Bash PreToolUse declares the 2100-second block ceiling', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8'));
+  const bash = hooks.hooks.PreToolUse.find((entry) => entry.matcher === 'Bash').hooks[0];
+  assert.strictEqual(bash.timeout, 2100);
+  assert.strictEqual(bash.onFailure, 'block');
+  const edit = hooks.hooks.PreToolUse.find((entry) => String(entry.matcher).includes('Edit')).hooks[0];
+  assert.strictEqual(edit.timeout, 5);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(edit, 'onFailure'), false);
+  const stop = hooks.hooks.SubagentStop[0].hooks[0];
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(stop, 'timeout'), false);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(stop, 'onFailure'), false);
+  for (const relative of ['docs/hook-extension.md', 'docs/hook-extension.zh-TW.md']) {
+    const text = fs.readFileSync(path.join(ROOT, relative), 'utf8');
+    assert.match(text, /2100/, relative);
+    assert.match(text, /1732/, relative);
+    assert.match(text, /368/, relative);
+    assert.match(text, /2\.1\.295/, relative);
+  }
+});
+
+test('a one-second stub blocks an outer timeout and stops the managed child', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-outer-timeout-'));
+  const script = path.join(dir, 'sleep.sh');
+  const pidFile = path.join(dir, 'pid');
+  fs.writeFileSync(script, '#!/bin/sh\necho $$ > "$DHPK_STUB_PID"\nexec sleep 30\n');
+  fs.chmodSync(script, 0o755);
+  try {
+    const res = spawnSync('bash', ['-c', 'source "$PORTABLE_TIMEOUT_LIB"; run_with_timeout 1 "$DHPK_STUB"'], {
+      env: {
+        ...process.env,
+        PORTABLE_TIMEOUT_LIB: path.join(ROOT, 'scripts/hooks/_lib/portable-timeout.sh'),
+        DHPK_STUB: script,
+        DHPK_STUB_PID: pidFile,
+      },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assert.strictEqual(res.status, 124, `${res.status} ${res.stderr}`);
+    const pid = fs.readFileSync(pidFile, 'utf8').trim();
+    const alive = spawnSync('kill', ['-0', pid]);
+    if (alive.status === 0) spawnSync('kill', ['-9', pid]);
+    assert.notStrictEqual(alive.status, 0, `stub ${pid} kept running`);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 }
 // End merged tests from tests/pre-bash-dispatch.test.js.
 
