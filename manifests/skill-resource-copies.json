@@ -46,7 +46,7 @@
     "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-drive",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:217bf7d513f22e413d6ccc2adaefdcc851ff2eabf5c7784aa8bcc3dba6e97921",
+      "sha256": "sha256:cebd8f4f25c647e72eae9300e897b82b5c9e4ad320cdd97b84320a4092b7e0bb",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md": {
@@ -190,7 +190,7 @@
     "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-guide",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:217bf7d513f22e413d6ccc2adaefdcc851ff2eabf5c7784aa8bcc3dba6e97921",
+      "sha256": "sha256:cebd8f4f25c647e72eae9300e897b82b5c9e4ad320cdd97b84320a4092b7e0bb",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md": {
