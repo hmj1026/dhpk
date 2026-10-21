@@ -63,7 +63,7 @@ rg '\w+\(' "$FILE" --line-number --no-heading | \
     sort -u | \
     head -15 | \
     while read -r func; do
-        echo "    Start --> $func[\"$func()\"]" >> "$OUTPUT"
+        echo "    Start --> ${func}[\"$func()\"]" >> "$OUTPUT"
     done
 
 echo '```' >> "$OUTPUT"
