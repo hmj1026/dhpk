@@ -42,12 +42,12 @@ function nativeRoute(modelId) {
   return catalog.routes.find((route) => route.host === 'codex-cli' && route.route === 'native' && route.model_id === modelId);
 }
 
-test('codex native routes follow the 0.163.0 cache without one global effort', () => {
+test('codex native routes follow the 2026-10-21 cache without one global effort', () => {
   assert.deepStrictEqual(nativeRoute('gpt-6-luna').efforts, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.deepStrictEqual(nativeRoute('gpt-6-sol').efforts, ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
   assert.deepStrictEqual(nativeRoute('gpt-6.1-sol').efforts, ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
   for (const modelId of ['gpt-6-luna', 'gpt-6-sol', 'gpt-6.1-sol']) {
-    assert.strictEqual(nativeRoute(modelId).source, 'codex 0.163.0 models cache supported_reasoning_levels');
+    assert.strictEqual(nativeRoute(modelId).source, 'codex-cli 0.163.0; models cache client_version 0.162.0 supported_reasoning_levels');
   }
   const headlessLuna = catalog.routes.find((route) => route.host === 'claude-code' && route.route === 'headless-cli' && route.model_id === 'gpt-6-luna');
   assert.deepStrictEqual(headlessLuna.efforts, ['low', 'medium', 'high', 'xhigh', 'max']);
