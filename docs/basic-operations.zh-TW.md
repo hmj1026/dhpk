@@ -331,10 +331,10 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
 - **操作**：
   - **流程諮詢**：不確定指令或作法時，直接提問：
     ```text
-    /dhpk:flow-guide route 實作使用者密碼重設郵件通知
-    /dhpk:flow-guide route 排查使用者登入驗證碼逾時問題
+    /dhpk:flow-guide route 釐清登入流程
+    /dhpk:flow-guide route --go 釐清登入流程
     ```
-    加上 `--go` 旗標（如 `/dhpk:flow-guide route --go <task>`）可對 `implicit-eligible` 目標自動觸發一次有界交接；若目標為 `explicit-only` 則僅顯示建議語法，不自動執行。
+    加上 `--go` 旗標（如 `/dhpk:flow-guide route --go <task>`）可對 `implicit-eligible` 目標自動觸發一次有界交接；若目標為 `explicit-only` 則僅顯示建議語法，不自動執行。`實作密碼重設郵件通知` 不在高精確率 route table 裡（`NO_MATCH`）。沒有命中的查詢維持 deliberate classification。`--go` 不會為 miss 建立 handoff。
   - **程式碼探索與根因排查**：面對陌生模組、歷史變更或 Bug 時，使用唯讀診斷：
     ```text
     /dhpk:code-trace --mode explore <模組或類別名稱>       # 探索符號、呼叫鏈與架構
@@ -442,10 +442,10 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
   /dhpk:flow-guide help flow-drive
 
   # 諮詢新任務的最佳流程（純建議，不執行下游）
-  /dhpk:flow-guide route 實作使用者密碼重設郵件通知
+  /dhpk:flow-guide route 釐清登入流程
 
-  # 諮詢並自動交接給可隱式執行的目標（如直接轉交排查）
-  /dhpk:flow-guide route --go 排查使用者登入驗證碼逾時問題
+  # 諮詢並交接一個 implicit-eligible target
+  /dhpk:flow-guide route --go 釐清登入流程
 
   # 查詢當前工作階段的建議下一步
   /dhpk:flow-guide next
