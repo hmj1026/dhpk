@@ -29,7 +29,7 @@
       "sourcePath": "skills/change-verdict/SKILL.md",
       "destination": "skills/change-verdict/SKILL.md",
       "kind": "entry",
-      "sha256": "ef0630757d2b73235ac47554f180c63d7226a3be661a3d7e72ad32bb65947edd"
+      "sha256": "30a5ba90c5771cbb6037b1c1c4f1ce7d3968631d647a0d48bd2a9a6fd53a2dba"
     },
     {
       "skillId": "change-verdict",
@@ -317,7 +317,7 @@
       "sourcePath": "skills/code-trace/SKILL.md",
       "destination": "skills/code-trace/SKILL.md",
       "kind": "entry",
-      "sha256": "4b9194d968e7e69f6c9fb9422c4858f51e09011f34cb5af93fcbf17d7aefdcb3"
+      "sha256": "b3725c37beadde965a1b6af7020805dafcbbce3efd5d3fb0c17ea97b52274867"
     },
     {
       "skillId": "code-trace",
@@ -2205,7 +2205,7 @@
       "sourcePath": "skills/flow-guide/SKILL.md",
       "destination": "skills/flow-guide/SKILL.md",
       "kind": "entry",
-      "sha256": "8eef66fb712734c24fe2dbfecc96c9f504d2a204e6259d2a00c8ff0e4437ddb2"
+      "sha256": "c28d93ef1fc81009a43ad729a345218dfeed34e4199009bcdc41639c71d20951"
     },
     {
       "skillId": "flow-guide",
