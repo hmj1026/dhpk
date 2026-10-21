@@ -83,7 +83,7 @@ rewrites them:
 | General workflow (`fast-worker`, reviewers, `planner`, `deep-reasoner`, build-resolvers, …) | `cursor-grok-4.6-high` |
 | `doc-reviewer`, `docs-lookup`, `doc-updater` | `composer-2.5-fast` |
 
-External CLI wrappers (`codex-*`, `agy-fast-worker`) stay in the tree; they
+External CLI wrappers (`codex-*`, `agy-worker`) stay in the tree; they
 are not part of the initial Cursor workflow. Their Cursor-side wrapper still
 uses Grok 4.6. The Claude `model-economics` rule remains the Claude/Codex
 cost lens and is not the Cursor dispatch map.

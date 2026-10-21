@@ -117,8 +117,8 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 
 1. **諮詢與路由**：不確定指令或流程時，直接提問：
    ```text
-   /dhpk:flow-guide route 實作密碼重設郵件通知        # 取得建議工作流程與規則
-   /dhpk:flow-guide route --go 實作密碼重設郵件通知   # 單一有界 handoff 直接交接
+   /dhpk:flow-guide route 釐清登入流程          # 命中 code-trace；只給建議
+   /dhpk:flow-guide route --go 釐清登入流程    # 單一有界 handoff；code-trace 是 implicit-eligible
    /dhpk:code-trace --mode diagnose 登入 redirect loop # 追查 Bug 根因證據
    ```
 2. **規格確認後實作**：需求與邊界確認後，呼叫實作入口（或由 `tdd-workflow` 引導測試先寫）：
@@ -145,7 +145,9 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 
 `flow-guide` 是唯讀的 help、route、rules、next、close owner。`route` 不帶 `--go` 只
 提供建議；`route --go` 最多 handoff 一個可用的 implicit-eligible target，絕不執行
-explicit-only target。`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan[=auto|bounded|discovery]`
+explicit-only target。`實作密碼重設郵件通知` 不在高精確率 route table 裡（`NO_MATCH`）。
+沒有命中的查詢維持 deliberate classification。`--go` 不會為 miss 建立 handoff。
+`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan[=auto|bounded|discovery]`
 只選擇 optional planner consult scope。它只接受已確認的 specification 或 change ID。
 提案 authoring 由外部 `$openspec-propose` skill 負責。另見
 [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md) 與

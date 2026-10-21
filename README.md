@@ -120,9 +120,9 @@ After installation, daily development follows this 5-step standard workflow (usi
 
 1. **Inquire and Route**: When uncertain about commands or next steps, consult the guide directly:
    ```text
-   /dhpk:flow-guide route implement password reset notification email  # advisory route and rules
-   /dhpk:flow-guide route --go implement password reset notification   # single bounded handoff
-   /dhpk:code-trace --mode diagnose login redirect loop                # root-cause failure evidence
+   /dhpk:flow-guide route how does the login flow work        # deterministic route to code-trace; advice only
+   /dhpk:flow-guide route --go how does the login flow work  # one bounded handoff; code-trace is implicit-eligible
+   /dhpk:code-trace --mode diagnose login redirect loop      # root-cause failure evidence
    ```
 2. **Implement Confirmed Work**: Once requirements and boundaries are settled, invoke implementation (or lead test-first via `tdd-workflow`):
    ```text
@@ -149,6 +149,8 @@ After installation, daily development follows this 5-step standard workflow (usi
 `flow-guide` is the read-only owner of help, route, rules, next, and close.
 `route` without `--go` is advice; `route --go` can hand off one available
 implicit-eligible target and never executes an explicit-only target.
+`implement password reset notification email` is outside the high-precision
+route table (`NO_MATCH`). A miss stays deliberate classification. `--go` does not hand off a miss.
 `flow-drive` is explicit-only and has no route or workflow mode; `--plan[=auto|bounded|discovery]`
 selects only the optional planner consult scope. It accepts a confirmed
 specification or change ID. Proposal authoring belongs to the external
