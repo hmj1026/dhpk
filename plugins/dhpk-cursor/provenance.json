@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "67ed70118918e239773885fe31c6d786161b5296",
-  "generatedFromCommit": "67ed70118918e239773885fe31c6d786161b5296",
-  "generatedFromTree": "5e81ee2bf654a15d934fd0325234d6ab5fc414ff",
+  "sourceCommit": "26bdff4f4790f277b724063ab9a69333ae1ca8a3",
+  "generatedFromCommit": "26bdff4f4790f277b724063ab9a69333ae1ca8a3",
+  "generatedFromTree": "a02ef70a516bf22ea67f64ce6b122978e3009e7f",
   "inventoryDigest": "c4f2f381c150148ccce795bdf4e2434caab752d8cccf8614de6b5a552278f975",
   "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "1.0.0",
@@ -945,7 +945,7 @@
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/10.md",
         "destination": "skills/flow-drive/references/laravel/references/10.md",
-        "originalGitBlobDigest": "c0631adba9a6f41a67679b77a1364069e9e6fdbd"
+        "originalGitBlobDigest": "2f79c74e49113509a5f6306a08712304f5de6ca7"
       },
       {
         "ownerId": "flow-drive",
@@ -957,7 +957,7 @@
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/5-4.md",
         "destination": "skills/flow-drive/references/laravel/references/5-4.md",
-        "originalGitBlobDigest": "1fea496f816c826c7f4a58ac2988f1184525f797"
+        "originalGitBlobDigest": "01ae72395fe7f3515a039636fc921428e4fb1d9a"
       },
       {
         "ownerId": "flow-drive",
@@ -975,13 +975,13 @@
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/8.md",
         "destination": "skills/flow-drive/references/laravel/references/8.md",
-        "originalGitBlobDigest": "8c6390dfe9345e88a04e7fc18e061c4a704b67b3"
+        "originalGitBlobDigest": "118d4892679f24cbe3c4aedf43d82a80530530eb"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/9.md",
         "destination": "skills/flow-drive/references/laravel/references/9.md",
-        "originalGitBlobDigest": "851dbe7c6fecbe7c47a8cd7cbb8501cd6f8111ca"
+        "originalGitBlobDigest": "7252fd9a151a6f75bebec2b07c1f32f15c9bb57d"
       },
       {
         "ownerId": "flow-drive",
