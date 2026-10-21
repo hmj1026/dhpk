@@ -224,7 +224,8 @@ test('published native packages resolve representative support without a source 
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const cursor = validateCursorPackage({ packageRoot: cursorRoot, inventory });
   assert.strictEqual(cursor.ok, true, cursor.errors.join('\n'));
-  const agy = validateAgyPluginPackage(agyRoot, { expectedVersion: '0.66.5' });
+  const releaseVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const agy = validateAgyPluginPackage(agyRoot, { expectedVersion: releaseVersion });
   assert.strictEqual(agy.ok, true, agy.errors.join('\n'));
   assert.deepStrictEqual(cursorNativeAgentClosureErrors(cursorRoot), []);
   assert.deepStrictEqual(agyNativeAgentClosureErrors(agyRoot), []);
