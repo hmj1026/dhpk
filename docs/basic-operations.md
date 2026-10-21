@@ -361,10 +361,10 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
 - **Actions**:
   - **Workflow Consultation**: Ask the guide directly instead of guessing commands:
     ```text
-    /dhpk:flow-guide route implement user password reset email notification
-    /dhpk:flow-guide route investigate user login captcha timeout issue
+    /dhpk:flow-guide route how does the login flow work
+    /dhpk:flow-guide route --go how does the login flow work
     ```
-    Adding `--go` (e.g., `/dhpk:flow-guide route --go <task>`) triggers a single bounded handoff if the matched target is `implicit-eligible`; `explicit-only` targets report exact command syntax without executing.
+    Adding `--go` (e.g., `/dhpk:flow-guide route --go <task>`) triggers a single bounded handoff if the matched target is `implicit-eligible`; `explicit-only` targets report exact command syntax without executing. `implement password reset notification email` is outside the high-precision route table (`NO_MATCH`). A miss stays deliberate classification. `--go` does not hand off a miss.
   - **Code Exploration & Root-Cause Diagnosis**: For unfamiliar modules, history investigations, or regressions, use read-only inspection:
     ```text
     /dhpk:code-trace --mode explore <module-or-class>      # inspect symbols, callers, and structure
@@ -472,10 +472,10 @@ The following sections provide comprehensive parameter references, types, defaul
   /dhpk:flow-guide help flow-drive
 
   # Consult route for a new task (advisory only, no downstream execution)
-  /dhpk:flow-guide route implement user password reset email notification
+  /dhpk:flow-guide route how does the login flow work
 
-  # Consult and automatically hand off to an implicit-eligible target
-  /dhpk:flow-guide route --go investigate user login captcha timeout issue
+  # Consult and hand off one implicit-eligible target
+  /dhpk:flow-guide route --go how does the login flow work
 
   # Query suggested next action in the current workspace
   /dhpk:flow-guide next

@@ -1,7 +1,7 @@
 name: laravel-9
 display_name: "Laravel 9.x"
 version: 0.1.0
-description: "Laravel 9.x (February 2022 — first non-September release). PHP 8.0+ floor (major PHP bump). Signature features: anonymous migrations (no name collisions on squash), Symfony 6 / Symfony Mailer, Flysystem 3 (visibility + exception API breaking changes), query builder improvements (whereExists, full-text), enum casts and implicit route binding with enums, render mailables in browser. Pair with php-8.x module for language additions."
+description: "Laravel 9.x (February 2022 — first non-September release). PHP 8.0+ floor (major PHP bump). Signature features: anonymous migrations since 8.37 (not a 9-only feature), invokable validation rules via InvokableRule::__invoke from 9.18, Symfony 6 / Symfony Mailer, Flysystem 3 (visibility + exception API breaking changes), query builder improvements (whereExists, full-text), enum casts and implicit route binding with enums, render mailables in browser. Pair with php-8.x module for language additions."
 requires: []
 triggers:
   code:

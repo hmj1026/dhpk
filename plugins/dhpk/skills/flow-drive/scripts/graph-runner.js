@@ -2,6 +2,7 @@
 
 const path = require('node:path');
 const { createNodeTask } = require('./task-contract');
+const { isRequiredReasonerSource } = require('./task-graph');
 const { executeAttempt } = require('./attempt-executor');
 const { exactWorkerTarget } = require('./provider-permissions');
 const { evaluateTargetPolicy, selectCapabilityEvidence } = require('./target-policy');
@@ -16,6 +17,38 @@ function validConclusion(result) {
   return Boolean(result && (result.status === 'SUCCEEDED' || result.outcome && result.outcome.status === 'SUCCEEDED') && conclusion
     && conclusion.status === 'READY_FOR_DISPATCH'
     && ['source_evidence', 'root_cause', 'repair', 'verification'].every((key) => typeof conclusion[key] === 'string' && conclusion[key].trim() !== ''));
+}
+
+function verifiedConclusion(result) {
+  let cursor = result;
+  for (let depth = 0; cursor && depth < 4; depth += 1) {
+    if (cursor.conclusion && typeof cursor.conclusion === 'object') return cursor.conclusion;
+    cursor = cursor.outcome;
+  }
+  return null;
+}
+
+function verifiedDependencyHandoff(node, outcomes) {
+  const records = [];
+  for (const id of node.dependencies || []) {
+    const result = outcomes.get(id);
+    if (!validConclusion(result)) continue;
+    const conclusion = verifiedConclusion(result);
+    const verification = result.verification;
+    records.push({
+      source_node_id: id,
+      status: result.reused === true ? 'reused' : 'fresh',
+      conclusion: {
+        status: conclusion.status,
+        source_evidence: conclusion.source_evidence,
+        root_cause: conclusion.root_cause,
+        repair: conclusion.repair,
+        verification: conclusion.verification,
+      },
+      evidence: verification && typeof verification.evidence === 'string' ? verification.evidence : '',
+    });
+  }
+  return records;
 }
 
 function sameIdentity(left, right) {
@@ -52,7 +85,7 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
       hostAllowedProviders: capabilities.host_profile.allowed_providers,
     });
     if (!policy.allowed) return { id: node.id, status: 'BLOCKED', reason: policy.reason };
-    const nodeTask = createNodeTask(resolvedTask, node);
+    const nodeTask = createNodeTask(resolvedTask, node, verifiedDependencyHandoff(node, outcomes));
     const currentTaskDigest = nodeTaskDigest(node, nodeTask, workdir);
     const evidenceSelection = selectCapabilityEvidence(
       capabilities, target, node.role, node.authority, { session_id: sessionId, binding_id: bindingId },
@@ -127,8 +160,10 @@ async function runTaskGraph({ graph, resolvedTask, capabilities, decision, host,
         const dependencies = Array.isArray(node.reasoner_dependencies) ? node.reasoner_dependencies : [];
         if (node.decision_state !== 'REASONER_REQUIRED' || dependencies.length === 0 || !dependencies.every((id) => {
           const result = completed.get(id);
-          // scheduler retains the complete prior dispatch result for semantic gates
-          return result && result.status === 'SUCCEEDED' && validConclusion(result.outcome);
+          const source = nodeById.get(id);
+          // Fresh and reused outcomes both have to come from a read-only reasoner.
+          return result && result.status === 'SUCCEEDED' && validConclusion(result.outcome)
+            && isRequiredReasonerSource(source);
         })) return false;
       }
       return resolution.status === 'RESOLVED';

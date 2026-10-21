@@ -74,4 +74,35 @@ function collectStandalonePackageAssets({ root, inventory = {}, profileSelection
   });
 }
 
-module.exports = { collectStandalonePackageAssets };
+const NATIVE_AGENT_TRAP_FILES = Object.freeze([
+  'agent-traps/_common/prompt-defense.md',
+  'agent-traps/_common/trap-sheet-loader.md',
+  'agent-traps/_common/cli-prompt-composition.md',
+  'agent-traps/_common/build-resolver-skeleton.md',
+  'agent-traps/e2e-runner/playwright.md',
+]);
+
+function collectNativeAgentTrapAssets({ root } = {}) {
+  if (!root || !fs.existsSync(root)) return [];
+  const assets = [];
+  for (const relative of NATIVE_AGENT_TRAP_FILES) {
+    const candidate = path.resolve(root, ...relative.split('/'));
+    if (!fs.existsSync(candidate)) continue;
+    const file = readPhysicalFile(root, relative);
+    assets.push({
+      stableId: `native-agent-trap:${relative}`,
+      source: relative,
+      destination: relative,
+      path: file.path,
+      content: file.content,
+      mode: file.mode,
+    });
+  }
+  return assets;
+}
+
+module.exports = {
+  NATIVE_AGENT_TRAP_FILES,
+  collectStandalonePackageAssets,
+  collectNativeAgentTrapAssets,
+};

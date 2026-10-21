@@ -1,7 +1,7 @@
 ---
 name: code-trace
 description: 'Trace unfamiliar code, diagnose a reproducible failure, investigate history, or select one code-navigation tool. Use when evidence must follow symbols, callers, data flow, regressions, or tool choice. Not for implementing a confirmed fix, reviewing a proposed diff, or plain-text/document search. Output: an evidence-backed trace, root-cause state, history report, or executable tool route.'
-allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(ls:*), Bash(find:*), Bash(npx gitnexus:*), Bash(cx:*), Bash(bash:*), Task'
+allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(cx:*), Agent'
 metadata:
   dhpk-capability-id: dhpk.skill.code-trace
   dhpk-name-style: portable-family
@@ -81,6 +81,8 @@ cause without a confirming check.
 Load the phase-specific material from `references/diagnose/` only when that
 phase requires it. Inspect a selected bundled script's operation and effects
 before running it, keep output bounded, and preserve its actual exit status.
+Bundled diagnose scripts are not pre-approved; an unlisted shell command uses
+the host's normal permission flow.
 Return the phase report in the response and name the single next handoff by
 default. Write an investigation artifact only when explicitly authorized; this
 skill does not create directories or files and does not implement the proposed

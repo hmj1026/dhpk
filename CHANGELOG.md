@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## 0.66.6 — 2026-10-22 — Update native agent dispatch, enforce hook execution bounds, strengthen Flow Drive dependency and reasoner gates, and correct language and tool guidance
+
+- **fix(hooks)** — Block a Bash command when its PreToolUse hook exceeds the 2100-second ceiling or fails.
+- **fix(catalog)** — Record Codex-native xhigh and ultra from the 2026-10-21 models cache without merging the existing effort defaults.
+- **fix(hooks)** — Keep Git option values such as a commit message out of flag detection, and resolve each successive -C from the directory already chosen.
+- **fix(installer)** — Fail uninstall when the shared projection receipt is unreadable, and report ABSENT only when that file is missing.
+- **fix(dispatch)** — Resolve cursor-native preferences to the Cursor target and describe fallback as UNAVAILABLE-only.
+- **fix(cursor)** — Record the Composer Fast selector as a catalog identity without adding a flow-drive route.
+- **fix(dispatch-report)** — Show project and global legacy model settings in the dispatch config report, including when only those layers are set.
+- **fix(flow-drive)** — Pass verified direct-dependency conclusions to the next node, and stop reusing a downstream result when that handoff changes.
+- **fix(flow-guide)** — Expire saved code review and precommit results when tracked, staged, or untracked content changes even if the diff stat stays the same.
+- **fix(skills)** — Locate installed workflow helpers and the standalone commit policy from the skill directory, and stop commits when that policy is missing.
+- **fix(laravel)** — Correct the Laravel 5.4 resource and Input boundaries, the 8.37 anonymous-migration floor, the 9.18 invokable rule, and Laravel 10 string-versus-array process commands.
+- **fix(native-package)** — Ship Cursor and AGY native agent support files in the package, and point those agents at locators the install can resolve.
+- **fix(dispatch)** — Name the missing session binding when a Cursor or AGY readonly default stays NOT_RUN, and keep that status distinct from unavailable.
+- **fix(nextjs)** — Stop treating v15.5.19 as the end of the 15.x line, and date the Maintenance LTS status instead of naming a final patch.
+- **fix(phpunit)** — Correct PHPUnit 10 issue handling and the event-extension target, and place the PHPUnit 11 cache and property-assertion boundaries on the versions that have them.
+- **fix(distribution)** — Apply dirty preview patches from the snapshot root so Git does not reject a ./ path prefix.
+- **fix(python)** — Select offline pytest runs with the exact marker expression not live, and require a shared live marker on external-service tests.
+- **fix(skills)** — Pre-approve only the read-only helpers flow-guide, code-trace, and change-verdict actually run, using the Claude skill-directory token.
+- **fix(flow-drive)** — Reject a REASONER_REQUIRED writer unless its dependency is a read-only reasoner with a valid conclusion.
+- **fix(runners)** — Make precommit and repo-verify reject unknown arguments and print help before they resolve a repository, create a cache, or run checks.
+- **fix(skills)** — Skill validation accepts the documented frontmatter fields and still rejects unknown keys.
+- **fix(hooks)** — Read staged JS, PHP, and Swift paths as NUL records so quoted names still reach the configured gate.
+- **fix(hooks)** — Follow TERM with a one-second KILL for portable deadlines, keep a later exit 0 from counting as success, and bound the Python tool version probe with that same deadline.
+- **docs(docs)** — Record that ADR 0026 supersedes ADR 0014's contract, receipts, and gate, and that the retired reviewer hook is history.
+- **docs(docs)** — Distinguish advisory BLOCK and FAIL defects from BLOCKED missing evidence without merging reviewer thresholds.
+- **docs(workflow)** — Point the route example at a table hit, load the policy kernel before a conditional section, and separate the generic main fallback from this repository's develop base.
+- **ci(ci)** — Require a changelog fragment changed in the same diff, so an older pending fragment cannot satisfy coverage.
+
 ## 0.66.5 — 2026-10-20 — Add a security policy with private vulnerability reporting, latest-minor support, and response targets
 
 - **docs(security)** — Add a security policy with private vulnerability reporting, latest-minor support, and response targets, linked from both READMEs.

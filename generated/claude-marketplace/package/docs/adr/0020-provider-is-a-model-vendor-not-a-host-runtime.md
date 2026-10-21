@@ -33,8 +33,11 @@ would have been mislabelled as `headless-cli`.
 
 - Breaking for user configuration: `cursor-native/...` and the `native/...`
   alias are no longer valid targets. They are translated at the input boundary
-  with a deprecation diagnostic and removed in the next minor; `cursor-default`
-  has no concrete successor id and translates to the Host/Role worker default.
+  with a deprecation diagnostic. 0.66.0 shipped on 2026-10-08 without removing
+  the alias, because a string preference still resolved to the Cursor target
+  while an object `provider` field still resolved to `xai`. `LEGACY_REMOVAL_VERSION`
+  is `0.67.0`. The alias stays until that version. `cursor-default` has no
+  concrete successor id and translates to the Host/Role worker default.
 - The catalog schema moves to `dhpk.model.catalog.v2` with a separate
   `models{}` block, so vendor-level facts (display name, pricing) are stated
   once rather than once per Host.

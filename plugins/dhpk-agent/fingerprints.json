@@ -2,19 +2,19 @@
   "generatorVersion": "1.0.0",
   "surface": "agent-plugin",
   "skills": {
-    "change-verdict": "c607a3cc78a3a41349ad8a8beadfa52d62616c42cf399004d32244f9108dad2d",
-    "code-trace": "88fd6ef664bba679b7ce8284dfc85f3ace963ef8aae5e6240eb45ca9fd95c126",
-    "create-pr": "d90d47a0d45a71fc0edff46e20cb3b727ed0b35c4d0304da0bc311a7a653d6d5",
+    "change-verdict": "bee49d28e66884910a7e3b7cc115bedb94c2733b8238bb028c6635f69a622148",
+    "code-trace": "0421699294b52b6d9cb5bab0ac65cf38e12e8d5539976fe858eb6329a5ac3002",
+    "create-pr": "7b3cd430d6ad435a6a5a44353d013ed24a98f135730d4ef04e41a621dba48909",
     "doc-maintain": "7d9386fa94ef9727fff56a7b3761ebb917c1339d29562b0424c35b2657429c02",
-    "flow-drive": "d1c45e372080c8004e12a302136f361f39f4ada548e61eeb73247861f0bb65f3",
-    "flow-guide": "5bee3ae2797c0ee36bf5ff2c381cc3ad9fa82db24506ed762fccfcb7233c84b2",
-    "git-smart-commit": "f8ab012250fd2cc9b4689317d34892abc616b2bb7099065a8a6409c85e5915b2",
+    "flow-drive": "2a182bfb0b6fb3d0aec8e8439d5b8d7dc67d70cb174a6f7f38ef26ad97d9952c",
+    "flow-guide": "d33350d1d418dc212cc1b55b6407827366db961936dbad0c40ed9eddffc3226e",
+    "git-smart-commit": "e53029fc23a1f2d1d3f6c31c913f2ed1ed566493fc922a2ab5e60d806b201eea",
     "git-worktree": "fba52cd48ff6c4f2cbdef58b63238c55735779e27b75f02000e89028ddb691dd",
-    "precommit": "15bf5b7c226e2256780299b5b4759ef5e3004ad0bbf14ca75cbc53a82e1174a3",
+    "precommit": "54a73d019193eade49834a941c254504e60c7f0b4485d9d360b465033a34f669",
     "proposal-analyze": "338bf2b72e9747a0d921e9dcfaf3cad6532a3a0109aa61915b90ff6517a15cbe",
     "release-creator": "ecc03d28430d66eba2f257dd3a881064b11ee78ba60374e67f2469e43c1f1fac",
-    "repo-verify": "dd03404df1996c8177f42080c7bb95f76523fca8b679fed9b146852be8178fc1",
-    "tdd-workflow": "2a68bfd335f14bde311f6c8f14c9e2d404801cfe427a33bd32702d743eacea0e",
+    "repo-verify": "48ec570354ab0f06fb3ae3f0cd05488c735db14dfebd7313a2c25af86cf45c04",
+    "tdd-workflow": "d508448fd0ba507cd49096070af2f00ca4e992e26f3c5bfdef071fb6bfecb221",
     "ui-ux-verify": "658a109ff7b7614471a10ffa322eb854b74eb9dcef1487493fa91af7c2e33521"
   }
 }

@@ -68,6 +68,18 @@
           "destination": "docs/subagent-prompt-template.md"
         }
       ]
+    },
+    "git-smart-commit": {
+      "files": [
+        {
+          "source": "rules/execution-policy.md",
+          "destination": "rules/execution-policy.md"
+        },
+        {
+          "source": "rules/execution-policy-kernel.md",
+          "destination": "rules/execution-policy-kernel.md"
+        }
+      ]
     }
   },
   "lifecycles": [
@@ -453,15 +465,15 @@
       "id": "codex-supporting-contracts-artifact-contract-md",
       "source": "codex/supporting/contracts/artifact-contract.md",
       "canonical_source": "docs/contracts/artifact-contract.md",
-      "canonical_digest": "66a2d48d31c56db5612596db273a5365a33b8660a6765e471c10ca9f839ce2e0",
-      "projection_digest": "ad5a05ceaa56719084e99a37c7c57563727982cbf24bc7f0a907981071e1ac7e",
+      "canonical_digest": "5c1853e26da16fe5fa4c3890311df830ccf6198f7f448adeb85d66838e72d265",
+      "projection_digest": "bc7f6ad223ccf4dcaf8a742132a7cc41f3539ffc1788cfcb82b65060f38002c4",
       "destination": "dhpk/contracts/artifact-contract.md"
     },
     {
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34",
+      "canonical_digest": "1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c",
       "projection_digest": "1f874bdf0df9a31aaf1cdcb80d9deffaf9da315f04ce37806789fe2491231950",
       "destination": "dhpk/policies/execution-policy.md"
     },

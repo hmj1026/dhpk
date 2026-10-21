@@ -90,6 +90,22 @@ function rewriteCursorHarnessBody(body) {
     .trim();
 }
 
+const CURSOR_PORTABLE_SKILL_OWNER = 'dhpk-agent';
+
+// Native Cursor agents are loaded from the installed plugin, not from a
+// project-local `.cursor/dhpk` sync. Support files live in that package.
+// Worker adapters stay in the co-installed portable owner. The installation
+// guide places the two packages side by side as `dhpk-cursor` and `dhpk-agent`.
+function rewriteCursorNativeAgentBody(body) {
+  const adapterPrefix = `${CURSOR_PLUGIN_ROOT_TOKEN}/skills/flow-drive/scripts/adapters/`;
+  const portableAdapterPrefix = `${CURSOR_PLUGIN_ROOT_TOKEN}/../${CURSOR_PORTABLE_SKILL_OWNER}/skills/flow-drive/scripts/adapters/`;
+  return rewriteCursorHarnessBody(body)
+    .split('.cursor/dhpk/agent-traps/').join(`${CURSOR_PLUGIN_ROOT_TOKEN}/agent-traps/`)
+    .split('.cursor/dhpk/policies/execution-policy.md').join(`${CURSOR_PLUGIN_ROOT_TOKEN}/rules/execution-policy.mdc`)
+    .split('.cursor/rules/').join(`${CURSOR_PLUGIN_ROOT_TOKEN}/rules/`)
+    .split(adapterPrefix).join(portableAdapterPrefix);
+}
+
 function cursorDocumentDestinationName(kind, basename) {
   if (kind !== 'rules') return basename;
   return basename.replace(/\.(?:md|markdown)$/i, '.mdc');
@@ -112,6 +128,7 @@ module.exports = {
   CURSOR_DOC_AGENT_MODEL,
   parseToolList,
   rewriteCursorHarnessBody,
+  rewriteCursorNativeAgentBody,
   rewriteCursorSupportingAssetBody,
   cursorAgentModel,
   cursorDocumentDestinationName,

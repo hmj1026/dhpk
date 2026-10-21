@@ -84,7 +84,7 @@ const LEGACY_VENDOR_MAP = Object.freeze({
   'claude-code': 'anthropic',
   'codex-cli': 'openai',
   agy: 'google',
-  'cursor-native': 'xai',
+  'cursor-native': 'cursor',
 });
 
 function canonicalTargetAgent(value, label = 'target_agent') {

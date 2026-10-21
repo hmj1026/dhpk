@@ -226,18 +226,38 @@ test('checkCoverage passes for routine repo-hygiene files with no fragment (.git
   assert.strictEqual(result.ok, true, JSON.stringify(result.uncovered));
 });
 
-test('checkCoverage passes when a user-visible file changed and a fragment exists', () => {
+test('checkCoverage passes when the diff itself adds a fragment', () => {
   const dir = mkFragmentDir({ 'feat.widget.md': 'scope: widget\nnote: Add the widget.\n' });
   const { fragments } = readFragments(dir);
-  const result = checkCoverage({ changedFiles: ['scripts/ci/validate-plugin.js'], fragments, markers: [] });
+  const result = checkCoverage({
+    changedFiles: ['scripts/ci/validate-plugin.js', 'changelog.d/feat.widget.md'],
+    fragments,
+    markers: [],
+  });
   assert.strictEqual(result.ok, true);
 });
 
-test('checkCoverage passes when a user-visible file changed and a .none marker exists', () => {
+test('checkCoverage passes when the diff itself adds a .none marker', () => {
   const dir = mkFragmentDir({ 'internal-cleanup.none': 'no user-visible change\n' });
   const { markers } = readFragments(dir);
-  const result = checkCoverage({ changedFiles: ['scripts/ci/validate-plugin.js'], fragments: [], markers });
+  const result = checkCoverage({
+    changedFiles: ['scripts/ci/validate-plugin.js', 'changelog.d/internal-cleanup.none'],
+    fragments: [],
+    markers,
+  });
   assert.strictEqual(result.ok, true);
+});
+
+test('checkCoverage fails when the only fragment is outside the diff', () => {
+  const dir = mkFragmentDir({ 'docs.security-policy.md': 'scope: docs\nnote: Document the policy.\n' });
+  const { fragments } = readFragments(dir);
+  const result = checkCoverage({
+    changedFiles: ['scripts/ci/validate-plugin.js'],
+    fragments,
+    markers: [],
+  });
+  assert.strictEqual(result.ok, false);
+  assert.ok(result.uncovered.includes('scripts/ci/validate-plugin.js'));
 });
 
 // Release-PR shape: prepare-release already promoted every pending fragment
@@ -334,6 +354,49 @@ test('checkCoverage still fails without a promoted release section (releaseSecti
     fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
     spawnSync('git', ['add', '-A'], { cwd: repo });
     spawnSync('git', ['commit', '-q', '-m', 'add source file + fragment'], { cwd: repo });
+    const res = runCli(repo, ['--diff-base', 'develop']);
+    assert.strictEqual(res.status, 0, res.stderr);
+  });
+
+  function commitAll(repo, message) {
+    spawnSync('git', ['add', '-A'], { cwd: repo });
+    const committed = spawnSync('git', ['commit', '-q', '-m', message], { cwd: repo, encoding: 'utf8' });
+    assert.strictEqual(committed.status, 0, committed.stderr);
+  }
+
+  test('--diff-base fails when a pending fragment already exists on the base', () => {
+    const repo = mkRepo();
+    fs.writeFileSync(path.join(repo, 'changelog.d', 'docs.security-policy.md'), 'scope: docs\nnote: Document the policy.\n');
+    commitAll(repo, 'leave a pending fragment');
+    spawnSync('git', ['branch', '-f', 'develop'], { cwd: repo });
+    fs.writeFileSync(path.join(repo, 'scripts.js'), 'module.exports = {};\n');
+    commitAll(repo, 'user-visible change without a new fragment');
+    const res = runCli(repo, ['--diff-base', 'develop']);
+    assert.notStrictEqual(res.status, 0, res.stdout);
+    assert.match(res.stderr, /missing release fragment/);
+    assert.match(res.stderr, /scripts\.js/);
+  });
+
+  test('--diff-base passes when the PR adds its own fragment beside a base fragment', () => {
+    const repo = mkRepo();
+    fs.writeFileSync(path.join(repo, 'changelog.d', 'docs.security-policy.md'), 'scope: docs\nnote: Document the policy.\n');
+    commitAll(repo, 'leave a pending fragment');
+    spawnSync('git', ['branch', '-f', 'develop'], { cwd: repo });
+    fs.writeFileSync(path.join(repo, 'scripts.js'), 'module.exports = {};\n');
+    fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+    commitAll(repo, 'user-visible change with its own fragment');
+    const res = runCli(repo, ['--diff-base', 'develop']);
+    assert.strictEqual(res.status, 0, res.stderr);
+  });
+
+  test('--diff-base passes when the PR adds its own .none beside a base fragment', () => {
+    const repo = mkRepo();
+    fs.writeFileSync(path.join(repo, 'changelog.d', 'docs.security-policy.md'), 'scope: docs\nnote: Document the policy.\n');
+    commitAll(repo, 'leave a pending fragment');
+    spawnSync('git', ['branch', '-f', 'develop'], { cwd: repo });
+    fs.writeFileSync(path.join(repo, 'scripts.js'), 'module.exports = {};\n');
+    fs.writeFileSync(path.join(repo, 'changelog.d', 'internal-cleanup.none'), 'no user-visible change\n');
+    commitAll(repo, 'user-visible change with its own marker');
     const res = runCli(repo, ['--diff-base', 'develop']);
     assert.strictEqual(res.status, 0, res.stderr);
   });

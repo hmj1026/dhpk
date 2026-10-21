@@ -247,7 +247,7 @@
       "id": "nextjs",
       "name": "Next.js",
       "selection": "exclusive",
-      "description": "Next.js React framework — per-version modules. Pick 15.5 for the current stable line (15.x ends at v15.5.19; 15.6 never shipped stable). Pick 16 for the current major (Turbopack-by-default, next lint removed, async-only request APIs; supports React 18.2+ or 19). Single-version pick — a project runs one Next.js major at a time.",
+      "description": "Next.js React framework — per-version modules. Pick 15.5 for the stable 15.x line (15.6 never shipped stable; patch releases continue after v15.5.19, and this catalog names no final 15.x patch). Pick 16 for the current major (Turbopack-by-default, next lint removed, async-only request APIs; supports React 18.2+ or 19). Single-version pick — a project runs one Next.js major at a time.",
       "versions": [
         {
           "id": "15.5",

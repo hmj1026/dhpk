@@ -141,7 +141,9 @@ test('Adapter registry exposes the four supported execution families', () => {
     provider: 'cursor-native', model_id: 'cursor-default', effort: 'high', transport: 'native-runtime',
   }, request);
   assert.strictEqual(legacyCursor.status, 'SUCCEEDED');
-  assert.strictEqual(legacyCursor.receipt.resolved_target.provider, 'xai');
+  assert.strictEqual(legacyCursor.receipt.resolved_target.target_agent, 'cursor');
+  assert.strictEqual(legacyCursor.receipt.resolved_target.provider, 'cursor');
+  assert.strictEqual(legacyCursor.diagnostic, 'legacy provider/route target spelling translated at input boundary');
 });
 
 function registerProviderCliAdapterTests() {

@@ -8,7 +8,7 @@ readonly: false
 
 Remove dead code, merge dupes, split files >800 lines.
 
-> Lookup and rename: `.cursor/rules/tool-routing.mdc`.
+> Lookup and rename: `${CURSOR_PLUGIN_ROOT}/rules/tool-routing.mdc`.
 
 ## When NOT
 
@@ -18,7 +18,7 @@ Remove dead code, merge dupes, split files >800 lines.
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.
 
-1-2. Loader: `.cursor/dhpk/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `refactor-cleaner`).
+1-2. Loader: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `refactor-cleaner`).
 3. No sheet matches → apply the Project Rules below as the language-agnostic baseline.
 
 ## Project Rules

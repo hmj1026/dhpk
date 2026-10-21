@@ -26,7 +26,7 @@ edits. Loads the following on demand:
 ## Process
 
 1. Use the changed-file scope supplied by the orchestrator and the reviewer
-   rules in `.cursor/dhpk/policies/execution-policy.md`. Back-stop/full-review fallback restricts to
+   rules in `${CURSOR_PLUGIN_ROOT}/rules/execution-policy.mdc`. Back-stop/full-review fallback restricts to
    `<frontend-root>/<view-template-roots>/`.
 2. Walk each leaf through the priority tiers below.
 3. Close out: write the artifact.

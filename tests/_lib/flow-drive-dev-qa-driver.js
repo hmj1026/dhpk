@@ -63,7 +63,7 @@ async function devQaDriver(input, runFlowDrive) {
       const nodes = [node('A-diagnosis', 'reasoner', []), node('B-diagnosis', 'reasoner', []),
         node('A-write', 'worker', ['A-diagnosis'], ['src/Display.php'], { decision_state: 'REASONER_REQUIRED', reasoner_dependencies: ['A-diagnosis'] }),
         node('B-red', 'worker', ['B-diagnosis']),
-        node('B-repair', 'worker', ['B-red'], ['src/Receipt.php', 'tests/receipt-total.txt'], { decision_state: 'REASONER_REQUIRED', reasoner_dependencies: ['B-diagnosis'] }),
+        node('B-repair', 'worker', ['B-red', 'B-diagnosis'], ['src/Receipt.php', 'tests/receipt-total.txt'], { decision_state: 'REASONER_REQUIRED', reasoner_dependencies: ['B-diagnosis'] }),
         node('B-tests', 'worker', ['B-repair']),
         node('B-review', 'reviewer', ['B-tests'], [], { independent_of: ['B-repair'] }),
         node('manual-proposal', 'worker', [], ['scratch/manual-proposal.md'], { decision_state: 'CLEAR' }),
@@ -79,7 +79,9 @@ async function devQaDriver(input, runFlowDrive) {
       if (task.constraints.authority === 'workspace-write') { active++; peak = Math.max(peak, active); await new Promise((resolve) => setTimeout(resolve, 3)); }
       if (variant === 'timeout-writer' && id === 'B-repair') return { status: 'INTERRUPTED', failure_class: 'TIMEOUT_OR_INTERRUPTION', side_effects: 'unknown', executor_identity: identity };
       if (id === 'B-repair') {
-        write('src/Receipt.php', variant === 'bad-repair' ? '<?php\nfunction receiptTotal($subtotal, $adjustment) { return 1000; }\n'
+        const handed = (task.constraints.verified_dependencies || []).find((item) => item.source_node_id === 'B-diagnosis');
+        const accepted = handed && handed.status && handed.conclusion && handed.conclusion.repair === ready.repair;
+        write('src/Receipt.php', !accepted || variant === 'bad-repair' ? '<?php\nfunction receiptTotal($subtotal, $adjustment) { return 1000; }\n'
           : '<?php\nfunction receiptTotal($subtotal, $adjustment) { return $subtotal - $adjustment; }\n');
         write('tests/receipt-total.txt', '900\n');
       }

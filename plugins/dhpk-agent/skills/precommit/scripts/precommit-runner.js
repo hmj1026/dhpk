@@ -62,29 +62,62 @@ function formatStepLine(name, code, ms, logFile) {
   }, ${sec}s)  \n  log: \`${logFile}\``;
 }
 
+function usageText() {
+  return [
+    'Usage: precommit-runner.js [--mode full|fast] [--tail N] [--tail-success N] [--tail-failure N]',
+    '       precommit-runner.js --help',
+    '',
+    'full (default) runs lint:fix, build, and unit tests. fast skips build.',
+    '',
+  ].join('\n');
+}
+
 function parseArgs(argv) {
+  if (argv.includes('--help') || argv.includes('-h')) return { help: true };
   const args = {
     mode: 'full', // full | fast
     tail: 120, // default tail lines ceiling
     tailSuccess: 25,
     tailFailure: 120,
   };
+  const numeric = {
+    '--tail': 'tail',
+    '--tail-success': 'tailSuccess',
+    '--tail-failure': 'tailFailure',
+  };
 
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
-    const v = argv[i + 1];
-    if (k === '--mode' && v) args.mode = v;
-    if (k === '--tail' && v) args.tail = parseInt(v, 10) || args.tail;
-    if (k === '--tail-success' && v)
-      args.tailSuccess = parseInt(v, 10) || args.tailSuccess;
-    if (k === '--tail-failure' && v)
-      args.tailFailure = parseInt(v, 10) || args.tailFailure;
+    if (k === '--mode' || Object.prototype.hasOwnProperty.call(numeric, k)) {
+      const v = argv[i + 1];
+      if (v === undefined || v.startsWith('-')) return { error: `${k} requires a value` };
+      i += 1;
+      if (k === '--mode') {
+        if (v !== 'full' && v !== 'fast') return { error: `invalid mode '${v}'` };
+        args.mode = v;
+      } else if (!/^[0-9]+$/.test(v)) {
+        return { error: `${k} requires a non-negative integer` };
+      } else {
+        args[numeric[k]] = Number(v);
+      }
+      continue;
+    }
+    return { error: `unknown argument '${k}'` };
   }
   return args;
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.help) {
+    process.stdout.write(usageText());
+    return;
+  }
+  if (args.error) {
+    process.stderr.write(`${args.error}\n${usageText()}`);
+    process.exitCode = 2;
+    return;
+  }
   const repoRoot = await gitRepoRoot();
 
   if (!repoRoot) {

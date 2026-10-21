@@ -48,6 +48,6 @@ or unexecuted checks as BLOCKED or NOT_RUN.
 - Layout: `skills/harness-setup/references/harness-directory-contract.md`
 - Distribution owner: `scripts/lib/distribution-inventory.js`
 - Reviewer policy: project `.claude/rules/execution-policy.md` if present, else
-  `.cursor/dhpk/policies/execution-policy.md`
+  `${CURSOR_PLUGIN_ROOT}/rules/execution-policy.mdc`
 - Artifact output: `docs/contracts/artifact-contract.md`, category `audits/`.
   This role is not part of the default post-edit reviewer batch.

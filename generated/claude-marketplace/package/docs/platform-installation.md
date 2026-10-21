@@ -252,7 +252,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.5 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.6 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -865,7 +865,12 @@ cp -R plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
 
 Alternatively use a reviewed `.cursor-plugin/marketplace.json` source. Reload
 Cursor, configure variables without committing credentials, then verify the
-selected `rules/`, `agents/`, `commands/`, and `hooks/hooks.json`. Portable
+selected `rules/`, `agents/`, `commands/`, and `hooks/hooks.json`. Native
+agents locate prompt-defense, trap sheets, and execution policy inside this
+package with `${CURSOR_PLUGIN_ROOT}`. They do not read a project-local
+`.cursor/dhpk/` tree. External worker adapters resolve through the
+co-installed sibling `dhpk-agent` skill store
+(`${CURSOR_PLUGIN_ROOT}/../dhpk-agent/skills/...`). Portable
 skills are deliberately not copied into this native package: install
 `plugins/dhpk-agent/` as the single physical skill store and compare its
 `provenance.json` stable IDs with the Cursor receipt. Do not hand-create a
@@ -979,7 +984,10 @@ delete the whole `.cursor/` directory. `dhpk-install cursor` writes remain
 ## AGY / Antigravity CLI plugin (Experimental)
 
 The AGY projection is a separate owner-scoped package. It adapts canonical
-agent frontmatter and never rewrites `agents/`. The tracked
+agent frontmatter into the package and does not edit the canonical `agents/`
+tree. Generated agents locate prompt-defense and trap sheets at
+plugin-relative `agent-traps/` paths inside this package. Those paths do not
+use `${CLAUDE_PLUGIN_ROOT}`. The tracked
 `plugins/dhpk-agy/` directory is already a prepared distribution package for
 consumers installing from a clone. Install that package directly; do not
 regenerate it into the tracked path as part of a consumer install, because
@@ -1029,7 +1037,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.5 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.6 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

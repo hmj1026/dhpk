@@ -35,18 +35,20 @@ keep required, skipped, unavailable, and failed evidence distinct.
 
 ## `help`
 
-Run `node skills/flow-guide/scripts/action-runner.js help` (or `usage-card.js`) for the generated Codex catalog, or add one public skill name for a single usage card.
+Run `node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js help` or `node ${CLAUDE_SKILL_DIR}/scripts/usage-card.js` for the generated Codex catalog, or add one public skill name for a single usage card.
+`${CLAUDE_SKILL_DIR}` is the directory containing this `SKILL.md`. Claude substitutes it in these commands and in `allowed-tools`. Hosts that do not substitute it, and references that write `$SKILL_DIR`, resolve that same directory. Keep the working directory on the consumer repository; do not `cd` into the package to inspect that repository.
 Help is metadata only: it never invokes the named skill, loads procedural references, or grants workspace/Git/external-write authority.
 Unknown and known non-Codex skill names receive different diagnostics.
 
 ## `route`
 
-1. Parse the action query with `scripts/action-runner.js`; its route branch
+1. Parse the action query with `node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js`; its route branch
    delegates to `scripts/route-result.js`.
-2. Match `references/route-table.json` through `scripts/pre-route.sh`; the
-   first precise match wins. A miss remains a deliberate-classification case.
-3. Apply the selected policy's local `references/execution-bundle/rules/execution-policy.md`
-   projection and the target's invocation class.
+2. Match `references/route-table.json` with `bash ${CLAUDE_SKILL_DIR}/scripts/pre-route.sh`; the
+   first precise match wins. A miss remains a deliberate-classification case. `pre-route.sh` may run Python internally; that child process is not a separate host pre-approval.
+3. Apply the selected policy kernel first
+   (`references/execution-bundle/rules/execution-policy-kernel.md`), then only
+   the conditional section the route needs, and the target's invocation class.
 4. Without `--go`, return advice only. With `--go`, produce at most one
    bounded handoff for an available implicit-eligible target. An explicit-only
    target is reported as `explicit-required`; it is never dispatched here.
@@ -61,7 +63,13 @@ The result has exactly `schema`, `action`, `host`, `cleanedQuery`, `options`,
 
 ## `rules`
 
-Read the local `references/execution-bundle/rules/execution-policy.md` first.
+Read the selected policy kernel first
+(`references/execution-bundle/rules/execution-policy-kernel.md`). Load a
+conditional section of
+`references/execution-bundle/rules/execution-policy.md` only after the kernel
+and only when the question needs that section. Listing a reference does not
+load it. Resolve these paths through the installed Skill's existing per-Host
+bundle (`references/execution-bundle/`).
 Use `references/execution-bundle/skills/flow-guide/references/invocation-precedence.md`
 when more than one owner appears to match, and load the phase-specific delivery
 reference only after the phase is known.
@@ -69,7 +77,7 @@ Return the source pointer, applicable gate, and one next handoff.
 
 ## `next`
 
-Run `node skills/flow-guide/scripts/action-runner.js next` (which delegates to
+Run `node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js next` (which delegates to
 the package-local analyzer) and parse its JSON. Report the
 current branch/worktree evidence, each required or unavailable gate, and one
 next route. A recorded `passed` value applies to the current change only when
@@ -111,7 +119,7 @@ execution and completion evidence.
 
 `references/execution-bundle/` holds maintainer-synchronized policy copies; never edit them here.
 The selected policy file defines its bundle base, and every required policy
-resource resolves beneath it. Runtime lookup is fail-closed and Skill-local:
+resource resolves beneath it. Listing a reference does not load it. Runtime lookup is fail-closed and Skill-local:
 missing resources report `BLOCKED_RESOURCE_MISSING`; no checkout, sibling Skill,
 repository inventory, environment variable, or upward search is consulted.
 
@@ -148,7 +156,8 @@ repository inventory, environment variable, or upward search is consulted.
 - Legacy deterministic helpers `scripts/openspec_gate_check.py`,
   `scripts/prepare_dev_scope.py`, `scripts/prepare_workflow_profile.py`, and
   `scripts/workflow_gate_check.py` are run only when a selected rule or next
-  branch explicitly requires their existing input/output contract.
+  branch explicitly requires their existing input/output contract. They are not
+  pre-approved; an unlisted command uses the host's normal permission flow.
 
 ## Verification
 

@@ -117,8 +117,8 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 
 1. **諮詢與路由**：不確定指令或流程時，直接提問：
    ```text
-   /dhpk:flow-guide route 實作密碼重設郵件通知        # 取得建議工作流程與規則
-   /dhpk:flow-guide route --go 實作密碼重設郵件通知   # 單一有界 handoff 直接交接
+   /dhpk:flow-guide route 釐清登入流程          # 命中 code-trace；只給建議
+   /dhpk:flow-guide route --go 釐清登入流程    # 單一有界 handoff；code-trace 是 implicit-eligible
    /dhpk:code-trace --mode diagnose 登入 redirect loop # 追查 Bug 根因證據
    ```
 2. **規格確認後實作**：需求與邊界確認後，呼叫實作入口（或由 `tdd-workflow` 引導測試先寫）：
@@ -145,7 +145,9 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 
 `flow-guide` 是唯讀的 help、route、rules、next、close owner。`route` 不帶 `--go` 只
 提供建議；`route --go` 最多 handoff 一個可用的 implicit-eligible target，絕不執行
-explicit-only target。`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan[=auto|bounded|discovery]`
+explicit-only target。`實作密碼重設郵件通知` 不在高精確率 route table 裡（`NO_MATCH`）。
+沒有命中的查詢維持 deliberate classification。`--go` 不會為 miss 建立 handoff。
+`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan[=auto|bounded|discovery]`
 只選擇 optional planner consult scope。它只接受已確認的 specification 或 change ID。
 提案 authoring 由外部 `$openspec-propose` skill 負責。另見
 [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md) 與
@@ -255,7 +257,7 @@ OnePassword 驗證是 operator action，不是可 discovery 的 skill：需要 c
 - **`js`** — JS / TS 工具鏈。ESLint flat-config 分層策略（Tier 1 嚴格 / 1.5 core-exempt / 1.7 deferred-migration / globals）、per-leaf `// @ts-check` 漸進啟用、按需 ESLint 反饋，以及 pre-commit `npm run <lint> + <typecheck>` gate。框架無關。
 - **`vue-2`** — Vue 2（Options API 時代，`^2.5`）：`data()` / `computed` / `methods` / `watch` + 生命週期結構、props-down + `$emit` events-up、Vue 2 reactivity 陷阱（`Vue.set` / 陣列索引與長度）、`@vue/test-utils` 1.x + `vue-jest` 3 SFC 測試。早於 Composition API。
 - **`laravel-mix`** — Laravel Mix 5（`^5.0.9`，webpack 4）：`webpack.mix.js` 入口/輸出對映、`mix()` versioning + manifest、`dev` / `watch` / `hot` / `prod` 腳本階梯、新版 Node 上 prod build 的 legacy-OpenSSL flag。
-- **`nextjs-15.5`** — Next.js 15.5（現行穩定的 15.x 線，止於 v15.5.19；15.6 未曾發布穩定版）。App Router、`next typegen`、穩定 typed routes（`typedRoutes`）、beta Turbopack 生產建置（`next build --turbopack`）、React 18/19 雙支援，以及 `next lint` 棄用（16 移除）。
+- **`nextjs-15.5`** — Next.js 15.5（穩定的 15.x 線；15.6 未曾發布穩定版，v15.5.19 之後仍有 patch）。App Router、`next typegen`、穩定 typed routes（`typedRoutes`）、beta Turbopack 生產建置（`next build --turbopack`）、React 18/19 雙支援，以及 `next lint` 棄用（16 移除）。
 - **`nextjs-16`** — Next.js 16（現行穩定主版本，16.2.x）。Turbopack 於 dev + build 預設啟用、Request API 改為 async-only（`params`/`searchParams`/`cookies`/`headers`）、Node.js 20.9+ / TypeScript 5.1+ 下限、`next lint` 與 AMP 移除、`next/image` `priority`→`preload`、`next upgrade` CLI（16.1）。支援 React 18.2+/19（建議 React 19，但非必需）。
 - **`react-18`** — React 18（2022 年 3 月）。`createRoot`/`hydrateRoot`（`react-dom/client`）、automatic batching、可選用的 concurrent features（`startTransition`/`useTransition`/`useDeferredValue`）、streaming SSR（`renderToPipeableStream`）、新 hooks（`useId`/`useSyncExternalStore`/`useInsertionEffect`），以及 StrictMode 於 dev 重複執行 effect。React 18.2+ 是 Next.js 16 支援的下限。
 - **`react-19`** — React 19（2024 年 12 月）。Actions 與 async transitions、新 hooks（`useActionState`/`useOptimistic`/`useFormStatus`、`use()`）、`ref` 作為一般 prop（免 `forwardRef`）、`<Context>` 直接當 provider、document metadata 自動 hoist、資源預載（`preload`/`preinit`）、穩定的 Server Components。移除 `ReactDOM.render`/`hydrate`、function component 的 `propTypes`/`defaultProps`、legacy Context 與 string refs。Next.js 16 建議但非必需。

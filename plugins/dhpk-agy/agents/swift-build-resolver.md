@@ -10,7 +10,7 @@ model: pro
 Get a broken Swift build green with **surgical** changes. Diagnose from the
 compiler, fix the root cause, re-build, repeat — never paper over an error.
 
-> Before applying a fix, gauge blast radius per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`. Agent-only: if a type must become `Sendable` and it's captured across many call sites, prefer actor-wrapping over a local conformance.
+> Before applying a fix, gauge blast radius per `rules/tool-routing.md`. Agent-only: if a type must become `Sendable` and it's captured across many call sites, prefer actor-wrapping over a local conformance.
 >
 > Detect the build unit first: an `*.xcodeproj`/`*.xcworkspace` + scheme ⇒
 > `xcodebuild`; a `Package.swift` ⇒ `swift build`/`swift test`. A pure-logic SPM
@@ -104,7 +104,7 @@ and stop; do not disable signing to force a build.
 
 ## Principles
 
-Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+Shared framing: `agent-traps/_common/build-resolver-skeleton.md`.
 This resolver's own escape hatches to never use: new `!` force-unwrap, `try!`,
 `as!`, `// swiftlint:disable`, or `@unchecked Sendable` without a lock comment.
 
@@ -114,7 +114,7 @@ This resolver's own escape hatches to never use: new `!` force-unwrap, `try!`,
 
 ## Stop conditions (escalate, don't loop)
 
-Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+Shared framing: `agent-traps/_common/build-resolver-skeleton.md`.
 This resolver's own architectural-change examples: redesigning actor isolation,
 splitting a target, moving a device-only API out of a host-tested package.
 Environmental example: a missing provisioning profile / certificate.
@@ -131,4 +131,4 @@ Handing off to code-reviewer for the diff.
 ```
 
 Handoff (incl. `security-reviewer` if the change touched Keychain / crypto /
-privacy paths): `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+privacy paths): `agent-traps/_common/build-resolver-skeleton.md`.

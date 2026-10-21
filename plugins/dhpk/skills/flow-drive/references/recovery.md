@@ -74,6 +74,8 @@ confirmed attributable changes are carried as context, never as acceptance.
 Other successful graph nodes remain available, dependent nodes wait for their
 actual prerequisite results. Dependent reuse requires independently validated
 reused prerequisites; fresh prerequisite evidence invalidates downstream reuse
-even when file effects are unknown. Final parent verification remains mandatory.
+even when file effects are unknown. A reused prerequisite whose verified
+conclusion changed also changes the downstream task digest, so the old
+downstream receipt no longer matches. Final parent verification remains mandatory.
 Provider exit, a successful retry, and a completion ledger each remain distinct
 from acceptance `PASSED` with nonempty verification evidence.

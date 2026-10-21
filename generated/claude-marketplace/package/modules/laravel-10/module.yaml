@@ -1,7 +1,7 @@
 name: laravel-10
 display_name: "Laravel 10.x"
 version: 0.1.0
-description: "Laravel 10.x (February 2023). PHP 8.1+ floor. Signature features: native return types in app skeleton, invokable validation rules, Process facade, Pest as default option, profile command. Pair with php-8.x module for language additions."
+description: "Laravel 10.x (February 2023). PHP 8.1+ floor. Signature features: native return types in app skeleton, ValidationRule::validate (distinct from 9.18 InvokableRule), Process facade, Pest as default option, profile command. Pair with php-8.x module for language additions."
 requires: []
 triggers:
   code:

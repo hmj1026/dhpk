@@ -1,10 +1,10 @@
 # Standardize the reviewer contract
 
-Status: accepted
+Status: superseded by [0026](0026-remove-review-gate.md)
 
-Implementation status: target design accepted; the current execution policy
-and reviewer prompts remain operative until a planned migration applies this
-decision.
+Implementation status: superseded by the accepted direct-retirement decision.
+The reviewer contract framework, receipts, and gate verification in this ADR
+no longer apply. The advisory reviewer prompt reference remains.
 
 ## Context
 
@@ -90,3 +90,4 @@ setting fixed prose or token limits.
 - [ADR-0013 — Migrate Sentinel to evidence receipts](0013-migrate-sentinel-to-evidence-receipts.md)
 - [ADR-0015 — Derive workflow state from typed receipts](0015-derive-workflow-state-from-typed-receipts.md)
 - [ADR-0017 — Implement Review Gate as a local event module](0017-implement-review-gate-as-a-local-event-module.md)
+- [ADR-0026 — Remove the Review Gate](0026-remove-review-gate.md)

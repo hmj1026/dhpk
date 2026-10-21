@@ -809,6 +809,74 @@ test('uninstallNativeSharedSkills fails closed when remaining shared content was
   }
 });
 
+test('uninstallNativeSharedSkills blocks a corrupt receipt and leaves the install in place', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-corrupt-');
+  try {
+    installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+    const skill = path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md');
+    const receipt = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    assert.ok(fs.existsSync(skill));
+    fs.writeFileSync(receipt, '{ corrupted receipt');
+    const result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex' });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.state, 'BLOCKED');
+    assert.strictEqual(result.code, 'INVALID_RECEIPT');
+    assert.ok(fs.existsSync(skill));
+    assert.strictEqual(fs.readFileSync(receipt, 'utf8'), '{ corrupted receipt');
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('uninstallNativeSharedSkills reports ABSENT only when the receipt is missing', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-absent-');
+  try {
+    const result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex' });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.state, 'ABSENT');
+    assert.deepStrictEqual(result.removedPaths, []);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('uninstallNativeSharedSkills blocks a non-file receipt without removing skills', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-receipt-type-');
+  try {
+    installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+    const skill = path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md');
+    const receipt = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    fs.rmSync(receipt);
+    fs.mkdirSync(receipt);
+    const result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex' });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.state, 'BLOCKED');
+    assert.strictEqual(result.code, 'INVALID_RECEIPT');
+    assert.ok(fs.existsSync(skill));
+    assert.ok(fs.statSync(receipt).isDirectory());
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('uninstallNativeSharedSkills removes shared content when the last Host unbinds', () => {
   const sourceRoot = fixture();
   const projectRoot = tmpDir('dhpk-native-shared-uninstall-last-');
@@ -923,6 +991,44 @@ const crypto = require('node:crypto');
       timeout: 20000,
     });
   }
+
+  test('CLI uninstall of a corrupt receipt exits non-zero and does not report ABSENT', () => {
+    const sourceRoot = fixture();
+    const projectRoot = tmpDir('dhpk-install-native-corrupt-');
+    try {
+      const installed = invoke([
+        'install',
+        '--source', sourceRoot,
+        '--project-root', projectRoot,
+        '--host', 'cursor',
+        '--selected-id', 'sample',
+        '--declared-selection',
+        '--json',
+      ]);
+      assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+      const skill = path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md');
+      const receipt = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+      fs.writeFileSync(receipt, '{ corrupted receipt');
+      const removed = invoke([
+        'uninstall',
+        '--source', sourceRoot,
+        '--project-root', projectRoot,
+        '--host', 'cursor',
+        '--json',
+      ]);
+      assert.notStrictEqual(removed.status, 0, removed.stdout);
+      const report = JSON.parse(removed.stdout);
+      assert.strictEqual(report.ok, false);
+      assert.strictEqual(report.state, 'BLOCKED');
+      assert.ok(fs.existsSync(skill));
+      assert.strictEqual(fs.readFileSync(receipt, 'utf8'), '{ corrupted receipt');
+      assert.ok(!/ABSENT/.test(removed.stdout), removed.stdout);
+      assert.ok(!/uninstalled/.test(`${removed.stdout}\n${removed.stderr}`), `${removed.stdout}\n${removed.stderr}`);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
 
   test('CLI installs Cursor native-link bindings from a declared selection', () => {
     const sourceRoot = fixture();

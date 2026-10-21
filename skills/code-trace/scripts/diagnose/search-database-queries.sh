@@ -27,7 +27,7 @@ echo ""
 
 echo "📍 1. SELECT 查詢"
 echo "========================================="
-rg "SELECT.*FROM\s+['\`]?$TABLE_NAME['\`]?" "$SEARCH_PATH" \
+rg "SELECT.*FROM\s+['\`]?${TABLE_NAME}['\`]?" "$SEARCH_PATH" \
     --type php --type js \
     --heading --line-number --context 1 \
     --max-count 10
@@ -35,7 +35,7 @@ rg "SELECT.*FROM\s+['\`]?$TABLE_NAME['\`]?" "$SEARCH_PATH" \
 echo ""
 echo "📍 2. INSERT 操作"
 echo "========================================="
-rg "INSERT\s+INTO\s+['\`]?$TABLE_NAME['\`]?" "$SEARCH_PATH" \
+rg "INSERT\s+INTO\s+['\`]?${TABLE_NAME}['\`]?" "$SEARCH_PATH" \
     --type php --type js \
     --heading --line-number --context 1 \
     --max-count 10
@@ -43,7 +43,7 @@ rg "INSERT\s+INTO\s+['\`]?$TABLE_NAME['\`]?" "$SEARCH_PATH" \
 echo ""
 echo "📍 3. UPDATE 操作"
 echo "========================================="
-rg "UPDATE\s+['\`]?$TABLE_NAME['\`]?\s+SET" "$SEARCH_PATH" \
+rg "UPDATE\s+['\`]?${TABLE_NAME}['\`]?\s+SET" "$SEARCH_PATH" \
     --type php --type js \
     --heading --line-number --context 1 \
     --max-count 10
@@ -51,7 +51,7 @@ rg "UPDATE\s+['\`]?$TABLE_NAME['\`]?\s+SET" "$SEARCH_PATH" \
 echo ""
 echo "📍 4. DELETE 操作"
 echo "========================================="
-rg "DELETE\s+FROM\s+['\`]?$TABLE_NAME['\`]?" "$SEARCH_PATH" \
+rg "DELETE\s+FROM\s+['\`]?${TABLE_NAME}['\`]?" "$SEARCH_PATH" \
     --type php --type js \
     --heading --line-number --context 1 \
     --max-count 10

@@ -22,6 +22,7 @@ function runInScratch(modules) {
       CLAUDE_PLUGIN_ROOT: ROOT,
       CLAUDE_PROJECT_DIR: scratch,
       CLAUDE_PLUGIN_OPTION_MODULES: modules || '',
+      DHPK_DISPATCH_GLOBAL_SETTINGS: path.join(scratch, 'missing-global-settings.json'),
     };
     const res = spawnSync('bash', ['-c', 'printf %s "$P" | bash "$1"', '_', HOOK], {
       cwd: scratch,
@@ -61,6 +62,7 @@ test('explicit canonical dispatch targets are reported without runtime probing',
       CLAUDE_PLUGIN_ROOT: ROOT,
       CLAUDE_PROJECT_DIR: scratch,
       CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high',
+      DHPK_DISPATCH_GLOBAL_SETTINGS: path.join(scratch, 'missing-global-settings.json'),
     };
     const report = spawnSync('bash', ['-c', 'bash "$1"', '_', HOOK], {
       cwd: scratch,
@@ -84,9 +86,60 @@ test('explicit canonical dispatch targets are reported without runtime probing',
       catalog_support: 'NOT_RUN',
       host_access: 'NOT_RUN',
       runtime: 'NOT_RUN',
-      fallback: 'allowed',
+      fallback: 'only UNAVAILABLE candidates advance; NOT_RUN and BLOCKED do not fall back',
     });
     assert.strictEqual(res.status, 0);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('legacy model settings use the same report trigger as the config CLI', () => {
+  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ss-legacy-')));
+  spawnSync('git', ['init', '-q'], { cwd: scratch });
+  const globalSettings = path.join(scratch, 'missing-global-settings.json');
+  try {
+    const envOnly = spawnSync('bash', ['-c', 'bash "$1"', '_', HOOK], {
+      cwd: scratch,
+      env: {
+        ...process.env,
+        CLAUDE_PLUGIN_ROOT: ROOT,
+        CLAUDE_PROJECT_DIR: scratch,
+        CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet',
+        DHPK_DISPATCH_GLOBAL_SETTINGS: globalSettings,
+      },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assert.strictEqual(envOnly.status, 0, envOnly.stderr);
+    const prefix = '[session-start] dispatch config: ';
+    const envLines = envOnly.stdout.split(/\r?\n/).filter((line) => line.startsWith(prefix));
+    assert.strictEqual(envLines.length, 1, envOnly.stdout);
+    const envReport = JSON.parse(envLines[0].slice(prefix.length));
+    assert.strictEqual(envReport.sources.worker_target, 'environment.fast_worker_model');
+    assert.strictEqual(envReport.status.runtime, 'NOT_RUN');
+
+    fs.mkdirSync(path.join(scratch, '.claude'), { recursive: true });
+    fs.writeFileSync(path.join(scratch, '.claude', 'settings.local.json'), `${JSON.stringify({
+      pluginConfigs: { 'dhpk@dhpk': { options: { fast_worker_model: 'sonnet' } } },
+    })}\n`);
+    const projectOnly = spawnSync('bash', ['-c', 'bash "$1"', '_', HOOK], {
+      cwd: scratch,
+      env: {
+        ...process.env,
+        CLAUDE_PLUGIN_ROOT: ROOT,
+        CLAUDE_PROJECT_DIR: scratch,
+        DHPK_DISPATCH_GLOBAL_SETTINGS: globalSettings,
+      },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assert.strictEqual(projectOnly.status, 0, projectOnly.stderr);
+    const projectLines = projectOnly.stdout.split(/\r?\n/).filter((line) => line.startsWith(prefix));
+    assert.strictEqual(projectLines.length, 1, projectOnly.stdout);
+    const projectReport = JSON.parse(projectLines[0].slice(prefix.length));
+    assert.strictEqual(projectReport.sources.worker_target, 'project.fast_worker_model');
+    assert.ok(projectReport.legacy_sources.some((entry) => entry.source === 'project.fast_worker_model'));
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -196,6 +249,7 @@ function sessionStart(repo, session) {
       CLAUDE_PROJECT_DIR: repo,
       CLAUDE_PLUGIN_OPTION_MODULES: 'php-5.6,laravel-5.4',
       CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'standard',
+      DHPK_DISPATCH_GLOBAL_SETTINGS: path.join(repo, 'missing-global-settings.json'),
       P: JSON.stringify({ source: 'startup', session_id: session }),
     },
     timeout: 10000,

@@ -663,7 +663,9 @@
         {
           "path": "scripts/collect-changes.js",
           "fixture_ids": [
-            "remaining-git-smart-commit-collect-changes-scope-readonly"
+            "remaining-git-smart-commit-collect-changes-scope-readonly",
+            "remaining-git-smart-commit-require-policy-missing",
+            "remaining-git-smart-commit-require-policy-present"
           ]
         }
       ],

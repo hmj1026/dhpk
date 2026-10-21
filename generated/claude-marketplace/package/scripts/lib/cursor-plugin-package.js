@@ -29,7 +29,8 @@ const {
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
-const { collectStandalonePackageAssets } = require('./standalone-package-assets');
+const { collectStandalonePackageAssets, collectNativeAgentTrapAssets } = require('./standalone-package-assets');
+const { cursorNativeAgentClosureErrors } = require('./native-agent-support');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
@@ -37,6 +38,7 @@ const { redactSensitiveText } = require('./redaction');
 const {
   parseToolList,
   rewriteCursorHarnessBody,
+  rewriteCursorNativeAgentBody,
   cursorAgentModel,
   cursorDocumentDestinationName,
   retainsClaudePluginRoot,
@@ -410,7 +412,7 @@ function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
   });
 }
 
-function adaptNativeDocument(content, kind, basename, sourceFile = null, canonicalRoot = null) {
+function adaptNativeDocument(content, kind, basename, sourceFile = null, canonicalRoot = null, locator = 'project-sync') {
   const parsed = parseFrontmatter(content);
   const fallbackName = basename.replace(/\.(?:md|mdc|markdown|txt)$/i, '').toLowerCase().replace(/[^a-z0-9.-]+/g, '-');
   const name = parsed.fields.name || fallbackName;
@@ -426,7 +428,8 @@ function adaptNativeDocument(content, kind, basename, sourceFile = null, canonic
     const tools = parseToolList(parsed.fields.tools);
     fields.readonly = !(tools.includes('Write') || tools.includes('Edit'));
   }
-  let body = rewriteCursorHarnessBody(parsed.body);
+  const rewriteBody = kind === 'agents' && locator === 'native' ? rewriteCursorNativeAgentBody : rewriteCursorHarnessBody;
+  let body = rewriteBody(parsed.body);
   if (sourceFile && canonicalRoot) body = sanitizeMarkdownLinks(body, sourceFile, canonicalRoot);
   if (retainsClaudePluginRoot(body)) {
     return { ok: false, reason: 'retains unsupported Claude plugin-root interpolation' };
@@ -712,7 +715,14 @@ function collectAdaptedCursorDocuments(sourceDir, destinationDir, kind, transfor
   for (const source of listComponentFiles(sourceDir, COMPONENT_EXTENSIONS[kind])) {
     const name = path.basename(source);
     const sourceStat = fs.statSync(source);
-    const adapted = adaptNativeDocument(traversalBudget.readFile(source, sourceStat).toString('utf8'), kind, name, source, canonicalRoot);
+    const adapted = adaptNativeDocument(
+      traversalBudget.readFile(source, sourceStat).toString('utf8'),
+      kind,
+      name,
+      source,
+      canonicalRoot,
+      kind === 'agents' ? 'native' : 'project-sync',
+    );
     if (!adapted.ok) {
       transformations.push({ source: path.relative(sourceDir, source).split(path.sep).join('/'), destination: null, transform: `SKIP_INCOMPATIBLE: ${adapted.reason}` });
       continue;
@@ -808,6 +818,7 @@ function cursorReadmeContents() {
       '# dhpk Cursor Plugin package',
       '',
       'This physical Cursor-native projection is generated from the canonical inventory.',
+      'Agent support files live in this package under `agent-traps/`.',
       'Portable skills are owned by the standard Agent Plugin package at',
       '`plugins/dhpk-agent/skills/` and are not duplicated here unless an explicit',
       'inventory overlay is selected.',
@@ -821,7 +832,7 @@ function cursorReadmeContents() {
     'README.zh-TW.md': [
       '# dhpk Cursor Plugin 套件',
       '',
-      '此 physical Cursor-native projection 由 canonical inventory 產生。portable skills 由 standard Agent Plugin 的 `plugins/dhpk-agent/skills/` 單獨擁有，除非明確選擇 environment overlay，不在此重複複製。協同安裝、驗證與 Cursor-only rollback 請依照[平台安裝指南](../../docs/platform-installation.zh-TW.md)。marketplace／local plugin 路徑是此套件；支援的 project-local 路徑是 `bash scripts/hooks/install-cursor-harness.sh`（v1 不映射 native hooks）。',
+      '此 physical Cursor-native projection 由 canonical inventory 產生。agent support 檔在此 package 的 `agent-traps/`。portable skills 由 standard Agent Plugin 的 `plugins/dhpk-agent/skills/` 單獨擁有，除非明確選擇 environment overlay，不在此重複複製。協同安裝、驗證與 Cursor-only rollback 請依照[平台安裝指南](../../docs/platform-installation.zh-TW.md)。marketplace／local plugin 路徑是此套件；支援的 project-local 路徑是 `bash scripts/hooks/install-cursor-harness.sh`（v1 不映射 native hooks）。',
       '',
     ].join('\n'),
   };
@@ -946,7 +957,10 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   }
   const hooks = collectAdaptedCursorHooks(resolvedRoot, transformations, traversalBudget);
   files.push(...hooks.files);
-  const standaloneAssets = collectStandalonePackageAssets({ root: resolvedRoot, inventory, profileSelection });
+  const standaloneAssets = [
+    ...collectStandalonePackageAssets({ root: resolvedRoot, inventory, profileSelection }),
+    ...collectNativeAgentTrapAssets({ root: resolvedRoot }),
+  ];
   const existingDestinations = new Set(files.map((file) => file.destination));
   for (const asset of standaloneAssets) {
     if (existingDestinations.has(asset.destination)) continue;
@@ -957,7 +971,12 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
       destination: asset.destination,
       content: asset.content,
       mode: asset.mode,
-      transform: { id: 'cursor-standalone-dependency', version: generatorVersion },
+      transform: {
+        id: String(asset.stableId || '').startsWith('native-agent-trap:')
+          ? 'cursor-native-agent-support'
+          : 'cursor-standalone-dependency',
+        version: generatorVersion,
+      },
     });
   }
   const cursorVariables = safeVariables(variables || inventory.cursor_variables || inventory.cursorVariables || inventory.variables);
@@ -975,7 +994,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   files.push(manifestOutput);
   files.push(marketplaceOutput);
   const fingerprints = {};
-  for (const relative of ['skills', 'rules', 'agents', 'commands', 'hooks/hooks.json']) {
+  for (const relative of ['skills', 'rules', 'agents', 'commands', 'hooks/hooks.json', 'agent-traps']) {
     const value = cursorVirtualFingerprint(files, relative);
     if (value) fingerprints[relative] = value;
   }
@@ -1627,6 +1646,7 @@ function validateCursorPackage(input = {}) {
     } catch (error) { errors.push(`provenance.json is invalid JSON: ${error.message}`); }
   }
   for (const finding of scanSecrets(root)) errors.push(`secret-safety: ${finding}`);
+  errors.push(...cursorNativeAgentClosureErrors(root));
   return { ok: errors.length === 0, errors, warnings: [], skippedSkills, manifest };
 }
 

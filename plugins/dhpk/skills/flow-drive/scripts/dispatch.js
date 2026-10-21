@@ -73,7 +73,7 @@ function prepareDispatch({ change, request, catalog, preferenceOrder } = {}) {
     } : null,
     evidence: [{
       kind: 'dispatch-resolution',
-      state: resolution.status === 'RESOLVED' ? 'available' : 'unavailable',
+      state: resolution.status === 'RESOLVED' ? 'available' : resolution.status === 'NOT_RUN' ? 'not-run' : 'unavailable',
       detail: resolution.reason || 'Dispatch target resolved by the common engine',
     }],
     next_action: resolution.status === 'RESOLVED' ? 'execute the resolved target' : 'repair the blocked dispatch evidence',

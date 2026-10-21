@@ -12,7 +12,7 @@ precise — read the error and its `help:` line, fix the root cause, re-run, rep
 Never paper over a borrow / lifetime error with a stray `.clone()` or `unsafe`.
 
 > Before a fix that changes a signature or a public name, gauge blast radius
-> per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
+> per `rules/tool-routing.md`.
 >
 > Build unit: a `Cargo.toml` ⇒ `cargo build` / `cargo test`. Use
 > `cargo build --message-format=short 2>&1` for a dense error list, then drill
@@ -56,7 +56,7 @@ a non-`Send` guard (`MutexGuard`, `Rc`, …) must not be held across an `.await`
 
 ## Principles
 
-Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+Shared framing: `agent-traps/_common/build-resolver-skeleton.md`.
 This resolver's own escape hatches to never use: new `unsafe`, `#[allow(...)]`
 (without a one-line justification comment), `.unwrap()` to dodge a type, or
 `unsafe impl Send` just to satisfy the compiler.
@@ -75,7 +75,7 @@ and `Cargo.lock`; ask before clearing shared or user-level state.
 
 ## Stop conditions (escalate, don't loop)
 
-Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+Shared framing: `agent-traps/_common/build-resolver-skeleton.md`.
 This resolver's own architectural-change examples: redesigning ownership across
 tasks, splitting a crate, a real dependency major bump. Environmental examples:
 missing system lib, locked registry.
@@ -91,4 +91,4 @@ Build: cargo build OK | cargo test OK
 Handing off to code-reviewer for the diff.
 ```
 
-Handoff: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+Handoff: `agent-traps/_common/build-resolver-skeleton.md`.

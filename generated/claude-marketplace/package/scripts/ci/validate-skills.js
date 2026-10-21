@@ -22,15 +22,24 @@ const MODULES_DIR = path.join(ROOT, 'modules');
 const OFFICIAL_FRONTMATTER_KEYS = new Set([
   'name',
   'description',
+  'when_to_use',
   'license',
   'compatibility',
   'allowed-tools',
+  'disallowed-tools',
   'argument-hint',
+  'arguments',
   'disable-model-invocation',
+  'user-invocable',
   'metadata',
   'model',
+  'effort',
   'context',
   'agent',
+  'background',
+  'hooks',
+  'paths',
+  'shell',
 ]);
 
 const r = createReporter('skills');

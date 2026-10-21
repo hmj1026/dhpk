@@ -24,14 +24,14 @@ Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / 
 ## Diff scope
 
 The orchestrator supplies the changed-file scope. Apply the reviewer rules in
-`.cursor/dhpk/policies/execution-policy.md`. Back-stop fallback restricts to
+`${CURSOR_PLUGIN_ROOT}/rules/execution-policy.mdc`. Back-stop fallback restricts to
 `'**/migrations/**'` (or the project's equivalent path).
 
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/SQL migration against Core Data rules, or vice-versa.
 
-1-2. Loader: `.cursor/dhpk/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `migration-reviewer`). Manifest detection also covers `*.xcdatamodeld`.
+1-2. Loader: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `migration-reviewer`). Manifest detection also covers `*.xcdatamodeld`.
 3. No sheet matches → apply only the framework-agnostic Audit Checklist below.
 
 The Audit Checklist below is a decision checklist. Each item applies only when

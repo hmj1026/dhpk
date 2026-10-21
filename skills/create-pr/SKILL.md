@@ -22,13 +22,19 @@ metadata:
 Run in the consumer repository and preserve the supplied arguments. Resolve
 the selected head and base once, before the commit count, log, diff, ticket,
 push check, existing-PR query, or `gh` command. An explicit `--head` wins.
-When it is omitted, the selected head is the current branch. An explicit
-`--base` wins. When it is omitted, use `{TARGET_BRANCH}` and then `main`. A
+When it is omitted, the selected head is the current branch. An explicit `--base` wins. When it
+is omitted and the consumer project's instructions supply `{TARGET_BRANCH}`,
+use that value. dhpk does not define a userConfig key for `{TARGET_BRANCH}`
+or `{TICKET_PATTERN}`. When `{TARGET_BRANCH}` is unset, the generic fallback is `main`. That fallback is the skill default. This dhpk repository's
+documented pull-request base is `develop`; pass `--base develop` or supply
+`{TARGET_BRANCH}` as `develop` for a pull request in this repo. A
 ref that does not resolve is `BLOCKED`; do not substitute the checkout or
 another branch.
 
-Extract a ticket from the selected head name with `{TICKET_PATTERN}` (default
-`[A-Z]+-\d+`), then generate `<type>: [<TICKET>] <summary>` unless
+Extract a ticket from the selected head name with `{TICKET_PATTERN}`.
+When the project does not set `{TICKET_PATTERN}`, use `[A-Z]+-\d+`.
+When the head name does not match, say the ticket was not resolved and
+do not invent one. Then generate `<type>: [<TICKET>] <summary>` unless
 `--title` overrides it. Build the body from a concise summary, the ticket link
 when resolved, and verification evidence for that selected range. Separate
 checks actually run on the selected range from planned checks marked

@@ -46,7 +46,7 @@
     "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-drive",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:217bf7d513f22e413d6ccc2adaefdcc851ff2eabf5c7784aa8bcc3dba6e97921",
+      "sha256": "sha256:567ff2658ba0d04bea5d72f364acf08959bd480a8d4f1929bd4c3acd54d9bf43",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md": {
@@ -64,13 +64,13 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34",
+      "sha256": "sha256:1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-drive",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:6adf2889d4e9a633f5003be06f4fba819e070773916ceaa0b5ccd0cdaf9ab185",
+      "sha256": "sha256:cd0beb55b967a6d46653a4eb6ad9577321931d9237193094a62ee5cfa345e7d2",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/tool-routing.md": {
@@ -94,13 +94,13 @@
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:3fb5d5841cf32fefbdaec7777cd3af99b1267c7f48fb87e8cbbfa82796e7d889",
+      "sha256": "sha256:5a1d2402c98b85d67a129d7e2b1c795206e6c5274de3950fbbfc3da46c4c3fb7",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/dispatch-engine.js",
-      "sha256": "sha256:1c4950f7a4634cd74466ac3ae332584c5687610049ba1e637a70ddda380a0fc4",
+      "sha256": "sha256:e142544825f7fc4a83fc0790aaeab184afcc262c21d65b15f59526c52f2d70d9",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-scheduler.js": {
@@ -190,7 +190,7 @@
     "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-guide",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:217bf7d513f22e413d6ccc2adaefdcc851ff2eabf5c7784aa8bcc3dba6e97921",
+      "sha256": "sha256:567ff2658ba0d04bea5d72f364acf08959bd480a8d4f1929bd4c3acd54d9bf43",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md": {
@@ -208,13 +208,13 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:299fd332535000dd7f14859b4eb91f8bb92dd9699bf5d0e994cdb083567f8e34",
+      "sha256": "sha256:1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:6adf2889d4e9a633f5003be06f4fba819e070773916ceaa0b5ccd0cdaf9ab185",
+      "sha256": "sha256:cd0beb55b967a6d46653a4eb6ad9577321931d9237193094a62ee5cfa345e7d2",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
@@ -238,13 +238,13 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:3fb5d5841cf32fefbdaec7777cd3af99b1267c7f48fb87e8cbbfa82796e7d889",
+      "sha256": "sha256:5a1d2402c98b85d67a129d7e2b1c795206e6c5274de3950fbbfc3da46c4c3fb7",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-engine.js",
-      "sha256": "sha256:1c4950f7a4634cd74466ac3ae332584c5687610049ba1e637a70ddda380a0fc4",
+      "sha256": "sha256:e142544825f7fc4a83fc0790aaeab184afcc262c21d65b15f59526c52f2d70d9",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js": {
@@ -346,7 +346,7 @@
     "skills/harness-setup/data/module-catalog.json": {
       "skill_id": "harness-setup",
       "source": "manifests/module-catalog.json",
-      "sha256": "sha256:cda7d094760ea54005c7cc2e350c5c8f7ab742790e455e02a87824959f64e1d5",
+      "sha256": "sha256:fb6412a96c83789d2ea96c5c89de42195e3c231d20a9fbf409b302b1b6a5a865",
       "mode": "0644"
     },
     "skills/harness-setup/scripts/lib/install-assets-writer.sh": {

@@ -8,7 +8,7 @@ model: pro
 # Version Matrix Impact Reviewer
 
 > When path matching is not enough, confirm blast radius per
-> `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`. Agent-only: a file in
+> `rules/tool-routing.md`. Agent-only: a file in
 > `src/Laravel/` called only from a Core-tier symbol narrows the affected cells.
 
 For PHP packages whose composer constraint spans multiple major versions

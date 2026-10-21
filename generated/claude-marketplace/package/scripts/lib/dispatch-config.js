@@ -21,7 +21,7 @@ const LEGACY_KEYS = Object.freeze({
   planner_target: ['planner_model'],
   reviewer_target: ['reviewer_model', 'codex_reviewer_model'],
 });
-const LEGACY_REMOVAL_VERSION = 'unscheduled';
+const LEGACY_REMOVAL_VERSION = '0.67.0';
 const LEGACY_KEY_AGENTS = Object.freeze({
   fast_worker_model: 'claude-code',
   deep_reasoner_model: 'claude-code',
@@ -50,7 +50,7 @@ const PROVIDER_ALIASES = Object.freeze({
   'claude-code': 'anthropic',
   'codex-cli': 'openai',
   agy: 'google',
-  'cursor-native': 'xai',
+  'cursor-native': 'cursor',
 });
 
 function isRecord(value) {
@@ -60,6 +60,12 @@ function isRecord(value) {
 function canonicalProvider(value) {
   if (value === undefined || value === null) return value;
   return PROVIDER_ALIASES[value] || value;
+}
+
+function fallbackDiagnostic(allow) {
+  return allow === true
+    ? 'only UNAVAILABLE candidates advance; NOT_RUN and BLOCKED do not fall back'
+    : 'disabled';
 }
 
 function parseBoolean(value, label) {
@@ -74,24 +80,38 @@ function parseTarget(value, label) {
     if (Object.prototype.hasOwnProperty.call(value, 'route')) {
       throw new TypeError(`${label}.route is selected from the catalog and is not accepted at the config boundary`);
     }
-    const targetAgent = value.target_agent || value.targetAgent || value.agent;
+    const rawAgent = value.target_agent || value.targetAgent || value.agent;
     const modelId = value.model_id || value.modelId || value.model;
-    if (targetAgent) {
-      if (!['claude', 'codex', 'agy', 'cursor', 'claude-code', 'codex-cli'].includes(targetAgent)) {
+    const legacyCursorProvider = value.provider === 'cursor-native' || value.provider === 'native';
+    const provider = legacyCursorProvider ? undefined : value.provider;
+    const agentAliases = {
+      claude: 'claude-code', 'claude-code': 'claude-code', codex: 'codex-cli', 'codex-cli': 'codex-cli',
+      agy: 'agy', cursor: 'cursor', native: 'cursor', 'cursor-native': 'cursor',
+    };
+    if (rawAgent) {
+      if (!Object.prototype.hasOwnProperty.call(agentAliases, rawAgent)) {
         throw new TypeError(`${label}.target_agent must identify a supported Target Agent`);
       }
-      const canonicalAgent = { claude: 'claude-code', 'claude-code': 'claude-code', codex: 'codex-cli', 'codex-cli': 'codex-cli' }[targetAgent] || targetAgent;
       if (typeof modelId !== 'string' || !modelId) throw new TypeError(`${label}.model_id is required`);
       return {
-        target_agent: canonicalAgent,
+        target_agent: agentAliases[rawAgent],
         model_id: modelId,
-        ...(value.provider === undefined ? {} : { provider: value.provider }),
+        ...(provider === undefined ? {} : { provider }),
         ...(value.effort === undefined ? {} : { effort: value.effort }),
         ...(value.transport === undefined ? {} : { transport: value.transport }),
       };
     }
-    if (typeof value.provider !== 'string' || !value.provider) throw new TypeError(`${label}.target_agent is required`);
-    return { provider: value.provider, ...(modelId === undefined ? {} : { model_id: modelId }), ...(value.effort === undefined ? {} : { effort: value.effort }), ...(value.transport === undefined ? {} : { transport: value.transport }) };
+    if (legacyCursorProvider) {
+      if (typeof modelId !== 'string' || !modelId) throw new TypeError(`${label}.model_id is required`);
+      return {
+        target_agent: 'cursor',
+        model_id: modelId,
+        ...(value.effort === undefined ? {} : { effort: value.effort }),
+        ...(value.transport === undefined ? {} : { transport: value.transport }),
+      };
+    }
+    if (typeof provider !== 'string' || !provider) throw new TypeError(`${label}.target_agent is required`);
+    return { provider, ...(modelId === undefined ? {} : { model_id: modelId }), ...(value.effort === undefined ? {} : { effort: value.effort }), ...(value.transport === undefined ? {} : { transport: value.transport }) };
   }
   if (typeof value !== 'string') throw new TypeError(`${label} must be an Agent/Model target`);
   const match = value.match(/^([^/]+)(?:\/([^:]+))?(?::([^:]+))?$/);
@@ -245,7 +265,11 @@ function resolveDispatchConfig({ project = {}, global = {}, environment = {} } =
       result[canonical] = targetValue === undefined ? null : parseTarget(targetValue, canonical);
       result.source[canonical] = selected.source || 'default';
       if (selected.legacy) result.legacy_sources.push({ field: canonical, source: selected.source, diagnostic: 'legacy target input translated at compatibility boundary', removal_version: LEGACY_REMOVAL_VERSION });
-      if (typeof targetValue === 'string' && /^(?:native|cursor-native|anthropic|openai|google|xai)\//.test(targetValue)) {
+      const legacyCursorObject = isRecord(targetValue) && (
+        ['native', 'cursor-native'].includes(targetValue.target_agent || targetValue.targetAgent || targetValue.agent)
+        || ['native', 'cursor-native'].includes(targetValue.provider)
+      );
+      if ((typeof targetValue === 'string' && /^(?:native|cursor-native|anthropic|openai|google|xai)\//.test(targetValue)) || legacyCursorObject) {
         result.legacy_sources.push({ field: canonical, source: selected.source || `${canonical}`, diagnostic: 'legacy provider/route target spelling translated at input boundary', removal_version: LEGACY_REMOVAL_VERSION });
       }
     } catch (error) {
@@ -274,7 +298,7 @@ function diagnoseDispatchConfig({ config, catalog, hostProfile, role = 'worker',
   const selected = config[`${role}_target`];
   const catalogData = createProviderModelCatalog(catalog);
   const profile = hostProfile ? createHostProfile(hostProfile) : null;
-  if (!selected) return Object.freeze({ catalog_support: 'NOT_RUN', host_access: 'NOT_RUN', runtime: 'NOT_RUN', fallback: config.fallback_allow ? 'allowed' : 'disabled', source: 'automatic-native-resolution' });
+  if (!selected) return Object.freeze({ catalog_support: 'NOT_RUN', host_access: 'NOT_RUN', runtime: 'NOT_RUN', fallback: fallbackDiagnostic(config.fallback_allow === true), source: 'automatic-native-resolution' });
   if (!profile) throw new TypeError('hostProfile is required for an explicit target diagnostic');
   const normalizedAgent = selected.target_agent || selected.targetAgent || selected.agent;
   const canonicalAgent = ({ claude: 'claude-code', codex: 'codex-cli' }[normalizedAgent] || normalizedAgent);
@@ -298,7 +322,7 @@ function diagnoseDispatchConfig({ config, catalog, hostProfile, role = 'worker',
     catalog_support: catalogSupport,
     host_access: hostAccess,
     runtime,
-    fallback: config.fallback_allow ? 'allowed' : 'disabled',
+    fallback: fallbackDiagnostic(config.fallback_allow === true),
     source: config.source[`${role}_target`] || 'default',
     ...(catalogSupport === SUPPORT_STATUSES[1] ? {
       reason: `unsupported Host/Role/model/effort combination for ${canonicalAgent}/${modelId}:${selectedEffort} on ${profile.host}; migrate to a Catalog route using agent/model[:effort]`,
@@ -336,6 +360,9 @@ function coveredInputsReport(coveredInputs) {
     global: coveredInputs.global === true,
     environment: coveredInputs.environment === true,
     ...(typeof coveredInputs.scope === 'string' ? { scope: coveredInputs.scope } : {}),
+    ...(Array.isArray(coveredInputs.unreadable) && coveredInputs.unreadable.length > 0
+      ? { unreadable: Object.freeze(coveredInputs.unreadable.map((entry) => Object.freeze({ ...entry }))) }
+      : {}),
   });
 }
 
@@ -344,7 +371,7 @@ function blockedRoleDiagnostic(diagnostics, role) {
 }
 
 function diagnoseRoleStatus({ config, catalog, hostProfile, role, selected }) {
-  const fallback = config.fallback_allow === true ? 'allowed' : 'disabled';
+  const fallback = fallbackDiagnostic(config.fallback_allow === true);
   const empty = Object.freeze({
     catalog_support: 'NOT_RUN',
     host_access: 'NOT_RUN',
@@ -468,7 +495,7 @@ function createDispatchConfigReport({ config, hostProfile, catalog, coveredInput
       catalog_support: 'NOT_RUN',
       host_access: 'NOT_RUN',
       runtime: 'NOT_RUN',
-      fallback: config.fallback_allow === true ? 'allowed' : 'disabled',
+      fallback: fallbackDiagnostic(config.fallback_allow === true),
     },
     diagnostics,
     covered_inputs: coveredInputsReport(coveredInputs),
@@ -499,4 +526,4 @@ function applyDispatchConfig({ config, role = 'worker', request } = {}) {
   });
 }
 
-module.exports = Object.freeze({ APPLY_ROLE_CONFIG: applyDispatchConfig, DEFAULTS, LEGACY_KEYS, LEGACY_REMOVAL_VERSION, applyDispatchConfig, createDispatchConfigReport, diagnoseDispatchConfig, parseTarget, resolveDispatchConfig });
+module.exports = Object.freeze({ APPLY_ROLE_CONFIG: applyDispatchConfig, DEFAULTS, LEGACY_EFFORT_KEYS, LEGACY_KEYS, LEGACY_REMOVAL_VERSION, applyDispatchConfig, createDispatchConfigReport, diagnoseDispatchConfig, parseTarget, resolveDispatchConfig });

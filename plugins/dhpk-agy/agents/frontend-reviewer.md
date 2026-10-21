@@ -44,7 +44,7 @@ edits. Loads the following on demand:
 ## Process
 
 1. Use the changed-file scope supplied by the orchestrator and the reviewer
-   rules in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. Back-stop/full-review fallback restricts to
+   rules in `rules/execution-policy.md`. Back-stop/full-review fallback restricts to
    `<frontend-root>/<view-template-roots>/`.
 2. Walk each leaf through the priority tiers below.
 3. Close out: write the artifact.
