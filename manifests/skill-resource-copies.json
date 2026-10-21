@@ -100,7 +100,7 @@
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/dispatch-engine.js",
-      "sha256": "sha256:1c4950f7a4634cd74466ac3ae332584c5687610049ba1e637a70ddda380a0fc4",
+      "sha256": "sha256:da58da92f0b9e42788613e13022dcf9d8842d4d9cc8cea21853b297d2d6a9b70",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-scheduler.js": {
@@ -244,7 +244,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-engine.js",
-      "sha256": "sha256:1c4950f7a4634cd74466ac3ae332584c5687610049ba1e637a70ddda380a0fc4",
+      "sha256": "sha256:da58da92f0b9e42788613e13022dcf9d8842d4d9cc8cea21853b297d2d6a9b70",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js": {

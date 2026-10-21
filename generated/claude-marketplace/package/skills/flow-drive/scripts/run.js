@@ -334,9 +334,13 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
     const plannerTask = { ...resolvedTask, constraints: { ...resolvedTask.constraints, authority: 'read-only', assigned_files: [] } };
     const target = selectedTarget({ target: requestedRoles.planner.target });
     try {
+      const plannerProviders = [...new Set([currentProvider, canonicalProvider(target.provider)].filter(Boolean))];
       const prepared = prepareDispatch(dispatchRequest(plannerTask, path.resolve(workdir), capabilities, target, target.effort,
-        [currentProvider], null, { session_id: sessionId, binding_id: bindingId }, true, 'planner'));
-      if (prepared.resolution.status !== 'RESOLVED') throw new Error(prepared.resolution.reason);
+        plannerProviders, null, { session_id: sessionId, binding_id: bindingId }, true, 'planner'));
+      if (prepared.resolution.status !== 'RESOLVED') {
+        const label = prepared.resolution.status === 'NOT_RUN' ? 'NOT_RUN' : 'UNAVAILABLE';
+        return makeReport({ parser, blockers: [`planner ${label}: ${prepared.resolution.reason}`] });
+      }
     } catch (error) { return makeReport({ parser, blockers: [`planner UNAVAILABLE: ${error.message}`] }); }
   }
   let hostAllowedProviders = Object.freeze(Array.isArray(capabilities.host_profile.allowed_providers)
