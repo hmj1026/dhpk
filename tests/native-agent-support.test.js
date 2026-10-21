@@ -193,6 +193,11 @@ test('AGY validator accepts plugin-relative traps and rejects a Claude-only root
     fs.writeFileSync(path.join(root, 'agents', 'e2e-runner.md'), `---\nname: e2e-runner\n---\n${body}\n`);
     fs.writeFileSync(path.join(root, 'agents', 'codex-worker.md'), `---\nname: codex-worker\n---\n${body}\n`);
     assert.deepStrictEqual(agyNativeAgentClosureErrors(root), []);
+    fs.rmSync(path.join(root, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-codex.sh'));
+    const missingAdapter = agyNativeAgentClosureErrors(root);
+    assert.ok(missingAdapter.some((error) => error.includes('native agent support file is missing: skills/flow-drive/scripts/adapters/run-codex.sh')));
+    fs.rmSync(path.join(root, 'skills', 'flow-drive'), { recursive: true });
+    assert.deepStrictEqual(agyNativeAgentClosureErrors(root), []);
     fs.writeFileSync(path.join(root, 'agents', 'planner.md'), `---\nname: planner\n---\nLoad ${CLAUDE_ROOT}/agent-traps/_common/prompt-defense.md\n`);
     const rejected = agyNativeAgentClosureErrors(root);
     assert.ok(rejected.some((error) => /not package-local: agents\/planner\.md/.test(error)));

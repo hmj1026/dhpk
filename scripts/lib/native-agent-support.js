@@ -147,6 +147,17 @@ function mentionsNativeSupport(text) {
     || text.includes(CLAUDE_PLUGIN_ROOT_TOKEN);
 }
 
+function skillOwnedFileApplies(packageRoot, relative) {
+  const parts = relative.split('/');
+  if (parts[0] !== 'skills' || !parts[1]) return true;
+  try {
+    return fs.statSync(path.join(packageRoot, 'skills', parts[1])).isDirectory();
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
 function closureErrors(packageRoot, cases) {
   const errors = [];
   const reportedFiles = new Set();
@@ -164,6 +175,9 @@ function closureErrors(packageRoot, cases) {
       if (!text.includes(needle)) errors.push(`native agent support locator is missing from ${item.agent}: ${needle}`);
     }
     for (const relative of item.files || []) {
+      // Skill files ship with that skill. A partial package may still copy the
+      // worker agent; it must not be forced to vendor an unselected skill.
+      if (!skillOwnedFileApplies(packageRoot, relative)) continue;
       if (reportedFiles.has(relative)) continue;
       reportedFiles.add(relative);
       const target = path.join(packageRoot, ...relative.split('/'));
