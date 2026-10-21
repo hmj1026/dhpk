@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "0277f016f931cb3c62ca984e22fec5555398249a",
-  "generatedFromCommit": "0277f016f931cb3c62ca984e22fec5555398249a",
-  "generatedFromTree": "c74cbc775e3a1b6413c3486ee1a1e0a7e86d1b6e",
+  "sourceCommit": "53eb505c7202010778366874bd6652ad99cd572a",
+  "generatedFromCommit": "53eb505c7202010778366874bd6652ad99cd572a",
+  "generatedFromTree": "915cbd582ef79b909149ce692db25bda9956fefe",
   "inventoryDigest": "c4f2f381c150148ccce795bdf4e2434caab752d8cccf8614de6b5a552278f975",
   "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "2.3.0",
@@ -803,7 +803,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
         "destination": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
-        "originalGitBlobDigest": "728af83dfd14a2c11917528874af8ff290243a65"
+        "originalGitBlobDigest": "f6ecf2318356d1d91194390410c9be8c1ce372c2"
       },
       {
         "ownerId": "flow-drive",
@@ -827,7 +827,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "0e702c61af8a3bf85ad1d6d9a227e62c3d1acaef"
+        "originalGitBlobDigest": "6f5e5d911c6805ae25748469dcc0afb237fd48ce"
       },
       {
         "ownerId": "flow-drive",
@@ -1889,7 +1889,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
         "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
-        "originalGitBlobDigest": "728af83dfd14a2c11917528874af8ff290243a65"
+        "originalGitBlobDigest": "f6ecf2318356d1d91194390410c9be8c1ce372c2"
       },
       {
         "ownerId": "flow-guide",
@@ -1913,7 +1913,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "0e702c61af8a3bf85ad1d6d9a227e62c3d1acaef"
+        "originalGitBlobDigest": "6f5e5d911c6805ae25748469dcc0afb237fd48ce"
       },
       {
         "ownerId": "flow-guide",
@@ -6361,8 +6361,8 @@
     "code-trace": "c9fbf9e153f8a0c67282a056d61a0e5a3464c375dbb4fce2cf03a65d77be4a37",
     "create-pr": "d4c956efed804d357c45b22446844b7d306af6a4e219617f100d950ee1a7b238",
     "doc-maintain": "a1077137778cb2353840c78ef50079268c82077bf276c1d849c77548b299accd",
-    "flow-drive": "0186b9a0d005277c30f346df7337690b613057f3b99cb797ae389bc716d27a42",
-    "flow-guide": "870877ed65e5d8256beaea9a344720966ed44908ff2e9dbd51e6c0523e11f4c6",
+    "flow-drive": "9f2814beb206c8dd1d80fcae8bcab658204ed68ded307f4c1ce990d25f502ffb",
+    "flow-guide": "970899f1dec4a6e3758aa1e52897b5ab7abdc1427e41f9c303e4cf6a0bc69116",
     "git-smart-commit": "ddbd416799fb0fb79bd481353ca9e2f5a31ec089d9fa2be2b6014ded0d507e0c",
     "git-worktree": "07d997decebc844ae8e2b68771810a27a12c5f34fc3ae43ebda14102c1c64585",
     "library-author": "d43c5329860a3e2c9737c320312aaee87008b212aa2cc11ffb028cbebb7509d3",
