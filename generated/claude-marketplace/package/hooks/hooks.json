@@ -18,7 +18,9 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-bash-dispatch.sh"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-bash-dispatch.sh"],
+            "timeout": 2100,
+            "onFailure": "block"
           }
         ]
       }

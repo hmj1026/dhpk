@@ -16,6 +16,20 @@ dhpk 刻意只註冊精簡的預設 lifecycle。完整 mapping 以
 不建立 snapshot、不探測 Docker、不檢查安裝健康、不注入 prompt hint，也不輸出
 orchestration 建議。
 
+## Bash 外層上限
+
+Bash `PreToolUse` command 宣告 `timeout: 2100` 與 `onFailure: "block"`。
+Claude Code 2.1.295 與更新版本可以在這個 hook 逾時或無法執行時阻擋觸發的命令。
+更舊版本不被宣稱具有相同的 fail-closed 行為。這份宣告不是已量測的 2100 秒等待。
+
+支持的預設範圍是 JS、Python、Swift、PHP 各一個 commit root，該 root 上一個
+Python project group，以及 Swift build/test 設定不高於 360/480 秒。內層
+deadline 加每次 1 秒 grace 是 JS 212、Python 255、Swift 842、PHP 423，合計
+1732 秒。剩下的 368 秒留給準備與清理。沒有內層 deadline 的步驟不在這個合計裡。
+更多 root、更多 group、更大的 Swift override，或任何到達上限的執行都可能被
+中斷。被中斷或未完成的檢查不是 PASS，觸發的 Bash 命令也不會越過這個上限被放行。
+內層 deadline 維持不變。`SubagentStop` 不在這個上限內。
+
 ## Reviewer evidence
 
 Reviewer 派工由 orchestrator 負責，且為建議性質。Reviewer 會寫出 Markdown 報告；

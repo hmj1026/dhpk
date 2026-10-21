@@ -67,6 +67,8 @@ test('Bash and SubagentStop each wire one consolidated deterministic hook', () =
     type: 'command',
     command: 'bash',
     args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-bash-dispatch.sh'],
+    timeout: 2100,
+    onFailure: 'block',
   }]);
   assert.deepStrictEqual(parsed.hooks.SubagentStop, [{
     hooks: [{
