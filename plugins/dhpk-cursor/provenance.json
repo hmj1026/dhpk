@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "9771dd8ccca8445de5102982bf721770dffcd2aa",
-  "generatedFromCommit": "9771dd8ccca8445de5102982bf721770dffcd2aa",
-  "generatedFromTree": "25cefd3ae55e2fcd2ce4b37eea8df20a686e4093",
+  "sourceCommit": "e203f5b2f66320c22094de4a9bfce4a242aaf206",
+  "generatedFromCommit": "e203f5b2f66320c22094de4a9bfce4a242aaf206",
+  "generatedFromTree": "e8e7a8d5a3b1d41399f5ff632c50ef836703698d",
   "inventoryDigest": "c4f2f381c150148ccce795bdf4e2434caab752d8cccf8614de6b5a552278f975",
   "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "1.0.0",
@@ -1023,7 +1023,7 @@
         "ownerId": "flow-drive",
         "source": "skills/nextjs/references/15.5.md",
         "destination": "skills/flow-drive/references/nextjs/references/15.5.md",
-        "originalGitBlobDigest": "0f19f21c8dd48fedc70401f72dd12c0c41ed4843"
+        "originalGitBlobDigest": "2ab81ca23e11548e1f0b586e67a98bdb6b92a11f"
       },
       {
         "ownerId": "flow-drive",
