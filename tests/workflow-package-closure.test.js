@@ -332,9 +332,21 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
 
 test('installed flow-guide help and next use the skill directory and the consumer repository', () => {
   const skill = fs.readFileSync(path.join(ROOT, 'skills/flow-guide/SKILL.md'), 'utf8');
-  assert.match(skill, /node "\$SKILL_DIR\/scripts\/action-runner\.js" help/);
-  assert.match(skill, /node "\$SKILL_DIR\/scripts\/action-runner\.js" next/);
+  assert.match(skill, /node \$\{CLAUDE_SKILL_DIR\}\/scripts\/action-runner\.js help/);
+  assert.match(skill, /node \$\{CLAUDE_SKILL_DIR\}\/scripts\/action-runner\.js next/);
+  assert.match(skill, /node \$\{CLAUDE_SKILL_DIR\}\/scripts\/usage-card\.js/);
+  assert.match(skill, /bash \$\{CLAUDE_SKILL_DIR\}\/scripts\/pre-route\.sh/);
   assert.doesNotMatch(skill, /node skills\/flow-guide\/scripts\/action-runner\.js/);
+  const allowed = skill.split('\n').find((line) => line.startsWith('allowed-tools:'));
+  for (const helper of [
+    'Bash(node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js:*)',
+    'Bash(node ${CLAUDE_SKILL_DIR}/scripts/usage-card.js:*)',
+    'Bash(bash ${CLAUDE_SKILL_DIR}/scripts/pre-route.sh:*)',
+  ]) assert.ok(allowed.includes(helper), helper);
+  assert.doesNotMatch(allowed, /(?:^|,\s*)Bash(?!\()/);
+  assert.doesNotMatch(allowed, /Bash\(node:\*\)/);
+  assert.doesNotMatch(allowed, /Bash\(bash:\*\)/);
+  assert.doesNotMatch(allowed, /Bash\(python/);
   const name = `consumer-evidence-${process.pid}`;
   const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-flow-guide-consumer-')));
   const consumer = path.join(parent, name);
@@ -363,17 +375,36 @@ test('installed flow-guide help and next use the skill directory and the consume
   }
 });
 
+test('code-trace pre-approves only the read-only commands its procedure names', () => {
+  const skill = fs.readFileSync(path.join(ROOT, 'skills/code-trace/SKILL.md'), 'utf8');
+  const allowed = skill.split('\n').find((line) => line.startsWith('allowed-tools:'));
+  assert.equal(allowed, "allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(cx:*), Agent'");
+  assert.match(skill, /`cx overview`/);
+  assert.match(skill, /`git blame`/);
+  assert.doesNotMatch(allowed, /Bash\(bash:\*\)/);
+  assert.doesNotMatch(allowed, /Bash\(ls:\*\)/);
+  assert.doesNotMatch(allowed, /Bash\(find:\*\)/);
+  assert.doesNotMatch(allowed, /Bash\(npx gitnexus:\*\)/);
+  assert.doesNotMatch(allowed, /\bTask\b/);
+});
+
 test('change-verdict authorizes the installed helper paths without unrestricted Bash', () => {
   const skill = fs.readFileSync(path.join(ROOT, 'skills/change-verdict/SKILL.md'), 'utf8');
   const allowed = skill.split('\n').find((line) => line.startsWith('allowed-tools:'));
   for (const helper of [
-    'Bash(node $SKILL_DIR/scripts/risk-analyze.js:*)',
-    'Bash(bash $SKILL_DIR/scripts/check-unrelated-changes.sh:*)',
-    'Bash(bash $SKILL_DIR/scripts/review-cli.sh:*)',
+    'Bash(node ${CLAUDE_SKILL_DIR}/scripts/risk-analyze.js:*)',
+    'Bash(bash ${CLAUDE_SKILL_DIR}/scripts/check-unrelated-changes.sh:*)',
+    'Bash(bash ${CLAUDE_SKILL_DIR}/scripts/review-cli.sh:*)',
   ]) assert.ok(allowed.includes(helper), helper);
+  assert.match(skill, /node \$\{CLAUDE_SKILL_DIR\}\/scripts\/risk-analyze\.js/);
+  assert.match(skill, /bash \$\{CLAUDE_SKILL_DIR\}\/scripts\/check-unrelated-changes\.sh/);
+  assert.match(skill, /bash \$\{CLAUDE_SKILL_DIR\}\/scripts\/review-cli\.sh/);
+  assert.match(allowed, /\bAgent\b/);
+  assert.doesNotMatch(allowed, /\bTask\b/);
   assert.doesNotMatch(allowed, /skills\/change-verdict\/scripts/);
   assert.doesNotMatch(allowed, /(?:^|,\s*)Bash(?!\()/);
   assert.doesNotMatch(allowed, /Bash\(node:\*\)/);
+  assert.doesNotMatch(allowed, /Bash\(bash:\*\)/);
   const backend = fs.readFileSync(path.join(ROOT, 'skills/change-verdict/references/shared/cli-backend.md'), 'utf8');
   assert.match(backend, /\$SKILL_DIR\/scripts\/review-cli\.sh/);
   assert.doesNotMatch(backend, /skills\/change-verdict\/scripts\/review-cli\.sh/);

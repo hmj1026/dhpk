@@ -2,7 +2,7 @@
 name: flow-guide
 argument-hint: '<help|route|rules|next|close> [--go] [--host <host>] [<query>]'
 description: 'Read-only workflow guidance and bounded routing. Use when work needs a route, policy lookup, next action, closeout gate, or Codex usage help. Not for implementation, review, code tracing, or skill authoring. Output: one typed report with evidence and a clear handoff.'
-allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
+allowed-tools: 'Read, Grep, Glob, Skill, Agent, Bash(node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js:*), Bash(node ${CLAUDE_SKILL_DIR}/scripts/usage-card.js:*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/pre-route.sh:*)'
 metadata:
   dhpk-capability-id: dhpk.skill.flow-guide
   dhpk-name-style: portable-family
@@ -37,17 +37,17 @@ keep required, skipped, unavailable, and failed evidence distinct.
 
 ## `help`
 
-Run `node "$SKILL_DIR/scripts/action-runner.js" help` or `node "$SKILL_DIR/scripts/usage-card.js"` for the generated Codex catalog, or add one public skill name for a single usage card.
-`$SKILL_DIR` is the installed directory containing this `SKILL.md`. Keep the working directory on the consumer repository; do not `cd` into the package to inspect that repository.
+Run `node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js help` or `node ${CLAUDE_SKILL_DIR}/scripts/usage-card.js` for the generated Codex catalog, or add one public skill name for a single usage card.
+`${CLAUDE_SKILL_DIR}` is the directory containing this `SKILL.md`. Claude substitutes it in these commands and in `allowed-tools`. Hosts that do not substitute it, and references that write `$SKILL_DIR`, resolve that same directory. Keep the working directory on the consumer repository; do not `cd` into the package to inspect that repository.
 Help is metadata only: it never invokes the named skill, loads procedural references, or grants workspace/Git/external-write authority.
 Unknown and known non-Codex skill names receive different diagnostics.
 
 ## `route`
 
-1. Parse the action query with `node "$SKILL_DIR/scripts/action-runner.js"`; its route branch
+1. Parse the action query with `node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js`; its route branch
    delegates to `scripts/route-result.js`.
-2. Match `references/route-table.json` through `scripts/pre-route.sh`; the
-   first precise match wins. A miss remains a deliberate-classification case.
+2. Match `references/route-table.json` with `bash ${CLAUDE_SKILL_DIR}/scripts/pre-route.sh`; the
+   first precise match wins. A miss remains a deliberate-classification case. `pre-route.sh` may run Python internally; that child process is not a separate host pre-approval.
 3. Apply the selected policy kernel first
    (`references/execution-bundle/rules/execution-policy-kernel.md`), then only
    the conditional section the route needs, and the target's invocation class.
@@ -79,7 +79,7 @@ Return the source pointer, applicable gate, and one next handoff.
 
 ## `next`
 
-Run `node "$SKILL_DIR/scripts/action-runner.js" next` (which delegates to
+Run `node ${CLAUDE_SKILL_DIR}/scripts/action-runner.js next` (which delegates to
 the package-local analyzer) and parse its JSON. Report the
 current branch/worktree evidence, each required or unavailable gate, and one
 next route. A recorded `passed` value applies to the current change only when
@@ -158,7 +158,8 @@ repository inventory, environment variable, or upward search is consulted.
 - Legacy deterministic helpers `scripts/openspec_gate_check.py`,
   `scripts/prepare_dev_scope.py`, `scripts/prepare_workflow_profile.py`, and
   `scripts/workflow_gate_check.py` are run only when a selected rule or next
-  branch explicitly requires their existing input/output contract.
+  branch explicitly requires their existing input/output contract. They are not
+  pre-approved; an unlisted command uses the host's normal permission flow.
 
 ## Verification
 
