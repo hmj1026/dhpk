@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "ee9afa7581d0c22611cd35b8982993bd9ea35172",
-  "generatedFromCommit": "ee9afa7581d0c22611cd35b8982993bd9ea35172",
-  "generatedFromTree": "73e1f200c93ded8bfdc1c2ccc00c97e84111d80b",
+  "sourceCommit": "266e6768b2e4e3e4e9450938725b86491e0b20cb",
+  "generatedFromCommit": "266e6768b2e4e3e4e9450938725b86491e0b20cb",
+  "generatedFromTree": "2e71fe10b75bc69290946a00e13e6f84dbea476b",
   "inventoryDigest": "c4f2f381c150148ccce795bdf4e2434caab752d8cccf8614de6b5a552278f975",
   "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "1.0.0",
@@ -495,13 +495,13 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/scripts/diagnose/generate-flow-diagram.sh",
         "destination": "skills/code-trace/scripts/diagnose/generate-flow-diagram.sh",
-        "originalGitBlobDigest": "3971fc181ef66b213ffd574727bce0249f4b5802"
+        "originalGitBlobDigest": "984dc63671163402957f7c0c21cd8ce111158ac5"
       },
       {
         "ownerId": "code-trace",
         "source": "skills/code-trace/scripts/diagnose/search-database-queries.sh",
         "destination": "skills/code-trace/scripts/diagnose/search-database-queries.sh",
-        "originalGitBlobDigest": "502904fb905c60cdf5fcfac9476e64529e861af9"
+        "originalGitBlobDigest": "09787a57eae5dca09a0564903749a7a2144eb510"
       },
       {
         "ownerId": "code-trace",

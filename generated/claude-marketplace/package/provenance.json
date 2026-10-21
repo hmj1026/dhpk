@@ -581,7 +581,7 @@
       "sourcePath": "skills/code-trace/scripts/diagnose/generate-flow-diagram.sh",
       "destination": "skills/code-trace/scripts/diagnose/generate-flow-diagram.sh",
       "kind": "entry",
-      "sha256": "2ef0faf90fac37efc63f812060f192b457012985872041932f935ab0d82dca49"
+      "sha256": "db2a164fc8984485a5282ffb6a2bea64934259bbc5efe3c980885880363fb178"
     },
     {
       "skillId": "code-trace",
@@ -589,7 +589,7 @@
       "sourcePath": "skills/code-trace/scripts/diagnose/search-database-queries.sh",
       "destination": "skills/code-trace/scripts/diagnose/search-database-queries.sh",
       "kind": "entry",
-      "sha256": "72e16bf6aaf171e678110071c1155e5bbbb6e535d0e3944e6e13c1c651cb293e"
+      "sha256": "c81a03c280578c592a18b36748acda5d37622fdc81775694f3ed14f6247e674a"
     },
     {
       "skillId": "code-trace",
