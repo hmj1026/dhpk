@@ -80,6 +80,8 @@ cause without a confirming check.
 Load the phase-specific material from `references/diagnose/` only when that
 phase requires it. Inspect a selected bundled script's operation and effects
 before running it, keep output bounded, and preserve its actual exit status.
+Bundled diagnose scripts are not pre-approved; an unlisted shell command uses
+the host's normal permission flow.
 Return the phase report in the response and name the single next handoff by
 default. Write an investigation artifact only when explicitly authorized; this
 skill does not create directories or files and does not implement the proposed

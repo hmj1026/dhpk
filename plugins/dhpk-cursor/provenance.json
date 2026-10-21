@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "8777787fdada763ce951919e50083d18cff69582",
-  "generatedFromCommit": "8777787fdada763ce951919e50083d18cff69582",
-  "generatedFromTree": "25ed8fd92b2b607390152471de817b81ebb50821",
+  "sourceCommit": "2225a202e10b26780e82cb76eea352a85e37cc69",
+  "generatedFromCommit": "2225a202e10b26780e82cb76eea352a85e37cc69",
+  "generatedFromTree": "2ec76286f09aeabca974dfd706387d8cfaea2ffa",
   "inventoryDigest": "d2ca57fba64399ba7cc5422832836b9e3bb5e4bd4acc6b2d3d614346143082ae",
   "inventoryRevision": "sha256:c6e0199fd44f63a8a234bc46ac35d79dc995064f97bc49865e0976f8a255bc81",
   "generatorVersion": "1.0.0",
@@ -81,7 +81,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "9ad61fbeb51ac3b592a19f9345a8f9c25bbd798a"
+        "originalGitBlobDigest": "da0c263180c4c3b57d1d0e4b6102b6919d24cce8"
       },
       {
         "ownerId": "change-verdict",
@@ -297,7 +297,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "4bbe26cbb01ae9b4ecd611bd4564fc57a0397165"
+        "originalGitBlobDigest": "06cc72273f10060238c74a797c229e75c3e8ac03"
       },
       {
         "ownerId": "code-trace",
@@ -1713,7 +1713,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/SKILL.md",
         "destination": "skills/flow-guide/SKILL.md",
-        "originalGitBlobDigest": "95e8aa140b363e832bf91e50fe74d0a01bea801e"
+        "originalGitBlobDigest": "bb1ebf25178ebf9828ac45f3f041a1a27a9d573d"
       },
       {
         "ownerId": "flow-guide",
