@@ -1,7 +1,7 @@
 name: laravel-8
 display_name: "Laravel 8.x"
 version: 0.1.0
-description: "Laravel 8.x (September 2020). PHP 7.3+ floor. Signature features: factory class rewrite (HasFactory trait), Jetstream/Fortify scaffolding, job batching, queueable closures, app/Models/ default location, dynamic Blade components, migration squashing, Tailwind in scaffold. Pair with php-7.4 module for the language baseline."
+description: "Laravel 8.x (September 2020). PHP 7.3+ floor. Signature features: factory class rewrite (HasFactory trait), Jetstream/Fortify scaffolding, job batching, queueable closures, app/Models/ default location, dynamic Blade components, migration squashing, anonymous migrations from 8.37, Tailwind in scaffold. Pair with php-7.4 module for the language baseline."
 requires: []
 triggers:
   code:
