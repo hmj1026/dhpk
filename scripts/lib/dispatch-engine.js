@@ -46,8 +46,16 @@ const PROVIDER_ALIASES = Object.freeze({
   'claude-code': 'anthropic',
   'codex-cli': 'openai',
   agy: 'google',
-  'cursor-native': 'xai',
+  'cursor-native': 'cursor',
 });
+const AGENT_PROVIDERS = Object.freeze({
+  'claude-code': 'anthropic',
+  'codex-cli': 'openai',
+  agy: 'google',
+  cursor: 'cursor',
+});
+const LEGACY_CURSOR_SPELLINGS = new Set(['native', 'cursor-native']);
+const LEGACY_CURSOR_DIAGNOSTIC = 'legacy provider/route target spelling translated at input boundary';
 function canonicalAgent(value) {
   return value === undefined || value === null ? undefined : TARGET_AGENT_ALIASES[value] || value;
 }
@@ -275,12 +283,23 @@ function evaluateCapabilityCandidate(request, candidate, evidence) {
   };
 }
 
+function preferenceLegacyDiagnostic(candidate) {
+  if (typeof candidate === 'string') {
+    return LEGACY_CURSOR_SPELLINGS.has(candidate.split(/[/:]/)[0]) ? LEGACY_CURSOR_DIAGNOSTIC : null;
+  }
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  const agent = candidate.target_agent || candidate.targetAgent;
+  return LEGACY_CURSOR_SPELLINGS.has(agent) || LEGACY_CURSOR_SPELLINGS.has(candidate.provider)
+    ? LEGACY_CURSOR_DIAGNOSTIC
+    : null;
+}
+
 function normalizePreference(candidate) {
   if (typeof candidate === 'string') {
     const match = candidate.match(/^([^/]+)(?:\/([^:]+))?(?::([^:]+))?$/);
     if (!match) throw new TypeError('preferenceOrder entries must be Agent/model[:effort] targets');
     const targetAgent = canonicalAgent(match[1]);
-    const provider = canonicalProvider({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', cursor: 'cursor' }[targetAgent]);
+    const provider = canonicalProvider(AGENT_PROVIDERS[targetAgent]);
     if (!targetAgent) throw new TypeError('preferenceOrder entries must identify a supported Target Agent');
     return { target_agent: targetAgent, ...(provider ? { provider } : {}), ...(match[2] ? { model_id: match[2] } : {}), ...(match[3] ? { effort: match[3] } : {}) };
   }
@@ -295,9 +314,19 @@ function normalizePreference(candidate) {
   if (candidate.provider !== undefined && (typeof candidate.provider !== 'string' || candidate.provider.length === 0)) throw new TypeError('preferenceOrder target provider must be a non-empty string');
   if (candidate.target_agent === undefined && candidate.targetAgent === undefined && candidate.provider === undefined) throw new TypeError('preferenceOrder target requires a Target Agent or Provider');
   if (candidate.effort !== undefined && !EFFORTS.includes(candidate.effort)) throw new TypeError('preferenceOrder target effort must be canonical');
+  const rawAgent = candidate.target_agent || candidate.targetAgent;
+  const legacyCursor = LEGACY_CURSOR_SPELLINGS.has(rawAgent) || LEGACY_CURSOR_SPELLINGS.has(candidate.provider);
+  let targetAgent = rawAgent ? canonicalAgent(rawAgent) : undefined;
+  let provider = candidate.provider && !LEGACY_CURSOR_SPELLINGS.has(candidate.provider)
+    ? canonicalProvider(candidate.provider)
+    : undefined;
+  if (legacyCursor) {
+    targetAgent = targetAgent || 'cursor';
+    if (provider === undefined) provider = AGENT_PROVIDERS[targetAgent] || 'cursor';
+  }
   return {
-    ...(candidate.target_agent || candidate.targetAgent ? { target_agent: canonicalAgent(candidate.target_agent || candidate.targetAgent) } : {}),
-    ...(candidate.provider ? { provider: canonicalProvider(candidate.provider) } : {}),
+    ...(targetAgent ? { target_agent: targetAgent } : {}),
+    ...(provider ? { provider } : {}),
     ...(candidate.model_id || candidate.model ? { model_id: candidate.model_id || candidate.model } : {}),
     ...(candidate.effort === undefined ? {} : { effort: candidate.effort }),
     ...(candidate.transport === undefined ? {} : { transport: candidate.transport }),
@@ -325,6 +354,9 @@ function resolveTarget(input, options = {}) {
   const explicit = cursorPlaceholder && request.role === 'worker' && defaultPair
     ? { ...defaultPair, effort: requested.effort || defaultPair.effort }
     : requested;
+  const legacyPreferenceDiagnostic = !capabilityEvidence && !explicit && Array.isArray(options.preferenceOrder)
+    ? options.preferenceOrder.map(preferenceLegacyDiagnostic).find(Boolean) || null
+    : null;
   const candidates = capabilityEvidence
     ? [explicit || {
       target_agent: capabilityEvidence.target_agent,
@@ -359,7 +391,9 @@ function resolveTarget(input, options = {}) {
         capability: evaluated.capability,
         rejected_candidates: rejected,
         probe_performed: evaluated.probe_performed,
-        ...(cursorPlaceholder ? { diagnostic: 'legacy cursor-default target translated to the Host/Role worker default pair' } : {}),
+        ...(cursorPlaceholder || legacyPreferenceDiagnostic ? {
+          diagnostic: legacyPreferenceDiagnostic || 'legacy cursor-default target translated to the Host/Role worker default pair',
+        } : {}),
       });
     }
     rejected.push({
@@ -397,6 +431,7 @@ function resolveTarget(input, options = {}) {
         rejected_candidates: rejected,
         probe_performed: evaluated.probe_performed,
         fallback_eligible: false,
+        ...(legacyPreferenceDiagnostic ? { diagnostic: legacyPreferenceDiagnostic } : {}),
       });
     }
     fallbackEligible = true;
@@ -417,6 +452,7 @@ function resolveTarget(input, options = {}) {
     rejected_candidates: rejected,
     probe_performed: false,
     fallback_eligible: fallbackEligible,
+    ...(legacyPreferenceDiagnostic ? { diagnostic: legacyPreferenceDiagnostic } : {}),
   });
 }
 

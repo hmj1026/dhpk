@@ -86,7 +86,7 @@ test('explicit canonical dispatch targets are reported without runtime probing',
       catalog_support: 'NOT_RUN',
       host_access: 'NOT_RUN',
       runtime: 'NOT_RUN',
-      fallback: 'allowed',
+      fallback: 'only UNAVAILABLE candidates advance; NOT_RUN and BLOCKED do not fall back',
     });
     assert.strictEqual(res.status, 0);
   } finally {

@@ -13,7 +13,7 @@ const {
 const ADAPTER_PROVIDERS = Object.freeze(['claude-code', 'codex-cli', 'agy', 'cursor-native']);
 const CANONICAL_ADAPTER_PROVIDERS = Object.freeze(['anthropic', 'openai', 'google', 'xai', 'cursor']);
 const CAPABILITY_STATUSES = Object.freeze(['AVAILABLE', 'UNAVAILABLE', 'BLOCKED', 'NOT_RUN']);
-const ADAPTER_PROVIDER_ALIASES = Object.freeze({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', 'cursor-native': 'xai' });
+const ADAPTER_PROVIDER_ALIASES = Object.freeze({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', 'cursor-native': 'cursor' });
 const CANONICAL_PROVIDER_ADAPTERS = Object.freeze({ anthropic: 'anthropic', openai: 'openai', google: 'google', xai: 'xai', cursor: 'cursor' });
 const safeString = (value, fallback) => typeof value === 'string' && value.trim() ? value : fallback;
 
@@ -109,7 +109,16 @@ function createExecutionAdapter({ provider, version = 'provider-adapter.v1', exe
           failureClass: outcome.failure_class, verification, sideEffects: outcome.side_effects,
           adapterVersion: version, receiptId: outcome.receipt_id,
         });
-        return Object.freeze({ status: receipt.status, receipt, failure_class: receipt.failure_class });
+        const legacyCursorInput = target && (
+          target.provider === 'cursor-native' || target.provider === 'native'
+          || target.target_agent === 'cursor-native' || target.target_agent === 'native'
+        );
+        return Object.freeze({
+          status: receipt.status,
+          receipt,
+          failure_class: receipt.failure_class,
+          ...(legacyCursorInput ? { diagnostic: 'legacy provider/route target spelling translated at input boundary' } : {}),
+        });
       } catch (error) {
         const receipt = receiptFor({
           request: normalizedRequest, target: normalizedTarget, status: 'FAILED', failureClass: 'PROVIDER_EXECUTION_FAILURE',
