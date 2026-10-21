@@ -26,9 +26,10 @@ test('offline pytest selection uses an exact shared live marker', () => {
   assert.match(guide, /marked only `live_fubon`/);
 
   const script = `
-import importlib.util, json
+import importlib.util, json, sys
 spec = importlib.util.spec_from_file_location("pytest_expression", ${JSON.stringify(PARSER)})
 mod = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = mod
 spec.loader.exec_module(mod)
 try:
     mod.Expression.compile("not live_*")
