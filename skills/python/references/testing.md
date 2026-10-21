@@ -34,9 +34,16 @@ modules. TDD: write the failing test first (red), implement to green, refactor.
 
 ## Markers & opt-in live tests
 
-- Tests that hit a real external service (e.g. `@pytest.mark.live_fubon` in ccas)
-  must be **opt-in** and excluded from the default run / CI. Register markers in
-  config and select with `-m "not live_fubon"` by default.
+- Tests that hit a real external service must be **opt-in** and excluded from
+  the default run / CI. Mark each one with the shared `live` marker and any
+  specific name, for example `@pytest.mark.live` and `@pytest.mark.live_fubon`.
+  Register those marker names in config.
+- Select the offline set with `pytest -m "not live"`. `-m` is a boolean
+  expression over exact marker names. It is not a glob, so `not live_*` is a
+  parse error, and it does not isolate the network: a test without `live` is
+  still selected.
+- A test marked only `live_fubon`, without the shared `live` marker, is still
+  selected by `not live`. The specific name does not imply the shared marker.
 - Use `@pytest.mark.parametrize` for table-driven cases (parsers, classifiers,
   date-boundary logic) instead of copy-pasted test bodies.
 
@@ -58,12 +65,15 @@ async FastAPI/SQLAlchemy service.
 
 A suite with `asyncio_mode = "auto"`, in-memory SQLite fixtures, FastAPI driven
 via `httpx.AsyncClient` + `ASGITransport` (no live server), a unit vs integration
-split, mocked external services, and opt-in markers for live calls — bug fixes
-landing with a failing-first regression test.
+split, mocked external services, and a shared `live` marker on opt-in external
+calls — bug fixes landing with a failing-first regression test.
 
 ## Verification
 
-- `pytest -m "not live_*"` runs green offline with no network access.
+- `pytest -m "not live"` parses, selects at least the offline tests, and
+  excludes every test that carries the shared `live` marker, including
+  `live_fubon`. The expression is not a glob and does not itself block the
+  network.
 - Coverage meets the floor (`--cov-fail-under`); wiring-only modules are excluded
   from the unit measure.
 - Each bug fix has a regression test that failed before the fix.
