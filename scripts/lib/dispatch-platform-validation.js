@@ -18,7 +18,7 @@ function status(value, label) {
 
 function catalogSupport(catalog, target, host) {
   const routes = Array.isArray(catalog.routes) ? catalog.routes : [];
-  const provider = ({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', 'cursor-native': 'xai' }[target.provider] || target.provider);
+  const provider = ({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', 'cursor-native': 'cursor' }[target.provider] || target.provider);
   const modelId = target.model_id || target.model;
   const route = routes.find((entry) => {
     const agent = !target.target_agent || entry.target_agent === target.target_agent
@@ -34,7 +34,7 @@ function validateDispatchPlatformEvidence({ hostProfile, catalog, target, probe 
   const profile = createHostProfile(hostProfile);
   const catalogData = createProviderModelCatalog(catalog);
   const normalizedTarget = createExecutionTarget({ ...target, ...(target && target.model_id === null && target.native === true ? { allow_unknown_model: true } : {}), ...(target && target.effort === null ? { allow_unknown_effort: true } : {}) });
-  const accessProvider = ({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', 'cursor-native': 'xai' }[normalizedTarget.provider] || normalizedTarget.provider);
+  const accessProvider = ({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', 'cursor-native': 'cursor' }[normalizedTarget.provider] || normalizedTarget.provider);
   const access = profile.access[accessProvider];
   const runtime = probe === null ? 'NOT_RUN' : status(probe.status, 'probe.status');
   const verification = receipt === null

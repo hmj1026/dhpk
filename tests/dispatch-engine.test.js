@@ -178,6 +178,25 @@ test('automatic selection skips NOT_RUN external capability and records evidence
   assert.ok(result.rejected_candidates.some((candidate) => candidate.provider === 'openai' && candidate.status === 'NOT_RUN'));
 });
 
+test('string and object cursor-native preferences resolve to the same Cursor target with a legacy diagnostic', () => {
+  const worker = { role: 'worker', authority: 'workspace-write', effort: 'medium' };
+  const forms = [
+    ['cursor-native/composer-2.5:medium'],
+    [{ provider: 'cursor-native', model_id: 'composer-2.5', effort: 'medium' }],
+    [{ target_agent: 'cursor-native', model_id: 'composer-2.5', effort: 'medium' }],
+  ].map((preferenceOrder) => resolveTarget(request(cursorProfile, worker), { catalog, preferenceOrder }));
+
+  for (const result of forms) {
+    assert.strictEqual(result.status, 'RESOLVED');
+    assert.strictEqual(result.target.target_agent, 'cursor');
+    assert.strictEqual(result.target.provider, 'cursor');
+    assert.strictEqual(result.target.model_id, 'composer-2.5');
+    assert.strictEqual(result.diagnostic, 'legacy provider/route target spelling translated at input boundary');
+  }
+  assert.deepStrictEqual(forms[1].target, forms[0].target);
+  assert.deepStrictEqual(forms[2].target, forms[0].target);
+});
+
 test('configured external preference selects an available Codex target', () => {
   const available = {
     ...cursorProfile,
@@ -703,7 +722,29 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.strictEqual(result.catalog_support, 'SUPPORTED');
     assert.strictEqual(result.host_access, 'NOT_RUN');
     assert.strictEqual(result.runtime, 'NOT_RUN');
-    assert.strictEqual(result.fallback, 'allowed');
+    assert.strictEqual(result.fallback, 'only UNAVAILABLE candidates advance; NOT_RUN and BLOCKED do not fall back');
+  });
+
+  test('string and object cursor-native config targets share one resolution and the ADR removal version', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { LEGACY_REMOVAL_VERSION } = require('../scripts/lib/dispatch-config');
+    const adr = fs.readFileSync(path.join(__dirname, '../docs/adr/0020-provider-is-a-model-vendor-not-a-host-runtime.md'), 'utf8');
+    const stringConfig = resolveDispatchConfig({ project: { worker_target: 'cursor-native/composer-2.5:medium' } });
+    const providerObject = resolveDispatchConfig({ project: { worker_target: { provider: 'cursor-native', model_id: 'composer-2.5', effort: 'medium' } } });
+    const agentObject = resolveDispatchConfig({ project: { worker_target: { target_agent: 'cursor-native', model_id: 'composer-2.5', effort: 'medium' } } });
+    const expected = { target_agent: 'cursor', model_id: 'composer-2.5', effort: 'medium' };
+    assert.deepStrictEqual(stringConfig.worker_target, expected);
+    assert.deepStrictEqual(providerObject.worker_target, expected);
+    assert.deepStrictEqual(agentObject.worker_target, expected);
+    for (const config of [stringConfig, providerObject, agentObject]) {
+      assert.ok(config.legacy_sources.some((entry) => entry.field === 'worker_target'
+        && entry.diagnostic === 'legacy provider/route target spelling translated at input boundary'
+        && entry.removal_version === '0.67.0'));
+    }
+    assert.strictEqual(LEGACY_REMOVAL_VERSION, '0.67.0');
+    assert.ok(adr.includes('0.67.0'));
+    assert.ok(adr.includes('0.66.0 shipped'));
   });
 
   test('session-start report keeps invalid configuration and runtime evidence separate', () => {
