@@ -893,7 +893,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
       "destination": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
       "kind": "entry",
-      "sha256": "e3b3261923883380b0a97e3f8d326f9bf57216ab18480cdb7e8a071bef2aea73"
+      "sha256": "567ff2658ba0d04bea5d72f364acf08959bd480a8d4f1929bd4c3acd54d9bf43"
     },
     {
       "skillId": "flow-drive",
@@ -925,7 +925,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
       "kind": "entry",
-      "sha256": "c5ab6ac8a67345116a4411c52910d9cf1606e5a8c65ca80e3efd848db23bf2c5"
+      "sha256": "cd0beb55b967a6d46653a4eb6ad9577321931d9237193094a62ee5cfa345e7d2"
     },
     {
       "skillId": "flow-drive",
@@ -2341,7 +2341,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
       "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
       "kind": "entry",
-      "sha256": "e3b3261923883380b0a97e3f8d326f9bf57216ab18480cdb7e8a071bef2aea73"
+      "sha256": "567ff2658ba0d04bea5d72f364acf08959bd480a8d4f1929bd4c3acd54d9bf43"
     },
     {
       "skillId": "flow-guide",
@@ -2373,7 +2373,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "kind": "entry",
-      "sha256": "c5ab6ac8a67345116a4411c52910d9cf1606e5a8c65ca80e3efd848db23bf2c5"
+      "sha256": "cd0beb55b967a6d46653a4eb6ad9577321931d9237193094a62ee5cfa345e7d2"
     },
     {
       "skillId": "flow-guide",

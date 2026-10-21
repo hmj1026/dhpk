@@ -36,8 +36,8 @@ standard API rates used for comparison are documented in the [OpenAI model
 catalog](https://developers.openai.com/api/docs/models) and [API pricing
 guide](https://developers.openai.com/api/docs/pricing) (checked 2026-10-05):
 GPT-6.1 Sol (`gpt-6.1-sol`) is `$2/$10` and GPT-6 Luna is `$0.10/$0.50` per
-million input/output tokens. The Codex CLI 0.163.0 models cache, for this
-Host, advertises `gpt-6.1-sol` and `gpt-6-sol` as `low`, `medium`, `high`,
+million input/output tokens. The Codex models cache read on 2026-10-21 (CLI 0.163.0, cache
+client_version 0.162.0), for this Host, advertises `gpt-6.1-sol` and `gpt-6-sol` as `low`, `medium`, `high`,
 `xhigh`, `max`, and `ultra`, and `gpt-6-luna` as `low`, `medium`, `high`,
 `xhigh`, and `max` without `ultra`. That cache is not a promise for every
 API or Host route. `none` and `minimal` are not in the cache. CLI worker
