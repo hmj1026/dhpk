@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "26bdff4f4790f277b724063ab9a69333ae1ca8a3",
-  "generatedFromCommit": "26bdff4f4790f277b724063ab9a69333ae1ca8a3",
-  "generatedFromTree": "a02ef70a516bf22ea67f64ce6b122978e3009e7f",
+  "sourceCommit": "9771dd8ccca8445de5102982bf721770dffcd2aa",
+  "generatedFromCommit": "9771dd8ccca8445de5102982bf721770dffcd2aa",
+  "generatedFromTree": "25cefd3ae55e2fcd2ce4b37eea8df20a686e4093",
   "inventoryDigest": "c4f2f381c150148ccce795bdf4e2434caab752d8cccf8614de6b5a552278f975",
   "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "2.3.0",
@@ -1307,7 +1307,7 @@
         "ownerId": "flow-drive",
         "source": "skills/python/references/testing.md",
         "destination": "skills/flow-drive/references/python/references/testing.md",
-        "originalGitBlobDigest": "efbd3cb3cc87af0abcba1ac2ffd3ed8a5fdc6ffe"
+        "originalGitBlobDigest": "3997e7a73b4f840d2d6dc07aba314882eb14084a"
       },
       {
         "ownerId": "flow-drive",
@@ -6361,7 +6361,7 @@
     "code-trace": "652ef67e8e9f4191b3554ccf23760f4b833a1cd80ca23190dae3fa0d821fca79",
     "create-pr": "a1b8e861e23b78c537b496949055de77fa7c4881ef63fe43c5b80ddb70e109f2",
     "doc-maintain": "a1077137778cb2353840c78ef50079268c82077bf276c1d849c77548b299accd",
-    "flow-drive": "ade670777a761a61ae312133eedebd9884c9c47138bab18e9ce05751c2af4fba",
+    "flow-drive": "085da70afd7f98e18de5b2d4cb1d09ba23dfed458e43a97b9bb3e8170e73702d",
     "flow-guide": "5f40d66f785acc7a029f014e813fcd29222111234a6e9bb1ac905c17831298f5",
     "git-smart-commit": "ddbd416799fb0fb79bd481353ca9e2f5a31ec089d9fa2be2b6014ded0d507e0c",
     "git-worktree": "07d997decebc844ae8e2b68771810a27a12c5f34fc3ae43ebda14102c1c64585",
