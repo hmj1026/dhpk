@@ -46,8 +46,9 @@ Unknown and known non-Codex skill names receive different diagnostics.
    delegates to `scripts/route-result.js`.
 2. Match `references/route-table.json` through `scripts/pre-route.sh`; the
    first precise match wins. A miss remains a deliberate-classification case.
-3. Apply the selected policy's local `references/execution-bundle/rules/execution-policy.md`
-   projection and the target's invocation class.
+3. Apply the selected policy kernel first
+   (`references/execution-bundle/rules/execution-policy-kernel.md`), then only
+   the conditional section the route needs, and the target's invocation class.
 4. Without `--go`, return advice only. With `--go`, produce at most one
    bounded handoff for an available implicit-eligible target. An explicit-only
    target is reported as `explicit-required`; it is never dispatched here.
@@ -62,7 +63,13 @@ The result has exactly `schema`, `action`, `host`, `cleanedQuery`, `options`,
 
 ## `rules`
 
-Read the local `references/execution-bundle/rules/execution-policy.md` first.
+Read the selected policy kernel first
+(`references/execution-bundle/rules/execution-policy-kernel.md`). Load a
+conditional section of
+`references/execution-bundle/rules/execution-policy.md` only after the kernel
+and only when the question needs that section. Listing a reference does not
+load it. Resolve these paths through the installed Skill's existing per-Host
+bundle (`references/execution-bundle/`).
 Use `references/execution-bundle/skills/flow-guide/references/invocation-precedence.md`
 when more than one owner appears to match, and load the phase-specific delivery
 reference only after the phase is known.
@@ -112,7 +119,7 @@ execution and completion evidence.
 
 `references/execution-bundle/` holds maintainer-synchronized policy copies; never edit them here.
 The selected policy file defines its bundle base, and every required policy
-resource resolves beneath it. Runtime lookup is fail-closed and Skill-local:
+resource resolves beneath it. Listing a reference does not load it. Runtime lookup is fail-closed and Skill-local:
 missing resources report `BLOCKED_RESOURCE_MISSING`; no checkout, sibling Skill,
 repository inventory, environment variable, or upward search is consulted.
 

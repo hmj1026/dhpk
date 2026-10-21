@@ -3,8 +3,13 @@
 1. Resolve the selected head and base once. An explicit `--head` is the
    selected head. When `--head` is omitted, the selected head is the current
    branch from `git rev-parse --abbrev-ref HEAD`. An explicit `--base` is the
-   selected base. When `--base` is omitted, use `{TARGET_BRANCH}` and then
-   `main`. Confirm both refs with `git rev-parse --verify`. A missing
+   selected base. An explicit `--base` wins. When `--base` is omitted and the
+   consumer project's instructions supply `{TARGET_BRANCH}`, use that value.
+   dhpk does not define a userConfig key for `{TARGET_BRANCH}` or
+   `{TICKET_PATTERN}`. When `{TARGET_BRANCH}` is unset, the generic fallback is `main`. That fallback is the skill default. This dhpk repository's
+   documented pull-request base is `develop`; pass `--base develop` or supply
+   `{TARGET_BRANCH}` as `develop` for a pull request in this repo. Confirm
+   both refs with `git rev-parse --verify`. A missing
    repository, or a head or base that does not resolve, is a terminal
    `BLOCKED` result. Do not substitute the checkout branch, `HEAD`, or
    another ref, and do not commit, check out, or push.
@@ -20,9 +25,9 @@
    the merge base, which is the pull-request comparison. Keep those formulas
    distinct, and do not replace either one with checkout `HEAD`.
 3. Extract the first ticket matching `{TICKET_PATTERN}` from the selected
-   head name. The default is `[A-Z]+-\d+`. Use the repository's ticket URL
+   head name. When the project does not set `{TICKET_PATTERN}`, use `[A-Z]+-\d+`. Use the repository's ticket URL
    convention when building the ticket link. If no ticket can be resolved,
-   state that in the report rather than inventing one.
+   state that in the report and do not invent one.
 4. Derive the title as `<type>: [<TICKET>] <summary>` unless `--title` is
    supplied. Build a concise body with the summary, the ticket link when
    resolved, and a verification section. List commands and results only for

@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "e203f5b2f66320c22094de4a9bfce4a242aaf206",
-  "generatedFromCommit": "e203f5b2f66320c22094de4a9bfce4a242aaf206",
-  "generatedFromTree": "e8e7a8d5a3b1d41399f5ff632c50ef836703698d",
+  "sourceCommit": "ee9afa7581d0c22611cd35b8982993bd9ea35172",
+  "generatedFromCommit": "ee9afa7581d0c22611cd35b8982993bd9ea35172",
+  "generatedFromTree": "73e1f200c93ded8bfdc1c2ccc00c97e84111d80b",
   "inventoryDigest": "c4f2f381c150148ccce795bdf4e2434caab752d8cccf8614de6b5a552278f975",
   "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "2.3.0",
@@ -587,7 +587,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/SKILL.md",
         "destination": "skills/create-pr/SKILL.md",
-        "originalGitBlobDigest": "1e39686f873f6b978965fc506035ed4a519cae6a"
+        "originalGitBlobDigest": "84fdf5bea31f609d44d1e05e16a41541e045d9d1"
       },
       {
         "ownerId": "create-pr",
@@ -653,7 +653,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/references/workflow.md",
         "destination": "skills/create-pr/references/workflow.md",
-        "originalGitBlobDigest": "48f3f1595d5587640bb69bf1f0ec32209fcd3cef"
+        "originalGitBlobDigest": "5e07939e79b6a784d0a19b4e879448604b6de13f"
       },
       {
         "ownerId": "doc-maintain",
@@ -1787,7 +1787,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/SKILL.md",
         "destination": "skills/flow-guide/SKILL.md",
-        "originalGitBlobDigest": "44f56f31b3cd769579f0cca2229f744d817c0ca6"
+        "originalGitBlobDigest": "95e8aa140b363e832bf91e50fe74d0a01bea801e"
       },
       {
         "ownerId": "flow-guide",
@@ -6359,10 +6359,10 @@
   "fingerprints": {
     "change-verdict": "f7364df9dd76c9e6c733dafe4bfa753c29b25af388b0aff4d1458bf4469eb13a",
     "code-trace": "652ef67e8e9f4191b3554ccf23760f4b833a1cd80ca23190dae3fa0d821fca79",
-    "create-pr": "a1b8e861e23b78c537b496949055de77fa7c4881ef63fe43c5b80ddb70e109f2",
+    "create-pr": "d4c956efed804d357c45b22446844b7d306af6a4e219617f100d950ee1a7b238",
     "doc-maintain": "a1077137778cb2353840c78ef50079268c82077bf276c1d849c77548b299accd",
     "flow-drive": "8c6ebbfcd6c7f5e1f64a0a0e03b6b3abf4cbd9458fdd64837b9797f121154825",
-    "flow-guide": "5f40d66f785acc7a029f014e813fcd29222111234a6e9bb1ac905c17831298f5",
+    "flow-guide": "32fb5b8fc63f18aad809bacbc36068c6401672e93f4cc9292fe691880f5bc94f",
     "git-smart-commit": "ddbd416799fb0fb79bd481353ca9e2f5a31ec089d9fa2be2b6014ded0d507e0c",
     "git-worktree": "07d997decebc844ae8e2b68771810a27a12c5f34fc3ae43ebda14102c1c64585",
     "library-author": "d43c5329860a3e2c9737c320312aaee87008b212aa2cc11ffb028cbebb7509d3",
