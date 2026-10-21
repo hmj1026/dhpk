@@ -1285,7 +1285,7 @@
       "sourcePath": "skills/nextjs/references/15.5.md",
       "destination": "skills/flow-drive/references/nextjs/references/15.5.md",
       "kind": "reference",
-      "sha256": "355b8dda34ae499dfc6f75825eb15843651039255cb93b92d253665d4b3e6e11"
+      "sha256": "439d071eb22a22cabc96cc69d0d10753248ada00b11f6385dd4599238fa72ed1"
     },
     {
       "skillId": "nextjs",
@@ -2917,7 +2917,7 @@
       "sourcePath": "skills/harness-setup/data/module-catalog.json",
       "destination": "skills/harness-setup/data/module-catalog.json",
       "kind": "entry",
-      "sha256": "cda7d094760ea54005c7cc2e350c5c8f7ab742790e455e02a87824959f64e1d5"
+      "sha256": "fb6412a96c83789d2ea96c5c89de42195e3c231d20a9fbf409b302b1b6a5a865"
     },
     {
       "skillId": "harness-setup",
