@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.5",
-  "sourceCommit": "26bdff4f4790f277b724063ab9a69333ae1ca8a3",
-  "generatedFromCommit": "26bdff4f4790f277b724063ab9a69333ae1ca8a3",
-  "generatedFromTree": "a02ef70a516bf22ea67f64ce6b122978e3009e7f",
+  "sourceCommit": "9771dd8ccca8445de5102982bf721770dffcd2aa",
+  "generatedFromCommit": "9771dd8ccca8445de5102982bf721770dffcd2aa",
+  "generatedFromTree": "25cefd3ae55e2fcd2ce4b37eea8df20a686e4093",
   "inventoryDigest": "c4f2f381c150148ccce795bdf4e2434caab752d8cccf8614de6b5a552278f975",
   "inventoryRevision": "sha256:99629f889416573f63d564aca75035388877f508b1ed8769053dfc4d9888edd7",
   "generatorVersion": "1.0.0",
@@ -1233,7 +1233,7 @@
         "ownerId": "flow-drive",
         "source": "skills/python/references/testing.md",
         "destination": "skills/flow-drive/references/python/references/testing.md",
-        "originalGitBlobDigest": "efbd3cb3cc87af0abcba1ac2ffd3ed8a5fdc6ffe"
+        "originalGitBlobDigest": "3997e7a73b4f840d2d6dc07aba314882eb14084a"
       },
       {
         "ownerId": "flow-drive",
