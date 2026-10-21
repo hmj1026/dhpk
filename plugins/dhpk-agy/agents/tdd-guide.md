@@ -21,13 +21,13 @@ journeys; route those journeys to `e2e-runner`.
 - User/skill TDD guidance → skill `tdd-workflow`. This agent is the dispatched RED/GREEN specialist.
 - Playwright journeys → `e2e-runner`
 
-> Before mocking: trace the unit's collaborators per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` so you mock the *real* dependencies, not guesses.
+> Before mocking: trace the unit's collaborators per `rules/tool-routing.md` so you mock the *real* dependencies, not guesses.
 
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never write a PHP test against Swift conventions, or vice-versa.
 
-1-2. Loader: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `tdd-guide`). Loaded sheets carry stack conventions + run commands.
+1-2. Loader: `agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `tdd-guide`). Loaded sheets carry stack conventions + run commands.
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)

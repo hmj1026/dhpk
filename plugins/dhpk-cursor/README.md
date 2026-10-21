@@ -1,6 +1,7 @@
 # dhpk Cursor Plugin package
 
 This physical Cursor-native projection is generated from the canonical inventory.
+Agent support files live in this package under `agent-traps/`.
 Portable skills are owned by the standard Agent Plugin package at
 `plugins/dhpk-agent/skills/` and are not duplicated here unless an explicit
 inventory overlay is selected.

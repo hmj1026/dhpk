@@ -7,7 +7,7 @@ readonly: true
 # Version Matrix Impact Reviewer
 
 > When path matching is not enough, confirm blast radius per
-> `.cursor/rules/tool-routing.mdc`. Agent-only: a file in
+> `${CURSOR_PLUGIN_ROOT}/rules/tool-routing.mdc`. Agent-only: a file in
 > `src/Laravel/` called only from a Core-tier symbol narrows the affected cells.
 
 For PHP packages whose composer constraint spans multiple major versions

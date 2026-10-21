@@ -9,7 +9,7 @@ readonly: true
 ## Scope
 
 The orchestrator supplies the changed-file scope. Apply the reviewer rules in
-`.cursor/dhpk/policies/execution-policy.md`; a semantic back-stop may
+`${CURSOR_PLUGIN_ROOT}/rules/execution-policy.mdc`; a semantic back-stop may
 dispatch this reviewer for a Repository method even when no path trigger matched.
 
 ## When NOT
@@ -21,7 +21,7 @@ dispatch this reviewer for a Repository method even when no path trigger matched
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never check a relational SQL change against Core Data rules, or vice-versa.
 
-1-2. Loader: `.cursor/dhpk/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `database-reviewer`). Manifest detection also covers `*.xcdatamodeld` and `pyproject.toml`'s `sqlalchemy`/`alembic` deps.
+1-2. Loader: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `database-reviewer`). Manifest detection also covers `*.xcdatamodeld` and `pyproject.toml`'s `sqlalchemy`/`alembic` deps.
 3. **Engine overlay** (independent of framework): if a Postgres driver is present — `pg` / `postgres` / `@supabase/*` in `package.json`, `psycopg` / `asyncpg` / `sqlalchemy[postgresql]` in `pyproject.toml`, `*/pgsql*` in `composer.json`, or a `supabase/` dir — also Read `database-reviewer/postgres.md` for RLS / index / keyset-pagination traps.
 4. No sheet matches → apply only the Baseline below.
 

@@ -772,7 +772,11 @@ cp -R plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
 
 也可使用 reviewed `.cursor-plugin/marketplace.json` source。Reload Cursor，
 不要提交 credential 的 variables，並驗證選取的 `rules/`、`agents/`、
-`commands/` 與 `hooks/hooks.json`。portable skills 不會複製到這個 native
+`commands/` 與 `hooks/hooks.json`。native agents 以 `${CURSOR_PLUGIN_ROOT}`
+定位這個 package 裡的 prompt-defense、trap sheet 與 execution policy，不讀
+project-local `.cursor/dhpk/`。外部 worker adapter 透過並排安裝的
+`dhpk-agent` skill store 定位
+（`${CURSOR_PLUGIN_ROOT}/../dhpk-agent/skills/...`）。portable skills 不會複製到這個 native
 package：請安裝 `plugins/dhpk-agent/` 作為專案唯一的 physical skill store，
 再以兩份 provenance 的 stable IDs 互相比對。不要手動建立第二份 `skills/`。
 只有明確的 environment-specific matrix overlay 可以加入 Cursor `skills/`，
@@ -876,8 +880,10 @@ write path 是此 bash installer。
 
 ## AGY／Antigravity CLI plugin（Experimental）
 
-AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
-frontmatter，不會改寫 `agents/`。已追蹤的 `plugins/dhpk-agy/` 目錄已是可供
+AGY projection 是獨立的 owner-scoped package。它把 canonical agent
+frontmatter 轉進 package，不改 canonical `agents/`。產生出的 agents 以
+package 內的 plugin-relative `agent-traps/` 路徑定位 prompt-defense 與 trap
+sheet，不使用 `${CLAUDE_PLUGIN_ROOT}`。已追蹤的 `plugins/dhpk-agy/` 目錄已是可供
 consumer 從 clone 直接安裝的 prepared distribution package。請直接安裝該
 package；consumer 安裝流程不要在 tracked path 重新 generate，因為 generate
 會改寫 provenance metadata 並弄髒 checkout：

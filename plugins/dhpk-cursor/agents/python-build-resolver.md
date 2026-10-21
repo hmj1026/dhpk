@@ -10,7 +10,7 @@ Get a failing Python toolchain command green with **surgical** changes. Read the
 error, fix the root cause, re-run, repeat — never silence a check to make it pass.
 
 > Before a fix that changes a signature or a public name, gauge blast radius
-> per `.cursor/rules/tool-routing.mdc`.
+> per `${CURSOR_PLUGIN_ROOT}/rules/tool-routing.mdc`.
 >
 > Detect the runner first: a `uv.lock` ⇒ `uv run <tool>`; a `poetry.lock` ⇒
 > `poetry run <tool>`; an already-activated venv ⇒ the bare tool on PATH. Find
@@ -56,7 +56,7 @@ module references when those modules are active.
 
 ## Principles
 
-Shared framing: `.cursor/dhpk/agent-traps/_common/build-resolver-skeleton.md`.
+Shared framing: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
 This resolver's own escape hatches to never use: blanket `# noqa`, `# type: ignore`,
 `--no-verify`, or deleting an assertion just to go green.
 
@@ -74,7 +74,7 @@ shared or user-level state; report the exact cleanup scope when it is required.
 
 ## Stop conditions (escalate, don't loop)
 
-Shared framing: `.cursor/dhpk/agent-traps/_common/build-resolver-skeleton.md`.
+Shared framing: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
 This resolver's own architectural-change examples: restructuring async ownership,
 splitting a module, a real dependency upgrade. Environmental examples: missing
 system lib, network-restricted package index.
@@ -90,4 +90,4 @@ Run: ruff check OK | mypy OK | pytest OK
 Handing off to code-reviewer for the diff.
 ```
 
-Handoff: `.cursor/dhpk/agent-traps/_common/build-resolver-skeleton.md`.
+Handoff: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
