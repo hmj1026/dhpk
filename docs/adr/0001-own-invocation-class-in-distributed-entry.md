@@ -1,5 +1,7 @@
 # Own invocation class in each distributed entry
 
+Status: accepted
+
 dhpk records `explicit-only` or `implicit-eligible` in each Distributed Skill's `SKILL.md` as the nested `metadata` key `dhpk-invocation-class`; an unpaired Distributed Command records the same nested field in its own frontmatter, while a paired command inherits the skill's class. Claude's `disable-model-invocation` and Codex's `policy.allow_implicit_invocation` are validated projections, not independent decisions. This keeps authority policy beside the entry it governs, covers optional and experimental packages, and avoids a second central inventory that can drift.
 
 ## Considered Options

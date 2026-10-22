@@ -59,7 +59,7 @@ GitHub Issues 是本專案的 issue tracker。依 `docs/agents/issue-tracker.md`
 
 ### Domain docs
 
-本專案採 single-context。讀取根目錄的 `CONTEXT.md` 和相關 `docs/adr/`。詳見 `docs/agents/domain.md`。
+本專案採 single-context。讀取根目錄的 `GLOSSARY.md` 和相關 `docs/adr/`。詳見 `docs/agents/domain.md`。
 
 ## Guidance ownership
 
