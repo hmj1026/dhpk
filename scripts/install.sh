@@ -529,19 +529,154 @@ if [[ $ASSUME_YES -eq 0 ]] && ! dhpk_yes_no "Run this now?" y; then
   exit 130
 fi
 
-echo
-"${CMD[@]}"
-rc=$?
+# `claude plugin install` exits 0 when dhpk@dhpk is already installed and does
+# not upgrade it. Update only the scope that install would have used, and
+# forward --config only when `claude plugin update` accepts it.
+dhpk_help_accepts_option() {
+  local help="$1" option="$2" re
+  case "$option" in
+    --scope) re='(^|[[:space:]])--scope([[:space:]]|$)' ;;
+    --config) re='(^|[[:space:]])--config([[:space:]]|$)' ;;
+    --yes) re='(^|[[:space:]])--yes([[:space:]]|,|$)' ;;
+    -y) re='(^|[[:space:]])-y([[:space:]]|,|$)' ;;
+    *) return 1 ;;
+  esac
+  [[ "$help" =~ $re ]]
+}
 
-echo
-if [[ $rc -eq 0 ]]; then
+dhpk_install_target_scope() {
+  local i arg help flat scope_re
+  for ((i = 0; i < ${#CMD[@]}; i++)); do
+    arg="${CMD[$i]}"
+    if [[ "$arg" == "--scope" || "$arg" == "-s" ]]; then
+      printf '%s' "${CMD[i+1]:-}"
+      return 0
+    fi
+    if [[ "$arg" == --scope=* ]]; then
+      printf '%s' "${arg#--scope=}"
+      return 0
+    fi
+  done
+  help="$(claude plugin install --help 2>&1 || true)"
+  flat="${help//$'\n'/ }"
+  scope_re='--scope[^)]{0,220}\(default:[[:space:]]*"?(user|project|local|managed)"?\)'
+  if [[ "$flat" =~ $scope_re ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  printf 'user'
+}
+
+dhpk_plugin_installed_for_scope() {
+  local scope="$1" json
+  [[ "$scope" == user || "$scope" == project || "$scope" == local || "$scope" == managed ]] || return 1
+  json="$(claude plugin list --json 2>/dev/null || true)"
+  [[ -n "${json//[[:space:]]/}" ]] || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+  python3 - "$scope" "$json" <<'PY'
+import json
+import sys
+
+scope, raw = sys.argv[1], sys.argv[2]
+target = "dhpk@dhpk"
+try:
+    data = json.loads(raw)
+except (TypeError, ValueError):
+    sys.exit(1)
+if isinstance(data, dict):
+    data = data.get("plugins") or data.get("items") or []
+if not isinstance(data, list):
+    sys.exit(1)
+for item in data:
+    if not isinstance(item, dict):
+        continue
+    identity = item.get("id") or item.get("name")
+    if identity != target:
+        continue
+    item_scope = item.get("scope")
+    if item_scope is None or item_scope == scope:
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+
+dhpk_output_says_already_installed() {
+  local lower
+  [[ "$1" == *"dhpk@dhpk"* ]] || return 1
+  lower="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  [[ "$lower" == *"already installed"* ]]
+}
+
+dhpk_print_installed() {
+  echo
   echo "✓ Installed. Next steps:"
   echo "    • Inspect install   : claude plugin list --json"
   echo "    • Reconfigure later : /dhpk:setup  (inside Claude Code)"
   if [[ -n "$DOCKER_CONTAINERS" ]]; then
     echo "    • Docker reference  : $DOCKER_DOC"
   fi
+}
+
+dhpk_run_plugin_update() {
+  local scope="$1" help i
+  local -a update_cmd
+  help="$(claude plugin update --help 2>&1 || true)"
+  update_cmd=(claude plugin update dhpk@dhpk)
+  if dhpk_help_accepts_option "$help" --scope \
+    && [[ "$scope" == user || "$scope" == project || "$scope" == local || "$scope" == managed ]]; then
+    update_cmd+=(--scope "$scope")
+  fi
+  if dhpk_help_accepts_option "$help" --config; then
+    for ((i = 0; i < ${#CMD[@]}; i++)); do
+      if [[ "${CMD[$i]}" == "--config" && $((i + 1)) -lt ${#CMD[@]} ]]; then
+        update_cmd+=(--config "${CMD[i+1]}")
+        i=$((i + 1))
+      elif [[ "${CMD[$i]}" == --config=* ]]; then
+        update_cmd+=("${CMD[$i]}")
+      fi
+    done
+  fi
+  if dhpk_help_accepts_option "$help" --yes || dhpk_help_accepts_option "$help" -y; then
+    update_cmd+=(-y)
+  fi
+  echo "dhpk@dhpk is already installed; running update."
+  "${update_cmd[@]}"
+}
+
+install_scope="$(dhpk_install_target_scope)"
+rc=0
+ran_update=0
+if dhpk_plugin_installed_for_scope "$install_scope"; then
+  dhpk_run_plugin_update "$install_scope"
+  rc=$?
+  ran_update=1
 else
+  install_output="$("${CMD[@]}" 2>&1)"
+  rc=$?
+  if [[ -n "$install_output" ]]; then
+    printf '%s\n' "$install_output"
+  fi
+  if [[ $rc -eq 0 ]] && dhpk_output_says_already_installed "$install_output"; then
+    dhpk_run_plugin_update "$install_scope"
+    rc=$?
+    ran_update=1
+  fi
+fi
+
+if [[ $ran_update -eq 1 ]]; then
+  if [[ $rc -eq 0 ]]; then
+    dhpk_print_installed
+  else
+    echo
+    echo "✗ 'claude plugin update' exited with status $rc."
+  fi
+  exit "$rc"
+fi
+
+if [[ $rc -eq 0 ]]; then
+  dhpk_print_installed
+else
+  echo
   echo "✗ 'claude plugin install' exited with status $rc."
 fi
-exit $rc
+exit "$rc"
