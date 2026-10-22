@@ -77,6 +77,33 @@ _dhpk_ci_option_consumes_next() {
     return 1
 }
 
+# True when $1 is a commit short option whose cluster has n before the first
+# value-taking letter (m, F, C, c, t). Characters after that letter are the
+# attached value, not flags. Long options are ignored; --no-verify is matched
+# by the caller. Call only when the subcommand is commit.
+_dhpk_ci_commit_short_no_verify() {
+    case "$1" in
+        --*) return 1 ;;
+        -*) ;;
+        *) return 1 ;;
+    esac
+    local cluster="${1#-}"
+    local i=0
+    local len="${#cluster}"
+    local ch
+    while [ "$i" -lt "$len" ]; do
+        ch="${cluster:$i:1}"
+        case "$ch" in
+            n) return 0 ;;
+            [mFCct]) return 1 ;;
+            [A-Za-z]) ;;
+            *) return 1 ;;
+        esac
+        i=$((i + 1))
+    done
+    return 1
+}
+
 _dhpk_ci_record_git() {
     local i=0 n="${#_dhpk_ci_words[@]}" sub="" state="cwd" repo="$_dhpk_ci_cwd" c_path="" c_base="" no_verify=0 exempt=0
     local word dyn
@@ -157,6 +184,9 @@ _dhpk_ci_record_git() {
             --no-verify|--no-verify=*) no_verify=1 ;;
             --help|-h|--dry-run|--abort|--continue|--skip|--quit) exempt=1 ;;
         esac
+        if [ "$sub" = "commit" ] && _dhpk_ci_commit_short_no_verify "$word"; then
+            no_verify=1
+        fi
         if _dhpk_ci_option_consumes_next "$word"; then
             j=$((j + 2))
         else
