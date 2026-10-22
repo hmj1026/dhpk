@@ -393,8 +393,7 @@
       "callers": [
         "commands/flow-drive.md"
       ],
-      "reason": "Canonical $flow-drive Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "allowed_tools": "Read, Grep, Glob, Bash, Skill, Agent"
+      "reason": "Canonical $flow-drive Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
     }
   ]
 }

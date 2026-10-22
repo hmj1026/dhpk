@@ -67,8 +67,7 @@
       "outcome": "retain",
       "callers": [
         "commands/pr-summary.md"
-      ],
-      "allowed_tools": "Bash(git:*), Bash(gh:*), Bash(bash:*), Skill"
+      ]
     }
   ]
 }

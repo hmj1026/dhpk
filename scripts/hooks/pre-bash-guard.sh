@@ -62,7 +62,8 @@ fi
 
 # Pattern 5: git commit / push with --no-verify. The flag must be an argv of
 # that invocation. A quoted message, a real comment, or push -n (dry-run) does
-# not count, and one segment cannot exempt another.
+# not count, and one segment cannot exempt another. Commit -n raises the same
+# signal.
 # Opt out for a session: DHPK_ALLOW_NO_VERIFY=1
 if [ "${DHPK_ALLOW_NO_VERIFY:-0}" = "0" ]; then
     _nv_i=0

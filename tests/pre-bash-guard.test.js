@@ -95,6 +95,28 @@ test('commit-tree does not exempt a later commit --no-verify', () => {
   assert.strictEqual(res.status, 2, res.stderr);
 });
 
+test('git commit -n and short clusters are blocked like --no-verify', () => {
+  for (const command of ['git commit -n -m x', 'git commit -nm x', 'git commit -anm x']) {
+    const res = runHook(command);
+    assert.strictEqual(res.status, 2, `${command}: expected blocked, got ${res.status} / ${res.stderr}`);
+    assert.match(res.stderr, /--no-verify/i);
+  }
+});
+
+test('a message of -n or n, and -n on push or merge, is not a bypass', () => {
+  for (const command of ['git commit -m -n', 'git commit -mn', 'git push -n origin x', 'git merge -n feature']) {
+    const res = runHook(command);
+    assert.strictEqual(res.status, 0, `${command}: ${res.stderr}`);
+  }
+});
+
+test('DHPK_ALLOW_NO_VERIFY lets commit -n and the long flag through', () => {
+  for (const command of ['git commit -n -m x', 'git commit -m x --no-verify']) {
+    const res = runHook(command, { DHPK_ALLOW_NO_VERIFY: '1' });
+    assert.strictEqual(res.status, 0, `${command}: ${res.stderr}`);
+  }
+});
+
 test('a quoted hash does not hide an .env redirect', () => {
   const res = runHook('echo "foo # bar" > .env');
   assert.strictEqual(res.status, 2, res.stderr);
@@ -299,6 +321,12 @@ test('dangerous command (rm -rf /home) is blocked (exit 2), core guard bubbles u
 test('safe command passes through (exit 0), no active modules', () => {
   const res = runHook('echo hello');
   assert.strictEqual(res.status, 0, `expected allowed, got: ${res.status} / ${res.stderr}`);
+});
+
+test('dispatcher blocks git commit -n like --no-verify', () => {
+  const res = runHook('git commit -n -m x');
+  assert.strictEqual(res.status, 2, `expected blocked, got: ${res.status} / ${res.stderr}`);
+  assert.match(res.stderr, /--no-verify/i);
 });
 
 test('.env write via redirection is blocked (exit 2), core guard bubbles up', () => {

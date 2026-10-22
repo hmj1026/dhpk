@@ -86,8 +86,7 @@
       "outcome": "retain",
       "callers": [
         "commands/precommit.md"
-      ],
-      "allowed_tools": "Bash(node:*), Bash(git:*), Read, Skill"
+      ]
     }
   ]
 }

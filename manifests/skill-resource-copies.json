@@ -322,7 +322,7 @@
     "skills/flow-guide/scripts/_lib/frontmatter.js": {
       "skill_id": "flow-guide",
       "source": "scripts/ci/_lib/frontmatter.js",
-      "sha256": "sha256:7d1891103482a4b9160075b9302ca7ef5811b86b049b5cc330a0b7a153845b21",
+      "sha256": "sha256:bce4449d3ea1e7bbdaca942ca5f3bd1b8d1bc3a0375904cfd5a0f40cbebeffd6",
       "mode": "0644"
     },
     "skills/flow-guide/scripts/_lib/runner-utils.js": {

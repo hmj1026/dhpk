@@ -90,8 +90,7 @@
       "outcome": "retain",
       "callers": [
         "commands/create-pr.md"
-      ],
-      "allowed_tools": "Bash(git:*), Bash(gh:*), Read, Grep, Glob, Skill"
+      ]
     }
   ]
 }
