@@ -245,7 +245,7 @@ test('rejects provenance-bound generation from a dirty source checkout before wr
 
 test('previews dirty source bytes without changing Git state and formal validation rejects the preview', () => {
   withCleanWorktree((worktreeRoot) => {
-    const changed = path.join(worktreeRoot, 'CONTEXT.md');
+    const changed = path.join(worktreeRoot, 'GLOSSARY.md');
     const added = path.join(worktreeRoot, 'skills', 'flow-guide', 'assets', 'preview-resource.txt');
     const link = path.join(worktreeRoot, 'docs', 'preview-contained-link');
     const originalMode = fs.statSync(changed).mode & 0o7777;
