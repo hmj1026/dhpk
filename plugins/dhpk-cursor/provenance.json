@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "29bc50967e5e784a278cd77638a7b9c104f4eb2d",
-  "generatedFromCommit": "29bc50967e5e784a278cd77638a7b9c104f4eb2d",
-  "generatedFromTree": "434f722c27bdd190f49f18d0f7178e3c6e90fd08",
+  "sourceCommit": "fcfbc26096c1ac569096652129d34c63e726fcd4",
+  "generatedFromCommit": "fcfbc26096c1ac569096652129d34c63e726fcd4",
+  "generatedFromTree": "0d0b9a83e8f8032fe0c12c2baff8bc248b4361af",
   "inventoryDigest": "d2ca57fba64399ba7cc5422832836b9e3bb5e4bd4acc6b2d3d614346143082ae",
   "inventoryRevision": "sha256:c6e0199fd44f63a8a234bc46ac35d79dc995064f97bc49865e0976f8a255bc81",
   "generatorVersion": "1.0.0",
@@ -81,7 +81,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "da0c263180c4c3b57d1d0e4b6102b6919d24cce8"
+        "originalGitBlobDigest": "2a95f8cdaca571128a859502c30064557b06ffbf"
       },
       {
         "ownerId": "change-verdict",
@@ -297,7 +297,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "06cc72273f10060238c74a797c229e75c3e8ac03"
+        "originalGitBlobDigest": "da9fa5659a9154fe101e9a4be9c153bf23d62dca"
       },
       {
         "ownerId": "code-trace",
@@ -2289,7 +2289,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/dhpk-issue-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/SKILL.md",
-        "originalGitBlobDigest": "b41b5d4844fd608ea4e5775a7b28cc5dbf50fc37"
+        "originalGitBlobDigest": "dd50e2e27d0cbb3b9e8d5f1daa89a6270ca27916"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2583,7 +2583,7 @@
         "ownerId": "repo-verify",
         "source": "skills/dhpk-feature-verify/SKILL.md",
         "destination": "skills/repo-verify/references/dhpk-feature-verify/SKILL.md",
-        "originalGitBlobDigest": "fa14c99f684375b7cd6b5bd7c078007259792162"
+        "originalGitBlobDigest": "d9859b531bd5af7ded953ed28a99ef6b12d18ba1"
       },
       {
         "ownerId": "repo-verify",
