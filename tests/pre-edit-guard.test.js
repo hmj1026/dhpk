@@ -15,14 +15,17 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const HOOK = path.join(ROOT, 'scripts', 'hooks', 'pre-edit-guard.sh');
 
-function runHook(filePath, env) {
-  const payload = JSON.stringify({ tool_input: { file_path: filePath } });
+function runHookPayload(payload, env) {
   return spawnSync('bash', ['-c', `printf '%s' "$DHPK_PAYLOAD" | bash "$DHPK_HOOK"`], {
     cwd: ROOT,
     encoding: 'utf8',
     timeout: 10000,
-    env: { ...process.env, DHPK_PAYLOAD: payload, DHPK_HOOK: HOOK, ...env },
+    env: { ...process.env, DHPK_PAYLOAD: JSON.stringify(payload), DHPK_HOOK: HOOK, ...env },
   });
+}
+
+function runHook(filePath, env) {
+  return runHookPayload({ tool_input: { file_path: filePath } }, env);
 }
 
 test('Write/Edit to .env is blocked', () => {
@@ -153,6 +156,12 @@ test('a file path with shell metacharacters is rejected', () => {
 
 test('empty file_path is a silent no-op (exit 0)', () => {
   const res = runHook('');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stderr.trim(), '');
+});
+
+test('tool_input without a file_path key is a silent no-op (exit 0)', () => {
+  const res = runHookPayload({ tool_input: {} });
   assert.strictEqual(res.status, 0, res.stderr);
   assert.strictEqual(res.stderr.trim(), '');
 });

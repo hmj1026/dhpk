@@ -383,7 +383,7 @@ test('Bash PreToolUse declares the 2100-second block ceiling', () => {
   assert.strictEqual(bash.onFailure, 'block');
   const edit = hooks.hooks.PreToolUse.find((entry) => String(entry.matcher).includes('Edit')).hooks[0];
   assert.strictEqual(edit.timeout, 5);
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(edit, 'onFailure'), false);
+  assert.strictEqual(edit.onFailure, 'block');
   const stop = hooks.hooks.SubagentStop[0].hooks[0];
   assert.strictEqual(Object.prototype.hasOwnProperty.call(stop, 'timeout'), false);
   assert.strictEqual(Object.prototype.hasOwnProperty.call(stop, 'onFailure'), false);
