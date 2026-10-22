@@ -2,6 +2,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  printf '%s\n' 'usage: dhpk <distribution|harness|install> [args...]'
+  printf '%s\n' '       dhpk <--version|--help>'
+}
+
 case "${1:-}" in
   harness)
     shift
@@ -11,8 +17,20 @@ case "${1:-}" in
     shift
     exec "$SCRIPT_DIR/dhpk-distribution" "$@"
     ;;
+  install)
+    shift
+    exec "$SCRIPT_DIR/dhpk-install" "$@"
+    ;;
+  --version|-v)
+    node -e 'process.stdout.write(require(process.argv[1]).version + "\n")' "$SCRIPT_DIR/../package.json"
+    exit 0
+    ;;
+  --help|-h|help|"")
+    usage
+    exit 0
+    ;;
   *)
-    printf '%s\n' 'usage: dhpk distribution <surface> <generate|preview|validate|verify> [--profile <id>|--standalone <skill-id-or-public-name>] [--skill <stable-id>] [--output <dir>] [--version <version>] [--json]' >&2
+    usage >&2
     exit 64
     ;;
 esac
