@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "b79515681b653555610d9aa3ed99313abd64bab2",
-  "generatedFromCommit": "b79515681b653555610d9aa3ed99313abd64bab2",
-  "generatedFromTree": "71a23d63178cbde4c98a839c53657a051c64c605",
+  "sourceCommit": "29bc50967e5e784a278cd77638a7b9c104f4eb2d",
+  "generatedFromCommit": "29bc50967e5e784a278cd77638a7b9c104f4eb2d",
+  "generatedFromTree": "434f722c27bdd190f49f18d0f7178e3c6e90fd08",
   "inventoryDigest": "d2ca57fba64399ba7cc5422832836b9e3bb5e4bd4acc6b2d3d614346143082ae",
   "inventoryRevision": "sha256:c6e0199fd44f63a8a234bc46ac35d79dc995064f97bc49865e0976f8a255bc81",
   "generatorVersion": "1.0.0",
@@ -2079,7 +2079,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/frontmatter.js",
         "destination": "skills/flow-guide/scripts/_lib/frontmatter.js",
-        "originalGitBlobDigest": "d52b96c9035d40f8e3306b7a385bdb768b1b2f95"
+        "originalGitBlobDigest": "18f05d77311b7f096529940b8498103ab1124187"
       },
       {
         "ownerId": "flow-guide",
