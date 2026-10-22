@@ -1220,6 +1220,138 @@ const { test, run, assert } = require('./_lib/tinytest');
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test('projected AGY rules carry stable triggers and plugin.json lists only skills', () => {
+    const root = tempRoot();
+    const outDir = path.join(root, 'package');
+    const bodies = {
+      'rules/execution-policy-kernel.md': '# Execution Policy Kernel\n\nThis is the short, always-visible safety kernel.\n',
+      'rules/execution-policy.md': '# Execution Policy\n\nThe policy file remains the single source of truth.\n',
+      'rules/anti-rationalization.md': '# Anti-Rationalization Patterns\n\nNot always-on; referenced from the policy.\n',
+      'rules/model-economics.md': '# Model Economics — tier map & cost rules\n\nOpt-in cost lens referenced from the policy.\n',
+      'rules/tool-routing.md': '# Tool Routing — gitnexus / cx / claude-mem / Read / Grep\n\nCompact reference card.\n',
+    };
+    const frontmatter = {
+      'rules/execution-policy-kernel.md': '---\ntrigger: always_on\ndescription: Always-visible execution policy kernel\n---\n',
+      'rules/execution-policy.md': '---\ntrigger: always_on\ndescription: Execution policy single source of truth\n---\n',
+      'rules/anti-rationalization.md': '---\ntrigger: model_decision\ndescription: Anti-rationalization patterns stop-loss reference\n---\n',
+      'rules/model-economics.md': '---\ntrigger: model_decision\ndescription: Opt-in model tier and cost rules\n---\n',
+      'rules/tool-routing.md': '---\ntrigger: model_decision\ndescription: Tool routing reference card\n---\n',
+    };
+    try {
+      const inventory = writeFixture(root);
+      for (const [relative, body] of Object.entries(bodies)) {
+        fs.writeFileSync(path.join(root, relative), body);
+      }
+      inventory.agy_plugin.rules = ['rules/sample.md', ...Object.keys(bodies)];
+      materializeAgyPluginPackage({
+        root,
+        inventory,
+        outDir,
+        version: '0.39.0',
+        sourceVersion: '0.39.0',
+        sourceCommit: COMMIT,
+      });
+      for (const [relative, body] of Object.entries(bodies)) {
+        assert.strictEqual(
+          fs.readFileSync(path.join(outDir, relative), 'utf8'),
+          frontmatter[relative] + body,
+          relative,
+        );
+      }
+      assert.strictEqual(fs.readFileSync(path.join(outDir, 'rules', 'sample.md'), 'utf8'), '# Rule\n');
+      assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(outDir, 'plugin.json'), 'utf8')), {
+        description: 'dhpk native Antigravity CLI plugin',
+        name: 'dhpk',
+        skills: ['./skills/'],
+        version: '0.39.0',
+      });
+      assert.ok(fs.statSync(path.join(outDir, 'agents')).isDirectory());
+      assert.ok(fs.statSync(path.join(outDir, 'rules')).isDirectory());
+      const checked = validateAgyPluginPackage(outDir, { inventory, expectedVersion: '0.39.0' });
+      assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('an AGY rule that already has trigger frontmatter is not wrapped again', () => {
+    const root = tempRoot();
+    const outDir = path.join(root, 'package');
+    const projected = [
+      '---',
+      'trigger: always_on',
+      'description: Always-visible execution policy kernel',
+      '---',
+      '# Execution Policy Kernel',
+      '',
+      'Already projected.',
+      '',
+    ].join('\n');
+    try {
+      const inventory = writeFixture(root);
+      fs.writeFileSync(path.join(root, 'rules', 'execution-policy-kernel.md'), projected);
+      inventory.agy_plugin.rules = ['rules/sample.md', 'rules/execution-policy-kernel.md'];
+      materializeAgyPluginPackage({
+        root,
+        inventory,
+        outDir,
+        version: '0.39.0',
+        sourceVersion: '0.39.0',
+        sourceCommit: COMMIT,
+      });
+      assert.strictEqual(
+        fs.readFileSync(path.join(outDir, 'rules', 'execution-policy-kernel.md'), 'utf8'),
+        projected,
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('AGY validation rejects plugin.json agents and rules and still requires skills plus component directories', () => {
+    const root = tempRoot();
+    const outDir = path.join(root, 'package');
+    try {
+      const inventory = writeFixture(root);
+      materializeAgyPluginPackage({
+        root,
+        inventory,
+        outDir,
+        version: '0.39.0',
+        sourceVersion: '0.39.0',
+        sourceCommit: COMMIT,
+      });
+      const manifestPath = path.join(outDir, 'plugin.json');
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      manifest.agents = ['./agents/'];
+      manifest.rules = ['./rules/'];
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+      const rejected = validateAgyPluginPackage(outDir, { inventory, expectedVersion: '0.39.0' });
+      assert.strictEqual(rejected.ok, false);
+      assert.ok(rejected.errors.some((error) => error === 'plugin.json agents is an unknown field'));
+      assert.ok(rejected.errors.some((error) => error === 'plugin.json rules is an unknown field'));
+
+      delete manifest.agents;
+      delete manifest.rules;
+      manifest.skills = ['./agents/'];
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+      const skills = validateAgyPluginPackage(outDir, { inventory, expectedVersion: '0.39.0' });
+      assert.strictEqual(skills.ok, false);
+      assert.ok(skills.errors.some((error) => error === 'plugin.json skills must declare only ./skills/'));
+
+      manifest.skills = ['./skills/'];
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+      fs.rmSync(path.join(outDir, 'agents'), { recursive: true, force: true });
+      fs.rmSync(path.join(outDir, 'rules'), { recursive: true, force: true });
+      const directories = validateAgyPluginPackage(outDir, { inventory, expectedVersion: '0.39.0' });
+      assert.strictEqual(directories.ok, false);
+      assert.ok(directories.errors.some((error) => error === 'AGY package agents directory is missing'));
+      assert.ok(directories.errors.some((error) => error === 'AGY package rules directory is missing'));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 }
 
 {
