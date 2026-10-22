@@ -48,7 +48,7 @@ compilation, materialization, provenance, and verification.
 ## Directory self-containment and script-path cutover
 
 The accepted distribution boundary is a Self-Contained Skill as defined in
-[`CONTEXT.md`](../../CONTEXT.md#skill-distribution): copying its canonical
+[`GLOSSARY.md`](../../GLOSSARY.md#skill-distribution): copying its canonical
 directory is sufficient to carry its required code and bundled resources,
 without a dhpk checkout or a consumer-side dhpk packaging step. External tools
 and Host capabilities remain explicit prerequisites. Standard structure and
