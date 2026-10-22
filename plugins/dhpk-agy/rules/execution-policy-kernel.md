@@ -1,3 +1,7 @@
+---
+trigger: always_on
+description: Always-visible execution policy kernel
+---
 # Execution Policy Kernel
 
 This is the short, always-visible safety kernel. Read it before loading a

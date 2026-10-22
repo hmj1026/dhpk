@@ -1,3 +1,7 @@
+---
+trigger: always_on
+description: Execution policy single source of truth
+---
 # Execution Policy
 
 dhpk's default execution policy for projects that adopt the harness. Read the

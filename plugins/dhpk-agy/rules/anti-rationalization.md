@@ -1,3 +1,7 @@
+---
+trigger: model_decision
+description: Anti-rationalization patterns stop-loss reference
+---
 # Anti-Rationalization Patterns
 
 Self-talk stop-loss reference for the rationalization phrasings that precede skipping a mandatory reviewer or TDD step. Not always-on; referenced from `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` "Anti-rationalization" section.
