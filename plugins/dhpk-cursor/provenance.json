@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "a0653c00ebdca489510b4ffa9ed156cfc3e4d30b",
-  "generatedFromCommit": "a0653c00ebdca489510b4ffa9ed156cfc3e4d30b",
-  "generatedFromTree": "1fbfc5ed7c7d5a44566bf0c73e7c02b1c3197689",
+  "sourceCommit": "b79515681b653555610d9aa3ed99313abd64bab2",
+  "generatedFromCommit": "b79515681b653555610d9aa3ed99313abd64bab2",
+  "generatedFromTree": "71a23d63178cbde4c98a839c53657a051c64c605",
   "inventoryDigest": "d2ca57fba64399ba7cc5422832836b9e3bb5e4bd4acc6b2d3d614346143082ae",
   "inventoryRevision": "sha256:c6e0199fd44f63a8a234bc46ac35d79dc995064f97bc49865e0976f8a255bc81",
   "generatorVersion": "1.0.0",
@@ -525,7 +525,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/distribution.yaml",
         "destination": "skills/create-pr/distribution.yaml",
-        "originalGitBlobDigest": "8a3b3b5ce2b5ad38e189d50afebadcb0b96998a6"
+        "originalGitBlobDigest": "ffc36cee3a40a0fd4382150b5959da2146e9c149"
       },
       {
         "ownerId": "create-pr",
@@ -543,7 +543,7 @@
         "ownerId": "create-pr",
         "source": "skills/merge-prep/distribution.yaml",
         "destination": "skills/create-pr/references/merge-prep/distribution.yaml",
-        "originalGitBlobDigest": "6674585ec9a1bee78125a07b9ec5abe51ef96d24"
+        "originalGitBlobDigest": "f94906cab2939ef688c862b7f45da50a9f521869"
       },
       {
         "ownerId": "create-pr",
@@ -567,7 +567,7 @@
         "ownerId": "create-pr",
         "source": "skills/pr-summary/distribution.yaml",
         "destination": "skills/create-pr/references/pr-summary/distribution.yaml",
-        "originalGitBlobDigest": "62e40c151f935d2cb1fd7d85121d13cb0355b9c9"
+        "originalGitBlobDigest": "3a0e894a6e95046204ba93ffde594a686670203e"
       },
       {
         "ownerId": "create-pr",
@@ -633,7 +633,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/distribution.yaml",
         "destination": "skills/flow-drive/distribution.yaml",
-        "originalGitBlobDigest": "4fe7fd607e77a96bd1c194e89c87844bd182200e"
+        "originalGitBlobDigest": "e3a17e9bc26a9f2dbfb23f61b36703bab7ed8d6b"
       },
       {
         "ownerId": "flow-drive",
@@ -1731,7 +1731,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/distribution.yaml",
         "destination": "skills/flow-guide/distribution.yaml",
-        "originalGitBlobDigest": "2942da6b76d9f1958037c616e7397ed20abc0ca2"
+        "originalGitBlobDigest": "580c6f07cda8b032d3534e660af942b5649e549b"
       },
       {
         "ownerId": "flow-guide",
@@ -2223,7 +2223,7 @@
         "ownerId": "git-worktree",
         "source": "skills/git-worktree/distribution.yaml",
         "destination": "skills/git-worktree/distribution.yaml",
-        "originalGitBlobDigest": "2e611506e922310fdcf447a0079c0859353bd65d"
+        "originalGitBlobDigest": "0a8769229f869a2c31653d5275c112dbf299326f"
       },
       {
         "ownerId": "git-worktree",
@@ -2247,7 +2247,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/distribution.yaml",
         "destination": "skills/precommit/distribution.yaml",
-        "originalGitBlobDigest": "2a40c20f009e001ed90e1e420525392167a6defe"
+        "originalGitBlobDigest": "bb297c4467e2e558baeed932258a1e642bc51170"
       },
       {
         "ownerId": "precommit",
@@ -2775,7 +2775,7 @@
         "ownerId": "ui-ux-verify",
         "source": "skills/ui-ux-verify/distribution.yaml",
         "destination": "skills/ui-ux-verify/distribution.yaml",
-        "originalGitBlobDigest": "e60503e98199604c60ae3a5b473add829b599532"
+        "originalGitBlobDigest": "f6fa0cf38f5a8fa376f9b5b0f0f94e620f04810e"
       },
       {
         "ownerId": "ui-ux-verify",
@@ -6297,9 +6297,9 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "502ee1c35ff544da05606476cbf7d0b3e9ff3a9d2670339f812193cf8cd225eb",
+    "planId": "8f98890b551d47320b746f2b221c99edae9f68b0bffa3c76512938738e812dd2",
     "scope": "project",
-    "profileId": "surface-default",
+    "profileId": "common",
     "selectedStableIds": [
       "change-verdict",
       "code-trace",
@@ -6341,10 +6341,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "502ee1c35ff544da05606476cbf7d0b3e9ff3a9d2670339f812193cf8cd225eb",
+      "plan": "8f98890b551d47320b746f2b221c99edae9f68b0bffa3c76512938738e812dd2",
       "inventory": "d2ca57fba64399ba7cc5422832836b9e3bb5e4bd4acc6b2d3d614346143082ae"
     },
-    "rollbackIdentity": "d185076ad15a30fe8d21ae07518612d2bd250e258d66ea7340b1b6d905b3f9c4"
+    "rollbackIdentity": "d98e928599d89a03fbc42cc886e6c90b17c92e7ef436ca81c0f98a36df45a0a8"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -7362,5 +7362,58 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "68b8432d77cf7deeddcf9eef14318b2e4a0f2e6e7f5cc03cdab7171baa1062a2"
+  "profileId": "common",
+  "selectedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "doc-maintain",
+    "precommit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "canonicalSelectedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "doc-maintain",
+    "precommit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "emittedStableIds": [
+    "flow-guide",
+    "code-trace",
+    "change-verdict",
+    "flow-drive",
+    "git-smart-commit",
+    "release-creator",
+    "tdd",
+    "create-pr",
+    "git-worktree",
+    "proposal-analyze",
+    "doc-maintain",
+    "precommit",
+    "repo-verify",
+    "ui-ux-verify"
+  ],
+  "compatibilityMode": "profile",
+  "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
+  "selectionFingerprint": "7ff3f13912bcc756fdc92491526ab8e5e2a553e2cab6e91f93cb50377ef472e6",
+  "surfaceSelectionFingerprint": "a1b64b5127bf6b0021ac83800027c272b18b8bb43a73c335a45de536fea48cf5",
+  "planFingerprint": "5779b2c1bdda0997d3fa4cdc6e99b08e476afe76eb12f6e9a751fc48a3a3ad9a"
 }

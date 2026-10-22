@@ -450,7 +450,7 @@
         "commands/flow-guide.md"
       ],
       "reason": "Canonical $flow-guide Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "allowed_tools": "Read, Grep, Glob, Bash, Skill, Agent"
+      "allowed_tools": "Read, Grep, Glob, Skill, Agent"
     }
   ]
 }

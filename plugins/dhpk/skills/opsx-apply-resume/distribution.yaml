@@ -135,8 +135,7 @@
       "outcome": "retain",
       "callers": [
         "commands/opsx-apply-resume.md"
-      ],
-      "allowed_tools": "Read, Grep, Glob, Bash, Skill"
+      ]
     }
   ]
 }
