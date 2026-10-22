@@ -621,7 +621,7 @@
       "sourcePath": "skills/create-pr/distribution.yaml",
       "destination": "skills/create-pr/distribution.yaml",
       "kind": "entry",
-      "sha256": "fcab4b07c4d6ac867a63b420734cae2eb2bba239765a58d809aab566cf6636b5"
+      "sha256": "562587ed1ad61a3ef272d7e80c38d6a92c5c6f91f37a7ab6dd3d0db3badc0707"
     },
     {
       "skillId": "merge-prep",
@@ -645,7 +645,7 @@
       "sourcePath": "skills/merge-prep/distribution.yaml",
       "destination": "skills/create-pr/references/merge-prep/distribution.yaml",
       "kind": "branch",
-      "sha256": "9ca6e49cb68529d8ef9f113512367371066489aab6860a98bc6a2b8a1ee75120"
+      "sha256": "014cba662e5b6964fb4f2c053a5ab6674d47499e212d3e14ede7c27c9d4f364f"
     },
     {
       "skillId": "merge-prep",
@@ -677,7 +677,7 @@
       "sourcePath": "skills/pr-summary/distribution.yaml",
       "destination": "skills/create-pr/references/pr-summary/distribution.yaml",
       "kind": "branch",
-      "sha256": "b2132a82b10ded686597df733e998cafda1f4576178b77b731b61b09fe6862f7"
+      "sha256": "cd5c43e10b8bea2fad941326c2110bb26b6cbe716fdb8a1f3b67bb18a0c6f905"
     },
     {
       "skillId": "pr-summary",
@@ -765,7 +765,7 @@
       "sourcePath": "skills/flow-drive/distribution.yaml",
       "destination": "skills/flow-drive/distribution.yaml",
       "kind": "entry",
-      "sha256": "eb92b89a415131159fba2540a8347523a0e3abe4f1ebc538033e63ef377f4b13"
+      "sha256": "7c6251c9106644c889818eaefa951012846e45c004b2c97c964cef602a76c296"
     },
     {
       "skillId": "flow-drive",
@@ -2229,7 +2229,7 @@
       "sourcePath": "skills/flow-guide/distribution.yaml",
       "destination": "skills/flow-guide/distribution.yaml",
       "kind": "entry",
-      "sha256": "db4574fd92fadfa5d207e456832fc128af37a8df6cc64f5fed5498c4b6096c81"
+      "sha256": "3dc0fb98712940891d173f9a1811d2373b178c5324f48b0d7de7969272682c99"
     },
     {
       "skillId": "flow-guide",
@@ -2885,7 +2885,7 @@
       "sourcePath": "skills/git-worktree/distribution.yaml",
       "destination": "skills/git-worktree/distribution.yaml",
       "kind": "entry",
-      "sha256": "7c15a7c66c0dd21cf70f1d7af5f9c8ab3bb0e57aaef2bf1b1bfb448be752c427"
+      "sha256": "446555b61b346391709bde4595f881395a43e519d28abbc3f86db0e320a4f14d"
     },
     {
       "skillId": "git-worktree",
@@ -3109,7 +3109,7 @@
       "sourcePath": "skills/opsx-apply-resume/distribution.yaml",
       "destination": "skills/opsx-apply-resume/distribution.yaml",
       "kind": "entry",
-      "sha256": "c40bfd8ba52c2a6c9e20516a8225710629fd1b117b642aaeeed25a6e4607130e"
+      "sha256": "57b060c4c1f430ef00e353e0d10cf17ffdcfdb45f29c29b0bb80016bd1a53b58"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -3221,7 +3221,7 @@
       "sourcePath": "skills/precommit/distribution.yaml",
       "destination": "skills/precommit/distribution.yaml",
       "kind": "entry",
-      "sha256": "f3ce23ee8785adf6dc4c03981182b6226b81466d4e914ff364bb2d050d3793ef"
+      "sha256": "72668877cbf25c0ae45fdad7a092847ef3fa27ca5fafb0976001167fe1150b6b"
     },
     {
       "skillId": "precommit",
@@ -3925,7 +3925,7 @@
       "sourcePath": "skills/ui-ux-verify/distribution.yaml",
       "destination": "skills/ui-ux-verify/distribution.yaml",
       "kind": "entry",
-      "sha256": "9032d4c38556b13dcf8ce257029004f2a768bd26b7f5af8dee652cc4ad93e7cc"
+      "sha256": "537925893e6d7991eac17078065c5ed7cfbc1283cfa0084e25210f05aac1e286"
     },
     {
       "skillId": "ui-ux-verify",
