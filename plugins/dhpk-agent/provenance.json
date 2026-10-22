@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "29bc50967e5e784a278cd77638a7b9c104f4eb2d",
-  "generatedFromCommit": "29bc50967e5e784a278cd77638a7b9c104f4eb2d",
-  "generatedFromTree": "434f722c27bdd190f49f18d0f7178e3c6e90fd08",
+  "sourceCommit": "fcfbc26096c1ac569096652129d34c63e726fcd4",
+  "generatedFromCommit": "fcfbc26096c1ac569096652129d34c63e726fcd4",
+  "generatedFromTree": "0d0b9a83e8f8032fe0c12c2baff8bc248b4361af",
   "inventoryDigest": "4768268250582861df6df089a96739967523a1209650b821d5d699238e3ec10f",
   "inventoryRevision": "sha256:c6e0199fd44f63a8a234bc46ac35d79dc995064f97bc49865e0976f8a255bc81",
   "generatorVersion": "1.0.0",
@@ -126,7 +126,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "da0c263180c4c3b57d1d0e4b6102b6919d24cce8"
+        "originalGitBlobDigest": "2a95f8cdaca571128a859502c30064557b06ffbf"
       },
       {
         "ownerId": "change-verdict",
@@ -342,7 +342,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "06cc72273f10060238c74a797c229e75c3e8ac03"
+        "originalGitBlobDigest": "da9fa5659a9154fe101e9a4be9c153bf23d62dca"
       },
       {
         "ownerId": "code-trace",
@@ -2334,7 +2334,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/dhpk-issue-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/SKILL.md",
-        "originalGitBlobDigest": "b41b5d4844fd608ea4e5775a7b28cc5dbf50fc37"
+        "originalGitBlobDigest": "dd50e2e27d0cbb3b9e8d5f1daa89a6270ca27916"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2628,7 +2628,7 @@
         "ownerId": "repo-verify",
         "source": "skills/dhpk-feature-verify/SKILL.md",
         "destination": "skills/repo-verify/references/dhpk-feature-verify/SKILL.md",
-        "originalGitBlobDigest": "fa14c99f684375b7cd6b5bd7c078007259792162"
+        "originalGitBlobDigest": "d9859b531bd5af7ded953ed28a99ef6b12d18ba1"
       },
       {
         "ownerId": "repo-verify",
@@ -5992,7 +5992,7 @@
   "skippedSkills": [],
   "mcpServerNames": [],
   "fingerprints": {
-    "change-verdict": "bee49d28e66884910a7e3b7cc115bedb94c2733b8238bb028c6635f69a622148",
+    "change-verdict": "2f36cb555d8b2e6fc5d2fd6169119ead5ccb8a44597d462ddc338b237724f3af",
     "code-trace": "0421699294b52b6d9cb5bab0ac65cf38e12e8d5539976fe858eb6329a5ac3002",
     "create-pr": "b3842e9bc5f9304ac067410f427da466cdf4ac8b27251c785d5fd0ab9f5a949a",
     "doc-maintain": "7d9386fa94ef9727fff56a7b3761ebb917c1339d29562b0424c35b2657429c02",
@@ -6001,9 +6001,9 @@
     "git-smart-commit": "e53029fc23a1f2d1d3f6c31c913f2ed1ed566493fc922a2ab5e60d806b201eea",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",
     "precommit": "0043161fdcabe635185ee9bb9f18e5b1807b5351508291a2c387ddeee3192e5c",
-    "proposal-analyze": "338bf2b72e9747a0d921e9dcfaf3cad6532a3a0109aa61915b90ff6517a15cbe",
+    "proposal-analyze": "1f0657b36272adb57815dbfc2316156bb9b42739ed99d6a12f89164dfdffb5cb",
     "release-creator": "ecc03d28430d66eba2f257dd3a881064b11ee78ba60374e67f2469e43c1f1fac",
-    "repo-verify": "48ec570354ab0f06fb3ae3f0cd05488c735db14dfebd7313a2c25af86cf45c04",
+    "repo-verify": "6a3a3a598a2174a7e5f9e258ef8f72a07b786895a93c2c29f9110ca45bdce877",
     "tdd-workflow": "d508448fd0ba507cd49096070af2f00ca4e992e26f3c5bfdef071fb6bfecb221",
     "ui-ux-verify": "9ffa940ca3bfefb2cfd4cd91c233010a2aef4caa8c951d6c72a6b4ed86958cd8"
   },

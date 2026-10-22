@@ -29,7 +29,7 @@
       "sourcePath": "skills/change-verdict/SKILL.md",
       "destination": "skills/change-verdict/SKILL.md",
       "kind": "entry",
-      "sha256": "30a5ba90c5771cbb6037b1c1c4f1ce7d3968631d647a0d48bd2a9a6fd53a2dba"
+      "sha256": "edef45fab7c856ad53e75a9293970a0b0b74351d5a6d0a3fe20552e6704cd006"
     },
     {
       "skillId": "change-verdict",
@@ -317,7 +317,7 @@
       "sourcePath": "skills/code-trace/SKILL.md",
       "destination": "skills/code-trace/SKILL.md",
       "kind": "entry",
-      "sha256": "b3725c37beadde965a1b6af7020805dafcbbce3efd5d3fb0c17ea97b52274867"
+      "sha256": "8ed2d13df56f3fc1aa52c9901515e71e885183838f9cad0d261a0ef486f19d7f"
     },
     {
       "skillId": "code-trace",
@@ -3277,7 +3277,7 @@
       "sourcePath": "skills/dhpk-issue-analyze/SKILL.md",
       "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/SKILL.md",
       "kind": "branch",
-      "sha256": "16a42b0ca77e7e9d54fe3023a922c1e46910ff4426fd303da5231490751515a5"
+      "sha256": "c13a3e78845e3b814f423ce3cff7e4418b2dc06414073183b89354e4a44fd054"
     },
     {
       "skillId": "issue-analyze",
@@ -3669,7 +3669,7 @@
       "sourcePath": "skills/dhpk-feature-verify/SKILL.md",
       "destination": "skills/repo-verify/references/dhpk-feature-verify/SKILL.md",
       "kind": "branch",
-      "sha256": "aeb7066c056f805837e2642700d9958f8358194d3ddb4f04d13d7855349e109c"
+      "sha256": "7baffc827bbcf8555e277f38e7c3a118f1142b63364caa7b1197ca612f4a0e79"
     },
     {
       "skillId": "feature-verify",

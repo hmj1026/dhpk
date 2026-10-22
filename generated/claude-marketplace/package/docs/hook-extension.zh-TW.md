@@ -22,6 +22,10 @@ Bash `PreToolUse` command 宣告 `timeout: 2100` 與 `onFailure: "block"`。
 Claude Code 2.1.295 與更新版本可以在這個 hook 逾時或無法執行時阻擋觸發的命令。
 更舊版本不被宣稱具有相同的 fail-closed 行為。這份宣告不是已量測的 2100 秒等待。
 
+`Edit|Write|MultiEdit` guard 同樣宣告 `onFailure: "block"`，`timeout` 為 5。
+Claude Code 2.1.295 與更新版本會對這個 guard fail-close：hook 失敗或逾時就阻擋編輯。
+更舊的 Claude Code 會忽略 `onFailure`，因此 guard 失敗或逾時仍會讓編輯繼續。
+
 支持的預設範圍是 JS、Python、Swift、PHP 各一個 commit root，該 root 上一個
 Python project group，以及 Swift build/test 設定不高於 360/480 秒。內層
 deadline 加每次 1 秒 grace 是 JS 212、Python 255、Swift 842、PHP 423，合計

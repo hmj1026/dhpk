@@ -27,6 +27,11 @@ Claude Code 2.1.295 and newer can block the triggering command when that hook
 times out or cannot run. Older versions are not claimed to fail closed the same
 way. This declaration is not a measured 2100-second wait.
 
+The `Edit|Write|MultiEdit` guard also declares `onFailure: "block"`, with
+`timeout: 5`. Claude Code 2.1.295 and newer fail-close that guard: a failed or
+timed-out hook blocks the edit. Older Claude Code ignores `onFailure`, so a
+failed or timed-out guard still lets the edit proceed.
+
 The supported default envelope is one commit root each for JS, Python, Swift,
 and PHP, one Python project group on that root, and Swift build/test settings
 no higher than 360/480 seconds. Inner deadlines plus one second of grace are

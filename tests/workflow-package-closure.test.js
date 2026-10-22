@@ -378,7 +378,7 @@ test('installed flow-guide help and next use the skill directory and the consume
 test('code-trace pre-approves only the read-only commands its procedure names', () => {
   const skill = fs.readFileSync(path.join(ROOT, 'skills/code-trace/SKILL.md'), 'utf8');
   const allowed = skill.split('\n').find((line) => line.startsWith('allowed-tools:'));
-  assert.equal(allowed, "allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(cx:*), Agent'");
+  assert.equal(allowed, "allowed-tools: 'Read, Grep, Glob, Bash(git log:*), Bash(git show:*), Bash(git diff:*), Bash(git blame:*), Bash(cx:*), Agent'");
   assert.match(skill, /`cx overview`/);
   assert.match(skill, /`git blame`/);
   assert.doesNotMatch(allowed, /Bash\(bash:\*\)/);
@@ -394,8 +394,9 @@ test('change-verdict authorizes the installed helper paths without unrestricted 
   for (const helper of [
     'Bash(node ${CLAUDE_SKILL_DIR}/scripts/risk-analyze.js:*)',
     'Bash(bash ${CLAUDE_SKILL_DIR}/scripts/check-unrelated-changes.sh:*)',
-    'Bash(bash ${CLAUDE_SKILL_DIR}/scripts/review-cli.sh:*)',
   ]) assert.ok(allowed.includes(helper), helper);
+  assert.doesNotMatch(allowed, /review-cli\.sh/);
+  assert.doesNotMatch(allowed, /codex review/);
   assert.match(skill, /node \$\{CLAUDE_SKILL_DIR\}\/scripts\/risk-analyze\.js/);
   assert.match(skill, /bash \$\{CLAUDE_SKILL_DIR\}\/scripts\/check-unrelated-changes\.sh/);
   assert.match(skill, /bash \$\{CLAUDE_SKILL_DIR\}\/scripts\/review-cli\.sh/);

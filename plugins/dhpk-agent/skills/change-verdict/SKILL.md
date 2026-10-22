@@ -86,8 +86,7 @@ Load only the selected mode's references:
   use `references/risk/` to interpret its score.
 
 `${CLAUDE_SKILL_DIR}` is the directory containing this `SKILL.md`. Claude substitutes it in these helper commands and in `allowed-tools`. Hosts that do not substitute it, and references that write `$SKILL_DIR`, resolve that same directory. The working
-directory stays the consumer repository. Those helper commands are the same
-paths granted by `allowed-tools`; the grant is not unrestricted Bash. `codex review` remains an explicit opt-in and does not start a second opinion by itself.
+directory stays the consumer repository. `risk-analyze.js` and `check-unrelated-changes.sh` are the helper paths granted by `allowed-tools`; the grant is not unrestricted Bash. `codex review` and `review-cli.sh` stay explicit opt-in and do not start by themselves.
 
 For every mode, report evidence gaps and use the response shape in
 [`templates/review_output.md`](templates/review_output.md). The code-only
