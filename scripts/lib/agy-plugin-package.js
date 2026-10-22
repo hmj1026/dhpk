@@ -809,4 +809,5 @@ module.exports = {
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
   sanitizeMarkdownLinks,
+  projectAgyRuleContent,
 };

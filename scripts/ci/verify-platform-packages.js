@@ -31,6 +31,7 @@ const {
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
   sanitizeMarkdownLinks: sanitizeAgyLinks,
+  projectAgyRuleContent,
 } = require('../lib/agy-plugin-package');
 const {
   SURFACE_OWNERS,
@@ -353,7 +354,7 @@ function verifySharedSkillParity(root, inventory, errors, selectedSurfaces = SUR
 // such as docs/ that are not shipped) to canonical repository URLs, so parity
 // compares against the same transform rather than the raw canonical bytes.
 function expectedAgyPolicy(canonical, canonicalPath, root) {
-  return sanitizeAgyLinks(canonical, canonicalPath, root);
+  return projectAgyRuleContent(sanitizeAgyLinks(canonical, canonicalPath, root), 'rules/execution-policy.md');
 }
 
 function expectedCursorPolicyBody(canonical, canonicalPath, root) {

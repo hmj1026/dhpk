@@ -156,6 +156,7 @@ test('policy parity applies the generators\' repository-link rewrite before comp
     const url = 'https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md#shape';
 
     const agy = expectedAgyPolicy(canonical, canonicalPath, root);
+    assert.ok(agy.startsWith('---\ntrigger: always_on\ndescription: Execution policy single source of truth\n---\n'), agy);
     assert.ok(agy.includes(`[reviewer contract](${url})`), agy);
     assert.ok(agy.includes('A [missing doc] keeps only its label.'), agy);
     assert.ok(agy.includes('[external link](https://example.com/x)'), agy);
