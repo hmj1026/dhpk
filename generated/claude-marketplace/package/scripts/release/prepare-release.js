@@ -574,6 +574,12 @@ function main() {
     if (surface === 'codex-native') {
       return resolveCodexNativeProfileSelection({ root: args.root, inventory, profiles, moduleCatalog });
     }
+    if (!Array.isArray(inventory.surfaces) || !inventory.surfaces.includes(surface)) {
+      return null;
+    }
+    if (!fs.existsSync(path.join(args.root, 'manifests', 'marketplace-selection.json'))) {
+      return null;
+    }
     const resolved = resolveCapabilitySelection({
       inventory,
       profiles,
