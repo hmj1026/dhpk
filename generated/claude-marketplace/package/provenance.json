@@ -749,7 +749,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "99c210b2904259f450f5ce0650e4d1c4e17a5baf4bae62a0fac77bfee9b8d850"
+      "sha256": "a3889e11b845a25e40884db131820780b2b5c4d7c7fa883fb17fc3d09d6e419d"
     },
     {
       "skillId": "flow-drive",
@@ -765,7 +765,7 @@
       "sourcePath": "skills/flow-drive/distribution.yaml",
       "destination": "skills/flow-drive/distribution.yaml",
       "kind": "entry",
-      "sha256": "7c6251c9106644c889818eaefa951012846e45c004b2c97c964cef602a76c296"
+      "sha256": "d3730c32bec3e78980bb38f9f182b3cdacd3adbcc54e95150cb8fc2b21f1cb8a"
     },
     {
       "skillId": "flow-drive",
@@ -1493,7 +1493,7 @@
       "sourcePath": "skills/flow-drive/references/portability.md",
       "destination": "skills/flow-drive/references/portability.md",
       "kind": "entry",
-      "sha256": "519d3295e62c912c02b29c910b657fec8d42b8762d6c9153cd7a2fd5be28b2d2"
+      "sha256": "26ca36ec19b879493ca21c91a134f32cc19f68fe5646c205ea3bd2df57ffbc94"
     },
     {
       "skillId": "flow-drive",

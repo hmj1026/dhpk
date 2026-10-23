@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "f6cafb2684c57c32dce7568301088b68d146c500",
-  "generatedFromCommit": "f6cafb2684c57c32dce7568301088b68d146c500",
-  "generatedFromTree": "33a56c0912bcdf84c14a9219b0e9caeda520a871",
+  "sourceCommit": "7d78425774fe4b799a6dcc061ac18cce7ce31f23",
+  "generatedFromCommit": "7d78425774fe4b799a6dcc061ac18cce7ce31f23",
+  "generatedFromTree": "f36861cce25e3ec0003c1defa951169eb5d66cd8",
   "inventoryDigest": "c82ebbd537a3b7cce475a8a1f66d1fba906b5d9c9f5d9f0e2cf747ccfa92819d",
   "inventoryRevision": "sha256:47a01eec098299cea524f97ee6edd39d60f31d2693e59f01857f1ee84b97a60b",
   "generatorVersion": "1.0.0",
@@ -666,7 +666,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/SKILL.md",
         "destination": "skills/flow-drive/SKILL.md",
-        "originalGitBlobDigest": "f93675b8b36d3de12a32a08278aa3e0f6a6ac2c9"
+        "originalGitBlobDigest": "e321a4ba814ae1c69c7e598c88a93f8acec06529"
       },
       {
         "ownerId": "flow-drive",
@@ -678,7 +678,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/distribution.yaml",
         "destination": "skills/flow-drive/distribution.yaml",
-        "originalGitBlobDigest": "e3a17e9bc26a9f2dbfb23f61b36703bab7ed8d6b"
+        "originalGitBlobDigest": "3288b846f963bce9a04565c340d194c817619263"
       },
       {
         "ownerId": "flow-drive",
@@ -1224,7 +1224,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/portability.md",
         "destination": "skills/flow-drive/references/portability.md",
-        "originalGitBlobDigest": "e11e95847e673cf5ac25a22a61607e012f549c28"
+        "originalGitBlobDigest": "991e57dd3d512e93e9a5f9fec110b14e1a76e0ee"
       },
       {
         "ownerId": "flow-drive",
@@ -5996,7 +5996,7 @@
     "code-trace": "0421699294b52b6d9cb5bab0ac65cf38e12e8d5539976fe858eb6329a5ac3002",
     "create-pr": "b3842e9bc5f9304ac067410f427da466cdf4ac8b27251c785d5fd0ab9f5a949a",
     "doc-maintain": "7d9386fa94ef9727fff56a7b3761ebb917c1339d29562b0424c35b2657429c02",
-    "flow-drive": "598cd04ec03c0c1a635007eec6afd7f2ad873a0fe68da344e4f60c48dcda292c",
+    "flow-drive": "3e492e2777e1dd7149d5fbfa4eda94c4485c3a4ef47c1e9e31fafe1c63e32257",
     "flow-guide": "1c0e126473f20e18ca2eb00b555b74244d9b9ca3e3514a888ed8ea3b39652831",
     "git-smart-commit": "e53029fc23a1f2d1d3f6c31c913f2ed1ed566493fc922a2ab5e60d806b201eea",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",

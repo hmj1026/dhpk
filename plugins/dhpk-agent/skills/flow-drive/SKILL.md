@@ -97,10 +97,11 @@ the same grammar and keep selection intent separate from Host grants.
    `scripts/launch-dispatch.js`; follow `references/parent-cli-dispatch.md` for the
    dispatcher packet, reasoner-before-worker gate, and independent verification.
 5. Stop the affected item on an evidence-changing blocker while independent
-   eligible items continue. Use the portable recovery contract for configured
-   attempt budgets and lifecycle proof. In the legacy advanced procedure, a
-   rejected or modified item may be retried at most twice with its failure and
-   current diff supplied as context.
+   eligible items continue. This Host procedure sets no generic retry count.
+   The programmatic runner executes one attempt by default; only a Host that
+   embeds `runFlowDrive(..., { recovery })` opts into the bounded [runner
+   recovery contract](references/recovery.md) and its shared retry budget and
+   lifecycle proof.
 
 Completion means every ordered item has implementation and verification
 evidence, or the report names the exact blocker, skipped check, and resume
@@ -147,9 +148,14 @@ verification, and archive as separate states.
 
 ## References
 
-- `references/execution-bundle/rules/execution-policy.md` — selected local
-  invocation, planning, dispatch, and handoff policy. Its bundle base is the
-  real parent of that policy file's containing `rules` directory.
+- `references/execution-bundle/rules/execution-policy-kernel.md` — Read before
+  any detailed execution-policy section; its invariants govern the whole Host
+  procedure.
+- `references/execution-bundle/rules/execution-policy.md` — Read §Planning and
+  workflow composition when step 2 has an unresolved planning need; read
+  §Agent dispatch and §Implementation dispatch when role, dispatch, or handoff
+  decisions need detail beyond steps 4–5. Its bundle base is the real parent
+  of that policy file's containing `rules` directory.
 - `references/execution-bundle/scripts/lib/flow-handoff-contract.js` — shared
   neutral route handoff and evidence boundary; it does not grant execution
   authority.
