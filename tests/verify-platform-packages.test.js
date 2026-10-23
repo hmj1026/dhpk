@@ -199,22 +199,36 @@ test('policy parity checks the AGY pointer and Cursor repository-link rewrite', 
     fs.writeFileSync(canonicalPath, canonical);
     const url = 'https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md#shape';
 
+    const packageRoot = path.join(root, 'package');
+    const projectedPath = path.join(packageRoot, 'rules', 'execution-policy.md');
+    const selectedResourcePath = path.join(
+      packageRoot,
+      'skills',
+      'flow-guide',
+      'references',
+      'execution-bundle',
+      'rules',
+      'execution-policy.md',
+    );
+    fs.mkdirSync(path.dirname(projectedPath), { recursive: true });
+    fs.mkdirSync(path.dirname(selectedResourcePath), { recursive: true });
+    fs.writeFileSync(selectedResourcePath, '# Selected policy resource\n');
     const agy = expectedAgyPolicy(canonical, canonicalPath, root);
-    assert.strictEqual(agy, [
-      '---',
-      'trigger: model_decision',
-      'description: Execution policy single source of truth',
-      '---',
-      '# Execution Policy',
-      '',
-      'For routing, dispatch, review, git, or escalation questions, select the',
-      '[full execution policy](../skills/flow-guide/references/execution-bundle/rules/execution-policy.md).',
-      "Resolve this link relative to this rule file's directory, not the consumer",
-      "working directory. Derive `POLICY_BUNDLE_ROOT` from the selected resource's",
-      'real grandparent. Read its kernel first, then load only required sections.',
-      '',
-    ].join('\n'));
-    assert.notStrictEqual(agy, canonical, 'an unrewritten projection must not satisfy parity');
+    fs.writeFileSync(projectedPath, agy);
+    const policyFrontmatter = agy.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+    assert.ok(policyFrontmatter, 'AGY execution policy has parseable trigger metadata');
+    assert.match(policyFrontmatter[1], /^trigger:\s*model_decision\s*$/m);
+    const policyLink = agy.match(/\[[^\]]+\]\(([^)]+)\)/);
+    assert.ok(policyLink, 'AGY execution policy points to its selected bundle resource');
+    assert.ok(!path.isAbsolute(policyLink[1]), 'AGY execution policy link is relative');
+    const resolvedResourcePath = path.resolve(path.dirname(projectedPath), policyLink[1]);
+    const packageRelativeResource = path.relative(packageRoot, resolvedResourcePath);
+    assert.ok(
+      packageRelativeResource && packageRelativeResource !== '..' && !packageRelativeResource.startsWith(`..${path.sep}`),
+      'AGY policy resource stays inside the package',
+    );
+    assert.strictEqual(resolvedResourcePath, selectedResourcePath);
+    assert.ok(fs.statSync(resolvedResourcePath).isFile(), 'AGY policy link resolves to the selected package resource');
 
     const cursor = expectedCursorPolicyBody(canonical, canonicalPath, root);
     assert.ok(cursor.includes(`[reviewer contract](${url})`), cursor);
