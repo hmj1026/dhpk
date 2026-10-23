@@ -571,8 +571,8 @@ evidence to the affected risk domains and request only the missing outcome;
 do not rerun a named reviewer solely because another producer supplied the
 same outcome.
 
-Apply the kernel's Evidence snapshots rule
-(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md#evidence-snapshots`)
+Apply the kernel's Evidence snapshots section
+(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md`)
 when reusing review evidence; retain any existing checkpoint that requires a
 complete wave. An unchanged implementation wave does not receive a second
 semantically identical review.
@@ -735,8 +735,8 @@ are valid evidence carriers when they establish scope, observations, conclusion,
 and remaining gaps.
 
 For snapshot validity, mutation ordering, and affected-scope reuse, follow the
-kernel's Evidence snapshots rule
-(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md#evidence-snapshots`).
+kernel's Evidence snapshots section
+(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md`).
 
 Choose focused or selected checks from changed behavior and acceptance criteria,
 then retain every applicable plugin handoff, archive, CI, formal-package, and
