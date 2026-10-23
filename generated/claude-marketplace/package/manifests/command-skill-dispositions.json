@@ -251,7 +251,7 @@
       "path": "commands/precommit.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:precommit",
-      "argument_contract": "[--fast]",
+      "argument_contract": "[--fast] [--dry-run]",
       "authority": "workspace-write",
       "skill_owner": "precommit",
       "disposition": "thin-front-door",

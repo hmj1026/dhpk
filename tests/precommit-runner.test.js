@@ -142,6 +142,79 @@ test('full mode runs build before test and reports an absent lint script as skip
   }
 }));
 
+test('--dry-run previews package scripts for the selected mode without executing or writing artifacts', () => withScratchArtifacts(({ cacheDir, marker }) => {
+  let repo;
+  try {
+    repo = mkScratchRepo({
+      'lint:fix': markerCommand('lint'),
+      build: markerCommand('build'),
+      test: markerCommand('test'),
+    });
+
+    const fast = runScript(repo, ['--mode', 'fast', '--dry-run', '--tail', '80'], cacheDir, { ORDER_MARKER: marker });
+    const fastOutput = fast.stdout + '\n' + fast.stderr;
+    assert.strictEqual(fast.status, 0, fastOutput);
+    assert.match(fastOutput, /DRY.?RUN/i);
+    assert.ok(fastOutput.includes('lint_fix'), fastOutput);
+    assert.match(fastOutput, /npm\s+run\s+test/i);
+    assert.ok(!fastOutput.includes('build'), 'fast preview must omit the build stage');
+    assert.ok(!/\bPASS\b/.test(fastOutput), 'a plan must not claim checks passed');
+    assert.ok(!fs.existsSync(marker), 'dry-run must not execute configured package scripts');
+    assert.ok(!fs.existsSync(cacheDir), 'dry-run must not create its redirected cache');
+    assert.ok(!fs.existsSync(path.join(repo, '.claude', 'cache')), 'dry-run must not create repository cache directories');
+
+    const full = runScript(repo, ['--mode', 'full', '--dry-run'], cacheDir, { ORDER_MARKER: marker });
+    const fullOutput = full.stdout + '\n' + full.stderr;
+    assert.strictEqual(full.status, 0, fullOutput);
+    assert.match(fullOutput, /DRY.?RUN/i);
+    assert.ok(fullOutput.includes('build'), fullOutput);
+    assert.match(fullOutput, /npm\s+run\s+test/i);
+    assert.ok(!/\bPASS\b/.test(fullOutput), 'a plan must not claim checks passed');
+    assert.ok(!fs.existsSync(marker), 'dry-run must not execute scripts in either mode');
+    assert.ok(!fs.existsSync(cacheDir));
+    assert.ok(!fs.existsSync(path.join(repo, '.claude', 'cache')));
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
+test('--dry-run previews configured stages and resolved working directories without executing them', () => withScratchArtifacts(({ cacheDir, marker }) => {
+  let repo;
+  try {
+    const stages = {
+      lint_fix: [{ name: 'backend', cwd: 'backend', command: 'node', args: ['run.js', 'lint_fix:backend'] }],
+      build: [{ name: 'frontend', cwd: 'frontend', command: 'node', args: ['run.js', 'build:frontend'] }],
+      test_unit: [{ name: 'frontend', cwd: 'frontend', command: 'node', args: ['run.js', 'test_unit:frontend'] }],
+    };
+    const recordStep = [
+      "const fs = require('node:fs');",
+      "fs.appendFileSync(process.env.ORDER_MARKER, process.argv[2] + ':' + process.cwd() + '\\n');",
+    ].join('\n');
+    repo = mkScratchRepo(null, {
+      'precommit.config.json': JSON.stringify({ stages }, null, 2),
+      'backend/run.js': recordStep,
+      'frontend/run.js': recordStep,
+    });
+
+    const res = runScript(repo, ['--mode', 'full', '--dry-run'], cacheDir, { ORDER_MARKER: marker });
+    const output = res.stdout + '\n' + res.stderr;
+    assert.strictEqual(res.status, 0, output);
+    assert.match(output, /DRY.?RUN/i);
+    assert.ok(output.includes('lint_fix:backend'), output);
+    assert.ok(output.includes('build:frontend'), output);
+    assert.ok(output.includes('test_unit:frontend'), output);
+    assert.ok(output.includes('node'), output);
+    assert.ok(output.includes(path.join(repo, 'backend')), output);
+    assert.ok(output.includes(path.join(repo, 'frontend')), output);
+    assert.ok(!/\bPASS\b/.test(output), 'a plan must not claim checks passed');
+    assert.ok(!fs.existsSync(marker), 'dry-run must not execute explicit configured commands');
+    assert.ok(!fs.existsSync(cacheDir));
+    assert.ok(!fs.existsSync(path.join(repo, '.claude', 'cache')));
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
 test('no supported checks: reports UNSUPPORTED and exits nonzero', () => withScratchArtifacts(({ dir, cacheDir }) => {
   let repo;
   try {
@@ -224,6 +297,24 @@ test('invalid explicit config fails instead of falling through to package script
     assert.strictEqual(summary.overallStatus, 'FAIL');
     assert.match(summary.error, /precommit\.config\.json/);
     assert.ok(!res.stdout.includes('runner verdict is UNSUPPORTED'), res.stdout);
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
+test('--dry-run rejects invalid explicit config without creating a cache or running fallback scripts', () => withScratchArtifacts(({ cacheDir, marker }) => {
+  let repo;
+  try {
+    repo = mkScratchRepo({ test: markerCommand('must-not-run') }, {
+      'precommit.config.json': '{ invalid json',
+    });
+    const res = runScript(repo, ['--mode', 'fast', '--dry-run'], cacheDir, { ORDER_MARKER: marker });
+    const output = res.stdout + '\n' + res.stderr;
+    assert.notStrictEqual(res.status, 0, output);
+    assert.match(output, /precommit\.config\.json/i, output);
+    assert.ok(!fs.existsSync(marker), 'invalid config must not fall through to package scripts');
+    assert.ok(!fs.existsSync(cacheDir), 'invalid dry-run must not create its redirected cache');
+    assert.ok(!fs.existsSync(path.join(repo, '.claude', 'cache')));
   } finally {
     cleanupRepo(repo);
   }

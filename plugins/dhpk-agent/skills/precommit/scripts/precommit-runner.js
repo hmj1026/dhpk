@@ -67,7 +67,7 @@ function formatStepLine(name, code, ms, logFile) {
 
 function usageText() {
   return [
-    'Usage: precommit-runner.js [--mode full|fast] [--tail N] [--tail-success N] [--tail-failure N]',
+    'Usage: precommit-runner.js [--mode full|fast] [--dry-run] [--tail N] [--tail-success N] [--tail-failure N]',
     '       precommit-runner.js --help',
     '',
     'full (default) runs lint:fix, build, and unit tests. fast skips build.',
@@ -196,10 +196,97 @@ function packageScriptStages(pkg, pm, mode) {
   return { stages, usesFallbackTest };
 }
 
+function resolveStagePlan(repoRoot, mode, xdgDir) {
+  const configuredStages = readConfiguredStages(repoRoot);
+  const pm = configuredStages ? null : detectPackageManager(repoRoot);
+  const pkg = configuredStages ? null : readPackageJson(repoRoot);
+  const packagePlan = configuredStages ? null : packageScriptStages(pkg, pm, mode);
+  const stages = configuredStages || packagePlan.stages;
+  const notes = [];
+
+  if (configuredStages) {
+    notes.push(`> config: ${CONFIG_FILE}`);
+    for (const stage of STAGE_ORDER) {
+      if (stage === 'build' && mode !== 'full') continue;
+      if (!stages[stage].length) notes.push(`> skip ${stage} (not configured)`);
+    }
+  } else {
+    notes.push(`> package manager: ${pm}`);
+    if (!stages.lint_fix.length) {
+      notes.push('> skip lint_fix (no "lint:fix" script in package.json)');
+    }
+    if (mode === 'full' && !stages.build.length) {
+      notes.push('> skip build (no "build" script in package.json)');
+    }
+    if (!stages.test_unit.length) {
+      notes.push('> skip test_unit (no "test:js", "test:unit" or "test" script in package.json)');
+    } else if (packagePlan.usesFallbackTest) {
+      notes.push('> fallback: using "test" instead of "test:unit"');
+    }
+  }
+
+  const steps = STAGE_ORDER
+    .filter(stage => stage !== 'build' || mode === 'full')
+    .flatMap(stage => stages[stage].map(step => ({
+      ...step,
+      cwd: step.cwd || repoRoot,
+      env: {
+        ...(step.env || {}),
+        ...(stage === 'lint_fix' ? { XDG_CONFIG_HOME: xdgDir } : {}),
+      },
+      stdoutFilter: stage === 'test_unit' ? testStdoutFilter : undefined,
+      stage,
+    })));
+
+  return { notes, steps };
+}
+
+function formatCommand(cmd, args) {
+  return [cmd, ...args].map(value => {
+    if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
+    const printable = value.replace(/[\u0000-\u001f\u007f]/g, character =>
+      `\\x${character.charCodeAt(0).toString(16).padStart(2, '0')}`
+    );
+    return `'${printable.replace(/'/g, `'\\''`)}'`;
+  }).join(' ');
+}
+
+function printDryRun(repoRoot, mode, plan) {
+  const lines = [
+    `# Precommit (${mode})`,
+    '',
+    '- DRY_RUN: commands listed below; no checks were executed',
+    `- repo: \`${repoRoot}\``,
+    '',
+    ...plan.notes,
+    '',
+    '## Ordered commands',
+  ];
+
+  if (!plan.steps.length) {
+    lines.push('- no supported commands configured; runner verdict is UNSUPPORTED');
+  } else {
+    for (const step of plan.steps) {
+      lines.push(`- **${step.name}**`);
+      lines.push(`  command: ${formatCommand(step.cmd, step.args)}`);
+      lines.push(`  cwd: \`${step.cwd}\``);
+    }
+  }
+
+  lines.push('');
+  lines.push(plan.steps.length
+    ? '## Overall: DRY_RUN (not a verification verdict)'
+    : '## Overall: ⛔ UNSUPPORTED');
+  lines.push('');
+  process.stdout.write(lines.join('\n'));
+  if (!plan.steps.length) process.exitCode = 2;
+}
+
 function parseArgs(argv) {
   if (argv.includes('--help') || argv.includes('-h')) return { help: true };
   const args = {
     mode: 'full', // full | fast
+    dryRun: false,
     tail: 120, // default tail lines ceiling
     tailSuccess: 25,
     tailFailure: 120,
@@ -212,6 +299,10 @@ function parseArgs(argv) {
 
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
+    if (k === '--dry-run') {
+      args.dryRun = true;
+      continue;
+    }
     if (k === '--mode' || Object.prototype.hasOwnProperty.call(numeric, k)) {
       const v = argv[i + 1];
       if (v === undefined || v.startsWith('-')) return { error: `${k} requires a value` };
@@ -245,8 +336,24 @@ async function main() {
   const repoRoot = await gitRepoRoot();
 
   if (!repoRoot) {
-    process.stdout.write(`# precommit runner\n\n⛔ UNSUPPORTED: Not inside a git repo.\n`);
+    process.stdout.write(args.dryRun
+      ? `# Precommit (${args.mode})\n\n- DRY_RUN: no checks were executed\n\n⛔ UNSUPPORTED: Not inside a git repo.\n`
+      : `# precommit runner\n\n⛔ UNSUPPORTED: Not inside a git repo.\n`);
     process.exitCode = 2;
+    return;
+  }
+
+  const xdgDir = path.join(repoRoot, '.claude', 'cache', 'xdg');
+  if (args.dryRun) {
+    try {
+      const plan = resolveStagePlan(repoRoot, args.mode, xdgDir);
+      printDryRun(repoRoot, args.mode, plan);
+    } catch (error) {
+      process.stdout.write(
+        `# Precommit (${args.mode})\n\n- DRY_RUN: no checks were executed\n\n❌ runner setup failed: ${String((error && error.stack) || error)}\n`
+      );
+      process.exitCode = 1;
+    }
     return;
   }
 
@@ -263,7 +370,6 @@ async function main() {
 
   const logDir = path.join(cacheBase, repoKey, short);
   ensureDir(logDir);
-  const xdgDir = path.join(repoRoot, '.claude', 'cache', 'xdg');
   ensureDir(xdgDir);
   const runnerLog = path.join(logDir, 'runner.log');
   appendLog(runnerLog, `[${nowISO()}] start\n`);
@@ -288,50 +394,10 @@ async function main() {
   try {
     statusBefore = await gitStatusSB(repoRoot);
 
-    const configuredStages = readConfiguredStages(repoRoot);
-    const pm = configuredStages ? null : detectPackageManager(repoRoot);
-    const pkg = configuredStages ? null : readPackageJson(repoRoot);
-    const packagePlan = configuredStages ? null : packageScriptStages(pkg, pm, args.mode);
-    const stages = configuredStages || packagePlan.stages;
-    if (configuredStages) {
-      process.stdout.write(`> config: ${CONFIG_FILE}\n`);
-    } else {
-      process.stdout.write(`> package manager: ${pm}\n`);
-    }
+    const plan = resolveStagePlan(repoRoot, args.mode, xdgDir);
+    for (const note of plan.notes) process.stdout.write(`${note}\n`);
 
-    if (!configuredStages) {
-      if (!stages.lint_fix.length) {
-        process.stdout.write(`> skip lint_fix (no "lint:fix" script in package.json)\n`);
-      }
-      if (args.mode === 'full' && !stages.build.length) {
-        process.stdout.write(`> skip build (no "build" script in package.json)\n`);
-      }
-      if (!stages.test_unit.length) {
-        process.stdout.write(`> skip test_unit (no "test:js", "test:unit" or "test" script in package.json)\n`);
-      } else if (stages.test_unit.length && packagePlan.usesFallbackTest) {
-        process.stdout.write(`> fallback: using "test" instead of "test:unit"\n`);
-      }
-    } else {
-      for (const stage of STAGE_ORDER) {
-        if (stage === 'build' && args.mode !== 'full') continue;
-        if (!stages[stage].length) process.stdout.write(`> skip ${stage} (not configured)\n`);
-      }
-    }
-
-    const steps = STAGE_ORDER
-      .filter(stage => stage !== 'build' || args.mode === 'full')
-      .flatMap(stage => stages[stage].map(step => ({
-        ...step,
-        cwd: step.cwd || repoRoot,
-        env: {
-          ...(step.env || {}),
-          ...(stage === 'lint_fix' ? { XDG_CONFIG_HOME: xdgDir } : {}),
-        },
-        stdoutFilter: stage === 'test_unit' ? testStdoutFilter : undefined,
-        stage,
-      })));
-
-    for (const s of steps) {
+    for (const s of plan.steps) {
       appendLog(runnerLog, `[${nowISO()}] step_start ${s.name}\n`);
       process.stdout.write(`> running ${s.name}...\n`);
       const r = await runStep({

@@ -410,7 +410,8 @@ owns the requested outcome. The vocabulary and boundary are defined in
     ```
   - **Pre-Commit Verification Pipelines**:
     ```text
-    /dhpk:precommit --fast                            # fast local pipeline (lint + unit tests)
+    /dhpk:precommit --fast --dry-run                  # preview selected commands
+    /dhpk:precommit --fast                            # omit build; selected tests may be the full suite
     /dhpk:precommit                                   # full pipeline (lint:fix -> build -> test:unit)
     /dhpk:verify                                      # cross-layer validation (includes integration & e2e)
     ```
@@ -638,12 +639,13 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
 #### 7. precommit (Pre-Commit Quality Pipeline)
 
 - **Purpose**: Deterministic pre-commit verification pipeline executing lint formatting, build checks, and unit tests tailored to the project ecosystem.
-- **Invocation Syntax**: `/dhpk:precommit [--fast]`
+- **Invocation Syntax**: `/dhpk:precommit [--fast] [--dry-run]`
 - **Parameter Breakdown**:
 
   | Parameter | Type | Description |
   |---|---|---|
-  | `--fast` | Boolean flag | Fast mode: runs rapid static checks and unit tests, skipping heavy builds and end-to-end stages. Omitted = runs full pipeline (`lint:fix -> build -> test:unit`). |
+  | `--fast` | Boolean flag | Omit build. Configured test commands or the package-script fallback may still select the full test suite. Omitted = full stage set (`lint:fix -> build -> test:unit`). |
+  | `--dry-run` | Boolean flag | Preview selected stages, commands, and working directories without executing checks or writing cache/log files. A plan supplies no verification result. |
 
 - **Practical Examples**:
   ```text

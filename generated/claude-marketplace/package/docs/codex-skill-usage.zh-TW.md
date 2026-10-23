@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:18429fdab11f73717a75e4f447851f9c2346f1b86a138211a5ba110a185f264e`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:9ce52a60aaa32cae1915f091e6170b55c7e6a23c8a28e0d0859bdb40bd721250`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
@@ -198,15 +198,16 @@ Actions：
 ### `$precommit`
 
 摘要：Run the packaged deterministic pre-commit pipeline
-語法：`$precommit [--fast]`
+語法：`$precommit [--fast] [--dry-run]`
 呼叫類別：`implicit-eligible`
 最高 authority：`workspace-write`
 
 Actions：
-- `run` `$precommit [--fast]` — Run fast or full pre-commit stages
+- `run` `$precommit [--fast] [--dry-run]` — Run fast or full pre-commit stages
 
 選項：
 - `fast` `--fast` (可選, boolean, default=false) — Run the fast stage set
+- `dry-run` `--dry-run` (可選, boolean, default=false) — Preview selected commands without running checks or writing cache files
 
 範例：
 - `$precommit --fast` — Use precommit with its declared interface

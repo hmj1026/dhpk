@@ -72,21 +72,30 @@ applicable reviewers from the execution-policy trigger table is recommended.
 
 When a change touches the distribution inventory, canonical skills, bundled
 documentation, profiles, plugin manifests, package generators, or generated
-package files, first regenerate the usage catalog and include any resulting
-catalog diff in the canonical-source commit. The provenance-bound distribution
+package files, synchronize affected Skill resources first. For transformed
+supporting-policy changes, refresh their digests under the
+[supporting-asset contract](../distribution-surfaces.md#lifecycle-model)
+before regenerating the usage catalog. Include the synchronized resources,
+digests, and resulting catalog diff in the canonical-source commit. The provenance-bound distribution
 generators then run from that clean commit. Complete all four external package
 generations before updating any tracked generated output, then regenerate the
 Claude marketplace and commit the owned outputs together. The final local gate
 runs from that clean generated-output commit:
 
 ```bash
+node scripts/ci/sync-skill-resources.js --write
+# Only when transformed supporting assets changed:
+# node scripts/ci/gen-distribution-inventory.js --refresh-supporting-digests
 node scripts/ci/gen-skill-usage.js --write
+node scripts/ci/gen-distribution-inventory.js --check
+node scripts/ci/sync-skill-resources.js --check
 git diff --check
 # Commit canonical sources and the regenerated usage catalog, then continue.
 # Every formal generate requires a clean source checkout; stage all four
 # packages outside the checkout from this same commit before copying owned
 # outputs into tracked paths.
 dhpk_packages=$(mktemp -d /tmp/dhpk-packages.XXXXXX)
+dhpk_packages=$(cd "$dhpk_packages" && pwd -P)
 bin/dhpk distribution agent-plugin generate --output "$dhpk_packages/dhpk-agent" --version=<version> --json
 bin/dhpk distribution cursor-plugin generate --output "$dhpk_packages/dhpk-cursor" --version=<version> --json
 bin/dhpk distribution codex-native generate --output "$dhpk_packages/dhpk" --version=<version> --json
@@ -134,11 +143,18 @@ The project-local `.agents/skills` compatibility projection is generated from
 the same canonical `skills/` tree and is not hand-edited:
 
 ```bash
-node scripts/ci/gen-agents-skills.js
-node scripts/ci/validate-agents-skills.js
+npm run check:local-skills
+# For an authorized local install/update, preserving ownership checks:
+npm run sync:local-skills
 ```
 
-The no-argument invocation is the retained in-checkout compatibility route.
+These aliases use the existing no-argument generator/validator compatibility
+route; synchronization passes `--update` before validation. Run the check after
+syncing a checkout with `.agents/skills/.dhpk-projection.json`. Fresh-checkout
+package CI does not depend on a developer's ignored installation. Back up local
+content before repair and resolve reported conflicts without overwriting
+modified or unmanaged files.
+
 For an external consumer project, pass `--source-root`, `--project-root`, the
 explicit `portable-core` profile, and the requested Hosts; the shared publisher
 then writes a self-contained artifact, a project receipt at

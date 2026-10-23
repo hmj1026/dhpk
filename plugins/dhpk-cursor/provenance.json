@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "ad7abefb4d4dab6b16759ad38b8b3bb31ebbea5b",
-  "generatedFromCommit": "ad7abefb4d4dab6b16759ad38b8b3bb31ebbea5b",
-  "generatedFromTree": "a33d5f80b66a7ca47aa9348aa70547e00ee6ea14",
-  "inventoryDigest": "1346f249121df566b6481991c90309d8fa53602854ed6fdd95ab09d07767a7a9",
-  "inventoryRevision": "sha256:18429fdab11f73717a75e4f447851f9c2346f1b86a138211a5ba110a185f264e",
+  "sourceCommit": "9012bcd83b01e066650268dbec06e1dd1b425c57",
+  "generatedFromCommit": "9012bcd83b01e066650268dbec06e1dd1b425c57",
+  "generatedFromTree": "e5307ef8e77c5892cd62d2c05f213adfaca1276e",
+  "inventoryDigest": "2d5f4b7ae476e4e4a7771ff0dfeb4f4076b8a02b3a03fc6847c23866ca1a2d49",
+  "inventoryRevision": "sha256:9ce52a60aaa32cae1915f091e6170b55c7e6a23c8a28e0d0859bdb40bd721250",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -621,7 +621,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/SKILL.md",
         "destination": "skills/flow-drive/SKILL.md",
-        "originalGitBlobDigest": "3bc94ae00675e85e6dbeb816697eaee2f9ac673f"
+        "originalGitBlobDigest": "e321a4ba814ae1c69c7e598c88a93f8acec06529"
       },
       {
         "ownerId": "flow-drive",
@@ -633,7 +633,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/distribution.yaml",
         "destination": "skills/flow-drive/distribution.yaml",
-        "originalGitBlobDigest": "81175bc2e98e8275c99901f43ede010887ae3d5d"
+        "originalGitBlobDigest": "3288b846f963bce9a04565c340d194c817619263"
       },
       {
         "ownerId": "flow-drive",
@@ -817,18 +817,6 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-        "destination": "skills/flow-drive/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-        "originalGitBlobDigest": "04a502707d207d65e14e9d8f9958e8e453f173a0"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-        "destination": "skills/flow-drive/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-        "originalGitBlobDigest": "488739b33e56c19fbc769247098a6ae6db708b19"
-      },
-      {
-        "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
         "originalGitBlobDigest": "f07a4977fd2bbe2470c9a0815e4b22ba573b816c"
@@ -843,7 +831,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "8502fbf7ac40f31cd8268174127362e933f99375"
+        "originalGitBlobDigest": "d6872840b369218b061471ae5c1300e92c904e38"
       },
       {
         "ownerId": "flow-drive",
@@ -1519,12 +1507,6 @@
       },
       {
         "ownerId": "flow-drive",
-        "source": "skills/flow-drive/references/verification-handoff.md",
-        "destination": "skills/flow-drive/references/verification-handoff.md",
-        "originalGitBlobDigest": "04a502707d207d65e14e9d8f9958e8e453f173a0"
-      },
-      {
-        "ownerId": "flow-drive",
         "source": "skills/yii1/SKILL.md",
         "destination": "skills/flow-drive/references/yii1/SKILL.md",
         "originalGitBlobDigest": "ed5fa8b4c4670b7013db464b599dcf253486fa7b"
@@ -1728,12 +1710,6 @@
         "originalGitBlobDigest": "f60513a8b9f6a725dc8e727d4c2bef73269069ef"
       },
       {
-        "ownerId": "flow-drive",
-        "source": "skills/flow-drive/scripts/verify-handoff.js",
-        "destination": "skills/flow-drive/scripts/verify-handoff.js",
-        "originalGitBlobDigest": "488739b33e56c19fbc769247098a6ae6db708b19"
-      },
-      {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/SKILL.md",
         "destination": "skills/flow-guide/SKILL.md",
@@ -1755,7 +1731,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/distribution.yaml",
         "destination": "skills/flow-guide/distribution.yaml",
-        "originalGitBlobDigest": "2b5544d6a9ef4f5c2801f66e9fbc4ac5908c0a69"
+        "originalGitBlobDigest": "580c6f07cda8b032d3534e660af942b5649e549b"
       },
       {
         "ownerId": "flow-guide",
@@ -1791,7 +1767,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "d0f814fc1f2b079b29090aade8748f15baf6cc53"
+        "originalGitBlobDigest": "57f3ed8307bc88bdabdc7884e02630b2f31ff2b6"
       },
       {
         "ownerId": "flow-guide",
@@ -1915,18 +1891,6 @@
       },
       {
         "ownerId": "flow-guide",
-        "source": "skills/flow-guide/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-        "destination": "skills/flow-guide/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-        "originalGitBlobDigest": "04a502707d207d65e14e9d8f9958e8e453f173a0"
-      },
-      {
-        "ownerId": "flow-guide",
-        "source": "skills/flow-guide/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-        "destination": "skills/flow-guide/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-        "originalGitBlobDigest": "488739b33e56c19fbc769247098a6ae6db708b19"
-      },
-      {
-        "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
         "originalGitBlobDigest": "f07a4977fd2bbe2470c9a0815e4b22ba573b816c"
@@ -1941,7 +1905,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "8502fbf7ac40f31cd8268174127362e933f99375"
+        "originalGitBlobDigest": "d6872840b369218b061471ae5c1300e92c904e38"
       },
       {
         "ownerId": "flow-guide",
@@ -1977,7 +1941,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "8502fbf7ac40f31cd8268174127362e933f99375"
+        "originalGitBlobDigest": "d6872840b369218b061471ae5c1300e92c904e38"
       },
       {
         "ownerId": "flow-guide",
@@ -2271,7 +2235,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/SKILL.md",
         "destination": "skills/precommit/SKILL.md",
-        "originalGitBlobDigest": "4c4d739f78ac214816ac277a3d50604bbacabd32"
+        "originalGitBlobDigest": "689550bc7b921caebaff4fae9e332ed22892a78a"
       },
       {
         "ownerId": "precommit",
@@ -2283,13 +2247,13 @@
         "ownerId": "precommit",
         "source": "skills/precommit/distribution.yaml",
         "destination": "skills/precommit/distribution.yaml",
-        "originalGitBlobDigest": "bb297c4467e2e558baeed932258a1e642bc51170"
+        "originalGitBlobDigest": "323a138aa862464766db4846972fe1b723446921"
       },
       {
         "ownerId": "precommit",
         "source": "skills/precommit/references/workflow.md",
         "destination": "skills/precommit/references/workflow.md",
-        "originalGitBlobDigest": "9125e53e0b6ea12caccf8a7c94597971b71b1d32"
+        "originalGitBlobDigest": "93f4754b29e2961771d6c8553d8d9c661f17117e"
       },
       {
         "ownerId": "precommit",
@@ -2301,7 +2265,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/scripts/precommit-runner.js",
         "destination": "skills/precommit/scripts/precommit-runner.js",
-        "originalGitBlobDigest": "ee8438a838fb028284073496ff81aa1d7cf5a37d"
+        "originalGitBlobDigest": "2a230495fdf31191974db9f2b33e53dab884d06f"
       },
       {
         "ownerId": "proposal-analyze",
@@ -3685,20 +3649,6 @@
       {
         "ownerId": "flow-drive",
         "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-        "destination": "skills/flow-drive/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-        "destination": "skills/flow-drive/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
         "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
         "kind": "entry"
@@ -4503,13 +4453,6 @@
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/references/verification-handoff.md",
-        "destination": "skills/flow-drive/references/verification-handoff.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-drive",
         "skillId": "yii1",
         "sourcePath": "skills/yii1/SKILL.md",
         "destination": "skills/flow-drive/references/yii1/SKILL.md",
@@ -4747,13 +4690,6 @@
         "kind": "entry"
       },
       {
-        "ownerId": "flow-drive",
-        "skillId": "flow-drive",
-        "sourcePath": "skills/flow-drive/scripts/verify-handoff.js",
-        "destination": "skills/flow-drive/scripts/verify-handoff.js",
-        "kind": "entry"
-      },
-      {
         "ownerId": "flow-guide",
         "skillId": "flow-guide",
         "sourcePath": "skills/flow-guide/SKILL.md",
@@ -4961,20 +4897,6 @@
         "skillId": "flow-guide",
         "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-guide",
-        "skillId": "flow-guide",
-        "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-        "destination": "skills/flow-guide/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-guide",
-        "skillId": "flow-guide",
-        "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-        "destination": "skills/flow-guide/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
         "kind": "entry"
       },
       {
@@ -6372,7 +6294,7 @@
     }
   ],
   "fingerprints": {
-    "rules": "10af6e061443518390062e409cb7999f1217829e69a1d4917ca88e3aca32ba60",
+    "rules": "ca54a69fac168fbb82c09cff10b3473969a187a4a73f48675fadb2d368ca84aa",
     "agents": "43ec5426263da1f9404667ed62bb7b0f7cb0e4680230daa812f06c70ce02d721",
     "commands": "dff2453ecc4e44aff8e4b4531063d78cefef128824f2e327d15ef7b484f369df",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a",
@@ -6380,7 +6302,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "009fbfba697fd7663267094e05fd0d3d827cad6c4314432d8883950adeff0600",
+    "planId": "f3e775a1781fca165d38a37ac800feed58846d92696906e08129b70b8652121c",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -6424,10 +6346,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "009fbfba697fd7663267094e05fd0d3d827cad6c4314432d8883950adeff0600",
-      "inventory": "1346f249121df566b6481991c90309d8fa53602854ed6fdd95ab09d07767a7a9"
+      "plan": "f3e775a1781fca165d38a37ac800feed58846d92696906e08129b70b8652121c",
+      "inventory": "2d5f4b7ae476e4e4a7771ff0dfeb4f4076b8a02b3a03fc6847c23866ca1a2d49"
     },
-    "rollbackIdentity": "860d6589600216754f253f96a37e1c5b2f9b37fa0a5d518d00ee2d40e9b5f322"
+    "rollbackIdentity": "8de843f154fa6df06a185c93758ac73090bec9e66f55bda12889bc4b43a70f87"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -7142,7 +7064,7 @@
     "precommit": {
       "display_name": "Precommit",
       "summary": "Run the packaged deterministic pre-commit pipeline",
-      "syntax": "$precommit [--fast]",
+      "syntax": "$precommit [--fast] [--dry-run]",
       "input_kind": "none",
       "invocation_class": "implicit-eligible",
       "effect_authority": "workspace-write",
@@ -7151,7 +7073,7 @@
         {
           "id": "run",
           "summary": "Run fast or full pre-commit stages",
-          "syntax": "$precommit [--fast]",
+          "syntax": "$precommit [--fast] [--dry-run]",
           "input_kind": "none",
           "effect_authority": "workspace-write"
         }
@@ -7163,6 +7085,14 @@
           "value_kind": "boolean",
           "required": false,
           "summary": "Run the fast stage set",
+          "default": false
+        },
+        {
+          "id": "dry-run",
+          "syntax": "--dry-run",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Preview selected commands without running checks or writing cache files",
           "default": false
         }
       ],
@@ -7435,7 +7365,7 @@
     "git-worktree": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689",
     "proposal-analyze": "89e3a151663d1389f14f9c10b547d09fb58dee3ab10a126491f546f0070f5e33",
     "doc-maintain": "8263cf5ab3a270870efee69d56234c1eacecf84a15fe7e2894546ecab68cabf9",
-    "precommit": "920521f2abafda14ea87a7e44569f5bb5aec2b4b245bff78d43271b5d54ea699",
+    "precommit": "aaf9311f021b41665056b6fdb7ffe3762853b3d72efc4354395d0437053f3e4e",
     "repo-verify": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb",
     "ui-ux-verify": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd",
     "change-verdict": "1438a3b31e76f62c7a6050049854af2584fbe24c017673147a083892c358b1fe"
@@ -7496,7 +7426,7 @@
   ],
   "compatibilityMode": "profile",
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "d56e02d09f3df7d446acbd87d2834a2cfc83cc4c22c173c7320e238a03bd020e",
-  "surfaceSelectionFingerprint": "56041955169d1f28a647f51a2a2f131c9dd53fe5613ab850da900f80188f182a",
-  "planFingerprint": "026680c831614078083ffbd437c7fa1a7fe03a4ccb646469062ae22b3a844ad1"
+  "selectionFingerprint": "e267624a414aa68aec3d1e91564b532ba1f8add00b72f1a21196091cde5af8ab",
+  "surfaceSelectionFingerprint": "887c99e55ade417ffc87d024dab74005691df48a4d6fa8375f9c971f1e88cc6c",
+  "planFingerprint": "f88f8b0172c21eb6ee44ef6140ea422fd7e5681d2f601a3c2e0cfc4ca0d04b67"
 }
