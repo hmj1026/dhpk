@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { withIsolatedSkill } = require('./_lib/skill-directory-isolation');
+const { validatePortableSkillMetadata } = require('../scripts/lib/portable-skill-metadata');
+const { extractMetadata } = require('../scripts/ci/_lib/frontmatter');
 
 const ROOT = path.join(__dirname, '..');
 const FLOW_DRIVE = path.join(ROOT, 'skills', 'flow-drive');
@@ -35,6 +37,12 @@ test('the relocated Flow Drive directory is complete without executable runtime 
     assert.deepStrictEqual(physicalFiles(context.skillDir).sort(), [...REQUIRED_FILES].sort());
 
     const skill = fs.readFileSync(path.join(context.skillDir, 'SKILL.md'), 'utf8');
+    const portable = validatePortableSkillMetadata(skill);
+    assert.strictEqual(portable.ok, true, portable.errors.join('\n'));
+    const metadata = extractMetadata(skill);
+    assert.deepStrictEqual(metadata.errors, []);
+    assert.strictEqual(Object.hasOwn(metadata.values, 'dhpk-next'), false,
+      'native task completion has no required follow-on Skill transition');
     const localLinks = [...skill.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)]
       .map(([, target]) => target.split('#', 1)[0])
       .filter((target) => target !== '' && !/^(?:[a-z][a-z\d+.-]*:|\/)/i.test(target));

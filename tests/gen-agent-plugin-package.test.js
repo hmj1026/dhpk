@@ -21,6 +21,7 @@ const {
   validateMcpConfig,
   fingerprintDir,
 } = require('../scripts/lib/agent-plugin-package');
+const { NATIVE_AGENT_SUPPORT_FILES } = require('../scripts/lib/native-agent-support');
 
 const ROOT = path.join(__dirname, '..');
 const { extractMetadata } = require('../scripts/ci/_lib/frontmatter');
@@ -39,6 +40,27 @@ function writeSkill(root, name, frontmatter, body = '# body\n', resources = {}) 
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, content);
   }
+}
+
+function writeNativeAgentSupport(root, { scriptRoot = root } = {}) {
+  fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'agents', 'codex-worker.md'), '# worker support consumer\n');
+  for (const relative of NATIVE_AGENT_SUPPORT_FILES) {
+    const sourceRoot = relative.startsWith('scripts/') ? scriptRoot : root;
+    const file = path.join(sourceRoot, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, relative.endsWith('.json') ? '{}\n' : `fixture support: ${relative}\n`);
+  }
+}
+
+function nativeAgentSupportInventory() {
+  return inventoryFor({
+    id: 'native-support',
+    name: 'dhpk-native-support',
+    path: 'skills/dhpk-native-support',
+    lifecycle: 'promoted',
+    surfaces: ['agent-plugin'],
+  });
 }
 
 function inventoryFor(...entries) {
@@ -375,6 +397,61 @@ test('Agent Plugin materialization rejects output/source overlap before deleting
     );
     assert.ok(fs.existsSync(path.join(root, 'skills', 'dhpk-overlap', 'SKILL.md')));
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('Agent Plugin native support copies only from within the canonical root', () => {
+  const root = tmpDir('dhpk-agent-native-support-source-');
+  const out = tmpDir('dhpk-agent-native-support-out-');
+  try {
+    writeSkill(root, 'dhpk-native-support', 'name: dhpk-native-support\ndescription: Native support fixture');
+    writeNativeAgentSupport(root);
+    materializeAgentPluginPackage({
+      inventory: nativeAgentSupportInventory(),
+      root,
+      outDir: out,
+      version: '1.0.0',
+    });
+    const sample = 'scripts/cli-dispatch/adapters/run-codex.sh';
+    assert.strictEqual(
+      fs.readFileSync(path.join(out, sample), 'utf8'),
+      `fixture support: ${sample}\n`,
+    );
+    const validation = validateAgentPluginPackage(out);
+    assert.strictEqual(validation.ok, true, validation.errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Agent Plugin native support rejects a symlinked parent outside the canonical root', () => {
+  const root = tmpDir('dhpk-agent-native-support-escape-source-');
+  const outside = tmpDir('dhpk-agent-native-support-escape-outside-');
+  const out = tmpDir('dhpk-agent-native-support-escape-package-');
+  try {
+    writeSkill(root, 'dhpk-native-support', 'name: dhpk-native-support\ndescription: Native support fixture');
+    writeNativeAgentSupport(root, { scriptRoot: outside });
+    fs.symlinkSync(path.join(outside, 'scripts'), path.join(root, 'scripts'), 'dir');
+
+    assert.throws(
+      () => materializeAgentPluginPackage({
+        inventory: nativeAgentSupportInventory(),
+        root,
+        outDir: out,
+        version: '1.0.0',
+      }),
+      /source symlink escapes canonical root|symlink|escapes canonical root|outside canonical/i,
+    );
+    assert.strictEqual(
+      fs.existsSync(path.join(out, 'scripts/cli-dispatch/adapters/run-codex.sh')),
+      false,
+      'outside-root support must not be materialized',
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
 });
 
 test('repeated generation has stable files, fingerprints, and provenance', () => {

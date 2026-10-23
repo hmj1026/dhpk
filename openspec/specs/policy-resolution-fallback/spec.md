@@ -70,10 +70,10 @@ plugin source tree that references `.claude/rules/execution-policy.md`
 without also stating the `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
 fallback path in the same reference (or the same References/Rule-sources
 block), so this defect class cannot silently regress — **except** for the
-four execution-bundle self-locating files governed by the requirement above
-(`rules/execution-policy.md` and its `dhpk-opsx-apply-goal` / `flow-drive` /
-`flow-guide` mirrors under `references/execution-bundle/rules/execution-policy.md`).
-For those four files specifically, the guard SHALL instead flag any
+three execution-bundle self-locating files governed by the requirement above
+(`rules/execution-policy.md` and its `dhpk-opsx-apply-goal` / `flow-guide`
+mirrors under `references/execution-bundle/rules/execution-policy.md`).
+For those three files specifically, the guard SHALL instead flag any
 reappearance of the legacy `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
 fallback phrase, since the `POLICY_BUNDLE_ROOT` mechanism explicitly forbids
 a fallback chain and its reintroduction is itself a contract regression. All
@@ -87,7 +87,7 @@ and also runs as part of
 #### Scenario: New bare reference is caught
 
 - **WHEN** a new or edited `.md` file under the plugin source tree, other
-  than the four execution-bundle self-locating files, contains the literal
+  than the three execution-bundle self-locating files, contains the literal
   string `.claude/rules/execution-policy.md` with no accompanying
   `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` fallback in the same
   reference block
@@ -97,7 +97,7 @@ and also runs as part of
 
 #### Scenario: Qualified dual-path reference passes clean
 
-- **WHEN** a `.md` file outside the four execution-bundle self-locating
+- **WHEN** a `.md` file outside the three execution-bundle self-locating
   files references `execution-policy.md` using the dual-path fallback
   wording (project path plus `${CLAUDE_PLUGIN_ROOT}` fallback, as modeled
   in `skills/harness-fill/SKILL.md`)
@@ -106,7 +106,7 @@ and also runs as part of
 
 #### Scenario: Execution-bundle self-locating file needs no dual-path fallback
 
-- **WHEN** `rules/execution-policy.md` or one of its three execution-bundle
+- **WHEN** `rules/execution-policy.md` or one of its two execution-bundle
   mirrors mentions the bare project-local path `.claude/rules/execution-policy.md`
   (e.g. in its "Project overrides" note) without the
   `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` fallback phrase
@@ -115,7 +115,7 @@ and also runs as part of
 
 #### Scenario: Reintroduced legacy fallback in a self-locating file is caught
 
-- **WHEN** one of the four execution-bundle self-locating files is edited
+- **WHEN** one of the three execution-bundle self-locating files is edited
   to reintroduce the literal string
   `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
 - **THEN** the reference-integrity check SHALL report a check-5 finding for
@@ -131,6 +131,7 @@ and also runs as part of
   (`agents/ui-ux-verifier.md`, `agents/harness-reviser.md`,
   `skills/pr-review/SKILL.md`, `modules/php-5.6/skills/php-pro/SKILL.md`,
   `skills/execution-checklist/SKILL.md`, which remain dual-path) and the
-  four execution-bundle self-locating files introduced by
-  `self-contained-skill-directories` (which are exempt from the dual-path
-  requirement per this delta)
+  three execution-bundle self-locating files (`rules/execution-policy.md` and
+  the `dhpk-opsx-apply-goal` / `flow-guide` mirrors; Flow Drive no longer ships
+  an execution-bundle mirror) which are exempt from the dual-path requirement
+  per this delta

@@ -229,6 +229,32 @@ function assertSourceTreeContained(sourceDir, root) {
   walk(sourceDir);
 }
 
+function assertNativeAgentSupportContained(source, root, relative) {
+  const rootPath = path.resolve(root);
+  const sourcePath = path.resolve(source);
+  if (!isInside(rootPath, sourcePath)) {
+    throw new Error(`native agent support file escapes canonical root: ${relative}`);
+  }
+
+  let current = sourcePath;
+  while (true) {
+    const stat = lstatOrNull(current);
+    if (stat && stat.isSymbolicLink()) {
+      throw new Error(`native agent support path has a symlinked ancestor: ${relative}`);
+    }
+    if (current === rootPath) break;
+    current = path.dirname(current);
+  }
+
+  if (lstatOrNull(sourcePath)) {
+    const realRoot = fs.realpathSync(rootPath);
+    const realSource = fs.realpathSync(sourcePath);
+    if (!isInside(realRoot, realSource)) {
+      throw new Error(`native agent support file resolves outside canonical root: ${relative}`);
+    }
+  }
+}
+
 function loadPublishedSourcePaths(root, sourceCommit) {
   if (typeof sourceCommit !== 'string' || !GIT_COMMIT.test(sourceCommit)) return null;
   let listing;
@@ -1124,6 +1150,7 @@ function buildAgentPluginProjection(options = {}) {
     for (const relative of NATIVE_AGENT_SUPPORT_FILES) {
       if (!safeRelative(relative)) throw new Error(`unsafe native agent support path: ${relative}`);
       const source = path.join(resolvedRoot, ...relative.split('/'));
+      assertNativeAgentSupportContained(source, resolvedRoot, relative);
       const stat = lstatOrNull(source);
       if (!stat || !stat.isFile() || stat.isSymbolicLink()) {
         throw new Error(`native agent support file is missing or not physical: ${relative}`);

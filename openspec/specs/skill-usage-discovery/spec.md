@@ -97,12 +97,16 @@ renaming the existing requirement.
 #### Scenario: User requests one usage card
 
 - **WHEN** a user invokes `$flow-guide help flow-drive`
-- **THEN** the result returns the unified worker selector and exact-target syntax, reasoner target syntax, cross intent limited to auto candidates, plan scope, architect three-state selection, and explicit-only authority without loading implementation procedures
+- **THEN** the result returns the task input, `apply` and `help` actions, the
+  read-only `--help` option, their authorities, and explicit-only
+  classification without loading implementation procedures
 
-#### Scenario: Removed Flow Drive options have no compatibility route
+#### Scenario: Retired Flow Drive selectors stay out of usage help
 
-- **WHEN** a removed Flow Drive option or value is queried or supplied
-- **THEN** an unknown or removed-input diagnostic shows the current grammar and never routes through an alias; retired-option diagnostics for other Skills retain their existing contracts
+- **WHEN** the usage card for Flow Drive is rendered
+- **THEN** it lists only the task input and current actions/options, does not
+  expose retired worker, reasoner, cross, plan, or architecture selectors, and
+  leaves retired-option diagnostics for other Skills unchanged
 
 #### Scenario: Usage card exposes enum values
 

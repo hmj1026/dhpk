@@ -3,8 +3,8 @@
 This guide installs only the canonical Flow Drive skill into Codex. It does
 not require a dhpk build, sibling skills, a projection receipt, or edits to
 project instruction files. The pinned source is the complete canonical
-[`skills/flow-drive/`](https://github.com/hmj1026/dhpk/tree/c2f5477c2ac9148fa2022508da93cc3ec3ef7f34/skills/flow-drive)
-directory at commit `c2f5477c2ac9148fa2022508da93cc3ec3ef7f34`.
+[`skills/flow-drive/`](https://github.com/hmj1026/dhpk/tree/4f2f7921f01cc0536d5ce7b981c01d487e2aeed4/skills/flow-drive)
+directory at commit `4f2f7921f01cc0536d5ce7b981c01d487e2aeed4`.
 The full dhpk installation remains a separate option in the [platform
 installation guide](./platform-installation.md).
 
@@ -27,7 +27,7 @@ Codex also discovers account skills under `~/.agents/skills/`; see its
 ```sh
 set -eu
 
-ref=c2f5477c2ac9148fa2022508da93cc3ec3ef7f34
+ref=4f2f7921f01cc0536d5ce7b981c01d487e2aeed4
 project_root=$(pwd -P)
 tmp_root=$(mktemp -d)
 trap 'rm -rf "$tmp_root"' EXIT
