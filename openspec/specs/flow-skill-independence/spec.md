@@ -46,11 +46,13 @@ SHALL produce an explicit blocker before dependent edits.
 
 ### Requirement: Shared policy does not create a skill dependency
 
-`flow-guide` MAY consume shared route, policy, Domain, dispatch, flow-handoff,
-and skill-next-map contracts through resources owned by its own distribution.
-`flow-drive` SHALL NOT require those contracts to perform a task. Neither skill
-MAY load the other's instructions or implementation files, and shared data
-SHALL NOT grant execution authority to `flow-guide`.
+Any shared contract consumed by `flow-guide` SHALL be resolved through
+resources owned by its own distribution. This includes shared route, policy,
+Domain, dispatch, flow-handoff, and skill-next-map contracts. `flow-guide` MAY
+consume these shared contracts, and
+`flow-drive` SHALL NOT require them to perform a task. Neither skill MAY load
+the other's instructions or implementation files, and shared data SHALL NOT
+grant execution authority to `flow-guide`.
 
 The skill-next-map contract remains available for skills that declare it.
 `flow-guide` MAY parse that frontmatter as data through a bounded reader bundled
