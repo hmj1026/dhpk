@@ -49,11 +49,10 @@ The test for a borderline skill is whose outcome it delivers. `code-trace` can
 be called alone to find a root cause, but it hands over evidence; whether and
 how to fix belongs to a Public Workflow or the user.
 
-**Evidence binds to a snapshot.** A verification or review result is valid only
-for the code snapshot it ran against. Any later mutation invalidates results
-whose scope it touches; results outside the mutated scope remain reusable and
-are not rerun by default. `execution-policy-kernel` owns this rule and skills
-reference it rather than restating it.
+**Evidence binds to a snapshot.** The kernel's
+[Evidence snapshots](../../rules/execution-policy-kernel.md#evidence-snapshots)
+rule owns validity, mutation ordering, and affected-scope reuse. Skills reference
+it rather than restating it.
 
 **Document status uses the existing ADR status line.** A replaced ADR reads
 `Status: superseded by NNNN`, and the replacing ADR lists it under
@@ -85,15 +84,15 @@ Three walkthroughs fix what each common task requires and what it may skip:
   Workflow with a roadmap outcome) produces the decision without gaining write
   authority. Implementation starts in `flow-drive` only after the decision is
   confirmed.
-- **Pull request preparation.** `precommit` mutates files, so any verdict taken
-  before it is invalid. `repo-verify` or `change-verdict` runs on the snapshot
-  after `precommit`. `create-pr` takes its base branch from the Project
+- **Pull request preparation.** Apply the kernel's snapshot rule when
+  `precommit` mutates files, then obtain the affected `repo-verify` or
+  `change-verdict` evidence. `create-pr` takes its base branch from the Project
   Convention and does not assume `develop`.
 
 ADRs 0011, 0012, 0013, and 0015 described the risk router, evidence receipts,
 and typed-receipt lifecycle that 0026 removed; they are now marked superseded
 by 0026.
 
-Moving the Project Convention text that is currently bundled into skills, and
-adding the snapshot rule to the kernel, are follow-up work tracked under #1084.
-This ADR does not authorize those edits by itself.
+Moving the Project Convention text that is currently bundled into skills is
+follow-up work tracked under #1089. The kernel snapshot rule is implemented by
+#1090. This ADR does not authorize follow-up edits by itself.
