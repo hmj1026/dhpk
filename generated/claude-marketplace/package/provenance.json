@@ -1029,7 +1029,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "121e64138243ec3362964c2b75a7aaacfa6927bcebfff6e90ce482ceffd0e93e"
+      "sha256": "56127cd4e5567985d817e3e10b29b10f431890fe6163813fece2386cfb2467dc"
     },
     {
       "skillId": "flow-drive",
@@ -2461,7 +2461,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "121e64138243ec3362964c2b75a7aaacfa6927bcebfff6e90ce482ceffd0e93e"
+      "sha256": "56127cd4e5567985d817e3e10b29b10f431890fe6163813fece2386cfb2467dc"
     },
     {
       "skillId": "flow-guide",
@@ -2509,7 +2509,7 @@
       "sourcePath": "skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "121e64138243ec3362964c2b75a7aaacfa6927bcebfff6e90ce482ceffd0e93e"
+      "sha256": "56127cd4e5567985d817e3e10b29b10f431890fe6163813fece2386cfb2467dc"
     },
     {
       "skillId": "flow-guide",
@@ -3205,7 +3205,7 @@
       "sourcePath": "skills/precommit/SKILL.md",
       "destination": "skills/precommit/SKILL.md",
       "kind": "entry",
-      "sha256": "f46cb126632e8958e70158e1c84077ea2858e52600366cb2c61f098f18697b34"
+      "sha256": "26dfad1390d502c4ff2b8cc055a12633fbf163c768a473b3d5b6acf0da9566d8"
     },
     {
       "skillId": "precommit",
@@ -3229,7 +3229,7 @@
       "sourcePath": "skills/precommit/references/workflow.md",
       "destination": "skills/precommit/references/workflow.md",
       "kind": "entry",
-      "sha256": "ec90b2d209126a374b72f928ea7bab2118053c1419341f3c22e3f62962bb6999"
+      "sha256": "45512f33a5ed0b718101757f129f58f74649a0ac2104dca1b116427bd2697c24"
     },
     {
       "skillId": "precommit",
@@ -3245,7 +3245,7 @@
       "sourcePath": "skills/precommit/scripts/precommit-runner.js",
       "destination": "skills/precommit/scripts/precommit-runner.js",
       "kind": "entry",
-      "sha256": "7e1e7f1797d4446ed48255958d1b76025181f4037e15c6f6f7a265d207f9f616"
+      "sha256": "19a8c3bdb38402cbd3e99e3961f5d4aae617bf2ad2738017b3cced7e7b064862"
     },
     {
       "skillId": "proposal-analyze",
