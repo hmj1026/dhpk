@@ -1,3 +1,7 @@
+---
+trigger: model_decision
+description: Opt-in model tier and cost rules
+---
 # Model Economics — tier map & cost rules
 
 SSOT for **which model tier each role runs on, and the cost rules that govern tier and effort choices**. The dispatch *routing* decision — which agent handles which work shape — lives in `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Implementation dispatch; this file owns the *cost lens* over that routing and does not restate its work-shape rows. Native-vs-external candidate selection follows the shared Native dispatch baseline in `execution-policy.md`; model economics ranks an already-valid candidate and never enables cross-provider probing. Resource-layer markdown, opt-in — referenced from `execution-policy.md` §Agent dispatch (model-tier + configured-role paragraphs).

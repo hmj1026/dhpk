@@ -1,13 +1,11 @@
 'use strict';
 
 // Smoke coverage for scripts/install.sh — interactive installer.
-// SMOKE (not full behavioral): the script always ends by either invoking the
-// real `claude plugin install ...` command or aborting. The only host-safe
-// invocation is `--dry-run`/`--print`, which prints the resolved command and
-// exits 0 BEFORE ever reaching the exec line — so every non-trivial test
-// below drives the interactive prompts with scripted stdin (all plain
-// `read -r` prompts, no gum/TTY capture required). `--dry-run`, `--help`, and
-// malformed flags stay side-effect free; confirmed installs use a local stub.
+// `--dry-run`/`--print` prints the resolved install command and exits before
+// exec. Confirmed installs use a local `claude` stub that records argv.
+// When that stub reports dhpk@dhpk is already installed, the script must run
+// `claude plugin update` and may print the Installed success text only if
+// that update exits 0. Interactive prompts below are scripted stdin.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -19,12 +17,49 @@ const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'install.sh');
 
 // The prerequisite gate requires `claude` on PATH, which CI runners lack.
-// The stub can log an invocation when a test supplies DHPK_TEST_CLAUDE_LOG.
+// The stub records argv when a test supplies DHPK_TEST_CLAUDE_LOG.
+// DHPK_TEST_CLAUDE_MODE=already-installed makes `plugin list --json` report
+// dhpk@dhpk. DHPK_TEST_CLAUDE_MODE=already-installed-message makes list empty
+// and `plugin install` exit 0 with Claude's already-installed notice.
+// DHPK_TEST_CLAUDE_UPDATE_RC is the exit status of a real plugin update.
 const STUB_BIN = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-stub-'));
 fs.writeFileSync(path.join(STUB_BIN, 'claude'), [
   '#!/usr/bin/env bash',
   'if [[ -n "${DHPK_TEST_CLAUDE_LOG:-}" ]]; then',
-  '  printf "called\\n" > "$DHPK_TEST_CLAUDE_LOG"',
+  '  printf "%s\\n" "$*" >> "$DHPK_TEST_CLAUDE_LOG"',
+  'fi',
+  'if [[ "${1:-}" == plugin && "${2:-}" == install && "$*" == *"--help"* ]]; then',
+  '  printf "%s\\n" "${DHPK_TEST_CLAUDE_INSTALL_HELP:-}"',
+  '  exit 0',
+  'fi',
+  'if [[ "${1:-}" == plugin && "${2:-}" == update && "$*" == *"--help"* ]]; then',
+  '  printf "%s\\n" "${DHPK_TEST_CLAUDE_UPDATE_HELP:-}"',
+  '  exit 0',
+  'fi',
+  'case "${DHPK_TEST_CLAUDE_MODE:-}" in',
+  '  already-installed)',
+  '    if [[ "${1:-}" == plugin && "${2:-}" == list ]]; then',
+  '      if [[ -n "${DHPK_TEST_CLAUDE_LIST_JSON:-}" ]]; then',
+  '        printf "%s\\n" "$DHPK_TEST_CLAUDE_LIST_JSON"',
+  '      else',
+  '        printf "%s\\n" \'[{"id":"dhpk@dhpk","scope":"user"}]\'',
+  '      fi',
+  '      exit 0',
+  '    fi',
+  '    ;;',
+  '  already-installed-message)',
+  '    if [[ "${1:-}" == plugin && "${2:-}" == list ]]; then',
+  '      printf "%s\\n" "[]"',
+  '      exit 0',
+  '    fi',
+  '    if [[ "${1:-}" == plugin && "${2:-}" == install ]]; then',
+  '      printf "%s\\n" "Plugin \\"dhpk@dhpk\\" is already installed (scope: user) — run claude plugin update dhpk@dhpk to get it"',
+  '      exit 0',
+  '    fi',
+  '    ;;',
+  'esac',
+  'if [[ "${1:-}" == plugin && "${2:-}" == update ]]; then',
+  '  exit "${DHPK_TEST_CLAUDE_UPDATE_RC:-0}"',
   'fi',
   'exit 0',
   '',
@@ -94,6 +129,50 @@ function runScript(args, stdin, options = {}) {
     timeout: options.timeout || 20000,
     env,
   });
+}
+
+const INSTALL_HELP_USER = [
+  'Usage: claude plugin install [options] <plugin>',
+  '  -s, --scope <scope>  Installation scope: user, project, or local',
+  '                       (default: "user")',
+  '  --config <key=value> Set a userConfig option. Repeatable.',
+].join('\n');
+
+const INSTALL_HELP_PROJECT = [
+  'Usage: claude plugin install [options] <plugin>',
+  '  -s, --scope <scope>  Installation scope: user, project, or local',
+  '                       (default: "project")',
+  '  --config <key=value> Set a userConfig option. Repeatable.',
+].join('\n');
+
+const UPDATE_HELP_SCOPE_YES = [
+  'Usage: claude plugin update [options] <plugin>',
+  '  -s, --scope <scope>  Installation scope (default: auto-detect)',
+  '  -y, --yes            Accept without a confirmation prompt',
+].join('\n');
+
+const UPDATE_HELP_SCOPE_CONFIG_YES = [
+  'Usage: claude plugin update [options] <plugin>',
+  '  -s, --scope <scope>  Installation scope (default: auto-detect)',
+  '  --config <key=value> Set a userConfig option. Repeatable.',
+  '  -y, --yes            Accept without a confirmation prompt',
+].join('\n');
+
+const UPDATE_HELP_SCOPE_ONLY = [
+  'Usage: claude plugin update [options] <plugin>',
+  '  -s, --scope <scope>  Installation scope (default: auto-detect)',
+].join('\n');
+
+function claudeCommands(logPath) {
+  return fs.readFileSync(logPath, 'utf8').split('\n').filter((line) => line.length > 0);
+}
+
+function claudeInstallLine(lines) {
+  return lines.find((line) => /^plugin install dhpk@dhpk(\s|$)/.test(line));
+}
+
+function claudeUpdateLine(lines) {
+  return lines.find((line) => /^plugin update dhpk@dhpk(\s|$)/.test(line));
 }
 
 function assertNoInstallerSideEffects(pluginRoot, claudeLog) {
@@ -332,6 +411,123 @@ test('--hook-profile in the interactive flow skips the hook-profile prompt and k
   assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
   assert.match(res.stdout, /hook_profile\s+: strict/);
   assert.ok(!res.stdout.includes('Hook profile:'), res.stdout);
+});
+
+test('a fresh install runs plugin install and does not run plugin update', () => {
+  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-fresh-'));
+  TEMP_FIXTURES.push(outputRoot);
+  const claudeLog = path.join(outputRoot, 'claude.log');
+  const res = runScript(['--non-interactive', '--yes'], '', {
+    claudeLog,
+    env: {
+      DHPK_CLAUDE_PROFILE_OUT: outputRoot,
+      DHPK_TEST_CLAUDE_INSTALL_HELP: INSTALL_HELP_USER,
+      DHPK_TEST_CLAUDE_UPDATE_HELP: UPDATE_HELP_SCOPE_YES,
+    },
+  });
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  const lines = claudeCommands(claudeLog);
+  assert.ok(claudeInstallLine(lines), `install was not invoked:\n${lines.join('\n')}`);
+  assert.strictEqual(claudeUpdateLine(lines), undefined, `update ran on a fresh install:\n${lines.join('\n')}`);
+  assert.ok(res.stdout.includes('✓ Installed.'), res.stdout);
+});
+
+test('an already installed plugin is updated in the scope the install command would use', () => {
+  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-update-scope-'));
+  TEMP_FIXTURES.push(outputRoot);
+  const claudeLog = path.join(outputRoot, 'claude.log');
+  const res = runScript(['--non-interactive', '--yes', '--hook-profile', 'strict'], '', {
+    claudeLog,
+    env: {
+      DHPK_CLAUDE_PROFILE_OUT: outputRoot,
+      DHPK_TEST_CLAUDE_MODE: 'already-installed',
+      DHPK_TEST_CLAUDE_LIST_JSON: '[{"id":"dhpk@dhpk","scope":"user","version":"0.66.5"},{"id":"dhpk@dhpk","scope":"project","version":"0.66.5"}]',
+      DHPK_TEST_CLAUDE_INSTALL_HELP: INSTALL_HELP_PROJECT,
+      DHPK_TEST_CLAUDE_UPDATE_HELP: UPDATE_HELP_SCOPE_YES,
+      DHPK_TEST_CLAUDE_UPDATE_RC: '0',
+    },
+  });
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  const lines = claudeCommands(claudeLog);
+  const updateLine = claudeUpdateLine(lines);
+  assert.ok(updateLine, `update was not invoked:\n${lines.join('\n')}`);
+  assert.ok(updateLine.includes('--scope project'), updateLine);
+  assert.ok(!updateLine.includes('--scope user'), updateLine);
+  assert.ok(!updateLine.includes('--config'), updateLine);
+  assert.ok(/(^|\s)-y(\s|$)/.test(updateLine), updateLine);
+  assert.strictEqual(claudeInstallLine(lines), undefined, `install ran after the plugin was already installed:\n${lines.join('\n')}`);
+  assert.ok(res.stdout.includes('✓ Installed.'), res.stdout);
+});
+
+test('plugin update receives install config only when update accepts --config', () => {
+  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-update-config-'));
+  TEMP_FIXTURES.push(outputRoot);
+  const claudeLog = path.join(outputRoot, 'claude.log');
+  const res = runScript(['--non-interactive', '--yes', '--hook-profile', 'strict'], '', {
+    claudeLog,
+    env: {
+      DHPK_CLAUDE_PROFILE_OUT: outputRoot,
+      DHPK_TEST_CLAUDE_MODE: 'already-installed',
+      DHPK_TEST_CLAUDE_LIST_JSON: '[{"id":"dhpk@dhpk","scope":"user"}]',
+      DHPK_TEST_CLAUDE_INSTALL_HELP: INSTALL_HELP_USER,
+      DHPK_TEST_CLAUDE_UPDATE_HELP: UPDATE_HELP_SCOPE_CONFIG_YES,
+      DHPK_TEST_CLAUDE_UPDATE_RC: '0',
+    },
+  });
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  const updateLine = claudeUpdateLine(claudeCommands(claudeLog));
+  assert.ok(updateLine, claudeLog);
+  assert.ok(updateLine.includes('--config hook_profile=strict'), updateLine);
+  assert.ok(updateLine.includes('--scope user'), updateLine);
+});
+
+test('plugin update omits scope and -y when its help does not accept them', () => {
+  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-update-flags-'));
+  TEMP_FIXTURES.push(outputRoot);
+  const claudeLog = path.join(outputRoot, 'claude.log');
+  const res = runScript(['--non-interactive', '--yes'], '', {
+    claudeLog,
+    env: {
+      DHPK_CLAUDE_PROFILE_OUT: outputRoot,
+      DHPK_TEST_CLAUDE_MODE: 'already-installed',
+      DHPK_TEST_CLAUDE_LIST_JSON: '[{"id":"dhpk@dhpk","scope":"user"}]',
+      DHPK_TEST_CLAUDE_INSTALL_HELP: INSTALL_HELP_USER,
+      DHPK_TEST_CLAUDE_UPDATE_HELP: [
+        'Usage: claude plugin update [options] <plugin>',
+        '  --json  Print a machine-readable result',
+      ].join('\n'),
+      DHPK_TEST_CLAUDE_UPDATE_RC: '0',
+    },
+  });
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  const lines = claudeCommands(claudeLog);
+  const updateLine = claudeUpdateLine(lines);
+  assert.ok(updateLine, `update was not invoked:\n${lines.join('\n')}`);
+  assert.strictEqual(updateLine, 'plugin update dhpk@dhpk', updateLine);
+});
+
+test('an already-installed notice does not claim Installed when plugin update fails', () => {
+  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-update-fail-'));
+  TEMP_FIXTURES.push(outputRoot);
+  const claudeLog = path.join(outputRoot, 'claude.log');
+  const res = runScript(['--non-interactive', '--yes'], '', {
+    claudeLog,
+    env: {
+      DHPK_CLAUDE_PROFILE_OUT: outputRoot,
+      DHPK_TEST_CLAUDE_MODE: 'already-installed-message',
+      DHPK_TEST_CLAUDE_INSTALL_HELP: INSTALL_HELP_USER,
+      DHPK_TEST_CLAUDE_UPDATE_HELP: UPDATE_HELP_SCOPE_ONLY,
+      DHPK_TEST_CLAUDE_UPDATE_RC: '1',
+    },
+  });
+  assert.strictEqual(res.status, 1, `${res.stdout}\n${res.stderr}`);
+  const lines = claudeCommands(claudeLog);
+  assert.ok(claudeInstallLine(lines), `install probe was not invoked:\n${lines.join('\n')}`);
+  const updateLine = claudeUpdateLine(lines);
+  assert.ok(updateLine, `update was not invoked:\n${lines.join('\n')}`);
+  assert.ok(updateLine.includes('--scope user'), updateLine);
+  assert.ok(!/(^|\s)-y(\s|$)/.test(updateLine), updateLine);
+  assert.ok(!res.stdout.includes('✓ Installed.'), res.stdout);
 });
 
 test('--yes alone keeps the interactive prompts', () => {

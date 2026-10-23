@@ -5049,6 +5049,118 @@
       }
     },
     {
+      "id": "dep-audit",
+      "name": "dep-audit",
+      "canonicalPath": "skills/dep-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "deps"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
+      }
+    },
+    {
+      "id": "review-pending",
+      "name": "review-pending",
+      "canonicalPath": "skills/review-pending",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "pending"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
+      }
+    },
+    {
+      "id": "opsx-load-context",
+      "name": "dhpk-opsx-load-context",
+      "canonicalPath": "skills/dhpk-opsx-load-context",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "opsx-apply-resume"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
+      }
+    },
+    {
+      "id": "opsx-post-obs",
+      "name": "dhpk-opsx-post-observation",
+      "canonicalPath": "skills/dhpk-opsx-post-observation",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "opsx-apply-resume"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
+      }
+    },
+    {
+      "id": "js-static-check-strategy",
+      "name": "js-static-check-strategy",
+      "canonicalPath": "skills/js-static-check-strategy",
+      "priorSurfaces": [
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "js-static-checks"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
+      }
+    },
+    {
       "id": "agy-fast-worker",
       "name": "dhpk-agy-fast-worker",
       "canonicalPath": "skills/dhpk-agy-fast-worker",

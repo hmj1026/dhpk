@@ -54,6 +54,29 @@ const AGY_SKILL_REFERENCE_REWRITES = Object.freeze([
     targetSkillId: 'harness-setup',
   }),
 ]);
+// Descriptions are fixed literals. Do not derive them from rule prose.
+const AGY_RULE_TRIGGER_MAP = Object.freeze({
+  'rules/execution-policy-kernel.md': Object.freeze({
+    trigger: 'always_on',
+    description: 'Always-visible execution policy kernel',
+  }),
+  'rules/execution-policy.md': Object.freeze({
+    trigger: 'always_on',
+    description: 'Execution policy single source of truth',
+  }),
+  'rules/anti-rationalization.md': Object.freeze({
+    trigger: 'model_decision',
+    description: 'Anti-rationalization patterns stop-loss reference',
+  }),
+  'rules/model-economics.md': Object.freeze({
+    trigger: 'model_decision',
+    description: 'Opt-in model tier and cost rules',
+  }),
+  'rules/tool-routing.md': Object.freeze({
+    trigger: 'model_decision',
+    description: 'Tool routing reference card',
+  }),
+});
 
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
@@ -197,6 +220,23 @@ function adaptAgySkillContent(content, selectedSkillIds) {
     },
     content,
   );
+}
+
+function agyRuleFrontmatter(entry) {
+  return `---\ntrigger: ${entry.trigger}\ndescription: ${entry.description}\n---\n`;
+}
+
+function hasAgyTriggerFrontmatter(content) {
+  const match = String(content).match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) return false;
+  return /^trigger:\s*["']?(?:always_on|model_decision|glob|manual)["']?\s*$/m.test(match[1]);
+}
+
+function projectAgyRuleContent(content, relative) {
+  if (hasAgyTriggerFrontmatter(content)) return content;
+  const entry = AGY_RULE_TRIGGER_MAP[relative];
+  if (!entry) return content;
+  return `${agyRuleFrontmatter(entry)}${content}`;
 }
 
 function copyDirectory(source, destination, sourceRoot, outputRoot, options = {}) {
@@ -420,9 +460,7 @@ function materializeAgyPluginPackage({
     name: 'dhpk',
     version,
     description: 'dhpk native Antigravity CLI plugin',
-    agents: ['./agents/'],
     skills: ['./skills/'],
-    rules: ['./rules/'],
   };
   writeJson(path.join(outputRoot, 'plugin.json'), manifest);
 
@@ -449,7 +487,10 @@ function materializeAgyPluginPackage({
     const target = path.join(outputRoot, relative);
     if (!relative.startsWith('rules/') || path.extname(relative) !== '.md') throw new Error(`invalid AGY rule selection: ${relative}`);
     copyFileContained(source, target, sourceRoot, outputRoot, {
-      transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+      transform: (content, sourceFile) => projectAgyRuleContent(
+        sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+        relative,
+      ),
     });
   }
 
@@ -621,10 +662,19 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     if (manifest.name !== 'dhpk') errors.push('plugin.json name must be dhpk');
     if (typeof manifest.version !== 'string' || !SEMVER.test(manifest.version)) errors.push('plugin.json version must be SemVer');
     if (expectedVersion && manifest.version !== expectedVersion) errors.push(`plugin.json version must be ${expectedVersion}`);
-    for (const rootName of ['agents', 'rules', 'skills']) {
-      if (!Array.isArray(manifest[rootName]) || stableStringify(manifest[rootName]) !== stableStringify([`./${rootName}/`])) {
-        errors.push(`plugin.json ${rootName} must declare only ./${rootName}/`);
+    for (const rootName of ['agents', 'rules']) {
+      if (Object.prototype.hasOwnProperty.call(manifest, rootName)) {
+        errors.push(`plugin.json ${rootName} is an unknown field`);
       }
+    }
+    if (!Array.isArray(manifest.skills) || stableStringify(manifest.skills) !== stableStringify(['./skills/'])) {
+      errors.push('plugin.json skills must declare only ./skills/');
+    }
+  }
+  for (const component of ['agents', 'rules']) {
+    const stat = lstatOrNull(path.join(root, component));
+    if (!stat || stat.isSymbolicLink() || !stat.isDirectory()) {
+      errors.push(`AGY package ${component} directory is missing`);
     }
   }
 
@@ -694,6 +744,14 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     if (adapted.changed || adapted.droppedFields.length > 0) errors.push(`agent is not idempotently AGY-adapted: ${relative}`);
   }
   if (expectedRuleFiles) for (const relative of expectedRuleFiles) if (!files.includes(relative)) errors.push(`selected AGY rule is missing: ${relative}`);
+  for (const relative of ruleFiles) {
+    const entry = AGY_RULE_TRIGGER_MAP[relative];
+    if (!entry) continue;
+    const content = readFileBounded(path.join(root, relative)).toString('utf8');
+    if (!content.startsWith(agyRuleFrontmatter(entry))) {
+      errors.push(`AGY rule is missing its trigger frontmatter: ${relative}`);
+    }
+  }
   if (expectedSkillFiles) for (const relative of expectedSkillFiles) if (!files.includes(relative)) errors.push(`selected AGY skill is missing: ${relative}`);
   for (const rootPrefix of requiredSkillRuntimeScriptRoots) {
     if (!files.some((relative) => relative.startsWith(rootPrefix))) errors.push(`selected AGY runtime scripts are missing: ${rootPrefix}`);
@@ -751,4 +809,5 @@ module.exports = {
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
   sanitizeMarkdownLinks,
+  projectAgyRuleContent,
 };

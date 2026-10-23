@@ -750,4 +750,76 @@ test('GitNexus retirement preserves edited historical output without publication
   }
 });
 
+// Public identities from 586aad13^ manifests/distribution-inventory.json.
+// The receipt directory is the public name, which is not always the stable id.
+const CONSOLIDATED_0660 = [
+  { id: 'dep-audit', name: 'dep-audit', path: 'skills/dep-audit' },
+  { id: 'review-pending', name: 'review-pending', path: 'skills/review-pending' },
+  { id: 'opsx-load-context', name: 'dhpk-opsx-load-context', path: 'skills/dhpk-opsx-load-context' },
+  { id: 'opsx-post-obs', name: 'dhpk-opsx-post-observation', path: 'skills/dhpk-opsx-post-observation' },
+  { id: 'js-static-check-strategy', name: 'js-static-check-strategy', path: 'skills/js-static-check-strategy' },
+];
+
+test('gen-agents-skills --update prunes 0.66.0 consolidated skills and validation passes', () => {
+  const historicalRoot = retirementTmpDir();
+  const historicalOut = path.join(historicalRoot, '.agents', 'skills');
+  const skills = CONSOLIDATED_0660.map((entry) => ({
+    ...entry,
+    lifecycle: 'promoted',
+    surfaces: ['agent-plugin'],
+  }));
+  for (const skill of skills) {
+    retirementWrite(path.join(historicalRoot, skill.path, 'SKILL.md'), [
+      '---',
+      `name: ${skill.name}`,
+      "description: 'Consolidated fixture skill.'",
+      '---',
+      `# ${skill.name}`,
+      '',
+    ].join('\n'));
+  }
+  materializeAgentsSkillsProjection({
+    root: historicalRoot,
+    outDir: historicalOut,
+    inventory: retirementInventory(skills),
+  });
+  // Canonical --update only plans retirements when the output stays inside the
+  // source checkout. This scratch directory is not the developer .agents tree.
+  const scratch = fs.mkdtempSync(path.join(ROOT, '.agents-skills-0660-'));
+  const outDir = path.join(scratch, 'skills');
+  fs.cpSync(historicalOut, outDir, { recursive: true });
+  try {
+    const before = retirementReadReceipt(outDir);
+    for (const skill of CONSOLIDATED_0660) {
+      const entry = before.entries.find((candidate) => candidate.id === skill.id);
+      assert.ok(entry, `${skill.id} must start in the fixture receipt`);
+      assert.strictEqual(entry.name, skill.name);
+      assert.strictEqual(entry.source, skill.path);
+      assert.ok(before.managedPaths.includes(`${skill.name}.md`));
+      assert.ok(before.managedPaths.includes(`${skill.name}/SKILL.md`));
+      assert.ok(fs.existsSync(path.join(outDir, skill.name, 'SKILL.md')));
+    }
+
+    const updated = invokeCli(GENERATOR, ['--repo-root', ROOT, '--out-dir', outDir, '--update'], ROOT);
+    assert.strictEqual(updated.status, 0, `${updated.stdout || ''}\n${updated.stderr || ''}`);
+    const receipt = retirementReadReceipt(outDir);
+    for (const skill of CONSOLIDATED_0660) {
+      assert.ok(!receipt.entries.some((entry) => entry.id === skill.id), skill.id);
+      assert.ok(!receipt.selectedIds.includes(skill.id), skill.id);
+      assert.ok(!receipt.managedPaths.includes(`${skill.name}.md`), `${skill.name}.md`);
+      assert.ok(!receipt.managedPaths.includes(`${skill.name}/SKILL.md`), `${skill.name}/SKILL.md`);
+      assert.strictEqual(fs.existsSync(path.join(outDir, `${skill.name}.md`)), false, `${skill.name}.md`);
+      assert.strictEqual(fs.existsSync(path.join(outDir, skill.name)), false, skill.name);
+    }
+
+    const checked = invokeCli(VALIDATOR, ['--repo-root', ROOT, '--out-dir', outDir], ROOT);
+    assert.strictEqual(checked.status, 0, checked.stderr || checked.stdout);
+    assert.match(checked.stdout, /^PASS \[agents-skills\]:/);
+    assert.doesNotMatch(`${checked.stdout || ''}\n${checked.stderr || ''}`, /unverified ownership/);
+  } finally {
+    fs.rmSync(historicalRoot, { recursive: true, force: true });
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 run('gen-agents-skills');
