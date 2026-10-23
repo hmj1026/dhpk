@@ -23,7 +23,12 @@ const {
   resolveInventoryRevision,
   skillProjectionMetadata,
 } = require('./distribution-projection-contract');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  listFilesNamedRecursively,
+} = require('./bounded-filesystem');
 const { compileDistribution, materializeDistribution, verifyDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
@@ -188,23 +193,7 @@ function findSymlinks(directory, options = {}) {
 }
 
 function listNestedSkillMarkdownFiles(directory, options = {}) {
-  const files = [];
-  const budget = createTraversalBudget(options);
-  const walk = (current, depth) => {
-    const realDirectory = budget.enterDirectory(current, depth);
-    try {
-      for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: true })) {
-        const child = path.join(current, entry.name);
-        if (entry.isSymbolicLink()) continue;
-        if (entry.isDirectory()) walk(child, depth + 1);
-        else if (entry.isFile() && entry.name === 'SKILL.md') files.push(child);
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  walk(directory, 0);
-  return files;
+  return listFilesNamedRecursively(directory, 'SKILL.md', { ...options, localeSort: true });
 }
 
 function assertSourceTreeContained(sourceDir, root) {
@@ -831,6 +820,13 @@ function collectProjectedFiles(
         publishedSourcePaths,
         sourceScope,
       }));
+    }
+    if (override === null && path.posix.basename(destinationRelative) === 'SKILL.md') {
+      const portable = serializePortableSkillMetadata(content.toString('utf8'));
+      if (!portable.ok) {
+        throw new Error(`Agent Plugin bundled SKILL.md '${destinationRelative}' has invalid metadata: ${portable.errors.join('; ')}`);
+      }
+      content = Buffer.from(portable.output);
     }
     budget.bytes += content.length;
     if (budget.bytes > budget.maxBytes) {

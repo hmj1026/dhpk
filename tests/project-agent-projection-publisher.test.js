@@ -4,6 +4,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 {
   // Source suite: tests/project-agent-projection-publisher.test.js
+  const crypto = require('node:crypto');
   const fs = require('node:fs');
   const os = require('node:os');
   const path = require('node:path');
@@ -107,6 +108,28 @@ const { test, run, assert } = require('./_lib/tinytest');
     return legacy;
   }
 
+  function asV2Receipt(receipt) {
+    const fields = [
+      'schema', 'generatorVersion', 'scope', 'managedRoot', 'receiptPath', 'projectionOwner',
+      'profileId', 'profile', 'profileFingerprint', 'selectionFingerprint',
+      'surfaceSelectionFingerprint', 'capabilityEvidenceFingerprint', 'planFingerprint',
+      'artifactFingerprint', 'declaredSelection', 'selectedIds', 'emittedIds',
+      'selectedIdentities', 'emittedIdentities', 'dependencyClosure', 'hostBindings',
+      'bindings', 'bindingPaths', 'entries', 'managedPaths', 'generatedFingerprints',
+      'sourceFingerprints', 'rollback',
+    ];
+    const v2 = Object.fromEntries(fields
+      .filter((field) => Object.prototype.hasOwnProperty.call(receipt, field))
+      .map((field) => [field, JSON.parse(JSON.stringify(receipt[field]))]));
+    v2.schema = 'dhpk.project-agent-projection-receipt.v2';
+    v2.hostBindings = withoutKey(v2.hostBindings, 'claude');
+    v2.bindings = withoutKey(v2.bindings, 'claude');
+    v2.bindingPaths = withoutKey(v2.bindingPaths, 'claude');
+    delete v2.receiptFingerprint;
+    v2.receiptFingerprint = fingerprint(v2);
+    return v2;
+  }
+
   test('publisher emits a skill namespace and typed receipt when a module shares its ID', () => {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-identity-source-'));
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-identity-project-'));
@@ -116,7 +139,7 @@ const { test, run, assert } = require('./_lib/tinytest');
     try {
       write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
       const installed = publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory });
-      assert.strictEqual(installed.receipt.schema, publisher.PROJECT_RECEIPT_SCHEMA);
+      assert.strictEqual(installed.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
       assert.deepStrictEqual(installed.receipt.selectedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
       assert.deepStrictEqual(installed.receipt.emittedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
       assert.strictEqual(installed.receipt.entries[0].entityKind, 'skill');
@@ -164,7 +187,7 @@ const { test, run, assert } = require('./_lib/tinytest');
           assert.deepStrictEqual(fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md')), previousManaged);
         } else {
           const updated = publisher.materializeRelocatableAgentsSkillsProjection(options);
-          assert.strictEqual(updated.receipt.schema, publisher.PROJECT_RECEIPT_SCHEMA);
+          assert.strictEqual(updated.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
           assert.deepStrictEqual(updated.receipt.entries.map((entry) => entry.entityKind), ['skill']);
           if (selectedOnly === 'retired') {
             assert.deepStrictEqual(updated.receipt.selectedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
@@ -281,6 +304,54 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
+  test('publisher transforms and validates structured metadata in nested SKILL.md files', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-nested-metadata-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-nested-metadata-project-'));
+    const inventory = projectInventory();
+    const options = { sourceRoot, projectRoot, inventory, requestedHosts: ['codex'] };
+    const relative = 'dhpk-sample/references/child/SKILL.md';
+    const source = [
+      '---',
+      'name: child-guide',
+      'description: Nested fixture',
+      'metadata:',
+      '  dhpk-next:',
+      '    PASS: $repo-verify',
+      '---',
+      '# Nested child',
+      'Body stays exact.',
+      '',
+    ].join('\n');
+    const portablePath = path.join(projectRoot, '.agents/skills', relative);
+    const receiptPath = path.join(projectRoot, '.agents/.dhpk-installed.json');
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Parent\n');
+      write(path.join(sourceRoot, 'skills/dhpk-sample/references/child/SKILL.md'), source);
+      publisher.materializeRelocatableAgentsSkillsProjection(options);
+
+      assert.strictEqual(fs.existsSync(portablePath), true, 'nested skill is included in the portable projection');
+      const portable = parseFrontmatter(fs.readFileSync(portablePath, 'utf8'));
+      assert.strictEqual(portable.metadata['dhpk-next'], JSON.stringify({ PASS: '$repo-verify' }));
+      assert.strictEqual(portable.body, '# Nested child\nBody stays exact.\n');
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+
+      // Re-seal the receipt around raw bytes so validation reaches the semantic
+      // portable-metadata check instead of stopping at ordinary fingerprint drift.
+      fs.writeFileSync(portablePath, source);
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      receipt.generatedFingerprints[relative] = crypto.createHash('sha256').update(source).digest('hex');
+      delete receipt.receiptFingerprint;
+      receipt.receiptFingerprint = fingerprint(receipt);
+      write(receiptPath, `${JSON.stringify(receipt)}\n`);
+      const validation = publisher.validateRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(validation.ok, false, 'raw structured metadata in a nested skill must be rejected');
+      assert.ok(validation.errors.some((error) => error.includes(relative) && /metadata/i.test(error)), validation.errors.join('\n'));
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('publisher binds Claude to its structured sibling and Codex/Cursor to the portable root', () => {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-host-roots-source-'));
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-host-roots-project-'));
@@ -340,27 +411,8 @@ const { test, run, assert } = require('./_lib/tinytest');
       const previous = installed.receipt;
       const portableBefore = fs.readFileSync(portablePath);
 
-      // Re-seal the current portable receipt as the prior v2 contract. V3 is
-      // additive over these portable fields, so this also exercises upgrades
-      // after the new writer has landed.
-      const v2Fields = [
-        'schema', 'generatorVersion', 'scope', 'managedRoot', 'receiptPath', 'projectionOwner',
-        'profileId', 'profile', 'profileFingerprint', 'selectionFingerprint',
-        'surfaceSelectionFingerprint', 'capabilityEvidenceFingerprint', 'planFingerprint',
-        'artifactFingerprint', 'declaredSelection', 'selectedIds', 'emittedIds',
-        'selectedIdentities', 'emittedIdentities', 'dependencyClosure', 'hostBindings',
-        'bindings', 'bindingPaths', 'entries', 'managedPaths', 'generatedFingerprints',
-        'sourceFingerprints', 'rollback',
-      ];
-      const v2 = Object.fromEntries(v2Fields
-        .filter((field) => Object.prototype.hasOwnProperty.call(previous, field))
-        .map((field) => [field, JSON.parse(JSON.stringify(previous[field]))]));
-      v2.schema = 'dhpk.project-agent-projection-receipt.v2';
-      v2.hostBindings = withoutKey(v2.hostBindings, 'claude');
-      v2.bindings = withoutKey(v2.bindings, 'claude');
-      v2.bindingPaths = withoutKey(v2.bindingPaths, 'claude');
-      delete v2.receiptFingerprint;
-      v2.receiptFingerprint = fingerprint(v2);
+      // Re-seal the current portable receipt as the prior v2 contract.
+      const v2 = asV2Receipt(previous);
       write(receiptPath, `${JSON.stringify(v2)}\n`);
       const claudeBinding = path.join(projectRoot, '.claude/skills/dhpk-sample');
       if (fs.lstatSync(claudeBinding).isSymbolicLink()) fs.unlinkSync(claudeBinding);
@@ -368,9 +420,26 @@ const { test, run, assert } = require('./_lib/tinytest');
 
       const migrated = publisher.materializeRelocatableAgentsSkillsProjection(options);
       assert.strictEqual(migrated.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
+      assert.strictEqual(migrated.receipt.rollback.schema, 'dhpk.project-agent-projection-rollback.v2');
       assert.deepStrictEqual(migrated.receipt.selectedIds, previous.selectedIds);
       assert.deepStrictEqual(migrated.receipt.emittedIds, previous.emittedIds);
       assert.strictEqual(fs.readFileSync(portablePath).equals(portableBefore), true);
+
+      const firstRollback = publisher.rollbackAgentsSkillsProjection({ projectRoot, inventory });
+      assert.strictEqual(firstRollback.ok, true, firstRollback.error && firstRollback.error.message);
+      assert.strictEqual(firstRollback.receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+      assert.strictEqual(firstRollback.receipt.rollback.schema, 'dhpk.project-agent-projection-rollback.v1');
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/claude-skills/dhpk-sample/SKILL.md')), false);
+      assert.strictEqual(Object.prototype.hasOwnProperty.call(firstRollback.receipt.hostBindings, 'claude'), false);
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.claude/skills/dhpk-sample')), false);
+
+      const secondRollback = publisher.rollbackAgentsSkillsProjection({ projectRoot, inventory });
+      assert.strictEqual(secondRollback.ok, true, secondRollback.error && secondRollback.error.message);
+      assert.strictEqual(secondRollback.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/claude-skills/dhpk-sample/SKILL.md')), true);
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+      assert.strictEqual(publisher.materializeRelocatableAgentsSkillsProjection(options).receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
     } finally {
       fs.rmSync(sourceRoot, { recursive: true, force: true });
       fs.rmSync(projectRoot, { recursive: true, force: true });
@@ -507,7 +576,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       write(sourceSkill, originalSkill);
       const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
       assert.strictEqual(installed.state, 'INSTALLED');
-      assert.strictEqual(installed.receipt.schema, publisher.PROJECT_RECEIPT_SCHEMA);
+      assert.strictEqual(installed.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
       assert.deepStrictEqual(installed.receipt.managedPaths, ['.dhpk-projection.json', 'dhpk-sample/SKILL.md']);
       assert.strictEqual(fs.readFileSync(managedSkill, 'utf8'), originalSkill);
 

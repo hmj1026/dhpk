@@ -60,18 +60,23 @@ const registeredAgents = new Set(
 const agentIndex = path.join(ROOT, 'agents', 'INDEX.md');
 if (fs.existsSync(agentIndex)) {
   const indexText = fs.readFileSync(agentIndex, 'utf8');
-  const indexCount = indexText.match(/^>\s*(\d+)\s+agents shipped by the dhpk plugin\s+\((\d+) root-level\s+\+/m);
+  const rosterMetadata = indexText.match(/^<!-- dhpk-agent-roster-counts: (\{[^\r\n]*\}) -->$/m);
   const rootAgentCount = [...registeredAgents].filter((entry) => entry.startsWith('agents/')).length;
   const moduleAgentCount = [...registeredAgents].filter((entry) => entry.startsWith('modules/') && entry.includes('/agents/')).length;
-  if (!indexCount) {
-    r.err('agents/INDEX.md — missing the manifest-backed total and root-level roster count assertion');
+  let rosterCounts = null;
+  if (rosterMetadata) {
+    try { rosterCounts = JSON.parse(rosterMetadata[1]); } catch (_) { /* reported below */ }
+  }
+  if (!rosterCounts || typeof rosterCounts !== 'object' || Array.isArray(rosterCounts)
+    || rosterCounts.schema !== 'dhpk.agent-roster-counts.v1'
+    || !['total', 'root', 'module'].every((key) => Number.isSafeInteger(rosterCounts[key]) && rosterCounts[key] >= 0)) {
+    r.err('agents/INDEX.md — missing or invalid machine-readable roster count metadata');
   } else {
-    const declaredTotal = Number(indexCount[1]);
-    const declaredRoot = Number(indexCount[2]);
-    if (declaredTotal !== registeredAgents.size || declaredRoot !== rootAgentCount
-      || declaredTotal - declaredRoot !== moduleAgentCount) {
-      r.err(`agents/INDEX.md — roster count drift: INDEX declares ${declaredTotal} total (${declaredRoot} root-level), `
-        + `but plugin.json agents[] contains ${registeredAgents.size} (${rootAgentCount} root-level, ${moduleAgentCount} module)`);
+    if (rosterCounts.total !== registeredAgents.size || rosterCounts.root !== rootAgentCount
+      || rosterCounts.module !== moduleAgentCount) {
+      r.err(`agents/INDEX.md — roster count drift: metadata declares ${rosterCounts.total} total `
+        + `(${rosterCounts.root} root-level, ${rosterCounts.module} module), but plugin.json agents[] `
+        + `contains ${registeredAgents.size} (${rootAgentCount} root-level, ${moduleAgentCount} module)`);
     }
   }
 }

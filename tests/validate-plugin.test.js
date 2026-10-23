@@ -146,7 +146,7 @@ test('a fully self-consistent minimal plugin passes', () => {
   }
 });
 
-test('agents/INDEX.md roster counts must match manifest root and module agent paths', () => {
+test('agents/INDEX.md machine-readable roster counts must match manifest agent paths', () => {
   const tmp = makeTempRepo();
   try {
     const sourcePlugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
@@ -160,13 +160,41 @@ test('agents/INDEX.md roster counts must match manifest root and module agent pa
     fs.copyFileSync(path.join(ROOT, 'agents', 'INDEX.md'), path.join(tmp, 'agents', 'INDEX.md'));
     const indexPath = path.join(tmp, 'agents', 'INDEX.md');
     const indexText = fs.readFileSync(indexPath, 'utf8');
-    fs.writeFileSync(indexPath, indexText.replace(/^> (\d+) agents shipped/m, (_, count) => `> ${Number(count) + 1} agents shipped`));
+    const metadata = indexText.match(/^<!-- dhpk-agent-roster-counts: (\{[^\r\n]*\}) -->$/m);
+    assert.ok(metadata, 'agents/INDEX.md must declare the machine-readable roster contract');
+    const counts = JSON.parse(metadata[1]);
+    counts.total += 1;
+    fs.writeFileSync(indexPath, indexText.replace(metadata[0], `<!-- dhpk-agent-roster-counts: ${JSON.stringify(counts)} -->`));
     writePluginJson(tmp, { version: '1.0.0', agents: sourcePlugin.agents });
 
     const { status, out } = runValidator(tmp);
     assert.strictEqual(status, 1, `stale agents/INDEX.md roster counts should fail validation:\n${out}`);
     assert.match(out, /agents\/INDEX\.md/i);
     assert.match(out, /count|drift|roster|mismatch/i);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('agents/INDEX.md prose wording may change without changing roster validation', () => {
+  const tmp = makeTempRepo();
+  try {
+    const sourcePlugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+    for (const declaredPath of sourcePlugin.agents) {
+      const relative = declaredPath.replace(/^\.\//, '');
+      const source = path.join(ROOT, relative);
+      const target = path.join(tmp, relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target);
+    }
+    const indexPath = path.join(tmp, 'agents', 'INDEX.md');
+    fs.mkdirSync(path.dirname(indexPath), { recursive: true });
+    const sourceIndex = fs.readFileSync(path.join(ROOT, 'agents', 'INDEX.md'), 'utf8');
+    fs.writeFileSync(indexPath, sourceIndex.replace(/^> .*$/m, '> Roster details are maintained with the plugin manifest.'));
+    writePluginJson(tmp, { version: '1.0.0', agents: sourcePlugin.agents });
+
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 0, `prose wording should not control roster validation:\n${out}`);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

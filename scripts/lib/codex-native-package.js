@@ -26,7 +26,12 @@ const {
   verifyDistribution,
 } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  listFilesNamedRecursively,
+} = require('./bounded-filesystem');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
@@ -153,25 +158,10 @@ function findSymlinks(dir, options = {}) {
 }
 
 function listNativeSkillMarkdownFiles(skillsRoot, options = {}) {
-  const files = [];
-  const budget = createTraversalBudget(options);
-  const walk = (directory, depth) => {
-    const realDirectory = budget.enterDirectory(directory, depth);
-    try {
-      for (const entry of readDirectoryEntries(directory, { budget, sort: true })) {
-        const child = path.join(directory, entry.name);
-        if (entry.isSymbolicLink()) continue;
-        if (entry.isDirectory()) walk(child, depth + 1);
-        else if (entry.isFile() && entry.name === 'SKILL.md') files.push(child);
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
   if (lstatOrNull(skillsRoot) && lstatOrNull(skillsRoot).isDirectory() && !lstatOrNull(skillsRoot).isSymbolicLink()) {
-    walk(skillsRoot, 0);
+    return listFilesNamedRecursively(skillsRoot, 'SKILL.md', { ...options, localeSort: false });
   }
-  return files;
+  return [];
 }
 
 function serializeNativeSkillMarkdown(content, label) {

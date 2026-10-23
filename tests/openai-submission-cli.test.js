@@ -247,9 +247,9 @@ test('oversized provenance is rejected before replacing the previous verifiable 
   try {
     assert.strictEqual(f.generate().ok, true);
     const before = fs.readFileSync(path.join(f.output, 'package.zip'));
-    const directory = path.join(f.root, 'skills/alpha/references', ...Array(14).fill('r'.repeat(120)));
+    const directory = path.join(f.root, 'skills/alpha/references', ...Array(6).fill('r'.repeat(120)));
     fs.mkdirSync(directory, { recursive: true });
-    for (let index = 0; index < 1300; index += 1) fs.writeFileSync(path.join(directory, `${index}.txt`), 'Resource.\n');
+    for (let index = 0; index < 3000; index += 1) fs.writeFileSync(path.join(directory, `${index}.txt`), 'Resource.\n');
     f.git(['add', '.']);
     f.git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'long resource paths']);
     const result = f.generate();
