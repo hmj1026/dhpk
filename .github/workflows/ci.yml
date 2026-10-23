@@ -375,7 +375,7 @@ jobs:
 
       # Same CLI install and outcome mapping as the tag job's consumer-verify.
       - name: Install claude CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
         continue-on-error: true
 
       - name: Rehearse CONSUMER gate
