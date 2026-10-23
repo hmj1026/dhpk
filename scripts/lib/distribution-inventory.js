@@ -2443,6 +2443,10 @@ function verifyClaudeProjection({ inventory, pluginSkills = [], stage = 'structu
   const registered = Array.isArray(pluginSkills) ? pluginSkills.filter((value) => typeof value === 'string') : [];
   const generatedSet = new Set(compiled.generated.roots);
   const registeredSet = new Set(registered);
+  // Claude Code always scans the plugin's top-level skills/ directory. Keep
+  // that implicit root in the effective set when the inventory expects it,
+  // even when plugin.json omits the redundant explicit declaration.
+  if (generatedSet.has('./skills/')) registeredSet.add('./skills/');
   const missing = [...generatedSet].filter((root) => !registeredSet.has(root)).sort();
   const extra = [...registeredSet].filter((root) => !generatedSet.has(root)).sort();
   const diagnostics = [

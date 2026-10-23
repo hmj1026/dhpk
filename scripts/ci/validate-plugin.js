@@ -57,6 +57,24 @@ const onDiskAgents = listAgentFiles(ROOT);
 const registeredAgents = new Set(
   (plugin.agents || []).map((a) => a.replace(/^\.\//, '').split(path.sep).join('/'))
 );
+const agentIndex = path.join(ROOT, 'agents', 'INDEX.md');
+if (fs.existsSync(agentIndex)) {
+  const indexText = fs.readFileSync(agentIndex, 'utf8');
+  const indexCount = indexText.match(/^>\s*(\d+)\s+agents shipped by the dhpk plugin\s+\((\d+) root-level\s+\+/m);
+  const rootAgentCount = [...registeredAgents].filter((entry) => entry.startsWith('agents/')).length;
+  const moduleAgentCount = [...registeredAgents].filter((entry) => entry.startsWith('modules/') && entry.includes('/agents/')).length;
+  if (!indexCount) {
+    r.err('agents/INDEX.md — missing the manifest-backed total and root-level roster count assertion');
+  } else {
+    const declaredTotal = Number(indexCount[1]);
+    const declaredRoot = Number(indexCount[2]);
+    if (declaredTotal !== registeredAgents.size || declaredRoot !== rootAgentCount
+      || declaredTotal - declaredRoot !== moduleAgentCount) {
+      r.err(`agents/INDEX.md — roster count drift: INDEX declares ${declaredTotal} total (${declaredRoot} root-level), `
+        + `but plugin.json agents[] contains ${registeredAgents.size} (${rootAgentCount} root-level, ${moduleAgentCount} module)`);
+    }
+  }
+}
 for (const fp of onDiskAgents) {
   const rp = relativePosix(ROOT, fp);
   if (!registeredAgents.has(rp)) {

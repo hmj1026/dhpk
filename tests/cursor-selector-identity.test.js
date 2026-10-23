@@ -80,4 +80,4 @@ test('a selector identity does not open an unsupported flow-drive combination', 
   assert.strictEqual(grokWorker.fallback_eligible, false);
 });
 
-run();
+run('cursor-selector-identity');

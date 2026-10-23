@@ -62,6 +62,11 @@ fs.writeFileSync(path.join(ROOT, 'codex', 'supporting', 'prompt-defense.md'), 's
 fs.mkdirSync(path.join(ROOT, '.claude-plugin'), { recursive: true });
 fs.copyFileSync(path.join(base.ROOT, '.claude-plugin', 'plugin.json'), path.join(ROOT, '.claude-plugin', 'plugin.json'));
 fs.mkdirSync(path.join(ROOT, 'manifests'), { recursive: true });
+fs.mkdirSync(path.join(ROOT, 'scripts', 'lib'), { recursive: true });
+fs.copyFileSync(
+  path.join(base.ROOT, 'scripts', 'lib', 'portable-skill-metadata.js'),
+  path.join(ROOT, 'scripts', 'lib', 'portable-skill-metadata.js'),
+);
 fs.writeFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), `${JSON.stringify({
   schema: 'dhpk.distribution-inventory.v2',
   profile_policy: {
@@ -118,6 +123,11 @@ process.on('exit', () => fs.rmSync(ROOT, { recursive: true, force: true }));
 
 function copyDistributionInventory(plugin) {
   fs.cpSync(path.join(ROOT, 'manifests'), path.join(plugin, 'manifests'), { recursive: true, dereference: true });
+  fs.mkdirSync(path.join(plugin, 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(
+    path.join(base.ROOT, 'scripts', 'lib', 'portable-skill-metadata.js'),
+    path.join(plugin, 'scripts', 'lib', 'portable-skill-metadata.js'),
+  );
 }
 
 function runInstaller(project, args, pluginRoot = ROOT, envOverrides = {}) {

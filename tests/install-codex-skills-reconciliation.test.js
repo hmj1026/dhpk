@@ -9,6 +9,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { parseFrontmatter } = require('../scripts/lib/agent-plugin-package');
+const { extractMetadata } = require('../scripts/ci/_lib/frontmatter');
 const fixtures = require('./_lib/native-installer-lifecycle-fixture');
 
 const {
@@ -48,6 +50,11 @@ function tddRenamePlugin() {
   fs.writeFileSync(path.join(skillDir, 'SKILL.md'), `---\nname: ${currentName}\ndescription: Synthetic legacy-name fixture.\n---\n\nFixture skill.\n`);
   fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+  fs.mkdirSync(path.join(fakePlugin, 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(
+    path.join(ROOT, 'scripts', 'lib', 'portable-skill-metadata.js'),
+    path.join(fakePlugin, 'scripts', 'lib', 'portable-skill-metadata.js'),
+  );
   fs.mkdirSync(path.join(fakePlugin, 'manifests'), { recursive: true });
   fs.writeFileSync(path.join(fakePlugin, 'manifests', 'distribution-inventory.json'), JSON.stringify({
     skills: [{
@@ -72,6 +79,26 @@ function tddRenamePlugin() {
     supporting_assets: [],
   }, null, 2));
   return { fakePlugin, currentName, legacyName };
+}
+
+function rewriteSkillAsHistoricalManagedSymlink(project, skillName, pluginRoot = ROOT) {
+  const codex = path.join(project, '.codex');
+  const receiptPath = path.join(codex, '.dhpk-installed.json');
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  const relative = `skills/${skillName}`;
+  const source = path.join(pluginRoot, 'codex', relative);
+  const destination = path.join(codex, relative);
+  const linkTarget = path.resolve(source);
+  fs.rmSync(destination, { recursive: true, force: true });
+  fs.symlinkSync(linkTarget, destination, 'dir');
+  const entry = receipt.managed_entries.skills[skillName];
+  assert.ok(entry, `receipt must own ${skillName} before synthesizing history`);
+  entry.mode = 'symlink';
+  entry.destination_target = linkTarget;
+  entry.ownership_marker = `symlink:${relative}`;
+  delete entry.metadata_projection;
+  fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  return { receiptPath, source, destination, relative, linkTarget };
 }
 
 function reconciliationPlugin() {
@@ -307,7 +334,7 @@ test('copy mode materializes skills/agents and records the install manifest', ()
   }
 });
 
-test('default mode keeps skills linked but materializes Codex agent role files', () => {
+test('default mode materializes portable skills and Codex agent role files', () => {
   const scratch = projectRoot();
   try {
     const res = runInstaller(scratch, ['--force']);
@@ -318,12 +345,13 @@ test('default mode keeps skills linked but materializes Codex agent role files',
     const agentName = fs.readdirSync(path.join(codex, 'agents'))[0];
     const receipt = JSON.parse(fs.readFileSync(path.join(codex, '.dhpk-installed.json'), 'utf8'));
 
-    assert.ok(fs.lstatSync(path.join(codex, 'skills', skillName)).isSymbolicLink(),
-      'default mode must preserve linked Codex runtime-support skills');
+    assert.ok(fs.lstatSync(path.join(codex, 'skills', skillName)).isDirectory(),
+      'default mode must materialize a physical portable skill tree');
     assert.ok(fs.lstatSync(path.join(codex, 'agents', agentName)).isFile(),
       'Codex agent role TOMLs must be physical files for runtime discovery');
     assert.strictEqual(receipt.mode, 'symlink');
-    assert.strictEqual(receipt.managed_entries.skills[skillName].mode, 'symlink');
+    assert.strictEqual(receipt.managed_entries.skills[skillName].mode, 'copy');
+    assert.strictEqual(receipt.managed_entries.skills[skillName].metadata_projection, 'portable-skill-metadata.v1');
     assert.strictEqual(receipt.managed_entries.agents[agentName].mode, 'copy');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
@@ -677,7 +705,6 @@ for (const brokenSymlink of [false, true]) {
         rollback: { release: '0.46.1' },
       }];
       fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
-      fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
 
       const externalDhpk = path.join(external, 'dhpk');
       fs.mkdirSync(externalDhpk, { recursive: true });
@@ -687,8 +714,12 @@ for (const brokenSymlink of [false, true]) {
       const retiredTarget = path.join(scratch, '.codex', 'skills', retired);
       const brokenLinkTarget = path.join(fakePlugin, 'codex', 'skills', retired);
       if (brokenSymlink) {
+        rewriteSkillAsHistoricalManagedSymlink(scratch, retired, fakePlugin);
         assert.ok(fs.lstatSync(retiredTarget).isSymbolicLink());
         assert.strictEqual(fs.readlinkSync(retiredTarget), brokenLinkTarget);
+      }
+      fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
+      if (brokenSymlink) {
         assert.ok(!fs.existsSync(retiredTarget), 'retired source removal must leave a dangling managed link');
       }
       const journalsBefore = fs.readdirSync(path.join(scratch, '.codex'));
@@ -1063,7 +1094,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
   }
 });
 
-test('copy update cleans legacy bytecode while preserving receipt ownership', () => {
+test('copy update cleans legacy bytecode from a historical pre-projection receipt', () => {
   const scratch = projectRoot();
   try {
     const first = runInstaller(scratch, ['--copy', '--force']);
@@ -1081,6 +1112,8 @@ test('copy update cleans legacy bytecode while preserving receipt ownership', ()
     const legacyDestinationFingerprint = completeTreeFingerprint(skillTarget);
     entry.destination_fingerprint = legacyDestinationFingerprint;
     entry.fingerprint = legacyDestinationFingerprint;
+    delete entry.metadata_projection;
+    delete entry.metadata_projection;
     fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
 
     const updated = runInstaller(scratch, ['--copy', '--update', '--force']);
@@ -1095,13 +1128,15 @@ test('copy update cleans legacy bytecode while preserving receipt ownership', ()
   }
 });
 
-test('symlink mode links the target and --update preserves edited copied content', () => {
+test('default mode copies skill trees and --update preserves edited copied content', () => {
   const scratch = projectRoot();
   try {
     const linked = runInstaller(scratch, ['--force']);
     assert.strictEqual(linked.status, 0, `${linked.stdout}\n${linked.stderr}`);
     const skillName = firstNativeManagedSkill(scratch);
-    assert.ok(fs.lstatSync(path.join(scratch, '.codex', 'skills', skillName)).isSymbolicLink());
+    const skillTarget = path.join(scratch, '.codex', 'skills', skillName);
+    assert.ok(fs.lstatSync(skillTarget).isDirectory());
+    assert.ok(!fs.lstatSync(skillTarget).isSymbolicLink());
 
     const copied = runInstaller(scratch, ['--copy', '--update', '--force']);
     assert.strictEqual(copied.status, 0, `${copied.stdout}\n${copied.stderr}`);
@@ -1199,14 +1234,15 @@ test('--update does not back up unchanged receipt-owned destinations', () => {
   }
 });
 
-test('managed-target replacement: re-sync replaces a dhpk-managed target regardless of whether it is currently a file or a symlink', () => {
+test('managed-target replacement: re-sync replaces a historical managed skill symlink with a physical tree', () => {
   const scratch = projectRoot();
   try {
-    const symlinked = runInstaller(scratch, ['--force']);
-    assert.strictEqual(symlinked.status, 0, `${symlinked.stdout}\n${symlinked.stderr}`);
+    const installed = runInstaller(scratch, ['--force']);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
     const skillName = firstNativeManagedSkill(scratch);
     const target = path.join(scratch, '.codex', 'skills', skillName);
-    assert.ok(fs.lstatSync(target).isSymbolicLink(), 'first sync (symlink mode) must produce a symlink target');
+    const historical = rewriteSkillAsHistoricalManagedSymlink(scratch, skillName);
+    assert.ok(fs.lstatSync(target).isSymbolicLink(), 'fixture must reproduce the historical managed symlink');
 
     // Switching to copy --update must replace that exact managed symlink
     // target with a real materialized directory, not merge into it or fail
@@ -1215,6 +1251,10 @@ test('managed-target replacement: re-sync replaces a dhpk-managed target regardl
     assert.strictEqual(copied.status, 0, `${copied.stdout}\n${copied.stderr}`);
     assert.ok(!fs.lstatSync(target).isSymbolicLink(), 'copy --update must replace the prior symlink target with a real directory');
     assert.ok(fs.existsSync(path.join(target, 'SKILL.md')), 'replaced managed target must contain real skill content');
+    const rawMetadata = extractMetadata(fs.readFileSync(path.join(historical.source, 'SKILL.md'), 'utf8')).values;
+    const projectedMetadata = parseFrontmatter(fs.readFileSync(path.join(target, 'SKILL.md'), 'utf8')).metadata;
+    assert.strictEqual(projectedMetadata['dhpk-next'], JSON.stringify(rawMetadata['dhpk-next']));
+    assert.strictEqual(projectedMetadata['dhpk-modes'], JSON.stringify(rawMetadata['dhpk-modes']));
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -1239,13 +1279,13 @@ test('hybrid mode adopts a new plugin root while keeping agent roles physical', 
     const skillTarget = path.join(scratch, '.codex', 'skills', skillName);
     const agentName = fs.readdirSync(path.join(scratch, '.codex', 'agents'))[0];
     const target = path.join(scratch, '.codex', 'agents', agentName);
-    assert.strictEqual(fs.realpathSync(skillTarget), fs.realpathSync(path.join(firstPlugin, 'codex', 'skills', skillName)));
+    assert.ok(!fs.lstatSync(skillTarget).isSymbolicLink(), 'default skill projection must be physical');
     assert.ok(fs.lstatSync(target).isFile(), 'agent role must be a physical file');
     const secondAgent = path.join(secondPlugin, 'codex', 'agents', agentName);
     fs.appendFileSync(secondAgent, '\n# second plugin source\n');
     const second = runInstaller(scratch, ['--update', '--force'], secondPlugin);
     assert.strictEqual(second.status, 0, `${second.stdout}\n${second.stderr}`);
-    assert.strictEqual(fs.realpathSync(skillTarget), fs.realpathSync(path.join(secondPlugin, 'codex', 'skills', skillName)));
+    assert.ok(!fs.lstatSync(skillTarget).isSymbolicLink(), 'updated skill projection must remain physical');
     assert.ok(fs.lstatSync(target).isFile(), 'updated agent role must remain a physical file');
     assert.strictEqual(fs.readFileSync(target, 'utf8'), fs.readFileSync(secondAgent, 'utf8'));
   } finally {
