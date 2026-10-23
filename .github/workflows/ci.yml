@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -140,7 +141,7 @@ jobs:
           fi
           node scripts/ci/verify-platform-packages.js "${args[@]}"
       - name: Validate bounded generated companions
-        if: needs.plan.outputs.mode == 'light'
+        if: needs.plan.outputs.mode != 'full'
         run: |
           node -e 'const fs = require("node:fs"); const path = require("node:path"); for (const check of JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "dhpk-ci-plan/ci-plan.json"), "utf8")).generatedChecks) console.log(check)' > "$RUNNER_TEMP/ci-generated-checks.txt"
           mapfile -t checks < "$RUNNER_TEMP/ci-generated-checks.txt"
@@ -286,13 +287,14 @@ jobs:
           node - <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
-          const { verifyCiResults } = require('./scripts/lib/ci-plan');
+          const { verifyCiResults, loadClassification } = require('./scripts/lib/ci-plan');
           const plan = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'dhpk-ci-plan/ci-plan.json'), 'utf8'));
+          const classification = loadClassification();
           const result = verifyCiResults(plan, {
             preflight: process.env.PREFLIGHT_RESULT, tests: process.env.TESTS_RESULT,
             'macos-installer': process.env.MACOS_RESULT, 'release-rehearsal': process.env.RELEASE_RESULT,
             lint: process.env.LINT_RESULT, validate: 'success',
-          }, { root: process.cwd(), baseSha: process.env.BASE_SHA, headSha: process.env.HEAD_SHA, checkoutSha: process.env.CHECKOUT_SHA, baseRef: process.env.BASE_REF });
+          }, { root: process.cwd(), baseSha: process.env.BASE_SHA, headSha: process.env.HEAD_SHA, checkoutSha: process.env.CHECKOUT_SHA, baseRef: process.env.BASE_REF, ...classification });
           if (!result.ok) { result.errors.forEach((error) => console.error(`::error::${error}`)); process.exit(1); }
           console.log('PASS: plan-bound required jobs');
           NODE

@@ -11,9 +11,9 @@ const SMOKE_SUITE = 'skill-script-operability.test.js';
 const RESOURCE_SUITES = [
   'modules.test.js', 'run-agy.test.js', 'run-codex.test.js',
   'run-cli-transport.test.js', 'cli-dispatch-launcher.test.js',
-  'cli-role-resolver.test.js', 'flow-drive-cli-dispatch.test.js',
-  'flow-drive-relocation.test.js', 'skill-resource-sync-security.test.js',
-  'skill-runtime-path-contract.test.js',
+  'cli-role-resolver.test.js', 'verify-handoff.test.js',
+  'verification-handoff-isolation.test.js', 'native-agent-support.test.js',
+  'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js',
 ];
 const HOOK_SUITES = [
   'hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js',
@@ -34,7 +34,15 @@ const INSTALLER_SUITES = [
 ];
 const AVAILABLE_SUITES = [SMOKE_SUITE, ...RESOURCE_SUITES, 'utils.test.js'];
 
-function withChangedFiles(files, check, suites = AVAILABLE_SUITES) {
+function classificationFor(paths, baseSha, headSha, kindForPath = () => 'behavior') {
+  return {
+    baseSha,
+    headSha,
+    entries: paths.map((file) => ({ path: file, kind: kindForPath(file), reason: 'Scoped test declaration.' })),
+  };
+}
+
+function withChangedFiles(files, check, suites = AVAILABLE_SUITES, kindForPath = () => 'behavior') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-'));
   const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
   const write = (file, content) => {
@@ -58,7 +66,8 @@ function withChangedFiles(files, check, suites = AVAILABLE_SUITES) {
     git('add', '-A');
     git('commit', '--no-verify', '-qm', 'head');
     const headSha = git('rev-parse', 'HEAD');
-    check(createCiPlan({ root, baseSha, headSha, checkoutSha: headSha, baseRef: 'develop' }));
+    const classification = classificationFor(files, baseSha, headSha, kindForPath);
+    check(createCiPlan({ root, baseSha, headSha, checkoutSha: headSha, baseRef: 'develop', classification }));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -73,10 +82,6 @@ function assertFullPlan(plan) {
 }
 
 for (const file of [
-  'skills/flow-drive/scripts/dispatch.js',
-  'skills/flow-drive/scripts/task-contract.js',
-  'skills/flow-drive/scripts/graph-runner.js',
-  'skills/flow-drive/scripts/target-policy.js',
   'skills/repo-verify/scripts/lib/runner-utils.js',
   'skills/flow-guide/scripts/_lib/runtime-loader.js',
   'skills/laravel/scripts/version-resolver.js',
@@ -95,7 +100,6 @@ const SMOKE_ENTRIES = {
   'dhpk-feature-verify': ['api-exec.sh', 'health-probe.sh'],
   'dhpk-project-audit': ['audit.js'],
   'dhpk-repo-intake': ['intake_cached.js', 'scan_delta.js', 'scan_repo.js'],
-  'flow-drive': ['invocation.js', 'launch-dispatch.js'],
   'flow-guide': ['action-runner.js', 'analyze.js', 'openspec_gate_check.py', 'pre-route.sh', 'prepare_dev_scope.py', 'prepare_workflow_profile.py', 'route-result.js', 'usage-card.js', 'workflow_gate_check.py'],
   'git-smart-commit': ['collect-changes.js'],
   'harness-setup': ['install-assets.sh', 'install-codex-project.sh'],
@@ -124,10 +128,10 @@ for (const [skill, entries] of Object.entries(SMOKE_ENTRIES)) {
 }
 
 for (const file of [
-  'skills/flow-drive/scripts/new-cli.js',
+  'scripts/cli-dispatch/new-cli.js',
   'skills/new-skill/scripts/launch-dispatch.js',
-  'skills/flow-drive/scripts/nested/launch-dispatch.js',
-  'skills/flow-drive/scripts/launch-dispatch.js.backup',
+  'scripts/cli-dispatch/nested/launch-dispatch.js',
+  'scripts/cli-dispatch/launch-dispatch.js.backup',
 ]) {
   test(`unrecognized script changes fail closed: ${file}`, () => {
     withChangedFiles([file], assertFullPlan);
@@ -136,15 +140,16 @@ for (const file of [
 
 test('mixed CLI and internal changes retain the complete test plan', () => {
   withChangedFiles([
-    'skills/flow-drive/scripts/launch-dispatch.js',
-    'skills/flow-drive/scripts/dispatch.js',
+    'scripts/cli-dispatch/dispatch-runtime/launch-cli-dispatch.js',
+    'scripts/lib/runner-utils.js',
   ], assertFullPlan);
 });
 
 for (const file of [
-  'skills/flow-drive/scripts/adapters/run-agy.sh',
-  'skills/flow-drive/scripts/transport/run-cli-transport.py',
-  'skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js',
+  'scripts/cli-dispatch/adapters/run-agy.sh',
+  'scripts/cli-dispatch/transport/run-cli-transport.py',
+  'scripts/cli-dispatch/dispatch-runtime/build-cli-dispatch-context.js',
+  'scripts/cli-dispatch/verify-handoff.js',
 ]) {
   test(`resource runtime changes retain their behavior suites: ${file}`, () => {
     withChangedFiles([file], (plan) => {
@@ -171,11 +176,142 @@ test('installer owner changes require the macOS installer job', () => {
 });
 
 test('CLI changes fail closed when the smoke suite is unavailable', () => {
-  withChangedFiles(['skills/flow-drive/scripts/launch-dispatch.js'], (plan) => {
+  withChangedFiles(['scripts/cli-dispatch/dispatch-runtime/launch-cli-dispatch.js'], (plan) => {
     assert.strictEqual(plan.mode, 'full');
     assert.strictEqual(plan.shardCount, 4);
     assert.deepStrictEqual(plan.testFiles, ['utils.test.js']);
   }, ['utils.test.js']);
+});
+
+test('a complete current wording declaration keeps canonical content on the light route', () => {
+  withChangedFiles(['skills/demo/SKILL.md'], (plan) => {
+    assert.strictEqual(plan.mode, 'light');
+    assert.strictEqual(plan.classification.status, 'accepted');
+    assert.deepStrictEqual(plan.classification.entries.map((entry) => entry.path), ['skills/demo/SKILL.md']);
+    assert.deepStrictEqual(plan.generatedChecks, ['claude-marketplace']);
+  }, AVAILABLE_SUITES, () => 'wording');
+});
+
+test('a wording edit with its required .none marker and generated companion remains light', () => {
+  withChangedFiles([
+    'skills/flow-drive/SKILL.md',
+    'changelog.d/1113-none.none',
+    'generated/claude-marketplace/package/skills/flow-drive/SKILL.md',
+  ], (plan) => {
+    assert.strictEqual(plan.mode, 'light');
+    assert.strictEqual(plan.classification.status, 'accepted');
+    assert.deepStrictEqual(plan.generatedChecks, ['claude-marketplace']);
+    assert.ok(plan.requiredJobs.includes('preflight'));
+    assert.ok(plan.skippedJobs.includes('tests'));
+  }, AVAILABLE_SUITES, () => 'wording');
+});
+
+test('a Markdown behavior declaration selects its checked-in installer owner suites', () => {
+  withChangedFiles(['skills/harness-setup/SKILL.md'], (plan) => {
+    assert.strictEqual(plan.mode, 'selected');
+    assert.deepStrictEqual(plan.testFiles, INSTALLER_SUITES.slice().sort());
+    assert.ok(plan.requiredJobs.includes('macos-installer'));
+    assert.deepStrictEqual(plan.generatedChecks, ['claude-marketplace']);
+  }, INSTALLER_SUITES, () => 'behavior');
+});
+
+test('mixed wording and behavior changes keep generated checks and union behavior owners', () => {
+  withChangedFiles(['docs/guide.md', 'skills/harness-setup/SKILL.md'], (plan) => {
+    assert.strictEqual(plan.mode, 'selected');
+    assert.deepStrictEqual(plan.testFiles, INSTALLER_SUITES.slice().sort());
+    assert.deepStrictEqual(plan.generatedChecks, ['claude-marketplace']);
+  }, INSTALLER_SUITES, (file) => file === 'skills/harness-setup/SKILL.md' ? 'behavior' : 'wording');
+});
+
+test('unmapped Markdown behavior declarations retain full verification', () => {
+  withChangedFiles(['skills/flow-drive/SKILL.md'], (plan) => {
+    assert.strictEqual(plan.mode, 'full');
+    assert.strictEqual(plan.reason, 'owner-mapping-unavailable');
+    assert.strictEqual(plan.shardCount, 4);
+  }, AVAILABLE_SUITES, () => 'behavior');
+});
+
+test('missing, stale, or incomplete declarations cannot lower canonical content to light', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-classification-'));
+  const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
+  const write = (file, content) => {
+    const target = path.join(root, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  };
+  try {
+    git('init', '-q');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Test');
+    git('config', 'commit.gpgsign', 'false');
+    AVAILABLE_SUITES.forEach((suite) => write(`tests/${suite}`, '// owner suite\n'));
+    write('docs/guide.md', 'before\n');
+    git('add', '.');
+    git('commit', '--no-verify', '-qm', 'base');
+    const baseSha = git('rev-parse', 'HEAD');
+    write('docs/guide.md', 'after\n');
+    git('add', '-A');
+    git('commit', '--no-verify', '-qm', 'head');
+    const headSha = git('rev-parse', 'HEAD');
+
+    const missing = createCiPlan({ root, baseSha, headSha, checkoutSha: headSha, baseRef: 'develop' });
+    assert.strictEqual(missing.mode, 'full');
+    assert.strictEqual(missing.reason, 'classification-missing');
+
+    const stale = createCiPlan({
+      root, baseSha, headSha, checkoutSha: headSha, baseRef: 'develop',
+      classification: classificationFor(['docs/guide.md'], 'stale-base', headSha, () => 'wording'),
+    });
+    assert.strictEqual(stale.mode, 'full');
+    assert.strictEqual(stale.reason, 'classification-identity-mismatch');
+
+    const incomplete = createCiPlan({
+      root, baseSha, headSha, checkoutSha: headSha, baseRef: 'develop',
+      classification: classificationFor([], baseSha, headSha, () => 'wording'),
+    });
+    assert.strictEqual(incomplete.mode, 'full');
+    assert.strictEqual(incomplete.reason, 'classification-paths-mismatch');
+
+    const extra = createCiPlan({
+      root, baseSha, headSha, checkoutSha: headSha, baseRef: 'develop',
+      classification: classificationFor(['docs/guide.md', 'docs/extra.md'], baseSha, headSha, () => 'wording'),
+    });
+    assert.strictEqual(extra.mode, 'full');
+    assert.strictEqual(extra.reason, 'classification-paths-mismatch');
+
+    const duplicate = createCiPlan({
+      root, baseSha, headSha, checkoutSha: headSha, baseRef: 'develop',
+      classification: classificationFor(['docs/guide.md', 'docs/guide.md'], baseSha, headSha, () => 'wording'),
+    });
+    assert.strictEqual(duplicate.mode, 'full');
+    assert.strictEqual(duplicate.reason, 'classification-invalid');
+
+    const invalidKind = createCiPlan({
+      root, baseSha, headSha, checkoutSha: headSha, baseRef: 'develop',
+      classification: classificationFor(['docs/guide.md'], baseSha, headSha, () => 'text-only'),
+    });
+    assert.strictEqual(invalidKind.mode, 'full');
+    assert.strictEqual(invalidKind.reason, 'classification-invalid');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('shared policy paths and declared unknown impact always retain full verification', () => {
+  withChangedFiles(['docs/testing-governance.md'], (plan) => {
+    assert.strictEqual(plan.mode, 'full');
+    assert.strictEqual(plan.reason, 'shared-core-change');
+  }, AVAILABLE_SUITES, () => 'wording');
+
+  withChangedFiles(['docs/guide.md'], (plan) => {
+    assert.strictEqual(plan.mode, 'full');
+    assert.strictEqual(plan.reason, 'unknown-impact');
+  }, AVAILABLE_SUITES, () => 'unknown');
+
+  withChangedFiles(['docs/guide.md'], (plan) => {
+    assert.strictEqual(plan.mode, 'full');
+    assert.strictEqual(plan.reason, 'shared-core-change');
+  }, AVAILABLE_SUITES, () => 'shared-core');
 });
 
 run('ci-plan');
