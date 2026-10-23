@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "f94a04f5288a4a57a51afd61a62314539df0c4e6",
-  "generatedFromCommit": "f94a04f5288a4a57a51afd61a62314539df0c4e6",
-  "generatedFromTree": "dc32ad165ac0c22cba5c1611555f643d0a846876",
-  "inventoryDigest": "c0eabd9b270692d2c06279447289e64c692d45720f1516d3502ab3fab90ce3cf",
-  "inventoryRevision": "sha256:47a01eec098299cea524f97ee6edd39d60f31d2693e59f01857f1ee84b97a60b",
+  "sourceCommit": "63bb57af440d5660c7c2df1c9f700f95f9a76d38",
+  "generatedFromCommit": "63bb57af440d5660c7c2df1c9f700f95f9a76d38",
+  "generatedFromTree": "4dd8b075d4fc3a9dddf7b24faf9ce1c07e464da9",
+  "inventoryDigest": "2c6479f5477a027e4a92822f8c152f6683bcca64714a23dde2c0dd2da4171720",
+  "inventoryRevision": "sha256:332faa7d962bb63d165de7c161f346b646aa6a5ff78e0992244317323e917bdb",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -6297,7 +6297,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "c129a26fc8aef6424e16aaacb40b5bcc07cacd757b6181b7a424055c411dc44e",
+    "planId": "da3661baf5f036e42523aa68ae3508d3530db641736c1ad28e24b8ab7ecb4902",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -6341,10 +6341,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "c129a26fc8aef6424e16aaacb40b5bcc07cacd757b6181b7a424055c411dc44e",
-      "inventory": "c0eabd9b270692d2c06279447289e64c692d45720f1516d3502ab3fab90ce3cf"
+      "plan": "da3661baf5f036e42523aa68ae3508d3530db641736c1ad28e24b8ab7ecb4902",
+      "inventory": "2c6479f5477a027e4a92822f8c152f6683bcca64714a23dde2c0dd2da4171720"
     },
-    "rollbackIdentity": "8b94230092551995fe8cd06b84a7fb3848346a359d7a6b08a43cf01cd6fae482"
+    "rollbackIdentity": "3d84b9d348a7c8cfb8004eaacf1f6f871599a58c3e4073a9dfa13007c849e97e"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -7415,5 +7415,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "d56e02d09f3df7d446acbd87d2834a2cfc83cc4c22c173c7320e238a03bd020e",
   "surfaceSelectionFingerprint": "56041955169d1f28a647f51a2a2f131c9dd53fe5613ab850da900f80188f182a",
-  "planFingerprint": "850668a3fe9cfe41c52e5a03af5c597f0ba31d1acdc6c57065936a784a6cb694"
+  "planFingerprint": "e6a8c06828cdd5fc52c6912443f5dff8c5320e6b25662bdaec8b770d19cb1421"
 }
