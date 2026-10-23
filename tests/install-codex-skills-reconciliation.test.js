@@ -74,6 +74,61 @@ function tddRenamePlugin() {
   return { fakePlugin, currentName, legacyName };
 }
 
+function reconciliationPlugin() {
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-recovery-plugin-')));
+  fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+  fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+  copyDistributionInventory(fakePlugin);
+  return fakePlugin;
+}
+
+function recoveryJournal(project, receipt, pid, run, { mutations = [], adoptions = [] } = {}) {
+  const codexRoot = path.join(project, '.codex');
+  const relative = `.dhpk-transaction-${run}.json`;
+  const journal = {
+    run,
+    pid,
+    relative,
+    phase: 'active',
+    started: true,
+    plugin_version: receipt.plugin_version,
+    source_fingerprint: receipt.source_fingerprint,
+    receipt_snapshot_present: true,
+    receipt_snapshot: receipt,
+    prunes: [],
+    mutations,
+    adoptions,
+  };
+  const journalPath = path.join(codexRoot, relative);
+  fs.writeFileSync(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
+  return journalPath;
+}
+
+function replacementCrashShim() {
+  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-replace-crash-shim-')));
+  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
+    'import os',
+    '',
+    '_dhpk_original_replace = os.replace',
+    '',
+    'def _dhpk_replace(src, dst, *args, **kwargs):',
+    "    if os.fspath(dst) == 'fixture-agent.toml' and kwargs.get('dst_dir_fd') is not None:",
+    "        if os.environ.get('DHPK_TEST_CRASH_AFTER_PUBLISH') == '1':",
+    '            _dhpk_original_replace(src, dst, *args, **kwargs)',
+    '        os._exit(73)',
+    '    return _dhpk_original_replace(src, dst, *args, **kwargs)',
+    '',
+    'os.replace = _dhpk_replace',
+    '',
+  ].join('\n'));
+  return shim;
+}
+
+function removeInventoryAfterRecoveryCrash(plugin) {
+  fs.rmSync(path.join(plugin, 'manifests', 'distribution-inventory.json'));
+}
+
 test('copy and symlink installs do not require descriptor pseudo-path child traversal', () => {
   for (const args of [['--copy', '--force'], ['--force']]) {
     const scratch = projectRoot();
@@ -715,6 +770,188 @@ test('receipt failure rolls back ordinary updates and recovers the transaction j
     const recovered = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
     assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
     assert.match(`${recovered.stdout}\n${recovered.stderr}`, /synced|reconcili/i);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
+for (const crashAfterPublish of [false, true]) {
+  test(`mutation ${crashAfterPublish ? 'replace' : 'delete'} recovery preserves a relative symlink target`, () => {
+    const scratch = projectRoot();
+    const fakePlugin = reconciliationPlugin();
+    const shim = replacementCrashShim();
+    const relative = 'agents/fixture-agent.toml';
+    const linkTarget = '../shared-target';
+    const codexRoot = path.join(scratch, '.codex');
+    const destination = path.join(codexRoot, relative);
+    try {
+      const installed = runInstaller(scratch, ['--force'], fakePlugin);
+      assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+
+      fs.writeFileSync(path.join(codexRoot, 'shared-target'), 'relative link target\n');
+      fs.rmSync(destination, { force: true });
+      fs.symlinkSync(linkTarget, destination);
+      const receiptPath = path.join(codexRoot, '.dhpk-installed.json');
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      receipt.managed_entries.agents['fixture-agent.toml'] = {
+        ...receipt.managed_entries.agents['fixture-agent.toml'],
+        mode: 'symlink',
+        ownership_marker: `symlink:${relative}`,
+        destination_target: linkTarget,
+      };
+      fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+      fs.appendFileSync(path.join(fakePlugin, 'codex', relative), '\nsource changed for rollback recovery\n');
+
+      const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+      const crashed = runInstaller(scratch, ['--update', '--force'], fakePlugin, {
+        PYTHONPATH: pythonPath,
+        DHPK_TEST_CRASH_AFTER_PUBLISH: crashAfterPublish ? '1' : '0',
+      });
+      assert.strictEqual(crashed.status, 73, `${crashed.stdout}\n${crashed.stderr}`);
+      if (crashAfterPublish) {
+        assert.ok(fs.lstatSync(destination).isFile(), 'replace interruption must leave the published regular file');
+      } else {
+        assert.throws(() => fs.lstatSync(destination), { code: 'ENOENT' },
+          'delete interruption must leave the managed destination absent');
+      }
+
+      const openJournals = fs.readdirSync(codexRoot)
+        .filter((name) => /^\.dhpk-transaction-.*\.json$/.test(name))
+        .map((name) => path.join(codexRoot, name))
+        .filter((journalPath) => JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase === 'active');
+      assert.strictEqual(openJournals.length, 1, 'the crashed installer must leave one active transaction journal');
+      const interrupted = JSON.parse(fs.readFileSync(openJournals[0], 'utf8'));
+      assert.strictEqual(interrupted.mutations[0].relative, relative);
+      removeInventoryAfterRecoveryCrash(fakePlugin);
+
+      const recovered = runInstaller(scratch, ['--update', '--force'], fakePlugin);
+      assert.notStrictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
+      assert.doesNotThrow(() => fs.lstatSync(destination),
+        `journal recovery should restore the target before inventory validation: ${recovered.stderr}`);
+      assert.ok(fs.lstatSync(destination).isSymbolicLink(), 'rollback must restore the relative symlink');
+      assert.strictEqual(fs.readlinkSync(destination), linkTarget,
+        'rollback must preserve the original relative link text byte-for-byte');
+      assert.match(`${recovered.stdout}\n${recovered.stderr}`, /distribution inventory|skill metadata/i,
+        'recovery should finish before the deliberately removed inventory stops the retry');
+      assert.strictEqual(JSON.parse(fs.readFileSync(openJournals[0], 'utf8')).phase, 'rolled_back');
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(fakePlugin, { recursive: true, force: true });
+      fs.rmSync(shim, { recursive: true, force: true });
+    }
+  });
+}
+
+test('adoption journal recovery preserves a relative symlink target', () => {
+  const scratch = projectRoot();
+  const fakePlugin = reconciliationPlugin();
+  const relative = 'skills/code-trace';
+  const linkTarget = '../shared-target';
+  const codexRoot = path.join(scratch, '.codex');
+  const destination = path.join(codexRoot, relative);
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(path.join(codexRoot, '.dhpk-installed.json'), 'utf8'));
+    const entry = receipt.managed_entries.skills['code-trace'];
+    const run = `20990101T000001Z-${installed.pid}`;
+    const backupRelative = `.dhpk-backups/${run}/${relative}`;
+    const backup = path.join(codexRoot, backupRelative);
+    fs.writeFileSync(path.join(codexRoot, 'shared-target'), 'relative adoption target\n');
+    fs.rmSync(destination, { recursive: true, force: true });
+    fs.mkdirSync(path.dirname(backup), { recursive: true });
+    fs.symlinkSync(linkTarget, backup);
+    const journalPath = recoveryJournal(scratch, receipt, installed.pid, run, {
+      adoptions: [{
+        relative,
+        destination: relative,
+        backup: backupRelative,
+        quarantine: null,
+        expected_source: entry.source_fingerprint,
+        expected_destination: entry.destination_fingerprint,
+        published: null,
+        phase: 'prepared',
+      }],
+    });
+    removeInventoryAfterRecoveryCrash(fakePlugin);
+
+    const recovered = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.notStrictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
+    assert.doesNotThrow(() => fs.lstatSync(destination),
+      `adoption recovery should restore the target before inventory validation: ${recovered.stderr}`);
+    assert.ok(fs.lstatSync(destination).isSymbolicLink(), 'adoption rollback must restore the relative symlink');
+    assert.strictEqual(fs.readlinkSync(destination), linkTarget,
+      'adoption rollback must preserve the original relative link text byte-for-byte');
+    assert.match(`${recovered.stdout}\n${recovered.stderr}`, /distribution inventory|skill metadata/i);
+    assert.strictEqual(JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase, 'rolled_back');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('mutation recovery fails closed without a non-symlink rollback backup', () => {
+  const scratch = projectRoot();
+  const fakePlugin = reconciliationPlugin();
+  const relative = 'skills/tdd-workflow';
+  const content = 'published transaction bytes\n';
+  const codexRoot = path.join(scratch, '.codex');
+  const destination = path.join(codexRoot, relative);
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(path.join(codexRoot, '.dhpk-installed.json'), 'utf8'));
+    const run = `20990101T000002Z-${installed.pid}`;
+    const backupRelative = `.dhpk-backups/${run}/${relative}`;
+    fs.rmSync(destination, { recursive: true, force: true });
+    fs.writeFileSync(destination, content);
+    const expected = completeTreeFingerprint(destination);
+    recoveryJournal(scratch, receipt, installed.pid, run, {
+      mutations: [{ relative, destination: relative, backup: backupRelative, expected }],
+    });
+    removeInventoryAfterRecoveryCrash(fakePlugin);
+
+    const recovered = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.notStrictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
+    assert.strictEqual(fs.existsSync(destination), true,
+      `a missing regular backup must fail closed without deleting the published bytes: ${recovered.stderr}`);
+    assert.strictEqual(fs.readFileSync(destination, 'utf8'), content);
+    assert.match(`${recovered.stdout}\n${recovered.stderr}`, /rollback backup missing/i);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('mutation recovery preserves a non-symlink destination with a changed fingerprint', () => {
+  const scratch = projectRoot();
+  const fakePlugin = reconciliationPlugin();
+  const relative = 'skills/tdd-workflow';
+  const content = 'user changed these bytes\n';
+  const codexRoot = path.join(scratch, '.codex');
+  const destination = path.join(codexRoot, relative);
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(path.join(codexRoot, '.dhpk-installed.json'), 'utf8'));
+    const run = `20990101T000003Z-${installed.pid}`;
+    const backupRelative = `.dhpk-backups/${run}/${relative}`;
+    const backup = path.join(codexRoot, backupRelative);
+    fs.rmSync(destination, { recursive: true, force: true });
+    fs.writeFileSync(destination, content);
+    fs.mkdirSync(path.dirname(backup), { recursive: true });
+    fs.writeFileSync(backup, 'regular rollback copy\n');
+    recoveryJournal(scratch, receipt, installed.pid, run, {
+      mutations: [{ relative, destination: relative, backup: backupRelative, expected: '0'.repeat(64) }],
+    });
+    removeInventoryAfterRecoveryCrash(fakePlugin);
+
+    const recovered = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.notStrictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
+    assert.strictEqual(fs.readFileSync(destination, 'utf8'), content,
+      `a destination fingerprint mismatch must preserve the changed regular file: ${recovered.stderr}`);
+    assert.match(`${recovered.stdout}\n${recovered.stderr}`, /preserved changed destination/i);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(fakePlugin, { recursive: true, force: true });

@@ -15,6 +15,7 @@ const { spawnSync } = require('child_process');
 const {
   compileNativePackage,
   materializeNativePackage,
+  resolveCodexNativeProfileSelection,
   validateNativeCandidate,
   validateNativeMembership,
 } = require('../lib/codex-native-package');
@@ -40,6 +41,7 @@ const inventory = JSON.parse(fs.readFileSync(INVENTORY_PATH, 'utf8'));
 const resolvedOutDir = path.resolve(outDir);
 
 const sourceCommit = resolveSourceCommit();
+const profileSelection = resolveCodexNativeProfileSelection({ root: ROOT, inventory });
 const compiledProjection = compileNativePackage({
   inventory,
   root: ROOT,
@@ -47,6 +49,7 @@ const compiledProjection = compileNativePackage({
   name: 'dhpk',
   version,
   sourceCommit,
+  profileSelection,
 });
 const result = materializeNativePackage({
   inventory,
@@ -55,6 +58,7 @@ const result = materializeNativePackage({
   name: 'dhpk',
   version,
   sourceCommit,
+  profileSelection,
   compiledProjection,
 });
 const structural = validateNativeCandidate({ manifestSkillsField: result.manifestSkillsField, packageRoot: resolvedOutDir });

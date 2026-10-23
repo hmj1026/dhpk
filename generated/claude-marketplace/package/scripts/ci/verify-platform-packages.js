@@ -26,6 +26,8 @@ const {
   materializeNativePackage,
   verifyNativePackage,
   fingerprintDir: fingerprintNative,
+  resolveCodexNativeProfileSelection,
+  recognizesLegacyCodexNativeReceipt,
 } = require('../lib/codex-native-package');
 const {
   materializeAgyPluginPackage,
@@ -113,9 +115,13 @@ function sourceCommit(root, fallback) {
   return result.status === 0 ? result.stdout.trim() : fallback;
 }
 
-function profileSelectionFromReceipt({ receipt, surface, inventory, profiles, moduleCatalog }) {
+function profileSelectionFromReceipt({ root, receipt, surface, inventory, profiles, moduleCatalog }) {
+  if (!receipt) return null;
+  if (surface === 'codex-native' && recognizesLegacyCodexNativeReceipt({ receipt, root, inventory })) {
+    return resolveCodexNativeProfileSelection({ root, inventory, profiles, moduleCatalog });
+  }
   const standalone = receipt && (receipt.selectionMode === 'standalone' || receipt.profileId === 'standalone');
-  if (!receipt || (!receipt.profileId && !standalone)) return null;
+  if (!receipt.profileId && !standalone) return null;
   const required = ['selectedStableIds', 'selectionFingerprint', 'selectionPolicyVersion'];
   for (const field of required) {
     if (receipt[field] === undefined || receipt[field] === null) {
@@ -163,7 +169,7 @@ function verifyAgent({ root, targetCommit, targetTree, inventory, profiles, modu
     outDir: temp,
     version,
     sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
-    profileSelection: profileSelectionFromReceipt({ receipt: trackedProvenance, surface: 'agent-plugin', inventory, profiles, moduleCatalog }),
+    profileSelection: profileSelectionFromReceipt({ root, receipt: trackedProvenance, surface: 'agent-plugin', inventory, profiles, moduleCatalog }),
   });
   const structural = validateAgentPluginPackage(temp);
   const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'agent-plugin', { root, targetCommit, targetTree });
@@ -186,7 +192,7 @@ function verifyCursor({ root, targetCommit, targetTree, inventory, profiles, mod
     outDir: temp,
     version,
     sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
-    profileSelection: profileSelectionFromReceipt({ receipt: trackedProvenance, surface: 'cursor-plugin', inventory, profiles, moduleCatalog }),
+    profileSelection: profileSelectionFromReceipt({ root, receipt: trackedProvenance, surface: 'cursor-plugin', inventory, profiles, moduleCatalog }),
   });
   const structural = validateCursorPackage({ packageRoot: temp, inventory });
   const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'cursor-plugin', { root, targetCommit, targetTree });
@@ -208,7 +214,7 @@ function verifyCursor({ root, targetCommit, targetTree, inventory, profiles, mod
 function verifyCodex({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked, temp }) {
   const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
   const profileSelection = profileSelectionFromReceipt({
-    receipt: trackedProvenance, surface: 'codex-native', inventory, profiles, moduleCatalog,
+    root, receipt: trackedProvenance, surface: 'codex-native', inventory, profiles, moduleCatalog,
   });
   const generated = materializeNativePackage({
     inventory,
@@ -237,7 +243,7 @@ function verifyCodex({ root, targetCommit, targetTree, inventory, profiles, modu
 function verifyAgy({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked, temp }) {
   const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
   const profileSelection = profileSelectionFromReceipt({
-    receipt: trackedProvenance, surface: 'agy-plugin', inventory, profiles, moduleCatalog,
+    root, receipt: trackedProvenance, surface: 'agy-plugin', inventory, profiles, moduleCatalog,
   });
   const generated = materializeAgyPluginPackage({
     inventory,
@@ -509,6 +515,7 @@ if (require.main === module) main();
 module.exports = {
   parseArgs,
   resolveSurfaceSelection,
+  profileSelectionFromReceipt,
   reportFromSurfaces,
   expectedAgyPolicy,
   expectedCursorPolicyBody,

@@ -14,6 +14,8 @@ const ROOT = path.join(__dirname, '..');
 const MARKETPLACE = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'marketplace.json'), 'utf8'));
 const ENTRY = MARKETPLACE.plugins.find((plugin) => plugin.name === 'dhpk');
 const GENERATOR = require('../scripts/ci/gen-claude-marketplace-package');
+const INSTALLER = path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh');
+const ADAPTER = path.join(ROOT, 'skills', 'harness-setup', 'scripts', 'install-codex-project.sh');
 
 function resolvePackagePath(value) {
   return path.resolve(ROOT, value.replace(/^\.\//, ''));
@@ -26,6 +28,55 @@ function assertNoSymlinks(directory) {
     assert.ok(!entry.isSymbolicLink(), `marketplace package must not depend on symlink '${absolute}'`);
     if (entry.isDirectory()) assertNoSymlinks(absolute);
   }
+}
+
+function makeHarnessPackageRoot(parent) {
+  const root = path.join(parent, 'source checkout');
+  for (const relative of [
+    '.claude-plugin', 'agent-traps', 'agents', 'commands', 'docs', 'hooks',
+    'manifests', 'modules', 'rules', 'scripts', 'skills', 'templates',
+  ]) fs.mkdirSync(path.join(root, relative), { recursive: true });
+
+  fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'),
+    '{"name":"dhpk","version":"1.0.0"}\n');
+  const skillRoot = path.join(root, 'skills', 'harness-setup');
+  fs.mkdirSync(path.join(skillRoot, 'scripts'), { recursive: true });
+  fs.writeFileSync(path.join(skillRoot, 'SKILL.md'), [
+    '---',
+    'name: harness-setup',
+    'description: Configure harness assets.',
+    '---',
+    'Run the explicit setup adapter.',
+    '',
+  ].join('\n'));
+  fs.copyFileSync(ADAPTER, path.join(skillRoot, 'scripts', 'install-codex-project.sh'));
+  fs.chmodSync(path.join(skillRoot, 'scripts', 'install-codex-project.sh'), 0o755);
+
+  fs.mkdirSync(path.join(root, 'scripts', 'hooks'), { recursive: true });
+  fs.copyFileSync(INSTALLER, path.join(root, 'scripts', 'hooks', 'install-codex-skills.sh'));
+  fs.chmodSync(path.join(root, 'scripts', 'hooks', 'install-codex-skills.sh'), 0o755);
+  fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify({
+    schema: 'dhpk.distribution-inventory.v2',
+    surfaces: ['claude-core'],
+    skills: [{
+      id: 'harness-setup',
+      name: 'harness-setup',
+      path: 'skills/harness-setup',
+      profiles: ['core'],
+      surfaces: ['claude-core'],
+    }],
+  }, null, 2)}\n`);
+  fs.writeFileSync(path.join(root, 'manifests', 'marketplace-selection.json'), `${JSON.stringify({
+    schema: 'dhpk.marketplace-selection.v1',
+    skills: [{
+      id: 'harness-setup',
+      authority: 'workspace-write',
+      kind: 'entry',
+      owner: 'harness-setup',
+      selection: 'host-only',
+    }],
+  }, null, 2)}\n`);
+  return { root, skillRoot };
 }
 
 test('Claude marketplace points at a physical package without root project context', () => {
@@ -115,6 +166,62 @@ test('Claude marketplace generator omits local process docs and keeps durable co
       fs.readFileSync(path.join(out, 'docs/contracts/package-boundary.md'), 'utf8'),
       'docs/contracts/package-boundary.md\n',
     );
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('Claude packaging supplies a physical Codex installer that survives standalone relocation', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-harness-package-'));
+  const { root, skillRoot } = makeHarnessPackageRoot(temp);
+  const out = path.join(temp, 'package');
+  try {
+    const source = path.join(root, 'scripts', 'hooks', 'install-codex-skills.sh');
+    const localSource = path.join(skillRoot, 'scripts', 'lib', 'install-codex-skills.sh');
+    assert.strictEqual(fs.existsSync(localSource), false,
+      'the canonical checkout source must not contain a Skill-local duplicate');
+
+    GENERATOR.materialize({ root, out });
+
+    const packagedInstaller = path.join(out, 'skills', 'harness-setup', 'scripts', 'lib', 'install-codex-skills.sh');
+    const stat = fs.lstatSync(packagedInstaller);
+    assert.ok(stat.isFile() && !stat.isSymbolicLink(), 'the generated installer must be a physical file');
+    assert.ok((stat.mode & 0o111) !== 0, 'the generated installer must stay executable');
+    assert.deepStrictEqual(fs.readFileSync(packagedInstaller), fs.readFileSync(source));
+
+    const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
+    const record = provenance.files.find((file) =>
+      file.destination === 'skills/harness-setup/scripts/lib/install-codex-skills.sh');
+    assert.ok(record, 'the package resource must be recorded in provenance');
+    assert.strictEqual(record.sourcePath, 'scripts/hooks/install-codex-skills.sh');
+
+    const relocated = path.join(temp, 'relocated skill');
+    fs.cpSync(path.join(out, 'skills', 'harness-setup'), relocated, { recursive: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    const adapter = path.join(relocated, 'scripts', 'install-codex-project.sh');
+    const help = spawnSync('bash', [adapter, '--help'], {
+      cwd: temp,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assert.strictEqual(help.status, 0, `${help.stdout}\n${help.stderr}`);
+    assert.match(help.stdout, /--migrate/);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('Claude package drift check detects a changed package-only Codex installer', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-harness-drift-'));
+  const { root } = makeHarnessPackageRoot(temp);
+  const out = path.join(temp, 'package');
+  try {
+    GENERATOR.materialize({ root, out });
+    const packagedInstaller = path.join(out, 'skills', 'harness-setup', 'scripts', 'lib', 'install-codex-skills.sh');
+    fs.appendFileSync(packagedInstaller, '\n# manual drift\n');
+    const result = GENERATOR.check({ root, out });
+    assert.strictEqual(result.ok, false);
+    assert.match(result.error, /out of date/i);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

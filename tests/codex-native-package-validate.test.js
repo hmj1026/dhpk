@@ -453,9 +453,11 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
   const os = require('node:os');
   const { spawnSync } = require('node:child_process');
   const { test, assert } = require('./_lib/tinytest');
+  const { createInstallationReceiptIdentity } = require('../scripts/lib/platform-provenance');
   const {
     compileNativePackage,
     materializeNativePackage,
+    resolveCodexNativeProfileSelection,
     validateNativeCandidate,
     verifyNativePackage,
     fingerprintDir,
@@ -573,6 +575,104 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       assert.strictEqual(Object.prototype.hasOwnProperty.call(provenance, 'marketplacePublication'), false);
       assert.strictEqual(provenance.profileId, 'minimal');
     } finally { fs.rmSync(out, { recursive: true, force: true }); }
+  });
+
+  test('Codex native generation requires the named profile for its exact 16-skill package', () => {
+    const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
+    const expectedIds = [
+      'change-verdict', 'code-trace', 'create-pr', 'doc-maintain', 'flow-drive', 'flow-guide',
+      'git-smart-commit', 'git-worktree', 'library-author', 'opsx-apply-resume', 'precommit',
+      'proposal-analyze', 'release-creator', 'repo-verify', 'tdd', 'ui-ux-verify',
+    ].sort();
+    const profile = profiles.profiles['codex-native'];
+    assert.ok(profile, 'the native package selection must be an active named profile');
+    assert.deepStrictEqual(profile.skillIds.slice().sort(), expectedIds);
+
+    const out = tmpDir('dhpk-native-missing-profile-');
+    try {
+      assert.throws(
+        () => compileNativePackage({ inventory, root: ROOT, outDir: out, version: '1.2.3', sourceCommit: 'abc123' }),
+        /profile selection.*required|requires.*profile/i,
+      );
+    } finally { fs.rmSync(out, { recursive: true, force: true }); }
+  });
+
+  test('native verifier rejects installation IDs that differ from physical package membership', () => {
+    const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    const profileSelection = resolveCodexNativeProfileSelection({ root: ROOT, inventory });
+    const packageRoot = tmpDir('dhpk-native-receipt-set-');
+    try {
+      materializeNativePackage({
+        inventory,
+        root: ROOT,
+        outDir: packageRoot,
+        name: 'dhpk',
+        version: '1.2.3',
+        sourceCommit: 'a'.repeat(40),
+        profileSelection,
+      });
+      const provenancePath = path.join(packageRoot, 'provenance.json');
+      const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+      provenance.installation.selectedStableIds = provenance.installation.selectedStableIds.slice(1);
+      fs.writeFileSync(provenancePath, `${JSON.stringify(provenance, null, 2)}\n`);
+
+      const result = verifyNativePackage({ packageRoot, inventory, sourceRoot: ROOT, profileSelection, stage: 'structural' });
+      assert.strictEqual(result.ok, false, 'nested installation identity must match actual package IDs');
+      assert.ok(result.errors.some((error) => /installation.*(selected|membership|package)/i.test(error)), result.errors.join('\n'));
+    } finally { fs.rmSync(packageRoot, { recursive: true, force: true }); }
+  });
+
+  test('exact legacy compat-v1 Codex receipt is recognized without rewriting historical identities', () => {
+    const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    const profileSelection = resolveCodexNativeProfileSelection({ root: ROOT, inventory });
+    const packageRoot = tmpDir('dhpk-native-legacy-receipt-');
+    try {
+      materializeNativePackage({
+        inventory,
+        root: ROOT,
+        outDir: packageRoot,
+        name: 'dhpk',
+        version: '1.2.3',
+        sourceCommit: 'a'.repeat(40),
+        profileSelection,
+      });
+      const provenancePath = path.join(packageRoot, 'provenance.json');
+      const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+      provenance.installation = createInstallationReceiptIdentity({
+        surface: 'codex-native',
+        scope: 'project',
+        sourceVersion: provenance.sourceVersion,
+        inventoryDigest: provenance.inventoryDigest,
+        profileId: 'compat-v1',
+        selectedStableIds: profileSelection.selectedStableIds,
+        ownedRoots: ['plugins/dhpk'],
+      });
+      const originalPlanId = provenance.installation.planId;
+      const originalRollbackIdentity = provenance.installation.rollbackIdentity;
+      provenance.profileId = 'compat-v1';
+      provenance.installation.profileId = 'compat-v1';
+      fs.writeFileSync(provenancePath, `${JSON.stringify(provenance, null, 2)}\n`);
+
+      let result = verifyNativePackage({ packageRoot, inventory, sourceRoot: ROOT, profileSelection, stage: 'structural' });
+      assert.strictEqual(result.ok, true, result.errors.join('\n'));
+      const accepted = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+      assert.strictEqual(accepted.installation.planId, originalPlanId);
+      assert.strictEqual(accepted.installation.rollbackIdentity, originalRollbackIdentity);
+
+      const rejectMutation = (mutate, expectedMessage) => {
+        const candidate = JSON.parse(JSON.stringify(accepted));
+        mutate(candidate);
+        fs.writeFileSync(provenancePath, `${JSON.stringify(candidate, null, 2)}\n`);
+        result = verifyNativePackage({ packageRoot, inventory, sourceRoot: ROOT, profileSelection, stage: 'structural' });
+        assert.strictEqual(result.ok, false, `invalid legacy identity must fail: ${expectedMessage}`);
+        assert.ok(result.errors.some((error) => expectedMessage.test(error)), result.errors.join('\n'));
+      };
+      rejectMutation((candidate) => { candidate.installation.selectedStableIds.pop(); }, /selectedStableIds|exact Codex native package selection/);
+      rejectMutation((candidate) => { candidate.installation.ownership.owner = 'plugins/other'; }, /installation owner/);
+      rejectMutation((candidate) => { candidate.installation.scope = 'user'; }, /scope/);
+      rejectMutation((candidate) => { candidate.installation.ownership.roots = ['plugins/other']; }, /ownership roots/);
+    } finally { fs.rmSync(packageRoot, { recursive: true, force: true }); }
   });
 
   test('native materialization preserves executable source modes through the artifact store', () => {
@@ -941,7 +1041,11 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
   const path = require('node:path');
   const { spawnSync } = require('node:child_process');
   const { test, assert } = require('./_lib/tinytest');
-  const { materializeNativePackage, verifyNativePackage } = require('../scripts/lib/codex-native-package');
+  const {
+    materializeNativePackage,
+    resolveCodexNativeProfileSelection,
+    verifyNativePackage,
+  } = require('../scripts/lib/codex-native-package');
 
   const ROOT = path.join(__dirname, '..');
   const CLI = path.join(ROOT, 'scripts', 'ci', 'verify-codex-native-package.js');
@@ -959,13 +1063,21 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       skills: [{ id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
     };
     fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), JSON.stringify(inventory));
+    fs.writeFileSync(path.join(root, 'manifests', 'install-profiles.json'), JSON.stringify({
+      profiles: { 'codex-native': { skillIds: ['tdd'], modules: [] } },
+    }));
+    fs.writeFileSync(path.join(root, 'manifests', 'module-catalog.json'), JSON.stringify({ modules: [] }));
     return { root, inventory };
+  }
+
+  function fixtureProfileSelection(root, inventory) {
+    return resolveCodexNativeProfileSelection({ root, inventory });
   }
 
   test('passes when the tracked package matches a fresh generation from the same sources', () => {
     const { root, inventory } = fixtureRepo();
     try {
-      materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
+      materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40), profileSelection: fixtureProfileSelection(root, inventory) });
       const res = spawnSync('node', [CLI, '--repo-root', root], { encoding: 'utf8' });
       assert.strictEqual(res.status, 0, res.stdout + res.stderr);
     } finally {
@@ -976,7 +1088,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
   test('fails and names the extra skill when the tracked package has drifted membership', () => {
     const { root, inventory } = fixtureRepo();
     try {
-      materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
+      materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40), profileSelection: fixtureProfileSelection(root, inventory) });
       // Simulate drift: inventory gains a new codex-native skill after the tracked package was generated.
       fs.mkdirSync(path.join(root, 'skills', 'extra-skill'), { recursive: true });
       fs.writeFileSync(path.join(root, 'skills', 'extra-skill', 'SKILL.md'), '---\nname: extra-skill\n---\n');
@@ -990,7 +1102,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
 
       const res = spawnSync('node', [CLI, '--repo-root', root], { encoding: 'utf8' });
       assert.notStrictEqual(res.status, 0);
-      assert.match(res.stderr, /membership drifted/);
+      assert.match(res.stderr, /membership drifted|missing skill from native candidate/);
       assert.match(res.stderr, /extra-skill/);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -1000,7 +1112,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
   test('fails when a canonical skill file changes content after the tracked package was generated', () => {
     const { root, inventory } = fixtureRepo();
     try {
-      materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
+      materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40), profileSelection: fixtureProfileSelection(root, inventory) });
       fs.writeFileSync(path.join(root, 'skills', 'tdd-workflow', 'SKILL.md'), '---\nname: tdd-workflow\n---\nchanged content\n');
 
       const res = spawnSync('node', [CLI, '--repo-root', root], { encoding: 'utf8' });
@@ -1015,7 +1127,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     const { root, inventory } = fixtureRepo();
     try {
       const packageRoot = path.join(root, 'plugins', 'dhpk');
-      materializeNativePackage({ inventory, root, outDir: packageRoot, name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
+      materializeNativePackage({ inventory, root, outDir: packageRoot, name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40), profileSelection: fixtureProfileSelection(root, inventory) });
       const provenancePath = path.join(packageRoot, 'provenance.json');
       const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
       delete provenance.routingProjection.entries;
@@ -1033,7 +1145,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
   test('fails and identifies tracked frontmatter whose name differs from its public directory', () => {
     const { root, inventory } = fixtureRepo();
     try {
-      materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
+      materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40), profileSelection: fixtureProfileSelection(root, inventory) });
       const trackedSkill = path.join(root, 'plugins', 'dhpk', 'skills', 'tdd-workflow', 'SKILL.md');
       fs.writeFileSync(trackedSkill, '---\nname: tdd\n---\n');
 
@@ -1058,6 +1170,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
         && inventoryById.get(entry.id).surfaces.includes('codex-native')).map((entry) => entry.id).sort();
       const expectedIds = [...commonIds, ...hostOnlyIds].sort();
 
+      const profileSelection = resolveCodexNativeProfileSelection({ root: ROOT, inventory });
       const generated = materializeNativePackage({
         inventory,
         root: ROOT,
@@ -1065,8 +1178,9 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
         name: 'dhpk',
         version: '1.0.0',
         sourceCommit: priorReceipt.sourceCommit,
+        profileSelection,
       });
-      const verified = verifyNativePackage({ packageRoot, inventory, sourceRoot: ROOT, stage: 'structural' });
+      const verified = verifyNativePackage({ packageRoot, inventory, sourceRoot: ROOT, profileSelection, stage: 'structural' });
       const provenance = JSON.parse(fs.readFileSync(path.join(packageRoot, 'provenance.json'), 'utf8'));
       const actualNames = fs.readdirSync(path.join(packageRoot, 'skills')).filter((name) => fs.existsSync(path.join(packageRoot, 'skills', name, 'SKILL.md'))).sort();
 
@@ -1077,6 +1191,9 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);
       assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, hostOnlyIds);
       assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);
+      assert.strictEqual(provenance.profileId, 'codex-native');
+      assert.deepStrictEqual(provenance.selectedStableIds.slice().sort(), expectedIds);
+      assert.deepStrictEqual(provenance.installation.selectedStableIds.slice().sort(), expectedIds);
     } finally {
       fs.rmSync(packageRoot, { recursive: true, force: true });
     }

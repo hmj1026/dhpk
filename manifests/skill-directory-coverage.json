@@ -940,12 +940,6 @@
           "required_by": [
             "scripts/install-assets.sh"
           ]
-        },
-        {
-          "path": "scripts/lib/install-codex-skills.sh",
-          "required_by": [
-            "scripts/install-codex-project.sh"
-          ]
         }
       ]
     },

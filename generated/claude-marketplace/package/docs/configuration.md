@@ -10,6 +10,11 @@ historical receipt metadata, not publication choices. Module presets remain
 separate. See [`docs/platform-installation.md`](./platform-installation.md) for
 host-specific selection and receipt rules.
 
+The tracked Codex native package uses a separate `codex-native` provenance
+profile to bind its exact published skill IDs. This package-generation identity
+does not add a user-selectable installation profile or change the `common`
+default.
+
 ## Where to set a value
 
 There are three places a knob's value can come from, in increasing precedence:

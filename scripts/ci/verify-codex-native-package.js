@@ -23,6 +23,7 @@ const path = require('path');
 const {
   compileNativePackage,
   materializeNativePackage,
+  resolveCodexNativeProfileSelection,
   verifyNativePackage,
 } = require('../lib/codex-native-package');
 const { validateSurfaceReceipt } = require('../lib/platform-provenance');
@@ -54,6 +55,7 @@ const trackedFingerprints = JSON.parse(fs.readFileSync(trackedFingerprintsPath, 
 const trackedProvenance = JSON.parse(fs.readFileSync(trackedProvenancePath, 'utf8'));
 
 const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+const profileSelection = resolveCodexNativeProfileSelection({ root: ROOT, inventory });
 const tmpOut = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-drift-check-'));
 
 let fresh;
@@ -65,6 +67,7 @@ try {
     name: trackedManifest.name,
     version: trackedManifest.version,
     sourceCommit: trackedProvenance.sourceCommit,
+    profileSelection,
   });
   fresh = materializeNativePackage({
     inventory,
@@ -73,6 +76,7 @@ try {
     name: trackedManifest.name,
     version: trackedManifest.version,
     sourceCommit: trackedProvenance.sourceCommit,
+    profileSelection,
     compiledProjection,
   });
 } finally {

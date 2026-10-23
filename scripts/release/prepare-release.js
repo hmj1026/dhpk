@@ -23,7 +23,7 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { SEMVER_PATTERN, MANIFEST_PATHS, AGY_GENERATOR_DOC_PATHS, checkParity, releaseScope, writeAgyGeneratorDocPins } = require('../lib/release-parity');
 const { readFragments, validateFragments, promote } = require('../lib/changelog-fragments');
-const { materializeNativePackage } = require('../lib/codex-native-package');
+const { materializeNativePackage, resolveCodexNativeProfileSelection } = require('../lib/codex-native-package');
 const { materializeAgentPluginPackage } = require('../lib/agent-plugin-package');
 const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
 const { materializeCursorPackage } = require('../lib/cursor-plugin-package');
@@ -567,13 +567,22 @@ function main() {
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: args.root, encoding: 'utf8' }).trim();
   const targetTree = resolveGeneratedFromTree(args.root, sourceCommit);
   if (!targetTree) throw new Error('unable to resolve release target source tree');
+  const codexNativeProfileSelection = resolveCodexNativeProfileSelection({ root: args.root, inventory });
   const stagingRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-release-packages-'));
   const stagedNative = path.join(stagingRoot, 'dhpk');
   const stagedAgent = path.join(stagingRoot, 'dhpk-agent');
   const stagedCursor = path.join(stagingRoot, 'dhpk-cursor');
   const stagedAgy = path.join(stagingRoot, 'dhpk-agy');
   try {
-    materializeNativePackage({ inventory, root: args.root, outDir: stagedNative, name: 'dhpk', version: args.version, sourceCommit });
+    materializeNativePackage({
+      inventory,
+      root: args.root,
+      outDir: stagedNative,
+      name: 'dhpk',
+      version: args.version,
+      sourceCommit,
+      profileSelection: codexNativeProfileSelection,
+    });
     const stagedAgentResult = materializeAgentPluginPackage({ inventory, root: args.root, outDir: stagedAgent, name: 'dhpk', version: args.version, sourceCommit });
     const stagedCursorResult = materializeCursorPackage({ inventory, root: args.root, outDir: stagedCursor, version: args.version, sourceCommit });
     let stagedAgyValidation = { errors: [] };

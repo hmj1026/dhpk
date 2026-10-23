@@ -1224,22 +1224,33 @@ const { test, run, assert } = require('./_lib/tinytest');
   test('projected AGY rules carry stable triggers and plugin.json lists only skills', () => {
     const root = tempRoot();
     const outDir = path.join(root, 'package');
+    const bundleTailSentinel = 'DHPK_TEST_POLICY_BUNDLE_TAIL_SENTINEL';
+    const bundleReference = 'rules/referenced-policy-detail.md';
     const bodies = {
       'rules/execution-policy-kernel.md': '# Execution Policy Kernel\n\nThis is the short, always-visible safety kernel.\n',
-      'rules/execution-policy.md': '# Execution Policy\n\nThe policy file remains the single source of truth.\n',
+      'rules/execution-policy.md': `# Execution Policy\n\nSee \`\${POLICY_BUNDLE_ROOT}/${bundleReference}\`.\n\n${bundleTailSentinel}\n`,
       'rules/anti-rationalization.md': '# Anti-Rationalization Patterns\n\nNot always-on; referenced from the policy.\n',
       'rules/model-economics.md': '# Model Economics — tier map & cost rules\n\nOpt-in cost lens referenced from the policy.\n',
       'rules/tool-routing.md': '# Tool Routing — gitnexus / cx / claude-mem / Read / Grep\n\nCompact reference card.\n',
     };
     const frontmatter = {
       'rules/execution-policy-kernel.md': '---\ntrigger: always_on\ndescription: Always-visible execution policy kernel\n---\n',
-      'rules/execution-policy.md': '---\ntrigger: always_on\ndescription: Execution policy single source of truth\n---\n',
       'rules/anti-rationalization.md': '---\ntrigger: model_decision\ndescription: Anti-rationalization patterns stop-loss reference\n---\n',
       'rules/model-economics.md': '---\ntrigger: model_decision\ndescription: Opt-in model tier and cost rules\n---\n',
       'rules/tool-routing.md': '---\ntrigger: model_decision\ndescription: Tool routing reference card\n---\n',
     };
     try {
       const inventory = writeFixture(root);
+      const flowGuideRoot = path.join(root, 'skills', 'flow-guide');
+      const policyResource = path.join(flowGuideRoot, 'references', 'execution-bundle', 'rules', 'execution-policy.md');
+      fs.mkdirSync(path.dirname(policyResource), { recursive: true });
+      fs.writeFileSync(path.join(flowGuideRoot, 'SKILL.md'), '---\nname: flow-guide\ndescription: Flow Guide\n---\n# Flow Guide\n');
+      fs.writeFileSync(policyResource, bodies['rules/execution-policy.md']);
+      const bundleReferencePath = path.resolve(path.dirname(path.dirname(policyResource)), bundleReference);
+      fs.mkdirSync(path.dirname(bundleReferencePath), { recursive: true });
+      fs.writeFileSync(bundleReferencePath, '# Referenced fixture resource\n');
+      inventory.skills.push({ id: 'flow-guide', path: 'skills/flow-guide', surfaces: ['agy-plugin'] });
+      inventory.surface_membership['agy-plugin'].push('flow-guide');
       for (const [relative, body] of Object.entries(bodies)) {
         fs.writeFileSync(path.join(root, relative), body);
       }
@@ -1253,11 +1264,39 @@ const { test, run, assert } = require('./_lib/tinytest');
         sourceCommit: COMMIT,
       });
       for (const [relative, body] of Object.entries(bodies)) {
-        assert.strictEqual(
-          fs.readFileSync(path.join(outDir, relative), 'utf8'),
-          frontmatter[relative] + body,
-          relative,
-        );
+        const projectedPath = path.join(outDir, relative);
+        const projected = fs.readFileSync(projectedPath, 'utf8');
+        if (relative === 'rules/execution-policy.md') {
+          const policyFrontmatter = projected.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+          assert.ok(policyFrontmatter, 'execution policy has parseable trigger metadata');
+          assert.match(policyFrontmatter[1], /^trigger:\s*model_decision\s*$/m);
+          const policyLink = projected.match(/\[[^\]]+\]\(([^)]+)\)/);
+          assert.ok(policyLink, 'execution policy points to its selected bundle resource');
+          const resolvedResource = path.resolve(path.dirname(projectedPath), policyLink[1]);
+          const expectedResource = path.join(
+            outDir,
+            'skills',
+            'flow-guide',
+            'references',
+            'execution-bundle',
+            'rules',
+            'execution-policy.md',
+          );
+          assert.strictEqual(resolvedResource, expectedResource);
+          assert.ok(fs.statSync(resolvedResource).isFile(), 'relative policy link resolves to a package resource');
+          continue;
+        }
+        assert.strictEqual(projected, frontmatter[relative] + body, relative);
+      }
+      const bundledPolicyPath = path.join(outDir, 'skills', 'flow-guide', 'references', 'execution-bundle', 'rules', 'execution-policy.md');
+      const bundledPolicy = fs.readFileSync(bundledPolicyPath, 'utf8');
+      assert.ok(bundledPolicy.endsWith(`${bundleTailSentinel}\n`), 'the selected policy bundle retains its tail');
+      const bundleRoot = path.dirname(path.dirname(bundledPolicyPath));
+      const references = [...bundledPolicy.matchAll(/\$\{POLICY_BUNDLE_ROOT\}\/([^\s`"<>]+)/g)]
+        .map((match) => match[1].replace(/[),;:]+$/, ''));
+      assert.deepStrictEqual(references, [bundleReference]);
+      for (const reference of references) {
+        assert.ok(fs.existsSync(path.resolve(bundleRoot, reference)), `missing policy bundle reference: ${reference}`);
       }
       assert.strictEqual(fs.readFileSync(path.join(outDir, 'rules', 'sample.md'), 'utf8'), '# Rule\n');
       assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(outDir, 'plugin.json'), 'utf8')), {
@@ -1270,6 +1309,87 @@ const { test, run, assert } = require('./_lib/tinytest');
       assert.ok(fs.statSync(path.join(outDir, 'rules')).isDirectory());
       const checked = validateAgyPluginPackage(outDir, { inventory, expectedVersion: '0.39.0' });
       assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('AGY execution policy points to the complete on-demand bundle and preserves its references', () => {
+    const root = tempRoot();
+    const outDir = path.join(root, 'package');
+    const sourceRoot = path.join(__dirname, '..');
+    const inventory = require('../manifests/distribution-inventory.json');
+    const policyRelative = 'rules/execution-policy.md';
+    try {
+      materializeAgyPluginPackage({
+        root: sourceRoot,
+        inventory,
+        outDir,
+        version: '0.39.0',
+        sourceVersion: '0.39.0',
+        sourceCommit: COMMIT,
+      });
+
+      const projectedPath = path.join(outDir, policyRelative);
+      const projected = fs.readFileSync(projectedPath, 'utf8');
+      const selectedFlowGuide = inventory.skills.find((skill) => skill.id === 'flow-guide');
+      assert.ok(selectedFlowGuide, 'the package inventory selects Flow Guide');
+      const expectedResourcePath = path.join(
+        outDir,
+        selectedFlowGuide.path,
+        'references',
+        'execution-bundle',
+        'rules',
+        'execution-policy.md',
+      );
+      const policyFrontmatter = projected.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+      assert.ok(policyFrontmatter, 'execution policy has parseable trigger metadata');
+      assert.match(policyFrontmatter[1], /^trigger:\s*model_decision\s*$/m);
+      const policyLink = projected.match(/\[[^\]]+\]\(([^)]+)\)/);
+      assert.ok(policyLink, 'execution policy points to its selected bundle resource');
+      assert.ok(!path.isAbsolute(policyLink[1]), 'execution policy link is relative');
+      const resourcePath = path.resolve(path.dirname(projectedPath), policyLink[1]);
+      const packageRelativeResource = path.relative(outDir, resourcePath);
+      assert.ok(
+        packageRelativeResource && packageRelativeResource !== '..' && !packageRelativeResource.startsWith(`..${path.sep}`),
+        'policy resource stays inside the package',
+      );
+      assert.strictEqual(resourcePath, expectedResourcePath);
+      assert.ok(Buffer.byteLength(projected, 'utf8') <= 24_000, 'AGY Host rules must stay within the 24,000-byte limit');
+      assert.ok(fs.statSync(resourcePath).isFile(), 'relative policy pointer resolves inside the package');
+
+      const canonicalPolicy = fs.readFileSync(path.join(sourceRoot, policyRelative));
+      const bundledPolicy = fs.readFileSync(resourcePath);
+      assert.deepStrictEqual(bundledPolicy, canonicalPolicy, 'the complete canonical policy remains in the Flow Guide bundle');
+      const bundleRoot = path.dirname(path.dirname(resourcePath));
+      const references = [...canonicalPolicy.toString('utf8').matchAll(/\$\{POLICY_BUNDLE_ROOT\}\/([^\s`"<>]+)/g)]
+        .map((match) => match[1].replace(/[),;:]+$/, ''))
+        .filter((reference) => reference !== '...');
+      assert.ok(references.length > 0, 'canonical policy should retain its on-demand resource references');
+      for (const reference of references) {
+        assert.ok(fs.existsSync(path.resolve(bundleRoot, reference)), `missing policy bundle reference: ${reference}`);
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('AGY generation rejects an execution policy without its selected bundle resource', () => {
+    const root = tempRoot();
+    const outDir = path.join(root, 'package');
+    try {
+      const inventory = writeFixture(root);
+      fs.writeFileSync(path.join(root, 'rules', 'execution-policy.md'), '# Execution Policy\n');
+      inventory.agy_plugin.rules.push('rules/execution-policy.md');
+      assert.throws(() => materializeAgyPluginPackage({
+        root,
+        inventory,
+        outDir,
+        version: '0.39.0',
+        sourceVersion: '0.39.0',
+        sourceCommit: COMMIT,
+      }), /AGY execution policy bundle resource is missing/);
+      assert.strictEqual(fs.existsSync(outDir), false, 'generation must not publish a dangling policy pointer');
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

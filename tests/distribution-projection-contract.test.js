@@ -958,12 +958,13 @@ test('plans can derive the ownership binding from an inventory without changing 
   const path = require('node:path');
   const { compileAgentPluginPackage } = require('../scripts/lib/agent-plugin-package');
   const { compileCursorPackage } = require('../scripts/lib/cursor-plugin-package');
-  const { compileNativePackage } = require('../scripts/lib/codex-native-package');
+  const { compileNativePackage, resolveCodexNativeProfileSelection } = require('../scripts/lib/codex-native-package');
   const { compileMarketplacePublicationView } = require('../scripts/lib/marketplace-selection');
 
   const ROOT = path.join(__dirname, '..');
   const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const SELECTION = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
+  const CODEX_NATIVE_PROFILE = resolveCodexNativeProfileSelection({ root: ROOT, inventory: INVENTORY });
 
   function tempDir(prefix) {
     return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -982,7 +983,7 @@ test('plans can derive the ownership binding from an inventory without changing 
     const surfaces = [
       ['agent-plugin', 'agent-plugin', (outDir) => compileAgentPluginPackage({ inventory: INVENTORY, root: ROOT, outDir })],
       ['cursor-plugin', 'cursor-plugin', (outDir) => compileCursorPackage({ inventory: INVENTORY, root: ROOT, outDir })],
-      ['codex-native', 'codex-native', (outDir) => compileNativePackage({ inventory: INVENTORY, root: ROOT, outDir })],
+      ['codex-native', 'codex-native', (outDir) => compileNativePackage({ inventory: INVENTORY, root: ROOT, outDir, profileSelection: CODEX_NATIVE_PROFILE })],
     ];
     for (const [surface, hostSurface, compile] of surfaces) {
       const outDir = tempDir(`dhpk-selection-plan-${surface}-`);
@@ -1009,11 +1010,19 @@ test('plans can derive the ownership binding from an inventory without changing 
           assert.deepStrictEqual(projection.provenance.sharedSkillIds, expectedPublication.publicEntryIds,
             'Cursor common entries must remain bound to the shared Agent package');
         }
-        assert.deepStrictEqual(
-          projection.plan.selectedStableIds,
-          projection.plan.entries.map((entry) => entry.stableId),
-          `${surface} output plan IDs must bind every emitted file`,
-        );
+        if (surface === 'codex-native') {
+          assert.deepStrictEqual(
+            projection.plan.selectedStableIds,
+            CODEX_NATIVE_PROFILE.selectedStableIds,
+            'Codex native selected IDs must bind the exact named profile, independently of generated file IDs',
+          );
+        } else {
+          assert.deepStrictEqual(
+            projection.plan.selectedStableIds,
+            projection.plan.entries.map((entry) => entry.stableId),
+            `${surface} output plan IDs must bind every emitted file`,
+          );
+        }
       } finally {
         fs.rmSync(outDir, { recursive: true, force: true });
       }
