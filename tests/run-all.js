@@ -256,19 +256,40 @@ function createFileTiming(file, result, durationMs) {
   };
 }
 
-function runSequential(files, env, timeoutMs) {
+function sendWorkerProgress(event, file, status) {
+  if (typeof process.send !== 'function') return Promise.resolve();
+  const message = {
+    type: 'dhpk-test-progress',
+    event,
+    file: path.basename(file),
+    ...(status ? { status } : {}),
+  };
+  return new Promise((resolve) => {
+    try {
+      process.send(message, () => resolve());
+    } catch (_error) {
+      // Progress is advisory and must not replace the test result.
+      resolve();
+    }
+  });
+}
+
+async function runSequential(files, env, timeoutMs) {
   let failed = 0;
   const fileTimings = [];
   const startedAt = process.hrtime.bigint();
+  const progressEnabled = env.DHPK_TEST_PROGRESS === '1' && typeof process.send === 'function';
   for (const file of files) {
     const relative = path.relative(TESTS_DIR, file);
     console.log(`\n# ${relative}`);
+    if (progressEnabled) await sendWorkerProgress('start', file);
     const fileStartedAt = process.hrtime.bigint();
     const result = runNodeTest(file, { env, timeoutMs: fileTimeoutMs(file, timeoutMs), captureOutput: true });
     if (result.stdout) process.stdout.write(result.stdout);
     if (result.stderr) process.stderr.write(result.stderr);
     const timing = createFileTiming(file, result, elapsedMilliseconds(fileStartedAt));
     fileTimings.push(timing);
+    if (progressEnabled) await sendWorkerProgress('complete', file, timing.status);
     if (timing.status !== 'PASS') {
       failed += 1;
       if (result.error) console.error(`ERROR in ${relative}: ${result.error.message}`);
@@ -306,9 +327,10 @@ function parseTimingPayload(output) {
   }
 }
 
-function runWorker(files, workerIndex, workerCount, env) {
+function runWorker(files, workerIndex, workerCount, env, progress) {
   return new Promise((resolve) => {
     const timingRequested = Boolean(env.DHPK_TEST_TIMING_FILE);
+    const progressEnabled = env.DHPK_TEST_PROGRESS === '1';
     const childEnv = {
       ...env,
       DHPK_TEST_JOBS: '1',
@@ -318,7 +340,7 @@ function runWorker(files, workerIndex, workerCount, env) {
     const child = spawn(process.execPath, [__filename, '--worker', ...files], {
       cwd: process.cwd(),
       env: childEnv,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: progressEnabled ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
     let stdout = '';
@@ -340,6 +362,22 @@ function runWorker(files, workerIndex, workerCount, env) {
     };
     child.stdout.on('data', (chunk) => { stdout += chunk; });
     child.stderr.on('data', (chunk) => { stderr += chunk; });
+    if (progressEnabled) {
+      child.on('message', (message) => {
+        if (!message || message.type !== 'dhpk-test-progress'
+          || !['start', 'complete'].includes(message.event)
+          || typeof message.file !== 'string'
+          || path.basename(message.file) !== message.file
+          || !message.file.endsWith('.test.js')) return;
+        if (message.event === 'start') {
+          process.stderr.write(`[test-progress] started ${message.file} (completed ${progress.completed}/${progress.total})\n`);
+          return;
+        }
+        progress.completed += 1;
+        const status = message.status === 'PASS' ? 'PASS' : 'FAIL';
+        process.stderr.write(`[test-progress] completed ${message.file} status=${status} (completed ${progress.completed}/${progress.total})\n`);
+      });
+    }
     child.once('error', (error) => finish({ status: null, error }));
     child.once('close', (status, signal) => finish({ status, signal }));
   });
@@ -352,8 +390,9 @@ async function runParallel(files, jobs, env) {
   const startedAt = process.hrtime.bigint();
   const workerCount = Math.min(jobs, files.length);
   const buckets = partitionFiles(files, workerCount);
+  const progress = { completed: 0, total: files.length };
   const results = await Promise.all(
-    buckets.map((bucket, index) => runWorker(bucket, index, workerCount, env))
+    buckets.map((bucket, index) => runWorker(bucket, index, workerCount, env, progress))
   );
   let failed = 0;
   let total = 0;
@@ -472,7 +511,7 @@ async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
     files = partitionFiles(files, options.shardCount)[options.shardIndex] || [];
   }
   const result = options.worker || options.jobs === 1
-    ? runSequential(files, env, timeoutMs)
+    ? await runSequential(files, env, timeoutMs)
     : await runParallel(files, options.jobs, env);
 
   const timingFile = sourceEnv.DHPK_TEST_TIMING_FILE;
