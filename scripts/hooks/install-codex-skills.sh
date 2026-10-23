@@ -1175,7 +1175,7 @@ def restore_pending_mutations():
                     if not lexists(backup):
                         errors.append(f'rollback backup missing: {relative}')
                     else:
-                        restore_backup_copy(backup, destination)
+                        restore_backup_copy(backup, destination, allow_broken_symlinks=True)
                 continue
             if (backup is not None and lexists(backup)
                     and safe_destination_fingerprint(destination) == safe_destination_fingerprint(backup)):
@@ -1185,12 +1185,15 @@ def restore_pending_mutations():
             if safe_destination_fingerprint(destination) != expected:
                 errors.append(f'rollback preserved changed destination: {relative}')
                 continue
+            if backup is not None and not lexists(backup):
+                errors.append(f'rollback backup missing: {relative}')
+                continue
             remove_relative_path(relative, expected)
             if backup is not None:
                 if not lexists(backup):
                     errors.append(f'rollback backup missing after removal: {relative}')
                 else:
-                    restore_backup_copy(backup, destination)
+                    restore_backup_copy(backup, destination, allow_broken_symlinks=True)
         except (OSError, ValueError) as error:
             errors.append(f'{relative}: {error}')
     return errors
@@ -1238,7 +1241,7 @@ def restore_pending_adoptions():
                         errors.append(f'adoption rollback preserved changed destination: {relative}')
                         continue
                     remove_relative_path(destination_rel, published or expected_source)
-            restore_backup_copy(backup, destination)
+            restore_backup_copy(backup, destination, allow_broken_symlinks=True)
             if quarantine and lexists(quarantine):
                 remove_relative_path(quarantine_rel)
             pending['phase'] = 'restored'
