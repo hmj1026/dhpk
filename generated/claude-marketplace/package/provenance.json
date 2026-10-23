@@ -749,7 +749,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "a3889e11b845a25e40884db131820780b2b5c4d7c7fa883fb17fc3d09d6e419d"
+      "sha256": "2521da414bb5238e52f88436933cad9270c7ca41e68f704f81b1c66f5585fb0d"
     },
     {
       "skillId": "flow-drive",
@@ -765,7 +765,7 @@
       "sourcePath": "skills/flow-drive/distribution.yaml",
       "destination": "skills/flow-drive/distribution.yaml",
       "kind": "entry",
-      "sha256": "d3730c32bec3e78980bb38f9f182b3cdacd3adbcc54e95150cb8fc2b21f1cb8a"
+      "sha256": "7d4223a1462e8926fe182ba0e1989c0271556f60232c8ca306163f61dc6d0d7c"
     },
     {
       "skillId": "flow-drive",
@@ -1010,6 +1010,22 @@
     {
       "skillId": "flow-drive",
       "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
+      "kind": "entry",
+      "sha256": "f44e3330e790e3d9fa91a002ce9cd9e4d36e8fc8b81c5401e8558588da7c6293"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
+      "kind": "entry",
+      "sha256": "04bbf2d70c13196489391bb40c16e6674c47cff2f0e761992b9a0162e46bdde7"
+    },
+    {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
       "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
       "kind": "entry",
@@ -1029,7 +1045,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "6609318c629f90bf692b1ad0467608cebc1838ed7129038b76a070bf81d1e035"
+      "sha256": "8f3e19586686f8dc01f658b1fd7c41f5749ff55afa527794046af7b883f67d9a"
     },
     {
       "skillId": "flow-drive",
@@ -1928,6 +1944,14 @@
       "sha256": "37a2f68c477bd60337cb8481b72c8ffc9e43634336a396949b6301bb09ee0d7d"
     },
     {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/verification-handoff.md",
+      "destination": "skills/flow-drive/references/verification-handoff.md",
+      "kind": "entry",
+      "sha256": "f44e3330e790e3d9fa91a002ce9cd9e4d36e8fc8b81c5401e8558588da7c6293"
+    },
+    {
       "skillId": "yii1",
       "ownerId": "flow-drive",
       "sourcePath": "skills/yii1/SKILL.md",
@@ -2200,6 +2224,14 @@
       "sha256": "a1a76b2e53d57dc3127ba726592625828c1f8276b00f3de3b933260fea1789a7"
     },
     {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/scripts/verify-handoff.js",
+      "destination": "skills/flow-drive/scripts/verify-handoff.js",
+      "kind": "entry",
+      "sha256": "04bbf2d70c13196489391bb40c16e6674c47cff2f0e761992b9a0162e46bdde7"
+    },
+    {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/SKILL.md",
@@ -2229,7 +2261,7 @@
       "sourcePath": "skills/flow-guide/distribution.yaml",
       "destination": "skills/flow-guide/distribution.yaml",
       "kind": "entry",
-      "sha256": "3dc0fb98712940891d173f9a1811d2373b178c5324f48b0d7de7969272682c99"
+      "sha256": "62d5ba09408766246e986a3461001861572c676f4dbc423ef44701a8ec43bfdd"
     },
     {
       "skillId": "flow-guide",
@@ -2442,6 +2474,22 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
+      "kind": "entry",
+      "sha256": "f44e3330e790e3d9fa91a002ce9cd9e4d36e8fc8b81c5401e8558588da7c6293"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
+      "kind": "entry",
+      "sha256": "04bbf2d70c13196489391bb40c16e6674c47cff2f0e761992b9a0162e46bdde7"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
       "kind": "entry",
@@ -2461,7 +2509,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "6609318c629f90bf692b1ad0467608cebc1838ed7129038b76a070bf81d1e035"
+      "sha256": "8f3e19586686f8dc01f658b1fd7c41f5749ff55afa527794046af7b883f67d9a"
     },
     {
       "skillId": "flow-guide",
@@ -2509,7 +2557,7 @@
       "sourcePath": "skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "6609318c629f90bf692b1ad0467608cebc1838ed7129038b76a070bf81d1e035"
+      "sha256": "8f3e19586686f8dc01f658b1fd7c41f5749ff55afa527794046af7b883f67d9a"
     },
     {
       "skillId": "flow-guide",
