@@ -137,7 +137,20 @@ test('all committed direct roles match the approved runtime map and global defau
 
 test('every active Codex bridge surface selects only the GPT-6 family', () => {
   for (const relative of CODEX_BRIDGE_SURFACES) {
-    const source = fs.readFileSync(path.join(ROOT, relative), 'utf8');
+    const surfacePath = path.join(ROOT, relative);
+    let source = fs.readFileSync(surfacePath, 'utf8');
+    const selectedPolicy = source.match(/\[full execution policy\]\(([^)]+)\)/);
+    if (selectedPolicy) {
+      assert.ok(!path.isAbsolute(selectedPolicy[1]), `${relative}: selected policy link must be relative`);
+      const selectedPath = path.resolve(path.dirname(surfacePath), selectedPolicy[1]);
+      const fromRoot = path.relative(ROOT, selectedPath);
+      assert.ok(
+        fromRoot !== '..' && fromRoot !== '' && !fromRoot.startsWith(`..${path.sep}`) && !path.isAbsolute(fromRoot),
+        `${relative}: selected policy escapes the checkout`,
+      );
+      assert.ok(fs.statSync(selectedPath).isFile(), `${relative}: selected full policy resource is missing`);
+      source = fs.readFileSync(selectedPath, 'utf8');
+    }
     const identifiers = [...source.matchAll(/\bgpt-\d+(?:\.\d+)*(?!\.x)(?:-[a-z0-9-]+)?/gi)]
       .map((match) => match[0]);
     assert.ok(identifiers.length > 0, `${relative}: missing explicit Codex model`);
