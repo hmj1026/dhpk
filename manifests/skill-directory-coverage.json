@@ -465,6 +465,7 @@
         },
         {
           "path": "references/execution-bundle/scripts/fast-worker-selector.js",
+          "consumer": "AGY native agent projection via scripts/lib/native-agent-support.js; no Flow Drive script requires this bundle",
           "fixture_ids": [
             "flow-drive-bundled-selector-native"
           ]
@@ -562,7 +563,8 @@
         {
           "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
           "required_by": [
-            "references/execution-bundle/scripts/fast-worker-selector.js"
+            "references/execution-bundle/scripts/fast-worker-selector.js",
+            "scripts/dispatch.js"
           ]
         },
         {
