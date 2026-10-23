@@ -37,7 +37,12 @@ const { collectStandalonePackageAssets, collectNativeAgentTrapAssets } = require
 const { cursorNativeAgentClosureErrors } = require('./native-agent-support');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  listFilesNamedRecursively,
+} = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
   parseToolList,
@@ -1499,23 +1504,7 @@ function validateSkills(packageRoot, skillRoots, errors, skippedSkills) {
 }
 
 function listNestedCursorSkillMarkdownFiles(directory, options = {}) {
-  const files = [];
-  const budget = createTraversalBudget(options);
-  const walk = (current, depth) => {
-    const realDirectory = budget.enterDirectory(current, depth);
-    try {
-      for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: true })) {
-        const child = path.join(current, entry.name);
-        if (entry.isSymbolicLink()) continue;
-        if (entry.isDirectory()) walk(child, depth + 1);
-        else if (entry.isFile() && entry.name === 'SKILL.md') files.push(child);
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  walk(directory, 0);
-  return files;
+  return listFilesNamedRecursively(directory, 'SKILL.md', { ...options, localeSort: true });
 }
 
 function validateNativeDocuments(packageRoot, roots, kind, errors) {

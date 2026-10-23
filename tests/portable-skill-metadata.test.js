@@ -15,6 +15,10 @@ const { materializeNativePackage, verifyNativePackage } = require('../scripts/li
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
 const { materializeCursorPackage, validateCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 const { compileOpenaiSubmissionPackage } = require('../scripts/lib/openai-submission-package');
+const {
+  serializePortableSkillMetadata,
+  validatePortableSkillMetadata,
+} = require('../scripts/lib/portable-skill-metadata');
 
 const SOURCE_COMMIT = '0123456789abcdef0123456789abcdef01234567';
 const OPENAI_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json';
@@ -191,6 +195,55 @@ test('Agent Plugin output serializes non-string metadata and remains idempotent'
   }
 });
 
+test('portable metadata preserves list-of-map values without dropping nested fields', () => {
+  const source = [
+    '---',
+    'name: examples',
+    'description: Fixture skill.',
+    'metadata:',
+    '  examples:',
+    '    - name: build',
+    '      tools: [lint, test]',
+    '    - name: release',
+    '      needs: [build]',
+    '---',
+    '# Examples',
+    'Body remains exact.',
+    '',
+  ].join('\n');
+  const expected = [
+    { name: 'build', tools: ['lint', 'test'] },
+    { name: 'release', needs: ['build'] },
+  ];
+
+  const result = serializePortableSkillMetadata(source);
+  assert.strictEqual(result.ok, true, result.errors.join('\n'));
+  assert.deepStrictEqual(JSON.parse(metadataString(result.output, 'examples', 'portable list-of-maps output')), expected);
+  assert.strictEqual(validatePortableSkillMetadata(result.output).ok, true);
+  assert.strictEqual(result.output.slice(result.output.indexOf('---', 4) + 4), '# Examples\nBody remains exact.\n');
+});
+
+test('portable metadata fails closed when a scalar list item has an unsupported continuation', () => {
+  const source = [
+    '---',
+    'name: examples',
+    'description: Fixture skill.',
+    'metadata:',
+    '  examples:',
+    '    - lint',
+    '      silentlyDiscarded: yes',
+    '---',
+    '# Examples',
+    '',
+  ].join('\n');
+  const result = serializePortableSkillMetadata(source);
+
+  assert.strictEqual(result.ok, false, 'unsupported nested sequence content must not be silently truncated');
+  assert.strictEqual(result.output, source, 'failed conversion must preserve the original bytes');
+  assert.ok(result.errors.length > 0, 'failed conversion must explain the unsupported metadata');
+  assert.strictEqual(validatePortableSkillMetadata(source).ok, false, 'raw metadata must also fail closed');
+});
+
 test('Codex Native output serializes non-string metadata', () => {
   const root = temporaryRoot('dhpk-portable-metadata-codex-');
   try {
@@ -292,6 +345,68 @@ test('Agent Plugin validation rejects structured metadata in raw package output'
     const result = validateAgentPluginPackage(root);
     assert.strictEqual(result.ok, false, 'raw map/list metadata must be rejected, not normalized into a valid package');
     assert.ok(result.errors.some((error) => /metadata/i.test(error)), result.errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Agent Plugin validation rejects raw metadata in nested bundled SKILL.md', () => {
+  const root = temporaryRoot('dhpk-portable-metadata-agent-child-validator-');
+  try {
+    writeSkill(root, 'package-owner');
+    const childSource = path.join(root, 'skills/package-owner/references/child-guide/SKILL.md');
+    fs.mkdirSync(path.dirname(childSource), { recursive: true });
+    fs.writeFileSync(childSource, [
+      '---',
+      'name: child-guide',
+      'description: "Fixture skill."',
+      'metadata:',
+      '  retained: "keep this string"',
+      '  dhpk-next: "{\\"PASS\\":\\"none\\",\\"FAIL\\":\\"none\\"}"',
+      '  dhpk-modes: "[\\"update\\",\\"codemap\\"]"',
+      '---',
+      skillBody('child-guide').trimEnd(),
+      '',
+    ].join('\n'));
+    const output = path.join(root, 'agent-plugin');
+    materializeAgentPluginPackage({
+      root,
+      inventory: surfaceInventory('agent-plugin'),
+      outDir: output,
+      version: '1.2.3',
+      sourceCommit: 'abc123',
+    });
+
+    const nestedPath = 'skills/package-owner/references/child-guide/SKILL.md';
+    fs.writeFileSync(path.join(output, nestedPath), skillMarkdown('child-guide'));
+    const result = validateAgentPluginPackage(output);
+    assert.strictEqual(result.ok, false, 'raw structured metadata in a nested skill must be rejected');
+    assert.ok(result.errors.some((error) => error.includes(nestedPath) && /metadata/i.test(error)), result.errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Agent Plugin materialization serializes nested bundled SKILL.md metadata', () => {
+  const root = temporaryRoot('dhpk-portable-metadata-agent-child-output-');
+  try {
+    writeSkill(root, 'package-owner');
+    const childSource = path.join(root, 'skills/package-owner/references/child-guide/SKILL.md');
+    fs.mkdirSync(path.dirname(childSource), { recursive: true });
+    fs.writeFileSync(childSource, skillMarkdown('child-guide'));
+    const output = path.join(root, 'agent-plugin');
+    materializeAgentPluginPackage({
+      root,
+      inventory: surfaceInventory('agent-plugin'),
+      outDir: output,
+      version: '1.2.3',
+      sourceCommit: 'abc123',
+    });
+
+    const nestedPath = 'skills/package-owner/references/child-guide/SKILL.md';
+    const projected = fs.readFileSync(path.join(output, nestedPath), 'utf8');
+    assertPortableMetadata(projected, 'child-guide', 'Agent Plugin nested bundled output');
+    assert.strictEqual(validateAgentPluginPackage(output).ok, true);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

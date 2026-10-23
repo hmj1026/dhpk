@@ -166,4 +166,31 @@ function readDirectoryEntries(directory, { budget = createTraversalBudget(), sor
     : (left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
 }
 
-module.exports = { DEFAULT_TRAVERSAL_LIMITS, createTraversalBudget, readFileBounded, readDirectoryEntries };
+function listFilesNamedRecursively(directory, name, options = {}) {
+  if (typeof name !== 'string' || name.length === 0) throw new TypeError('file name must be a non-empty string');
+  const files = [];
+  const budget = createTraversalBudget(options);
+  const walk = (current, depth) => {
+    const realDirectory = budget.enterDirectory(current, depth);
+    try {
+      for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: options.localeSort === true })) {
+        const child = path.join(current, entry.name);
+        if (entry.isSymbolicLink()) continue;
+        if (entry.isDirectory()) walk(child, depth + 1);
+        else if (entry.isFile() && entry.name === name) files.push(child);
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  walk(directory, 0);
+  return files;
+}
+
+module.exports = {
+  DEFAULT_TRAVERSAL_LIMITS,
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  listFilesNamedRecursively,
+};

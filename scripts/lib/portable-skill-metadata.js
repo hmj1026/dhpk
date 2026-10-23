@@ -202,10 +202,27 @@ function parseBlockNode(lines, start, end, indent) {
           cursor = current + 1;
         }
       } else {
-        const parsed = parseScalar(itemText);
-        if (parsed.error) return parsed;
-        values.push(parsed.value);
-        cursor = current + 1;
+        const itemMapping = mappingLine(`${' '.repeat(indent + 2)}${itemText}`);
+        const childEnd = subtreeEnd(lines, current + 1, end, indent);
+        if (itemMapping) {
+          const itemLines = [
+            `${' '.repeat(indent + 2)}${itemText}`,
+            ...lines.slice(current + 1, childEnd),
+          ];
+          const parsed = parseBlockNode(itemLines, 0, itemLines.length, indent + 2);
+          if (parsed.error) return parsed;
+          values.push(parsed.value);
+          cursor = childEnd;
+        } else {
+          const continuation = meaningfulLine(lines, current + 1, childEnd);
+          if (continuation >= 0 && leadingIndent(lines[continuation]) > indent) {
+            return { error: `unsupported nested metadata sequence continuation at line ${continuation + 1}` };
+          }
+          const parsed = parseScalar(itemText);
+          if (parsed.error) return parsed;
+          values.push(parsed.value);
+          cursor = current + 1;
+        }
       }
     }
     return { value: values, type: 'array' };
