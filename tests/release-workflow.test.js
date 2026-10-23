@@ -501,6 +501,61 @@ test('consumer-verify installs the real claude CLI so the supported Claude check
   assert.ok(installIdx < gateInvocationIdx, 'claude CLI must be installed before the harness release probe runs');
 });
 
+test('CI and release install the exact Claude CLI version from one shared pin source', () => {
+  const pinPath = 'scripts/ci/claude-code-cli-version.txt';
+  const absolutePinPath = path.join(ROOT, pinPath);
+  const issues = [];
+  let pinnedVersion = null;
+
+  if (!fs.existsSync(absolutePinPath)) {
+    issues.push(`missing shared Claude CLI version pin source: ${pinPath}`);
+  } else {
+    pinnedVersion = fs.readFileSync(absolutePinPath, 'utf8').trim();
+    if (!/^\d+\.\d+\.\d+$/.test(pinnedVersion)) {
+      issues.push(`${pinPath} must contain one exact numeric semver`);
+    }
+    if (pinnedVersion !== '2.1.309') {
+      issues.push(`${pinPath} must pin the observed current registry version 2.1.309`);
+    }
+  }
+
+  const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedPinPath = escapeRegExp(pinPath);
+  const readPin = `(?:cat\\s+${escapedPinPath}|<\\s*${escapedPinPath})`;
+  const workflows = [
+    ['CI', fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8')],
+    ['release', raw],
+  ];
+
+  for (const [name, workflow] of workflows) {
+    const installStart = workflow.indexOf('- name: Install claude CLI');
+    if (installStart === -1) {
+      issues.push(`${name} workflow is missing the Claude CLI install step`);
+      continue;
+    }
+    const nextStep = workflow.indexOf('\n      - ', installStart + 1);
+    const installBlock = workflow.slice(installStart, nextStep === -1 ? workflow.length : nextStep);
+    const readsPin = new RegExp(readPin).test(installBlock);
+    const directlyConsumesPin = new RegExp(
+      `@anthropic-ai/claude-code@\\$\\(\\s*${readPin}\\s*\\)`,
+    ).test(installBlock);
+    const variableAssignment = installBlock.match(
+      new RegExp(`(?:^|\\n)\\s*(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*['\"]?\\$\\(\\s*${readPin}\\s*\\)['\"]?\\s*(?:\\n|$)`),
+    );
+    const variableConsumesPin = variableAssignment
+      ? new RegExp(`@anthropic-ai/claude-code@(?:\\$\\{${variableAssignment[1]}\\}|\\$${variableAssignment[1]}\\b)`).test(installBlock)
+      : false;
+    if (!readsPin || (!directlyConsumesPin && !variableConsumesPin)) {
+      issues.push(`${name} workflow must install @anthropic-ai/claude-code using the exact version read from ${pinPath}`);
+    }
+    if (!/continue-on-error:\s*true/.test(installBlock)) {
+      issues.push(`${name} workflow must keep Claude CLI installation non-blocking`);
+    }
+  }
+
+  assert.deepStrictEqual(issues, [], issues.join('\n'));
+});
+
 test('consumer-verify keeps pending evidence green but fails unhealthy or blocked outcomes', () => {
   const verifyIdx = raw.indexOf('consumer-verify:');
   const nextJobIdx = raw.indexOf('sync-develop:');
