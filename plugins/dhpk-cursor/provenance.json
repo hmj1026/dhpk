@@ -4,10 +4,10 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.66.6",
-  "sourceCommit": "8a759c818053452ab7773340254f3a2739a057c9",
-  "generatedFromCommit": "8a759c818053452ab7773340254f3a2739a057c9",
-  "generatedFromTree": "f2ffe53de190375fa40db9b392d4b4dc3014b67f",
+  "sourceVersion": "0.66.7",
+  "sourceCommit": "8e7c4a9fdeb3069861798433149cf06e488537df",
+  "generatedFromCommit": "8e7c4a9fdeb3069861798433149cf06e488537df",
+  "generatedFromTree": "a49f6eecb8c5e66008d8bb0876b268e4e0afb5ca",
   "inventoryDigest": "2d5f4b7ae476e4e4a7771ff0dfeb4f4076b8a02b3a03fc6847c23866ca1a2d49",
   "inventoryRevision": "sha256:9ce52a60aaa32cae1915f091e6170b55c7e6a23c8a28e0d0859bdb40bd721250",
   "generatorVersion": "1.0.0",
@@ -6380,9 +6380,9 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "f3e775a1781fca165d38a37ac800feed58846d92696906e08129b70b8652121c",
+    "planId": "9fa5cb48001da725824ff4a4f4e9d14ef9d6317663a4aea88d3d898890f2d925",
     "scope": "project",
-    "profileId": "common",
+    "profileId": "surface-default",
     "selectedStableIds": [
       "change-verdict",
       "code-trace",
@@ -6424,10 +6424,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "f3e775a1781fca165d38a37ac800feed58846d92696906e08129b70b8652121c",
+      "plan": "9fa5cb48001da725824ff4a4f4e9d14ef9d6317663a4aea88d3d898890f2d925",
       "inventory": "2d5f4b7ae476e4e4a7771ff0dfeb4f4076b8a02b3a03fc6847c23866ca1a2d49"
     },
-    "rollbackIdentity": "8de843f154fa6df06a185c93758ac73090bec9e66f55bda12889bc4b43a70f87"
+    "rollbackIdentity": "87ac69cd3d32029de0951c0c85e34612f997964f7c878f358b25f56d4f2dcc9b"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -7453,58 +7453,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "profileId": "common",
-  "selectedStableIds": [
-    "flow-guide",
-    "code-trace",
-    "change-verdict",
-    "flow-drive",
-    "git-smart-commit",
-    "release-creator",
-    "tdd",
-    "create-pr",
-    "git-worktree",
-    "proposal-analyze",
-    "doc-maintain",
-    "precommit",
-    "repo-verify",
-    "ui-ux-verify"
-  ],
-  "canonicalSelectedStableIds": [
-    "flow-guide",
-    "code-trace",
-    "change-verdict",
-    "flow-drive",
-    "git-smart-commit",
-    "release-creator",
-    "tdd",
-    "create-pr",
-    "git-worktree",
-    "proposal-analyze",
-    "doc-maintain",
-    "precommit",
-    "repo-verify",
-    "ui-ux-verify"
-  ],
-  "emittedStableIds": [
-    "flow-guide",
-    "code-trace",
-    "change-verdict",
-    "flow-drive",
-    "git-smart-commit",
-    "release-creator",
-    "tdd",
-    "create-pr",
-    "git-worktree",
-    "proposal-analyze",
-    "doc-maintain",
-    "precommit",
-    "repo-verify",
-    "ui-ux-verify"
-  ],
-  "compatibilityMode": "profile",
-  "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "e267624a414aa68aec3d1e91564b532ba1f8add00b72f1a21196091cde5af8ab",
-  "surfaceSelectionFingerprint": "887c99e55ade417ffc87d024dab74005691df48a4d6fa8375f9c971f1e88cc6c",
-  "planFingerprint": "f88f8b0172c21eb6ee44ef6140ea422fd7e5681d2f601a3c2e0cfc4ca0d04b67"
+  "planFingerprint": "bf91269ae287743df1883cafa8b1a77962691bee1eb73f7e7f86c977af144ab8"
 }

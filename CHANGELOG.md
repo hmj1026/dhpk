@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## 0.66.7 — 2026-10-23 — Rename root glossary to GLOSSARY.md, gate downstream verification on completed handoffs, strengthen evidence and retrospective workflows, enforce permission and hook boundaries, improve installer reliability and package portability, and update distribution rules
+
+- **fix(distribution)** — Keep only the AGY policy kernel always visible and point the conditional execution-policy rule to the complete on-demand bundle.
+- **fix(codex-native)** — Codex native generation records the exact named profile selected for its published skill set and recognizes matching legacy receipts.
+- **fix(hooks)** — Fail closed when the edit guard cannot finish on Claude Code 2.1.295 or newer, limit code-trace to read-only git commands, and keep change-verdict external review opt-in.
+- **fix(flow-drive)** — Reject AGY worker and reasoner selections on Claude Code with the CLI diagnostic before coordination.
+- **fix(flow-drive)** — Correct Flow Drive recovery, portability, execution-policy, kernel, and bundled selector references.
+- **fix(installation)** — Make installer verification and platform distribution packages reliable, including AGY manifest compatibility and rule discovery.
+- **fix(distribution)** — Serialize structured skill metadata as JSON strings in portable packages and project installs while keeping Claude metadata structured, remove the duplicate Claude skill scan, enforce agent-roster and named-suite checks, and clarify that #1022 still grants whole-Git access for code-trace and `codex review` for change-verdict while #1064's `onFailure` blocking needs Claude Code 2.1.295 or newer.
+- **fix(distribution)** — Keep project rollback snapshots valid across v2/v3 receipts and serialize structured metadata in every nested portable SKILL.md while preserving structured Claude output.
+- **fix(harness-setup)** — Keep the Codex installer in one canonical source and include its physical copy when packaging the standalone harness-setup skill.
+- **fix(hooks)** — Treat `git commit -n` as the same hook bypass as `--no-verify`, and stop a same-name command from pre-authorizing tools its skill does not list.
+- **fix(precommit)** — The precommit runner supports configured checks across subprojects and reports unsupported or failing checks with a non-zero exit code.
+- **fix(workflow)** — Refresh local skill projections through existing ownership checks, remove live-prose test coupling, clarify generated-output preflight and GitNexus arguments, preview precommit commands, and expose opt-in test progress.
+- **fix(codex-installer)** — Codex installer rollback now restores relative symlink backups byte-for-byte and preserves published targets when rollback backups are missing.
+- **fix(release-ci)** — Keep JavaScript tests independent of the current package version and pin the Claude Code CLI consistently in CI and release checks while reporting the detected CLI version.
+- **fix(flow-drive)** — Gate downstream verification on a writer's completed handoff and exact parent-assigned file set plus SHA256 snapshot, and reject scope mismatches before launch or snapshot changes after the check.
+- **docs(docs)** — Record ADR 0028 separating Public Workflows, Methods, and Project Conventions, rename the root glossary from `CONTEXT.md` to `GLOSSARY.md`, and mark ADRs 0011, 0012, 0013, and 0015 superseded by ADR 0026.
+- **docs(workflow)** — Make the execution-policy kernel own snapshot validity and affected-scope evidence reuse; align verification, review, and delivery guidance around mutating precommit steps.
+- **docs(workflow)** — Keep dhpk delivery and shell conventions in repository guidance, make portable workflows follow the consumer Project Convention, and align the English and Traditional Chinese operations guides.
+- **docs(agent-guidance)** — Clarify worker handoff boundaries and GitNexus impact reporting for unresolved or partial results.
+
 ## 0.66.6 — 2026-10-22 — Update native agent dispatch, enforce hook execution bounds, strengthen Flow Drive dependency and reasoner gates, and correct language and tool guidance
 
 - **fix(hooks)** — Block a Bash command when its PreToolUse hook exceeds the 2100-second ceiling or fails.
