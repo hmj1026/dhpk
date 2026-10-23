@@ -1,0 +1,29 @@
+{
+  "schema": "dhpk.flow-drive-comparison-record.v1",
+  "limit": {
+    "maxRuns": 9,
+    "maxRunsPerCell": 1,
+    "automaticRetries": false,
+    "newPaidApi": false
+  },
+  "baseline": {
+    "dhpkVersion": "v0.66.7",
+    "dhpkCommit": "5440dc516a7ffd0b52620546bb8f106210e79ce4",
+    "host": "codex-cli",
+    "hostVersion": "0.163.0",
+    "provider": "openai",
+    "model": "gpt-6.1-sol",
+    "effort": "medium"
+  },
+  "cells": [
+    { "id": "receipt-quantity/native", "task": "receipt-quantity", "condition": "native", "status": "NOT_RUN", "fixtureSha256": "642efc4fa2aa94ccf7f34b1dd76b97995a22557f79b50021f175de187fa67504", "sessionId": null, "skillRevision": null, "oracle": "NOT_RUN", "changedFiles": null, "manualInterventions": null, "elapsedMs": null, "tokens": null, "evidencePath": null, "skillArtifact": "none" },
+    { "id": "receipt-quantity/current", "task": "receipt-quantity", "condition": "current", "status": "NOT_RUN", "fixtureSha256": "642efc4fa2aa94ccf7f34b1dd76b97995a22557f79b50021f175de187fa67504", "sessionId": null, "skillRevision": "5440dc516a7ffd0b52620546bb8f106210e79ce4", "oracle": "NOT_RUN", "changedFiles": null, "manualInterventions": null, "elapsedMs": null, "tokens": null, "evidencePath": null, "skillArtifact": "codex-materialized:plugins/dhpk/skills/flow-drive" },
+    { "id": "receipt-quantity/simplified", "task": "receipt-quantity", "condition": "simplified", "status": "NOT_RUN", "fixtureSha256": "642efc4fa2aa94ccf7f34b1dd76b97995a22557f79b50021f175de187fa67504", "sessionId": null, "skillRevision": "BIND_AFTER_1111", "oracle": "NOT_RUN", "changedFiles": null, "manualInterventions": null, "elapsedMs": null, "tokens": null, "evidencePath": null, "skillArtifact": "canonical:skills/flow-drive" },
+    { "id": "discount-diagnosis/native", "task": "discount-diagnosis", "condition": "native", "status": "NOT_RUN", "fixtureSha256": "ef4ad7b52519e020f68ae56af380761531cfe4de9fceab7cbec17bd79b884745", "sessionId": null, "skillRevision": null, "oracle": "NOT_RUN", "changedFiles": null, "manualInterventions": null, "elapsedMs": null, "tokens": null, "evidencePath": null, "skillArtifact": "none" },
+    { "id": "discount-diagnosis/current", "task": "discount-diagnosis", "condition": "current", "status": "NOT_RUN", "fixtureSha256": "ef4ad7b52519e020f68ae56af380761531cfe4de9fceab7cbec17bd79b884745", "sessionId": null, "skillRevision": "5440dc516a7ffd0b52620546bb8f106210e79ce4", "oracle": "NOT_RUN", "changedFiles": null, "manualInterventions": null, "elapsedMs": null, "tokens": null, "evidencePath": null, "skillArtifact": "codex-materialized:plugins/dhpk/skills/flow-drive" },
+    { "id": "discount-diagnosis/simplified", "task": "discount-diagnosis", "condition": "simplified", "status": "NOT_RUN", "fixtureSha256": "ef4ad7b52519e020f68ae56af380761531cfe4de9fceab7cbec17bd79b884745", "sessionId": null, "skillRevision": "BIND_AFTER_1111", "oracle": "NOT_RUN", "changedFiles": null, "manualInterventions": null, "elapsedMs": null, "tokens": null, "evidencePath": null, "skillArtifact": "canonical:skills/flow-drive" },
+    { "id": "status-filter/native", "task": "status-filter", "condition": "native", "status": "NOT_RUN", "fixtureSha256": "22a75ece6becb94252da57fede71faae5a8279506fa933d2a659d83acf85c101", "sessionId": null, "skillRevision": null, "oracle": "NOT_RUN", "changedFiles": null, "manualInterventions": null, "elapsedMs": null, "tokens": null, "evidencePath": null, "skillArtifact": "none" },
+    { "id": "status-filter/current", "task": "status-filter", "condition": "current", "status": "NOT_RUN", "fixtureSha256": "22a75ece6becb94252da57fede71faae5a8279506fa933d2a659d83acf85c101", "sessionId": null, "skillRevision": "5440dc516a7ffd0b52620546bb8f106210e79ce4", "oracle": "NOT_RUN", "changedFiles": null, "manualInterventions": null, "elapsedMs": null, "tokens": null, "evidencePath": null, "skillArtifact": "codex-materialized:plugins/dhpk/skills/flow-drive" },
+    { "id": "status-filter/simplified", "task": "status-filter", "condition": "simplified", "status": "NOT_RUN", "fixtureSha256": "22a75ece6becb94252da57fede71faae5a8279506fa933d2a659d83acf85c101", "sessionId": null, "skillRevision": "BIND_AFTER_1111", "oracle": "NOT_RUN", "changedFiles": null, "manualInterventions": null, "elapsedMs": null, "tokens": null, "evidencePath": null, "skillArtifact": "canonical:skills/flow-drive" }
+  ]
+}
