@@ -94,5 +94,5 @@ and typed-receipt lifecycle that 0026 removed; they are now marked superseded
 by 0026.
 
 Moving the Project Convention text that is currently bundled into skills is
-follow-up work tracked under #1089. The kernel snapshot rule is implemented by
-#1090. This ADR does not authorize follow-up edits by itself.
+follow-up work tracked under #1089. Issue #1090 implements the kernel snapshot
+rule. This ADR does not authorize follow-up edits by itself.

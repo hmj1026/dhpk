@@ -64,7 +64,7 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:305d0556fc3881256591ced565cb5b994e675f65e159449c16a1032e6af0b0c1",
+      "sha256": "sha256:3a2154bee7437c22435e89bdb69339090358d8e5e0c335d4d417872df106c7b8",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
@@ -208,7 +208,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:305d0556fc3881256591ced565cb5b994e675f65e159449c16a1032e6af0b0c1",
+      "sha256": "sha256:3a2154bee7437c22435e89bdb69339090358d8e5e0c335d4d417872df106c7b8",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
