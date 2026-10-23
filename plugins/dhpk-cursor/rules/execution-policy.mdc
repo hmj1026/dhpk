@@ -571,12 +571,11 @@ evidence to the affected risk domains and request only the missing outcome;
 do not rerun a named reviewer solely because another producer supplied the
 same outcome.
 
-Reuse review evidence only while its relevant source, scope, configuration,
-tools, environment, and review premise remain applicable. A changed source,
-configuration, environment, specification, or mutating check invalidates the
-affected conclusion; recheck only those affected domains unless an existing
-checkpoint requires a complete wave. An unchanged implementation wave does
-not receive a second semantically identical review.
+Apply the kernel's Evidence snapshots section
+(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md`)
+when reusing review evidence; retain any existing checkpoint that requires a
+complete wave. An unchanged implementation wave does not receive a second
+semantically identical review.
 
 Reviewers are read-only evaluators. They inspect and report findings within
 their supplied scope, may write their own review artifact when their role
@@ -735,18 +734,9 @@ identity and the conclusion that it supports; ordinary text, files, and reports
 are valid evidence carriers when they establish scope, observations, conclusion,
 and remaining gaps.
 
-Reassess only affected evidence when source files, specifications, lockfiles,
-configuration, tools, or environment change. A changed behavior invalidates the
-affected test or review result; a changed specification or acceptance criterion
-invalidates evidence whose conclusion no longer covers the requested outcome.
-Unchanged, unrelated work does not require a complete rerun when the existing
-checkpoint and all applicability bindings remain valid.
-
-Order checks by their effect on evidence: run formatters, generators, migrations,
-fixture refreshes, package materialization, and other mutating checks before the
-final affected review or verification. If a mutating check runs afterward, rerun
-the affected checks before claiming completion. Never use evidence produced before
-the last mutation as the final result for the changed scope.
+For snapshot validity, mutation ordering, and affected-scope reuse, follow the
+kernel's Evidence snapshots section
+(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md`).
 
 Choose focused or selected checks from changed behavior and acceptance criteria,
 then retain every applicable plugin handoff, archive, CI, formal-package, and
