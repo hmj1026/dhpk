@@ -1,27 +1,6 @@
 ---
 name: flow-drive
-description: "Short Claude front door for explicit-only implementation of a bounded task with settled acceptance."
+description: "Use the current Host and Model to complete one bounded, authorized task and report observed verification evidence or a precise blocker."
 ---
-# `/dhpk:flow-drive`
-
-This is a thin Host front door to the canonical `$flow-drive` Skill. Forward
-the supplied task text, task file, or confirmed identifier and implementation
-options unchanged; the Skill owns planning, editing, verification, authority,
-and terminal evidence. Keep the task input as one argument; quote multiword
-text or paths containing spaces, for example
-`/dhpk:flow-drive "Fix checkout flow and verify receipt totals" --worker=codex`.
-
-Not for: route selection, proposal authoring, review, diagnosis without a settled outcome, or release.
-
-`--worker=<worker>` remains the Worker Selector. Use
-`--worker-target=<provider>/<model>[:<effort>]` for an explicit execution
-target. The retired `--codex` diagnostic remains owned by the canonical Skill.
-The command has no route or workflow mode of its own. When supplied with
-`--plan[=auto|bounded|discovery]` is the planner consult scope; bare `--plan`
-equals `--plan=auto`.
-
-This front door does not add a separate route or workflow mode, route
-selection, proposal-authoring procedure, or second Usage Grammar.
-
-Completion: report the canonical Skill result and preserve its `PASS`,
-`BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.
+Load the canonical `$flow-drive` Skill from [SKILL.md](https://github.com/hmj1026/dhpk/blob/main/skills/flow-drive/SKILL.md) and follow it with `$ARGUMENTS`.
+Keep its argument contract, authority boundary, verification, and output.

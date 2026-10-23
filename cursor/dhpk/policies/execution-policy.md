@@ -63,30 +63,39 @@ An OpenSpec apply uses a planner when unresolved decisions, dependencies,
 ownership, coupling, or material risk require its outcome. Its result states
 dependency order, each task's exact owner and write scope, and the next
 checkpoint. Adequate existing planning evidence is reusable; task count alone
-does not require a consult, while an explicit supported `--plan` still does.
+does not require a consult. A supported explicit planner-consult request remains
+explicit under its own capability rules.
 After each wave, dispatching the applicable reviewers in one batch is
-recommended; fix `CRITICAL` findings before reporting done. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
-add a valid changelog fragment → open a Draft PR targeting `develop` → monitor
-that PR's actual CI to a completed conclusion → human merge gate. Queued or
-partial CI is not completion. Required consumer evidence marked `NOT RUN` or
-`UNAVAILABLE` is non-terminal and cannot count as completed CI. The external
-`/opsx:apply` flow remains unchanged.
+recommended; fix `CRITICAL` findings before reporting done. Follow the consumer
+project's Project Convention for applicable OpenSpec delivery, branching,
+changelog, CI, and merge requirements, using the actual Host shell. Where CI
+or consumer verification is required, record its actual terminal conclusion;
+queued, partial, `NOT_RUN`, or `UNAVAILABLE` evidence does not satisfy that
+obligation. Close out with the selected entry's Verification contract and any
+project-required handoff. The external `/opsx:apply` flow remains unchanged.
 
 ## Planner consult scope
 
-Flow Drive's `--plan[=auto|bounded|discovery]` selects
-consult scope, independently of planner work mode and model/effort. Enabled
-planning without a mode, including legacy handoffs, uses `auto`; disabled
-planning has no scope. The parser validates grammar only. The orchestrator
-selects bounded for auto only when the consult question and intended outcome
-are clear, named sources can answer within four direct reads including required
-protocol resources, and no Material Risk Signal applies. Otherwise select
-discovery and report the unmet condition. Signals cover irreversible/external
-actions; security/privacy/authentication/money; database/schema/migration;
-public contract/release/compatibility; cross-domain/shared-state/multi-writer
-work; and high uncertainty/unknown root cause/failed verification.
+The caller's brief may provide a consult scope; Flow Drive does not expose a
+planner option. Scope selection is an orchestrator judgment for an already
+requested planner consult. A scope named in the caller's consult brief selects
+`auto`, `bounded`, or `discovery`; it does not select the planner's critique,
+blind-sketch, dual-plan, warm-review, or cold-review work mode. The consult
+caller validates its own option grammar; the orchestrator chooses scope and
+does not calculate risk with a runtime engine. An enabled handoff with no mode
+uses `auto`; a disabled plan has no consult scope.
 
-An explicit mode wins; disclose any signal overridden by bounded, while
+The orchestrator selects **bounded** for `auto` only when the consult question
+and intended outcome are clear, named sources can answer within four direct
+reads including required protocol resources, and no Material Risk Signal
+applies. Otherwise select **discovery** and report the unmet condition. Signals
+cover irreversible/external actions; security/privacy/authentication/money;
+database/schema/migration; public contract/release/compatibility;
+cross-domain/shared-state/multi-writer work; and high uncertainty/unknown root
+cause/failed verification.
+
+An explicit bounded or discovery scope takes precedence over `auto`. Disclose
+any Material Risk Signal an explicit bounded selection overrides, while
 preserving authorization, write prerequisites, and specialist decisions.
 Bounded reads only named sources, counts all required protocol reads within
 four, and creates no discovery children. Missing necessary facts or unresolved
@@ -121,16 +130,18 @@ share one writer lease. Interrupted or uncertain writers must be stopped and
 reconciled before another writer starts. Required review independence is
 established by observed agent identity, not role labels or self-review.
 
-For the programmatic Flow Drive runner (`runFlowDrive`), `--cross-provider`
-opens a provider-scope question and grants no permission by itself. The
-user-facing legacy Host procedure retains the automatic-candidate policy above. Initial capability discovery disables external
-probes. Answered Host consent or root-supplied `authorizationEvidence` requires
-a nonblank answer ID; retain only its sanitized ID. Cancellation, no answer,
-and missing question tools create no additional grant. An exact worker target
-grants only its Provider/Agent/Model and optional Effort tuple for that role.
-After side-effect-free coordination, refresh only selected, authorized
-Provider/Agent/Model/Effort/Role/authority tuples. Host policy, task constraints,
-current binding, and matching capability evidence remain mandatory.
+Flow Drive's task-only entry does not select a delegated target or widen
+provider scope. Other supported dispatch callers may express role-scoped target
+intent; an external target still requires a current Host grant before probe or
+launch. An exact target grant includes Provider, Agent, Model, Effort, Role,
+and authority; read-only cannot authorize workspace-write. Initial capability
+requests disable external probes. Cancellation, no answer, or a missing
+question callback creates no grant. Host allowed-provider policy, task
+constraints, current binding, and matching capability evidence remain binding
+after consent. Host selections and root-supplied `authorizationEvidence` must
+carry a nonblank answer ID; only a sanitized ID is retained with the grant.
+Refresh only concrete selected Provider/Agent/Model/Effort/Role/authority
+tuples; provider consent never triggers a provider-wide model probe.
 
 Current bound Host capabilities may establish an executable target absent from
 the static catalog, without declaring a new formally supported combination.
