@@ -1,7 +1,9 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
@@ -19,18 +21,47 @@ function read(relative) {
   return fs.readFileSync(path.join(ROOT, relative), 'utf8');
 }
 
-function forbiddenClaims(dir, hits) {
+function write(root, relative, contents) {
+  const full = path.join(root, relative);
+  fs.mkdirSync(path.dirname(full), { recursive: true });
+  fs.writeFileSync(full, contents);
+}
+
+function recursiveFiles(root, dir = root, files = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (SKIP_DIRS.has(entry.name)) continue;
     const full = path.join(dir, entry.name);
     if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) {
-      forbiddenClaims(full, hits);
+      recursiveFiles(root, full, files);
       continue;
     }
-    if (!entry.isFile()) continue;
-    const relative = path.relative(ROOT, full).split(path.sep).join('/');
+    if (entry.isFile()) files.push(path.relative(root, full).split(path.sep).join('/'));
+  }
+  return files;
+}
+
+function trackedFiles(root) {
+  const result = spawnSync('git', ['ls-files', '-z'], {
+    cwd: root,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  if (result.status !== 0) return null;
+  return result.stdout.toString('utf8').split('\0').filter(Boolean);
+}
+
+function forbiddenClaims(root, hits) {
+  const files = trackedFiles(root) ?? recursiveFiles(root);
+  for (const relative of files) {
     if (relative === 'tests/nextjs-guidance.test.js') continue;
+    const full = path.join(root, relative);
+    let stat;
+    try {
+      stat = fs.lstatSync(full);
+    } catch {
+      continue;
+    }
+    if (!stat.isFile() || stat.isSymbolicLink()) continue;
     const bytes = fs.readFileSync(full);
     if (bytes.includes(0)) continue;
     const text = bytes.toString('utf8').replace(/\*\*/g, '').replace(/\s+/g, ' ');
@@ -39,6 +70,62 @@ function forbiddenClaims(dir, hits) {
     }
   }
 }
+
+test('claim scan includes tracked active files and ignores local backups and archives', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nextjs-guidance-tracked-'));
+  try {
+    const initialized = spawnSync('git', ['init', '--quiet'], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(initialized.status, 0, initialized.stderr);
+    write(root, '.gitignore', [
+      '.claude/artifacts/',
+      '.codex/.dhpk-backups/',
+      '.cursor/.dhpk-backups/',
+      'openspec/changes/',
+      '',
+    ].join('\n'));
+    write(root, 'README.md', 'Next.js ends at v15.5.19\n');
+    write(root, '.claude/settings.json', '{"claim":"Next.js ends at v15.5.19"}\n');
+
+    const localArtifacts = [
+      '.claude/artifacts/release-backup/README.md',
+      '.codex/.dhpk-backups/README.md',
+      '.cursor/.dhpk-backups/README.md',
+      'openspec/changes/archive/old-claim.md',
+    ];
+    for (const relative of localArtifacts) {
+      write(root, relative, 'Next.js ends at v15.5.19\n');
+      const ignored = spawnSync('git', ['check-ignore', '--quiet', relative], { cwd: root });
+      assert.strictEqual(ignored.status, 0, `${relative} should be ignored in the fixture`);
+    }
+
+    const added = spawnSync('git', ['add', '-f', 'README.md', '.claude/settings.json'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    assert.strictEqual(added.status, 0, added.stderr);
+
+    const hits = [];
+    forbiddenClaims(root, hits);
+    assert.deepStrictEqual(hits.sort(), [
+      '.claude/settings.json: ends at v15.5.19',
+      'README.md: ends at v15.5.19',
+    ]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('claim scan keeps its recursive fallback outside a Git checkout', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nextjs-guidance-no-git-'));
+  try {
+    write(root, 'README.md', 'Next.js ends at v15.5.19\n');
+    const hits = [];
+    forbiddenClaims(root, hits);
+    assert.deepStrictEqual(hits, ['README.md: ends at v15.5.19']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('Next.js 15.5 is not described as ending at v15.5.19', () => {
   const hits = [];
