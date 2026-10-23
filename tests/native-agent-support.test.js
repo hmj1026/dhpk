@@ -7,7 +7,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { validateCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
 const { rewriteCursorHarnessBody, rewriteCursorNativeAgentBody } = require('../scripts/lib/cursor-harness-adapt');
-const { rewriteAgyNativeAgentBody, cursorNativeAgentClosureErrors, agyNativeAgentClosureErrors } = require('../scripts/lib/native-agent-support');
+const { AGY_SUPPORT_FILES, rewriteAgyNativeAgentBody, cursorNativeAgentClosureErrors, agyNativeAgentClosureErrors } = require('../scripts/lib/native-agent-support');
 
 const CLAUDE_ROOT = '${' + 'CLAUDE_PLUGIN_ROOT}';
 const CURSOR_ROOT = '${' + 'CURSOR_PLUGIN_ROOT}';
@@ -239,6 +239,75 @@ test('AGY validator accepts plugin-relative traps and rejects a Claude-only root
   }
 });
 
+test('AGY native-agent closure assigns dispatch locators to their owning roles', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-agy-role-locators-'));
+  const roles = [
+    {
+      agent: 'codex-worker',
+      locator: 'scripts/cli-dispatch/adapters/run-codex.sh',
+      support: ['agent-traps/_common/cli-prompt-composition.md', 'agent-traps/_common/build-resolver-skeleton.md'],
+    },
+    {
+      agent: 'codex-reasoner',
+      locator: 'scripts/cli-dispatch/adapters/run-codex.sh',
+      support: ['agent-traps/_common/cli-prompt-composition.md'],
+    },
+    {
+      agent: 'agy-worker',
+      locator: 'scripts/cli-dispatch/adapters/run-agy.sh',
+      support: ['agent-traps/_common/cli-prompt-composition.md', 'agent-traps/_common/build-resolver-skeleton.md'],
+    },
+    {
+      agent: 'fast-worker',
+      locator: 'scripts/fast-worker-selector.js',
+      support: ['agent-traps/_common/build-resolver-skeleton.md'],
+    },
+  ];
+  try {
+    fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+    for (const relative of AGY_SUPPORT_FILES) {
+      const target = path.join(root, relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, '# support\n');
+    }
+    for (const role of roles) {
+      const body = [
+        '---',
+        `name: ${role.agent}`,
+        '---',
+        ...role.support.map((supportFile) => `Load ${supportFile}`),
+        `Use ${role.locator}`,
+      ].join('\n');
+      fs.writeFileSync(path.join(root, 'agents', `${role.agent}.md`), body);
+    }
+
+    assert.deepStrictEqual(agyNativeAgentClosureErrors(root), []);
+    const fastWorkerPath = path.join(root, 'agents', 'fast-worker.md');
+    const fastWorker = fs.readFileSync(fastWorkerPath, 'utf8');
+    fs.writeFileSync(fastWorkerPath, `---\nname: fast-worker\n---\nUse ${roles[3].locator}\n`);
+    assert.ok(
+      agyNativeAgentClosureErrors(root).some((error) => error.includes('native agent support locator is missing from agents/fast-worker.md: agent-traps/_common/build-resolver-skeleton.md')),
+      'the fast-worker selector alone must trigger its native support closure',
+    );
+    fs.writeFileSync(fastWorkerPath, fastWorker);
+
+    for (const role of roles) {
+      const relative = `agents/${role.agent}.md`;
+      const agentPath = path.join(root, relative);
+      const original = fs.readFileSync(agentPath, 'utf8');
+      fs.writeFileSync(agentPath, original.replace(role.locator, ''));
+      const errors = agyNativeAgentClosureErrors(root);
+      assert.ok(
+        errors.includes(`native agent support locator is missing from ${relative}: ${role.locator}`),
+        `${relative} must fail when its owned locator is removed; got: ${errors.join('; ')}`,
+      );
+      fs.writeFileSync(agentPath, original);
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('published native packages resolve representative support without a source checkout', () => {
   const cursorRoot = path.join(ROOT, 'plugins', 'dhpk-cursor');
   const agyRoot = path.join(ROOT, 'plugins', 'dhpk-agy');
@@ -279,7 +348,8 @@ test('published native packages resolve representative support without a source 
 });
 
 test('a generated AGY package carries its native agent support closure without Flow Drive runtime scripts', () => {
-  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-agy-generated-'));
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-agy-generated-'));
+  const out = path.join(tempRoot, 'package');
   try {
     const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const releaseVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
@@ -307,7 +377,7 @@ test('a generated AGY package carries its native agent support closure without F
     const validation = validateAgyPluginPackage(out, { inventory, expectedVersion: releaseVersion, sourceRoot: ROOT });
     assert.strictEqual(validation.ok, true, validation.errors.join('\n'));
   } finally {
-    fs.rmSync(out, { recursive: true, force: true });
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
 

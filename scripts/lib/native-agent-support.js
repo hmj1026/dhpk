@@ -140,11 +140,47 @@ function agyCases() {
         'agent-traps/_common/cli-prompt-composition.md',
         'agent-traps/_common/build-resolver-skeleton.md',
         'scripts/cli-dispatch/adapters/run-codex.sh',
-        'scripts/cli-dispatch/adapters/run-agy.sh',
-        'scripts/fast-worker-selector.js',
       ],
       files: [
         'agent-traps/_common/cli-prompt-composition.md',
+        'agent-traps/_common/build-resolver-skeleton.md',
+        ...NATIVE_AGENT_SUPPORT_FILES,
+      ],
+      forbidden: [`${CLAUDE_PLUGIN_ROOT_TOKEN}/skills`],
+    },
+    {
+      agent: 'agents/codex-reasoner.md',
+      required: [
+        'agent-traps/_common/cli-prompt-composition.md',
+        'scripts/cli-dispatch/adapters/run-codex.sh',
+      ],
+      files: [
+        'agent-traps/_common/cli-prompt-composition.md',
+        ...NATIVE_AGENT_SUPPORT_FILES,
+      ],
+      forbidden: [`${CLAUDE_PLUGIN_ROOT_TOKEN}/skills`],
+    },
+    {
+      agent: 'agents/agy-worker.md',
+      required: [
+        'agent-traps/_common/cli-prompt-composition.md',
+        'agent-traps/_common/build-resolver-skeleton.md',
+        'scripts/cli-dispatch/adapters/run-agy.sh',
+      ],
+      files: [
+        'agent-traps/_common/cli-prompt-composition.md',
+        'agent-traps/_common/build-resolver-skeleton.md',
+        ...NATIVE_AGENT_SUPPORT_FILES,
+      ],
+      forbidden: [`${CLAUDE_PLUGIN_ROOT_TOKEN}/skills`],
+    },
+    {
+      agent: 'agents/fast-worker.md',
+      required: [
+        'agent-traps/_common/build-resolver-skeleton.md',
+        'scripts/fast-worker-selector.js',
+      ],
+      files: [
         'agent-traps/_common/build-resolver-skeleton.md',
         ...NATIVE_AGENT_SUPPORT_FILES,
       ],
@@ -163,6 +199,7 @@ function mentionsNativeSupport(text) {
     || text.includes('build-resolver-skeleton')
     || text.includes('run-codex.sh')
     || text.includes('run-agy.sh')
+    || text.includes('fast-worker-selector.js')
     || text.includes('.cursor/dhpk/')
     || text.includes(CLAUDE_PLUGIN_ROOT_TOKEN);
 }
