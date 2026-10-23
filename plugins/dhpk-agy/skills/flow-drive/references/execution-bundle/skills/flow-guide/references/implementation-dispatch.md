@@ -122,13 +122,38 @@ Parallel: yes
 Assigned files:
 - repo-relative/path-a
 - repo-relative/path-b
+Forbidden files:
+- repo-relative/path-that-must-remain-untouched
 Intent:
 - repo-relative/path-a: exact bounded change
 - repo-relative/path-b: exact bounded change
-Verification: path-scoped command, or `REPORT-ONLY: <reason and orchestrator command>`
+Test/migration ownership: <role and exact test or migration paths, or `none`>
+Next executor: <registered role/tool and its next action, or `none`>
+Verification command and acceptance: <exact path-scoped command and expected result>
+  or REPORT-ONLY: <reason and exact orchestrator command>
+Worker terminal result: RESULT: DONE | PARTIAL | BLOCKED
 ```
 
+This extends only the dispatch details in the existing five-part cold-handoff
+packet. Keep that packet's canonical shape in
+`${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` and
+`${POLICY_BUNDLE_ROOT}/docs/subagent-prompt-template.md`; do not create a second
+packet format.
+
+List each relevant forbidden repo-relative path, including generated mirrors
+or tests assigned to another phase; use `none` when there are no additional
+exclusions. Give each test migration one owner and list its exact paths so
+implementation and test movement cannot be split ambiguously.
+
 The assigned list is the worker's authoritative write, diff, and verification boundary. Paths must be explicit repo-relative paths; globs, directory guesses, and unlisted generated files are not valid scope. A worker that needs another file returns `RESULT: BLOCKED` and names the required scope expansion. A worker may report out-of-scope observations, but it must not modify, revert, reset, clean, or force-delete them. Any out-of-scope write is a contract violation and remains blocked for orchestrator review.
+
+For sequential phases that touch the same code or test state, isolate the next
+phase before running its tests: use a separate worktree, or commit the current
+phase when the active workflow permits commits. If commits are prohibited, use
+a worktree. Record that boundary, the next executor, and the exact verification
+command in the handoff. Keep the worker result distinct from the test verdict;
+pending orchestrator verification remains explicit and is not implied by
+`RESULT: DONE`.
 
 In parallel mode, before/after accounting uses path-scoped `git status --short -- <assigned files>` and `git diff --name-only -- <assigned files>`. A global status result is not evidence of worker ownership. The report separates assigned edits, out-of-scope observations, out-of-scope writes, verification, and backend identity.
 

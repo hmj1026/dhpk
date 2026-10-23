@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "7312a62cce05eb6ccfbd1cdbf178d734f244035c",
-  "generatedFromCommit": "7312a62cce05eb6ccfbd1cdbf178d734f244035c",
-  "generatedFromTree": "b522f986ecb3e66cf3e5fbe98d83016cbe056adf",
+  "sourceCommit": "eff08549e245f52b0f124cb96d9b5f4053c51ea8",
+  "generatedFromCommit": "eff08549e245f52b0f124cb96d9b5f4053c51ea8",
+  "generatedFromTree": "877b494cdd30fae243778dbcdec2f6292d222c78",
   "inventoryDigest": "c0eabd9b270692d2c06279447289e64c692d45720f1516d3502ab3fab90ce3cf",
   "inventoryRevision": "sha256:47a01eec098299cea524f97ee6edd39d60f31d2693e59f01857f1ee84b97a60b",
   "generatorVersion": "1.0.0",
@@ -831,7 +831,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "b4868810e0b5168debc4e30a4953bf35c975a5e4"
+        "originalGitBlobDigest": "4d22c3fe1178fa9de3438694ecb27b71b18a8c71"
       },
       {
         "ownerId": "flow-drive",
@@ -1905,7 +1905,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "b4868810e0b5168debc4e30a4953bf35c975a5e4"
+        "originalGitBlobDigest": "4d22c3fe1178fa9de3438694ecb27b71b18a8c71"
       },
       {
         "ownerId": "flow-guide",
@@ -1941,7 +1941,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "b4868810e0b5168debc4e30a4953bf35c975a5e4"
+        "originalGitBlobDigest": "4d22c3fe1178fa9de3438694ecb27b71b18a8c71"
       },
       {
         "ownerId": "flow-guide",
@@ -2235,7 +2235,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/SKILL.md",
         "destination": "skills/precommit/SKILL.md",
-        "originalGitBlobDigest": "7b862571512607711cd21bda0b8bc91a8f01d33c"
+        "originalGitBlobDigest": "eb0ff530f9d9a274ac02dd27f95723f69f97aab7"
       },
       {
         "ownerId": "precommit",
@@ -2253,7 +2253,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/references/workflow.md",
         "destination": "skills/precommit/references/workflow.md",
-        "originalGitBlobDigest": "a6eca851c8175846c5a75d411c2d1b6195e99fd8"
+        "originalGitBlobDigest": "9125e53e0b6ea12caccf8a7c94597971b71b1d32"
       },
       {
         "ownerId": "precommit",
@@ -2265,7 +2265,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/scripts/precommit-runner.js",
         "destination": "skills/precommit/scripts/precommit-runner.js",
-        "originalGitBlobDigest": "b13415fcf98f10b3f4cafde58b4a24bbffafe6be"
+        "originalGitBlobDigest": "ee8438a838fb028284073496ff81aa1d7cf5a37d"
       },
       {
         "ownerId": "proposal-analyze",
