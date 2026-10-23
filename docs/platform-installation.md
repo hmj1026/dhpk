@@ -30,6 +30,10 @@ callable only after the named consumer probe discovers the projected content.
 | Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; release probes use an isolated shared-network bubblewrap namespace, never unrestricted execution |
 | AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to the inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`, explicit `migrate`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
 
+Codex users who need only Flow Drive can install the complete pinned canonical
+skill into the current project. Follow the [standalone Flow Drive guide](./flow-drive-standalone.md)
+for installation, explicit update and removal, and the managed-install switch.
+
 ## Prerequisites and version assumptions
 
 The route sections below use the corresponding row. This repository records
