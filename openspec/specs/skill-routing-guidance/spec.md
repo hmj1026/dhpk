@@ -102,7 +102,8 @@ authority.
 
 The former `classify`, `policy`, and `checklist` names SHALL not remain live
 actions. Routing SHALL not be implemented by `flow-drive`; `flow-drive` SHALL
-accept only a confirmed specification or OpenSpec change for implementation.
+accept one bounded task, task-file, or confirmed specification/change input
+for implementation and SHALL use the current Host and Model.
 Audit, judge, stocktake, GitNexus, investigation, review, and implementation
 roles SHALL remain distinct and SHALL be represented as handoffs rather than
 silently merged into the guide.
@@ -220,8 +221,10 @@ Skills outside the first-wave set MAY omit `dhpk-next`. If they declare it,
 the same shape and closed sets SHALL apply. Invocation class metadata SHALL
 remain required and unchanged by this mapping. The closed first-wave set SHALL
 be `code-trace`, `tdd-workflow`, `repo-verify`, `change-verdict`, `precommit`,
-`code-simplify`, `doc-maintain`, `git-smart-commit`, `create-pr`, `flow-drive`,
-and `opsx-apply-resume`. Every declared target SHALL exist before enforcement.
+`code-simplify`, `doc-maintain`, `git-smart-commit`, `create-pr`, and
+`opsx-apply-resume`. Every declared target SHALL exist before enforcement.
+Flow Drive is outside the workflow-chain set: its native task completion is
+terminal and SHALL NOT require a sibling follow-on skill.
 
 `precommit` `PASS` SHALL target `doc-maintain:update`. `doc-maintain` SHALL
 declare modes `update`, `codemap`, and `refactor`, set all five unprefixed

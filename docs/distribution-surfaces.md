@@ -356,9 +356,12 @@ fallback or `lifecycle=promoted` — via `materializeNativePackage()` in
 never generated fresh at install time.
 
 **Native package membership.** The inventory owns native package membership.
-Flow Drive now contains its transport, context, and adapter runtime; the
-standalone `cli-transport` and `cli-dispatch-context` entries retire in 0.66.2.
-Package generation/provenance and actual Host discovery remain separate gates.
+Flow Drive is a portable task/help instruction directory and owns no transport,
+context, adapter, or runner runtime. Shared CLI dispatch support is maintained
+under `scripts/cli-dispatch/` and included in native-agent packages through the
+supporting-asset closure. The standalone `cli-transport` and
+`cli-dispatch-context` entries retire in 0.66.2. Package
+generation/provenance and actual Host discovery remain separate gates.
 `codex-sync` and `codex-native` are separately published and acquired surfaces
 with independent acquisition/update/verification contracts — adding an
 invokable skill to one does not add it to the other. `codex-sync` is the

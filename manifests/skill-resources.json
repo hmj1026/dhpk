@@ -11,112 +11,7 @@
         "destination": "scripts/lib/command-namespace.js"
       }
     ],
-    "flow-drive": [
-      {
-        "source": "scripts/lib/dispatch-scheduler.js",
-        "destination": "references/execution-bundle/scripts/lib/dispatch-scheduler.js"
-      },
-      {
-        "source": "scripts/lib/dispatch-writer-lease.js",
-        "destination": "references/execution-bundle/scripts/lib/dispatch-writer-lease.js"
-      },
-      {
-        "source": "rules/execution-policy.md",
-        "destination": "references/execution-bundle/rules/execution-policy.md"
-      },
-      {
-        "source": "rules/execution-policy-kernel.md",
-        "destination": "references/execution-bundle/rules/execution-policy-kernel.md"
-      },
-      {
-        "source": "rules/model-economics.md",
-        "destination": "references/execution-bundle/rules/model-economics.md"
-      },
-      {
-        "source": "rules/anti-rationalization.md",
-        "destination": "references/execution-bundle/rules/anti-rationalization.md"
-      },
-      {
-        "source": "rules/tool-routing.md",
-        "destination": "references/execution-bundle/rules/tool-routing.md"
-      },
-      {
-        "source": "docs/subagent-prompt-template.md",
-        "destination": "references/execution-bundle/docs/subagent-prompt-template.md"
-      },
-      {
-        "source": "skills/flow-guide/references/invocation-precedence.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
-      },
-      {
-        "source": "skills/flow-guide/references/invocation-classification.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
-      },
-      {
-        "source": "skills/flow-guide/references/implementation-dispatch.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
-      },
-      {
-        "source": "skills/flow-guide/references/premise-verification.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/premise-verification.md"
-      },
-      {
-        "source": "skills/flow-guide/references/deterministic-first.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
-      },
-      {
-        "source": "skills/flow-guide/references/testing-policy.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
-      },
-      {
-        "source": "skills/flow-guide/references/component-addition-policy.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
-      },
-      {
-        "source": "scripts/fast-worker-selector.js",
-        "destination": "references/execution-bundle/scripts/fast-worker-selector.js"
-      },
-      {
-        "source": "scripts/lib/dispatch-contract.js",
-        "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
-      },
-      {
-        "source": "scripts/lib/dispatch-capability-evidence.js",
-        "destination": "references/execution-bundle/scripts/lib/dispatch-capability-evidence.js"
-      },
-      {
-        "source": "scripts/lib/dispatch-engine.js",
-        "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
-      },
-      {
-        "source": "scripts/lib/native-dispatch-policy.js",
-        "destination": "references/execution-bundle/scripts/lib/native-dispatch-policy.js"
-      },
-      {
-        "source": "scripts/lib/partial-writer-handoff.js",
-        "destination": "references/execution-bundle/scripts/lib/partial-writer-handoff.js"
-      },
-      {
-        "source": "scripts/lib/flow-handoff-contract.js",
-        "destination": "references/execution-bundle/scripts/lib/flow-handoff-contract.js"
-      },
-      {
-        "source": "manifests/provider-model-catalog.json",
-        "destination": "references/execution-bundle/manifests/provider-model-catalog.json"
-      },
-      {
-        "source": "manifests/host-profiles.json",
-        "destination": "references/execution-bundle/manifests/host-profiles.json"
-      },
-      {
-        "source": "skills/flow-drive/references/verification-handoff.md",
-        "destination": "references/execution-bundle/skills/flow-drive/references/verification-handoff.md"
-      },
-      {
-        "source": "skills/flow-drive/scripts/verify-handoff.js",
-        "destination": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js"
-      }
-    ],
+    "flow-drive": [],
     "flow-guide": [
       {
         "source": "rules/execution-policy.md",
@@ -231,12 +126,12 @@
         "destination": "scripts/_lib/frontmatter.js"
       },
       {
-        "source": "skills/flow-drive/references/verification-handoff.md",
-        "destination": "references/execution-bundle/skills/flow-drive/references/verification-handoff.md"
+        "source": "docs/agent-guidance/verification-handoff.md",
+        "destination": "references/execution-bundle/docs/agent-guidance/verification-handoff.md"
       },
       {
-        "source": "skills/flow-drive/scripts/verify-handoff.js",
-        "destination": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js"
+        "source": "scripts/cli-dispatch/verify-handoff.js",
+        "destination": "references/execution-bundle/scripts/cli-dispatch/verify-handoff.js"
       }
     ],
     "harness-setup": [

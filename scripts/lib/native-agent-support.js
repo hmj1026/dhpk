@@ -5,7 +5,26 @@ const path = require('node:path');
 
 const CLAUDE_PLUGIN_ROOT_TOKEN = '${' + 'CLAUDE_PLUGIN_ROOT}';
 const CURSOR_PLUGIN_ROOT_TOKEN = '${' + 'CURSOR_PLUGIN_ROOT}';
-const PORTABLE_ADAPTER_PREFIX = `${CURSOR_PLUGIN_ROOT_TOKEN}/../dhpk-agent/skills/flow-drive/scripts/adapters/`;
+const PORTABLE_ADAPTER_PREFIX = `${CURSOR_PLUGIN_ROOT_TOKEN}/../dhpk-agent/scripts/cli-dispatch/adapters/`;
+
+const NATIVE_AGENT_SUPPORT_FILES = Object.freeze([
+  'scripts/cli-dispatch/adapters/run-agy.sh',
+  'scripts/cli-dispatch/adapters/run-codex.sh',
+  'scripts/cli-dispatch/dispatch-runtime/build-cli-dispatch-context.js',
+  'scripts/cli-dispatch/dispatch-runtime/cli-role-resolver.js',
+  'scripts/cli-dispatch/dispatch-runtime/launch-cli-dispatch.js',
+  'scripts/cli-dispatch/dispatch-runtime/physical-file.js',
+  'scripts/cli-dispatch/dispatch-runtime/physical-file.py',
+  'scripts/cli-dispatch/transport/prepare-cli-request.py',
+  'scripts/cli-dispatch/transport/run-cli-transport.py',
+  'scripts/cli-dispatch/verify-handoff.js',
+  'scripts/fast-worker-selector.js',
+  'scripts/lib/dispatch-capability-evidence.js',
+  'scripts/lib/dispatch-contract.js',
+  'scripts/lib/dispatch-engine.js',
+  'scripts/lib/native-dispatch-policy.js',
+  'manifests/provider-model-catalog.json',
+]);
 
 const CURSOR_SUPPORT_FILES = Object.freeze([
   'agent-traps/_common/prompt-defense.md',
@@ -25,7 +44,7 @@ const AGY_SUPPORT_FILES = Object.freeze([
   'agent-traps/e2e-runner/playwright.md',
   'rules/execution-policy.md',
   'rules/tool-routing.md',
-  'skills/flow-drive/scripts/adapters/run-codex.sh',
+  ...NATIVE_AGENT_SUPPORT_FILES,
 ]);
 
 function rewriteAgyNativeAgentBody(body) {
@@ -33,8 +52,7 @@ function rewriteAgyNativeAgentBody(body) {
     .split(`${CLAUDE_PLUGIN_ROOT_TOKEN}/agent-traps/`).join('agent-traps/')
     .split(`${CLAUDE_PLUGIN_ROOT_TOKEN}/rules/`).join('rules/')
     .split(`${CLAUDE_PLUGIN_ROOT_TOKEN}/skills/`).join('skills/')
-    .split(`${CLAUDE_PLUGIN_ROOT_TOKEN}/scripts/fast-worker-selector.js`)
-    .join('skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js');
+    .split(`${CLAUDE_PLUGIN_ROOT_TOKEN}/scripts/`).join('scripts/');
 }
 
 function cursorCases() {
@@ -84,14 +102,14 @@ function cursorCases() {
       ],
       forbidden: [
         '.cursor/dhpk/',
-        `${CURSOR_PLUGIN_ROOT_TOKEN}/skills/flow-drive/scripts/adapters/run-codex.sh`,
+        `${CURSOR_PLUGIN_ROOT_TOKEN}/scripts/cli-dispatch/adapters/run-codex.sh`,
       ],
     },
     {
       agent: 'agents/agy-worker.md',
       required: [`${PORTABLE_ADAPTER_PREFIX}run-agy.sh`],
       files: [],
-      forbidden: [`${CURSOR_PLUGIN_ROOT_TOKEN}/skills/flow-drive/scripts/adapters/run-agy.sh`],
+      forbidden: [`${CURSOR_PLUGIN_ROOT_TOKEN}/scripts/cli-dispatch/adapters/run-agy.sh`],
     },
   ];
 }
@@ -121,12 +139,14 @@ function agyCases() {
       required: [
         'agent-traps/_common/cli-prompt-composition.md',
         'agent-traps/_common/build-resolver-skeleton.md',
-        'skills/flow-drive/scripts/adapters/run-codex.sh',
+        'scripts/cli-dispatch/adapters/run-codex.sh',
+        'scripts/cli-dispatch/adapters/run-agy.sh',
+        'scripts/fast-worker-selector.js',
       ],
       files: [
         'agent-traps/_common/cli-prompt-composition.md',
         'agent-traps/_common/build-resolver-skeleton.md',
-        'skills/flow-drive/scripts/adapters/run-codex.sh',
+        ...NATIVE_AGENT_SUPPORT_FILES,
       ],
       forbidden: [`${CLAUDE_PLUGIN_ROOT_TOKEN}/skills`],
     },
@@ -200,6 +220,7 @@ function agyNativeAgentClosureErrors(packageRoot) {
 module.exports = {
   CURSOR_SUPPORT_FILES,
   AGY_SUPPORT_FILES,
+  NATIVE_AGENT_SUPPORT_FILES,
   rewriteAgyNativeAgentBody,
   cursorNativeAgentClosureErrors,
   agyNativeAgentClosureErrors,

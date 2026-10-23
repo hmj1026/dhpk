@@ -10,7 +10,6 @@ const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
 const { outputText, assertExpected } = require('./fixture-assertions');
 
 const FLOW_GUIDE_ACTION = 'scripts/action-runner.js';
-const FLOW_DRIVE_INVOCATION = 'scripts/invocation.js';
 
 const outputOf = outputText;
 
@@ -45,108 +44,6 @@ const result = api.createRouteResult({
 process.stdout.write(JSON.stringify(result) + '\n');
 `;
 
-const DISPATCH_REQUEST = {
-  schema: 'dhpk.dispatch.request.v2',
-  host_profile: {
-    schema: 'dhpk.host.profile.v1',
-    version: 'fixture-host-v1',
-    host: 'cursor',
-    native_target_agent: 'cursor',
-    native_provider: 'cursor',
-    native_model: 'fixture-native',
-    native_transport: 'native-runtime',
-    allowed_providers: ['cursor', 'openai'],
-    access: {
-      cursor: { status: 'AVAILABLE', evidence: 'isolated host fixture' },
-      openai: { status: 'AVAILABLE', evidence: 'isolated host fixture' },
-    },
-    quota_pools: { cursor: 'native', openai: 'fixture' },
-    concurrency_limits: { native: 1, fixture: 1 },
-    observed_at: '2026-09-22T00:00:00.000Z',
-  },
-  task_id: 'flow-family-task',
-  attempt_id: 'flow-family-attempt',
-  role: 'worker',
-  authority: 'workspace-write',
-  task: { description_digest: 'a'.repeat(64) },
-  scope: {
-    workdir: '/fixture/project',
-    assigned_files: ['src/example.js'],
-    prompt_evidence: {
-      path: '/fixture/project/.dhpk/prompt.txt',
-      dev: 1,
-      ino: 2,
-      sha256: 'b'.repeat(64),
-    },
-  },
-  target: {
-    target_agent: 'cursor',
-    provider: 'openai',
-    model_id: 'fixture-model',
-    transport: 'local-cli',
-  },
-  effort: 'high',
-  fallback: { allow: false, retry_budget: 0 },
-  parallelism: { dependencies: [], max_concurrency: 1 },
-};
-
-const DISPATCH_CATALOG = {
-  schema: 'dhpk.model.catalog.v2',
-  version: 'fixture-catalog-v1',
-  observed_at: '2026-09-22T00:00:00.000Z',
-  models: {
-    'openai/fixture-model': {
-      provider: 'openai',
-      model_id: 'fixture-model',
-      display_name: 'Isolated Fixture Model',
-    },
-  },
-  routes: [{
-    host: 'cursor',
-    target_agent: 'cursor',
-    provider: 'openai',
-    model_id: 'fixture-model',
-    route: 'headless-cli',
-    transport: 'local-cli',
-    roles: ['worker'],
-    efforts: ['high'],
-    authorities: ['workspace-write'],
-    effort_binding: 'parameter',
-    source: 'isolated fixture catalog',
-    observed_at: '2026-09-22T00:00:00.000Z',
-  }],
-};
-
-function dispatchDriver(request, invalid = false) {
-  const candidate = invalid
-    ? { ...request, role: 'planner', authority: 'workspace-write' }
-    : request;
-  return String.raw`
-'use strict';
-const path = require('node:path');
-const skillDir = process.argv[2];
-const api = require(path.join(skillDir, 'scripts', 'dispatch.js'));
-const request = ${JSON.stringify(candidate)};
-const catalog = ${JSON.stringify(DISPATCH_CATALOG)};
-try {
-  const result = api.prepareDispatch({
-    change: { confirmed: true, change_id: 'flow-family-confirmed-change' },
-    request,
-    catalog,
-  });
-  process.stdout.write(JSON.stringify({
-    resolution: result.resolution,
-    handoff: result.handoff,
-    authority: result.request.authority,
-  }) + '\\n');
-} catch (error) {
-  process.stderr.write((error && error.message) || String(error));
-  process.stderr.write('\\n');
-  process.exitCode = 2;
-}
-`;
-}
-
 function runApiDriver(context, source) {
   const driver = path.join(context.projectDir, '.flow-family-driver.js');
   fs.writeFileSync(driver, source, { mode: 0o600 });
@@ -167,43 +64,7 @@ function runApiDriver(context, source) {
   }
 }
 
-const PUBLIC_RUNNER_DRIVER = String.raw`
-'use strict';
-const fs = require('node:fs');
-const path = require('node:path');
-const crypto = require('node:crypto');
-const skillDir = process.argv[2];
-const { runFlowDrive } = require(path.join(skillDir, 'scripts/run.js'));
-const catalog = require(path.join(skillDir, 'references/execution-bundle/manifests/provider-model-catalog.json'));
-const profiles = require(path.join(skillDir, 'references/execution-bundle/manifests/host-profiles.json'));
-const profile = profiles.profiles.find((item) => item.host === 'codex-cli');
-let executionCount = 0;
-let actualTotal = null;
-const host = {
-  async resolveTask(text) {
-    const prompt = path.join(process.cwd(), 'confirmed-input.txt');
-    fs.writeFileSync(prompt, text);
-    const stat = fs.statSync(prompt);
-    return { goal: 'Read the fixed receipt total.', acceptance: ['The actual total is 900.'],
-      constraints: { authority: 'read-only', assigned_files: [], delegation: 'none',
-        prompt_evidence: { path: prompt, dev: stat.dev, ino: stat.ino, sha256: crypto.createHash('sha256').update(text).digest('hex') } } };
-  },
-  async getCapabilities() { return { host_profile: profile, catalog }; },
-  async coordinate() { return { mode: 'solo', target: { provider: 'openai', target_agent: 'codex-cli', model_id: 'gpt-6-luna', effort: 'max' } }; },
-  async execute() { executionCount++; actualTotal = 1000 - 100; return { status: 'SUCCEEDED', actual_total: actualTotal }; },
-  async verify(_task, outcome) { return { status: outcome.actual_total === 900 ? 'PASSED' : 'FAILED', evidence: 'literal 900 acceptance compared with actual arithmetic' }; },
-};
-runFlowDrive(['Verify the fixed total.'], { host, workdir: process.cwd() }).then((report) => {
-  const modulesLocal = Object.keys(require.cache).filter((file) => file !== __filename).every((file) => file.startsWith(skillDir + path.sep));
-  process.stdout.write(JSON.stringify({ report, execution_count: executionCount, actual_total: actualTotal, modules_local: modulesLocal }));
-}).catch((error) => { process.stderr.write(error.message); process.exitCode = 1; });
-`;
-
 const DEFINITIONS = [
-  definition({ id: 'flow-drive-public-runner-native', entry: 'scripts/run.js',
-    expected: { status: 0, output: ['SUCCEEDED', 'PASSED', '"execution_count":1', '"actual_total":900', '"modules_local":true'] },
-    testdriver: (context) => runApiDriver(context, PUBLIC_RUNNER_DRIVER),
-  }),
   definition({
     id: 'flow-guide-help-unknown',
     entry: FLOW_GUIDE_ACTION,
@@ -254,41 +115,10 @@ const DEFINITIONS = [
       absent: ['skills/flow-guide/references/'],
     },
   }),
-  definition({
-    id: 'flow-drive-confirmed-input',
-    entry: FLOW_DRIVE_INVOCATION,
-    args: ['confirmed-change-123'],
-    expected: { status: 0, output: ['"status":"ready"', 'confirmed-change-123'] },
-  }),
-  definition({
-    id: 'flow-drive-retired-codex-block',
-    entry: FLOW_DRIVE_INVOCATION,
-    args: ['confirmed-change-123', '--codex'],
-    expected: { status: 2, output: ['"status":"blocked"', '--codex', 'retired'] },
-  }),
-  definition({
-    id: 'flow-drive-dispatch-valid',
-    entry: 'scripts/dispatch.js',
-    expected: { status: 0, output: ['RESOLVED', 'ready', 'workspace-write', 'fixture-model'] },
-    testdriver: (context) => runApiDriver(context, dispatchDriver(DISPATCH_REQUEST)),
-  }),
-  definition({
-    id: 'flow-drive-cli-missing-packet',
-    entry: 'scripts/launch-dispatch.js',
-    args: ['--packet', '/missing/flow-drive-packet.json'],
-    expected: { status: 65, output: ['BLOCKED', 'packet'] },
-  }),
-  definition({
-    id: 'flow-drive-dispatch-invalid-authority',
-    entry: 'scripts/dispatch.js',
-    expected: { status: 2, output: ['planner', 'workspace-write', 'authority'] },
-    testdriver: (context) => runApiDriver(context, dispatchDriver(DISPATCH_REQUEST, true)),
-  }),
 ];
 
 for (const [id, entry] of [
-  ['flow-drive-verification-handoff-missing-input', 'scripts/verify-handoff.js'],
-  ['flow-drive-bundled-verification-handoff-missing-input', 'references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js'],
+  ['shared-verification-handoff-missing-input', 'references/execution-bundle/scripts/cli-dispatch/verify-handoff.js'],
 ]) {
   DEFINITIONS.push(definition({
     id,
@@ -322,5 +152,4 @@ module.exports = {
   runApiDriver,
   outputOf,
   flowGuideFixtureIds: Object.freeze(DEFINITIONS.filter((fixture) => fixture.id.startsWith('flow-guide-')).map((fixture) => fixture.id)),
-  flowDriveFixtureIds: Object.freeze(DEFINITIONS.filter((fixture) => fixture.id.startsWith('flow-drive-')).map((fixture) => fixture.id)),
 };

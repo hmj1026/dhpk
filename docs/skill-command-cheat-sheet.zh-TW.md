@@ -25,7 +25,7 @@
 | 不知道有哪些技能或參數 | `$flow-guide help`；單一技能用 `$flow-guide help <skill>` | 只讀 metadata，不載入 procedure 或執行目標 |
 | 不知道該走哪條流程 | `$flow-guide route <task>` | 只給 route report；加 `--go` 最多 handoff 一個可用的 implicit target |
 | 查政策、下一步或收尾 | `$flow-guide rules <query>`、`next <query>`、`close <query>` | 只讀 guidance，不取得 implementation 或 Git authority |
-| 已有確認的 specification/change | `$flow-drive <confirmed-spec-or-change-id>` | explicit-only、無 mode；只負責 implementation |
+| 有一個明確且有界的 task | `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` | 使用目前 Host 實作並回報觀察到的驗證；`--help` 唯讀 |
 | 還沒有 proposal 或 OpenSpec artifacts | 外部 `$openspec-propose`，再依流程使用 `/opsx:apply` | proposal authoring 不屬於 `flow-drive` |
 | 要分組 Git commit | `$git-smart-commit` | `git-smart-commit` stable ID 與 public name 保持不變；需要明確 Git authority |
 
@@ -43,22 +43,10 @@ family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 colli
 | [`laravel`](../skills/laravel/SKILL.md) | Laravel 版本相容性與實作指引 | `5.4`、`6`、`7`、`8`、`9`、`10`、`11`、`mix` | 不再使用版本 note skill 名稱 |
 | [`phpunit`](../skills/phpunit/SKILL.md) | PHPUnit 版本與測試相容性 | `9`、`10`、`11` | 不再使用版本 note skill 名稱 |
 
-## 已確認 implementation 的參數
-
-先查 `$flow-guide help flow-drive`，再按需要加入 modifier：
-
-```text
-$flow-drive <change-id> --plan
-$flow-drive <change-id> --plan=discovery
-$flow-drive <change-id> --worker=claude|codex|agy|auto
-$flow-drive <change-id> --worker=<provider>/<model>[:<effort>] [--cross]
-$flow-drive <change-id> --reasoner=codex/gpt-6.1-sol:high
-$flow-drive <change-id> --architect
-$flow-drive <change-id> --no-architect
-```
-
-`--codex` 是退休 diagnostic，不會選 hidden peer。`flow-guide route` 的
-`--go` 只適用於一次 bounded handoff；不要把它當成 implementation shortcut。
+Flow Drive accepts task input and read-only `--help`; it has no provider,
+worker, reasoner, planner, or architect modifiers. A flag inside quoted task
+content remains task data. `flow-guide route --go` remains a separate bounded
+handoff and does not invoke Flow Drive automatically.
 
 ## 仍常用的窄技能
 

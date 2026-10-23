@@ -1,5 +1,5 @@
 name = "planner"
-description = "Opt-in `$flow-drive --plan` consultant: follow the brief-selected auto, bounded, or discovery scope for plan critique or sketch, and perform manually requested warm or cold diff review. Report actual reads, children, and blockers within the 400-token verdict-first, `END`-terminated protocol."
+description = "Planner consultant for requested critique, sketch, dual-plan, and manual warm or cold diff review. Follow the caller-provided scope and report actual reads, children, and blockers within the 400-token verdict-first, `END`-terminated protocol."
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
@@ -55,7 +55,7 @@ or changes the handoff contract.
 
 ## Consult scope
 
-For a Flow Drive consult, follow the selected `CONSULT SCOPE` in the brief. Do
+For an explicitly requested planner consult, follow the selected `CONSULT SCOPE` in the brief. Do
 not select `auto` yourself or infer scope from critique, blind-sketch,
 dual-plan, warm-review, or cold-review work mode. A bounded brief's named-source
 set includes every required protocol read, including the prompt-defense file;
@@ -64,11 +64,10 @@ necessary fact after using its permitted named reads, report it as a blocker in
 the reply and do not search, spawn a child, or change scope. Four completed
 reads with the necessary facts established is a normal completion.
 
-A legacy direct planner brief with no selected scope may use the existing
-discovery allowance when additional context is needed. Disclose that its scope
-was unspecified and that selection context is missing; do not treat the work
-mode as a scope selection. Flow Drive owns automatic selection and reports its
-reason and any override.
+A direct planner brief with no selected scope may use the existing discovery
+allowance when additional context is needed. Disclose that its scope was
+unspecified and that selection context is missing; do not treat the work mode
+as a scope selection. Scope selection belongs to the caller/orchestrator.
 
 ## Consult sequence
 
@@ -228,7 +227,7 @@ review after that, and never RECONSULT to see a fix.
 ## Closing — Artifact Output
 
 **No artifact** — planner is a read-only reasoning worker; its deliverable is
-the inline VERDICT-first reply contract above, consumed directly by
-`$flow-drive` (or, for a mid-task/warm-review resume, by the orchestrator that
-resumed it). Not part of the post-edit reviewer batch.
+the inline VERDICT-first reply contract above, consumed directly by the
+requesting caller (or, for a mid-task/warm-review resume, by the orchestrator
+that resumed it). Not part of the post-edit reviewer batch.
 """

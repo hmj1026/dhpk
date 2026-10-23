@@ -30,7 +30,7 @@ stops before the downstream command starts.
 Wrap the downstream command as an argv vector:
 
 ```text
-node <Flow Drive skill directory>/scripts/verify-handoff.js \
+node <policy bundle root>/scripts/cli-dispatch/verify-handoff.js \
   --root <writer-repository> \
   --handoff <receipt.json> \
   --assigned-file relative/path/to/changed-file \

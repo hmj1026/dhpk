@@ -20,7 +20,7 @@ const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { compileDistribution } = require('./distribution-compiler');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { NATIVE_AGENT_TRAP_FILES, collectStandalonePackageAssets } = require('./standalone-package-assets');
-const { rewriteAgyNativeAgentBody, agyNativeAgentClosureErrors } = require('./native-agent-support');
+const { NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, agyNativeAgentClosureErrors } = require('./native-agent-support');
 const { physicalSkillTree } = require('./workflow-package-closure');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
@@ -43,7 +43,7 @@ const SHA256 = /^[a-f0-9]{64}$/i;
 const COMMIT = /^[a-f0-9]{40}$/i;
 const SAFE_RELATIVE = /^[^\\]+(?:\/[^\\]+)*$/;
 const PACKAGE_FILES = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
-const COMPONENT_ROOTS = new Set(['agents', 'rules', 'skills']);
+const COMPONENT_ROOTS = new Set(['agents', 'manifests', 'rules', 'scripts', 'skills']);
 const OPTIONAL_FILES = new Set(['mcp_config.json', 'hooks.json']);
 const SECRET_PATTERNS = [
   /\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{20,}\b/i,
@@ -489,6 +489,7 @@ function materializeAgyPluginPackage({
   writeJson(path.join(outputRoot, 'plugin.json'), manifest);
 
   const agentsDestination = ensureDirectory(path.join(outputRoot, 'agents'), 'AGY agents directory');
+  let needsNativeDispatchSupport = false;
   for (const relative of selected.agents) {
     assertSafeRelative(`agents/${relative}`, 'AGY agent selection');
     const source = path.join(sourceRoot, 'agents', relative);
@@ -501,7 +502,9 @@ function materializeAgyPluginPackage({
     const sourceContent = readFileBounded(source).toString('utf8');
     const adapted = adaptFrontmatter(sourceContent, { filePath: source });
     const linked = sanitizeMarkdownLinks(adapted.text, source, sourceRoot);
-    fs.writeFileSync(target, rewriteAgyNativeAgentBody(linked), { mode: 0o644 });
+    const projected = rewriteAgyNativeAgentBody(linked);
+    if (/scripts\/(?:cli-dispatch\/|fast-worker-selector\.js)/.test(projected)) needsNativeDispatchSupport = true;
+    fs.writeFileSync(target, projected, { mode: 0o644 });
   }
 
   const rulesDestination = ensureDirectory(path.join(outputRoot, 'rules'), 'AGY rules directory');
@@ -530,6 +533,14 @@ function materializeAgyPluginPackage({
     const target = path.join(outputRoot, asset.destination);
     if (lstatOrNull(target)) continue;
     copyFileContained(asset.path, target, sourceRoot, outputRoot);
+  }
+  if (needsNativeDispatchSupport) {
+    for (const relative of NATIVE_AGENT_SUPPORT_FILES) {
+      const source = path.join(sourceRoot, ...relative.split('/'));
+      const target = path.join(outputRoot, ...relative.split('/'));
+      if (lstatOrNull(target)) continue;
+      copyFileContained(source, target, sourceRoot, outputRoot);
+    }
   }
 
   const skillsDestination = ensureDirectory(path.join(outputRoot, 'skills'), 'AGY skills directory');
@@ -725,8 +736,9 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
       .filter((skill) => selected.runtimeSkillIds.includes(skill.id))
       .map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/scripts/`)
     : [];
+  const expectedNativeSupportFiles = new Set(NATIVE_AGENT_SUPPORT_FILES);
   const expectedComponentFiles = selected
-    ? new Set([...expectedAgentFiles, ...expectedRuleFiles, ...expectedSkillFiles])
+    ? new Set([...expectedAgentFiles, ...expectedRuleFiles, ...expectedSkillFiles, ...expectedNativeSupportFiles])
     : null;
   const expectedNativeTrapFiles = new Set(NATIVE_AGENT_TRAP_FILES);
   const expectedStandaloneFiles = profileSelection && profileSelection.selectionMode === 'standalone'
@@ -754,7 +766,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     const isExpectedSkillFile = expectedSkillRoots.some((prefix) => relative.startsWith(prefix));
     if (expectedComponentFiles && COMPONENT_ROOTS.has(base)
       && !expectedComponentFiles.has(relative) && !expectedStandaloneFiles.has(relative)
-      && !expectedNativeTrapFiles.has(relative)
+      && !expectedNativeTrapFiles.has(relative) && !expectedNativeSupportFiles.has(relative)
       && !isExpectedSkillFile) {
       errors.push(`undeclared AGY package file: ${relative}`);
     }

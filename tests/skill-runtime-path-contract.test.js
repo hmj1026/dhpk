@@ -31,14 +31,14 @@ function inspectPolicyBundle(selectedPolicy, policyDocuments) {
   return { bundleRoot, required };
 }
 
-const policyDocuments = mappings['flow-drive'].filter(item => item.source.endsWith('.md')).map(item => item.source);
+const policyDocuments = mappings['flow-guide'].filter(item => item.source.endsWith('.md')).map(item => item.source);
 
 test('canonical policy binds the parent of rules without using the active Skill', () => {
   const { bundleRoot } = inspectPolicyBundle(path.join(ROOT, 'rules/execution-policy.md'), policyDocuments);
   assert.strictEqual(bundleRoot, fs.realpathSync(ROOT));
 });
 
-for (const skill of ['flow-guide', 'flow-drive']) {
+for (const skill of ['flow-guide']) {
   test(`${skill} policy uses only declared physical resources in its relocated bundle`, () => {
     withIsolatedSkill({ source: path.join(ROOT, 'skills', skill) }, context => {
       const prefix = 'references/execution-bundle/';

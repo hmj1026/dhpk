@@ -7,7 +7,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.resolve(__dirname, '..');
-const CLI = path.join(ROOT, 'skills/flow-drive/scripts/verify-handoff.js');
+const CLI = path.join(ROOT, 'scripts/cli-dispatch/verify-handoff.js');
 const WRITER_SNAPSHOT_SHA256 = '45ab7668ee0b4cb0ea0dc49ec4e638ac5285171f555fd4f66f737fbc455baf59';
 const REPLACEMENT_SNAPSHOT_SHA256 = '75045885fd9006985e6e8a374dd1e221eb8fafe42c4d689c10c1b6480e4753ad';
 

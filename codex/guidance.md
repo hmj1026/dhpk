@@ -101,13 +101,13 @@ dhpk ships 15 direct Codex agent roles under `codex/agents/` (synced into `.code
 Use `$flow-guide` when ownership, policy, the next action, closeout, or Codex
 arguments are unclear. Its five read-only actions are `help`, `route`, `rules`,
 `next`, and `close`. Use `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` only when
-the task goal, constraints, and acceptance contract are settled; it is
-explicit-only and has no route/workflow mode. Unknown causes may be diagnosed
-within that confirmed outcome; sufficient cause and verification evidence must
-precede dependent writes. Current bound Host capabilities and explicit Provider
-grants govern each selected target. `--cross-provider` requests a scope question
-and grants nothing without an answer. Its `--plan[=auto|bounded|discovery]` selects planner
-consult scope only. Codex CLI has no `/dhpk:do` command or dhpk
+the task goal, constraints, and acceptance contract are settled; `$flow-drive
+--help` is read-only. It is explicit-only and has no route/workflow mode.
+Unknown causes may be diagnosed within that confirmed outcome; sufficient
+cause and verification evidence must precede dependent writes. Flow Drive uses
+the current Host and Model. Shared delegated dispatch, when requested through
+another supported entrypoint, remains subject to current Host capabilities and
+explicit Provider grants. Codex CLI has no `/dhpk:do` command or dhpk
 slash-command router. The nine portable families
 (`flow-guide`, `flow-drive`, `change-verdict`, `code-trace`, `laravel`,
 `phpunit`, `js-static-checks`, `php`, and `yii1`) use their unprefixed

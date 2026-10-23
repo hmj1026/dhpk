@@ -123,9 +123,8 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
    ```
 2. **規格確認後實作**：需求與邊界確認後，呼叫實作入口（或由 `tdd-workflow` 引導測試先寫）：
    ```text
-   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan                     # 實作已確認 change
-   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan=bounded             # 限定 planner 審查範圍
-   /dhpk:flow-drive <confirmed-spec-or-change-id> --worker=codex             # 指定本次執行的 Worker
+   /dhpk:flow-drive "修正收據總額，並依收據明細驗證。"
+   /dhpk:flow-drive --help
    ```
 3. **變更審查**：程式碼修改完成後，派遣各專業領域 Reviewer：
    ```text
@@ -147,9 +146,10 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 提供建議；`route --go` 最多 handoff 一個可用的 implicit-eligible target，絕不執行
 explicit-only target。`實作密碼重設郵件通知` 不在高精確率 route table 裡（`NO_MATCH`）。
 沒有命中的查詢維持 deliberate classification。`--go` 不會為 miss 建立 handoff。
-`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan[=auto|bounded|discovery]`
-只選擇 optional planner consult scope。它只接受已確認的 specification 或 change ID。
-提案 authoring 由外部 `$openspec-propose` skill 負責。另見
+`flow-drive` 是 explicit native task/help entry，只接受一個有界 task、task-file
+路徑或已確認的 specification/change ID，並使用目前 Host 與 Model。它沒有
+worker、reasoner、provider、planner 或 architecture selector。提案 authoring 由外部
+`$openspec-propose` skill 負責。另見
 [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md) 與
 [feasibility comparison guidance](./docs/agent-guidance/feasibility-comparison.md)。
 這五步是通用節奏，不是必跑管線。檔案數量不會啟動它。該步證據若已存在且
@@ -198,11 +198,10 @@ route 使用過的 transport，以及 capability 現在移到哪個 backend-neut
 CLI、current-model 或 isolated-review 行為。
 
 `CODEX=on` 與 `/dhpk:do --codex` 是已移除的 legacy MCP-peer interface，不是
-`codex exec`、`--worker=codex`、`--reasoner=codex-cli/<model>[:<effort>]` 或外部 app-server plugin 的 alias。
-目前請使用明確的 `/dhpk:flow-drive` 走 current-model implementation；需要
-外部 CLI role 時明確選 `--worker=codex` 或 `--reasoner=codex-cli/<model>[:<effort>]`；裸值
-`--reasoner=codex` 只保留作為相容性 shorthand。支援的 migrated skill
-若需要第二意見，則明確指定 `codex exec`。legacy flag 只會產生 deprecation diagnostic，
+`codex exec`、Flow Drive option 或外部 app-server plugin 的 alias。請使用明確的
+`/dhpk:flow-drive` 以目前 Host 執行 task。共用 Codex CLI role 僅能透過其支援的
+delegated-dispatch caller 使用。若支援的 migrated skill 需要第二意見，則明確指定
+`codex exec`。legacy flag 只會產生 deprecation diagnostic，
 不會選到 hidden backend。
 
 過去 `/dhpk:codex-security` 的語義現在由 backend-neutral `change-verdict` security

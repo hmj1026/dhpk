@@ -126,9 +126,8 @@ After installation, daily development follows this 5-step standard workflow (usi
    ```
 2. **Implement Confirmed Work**: Once requirements and boundaries are settled, invoke implementation (or lead test-first via `tdd-workflow`):
    ```text
-   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan                     # implement confirmed change
-   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan=bounded             # limit planner consult scope
-   /dhpk:flow-drive <confirmed-spec-or-change-id> --worker=codex             # explicit worker override
+   /dhpk:flow-drive "Fix the receipt total and verify it against the receipt lines."
+   /dhpk:flow-drive --help
    ```
 3. **Review Changes**: After editing code, dispatch specialized reviewers:
    ```text
@@ -151,9 +150,10 @@ After installation, daily development follows this 5-step standard workflow (usi
 implicit-eligible target and never executes an explicit-only target.
 `implement password reset notification email` is outside the high-precision
 route table (`NO_MATCH`). A miss stays deliberate classification. `--go` does not hand off a miss.
-`flow-drive` is explicit-only and has no route or workflow mode; `--plan[=auto|bounded|discovery]`
-selects only the optional planner consult scope. It accepts a confirmed
-specification or change ID. Proposal authoring belongs to the external
+`flow-drive` is an explicit native task/help entry. It accepts one bounded
+task, task-file path, or confirmed specification/change ID and uses the current
+Host and Model. It has no worker, reasoner, provider, planner, or architecture
+selector. Proposal authoring belongs to the external
 `$openspec-propose` skill. See the [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md)
 and [feasibility comparison guidance](./docs/agent-guidance/feasibility-comparison.md).
 This 5-step list is the generic cadence, not a required pipeline. File count
@@ -205,12 +205,10 @@ that server. The parity matrix records the retained CLI, current-model, or
 isolated-review behavior for every migrated capability.
 
 `CODEX=on` and `/dhpk:do --codex` are removed legacy MCP-peer interfaces. They
-are not aliases for `codex exec`, `--worker=codex`, `--reasoner=codex-cli/<model>[:<effort>]`, or the
-external app-server plugin. Use the explicit `/dhpk:flow-drive` path
-for current-model implementation, `--worker=codex` or
-`--reasoner=codex-cli/<model>[:<effort>]` when an external CLI role is explicitly
-selected. The bare `--reasoner=codex` value remains a compatibility shorthand;
-use an explicitly named
+are not aliases for `codex exec`, a Flow Drive option, or the external
+app-server plugin. Use the explicit `/dhpk:flow-drive` path for native
+current-Host task execution. Shared Codex CLI roles remain available only
+through their supported delegated-dispatch callers. Use an explicitly named
 `codex exec` second opinion where a migrated skill supports it. A deprecated
 legacy flag produces a deprecation diagnostic rather than selecting a hidden
 backend.

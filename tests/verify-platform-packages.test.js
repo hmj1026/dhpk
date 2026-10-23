@@ -108,7 +108,10 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       assert.strictEqual(report.skillCount, expectedPhysicalIds.length, `${surface} must retain its declared physical entries`);
       assert.deepStrictEqual(fs.readdirSync(path.join(output, 'skills')).sort(), expectedPhysicalIds.map((id) => byId.get(id).name).sort());
       for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) assert.ok(!expectedPhysicalIds.includes(id), id);
-      assert.strictEqual(typeof require(path.join(output, 'skills/flow-drive/scripts/run.js')).runFlowDrive, 'function');
+      const flowDrive = path.join(output, 'skills', byId.get('flow-drive').name);
+      assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), ['SKILL.md', 'agents', 'distribution.yaml', 'references']);
+      assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'agents')), ['openai.yaml']);
+      assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'references')), ['migration.md']);
       const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
       if (surface === 'codex-native') assert.deepStrictEqual(provenance.runtimeSupportStableIds, inventory.internal_runtime_skills[surface]);
       assert.strictEqual(provenance.profileId, surface === 'codex-native' ? 'codex-native' : 'common', `${surface} must record its named default selection`);
