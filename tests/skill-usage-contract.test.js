@@ -300,7 +300,9 @@ test('$flow-guide help card exposes Flow Drive task input and read-only help', (
   assert.strictEqual(help.syntax, '--help');
   assert.strictEqual(help.default, false);
   assert.deepStrictEqual(help.applies_to, ['help']);
+  assert.strictEqual(card.actions.find((action) => action.id === 'apply').effect_authority, 'workspace-write');
   assert.strictEqual(card.actions.find((action) => action.id === 'help').effect_authority, 'read-only');
+  assert.deepStrictEqual(card.options.map((option) => option.id), ['help']);
 });
 
 test('$flow-guide help variants remain metadata-only and deterministic', () => {

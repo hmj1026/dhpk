@@ -4,6 +4,11 @@
 
 Defines implementation routing across inline work, worker tiers, and specialist roles while preserving dispatch ownership and verification boundaries.
 
+The native Flow Drive task/help entry is governed by
+`flow-drive-invocation-contract` and ADR-0029. It does not define a separate
+dispatch engine or task coordinator; shared Dispatch Engine behavior remains
+governed here for consumers that explicitly use that engine.
+
 ## Requirements
 
 The requirements below describe the current dispatch, verification, review, and
@@ -693,43 +698,3 @@ Architecture migration SHALL reuse the current dispatch table, applicable review
 
 - **WHEN** a new coordinator attempts to establish acceptance independently of the project review contract
 - **THEN** architecture validation rejects the duplicate acceptance path
-
-### Requirement: Flow-drive dispatch consumes the common Dispatch Engine
-
-The implementation workflow SHALL resolve planner, reasoner, worker, and
-reviewer SubAgents through the common Dispatch Engine and SHALL not maintain a
-second Provider selection policy in flow-drive.
-
-#### Scenario: Worker and reasoner share target semantics
-
-- **WHEN** flow-drive dispatches a worker and then a reasoner on the same Host
-- **THEN** both use the same Host profile, Capability Matrix, fallback policy,
-  receipt identity, and Provider-neutral Role vocabulary
-
-### Requirement: Portable Flow Drive coordinates bounded observable task items
-
-The Host coordinator SHALL propose task items and targets while the common
-Dispatch Engine validates selection, Provider authorization, current bound
-capability, and recovery policy. Each item SHALL have explicit dependencies,
-authority, scope, and verification. Unknown-cause dependent writers SHALL wait
-for sufficient source/cause/repair/verification evidence. Independent readers
-MAY proceed, every assigned writer including scratch SHALL share one lease,
-and necessary review SHALL retain distinct observed executor identity. Parent
-acceptance SHALL require all necessary items and final verification; successful
-independent items SHALL NOT erase a blocked item. Static, stub, relocated
-consumer, and actual Host/Provider runtime evidence SHALL remain distinct.
-
-#### Scenario: Sanitized dual-defect QA task
-
-- **WHEN** fixed fixture facts leave display symptom A unresolved and show defect B subtotal 1000 minus adjustment 100 returning baseline 800
-- **THEN** A's writer has zero launches while B receives actual RED evidence, a PHP 5.6-compatible repair to 900, passing tests, and distinct independent review; the parent remains BLOCKED
-
-#### Scenario: Assigned manual proposal and merge plan
-
-- **WHEN** the confirmed task assigns a manual proposal in scratch plus a read-only merge plan
-- **THEN** the proposal uses the shared writer lease, WIP and governance bytes remain preserved, and merge stays pending separate approval with no Git mutation
-
-#### Scenario: Standalone execution and answered extra Vendor
-
-- **WHEN** the complete copied Skill executes alone and an explicit Provider answer permits one extra Vendor
-- **THEN** only selected authorized tuples are refreshed after consent, the same common engine validates execution, and no unselected Vendor is probed or invoked

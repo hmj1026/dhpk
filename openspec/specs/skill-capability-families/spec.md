@@ -44,7 +44,7 @@ selection is decided independently.
 
 ### Requirement: Family modes preserve predecessor behavior and authority
 
-The family interfaces SHALL provide these modes and selectors: `skill-scope` has `health`, `judge`, `stocktake`, and `scout`; `flow-guide` has `route`, `rules`, `next`, and `close`, plus a read-only `help` metadata action that is not a workflow mode; `flow-drive` has no modes and exposes one explicit implementation entry for confirmed specifications; `change-verdict` has `code`, `pr`, `security`, `tests`, `docs`, and `risk`, plus `pending` and `deps` actions with the authority contract below; `code-trace` has `explore`, `diagnose`, `history`, and `select-tool`; `laravel` has selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, and `mix`; `phpunit` has selectors `9`, `10`, and `11`; and `harness-govern` has modes `health`, `budget`, `fill`, `revise`, and `sync`. A mode or selector SHALL preserve the applicable predecessor's authorization boundary and terminal evidence. These interface contracts do not require every family to be selected as a public workflow.
+The family interfaces SHALL provide these modes and selectors: `skill-scope` has `health`, `judge`, `stocktake`, and `scout`; `flow-guide` has `route`, `rules`, `next`, and `close`, plus a read-only `help` metadata action that is not a workflow mode; `flow-drive` has one explicit task action for task text, task files, or confirmed specifications/changes and a separate read-only help action, with no workflow modes; `change-verdict` has `code`, `pr`, `security`, `tests`, `docs`, and `risk`, plus `pending` and `deps` actions with the authority contract below; `code-trace` has `explore`, `diagnose`, `history`, and `select-tool`; `laravel` has selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, and `mix`; `phpunit` has selectors `9`, `10`, and `11`; and `harness-govern` has modes `health`, `budget`, `fill`, `revise`, and `sync`. A mode or selector SHALL preserve the applicable predecessor's authorization boundary and terminal evidence. These interface contracts do not require every family to be selected as a public workflow.
 
 SCF-REQ-007: `change-verdict`'s six existing modes, `pending`, and default `deps` audit SHALL remain read-only. Only an explicit user request for dependency fix/remediation SHALL authorize workspace writes, limited to that dependency remediation; the request SHALL NOT require repeated authorization for the same bounded fix or grant arbitrary source repair. Fix execution SHALL be followed by an independent security verdict and SHALL NOT itself clear a gate. `pending` SHALL delegate to an available `code-reviewer`; its absence SHALL return `UNAVAILABLE`. Description, authority instructions, inventory usage, and action authority SHALL consistently distinguish audit from remediation instead of retaining a blanket read-only promise or marking default audit workspace-write.
 
@@ -65,8 +65,10 @@ SCF-REQ-007: `change-verdict`'s six existing modes, `pending`, and default `deps
 
 #### Scenario: Flow drive receives a confirmed specification
 
-- **WHEN** `flow-drive` receives a confirmed specification or OpenSpec change
-- **THEN** it begins the explicit implementation entry without requiring or accepting a mode selector
+- **WHEN** `flow-drive` receives task text, a task-file path, or a confirmed
+  specification/change identifier
+- **THEN** it begins the explicit task action without requiring or accepting a
+  workflow mode
 
 #### Scenario: Pending reviewer is unavailable
 
@@ -180,9 +182,10 @@ review.
 
 The `flow-guide` family SHALL expose read-only `help` for its own grammar and
 for another Codex-visible Skill. The `flow-drive` family SHALL expose one
-explicit implementation entry for a confirmed specification or OpenSpec
-change, SHALL use the inventory Usage Grammar for parameter discovery, and
-SHALL not add a workflow mode or independent help owner.
+explicit task action accepting task text, a task-file path, or a confirmed
+specification/change identifier, plus a separate read-only help action. It
+SHALL use the inventory Usage Grammar for parameter discovery and SHALL not
+add a workflow mode or independent help owner.
 
 #### Scenario: User reviews flow-guide parameters
 
@@ -193,15 +196,14 @@ SHALL not add a workflow mode or independent help owner.
 #### Scenario: User reviews flow-drive parameters
 
 - **WHEN** a user invokes `$flow-guide help flow-drive`
-- **THEN** the result shows the required confirmed-spec-or-change-id input,
-  Worker Selector syntax, explicit worker-target syntax, architecture
-  switches, and explicit-only authority without starting implementation
+- **THEN** the result shows the required task input, the `apply` and `help`
+  actions, the read-only `--help` option, and each action's authority without
+  starting task execution
 
-#### Scenario: User invokes flow-drive without a confirmed specification
+#### Scenario: User invokes flow-drive without a task input or help request
 
-- **WHEN** `flow-drive` receives no confirmed specification or OpenSpec change
-  identity
-- **THEN** it reports the bounded input failure and does not reinterpret the
+- **WHEN** `flow-drive` is invoked without task input or the `--help` option
+- **THEN** it reports the required task input and does not reinterpret the
   request as route selection, proposal authoring, or help execution
 
 #### Scenario: A caller attempts to add a flow-drive mode
@@ -242,7 +244,7 @@ SCF-REQ-001: The self-contained consolidation SHALL use exactly this stable-ID p
 | `review-pending` | `change-verdict` |
 | `dep-audit` | `change-verdict` |
 
-This is a separate closed mapping from the historical predecessor matrix; it SHALL NOT alter or extend that historical wave. `flow-drive`, `dhpk-cli-transport`, `dhpk-cli-dispatch-context`, `dhpk-codex-bridge`, and `dhpk-agy-fast-worker` SHALL be fully excluded from file movement, route changes, helper consolidation, and exposure changes. No universal router or adapter framework SHALL be introduced by this consolidation.
+This is a separate closed mapping from the historical predecessor matrix; it SHALL NOT alter or extend that historical wave. The historical scope excluded `flow-drive`, `dhpk-cli-transport`, `dhpk-cli-dispatch-context`, `dhpk-codex-bridge`, and `dhpk-agy-fast-worker` from that consolidation's file movement, route changes, helper consolidation, and exposure changes. Current Flow Drive ownership is governed by `flow-drive-invocation-contract` and ADR-0029. No universal router or adapter framework SHALL be introduced by this consolidation.
 
 #### Scenario: Selected family replaces its predecessors
 

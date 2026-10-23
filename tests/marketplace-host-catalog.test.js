@@ -11,6 +11,7 @@ const { materializeNativePackage, verifyNativePackage } = require('../scripts/li
 const { materializeCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 const { materializeAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
 const { resolveCapabilitySelection } = require('../scripts/lib/capability-bundle-selection');
+const { NATIVE_AGENT_SUPPORT_FILES } = require('../scripts/lib/native-agent-support');
 const claude = require('../scripts/ci/gen-claude-marketplace-package');
 const { loadMarketplaceHostPublication } = require('../scripts/lib/marketplace-host-publication');
 
@@ -52,6 +53,12 @@ function fixture() {
     path.join(ROOT, 'scripts/hooks/install-codex-skills.sh'),
     path.join(root, 'scripts/hooks/install-codex-skills.sh'),
   );
+  for (const relative of NATIVE_AGENT_SUPPORT_FILES) {
+    const source = path.join(ROOT, relative);
+    const destination = path.join(root, relative);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.copyFileSync(source, destination);
+  }
   write(path.join(root, 'manifests/distribution-inventory.json'), `${JSON.stringify(INVENTORY, null, 2)}\n`);
   write(path.join(root, 'manifests/marketplace-selection.json'), `${JSON.stringify(SELECTION, null, 2)}\n`);
   write(path.join(root, '.claude-plugin/plugin.json'), fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json')));
