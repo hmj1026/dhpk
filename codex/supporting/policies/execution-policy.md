@@ -65,12 +65,13 @@ dependency order, each task's exact owner and write scope, and the next
 checkpoint. Adequate existing planning evidence is reusable; task count alone
 does not require a consult, while an explicit supported `--plan` still does.
 After each wave, dispatching the applicable reviewers in one batch is
-recommended; fix `CRITICAL` findings before reporting done. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
-add a valid changelog fragment → open a Draft PR targeting `develop` → monitor
-that PR's actual CI to a completed conclusion → human merge gate. Queued or
-partial CI is not completion. Required consumer evidence marked `NOT RUN` or
-`UNAVAILABLE` is non-terminal and cannot count as completed CI. The external
-`/opsx:apply` flow remains unchanged.
+recommended; fix `CRITICAL` findings before reporting done. Follow the consumer
+project's Project Convention for applicable OpenSpec delivery, branching,
+changelog, CI, and merge requirements, using the actual Host shell. Where CI
+or consumer verification is required, record its actual terminal conclusion;
+queued, partial, `NOT_RUN`, or `UNAVAILABLE` evidence does not satisfy that
+obligation. Close out with the selected entry's Verification contract and any
+project-required handoff. The external `/opsx:apply` flow remains unchanged.
 
 ## Planner consult scope
 

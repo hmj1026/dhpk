@@ -47,7 +47,6 @@ test('workflow guidance matches the route table, kernel, and PR base order', () 
     assert.match(text, /An explicit `--base` wins\./, relative);
     assert.match(text, /does not define a userConfig key/, relative);
     assert.match(text, /the generic fallback is `main`/, relative);
-    assert.match(text, /documented pull-request base is `develop`/, relative);
     assert.match(text, /When the project does not set `\{TICKET_PATTERN\}`, use `\[A-Z\]\+-\\d\+`\./, relative);
     assert.match(text, /do not invent one/, relative);
   }

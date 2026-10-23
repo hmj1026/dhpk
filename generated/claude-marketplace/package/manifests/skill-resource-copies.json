@@ -64,7 +64,7 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:3a2154bee7437c22435e89bdb69339090358d8e5e0c335d4d417872df106c7b8",
+      "sha256": "sha256:01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
@@ -148,7 +148,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:56127cd4e5567985d817e3e10b29b10f431890fe6163813fece2386cfb2467dc",
+      "sha256": "sha256:6609318c629f90bf692b1ad0467608cebc1838ed7129038b76a070bf81d1e035",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -208,7 +208,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:3a2154bee7437c22435e89bdb69339090358d8e5e0c335d4d417872df106c7b8",
+      "sha256": "sha256:01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
@@ -280,7 +280,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:56127cd4e5567985d817e3e10b29b10f431890fe6163813fece2386cfb2467dc",
+      "sha256": "sha256:6609318c629f90bf692b1ad0467608cebc1838ed7129038b76a070bf81d1e035",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
