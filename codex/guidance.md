@@ -133,6 +133,12 @@ invoke roles with `/agent <role-name>`, and use the external OpenSpec plugin's
 `/opsx:*` commands or `$openspec-propose` where appropriate. Do not claim a
 missing `$name` is callable.
 
+For a standalone Flow Drive installation without the dhpk projection, copy the
+complete pinned canonical skill into the project `.agents/skills/flow-drive`.
+The [installation and lifecycle guide](../docs/flow-drive-standalone.md) owns
+its pin, update, removal, and managed-source switch. A fresh-session discovery
+check is required before claiming the skill is callable.
+
 When `$flow-guide` or `$flow-drive` is available, the roles below remain `/agent`
 dispatch targets for the downstream handoff:
 
