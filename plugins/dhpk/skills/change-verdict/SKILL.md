@@ -6,15 +6,8 @@ metadata:
   dhpk-capability-id: dhpk.skill.change-verdict
   dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
-  dhpk-modes: [code, pr, security, tests, docs, risk]
-  dhpk-next:
-    PASS: none
-    FAIL: none
-    BLOCKED: none
-    NOT_RUN: none
-    UNAVAILABLE: none
-    code:PASS: precommit
-    docs:PASS: git-smart-commit
+  dhpk-modes: "[\"code\",\"pr\",\"security\",\"tests\",\"docs\",\"risk\"]"
+  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\",\"code:PASS\":\"precommit\",\"docs:PASS\":\"git-smart-commit\"}"
 ---
 
 # Change Verdict

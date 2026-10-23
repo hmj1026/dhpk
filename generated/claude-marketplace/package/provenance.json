@@ -2789,7 +2789,7 @@
       "sourcePath": "skills/flow-guide/scripts/skill-next-actions.js",
       "destination": "skills/flow-guide/scripts/skill-next-actions.js",
       "kind": "entry",
-      "sha256": "4b9538e8b27965be6e74a952bd2795a0c8d4ccaa3f360a8859b1855d3355b3ea"
+      "sha256": "2f60a05db8beeb28f706f023276e55067e9de4a35e2f94e7c83208c60e77d748"
     },
     {
       "skillId": "flow-guide",
@@ -2981,7 +2981,7 @@
       "sourcePath": "scripts/hooks/install-codex-skills.sh",
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh",
       "kind": "packaging-resource",
-      "sha256": "284f9ceb7d51f77a301ec5f48d81fc17091c9feac32cb5697243c1dd267a1912"
+      "sha256": "9e98ce5c62570905093f5d4fbf34093fb50995dca013cec63aa432ad35dd133a"
     },
     {
       "skillId": "harness-setup",

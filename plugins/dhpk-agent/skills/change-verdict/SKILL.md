@@ -4,16 +4,9 @@ description: "Review code, PRs, security, tests, documents, change risk, pending
 metadata:
   dhpk-capability-id: "dhpk.skill.change-verdict"
   dhpk-invocation-class: "implicit-eligible"
-  dhpk-modes: ["code", "pr", "security", "tests", "docs", "risk"]
+  dhpk-modes: "[\"code\",\"pr\",\"security\",\"tests\",\"docs\",\"risk\"]"
   dhpk-name-style: "portable-family"
-  dhpk-next:
-    PASS: "none"
-    FAIL: "none"
-    BLOCKED: "none"
-    NOT_RUN: "none"
-    UNAVAILABLE: "none"
-    code:PASS: "precommit"
-    docs:PASS: "git-smart-commit"
+  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\",\"code:PASS\":\"precommit\",\"docs:PASS\":\"git-smart-commit\"}"
 ---
 
 # Change Verdict

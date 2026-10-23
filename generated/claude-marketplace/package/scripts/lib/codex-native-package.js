@@ -32,6 +32,10 @@ const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
+const {
+  serializePortableSkillMetadata,
+  validatePortableSkillMetadata,
+} = require('./portable-skill-metadata');
 
 const CODEX_NATIVE_PROFILE_ID = 'codex-native';
 
@@ -148,6 +152,34 @@ function findSymlinks(dir, options = {}) {
   return walk(dir, 0);
 }
 
+function listNativeSkillMarkdownFiles(skillsRoot, options = {}) {
+  const files = [];
+  const budget = createTraversalBudget(options);
+  const walk = (directory, depth) => {
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const entry of readDirectoryEntries(directory, { budget, sort: true })) {
+        const child = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) continue;
+        if (entry.isDirectory()) walk(child, depth + 1);
+        else if (entry.isFile() && entry.name === 'SKILL.md') files.push(child);
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  if (lstatOrNull(skillsRoot) && lstatOrNull(skillsRoot).isDirectory() && !lstatOrNull(skillsRoot).isSymbolicLink()) {
+    walk(skillsRoot, 0);
+  }
+  return files;
+}
+
+function serializeNativeSkillMarkdown(content, label) {
+  const result = serializePortableSkillMetadata(Buffer.from(content).toString('utf8'));
+  if (!result.ok) throw new Error(`${label} has invalid metadata: ${result.errors.join('; ')}`);
+  return Buffer.from(result.output);
+}
+
 function resolvesInsidePackage(manifestSkillsField, packageRoot) {
   if (path.isAbsolute(manifestSkillsField)) return false;
   const resolved = path.resolve(packageRoot, manifestSkillsField);
@@ -239,6 +271,14 @@ function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsFie
     const actualName = readSkillFrontmatterName(skillFile);
     if (actualName !== expected.name) {
       errors.push(`native skill '${expected.name}' SKILL.md frontmatter name '${actualName || '(missing)'}' does not match public name '${expected.name}'`);
+    }
+  }
+  for (const skillFile of listNativeSkillMarkdownFiles(skillsRoot)) {
+    const content = readFileBounded(skillFile).toString('utf8');
+    const portable = validatePortableSkillMetadata(content);
+    if (!portable.ok) {
+      const relative = path.relative(packageRoot, skillFile).split(path.sep).join('/');
+      errors.push(...portable.errors.map((error) => `${relative}: ${error}`));
     }
   }
   return { ok: errors.length === 0, errors };
@@ -548,11 +588,14 @@ function compileNativePackage({
           inventoryRevision,
           ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
         });
+        const content = file.path.endsWith('/SKILL.md')
+          ? serializeNativeSkillMarkdown(file.bytes, `Codex marketplace ${file.path}`)
+          : file.bytes;
         files.push(nativeOutputRecord(
           `skill:${file.ownerId}:${file.skillId}:${file.path}`,
           file.sourcePath,
           file.path,
-          file.bytes,
+          content,
           transform,
           file.mode,
           { ...skillMetadata, ownerId: file.ownerId, sourcePath: file.sourcePath, contentKind: file.kind },
@@ -560,7 +603,9 @@ function compileNativePackage({
       }
       const ownerFingerprintFiles = ownerFiles.map((file) => ({
         destination: path.posix.relative(path.posix.join('skills', publicName), file.path),
-        content: file.bytes,
+        content: file.path.endsWith('/SKILL.md')
+          ? serializeNativeSkillMarkdown(file.bytes, `Codex marketplace ${file.path}`)
+          : file.bytes,
       }));
       fingerprints[publicName] = nativeSkillFingerprint(ownerFingerprintFiles);
       selectedEntries.push(skill);
@@ -576,7 +621,11 @@ function compileNativePackage({
     if (sourceFrontmatterName !== publicName) {
       throw new Error(`native skill '${publicName}' source SKILL.md frontmatter name '${sourceFrontmatterName || '(missing)'}' does not match public name '${publicName}'`);
     }
-    const skillFiles = nativeSourceFiles(sourceDir, '', { budget: traversalBudget });
+    const skillFiles = nativeSourceFiles(sourceDir, '', { budget: traversalBudget }).map((file) => (
+      file.destination.endsWith('/SKILL.md') || file.destination === 'SKILL.md'
+        ? { ...file, content: serializeNativeSkillMarkdown(file.content, `Codex native ${file.destination}`) }
+        : file
+    ));
     fingerprints[publicName] = nativeSkillFingerprint(skillFiles);
     const skillTransform = { id: 'codex-native-skill', version: generatorVersion };
     const skillMetadata = skillProjectionMetadata(skill, {

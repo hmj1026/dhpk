@@ -5,12 +5,7 @@ metadata:
   dhpk-capability-id: "dhpk.skill.create-pr"
   dhpk-invocation-class: "explicit-only"
   dhpk-name-style: "portable-skill"
-  dhpk-next:
-    PASS: "none"
-    FAIL: "none"
-    BLOCKED: "none"
-    NOT_RUN: "none"
-    UNAVAILABLE: "none"
+  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Create PR

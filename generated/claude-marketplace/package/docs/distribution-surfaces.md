@@ -167,11 +167,17 @@ Cursor/Codex directory-shaped `<name>/SKILL.md` packages and Antigravity direct
 `<name>.md` adapters under one receipt-owned root. Its sole lifecycle receipt is
 `.agents/.dhpk-installed.json`; Claude, when selected, receives a symlink
 discovery adapter at `.claude/skills/<name>` that points to the generated
-artifact. AGY files are self-contained by default, and sibling package
-references require a passing consumer probe. It does not re-home canonical
-skills and it does not make `.agents/agents` or `.agents/rules` official paths:
-Codex, Cursor, and AGY keep their documented platform-native agent/rule
-projections.
+artifact. Claude-bound skills use the structured sibling tree under
+`.agents/claude-skills`; the portable tree at `.agents/skills` keeps metadata
+values as strings. Codex and Cursor project-local installers also write
+receipt-owned physical skill trees and serialize non-string `metadata` values
+as JSON text in YAML string scalars. These installed projections leave the
+canonical source tree unchanged, and their receipts bind raw source
+fingerprints separately from transformed destination fingerprints. AGY files
+are self-contained by default, and sibling package references require a
+passing consumer probe. It does not re-home canonical skills and it does not
+make `.agents/agents` or `.agents/rules` official paths: Codex, Cursor, and AGY
+keep their documented platform-native agent/rule projections.
 
 ## Claude publication and source ownership
 

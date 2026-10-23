@@ -23,9 +23,6 @@
     "ios",
     "swiftui"
   ],
-  "skills": [
-    "./skills/"
-  ],
   "agents": [
     "./agents/agy-worker.md",
     "./agents/architect.md",

@@ -5,12 +5,7 @@ metadata:
   dhpk-capability-id: "dhpk.skill.flow-drive"
   dhpk-invocation-class: "explicit-only"
   dhpk-name-style: "portable-family"
-  dhpk-next:
-    PASS: "repo-verify"
-    FAIL: "none"
-    BLOCKED: "none"
-    NOT_RUN: "none"
-    UNAVAILABLE: "none"
+  dhpk-next: "{\"PASS\":\"repo-verify\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Flow Drive

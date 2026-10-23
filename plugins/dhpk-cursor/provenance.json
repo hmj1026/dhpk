@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "3215c61a9da1e622c65cec21504d3f5a8a8e9a39",
-  "generatedFromCommit": "3215c61a9da1e622c65cec21504d3f5a8a8e9a39",
-  "generatedFromTree": "32ad4a30a9506b1dc37b1358435ebd1c6e098b32",
+  "sourceCommit": "ab31277a27fa2c3b2906b58e574f8f694c7d2aac",
+  "generatedFromCommit": "ab31277a27fa2c3b2906b58e574f8f694c7d2aac",
+  "generatedFromTree": "73f9eef828b49a98834b8b264b43400ba114e336",
   "inventoryDigest": "c0eabd9b270692d2c06279447289e64c692d45720f1516d3502ab3fab90ce3cf",
   "inventoryRevision": "sha256:47a01eec098299cea524f97ee6edd39d60f31d2693e59f01857f1ee84b97a60b",
   "generatorVersion": "1.0.0",
@@ -2151,7 +2151,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/skill-next-actions.js",
         "destination": "skills/flow-guide/scripts/skill-next-actions.js",
-        "originalGitBlobDigest": "7c14bde8f334b95187ad0c830e9e4c5c36c3c5e9"
+        "originalGitBlobDigest": "987b02acda5d1e3c0c92594015bbe7cc2ee1bf70"
       },
       {
         "ownerId": "flow-guide",

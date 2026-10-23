@@ -7,12 +7,7 @@ metadata:
   dhpk-capability-id: dhpk.skill.code-simplify
   dhpk-name-style: portable-skill
   dhpk-invocation-class: implicit-eligible
-  dhpk-next:
-    PASS: repo-verify
-    FAIL: none
-    BLOCKED: none
-    NOT_RUN: none
-    UNAVAILABLE: none
+  dhpk-next: "{\"PASS\":\"repo-verify\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Code simplification
