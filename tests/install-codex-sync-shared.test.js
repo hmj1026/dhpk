@@ -27,6 +27,10 @@ function skillBody(name, heading) {
 function fakePlugin() {
   const plugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-shared-plugin-')));
   write(path.join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
+  write(
+    path.join(plugin, 'scripts', 'lib', 'portable-skill-metadata.js'),
+    fs.readFileSync(path.join(REPO, 'scripts', 'lib', 'portable-skill-metadata.js'), 'utf8'),
+  );
   write(path.join(plugin, 'skills', 'dhpk-portable', 'SKILL.md'), skillBody('dhpk-portable', 'Portable'));
   write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only'));
   write(path.join(plugin, 'cursor', 'skills', 'dhpk-portable', 'SKILL.md'), skillBody('dhpk-portable', 'Portable'));
@@ -249,6 +253,10 @@ for (const entrypoint of sharedSkillRecoveryEntrypoints) {
       legacy.entries = legacy.entries.map(({ entityKind, ...entry }) => entry);
       legacy.sourceFingerprints = Object.fromEntries(legacy.entries.map((entry) => [entry.stableId, entry.sourceFingerprint]));
       legacy.selectedIds.push('retired-selected-only');
+      legacy.rollback = null;
+      delete legacy.claudeManagedRoot;
+      delete legacy.claudeManagedPaths;
+      delete legacy.claudeGeneratedFingerprints;
       delete legacy.receiptFingerprint;
       legacy.receiptFingerprint = fingerprint(legacy);
       write(receiptPath, JSON.stringify(legacy));
@@ -264,7 +272,7 @@ for (const entrypoint of sharedSkillRecoveryEntrypoints) {
 
       assert.strictEqual(migrated.status, 0, outputOf(migrated));
       const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-      assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+      assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
       assert.deepStrictEqual(receipt.selectedIds, ['codex-only', 'portable']);
       assert.deepStrictEqual(receipt.emittedIds, ['codex-only', 'portable']);
       assert.ok(!receipt.selectedIdentities.some((identity) => identity.stableId === 'retired-selected-only'));

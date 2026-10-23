@@ -120,8 +120,11 @@ test('a stale descriptor cannot inject plugin-root files into an installed Skill
         `${mode.join(' ')}: a plugin-root overlay must never be injected`);
       if (mode.includes('--copy')) {
         const receipt = JSON.parse(fs.readFileSync(path.join(project, '.codex', '.dhpk-installed.json'), 'utf8'));
-        assert.strictEqual(receipt.managed_entries.skills['code-trace'].source_fingerprint,
-          completeTreeFingerprint(target), 'receipt source hash must cover the complete installed tree');
+        const entry = receipt.managed_entries.skills['code-trace'];
+        assert.strictEqual(entry.source_fingerprint,
+          completeTreeFingerprint(sourceSkill(plugin)), 'receipt source hash must cover the canonical source tree');
+        assert.strictEqual(entry.destination_fingerprint,
+          completeTreeFingerprint(target), 'receipt destination hash must cover the complete installed tree');
         fs.rmSync(path.join(plugin, 'scripts'), { recursive: true, force: true });
         const runner = runRunner(target);
         assert.strictEqual(runner.status, 0, `${runner.stdout}\n${runner.stderr}`);

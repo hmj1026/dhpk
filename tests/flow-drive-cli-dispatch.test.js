@@ -25,6 +25,10 @@ const DEFAULT_CONFIG = Object.freeze({
   codex_reasoner_timeout_secs: 3,
 });
 
+function physicalRuntimePath(...directories) {
+  return [...new Set(directories.map((directory) => fs.realpathSync(directory)))].join(path.delimiter);
+}
+
 const CODEX_STUB = `#!/usr/bin/env bash
 printf '%s\\n' "$@" > "$(pwd)/provider-argv.txt"
 cat > "$(pwd)/provider-stdin.txt"
@@ -76,7 +80,7 @@ function createHarness({
     context_path: path.join(artifactRoot, 'dispatch-context.json'),
     assigned_files: ['provider-argv.txt', 'provider-stdin.txt', 'src/worker.js'],
     report_only: true,
-    runtime_path: [binDir, '/usr/bin', '/bin'].join(path.delimiter),
+    runtime_path: physicalRuntimePath(binDir, '/usr/bin', '/bin'),
   };
   const hostProfile = {
     ...profile,
