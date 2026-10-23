@@ -1,6 +1,6 @@
 {
   "name": "dhpk",
-  "version": "0.66.6",
+  "version": "0.66.7",
   "private": true,
   "description": "Reusable Claude Code harness with role-based agents, routed commands, advisory reviewer dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
   "license": "MIT",
@@ -51,6 +51,8 @@
     "check:marketplace": "node scripts/ci/gen-claude-marketplace-package.js --check",
     "check:skill-progression": "node scripts/ci/gen-skill-progression-tables.js --check",
     "check:skill-resources": "node scripts/ci/sync-skill-resources.js --check",
+    "check:local-skills": "node scripts/ci/validate-agents-skills.js",
+    "sync:local-skills": "node scripts/ci/gen-agents-skills.js --update && node scripts/ci/validate-agents-skills.js",
     "check:packages": "node scripts/ci/verify-platform-packages.js",
     "check:skill-distribution": "node scripts/ci/gen-distribution-inventory.js --check && node scripts/ci/gen-skill-directory-coverage.js --check && node scripts/ci/gen-skill-resources.js --check && node scripts/ci/gen-command-skill-dispositions.js --check && node scripts/ci/gen-command-forwarders.js --check",
     "check:generated": "npm run check:skill-distribution && npm run check:manifest && npm run check:marketplace && npm run check:skill-resources && npm run check:packages",

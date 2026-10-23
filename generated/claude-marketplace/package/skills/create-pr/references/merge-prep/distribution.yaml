@@ -68,8 +68,7 @@
       "outcome": "retain",
       "callers": [
         "commands/merge-prep.md"
-      ],
-      "allowed_tools": "Bash(git:*), Read, Grep, Glob, Skill"
+      ]
     }
   ]
 }

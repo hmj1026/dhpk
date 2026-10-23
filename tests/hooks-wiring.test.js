@@ -56,6 +56,7 @@ test('Edit|Write|MultiEdit wires only the protected-path guard', () => {
     command: 'bash',
     args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-guard.sh'],
     timeout: 5,
+    onFailure: 'block',
   }]);
 });
 

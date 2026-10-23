@@ -2,7 +2,9 @@
 'use strict';
 
 // Zero-dependency JavaScript guardrail. Every tracked or new .js/.cjs file
-// must parse as CommonJS. Modules with a line-start `// dhpk:read-only-planner`
+// must parse as CommonJS; tests must not embed the current package version
+// except for a same-line `dhpk:historical-version-fixture` annotation. Modules
+// with a line-start `// dhpk:read-only-planner`
 // comment observe untrusted on-disk state, so they read through descriptors opened
 // with O_NOFOLLOW and never write, spawn, or call readFileSync (which follows
 // a symlink swapped in after lstat). The planner check is lexical: it names
@@ -18,6 +20,9 @@ const vm = require('node:vm');
 
 const PLANNER_MARKER = 'dhpk:read-only-planner';
 const PLANNER_MARKER_LINE = new RegExp(`^// ${PLANNER_MARKER}\\b`, 'm');
+const HISTORICAL_VERSION_FIXTURE_MARKER = 'dhpk:historical-version-fixture';
+const RUNTIME_GUIDANCE_MARKER_LINE = /^\/\/ dhpk:runtime-guidance-test\b/m;
+const CONTENT_READER = /\b(?:readFileSync|readFile|createReadStream)\b/;
 
 const WRITE_APIS = [
   'writeFileSync', 'writeFile', 'appendFileSync', 'appendFile', 'mkdirSync', 'mkdtempSync',
@@ -59,8 +64,44 @@ function plannerErrors(relativePath, source) {
     .map((rule) => `${relativePath}: ${rule.message}`);
 }
 
+function currentVersionLiteralErrors(relativePath, source, version) {
+  const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const literalPattern = new RegExp("(['\"`])" + escapedVersion + '\\1', 'g');
+  return source.split(/\r?\n/).flatMap((line, index) => {
+    const literals = [...line.matchAll(literalPattern)];
+    if (literals.length === 0) return [];
+
+    const marker = line.indexOf(`// ${HISTORICAL_VERSION_FIXTURE_MARKER}`);
+    const markedLine = literals.length === 1 && marker >= 0 && literals.every((literal) => (
+      marker >= literal.index + literal[0].length
+    ));
+    if (markedLine) return [];
+
+    return [
+      `${relativePath}: line ${index + 1}: test contains current package version "${version}"; read package.json or mark an intentional fixture with // ${HISTORICAL_VERSION_FIXTURE_MARKER}`,
+    ];
+  });
+}
+
 function checkFiles(root, files, stats = { plannerFiles: [] }) {
   const errors = [];
+  const testFiles = new Set(files.filter((relativePath) => (
+    relativePath.startsWith('tests/') && /\.(?:js|cjs)$/.test(relativePath)
+  )));
+  let packageVersion = null;
+  if (testFiles.size > 0) {
+    try {
+      const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+      if (typeof packageJson.version === 'string' && packageJson.version.trim() !== '') {
+        packageVersion = packageJson.version;
+      } else {
+        errors.push('package.json: version must be a non-empty string for the test version guardrail');
+      }
+    } catch (error) {
+      errors.push(`package.json: unable to read version for the test version guardrail: ${error.message}`);
+    }
+  }
+
   for (const relativePath of files) {
     const absolute = path.join(root, relativePath);
     if (!fs.existsSync(absolute)) continue;
@@ -69,6 +110,12 @@ function checkFiles(root, files, stats = { plannerFiles: [] }) {
     if (syntax) {
       errors.push(syntax);
       continue;
+    }
+    if (packageVersion !== null && testFiles.has(relativePath)) {
+      errors.push(...currentVersionLiteralErrors(relativePath, source, packageVersion));
+    }
+    if (testFiles.has(relativePath) && RUNTIME_GUIDANCE_MARKER_LINE.test(source) && CONTENT_READER.test(source)) {
+      errors.push(`${relativePath}: runtime-guidance test uses a raw content reader; exercise runtime behavior, shared metadata parsers, or resource existence instead`);
     }
     if (!PLANNER_MARKER_LINE.test(source)) continue;
     stats.plannerFiles.push(relativePath);

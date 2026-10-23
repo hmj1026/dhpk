@@ -5,12 +5,7 @@ metadata:
   dhpk-capability-id: "dhpk.skill.tdd"
   dhpk-invocation-class: "implicit-eligible"
   dhpk-name-style: "portable-skill"
-  dhpk-next:
-    PASS: "repo-verify"
-    FAIL: "tdd-workflow"
-    BLOCKED: "none"
-    NOT_RUN: "tdd-workflow"
-    UNAVAILABLE: "none"
+  dhpk-next: "{\"PASS\":\"repo-verify\",\"FAIL\":\"tdd-workflow\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"tdd-workflow\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Test-Driven Development

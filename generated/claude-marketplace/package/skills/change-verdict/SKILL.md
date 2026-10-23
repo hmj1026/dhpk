@@ -1,7 +1,7 @@
 ---
 name: change-verdict
 description: 'Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts and dependency audits are read-only; explicit dependency remediation delegates only the bounded fix to an available authorized writer, followed by independent security review. Not for arbitrary source repair, gate clearing, or architecture-only design. Output: evidence-backed findings, actual review status, and separate remediation/security results.'
-allowed-tools: 'Bash(git diff:*), Bash(git status:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git show:*), Bash(git log:*), Bash(git ls-files:*), Bash(git hash-object:*), Bash(gh pr view:*), Bash(node ${CLAUDE_SKILL_DIR}/scripts/risk-analyze.js:*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/check-unrelated-changes.sh:*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/review-cli.sh:*), Bash(codex review:*), Read, Grep, Glob, Agent'
+allowed-tools: 'Bash(git diff:*), Bash(git status:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git show:*), Bash(git log:*), Bash(git ls-files:*), Bash(git hash-object:*), Bash(gh pr view:*), Bash(node ${CLAUDE_SKILL_DIR}/scripts/risk-analyze.js:*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/check-unrelated-changes.sh:*), Read, Grep, Glob, Agent'
 metadata:
   dhpk-capability-id: dhpk.skill.change-verdict
   dhpk-name-style: portable-family
@@ -87,8 +87,7 @@ Load only the selected mode's references:
   use `references/risk/` to interpret its score.
 
 `${CLAUDE_SKILL_DIR}` is the directory containing this `SKILL.md`. Claude substitutes it in these helper commands and in `allowed-tools`. Hosts that do not substitute it, and references that write `$SKILL_DIR`, resolve that same directory. The working
-directory stays the consumer repository. Those helper commands are the same
-paths granted by `allowed-tools`; the grant is not unrestricted Bash. `codex review` remains an explicit opt-in and does not start a second opinion by itself.
+directory stays the consumer repository. `risk-analyze.js` and `check-unrelated-changes.sh` are the helper paths granted by `allowed-tools`; the grant is not unrestricted Bash. `codex review` and `review-cli.sh` stay explicit opt-in and do not start by themselves.
 
 For every mode, report evidence gaps and use the response shape in
 [`templates/review_output.md`](templates/review_output.md). The code-only

@@ -160,6 +160,24 @@ test('new distribution previews use the common collection by default', () => {
   } finally { fs.rmSync(output, { recursive: true, force: true }); }
 });
 
+test('Codex native previews use the exact named package selection by default', () => {
+  const result = invoke(['codex-native', 'preview', '--json']);
+  assert.strictEqual(result.status, 0, result.stderr);
+  const payload = report(result);
+  assert.strictEqual(payload.verdict, 'PASS');
+  assert.strictEqual(payload.skillCount, 16);
+  const output = payload.output;
+  try {
+    const receipt = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
+    const profileIds = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'))
+      .profiles['codex-native'].skillIds;
+    assert.strictEqual(receipt.profileId, 'codex-native');
+    assert.deepStrictEqual(receipt.selectedStableIds.slice().sort(), profileIds.slice().sort());
+    assert.strictEqual(receipt.installation.profileId, 'codex-native');
+    assert.deepStrictEqual(receipt.installation.selectedStableIds.slice().sort(), profileIds.slice().sort());
+  } finally { fs.rmSync(path.dirname(output), { recursive: true, force: true }); }
+});
+
 test('generates a disposable AGY package and validates that exact output', () => {
   withTmpdirSymlinkAlias(() => {
     const temporaryRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-cli-'));
@@ -245,7 +263,7 @@ test('rejects provenance-bound generation from a dirty source checkout before wr
 
 test('previews dirty source bytes without changing Git state and formal validation rejects the preview', () => {
   withCleanWorktree((worktreeRoot) => {
-    const changed = path.join(worktreeRoot, 'CONTEXT.md');
+    const changed = path.join(worktreeRoot, 'GLOSSARY.md');
     const added = path.join(worktreeRoot, 'skills', 'flow-guide', 'assets', 'preview-resource.txt');
     const link = path.join(worktreeRoot, 'docs', 'preview-contained-link');
     const originalMode = fs.statSync(changed).mode & 0o7777;

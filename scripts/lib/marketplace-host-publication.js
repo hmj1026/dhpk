@@ -58,6 +58,14 @@ function isPlainCommonProfile(profileSelection) {
     && !hasValues(profileSelection.moduleClosure);
 }
 
+function isPlainCodexNativeProfile(profileSelection) {
+  return Boolean(profileSelection)
+    && profileSelection.profileId === 'codex-native'
+    && profileSelection.selectionMode === 'profile'
+    && !hasValues(profileSelection.overlayStableIds)
+    && !hasValues(profileSelection.moduleClosure);
+}
+
 function sameUniqueIdSet(left, right) {
   if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
   const leftIds = new Set(left);
@@ -71,7 +79,12 @@ function loadMarketplaceHostPublication({ root, inventory, hostSurface, profileS
   if (typeof hostSurface !== 'string' || hostSurface.length === 0) {
     throw new Error('marketplace host surface is required');
   }
-  if (!isPlainCommonProfile(profileSelection)) return null;
+  const commonProfile = isPlainCommonProfile(profileSelection);
+  const codexNativeProfile = isPlainCodexNativeProfile(profileSelection);
+  if (profileSelection && profileSelection.profileId === 'codex-native' && !codexNativeProfile) {
+    throw new Error('codex-native profile selection must be a plain named profile without overlays or modules');
+  }
+  if (!commonProfile && !codexNativeProfile) return null;
   const selection = readSelection(root);
   if (selection === null) return null;
   // Many package-unit fixtures point at the repository root while supplying a
@@ -89,8 +102,13 @@ function loadMarketplaceHostPublication({ root, inventory, hostSurface, profileS
   }
   if (profileSelection) {
     const publicEntryIds = view.publicEntries.map((entry) => entry.id);
-    if (!sameUniqueIdSet(profileSelection.selectedStableIds, publicEntryIds)) {
-      throw new Error('common profile selection does not match marketplace public entries');
+    const expectedIds = codexNativeProfile
+      ? [...view.publicEntries, ...view.hostOnly].map((entry) => entry.id)
+      : publicEntryIds;
+    if (!sameUniqueIdSet(profileSelection.selectedStableIds, expectedIds)) {
+      throw new Error(codexNativeProfile
+        ? 'codex-native profile selection does not match marketplace public and Host-only entries'
+        : 'common profile selection does not match marketplace public entries');
     }
   }
   return view;

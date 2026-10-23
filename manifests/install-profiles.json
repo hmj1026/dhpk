@@ -37,6 +37,29 @@
       ],
       "compatibilityMode": "profile"
     },
+    "codex-native": {
+      "description": "Formal selection identity for the Codex native package's 16 published skills; this is package-specific and does not change the common installation default.",
+      "modules": [],
+      "skillIds": [
+        "change-verdict",
+        "code-trace",
+        "create-pr",
+        "doc-maintain",
+        "flow-drive",
+        "flow-guide",
+        "git-smart-commit",
+        "git-worktree",
+        "library-author",
+        "opsx-apply-resume",
+        "precommit",
+        "proposal-analyze",
+        "release-creator",
+        "repo-verify",
+        "tdd",
+        "ui-ux-verify"
+      ],
+      "compatibilityMode": "profile"
+    },
     "legacy-php-yii": {
       "description": "PHP 5.6 + Yii 1.1 + PHPUnit 5.7 stack. Activates all three modules at once for full Yii-1.1 path-trigger coverage and AR/CDbCriteria guidance.",
       "modules": [

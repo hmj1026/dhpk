@@ -5,12 +5,7 @@ metadata:
   dhpk-capability-id: "dhpk.skill.create-pr"
   dhpk-invocation-class: "explicit-only"
   dhpk-name-style: "portable-skill"
-  dhpk-next:
-    PASS: "none"
-    FAIL: "none"
-    BLOCKED: "none"
-    NOT_RUN: "none"
-    UNAVAILABLE: "none"
+  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Create PR
@@ -23,9 +18,9 @@ push check, existing-PR query, or `gh` command. An explicit `--head` wins.
 When it is omitted, the selected head is the current branch. An explicit `--base` wins. When it
 is omitted and the consumer project's instructions supply `{TARGET_BRANCH}`,
 use that value. dhpk does not define a userConfig key for `{TARGET_BRANCH}`
-or `{TICKET_PATTERN}`. When `{TARGET_BRANCH}` is unset, the generic fallback is `main`. That fallback is the skill default. This dhpk repository's
-documented pull-request base is `develop`; pass `--base develop` or supply
-`{TARGET_BRANCH}` as `develop` for a pull request in this repo. A
+or `{TICKET_PATTERN}`. When `{TARGET_BRANCH}` is unset, the generic fallback is `main`.
+The consumer project's Project Convention supplies any project-specific
+base; use the explicit option or project instructions to select it. A
 ref that does not resolve is `BLOCKED`; do not substitute the checkout or
 another branch.
 

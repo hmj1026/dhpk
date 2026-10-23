@@ -146,4 +146,4 @@ function extractInvocationClass(content) {
   };
 }
 
-module.exports = { extract, isEmpty, extractInvocationClass, extractMetadata, KNOWN_INVOCATION_CLASSES, KNOWN_METADATA_KEYS };
+module.exports = { extract, isEmpty, unquote, extractInvocationClass, extractMetadata, KNOWN_INVOCATION_CLASSES, KNOWN_METADATA_KEYS };

@@ -88,6 +88,28 @@ test('a real --dry-run and a real --no-verify stay flags', () => {
   assert.strictEqual(both.no_verify, '1');
 });
 
+test('commit -n and a short cluster with n before a value letter are no-verify', () => {
+  for (const command of ['git commit -n -m x', 'git commit -nm x', 'git commit -anm x']) {
+    const got = inspect(command);
+    assert.strictEqual(got.sub, 'commit', command);
+    assert.strictEqual(got.no_verify, '1', `${command} no_verify=${got.no_verify}`);
+  }
+});
+
+test('a message of -n or n, and -n on push or merge, is not no-verify', () => {
+  const cases = [
+    ['git commit -m -n', 'commit'],
+    ['git commit -mn', 'commit'],
+    ['git push -n origin x', 'push'],
+    ['git merge -n feature', 'merge'],
+  ];
+  for (const [command, sub] of cases) {
+    const got = inspect(command);
+    assert.strictEqual(got.sub, sub, command);
+    assert.strictEqual(got.no_verify, '0', `${command} no_verify=${got.no_verify}`);
+  }
+});
+
 test('a dynamic -C stays unresolved and does not fall back to the session cwd', () => {
   const got = inspect('git -C "$UNRESOLVED_REPO" commit -m test');
   assert.strictEqual(got.state, 'unresolved');

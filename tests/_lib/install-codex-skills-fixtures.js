@@ -75,6 +75,11 @@ function copyDistributionInventory(plugin) {
     path.join(ROOT, 'docs', 'docker-setup.md'),
     path.join(plugin, 'docs', 'docker-setup.md'),
   );
+  fs.mkdirSync(path.join(plugin, 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(
+    path.join(ROOT, 'scripts', 'lib', 'portable-skill-metadata.js'),
+    path.join(plugin, 'scripts', 'lib', 'portable-skill-metadata.js'),
+  );
 }
 
 function completeTreeFingerprint(target) {
@@ -260,6 +265,11 @@ function collisionFixture() {
   }
   fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+  fs.mkdirSync(path.join(fakePlugin, 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(
+    path.join(ROOT, 'scripts', 'lib', 'portable-skill-metadata.js'),
+    path.join(fakePlugin, 'scripts', 'lib', 'portable-skill-metadata.js'),
+  );
   const skillMetadata = collisionSkills.map((name) => ({
     id: name === 'tdd-workflow' ? 'tdd' : name,
     name,

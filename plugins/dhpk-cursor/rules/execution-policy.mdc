@@ -26,6 +26,11 @@ chain.
 > resource. Keep the local copy short and cross-link rather than copying this
 > body wholesale.
 
+The consumer project's Project Convention supplies its branching, changelog,
+OpenSpec adoption, delivery, merge, and shell practices. Public Workflows
+follow that convention within their own authority; this portable policy does
+not supply a repository-specific delivery sequence.
+
 ## Glossary (inline)
 
 - **reviewer trigger**: a file-path/extension pattern (built-in defaults, active-module triggers, or `userConfig.review_trigger_extra_paths`) that identifies which reviewer role(s) apply to a diff. Trigger matching is AI judgment at dispatch time — there is no hook-armed marker file; see "Post-implementation agent gate" and the trigger table under "Reviewer dispatch."
@@ -338,12 +343,12 @@ worker/reasoner routing; it does not bypass actual prerequisites, authorization,
 project acceptance, or applicable verification.
 After each implementation wave, dispatching the applicable reviewers is
 recommended (see [Post-implementation agent gate](#post-implementation-agent-gate-ssot));
-fix CRITICAL findings before reporting done. Delivery order is:
-verify all tasks and gates → archive/sync OpenSpec → add a valid changelog
-fragment → open a Draft PR targeting `develop` → monitor that PR's actual CI with
-`gh run watch` to a terminal completed CI conclusion → human merge gate. Queued
-or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
-`UNAVAILABLE` is non-terminal and cannot count as completed CI. The external `/opsx:apply` flow remains unchanged; this policy governs the project-owned orchestration around it.
+fix CRITICAL findings before reporting done. Follow the consumer project's
+Project Convention for applicable OpenSpec delivery, version control,
+changelog, CI, and merge requirements. Where CI or consumer verification is
+required, record its actual terminal conclusion; queued, partial, `NOT_RUN`,
+or `UNAVAILABLE` evidence does not satisfy that obligation. The external
+`/opsx:apply` flow remains unchanged.
 
 | Work shape | Dispatch |
 |---|---|
@@ -571,12 +576,11 @@ evidence to the affected risk domains and request only the missing outcome;
 do not rerun a named reviewer solely because another producer supplied the
 same outcome.
 
-Reuse review evidence only while its relevant source, scope, configuration,
-tools, environment, and review premise remain applicable. A changed source,
-configuration, environment, specification, or mutating check invalidates the
-affected conclusion; recheck only those affected domains unless an existing
-checkpoint requires a complete wave. An unchanged implementation wave does
-not receive a second semantically identical review.
+Apply the kernel's Evidence snapshots section
+(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md`)
+when reusing review evidence; retain any existing checkpoint that requires a
+complete wave. An unchanged implementation wave does not receive a second
+semantically identical review.
 
 Reviewers are read-only evaluators. They inspect and report findings within
 their supplied scope, may write their own review artifact when their role
@@ -689,9 +693,10 @@ For audit / setup / inventory / generation work, separate fact-collection from i
 
 ## Self-check (before reply)
 
-Wrap-up before reply / after a large Edit / before smart-commit → run `$flow-guide close` for the full self-audit (Per-reply / Conditional / Task-end three-stage + trigger-condition matrix). Daily single-line edits / pure research / typos do not need this.
-
-Any applicable NO → fix first, then reply.
+Account for changed files, applicable checks, unresolved risks, and the next
+handoff using the selected entry's Verification contract. Follow any additional
+closeout required by the consumer project's Project Convention. Reuse adequate
+current evidence; request only a missing required outcome.
 
 ## Anti-rationalization
 
@@ -699,18 +704,11 @@ Before skipping any TDD / reviewer mandated step, load `${POLICY_BUNDLE_ROOT}/ru
 
 ## Git pipeline
 
-`feat|fix|docs|refactor/*` → `develop` → `master` (or your equivalent branching model). Standard flow: feature branch → `/dhpk:change-verdict --mode code --backend cli` → `/precommit` → `/dhpk:change-verdict --mode pr` → PR. dhpk does **not** auto `git add/commit/push/stash` — invoke `/smart-commit` or `/precommit`.
-
-**Shell trap**: this policy's shell is zsh, where `status` is a read-only variable — use `st=` / `rc=` for captured exit codes, never `status=`. Words beginning with `=` trigger zsh `=cmd` path expansion (an unquoted `==` yields `== not found`) — quote `=`-leading words. **PR self-merge is classifier-blocked** — never attempt `gh pr merge --admin` or remote branch deletion; hand off to a human.
-
-**PR-branch follow-up trap**: before pushing a follow-up commit to a branch that already has an open PR, check `gh pr view <branch> --json state,baseRefName` first — a concurrent session or a human may have merged (and deleted) it, orphaning the new commit onto a dead branch and forcing a second PR. For CI/run waits, prefer `gh run watch <run-id>` (or the harness completion-notification pattern) over hand-rolled `sleep`-poll loops over `gh run list` — the same "background waits use completion notifications, never bash polling" rule the anti-loop safety floor already assumes.
-
-### Squash merge hygiene (recommended)
-
-For squash-merge PRs (collapsing multiple feature-branch commits into a single commit on the integration branch), the PR description should include an `## Unrelated Changes` section listing variations not directly tied to the PR's stated feature (file paths, line count, why mixed in, assigned reviewer). Reformats / CI yml tweaks / README typos **don't count** as unrelated; new controller actions / new services / schema changes / cron jobs / private→protected refactors / service factory extractions **do count**.
-
-The `change-verdict` skill's `pr` mode includes an optional
-`check-unrelated-changes.sh` script (advisory, not blocking).
+Resolve branch targets, commit style, PR requirements, changelog, and merge
+policy from the consumer project's Project Convention. Keep Git mutations
+within the caller's authorization and preserve unrelated dirty work. A passing
+review or verification is evidence, not commit, push, merge, or release
+authority. Use the kernel's snapshot rule when delivery steps mutate files.
 
 ## Anti-loop & output
 
@@ -735,18 +733,9 @@ identity and the conclusion that it supports; ordinary text, files, and reports
 are valid evidence carriers when they establish scope, observations, conclusion,
 and remaining gaps.
 
-Reassess only affected evidence when source files, specifications, lockfiles,
-configuration, tools, or environment change. A changed behavior invalidates the
-affected test or review result; a changed specification or acceptance criterion
-invalidates evidence whose conclusion no longer covers the requested outcome.
-Unchanged, unrelated work does not require a complete rerun when the existing
-checkpoint and all applicability bindings remain valid.
-
-Order checks by their effect on evidence: run formatters, generators, migrations,
-fixture refreshes, package materialization, and other mutating checks before the
-final affected review or verification. If a mutating check runs afterward, rerun
-the affected checks before claiming completion. Never use evidence produced before
-the last mutation as the final result for the changed scope.
+For snapshot validity, mutation ordering, and affected-scope reuse, follow the
+kernel's Evidence snapshots section
+(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md`).
 
 Choose focused or selected checks from changed behavior and acceptance criteria,
 then retain every applicable plugin handoff, archive, CI, formal-package, and

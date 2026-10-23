@@ -1,3 +1,7 @@
+---
+trigger: always_on
+description: Always-visible execution policy kernel
+---
 # Execution Policy Kernel
 
 This is the short, always-visible safety kernel. Read it before loading a
@@ -36,6 +40,16 @@ scan alone. Completion requires the requested scope, actual verification
 evidence, and an explicit record of skipped, unavailable, blocked, or
 environment-dependent checks. A pending reviewer, unresolved gate, or
 unverified runtime premise remains open.
+
+## Evidence snapshots
+
+Verification and review evidence is valid only for the snapshot and scope it
+examined. Run mutating steps, including `precommit`'s `lint:fix` and build,
+before final affected verification or review. A later mutation invalidates
+evidence for the scope it touches; recheck that scope before claiming completion.
+Evidence outside the mutated scope remains reusable when its source,
+acceptance criteria, configuration, tools, and environment still apply; do not
+rerun it by default.
 
 ## Planning and composition
 

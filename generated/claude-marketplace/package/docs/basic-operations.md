@@ -20,16 +20,14 @@ are documented in the [platform installation SSOT](./platform-installation.md).
 Static package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
 `UNAVAILABLE` until the corresponding consumer is observed.
 
-Use this order for a fresh request: **inspect** the repository and session
-state → **verify** the installed surface → **choose** Claude, supported Codex
-sync, or the experimental native Codex surface → **route** through Claude
-`/dhpk:flow-guide` for classification, `/dhpk:flow-drive` for execution, the
-Cursor generated command, or Codex `$flow-guide` / `$flow-drive` (Codex has no
-`/dhpk:*` command) or an explicit family skill → **implement** with TDD and pre-edit
-impact checks →
-**review/verify** the resulting evidence → **handoff** with exactly one next
-command. Plugin management (`claude plugin …`, `codex plugin …`) does not invoke
-a skill.
+For installation or activation work, inspect repository/session state, verify
+the installed surface, and choose the supported Host route. For an established
+environment, reuse current evidence and invoke the known task owner directly.
+Claude uses `/dhpk:<name>`, Cursor its generated command, and Codex `$<name>`
+(Codex has no `/dhpk:*` command). `flow-guide` offers optional navigation;
+`flow-drive` implements a confirmed task. Apply the consumer's Project
+Convention and report the evidence and next action. Plugin management
+(`claude plugin …`, `codex plugin …`) does not invoke a skill.
 
 The behavior owners are [`rules/execution-policy.md`](../rules/execution-policy.md),
 [`docs/configuration.md`](./configuration.md),
@@ -239,10 +237,10 @@ and is also the safe order for copy mode.
 
 ## Common workflows
 
-dhpk provides a single safe front door and structured delivery exits for daily development:
+Choose the capability that supplies the missing outcome for daily development:
 
 ```text
-inspect → verify surface → route → plan/classify → implement → review → verify → handoff
+missing outcome → owning workflow or method → applicable evidence → next action
 ```
 
 When you know the outcome but haven't decided which capability to dispatch, Claude uses `/dhpk:flow-guide`, Codex uses `$flow-guide`, and Cursor uses its local commands. When the exact workflow is known, invoke the specific project skill or slash command directly.
@@ -332,9 +330,10 @@ Reuse evidence; mutate first, then review the final diff.
 
 - **Input**: the selected change plus any still-applicable plan, diagnosis,
   review, or test evidence.
-- **Entry**: mutating `/dhpk:precommit` (or the project's formatter) until
-  the diff is stable, then `/dhpk:change-verdict pending` on **that** diff,
-  then `/dhpk:create-pr` (dry-run by default; `--execute` creates the PR).
+- **Entry**: complete any project-required mutating checks (for example
+  `/dhpk:precommit` or the project's formatter), then obtain the missing
+  review evidence for **that** diff. Reuse adequate current evidence and invoke
+  `/dhpk:create-pr` (dry-run by default; `--execute` creates the PR).
 - **Output**: a final diff, current evidence for the affected paths, and a
   `gh pr create` command or PR URL.
 - **Done**: required gates for this diff are current, and the create-pr
@@ -345,21 +344,26 @@ Reuse evidence; mutate first, then review the final diff.
   OpenSpec. After a post-review edit, recheck only the affected evidence.
   `create-pr` does not commit, push, merge, or deploy.
 
-### Standard 5-Step Development Workflow
+### Project-defined development workflow<a id="standard-5-step-development-workflow"></a>
 
-Follow this 5-step standard cadence for day-to-day work, where each step defines clear inputs, execution commands, and explicit completion criteria:
+Select the parts below from the task, its risks, and evidence already in hand.
+Reuse adequate current outcomes. The consumer's **Project Convention** owns
+branching, test commands, OpenSpec adoption, changelog, CI, and delivery steps.
+A directly invoked Method returns its evidence and stops; a Public Workflow
+owns the requested outcome. The vocabulary and boundary are defined in
+[ADR 0028](./adr/0028-public-workflow-method-and-project-convention.md).
 
 #### Step 1: Verify Environment & Active Modules
 
 - **Actions**:
-  - Run `/dhpk:flow-guide help` (Codex: `$flow-guide help`) to list all registered skills and commands.
-  - Run `/dhpk:setup --show` to inspect currently active stack modules (PHP, Laravel, JS, Python, etc.) and hook configurations.
+  - For installation, activation, or unfamiliar configuration, use `/dhpk:flow-guide help` (Codex: `$flow-guide help`) for available entries.
+  - When module configuration needs inspection, use `/dhpk:setup --show` on its supported Host. Reuse an established environment for routine work.
 - **Completion Criterion**: Active modules and configuration match project requirements without missing prerequisites.
 
 #### Step 2: Inquire, Explore & Route
 
 - **Actions**:
-  - **Workflow Consultation**: Ask the guide directly instead of guessing commands:
+  - **Workflow Consultation**: When ownership is unclear, ask the optional guide:
     ```text
     /dhpk:flow-guide route how does the login flow work
     /dhpk:flow-guide route --go how does the login flow work
@@ -380,14 +384,14 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
     ```text
     /dhpk:flow-drive <confirmed-spec-or-change-id>
     ```
-  - **Test-Driven Development (TDD)**: Use `tdd-workflow` (or the `tdd-guide` subagent) to drive RED → GREEN → REFACTOR. Write failing observable tests first (RED), implement minimal code to pass (GREEN), then refactor.
+  - **Test-Driven Development (TDD)**: For behavior changes, apply `tdd-workflow` (or an appropriate `tdd-guide` task) through RED → GREEN → REFACTOR. Prose-only work uses semantic review and applicable metadata/reference checks.
 - **Implementation & Dispatch Policy (Co-located Rules)**:
   - **Pre-Implementation Decision State**: Every task must begin with an explicit state label: `CLEAR`, `REASONER_REQUIRED`, `HUMAN_REQUIRED`, or `BLOCKED`. Domain boundary questions consult `architect`; unresolved uncertainty requires a read-only Reasoner before any Writer runs.
-  - **OpenSpec Lifecycle**: Cross-session or complex initiatives author `openspec/changes/<id>/` artifacts via `/opsx:new`. Completion requires all task checkboxes, verification gates, and review obligations resolved before archiving; passing tests or approved plans alone are not archival clearance.
+  - **OpenSpec Lifecycle**: When the Project Convention or confirmed task adopts OpenSpec, use its external authoring workflow. Resolve applicable task, verification, and review obligations before archiving. A sufficient confirmed specification may proceed directly to implementation; cross-session work alone does not require new artifacts.
   - **Planner Consult Scope**: `--plan` supports `--plan=bounded` (max 4 direct reads, 0 child agent) or `--plan=discovery` (up to 12 reads, 2 child agents). Defaults to `auto` (chooses bounded when evidence is clear and no Material Risk Signal applies).
   - **Worker Dispatch**: When `orchestration_dispatch=on` (default), choose inline or `--worker=<claude|codex|agy>` from [Implementation dispatch](../rules/execution-policy.md#implementation-dispatch); file count alone does not decide.
   - **Codex CLI Integration**: dhpk is Codex-free by default. Use `--worker=codex` for CLI mechanical execution, `--reasoner=codex/<model>[:<effort>]` for independent reasoning passes, or `--second-opinion=codex-exec` for single blind reviews. Missing binaries report unavailable optional backends without bypassing security gates.
-- **Completion Criterion**: All changes carry focused verification and all-green test evidence; no unexplained skipped checks remain.
+- **Completion Criterion**: The accepted scope has current applicable verification; unmet obligations and skipped checks remain explicit.
 
 #### Step 4: Review, Audit & Quality Gates
 
@@ -406,20 +410,24 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
     ```
   - **Pre-Commit Verification Pipelines**:
     ```text
-    /dhpk:precommit --fast                            # fast local pipeline (lint + unit tests)
+    /dhpk:precommit --fast --dry-run                  # preview selected commands
+    /dhpk:precommit --fast                            # omit build; selected tests may be the full suite
     /dhpk:precommit                                   # full pipeline (lint:fix -> build -> test:unit)
     /dhpk:verify                                      # cross-layer validation (includes integration & e2e)
     ```
+    Select the checks required by the project and change scope. Apply the kernel's
+    [Evidence snapshots](../rules/execution-policy-kernel.md#evidence-snapshots)
+    rule when mutating checks affect verification or review evidence.
 - **Delivery Sequence & Handoff Policy**:
   - CRITICAL findings must be remediated prior to delivery.
-  - Delivery sequence is strictly: all tasks and gates pass → archive/sync OpenSpec → add changelog fragment → open Draft PR targeting `develop` → monitor CI via `gh run watch` to completed conclusion → human merge gate.
+  - Follow the consumer's Project Convention for applicable archive/sync, changelog, branch targets, CI, and merge steps. Preserve the caller's authority for each external or Git mutation.
   - Handoff reports must record explicit states: `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE`.
-- **Completion Criterion**: Zero CRITICAL blockers, precommit all-green, and all gate verdicts backed by fresh evidence.
+- **Completion Criterion**: No unresolved CRITICAL findings; all required review and verification outcomes have applicable evidence. A named pipeline is required only when the project or task requires it.
 
 #### Step 5: Atomic Commit, PR & Release
 
 - **Actions**:
-  - **Smart Batch Commit**: Group changes by cohesion into Conventional Commit messages and runnable Git commands:
+  - **Smart Batch Commit**: When commit work is authorized, group changes by cohesion into project-compliant messages and runnable Git commands:
     ```text
     /dhpk:smart-commit
     /dhpk:smart-commit --scope resources/assets/js --type refactor
@@ -427,14 +435,14 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
   - **Open Pull Request**: Extract ticket IDs and generate project-compliant PR summaries:
     ```text
     /dhpk:create-pr                                   # preview gh pr create command (--dry-run default)
-    /dhpk:create-pr --execute                         # create PR targeting develop branch
+    /dhpk:create-pr --execute                         # use the base selected by project instructions
     ```
-  - **Release & Deployment Checklist**:
+  - **Release & Deployment Checklist**: Use for a separately requested release or deployment outcome:
     ```text
     /dhpk:create-release                              # version bump, changelog update, and Git tag
     dhpk-deploy-list --tag="[RELEASE-1.0.0]" --description="Release summary" --lang=en
     ```
-- **Completion Criterion**: Working tree clean, PR opened, and remote CI checks pass green.
+- **Completion Criterion**: The requested handoff outcome is produced under the Project Convention, with required checks accounted for. Commit, PR, merge, release, and deployment remain separate states.
 
 ### Standalone Assistance Workflows
 
@@ -447,7 +455,8 @@ Outside the primary delivery flow, specialized agents can be invoked directly:
 
 ### Detailed Parameter Reference & Examples for Core Workflow Skills
 
-The following sections provide comprehensive parameter references, types, default values, boundary limits, and practical examples for each core skill in the 5-step standard workflow:
+The following sections describe parameters, defaults, limits, and examples for
+the core capabilities used in the project-defined workflow:
 
 #### 1. flow-guide (Workflow Consultation, Routing & Policy Guidance)
 
@@ -630,12 +639,13 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
 #### 7. precommit (Pre-Commit Quality Pipeline)
 
 - **Purpose**: Deterministic pre-commit verification pipeline executing lint formatting, build checks, and unit tests tailored to the project ecosystem.
-- **Invocation Syntax**: `/dhpk:precommit [--fast]`
+- **Invocation Syntax**: `/dhpk:precommit [--fast] [--dry-run]`
 - **Parameter Breakdown**:
 
   | Parameter | Type | Description |
   |---|---|---|
-  | `--fast` | Boolean flag | Fast mode: runs rapid static checks and unit tests, skipping heavy builds and end-to-end stages. Omitted = runs full pipeline (`lint:fix -> build -> test:unit`). |
+  | `--fast` | Boolean flag | Omit build. Configured test commands or the package-script fallback may still select the full test suite. Omitted = full stage set (`lint:fix -> build -> test:unit`). |
+  | `--dry-run` | Boolean flag | Preview selected stages, commands, and working directories without executing checks or writing cache/log files. A plan supplies no verification result. |
 
 - **Practical Examples**:
   ```text
@@ -705,7 +715,7 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
   | `--dry-run` | Boolean flag | Enabled | Outputs copy-pasteable `gh pr create` command preview without making changes. |
   | `--execute` | Boolean flag | Off | Actually executes `gh pr create` and returns the resulting PR URL. |
   | `--head=<branch>` | String | Current branch | Source branch to open PR from. |
-  | `--base=<branch>` | String | `develop` or `main` | Target branch (defaults to project configured target branch). |
+  | `--base=<branch>` | String | Project target; otherwise `main` | Explicit base wins over the target supplied by project instructions. |
   | `--title=<text>` | String | Auto-generated | Explicit PR title overriding ticket-aware default. |
 
 - **Practical Examples**:
@@ -713,7 +723,7 @@ For programmatic `runFlowDrive` integration, follow the [portable runner contrac
   # Preview PR title, body, and gh command (dry-run mode)
   /dhpk:create-pr
 
-  # Open PR targeting develop branch
+  # Open PR using the target supplied by project instructions
   /dhpk:create-pr --execute
 
   # Target main branch with custom title

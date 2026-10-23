@@ -6,12 +6,7 @@ metadata:
   dhpk-capability-id: dhpk.skill.repo-verify
   dhpk-name-style: portable-skill
   dhpk-invocation-class: implicit-eligible
-  dhpk-next:
-    PASS: change-verdict:code
-    FAIL: tdd-workflow
-    BLOCKED: none
-    NOT_RUN: repo-verify
-    UNAVAILABLE: none
+  dhpk-next: "{\"PASS\":\"change-verdict:code\",\"FAIL\":\"tdd-workflow\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"repo-verify\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Repository Verify
@@ -34,6 +29,10 @@ terminal and does not fall through. A Markdown `FAIL` or `summary.json`
 applicable runner is available, use the non-Node/manifest fallback and stage rules in
 [`references/workflow.md`](references/workflow.md); unsupported manifests are
 terminal failures.
+
+For evidence applicability and reuse, follow the kernel's
+[Evidence snapshots](https://github.com/hmj1026/dhpk/blob/main/rules/execution-policy-kernel.md#evidence-snapshots)
+rule.
 
 ## When NOT to Use
 

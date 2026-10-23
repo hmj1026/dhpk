@@ -1,7 +1,6 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const path = require('node:path');
 const {
   AGENT_PLUGIN_SCHEMA,
   normalizePortableFrontmatter,
@@ -124,20 +123,18 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
   for (const sourceFile of content.files) {
     let bytes = Buffer.from(sourceFile.bytes);
     const skill = inventoryById.get(sourceFile.skillId);
-    const isSkillEntrypoint = sourceFile.kind !== 'dependency'
-      && skill
-      && sourceFile.sourcePath === path.posix.join(skill.path, 'SKILL.md');
-    if (isSkillEntrypoint) {
+    const isSkillMarkdown = sourceFile.path.startsWith('skills/') && sourceFile.path.endsWith('/SKILL.md');
+    if (isSkillMarkdown) {
       const parsed = normalizePortableFrontmatter(bytes.toString('utf8'));
       if (!parsed.ok) {
         fileErrors.push(...parsed.errors.map((error) => `${sourceFile.skillId} ${error}`));
         continue;
       }
-      if (parsed.name !== skill.name) {
+      if (skill && parsed.name !== skill.name) {
         fileErrors.push(`${sourceFile.skillId} SKILL.md name '${parsed.name}' does not match catalog name '${skill.name}'`);
         continue;
       }
-      if (sourceFile.kind === 'entry') bytes = Buffer.from(parsed.output, 'utf8');
+      bytes = Buffer.from(parsed.output, 'utf8');
     }
     files.push({ path: sourceFile.path, bytes, mode: sourceFile.mode & 0o111 ? 0o755 : 0o644 });
   }

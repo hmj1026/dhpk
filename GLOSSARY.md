@@ -88,7 +88,15 @@ _Avoid_: Stable ID, capability ID, source path
 
 **Public Workflow**:
 A discoverable dhpk skill entry for a recognizable user task, with a defined input, outcome, and authority boundary.
-_Avoid_: Internal runtime, Specialist Reference, every knowledge file
+_Avoid_: Task skill, 任務技能, internal runtime, Specialist Reference, every knowledge file
+
+**Method**:
+A reusable way of working, such as test-first development or failure diagnosis, that a user can invoke directly or a Public Workflow can apply; it does not own the task's outcome.
+_Avoid_: Public Workflow, Specialist Reference, 按需方法, procedure owner
+
+**Project Convention**:
+A consumer project's own branching, test-command, delivery, and versioning practice, which a Public Workflow follows but never supplies.
+_Avoid_: Portable policy, dhpk workflow, global rule, 消費專案指引
 
 **Specialist Reference**:
 Task-selected dhpk guidance for a language, framework, version, or other specialist concern, loaded by a Public Workflow without an independent discovery entry.

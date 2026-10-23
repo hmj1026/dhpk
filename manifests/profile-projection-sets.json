@@ -6,6 +6,44 @@
     "cursor": "cursor-sync"
   },
   "profiles": {
+    "codex-native": {
+      "codex-sync": [
+        "change-verdict",
+        "code-trace",
+        "create-pr",
+        "doc-maintain",
+        "flow-drive",
+        "flow-guide",
+        "git-smart-commit",
+        "git-worktree",
+        "library-author",
+        "opsx-apply-resume",
+        "precommit",
+        "proposal-analyze",
+        "release-creator",
+        "repo-verify",
+        "tdd",
+        "ui-ux-verify"
+      ],
+      "cursor": [
+        "change-verdict",
+        "code-trace",
+        "create-pr",
+        "doc-maintain",
+        "flow-drive",
+        "flow-guide",
+        "git-smart-commit",
+        "git-worktree",
+        "library-author",
+        "opsx-apply-resume",
+        "precommit",
+        "proposal-analyze",
+        "release-creator",
+        "repo-verify",
+        "tdd",
+        "ui-ux-verify"
+      ]
+    },
     "common": {
       "codex-sync": [
         "change-verdict",

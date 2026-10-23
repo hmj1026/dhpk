@@ -20,13 +20,12 @@
 說明。Static package evidence 不等於 runtime evidence；在對應 consumer 被實際觀察前
 應記錄 `NOT_RUN`、`BLOCKED` 或 `UNAVAILABLE`。
 
-新請求依序執行：**檢查** repository 與 session 狀態 → **確認** 已安裝的
-surface → **選擇** Claude、支援的 Codex sync 或實驗性的原生 Codex surface →
-透過 Claude `/dhpk:flow-guide`（分類）、`/dhpk:flow-drive`（執行）、Cursor
-產生的 command，或 Codex `$flow-guide`／`$flow-drive`（Codex 沒有
-`/dhpk:*` command）或明確 family skill **路由** → 以 TDD 與編輯前 impact check
-**實作** → **Review／驗證**證據 → **交接**並只給一個下一步指令。
-Plugin 管理（`claude plugin …`、`codex plugin …`）不會呼叫 skill。
+安裝或啟用問題先檢查 repository／session 狀態、確認已安裝的 surface，再選擇
+受支援的 Host 路徑。環境已確認時，重用仍有效的證據，直接呼叫已知的任務 owner。
+Claude 用 `/dhpk:<name>`，Cursor 用產生的 command，Codex 用 `$<name>`
+（沒有 `/dhpk:*` command）。`flow-guide` 提供可選導覽；`flow-drive` 實作已確認
+任務。依消費專案的 Project Convention 執行，回報證據與下一步。Plugin 管理
+（`claude plugin …`、`codex plugin …`）不會呼叫 skill。
 
 行為 SSOT 包括 [`rules/execution-policy.md`](../rules/execution-policy.md)、
 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)、
@@ -228,10 +227,10 @@ containment 或 modified-file safety。`--uninstall` 只移除 receipt-owned 且
 
 ## 常見工作流
 
-dhpk 為日常開發提供單一安全的前門與結構化的交付出口：
+依日常開發尚缺的結果，選擇能提供該結果的能力：
 
 ```text
-inspect → verify surface → route → plan/classify → implement → review → verify → handoff
+missing outcome → owning workflow or method → applicable evidence → next action
 ```
 
 當知道目標但尚未決定調度哪項能力時，Claude 使用 `/dhpk:flow-guide`，Codex 使用 `$flow-guide`，Cursor 使用對應的本地指令。明確已知特定任務時，可直接呼叫專案技能或 slash 指令。
@@ -304,9 +303,9 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
 重用證據；會改檔的檢查先跑完，再審查最終 diff。
 
 - **輸入**：選定變更，加上仍適用的計畫、診斷、審查或測試證據。
-- **入口**：先跑會改檔的 `/dhpk:precommit`（或專案格式化）直到 diff
-  穩定，再對**該** diff 跑 `/dhpk:change-verdict pending`，最後
-  `/dhpk:create-pr`（預設 dry-run；`--execute` 才建立 PR）。
+- **入口**：完成專案要求的會改檔檢查（例如 `/dhpk:precommit` 或專案
+  格式化），再補齊**該** diff 缺少的審查證據。重用仍適用的充分證據，
+  呼叫 `/dhpk:create-pr`（預設 dry-run；`--execute` 才建立 PR）。
 - **產物**：最終 diff、受影響路徑的有效證據，以及 `gh pr create` 指令或
   PR URL。
 - **完成**：此 diff 的必要 gate 仍有效，且已明確使用 create-pr 入口。
@@ -315,21 +314,24 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
   OpenSpec。審查後若又改檔，只重查受影響證據。`create-pr` 不會
   commit、push、merge 或 deploy。
 
-### 標準五步開發工作流
+### 依專案慣例組合開發工作流<a id="標準五步開發工作流"></a>
 
-日常開發請遵循以下 5 步標準推進節奏，每一步均有明確的輸入、執行指令與完成門禁（Completion Criteria）：
+依任務、風險與已有證據選用以下部分，重用仍適用的充分結果。消費專案的
+**Project Convention** 擁有分支、測試指令、OpenSpec 採用、changelog、CI 與
+交付步驟。直接呼叫 Method 時交出方法證據後停止；Public Workflow 擁有使用者
+要求的結果。名詞與邊界見 [ADR 0028](./adr/0028-public-workflow-method-and-project-convention.md)。
 
 #### 步驟一：確認環境與安裝狀態
 
 - **操作**：
-  - 執行 `/dhpk:flow-guide help`（Codex: `$flow-guide help`）列出所有註冊的可用技能與指令。
-  - 執行 `/dhpk:setup --show` 檢查當前啟用的技術棧模組（如 PHP、Laravel、JS、Python 等）與 Hook 配置。
+  - 安裝、啟用或設定不明時，使用 `/dhpk:flow-guide help`（Codex: `$flow-guide help`）查閱可用入口。
+  - 需要檢查模組設定時，在支援的 Host 使用 `/dhpk:setup --show`；一般工作重用已確認的環境。
 - **完成標準**：確認環境 active modules 與當前專案需求相符，無需額外調整配置。
 
 #### 步驟二：任務諮詢、探索與路由
 
 - **操作**：
-  - **流程諮詢**：不確定指令或作法時，直接提問：
+  - **流程諮詢**：owner 不明時，向可選的 guide 提問：
     ```text
     /dhpk:flow-guide route 釐清登入流程
     /dhpk:flow-guide route --go 釐清登入流程
@@ -350,14 +352,14 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
     ```text
     /dhpk:flow-drive <confirmed-spec-or-change-id>
     ```
-  - **測試驅動開發（TDD）**：使用 `tdd-workflow`（或由 `tdd-guide` subagent 引導）推進 RED → GREEN → REFACTOR。先寫可觀察行為的失敗測試（RED），以最小代碼通過測試（GREEN），再進行重構。
+  - **測試驅動開發（TDD）**：行為變更套用 `tdd-workflow`（或適用的 `tdd-guide` 任務），推進 RED → GREEN → REFACTOR。純文字指引以語意審查及適用的 metadata／reference 檢查驗證。
 - **實作決策與調度規範（Co-located Rules）**：
   - **決策前置狀態**：開始實作前必須具備明確狀態標記：`CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或 `BLOCKED`。若涉及領域邊界應先諮詢 `architect`；仍有不確定性時取得唯讀 Reasoner 結果後才允許 Writer 介入。
-  - **OpenSpec 生命週期**：跨 session 或複雜大型工作，應先以 `/opsx:new` 建立 `openspec/changes/<id>/` artifacts。實作完成必須滿足所有 Task 核選、通過適用驗證門禁、解決 Review 意見，才能執行歸檔（Archive）；測試通過或 Plan 批准不等於歸檔憑證。
+  - **OpenSpec 生命週期**：Project Convention 或已確認任務採用 OpenSpec 時，使用它的外部 authoring workflow；歸檔前解決適用的 task、驗證與審查義務。已有充分的確認規格可直接實作；跨 session 本身不要求新增 artifacts。
   - **Planner 諮詢範疇**：`--plan` 可搭配 `--plan=bounded`（限制最多 4 次直接讀取且無子代理）或 `--plan=discovery`（最多 12 次讀取與 2 個子代理）。未指定時預設 `auto`，在無 Material Risk Signal 且依據充足時自動採 bounded。
   - **Worker 調度邊界**：`orchestration_dispatch=on`（預設）時，依 [Implementation dispatch](../rules/execution-policy.md#implementation-dispatch) 選擇 inline 或 `--worker=<claude|codex|agy>`；檔案數量單獨不能決定。
   - **Codex CLI 整合**：dhpk 預設不啟用 Codex。使用 `--worker=codex` 走 CLI 機械 Worker；`--reasoner=codex/<model>[:<effort>]` 走獨立推理；`--second-opinion=codex-exec` 取得單次盲審意見。缺少執行檔時回報可選後端不可用，不繞過安全檢查。
-- **完成標準**：所有變更均具備聚焦驗證（Focused Verification）與綠燈測試證據；不遺留未說明的測試跳過。
+- **完成標準**：已接受的 scope 有仍適用的驗證；未滿足的義務與跳過檢查均明確保留。
 
 #### 步驟四：變更審查與品質門禁
 
@@ -376,20 +378,23 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
     ```
   - **提交前驗證管線**：
     ```text
-    /dhpk:precommit --fast                            # 本機快速檢查（靜態分析 + 單元測試）
+    /dhpk:precommit --fast --dry-run                  # 預覽選定的指令
+    /dhpk:precommit --fast                            # 略過 build；選定測試仍可能是全套
     /dhpk:precommit                                   # 完整管線（lint:fix -> build -> test:unit）
     /dhpk:verify                                      # 專案跨層完整驗證（含整合與 E2E）
     ```
+    依專案與變更範圍選擇必要檢查。會改檔的檢查影響驗證或審查證據時，套用 kernel 的
+    [Evidence snapshots](../rules/execution-policy-kernel.md#evidence-snapshots) 規則。
 - **門禁與交付順序**：
   - Review 發現之 CRITICAL 問題必須在交付前修復。
-  - 交付順序固定為：全數 Task 與門禁通過 → 歸檔/同步 OpenSpec → 加入 Changelog 碎片 → 開啟 Draft PR（目標 `develop`）→ 以 `gh run watch` 監看 CI 執行至完成 → 人工 Merge Gate。
+  - 依消費專案的 Project Convention 執行適用的 archive／sync、changelog、目標分支、CI 與 merge 步驟；每項 Git 或外部修改均保留呼叫者授權邊界。
   - 交接紀錄必須誠實標註 `PASS`、`FAIL`、`BLOCKED`、`NOT_RUN` 或 `UNAVAILABLE`，不得將未執行標記為通過。
-- **完成標準**：無任何 CRITICAL 阻礙，Precommit 全綠，所有審查意見與門禁狀態皆有憑證。
+- **完成標準**：沒有未解決的 CRITICAL finding；必要審查與驗證結果都有仍適用的證據。只有專案或任務要求時，才必須執行具名管線。
 
 #### 步驟五：分組提交、PR 與上線
 
 - **操作**：
-  - **智慧分組提交**：按凝聚度（Cohesion）將改動分群，產生符合專案風格的 Commit 訊息與 Git 指令：
+  - **智慧分組提交**：已授權 commit 工作時，按凝聚度（Cohesion）分組，產生符合專案風格的訊息與 Git 指令：
     ```text
     /dhpk:smart-commit
     /dhpk:smart-commit --scope resources/assets/js --type refactor
@@ -397,14 +402,14 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
   - **建立 Pull Request**：自動提取 Ticket 編號並組裝 PR 摘要：
     ```text
     /dhpk:create-pr                                   # 乾跑預覽（--dry-run 預設）
-    /dhpk:create-pr --execute                         # 正式建立 PR（目標為 develop）
+    /dhpk:create-pr --execute                         # 使用專案指引指定的目標分支
     ```
-  - **發布與部署清單**：
+  - **發布與部署清單**：只在另行要求 release 或部署結果時使用：
     ```text
     /dhpk:create-release                              # 升版、更新 Changelog 與 Tag
     dhpk-deploy-list --tag="[RELEASE-1.0.0]" --description="上線摘要" --lang=zh-TW
     ```
-- **完成標準**：Git working tree 乾淨無殘留，PR 建立成功且 CI 檢查全數通過。
+- **完成標準**：依 Project Convention 產出要求的交接結果，並交代必要檢查。Commit、PR、merge、release 與 deployment 保持分開的狀態。
 
 ### 獨立協助工作流
 
@@ -417,7 +422,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
 
 ### 核心工作流技能參數詳解與範例
 
-以下詳細說明標準五步工作流中各核心技能的所有可用參數、型別與預設值、邊界限制與實戰範例：
+以下說明依專案慣例組合工作流時，各核心能力的參數、預設值、限制與範例：
 
 #### 1. flow-guide（工作流諮詢、路由與政策導引）
 
@@ -600,12 +605,13 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
 #### 7. precommit（提交前品質驗證管線）
 
 - **定位**：封裝確定性的提交前品質檢查管線，自動依專案生態系執行 Lint 修復、編譯建置與單元測試。
-- **呼叫語法**：`/dhpk:precommit [--fast]`
+- **呼叫語法**：`/dhpk:precommit [--fast] [--dry-run]`
 - **參數說明**：
 
   | 參數 | 類型 | 說明 |
   |---|---|---|
-  | `--fast` | 布林旗標 | 快速模式。僅執行快速靜態檢查與單元測試，跳過耗時的大型建置與整合檢查。省略時執行完整管線（`lint:fix -> build -> test:unit`）。 |
+  | `--fast` | 布林旗標 | 略過 build；設定的測試指令或 package script fallback 仍可能選到全套測試。省略時執行完整階段（`lint:fix -> build -> test:unit`）。 |
+  | `--dry-run` | 布林旗標 | 預覽選定階段、指令與工作目錄，不執行檢查或寫入 cache／log；計畫不提供驗證結果。 |
 
 - **實戰範例**：
   ```text
@@ -675,7 +681,7 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
   | `--dry-run` | 布林旗標 | 啟用 | 僅輸出建議的 `gh pr create` 指令預覽，不執行修改。 |
   | `--execute` | 布林旗標 | 關閉 | 實際執行 `gh pr create` 並回傳建立成功的 PR 網址。 |
   | `--head=<branch>` | 字串 | 當前分支 | 來源分支。 |
-  | `--base=<branch>` | 字串 | `develop` 或 `main` | 目標分支（預設為專案設定的 Target Branch）。 |
+  | `--base=<branch>` | 字串 | 專案 target；否則 `main` | 明確指定 base 優先於專案指引提供的目標。 |
   | `--title=<text>` | 字串 | 自動產生 | 自訂 PR 標題（覆寫自動產生的 Ticket 格式標題）。 |
 
 - **實戰範例**：
@@ -683,7 +689,7 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
   # 預覽 PR 標題與內文（乾跑模式）
   /dhpk:create-pr
 
-  # 正式執行建立目標為 develop 的 PR
+  # 正式建立 PR，使用專案指引提供的目標
   /dhpk:create-pr --execute
 
   # 指定目標分支並自訂標題

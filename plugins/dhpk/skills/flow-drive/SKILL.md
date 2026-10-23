@@ -7,12 +7,7 @@ metadata:
   dhpk-capability-id: dhpk.skill.flow-drive
   dhpk-name-style: portable-family
   dhpk-invocation-class: explicit-only
-  dhpk-next:
-    PASS: repo-verify
-    FAIL: none
-    BLOCKED: none
-    NOT_RUN: none
-    UNAVAILABLE: none
+  dhpk-next: "{\"PASS\":\"repo-verify\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Flow Drive
@@ -98,11 +93,18 @@ the same grammar and keep selection intent separate from Host grants.
    On Claude Code, launch selected Codex roles from the parent session through
    `scripts/launch-dispatch.js`; follow `references/parent-cli-dispatch.md` for the
    dispatcher packet, reasoner-before-worker gate, and independent verification.
+   Before downstream verification after a writer handoff, require its
+   `RESULT: DONE` report and exact assigned-file SHA256 receipt. Pass the
+   parent's original file assignment as repeated `--assigned-file` options to
+   the [verification handoff gate](references/verification-handoff.md); it
+   compares that scope with the receipt and checks the snapshot before launch
+   and after completion.
 5. Stop the affected item on an evidence-changing blocker while independent
-   eligible items continue. Use the portable recovery contract for configured
-   attempt budgets and lifecycle proof. In the legacy advanced procedure, a
-   rejected or modified item may be retried at most twice with its failure and
-   current diff supplied as context.
+   eligible items continue. This Host procedure sets no generic retry count.
+   The programmatic runner executes one attempt by default; only a Host that
+   embeds `runFlowDrive(..., { recovery })` opts into the bounded [runner
+   recovery contract](references/recovery.md) and its shared retry budget and
+   lifecycle proof.
 
 Completion means every ordered item has implementation and verification
 evidence, or the report names the exact blocker, skipped check, and resume
@@ -149,9 +151,14 @@ verification, and archive as separate states.
 
 ## References
 
-- `references/execution-bundle/rules/execution-policy.md` — selected local
-  invocation, planning, dispatch, and handoff policy. Its bundle base is the
-  real parent of that policy file's containing `rules` directory.
+- `references/execution-bundle/rules/execution-policy-kernel.md` — Read before
+  any detailed execution-policy section; its invariants govern the whole Host
+  procedure.
+- `references/execution-bundle/rules/execution-policy.md` — Read §Planning and
+  workflow composition when step 2 has an unresolved planning need; read
+  §Agent dispatch and §Implementation dispatch when role, dispatch, or handoff
+  decisions need detail beyond steps 4–5. Its bundle base is the real parent
+  of that policy file's containing `rules` directory.
 - `references/execution-bundle/scripts/lib/flow-handoff-contract.js` — shared
   neutral route handoff and evidence boundary; it does not grant execution
   authority.
@@ -166,6 +173,8 @@ verification, and archive as separate states.
   `scripts/launch-dispatch.js` consumes its explicit dispatcher packet and the
   self-contained runtime under `scripts/dispatch-runtime/`, `scripts/adapters/`, and
   `scripts/transport/`.
+- `references/verification-handoff.md` — receipt format and CLI gate for
+  downstream verification after a writer completes.
 - `skills/flow-guide/SKILL.md` — optional separately invoked route guidance;
   Flow Drive does not load it as a prerequisite.
 - An optional consumer-project writing-for-agents guide may be supplied when the

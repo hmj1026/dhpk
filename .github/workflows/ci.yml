@@ -70,7 +70,7 @@ jobs:
 
       - name: Validate workflow syntax
         if: needs.plan.outputs.mode == 'full'
-        uses: reviewdog/action-actionlint@a8ac3eea598697a830f7d8e701fc9fcbfde88974 # v1.80.0
+        uses: reviewdog/action-actionlint@419a49378266e892f40c773b4f2fc6de9aa87499 # v1.80.4
         with:
           actionlint_flags: -color
           fail_level: error
@@ -375,7 +375,7 @@ jobs:
 
       # Same CLI install and outcome mapping as the tag job's consumer-verify.
       - name: Install claude CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
         continue-on-error: true
 
       - name: Rehearse CONSUMER gate

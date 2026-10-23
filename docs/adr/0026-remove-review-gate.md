@@ -4,7 +4,11 @@ Status: accepted
 
 Supersedes: [0014](0014-standardize-the-reviewer-contract.md),
 [0017](0017-implement-review-gate-as-a-local-event-module.md),
-[0018](0018-production-migration-observation-checkpoint.md)
+[0018](0018-production-migration-observation-checkpoint.md),
+[0011](0011-adopt-one-risk-adaptive-workflow.md),
+[0012](0012-route-work-by-named-material-risk.md),
+[0013](0013-migrate-sentinel-to-evidence-receipts.md),
+[0015](0015-derive-workflow-state-from-typed-receipts.md)
 
 ## Context
 

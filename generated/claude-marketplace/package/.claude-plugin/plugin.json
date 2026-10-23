@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.66.6",
+  "version": "0.66.7",
   "description": "Reusable Claude Code harness with role-based agents, routed commands, advisory reviewer dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
   "author": {
     "name": "hmj1026",
@@ -22,9 +22,6 @@
     "swift",
     "ios",
     "swiftui"
-  ],
-  "skills": [
-    "./skills/"
   ],
   "agents": [
     "./agents/agy-worker.md",

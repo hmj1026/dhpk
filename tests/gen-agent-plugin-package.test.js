@@ -13,6 +13,7 @@ const {
   normalizePortableFrontmatter,
   AGENT_PLUGIN_SCHEMA,
   MCP_SCHEMA,
+  parseFrontmatter,
   materializeAgentPluginPackage,
   validateAgentPluginPackage,
   verifyAgentPluginPackage,
@@ -85,9 +86,18 @@ test('portable normalization preserves nested handoff metadata semantics and is 
   assert.strictEqual(Object.prototype.hasOwnProperty.call(normalized.frontmatter.metadata, 'PASS'), false);
   assert.strictEqual(Object.prototype.hasOwnProperty.call(normalized.frontmatter.metadata, 'update:PASS'), false);
   assert.strictEqual(Object.prototype.hasOwnProperty.call(normalized.frontmatter.metadata, 'update'), false);
-  const metadata = extractMetadata(normalized.output);
-  assert.deepStrictEqual(metadata.errors, []);
-  assert.deepStrictEqual(metadata.values, extractMetadata(source).values);
+  const canonicalMetadata = extractMetadata(source);
+  assert.deepStrictEqual(canonicalMetadata.errors, []);
+  assert.deepStrictEqual(normalized.frontmatter.metadata['dhpk-next'], canonicalMetadata.values['dhpk-next']);
+  assert.deepStrictEqual(normalized.frontmatter.metadata['dhpk-modes'], canonicalMetadata.values['dhpk-modes']);
+  assert.strictEqual(normalized.frontmatter.metadata['dhpk-invocation-class'], 'implicit-eligible');
+  assert.strictEqual(normalized.frontmatter.metadata.origin, 'existing scalar');
+  assert.strictEqual(normalized.frontmatter.metadata['Legacy.Key'], 'preserved scalar');
+  const portableNext = normalized.output.match(/^\s*dhpk-next:\s*("(?:\\.|[^"])*")\s*$/m);
+  const portableModes = normalized.output.match(/^\s*dhpk-modes:\s*("(?:\\.|[^"])*")\s*$/m);
+  assert.ok(portableNext && portableModes, 'portable metadata values must be YAML string scalars');
+  assert.deepStrictEqual(JSON.parse(JSON.parse(portableNext[1])), canonicalMetadata.values['dhpk-next']);
+  assert.deepStrictEqual(JSON.parse(JSON.parse(portableModes[1])), canonicalMetadata.values['dhpk-modes']);
   assert.strictEqual(normalizePortableFrontmatter(normalized.output).output, normalized.output);
 });
 
@@ -642,21 +652,26 @@ test('default Agent Plugin generation publishes the canonical owner catalog', ()
       sourceCommit: priorReceipt.sourceCommit,
       manifestMetadata: sourceManifest,
     });
+    const validation = validateAgentPluginPackage(out);
+    assert.strictEqual(validation.ok, true, validation.errors.join('\n'));
     const guideLib = path.join(out, 'skills', 'flow-guide', 'scripts', '_lib');
-    const packagedParser = require(path.join(guideLib, 'frontmatter.js'));
     const packagedMap = require(path.join(guideLib, 'skill-next-map.js'));
-    const metadata = Object.fromEntries(['doc-maintain', 'git-smart-commit'].map(name => [
-      name, packagedParser.extractMetadata(fs.readFileSync(path.join(out, 'skills', name, 'SKILL.md'), 'utf8')),
-    ]));
+    const metadata = Object.fromEntries(['doc-maintain', 'git-smart-commit'].map(name => {
+      const portable = parseFrontmatter(fs.readFileSync(path.join(out, 'skills', name, 'SKILL.md'), 'utf8'));
+      const values = { ...portable.metadata };
+      for (const key of ['dhpk-next', 'dhpk-modes']) {
+        if (typeof values[key] === 'string') values[key] = JSON.parse(values[key]);
+      }
+      return [name, { values }];
+    }));
     const target = packagedMap.resolveNext(metadata, { name: 'doc-maintain', mode: 'update', state: 'PASS' });
     assert.deepStrictEqual({
-      errors: metadata['doc-maintain'].errors,
       modes: metadata['doc-maintain'].values['dhpk-modes'],
       next: metadata['doc-maintain'].values['dhpk-next']['update:PASS'],
       target: target.name,
       action: packagedMap.formatNextAction(target, { host: 'codex' }),
     }, {
-      errors: [], modes: ['update', 'codemap', 'refactor'], next: 'git-smart-commit',
+      modes: ['update', 'codemap', 'refactor'], next: 'git-smart-commit',
       target: 'git-smart-commit', action: '$git-smart-commit',
     });
 

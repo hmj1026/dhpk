@@ -29,6 +29,10 @@ const {
   resolveInventoryRevision,
   skillProjectionMetadata,
 } = require('./distribution-projection-contract');
+const {
+  serializePortableSkillMetadata,
+  validatePortableSkillMetadata,
+} = require('./portable-skill-metadata');
 
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
@@ -54,6 +58,40 @@ const AGY_SKILL_REFERENCE_REWRITES = Object.freeze([
     targetSkillId: 'harness-setup',
   }),
 ]);
+const AGY_EXECUTION_POLICY_BUNDLE = 'skills/flow-guide/references/execution-bundle/rules/execution-policy.md';
+const AGY_EXECUTION_POLICY_POINTER = [
+  '# Execution Policy',
+  '',
+  'For routing, dispatch, review, git, or escalation questions, select the',
+  '[full execution policy](../skills/flow-guide/references/execution-bundle/rules/execution-policy.md).',
+  "Resolve this link relative to this rule file's directory, not the consumer",
+  "working directory. Derive `POLICY_BUNDLE_ROOT` from the selected resource's",
+  'real grandparent. Read its kernel first, then load only required sections.',
+  '',
+].join('\n');
+// Descriptions are fixed literals. Do not derive them from rule prose.
+const AGY_RULE_TRIGGER_MAP = Object.freeze({
+  'rules/execution-policy-kernel.md': Object.freeze({
+    trigger: 'always_on',
+    description: 'Always-visible execution policy kernel',
+  }),
+  'rules/execution-policy.md': Object.freeze({
+    trigger: 'model_decision',
+    description: 'Execution policy single source of truth',
+  }),
+  'rules/anti-rationalization.md': Object.freeze({
+    trigger: 'model_decision',
+    description: 'Anti-rationalization patterns stop-loss reference',
+  }),
+  'rules/model-economics.md': Object.freeze({
+    trigger: 'model_decision',
+    description: 'Opt-in model tier and cost rules',
+  }),
+  'rules/tool-routing.md': Object.freeze({
+    trigger: 'model_decision',
+    description: 'Tool routing reference card',
+  }),
+});
 
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
@@ -172,6 +210,12 @@ function copyFileContained(source, destination, sourceRoot, outputRoot, { transf
   fs.copyFileSync(source, destination);
 }
 
+function serializeAgySkillMarkdown(content, label) {
+  const result = serializePortableSkillMetadata(content);
+  if (!result.ok) throw new Error(`${label} has invalid metadata: ${result.errors.join('; ')}`);
+  return result.output;
+}
+
 function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
   return String(content).replace(/(\[[^\]]*\])\(([^)]+)\)/g, (whole, label, rawTarget) => {
     const target = rawTarget.trim();
@@ -197,6 +241,26 @@ function adaptAgySkillContent(content, selectedSkillIds) {
     },
     content,
   );
+}
+
+function agyRuleFrontmatter(entry) {
+  return `---\ntrigger: ${entry.trigger}\ndescription: ${entry.description}\n---\n`;
+}
+
+function hasAgyTriggerFrontmatter(content) {
+  const match = String(content).match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) return false;
+  return /^trigger:\s*["']?(?:always_on|model_decision|glob|manual)["']?\s*$/m.test(match[1]);
+}
+
+function projectAgyRuleContent(content, relative) {
+  if (relative === 'rules/execution-policy.md') {
+    return `${agyRuleFrontmatter(AGY_RULE_TRIGGER_MAP[relative])}${AGY_EXECUTION_POLICY_POINTER}`;
+  }
+  if (hasAgyTriggerFrontmatter(content)) return content;
+  const entry = AGY_RULE_TRIGGER_MAP[relative];
+  if (!entry) return content;
+  return `${agyRuleFrontmatter(entry)}${content}`;
 }
 
 function copyDirectory(source, destination, sourceRoot, outputRoot, options = {}) {
@@ -420,9 +484,7 @@ function materializeAgyPluginPackage({
     name: 'dhpk',
     version,
     description: 'dhpk native Antigravity CLI plugin',
-    agents: ['./agents/'],
     skills: ['./skills/'],
-    rules: ['./rules/'],
   };
   writeJson(path.join(outputRoot, 'plugin.json'), manifest);
 
@@ -449,7 +511,10 @@ function materializeAgyPluginPackage({
     const target = path.join(outputRoot, relative);
     if (!relative.startsWith('rules/') || path.extname(relative) !== '.md') throw new Error(`invalid AGY rule selection: ${relative}`);
     copyFileContained(source, target, sourceRoot, outputRoot, {
-      transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+      transform: (content, sourceFile) => projectAgyRuleContent(
+        sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+        relative,
+      ),
     });
   }
 
@@ -476,8 +541,12 @@ function materializeAgyPluginPackage({
       assertSafeRelative(file.path, 'AGY marketplace file');
       ensureDirectory(path.dirname(target), 'AGY marketplace parent');
       const immediateSkill = /^skills\/[^/]+\/SKILL\.md$/.test(file.path);
-      const bytes = immediateSkill
-        ? Buffer.from(adaptAgySkillContent(file.bytes.toString('utf8'), selectedSkillIds)) : file.bytes;
+      let content = file.bytes.toString('utf8');
+      if (immediateSkill) content = adaptAgySkillContent(content, selectedSkillIds);
+      if (file.path.startsWith('skills/') && file.path.endsWith('/SKILL.md')) {
+        content = serializeAgySkillMarkdown(content, `AGY marketplace ${file.path}`);
+      }
+      const bytes = Buffer.from(content);
       fs.writeFileSync(target, bytes, { mode: file.mode & 0o111 ? 0o755 : 0o644 });
     }
   } else for (const skill of selected.skills) {
@@ -490,18 +559,20 @@ function materializeAgyPluginPackage({
     if (!sourceStat || !sourceStat.isFile()) throw new Error(`source skill is missing: ${source}`);
     ensureDirectory(path.dirname(target), 'AGY skill parent');
     const sourceContent = readFileBounded(source).toString('utf8');
-    fs.writeFileSync(
-      target,
-      sanitizeMarkdownLinks(adaptAgySkillContent(sourceContent, selectedSkillIds), source, sourceRoot),
-      { mode: 0o644 },
-    );
+    const adaptedContent = sanitizeMarkdownLinks(adaptAgySkillContent(sourceContent, selectedSkillIds), source, sourceRoot);
+    fs.writeFileSync(target, serializeAgySkillMarkdown(adaptedContent, `AGY ${skillPath}/SKILL.md`), { mode: 0o644 });
     // The complete physical Skill directory is the package unit.
     for (const file of physicalSkillTree(sourceRoot, skill)) {
       // SKILL.md is adapted above; OpenAI interface metadata is Codex-only,
       // matching the Agent Plugin projection's surface-specific exclusion.
       if (file.relative === 'SKILL.md' || file.relative === 'agents/openai.yaml') continue;
       copyFileContained(file.absolute, path.join(skillsDestination, skillPath, file.relative), sourceRoot, outputRoot, {
-        transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+        transform: (content, sourceFile) => {
+          const sanitized = sanitizeMarkdownLinks(content, sourceFile, sourceRoot);
+          return path.basename(sourceFile) === 'SKILL.md'
+            ? serializeAgySkillMarkdown(sanitized, `AGY bundled ${file.relative}`)
+            : sanitized;
+        },
       });
     }
   }
@@ -621,10 +692,19 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     if (manifest.name !== 'dhpk') errors.push('plugin.json name must be dhpk');
     if (typeof manifest.version !== 'string' || !SEMVER.test(manifest.version)) errors.push('plugin.json version must be SemVer');
     if (expectedVersion && manifest.version !== expectedVersion) errors.push(`plugin.json version must be ${expectedVersion}`);
-    for (const rootName of ['agents', 'rules', 'skills']) {
-      if (!Array.isArray(manifest[rootName]) || stableStringify(manifest[rootName]) !== stableStringify([`./${rootName}/`])) {
-        errors.push(`plugin.json ${rootName} must declare only ./${rootName}/`);
+    for (const rootName of ['agents', 'rules']) {
+      if (Object.prototype.hasOwnProperty.call(manifest, rootName)) {
+        errors.push(`plugin.json ${rootName} is an unknown field`);
       }
+    }
+    if (!Array.isArray(manifest.skills) || stableStringify(manifest.skills) !== stableStringify(['./skills/'])) {
+      errors.push('plugin.json skills must declare only ./skills/');
+    }
+  }
+  for (const component of ['agents', 'rules']) {
+    const stat = lstatOrNull(path.join(root, component));
+    if (!stat || stat.isSymbolicLink() || !stat.isDirectory()) {
+      errors.push(`AGY package ${component} directory is missing`);
     }
   }
 
@@ -687,6 +767,11 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   const agentFiles = files.filter((relative) => relative.startsWith('agents/') && relative.endsWith('.md')).sort();
   const ruleFiles = files.filter((relative) => relative.startsWith('rules/') && relative.endsWith('.md')).sort();
   const skillFiles = files.filter((relative) => /^skills\/[^/]+\/SKILL\.md$/.test(relative)).sort();
+  for (const relative of files.filter((file) => file.startsWith('skills/') && file.endsWith('/SKILL.md'))) {
+    const content = readFileBounded(path.join(root, relative)).toString('utf8');
+    const portable = validatePortableSkillMetadata(content);
+    if (!portable.ok) errors.push(...portable.errors.map((error) => `${relative}: ${error}`));
+  }
   if (agentFiles.length === 0) errors.push('AGY package must contain at least one adapted agent');
   for (const relative of agentFiles) {
     if (expectedAgentFiles && !expectedAgentFiles.has(relative)) errors.push(`undeclared AGY agent: ${relative}`);
@@ -694,6 +779,17 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     if (adapted.changed || adapted.droppedFields.length > 0) errors.push(`agent is not idempotently AGY-adapted: ${relative}`);
   }
   if (expectedRuleFiles) for (const relative of expectedRuleFiles) if (!files.includes(relative)) errors.push(`selected AGY rule is missing: ${relative}`);
+  if (ruleFiles.includes('rules/execution-policy.md') && !files.includes(AGY_EXECUTION_POLICY_BUNDLE)) {
+    errors.push(`AGY execution policy bundle resource is missing: ${AGY_EXECUTION_POLICY_BUNDLE}`);
+  }
+  for (const relative of ruleFiles) {
+    const entry = AGY_RULE_TRIGGER_MAP[relative];
+    if (!entry) continue;
+    const content = readFileBounded(path.join(root, relative)).toString('utf8');
+    if (!content.startsWith(agyRuleFrontmatter(entry))) {
+      errors.push(`AGY rule is missing its trigger frontmatter: ${relative}`);
+    }
+  }
   if (expectedSkillFiles) for (const relative of expectedSkillFiles) if (!files.includes(relative)) errors.push(`selected AGY skill is missing: ${relative}`);
   for (const rootPrefix of requiredSkillRuntimeScriptRoots) {
     if (!files.some((relative) => relative.startsWith(rootPrefix))) errors.push(`selected AGY runtime scripts are missing: ${rootPrefix}`);
@@ -751,4 +847,5 @@ module.exports = {
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
   sanitizeMarkdownLinks,
+  projectAgyRuleContent,
 };

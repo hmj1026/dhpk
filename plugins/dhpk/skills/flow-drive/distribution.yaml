@@ -22,7 +22,9 @@
       "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
       "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "references/portability.md",
-      "references/recovery.md"
+      "references/recovery.md",
+      "references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
+      "references/verification-handoff.md"
     ],
     "executable_entries": [
       {
@@ -40,8 +42,21 @@
       },
       {
         "path": "references/execution-bundle/scripts/fast-worker-selector.js",
+        "consumer": "AGY native agent projection via scripts/lib/native-agent-support.js; no Flow Drive script requires this bundle",
         "fixture_ids": [
           "flow-drive-bundled-selector-native"
+        ]
+      },
+      {
+        "path": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
+        "fixture_ids": [
+          "flow-drive-bundled-verification-handoff-missing-input"
+        ]
+      },
+      {
+        "path": "scripts/verify-handoff.js",
+        "fixture_ids": [
+          "flow-drive-verification-handoff-missing-input"
         ]
       }
     ],
@@ -137,7 +152,8 @@
       {
         "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
         "required_by": [
-          "references/execution-bundle/scripts/fast-worker-selector.js"
+          "references/execution-bundle/scripts/fast-worker-selector.js",
+          "scripts/dispatch.js"
         ]
       },
       {
@@ -250,6 +266,14 @@
     {
       "source": "manifests/host-profiles.json",
       "destination": "references/execution-bundle/manifests/host-profiles.json"
+    },
+    {
+      "source": "skills/flow-drive/references/verification-handoff.md",
+      "destination": "references/execution-bundle/skills/flow-drive/references/verification-handoff.md"
+    },
+    {
+      "source": "skills/flow-drive/scripts/verify-handoff.js",
+      "destination": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js"
     }
   ],
   "usage": {
@@ -393,8 +417,7 @@
       "callers": [
         "commands/flow-drive.md"
       ],
-      "reason": "Canonical $flow-drive Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "allowed_tools": "Read, Grep, Glob, Bash, Skill, Agent"
+      "reason": "Canonical $flow-drive Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
     }
   ]
 }

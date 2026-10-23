@@ -1,3 +1,7 @@
+---
+trigger: model_decision
+description: Tool routing reference card
+---
 # Tool Routing — gitnexus / cx / claude-mem / Read / Grep
 
 SSOT for code exploration in dhpk-using projects. Cross-references the existing `dhpk:tool-routing` skill (richer prose, examples, sub-agent prompt boilerplate); this file is the compact reference card consumable directly from a project's `CLAUDE.md`.

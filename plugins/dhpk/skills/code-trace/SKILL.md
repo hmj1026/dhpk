@@ -1,17 +1,12 @@
 ---
 name: code-trace
 description: 'Trace unfamiliar code, diagnose a reproducible failure, investigate history, or select one code-navigation tool. Use when evidence must follow symbols, callers, data flow, regressions, or tool choice. Not for implementing a confirmed fix, reviewing a proposed diff, or plain-text/document search. Output: an evidence-backed trace, root-cause state, history report, or executable tool route.'
-allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(cx:*), Agent'
+allowed-tools: 'Read, Grep, Glob, Bash(git log:*), Bash(git show:*), Bash(git diff:*), Bash(git blame:*), Bash(cx:*), Agent'
 metadata:
   dhpk-capability-id: dhpk.skill.code-trace
   dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
-  dhpk-next:
-    PASS: none
-    FAIL: none
-    BLOCKED: none
-    NOT_RUN: none
-    UNAVAILABLE: none
+  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Code Trace

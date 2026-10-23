@@ -23,7 +23,7 @@ function copyRepositoryTree(destination) {
     verbatimSymlinks: true,
     filter(source) {
       const relative = path.relative(ROOT, source);
-      return relative !== '.git' && !relative.startsWith(`.git${path.sep}`);
+      return relative !== '.git' && !relative.startsWith(`.git${path.sep}`) && !relative.startsWith('.dhpk-');
     },
   });
 }

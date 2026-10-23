@@ -473,8 +473,8 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c",
-      "projection_digest": "1f874bdf0df9a31aaf1cdcb80d9deffaf9da315f04ce37806789fe2491231950",
+      "canonical_digest": "01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8",
+      "projection_digest": "370a6ce81923636b05b937e7308ed336a48bf9f88f160f732ee7988ebae52353",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
@@ -1790,7 +1790,7 @@
       "usage": {
         "display_name": "Precommit",
         "summary": "Run the packaged deterministic pre-commit pipeline",
-        "syntax": "$precommit [--fast]",
+        "syntax": "$precommit [--fast] [--dry-run]",
         "input_kind": "none",
         "invocation_class": "implicit-eligible",
         "effect_authority": "workspace-write",
@@ -1799,7 +1799,7 @@
           {
             "id": "run",
             "summary": "Run fast or full pre-commit stages",
-            "syntax": "$precommit [--fast]",
+            "syntax": "$precommit [--fast] [--dry-run]",
             "input_kind": "none",
             "effect_authority": "workspace-write"
           }
@@ -1811,6 +1811,14 @@
             "value_kind": "boolean",
             "required": false,
             "summary": "Run the fast stage set",
+            "default": false
+          },
+          {
+            "id": "dry-run",
+            "syntax": "--dry-run",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Preview selected commands without running checks or writing cache files",
             "default": false
           }
         ],
@@ -5046,6 +5054,118 @@
       ],
       "rollback": {
         "release": "0.64.4"
+      }
+    },
+    {
+      "id": "dep-audit",
+      "name": "dep-audit",
+      "canonicalPath": "skills/dep-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "deps"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
+      }
+    },
+    {
+      "id": "review-pending",
+      "name": "review-pending",
+      "canonicalPath": "skills/review-pending",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "pending"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
+      }
+    },
+    {
+      "id": "opsx-load-context",
+      "name": "dhpk-opsx-load-context",
+      "canonicalPath": "skills/dhpk-opsx-load-context",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "opsx-apply-resume"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
+      }
+    },
+    {
+      "id": "opsx-post-obs",
+      "name": "dhpk-opsx-post-observation",
+      "canonicalPath": "skills/dhpk-opsx-post-observation",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "opsx-apply-resume"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
+      }
+    },
+    {
+      "id": "js-static-check-strategy",
+      "name": "js-static-check-strategy",
+      "canonicalPath": "skills/js-static-check-strategy",
+      "priorSurfaces": [
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.66.0",
+      "reasonCode": "self-contained-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "js-static-checks"
+        }
+      ],
+      "rollback": {
+        "release": "0.65.3"
       }
     },
     {

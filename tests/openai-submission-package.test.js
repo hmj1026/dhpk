@@ -170,8 +170,10 @@ test('bundles common child content under its owner and rewrites its entrypoint l
     const owner = fileByPath(result, 'skills/package-owner/SKILL.md').bytes.toString('utf8');
     assert.match(owner, /\]\(references\/child-guide\/SKILL\.md\)/);
     assert.doesNotMatch(owner, /\.\.\/child-guide/);
-    const sourceChild = fs.readFileSync(path.join(fixture.root, 'skills', 'child-guide', 'SKILL.md'));
-    assert.deepStrictEqual(fileByPath(result, 'skills/package-owner/references/child-guide/SKILL.md').bytes, sourceChild);
+    assert.deepStrictEqual(
+      fileByPath(result, 'skills/package-owner/references/child-guide/SKILL.md').bytes,
+      Buffer.from('---\nname: child-guide\ndescription: "Fixture skill."\n---\n\nFixture instructions.\n'),
+    );
     assert.strictEqual(child.bytes.toString('utf8'), 'Supporting note.\n');
   } finally {
     removeFixture(fixture);

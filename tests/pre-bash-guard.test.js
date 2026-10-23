@@ -95,6 +95,28 @@ test('commit-tree does not exempt a later commit --no-verify', () => {
   assert.strictEqual(res.status, 2, res.stderr);
 });
 
+test('git commit -n and short clusters are blocked like --no-verify', () => {
+  for (const command of ['git commit -n -m x', 'git commit -nm x', 'git commit -anm x']) {
+    const res = runHook(command);
+    assert.strictEqual(res.status, 2, `${command}: expected blocked, got ${res.status} / ${res.stderr}`);
+    assert.match(res.stderr, /--no-verify/i);
+  }
+});
+
+test('a message of -n or n, and -n on push or merge, is not a bypass', () => {
+  for (const command of ['git commit -m -n', 'git commit -mn', 'git push -n origin x', 'git merge -n feature']) {
+    const res = runHook(command);
+    assert.strictEqual(res.status, 0, `${command}: ${res.stderr}`);
+  }
+});
+
+test('DHPK_ALLOW_NO_VERIFY lets commit -n and the long flag through', () => {
+  for (const command of ['git commit -n -m x', 'git commit -m x --no-verify']) {
+    const res = runHook(command, { DHPK_ALLOW_NO_VERIFY: '1' });
+    assert.strictEqual(res.status, 0, `${command}: ${res.stderr}`);
+  }
+});
+
 test('a quoted hash does not hide an .env redirect', () => {
   const res = runHook('echo "foo # bar" > .env');
   assert.strictEqual(res.status, 2, res.stderr);
@@ -301,6 +323,12 @@ test('safe command passes through (exit 0), no active modules', () => {
   assert.strictEqual(res.status, 0, `expected allowed, got: ${res.status} / ${res.stderr}`);
 });
 
+test('dispatcher blocks git commit -n like --no-verify', () => {
+  const res = runHook('git commit -n -m x');
+  assert.strictEqual(res.status, 2, `expected blocked, got: ${res.status} / ${res.stderr}`);
+  assert.match(res.stderr, /--no-verify/i);
+});
+
 test('.env write via redirection is blocked (exit 2), core guard bubbles up', () => {
   const res = runHook('echo SECRET=x > .env');
   assert.strictEqual(res.status, 2, `expected blocked, got: ${res.status} / ${res.stderr}`);
@@ -355,7 +383,7 @@ test('Bash PreToolUse declares the 2100-second block ceiling', () => {
   assert.strictEqual(bash.onFailure, 'block');
   const edit = hooks.hooks.PreToolUse.find((entry) => String(entry.matcher).includes('Edit')).hooks[0];
   assert.strictEqual(edit.timeout, 5);
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(edit, 'onFailure'), false);
+  assert.strictEqual(edit.onFailure, 'block');
   const stop = hooks.hooks.SubagentStop[0].hooks[0];
   assert.strictEqual(Object.prototype.hasOwnProperty.call(stop, 'timeout'), false);
   assert.strictEqual(Object.prototype.hasOwnProperty.call(stop, 'onFailure'), false);

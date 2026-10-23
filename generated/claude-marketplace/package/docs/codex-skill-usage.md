@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:c6e0199fd44f63a8a234bc46ac35d79dc995064f97bc49865e0976f8a255bc81`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:9ce52a60aaa32cae1915f091e6170b55c7e6a23c8a28e0d0859bdb40bd721250`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -198,15 +198,16 @@ Examples:
 ### `$precommit`
 
 Summary: Run the packaged deterministic pre-commit pipeline
-Syntax: `$precommit [--fast]`
+Syntax: `$precommit [--fast] [--dry-run]`
 Invocation class: `implicit-eligible`
 Maximum authority: `workspace-write`
 
 Actions:
-- `run` `$precommit [--fast]` — Run fast or full pre-commit stages
+- `run` `$precommit [--fast] [--dry-run]` — Run fast or full pre-commit stages
 
 Options:
 - `fast` `--fast` (optional, boolean, default=false) — Run the fast stage set
+- `dry-run` `--dry-run` (optional, boolean, default=false) — Preview selected commands without running checks or writing cache files
 
 Examples:
 - `$precommit --fast` — Use precommit with its declared interface

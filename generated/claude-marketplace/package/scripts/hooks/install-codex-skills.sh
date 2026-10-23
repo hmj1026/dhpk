@@ -100,6 +100,10 @@ if ! command -v python3 >/dev/null 2>&1; then
     echo "[$INSTALLER_NAME] ERROR: python3 is required for receipt reconciliation" >&2
     exit 2
 fi
+if [ "$UNINSTALL" -ne 1 ] && [ "$PLAN" -ne 1 ] && ! command -v node >/dev/null 2>&1; then
+    echo "[$INSTALLER_NAME] ERROR: node is required to materialize portable project skill metadata" >&2
+    exit 2
+fi
 
 if [ "$FORCE" -ne 1 ] && [ "$UNINSTALL" -ne 1 ]; then
     if [ ! -e "$PROJECT_ROOT/.git" ] && [ ! -e "$PROJECT_ROOT/.claude" ] && \
@@ -1175,7 +1179,7 @@ def restore_pending_mutations():
                     if not lexists(backup):
                         errors.append(f'rollback backup missing: {relative}')
                     else:
-                        restore_backup_copy(backup, destination)
+                        restore_backup_copy(backup, destination, allow_broken_symlinks=True)
                 continue
             if (backup is not None and lexists(backup)
                     and safe_destination_fingerprint(destination) == safe_destination_fingerprint(backup)):
@@ -1185,12 +1189,15 @@ def restore_pending_mutations():
             if safe_destination_fingerprint(destination) != expected:
                 errors.append(f'rollback preserved changed destination: {relative}')
                 continue
+            if backup is not None and not lexists(backup):
+                errors.append(f'rollback backup missing: {relative}')
+                continue
             remove_relative_path(relative, expected)
             if backup is not None:
                 if not lexists(backup):
                     errors.append(f'rollback backup missing after removal: {relative}')
                 else:
-                    restore_backup_copy(backup, destination)
+                    restore_backup_copy(backup, destination, allow_broken_symlinks=True)
         except (OSError, ValueError) as error:
             errors.append(f'{relative}: {error}')
     return errors
@@ -1238,7 +1245,7 @@ def restore_pending_adoptions():
                         errors.append(f'adoption rollback preserved changed destination: {relative}')
                         continue
                     remove_relative_path(destination_rel, published or expected_source)
-            restore_backup_copy(backup, destination)
+            restore_backup_copy(backup, destination, allow_broken_symlinks=True)
             if quarantine and lexists(quarantine):
                 remove_relative_path(quarantine_rel)
             pending['phase'] = 'restored'
@@ -2010,19 +2017,65 @@ def prepare_adoption_backup(relative, destination, expected_fingerprint):
 def effective_materialization_mode(relative):
     """Return the runtime-safe materialization mode for one managed entry."""
     top_level = relative.split('/', 1)[0]
+    if top_level == 'skills':
+        return 'copy'
     if HARNESS_KIND == 'codex' and top_level == 'agents':
         return 'copy'
     return MODE
 
 
+def portable_skill_markdown_paths(directory):
+    """List physical SKILL.md files in a staged portable skill tree."""
+    result = []
+    for current, directories, filenames in os.walk(directory, followlinks=False):
+        directories[:] = sorted(
+            name for name in directories
+            if not is_ignored_distribution_name(name)
+            and not os.path.islink(os.path.join(current, name))
+        )
+        if 'SKILL.md' in filenames:
+            candidate = os.path.join(current, 'SKILL.md')
+            if not os.path.islink(candidate) and os.path.isfile(candidate):
+                result.append(candidate)
+    return sorted(result)
+
+
+def transform_portable_skill_metadata(directory, relative):
+    """Serialize metadata in staged skill frontmatter without editing source."""
+    if not relative.startswith('skills/'):
+        return
+    helper = os.path.join(PLUGIN_ROOT, 'scripts', 'lib', 'portable-skill-metadata.js')
+    node = shutil.which('node')
+    if not node or not os.path.isfile(helper):
+        raise ValueError('portable project skill metadata requires node and scripts/lib/portable-skill-metadata.js')
+    for markdown_path in portable_skill_markdown_paths(directory):
+        with open(markdown_path, 'rb') as source_file:
+            source_bytes = source_file.read()
+        try:
+            transformed = subprocess.run(
+                [node, helper],
+                input=source_bytes,
+                capture_output=True,
+                check=False,
+            )
+        except OSError as error:
+            raise ValueError(f'portable metadata transform could not start: {error}') from error
+        if transformed.returncode != 0:
+            detail = (transformed.stderr or transformed.stdout or b'').decode('utf-8', errors='replace').strip()
+            raise ValueError(detail or f'portable metadata transform failed for {os.path.relpath(markdown_path, directory)}')
+        with open(markdown_path, 'wb') as destination_file:
+            destination_file.write(transformed.stdout)
+
+
 def copy_source_into_stage(source, staged_name, stage_fd, relative=None):
-    """Copy one physical source entry into the stage; nothing is injected."""
+    """Copy one physical source entry and apply only the portable metadata transform."""
     validate_fd_name(staged_name)
     saved_cwd_fd = os.open('.', _DIRECTORY_FLAGS)
     try:
         os.fchdir(stage_fd)
         if os.path.isdir(source):
             shutil.copytree(source, staged_name, symlinks=False, ignore=ignore_distribution_entries)
+            transform_portable_skill_metadata(staged_name, relative or '')
         else:
             shutil.copy2(source, staged_name)
     finally:
@@ -2032,7 +2085,7 @@ def copy_source_into_stage(source, staged_name, stage_fd, relative=None):
             os.close(saved_cwd_fd)
 
 
-def verify_staged_materialization(source, relative, stage_fd, staged_name, expected_source):
+def verify_staged_materialization(source, relative, stage_fd, staged_name, expected_source, expected_destination=None):
     """Verify the staged entry through its pinned descriptor and source path."""
     validate_fd_name(staged_name)
     if effective_materialization_mode(relative) == 'symlink':
@@ -2046,7 +2099,8 @@ def verify_staged_materialization(source, relative, stage_fd, staged_name, expec
             return False
         return hash_path(source, include_ignored=False) == expected_source
     try:
-        return hash_fd_entry(stage_fd, staged_name, include_ignored=False) == expected_source
+        expected = expected_source if expected_destination is None else expected_destination
+        return hash_fd_entry(stage_fd, staged_name, include_ignored=False) == expected
     except FileNotFoundError:
         return False
 
@@ -2120,7 +2174,8 @@ def adopt_materialized(source, destination, relative, expected_source, expected_
         if source_fingerprint_for(source, relative) != expected_source:
             raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
         stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd, relative)
-        if not verify_staged_materialization(source, relative, stage_fd, staged_name, expected_source):
+        expected_projection = hash_fd_entry(stage_fd, staged_name, include_ignored=False)
+        if not verify_staged_materialization(source, relative, stage_fd, staged_name, expected_source, expected_projection):
             raise ValueError(f'adoption materialization changed: {relative}; run a fresh plan')
         if source_fingerprint_for(source, relative) != expected_source:
             raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
@@ -2137,6 +2192,7 @@ def adopt_materialized(source, destination, relative, expected_source, expected_
                 destination_fd,
                 destination_name,
                 expected_source,
+                expected_projection,
             )
         except (OSError, ValueError):
             published_matches = False
@@ -3613,6 +3669,8 @@ def make_entry(source, relative, destination, metadata=None):
             entry['id'] = metadata['id']
         if metadata.get('name'):
             entry['name'] = metadata['name']
+    if relative.startswith('skills/'):
+        entry['metadata_projection'] = 'portable-skill-metadata.v1'
     if mode == 'symlink':
         entry['destination_target'] = os.readlink(destination)
     return entry
@@ -3687,11 +3745,18 @@ def recorded_copy_fingerprint(entry):
     return fingerprint if isinstance(fingerprint, str) and len(fingerprint) == 64 else None
 
 
-def exact_source_match(source, destination, relative):
+def exact_source_match(source, destination, relative, old_entry=None):
     if not lexists(destination):
         return False
     if os.path.islink(destination):
         return os.path.realpath(destination) == os.path.realpath(source)
+    if (relative.startswith('skills/')
+            and isinstance(old_entry, dict)
+            and old_entry.get('metadata_projection') == 'portable-skill-metadata.v1'):
+        source_fp = old_entry.get('source_fingerprint')
+        destination_fp = old_entry.get('destination_fingerprint') or old_entry.get('fingerprint')
+        return (source_fp == source_fingerprint_for(source, relative)
+                and destination_fp == hash_path(destination))
     return source_fingerprint_for(source, relative) == hash_path(destination)
 
 
@@ -3816,7 +3881,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
                 })
                 continue
             if (old.get('mode') != effective_materialization_mode(relative)
-                    or not exact_source_match(source, destination, relative)):
+                    or not exact_source_match(source, destination, relative, old)):
                 updates.append({
                     'path': relative,
                     'kind': kind,
@@ -4126,7 +4191,8 @@ def install_descriptor_safe(source, destination, replace_existing=True):
         stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd, relative)
         if source_fingerprint_for(source, relative) != source_fingerprint:
             raise ValueError(f'install source changed during materialization: {relative}; run a fresh update')
-        if not verify_staged_materialization(source, relative, stage_fd, staged_name, source_fingerprint):
+        expected_projection = hash_fd_entry(stage_fd, staged_name, include_ignored=False)
+        if not verify_staged_materialization(source, relative, stage_fd, staged_name, source_fingerprint, expected_projection):
             raise ValueError(f'install materialization changed: {relative}; run a fresh update')
         if fd_entry_exists(destination_fd, destination_name):
             if not replace_existing:
@@ -4143,6 +4209,7 @@ def install_descriptor_safe(source, destination, replace_existing=True):
                 destination_fd,
                 destination_name,
                 source_fingerprint,
+                expected_projection,
             )
         except (OSError, ValueError):
             published_matches = False
@@ -4971,7 +5038,7 @@ for kind in MANAGED_KINDS:
             if (not lexists(destination)
                     or not is_owned(old, destination)
                     or old.get('mode') != effective_materialization_mode(relative)
-                    or not exact_source_match(source, destination, relative)):
+                    or not exact_source_match(source, destination, relative, old)):
                 record_path('deferred', relative)
                 if relative not in collisions:
                     collisions.append(relative)
@@ -4985,7 +5052,7 @@ for kind in MANAGED_KINDS:
             adopted = False
             if (legacy_pending and MIGRATE
                     and matches_effective_materialization(relative, destination)
-                    and exact_source_match(source, destination, relative)):
+                    and exact_source_match(source, destination, relative, old)):
                 entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
                 adopted = True
                 counts['preserved'] += 1
@@ -5073,7 +5140,7 @@ for kind in MANAGED_KINDS:
                 record_ownership(relative, 'orphaned')
                 continue
             if (old.get('mode') == effective_materialization_mode(relative)
-                    and exact_source_match(source, destination, relative)):
+                    and exact_source_match(source, destination, relative, old)):
                 entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
                 clear_orphaned(relative)
                 record_ownership(relative, 'dhpk-managed')

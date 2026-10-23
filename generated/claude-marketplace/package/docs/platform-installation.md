@@ -252,7 +252,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.6 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.7 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -326,10 +326,12 @@ standalone checkout form is:
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
 
-The installer uses the project-root heuristic and a hybrid default: skills and
-supporting assets are relative symlinks, while `.codex/agents/*.toml` are always
-physical files because Codex must load them as configuration layers. `--copy`
-makes the entire projection physical:
+For this source-directory projection, the default materializes skill trees and
+`.codex/agents/*.toml` as physical files; Codex must load the latter as
+configuration layers. Supporting assets remain relative symlinks by default,
+and `--copy` makes those physical too. This rule describes source-directory
+materialization; native Shared Project discovery bindings under `.codex/skills`
+may remain receipt-owned symlinks to the physical shared artifact:
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --copy
@@ -350,10 +352,11 @@ New Codex installs use the `common` collection and may add existing `--skill <st
 
 For historical named-profile receipts (`minimal`, `full`, `compat-v1`), read, plan, uninstall, and recovery preserve the exact stored scope, including retired IDs. Updates return `BLOCKED` before any mutation. Older receipts without selection metadata retain the existing structural migration route. Ordinary `--update` remains available for current receipts.
 
-For an existing schema-v3 symlink projection, ordinary `--update` converts
-unchanged receipt-owned agent links to physical files and leaves skill links in
-place. Retargeted, edited, or unowned agent paths remain collisions and are not
-overwritten.
+When `--update` reconciles an older schema-v3 symlink projection, it converts
+unchanged receipt-owned skill and agent links to physical files and records the
+new ownership fingerprints. Supporting assets keep the selected mode, which is
+symlink by default. Retargeted, edited, or unowned paths remain collisions and
+are not overwritten.
 
 `--force` bypasses only the project-root heuristic. It never bypasses receipt
 ownership or path safety. The schema-v3 receipt records stable ID, public name,
@@ -599,13 +602,18 @@ node "$DHPK_ROOT/scripts/ci/validate-agents-skills.js" \
   --project-root "$PROJECT_ROOT"
 ```
 
-This route materializes self-contained `<name>/SKILL.md` packages and AGY
-`<name>.md` direct files under `$PROJECT_ROOT/.agents/skills/`, writes the sole
-lifecycle receipt at `$PROJECT_ROOT/.agents/.dhpk-installed.json`, and binds
-Claude through receipt-owned `.claude/skills/<name>` symlinks to the shared
-artifact. The compatibility `.agents/skills/.dhpk-projection.json`, when
-present, is only a generated manifest. Codex and Cursor consume the directory
-shape; AGY consumes the embedded direct-file body. No generated instruction
+This route materializes physical self-contained `<name>/SKILL.md` packages
+under `$PROJECT_ROOT/.agents/skills/` for the portable tree and receipt-owned
+Claude packages under `$PROJECT_ROOT/.agents/claude-skills/`; AGY receives
+`<name>.md` direct files under `$PROJECT_ROOT/.agents/skills/`. One schema-v3
+lifecycle receipt at `$PROJECT_ROOT/.agents/.dhpk-installed.json` owns both
+trees and every Host binding. Claude discovery uses receipt-owned
+`.claude/skills/<name>` symlinks to the structured Claude sibling, while
+Codex/Cursor discovery bindings may remain symlinks to the physical portable
+tree. The portable tree keeps metadata values as strings; the Claude sibling
+preserves structured metadata values. The compatibility
+`.agents/skills/.dhpk-projection.json`, when present, is only a generated
+manifest. AGY consumes the embedded direct-file body. No generated instruction
 points back to the source checkout.
 
 If the consumer project exposes the whole managed root
@@ -1037,7 +1045,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.6 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.7 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

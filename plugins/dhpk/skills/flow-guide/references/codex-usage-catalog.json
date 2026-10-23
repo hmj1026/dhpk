@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:c6e0199fd44f63a8a234bc46ac35d79dc995064f97bc49865e0976f8a255bc81",
+  "sourceInventoryRevision": "sha256:9ce52a60aaa32cae1915f091e6170b55c7e6a23c8a28e0d0859bdb40bd721250",
   "entries": [
     {
       "id": "change-verdict",
@@ -778,7 +778,7 @@
       "usage": {
         "display_name": "Precommit",
         "summary": "Run the packaged deterministic pre-commit pipeline",
-        "syntax": "$precommit [--fast]",
+        "syntax": "$precommit [--fast] [--dry-run]",
         "input_kind": "none",
         "invocation_class": "implicit-eligible",
         "effect_authority": "workspace-write",
@@ -787,7 +787,7 @@
           {
             "id": "run",
             "summary": "Run fast or full pre-commit stages",
-            "syntax": "$precommit [--fast]",
+            "syntax": "$precommit [--fast] [--dry-run]",
             "input_kind": "none",
             "effect_authority": "workspace-write"
           }
@@ -800,6 +800,14 @@
             "required": false,
             "summary": "Run the fast stage set",
             "default": false
+          },
+          {
+            "id": "dry-run",
+            "syntax": "--dry-run",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Preview selected commands without running checks or writing cache files",
+            "default": false
           }
         ],
         "examples": [
@@ -809,7 +817,7 @@
           }
         ]
       },
-      "usageFingerprint": "920521f2abafda14ea87a7e44569f5bb5aec2b4b245bff78d43271b5d54ea699"
+      "usageFingerprint": "aaf9311f021b41665056b6fdb7ffe3762853b3d72efc4354395d0437053f3e4e"
     },
     {
       "id": "proposal-analyze",
@@ -1281,10 +1289,10 @@
         "id": "precommit",
         "publicName": "precommit",
         "invocationClass": "implicit-eligible",
-        "command": "$precommit [--fast]",
+        "command": "$precommit [--fast] [--dry-run]",
         "codexInvokable": true,
         "actions": {
-          "run": "$precommit [--fast]"
+          "run": "$precommit [--fast] [--dry-run]"
         }
       },
       "project-audit": {
@@ -1403,6 +1411,10 @@
       }
     },
     "aliases": {
+      "dep-audit": {
+        "target": "change-verdict",
+        "disposition": "retired"
+      },
       "deploy-list": {
         "target": "dhpk-deploy-list",
         "disposition": "legacy"
@@ -1623,6 +1635,14 @@
         "target": "flow-guide",
         "disposition": "retired"
       },
+      "dhpk-opsx-load-context": {
+        "target": "opsx-apply-resume",
+        "disposition": "retired"
+      },
+      "dhpk-opsx-post-observation": {
+        "target": "opsx-apply-resume",
+        "disposition": "retired"
+      },
       "dhpk-phpunit": {
         "target": "phpunit",
         "disposition": "renamed"
@@ -1735,6 +1755,10 @@
         "target": "dhpk-issue-analyze",
         "disposition": "legacy"
       },
+      "js-static-check-strategy": {
+        "target": "js-static-checks",
+        "disposition": "retired"
+      },
       "legacy-code-characterization": {
         "target": "dhpk-legacy-characterization-tests",
         "disposition": "legacy"
@@ -1754,6 +1778,10 @@
       "repo-intake": {
         "target": "dhpk-repo-intake",
         "disposition": "legacy"
+      },
+      "review-pending": {
+        "target": "change-verdict",
+        "disposition": "retired"
       },
       "skill-forge": {
         "target": "flow-guide",

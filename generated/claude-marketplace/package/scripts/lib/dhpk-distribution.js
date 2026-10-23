@@ -22,6 +22,9 @@ const {
   compileNativePackage,
   materializeNativePackage,
   verifyNativePackage,
+  CODEX_NATIVE_PROFILE_ID,
+  resolveCodexNativeProfileSelection,
+  recognizesLegacyCodexNativeReceipt,
   fingerprintDir: fingerprintNative,
 } = require('./codex-native-package');
 const {
@@ -160,44 +163,59 @@ function runtime(root, request) {
   const profiles = readJson(path.join(root, 'manifests', 'install-profiles.json'));
   const moduleCatalog = readJson(path.join(root, 'manifests', 'module-catalog.json'));
   const output = path.resolve(root, request.options.output || SURFACES[request.surface].output);
+  let receipt = null;
   let receiptProfileId = null;
   let receiptStandaloneSkillIds = [];
   let receiptSelectionMode = null;
   if (request.operation !== 'generate') {
     try {
-      const receipt = readJson(path.join(output, 'provenance.json'));
-      receiptProfileId = typeof receipt.profileId === 'string' ? receipt.profileId : null;
+      receipt = readJson(path.join(output, 'provenance.json'));
+      receiptProfileId = typeof receipt.profileId === 'string'
+        ? receipt.profileId
+        : (typeof (receipt.installation && receipt.installation.profileId) === 'string' ? receipt.installation.profileId : null);
       receiptSelectionMode = receipt.selectionMode || null;
       receiptStandaloneSkillIds = Array.isArray(receipt.requestedStableIds) ? receipt.requestedStableIds : [];
     } catch (_) { /* validation reports the missing/invalid receipt later */ }
   }
+  const legacyCodexReceipt = request.surface === 'codex-native'
+    && recognizesLegacyCodexNativeReceipt({ receipt, root, inventory });
   const standaloneSkillIds = request.options.standaloneSkillIds.length > 0
     ? request.options.standaloneSkillIds
     : (receiptSelectionMode === 'standalone' ? receiptStandaloneSkillIds : []);
   const standalone = standaloneSkillIds.length > 0;
   const defaultToCommon = request.operation === 'generate' || request.operation === 'preview' || request.options.skillIds.length > 0;
-  const profileId = standalone ? null : receiptProfileId || (defaultToCommon ? 'common' : null);
+  const defaultProfileId = request.surface === 'codex-native' ? CODEX_NATIVE_PROFILE_ID : 'common';
+  const profileId = standalone ? null : legacyCodexReceipt
+    ? CODEX_NATIVE_PROFILE_ID
+    : receiptProfileId || ((defaultToCommon || (request.surface === 'codex-native' && request.operation === 'verify')) ? defaultProfileId : null);
   let profileSelection = null;
   if (profileId || request.options.skillIds.length > 0 || standalone) {
     const selectionProfileId = profileId || 'common';
-    const resolved = resolveCapabilitySelection({
-      inventory,
-      profiles,
-      moduleCatalog,
-      profileId: standalone ? null : selectionProfileId,
-      skillIds: request.options.skillIds,
-      standaloneSkillIds: standaloneSkillIds.length > 0 ? standaloneSkillIds : undefined,
-      surface: request.surface,
-      sourceInputs: { profileId: standalone ? null : selectionProfileId, skillIds: request.options.skillIds, standaloneSkillIds },
-      policyVersion: inventory.profile_policy && inventory.profile_policy.version,
-    });
-    if (!resolved.ok) throw new Error(resolved.error.message);
-    const supportedStableIds = request.surface === 'codex-native'
-      ? inventory.skills.filter((entry) => Array.isArray(entry.surfaces) && entry.surfaces.includes('codex-native')).map((entry) => entry.id)
-      : null;
-    const bound = bindSurfaceSelection({ selection: resolved.value, surface: request.surface, supportedStableIds });
-    if (!bound.ok) throw new Error(bound.error.message);
-    profileSelection = bound.value;
+    if (request.surface === 'codex-native'
+      && selectionProfileId === CODEX_NATIVE_PROFILE_ID
+      && request.options.skillIds.length === 0
+      && !standalone) {
+      profileSelection = resolveCodexNativeProfileSelection({ root, inventory, profiles, moduleCatalog });
+    } else {
+      const resolved = resolveCapabilitySelection({
+        inventory,
+        profiles,
+        moduleCatalog,
+        profileId: standalone ? null : selectionProfileId,
+        skillIds: request.options.skillIds,
+        standaloneSkillIds: standaloneSkillIds.length > 0 ? standaloneSkillIds : undefined,
+        surface: request.surface,
+        sourceInputs: { profileId: standalone ? null : selectionProfileId, skillIds: request.options.skillIds, standaloneSkillIds },
+        policyVersion: inventory.profile_policy && inventory.profile_policy.version,
+      });
+      if (!resolved.ok) throw new Error(resolved.error.message);
+      const supportedStableIds = request.surface === 'codex-native'
+        ? inventory.skills.filter((entry) => Array.isArray(entry.surfaces) && entry.surfaces.includes('codex-native')).map((entry) => entry.id)
+        : null;
+      const bound = bindSurfaceSelection({ selection: resolved.value, surface: request.surface, supportedStableIds });
+      if (!bound.ok) throw new Error(bound.error.message);
+      profileSelection = bound.value;
+    }
   }
   const sourceCommit = resolveSourceCommit(root);
   const targetTree = resolveGeneratedFromTree(root, sourceCommit);

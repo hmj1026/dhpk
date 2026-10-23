@@ -12,14 +12,21 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'skills', 'precommit', 'scripts', 'precommit-runner.js');
 
-function mkScratchRepo(pkgScripts) {
+function mkScratchRepo(pkgScripts, files = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'precommit-runner-'));
   let ready = false;
   try {
     execFileSync('git', ['init', '-q'], { cwd: dir });
     execFileSync('git', ['config', 'user.email', 'a@b.com'], { cwd: dir });
     execFileSync('git', ['config', 'user.name', 'test'], { cwd: dir });
-    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'fixture', scripts: pkgScripts }, null, 2));
+    if (pkgScripts !== null) {
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'fixture', scripts: pkgScripts }, null, 2));
+    }
+    for (const [relativePath, contents] of Object.entries(files)) {
+      const fullPath = path.join(dir, relativePath);
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      fs.writeFileSync(fullPath, contents);
+    }
     execFileSync('git', ['add', '-A'], { cwd: dir });
     execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: dir });
     ready = true;
@@ -79,9 +86,10 @@ function markerCommand(label, extra = '') {
   return `node -e ${shellQuote(script)}`;
 }
 
-test('outside a git repo: prints "Not inside a git repo" and exits 0', () => withScratchArtifacts(({ dir, cacheDir }) => {
+test('outside a git repo: reports UNSUPPORTED and exits nonzero without writing cache', () => withScratchArtifacts(({ dir, cacheDir }) => {
   const res = runScript(dir, [], cacheDir);
-  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.status, 2, res.stderr);
+  assert.ok(res.stdout.includes('UNSUPPORTED'), res.stdout);
   assert.ok(res.stdout.includes('Not inside a git repo'), res.stdout);
   assert.ok(!fs.existsSync(cacheDir), 'runner must not create its cache before discovering a git repo');
 }));
@@ -98,6 +106,7 @@ test('fast mode executes lint then test and writes structured PASS output only t
     assert.deepStrictEqual(fs.readFileSync(marker, 'utf8').trim().split('\n'), ['lint', 'test']);
     assert.ok(res.stdout.includes('# Precommit (fast)'), res.stdout);
     assert.ok(res.stdout.includes('## Overall: ✅ PASS'), res.stdout);
+    assert.ok(!res.stdout.includes('yourchain.test.ts'), res.stdout);
 
     const { summaryPath, summary } = readSummary(cacheDir);
     assert.deepStrictEqual(summary.steps.map((step) => [step.name, step.code]), [['lint_fix', 0], ['test_unit', 0]]);
@@ -133,19 +142,200 @@ test('full mode runs build before test and reports an absent lint script as skip
   }
 }));
 
-test('no matching scripts: all steps are skipped and structured overall status is FAIL', () => withScratchArtifacts(({ dir, cacheDir }) => {
+test('--dry-run previews package scripts for the selected mode without executing or writing artifacts', () => withScratchArtifacts(({ cacheDir, marker }) => {
+  let repo;
+  try {
+    repo = mkScratchRepo({
+      'lint:fix': markerCommand('lint'),
+      build: markerCommand('build'),
+      test: markerCommand('test'),
+    });
+
+    const fast = runScript(repo, ['--mode', 'fast', '--dry-run', '--tail', '80'], cacheDir, { ORDER_MARKER: marker });
+    const fastOutput = fast.stdout + '\n' + fast.stderr;
+    assert.strictEqual(fast.status, 0, fastOutput);
+    assert.match(fastOutput, /DRY.?RUN/i);
+    assert.ok(fastOutput.includes('lint_fix'), fastOutput);
+    assert.match(fastOutput, /npm\s+run\s+test/i);
+    assert.ok(!fastOutput.includes('build'), 'fast preview must omit the build stage');
+    assert.ok(!/\bPASS\b/.test(fastOutput), 'a plan must not claim checks passed');
+    assert.ok(!fs.existsSync(marker), 'dry-run must not execute configured package scripts');
+    assert.ok(!fs.existsSync(cacheDir), 'dry-run must not create its redirected cache');
+    assert.ok(!fs.existsSync(path.join(repo, '.claude', 'cache')), 'dry-run must not create repository cache directories');
+
+    const full = runScript(repo, ['--mode', 'full', '--dry-run'], cacheDir, { ORDER_MARKER: marker });
+    const fullOutput = full.stdout + '\n' + full.stderr;
+    assert.strictEqual(full.status, 0, fullOutput);
+    assert.match(fullOutput, /DRY.?RUN/i);
+    assert.ok(fullOutput.includes('build'), fullOutput);
+    assert.match(fullOutput, /npm\s+run\s+test/i);
+    assert.ok(!/\bPASS\b/.test(fullOutput), 'a plan must not claim checks passed');
+    assert.ok(!fs.existsSync(marker), 'dry-run must not execute scripts in either mode');
+    assert.ok(!fs.existsSync(cacheDir));
+    assert.ok(!fs.existsSync(path.join(repo, '.claude', 'cache')));
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
+test('--dry-run previews configured stages and resolved working directories without executing them', () => withScratchArtifacts(({ cacheDir, marker }) => {
+  let repo;
+  try {
+    const stages = {
+      lint_fix: [{ name: 'backend', cwd: 'backend', command: 'node', args: ['run.js', 'lint_fix:backend'] }],
+      build: [{ name: 'frontend', cwd: 'frontend', command: 'node', args: ['run.js', 'build:frontend'] }],
+      test_unit: [{ name: 'frontend', cwd: 'frontend', command: 'node', args: ['run.js', 'test_unit:frontend'] }],
+    };
+    const recordStep = [
+      "const fs = require('node:fs');",
+      "fs.appendFileSync(process.env.ORDER_MARKER, process.argv[2] + ':' + process.cwd() + '\\n');",
+    ].join('\n');
+    repo = mkScratchRepo(null, {
+      'precommit.config.json': JSON.stringify({ stages }, null, 2),
+      'backend/run.js': recordStep,
+      'frontend/run.js': recordStep,
+    });
+
+    const res = runScript(repo, ['--mode', 'full', '--dry-run'], cacheDir, { ORDER_MARKER: marker });
+    const output = res.stdout + '\n' + res.stderr;
+    assert.strictEqual(res.status, 0, output);
+    assert.match(output, /DRY.?RUN/i);
+    assert.ok(output.includes('lint_fix:backend'), output);
+    assert.ok(output.includes('build:frontend'), output);
+    assert.ok(output.includes('test_unit:frontend'), output);
+    assert.ok(output.includes('node'), output);
+    assert.ok(output.includes(path.join(repo, 'backend')), output);
+    assert.ok(output.includes(path.join(repo, 'frontend')), output);
+    assert.ok(!/\bPASS\b/.test(output), 'a plan must not claim checks passed');
+    assert.ok(!fs.existsSync(marker), 'dry-run must not execute explicit configured commands');
+    assert.ok(!fs.existsSync(cacheDir));
+    assert.ok(!fs.existsSync(path.join(repo, '.claude', 'cache')));
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
+test('no supported checks: reports UNSUPPORTED and exits nonzero', () => withScratchArtifacts(({ dir, cacheDir }) => {
   let repo;
   try {
     repo = mkScratchRepo({});
     const res = runScript(repo, ['--mode', 'fast'], cacheDir);
-    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.status, 2, res.stderr);
     assert.ok(res.stdout.includes('skip lint_fix'), res.stdout);
     assert.ok(res.stdout.includes('skip test_unit'), res.stdout);
-    assert.ok(res.stdout.includes('(no steps executed)'), res.stdout);
-    assert.ok(res.stdout.includes('## Overall: ❌ FAIL'), res.stdout);
+    assert.ok(res.stdout.includes('no supported commands configured'), res.stdout);
+    assert.ok(res.stdout.includes('## Overall: ⛔ UNSUPPORTED'), res.stdout);
     const { summary } = readSummary(cacheDir);
     assert.deepStrictEqual(summary.steps, []);
     assert.strictEqual(summary.overallPass, false);
+    assert.strictEqual(summary.overallStatus, 'UNSUPPORTED');
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
+test('explicit config runs mixed subproject commands in stage order and from each configured cwd', () => withScratchArtifacts(({ cacheDir, marker }) => {
+  let repo;
+  try {
+    const stages = {
+      lint_fix: [
+        { name: 'backend', cwd: 'backend', command: 'node', args: ['run.js', 'lint_fix:backend'] },
+        { name: 'frontend', cwd: 'frontend', command: 'node', args: ['run.js', 'lint_fix:frontend'] },
+      ],
+      build: [
+        { name: 'frontend', cwd: 'frontend', command: 'node', args: ['run.js', 'build:frontend'] },
+      ],
+      test_unit: [
+        { name: 'backend', cwd: 'backend', command: 'node', args: ['run.js', 'test_unit:backend'] },
+        { name: 'frontend', cwd: 'frontend', command: 'node', args: ['run.js', 'test_unit:frontend'] },
+      ],
+    };
+    const recordStep = [
+      "const fs = require('node:fs');",
+      "fs.appendFileSync(process.env.ORDER_MARKER, process.argv[2] + ':' + process.cwd() + '\\n');",
+    ].join('\n');
+    repo = mkScratchRepo(null, {
+      'precommit.config.json': JSON.stringify({ stages }, null, 2),
+      'backend/pyproject.toml': '[project]\nname = "backend-fixture"\n',
+      'backend/run.js': recordStep,
+      'frontend/package.json': JSON.stringify({ name: 'frontend-fixture', scripts: { build: 'true' } }),
+      'frontend/run.js': recordStep,
+    });
+
+    const res = runScript(repo, ['--mode', 'full'], cacheDir, { ORDER_MARKER: marker });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(res.stdout.includes('config: precommit.config.json'), res.stdout);
+    assert.ok(res.stdout.includes('## Overall: ✅ PASS'), res.stdout);
+    assert.deepStrictEqual(fs.readFileSync(marker, 'utf8').trim().split('\n'), [
+      `lint_fix:backend:${path.join(repo, 'backend')}`,
+      `lint_fix:frontend:${path.join(repo, 'frontend')}`,
+      `build:frontend:${path.join(repo, 'frontend')}`,
+      `test_unit:backend:${path.join(repo, 'backend')}`,
+      `test_unit:frontend:${path.join(repo, 'frontend')}`,
+    ]);
+    const { summary } = readSummary(cacheDir);
+    assert.deepStrictEqual(summary.steps.map((step) => step.name), [
+      'lint_fix:backend', 'lint_fix:frontend', 'build:frontend', 'test_unit:backend', 'test_unit:frontend',
+    ]);
+    assert.strictEqual(summary.overallStatus, 'PASS');
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
+test('invalid explicit config fails instead of falling through to package scripts', () => withScratchArtifacts(({ dir, cacheDir, marker }) => {
+  let repo;
+  try {
+    repo = mkScratchRepo({ test: markerCommand('must-not-run') }, {
+      'precommit.config.json': '{ invalid json',
+    });
+    const res = runScript(repo, ['--mode', 'fast'], cacheDir, { ORDER_MARKER: marker });
+    assert.strictEqual(res.status, 1, res.stderr);
+    assert.ok(res.stdout.includes('## Overall: ❌ FAIL'), res.stdout);
+    assert.ok(!fs.existsSync(marker), 'invalid config must not fall through to package scripts');
+    const { summary } = readSummary(cacheDir);
+    assert.strictEqual(summary.overallStatus, 'FAIL');
+    assert.match(summary.error, /precommit\.config\.json/);
+    assert.ok(!res.stdout.includes('runner verdict is UNSUPPORTED'), res.stdout);
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
+test('--dry-run rejects invalid explicit config without creating a cache or running fallback scripts', () => withScratchArtifacts(({ cacheDir, marker }) => {
+  let repo;
+  try {
+    repo = mkScratchRepo({ test: markerCommand('must-not-run') }, {
+      'precommit.config.json': '{ invalid json',
+    });
+    const res = runScript(repo, ['--mode', 'fast', '--dry-run'], cacheDir, { ORDER_MARKER: marker });
+    const output = res.stdout + '\n' + res.stderr;
+    assert.notStrictEqual(res.status, 0, output);
+    assert.match(output, /precommit\.config\.json/i, output);
+    assert.ok(!fs.existsSync(marker), 'invalid config must not fall through to package scripts');
+    assert.ok(!fs.existsSync(cacheDir), 'invalid dry-run must not create its redirected cache');
+    assert.ok(!fs.existsSync(path.join(repo, '.claude', 'cache')));
+  } finally {
+    cleanupRepo(repo);
+  }
+}));
+
+test('a missing configured executable is a failed check, not a pass', () => withScratchArtifacts(({ cacheDir }) => {
+  let repo;
+  try {
+    repo = mkScratchRepo(null, {
+      'precommit.config.json': JSON.stringify({
+        stages: {
+          test_unit: [{ name: 'missing', command: 'dhpk-command-that-does-not-exist', args: [] }],
+        },
+      }, null, 2),
+    });
+    const res = runScript(repo, ['--mode', 'fast'], cacheDir);
+    assert.strictEqual(res.status, 1, res.stderr);
+    assert.ok(res.stdout.includes('## Overall: ❌ FAIL'), res.stdout);
+    const { summary } = readSummary(cacheDir);
+    assert.deepStrictEqual(summary.steps.map((step) => [step.name, step.code]), [['test_unit:missing', 127]]);
+    assert.strictEqual(summary.overallStatus, 'FAIL');
   } finally {
     cleanupRepo(repo);
   }
@@ -201,12 +391,13 @@ test('a failing test step is recorded as FAIL with its exit code and overall sta
   try {
     repo = mkScratchRepo({ test: 'node -e "process.exit(7)"' });
     const res = runScript(repo, ['--mode', 'fast'], cacheDir);
-    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.status, 1, res.stderr);
     assert.ok(res.stdout.includes('FAIL(7)'), res.stdout);
     assert.ok(res.stdout.includes('## Overall: ❌ FAIL'), res.stdout);
     const { summary } = readSummary(cacheDir);
     assert.deepStrictEqual(summary.steps.map((step) => [step.name, step.code]), [['test_unit', 7]]);
     assert.strictEqual(summary.overallPass, false);
+    assert.strictEqual(summary.overallStatus, 'FAIL');
   } finally {
     cleanupRepo(repo);
   }

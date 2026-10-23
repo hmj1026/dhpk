@@ -8,12 +8,13 @@ copy with a missing required module remains blocked at that local resource.
 The public entry is `scripts/run.js`, exporting
 `runFlowDrive(argv, { host, workdir, authorizationEvidence, recovery })`.
 It resolves dispatch and policy contracts from its own
-`references/execution-bundle/` and CLI-role resources from
-`references/cli-dispatch/`. The invocation parser and other runner helpers live
-in `scripts/`. Consumers do not reconstruct missing resources from parent
-directories, another checkout, sibling skills, or root environment variables.
-The canonical authoring workflow synchronizes bundled resources before
-distribution; consumers receive physical copies.
+`references/execution-bundle/`, and CLI-role resources from
+`scripts/dispatch-runtime/`, `scripts/adapters/`, and `scripts/transport/`.
+The invocation parser and other runner helpers live in `scripts/`. Consumers
+do not reconstruct missing resources from parent directories, another
+checkout, sibling skills, or root environment variables. The canonical
+authoring workflow synchronizes bundled resources before distribution;
+consumers receive physical copies.
 
 The Host supplies task interpretation, current capability evidence,
 coordination, execution, and acceptance verification through the documented

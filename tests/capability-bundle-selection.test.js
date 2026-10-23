@@ -139,6 +139,9 @@ test('host projection sets include common and omit historical profiles', () => {
   const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'module-catalog.json'), 'utf8'));
   const projection = computeProfileProjectionSets({ inventory, profiles, moduleCatalog });
   assert.ok(Object.hasOwn(projection.profiles, 'common'));
+  assert.ok(Object.hasOwn(projection.profiles, 'codex-native'));
+  assert.deepStrictEqual(projection.profiles['codex-native']['codex-sync'], profiles.profiles['codex-native'].skillIds.slice().sort());
+  assert.deepStrictEqual(projection.profiles['codex-native'].cursor, profiles.profiles['codex-native'].skillIds.slice().sort());
   assert.ok(Object.hasOwn(projection.profiles, 'legacy-php-yii'));
   for (const id of ['minimal', 'full', 'compat-v1']) {
     assert.ok(!Object.hasOwn(projection.profiles, id), `${id} is historical receipt metadata only`);
@@ -437,6 +440,9 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   assert.strictEqual(common.ok, true, common.error && common.error.message);
   assert.strictEqual(common.value.profileId, 'common');
   assert.deepStrictEqual(common.value.selectedStableIds, profiles.profiles.common.skillIds);
+  const codexNative = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'codex-native' });
+  assert.strictEqual(codexNative.ok, true, codexNative.error && codexNative.error.message);
+  assert.deepStrictEqual(codexNative.value.selectedStableIds.slice().sort(), profiles.profiles['codex-native'].skillIds.slice().sort());
   for (const id of ['minimal', 'full', 'compat-v1']) {
     const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: id });
     assert.strictEqual(result.ok, false, `${id} is retained for historical reads only`);
@@ -555,6 +561,6 @@ test('a required PASS is the only path that activates a staged candidate', () =>
   }
 });
 
-run();
+run('capability-bundle-selection');
 
 module.exports = { CORE_IDS, fixture };

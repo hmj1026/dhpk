@@ -22,6 +22,10 @@ const {
 } = require('./distribution-projection-contract');
 const { selectPortableSkills } = require('./agent-plugin-package');
 const {
+  serializePortableSkillMetadata,
+  validatePortableSkillMetadata,
+} = require('./portable-skill-metadata');
+const {
   compileDistribution,
   materializeDistribution,
   verifyDistribution,
@@ -33,7 +37,12 @@ const { collectStandalonePackageAssets, collectNativeAgentTrapAssets } = require
 const { cursorNativeAgentClosureErrors } = require('./native-agent-support');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  listFilesNamedRecursively,
+} = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
   parseToolList,
@@ -899,7 +908,12 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
       });
       for (const file of skillFiles) {
         const isEntrypoint = file.path === `skills/${publicName}/SKILL.md`;
-        const content = isEntrypoint ? Buffer.from(adapted.content) : file.bytes;
+        let content = isEntrypoint ? Buffer.from(adapted.content) : file.bytes;
+        if (!isEntrypoint && file.path.endsWith('/SKILL.md')) {
+          const portable = serializePortableSkillMetadata(content.toString('utf8'));
+          if (!portable.ok) throw new Error(`Cursor bundled ${file.path} has invalid metadata: ${portable.errors.join('; ')}`);
+          content = Buffer.from(portable.output);
+        }
         traversalBudget.accountBytes(content.byteLength, file.path);
         files.push({
           source: file.sourcePath,
@@ -936,6 +950,12 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     const skillFile = skillFiles.find((file) => file.destination === `skills/${publicName}/SKILL.md`);
     if (!skillFile) throw new Error(`Cursor source skill is missing SKILL.md: ${skill.path}`);
     skillFile.content = Buffer.from(adapted.content);
+    for (const file of skillFiles) {
+      if (file === skillFile || !file.destination.endsWith('/SKILL.md')) continue;
+      const portable = serializePortableSkillMetadata(file.content.toString('utf8'));
+      if (!portable.ok) throw new Error(`Cursor bundled ${file.destination} has invalid metadata: ${portable.errors.join('; ')}`);
+      file.content = Buffer.from(portable.output);
+    }
     traversalBudget.accountBytes(skillFile.content.byteLength, skillFile.destination);
     selectedIds.push(skill.id);
     selectedNames.push(publicName);
@@ -1458,6 +1478,10 @@ function validateSkills(packageRoot, skillRoots, errors, skippedSkills) {
       }
       const content = readFileBounded(skillPath).toString('utf8');
       const parsed = parseFrontmatter(content);
+      const portableMetadata = validatePortableSkillMetadata(content);
+      if (!portableMetadata.ok) {
+        errors.push(...portableMetadata.errors.map((error) => `${path.relative(packageRoot, skillPath).split(path.sep).join('/')} is invalid: ${error}`));
+      }
       if (!parsed.present || !parsed.fields.name || !parsed.fields.description || parsed.fields.name !== entry.name || !NAME_PATTERN.test(parsed.fields.name)) {
         const relative = path.relative(packageRoot, skillPath).split(path.sep).join('/');
         skippedSkills.push({ path: relative, reason: 'invalid Cursor skill frontmatter' });
@@ -1467,8 +1491,20 @@ function validateSkills(packageRoot, skillRoots, errors, skippedSkills) {
         const relative = path.relative(packageRoot, skillPath).split(path.sep).join('/');
         errors.push(`${relative} retains Claude plugin-root interpolation`);
       }
+      for (const nestedSkillPath of listNestedCursorSkillMarkdownFiles(path.join(root, entry.name)).filter((file) => file !== skillPath)) {
+        const nestedContent = readFileBounded(nestedSkillPath).toString('utf8');
+        const nestedMetadata = validatePortableSkillMetadata(nestedContent);
+        if (!nestedMetadata.ok) {
+          const relative = path.relative(packageRoot, nestedSkillPath).split(path.sep).join('/');
+          errors.push(...nestedMetadata.errors.map((error) => `${relative} is invalid: ${error}`));
+        }
+      }
     }
   }
+}
+
+function listNestedCursorSkillMarkdownFiles(directory, options = {}) {
+  return listFilesNamedRecursively(directory, 'SKILL.md', { ...options, localeSort: true });
 }
 
 function validateNativeDocuments(packageRoot, roots, kind, errors) {

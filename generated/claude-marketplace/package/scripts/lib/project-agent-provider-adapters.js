@@ -271,6 +271,7 @@ function createCodexProjectDiscoveryAdapter({
 function createProjectAgentProviderAdapters(hostBindings = {}, {
   entries = [],
   claudeSourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
+  portableSourceRoot = claudeSourceRoot,
   claudeDestinationRoot = CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
   cursorBindingShape = null,
   codexBindingShape = null,
@@ -304,7 +305,7 @@ function createProjectAgentProviderAdapters(hostBindings = {}, {
     );
     normalized.cursor.discovery = createCursorProjectDiscoveryAdapter({
       entries: selectedAdapterEntries(entries, hostBindings.cursor),
-      sourceRoot: claudeSourceRoot,
+      sourceRoot: portableSourceRoot,
       bindingShape: shape,
     });
   }
@@ -315,7 +316,7 @@ function createProjectAgentProviderAdapters(hostBindings = {}, {
     );
     normalized.codex.discovery = createCodexProjectDiscoveryAdapter({
       entries: selectedAdapterEntries(entries, hostBindings.codex),
-      sourceRoot: claudeSourceRoot,
+      sourceRoot: portableSourceRoot,
       bindingShape: shape,
     });
   }

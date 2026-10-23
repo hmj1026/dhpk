@@ -1,6 +1,6 @@
 # Migrate Sentinel to evidence receipts
 
-Status: accepted
+Status: superseded by [0026](0026-remove-review-gate.md)
 
 Implementation status: target design accepted; the current execution policy
 remains operative until a planned migration applies this decision.

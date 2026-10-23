@@ -7,14 +7,8 @@ metadata:
   dhpk-capability-id: dhpk.skill.doc-maintain
   dhpk-name-style: portable-family
   dhpk-invocation-class: implicit-eligible
-  dhpk-modes: [update, codemap, refactor]
-  dhpk-next:
-    PASS: none
-    FAIL: none
-    BLOCKED: none
-    NOT_RUN: none
-    UNAVAILABLE: none
-    update:PASS: git-smart-commit
+  dhpk-modes: "[\"update\",\"codemap\",\"refactor\"]"
+  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\",\"update:PASS\":\"git-smart-commit\"}"
 ---
 
 # Documentation maintenance

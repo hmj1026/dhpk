@@ -222,7 +222,7 @@ jobs:
       # this install step itself fails, the facade records UNAVAILABLE for
       # that dimension rather than crashing.
       - name: Install claude CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g "@anthropic-ai/claude-code@$(cat scripts/ci/claude-code-cli-version.txt)"
         continue-on-error: true
 
       - name: Run CONSUMER gate

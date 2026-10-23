@@ -1,7 +1,6 @@
 ---
 description: 'Run the deterministic pre-commit pipeline in fast or full mode through the packaged runner. Use when handing off repository changes. Not for: ad hoc replacement checks, dependency audits, or read-only verification. Output: runner-owned changed-file reporting and final verdict.'
-argument-hint: '[--fast]'
-allowed-tools: 'Bash(node:*), Bash(git:*), Read, Skill'
+argument-hint: '[--fast] [--dry-run]'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

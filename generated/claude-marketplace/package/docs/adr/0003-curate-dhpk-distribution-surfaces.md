@@ -155,7 +155,7 @@ omitted in favor of durable capability descriptions.
 
 ## Verification boundary
 
-The policy is documented in `CONTEXT.md`, this ADR, and the English/Traditional
+The policy is documented in `GLOSSARY.md`, this ADR, and the English/Traditional
 Chinese operational guides. Existing manifest, Codex layout, catalog, harness,
 and multi-AI self-test gates remain the implementation verification boundary;
 their passing results do not upgrade an Experimental or Adapter-only surface

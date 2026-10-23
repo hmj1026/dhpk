@@ -107,6 +107,14 @@
       {
         "source": "manifests/host-profiles.json",
         "destination": "references/execution-bundle/manifests/host-profiles.json"
+      },
+      {
+        "source": "skills/flow-drive/references/verification-handoff.md",
+        "destination": "references/execution-bundle/skills/flow-drive/references/verification-handoff.md"
+      },
+      {
+        "source": "skills/flow-drive/scripts/verify-handoff.js",
+        "destination": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js"
       }
     ],
     "flow-guide": [
@@ -221,16 +229,20 @@
       {
         "source": "scripts/ci/_lib/frontmatter.js",
         "destination": "scripts/_lib/frontmatter.js"
+      },
+      {
+        "source": "skills/flow-drive/references/verification-handoff.md",
+        "destination": "references/execution-bundle/skills/flow-drive/references/verification-handoff.md"
+      },
+      {
+        "source": "skills/flow-drive/scripts/verify-handoff.js",
+        "destination": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js"
       }
     ],
     "harness-setup": [
       {
         "source": "scripts/setup/install-assets.sh",
         "destination": "scripts/lib/install-assets-writer.sh"
-      },
-      {
-        "source": "scripts/hooks/install-codex-skills.sh",
-        "destination": "scripts/lib/install-codex-skills.sh"
       },
       {
         "source": "manifests/module-catalog.json",

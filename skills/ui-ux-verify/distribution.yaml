@@ -75,8 +75,7 @@
       "outcome": "retain",
       "callers": [
         "commands/ui-ux-verify.md"
-      ],
-      "allowed_tools": "Read, Grep, Glob, Bash(git:*), Skill, Task"
+      ]
     }
   ]
 }

@@ -46,6 +46,7 @@ test('an extra manually-added root not backed by the inventory fails --check', (
   withTempRepo((repo) => {
     const pluginPath = path.join(repo, '.claude-plugin', 'plugin.json');
     const plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
+    plugin.skills = plugin.skills || [];
     plugin.skills.push('./modules/totally-manual-addition/skills/');
     fs.writeFileSync(pluginPath, JSON.stringify(plugin, null, 2));
 
@@ -58,19 +59,16 @@ test('an extra manually-added root not backed by the inventory fails --check', (
   });
 });
 
-test('a manually-removed root that the inventory still expects fails --check', () => {
+test('omitting the implicit ./skills/ default passes --check without changing the registered skill set', () => {
   withTempRepo((repo) => {
     const pluginPath = path.join(repo, '.claude-plugin', 'plugin.json');
     const plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
-    plugin.skills = plugin.skills.filter((s) => s !== './skills/');
+    delete plugin.skills;
     fs.writeFileSync(pluginPath, JSON.stringify(plugin, null, 2));
 
     const { status, out } = runCheck(repo);
-    assert.notStrictEqual(status, 0, 'dropping an inventory-expected root should fail --check');
-    assert.match(
-      out,
-      /DRIFT \[gen-claude-manifest\]: inventory expects root '\.\/skills\/' but plugin\.json skills\[\] does not register it/,
-    );
+    assert.strictEqual(status, 0, `Claude's implicit ./skills/ root should remain effective:\n${out}`);
+    assert.doesNotMatch(out, /DRIFT \[gen-claude-manifest\]/);
   });
 });
 
@@ -80,7 +78,7 @@ test('a manually-removed root that the inventory still expects fails --check', (
   const fs = require('node:fs');
   const path = require('node:path');
   const { test, assert } = require('./_lib/tinytest');
-  const { generateClaudeSkillRoots } = require('../scripts/lib/distribution-inventory');
+  const { generateClaudeSkillRoots, verifyClaudeProjection } = require('../scripts/lib/distribution-inventory');
 
   const ROOT = path.join(__dirname, '..');
 
@@ -139,11 +137,36 @@ test('a manually-removed root that the inventory still expects fails --check', (
     assert.deepStrictEqual(gen.generatedSkillIds, []);
   });
 
-  test('against the real checked-in inventory, generated roots equal the current plugin.json skills[] set (nothing is deprecated yet)', () => {
+  test('implicit ./skills/ plus module roots preserve the inventory IDs when the root is not listed explicitly', () => {
+    const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    delete inventory.schema;
+    const coreSkill = inventory.skills.find((skill) => skill.path.startsWith('skills/'));
+    inventory.skills.push({
+      ...coreSkill,
+      id: 'fixture-module-skill',
+      name: 'fixture-module-skill',
+      path: 'modules/library-author/skills/fixture-module-skill',
+      lifecycle: 'optional',
+      surfaces: ['claude-module'],
+    });
+
+    const generated = generateClaudeSkillRoots(inventory);
+    assert.deepStrictEqual(generated.roots, ['./skills/', './modules/library-author/skills/']);
+    const explicitlyRegisteredRoots = generated.roots.filter((root) => root !== './skills/');
+    const verified = verifyClaudeProjection({ inventory, pluginSkills: explicitlyRegisteredRoots });
+    assert.strictEqual(verified.ok, true, verified.evidence && verified.evidence.diagnostics.join('; '));
+    assert.deepStrictEqual(verified.generated.roots, generated.roots);
+    assert.deepStrictEqual(verified.generated.registeredSkillIds, generated.registeredSkillIds);
+    assert.deepStrictEqual(verified.generated.generatedSkillIds, generated.generatedSkillIds);
+  });
+
+  test('against the real checked-in inventory, generated roots equal the effective plugin root set', () => {
     const inv = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const plugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
     const gen = generateClaudeSkillRoots(inv);
-    assert.deepStrictEqual([...gen.roots].sort(), [...plugin.skills].sort());
+    const effectivePluginRoots = [...(plugin.skills || [])];
+    if (!effectivePluginRoots.includes('./skills/')) effectivePluginRoots.push('./skills/');
+    assert.deepStrictEqual([...gen.roots].sort(), effectivePluginRoots.sort());
     const registered = inv.skills.filter((skill) => skill.lifecycle !== 'deprecated');
     assert.deepStrictEqual(gen.registeredSkillIds, registered.map((skill) => skill.id).sort());
     assert.deepStrictEqual(
