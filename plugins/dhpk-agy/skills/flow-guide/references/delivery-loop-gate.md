@@ -17,8 +17,9 @@ authority for directories, runners, fixtures, and coverage thresholds.
    when a separate test seam, runtime setup, or specialist owner is needed.
 2. Run the project's verification command, normally `/verify`, after the RED →
    GREEN → REFACTOR loop. Record the exact command, tree or commit, and result.
-3. Apply the kernel's [Evidence snapshots](execution-bundle/rules/execution-policy-kernel.md#evidence-snapshots)
-   rule after implementation or review fixes.
+3. Re-run verification after every implementation or review fix. Evidence from
+   another tree, an earlier branch state, or a stale artifact is not current
+   evidence.
 
 ## Gate 2 — Test adequacy and level routing
 
@@ -38,8 +39,9 @@ unit evidence.
 
 ## Gate 3 — Freshness and change review
 
-Use the kernel's [Evidence snapshots](execution-bundle/rules/execution-policy-kernel.md#evidence-snapshots)
-rule to assess test, adequacy, and review evidence for the handoff scope.
+Test, adequacy, and review evidence must bind to the current worktree (or a
+named immutable commit) and the scoped files when that evidence is supplied.
+After any edit, invalidate affected conclusions and repeat the relevant checks.
 
 Run one applicable review wave for the implementation wave. The review covers
 repository standards and requested behavior, reports file:line evidence, and
@@ -50,13 +52,13 @@ becomes an implicit approval.
 
 ## Gate 4 — Bounded review loop and handoff
 
-Apply fixes from one review wave as one batch, then use the kernel's snapshot
-rule to select the affected tests, adequacy check, and change review. Follow the anti-loop ceiling in
+Apply fixes from one review wave as one batch, then re-run the affected tests,
+adequacy check, and change review together. Follow the anti-loop ceiling in
 `rules/execution-policy.md`; after the ceiling, stop and report the blocker
 with the evidence and the next viable option.
 
-Schedule `/precommit` under the kernel's snapshot rule and hand off only after
-all applicable rows pass. Keep commit and push decisions with the caller. A branch is ready only
+Only after all applicable rows pass may the branch run `/precommit` and hand
+off. Keep commit and push decisions with the caller. A branch is ready only
 when its required artifacts, fresh verification, test adequacy, and change
 review are all accounted for.
 

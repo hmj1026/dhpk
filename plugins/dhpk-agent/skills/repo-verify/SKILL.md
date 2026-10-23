@@ -29,10 +29,6 @@ applicable runner is available, use the non-Node/manifest fallback and stage rul
 [`references/workflow.md`](references/workflow.md); unsupported manifests are
 terminal failures.
 
-For evidence applicability and reuse, follow the kernel's
-[Evidence snapshots](https://github.com/hmj1026/dhpk/blob/main/rules/execution-policy-kernel.md#evidence-snapshots)
-rule.
-
 ## When NOT to Use
 
 - A check should edit, format, build, or fix the repository.

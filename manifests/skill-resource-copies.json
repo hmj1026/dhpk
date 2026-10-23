@@ -148,7 +148,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:121e64138243ec3362964c2b75a7aaacfa6927bcebfff6e90ce482ceffd0e93e",
+      "sha256": "sha256:56127cd4e5567985d817e3e10b29b10f431890fe6163813fece2386cfb2467dc",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -280,7 +280,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:121e64138243ec3362964c2b75a7aaacfa6927bcebfff6e90ce482ceffd0e93e",
+      "sha256": "sha256:56127cd4e5567985d817e3e10b29b10f431890fe6163813fece2386cfb2467dc",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {

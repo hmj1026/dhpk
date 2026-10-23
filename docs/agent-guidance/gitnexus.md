@@ -31,11 +31,17 @@ this page carries only the tool order and the recovery paths.
 - **Ambiguous `impact` target:** a name shared by many symbols returns
   `risk: UNKNOWN` with a candidate list; narrow it with the file path or
   `target_uid` before treating the result as evidence.
-- **Large `impact` output:** use `--summary-only` for counts and risk, or
-  `--limit` with `--offset` to page symbol details. A summary omits symbol
-  details, and a page contains only the returned slice; neither alone
-  establishes the full blast radius. Treat `UNKNOWN`, `partial`, or `truncated`
-  output as unresolved.
+- **Impact reporting:** keep the default report compact: include risk, direct
+  callers (count and names when manageable), affected process names, and
+  unresolved state. Put `HIGH`/`CRITICAL`, `UNKNOWN`, `partial`, and `truncated`
+  results up front; none is an all-clear. Provide full `byDepth`,
+  `affected_processes`, and `affected_modules` details on request or when needed
+  to explain material risk.
+- **Large `impact` output:** `--summary-only` returns counts and risk, while
+  `--limit` with `--offset` pages symbol details. State which details or ranges
+  are omitted; a summary or one page is not the full blast radius. Treat
+  `UNKNOWN`, `partial`, `truncated`, and graph-query errors as unresolved, even
+  when the visible caller count is zero.
 - **Search capability:** unavailable `VECTOR` does not by itself establish that
   semantic search is unavailable; check `doctor` for the reported fallback,
   such as exact-scan, and its limits. BM25/full-text keyword search is a

@@ -473,7 +473,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "3a2154bee7437c22435e89bdb69339090358d8e5e0c335d4d417872df106c7b8",
+      "canonical_digest": "1f0a9567957253631c305a6ddd286ce0db4621f217eb9225481a892948922d4c",
       "projection_digest": "1f874bdf0df9a31aaf1cdcb80d9deffaf9da315f04ce37806789fe2491231950",
       "destination": "dhpk/policies/execution-policy.md"
     },

@@ -29,9 +29,8 @@ For Git-backed changes, record the exact commit used as the comparison point:
 - For a path or document review, record the source revision or supplied
   snapshot that provides the reviewed content.
 
-Do not re-resolve a moving branch name after the point is recorded. Apply the
-kernel's [Evidence snapshots](https://github.com/hmj1026/dhpk/blob/main/rules/execution-policy-kernel.md#evidence-snapshots)
-rule when the scope or snapshot changes. If the selected scope cannot be
+Do not re-resolve a moving branch name after the point is recorded. A changed
+scope or snapshot needs a new review. If the selected scope cannot be
 reproduced from the recorded point, return `INCONCLUSIVE`.
 
 ## Step 2: collect mode-specific metadata
