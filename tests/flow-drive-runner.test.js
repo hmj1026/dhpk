@@ -17,6 +17,45 @@ const {
 
 const { assertPostlaunchCleanupBarrier } = require('./_lib/flow-drive-cleanup-fixtures');
 const assertSoloPostlaunchCleanupBarrier = (failureMode) => assertPostlaunchCleanupBarrier('solo', failureMode);
+const CLAUDE_AGY_DIAGNOSTIC = 'AGY dispatch is unavailable on the Claude Code host; the parent-session CLI integration is unsupported.';
+
+async function assertClaudeAgySelectionBlockedBeforeCoordination(option) {
+  const hostProfile = {
+    ...CLAUDE_PROFILE,
+    access: {
+      ...CLAUDE_PROFILE.access,
+      google: { status: 'AVAILABLE', evidence: 'fixture Google provider grant is available' },
+    },
+  };
+  const fixture = createRunnerFixture({
+    capabilities: { host_profile: hostProfile, catalog: CATALOG },
+  });
+  try {
+    const report = await runFlowDrive(['Fix the receipt total.', option], {
+      host: fixture.host,
+      workdir: fixture.workdir,
+      authorizationEvidence: {
+        source: 'user-answer',
+        answer_id: 'fixture-google-grant',
+        providers: ['google'],
+      },
+    });
+    assert.deepStrictEqual({
+      status: report.parser.status,
+      hasDiagnostic: report.parser.diagnostics && report.parser.diagnostics.includes(CLAUDE_AGY_DIAGNOSTIC),
+      coordinateCalls: fixture.calls.filter((call) => call.method === 'coordinate').length,
+      executeCalls: fixture.calls.filter((call) => call.method === 'execute').length,
+    }, {
+      status: 'blocked',
+      hasDiagnostic: true,
+      coordinateCalls: 0,
+      executeCalls: 0,
+    }, option);
+  } finally {
+    fixture.cleanup();
+  }
+}
+
 test('a quoted task is exposed as task input while preserving the legacy change ID', () => {
   const task = 'Fix the receipt total and verify the displayed balance.';
   const parsed = parseInvocation([task]);
@@ -67,6 +106,22 @@ test('removed and malformed grammar stops before any Host callback', async () =>
       assert.deepStrictEqual(fixture.calls, [], options.join(' '));
     } finally { fixture.cleanup(); }
   }
+});
+
+test('Claude Code blocks a bare AGY worker before coordination even with Google authorization', async () => {
+  await assertClaudeAgySelectionBlockedBeforeCoordination('--worker=agy');
+});
+
+test('Claude Code blocks a model-qualified AGY worker before coordination even with Google authorization', async () => {
+  await assertClaudeAgySelectionBlockedBeforeCoordination('--worker=agy/gemini-2.5-flash');
+});
+
+test('Claude Code blocks an AGY reasoner before coordination even with Google authorization', async () => {
+  await assertClaudeAgySelectionBlockedBeforeCoordination('--reasoner=agy');
+});
+
+test('Claude Code blocks a model-qualified AGY reasoner before coordination even with Google authorization', async () => {
+  await assertClaudeAgySelectionBlockedBeforeCoordination('--reasoner=agy/gemini-2.5-flash');
 });
 
 test('a native task reaches the executor and reports parser, execution, and acceptance separately', async () => {

@@ -125,7 +125,7 @@ function relocatedCli({ missingResource } = {}) {
     const receiptPath = path.join(artifactRoot, 'receipt.json');
     fs.writeFileSync(scope, JSON.stringify({ artifact_root: artifactRoot,
       context_path: path.join(artifactRoot, 'context.json'), receipt_path: receiptPath,
-      assigned_files: ['allowed.txt'], report_only: true, runtime_path: `${context.binDir}:/usr/bin` }));
+      assigned_files: ['allowed.txt'], report_only: true, runtime_path: `${context.binDir}:/usr/bin:/bin` }));
     const config = path.join(context.projectDir, 'config.json');
     fs.writeFileSync(config, JSON.stringify({ codex_worker_timeout_secs: 3 }));
     if (missingResource) {
