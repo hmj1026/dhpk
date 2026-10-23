@@ -355,12 +355,6 @@
       "sha256": "sha256:f84e50bdef8011651a3b17aef4e8f55287a8b8136c4b45ef691b07b29ebec5e1",
       "mode": "0755"
     },
-    "skills/harness-setup/scripts/lib/install-codex-skills.sh": {
-      "skill_id": "harness-setup",
-      "source": "scripts/hooks/install-codex-skills.sh",
-      "sha256": "sha256:8d4989df0155d2aabbfc99bce97d3482ea55ff9dc543011e3b9ce83e23cba451",
-      "mode": "0755"
-    },
     "skills/harness-setup/templates/settings.local.json.example": {
       "skill_id": "harness-setup",
       "source": "templates/settings.local.json.example",

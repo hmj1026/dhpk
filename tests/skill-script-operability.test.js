@@ -8,7 +8,9 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { EXECUTABLE_EXTENSIONS } = require('../scripts/lib/skill-directory-coverage');
 const { withIsolatedSkill } = require('./_lib/skill-directory-isolation');
@@ -21,6 +23,7 @@ const {
 const ROOT = path.join(__dirname, '..');
 const SKILLS_ROOT = path.join(ROOT, 'skills');
 const FIXTURES = registerRemainingFixtures();
+const MARKETPLACE_GENERATOR = require('../scripts/ci/gen-claude-marketplace-package');
 
 const EXPECTED_REMAINING_ENTRIES = Object.freeze({
   'remaining-ios-iconify-generate': ['swift', 'scripts/iconify_gen.sh'],
@@ -205,7 +208,6 @@ const CLASSIFICATION = Object.freeze({
   'harness-setup/scripts/install-assets.sh': { kind: 'cli', args: ['--help'], expectedStatus: 0 },
   'harness-setup/scripts/install-codex-project.sh': { kind: 'cli', args: ['--help'], expectedStatus: 0 },
   'harness-setup/scripts/lib/install-assets-writer.sh': { kind: 'module', reason: 'library under scripts/lib/' },
-  'harness-setup/scripts/lib/install-codex-skills.sh': { kind: 'module', reason: 'library under scripts/lib/' },
   'js-static-checks/scripts/status.js': { kind: 'cli', args: ['--help'], expectedStatus: 0 },
   // No --help parser; unknown argv asks which Laravel version (exit 2).
   'laravel/scripts/resolve-version.js': { kind: 'cli', args: ['--help'], expectedStatus: 2 },
@@ -286,6 +288,32 @@ for (const [key, row] of Object.entries(CLASSIFICATION)) {
     const skill = key.slice(0, slash);
     const entry = key.slice(slash + 1);
     const source = path.join(SKILLS_ROOT, skill);
+    if (key === 'harness-setup/scripts/install-codex-project.sh') {
+      const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk packaged harness operability '));
+      try {
+        const packageRoot = path.join(sandbox, 'package');
+        const projectRoot = path.join(sandbox, 'consumer project');
+        fs.mkdirSync(projectRoot);
+        MARKETPLACE_GENERATOR.materialize({ root: ROOT, out: packageRoot });
+        const packagedSkill = path.join(packageRoot, 'skills', 'harness-setup');
+        const helper = path.join(packagedSkill, 'scripts', 'lib', 'install-codex-skills.sh');
+        const helperStat = fs.lstatSync(helper);
+        assert.ok(helperStat.isFile() && !helperStat.isSymbolicLink(), 'packaged helper must be a physical file');
+        assert.ok((helperStat.mode & 0o111) !== 0, 'packaged helper must be executable');
+        const result = spawnSync('bash', [path.join(packagedSkill, entry), ...(row.args || ['--help'])], {
+          cwd: projectRoot,
+          encoding: 'utf8',
+          timeout: 10000,
+        });
+        const output = `${result.stdout || ''}${result.stderr || ''}`;
+        assert.strictEqual(result.status, row.expectedStatus, `${key} output:\n${output}`);
+        assert.ok(output.trim().length > 0, `${key} must print non-empty stdout or stderr`);
+        assert.ok(!output.includes(ROOT), `${key} must not leak the ambient checkout path`);
+      } finally {
+        fs.rmSync(sandbox, { recursive: true, force: true });
+      }
+      return;
+    }
     const evidence = withIsolatedSkill({ source }, (context) => {
       const result = context.run(entry, row.args || ['--help']);
       const output = `${result.stdout || ''}${result.stderr || ''}`;

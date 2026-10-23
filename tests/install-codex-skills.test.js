@@ -97,6 +97,58 @@ test('Codex installer and harness-setup adapter reject retired profile flags bef
   }
 });
 
+test('harness adapter uses the canonical installer only at the exact checkout skill root', () => {
+  const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-checkout-fallback-')));
+  const checkout = path.join(temp, 'checkout');
+  const lookalike = path.join(temp, 'lookalike');
+  const relativeAdapter = path.join('skills', 'harness-setup', 'scripts', 'install-codex-project.sh');
+  const relativeInstaller = path.join('scripts', 'hooks', 'install-codex-skills.sh');
+  try {
+    fs.mkdirSync(checkout, { recursive: true });
+    const initialized = spawnSync('git', ['init', '--quiet', checkout], { encoding: 'utf8', timeout: 10000 });
+    assert.strictEqual(initialized.status, 0, initialized.stderr);
+    for (const [source, relative, mode] of [
+      [HOOK, relativeInstaller, 0o755],
+      [path.join(ROOT, 'skills', 'harness-setup', 'scripts', 'install-codex-project.sh'), relativeAdapter, 0o755],
+    ]) {
+      const target = path.join(checkout, relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target);
+      fs.chmodSync(target, mode);
+    }
+
+    const checkoutAdapter = path.join(checkout, relativeAdapter);
+    const checkoutHelp = spawnSync('bash', [checkoutAdapter, '--help'], {
+      cwd: temp,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assert.strictEqual(checkoutHelp.status, 0, `${checkoutHelp.stdout}\n${checkoutHelp.stderr}`);
+    assert.match(checkoutHelp.stdout, /--migrate/);
+
+    fs.mkdirSync(lookalike, { recursive: true });
+    for (const [source, relative] of [
+      [HOOK, relativeInstaller],
+      [path.join(ROOT, 'skills', 'harness-setup', 'scripts', 'install-codex-project.sh'), relativeAdapter],
+    ]) {
+      const target = path.join(lookalike, relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target);
+      fs.chmodSync(target, 0o755);
+    }
+    const lookalikeResult = spawnSync('bash', [path.join(lookalike, relativeAdapter), '--help'], {
+      cwd: temp,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assert.notStrictEqual(lookalikeResult.status, 0,
+      'a similarly named ancestor without Git checkout identity must not supply the helper');
+    assert.match(lookalikeResult.stderr, /BLOCKED_RESOURCE_MISSING/);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
 test('shared surface diagnostics do not hard-code Codex wording', () => {
   const source = fs.readFileSync(HOOK, 'utf8');
   assert.doesNotMatch(source, /project \.codex (?:install lock|receipt) is not a regular file/);
