@@ -43,8 +43,10 @@ function createHostProjectionConformance({ root, assert }) {
       platform: 'agy',
       manifest: 'plugins/dhpk-agy/plugin.json',
       assertFormat(value) {
-        assert.deepStrictEqual(value.agents, ['./agents/']);
-        assert.deepStrictEqual(value.rules, ['./rules/']);
+        for (const component of ['agents', 'rules']) {
+          assert.ok(!Object.prototype.hasOwnProperty.call(value, component), `AGY manifest must omit unsupported ${component} field`);
+          assert.ok(fs.statSync(resolve(`plugins/dhpk-agy/${component}`)).isDirectory(), `missing AGY ${component} directory`);
+        }
         assert.deepStrictEqual(value.skills, ['./skills/']);
       },
     },
