@@ -25,7 +25,7 @@
 | 不知道有哪些技能或參數 | `$flow-guide help`；單一技能用 `$flow-guide help <skill>` | 只讀 metadata，不載入 procedure 或執行目標 |
 | 不知道該走哪條流程 | `$flow-guide route <task>` | 只給 route report；加 `--go` 最多 handoff 一個可用的 implicit target |
 | 查政策、下一步或收尾 | `$flow-guide rules <query>`、`next <query>`、`close <query>` | 只讀 guidance，不取得 implementation 或 Git authority |
-| 有一個明確且有界的 task | `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` | 使用目前 Host 實作並回報觀察到的驗證；`--help` 唯讀 |
+| 有一個明確且有界的 task | `$flow-drive <task-text\|task-file\|confirmed-spec-or-change-id>` | 使用目前 Host 實作並回報觀察到的驗證；`--help` 唯讀 |
 | 還沒有 proposal 或 OpenSpec artifacts | 外部 `$openspec-propose`，再依流程使用 `/opsx:apply` | proposal authoring 不屬於 `flow-drive` |
 | 要分組 Git commit | `$git-smart-commit` | `git-smart-commit` stable ID 與 public name 保持不變；需要明確 Git authority |
 

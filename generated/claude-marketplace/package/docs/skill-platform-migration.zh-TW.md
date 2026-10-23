@@ -62,7 +62,7 @@ metadata 檔案推論可用。
 | Codex skill | discovery 後使用 `$<public-skill-name>` | `$change-verdict --mode code` |
 | Cursor generated command | 產生的 host adapter | Cursor `do` command（`host=cursor`） |
 | Codex guidance entry | discovery 後使用 `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` | `$flow-guide help flow-drive` |
-| Codex implementation entry | discovery 後使用 `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--help]` | `$flow-drive "修正收據總額並驗證。"` |
+| Codex implementation entry | discovery 後使用 `$flow-drive <task-text\|task-file\|confirmed-spec-or-change-id> [--help]` | `$flow-drive "修正收據總額並驗證。"` |
 
 Codex 內建 command（`/hooks`、`/agent`）不是 dhpk 自訂 `/dhpk:*` command。
 `flow-guide` 擁有唯讀 usage help、routing、policy、progression 與 closeout；`flow-drive`
