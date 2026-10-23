@@ -250,14 +250,29 @@ test('enabled provider reports stale receipt and owned broken links before migra
       },
     ];
     fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
-    fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
 
     const retiredTarget = path.join(scratch, '.codex', 'skills', retired);
-    assert.ok(fs.lstatSync(retiredTarget).isSymbolicLink(), 'retired fixture must be a project symlink');
+    const retiredSource = path.join(fakePlugin, 'codex', 'skills', retired);
+    const retiredReceiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const retiredReceipt = JSON.parse(fs.readFileSync(retiredReceiptPath, 'utf8'));
+    const managedRetiredEntry = retiredReceipt.managed_entries.skills[retired];
+    assert.ok(managedRetiredEntry, 'fixture must record the retired skill before source removal');
+    // Recreate the historical symlink representation so this provider-gating
+    // test continues to cover receipt-owned broken links after new installs
+    // switch skill trees to physical copies.
+    fs.rmSync(retiredTarget, { recursive: true, force: true });
+    const retiredLink = path.relative(path.dirname(retiredTarget), retiredSource);
+    fs.symlinkSync(retiredLink, retiredTarget, 'dir');
+    managedRetiredEntry.mode = 'symlink';
+    managedRetiredEntry.destination_target = retiredLink;
+    managedRetiredEntry.ownership_marker = `symlink:skills/${retired}`;
+    fs.rmSync(retiredSource, { recursive: true, force: true });
+    fs.writeFileSync(retiredReceiptPath, `${JSON.stringify(retiredReceipt, null, 2)}\n`);
+    assert.ok(fs.lstatSync(retiredTarget).isSymbolicLink(), 'historical fixture must be a project symlink');
     const unrelatedTarget = path.join(scratch, '.codex', 'skills', 'user-owned-link');
     fs.symlinkSync(unrelatedRoot, unrelatedTarget, 'dir');
 
-    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receiptPath = retiredReceiptPath;
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     receipt.plugin_version = '0.53.0';
     fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);

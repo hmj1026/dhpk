@@ -146,6 +146,32 @@ test('a fully self-consistent minimal plugin passes', () => {
   }
 });
 
+test('agents/INDEX.md roster counts must match manifest root and module agent paths', () => {
+  const tmp = makeTempRepo();
+  try {
+    const sourcePlugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+    for (const declaredPath of sourcePlugin.agents) {
+      const relative = declaredPath.replace(/^\.\//, '');
+      const source = path.join(ROOT, relative);
+      const target = path.join(tmp, relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target);
+    }
+    fs.copyFileSync(path.join(ROOT, 'agents', 'INDEX.md'), path.join(tmp, 'agents', 'INDEX.md'));
+    const indexPath = path.join(tmp, 'agents', 'INDEX.md');
+    const indexText = fs.readFileSync(indexPath, 'utf8');
+    fs.writeFileSync(indexPath, indexText.replace(/^> (\d+) agents shipped/m, (_, count) => `> ${Number(count) + 1} agents shipped`));
+    writePluginJson(tmp, { version: '1.0.0', agents: sourcePlugin.agents });
+
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1, `stale agents/INDEX.md roster counts should fail validation:\n${out}`);
+    assert.match(out, /agents\/INDEX\.md/i);
+    assert.match(out, /count|drift|roster|mismatch/i);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 // Consolidated from tests/validate-commands.test.js; test registrations remain isolated in this lexical block.
 {
   // Behavioral guard for scripts/ci/validate-commands.js: every commands/*.md

@@ -11,6 +11,7 @@ const {
   normalizePortableFrontmatter,
   validatePortableManifest,
 } = require('./agent-plugin-package');
+const { validatePortableSkillMetadata } = require('./portable-skill-metadata');
 const { validateOpenaiListingAssets } = require('./openai-submission-assets');
 
 const LOCAL_SIG = 0x04034b50;
@@ -317,6 +318,13 @@ function selectedNames(options) {
 function validateCatalog(extracted, options, errors) {
   const { present, withSkillMd } = skillDirectoryNames(extracted);
   const selected = selectedNames(options);
+  for (const filePath of Object.keys(extracted)) {
+    if (!filePath.startsWith('skills/') || !filePath.endsWith('/SKILL.md')) continue;
+    const portable = validatePortableSkillMetadata(extracted[filePath].toString('utf8'));
+    if (!portable.ok) {
+      errors.push(...portable.errors.map((error) => `${filePath} is invalid: ${error}`));
+    }
+  }
   for (const filePath of Object.keys(extracted)) {
     if (filePath === 'skills' || (filePath.startsWith('skills/') && filePath.split('/').length < 3)) {
       errors.push(`skills entry ${filePath} must be inside a skill directory`);

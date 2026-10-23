@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { compileOpenaiSubmissionPackage } = require('../scripts/lib/openai-submission-package');
+const { normalizePortableFrontmatter } = require('../scripts/lib/agent-plugin-package');
 const { compileMarketplaceSkillContent } = require('../scripts/lib/marketplace-skill-content');
 
 const ROOT_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json';
@@ -170,8 +171,13 @@ test('bundles common child content under its owner and rewrites its entrypoint l
     const owner = fileByPath(result, 'skills/package-owner/SKILL.md').bytes.toString('utf8');
     assert.match(owner, /\]\(references\/child-guide\/SKILL\.md\)/);
     assert.doesNotMatch(owner, /\.\.\/child-guide/);
-    const sourceChild = fs.readFileSync(path.join(fixture.root, 'skills', 'child-guide', 'SKILL.md'));
-    assert.deepStrictEqual(fileByPath(result, 'skills/package-owner/references/child-guide/SKILL.md').bytes, sourceChild);
+    const sourceChild = fs.readFileSync(path.join(fixture.root, 'skills', 'child-guide', 'SKILL.md'), 'utf8');
+    const projectedChild = normalizePortableFrontmatter(sourceChild);
+    assert.strictEqual(projectedChild.ok, true, projectedChild.errors.join('\n'));
+    assert.deepStrictEqual(
+      fileByPath(result, 'skills/package-owner/references/child-guide/SKILL.md').bytes,
+      Buffer.from(projectedChild.output),
+    );
     assert.strictEqual(child.bytes.toString('utf8'), 'Supporting note.\n');
   } finally {
     removeFixture(fixture);

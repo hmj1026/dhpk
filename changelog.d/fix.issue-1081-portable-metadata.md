@@ -1,0 +1,2 @@
+scope: distribution
+note: Serialize structured skill metadata as JSON strings in portable packages and project installs while keeping Claude metadata structured, remove the duplicate Claude skill scan, enforce agent-roster and named-suite checks, and clarify that #1022 still grants whole-Git access for code-trace and `codex review` for change-verdict while #1064's `onFailure` blocking needs Claude Code 2.1.295 or newer.

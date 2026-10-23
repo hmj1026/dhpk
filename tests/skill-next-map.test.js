@@ -128,6 +128,80 @@ test('an isolated analyzer consumes declarations and keeps explicit-only handoff
   }
 });
 
+test('packaged Flow Guide collector decodes JSON-string metadata while canonical parsing retains structured YAML values', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-next-portable-runtime-'));
+  const skillRoot = path.join(root, '.agents', 'skills');
+  const flowGuide = path.join(skillRoot, 'flow-guide');
+  const repo = path.join(__dirname, '..');
+  const { extractMetadata: extractCanonicalMetadata } = require('../scripts/ci/_lib/frontmatter');
+  const next = {
+    PASS: 'target-skill:docs',
+    FAIL: 'none',
+    BLOCKED: 'none',
+    NOT_RUN: 'none',
+    UNAVAILABLE: 'none',
+    'code:PASS': 'target-skill:docs',
+  };
+  const sourceModes = ['code'];
+  const targetModes = ['docs'];
+  const structuredMarkdown = (name, nextMap, modes) => [
+    '---',
+    `name: ${name}`,
+    'description: Fixture skill.',
+    'metadata:',
+    `  dhpk-modes: [${modes.join(', ')}]`,
+    '  dhpk-next:',
+    ...Object.entries(nextMap).map(([state, target]) => `    ${state}: ${target}`),
+    '---',
+    '# Fixture body.',
+    '',
+  ].join('\n');
+  const portableMarkdown = (name, nextMap, modes) => [
+    '---',
+    `name: ${name}`,
+    'description: Fixture skill.',
+    'metadata:',
+    `  dhpk-modes: ${JSON.stringify(JSON.stringify(modes))}`,
+    `  dhpk-next: ${JSON.stringify(JSON.stringify(nextMap))}`,
+    '---',
+    '# Fixture body.',
+    '',
+  ].join('\n');
+
+  try {
+    const canonical = extractCanonicalMetadata(structuredMarkdown('portable-source', next, sourceModes));
+    assert.deepStrictEqual(canonical.values['dhpk-next'], next,
+      'canonical metadata parsing must keep supporting the structured source map');
+    assert.deepStrictEqual(canonical.values['dhpk-modes'], sourceModes,
+      'canonical metadata parsing must keep supporting the structured source list');
+
+    fs.mkdirSync(skillRoot, { recursive: true });
+    fs.cpSync(path.join(repo, 'skills', 'flow-guide'), flowGuide, { recursive: true });
+    const sourceSkill = path.join(skillRoot, 'portable-source');
+    const targetSkill = path.join(skillRoot, 'target-skill');
+    fs.mkdirSync(sourceSkill, { recursive: true });
+    fs.mkdirSync(targetSkill, { recursive: true });
+    fs.writeFileSync(path.join(sourceSkill, 'SKILL.md'), portableMarkdown('portable-source', next, sourceModes));
+    fs.writeFileSync(path.join(targetSkill, 'SKILL.md'), portableMarkdown('target-skill', {
+      PASS: 'none', FAIL: 'none', BLOCKED: 'none', NOT_RUN: 'none', UNAVAILABLE: 'none',
+    }, targetModes));
+
+    const { collectSkillMetadata } = require(path.join(flowGuide, 'scripts', 'skill-next-actions.js'));
+    const { validateNextGraph } = require(path.join(flowGuide, 'scripts', '_lib', 'skill-next-map.js'));
+    const collected = collectSkillMetadata();
+    assert.deepStrictEqual(collected['portable-source'].values['dhpk-next'], next,
+      'the packaged runtime must parse a JSON-string dhpk-next map');
+    assert.deepStrictEqual(collected['portable-source'].values['dhpk-modes'], sourceModes,
+      'the packaged runtime must parse a JSON-string dhpk-modes list');
+    assert.deepStrictEqual(collected['target-skill'].values['dhpk-modes'], targetModes,
+      'the packaged runtime must parse JSON-string target modes used by graph validation');
+    assert.deepStrictEqual(validateNextGraph(collected), [],
+      'portable metadata must still resolve valid source modes and target modes');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 function gitOk(root, args) {
   const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${args.join(' ')}\n${result.stdout}\n${result.stderr}`);

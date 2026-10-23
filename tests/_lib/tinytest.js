@@ -36,6 +36,9 @@ function test(name, fn) {
 }
 
 async function run(suite) {
+  if (typeof suite !== 'string' || suite.trim() === '') {
+    throw new TypeError('tinytest.run requires a non-empty suite name');
+  }
   let failed = 0;
   for (const [name, fn] of tests) {
     try {

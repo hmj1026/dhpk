@@ -8,6 +8,8 @@ const { test, run, assert } = require('./_lib/tinytest');
   const os = require('node:os');
   const path = require('node:path');
   const publisher = require('../scripts/lib/project-agent-projection-publisher');
+  const { parseFrontmatter } = require('../scripts/lib/agent-plugin-package');
+  const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
 
   function projectInventory() {
     return {
@@ -75,7 +77,37 @@ const { test, run, assert } = require('./_lib/tinytest');
     fs.writeFileSync(filePath, content);
   }
 
-  test('publisher emits skill namespace and typed v2 receipt when a module shares its ID', () => {
+  function withoutKey(value, key) {
+    return Object.fromEntries(Object.entries(value).filter(([name]) => name !== key));
+  }
+
+  function asLegacyV1Receipt(receipt, projectRoot) {
+    const legacy = JSON.parse(JSON.stringify(receipt));
+    legacy.schema = 'dhpk.project-agent-projection-receipt.v1';
+    delete legacy.selectedIdentities;
+    delete legacy.emittedIdentities;
+    if (Array.isArray(legacy.entries)) legacy.entries.forEach((entry) => delete entry.entityKind);
+    legacy.sourceFingerprints = Object.fromEntries(
+      (legacy.entries || []).map((entry) => [entry.stableId, entry.sourceFingerprint]),
+    );
+    const legacyClaudeTarget = '../../.agents/skills/dhpk-sample';
+    for (const binding of legacy.bindingPaths && legacy.bindingPaths.claude || []) {
+      binding.target = legacyClaudeTarget;
+    }
+    const claudeBinding = legacy.hostBindings && legacy.hostBindings.claude;
+    if (claudeBinding && claudeBinding.discovery) claudeBinding.discovery.sourceRoot = '.agents/skills';
+    for (const binding of claudeBinding && claudeBinding.bindings || []) binding.target = legacyClaudeTarget;
+    legacy.bindings = JSON.parse(JSON.stringify(legacy.hostBindings));
+    const discoveryPath = path.join(projectRoot, '.claude/skills/dhpk-sample');
+    if (fs.lstatSync(discoveryPath).isSymbolicLink()) {
+      fs.rmSync(discoveryPath);
+      fs.symlinkSync(legacyClaudeTarget, discoveryPath, 'dir');
+    }
+    delete legacy.receiptFingerprint;
+    return legacy;
+  }
+
+  test('publisher emits a skill namespace and typed receipt when a module shares its ID', () => {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-identity-source-'));
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-identity-project-'));
     const inventory = projectInventory();
@@ -84,7 +116,7 @@ const { test, run, assert } = require('./_lib/tinytest');
     try {
       write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
       const installed = publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory });
-      assert.strictEqual(installed.receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+      assert.strictEqual(installed.receipt.schema, publisher.PROJECT_RECEIPT_SCHEMA);
       assert.deepStrictEqual(installed.receipt.selectedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
       assert.deepStrictEqual(installed.receipt.emittedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
       assert.strictEqual(installed.receipt.entries[0].entityKind, 'skill');
@@ -107,12 +139,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       try {
         write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Historical skill\n');
         const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
-        const legacy = JSON.parse(JSON.stringify(installed.receipt));
-        legacy.schema = 'dhpk.project-agent-projection-receipt.v1';
-        delete legacy.selectedIdentities;
-        delete legacy.emittedIdentities;
-        delete legacy.entries[0].entityKind;
-        legacy.sourceFingerprints = { sample: legacy.entries[0].sourceFingerprint };
+        const legacy = asLegacyV1Receipt(installed.receipt, projectRoot);
         inventory.modules = [{ ...inventory.skills[0], path: 'modules/sample' }];
         inventory.project_agent_projection.profiles['portable-core'].stable_ids = ['skill:sample'];
         if (selectedOnly === 'retired') {
@@ -122,7 +149,6 @@ const { test, run, assert } = require('./_lib/tinytest');
           inventory.modules.push({ id: 'support', name: 'support', path: 'modules/support' });
           if (selectedOnly === 'ambiguous') inventory.skills.push({ id: 'support', name: 'support', path: 'skills/support' });
         }
-        delete legacy.receiptFingerprint;
         legacy.receiptFingerprint = fingerprint(legacy);
         write(receiptPath, JSON.stringify(legacy));
         const foreignPath = path.join(projectRoot, '.agents/skills/foreign/keep.txt');
@@ -138,7 +164,7 @@ const { test, run, assert } = require('./_lib/tinytest');
           assert.deepStrictEqual(fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md')), previousManaged);
         } else {
           const updated = publisher.materializeRelocatableAgentsSkillsProjection(options);
-          assert.strictEqual(updated.receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+          assert.strictEqual(updated.receipt.schema, publisher.PROJECT_RECEIPT_SCHEMA);
           assert.deepStrictEqual(updated.receipt.entries.map((entry) => entry.entityKind), ['skill']);
           if (selectedOnly === 'retired') {
             assert.deepStrictEqual(updated.receipt.selectedIdentities, [{ entityKind: 'skill', stableId: 'sample' }]);
@@ -190,18 +216,12 @@ const { test, run, assert } = require('./_lib/tinytest');
       write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
       const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
       for (const invalid of ['traversal', 'missing-proof']) {
-        const receipt = JSON.parse(JSON.stringify(installed.receipt));
-        receipt.schema = 'dhpk.project-agent-projection-receipt.v1';
-        delete receipt.selectedIdentities;
-        delete receipt.emittedIdentities;
-        delete receipt.entries[0].entityKind;
-        receipt.sourceFingerprints = { sample: receipt.entries[0].sourceFingerprint };
+        const receipt = asLegacyV1Receipt(installed.receipt, projectRoot);
         if (invalid === 'traversal') receipt.entries[0].source = 'skills/../modules/sample';
         else {
           receipt.emittedIds.push('unproved');
           inventory.modules = [{ id: 'unproved', path: 'modules/unproved' }];
         }
-        delete receipt.receiptFingerprint;
         receipt.receiptFingerprint = fingerprint(receipt);
         write(receiptPath, JSON.stringify(receipt));
         assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection(options), /receipt source|emitted.*proof/);
@@ -217,6 +237,204 @@ const { test, run, assert } = require('./_lib/tinytest');
       () => publisher.materializeRelocatableAgentsSkillsProjection({}),
       /sourceRoot and inventory are required/,
     );
+  });
+
+  test('publisher writes portable metadata as JSON strings and keeps structured Claude metadata in a sibling', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-metadata-projection-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-metadata-projection-project-'));
+    const inventory = projectInventory();
+    const options = { sourceRoot, projectRoot, inventory, requestedHosts: ['claude', 'codex', 'cursor'] };
+    const source = [
+      '---',
+      'name: dhpk-sample',
+      'description: Fixture',
+      'metadata:',
+      '  dhpk-next:',
+      '    PASS: $repo-verify',
+      '  dhpk-modes:',
+      '    - code',
+      '    - docs',
+      '  retained: keep-me',
+      '---',
+      '# Portable body.',
+      '',
+    ].join('\n');
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), source);
+      publisher.materializeRelocatableAgentsSkillsProjection(options);
+
+      const portablePath = path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md');
+      const claudePath = path.join(projectRoot, '.agents/claude-skills/dhpk-sample/SKILL.md');
+      assert.strictEqual(fs.existsSync(portablePath), true, 'portable skill output exists');
+      const portable = parseFrontmatter(fs.readFileSync(portablePath, 'utf8'));
+      assert.strictEqual(portable.metadata['dhpk-next'], JSON.stringify({ PASS: '$repo-verify' }));
+      assert.strictEqual(portable.metadata['dhpk-modes'], JSON.stringify(['code', 'docs']));
+      assert.strictEqual(portable.metadata.retained, 'keep-me');
+      assert.strictEqual(fs.existsSync(claudePath), true, 'Claude structured sibling exists');
+      const claude = fs.readFileSync(claudePath, 'utf8');
+      assert.match(claude, /  dhpk-next:\n    PASS: \$repo-verify/);
+      assert.match(claude, /  dhpk-modes:\n    - code\n    - docs/);
+      assert.strictEqual(portable.body, '# Portable body.\n');
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('publisher binds Claude to its structured sibling and Codex/Cursor to the portable root', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-host-roots-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-host-roots-project-'));
+    const inventory = projectInventory();
+    const options = {
+      sourceRoot,
+      projectRoot,
+      inventory,
+      requestedHosts: ['claude', 'codex', 'cursor'],
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+      hostSelections: { claude: ['sample'], codex: ['sample'], cursor: ['sample'] },
+    };
+    const sourceSkill = path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md');
+    const portableDirectory = path.join(projectRoot, '.agents/skills/dhpk-sample');
+    const claudeDirectory = path.join(projectRoot, '.agents/claude-skills/dhpk-sample');
+    const links = {
+      claude: path.join(projectRoot, '.claude/skills/dhpk-sample'),
+      codex: path.join(projectRoot, '.codex/skills/dhpk-sample'),
+      cursor: path.join(projectRoot, '.cursor/skills/dhpk-sample'),
+    };
+    try {
+      write(sourceSkill, '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Body\n');
+      const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      for (const [host, link] of Object.entries(links)) {
+        assert.strictEqual(fs.existsSync(link), true, `${host} project binding exists`);
+      }
+      const resolvedLink = (link) => path.resolve(path.dirname(link), fs.readlinkSync(link));
+      assert.strictEqual(resolvedLink(links.claude), claudeDirectory);
+      assert.strictEqual(resolvedLink(links.codex), portableDirectory);
+      assert.strictEqual(resolvedLink(links.cursor), portableDirectory);
+      assert.strictEqual(installed.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('publisher migrates an unchanged v2 receipt to v3 without changing portable identity or content', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-migration-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-migration-project-'));
+    const inventory = projectInventory();
+    const options = {
+      sourceRoot,
+      projectRoot,
+      inventory,
+      requestedHosts: ['claude', 'codex', 'cursor'],
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+      hostSelections: { claude: ['sample'], codex: ['sample'], cursor: ['sample'] },
+    };
+    const receiptPath = path.join(projectRoot, '.agents/.dhpk-installed.json');
+    const portablePath = path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md');
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Body\n');
+      const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      const previous = installed.receipt;
+      const portableBefore = fs.readFileSync(portablePath);
+
+      // Re-seal the current portable receipt as the prior v2 contract. V3 is
+      // additive over these portable fields, so this also exercises upgrades
+      // after the new writer has landed.
+      const v2Fields = [
+        'schema', 'generatorVersion', 'scope', 'managedRoot', 'receiptPath', 'projectionOwner',
+        'profileId', 'profile', 'profileFingerprint', 'selectionFingerprint',
+        'surfaceSelectionFingerprint', 'capabilityEvidenceFingerprint', 'planFingerprint',
+        'artifactFingerprint', 'declaredSelection', 'selectedIds', 'emittedIds',
+        'selectedIdentities', 'emittedIdentities', 'dependencyClosure', 'hostBindings',
+        'bindings', 'bindingPaths', 'entries', 'managedPaths', 'generatedFingerprints',
+        'sourceFingerprints', 'rollback',
+      ];
+      const v2 = Object.fromEntries(v2Fields
+        .filter((field) => Object.prototype.hasOwnProperty.call(previous, field))
+        .map((field) => [field, JSON.parse(JSON.stringify(previous[field]))]));
+      v2.schema = 'dhpk.project-agent-projection-receipt.v2';
+      v2.hostBindings = withoutKey(v2.hostBindings, 'claude');
+      v2.bindings = withoutKey(v2.bindings, 'claude');
+      v2.bindingPaths = withoutKey(v2.bindingPaths, 'claude');
+      delete v2.receiptFingerprint;
+      v2.receiptFingerprint = fingerprint(v2);
+      write(receiptPath, `${JSON.stringify(v2)}\n`);
+      const claudeBinding = path.join(projectRoot, '.claude/skills/dhpk-sample');
+      if (fs.lstatSync(claudeBinding).isSymbolicLink()) fs.unlinkSync(claudeBinding);
+      fs.rmSync(path.join(projectRoot, '.agents/claude-skills'), { recursive: true, force: true });
+
+      const migrated = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(migrated.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
+      assert.deepStrictEqual(migrated.receipt.selectedIds, previous.selectedIds);
+      assert.deepStrictEqual(migrated.receipt.emittedIds, previous.emittedIds);
+      assert.strictEqual(fs.readFileSync(portablePath).equals(portableBefore), true);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('publisher refuses a foreign Claude sibling before changing the portable projection or receipt', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-conflict-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-conflict-project-'));
+    const inventory = projectInventory();
+    const options = { sourceRoot, projectRoot, inventory, requestedHosts: ['claude', 'codex'] };
+    const foreignPath = path.join(projectRoot, '.agents/claude-skills/dhpk-sample/SKILL.md');
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Canonical\n');
+      write(foreignPath, '# User-owned Claude skill\n');
+      assert.throws(
+        () => publisher.materializeRelocatableAgentsSkillsProjection(options),
+        /conflict|foreign|managed|collision/i,
+      );
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md')), false);
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.json')), false);
+      assert.strictEqual(fs.readFileSync(foreignPath, 'utf8'), '# User-owned Claude skill\n');
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('rollback restores both portable and Claude representations with their host bindings', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-dual-rollback-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-dual-rollback-project-'));
+    const inventory = projectInventory();
+    const options = {
+      sourceRoot,
+      projectRoot,
+      inventory,
+      requestedHosts: ['claude', 'codex', 'cursor'],
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+      hostSelections: { claude: ['sample'], codex: ['sample'], cursor: ['sample'] },
+    };
+    const sourceSkill = path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md');
+    const original = '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Original\n';
+    const updated = '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Updated\n';
+    const portablePath = path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md');
+    const claudePath = path.join(projectRoot, '.agents/claude-skills/dhpk-sample/SKILL.md');
+    try {
+      write(sourceSkill, original);
+      publisher.materializeRelocatableAgentsSkillsProjection(options);
+      write(sourceSkill, updated);
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, allowCanonicalChanges: true });
+      const rolledBack = publisher.rollbackAgentsSkillsProjection({ projectRoot });
+      assert.strictEqual(rolledBack.ok, true, rolledBack.error && rolledBack.error.message);
+      assert.strictEqual(fs.existsSync(portablePath), true, 'portable representation remains after rollback');
+      assert.strictEqual(fs.existsSync(claudePath), true, 'Claude representation remains after rollback');
+      assert.strictEqual(fs.readFileSync(portablePath, 'utf8'), original);
+      assert.strictEqual(fs.readFileSync(claudePath, 'utf8'), original);
+      assert.strictEqual(fs.realpathSync(path.join(projectRoot, '.claude/skills/dhpk-sample')), fs.realpathSync(path.dirname(claudePath)));
+      assert.strictEqual(fs.realpathSync(path.join(projectRoot, '.codex/skills/dhpk-sample')), fs.realpathSync(path.dirname(portablePath)));
+      assert.strictEqual(fs.realpathSync(path.join(projectRoot, '.cursor/skills/dhpk-sample')), fs.realpathSync(path.dirname(portablePath)));
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
   });
 
   test('mixed Host selections keep Claude discovery isolated through update, rollback, and uninstall', () => {

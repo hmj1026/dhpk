@@ -202,4 +202,4 @@ test('confirmed unavailable access can still fall back, and native Claude and Co
   }
 });
 
-run();
+run('native-readonly-evidence-diagnostic');

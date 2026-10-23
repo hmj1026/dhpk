@@ -29,6 +29,10 @@ const {
   resolveInventoryRevision,
   skillProjectionMetadata,
 } = require('./distribution-projection-contract');
+const {
+  serializePortableSkillMetadata,
+  validatePortableSkillMetadata,
+} = require('./portable-skill-metadata');
 
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
@@ -204,6 +208,12 @@ function copyFileContained(source, destination, sourceRoot, outputRoot, { transf
     return;
   }
   fs.copyFileSync(source, destination);
+}
+
+function serializeAgySkillMarkdown(content, label) {
+  const result = serializePortableSkillMetadata(content);
+  if (!result.ok) throw new Error(`${label} has invalid metadata: ${result.errors.join('; ')}`);
+  return result.output;
 }
 
 function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
@@ -531,8 +541,12 @@ function materializeAgyPluginPackage({
       assertSafeRelative(file.path, 'AGY marketplace file');
       ensureDirectory(path.dirname(target), 'AGY marketplace parent');
       const immediateSkill = /^skills\/[^/]+\/SKILL\.md$/.test(file.path);
-      const bytes = immediateSkill
-        ? Buffer.from(adaptAgySkillContent(file.bytes.toString('utf8'), selectedSkillIds)) : file.bytes;
+      let content = file.bytes.toString('utf8');
+      if (immediateSkill) content = adaptAgySkillContent(content, selectedSkillIds);
+      if (file.path.startsWith('skills/') && file.path.endsWith('/SKILL.md')) {
+        content = serializeAgySkillMarkdown(content, `AGY marketplace ${file.path}`);
+      }
+      const bytes = Buffer.from(content);
       fs.writeFileSync(target, bytes, { mode: file.mode & 0o111 ? 0o755 : 0o644 });
     }
   } else for (const skill of selected.skills) {
@@ -545,18 +559,20 @@ function materializeAgyPluginPackage({
     if (!sourceStat || !sourceStat.isFile()) throw new Error(`source skill is missing: ${source}`);
     ensureDirectory(path.dirname(target), 'AGY skill parent');
     const sourceContent = readFileBounded(source).toString('utf8');
-    fs.writeFileSync(
-      target,
-      sanitizeMarkdownLinks(adaptAgySkillContent(sourceContent, selectedSkillIds), source, sourceRoot),
-      { mode: 0o644 },
-    );
+    const adaptedContent = sanitizeMarkdownLinks(adaptAgySkillContent(sourceContent, selectedSkillIds), source, sourceRoot);
+    fs.writeFileSync(target, serializeAgySkillMarkdown(adaptedContent, `AGY ${skillPath}/SKILL.md`), { mode: 0o644 });
     // The complete physical Skill directory is the package unit.
     for (const file of physicalSkillTree(sourceRoot, skill)) {
       // SKILL.md is adapted above; OpenAI interface metadata is Codex-only,
       // matching the Agent Plugin projection's surface-specific exclusion.
       if (file.relative === 'SKILL.md' || file.relative === 'agents/openai.yaml') continue;
       copyFileContained(file.absolute, path.join(skillsDestination, skillPath, file.relative), sourceRoot, outputRoot, {
-        transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+        transform: (content, sourceFile) => {
+          const sanitized = sanitizeMarkdownLinks(content, sourceFile, sourceRoot);
+          return path.basename(sourceFile) === 'SKILL.md'
+            ? serializeAgySkillMarkdown(sanitized, `AGY bundled ${file.relative}`)
+            : sanitized;
+        },
       });
     }
   }
@@ -751,6 +767,11 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   const agentFiles = files.filter((relative) => relative.startsWith('agents/') && relative.endsWith('.md')).sort();
   const ruleFiles = files.filter((relative) => relative.startsWith('rules/') && relative.endsWith('.md')).sort();
   const skillFiles = files.filter((relative) => /^skills\/[^/]+\/SKILL\.md$/.test(relative)).sort();
+  for (const relative of files.filter((file) => file.startsWith('skills/') && file.endsWith('/SKILL.md'))) {
+    const content = readFileBounded(path.join(root, relative)).toString('utf8');
+    const portable = validatePortableSkillMetadata(content);
+    if (!portable.ok) errors.push(...portable.errors.map((error) => `${relative}: ${error}`));
+  }
   if (agentFiles.length === 0) errors.push('AGY package must contain at least one adapted agent');
   for (const relative of agentFiles) {
     if (expectedAgentFiles && !expectedAgentFiles.has(relative)) errors.push(`undeclared AGY agent: ${relative}`);
