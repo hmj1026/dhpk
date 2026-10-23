@@ -20,6 +20,7 @@ const REQUEST_SCHEMA = 'dhpk.dispatch.request.v2';
 const SHA256 = /^[a-f0-9]{64}$/;
 const BACKEND_FOR_AGENT = Object.freeze({ 'claude-code': 'claude', 'codex-cli': 'codex', agy: 'agy' });
 const PROVIDER_FOR_BACKEND = Object.freeze({ claude: 'anthropic', codex: 'openai', agy: 'google' });
+const CLAUDE_AGY_DISPATCH_DIAGNOSTIC = 'AGY dispatch is unavailable on the Claude Code host; the parent-session CLI integration is unsupported.';
 
 const ROLE_AUTHORITY = Object.freeze({
   planner: 'read-only',
@@ -268,6 +269,12 @@ function prepareInvocationDispatch(packet, promptEvidence) {
   const validated = validatePacket(packet, promptEvidence);
   const { change, invocation, options, hostProfile, config } = validated;
   const role = packet.role;
+  const requestedAgyBackend = role === 'worker'
+    ? options.workerTarget && options.workerTarget.provider || options.worker
+    : role === 'reasoner' && options.reasoner ? options.reasoner.backend : null;
+  if (hostProfile.host === 'claude-code' && requestedAgyBackend === 'agy') {
+    throw new Error(CLAUDE_AGY_DISPATCH_DIAGNOSTIC);
+  }
   const request = baseRequest(packet, promptEvidence, role);
   let preferenceOrder;
   let codexConfig = null;
@@ -299,9 +306,6 @@ function prepareInvocationDispatch(packet, promptEvidence) {
     }
   } else if (options.workerTarget) {
     const backend = options.workerTarget.provider;
-    if (hostProfile.host === 'claude-code' && backend === 'agy') {
-      throw new Error('AGY worker selection is unavailable on the Claude Code host');
-    }
     if (backend === 'codex' && !targetIsNative('codex')) {
       request.target = codexTarget(options.workerTarget.model, options.workerTarget.effort);
       request.effort = codexConfig.effort;

@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "7d78425774fe4b799a6dcc061ac18cce7ce31f23",
-  "generatedFromCommit": "7d78425774fe4b799a6dcc061ac18cce7ce31f23",
-  "generatedFromTree": "f36861cce25e3ec0003c1defa951169eb5d66cd8",
+  "sourceCommit": "2a03f7b35c30ae6b1f6ea361e7b09cfe6dbb7970",
+  "generatedFromCommit": "2a03f7b35c30ae6b1f6ea361e7b09cfe6dbb7970",
+  "generatedFromTree": "20c4afd0cd1de5c0b47da00ccb9063992087cebb",
   "inventoryDigest": "c0eabd9b270692d2c06279447289e64c692d45720f1516d3502ab3fab90ce3cf",
   "inventoryRevision": "sha256:47a01eec098299cea524f97ee6edd39d60f31d2693e59f01857f1ee84b97a60b",
   "generatorVersion": "1.0.0",
@@ -1635,7 +1635,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/dispatch.js",
         "destination": "skills/flow-drive/scripts/dispatch.js",
-        "originalGitBlobDigest": "f5c97b213aaa1de1ca9429d78b50c0236ccd85f4"
+        "originalGitBlobDigest": "f6ca130cb295416bec06c9fa686f2fb9f5384fc5"
       },
       {
         "ownerId": "flow-drive",
@@ -1671,7 +1671,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/scripts/run.js",
         "destination": "skills/flow-drive/scripts/run.js",
-        "originalGitBlobDigest": "bd6c78bc0bd114291807f24ed823d4cd01f5d71a"
+        "originalGitBlobDigest": "821613946d25d604927c60e79ad6637e9dc60453"
       },
       {
         "ownerId": "flow-drive",
