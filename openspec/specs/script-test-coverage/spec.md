@@ -9,7 +9,9 @@ its risk, without requiring a test file for every script or helper.
 
 ### Requirement: Script tests protect meaningful behavior proportionately
 
-Automated tests SHOULD cover script behavior that makes a safety decision,
+Test policy SHALL keep coverage proportionate to risk and SHALL NOT require a
+dedicated test file for every script or helper. Automated tests SHOULD cover
+script behavior that makes a safety decision,
 exposes a caller-visible contract, or performs a high-impact side effect when
 that behavior can be exercised reliably. Tests SHALL assert outcomes through
 an existing CLI, hook, installer, or package entry point. Thin wrappers MAY be
@@ -89,9 +91,18 @@ wording, headings, examples, section order, or body length.
 
 ### Requirement: Daily CI may select existing owner suites conservatively
 
-Daily pull-request CI MAY select the union of existing coarse owner suites for
-known hooks, installer lifecycle, skill resources, explicitly recognized
-Skill-script CLI entries, and manifest or adapter package changes. Internal
+CI planning SHALL select a reduced daily plan only from a valid classification
+bound to the exact base and head and covering every changed path exactly once,
+including both path identities of a rename. A declaration SHALL contain
+`baseSha`, `headSha`, and `entries` with one `{path, kind, reason}` record per
+changed path; `kind` SHALL be `wording`, `behavior`, `shared-core`, or `unknown`,
+and each `reason` SHALL be non-empty. Local planning MAY load the declaration
+from a classification file; pull-request CI SHALL load exactly one
+`dhpk-ci-classification` JSON fence from the event body and parse it as data.
+Declarations SHALL NOT request a CI mode, test-file list, or owner-suite
+override. Daily pull-request CI MAY select the union of existing coarse owner
+suites for known hooks, installer lifecycle, skill resources, explicitly
+recognized Skill-script CLI entries, and manifest or adapter package changes. Internal
 Skill-script modules and new or unrecognized entries SHALL use the full plan;
 the presence of a `skills/*/scripts` path SHALL NOT establish CLI ownership.
 Shared CLI-dispatch adapter, transport, and dispatch-runtime owners under
@@ -99,15 +110,55 @@ Shared CLI-dispatch adapter, transport, and dispatch-runtime owners under
 owns no script entry or runtime suite. The selection SHALL use the existing
 positional-file runner, one shard with four workers, and a plan-recorded
 test-file list. Full fallback SHALL retain four shards with four workers.
-Shared core, runner, CI, unknown or unmapped paths, missing owner suites, and
-unavailable diffs SHALL use the full plan. Installer-owner changes SHALL
-include macOS installer validation. REQ-4: Each owner-suite test filename
+Missing, malformed, duplicate, extra, incomplete, stale, or identity-mismatched
+declarations SHALL use the full plan with a reason. Wording classifications MAY
+use the light plan only for eligible canonical-content changes with their
+bounded generated companions; an executable change SHALL NOT be made light by
+wording classification. Behavior classifications SHALL select the union of
+applicable checked-in `OWNER_GROUPS` suites; behavior without a checked-in
+owner mapping, including Flow Drive or Flow Guide instruction semantics without
+a retained executable owner, SHALL use the full plan. Mixed classifications
+SHALL keep required consistency checks and the applicable behavior-suite
+union. Shared core, runner, CI, `shared-core`, `unknown`, or unmapped paths,
+missing owner suites, release-base plans, and unavailable diffs SHALL use the
+full plan. Installer-owner changes SHALL include macOS installer validation.
+REQ-4: Each owner-suite test filename
 SHALL exist in the discovered test set; a mapped file that is missing SHALL
 fail closed to the full plan. Canonical `scripts/lib/ci-plan.js` SHALL be the
 mapping source, and the Claude marketplace package copy SHALL be regenerated
 from that source rather than hand-edited. The Darwin installer file list SHALL
 be updated in the same change only when a Host-unique installer suite is added
 or removed from the Ubuntu aggregate.
+
+#### Scenario: Reduced plan is bound to a complete classification
+
+- **WHEN** a daily pull-request change has a classification declaration bound
+  to the exact base and head
+- **THEN** it contains exactly one non-empty-reason entry for each changed path,
+  including both identities of a rename, uses only the declared kinds, and
+  cannot select a mode, tests, or owner suites
+
+#### Scenario: Invalid classification falls back to full
+
+- **WHEN** a classification is missing, malformed, stale, incomplete, extra,
+  duplicated, identity-mismatched, unknown, or unmapped
+- **THEN** the plan requires full validation and records the fallback reason
+
+#### Scenario: Wording and behavior classifications retain their boundaries
+
+- **WHEN** a valid classification contains wording, behavior, shared-core, or
+  mixed entries
+- **THEN** wording can select light only for eligible canonical content and
+  bounded generated companions, behavior selects checked-in owner suites,
+  shared-core and mixed unsafe paths remain full, and semantic changes without
+  a checked-in behavior owner remain full
+
+#### Scenario: Plan verification reloads its classification
+
+- **WHEN** aggregate or shard evidence verifies a selected plan
+- **THEN** the verifier independently reloads the original declaration,
+  recomputes classification from the Git diff, and rejects a plan whose
+  normalized declaration differs; recorded plan data is evidence, not authority
 
 #### Scenario: Selected evidence covers exactly the planned suites
 
@@ -183,11 +234,11 @@ or isolation suite SHALL NOT remove those keep-list suites.
 
 ### Requirement: Non-operability suites leave the routine runner
 
-REQ-3: Migration-only isolation, issue-numbered leftovers, live
-measurement/budget/benchmark gates, and CI-meta workflow-wiring suites SHALL
-NOT remain in the routine aggregate discovery set once their covering
-operability or keep-list suite exists. REQ-7: Agents-skills retirement
-scenarios SHALL continue to execute as part of the gen-agents-skills suite
+REQ-3: The routine aggregate SHALL omit migration-only isolation, issue-numbered
+leftovers, live measurement/budget/benchmark gates, and CI-meta workflow-wiring
+suites once their covering operability or keep-list suite exists. REQ-7:
+Agents-skills retirement scenarios SHALL continue to execute as part of the
+gen-agents-skills suite
 rather than as a separate retirement test file.
 
 #### Scenario: Deleted isolation files are absent from discovery
@@ -198,9 +249,9 @@ rather than as a separate retirement test file.
 
 ### Requirement: Research measurements stay on-demand
 
-REQ-5: Live context, catalog-quota, worker-benchmark, subagent-budget, and
-historical skill-baseline measurements SHALL NOT be routine CI gates. Research
-CLIs for those measurements SHALL remain invocable on demand. Stable fixture
+REQ-5: Routine CI SHALL NOT gate live context, catalog-quota, worker-benchmark,
+subagent-budget, or historical skill-baseline measurements. Research CLIs for
+those measurements SHALL remain invocable on demand. Stable fixture
 tests of production receipt-store budget accounting, and independent-literal
 tests of discovery-budget calculations, SHALL remain in the routine suite.
 
@@ -212,9 +263,9 @@ tests of discovery-budget calculations, SHALL remain in the routine suite.
 
 ### Requirement: Assertion-evidence and shard verification stay routine
 
-REQ-8: Local assertion-evidence validation and trusted shard verification
-SHALL remain part of the routine test and CI evidence path. This change SHALL
-NOT weaken or replace those contracts.
+REQ-8: Local assertion-evidence validation and trusted shard verification SHALL
+remain part of the routine test and CI evidence path. This change SHALL NOT
+weaken or replace those contracts.
 
 #### Scenario: Assertion-evidence path is unchanged
 

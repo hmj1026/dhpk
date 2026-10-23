@@ -204,9 +204,9 @@ Routing guidance SHALL keep stable purpose, positive trigger, boundary, and outp
 
 ### Requirement: Workflow-chain skills declare host-neutral next maps
 
-SHF-REQ-001, SHF-REQ-002, SHF-REQ-006, SHF-REQ-007: Each skill in the closed
-first-wave workflow-chain set SHALL declare a nested `metadata` mapping
-`dhpk-next` in canonical `SKILL.md`. Keys SHALL be a closed result state
+Each first-wave workflow-chain skill SHALL declare a nested
+`metadata.dhpk-next` mapping in canonical `SKILL.md` (SHF-REQ-001,
+SHF-REQ-002, SHF-REQ-006, SHF-REQ-007). Keys SHALL be a closed result state
 (`PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `UNAVAILABLE`) or `mode:STATE` where
 `STATE` is in that set. Values SHALL be the terminal marker `none`, a
 canonical skill `name`, or `name:mode`. Stored values SHALL be Host-neutral
