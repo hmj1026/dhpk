@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.7",
-  "sourceCommit": "a9ee1e0eba0cc50d219061ce85fa1de6892c7290",
-  "generatedFromCommit": "a9ee1e0eba0cc50d219061ce85fa1de6892c7290",
-  "generatedFromTree": "18c076138ce486714fc48ff380d6b2675c0ce8d3",
+  "sourceCommit": "9e52c1c55c14b729f051c521cb3021edeaee63c0",
+  "generatedFromCommit": "9e52c1c55c14b729f051c521cb3021edeaee63c0",
+  "generatedFromTree": "e2613f109f66bbee42a0cbade42411a869078e6f",
   "inventoryDigest": "ef731bad3356f7bccfa4c367dab6ec1ff6bf6b28556d130892cd727f1d854c44",
   "inventoryRevision": "sha256:76f3d99d27a547a35adad94d42f5238f92268aaed4565773d3786b7c71aa51e5",
   "generatorVersion": "1.0.0",
@@ -678,7 +678,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/distribution.yaml",
         "destination": "skills/flow-drive/distribution.yaml",
-        "originalGitBlobDigest": "b354b2b3c71f9b85c03577303f82635fb8ffdeee"
+        "originalGitBlobDigest": "bfaf6592f36775a833a48cf7f6135c4011e301ea"
       },
       {
         "ownerId": "flow-drive",
@@ -1686,7 +1686,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/handoff-and-verification.md",
         "destination": "skills/flow-guide/references/handoff-and-verification.md",
-        "originalGitBlobDigest": "9b79083747e6a370543dc25d51dfb5191b80b85b"
+        "originalGitBlobDigest": "340a720b548f5534d96f9305aecce94f09609e10"
       },
       {
         "ownerId": "flow-guide",
@@ -5359,8 +5359,8 @@
     "code-trace": "96e1a383944fa9d2fcb3a3529afc1d096248d6268c30949276d0d27d8f86b6a6",
     "create-pr": "722696c143447a8107fe7c842fc4f1cfcbb775ab0456af1d6bb623be93e92b10",
     "doc-maintain": "d2b6e12533e99c08d143be5ecc5ada0db0c45c92e35f3d89a691cb7851eef921",
-    "flow-drive": "b28fa665e03b207ee8fc90cca7d27ebb2a45e6accd22eb79fbae39c9f2aa0430",
-    "flow-guide": "eac13614e3227eb9866e5e553fe829f902d5dd25c95ab0a174de34960be31cd9",
+    "flow-drive": "04ab4f1d742d9764a224bafc4e103f0eedfe5695b49afad9c3966e9bcbd39456",
+    "flow-guide": "866541662e0bc008a8a9aeb5390a3a2151b8d016efc6e3ed7a89ded62a1de7fd",
     "git-smart-commit": "f4a92dee766eca4480698fbf5bdf73fa394e47b9d1b8f38d4c0b1493389cc1db",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",
     "precommit": "565accfb658863ae359b200ee516083d7f7122757c41db1e19f10198041621ce",

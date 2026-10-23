@@ -4,7 +4,8 @@
 > only as historical release evidence and as context for the frozen comparison
 > baseline. Its suites and runner guarantees are not acceptance criteria for
 > the current native task/help skill. Current source portability is checked by
-> `tests/flow-drive-relocation.test.js` and `tests/flow-drive-native-contract.test.js`.
+> `tests/flow-drive-relocation.test.js`, `tests/portable-skill-metadata.test.js`,
+> and `tests/skill-usage-contract.test.js`.
 
 The public scenarios are the REQ-01 through REQ-16 acceptance table in
 [issue #917](https://github.com/hmj1026/dhpk/issues/917). Their scenario names,

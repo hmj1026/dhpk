@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.7",
-  "sourceCommit": "a9ee1e0eba0cc50d219061ce85fa1de6892c7290",
-  "generatedFromCommit": "a9ee1e0eba0cc50d219061ce85fa1de6892c7290",
-  "generatedFromTree": "18c076138ce486714fc48ff380d6b2675c0ce8d3",
+  "sourceCommit": "9e52c1c55c14b729f051c521cb3021edeaee63c0",
+  "generatedFromCommit": "9e52c1c55c14b729f051c521cb3021edeaee63c0",
+  "generatedFromTree": "e2613f109f66bbee42a0cbade42411a869078e6f",
   "inventoryDigest": "6bc408598a17788aff70337334c24fc33e58769d8ec5dcbda0e0528fe9a140af",
   "inventoryRevision": "sha256:76f3d99d27a547a35adad94d42f5238f92268aaed4565773d3786b7c71aa51e5",
   "generatorVersion": "1.0.0",
@@ -633,7 +633,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/distribution.yaml",
         "destination": "skills/flow-drive/distribution.yaml",
-        "originalGitBlobDigest": "b354b2b3c71f9b85c03577303f82635fb8ffdeee"
+        "originalGitBlobDigest": "bfaf6592f36775a833a48cf7f6135c4011e301ea"
       },
       {
         "ownerId": "flow-drive",
@@ -1641,7 +1641,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/handoff-and-verification.md",
         "destination": "skills/flow-guide/references/handoff-and-verification.md",
-        "originalGitBlobDigest": "9b79083747e6a370543dc25d51dfb5191b80b85b"
+        "originalGitBlobDigest": "340a720b548f5534d96f9305aecce94f09609e10"
       },
       {
         "ownerId": "flow-guide",

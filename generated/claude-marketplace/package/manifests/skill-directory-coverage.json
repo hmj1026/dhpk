@@ -445,6 +445,20 @@
         "make edits within the user's authorized scope",
         "run appropriate verification with the consumer Host's available tools"
       ],
+      "host_evidence": {
+        "read the supplied task and relevant consumer project files": {
+          "status": "NOT_RUN",
+          "reason": "This is a documented Host requirement; no actual supported Host probe has executed. Static instructions and consumer fixtures do not establish runtime capability."
+        },
+        "make edits within the user's authorized scope": {
+          "status": "NOT_RUN",
+          "reason": "This is a documented Host requirement; no actual supported Host probe has executed. Static instructions and consumer fixtures do not establish runtime capability."
+        },
+        "run appropriate verification with the consumer Host's available tools": {
+          "status": "NOT_RUN",
+          "reason": "This is a documented Host requirement; no actual supported Host probe has executed. Static instructions and consumer fixtures do not establish runtime capability."
+        }
+      },
       "api_entries": [],
       "internal_helpers": []
     },

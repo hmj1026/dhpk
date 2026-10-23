@@ -765,7 +765,7 @@
       "sourcePath": "skills/flow-drive/distribution.yaml",
       "destination": "skills/flow-drive/distribution.yaml",
       "kind": "entry",
-      "sha256": "b4350ff4f9c2d43be16feebc81acf05858862c130284a364da4f93447f5717de"
+      "sha256": "1f5f727880723d481317d2f1ffd807d0298b8bd4e16e178399ecfe1b7b212a85"
     },
     {
       "skillId": "code-simplify",
@@ -2109,7 +2109,7 @@
       "sourcePath": "skills/flow-guide/references/handoff-and-verification.md",
       "destination": "skills/flow-guide/references/handoff-and-verification.md",
       "kind": "entry",
-      "sha256": "863b83915011f6c2369b1b1ffe3651ae980cbc87b7ac6c0c4e2c5192dec21c0f"
+      "sha256": "4c94381fd838b315f03db26540d29021a0e1ba7cc6a996ccf3c0f2ffedf95ce1"
     },
     {
       "skillId": "flow-guide",
