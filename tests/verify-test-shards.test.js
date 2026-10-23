@@ -8,7 +8,27 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { verifyShardReports, main } = require('../scripts/ci/verify-test-shards');
 const { classifyChangedPaths, createCiPlan, validateCiPlan, verifyCiResults, packageSurfacesForFiles } = require('../scripts/lib/ci-plan');
 
-function gitFixture(setup, mutate, baseRef = 'develop') {
+function changedPaths(root, baseSha, headSha) {
+  const output = execFileSync('git', ['-C', root, 'diff', '--name-status', '-z', '--find-renames', `${baseSha}...${headSha}`], { encoding: 'utf8' });
+  const fields = output.split('\0').filter(Boolean);
+  const files = [];
+  for (let index = 0; index < fields.length;) {
+    const status = fields[index++];
+    if (status.startsWith('R') || status.startsWith('C')) files.push(fields[index++], fields[index++]);
+    else files.push(fields[index++]);
+  }
+  return [...new Set(files)].sort();
+}
+
+function classificationFor(paths, baseSha, headSha, kindForPath = () => 'wording') {
+  return {
+    baseSha,
+    headSha,
+    entries: paths.map((file) => ({ path: file, kind: kindForPath(file), reason: 'Scoped test declaration.' })),
+  };
+}
+
+function gitFixture(setup, mutate, baseRef = 'develop', kindForPath = () => 'wording') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-'));
   const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
   try {
@@ -19,9 +39,12 @@ function gitFixture(setup, mutate, baseRef = 'develop') {
     mutate(root, git); git('add', '-A'); git('commit', '--no-verify', '-m', 'head');
     const headSha = git('rev-parse', 'HEAD');
     const checkoutSha = headSha;
-    const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'plan', '--base-sha', baseSha, '--head-sha', headSha, '--checkout-sha', checkoutSha, '--base-ref', baseRef], { cwd: root, encoding: 'utf8' });
+    const classification = classificationFor(changedPaths(root, baseSha, headSha), baseSha, headSha, kindForPath);
+    const classificationPath = path.join(root, 'classification.json');
+    fs.writeFileSync(classificationPath, JSON.stringify(classification));
+    const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'plan', '--base-sha', baseSha, '--head-sha', headSha, '--checkout-sha', checkoutSha, '--base-ref', baseRef, '--classification-file', classificationPath], { cwd: root, encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stderr);
-    return { root, baseSha, headSha, checkoutSha, plan: JSON.parse(result.stdout) };
+    return { root, baseSha, headSha, checkoutSha, classification, classificationPath, plan: JSON.parse(result.stdout) };
   } catch (error) {
     fs.rmSync(root, { recursive: true, force: true }); throw error;
   }
@@ -959,15 +982,21 @@ test('malformed shard timing JSON is rejected', () => {
 }
 
 test('CI plan classifies canonical prose as light and skips expensive jobs', () => {
-  const plan = classifyChangedPaths([
+  const changes = [
     { status: 'M', path: 'skills/example/SKILL.md' },
     { status: 'M', path: 'docs/guide.md' },
-  ], { baseRef: 'develop' });
+  ];
+  const classification = classificationFor(['skills/example/SKILL.md', 'docs/guide.md'], 'base', 'head');
+  const plan = classifyChangedPaths(changes, { baseRef: 'develop', baseSha: 'base', headSha: 'head', classification });
   assert.strictEqual(plan.mode, 'light');
   assert.deepStrictEqual(plan.requiredJobs, ['preflight', 'validate', 'lint']);
   assert.ok(plan.skippedJobs.includes('tests'));
   assert.ok(plan.skippedJobs.includes('macos-installer'));
-  assert.strictEqual(classifyChangedPaths([{ status: 'M', path: 'README.md' }], { baseRef: 'develop' }).mode, 'light');
+  const readme = classifyChangedPaths([{ status: 'M', path: 'README.md' }], {
+    baseRef: 'develop', baseSha: 'base', headSha: 'head',
+    classification: classificationFor(['README.md'], 'base', 'head'),
+  });
+  assert.strictEqual(readme.mode, 'light');
   assert.deepStrictEqual(packageSurfacesForFiles(['skills/example/SKILL.md']), []);
 });
 
@@ -980,8 +1009,11 @@ test('CI plan falls back to full for unknown, and release-base paths', () => {
 });
 
 test('aggregate accepts only explicitly skipped jobs and requires plan-bound evidence', () => {
-  const plan = { ...classifyChangedPaths([{ status: 'M', path: 'skills/demo/SKILL.md' }]), testFiles: [], shardCount: 0, packageSurfaces: [], generatedChecks: [], identities: { baseSha: 'base', headSha: 'head', checkoutSha: 'checkout', baseRef: 'develop' } };
-  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }).ok, true);
+  const classification = classificationFor(['skills/demo/SKILL.md'], 'base', 'head');
+  const plan = { ...classifyChangedPaths([{ status: 'M', path: 'skills/demo/SKILL.md' }], { baseRef: 'develop', baseSha: 'base', headSha: 'head', classification }), testFiles: [], shardCount: 0, packageSurfaces: [], generatedChecks: ['claude-marketplace'], identities: { baseSha: 'base', headSha: 'head', checkoutSha: 'checkout', baseRef: 'develop' } };
+  const expected = { baseSha: 'base', headSha: 'head', checkoutSha: 'checkout', baseRef: 'develop', classification };
+  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }, expected).ok, true);
+  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }, { ...expected, classification: undefined }).ok, false);
   assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'success' }).ok, false);
   assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'cancelled', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }).ok, false);
 });
@@ -999,8 +1031,103 @@ test('public CI plan CLI classifies content, metadata, mixed, deletion, and rena
     assert.strictEqual(deletion.plan.mode, 'light');
     assert.strictEqual(rename.plan.mode, 'light');
     assert.deepStrictEqual(rename.plan.changes[0].files.slice().sort(), ['skills/demo/SKILL.md', 'docs/guide.md'].sort());
+    assert.deepStrictEqual(rename.plan.classification.entries.map((entry) => entry.path), ['docs/guide.md', 'skills/demo/SKILL.md']);
   } finally {
     for (const fixture of [content, metadata, mixed, deletion, rename]) fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('the CI plan reads exactly one inert classification block from the pull request event', () => {
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'before\n');
+  }, (root) => fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'after\n'));
+  const eventPath = path.join(fixture.root, 'event.json');
+  const command = [
+    path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'plan',
+    '--base-sha', fixture.baseSha, '--head-sha', fixture.headSha,
+    '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop',
+  ];
+  const block = `\`\`\`dhpk-ci-classification\n${JSON.stringify(fixture.classification)}\n\`\`\``;
+  const event = (body) => fs.writeFileSync(eventPath, JSON.stringify({ pull_request: { body } }));
+  const run = () => spawnSync(process.execPath, command, {
+    cwd: fixture.root,
+    encoding: 'utf8',
+    env: { ...process.env, GITHUB_EVENT_PATH: eventPath },
+  });
+  try {
+    event(`Description\n\n${block}\n`);
+    const valid = run();
+    assert.strictEqual(valid.status, 0, valid.stderr);
+    const plan = JSON.parse(valid.stdout);
+    assert.strictEqual(plan.mode, 'light');
+    assert.strictEqual(plan.classification.status, 'accepted');
+
+    event(`${block}\n\n${block}\n`);
+    const duplicate = run();
+    assert.strictEqual(duplicate.status, 0, duplicate.stderr);
+    const duplicatePlan = JSON.parse(duplicate.stdout);
+    assert.strictEqual(duplicatePlan.mode, 'full');
+    assert.strictEqual(duplicatePlan.classification.reason, 'classification-invalid');
+
+    const malformedPath = path.join(fixture.root, 'malformed-classification.json');
+    fs.writeFileSync(malformedPath, '{');
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.GITHUB_EVENT_PATH;
+    const malformed = spawnSync(process.execPath, [
+      path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'plan',
+      '--base-sha', fixture.baseSha, '--head-sha', fixture.headSha,
+      '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop',
+      '--classification-file', malformedPath,
+    ], { cwd: fixture.root, encoding: 'utf8', env: cleanEnv });
+    assert.strictEqual(malformed.status, 0, malformed.stderr);
+    const malformedPlan = JSON.parse(malformed.stdout);
+    assert.strictEqual(malformedPlan.mode, 'full');
+    assert.strictEqual(malformedPlan.classification.reason, 'classification-invalid');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('plan validation and aggregation require classification reloaded from an independent source', () => {
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'before\n');
+  }, (root) => fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'after\n'));
+  const planPath = path.join(fixture.root, 'plan.json');
+  const resultsPath = path.join(fixture.root, 'results.json');
+  const baseArgs = [
+    '--plan', planPath, '--base-sha', fixture.baseSha, '--head-sha', fixture.headSha,
+    '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop',
+  ];
+  const cli = path.join(__dirname, '..', 'scripts/ci/ci-plan.js');
+  const cleanEnv = { ...process.env };
+  delete cleanEnv.GITHUB_EVENT_PATH;
+  try {
+    fs.writeFileSync(planPath, JSON.stringify(fixture.plan));
+    const statuses = { preflight: 'success', validate: 'success', lint: 'success', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' };
+    fs.writeFileSync(resultsPath, JSON.stringify(statuses));
+
+    const missing = spawnSync(process.execPath, [cli, 'validate', ...baseArgs], { cwd: fixture.root, encoding: 'utf8', env: cleanEnv });
+    assert.notStrictEqual(missing.status, 0);
+    assert.match(missing.stderr, /classification/i);
+
+    const valid = spawnSync(process.execPath, [cli, 'validate', ...baseArgs, '--classification-file', fixture.classificationPath], { cwd: fixture.root, encoding: 'utf8', env: cleanEnv });
+    assert.strictEqual(valid.status, 0, valid.stderr);
+
+    const forgedPlan = { ...fixture.plan, classification: { ...fixture.plan.classification, entries: fixture.plan.classification.entries.map((entry) => ({ ...entry, reason: 'Changed after planning.' })) } };
+    fs.writeFileSync(planPath, JSON.stringify(forgedPlan));
+    const forged = spawnSync(process.execPath, [cli, 'validate', ...baseArgs, '--classification-file', fixture.classificationPath], { cwd: fixture.root, encoding: 'utf8', env: cleanEnv });
+    assert.notStrictEqual(forged.status, 0);
+    assert.match(forged.stderr, /classification/i);
+    fs.writeFileSync(planPath, JSON.stringify(fixture.plan));
+
+    const missingAggregate = spawnSync(process.execPath, [cli, 'aggregate', ...baseArgs, '--results', resultsPath], { cwd: fixture.root, encoding: 'utf8', env: cleanEnv });
+    assert.notStrictEqual(missingAggregate.status, 0);
+    const validAggregate = spawnSync(process.execPath, [cli, 'aggregate', ...baseArgs, '--results', resultsPath, '--classification-file', fixture.classificationPath], { cwd: fixture.root, encoding: 'utf8', env: cleanEnv });
+    assert.strictEqual(validAggregate.status, 0, validAggregate.stderr);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 
@@ -1034,6 +1161,9 @@ test('CI plan CLI writes full plans to artifacts and keeps routing outputs bound
     git('commit', '--no-verify', '-m', 'retire generated files');
     const headSha = git('rev-parse', 'HEAD');
     const checkoutSha = headSha;
+    const classification = classificationFor(changedPaths(root, baseSha, headSha), baseSha, headSha);
+    const classificationPath = path.join(root, 'classification.json');
+    fs.writeFileSync(classificationPath, JSON.stringify(classification));
     fs.writeFileSync(githubOutputPath, '');
 
     const result = spawnSync(process.execPath, [
@@ -1042,6 +1172,7 @@ test('CI plan CLI writes full plans to artifacts and keeps routing outputs bound
       '--head-sha', headSha,
       '--checkout-sha', checkoutSha,
       '--base-ref', 'develop',
+      '--classification-file', classificationPath,
       '--out', planPath,
       '--github-output', githubOutputPath,
     ], { cwd: root, encoding: 'utf8' });
@@ -1075,6 +1206,7 @@ test('CI plan CLI writes full plans to artifacts and keeps routing outputs bound
       '--head-sha', headSha,
       '--checkout-sha', checkoutSha,
       '--base-ref', 'develop',
+      '--classification-file', classificationPath,
     ], { cwd: root, encoding: 'utf8' });
     assert.strictEqual(validated.status, 0, validated.stderr);
     assert.match(validated.stdout, /PASS: CI plan is valid/);
@@ -1122,23 +1254,70 @@ test('public CI plan selects existing hook owner suites and requires macOS', () 
     assert.ok(fixture.plan.requiredJobs.includes('macos-installer'));
     const runner = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), 'tests/utils.test.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
     assert.strictEqual(runner.status, 0, runner.stderr);
-    const plan = createCiPlan({ root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
-    assert.strictEqual(validateCiPlan(plan, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' }).ok, true);
+    const plan = createCiPlan({ root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop', classification: fixture.classification });
+    assert.strictEqual(validateCiPlan(plan, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop', classification: fixture.classification }).ok, true);
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
 test('known resource families select their existing owner suites', () => {
   const fixture = gitFixture((root) => {
-    fs.mkdirSync(path.join(root, 'skills', 'flow-drive', 'scripts', 'adapters'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'scripts', 'cli-dispatch', 'adapters'), { recursive: true });
     fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-agy.sh'), 'old\n');
-    for (const owner of ['modules.test.js', 'run-agy.test.js', 'run-codex.test.js', 'run-cli-transport.test.js', 'cli-dispatch-launcher.test.js', 'cli-role-resolver.test.js', 'flow-drive-cli-dispatch.test.js', 'flow-drive-relocation.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js']) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
-  }, (root) => fs.writeFileSync(path.join(root, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-agy.sh'), 'new\n'));
+    fs.writeFileSync(path.join(root, 'scripts', 'cli-dispatch', 'adapters', 'run-agy.sh'), 'old\n');
+    for (const owner of [
+      'modules.test.js', 'run-agy.test.js', 'run-codex.test.js',
+      'run-cli-transport.test.js', 'cli-dispatch-launcher.test.js',
+      'cli-role-resolver.test.js', 'verify-handoff.test.js',
+      'verification-handoff-isolation.test.js', 'native-agent-support.test.js',
+      'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js',
+    ]) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
+  }, (root) => fs.writeFileSync(path.join(root, 'scripts', 'cli-dispatch', 'adapters', 'run-agy.sh'), 'new\n'));
   try {
     assert.strictEqual(fixture.plan.mode, 'selected');
     assert.ok(fixture.plan.testFiles.includes('run-agy.test.js'));
     assert.ok(fixture.plan.requiredJobs.includes('macos-installer'));
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
+test('shard verification reloads the pull request classification before trusting a downloaded plan', () => {
+  const installerSuites = [
+    'dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js',
+    'install-codex-skills.test.js', 'install-codex-skills-planning.test.js',
+    'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js',
+    'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js',
+    'install-prompts.test.js', 'macos-installer-darwin.test.js',
+    'macos-installer-files.test.js', 'native-shared-skill-install.test.js',
+  ];
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'skills', 'harness-setup'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'skills', 'harness-setup', 'SKILL.md'), 'before\n');
+    installerSuites.forEach((suite) => fs.writeFileSync(path.join(root, 'tests', suite), '// suite\n'));
+  }, (root) => fs.writeFileSync(path.join(root, 'skills', 'harness-setup', 'SKILL.md'), 'after\n'), 'develop', () => 'behavior');
+  const planPath = path.join(fixture.root, 'downloaded-plan.json');
+  const eventPath = path.join(fixture.root, 'event.json');
+  fs.writeFileSync(planPath, JSON.stringify(fixture.plan));
+  fs.writeFileSync(eventPath, JSON.stringify({ pull_request: { body: `\`\`\`dhpk-ci-classification\n${JSON.stringify(fixture.classification)}\n\`\`\`` } }));
+  const args = [
+    '--directory', path.join(fixture.root, 'shards'), '--count', '1', '--run-id', RUN_ID,
+    '--run-attempt', RUN_ATTEMPT, '--checkout-sha', fixture.checkoutSha,
+    '--head-sha', fixture.headSha, '--plan', planPath, '--base-sha', fixture.baseSha,
+    '--base-ref', 'develop',
+  ];
+  const previousDirectory = process.cwd();
+  const previousEventPath = process.env.GITHUB_EVENT_PATH;
+  try {
+    process.chdir(fixture.root);
+    process.env.GITHUB_EVENT_PATH = eventPath;
+    assert.strictEqual(main(args), 1, 'valid independently loaded classification reaches shard evidence validation');
+    delete process.env.GITHUB_EVENT_PATH;
+    assert.throws(() => main(args), /plan is not authoritative/);
+  } finally {
+    process.chdir(previousDirectory);
+    if (previousEventPath === undefined) delete process.env.GITHUB_EVENT_PATH;
+    else process.env.GITHUB_EVENT_PATH = previousEventPath;
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
 });
 
 test('selected package changes carry only their affected platform surfaces', () => {
@@ -1199,9 +1378,9 @@ test('canonical content with owned evidence companions stays light and carries e
       assert.deepStrictEqual(fixture.plan.packageSurfaces, packageSurfaces);
       assert.ok(fixture.plan.skippedJobs.includes('tests'));
       assert.ok(fixture.plan.skippedJobs.includes('macos-installer'));
-      const validation = validateCiPlan(fixture.plan, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
+      const validation = validateCiPlan(fixture.plan, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop', classification: fixture.classification });
       assert.strictEqual(validation.ok, true, validation.errors.join('; '));
-      const aggregate = verifyCiResults(fixture.plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
+      const aggregate = verifyCiResults(fixture.plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop', classification: fixture.classification });
       assert.strictEqual(aggregate.ok, true, aggregate.errors.join('; '));
     } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
   }
@@ -1318,7 +1497,7 @@ test('authoritative validation rejects forged companion obligations', () => {
   });
   try {
     const forged = { ...fixture.plan, packageSurfaces: [], generatedChecks: ['claude-marketplace'] };
-    const result = validateCiPlan(forged, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
+    const result = validateCiPlan(forged, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop', classification: fixture.classification });
     assert.strictEqual(result.ok, false);
     assert.ok(result.errors.some((error) => /authoritative plan/.test(error)));
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
