@@ -197,20 +197,24 @@ test('uninstall preserves a retargeted symlink even when the replacement has ide
   try {
     const first = runInstaller(scratch, ['--force']);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-    const skillName = firstNativeManagedSkill(scratch);
-    const source = path.join(ROOT, 'codex', 'skills', skillName);
-    const target = path.join(scratch, '.codex', 'skills', skillName);
-    const replacement = path.join(userOwned, skillName);
-    fs.cpSync(source, replacement, { recursive: true, dereference: true });
+    const assetPath = 'dhpk/agent-traps/_common/prompt-defense.md';
+    const source = path.join(ROOT, 'codex', 'supporting', 'prompt-defense.md');
+    const target = path.join(scratch, '.codex', assetPath);
+    const replacement = path.join(userOwned, 'prompt-defense.md');
+    const installed = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(installed.managed_entries.supporting_assets[assetPath].mode, 'symlink',
+      'the supporting asset remains a symlink in the default install mode');
+    assert.ok(fs.lstatSync(target).isSymbolicLink(), 'the fixture begins with a receipt-owned symlink');
+    fs.copyFileSync(source, replacement);
     fs.unlinkSync(target);
-    fs.symlinkSync(replacement, target, 'dir');
+    fs.symlinkSync(replacement, target);
 
     const removed = runInstaller(scratch, ['--uninstall', '--force']);
     assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
-    assert.ok(fs.lstatSync(target).isSymbolicLink(), 'retargeted symlink must be preserved');
+    assert.ok(fs.lstatSync(target).isSymbolicLink(), 'retargeted supporting-asset symlink must be preserved');
     assert.strictEqual(fs.realpathSync(target), fs.realpathSync(replacement));
     const manifest = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
-    assert.ok(manifest.orphaned_entries[`skills/${skillName}`]);
+    assert.ok(manifest.orphaned_entries[assetPath]);
     assert.match(`${removed.stdout}\n${removed.stderr}`, /orphaned|preserved/i);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });

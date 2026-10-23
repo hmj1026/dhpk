@@ -561,6 +561,6 @@ test('a required PASS is the only path that activates a staged candidate', () =>
   }
 });
 
-run();
+run('capability-bundle-selection');
 
 module.exports = { CORE_IDS, fixture };

@@ -749,7 +749,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "99c210b2904259f450f5ce0650e4d1c4e17a5baf4bae62a0fac77bfee9b8d850"
+      "sha256": "a3889e11b845a25e40884db131820780b2b5c4d7c7fa883fb17fc3d09d6e419d"
     },
     {
       "skillId": "flow-drive",
@@ -765,7 +765,7 @@
       "sourcePath": "skills/flow-drive/distribution.yaml",
       "destination": "skills/flow-drive/distribution.yaml",
       "kind": "entry",
-      "sha256": "7c6251c9106644c889818eaefa951012846e45c004b2c97c964cef602a76c296"
+      "sha256": "d3730c32bec3e78980bb38f9f182b3cdacd3adbcc54e95150cb8fc2b21f1cb8a"
     },
     {
       "skillId": "flow-drive",
@@ -1493,7 +1493,7 @@
       "sourcePath": "skills/flow-drive/references/portability.md",
       "destination": "skills/flow-drive/references/portability.md",
       "kind": "entry",
-      "sha256": "519d3295e62c912c02b29c910b657fec8d42b8762d6c9153cd7a2fd5be28b2d2"
+      "sha256": "26ca36ec19b879493ca21c91a134f32cc19f68fe5646c205ea3bd2df57ffbc94"
     },
     {
       "skillId": "flow-drive",
@@ -2101,7 +2101,7 @@
       "sourcePath": "skills/flow-drive/scripts/dispatch.js",
       "destination": "skills/flow-drive/scripts/dispatch.js",
       "kind": "entry",
-      "sha256": "592fe1c876b16ed49dd7d880fa8ffb4d10ef051087209314b14667b816fa5c0b"
+      "sha256": "8207accb393a76a995a342ec6f6da7c89260c9c40826fd2079beb5d176970545"
     },
     {
       "skillId": "flow-drive",
@@ -2149,7 +2149,7 @@
       "sourcePath": "skills/flow-drive/scripts/run.js",
       "destination": "skills/flow-drive/scripts/run.js",
       "kind": "entry",
-      "sha256": "32ff551337a335bc57010b8cbaea22aad6896fa85ddbec35196f1740a043ed12"
+      "sha256": "82e5f8376f656d77f452ee260f955cc133b2ee202f420c8ddb58fc86777595f2"
     },
     {
       "skillId": "flow-drive",
@@ -2789,7 +2789,7 @@
       "sourcePath": "skills/flow-guide/scripts/skill-next-actions.js",
       "destination": "skills/flow-guide/scripts/skill-next-actions.js",
       "kind": "entry",
-      "sha256": "4b9538e8b27965be6e74a952bd2795a0c8d4ccaa3f360a8859b1855d3355b3ea"
+      "sha256": "2f60a05db8beeb28f706f023276e55067e9de4a35e2f94e7c83208c60e77d748"
     },
     {
       "skillId": "flow-guide",
@@ -2981,7 +2981,7 @@
       "sourcePath": "scripts/hooks/install-codex-skills.sh",
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh",
       "kind": "packaging-resource",
-      "sha256": "284f9ceb7d51f77a301ec5f48d81fc17091c9feac32cb5697243c1dd267a1912"
+      "sha256": "9e98ce5c62570905093f5d4fbf34093fb50995dca013cec63aa432ad35dd133a"
     },
     {
       "skillId": "harness-setup",

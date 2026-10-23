@@ -263,7 +263,7 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
   try { recoveryState = createRecoveryState(recovery); } catch (_) {
     return makeReport({ blockers: ['invalid recovery budget or deadline'] });
   }
-  const invocation = parseInvocation(argv);
+  let invocation = parseInvocation(argv);
   const notices = [...invocation.notices];
   const parserReport = () => Object.freeze({
     status: invocation.status,
@@ -324,9 +324,14 @@ async function runFlowDrive(argv = [], { host, workdir = process.cwd(), authoriz
   } catch (_) {
     return makeReport({ parser, blockers: ['Host capabilities must contain plain data'] });
   }
+  const currentHost = capabilities.host_profile.host;
+  invocation = parseInvocation(argv, { host: currentHost });
+  parser = parserReport();
+  if (invocation.status !== 'ready') {
+    return makeReport({ parser, blockers: invocation.diagnostics });
+  }
   const currentProvider = canonicalProvider(capabilities.host_profile.native_provider);
   if (!currentProvider) return makeReport({ parser, blockers: ['the current Provider is unknown'] });
-  const currentHost = capabilities.host_profile.host;
   let requestedRoles;
   try { requestedRoles = requestedRoleIntents(invocation, capabilities.host_profile); }
   catch (error) { return makeReport({ parser, blockers: [error.message] }); }

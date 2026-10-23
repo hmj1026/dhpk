@@ -7,12 +7,7 @@ metadata:
   dhpk-capability-id: dhpk.skill.opsx-apply-resume
   dhpk-name-style: portable-skill
   dhpk-invocation-class: explicit-only
-  dhpk-next:
-    PASS: none
-    FAIL: none
-    BLOCKED: none
-    NOT_RUN: none
-    UNAVAILABLE: none
+  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # OpenSpec Apply Resume

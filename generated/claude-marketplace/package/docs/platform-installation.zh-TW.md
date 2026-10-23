@@ -306,9 +306,12 @@ schema-v3 receipt contract。client version 必須等 release evidence 記錄後
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
 
-installer 會使用 project-root heuristic，預設採 hybrid materialization：skill
-與 supporting asset 維持 relative symlink，但 `.codex/agents/*.toml` 一律為實體檔，
-供 Codex 作為 configuration layer 載入。`--copy` 會把整個 projection 改為實體檔：
+此 source-directory projection 預設會把 skill tree 與
+`.codex/agents/*.toml` materialize 為實體檔；Codex 必須把後者作為
+configuration layer 載入。Supporting asset 預設仍使用 relative symlink，
+`--copy` 會一併將它們改為實體檔。此規則適用於 source-directory materialization；
+native Shared Project 在 `.codex/skills` 建立的 discovery binding 仍可能是指向
+physical shared artifact 的 receipt-owned symlink：
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --copy
@@ -328,9 +331,10 @@ Codex 新安裝使用 `common` 集合，可加入既有 `--skill <stable-id>` ov
 
 歷史 named-profile receipt（`minimal`、`full`、`compat-v1`）的 plan、read、uninstall 與 recovery 保留 receipt 儲存的精確範圍，包含已退休 ID；update 在任何 mutation 前回報 `BLOCKED`。沒有 selection metadata 的舊 receipt 維持既有 structural migration 路徑。Current receipt 的普通 `--update` 不受這項歷史限制影響。
 
-既有 schema-v3 symlink projection 執行普通 `--update` 時，未變更且
-receipt-owned 的 agent link 會轉為實體檔，skill link 保持不變。retargeted、edited
-或 unowned agent path 仍是 collision，不會被覆寫。
+`--update` reconcile 舊的 schema-v3 symlink projection 時，未變更且
+receipt-owned 的 skill 與 agent link 會轉為實體檔，並記錄新的 ownership
+fingerprint。Supporting asset 保留所選 materialization mode，預設為 symlink。
+Retargeted、edited 或 unowned path 仍是 collision，不會被覆寫。
 
 `--force` 只繞過 project-root heuristic，不繞過 ownership 或 filesystem
 safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
@@ -556,13 +560,17 @@ node "$DHPK_ROOT/scripts/ci/validate-agents-skills.js" \
   --project-root "$PROJECT_ROOT"
 ```
 
-這條路徑會在 `$PROJECT_ROOT/.agents/skills/` 產生自足的
-`<name>/SKILL.md` package 與 AGY `<name>.md` direct-file，並在
-`$PROJECT_ROOT/.agents/.dhpk-installed.json` 寫入唯一 lifecycle receipt；Claude
-則透過 receipt-owned `.claude/skills/<name>` symlink 綁定同一份 artifact。
-`.agents/skills/.dhpk-projection.json` 若存在只是一份 generated manifest。Codex 與
-Cursor 使用 directory shape，AGY 使用內嵌的 direct-file body；generated instruction
-不會指回 source checkout。
+這條路徑會在 `$PROJECT_ROOT/.agents/skills/` materialize 實體
+`<name>/SKILL.md` portable package，並在 `$PROJECT_ROOT/.agents/claude-skills/`
+產生 receipt-owned Claude package；AGY 則在 `$PROJECT_ROOT/.agents/skills/`
+取得 `<name>.md` direct-file。唯一的 schema-v3 lifecycle receipt
+`$PROJECT_ROOT/.agents/.dhpk-installed.json` 管理兩棵 tree 與所有 Host binding。
+Claude discovery 使用 receipt-owned `.claude/skills/<name>` symlink 指向結構化的
+Claude sibling；Codex/Cursor discovery binding 則可能是指向實體 portable tree
+的 symlink。Portable tree 將 metadata value 保持為字串；Claude sibling 保留
+structured metadata value。`.agents/skills/.dhpk-projection.json` 若存在只是一份
+generated manifest。AGY 使用內嵌 direct-file body；generated instruction 不會指回
+source checkout。
 
 若 consumer project 以目錄層級 symlink（`.claude/skills -> ../.agents/skills`）
 暴露整個 managed root（`$PROJECT_ROOT/.agents/skills/`），該 alias 已讓 Claude 看見所有投影 skill，請從參數中移除

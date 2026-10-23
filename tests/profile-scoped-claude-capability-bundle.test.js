@@ -212,7 +212,8 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
     encoding: 'utf8',
   });
 
-  assert.deepStrictEqual(plugin.skills, ['./skills/']);
+  assert.strictEqual(plugin.skills, undefined, 'Claude uses its implicit ./skills/ discovery root');
+  assert.ok(fs.statSync(path.join(ROOT, 'skills')).isDirectory(), 'implicit Claude skills root must exist');
   assert.strictEqual(check.status, 0, `${check.stdout}\n${check.stderr}`);
   assert.strictEqual(
     check.stdout,
@@ -256,7 +257,7 @@ test('characterizes SessionStart as post-discovery runtime activation only', () 
   const sessionStart = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', 'session-start.sh'), 'utf8');
   const plugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
 
-  assert.deepStrictEqual(plugin.skills, ['./skills/']);
+  assert.strictEqual(plugin.skills, undefined, 'Claude uses its implicit ./skills/ discovery root');
   assert.match(sessionStart, /DHPK_ACTIVE_MODULES/);
   assert.doesNotMatch(sessionStart, /plugin\.json|skills\[|generatedSkillIds|discovery.*filter/i);
   assert.ok(sessionStart.indexOf('load-project-config.sh') < sessionStart.indexOf('activate-modules.py'));

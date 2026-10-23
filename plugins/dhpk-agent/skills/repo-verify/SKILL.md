@@ -5,12 +5,7 @@ metadata:
   dhpk-capability-id: "dhpk.skill.repo-verify"
   dhpk-invocation-class: "implicit-eligible"
   dhpk-name-style: "portable-skill"
-  dhpk-next:
-    PASS: "change-verdict:code"
-    FAIL: "tdd-workflow"
-    BLOCKED: "none"
-    NOT_RUN: "repo-verify"
-    UNAVAILABLE: "none"
+  dhpk-next: "{\"PASS\":\"change-verdict:code\",\"FAIL\":\"tdd-workflow\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"repo-verify\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Repository Verify

@@ -13,13 +13,22 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const { extractMetadata } = require('../ci/_lib/frontmatter');
+const {
+  serializePortableSkillMetadata,
+  validatePortableSkillMetadata,
+} = require('./portable-skill-metadata');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
   skillProjectionMetadata,
 } = require('./distribution-projection-contract');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  listFilesNamedRecursively,
+} = require('./bounded-filesystem');
 const { compileDistribution, materializeDistribution, verifyDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
@@ -183,6 +192,10 @@ function findSymlinks(directory, options = {}) {
   return walk(directory, 0);
 }
 
+function listNestedSkillMarkdownFiles(directory, options = {}) {
+  return listFilesNamedRecursively(directory, 'SKILL.md', { ...options, localeSort: true });
+}
+
 function assertSourceTreeContained(sourceDir, root) {
   const sourceRoot = fs.realpathSync(root);
   const visited = new Set();
@@ -339,9 +352,34 @@ function yamlScalar(value) {
   return JSON.stringify(String(value));
 }
 
+function hasSerializedKnownMetadata(values) {
+  if (Object.prototype.hasOwnProperty.call(values, 'dhpk-next')) {
+    if (typeof values['dhpk-next'] !== 'string') return false;
+    try {
+      const decoded = JSON.parse(values['dhpk-next']);
+      if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) return false;
+    } catch (_) { return false; }
+  }
+  if (Object.prototype.hasOwnProperty.call(values, 'dhpk-modes')) {
+    if (typeof values['dhpk-modes'] !== 'string') return false;
+    try {
+      const decoded = JSON.parse(values['dhpk-modes']);
+      if (!Array.isArray(decoded) || decoded.some((mode) => typeof mode !== 'string')) return false;
+    } catch (_) { return false; }
+  }
+  return Object.values(values).every((value) => typeof value === 'string');
+}
+
 function normalizePortableFrontmatter(content, options = {}) {
   const parsed = parseFrontmatter(content);
-  const metadata = extractMetadata(content);
+  // A portable package may be normalized repeatedly. Its dhpk-next and
+  // dhpk-modes values are JSON text inside YAML strings, so the canonical
+  // nested-map validator must not reinterpret that output as source metadata.
+  const alreadyPortable = validatePortableSkillMetadata(content).ok
+    && hasSerializedKnownMetadata(parsed.metadata);
+  const metadata = alreadyPortable && Object.keys(parsed.metadata).length > 0
+    ? { values: parsed.metadata, errors: [] }
+    : extractMetadata(content);
   const portableMetadata = { ...parsed.metadata, ...metadata.values };
   const errors = [...metadata.errors];
   if (!parsed.present) errors.push('SKILL.md is missing YAML frontmatter');
@@ -388,13 +426,15 @@ function normalizePortableFrontmatter(content, options = {}) {
   }
   lines.push('---');
   const header = `${lines.join('\n')}\n`;
+  const portable = serializePortableSkillMetadata(`${header}${parsed.body}`);
+  errors.push(...portable.errors);
   return {
     ok: errors.length === 0,
     errors,
     name,
     description,
     unknown: parsed.unknown,
-    output: `${header}${parsed.body}`,
+    output: portable.output,
     frontmatter: output,
   };
 }
@@ -781,6 +821,13 @@ function collectProjectedFiles(
         sourceScope,
       }));
     }
+    if (override === null && path.posix.basename(destinationRelative) === 'SKILL.md') {
+      const portable = serializePortableSkillMetadata(content.toString('utf8'));
+      if (!portable.ok) {
+        throw new Error(`Agent Plugin bundled SKILL.md '${destinationRelative}' has invalid metadata: ${portable.errors.join('; ')}`);
+      }
+      content = Buffer.from(portable.output);
+    }
     budget.bytes += content.length;
     if (budget.bytes > budget.maxBytes) {
       throw new Error(`maximum projected byte budget (${budget.maxBytes} bytes) exceeded while projecting ${sourceFile}`);
@@ -951,6 +998,12 @@ function buildAgentPluginProjection(options = {}) {
             throw new Error(`Agent Plugin marketplace skill '${publicName}' is invalid: ${diagnostics.join('; ')}`);
           }
           content = Buffer.from(normalized.output);
+        } else if (file.path.endsWith('/SKILL.md')) {
+          const portable = serializePortableSkillMetadata(content.toString('utf8'));
+          if (!portable.ok) {
+            throw new Error(`Agent Plugin bundled SKILL.md '${file.path}' has invalid metadata: ${portable.errors.join('; ')}`);
+          }
+          content = Buffer.from(portable.output);
         }
         if (projectionBudget.files >= projectionBudget.maxFiles) {
           throw new Error(`maximum projected file count (${projectionBudget.maxFiles}) exceeded while projecting ${file.sourcePath}`);
@@ -1315,6 +1368,8 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
       }
       const normalized = normalizePortableFrontmatter(readFileBounded(skillFile).toString('utf8'), { allowlist: options.allowlist });
       const skillErrors = [...normalized.errors];
+      const rawMetadata = validatePortableSkillMetadata(readFileBounded(skillFile).toString('utf8'));
+      skillErrors.push(...rawMetadata.errors);
       if (normalized.name !== entry.name) skillErrors.push(`frontmatter name '${normalized.name || '(missing)'}' does not match directory '${entry.name}'`);
       if (skillErrors.length > 0) {
         skills.invalid.push({ name: entry.name, errors: skillErrors });
@@ -1327,6 +1382,16 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
           const diagnostic = `skill '${entry.name}' fingerprint failed: ${error.message}`;
           skills.invalid.push({ name: entry.name, errors: [diagnostic] });
           errors.push(diagnostic);
+        }
+      }
+      for (const nestedSkillFile of listNestedSkillMarkdownFiles(directory).filter((file) => file !== skillFile)) {
+        const nestedContent = readFileBounded(nestedSkillFile).toString('utf8');
+        const nestedMetadata = validatePortableSkillMetadata(nestedContent);
+        if (!nestedMetadata.ok) {
+          const relative = path.relative(packageRoot, nestedSkillFile).split(path.sep).join('/');
+          const invalid = { name: entry.name, errors: nestedMetadata.errors };
+          skills.invalid.push(invalid);
+          errors.push(`${relative} is invalid: ${nestedMetadata.errors.join('; ')}`);
         }
       }
     }

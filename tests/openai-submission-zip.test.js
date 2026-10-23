@@ -557,6 +557,23 @@ test('selected skill front matter must contain a non-empty description', () => {
   assert.match(errorText(result), /description|front.?matter/i);
 });
 
+test('submission ZIP rejects structured metadata in skill package output', () => {
+  const raw = [
+    '---',
+    'name: flow-guide',
+    'description: Fixture skill.',
+    'metadata:',
+    '  dhpk-next:',
+    '    PASS: none',
+    '    FAIL: none',
+    '---',
+    'Fixture body.',
+  ].join('\n');
+  const result = validateFixture(controlFiles({ 'skills/flow-guide/SKILL.md': raw }));
+  assert.strictEqual(result.ok, false);
+  assert.match(errorText(result), /metadata\.dhpk-next.*string scalar/i);
+});
+
 test('selected skill files must contain valid UTF-8', () => {
   const validPrefix = Buffer.from(skillMd('flow-guide', 'Fixture body.'));
   const invalidUtf8 = Buffer.concat([validPrefix, Buffer.from([0xff, 0xfe])]);

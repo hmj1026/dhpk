@@ -91,4 +91,65 @@ test('a read-only planner using descriptors passes, and unmarked modules are unr
   }), []);
 });
 
+test('a test file may not hard-code the current root package version', () => {
+  const currentVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const root = fixture({
+    'package.json': JSON.stringify({ version: currentVersion }),
+    'tests/current-version.test.js': `const expected = '${currentVersion}';\n`,
+  });
+  try {
+    const errors = checkFiles(root, ['tests/current-version.test.js']);
+    assert.strictEqual(errors.length, 1, errors.join('\n'));
+    assert.ok(errors[0].startsWith('tests/current-version.test.js:'), errors[0]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a test file may read the current version from package.json', () => {
+  const currentVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const root = fixture({
+    'package.json': JSON.stringify({ version: currentVersion }),
+    'tests/current-version.test.js': "const expected = require('../package.json').version;\n",
+  });
+  try {
+    assert.deepStrictEqual(checkFiles(root, ['tests/current-version.test.js']), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a current-version fixture is allowed only on its explicitly marked line', () => {
+  const currentVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const root = fixture({
+    'package.json': JSON.stringify({ version: currentVersion }),
+    'tests/historical-version.test.js': `const historicalFixture = '${currentVersion}'; // dhpk:historical-version-fixture\n`,
+  });
+  try {
+    assert.deepStrictEqual(checkFiles(root, ['tests/historical-version.test.js']), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a historical fixture exemption does not hide an unannotated current version', () => {
+  const currentVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const root = fixture({
+    'package.json': JSON.stringify({ version: currentVersion }),
+    'tests/version-fixture.test.js': [
+      "const historicalFixture = '0.66.5'; // dhpk:historical-version-fixture",
+      `const currentVersion = '${currentVersion}';`,
+      '',
+    ].join('\n'),
+  });
+  try {
+    const errors = checkFiles(root, ['tests/version-fixture.test.js']);
+    assert.strictEqual(errors.length, 1, errors.join('\n'));
+    assert.ok(errors[0].startsWith('tests/version-fixture.test.js:'), errors[0]);
+    assert.match(errors[0], /line 2|:2:/, errors[0]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 run('validate-js-guardrails');

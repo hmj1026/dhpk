@@ -45,6 +45,7 @@ function checkMode() {
     return 1;
   }
   const registeredSet = new Set(plugin.skills || []);
+  if (verification.generated.roots.includes('./skills/')) registeredSet.add('./skills/');
   console.log(`PASS [gen-claude-manifest]: plugin.json skills[] (${registeredSet.size} roots) matches the inventory-derived root set.`);
   return 0;
 }

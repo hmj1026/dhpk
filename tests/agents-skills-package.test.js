@@ -589,12 +589,12 @@ test('Claude discovery uses receipt-owned symlinks to the shared artifact', () =
     });
     const adapterPath = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
     assert.strictEqual(fs.lstatSync(adapterPath).isSymbolicLink(), true);
-    assert.strictEqual(fs.readlinkSync(adapterPath), '../../.agents/skills/dhpk-sample');
+    assert.strictEqual(fs.readlinkSync(adapterPath), '../../.agents/claude-skills/dhpk-sample');
     assert.strictEqual(fs.readFileSync(path.join(adapterPath, 'SKILL.md'), 'utf8'), fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'), 'utf8'));
     assert.strictEqual(result.receipt.hostBindings.claude.discovery.adapterId, 'claude-project-discovery');
     assert.deepStrictEqual(result.receipt.bindingPaths.claude, [{
       path: '.claude/skills/dhpk-sample',
-      target: '../../.agents/skills/dhpk-sample',
+      target: '../../.agents/claude-skills/dhpk-sample',
     }]);
     assert.strictEqual(validateAgentsSkillsProjection({ projectRoot }).ok, true);
   } finally {
@@ -725,8 +725,13 @@ test('legacy project output is reported as legacy-unbound until explicit adoptio
   const projectRoot = tmpDir('dhpk-agents-skills-legacy-unbound-');
   try {
     const options = { root: sourceRoot, projectRoot, inventory: projectInventory(), profileId: 'portable-core', requestedHosts: ['claude'] };
-    materializeAgentsSkillsProjection(options);
-    fs.rmSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'));
+    const oldRoot = path.join(sourceRoot, '.agents', 'skills');
+    materializeAgentsSkillsProjection({ root: sourceRoot, inventory: fixtureInventory(), outDir: oldRoot });
+    fs.mkdirSync(path.join(projectRoot, '.agents'), { recursive: true });
+    fs.cpSync(oldRoot, path.join(projectRoot, '.agents', 'skills'), { recursive: true });
+    fs.mkdirSync(path.join(projectRoot, '.claude', 'skills'), { recursive: true });
+    fs.symlinkSync('../../.agents/skills/dhpk-sample',
+      path.join(projectRoot, '.claude', 'skills', 'dhpk-sample'), 'dir');
     const observed = validateAgentsSkillsProjection({ projectRoot });
     assert.strictEqual(observed.ok, false);
     assert.strictEqual(observed.classification, 'LEGACY_UNBOUND');
@@ -856,7 +861,7 @@ test('relocatable update keeps a durable rollback and uninstall removes only unc
     assert.strictEqual(fs.readFileSync(path.join(outputRoot, 'dhpk-sample', 'references', 'guide.md'), 'utf8'), '# Guide\n');
     const claudeBinding = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
     assert.strictEqual(fs.lstatSync(claudeBinding).isSymbolicLink(), true);
-    assert.strictEqual(fs.readlinkSync(claudeBinding), '../../.agents/skills/dhpk-sample');
+    assert.strictEqual(fs.readlinkSync(claudeBinding), '../../.agents/claude-skills/dhpk-sample');
 
     const removed = uninstallAgentsSkillsProjection({ projectRoot });
     assert.strictEqual(removed.ok, true, removed.error && removed.error.message);

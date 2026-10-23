@@ -63,7 +63,7 @@ test('gen-agents-skills CLI can materialize outside the canonical source checkou
     const receipt = JSON.parse(fs.readFileSync(path.join(agentRoot, '.dhpk-installed.json'), 'utf8'));
     const skillPath = 'flow-guide/SKILL.md';
     const skillFile = path.join(agentRoot, 'skills', skillPath);
-    assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+    assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
     assert.ok(receipt.selectedIdentities.some((entry) => entry.entityKind === 'skill' && entry.stableId === 'library-author'));
     assert.ok(receipt.emittedIdentities.every((entry) => entry.entityKind === 'skill'));
     assert.strictEqual(receipt.profileId, 'portable-core');
@@ -102,7 +102,7 @@ test('gen-agents-skills CLI updates a v1 receipt with a retired selected-only id
     const updated = spawnSync(process.execPath, [GENERATOR, ...args, '--update'], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(updated.status, 0, updated.stderr);
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+    assert.strictEqual(receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
     assert.ok(!receipt.selectedIds.includes('retired-selected-only-fixture'));
     assert.ok(!receipt.selectedIdentities.some((entry) => entry.stableId === 'retired-selected-only-fixture'));
     assert.ok(receipt.emittedIdentities.some((entry) => entry.entityKind === 'skill' && entry.stableId === 'flow-guide'));
@@ -138,7 +138,7 @@ test('gen-agents-skills CLI explains a .claude/skills directory alias of the man
   try {
     const result = projectProjection(projectRoot, ['claude', 'codex', 'cursor', 'agy']);
     assert.strictEqual(result.status, 1, result.stdout);
-    assert.match(result.stderr, /directory symlink to the managed skill root/);
+    assert.match(result.stderr, /directory symlink to a managed skill root/);
     assert.match(result.stderr, /omit --host claude/);
     assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), false,
       'a refused projection must not write the lifecycle receipt');

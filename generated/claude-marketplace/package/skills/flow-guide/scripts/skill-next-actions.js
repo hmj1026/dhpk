@@ -24,6 +24,56 @@ function readSkillHeader(file) {
   }
 }
 
+const NEXT_IDENTITY = /^(?:none|[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?::[a-z][a-z0-9]*(?:-[a-z0-9]+)*)?)$/;
+const NEXT_EDGE = /^[A-Za-z][A-Za-z0-9_-]*(?::[A-Z_]+)?$/;
+const MODE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+
+// Agent Plugin packages keep every metadata value scalar. Rebuild the two
+// structured handoff fields in memory before calling the canonical parser;
+// the installed package itself remains portable, and source frontmatter keeps
+// using the canonical nested YAML shape.
+function restorePortableHandoffMetadata(header) {
+  const lines = header.split(/\r?\n/);
+  const output = [];
+  let inMetadata = false;
+  for (const line of lines) {
+    if (!/^\s/.test(line)) {
+      inMetadata = /^metadata:\s*$/.test(line);
+      output.push(line);
+      continue;
+    }
+    const entry = inMetadata && line.match(/^  (dhpk-next|dhpk-modes):\s*("(?:\\.|[^"\\])*")\s*$/);
+    if (!entry) {
+      output.push(line);
+      continue;
+    }
+    let value;
+    try {
+      value = JSON.parse(JSON.parse(entry[2]));
+    } catch (_) {
+      output.push(line);
+      continue;
+    }
+    if (entry[1] === 'dhpk-next') {
+      if (!value || typeof value !== 'object' || Array.isArray(value)
+        || Object.entries(value).some(([key, target]) => !NEXT_EDGE.test(key)
+          || typeof target !== 'string' || !NEXT_IDENTITY.test(target))) {
+        output.push(line);
+        continue;
+      }
+      output.push('  dhpk-next:', ...Object.entries(value).map(([key, target]) => `    ${key}: ${target}`));
+      continue;
+    }
+    if (!Array.isArray(value) || value.some((mode) => typeof mode !== 'string' || !MODE_NAME.test(mode))
+      || new Set(value).size !== value.length) {
+      output.push(line);
+      continue;
+    }
+    output.push(`  dhpk-modes: [${value.join(', ')}]`);
+  }
+  return output.join('\n');
+}
+
 function collectSkillMetadata() {
   const metadata = {};
   const visit = directory => {
@@ -31,7 +81,7 @@ function collectSkillMetadata() {
     if (fs.existsSync(skill)) {
       const header = readSkillHeader(skill);
       const name = extract(header).values.name;
-      if (name) metadata[name] = extractMetadata(header);
+      if (name) metadata[name] = extractMetadata(restorePortableHandoffMetadata(header));
       return;
     }
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {

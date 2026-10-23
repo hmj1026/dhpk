@@ -5,7 +5,9 @@ description: 'Reference index for the agents shipped by the dhpk plugin.'
 
 # Agents Index (dhpk plugin)
 
-> 34 agents shipped by the dhpk plugin (33 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `.claude-plugin/plugin.json`.
+<!-- dhpk-agent-roster-counts: {"schema":"dhpk.agent-roster-counts.v1","total":30,"root":29,"module":1} -->
+
+> The roster is registered in `.claude-plugin/plugin.json` and discovered as `dhpk:<name>` after install.
 
 ## Agent contract
 

@@ -6,12 +6,7 @@ metadata:
   dhpk-capability-id: dhpk.skill.precommit
   dhpk-name-style: portable-skill
   dhpk-invocation-class: implicit-eligible
-  dhpk-next:
-    PASS: doc-maintain:update
-    FAIL: none
-    BLOCKED: none
-    NOT_RUN: none
-    UNAVAILABLE: none
+  dhpk-next: "{\"PASS\":\"doc-maintain:update\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Precommit

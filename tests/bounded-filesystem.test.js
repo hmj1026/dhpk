@@ -4,7 +4,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { DEFAULT_TRAVERSAL_LIMITS, createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../scripts/lib/bounded-filesystem');
+const {
+  DEFAULT_TRAVERSAL_LIMITS,
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  listFilesNamedRecursively,
+} = require('../scripts/lib/bounded-filesystem');
 
 test('bounded traversal accounts file bytes before reading and exposes finite defaults', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-fs-'));
@@ -78,6 +84,35 @@ test('bounded directory reads stop at the entry budget before retaining a huge l
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('recursive named-file listing preserves sorting, skips symlinks, and uses bounded directory reads', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-skill-list-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-skill-outside-'));
+  try {
+    for (const name of ['z', 'a', 'ä']) {
+      const directory = path.join(root, name);
+      fs.mkdirSync(directory, { recursive: true });
+      fs.writeFileSync(path.join(directory, 'SKILL.md'), name);
+    }
+    fs.writeFileSync(path.join(outside, 'SKILL.md'), 'outside');
+    fs.symlinkSync(outside, path.join(root, 'linked'), 'dir');
+
+    const binary = listFilesNamedRecursively(root, 'SKILL.md', { localeSort: false });
+    assert.deepStrictEqual(binary.map((file) => path.relative(root, file).split(path.sep)[0]), ['a', 'z', 'ä']);
+    const localized = listFilesNamedRecursively(root, 'SKILL.md', { localeSort: true });
+    assert.deepStrictEqual(
+      localized.map((file) => path.relative(root, file).split(path.sep)[0]),
+      ['a', 'z', 'ä'].sort((left, right) => left.localeCompare(right)),
+    );
+    assert.throws(
+      () => listFilesNamedRecursively(root, 'SKILL.md', { maxEntries: 1 }),
+      /entry count/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
   }
 });
 

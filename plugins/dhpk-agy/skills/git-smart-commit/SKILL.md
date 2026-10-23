@@ -7,12 +7,7 @@ metadata:
   dhpk-capability-id: dhpk.skill.git-smart-commit
   dhpk-name-style: portable-skill
   dhpk-invocation-class: explicit-only
-  dhpk-next:
-    PASS: change-verdict:pr
-    FAIL: none
-    BLOCKED: none
-    NOT_RUN: none
-    UNAVAILABLE: none
+  dhpk-next: "{\"PASS\":\"change-verdict:pr\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Git Smart Commit — 智慧拆分提交

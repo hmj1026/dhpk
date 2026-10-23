@@ -6,6 +6,10 @@ const { withIsolatedSkill } = require('./_lib/skill-directory-isolation');
 const { test, run, assert } = require('./_lib/tinytest');
 const { runRelocatedFlowDrive } = require('./_lib/flow-drive-relocation-fixtures');
 
+function physicalRuntimePath(...directories) {
+  return [...new Set(directories.map((directory) => fs.realpathSync(directory)))].join(path.delimiter);
+}
+
 function relocated(scenario, options) {
   const result = runRelocatedFlowDrive(scenario, options);
   assert.strictEqual(result.error, undefined, 'the isolated child completes within its deadline');
@@ -125,7 +129,8 @@ function relocatedCli({ missingResource } = {}) {
     const receiptPath = path.join(artifactRoot, 'receipt.json');
     fs.writeFileSync(scope, JSON.stringify({ artifact_root: artifactRoot,
       context_path: path.join(artifactRoot, 'context.json'), receipt_path: receiptPath,
-      assigned_files: ['allowed.txt'], report_only: true, runtime_path: `${context.binDir}:/usr/bin` }));
+      assigned_files: ['allowed.txt'], report_only: true,
+      runtime_path: physicalRuntimePath(context.binDir, '/usr/bin', '/bin') }));
     const config = path.join(context.projectDir, 'config.json');
     fs.writeFileSync(config, JSON.stringify({ codex_worker_timeout_secs: 3 }));
     if (missingResource) {

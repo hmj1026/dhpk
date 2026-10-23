@@ -14,6 +14,8 @@ const ROOT = path.join(__dirname, '..');
 const ENTRY = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'launch-dispatch.js');
 const HOST_PROFILES = require('../manifests/host-profiles.json');
 const CLAUDE_PROFILE = HOST_PROFILES.profiles.find((profile) => profile.host === 'claude-code');
+const AGY_PROFILE = HOST_PROFILES.profiles.find((profile) => profile.host === 'agy');
+const CLAUDE_AGY_DIAGNOSTIC = 'AGY dispatch is unavailable on the Claude Code host; the parent-session CLI integration is unsupported.';
 const DEFAULT_CONFIG = Object.freeze({
   codex_worker_model: 'gpt-6-luna',
   codex_worker_effort: 'xhigh',
@@ -22,6 +24,10 @@ const DEFAULT_CONFIG = Object.freeze({
   codex_reasoner_effort: 'high',
   codex_reasoner_timeout_secs: 3,
 });
+
+function physicalRuntimePath(...directories) {
+  return [...new Set(directories.map((directory) => fs.realpathSync(directory)))].join(path.delimiter);
+}
 
 const CODEX_STUB = `#!/usr/bin/env bash
 printf '%s\\n' "$@" > "$(pwd)/provider-argv.txt"
@@ -53,6 +59,8 @@ function createHarness({
   codexStub = CODEX_STUB,
   existingContext = null,
   providerGrant = true,
+  profile = CLAUDE_PROFILE,
+  invocationHost = 'claude-code',
 } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'flow-drive-cli-dispatch-'));
   const workdir = path.join(root, 'work');
@@ -72,16 +80,16 @@ function createHarness({
     context_path: path.join(artifactRoot, 'dispatch-context.json'),
     assigned_files: ['provider-argv.txt', 'provider-stdin.txt', 'src/worker.js'],
     report_only: true,
-    runtime_path: [binDir, '/usr/bin'].join(path.delimiter),
+    runtime_path: physicalRuntimePath(binDir, '/usr/bin', '/bin'),
   };
   const hostProfile = {
-    ...CLAUDE_PROFILE,
+    ...profile,
     access: {
-      ...CLAUDE_PROFILE.access,
+      ...profile.access,
       openai: { status: openaiStatus, evidence: 'fixture Codex executable is present on the bounded test PATH' },
     },
   };
-  const invocation = parseInvocation(['confirmed-cli-provider-change', ...args], { host: 'claude-code' });
+  const invocation = parseInvocation(['confirmed-cli-provider-change', ...args], { host: invocationHost });
   const packet = {
     change: { confirmed, change_id: 'confirmed-cli-provider-change' },
     invocation,
@@ -313,6 +321,57 @@ test('an unsupported AGY selection on Claude Code is blocked before any provider
     assert.strictEqual(result.status, 65, result.stderr);
     assert.match(result.stderr, /agy|claude-code/i);
     assert.strictEqual(hasNoProviderStart(harness), true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('Claude dispatch planning rejects a parser-ready bare AGY worker selection', () => {
+  const harness = createHarness({
+    args: ['--worker=agy'],
+    invocationHost: null,
+  });
+  try {
+    assert.strictEqual(harness.packet.invocation.status, 'ready');
+    assert.strictEqual(harness.packet.host_profile.host, 'claude-code');
+    assert.throws(
+      () => prepareInvocationDispatch(harness.packet, promptEvidence(harness.packet.prompt)),
+      (error) => error.message === CLAUDE_AGY_DIAGNOSTIC,
+    );
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('Claude dispatch planning rejects a parser-ready bare AGY reasoner selection', () => {
+  const harness = createHarness({
+    args: ['--reasoner=agy'],
+    role: 'reasoner',
+    invocationHost: null,
+  });
+  try {
+    assert.strictEqual(harness.packet.invocation.status, 'ready');
+    assert.strictEqual(harness.packet.host_profile.host, 'claude-code');
+    assert.throws(
+      () => prepareInvocationDispatch(harness.packet, promptEvidence(harness.packet.prompt)),
+      (error) => error.message === CLAUDE_AGY_DIAGNOSTIC,
+    );
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('an AGY host continues to resolve its bare AGY worker selection', () => {
+  const harness = createHarness({
+    args: ['--worker=agy'],
+    profile: AGY_PROFILE,
+    invocationHost: 'agy',
+  });
+  try {
+    const prepared = prepareInvocationDispatch(harness.packet, promptEvidence(harness.packet.prompt));
+    assert.strictEqual(prepared.resolution.status, 'RESOLVED');
+    assert.strictEqual(prepared.resolution.target.provider, 'google');
+    assert.strictEqual(prepared.resolution.target.target_agent, 'agy');
   } finally {
     harness.cleanup();
   }

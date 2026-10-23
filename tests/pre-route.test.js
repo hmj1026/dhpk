@@ -8,7 +8,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
@@ -128,12 +128,28 @@ test('specific security, bug, and Playwright routes outrank broad unit/integrati
   }
 });
 
-test('testPreRoute_explicitEmptyArgWithOpenStdin_returnsNoQueryWithoutBlocking', () => {
+test('testPreRoute_explicitEmptyArgWithOpenStdin_returnsNoQueryWithoutBlocking', async () => {
   // An explicit "" argument must not fall back to stdin: under `npm run` the
   // inherited stdin stays open and the fallback `cat` would block forever.
-  const res = spawnSync('bash', ['-c', 'bash "$0" "" < <(sleep 10 2>/dev/null)', SCRIPT], { encoding: 'utf8', timeout: 5000 });
-  assert.strictEqual(res.error, undefined, 'pre-route.sh blocked reading stdin');
-  assert.strictEqual(res.stdout.trim(), 'NO_QUERY');
+  const child = spawn('bash', [SCRIPT, ''], { stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '';
+  let stderr = '';
+  let timedOut = false;
+  child.stdout.setEncoding('utf8').on('data', (chunk) => { stdout += chunk; });
+  child.stderr.setEncoding('utf8').on('data', (chunk) => { stderr += chunk; });
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    child.stdin.destroy();
+    child.kill('SIGKILL');
+  }, 5000);
+  const result = await new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', (status, signal) => resolve({ status, signal }));
+  });
+  clearTimeout(timeout);
+  assert.strictEqual(timedOut, false, `pre-route.sh blocked reading stdin: ${stderr}`);
+  assert.strictEqual(result.status, 0, `${result.signal || stderr}`);
+  assert.strictEqual(stdout.trim(), 'NO_QUERY');
 });
 
 run('pre-route');
