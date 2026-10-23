@@ -69,7 +69,7 @@ Names are deliberately different across host surfaces:
 | Codex skill | `$<public-skill-name>` after discovery | `$change-verdict --mode code` |
 | Cursor generated command | generated host adapter | Cursor `do` command (`host=cursor`) |
 | Codex guidance entry | `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` after discovery | `$flow-guide help flow-drive` |
-| Codex implementation entry | `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--help]` after discovery | `$flow-drive "Fix the receipt total and verify it."` |
+| Codex implementation entry | `$flow-drive <task-text\|task-file\|confirmed-spec-or-change-id> [--help]` after discovery | `$flow-drive "Fix the receipt total and verify it."` |
 
 Codex built-in commands (`/hooks`, `/agent`) are not dhpk custom `/dhpk:*`
 commands. `flow-guide` owns read-only usage help, routing, policy, progression,
