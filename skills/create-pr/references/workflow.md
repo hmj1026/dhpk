@@ -6,9 +6,9 @@
    selected base. An explicit `--base` wins. When `--base` is omitted and the
    consumer project's instructions supply `{TARGET_BRANCH}`, use that value.
    dhpk does not define a userConfig key for `{TARGET_BRANCH}` or
-   `{TICKET_PATTERN}`. When `{TARGET_BRANCH}` is unset, the generic fallback is `main`. That fallback is the skill default. This dhpk repository's
-   documented pull-request base is `develop`; pass `--base develop` or supply
-   `{TARGET_BRANCH}` as `develop` for a pull request in this repo. Confirm
+   `{TICKET_PATTERN}`. When `{TARGET_BRANCH}` is unset, the generic fallback is
+   `main`. The consumer project's Project Convention supplies any project-specific
+   base; use the explicit option or project instructions to select it. Confirm
    both refs with `git rev-parse --verify`. A missing
    repository, or a head or base that does not resolve, is a terminal
    `BLOCKED` result. Do not substitute the checkout branch, `HEAD`, or

@@ -268,7 +268,10 @@ evidence or a recorded human-approved exception.
 
 ## Session-environment traps
 
-The shell is zsh, where `status` is a read-only variable — use `st=` / `rc=` for captured exit codes, never `status=`. PR self-merge is classifier-blocked — never attempt `gh pr merge --admin` or remote branch deletion from an agent session; hand off to a human.
+Use the actual Host environment and the consumer project's Project Convention
+for shell syntax and delivery practices. Preserve the caller's Git authority
+and assigned scope; dispatch or verification evidence does not grant merge or
+branch-deletion authority.
 
 ## Cross-verify a premise-overturning worker discovery before reframing
 
