@@ -319,11 +319,11 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
     cursorAgentModel,
     cursorDocumentDestinationName,
     rewriteCursorHarnessBody,
+    rewriteCursorNativeAgentBody,
     rewriteCursorSupportingAssetBody,
     retainsClaudePluginRoot,
     retainsCodexSupportRoot,
   } = require('../scripts/lib/cursor-harness-adapt');
-  const { adaptSkill } = require('../scripts/lib/cursor-plugin-package');
 
   const PLUGIN_ROOT_TOKEN = '${' + 'CLAUDE_PLUGIN_ROOT}';
 
@@ -359,25 +359,12 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
     assert.ok(!rewritten.includes(PLUGIN_ROOT_TOKEN));
   });
 
-  test('rewriteCursorHarnessBody preserves transport invocations with the bound Cursor package root', () => {
-    const rewritten = rewriteCursorHarnessBody(
-      'bash "' + PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-codex.sh" read-only /work prompt.txt',
+  test('native Cursor agents use the co-installed shared dispatch support package', () => {
+    const rewritten = rewriteCursorNativeAgentBody(
+      'bash "' + PLUGIN_ROOT_TOKEN + '/scripts/cli-dispatch/adapters/run-codex.sh" read-only /work prompt.txt',
     );
-    assert.match(rewritten, /bash "\$\{CURSOR_PLUGIN_ROOT\}\/skills\/flow-drive\/scripts\/adapters\/run-codex\.sh"/);
+    assert.match(rewritten, /bash "\$\{CURSOR_PLUGIN_ROOT\}\/\.\.\/dhpk-agent\/scripts\/cli-dispatch\/adapters\/run-codex\.sh"/);
     assert.ok(!rewritten.includes(PLUGIN_ROOT_TOKEN));
-  });
-
-  test('Cursor skill adaptation rewrites transport wrapper roots and rejects leftovers', () => {
-    const adapted = adaptSkill([
-      '---',
-      'name: dhpk-codex-bridge',
-      'description: Bridge',
-      '---',
-      'bash "' + PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-codex.sh" read-only /work prompt.txt',
-    ].join('\n'), 'dhpk-codex-bridge');
-    assert.strictEqual(adapted.ok, true, adapted.reason);
-    assert.ok(adapted.content.includes('${CURSOR_PLUGIN_ROOT}/skills/flow-drive/scripts/adapters/run-codex.sh'));
-    assert.ok(!retainsClaudePluginRoot(adapted.content));
   });
 
   test('rewriteCursorSupportingAssetBody rewrites Codex support roots', () => {

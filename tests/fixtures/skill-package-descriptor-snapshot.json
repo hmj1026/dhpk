@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-package-descriptor-snapshot.v1",
-  "note": "Frozen before per-Skill skill-package.json removal (self-contained-skill-directories 7.5). Every required resource must stay physically local to its Skill.",
+  "note": "Frozen before per-Skill skill-package.json removal (self-contained-skill-directories 7.5); the Flow Drive row reflects its current native task/help contract. Every required resource must stay physically local to its Skill.",
   "skills": {
     "code-simplify": {
       "path": "skills/code-simplify",
@@ -299,18 +299,18 @@
           "required": true
         },
         {
-          "path": "references",
+          "path": "agents/openai.yaml",
+          "kind": "agent",
+          "required": true
+        },
+        {
+          "path": "distribution.yaml",
+          "kind": "declaration",
+          "required": true
+        },
+        {
+          "path": "references/migration.md",
           "kind": "reference",
-          "required": true
-        },
-        {
-          "path": "scripts/invocation.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/dispatch.js",
-          "kind": "runtime",
           "required": true
         }
       ],

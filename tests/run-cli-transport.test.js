@@ -8,7 +8,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const RUNNER = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'transport', 'run-cli-transport.py');
+const RUNNER = path.join(ROOT, 'scripts', 'cli-dispatch', 'transport', 'run-cli-transport.py');
 const SUCCESS = `#!/bin/sh
 out=""; previous=""
 for value in "$@"; do [ "$previous" = "--output-last-message" ] && out="$value"; previous="$value"; done

@@ -96,7 +96,7 @@
       "path": "commands/flow-drive.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:flow-drive",
-      "argument_contract": "<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+      "argument_contract": "<task-text|task-file|confirmed-spec-or-change-id> | --help",
       "authority": "workspace-write",
       "skill_owner": "flow-drive",
       "disposition": "thin-front-door",
@@ -111,7 +111,7 @@
         "commands/flow-drive.md"
       ],
       "resource": "skills/flow-drive/SKILL.md",
-      "reason": "Canonical $flow-drive Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
+      "reason": "Canonical Flow Drive Skill owns the task-only native workflow and its evidence boundary."
     },
     {
       "id": "flow-guide",

@@ -94,8 +94,9 @@ known hooks, installer lifecycle, skill resources, explicitly recognized
 Skill-script CLI entries, and manifest or adapter package changes. Internal
 Skill-script modules and new or unrecognized entries SHALL use the full plan;
 the presence of a `skills/*/scripts` path SHALL NOT establish CLI ownership.
-Existing Flow Drive adapter, transport, and dispatch-runtime resource owners
-SHALL retain their separate behavior suites. The selection SHALL use the existing
+Shared CLI-dispatch adapter, transport, and dispatch-runtime owners under
+`scripts/cli-dispatch/` SHALL retain their separate behavior suites. Flow Drive
+owns no script entry or runtime suite. The selection SHALL use the existing
 positional-file runner, one shard with four workers, and a plan-recorded
 test-file list. Full fallback SHALL retain four shards with four workers.
 Shared core, runner, CI, unknown or unmapped paths, missing owner suites, and

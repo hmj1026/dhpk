@@ -150,8 +150,8 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
   const path = require('node:path');
   const { spawnSync } = require('node:child_process');
   const { test, assert } = require('./_lib/tinytest');
-  const { createSessionDiagnostics } = require('../skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver');
-  const { buildContext } = require('../skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context');
+  const { createSessionDiagnostics } = require('../scripts/cli-dispatch/dispatch-runtime/cli-role-resolver');
+  const { buildContext } = require('../scripts/cli-dispatch/dispatch-runtime/build-cli-dispatch-context');
 
   const ROOT = path.join(__dirname, '..');
 
@@ -371,12 +371,12 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
   });
 
   test('projected builder loads the resolver from its package-local source', () => {
-    const sourceBuilder = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime', 'build-cli-dispatch-context.js');
-    const sourceResolver = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime', 'cli-role-resolver.js');
+    const sourceBuilder = path.join(ROOT, 'scripts', 'cli-dispatch', 'dispatch-runtime', 'build-cli-dispatch-context.js');
+    const sourceResolver = path.join(ROOT, 'scripts', 'cli-dispatch', 'dispatch-runtime', 'cli-role-resolver.js');
 
     const projectionRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cli-dispatch-context-projection-'));
     try {
-      const scripts = path.join(projectionRoot, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime');
+      const scripts = path.join(projectionRoot, 'scripts', 'cli-dispatch', 'dispatch-runtime');
       fs.mkdirSync(scripts, { recursive: true });
       fs.copyFileSync(sourceBuilder, path.join(scripts, 'build-cli-dispatch-context.js'));
       fs.copyFileSync(sourceResolver, path.join(scripts, 'cli-role-resolver.js'));

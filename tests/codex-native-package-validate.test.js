@@ -1010,7 +1010,10 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) {
         assert.ok(!provenance.materializedSkillIds.includes(id), id);
       }
-      assert.strictEqual(typeof require(path.join(out, 'skills/flow-drive/scripts/run.js')).runFlowDrive, 'function');
+      const flowDrive = path.join(out, 'skills', 'flow-drive');
+      assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), ['SKILL.md', 'agents', 'distribution.yaml', 'references']);
+      assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'agents')), ['openai.yaml']);
+      assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'references')), ['migration.md']);
       assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);
       assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, hostOnlyIds);
       assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);

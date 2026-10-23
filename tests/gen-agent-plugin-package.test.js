@@ -688,7 +688,19 @@ test('default Agent Plugin generation publishes the canonical owner catalog', ()
     for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) {
       assert.ok(!expectedIds.includes(id), `${id} remains retired`);
     }
-    assert.strictEqual(typeof require(path.join(out, 'skills/flow-drive/scripts/run.js')).runFlowDrive, 'function');
+    for (const relative of [
+      'scripts/cli-dispatch/adapters/run-codex.sh',
+      'scripts/cli-dispatch/adapters/run-agy.sh',
+      'scripts/cli-dispatch/dispatch-runtime/launch-cli-dispatch.js',
+      'scripts/cli-dispatch/transport/prepare-cli-request.py',
+      'scripts/fast-worker-selector.js',
+      'scripts/lib/native-dispatch-policy.js',
+      'scripts/lib/dispatch-contract.js',
+      'scripts/lib/dispatch-engine.js',
+      'scripts/lib/dispatch-capability-evidence.js',
+      'manifests/provider-model-catalog.json',
+    ]) assert.ok(fs.existsSync(path.join(out, relative)), `Agent Plugin includes ${relative}`);
+    assert.ok(!fs.existsSync(path.join(out, 'skills/flow-drive/scripts')));
     assert.deepStrictEqual(actualNames, expectedIds.map((id) => inventoryById.get(id).name).sort());
     assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);
     assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, hostOnlyIds);

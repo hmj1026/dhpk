@@ -2,7 +2,8 @@
 
 ## Purpose
 
-Define independent, portable Flow Guide and Flow Drive workflows with shared neutral contracts, optional peer evidence, and explicit execution and acceptance boundaries.
+Define independent Flow Guide and Flow Drive entry points, with shared policy
+owned outside either skill and explicit execution and acceptance boundaries.
 
 ## Requirements
 
@@ -26,10 +27,10 @@ advisory and shall not execute the owner.
 
 ### Requirement: Flow Drive operates without Flow Guide
 
-`flow-drive` SHALL accept settled task text, a task file, or a confirmed specification/change and execute its
-implementation workflow without loading, invoking, or requiring `flow-guide`.
-Unclear or incomplete input SHALL produce an explicit blocker or use the
-implementation contract's own validation path.
+`flow-drive` SHALL accept one bounded task as text, a task file, or a confirmed
+specification/change and execute it with the current Host and Model without
+loading, invoking, or requiring `flow-guide`. Unclear or incomplete input
+SHALL produce an explicit blocker before dependent edits.
 
 #### Scenario: Drive is installed alone
 
@@ -43,22 +44,22 @@ implementation contract's own validation path.
   implementation boundary
 - **THEN** it returns an explicit blocker without delegating to `flow-guide`
 
-### Requirement: The two skills share neutral contracts only
+### Requirement: Shared policy does not create a skill dependency
 
-Each skill SHALL consume shared route, policy, Domain, dispatch, flow-handoff,
-and skill-next-map contracts without importing or loading the other's
-skill instructions, references, or
-implementation files. A shared contract SHALL not grant execution authority to
-`flow-guide`.
+`flow-guide` MAY consume shared route, policy, Domain, dispatch, flow-handoff,
+and skill-next-map contracts through resources owned by its own distribution.
+`flow-drive` SHALL NOT require those contracts to perform a task. Neither skill
+MAY load the other's instructions or implementation files, and shared data
+SHALL NOT grant execution authority to `flow-guide`.
 
-The skill-next-map contract is nested `metadata.dhpk-next` (and optional
-`metadata.dhpk-modes`) on canonical skill files. `flow-guide` MAY parse that
-frontmatter as data through a bounded reader bundled locally with the Skill.
-The relocated reader SHALL NOT depend on repository manifests or import the
-CI parser; the CI nested parser/allowlist SSOT remains
-`scripts/ci/_lib/frontmatter.js`. It SHALL NOT load
-peer skill procedure bodies, references, or implementation files in order to
-choose a next route (SHF-REQ-004, SHF-REQ-008).
+The skill-next-map contract remains available for skills that declare it.
+`flow-guide` MAY parse that frontmatter as data through a bounded reader bundled
+locally with the Skill. The relocated reader SHALL NOT depend on repository
+manifests or import the CI parser; the CI nested parser/allowlist SSOT remains
+`scripts/ci/_lib/frontmatter.js`. It SHALL NOT load peer skill procedure
+bodies, references, or implementation files in order to choose a next route
+(SHF-REQ-004, SHF-REQ-008). Flow Drive's native task completion is terminal and
+does not declare a required `dhpk-next` route.
 
 Typed `next` and `route` handoffs SHALL reuse schema `dhpk.flow.handoff.v1`
 (`handoff_id`, `owner`, `host`, `disposition`, `next_action`,
@@ -68,7 +69,7 @@ introduce a second handoff schema.
 
 #### Scenario: Shared route data is portable
 
-- **WHEN** both skills consume the same typed handoff data
+- **WHEN** Flow Guide consumes shared typed handoff data
 - **THEN** each interprets only the fields within its own authority and no skill
   dependency is created
 
@@ -92,12 +93,12 @@ introduce a second handoff schema.
 - **THEN** the object validates as `dhpk.flow.handoff.v1` with a non-empty
   `next_action` and does not declare a new schema id
 
-### Requirement: Both skills expose Host-neutral invocation semantics
+### Requirement: Shared selection reports remain Host-neutral
 
-The public contracts of both skills SHALL use the same Host, Provider, Model,
-Role, Effort, and handoff terminology wherever execution selection is reported.
-They SHALL not require Claude-specific names to operate on Cursor, Codex CLI, or
-AGY Hosts.
+Whenever Flow Guide reports execution selection, its public contract SHALL use
+Host, Provider, Model, Role, Effort, and handoff terminology. It SHALL not
+require Claude-specific names to operate on Cursor, Codex CLI, or AGY Hosts.
+Flow Drive does not expose execution-selection options.
 
 #### Scenario: Cursor route reports a Provider target
 
@@ -110,44 +111,33 @@ AGY Hosts.
 - **WHEN** Codex CLI invokes the same guide action as Claude Code
 - **THEN** the action and result schema remain equivalent except for Host data
 
-### Requirement: Flow Drive owns portable execution resources and completion gates
+### Requirement: Flow Drive is a self-contained native task entry
 
-A copied complete Flow Drive Skill directory SHALL resolve necessary execution
-contracts within its own scripts and references without a sibling skill or
-canonical checkout fallback. Injected Host executors and explicitly selected
-external tools MAY remain environment dependencies. Missing optional peers
-SHALL NOT alone block work; reusable evidence SHALL require current task,
-prompt, baseline, and dependency validation. Necessary independent review
-SHALL require distinct observed executor evidence.
+A copied Flow Drive directory SHALL contain only its skill entry, supported
+Host metadata, distribution declaration, and migration reference. It SHALL
+perform one bounded task with the current Host and Model without a sibling
+skill, canonical checkout, resource synchronization, invocation parser,
+external runner, or Flow Drive-specific execution receipt. The Host instructions
+SHALL preserve task scope, authorization, consumer Project Convention, observed
+verification, and blocker reporting.
 
-The installed raw Flow Drive Skill SHALL contain the transport, dispatch-context,
-Codex adapter, and AGY adapter resources formerly owned by
-`skills/dhpk-cli-transport`, `skills/dhpk-cli-dispatch-context`,
-`skills/dhpk-codex-bridge`, and `skills/dhpk-agy-fast-worker`, including transitive
-runtime helpers, before those source directories and registrations are deleted.
-It SHALL run from an arbitrary installation location and working directory
-without reading a sibling Skill or source checkout root. Authoring-time
-deterministic resource generation remains permitted and SHALL NOT create an
-installed fallback. The existing common engine SHALL remain the sole selection
-and authority policy owner. This consolidation obligation is tracked as
-`REQ-FDR-001` without renaming the existing requirement.
+Shared CLI-dispatch support required by delegated native agents or Flow Guide
+SHALL remain owned and distributed outside Flow Drive. Those consumers MAY
+receive a generated closure of the shared support resources they need; this
+closure SHALL NOT make Flow Drive a runtime owner or require task-only Flow
+Drive acquisition to include the shared engine.
 
-#### Scenario: Native coordination in a blank consumer
+#### Scenario: The copied task entry has no runtime closure
 
-- **WHEN** a complete copied Skill runs a confirmed task with only an injected native Host and no canonical checkout visibility
-- **THEN** it diagnoses, serializes all assigned writers, verifies each item, and reports parent acceptance through its local resources
+- **WHEN** a consumer copies only the complete canonical Flow Drive directory
+- **THEN** the task instructions and migration reference remain available without a runtime script, sibling skill, or canonical checkout
 
-#### Scenario: Optional evidence and necessary independent review
+#### Scenario: Shared delegated support remains outside Flow Drive
 
-- **WHEN** sufficient validated diagnosis is reusable but no distinct observed reviewer can satisfy a necessary review gate
-- **THEN** diagnosis may be reused while that review gate remains explicitly blocked
+- **WHEN** a projected native agent or Flow Guide uses shared CLI-dispatch support
+- **THEN** its package closure resolves that support from the shared canonical owner without copying it into Flow Drive
 
-#### Scenario: Partial task has an unknown cause
+#### Scenario: Native task completion is terminal
 
-- **WHEN** one cause is insufficient and a separate defect has sufficient diagnosis
-- **THEN** the first writer never launches and the independent defect retains its implementation, tests, and review evidence without claiming aggregate PASS
-
-#### Scenario: Four-source removal follows verified closure
-
-- **WHEN** the four predecessor dependencies and all transitive helpers are locally materialized and relocated raw Skill closure is proven without sibling or source checkout access
-- **THEN** atomic removal of their sources and registrations is permitted, while any missing required resource keeps deletion blocked
+- **WHEN** Flow Drive completes or reports a blocker for its bounded task
+- **THEN** it does not require a `flow-guide` follow-on route to finish the public workflow

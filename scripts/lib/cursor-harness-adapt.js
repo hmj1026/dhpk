@@ -34,8 +34,7 @@ function isCursorBoilerplateLine(line) {
     || /^>\s*Lookup:/.test(line)
     || line.includes(CURSOR_CX_BOILERPLATE)
     || line.includes(CLAUDE_PLUGIN_ROOT_TOKEN + '/scripts/')
-    || (line.includes(CLAUDE_PLUGIN_ROOT_TOKEN + '/skills/')
-      && !/\/skills\/flow-drive\/scripts\/adapters\/run-(?:agy|codex)\.sh\b/.test(line))
+    || line.includes(CLAUDE_PLUGIN_ROOT_TOKEN + '/skills/')
   );
 }
 
@@ -79,11 +78,7 @@ function rewriteCursorHarnessBody(body) {
       .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/docs/contracts').join(CURSOR_SUPPORT_ROOT + '/contracts')
       .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/rules/execution-policy.md').join(CURSOR_SUPPORT_ROOT + '/policies/execution-policy.md')
       .replace(remainingRulePattern, '.cursor/rules/$1.mdc')
-      .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/agents/').join('.cursor/agents/')
-      .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-agy.sh')
-      .join(CURSOR_PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-agy.sh')
-      .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-codex.sh')
-      .join(CURSOR_PLUGIN_ROOT_TOKEN + '/skills/flow-drive/scripts/adapters/run-codex.sh'),
+      .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/agents/').join('.cursor/agents/'),
   )
     .replace(/[ \t]+$/gm, '')
     .replace(/\n{3,}/g, '\n\n')
@@ -97,13 +92,12 @@ const CURSOR_PORTABLE_SKILL_OWNER = 'dhpk-agent';
 // Worker adapters stay in the co-installed portable owner. The installation
 // guide places the two packages side by side as `dhpk-cursor` and `dhpk-agent`.
 function rewriteCursorNativeAgentBody(body) {
-  const adapterPrefix = `${CURSOR_PLUGIN_ROOT_TOKEN}/skills/flow-drive/scripts/adapters/`;
-  const portableAdapterPrefix = `${CURSOR_PLUGIN_ROOT_TOKEN}/../${CURSOR_PORTABLE_SKILL_OWNER}/skills/flow-drive/scripts/adapters/`;
-  return rewriteCursorHarnessBody(body)
+  const canonicalSharedScriptPrefix = `${CLAUDE_PLUGIN_ROOT_TOKEN}/scripts/cli-dispatch/`;
+  const packagedSharedScriptPrefix = `${CURSOR_PLUGIN_ROOT_TOKEN}/../${CURSOR_PORTABLE_SKILL_OWNER}/scripts/cli-dispatch/`;
+  return rewriteCursorHarnessBody(String(body || '').split(canonicalSharedScriptPrefix).join(packagedSharedScriptPrefix))
     .split('.cursor/dhpk/agent-traps/').join(`${CURSOR_PLUGIN_ROOT_TOKEN}/agent-traps/`)
     .split('.cursor/dhpk/policies/execution-policy.md').join(`${CURSOR_PLUGIN_ROOT_TOKEN}/rules/execution-policy.mdc`)
-    .split('.cursor/rules/').join(`${CURSOR_PLUGIN_ROOT_TOKEN}/rules/`)
-    .split(adapterPrefix).join(portableAdapterPrefix);
+    .split('.cursor/rules/').join(`${CURSOR_PLUGIN_ROOT_TOKEN}/rules/`);
 }
 
 function cursorDocumentDestinationName(kind, basename) {

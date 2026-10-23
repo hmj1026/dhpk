@@ -4,32 +4,29 @@
 
 Status: accepted
 
-Ownership update for 0.66.2: Flow Drive owns the complete physical transport,
-context, and adapter closure. The four predecessor Skills and standalone
-bridge agent retire; compatible release rollback is 0.66.1. Bundled files do
-not establish Host support, permission, or execution. The native-only and
-capability/grant boundaries below remain applicable to legacy routes.
+Ownership update: Flow Drive is a portable native task/help entry and owns no
+transport, context, adapter, or runner closure. Shared CLI dispatch support is
+maintained under `scripts/cli-dispatch/` and published as native-agent
+supporting assets. The standalone bridge remains retired; users who require
+Flow Drive's removed selectors or runner API pin `v0.66.7` as documented in
+the skill migration reference. Bundled files do not establish Host support,
+permission, or execution. The native-only and capability/grant boundaries
+below remain applicable to shared delegated routes.
 
-The `codex-sync` and `codex-native` projections expose `flow-drive` and the
-shared CLI dispatch context, but they do not publish the Claude-side
-`agy-fast-worker` or `codex-bridge` adapters. Legacy headless external worker
-selection that depends on those absent adapters is therefore unavailable:
-routing and launcher checks fail closed before adapter execution, `auto`
-remains native-only, AGY points to the [Codex handoff boundary](../../codex/guidance.md#codex-handoff-boundary)
-for its documented manual fallback, and
-`codex-bridge` remains intentionally unavailable. This preserves Codex's
-curated subset and prevents an advertised route from depending on an absent
-adapter.
+The Codex-native package may publish its native agent roles with the shared
+CLI dispatch support closure. The portable Flow Drive skill itself does not
+select those roles or require those assets. A projected adapter remains
+unavailable unless its package includes the required support and its current
+Host grants and capabilities authorize the route; AGY's documented manual
+fallback remains at the [Codex handoff boundary](../../codex/guidance.md#codex-handoff-boundary).
 
-This boundary applies to those legacy adapter paths on Codex projections.
-Under #917, the portable Flow Drive runner may use a separately injected Host
-executor only when the trusted Provider grant, Host allowed set, current bound
-capability, and common Dispatch Engine validate the selected tuple. Bundled Flow Drive
-adapters do not make legacy headless selection available without current
-Host route, grant, and capability evidence. Claude- and Cursor-side
-documentation may continue to describe external worker options where those
-surfaces publish the required adapters, but those claims must remain scoped to
-the surface that actually supports them.
+This boundary applies to shared adapter paths on Codex projections. A
+separately supported delegated call may use a Host executor only when the
+trusted Provider grant, Host allowed set, current bound capability, and common
+Dispatch Engine validate the selected tuple. The shared adapter closure alone
+does not establish route, grant, or capability evidence. Documentation must
+scope external worker options to entrypoints and surfaces that actually
+support them.
 
 ## Considered Options
 

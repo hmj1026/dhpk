@@ -2,42 +2,30 @@
 
 ## Purpose
 
-Define Flow Drive's opt-in planner grammar, consult selection, bounded evidence
-budgets, and compatible verdict and review contracts across supported Hosts.
+Define planner consult selection, bounded evidence budgets, and compatible
+verdict and review contracts across supported Hosts.
 
 ## Requirements
 
-### Requirement: Flow Drive planner option grammar
+### Requirement: Planner consult requests use the caller's supported interface
 
-REQ-1 and REQ-2: Flow Drive SHALL accept `--plan[=<model>[:<effort>]]` and
-`--plan-mode=auto|bounded|discovery` for confirmed implementation work. Mode
-SHALL require an enabled plan option and SHALL be independent of option order.
-The immutable `dhpk.flow-drive-invocation.v1` result SHALL add
-`options.plan.mode`, set to `null` when plan is disabled and `auto` when enabled
-without a mode. Empty, unknown, duplicate, or orphan mode options SHALL return
-`status: blocked`; the CLI SHALL exit 2 without planner dispatch. Existing
-model/effort parsing, Host capability checks, and other options SHALL remain.
+Planner consults SHALL be requested through a supported caller's declared
+interface. Flow Drive SHALL remain task/help only and SHALL NOT expose a
+planner selector, consult-scope option, or planner model override. The planner
+consult contract SHALL remain independent of its critique, blind-sketch,
+dual-plan, warm-review, and cold-review work modes.
 
-#### Scenario: Enabled planning defaults to auto
+#### Scenario: A supported caller explicitly requests a consult
 
-- **WHEN** Flow Drive receives a confirmed change with `--plan` and no mode
-- **THEN** its ready result carries enabled planning with mode `auto`
+- **WHEN** a supported caller explicitly requests a planner consult
+- **THEN** the request reaches planner with the caller-provided scope, or an
+  explicit unspecified scope when none was provided
 
-#### Scenario: Planning is disabled
+#### Scenario: Flow Drive remains task/help only
 
-- **WHEN** Flow Drive receives a confirmed change without plan options
-- **THEN** its plan is disabled with mode `null`
-
-#### Scenario: Explicit scope is order independent
-
-- **WHEN** a supported mode appears before or after `--plan=sol:medium`
-- **THEN** both orders produce the same ready immutable plan context and
-  preserve the model and effort
-
-#### Scenario: Invalid mode fails closed
-
-- **WHEN** mode is empty, unknown, duplicated, or supplied without `--plan`
-- **THEN** parsing is blocked and the CLI exits 2 without planner dispatch
+- **WHEN** Flow Drive receives a task input or `--help`
+- **THEN** it performs its native task/help contract and does not parse a
+  planner selector
 
 ### Requirement: Orchestrator selects consult scope from named evidence
 
@@ -53,21 +41,21 @@ compatibility; cross-domain/shared-state/multi-writer work; and high uncertainty
 unknown root cause or failed verification. Parser grammar SHALL NOT decide
 these conditions or introduce a risk score.
 
-Explicit bounded or discovery SHALL take precedence over auto selection.
+An explicitly provided bounded or discovery scope SHALL take precedence over
+auto selection.
 Explicit bounded SHALL disclose any overridden signal. Consult scope SHALL be
 distinct from the planner's critique, blind-sketch, dual-plan, warm-review, and
 cold review-only work modes. Current planning applicability SHALL remain
 outcome-based: adequate existing planning evidence SHALL be reusable, and a
-supported explicit `--plan` SHALL still request the consult. Task/file count
-SHALL NOT independently require planning.
+supported explicit consult request SHALL still request the consult. Task/file
+count SHALL NOT independently require planning.
 Scope selection SHALL NOT waive an authorization boundary, unresolved write
 prerequisite, or required specialist decision.
 
-A legacy direct planner brief without a selected scope MAY use the existing
+A direct planner brief without a selected scope MAY use the existing
 discovery allowance when additional context is necessary. Planner SHALL
 disclose that scope is unspecified and selection context is missing; it SHALL
-NOT infer consult scope from work mode. This direct-brief fallback SHALL NOT
-replace Flow Drive's automatic selection.
+NOT infer consult scope from work mode.
 
 #### Scenario: Complete named facts select bounded
 
@@ -102,7 +90,7 @@ replace Flow Drive's automatic selection.
 
 - **WHEN** a sufficient existing plan covers the required outcome
 - **THEN** it is reusable without a duplicate consult unless a supported
-  explicit `--plan` requests the consult
+  explicit request asks for the consult
 
 #### Scenario: Legacy direct brief has no selected scope
 
@@ -260,32 +248,26 @@ limit still applying. Planner SHALL NOT spawn a write-capable child.
 - **THEN** it uses at most four new direct reads and respects the existing
   selected-scope child limit
 
-### Requirement: Model/effort resolution precedence
+### Requirement: Model/effort resolution follows Host role configuration
 
-The model and effort for planner SHALL retain the supported per-invocation
-`$flow-drive --plan=<model>[:<effort>]` override, then applicable
-`planner_model`/`planner_effort` configuration, then the existing Host/Role
-default. The canonical Claude planner's default SHALL remain `opus`/`high`.
-Existing non-default session announcements and Host capability limitations
-SHALL remain; a Host unable to apply the requested effort SHALL retain its
-configured effort and disclose that limitation. Consult mode SHALL NOT change
-model/effort selection, precedence, or configured defaults.
+The planner model and effort SHALL resolve from applicable Host role
+configuration, then the existing Host/Role default. Flow Drive SHALL NOT add a
+per-invocation model/effort override. The canonical Claude planner's default
+SHALL remain `opus`/`high`. Existing non-default session announcements and
+Host capability limitations SHALL remain; a Host unable to apply the
+configured effort SHALL retain its configured effort and disclose that
+limitation. Consult mode SHALL NOT change model/effort selection, precedence,
+or configured defaults.
 
-#### Scenario: Per-invocation flag wins
+#### Scenario: Host role configuration precedes the built-in default
 
-- **WHEN** the Host supports an explicit model/effort override and configuration
-  also provides values
-- **THEN** the supported invocation override takes precedence
-
-#### Scenario: userConfig wins over the built-in default
-
-- **WHEN** no invocation override is supplied
+- **WHEN** planner role configuration supplies a valid model and effort
 - **THEN** applicable configuration takes precedence over the unchanged Host/Role
   default and existing non-default announcements remain
 
 #### Scenario: Default applies when nothing is overridden
 
-- **WHEN** neither a supported invocation override nor planner configuration is set
+- **WHEN** planner role configuration is not set
 - **THEN** the existing Host/Role default applies, retaining opus/high for the
   canonical Claude planner
 
