@@ -605,7 +605,7 @@
       "sourcePath": "skills/create-pr/SKILL.md",
       "destination": "skills/create-pr/SKILL.md",
       "kind": "entry",
-      "sha256": "a1861fff39def14894abf2ab6048779d84c4f19e5dc21c8a0a8e6682f2e3cd07"
+      "sha256": "f4baeb403587e31a500ebf92c1eda6a3faadb4fd7f2283509504d4393327a3ad"
     },
     {
       "skillId": "create-pr",
@@ -693,7 +693,7 @@
       "sourcePath": "skills/create-pr/references/workflow.md",
       "destination": "skills/create-pr/references/workflow.md",
       "kind": "entry",
-      "sha256": "ac25af5cfb8a176895d026623193b2ddec0167ffbd4b0eaa5c90b4a66c1532a1"
+      "sha256": "6d4d048aaf5ade70554e4ee095334ccf3210576636056136bed1607e98a0c2a9"
     },
     {
       "skillId": "doc-maintain",

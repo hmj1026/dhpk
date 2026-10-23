@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "e8de1e16b79afc6dd0b67bcba4df44123c818f99",
-  "generatedFromCommit": "e8de1e16b79afc6dd0b67bcba4df44123c818f99",
-  "generatedFromTree": "8f945820b034b52158682e175867068a45f1bfd9",
+  "sourceCommit": "99da54e2d0ab7873b22772a69bfb0baebe4db358",
+  "generatedFromCommit": "99da54e2d0ab7873b22772a69bfb0baebe4db358",
+  "generatedFromTree": "b3b41163f661d107b44ad7a9bfea2c2e923f836e",
   "inventoryDigest": "5af74122fc89b2651f4e8d1bcc7cb9dfe2cec4453bb43c3e004522d9465a77a6",
   "inventoryRevision": "sha256:18429fdab11f73717a75e4f447851f9c2346f1b86a138211a5ba110a185f264e",
   "generatorVersion": "1.0.0",
@@ -558,7 +558,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/SKILL.md",
         "destination": "skills/create-pr/SKILL.md",
-        "originalGitBlobDigest": "2bcb21bb0d982b90f0fe71206408dbd0001beff0"
+        "originalGitBlobDigest": "a0ed92d052dc6eaaa17ab3721a958167ada853e9"
       },
       {
         "ownerId": "create-pr",
@@ -624,7 +624,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/references/workflow.md",
         "destination": "skills/create-pr/references/workflow.md",
-        "originalGitBlobDigest": "d04daae16d6c7f6502cf3dc15e85b80d45d81fee"
+        "originalGitBlobDigest": "b515fe5854f5cd06e45dd155f23178e4e123650e"
       },
       {
         "ownerId": "doc-maintain",
@@ -5994,7 +5994,7 @@
   "fingerprints": {
     "change-verdict": "b3476faab412bea5348c5575e84b381273ace5588d8e954b8bd7aa6198a7eafe",
     "code-trace": "375a29ced53393efb853c6013af9eb6924b034f8ca99412ebed95a1f90e17d45",
-    "create-pr": "03684d1c20009182393427d2e768fad3151c2d93e09c959caf06230195da9b44",
+    "create-pr": "722696c143447a8107fe7c842fc4f1cfcbb775ab0456af1d6bb623be93e92b10",
     "doc-maintain": "d2b6e12533e99c08d143be5ecc5ada0db0c45c92e35f3d89a691cb7851eef921",
     "flow-drive": "514b49e2fc3fd34a8f619a0e818d22d73b5956444f39c106524b000da6aee286",
     "flow-guide": "6483b5b701f9e56ba7609f33adaa4e9b2916c0407c2495af81f95f09e5d901b9",
