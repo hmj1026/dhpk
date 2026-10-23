@@ -33,6 +33,10 @@ Configured commands run directly from their declared working directories.
 Read
 [`references/workflow.md`](references/workflow.md) for the terminal boundary.
 
+When using the changed-file report for handoff, apply the kernel's
+[Evidence snapshots](https://github.com/hmj1026/dhpk/blob/main/rules/execution-policy-kernel.md#evidence-snapshots)
+rule to verification and review evidence.
+
 ## When NOT to Use
 
 - A read-only verification loop is requested (use `$repo-verify`).
