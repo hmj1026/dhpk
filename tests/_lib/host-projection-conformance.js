@@ -15,13 +15,16 @@ function createHostProjectionConformance({ root, assert }) {
       manifest: '.claude-plugin/plugin.json',
       assertFormat(value) {
         assert.match(value.version, /^\d+\.\d+\.\d+/, `version='${value.version}'`);
-        assert.ok(Array.isArray(value.skills), 'Claude manifest must expose skills');
+        assert.ok(value.skills === undefined || Array.isArray(value.skills), 'Claude skills must be an array when explicitly listed');
         assert.ok(Array.isArray(value.agents), 'Claude manifest must expose agents');
         assert.ok(value.agents.every((entry) => entry.endsWith('.md')), 'Claude agents must remain markdown');
         for (const agent of value.agents || []) {
           assert.ok(fs.existsSync(resolve(agent)), `missing agent file: ${agent}`);
         }
-        for (const skill of value.skills || []) {
+        // Claude discovers ./skills/ implicitly when the manifest omits skills.
+        // Keep checking that physical root so omission cannot hide a broken package.
+        const skills = value.skills === undefined ? ['./skills/'] : value.skills;
+        for (const skill of skills) {
           const skillPath = resolve(skill);
           assert.ok(fs.existsSync(skillPath) && fs.statSync(skillPath).isDirectory(), `missing skills dir: ${skill}`);
         }
