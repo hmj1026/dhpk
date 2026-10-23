@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "7312a62cce05eb6ccfbd1cdbf178d734f244035c",
-  "generatedFromCommit": "7312a62cce05eb6ccfbd1cdbf178d734f244035c",
-  "generatedFromTree": "b522f986ecb3e66cf3e5fbe98d83016cbe056adf",
+  "sourceCommit": "f94a04f5288a4a57a51afd61a62314539df0c4e6",
+  "generatedFromCommit": "f94a04f5288a4a57a51afd61a62314539df0c4e6",
+  "generatedFromTree": "dc32ad165ac0c22cba5c1611555f643d0a846876",
   "inventoryDigest": "c82ebbd537a3b7cce475a8a1f66d1fba906b5d9c9f5d9f0e2cf747ccfa92819d",
   "inventoryRevision": "sha256:47a01eec098299cea524f97ee6edd39d60f31d2693e59f01857f1ee84b97a60b",
   "generatorVersion": "1.0.0",
@@ -288,7 +288,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/references/shared/review-workflow.md",
         "destination": "skills/change-verdict/references/shared/review-workflow.md",
-        "originalGitBlobDigest": "0418f4f52d5481457b891285129f0c446f38af03"
+        "originalGitBlobDigest": "ca5f7496be80d98948498110fd40a52988f7740a"
       },
       {
         "ownerId": "change-verdict",
@@ -366,13 +366,13 @@
         "ownerId": "code-trace",
         "source": "rules/execution-policy-kernel.md",
         "destination": "skills/code-trace/references/_dependencies/rules/execution-policy-kernel.md",
-        "originalGitBlobDigest": "7bf78f3596badace1823b2ab25bbd975c24b56b3"
+        "originalGitBlobDigest": "42dd384640bcafa5f4d02c9e65216efd342df8e9"
       },
       {
         "ownerId": "code-trace",
         "source": "rules/execution-policy.md",
         "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "54edc3caff87966b2b478909c0615620a823c722"
+        "originalGitBlobDigest": "bda7369a6a0a0d5c09c4acda58132e834b1a9f64"
       },
       {
         "ownerId": "code-trace",
@@ -684,13 +684,13 @@
         "ownerId": "flow-drive",
         "source": "rules/execution-policy-kernel.md",
         "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy-kernel.md",
-        "originalGitBlobDigest": "7bf78f3596badace1823b2ab25bbd975c24b56b3"
+        "originalGitBlobDigest": "42dd384640bcafa5f4d02c9e65216efd342df8e9"
       },
       {
         "ownerId": "flow-drive",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "54edc3caff87966b2b478909c0615620a823c722"
+        "originalGitBlobDigest": "bda7369a6a0a0d5c09c4acda58132e834b1a9f64"
       },
       {
         "ownerId": "flow-drive",
@@ -786,13 +786,13 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md",
-        "originalGitBlobDigest": "7bf78f3596badace1823b2ab25bbd975c24b56b3"
+        "originalGitBlobDigest": "42dd384640bcafa5f4d02c9e65216efd342df8e9"
       },
       {
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "54edc3caff87966b2b478909c0615620a823c722"
+        "originalGitBlobDigest": "bda7369a6a0a0d5c09c4acda58132e834b1a9f64"
       },
       {
         "ownerId": "flow-drive",
@@ -1782,13 +1782,13 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy-kernel.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy-kernel.md",
-        "originalGitBlobDigest": "7bf78f3596badace1823b2ab25bbd975c24b56b3"
+        "originalGitBlobDigest": "42dd384640bcafa5f4d02c9e65216efd342df8e9"
       },
       {
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "54edc3caff87966b2b478909c0615620a823c722"
+        "originalGitBlobDigest": "bda7369a6a0a0d5c09c4acda58132e834b1a9f64"
       },
       {
         "ownerId": "flow-guide",
@@ -1830,7 +1830,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/delivery-loop-gate.md",
         "destination": "skills/flow-guide/references/delivery-loop-gate.md",
-        "originalGitBlobDigest": "24abd484e6c85f271528a15a0a7b091810dc1d50"
+        "originalGitBlobDigest": "0c3c652bfefb0e71b0f97ec1043da9982a0d265a"
       },
       {
         "ownerId": "flow-guide",
@@ -1872,13 +1872,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy-kernel.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy-kernel.md",
-        "originalGitBlobDigest": "7bf78f3596badace1823b2ab25bbd975c24b56b3"
+        "originalGitBlobDigest": "42dd384640bcafa5f4d02c9e65216efd342df8e9"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "54edc3caff87966b2b478909c0615620a823c722"
+        "originalGitBlobDigest": "bda7369a6a0a0d5c09c4acda58132e834b1a9f64"
       },
       {
         "ownerId": "flow-guide",
@@ -2232,13 +2232,13 @@
         "ownerId": "git-smart-commit",
         "source": "rules/execution-policy-kernel.md",
         "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy-kernel.md",
-        "originalGitBlobDigest": "7bf78f3596badace1823b2ab25bbd975c24b56b3"
+        "originalGitBlobDigest": "42dd384640bcafa5f4d02c9e65216efd342df8e9"
       },
       {
         "ownerId": "git-smart-commit",
         "source": "rules/execution-policy.md",
         "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "54edc3caff87966b2b478909c0615620a823c722"
+        "originalGitBlobDigest": "bda7369a6a0a0d5c09c4acda58132e834b1a9f64"
       },
       {
         "ownerId": "git-smart-commit",
@@ -2280,7 +2280,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/SKILL.md",
         "destination": "skills/precommit/SKILL.md",
-        "originalGitBlobDigest": "7b862571512607711cd21bda0b8bc91a8f01d33c"
+        "originalGitBlobDigest": "432ac20cec933db0144e0d057acf17c8a84f242a"
       },
       {
         "ownerId": "precommit",
@@ -2610,7 +2610,7 @@
         "ownerId": "repo-verify",
         "source": "skills/repo-verify/SKILL.md",
         "destination": "skills/repo-verify/SKILL.md",
-        "originalGitBlobDigest": "b9ceafdbc827cbda571b53910695da1b12118b3b"
+        "originalGitBlobDigest": "5a8df345ebd0fa94339c79bc95f08cba98d565cd"
       },
       {
         "ownerId": "repo-verify",
@@ -5992,18 +5992,18 @@
   "skippedSkills": [],
   "mcpServerNames": [],
   "fingerprints": {
-    "change-verdict": "dfa7367693eee8f503763a544612d730c8602f10cb6141fbed7d288ee294ea86",
-    "code-trace": "cac05f1c9377ba65a1d8f296accd369e37acb5c8422975937145a0d99d39cf7e",
+    "change-verdict": "b3476faab412bea5348c5575e84b381273ace5588d8e954b8bd7aa6198a7eafe",
+    "code-trace": "46232c142d8dfe78257c0c0c4310b01c3cf6345bca0494752e7371076e0edd23",
     "create-pr": "ef4589b448561fdd6f9a81df537ae7895faab40eb403c5acc57b5458db269cd6",
     "doc-maintain": "d2b6e12533e99c08d143be5ecc5ada0db0c45c92e35f3d89a691cb7851eef921",
-    "flow-drive": "ba088269a6daa989f99e54a937e41e6006f47806c273c83a729222ee85f702db",
-    "flow-guide": "c471ccdc475c9a57218b87b8e4372cd94c65b4df6cb3dc21817477ad93d641ba",
-    "git-smart-commit": "6955fbd2aca4f6f3372558c55977080bd52715065e451f6589879e13225550dd",
+    "flow-drive": "6c099e5f6fd0304550a0034a117de0bcb39cbbbeebb27f95a5ae668a8ac64c72",
+    "flow-guide": "99ad395aa99df3e23e61b81547a0c03f00accd2ff69ccda08727485a55f00991",
+    "git-smart-commit": "9740f89c1a53b9723c8afd743c4a075785155db922ae7c4a45512da51298122e",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",
-    "precommit": "194da387ad16ae46a149626d2bffed71314700b47ec54f587ba95f68bd38c5df",
+    "precommit": "299c62c54711c432315968ea555d9976c82fb385fef9b207c5f5cc907bace505",
     "proposal-analyze": "1f0657b36272adb57815dbfc2316156bb9b42739ed99d6a12f89164dfdffb5cb",
     "release-creator": "ecc03d28430d66eba2f257dd3a881064b11ee78ba60374e67f2469e43c1f1fac",
-    "repo-verify": "37bb98b81068f25dcc597dcad23183d25c549bf4f43fbbd5fdbe831730f70546",
+    "repo-verify": "8af4c75a61ca564e9c858fb3190818cbe7feae54a8799dae72c0b913bf7ffb12",
     "tdd-workflow": "9cda541f684706bc621f6f7d8748867a97774c0638c97d9d296837afd4db0af0",
     "ui-ux-verify": "9ffa940ca3bfefb2cfd4cd91c233010a2aef4caa8c951d6c72a6b4ed86958cd8"
   },
