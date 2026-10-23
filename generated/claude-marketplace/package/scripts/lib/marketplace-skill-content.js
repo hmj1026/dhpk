@@ -12,6 +12,13 @@ const MAX_DIRECTORY_ENTRIES = 40000;
 const MAX_DEPTH = 64;
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const RETAINED_HOST_ROOTS = new Set(['docs', 'rules']);
+const PACKAGING_ONLY_SKILL_RESOURCES = Object.freeze([
+  {
+    skillId: 'harness-setup',
+    source: 'scripts/hooks/install-codex-skills.sh',
+    destination: 'scripts/lib/install-codex-skills.sh',
+  },
+]);
 
 function resolveSourceFileAllowlist(physicalRoot, supplied, errors) {
   if (supplied !== undefined) {
@@ -644,6 +651,24 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
       collectDependencies(childSkill, skill);
     }
     collectDependencies(skill, skill);
+  }
+
+  for (const resource of PACKAGING_ONLY_SKILL_RESOURCES) {
+    const entry = publicEntries.find((candidate) => candidate.id === resource.skillId);
+    if (!entry) continue;
+    const skill = inventoryById.get(resource.skillId);
+    if (!skill) {
+      errors.push(`packaging-only resource owner is not in inventory: ${resource.skillId}`);
+      continue;
+    }
+    addFile({
+      sourceRelative: resource.source,
+      sourcePath: resource.source,
+      destination: path.posix.join('skills', skill.name || skill.id, resource.destination),
+      owner: skill,
+      skill,
+      kind: 'packaging-resource',
+    });
   }
 
   if (errors.length > 0) return { ok: false, errors, files: [], bundleProvenance: null };

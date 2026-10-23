@@ -1,18 +1,20 @@
 # Codex project setup adapter
 
 This reference is the Codex branch of `harness-setup`. It delegates to the
-receipt-aware project installer copy kept beside this Skill; it does not
-translate Claude hooks, rules, settings, or prompts into a guessed Codex
-equivalent.
+receipt-aware canonical project installer in the source checkout or to the
+physical copy emitted beside a packaged Skill; it does not translate Claude
+hooks, rules, settings, or prompts into a guessed Codex equivalent.
 
 The adapter requires an explicitly supplied dhpk distribution source artifact,
-not the Skill directory or an ambient checkout. The installed Skill must first
-contain these physical local executables:
+not the Skill directory or an ambient checkout. The adapter itself is a
+physical Skill-local executable. A standalone package also contains a physical
+copy of the canonical projection writer in the Skill's script tree.
 
-- `$SKILL_DIR/scripts/install-codex-project.sh` — wrapper and argument
-  boundary.
-- `$SKILL_DIR/scripts/lib/install-codex-skills.sh` — synchronized local
-  projection writer executed by that wrapper.
+In a checkout, the wrapper may use
+`$REPO/scripts/hooks/install-codex-skills.sh` only when its resolved Skill root
+is exactly `$REPO/skills/harness-setup` according to Git. A similarly named
+Skill under another directory cannot use that fallback. The checkout does not
+store a second writer under the Skill.
 
 The declared artifact then supplies data only:
 
@@ -23,11 +25,11 @@ The declared artifact then supplies data only:
   profile or package metadata required by the writer.
 
 The consumer owns `<project>/.codex/.dhpk-installed.json` as its schema-v3
-ownership receipt. If a local resource or declared artifact payload is absent,
-return `BLOCKED_RESOURCE_MISSING` and do not search outside the explicit
-artifact. The current Host supplies the Codex context; there is no new
-`--host` option. A fixture or static check does not prove Codex runtime
-availability; an unprobed runtime remains `NOT_RUN`.
+ownership receipt. If the approved writer or declared artifact payload is
+absent, return `BLOCKED_RESOURCE_MISSING`; do not search outside the explicit
+artifact for payload files. The current Host supplies the Codex context; there
+is no new `--host` option. A fixture or static check does not prove Codex
+runtime availability; an unprobed runtime remains `NOT_RUN`.
 
 ## Read-only planning and apply boundary
 

@@ -229,10 +229,6 @@
         "destination": "scripts/lib/install-assets-writer.sh"
       },
       {
-        "source": "scripts/hooks/install-codex-skills.sh",
-        "destination": "scripts/lib/install-codex-skills.sh"
-      },
-      {
         "source": "manifests/module-catalog.json",
         "destination": "data/module-catalog.json"
       },
