@@ -54,6 +54,17 @@ const AGY_SKILL_REFERENCE_REWRITES = Object.freeze([
     targetSkillId: 'harness-setup',
   }),
 ]);
+const AGY_EXECUTION_POLICY_BUNDLE = 'skills/flow-guide/references/execution-bundle/rules/execution-policy.md';
+const AGY_EXECUTION_POLICY_POINTER = [
+  '# Execution Policy',
+  '',
+  'For routing, dispatch, review, git, or escalation questions, select the',
+  '[full execution policy](../skills/flow-guide/references/execution-bundle/rules/execution-policy.md).',
+  "Resolve this link relative to this rule file's directory, not the consumer",
+  "working directory. Derive `POLICY_BUNDLE_ROOT` from the selected resource's",
+  'real grandparent. Read its kernel first, then load only required sections.',
+  '',
+].join('\n');
 // Descriptions are fixed literals. Do not derive them from rule prose.
 const AGY_RULE_TRIGGER_MAP = Object.freeze({
   'rules/execution-policy-kernel.md': Object.freeze({
@@ -61,7 +72,7 @@ const AGY_RULE_TRIGGER_MAP = Object.freeze({
     description: 'Always-visible execution policy kernel',
   }),
   'rules/execution-policy.md': Object.freeze({
-    trigger: 'always_on',
+    trigger: 'model_decision',
     description: 'Execution policy single source of truth',
   }),
   'rules/anti-rationalization.md': Object.freeze({
@@ -233,6 +244,9 @@ function hasAgyTriggerFrontmatter(content) {
 }
 
 function projectAgyRuleContent(content, relative) {
+  if (relative === 'rules/execution-policy.md') {
+    return `${agyRuleFrontmatter(AGY_RULE_TRIGGER_MAP[relative])}${AGY_EXECUTION_POLICY_POINTER}`;
+  }
   if (hasAgyTriggerFrontmatter(content)) return content;
   const entry = AGY_RULE_TRIGGER_MAP[relative];
   if (!entry) return content;
@@ -744,6 +758,9 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     if (adapted.changed || adapted.droppedFields.length > 0) errors.push(`agent is not idempotently AGY-adapted: ${relative}`);
   }
   if (expectedRuleFiles) for (const relative of expectedRuleFiles) if (!files.includes(relative)) errors.push(`selected AGY rule is missing: ${relative}`);
+  if (ruleFiles.includes('rules/execution-policy.md') && !files.includes(AGY_EXECUTION_POLICY_BUNDLE)) {
+    errors.push(`AGY execution policy bundle resource is missing: ${AGY_EXECUTION_POLICY_BUNDLE}`);
+  }
   for (const relative of ruleFiles) {
     const entry = AGY_RULE_TRIGGER_MAP[relative];
     if (!entry) continue;
