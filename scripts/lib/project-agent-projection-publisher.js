@@ -1124,7 +1124,9 @@ function validateManagedFiles(roots, receipt, { requireBindings = true } = {}) {
     }
     const actual = digest(fs.readFileSync(target));
     if (actual !== managed.fingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `receipt-owned ${managed.label} file was modified or fingerprint drifted: ${relative}; expected SHA-256: ${managed.fingerprints[relative]}; preserve the modified content and obtain a physical backup matching the current receipt fingerprints; see docs/platform-installation.md#recover-receipt-owned-shared-skills`, { paths: [relative] });
-    if (managed.label === 'managed' && path.posix.basename(relative) === 'SKILL.md') {
+    if (receipt.schema === PROJECT_RECEIPT_SCHEMA
+      && managed.label === 'managed'
+      && path.posix.basename(relative) === 'SKILL.md') {
       const metadata = validatePortableSkillMetadata(fs.readFileSync(target, 'utf8'));
       if (!metadata.ok) {
         throw fail('INVALID_PORTABLE_METADATA', `${relative} has invalid portable metadata: ${metadata.errors.join('; ')}`, { paths: [relative] });

@@ -446,6 +446,75 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
+  test('publisher migrates structured legacy v2 metadata through rollback and re-upgrade', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-structured-v2-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-structured-v2-project-'));
+    const inventory = projectInventory();
+    const options = {
+      sourceRoot,
+      projectRoot,
+      inventory,
+      requestedHosts: ['claude', 'codex', 'cursor'],
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+      hostSelections: { claude: ['sample'], codex: ['sample'], cursor: ['sample'] },
+    };
+    const source = [
+      '---',
+      'name: dhpk-sample',
+      'description: Fixture',
+      'metadata:',
+      '  dhpk-next:',
+      '    PASS: $repo-verify',
+      '---',
+      '# Body',
+      '',
+    ].join('\n');
+    const relative = 'dhpk-sample/SKILL.md';
+    const portablePath = path.join(projectRoot, '.agents/skills', relative);
+    const receiptPath = path.join(projectRoot, '.agents/.dhpk-installed.json');
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), source);
+      const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(installed.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
+
+      // Recreate the legacy v2 representation: canonical structured metadata
+      // remained in its managed SKILL.md instead of being portable-serialized.
+      const v2 = asV2Receipt(installed.receipt);
+      fs.writeFileSync(portablePath, source);
+      v2.generatedFingerprints[relative] = crypto.createHash('sha256').update(source).digest('hex');
+      delete v2.receiptFingerprint;
+      v2.receiptFingerprint = fingerprint(v2);
+      write(receiptPath, `${JSON.stringify(v2)}\n`);
+      const claudeBinding = path.join(projectRoot, '.claude/skills/dhpk-sample');
+      if (fs.lstatSync(claudeBinding).isSymbolicLink()) fs.unlinkSync(claudeBinding);
+      fs.rmSync(path.join(projectRoot, '.agents/claude-skills'), { recursive: true, force: true });
+
+      const legacyValidation = publisher.validateRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(legacyValidation.ok, true, legacyValidation.errors.join('\n'));
+
+      const migrated = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(migrated.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
+      assert.strictEqual(parseFrontmatter(fs.readFileSync(portablePath, 'utf8')).metadata['dhpk-next'], JSON.stringify({ PASS: '$repo-verify' }));
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+
+      const rolledBack = publisher.rollbackAgentsSkillsProjection({ projectRoot, inventory });
+      assert.strictEqual(rolledBack.ok, true, rolledBack.error && rolledBack.error.message);
+      assert.strictEqual(rolledBack.receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+      assert.strictEqual(fs.readFileSync(portablePath, 'utf8'), source);
+      const rolledBackValidation = publisher.validateRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(rolledBackValidation.ok, true, rolledBackValidation.errors.join('\n'));
+
+      const reupgraded = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(reupgraded.receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
+      assert.strictEqual(parseFrontmatter(fs.readFileSync(portablePath, 'utf8')).metadata['dhpk-next'], JSON.stringify({ PASS: '$repo-verify' }));
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('publisher refuses a foreign Claude sibling before changing the portable projection or receipt', () => {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-conflict-source-'));
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-conflict-project-'));
