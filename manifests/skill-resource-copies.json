@@ -133,6 +133,18 @@
       "sha256": "sha256:aa92ae684a6eb95532a8ca77d3e99fbda4013906f7e2447e2d327ec3c7de98ea",
       "mode": "0644"
     },
+    "skills/flow-drive/references/execution-bundle/skills/flow-drive/references/verification-handoff.md": {
+      "skill_id": "flow-drive",
+      "source": "skills/flow-drive/references/verification-handoff.md",
+      "sha256": "sha256:f44e3330e790e3d9fa91a002ce9cd9e4d36e8fc8b81c5401e8558588da7c6293",
+      "mode": "0644"
+    },
+    "skills/flow-drive/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js": {
+      "skill_id": "flow-drive",
+      "source": "skills/flow-drive/scripts/verify-handoff.js",
+      "sha256": "sha256:04bbf2d70c13196489391bb40c16e6674c47cff2f0e761992b9a0162e46bdde7",
+      "mode": "0644"
+    },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/component-addition-policy.md",
@@ -148,7 +160,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:6609318c629f90bf692b1ad0467608cebc1838ed7129038b76a070bf81d1e035",
+      "sha256": "sha256:8f3e19586686f8dc01f658b1fd7c41f5749ff55afa527794046af7b883f67d9a",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -265,6 +277,18 @@
       "sha256": "sha256:aa92ae684a6eb95532a8ca77d3e99fbda4013906f7e2447e2d327ec3c7de98ea",
       "mode": "0644"
     },
+    "skills/flow-guide/references/execution-bundle/skills/flow-drive/references/verification-handoff.md": {
+      "skill_id": "flow-guide",
+      "source": "skills/flow-drive/references/verification-handoff.md",
+      "sha256": "sha256:f44e3330e790e3d9fa91a002ce9cd9e4d36e8fc8b81c5401e8558588da7c6293",
+      "mode": "0644"
+    },
+    "skills/flow-guide/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js": {
+      "skill_id": "flow-guide",
+      "source": "skills/flow-drive/scripts/verify-handoff.js",
+      "sha256": "sha256:04bbf2d70c13196489391bb40c16e6674c47cff2f0e761992b9a0162e46bdde7",
+      "mode": "0644"
+    },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/component-addition-policy.md",
@@ -280,7 +304,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:6609318c629f90bf692b1ad0467608cebc1838ed7129038b76a070bf81d1e035",
+      "sha256": "sha256:8f3e19586686f8dc01f658b1fd7c41f5749ff55afa527794046af7b883f67d9a",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {

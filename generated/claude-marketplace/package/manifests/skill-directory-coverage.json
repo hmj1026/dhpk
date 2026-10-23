@@ -138,7 +138,8 @@
         "references/workflow-bugfix.md",
         "references/workflow-checklists.md",
         "references/workflow-feature-delivery.md",
-        "references/workflow-lightweight.md"
+        "references/workflow-lightweight.md",
+        "references/execution-bundle/skills/flow-drive/references/verification-handoff.md"
       ],
       "executable_entries": [
         {
@@ -197,6 +198,12 @@
           "path": "scripts/pre-route.sh",
           "fixture_ids": [
             "remaining-flow-guide-pre-route-local-table"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
+          "fixture_ids": [
+            "flow-drive-bundled-verification-handoff-missing-input"
           ]
         }
       ],
@@ -447,7 +454,9 @@
         "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
         "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
         "references/portability.md",
-        "references/recovery.md"
+        "references/recovery.md",
+        "references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
+        "references/verification-handoff.md"
       ],
       "executable_entries": [
         {
@@ -468,6 +477,18 @@
           "consumer": "AGY native agent projection via scripts/lib/native-agent-support.js; no Flow Drive script requires this bundle",
           "fixture_ids": [
             "flow-drive-bundled-selector-native"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
+          "fixture_ids": [
+            "flow-drive-bundled-verification-handoff-missing-input"
+          ]
+        },
+        {
+          "path": "scripts/verify-handoff.js",
+          "fixture_ids": [
+            "flow-drive-verification-handoff-missing-input"
           ]
         }
       ],

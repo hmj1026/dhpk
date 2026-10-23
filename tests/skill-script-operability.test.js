@@ -186,6 +186,7 @@ const CLASSIFICATION = Object.freeze({
   'flow-drive/scripts/task-graph.js': { kind: 'module', reason: 'require()\'d flow-drive internal' },
   'flow-drive/scripts/transport/prepare-cli-request.py': { kind: 'module', reason: 'flow-drive transport internal' },
   'flow-drive/scripts/transport/run-cli-transport.py': { kind: 'module', reason: 'flow-drive transport internal' },
+  'flow-drive/scripts/verify-handoff.js': { kind: 'cli', args: ['--help'], expectedStatus: 0 },
   'flow-guide/scripts/_lib/command-namespace.js': { kind: 'module', reason: 'library under scripts/_lib/' },
   'flow-guide/scripts/_lib/frontmatter.js': { kind: 'module', reason: 'shared metadata parser under scripts/_lib/' },
   'flow-guide/scripts/_lib/skill-next-map.js': { kind: 'module', reason: 'shared declaration lookup under scripts/_lib/' },

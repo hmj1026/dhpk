@@ -196,6 +196,15 @@ Worker dispatch never weakens a gate. `fast-worker` always reports its complete 
 
 ## Verify worker output before accepting (implement phase)
 
+Before dependent verification starts, require the writer's `RESULT: DONE` and
+an exact receipt for every assigned file. Run the downstream command through
+the Flow Drive verification handoff gate documented at
+`${POLICY_BUNDLE_ROOT}/skills/flow-drive/references/verification-handoff.md`:
+it rejects a stale receipt before launch and any assigned-file snapshot change
+after the command completes. A post-check mismatch is not a verification PASS;
+obtain fresh writer completion evidence and a new receipt before retrying. The
+gate detects edits but does not lock files or grant authority.
+
 When a `fast-worker` (or `deep-reasoner` → `fast-worker`) dispatch returns, before marking the task complete the orchestrator (a) re-surfaces the worker's verification line (`<command> → PASS|FAIL`) and complete assigned-scope edited-file list plus out-of-scope observations into the conversation, so completion can be assessed from the reported evidence; (b) in parallel mode, cross-checks the assigned list against path-scoped `git status --short -- <assigned files>` / `git diff --name-only -- <assigned files>` and investigates any mismatch; (c) after all workers in the batch finish, performs the one whole-tree shared-state reconciliation described above; (d) derives the recommended reviewers from the edited-file list; (e) on a worker FAIL, out-of-scope write, or 3-attempt escalation, does NOT mark the task complete and re-scopes or re-dispatches `deep-reasoner` for a corrected fix-spec. This is a scoped cross-check. The confirmed implementation owner selects the applicable final verification from the project runner and change scope; this check does not require a full suite for each task. Wait on the dispatched worker's completion notification; do not poll marker files or sleep-loop awaiting agent results — this does not restrict the deterministic-completion-signal polling sanctioned by §No block-polling a running worker below (polling an observable artifact such as a DB row baseline for a mutating worker remains permitted).
 
 ## Repository Discovery Gate and explicit hard rules

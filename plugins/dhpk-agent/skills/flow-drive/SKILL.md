@@ -91,6 +91,12 @@ the same grammar and keep selection intent separate from Host grants.
    On Claude Code, launch selected Codex roles from the parent session through
    `scripts/launch-dispatch.js`; follow `references/parent-cli-dispatch.md` for the
    dispatcher packet, reasoner-before-worker gate, and independent verification.
+   Before downstream verification after a writer handoff, require its
+   `RESULT: DONE` report and exact assigned-file SHA256 receipt. Pass the
+   parent's original file assignment as repeated `--assigned-file` options to
+   the [verification handoff gate](references/verification-handoff.md); it
+   compares that scope with the receipt and checks the snapshot before launch
+   and after completion.
 5. Stop the affected item on an evidence-changing blocker while independent
    eligible items continue. This Host procedure sets no generic retry count.
    The programmatic runner executes one attempt by default; only a Host that
@@ -165,6 +171,8 @@ verification, and archive as separate states.
   `scripts/launch-dispatch.js` consumes its explicit dispatcher packet and the
   self-contained runtime under `scripts/dispatch-runtime/`, `scripts/adapters/`, and
   `scripts/transport/`.
+- `references/verification-handoff.md` — receipt format and CLI gate for
+  downstream verification after a writer completes.
 - `skills/flow-guide/SKILL.md` — optional separately invoked route guidance;
   Flow Drive does not load it as a prerequisite.
 - An optional consumer-project writing-for-agents guide may be supplied when the

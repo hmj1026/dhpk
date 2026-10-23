@@ -286,6 +286,18 @@ const DEFINITIONS = [
   }),
 ];
 
+for (const [id, entry] of [
+  ['flow-drive-verification-handoff-missing-input', 'scripts/verify-handoff.js'],
+  ['flow-drive-bundled-verification-handoff-missing-input', 'references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js'],
+]) {
+  DEFINITIONS.push(definition({
+    id,
+    entry,
+    args: [],
+    expected: { status: 1, output: ['usage:'] },
+  }));
+}
+
 let registered = false;
 
 function registerFlowFamilyFixtures() {
