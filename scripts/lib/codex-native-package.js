@@ -27,11 +27,13 @@ const {
 } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
-const { bindSurfaceSelection } = require('./capability-bundle-selection');
+const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
+
+const CODEX_NATIVE_PROFILE_ID = 'codex-native';
 
 // Bump when the generation algorithm (selection, layout, or manifest-merge
 // logic) changes in a way that could produce a different package from the
@@ -97,6 +99,29 @@ function physicalPackageRootError(directory) {
   } catch (error) {
     return error.message;
   }
+}
+
+function resolveCodexNativeProfileSelection({ root, inventory, profiles, moduleCatalog } = {}) {
+  if (!root || !inventory) throw new Error('Codex native profile resolution requires root and inventory');
+  const resolvedProfiles = profiles || JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'install-profiles.json'), 'utf8'));
+  const resolvedModuleCatalog = moduleCatalog || JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'module-catalog.json'), 'utf8'));
+  const resolved = resolveCapabilitySelection({
+    inventory,
+    profiles: resolvedProfiles,
+    moduleCatalog: resolvedModuleCatalog,
+    profileId: CODEX_NATIVE_PROFILE_ID,
+    skillIds: [],
+    surface: 'codex-native',
+    sourceInputs: { profileId: CODEX_NATIVE_PROFILE_ID, skillIds: [], standaloneSkillIds: [] },
+    policyVersion: inventory.profile_policy && inventory.profile_policy.version,
+  });
+  if (!resolved.ok) throw new Error(`Codex native profile selection is invalid: ${resolved.error.message}`);
+  const supportedStableIds = (inventory.skills || [])
+    .filter((entry) => Array.isArray(entry.surfaces) && entry.surfaces.includes('codex-native'))
+    .map((entry) => entry.id);
+  const bound = bindSurfaceSelection({ selection: resolved.value, surface: 'codex-native', supportedStableIds });
+  if (!bound.ok) throw new Error(`Codex native profile selection cannot be bound: ${bound.error.message}`);
+  return bound.value;
 }
 
 // Walks packageRoot and reports any symlink found (a native package must be
@@ -434,6 +459,10 @@ function compileNativePackage({
   }
   const resolvedRoot = path.resolve(root);
   const resolvedOut = path.resolve(outDir);
+  const inventoryRevision = resolveInventoryRevision(inventory);
+  const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
+    ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
+    : undefined;
   assertPhysicalDirectory(resolvedRoot, 'canonical root');
   assertPhysicalDirectory(resolvedOut, 'output root');
   // Codex native packaging and Claude parity checks share the inventory-owned
@@ -447,10 +476,39 @@ function compileNativePackage({
   const hostPublication = selectionMode !== 'legacy'
     ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'codex-native', profileSelection })
     : null;
-  const selection = selectionMode === 'legacy' || (hostPublication && !profileSelection)
+  if (hostPublication && !profileSelection) {
+    throw new Error(`Codex native marketplace generation requires an explicit '${CODEX_NATIVE_PROFILE_ID}' profile selection`);
+  }
+  if (hostPublication && profileSelection && (profileSelection.profileId || profileSelection.id) !== CODEX_NATIVE_PROFILE_ID) {
+    throw new Error(`Codex native marketplace generation requires profile '${CODEX_NATIVE_PROFILE_ID}'`);
+  }
+  const selection = selectionMode === 'legacy' || hostPublication
     ? null
     : compileDistribution({ inventory, surface: 'codex-native', profileSelection });
   if (selection && !selection.ok) throw new Error(selection.error.message);
+  const hostPublicationSelectionEntries = hostPublication && profileSelection
+    ? profileSelection.selectedStableIds.map((stableId) => {
+      const skill = (inventory.skills || []).find((candidate) => candidate.id === stableId);
+      if (!skill) throw new Error(`Codex native profile references unknown skill '${stableId}'`);
+      const transform = skill.transform || { id: 'identity', version: '1' };
+      return {
+        id: skill.id,
+        source: skill.path,
+        sourceFingerprint: skill.source_fingerprint || skill.sourceFingerprint || null,
+        destination: skill.destination || skill.path,
+        owner: skill.owner || skill.id,
+        transform,
+        expectedFingerprint: skill.expected_fingerprint || skill.expectedFingerprint || null,
+        symlinkPolicy: skill.symlink_policy || skill.symlinkPolicy || 'forbid',
+        ...skillProjectionMetadata(skill, {
+          transform,
+          owner: SURFACE_OWNERS['codex-native'],
+          inventoryRevision,
+          ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+        }),
+      };
+    })
+    : null;
   const nativeSelection = hostPublication
     ? {
       selected: [...hostPublication.publicEntries, ...hostPublication.hostOnly]
@@ -472,10 +530,6 @@ function compileNativePackage({
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
-  const inventoryRevision = resolveInventoryRevision(inventory);
-  const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
-    ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
-    : undefined;
   for (const skill of materializedSkills) {
     const publicName = skill.name || skill.id;
     const sourcePath = skill.path;
@@ -609,12 +663,12 @@ function compileNativePackage({
       },
     } : {}),
     fingerprints,
-    ...(selectedSkillIds.length > 0 ? { installation: createInstallationReceiptIdentity({
+    ...(profileSelection && selectedSkillIds.length > 0 ? { installation: createInstallationReceiptIdentity({
       surface: 'codex-native', scope: 'project', sourceVersion: version,
       inventoryDigest,
-      profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'compat-v1',
-      selectedStableIds: profileSelection && profileSelection.selectedStableIds || selectedSkillIds,
-      supportClosure: profileSelection && profileSelection.dependencyClosure,
+      profileId: profileSelection.profileId || profileSelection.id,
+      selectedStableIds: profileSelection.selectedStableIds,
+      supportClosure: profileSelection.dependencyClosure,
       ownedRoots: ['plugins/dhpk'],
     }) } : {}),
     routingProjection,
@@ -690,13 +744,17 @@ function compileNativePackage({
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: resolvedOut,
     entries,
-    selectedStableIds: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
-      ? selection.value.selectedStableIds
-      : undefined,
-    selectionPolicy: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
-      ? selection.value.selectionPolicy
-      : undefined,
-    selectionEntries: selection && selection.ok && selection.value.selectionPolicy
+    selectedStableIds: hostPublication && profileSelection
+      ? profileSelection.selectedStableIds
+      : (!hostPublication && selection && selection.ok && selection.value.selectionPolicy
+        ? selection.value.selectedStableIds
+        : undefined),
+    selectionPolicy: hostPublication && profileSelection
+      ? { source: 'profile', version: profileSelection.selectionPolicyVersion || 'dhpk.capability-bundle-selection.v1' }
+      : (!hostPublication && selection && selection.ok && selection.value.selectionPolicy
+        ? selection.value.selectionPolicy
+        : undefined),
+    selectionEntries: hostPublicationSelectionEntries || (selection && selection.ok && selection.value.selectionPolicy
       ? (selection.value.selectionEntries || selection.value.entries).map((entry) => {
         const skill = (inventory.skills || []).find((candidate) => candidate.id === entry.stableId || candidate.id === entry.skillId);
         return skill ? {
@@ -709,7 +767,7 @@ function compileNativePackage({
           }),
         } : entry;
       })
-      : undefined,
+      : undefined),
     profileSelection: profileSelection ? {
       ...profileSelection,
       emittedStableIds: hostPublication
@@ -892,6 +950,168 @@ function readNativeManifest(packageRoot) {
   }
 }
 
+function sameUniqueStableIdSet(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  return leftSet.size === left.length
+    && rightSet.size === right.length
+    && left.every((id) => rightSet.has(id));
+}
+
+function readCodexNativeProfileIds(root) {
+  if (!root) return { ids: null, error: null };
+  const profilePath = path.join(root, 'manifests', 'install-profiles.json');
+  if (!fs.existsSync(profilePath)) return { ids: null, error: null };
+  try {
+    const manifest = JSON.parse(readFileBounded(profilePath, { maxBytes: 4 * 1024 * 1024 }).toString('utf8'));
+    const ids = manifest && manifest.profiles && manifest.profiles[CODEX_NATIVE_PROFILE_ID]
+      && manifest.profiles[CODEX_NATIVE_PROFILE_ID].skillIds;
+    if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || id.trim() === '')) {
+      return { ids: null, error: `active '${CODEX_NATIVE_PROFILE_ID}' profile must declare stable skill IDs` };
+    }
+    if (new Set(ids).size !== ids.length) return { ids: null, error: `active '${CODEX_NATIVE_PROFILE_ID}' profile contains duplicate stable skill IDs` };
+    return { ids, error: null };
+  } catch (error) {
+    return { ids: null, error: `active '${CODEX_NATIVE_PROFILE_ID}' profile cannot be read: ${error.message}` };
+  }
+}
+
+function codexNativeExpectedIds({ sourceRoot, profileSelection, publicationView } = {}) {
+  if (profileSelection && (profileSelection.profileId || profileSelection.id) === CODEX_NATIVE_PROFILE_ID) {
+    return { ids: profileSelection.selectedStableIds, error: null };
+  }
+  const fromManifest = readCodexNativeProfileIds(sourceRoot);
+  if (fromManifest.error || fromManifest.ids) return fromManifest;
+  if (publicationView) {
+    return {
+      ids: [...publicationView.publicEntries, ...(publicationView.hostOnly || [])].map((entry) => entry.id),
+      error: null,
+    };
+  }
+  return { ids: null, error: null };
+}
+
+function validateNativeInstallationIdentity({
+  provenance,
+  candidateSkillNames,
+  inventory,
+  sourceRoot,
+  profileSelection,
+  publicationView,
+} = {}) {
+  const errors = [];
+  const requiresIdentity = Boolean(profileSelection || publicationView);
+  if (!provenance) {
+    if (requiresIdentity) errors.push('native package provenance is missing its installation identity');
+    return { ok: errors.length === 0, errors };
+  }
+
+  const inventoryByName = new Map((inventory.skills || []).map((entry) => [entry.name || entry.id, entry.id]));
+  const actualIds = (candidateSkillNames || []).map((name) => inventoryByName.get(name)).filter((id) => typeof id === 'string');
+  const materializedIds = provenance.materializedSkillIds;
+  if (Array.isArray(materializedIds) && !sameUniqueStableIdSet(materializedIds, actualIds)) {
+    errors.push('native provenance materializedSkillIds do not match actual package membership');
+  }
+
+  const installation = provenance.installation;
+  if (!installation || typeof installation !== 'object' || Array.isArray(installation)) {
+    if (requiresIdentity) errors.push('native provenance is missing its installation identity');
+    return { ok: errors.length === 0, errors };
+  }
+
+  const owner = SURFACE_OWNERS['codex-native'];
+  if (provenance.surface !== 'codex-native') errors.push('native provenance surface must be codex-native');
+  if (provenance.owner !== owner) errors.push(`native provenance owner must be '${owner}'`);
+  if (installation.schema !== 'dhpk.installation-receipt.v1') errors.push('native installation schema must be dhpk.installation-receipt.v1');
+  if (installation.scope !== 'project') errors.push("native installation scope must be 'project'");
+  if (!installation.ownership || typeof installation.ownership !== 'object' || Array.isArray(installation.ownership)) {
+    errors.push('native installation ownership must be an object');
+  } else {
+    if (installation.ownership.owner !== owner) errors.push(`native installation owner must be '${owner}'`);
+    if (!sameUniqueStableIdSet(installation.ownership.roots, [owner])) {
+      errors.push(`native installation ownership roots must be exactly ['${owner}']`);
+    }
+  }
+  if (!Array.isArray(installation.selectedStableIds)
+    || installation.selectedStableIds.some((id) => typeof id !== 'string' || id.trim() === '')
+    || new Set(installation.selectedStableIds).size !== installation.selectedStableIds.length) {
+    errors.push('native installation selectedStableIds must be a unique stable-ID array');
+  }
+
+  const expected = codexNativeExpectedIds({ sourceRoot, profileSelection, publicationView });
+  if (expected.error) errors.push(expected.error);
+  const installedIds = installation.selectedStableIds;
+  const selectedIds = provenance.selectedSkillIds;
+  const publicSelectionIds = provenance.selectedStableIds;
+  const legacyReceipt = installation.profileId === 'compat-v1';
+  const namedNativeReceipt = installation.profileId === CODEX_NATIVE_PROFILE_ID;
+  const genericProfileReceipt = profileSelection
+    && (profileSelection.profileId || profileSelection.id) === installation.profileId
+    && !publicationView;
+
+  if (namedNativeReceipt || legacyReceipt) {
+    if (!sameUniqueStableIdSet(installedIds, actualIds)) {
+      errors.push('native installation selectedStableIds do not match actual package membership');
+    }
+    if (!sameUniqueStableIdSet(selectedIds, actualIds)) {
+      errors.push('native provenance selectedSkillIds do not match actual package membership');
+    }
+    if (publicSelectionIds !== undefined && !sameUniqueStableIdSet(publicSelectionIds, actualIds)) {
+      errors.push('native provenance selectedStableIds do not match actual package membership');
+    }
+    if (expected.ids && (!sameUniqueStableIdSet(actualIds, expected.ids)
+      || !sameUniqueStableIdSet(installedIds, expected.ids))) {
+      errors.push(`native installation identity does not match the active '${CODEX_NATIVE_PROFILE_ID}' profile`);
+    }
+    if (namedNativeReceipt) {
+      if (provenance.profileId !== CODEX_NATIVE_PROFILE_ID) errors.push(`native provenance profileId must be '${CODEX_NATIVE_PROFILE_ID}'`);
+      if (!Array.isArray(publicSelectionIds) || !sameUniqueStableIdSet(publicSelectionIds, actualIds)) {
+        errors.push(`native provenance selectedStableIds must exactly match the '${CODEX_NATIVE_PROFILE_ID}' package`);
+      }
+    } else {
+      if (!expected.ids || !sameUniqueStableIdSet(installedIds, expected.ids)) {
+        errors.push("legacy compat-v1 installation is not the exact Codex native package selection");
+      }
+      if (provenance.profileId !== undefined && provenance.profileId !== 'compat-v1') {
+        errors.push("legacy compat-v1 installation has a conflicting top-level profileId");
+      }
+    }
+  } else if (genericProfileReceipt) {
+    if (!sameUniqueStableIdSet(installedIds, profileSelection.selectedStableIds)) {
+      errors.push('native installation selectedStableIds do not match the requested profile selection');
+    }
+    if (!sameUniqueStableIdSet(selectedIds, profileSelection.selectedStableIds)
+      || !sameUniqueStableIdSet(publicSelectionIds, profileSelection.selectedStableIds)) {
+      errors.push('native provenance selected IDs do not match the requested profile selection');
+    }
+  } else if (requiresIdentity) {
+    errors.push(`native installation profile must be '${CODEX_NATIVE_PROFILE_ID}' or an exact historical compat-v1 receipt`);
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function recognizesLegacyCodexNativeReceipt({ receipt, root, inventory } = {}) {
+  const installation = receipt && receipt.installation;
+  if (!installation || installation.profileId !== 'compat-v1') return false;
+  const expected = readCodexNativeProfileIds(root);
+  const owner = SURFACE_OWNERS['codex-native'];
+  return !expected.error
+    && Array.isArray(expected.ids)
+    && receipt.surface === 'codex-native'
+    && receipt.owner === owner
+    && installation.scope === 'project'
+    && installation.ownership
+    && installation.ownership.owner === owner
+    && sameUniqueStableIdSet(installation.ownership.roots, [owner])
+    && sameUniqueStableIdSet(installation.selectedStableIds, expected.ids)
+    && (!Array.isArray(receipt.selectedStableIds) || sameUniqueStableIdSet(receipt.selectedStableIds, expected.ids))
+    && (!Array.isArray(receipt.selectedSkillIds) || sameUniqueStableIdSet(receipt.selectedSkillIds, expected.ids))
+    && (receipt.profileId === undefined || receipt.profileId === 'compat-v1')
+    && Array.isArray(inventory && inventory.skills);
+}
+
 function verifyNativePackage({
   packageRoot,
   sourceRoot = null,
@@ -932,14 +1152,26 @@ function verifyNativePackage({
     selectedStableIds: profileSelection && profileSelection.selectedStableIds,
     publicationView: hostPublication,
   });
-  const identity = validateNativeSkillIdentity({
+  const skillIdentity = validateNativeSkillIdentity({
     manifestSkillsField,
     packageRoot: resolvedPackageRoot,
     inventory,
     publicationView: hostPublication,
   });
-  const errors = [...structural.errors, ...membership.errors, ...identity.errors];
   const provenance = readNativeProvenance(resolvedPackageRoot);
+  const installationIdentity = validateNativeInstallationIdentity({
+    provenance,
+    candidateSkillNames,
+    inventory,
+    sourceRoot,
+    profileSelection,
+    publicationView: hostPublication,
+  });
+  const identity = {
+    ok: skillIdentity.ok && installationIdentity.ok,
+    errors: [...skillIdentity.errors, ...installationIdentity.errors],
+  };
+  const errors = [...structural.errors, ...membership.errors, ...identity.errors];
   if (hostPublication) {
     const expectedPublication = {
       selectionDigest: hostPublication.selectionDigest,
@@ -1072,8 +1304,12 @@ function fingerprintDir(dir, options = {}) {
 
 module.exports = {
   GENERATOR_VERSION,
+  CODEX_NATIVE_PROFILE_ID,
+  resolveCodexNativeProfileSelection,
+  recognizesLegacyCodexNativeReceipt,
   validateNativeCandidate,
   validateNativeSkillIdentity,
+  validateNativeInstallationIdentity,
   validateNativeMembership,
   selectNativeSkills,
   compileNativePackage,

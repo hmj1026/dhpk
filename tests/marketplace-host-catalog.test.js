@@ -52,6 +52,8 @@ function fixture() {
   write(path.join(root, 'manifests/marketplace-selection.json'), `${JSON.stringify(SELECTION, null, 2)}\n`);
   write(path.join(root, '.claude-plugin/plugin.json'), fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json')));
   write(path.join(root, 'skills/flow-guide/references/codex-usage-catalog.json'), fs.readFileSync(path.join(ROOT, 'skills/flow-guide/references/codex-usage-catalog.json')));
+  const executionPolicy = 'skills/flow-guide/references/execution-bundle/rules/execution-policy.md';
+  write(path.join(root, executionPolicy), fs.readFileSync(path.join(ROOT, executionPolicy), 'utf8'));
   for (const skill of INVENTORY.skills) {
     const ownedChildren = CHILDREN.filter((child) => child.owner === skill.id);
     const links = ownedChildren.map((child) => {
@@ -84,6 +86,7 @@ function fixture() {
 
 function generate(host, state, profileSelection = null) {
   if (host.name !== 'AGY') fs.mkdirSync(state.outDir, { recursive: true });
+  const selectedProfile = profileSelection || (host.name === 'Codex' ? codexNativeProfileSelection() : null);
   return host.generate({
     root: state.root,
     outDir: state.outDir,
@@ -91,7 +94,7 @@ function generate(host, state, profileSelection = null) {
     version: '1.2.3',
     sourceVersion: '1.2.3',
     sourceCommit: host.name === 'AGY' ? 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' : 'fixture-source',
-    ...(profileSelection ? { profileSelection } : {}),
+    ...(selectedProfile ? { profileSelection: selectedProfile } : {}),
   });
 }
 
@@ -110,6 +113,18 @@ function commonProfileSelection() {
   assert.strictEqual(result.value.profileId, 'common');
   assert.strictEqual(result.value.selectedStableIds.length, COMMON_IDS.length);
   assert.deepStrictEqual(result.value.moduleClosure, []);
+  return result.value;
+}
+
+function codexNativeProfileSelection() {
+  const result = resolveProfileSelection({
+    profileId: 'codex-native',
+    surface: 'codex-native',
+    sourceInputs: { profileId: 'codex-native', skillIds: [], standaloneSkillIds: [] },
+  });
+  assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.strictEqual(result.value.profileId, 'codex-native');
+  assert.strictEqual(result.value.selectedStableIds.length, 16);
   return result.value;
 }
 
@@ -222,7 +237,7 @@ test('common profile selection preserves Host publication identities and folded 
   const outputs = new Map();
   for (const host of HOSTS.filter((candidate) => candidate.name !== 'Claude')) {
     const hostState = { ...state, outDir: path.join(state.temp, `${host.surface}-common-package`) };
-    generate(host, hostState, profileSelection);
+    generate(host, hostState, host.name === 'Codex' ? codexNativeProfileSelection() : profileSelection);
     outputs.set(host.name, hostState.outDir);
 
     const hostOnlyNames = expectedHostOnly(host).map((skill) => skill.name).sort();
@@ -243,18 +258,19 @@ test('common profile selection preserves Host publication identities and folded 
   }
 }));
 
-test('Codex verifies the same common selection used to publish Host-only catalog entries', () => withFixture((state) => {
+test('Codex verifies its named native selection and separately records Host-only catalog entries', () => withFixture((state) => {
   const host = HOSTS.find((candidate) => candidate.name === 'Codex');
-  const profileSelection = commonProfileSelection();
+  const profileSelection = codexNativeProfileSelection();
   generate(host, state, profileSelection);
 
   const hostOnlyIds = expectedHostOnly(host).map((skill) => skill.id).sort();
   const receipt = readReceipt(state.outDir);
   assert.deepStrictEqual(receipt.selectedSkillIds.slice().sort(), [...COMMON_IDS, ...hostOnlyIds].sort());
+  assert.strictEqual(receipt.profileId, 'codex-native');
   assert.deepStrictEqual(receipt.marketplacePublication.publicEntryIds, COMMON_IDS.slice().sort());
   assert.deepStrictEqual(receipt.marketplacePublication.hostOnlyIds, hostOnlyIds);
-  assert.deepStrictEqual(receipt.selectedStableIds.slice().sort(), COMMON_IDS.slice().sort());
-  assert.deepStrictEqual(receipt.emittedStableIds.slice().sort(), COMMON_IDS.slice().sort());
+  assert.deepStrictEqual(receipt.selectedStableIds.slice().sort(), profileSelection.selectedStableIds.slice().sort());
+  assert.deepStrictEqual(receipt.emittedStableIds.slice().sort(), profileSelection.selectedStableIds.slice().sort());
 
   const result = verifyNativePackage({
     packageRoot: state.outDir,

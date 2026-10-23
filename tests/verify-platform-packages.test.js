@@ -7,6 +7,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   resolveSurfaceSelection,
+  profileSelectionFromReceipt,
   reportFromSurfaces,
   expectedAgyPolicy,
   expectedCursorPolicyBody,
@@ -14,6 +15,45 @@ const {
 } = require('../scripts/ci/verify-platform-packages');
 
 const ROOT = path.join(__dirname, '..');
+
+test('platform verifier maps only the exact owned legacy Codex receipt to the named native selection', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
+  const moduleCatalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'module-catalog.json'), 'utf8'));
+  const ids = profiles.profiles['codex-native'].skillIds;
+  const owner = 'plugins/dhpk';
+  const receipt = {
+    surface: 'codex-native',
+    owner,
+    profileId: 'compat-v1',
+    selectedStableIds: ids,
+    selectedSkillIds: ids,
+    installation: {
+      profileId: 'compat-v1',
+      scope: 'project',
+      selectedStableIds: ids,
+      ownership: { owner, roots: [owner] },
+    },
+  };
+  const resolved = profileSelectionFromReceipt({
+    root: ROOT, receipt, surface: 'codex-native', inventory, profiles, moduleCatalog,
+  });
+  assert.strictEqual(resolved.profileId, 'codex-native');
+  assert.deepStrictEqual(resolved.selectedStableIds.slice().sort(), ids.slice().sort());
+
+  for (const mutate of [
+    (candidate) => candidate.installation.selectedStableIds.pop(),
+    (candidate) => { candidate.installation.ownership.owner = 'plugins/other'; },
+    (candidate) => { candidate.installation.scope = 'user'; },
+    (candidate) => { candidate.installation.ownership.roots = ['plugins/other']; },
+  ]) {
+    const candidate = JSON.parse(JSON.stringify(receipt));
+    mutate(candidate);
+    assert.throws(() => profileSelectionFromReceipt({
+      root: ROOT, receipt: candidate, surface: 'codex-native', inventory, profiles, moduleCatalog,
+    }), /unknown profile 'compat-v1'|missing profile selection field/i);
+  }
+});
 
 test('surface selection rejects unknown surfaces and dependency metadata', () => {
   assert.deepStrictEqual(resolveSurfaceSelection(['agent-plugin']), {
@@ -45,7 +85,10 @@ test('default common receipts retain canonical IDs and the platform verifier rep
     const version = JSON.parse(fs.readFileSync(path.join(sourceRoot, '.claude-plugin', 'plugin.json'), 'utf8')).version;
     const commonIds = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'install-profiles.json'), 'utf8'))
       .profiles.common.skillIds;
+    const codexNativeIds = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'install-profiles.json'), 'utf8'))
+      .profiles['codex-native'].skillIds;
     assert.strictEqual(commonIds.length, 14);
+    assert.strictEqual(codexNativeIds.length, 16);
     const inventory = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/distribution-inventory.json'), 'utf8'));
     const selection = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests/marketplace-selection.json'), 'utf8'));
     const byId = new Map(inventory.skills.map((entry) => [entry.id, entry]));
@@ -60,16 +103,17 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
         && byId.get(entry.id).surfaces.includes(surface)).map((entry) => entry.id);
       assert.deepStrictEqual(hostOnlyIds.sort(), surface === 'codex-native' ? ['library-author', 'opsx-apply-resume'] : []);
-      const expectedPhysicalIds = [...new Set([...commonIds, ...hostOnlyIds, ...inventory.internal_runtime_skills[surface]])].sort();
+      const selectedIds = surface === 'codex-native' ? codexNativeIds : commonIds;
+      const expectedPhysicalIds = [...new Set([...selectedIds, ...(surface === 'codex-native' ? [] : hostOnlyIds), ...inventory.internal_runtime_skills[surface]])].sort();
       assert.strictEqual(report.skillCount, expectedPhysicalIds.length, `${surface} must retain its declared physical entries`);
       assert.deepStrictEqual(fs.readdirSync(path.join(output, 'skills')).sort(), expectedPhysicalIds.map((id) => byId.get(id).name).sort());
       for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) assert.ok(!expectedPhysicalIds.includes(id), id);
       assert.strictEqual(typeof require(path.join(output, 'skills/flow-drive/scripts/run.js')).runFlowDrive, 'function');
       const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
       if (surface === 'codex-native') assert.deepStrictEqual(provenance.runtimeSupportStableIds, inventory.internal_runtime_skills[surface]);
-      assert.strictEqual(provenance.profileId, 'common', `${surface} must record the default common selection`);
-      assert.deepStrictEqual(provenance.selectedStableIds, commonIds, `${surface} must retain canonical public selection IDs`);
-      assert.deepStrictEqual(provenance.emittedStableIds, commonIds, `${surface} must not claim Host-only entries as public selection IDs`);
+      assert.strictEqual(provenance.profileId, surface === 'codex-native' ? 'codex-native' : 'common', `${surface} must record its named default selection`);
+      assert.deepStrictEqual(provenance.selectedStableIds, selectedIds, `${surface} must retain canonical selected IDs`);
+      assert.deepStrictEqual(provenance.emittedStableIds, selectedIds, `${surface} must not claim unselected entries`);
 
       const packagePath = surface === 'agy-plugin' ? 'plugins/dhpk-agy' : surface === 'codex-native' ? 'plugins/dhpk' : null;
       if (!packagePath) continue;
@@ -137,7 +181,7 @@ test('platform package verifier permits declared Cursor runtime support but repo
   assert.strictEqual(undeclared.verdict, 'FAIL');
 });
 
-test('policy parity applies the generators\' repository-link rewrite before comparing AGY and Cursor projections', () => {
+test('policy parity checks the AGY pointer and Cursor repository-link rewrite', () => {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-policy-links-'));
   try {
     fs.mkdirSync(path.join(root, 'rules'), { recursive: true });
@@ -156,10 +200,20 @@ test('policy parity applies the generators\' repository-link rewrite before comp
     const url = 'https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md#shape';
 
     const agy = expectedAgyPolicy(canonical, canonicalPath, root);
-    assert.ok(agy.startsWith('---\ntrigger: always_on\ndescription: Execution policy single source of truth\n---\n'), agy);
-    assert.ok(agy.includes(`[reviewer contract](${url})`), agy);
-    assert.ok(agy.includes('A [missing doc] keeps only its label.'), agy);
-    assert.ok(agy.includes('[external link](https://example.com/x)'), agy);
+    assert.strictEqual(agy, [
+      '---',
+      'trigger: model_decision',
+      'description: Execution policy single source of truth',
+      '---',
+      '# Execution Policy',
+      '',
+      'For routing, dispatch, review, git, or escalation questions, select the',
+      '[full execution policy](../skills/flow-guide/references/execution-bundle/rules/execution-policy.md).',
+      "Resolve this link relative to this rule file's directory, not the consumer",
+      "working directory. Derive `POLICY_BUNDLE_ROOT` from the selected resource's",
+      'real grandparent. Read its kernel first, then load only required sections.',
+      '',
+    ].join('\n'));
     assert.notStrictEqual(agy, canonical, 'an unrewritten projection must not satisfy parity');
 
     const cursor = expectedCursorPolicyBody(canonical, canonicalPath, root);

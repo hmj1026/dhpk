@@ -65,6 +65,13 @@ function mkRepo({ branch = 'develop' } = {}) {
         agy_plugin: { agents: ['sample.md'], rules: ['rules/sample.md'] },
       })
     );
+    fs.writeFileSync(path.join(root, 'manifests', 'install-profiles.json'), JSON.stringify({
+      profiles: {
+        common: { skillIds: ['tdd'], modules: [] },
+        'codex-native': { skillIds: ['tdd'], modules: [] },
+      },
+    }));
+    fs.writeFileSync(path.join(root, 'manifests', 'module-catalog.json'), JSON.stringify({ modules: [], stacks: [] }));
     fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
     const agyPin = 'bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=1.0.0 --json\n';
     fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
@@ -207,7 +214,11 @@ testWithRepo('write mode updates every manifest, promotes fragments, and reports
   assert.strictEqual(nativeManifest.skills, './skills/');
   const provenance = JSON.parse(fs.readFileSync(path.join(repo, 'plugins/dhpk', 'provenance.json'), 'utf8'));
   assert.strictEqual(provenance.sourceVersion, '1.1.0');
+  assert.strictEqual(provenance.profileId, 'codex-native');
   assert.deepStrictEqual(provenance.selectedSkillIds, ['tdd']);
+  assert.deepStrictEqual(provenance.selectedStableIds, ['tdd']);
+  assert.strictEqual(provenance.installation.profileId, 'codex-native');
+  assert.deepStrictEqual(provenance.installation.selectedStableIds, ['tdd']);
   assert.deepStrictEqual(provenance.selectedSkillNames, ['tdd-workflow']);
   assert.ok(fs.existsSync(path.join(repo, 'plugins/dhpk/skills/tdd-workflow/SKILL.md')));
 
@@ -461,9 +472,12 @@ testWithRepo('write mode fails closed when an inventory-selected Agent/Cursor sk
   try {
     const inventoryPath = path.join(repo, 'manifests', 'distribution-inventory.json');
     fs.writeFileSync(inventoryPath, JSON.stringify({
-      skills: [{ id: 'portable', name: 'dhpk-portable', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['agent-plugin', 'cursor-plugin'] }],
+      skills: [
+        { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] },
+        { id: 'portable', name: 'dhpk-portable', path: 'skills/dhpk-sample', surfaces: ['agent-plugin', 'cursor-plugin'] },
+      ],
     }));
-    fs.writeFileSync(path.join(repo, 'skills/tdd-workflow', 'SKILL.md'), '---\nname: wrong-name\ndescription: broken\n---\n');
+    fs.writeFileSync(path.join(repo, 'skills/dhpk-sample', 'SKILL.md'), '---\nname: wrong-name\ndescription: broken\n---\n');
     fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
     const before = snapshotReleaseTargets(repo);
     const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
