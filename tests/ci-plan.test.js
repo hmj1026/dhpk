@@ -81,6 +81,33 @@ function assertFullPlan(plan) {
   assert.ok(plan.requiredJobs.includes('macos-installer'));
 }
 
+test('wording declarations for the execution-policy kernel retain full CI', () => {
+  withChangedFiles(['rules/execution-policy-kernel.md'], (plan) => {
+    assert.strictEqual(plan.mode, 'full');
+    assert.strictEqual(plan.reason, 'shared-core-change');
+  }, AVAILABLE_SUITES, () => 'wording');
+});
+
+test('wording declarations for shared tool-routing policy retain full CI', () => {
+  withChangedFiles(['rules/tool-routing.md'], (plan) => {
+    assert.strictEqual(plan.mode, 'full');
+    assert.strictEqual(plan.reason, 'shared-core-change');
+  }, AVAILABLE_SUITES, () => 'wording');
+});
+
+for (const file of [
+  '.github/workflows/ci.yml',
+  'tests/_lib/fixture.js',
+  'scripts/hooks/_lib/shared.sh',
+]) {
+  test(`shared-core directory changes report the shared-core reason: ${file}`, () => {
+    withChangedFiles([file], (plan) => {
+      assert.strictEqual(plan.mode, 'full');
+      assert.strictEqual(plan.reason, 'shared-core-change');
+    }, AVAILABLE_SUITES, () => 'wording');
+  });
+}
+
 for (const file of [
   'skills/repo-verify/scripts/lib/runner-utils.js',
   'skills/flow-guide/scripts/_lib/runtime-loader.js',

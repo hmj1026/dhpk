@@ -20,6 +20,19 @@ const SHARED_CORE_PATHS = Object.freeze([
   'docs/testing-governance.md',
   'rules/dhpk-project-conventions.md',
   'rules/execution-policy.md',
+  'rules/execution-policy-kernel.md',
+  'rules/tool-routing.md',
+]);
+const SHARED_CORE_PREFIXES = Object.freeze([
+  '.github/workflows/',
+  'tests/_lib/',
+  'scripts/hooks/_lib/',
+]);
+const SHARED_CORE_FILES = Object.freeze([
+  'tests/run-all.js',
+  'scripts/ci/ci-plan.js',
+  'scripts/ci/verify-test-shards.js',
+  'scripts/lib/ci-plan.js',
 ]);
 // Light plans skip the full validate job, so they check the retained generated
 // Claude marketplace package when canonical docs/content edits may affect it.
@@ -224,8 +237,10 @@ function normalizeChange(change) {
 }
 
 function isSharedCorePath(file) {
+  const normalized = file.toLowerCase();
   return SHARED_CORE_PATHS.includes(file)
-    || /^(?:\.github\/workflows\/|tests\/run-all\.js|tests\/_lib\/|scripts\/hooks\/_lib\/|scripts\/ci\/(?:ci-plan|verify-test-shards)\.js|scripts\/lib\/ci-plan\.js)$/i.test(file);
+    || SHARED_CORE_PREFIXES.some((prefix) => normalized.startsWith(prefix))
+    || SHARED_CORE_FILES.includes(normalized);
 }
 
 function assessClassification(changes, identities, declaration, declarationError) {
