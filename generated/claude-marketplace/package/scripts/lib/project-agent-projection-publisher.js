@@ -19,7 +19,10 @@ const {
   fingerprint,
 } = require('./distribution-projection-contract');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
-const { serializePortableSkillMetadata } = require('./portable-skill-metadata');
+const {
+  serializePortableSkillMetadata,
+  validatePortableSkillMetadata,
+} = require('./portable-skill-metadata');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
 const {
   createProjectAgentProviderAdapters,
@@ -593,8 +596,8 @@ function buildArtifactInputs({
         const sourceContent = readPhysicalFile(file.absolute, `canonical skill '${name}/${file.relative}'`);
         const destination = `${name}/${file.relative}`;
         if (hasPortableDirectoryOutput) {
-          const portableContent = file.relative === 'SKILL.md'
-            ? Buffer.from(portableSkillContent(sourceContent.toString('utf8'), `${name}/SKILL.md`), 'utf8')
+          const portableContent = path.posix.basename(file.relative) === 'SKILL.md'
+            ? Buffer.from(portableSkillContent(sourceContent.toString('utf8'), `${name}/${file.relative}`), 'utf8')
             : sourceContent;
           addRecord({
             stableId: outputStableId(planEntry.stableId, 'directory', file.relative),
@@ -985,6 +988,8 @@ function validateReceipt(receipt, roots) {
     if (!receipt.rollback || receipt.rollback.schema !== expectedRollbackSchema
       || receipt.rollback.root !== '.agents/.dhpk-projection-rollback'
       || receipt.rollback.receipt !== 'receipt.json' || receipt.rollback.files !== 'files'
+      || (receipt.rollback.layout !== undefined
+        && (expectedRollbackSchema !== LEGACY_PROJECT_ROLLBACK_SCHEMA || receipt.rollback.layout !== 'grouped'))
       || !DIGEST_PATTERN.test(receipt.rollback.fingerprint || '')) {
       throw fail('INVALID_RECEIPT', 'project projection receipt rollback metadata is invalid');
     }
@@ -1119,6 +1124,14 @@ function validateManagedFiles(roots, receipt, { requireBindings = true } = {}) {
     }
     const actual = digest(fs.readFileSync(target));
     if (actual !== managed.fingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `receipt-owned ${managed.label} file was modified or fingerprint drifted: ${relative}; expected SHA-256: ${managed.fingerprints[relative]}; preserve the modified content and obtain a physical backup matching the current receipt fingerprints; see docs/platform-installation.md#recover-receipt-owned-shared-skills`, { paths: [relative] });
+    if (receipt.schema === PROJECT_RECEIPT_SCHEMA
+      && managed.label === 'managed'
+      && path.posix.basename(relative) === 'SKILL.md') {
+      const metadata = validatePortableSkillMetadata(fs.readFileSync(target, 'utf8'));
+      if (!metadata.ok) {
+        throw fail('INVALID_PORTABLE_METADATA', `${relative} has invalid portable metadata: ${metadata.errors.join('; ')}`, { paths: [relative] });
+      }
+    }
   }
   for (const binding of flattenBindingPaths(normalizeBindingPaths(receipt.bindingPaths || {}, roots, 'project projection binding paths', {
     allowClaudeRoot: receipt.schema === PROJECT_RECEIPT_SCHEMA,
@@ -1397,15 +1410,20 @@ function receiptWithoutFingerprint(receipt) {
   return next;
 }
 
-function createRollbackStage(roots, previous) {
+function createRollbackStage(roots, previous, receiptSchema) {
   if (!previous) return null;
   const stage = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-rollback-stage-'));
   try {
     const filesRoot = path.join(stage, 'files');
     fs.mkdirSync(filesRoot, { recursive: true });
+    const schemaForReceipt = receiptSchema || previous.schema;
+    const groupedLayout = schemaForReceipt === PROJECT_RECEIPT_SCHEMA;
+    const hasClaudeFiles = (previous.claudeManagedPaths || []).length > 0;
+    const groupedLegacyLayout = !groupedLayout && hasClaudeFiles;
+    const managedSnapshotRoot = groupedLayout || groupedLegacyLayout ? path.join(filesRoot, 'managed') : filesRoot;
     for (const relative of previous.managedPaths) {
       const source = pathIn(roots.managedRoot, relative, 'rollback source');
-      const target = path.join(filesRoot, 'managed', relative);
+      const target = path.join(managedSnapshotRoot, relative);
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.copyFileSync(source, target);
     }
@@ -1418,17 +1436,28 @@ function createRollbackStage(roots, previous) {
       fs.copyFileSync(source, target);
     }
     writeAtomicJson(path.join(stage, 'receipt.json'), previous, roots.projectRoot);
+    const managedFiles = previous.managedPaths.map((relative) => ({
+      ...(groupedLayout || groupedLegacyLayout ? { root: 'managed' } : {}),
+      relative,
+      fingerprint: previous.generatedFingerprints[relative],
+    }));
+    const claudeFiles = claudeManagedPaths.map((relative) => ({
+      root: 'claude',
+      relative,
+      fingerprint: claudeFingerprints[relative],
+    }));
+    const snapshotFiles = groupedLayout || groupedLegacyLayout
+      ? [...managedFiles, ...claudeFiles].sort((left, right) => `${left.root}/${left.relative}`.localeCompare(`${right.root}/${right.relative}`))
+      : managedFiles.sort((left, right) => left.relative.localeCompare(right.relative));
     const snapshotFingerprint = fingerprint({
       receipt: previous,
-      files: [
-        ...previous.managedPaths.map((relative) => ({ root: 'managed', relative, fingerprint: previous.generatedFingerprints[relative] })),
-        ...claudeManagedPaths.map((relative) => ({ root: 'claude', relative, fingerprint: claudeFingerprints[relative] })),
-      ].sort((left, right) => `${left.root}/${left.relative}`.localeCompare(`${right.root}/${right.relative}`)),
+      files: snapshotFiles,
     });
     return {
       stage,
       metadata: {
-        schema: PROJECT_ROLLBACK_SCHEMA,
+        schema: groupedLayout ? PROJECT_ROLLBACK_SCHEMA : LEGACY_PROJECT_ROLLBACK_SCHEMA,
+        ...(groupedLegacyLayout ? { layout: 'grouped' } : {}),
         root: '.agents/.dhpk-projection-rollback',
         receipt: 'receipt.json',
         files: 'files',
@@ -1535,7 +1564,7 @@ function publishManagedCandidate({
   }) : {};
   checkBindingCollisions(roots, previous, candidateBindingPaths);
   const backup = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-backup-'));
-  const rollback = createRollbackStage(roots, previous && createRollback ? previous : null);
+  const rollback = createRollbackStage(roots, previous && createRollback ? previous : null, nextReceipt && nextReceipt.schema);
   const rollbackRoot = path.join(roots.agentsRoot, '.dhpk-projection-rollback');
   const oldRollback = previous && lstatOrNull(rollbackRoot);
   const receipt = nextReceipt ? sealReceipt({
@@ -2051,7 +2080,8 @@ function snapshotReceipt(roots, receipt) {
   const snapshotReceipt = readJsonFile(path.join(rollbackRoot, receipt.rollback.receipt), 'rollback receipt');
   validateReceipt(snapshotReceipt, roots);
   const filesRoot = path.join(rollbackRoot, receipt.rollback.files);
-  const managedSnapshotRoot = receipt.rollback.schema === PROJECT_ROLLBACK_SCHEMA
+  const groupedLayout = receipt.rollback.schema === PROJECT_ROLLBACK_SCHEMA || receipt.rollback.layout === 'grouped';
+  const managedSnapshotRoot = groupedLayout
     ? path.join(filesRoot, 'managed')
     : filesRoot;
   const claudeSnapshotRoot = path.join(filesRoot, 'claude-managed');
@@ -2071,7 +2101,7 @@ function snapshotReceipt(roots, receipt) {
   }
   const expected = fingerprint({
     receipt: snapshotReceipt,
-    files: receipt.rollback.schema === PROJECT_ROLLBACK_SCHEMA
+    files: groupedLayout
       ? [
         ...snapshotReceipt.managedPaths.map((relative) => ({ root: 'managed', relative, fingerprint: snapshotReceipt.generatedFingerprints[relative] })),
         ...(snapshotReceipt.claudeManagedPaths || []).map((relative) => ({ root: 'claude', relative, fingerprint: snapshotReceipt.claudeGeneratedFingerprints[relative] })),
