@@ -45,9 +45,13 @@ function fixture() {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-host-catalog-'));
   const root = path.join(temp, 'source');
   const outDir = path.join(temp, 'package');
-  for (const directory of ['agent-traps', 'agents', 'commands', 'docs', 'hooks', 'manifests', 'modules', 'rules', 'scripts', 'skills', 'templates']) {
+  for (const directory of ['agent-traps', 'agents', 'commands', 'docs', 'hooks', 'manifests', 'modules', 'rules', 'scripts', 'scripts/hooks', 'skills', 'templates']) {
     fs.mkdirSync(path.join(root, directory), { recursive: true });
   }
+  fs.copyFileSync(
+    path.join(ROOT, 'scripts/hooks/install-codex-skills.sh'),
+    path.join(root, 'scripts/hooks/install-codex-skills.sh'),
+  );
   write(path.join(root, 'manifests/distribution-inventory.json'), `${JSON.stringify(INVENTORY, null, 2)}\n`);
   write(path.join(root, 'manifests/marketplace-selection.json'), `${JSON.stringify(SELECTION, null, 2)}\n`);
   write(path.join(root, '.claude-plugin/plugin.json'), fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json')));
