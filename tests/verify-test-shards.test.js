@@ -784,8 +784,7 @@ test('malformed shard timing JSON is rejected', () => {
         child.stderr.on('data', (chunk) => {
           stderr += chunk.toString();
           const completionLine = stderr.split(/\r?\n/).find((line) => (
-            /(?:complete|completed|finished|done|status=(?:PASS|FAIL))/i.test(line)
-            && (/\.test\.js\b/i.test(line) || /\b\d+\s*\/\s*\d+\b/.test(line))
+            /^\[test-progress\] completed quick\.test\.js status=PASS\b/.test(line)
           ));
           if (completionLine && resolveEarlyCompletion) {
             resolveEarlyCompletion({ line: completionLine, beforeClose: !closed, stderrAtEvent: stderr });
