@@ -31,6 +31,7 @@ const { validateCursorPackage } = require('../lib/cursor-plugin-package');
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../lib/agy-plugin-package');
 const { materialize } = require('../ci/gen-claude-marketplace-package');
 const { validateSurfaceReceipt, resolveGeneratedFromTree } = require('../lib/platform-provenance');
+const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 
 // The codex-native package (plugins/dhpk/.codex-plugin/plugin.json +
 // provenance.json) is generated, derived output — not a hand-patchable
@@ -564,10 +565,34 @@ function main() {
   }
 
   const inventory = JSON.parse(fs.readFileSync(path.join(args.root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const profiles = JSON.parse(fs.readFileSync(path.join(args.root, 'manifests', 'install-profiles.json'), 'utf8'));
+  const moduleCatalog = JSON.parse(fs.readFileSync(path.join(args.root, 'manifests', 'module-catalog.json'), 'utf8'));
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: args.root, encoding: 'utf8' }).trim();
   const targetTree = resolveGeneratedFromTree(args.root, sourceCommit);
   if (!targetTree) throw new Error('unable to resolve release target source tree');
-  const codexNativeProfileSelection = resolveCodexNativeProfileSelection({ root: args.root, inventory });
+  function resolveSurfaceProfile(surface) {
+    if (surface === 'codex-native') {
+      return resolveCodexNativeProfileSelection({ root: args.root, inventory, profiles, moduleCatalog });
+    }
+    const resolved = resolveCapabilitySelection({
+      inventory,
+      profiles,
+      moduleCatalog,
+      profileId: 'common',
+      skillIds: [],
+      surface,
+      sourceInputs: { profileId: 'common', skillIds: [], standaloneSkillIds: [] },
+      policyVersion: inventory.profile_policy && inventory.profile_policy.version,
+    });
+    if (!resolved.ok) throw new Error(`${surface} profile selection is invalid: ${resolved.error.message}`);
+    const bound = bindSurfaceSelection({ selection: resolved.value, surface });
+    if (!bound.ok) throw new Error(`${surface} profile selection cannot be bound: ${bound.error.message}`);
+    return bound.value;
+  }
+  const codexNativeProfileSelection = resolveSurfaceProfile('codex-native');
+  const agentProfileSelection = resolveSurfaceProfile('agent-plugin');
+  const cursorProfileSelection = resolveSurfaceProfile('cursor-plugin');
+  const agyProfileSelection = resolveSurfaceProfile('agy-plugin');
   const stagingRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-release-packages-'));
   const stagedNative = path.join(stagingRoot, 'dhpk');
   const stagedAgent = path.join(stagingRoot, 'dhpk-agent');
@@ -583,8 +608,23 @@ function main() {
       sourceCommit,
       profileSelection: codexNativeProfileSelection,
     });
-    const stagedAgentResult = materializeAgentPluginPackage({ inventory, root: args.root, outDir: stagedAgent, name: 'dhpk', version: args.version, sourceCommit });
-    const stagedCursorResult = materializeCursorPackage({ inventory, root: args.root, outDir: stagedCursor, version: args.version, sourceCommit });
+    const stagedAgentResult = materializeAgentPluginPackage({
+      inventory,
+      root: args.root,
+      outDir: stagedAgent,
+      name: 'dhpk',
+      version: args.version,
+      sourceCommit,
+      profileSelection: agentProfileSelection,
+    });
+    const stagedCursorResult = materializeCursorPackage({
+      inventory,
+      root: args.root,
+      outDir: stagedCursor,
+      version: args.version,
+      sourceCommit,
+      profileSelection: cursorProfileSelection,
+    });
     let stagedAgyValidation = { errors: [] };
     let agyReceipt = { errors: [] };
     try {
@@ -595,11 +635,13 @@ function main() {
         version: args.version,
         sourceVersion: args.version,
         sourceCommit,
+        profileSelection: agyProfileSelection,
       });
       stagedAgyValidation = validateAgyPluginPackage(stagedAgy, {
         inventory,
         sourceRoot: args.root,
         expectedVersion: args.version,
+        profileSelection: agyProfileSelection,
       });
       const agyProvenance = JSON.parse(fs.readFileSync(path.join(stagedAgy, 'provenance.json'), 'utf8'));
       agyReceipt = validateSurfaceReceipt({ ...agyProvenance, schema: 'dhpk.platform-provenance.v1' }, 'agy-plugin', { root: args.root, targetCommit: sourceCommit, targetTree });
@@ -609,6 +651,8 @@ function main() {
 
     const stagedAgentValidation = validateAgentPluginPackage(stagedAgent, {
       allowlist: inventory.portable_frontmatter && inventory.portable_frontmatter.allowlist,
+      inventory,
+      profileSelection: agentProfileSelection,
     });
     const stagedCursorValidation = validateCursorPackage({ packageRoot: stagedCursor, expectedManifestName: 'dhpk-cursor', inventory });
     const agentReceipt = validateSurfaceReceipt(JSON.parse(fs.readFileSync(path.join(stagedAgent, 'provenance.json'), 'utf8')), 'agent-plugin', { root: args.root, targetCommit: sourceCommit, targetTree });
