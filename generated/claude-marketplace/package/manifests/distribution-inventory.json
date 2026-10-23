@@ -1790,7 +1790,7 @@
       "usage": {
         "display_name": "Precommit",
         "summary": "Run the packaged deterministic pre-commit pipeline",
-        "syntax": "$precommit [--fast]",
+        "syntax": "$precommit [--fast] [--dry-run]",
         "input_kind": "none",
         "invocation_class": "implicit-eligible",
         "effect_authority": "workspace-write",
@@ -1799,7 +1799,7 @@
           {
             "id": "run",
             "summary": "Run fast or full pre-commit stages",
-            "syntax": "$precommit [--fast]",
+            "syntax": "$precommit [--fast] [--dry-run]",
             "input_kind": "none",
             "effect_authority": "workspace-write"
           }
@@ -1811,6 +1811,14 @@
             "value_kind": "boolean",
             "required": false,
             "summary": "Run the fast stage set",
+            "default": false
+          },
+          {
+            "id": "dry-run",
+            "syntax": "--dry-run",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Preview selected commands without running checks or writing cache files",
             "default": false
           }
         ],

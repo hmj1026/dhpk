@@ -1,7 +1,7 @@
 ---
 name: precommit
 description: 'Run the deterministic pre-commit pipeline in fast or full mode through the packaged runner. Use when handing off repository changes. Not for: ad hoc replacement checks, dependency audits, or read-only verification. Output: runner-owned changed-file reporting and final verdict.'
-argument-hint: '[--fast]'
+argument-hint: '[--fast] [--dry-run]'
 metadata:
   dhpk-capability-id: dhpk.skill.precommit
   dhpk-name-style: portable-skill
@@ -24,6 +24,13 @@ full mode, then invoke the package-local runner:
 ```bash
 node "$SKILL_DIR/scripts/precommit-runner.js" --mode <fast|full> --tail 80
 ```
+
+With `--dry-run`, append that flag to preview the selected stages, commands,
+and working directories. The runner performs read-only repository discovery
+and stops before executing checks or writing cache/log files. `DRY_RUN` is a
+plan, not verification evidence. Fast mode omits build; its test selection can
+still fall back to the complete `test` script. Preview unfamiliar configurations
+before choosing an execution checkpoint.
 
 Here `$SKILL_DIR` is the installed directory containing this `SKILL.md`; the
 current working directory remains the consumer repository. The runner and its
@@ -52,7 +59,8 @@ rule to verification and review evidence.
 
 ## Output
 
-Return the runner output, changed-file report, and its final `PASS`, `FAIL`, or
+For a preview, return the runner's `DRY_RUN` plan and retain its unexecuted state.
+For execution, return the runner output, changed-file report, and its final `PASS`, `FAIL`, or
 `UNSUPPORTED` verdict. A missing runner is `UNAVAILABLE`; a runner crash or
 failed check is `FAIL`. An `UNSUPPORTED` verdict means no Git repository or executable checks were
 available and exits non-zero; never replace it with hand-written checks or claim a pass
@@ -63,6 +71,8 @@ from partial output.
 - [ ] Mode is exactly `fast` or `full` and the runner received `--tail 80`.
 - [ ] The package-local runner ran from the consumer repository cwd.
 - [ ] The local `runner-utils.js` helper resolved beside the runner.
+- [ ] A requested dry run listed the selected commands without stage/cache
+  writes and was reported as a plan rather than a check result.
 - [ ] Runner-owned stage order, skips, changed files, and verdict are intact.
 - [ ] `summary.json` `overallStatus` and the final Markdown verdict agree;
   `FAIL` and `UNSUPPORTED` remain terminal when the CLI exits zero.

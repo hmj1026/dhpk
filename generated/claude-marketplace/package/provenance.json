@@ -2277,7 +2277,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "ac3c97cb157fa886b9132fa4de6843fd881fb9cd83d39bf0319fb30475cb4db4"
+      "sha256": "b9bcb01973ea32e553b83141bb894dbb9a23eb667199c041ba9b4f75200ac4e8"
     },
     {
       "skillId": "flow-guide",
@@ -3205,7 +3205,7 @@
       "sourcePath": "skills/precommit/SKILL.md",
       "destination": "skills/precommit/SKILL.md",
       "kind": "entry",
-      "sha256": "1ca5ecb994a1a129c4f1ea3d43c048d049a242418179e91ccf1f1522466445ac"
+      "sha256": "c97b4c97318e9e94cfbbba31710337162a24357aa0886f26a3f08ca717199eaf"
     },
     {
       "skillId": "precommit",
@@ -3221,7 +3221,7 @@
       "sourcePath": "skills/precommit/distribution.yaml",
       "destination": "skills/precommit/distribution.yaml",
       "kind": "entry",
-      "sha256": "72668877cbf25c0ae45fdad7a092847ef3fa27ca5fafb0976001167fe1150b6b"
+      "sha256": "781341e6a2238f6d49ced3b852f336f37aaef2ab926c5ab85643746ea93beb0c"
     },
     {
       "skillId": "precommit",
@@ -3229,7 +3229,7 @@
       "sourcePath": "skills/precommit/references/workflow.md",
       "destination": "skills/precommit/references/workflow.md",
       "kind": "entry",
-      "sha256": "45512f33a5ed0b718101757f129f58f74649a0ac2104dca1b116427bd2697c24"
+      "sha256": "45897e04a5d8f52a4ac262861d5c2841b72ccd0456883231ce43c7a122e51ab5"
     },
     {
       "skillId": "precommit",
@@ -3245,7 +3245,7 @@
       "sourcePath": "skills/precommit/scripts/precommit-runner.js",
       "destination": "skills/precommit/scripts/precommit-runner.js",
       "kind": "entry",
-      "sha256": "19a8c3bdb38402cbd3e99e3961f5d4aae617bf2ad2738017b3cced7e7b064862"
+      "sha256": "8fa1b1e9e1fdcc8a3e33901cf1ab9c1b7211244a01a83f1b010eb75b1f1e3ee8"
     },
     {
       "skillId": "proposal-analyze",
