@@ -394,7 +394,7 @@ test('malformed shard timing JSON is rejected', () => {
   const path = require('node:path');
   const fs = require('node:fs');
   const os = require('node:os');
-  const { spawnSync } = require('node:child_process');
+  const { spawn, spawnSync } = require('node:child_process');
   const { test, assert } = require('./_lib/tinytest');
   const {
     parseOptions,
@@ -405,6 +405,28 @@ test('malformed shard timing JSON is rejected', () => {
     createTimingReport,
     parseTimingPayload,
   } = require('./run-all');
+
+  function isolatedRunnerFixture(files) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-run-all-progress-'));
+    const testsDir = path.join(root, 'tests');
+    fs.mkdirSync(testsDir, { recursive: true });
+    fs.copyFileSync(path.join(__dirname, 'run-all.js'), path.join(testsDir, 'run-all.js'));
+    fs.cpSync(path.join(__dirname, '..', 'scripts', 'lib'), path.join(root, 'scripts', 'lib'), { recursive: true });
+    const testFiles = Object.entries(files).map(([name, source]) => {
+      const file = path.join(testsDir, name);
+      fs.writeFileSync(file, source);
+      return file;
+    });
+    return { root, testsDir, runner: path.join(testsDir, 'run-all.js'), testFiles };
+  }
+
+  function isolatedRunnerEnv(overrides = {}) {
+    const env = { ...process.env, DHPK_TEST_JOBS: '2' };
+    for (const key of ['DHPK_TEST_PROGRESS', 'DHPK_TEST_TIMING_FILE', 'DHPK_TEST_TIMING_CHILD', 'DHPK_TEST_SHARD_INDEX', 'DHPK_TEST_SHARD_COUNT']) {
+      delete env[key];
+    }
+    return { ...env, ...overrides };
+  }
 
   test('default options preserve the complete sequential runner contract', () => {
     assert.deepStrictEqual(parseOptions([], {}), {
@@ -687,6 +709,133 @@ test('malformed shard timing JSON is rejected', () => {
     );
     assert.strictEqual(parseTimingPayload('ordinary output\n'), null);
     assert.strictEqual(parseTimingPayload('DHPK_TEST_TIMING_PAYLOAD={invalid}\n'), null);
+  });
+
+  test('parallel progress is opt-in on stderr and preserves aggregate stdout', () => {
+    const fixture = isolatedRunnerFixture({
+      'quick.test.js': "console.log('quick: 1/1 passed');\n",
+      'other.test.js': "console.log('other: 1/1 passed');\n",
+    });
+    try {
+      const args = [fixture.runner, ...fixture.testFiles];
+      const baseline = spawnSync(process.execPath, args, {
+        cwd: fixture.root,
+        env: isolatedRunnerEnv(),
+        encoding: 'utf8',
+        timeout: 30000,
+      });
+      const progress = spawnSync(process.execPath, args, {
+        cwd: fixture.root,
+        env: isolatedRunnerEnv({ DHPK_TEST_PROGRESS: '1' }),
+        encoding: 'utf8',
+        timeout: 30000,
+      });
+
+      assert.strictEqual(baseline.status, 0, baseline.stdout + '\n' + baseline.stderr);
+      assert.strictEqual(progress.status, 0, progress.stdout + '\n' + progress.stderr);
+      assert.strictEqual(progress.stdout, baseline.stdout, 'progress must not change worker or aggregate stdout');
+      assert.match(progress.stdout, /PASS: 2\/2 test file\(s\) passed/);
+      assert.doesNotMatch(baseline.stderr, /\[test-progress\]/i);
+      assert.match(progress.stderr, /\[test-progress\]/i);
+      assert.ok(
+        /\.test\.js\b|\b[12]\s*\/\s*2\b/i.test(progress.stderr),
+        progress.stderr,
+      );
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  test('parallel completion progress waits for child results and failed workers remain failures', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-run-all-progress-held-'));
+    const startedFile = path.join(root, 'slow-started');
+    const releaseFile = path.join(root, 'slow-release');
+    const slowSource = [
+      "const fs = require('node:fs');",
+      "console.log('slow.test.js: 1/1 passed');",
+      'fs.writeFileSync(' + JSON.stringify(startedFile) + ", 'started');",
+      'const timer = setInterval(() => {',
+      '  if (fs.existsSync(' + JSON.stringify(releaseFile) + ')) {',
+      '    clearInterval(timer);',
+      '    process.exitCode = 1;',
+      '  }',
+      '}, 10);',
+      '',
+    ].join('\n');
+    const fixture = isolatedRunnerFixture({
+      'quick.test.js': "console.log('quick: 1/1 passed');\n",
+      'slow.test.js': slowSource,
+    });
+    let child;
+    let closed = false;
+    let stdout = '';
+    let stderr = '';
+    let result;
+    let resolveEarlyCompletion;
+    const earlyCompletionPromise = new Promise((resolve) => { resolveEarlyCompletion = resolve; });
+    try {
+      child = spawn(process.execPath, [fixture.runner, ...fixture.testFiles], {
+        cwd: fixture.root,
+        env: isolatedRunnerEnv({ DHPK_TEST_PROGRESS: '1' }),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const finished = new Promise((resolve) => {
+        child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+        child.stderr.on('data', (chunk) => {
+          stderr += chunk.toString();
+          const completionLine = stderr.split(/\r?\n/).find((line) => (
+            /^\[test-progress\] completed quick\.test\.js status=PASS\b/.test(line)
+          ));
+          if (completionLine && resolveEarlyCompletion) {
+            resolveEarlyCompletion({ line: completionLine, beforeClose: !closed, stderrAtEvent: stderr });
+            resolveEarlyCompletion = null;
+          }
+        });
+        child.once('error', (error) => {
+          closed = true;
+          resolve({ error, status: null, stdout, stderr });
+        });
+        child.once('close', (status) => {
+          closed = true;
+          resolve({ status, stdout, stderr });
+        });
+      });
+      let earlyTimeout;
+      const earlyCompletion = await Promise.race([
+        earlyCompletionPromise,
+        new Promise((resolve) => { earlyTimeout = setTimeout(() => resolve(null), 5000); }),
+      ]);
+      clearTimeout(earlyTimeout);
+      fs.writeFileSync(releaseFile, 'release');
+      result = await finished;
+      assert.ok(fs.existsSync(startedFile), 'the held test worker must start before the runner exits');
+      assert.ok(earlyCompletion, 'a worker completion must be reported before the held worker is released');
+      assert.strictEqual(earlyCompletion.beforeClose, true, 'progress must arrive before the aggregate runner closes');
+      assert.match(stderr, /\[test-progress\]/i, stderr);
+      const progressCounters = stderr.split(/\r?\n/)
+        .filter((line) => line.includes('[test-progress]'))
+        .flatMap((line) => [...line.matchAll(/\bcompleted\s+(\d+)\s*\/\s*(\d+)\b/gi)])
+        .map((match) => ({ completed: Number(match[1]), total: Number(match[2]) }));
+      assert.ok(progressCounters.some(({ completed, total }) => completed === 2 && total === 2), stderr);
+      assert.ok(
+        progressCounters.every(({ completed, total }) => completed <= total),
+        `progress must not report more completed files than the global total:\n${stderr}`,
+      );
+      const prematureSlowPass = earlyCompletion.stderrAtEvent.split(/\r?\n/).some((line) => (
+        /slow\.test\.js/i.test(line) && /\bPASS\b/i.test(line)
+      ));
+      assert.strictEqual(prematureSlowPass, false, 'a running child must not be reported as passed before its result');
+      assert.strictEqual(result.status, 1, stdout + '\n' + stderr);
+      assert.match(stderr, /FAIL: 1\/2 test file\(s\) failed/);
+      assert.doesNotMatch(stdout, /PASS: 2\/2 test file\(s\) passed/);
+    } finally {
+      if (child && !closed) {
+        fs.writeFileSync(releaseFile, 'release');
+        await new Promise((resolve) => child.once('close', resolve));
+      }
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test('discovered tests stay flat except skipped _lib', () => {

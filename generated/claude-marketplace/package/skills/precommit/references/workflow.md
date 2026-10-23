@@ -1,6 +1,6 @@
 # Precommit workflow
 
-1. Parse `[--fast]`. With `--fast`, set `mode=fast`; with no option, set
+1. Parse `[--fast] [--dry-run]`. With `--fast`, set `mode=fast`; with no option, set
    `mode=full`. An unknown option is a terminal usage failure.
 2. Resolve `$SKILL_DIR` to the installed directory containing this `SKILL.md`,
    not the consumer repository. Resolve the adjacent `scripts/lib/runner-utils.js`
@@ -11,6 +11,12 @@
    ```bash
    node "$SKILL_DIR/scripts/precommit-runner.js" --mode <fast|full> --tail 80
    ```
+
+   Append `--dry-run` when requested. Preview performs read-only repository
+   discovery, validates configuration, and lists ordered commands with their
+   working directories. It runs no configured stages and writes no cache or
+   logs; `DRY_RUN` is not a verification verdict. Fast mode skips build but
+   may select a full `test` script through the documented fallback.
 
 3. Treat the packaged runner as the sole source of truth for ecosystem
    detection, package manager, stage ordering, graceful skips, changed-file

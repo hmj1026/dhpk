@@ -21,6 +21,8 @@ const vm = require('node:vm');
 const PLANNER_MARKER = 'dhpk:read-only-planner';
 const PLANNER_MARKER_LINE = new RegExp(`^// ${PLANNER_MARKER}\\b`, 'm');
 const HISTORICAL_VERSION_FIXTURE_MARKER = 'dhpk:historical-version-fixture';
+const RUNTIME_GUIDANCE_MARKER_LINE = /^\/\/ dhpk:runtime-guidance-test\b/m;
+const CONTENT_READER = /\b(?:readFileSync|readFile|createReadStream)\b/;
 
 const WRITE_APIS = [
   'writeFileSync', 'writeFile', 'appendFileSync', 'appendFile', 'mkdirSync', 'mkdtempSync',
@@ -111,6 +113,9 @@ function checkFiles(root, files, stats = { plannerFiles: [] }) {
     }
     if (packageVersion !== null && testFiles.has(relativePath)) {
       errors.push(...currentVersionLiteralErrors(relativePath, source, packageVersion));
+    }
+    if (testFiles.has(relativePath) && RUNTIME_GUIDANCE_MARKER_LINE.test(source) && CONTENT_READER.test(source)) {
+      errors.push(`${relativePath}: runtime-guidance test uses a raw content reader; exercise runtime behavior, shared metadata parsers, or resource existence instead`);
     }
     if (!PLANNER_MARKER_LINE.test(source)) continue;
     stats.plannerFiles.push(relativePath);

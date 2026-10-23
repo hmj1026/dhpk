@@ -82,6 +82,17 @@ prose. Content-size or discovery measurements may be requested as informational
 reports; they do not create a prose-correctness contract. Actual Host and package
 compatibility constraints remain enforced where they affect shipped behavior.
 
+Runtime-guidance suites may opt into the existing JavaScript guardrail with
+`// dhpk:runtime-guidance-test`. The lexical check rejects raw content-reader
+APIs in marked test source; use executable routes, shared metadata parsers,
+or resource-existence checks. It is a bounded source check, not cross-file
+dataflow analysis or a document-wording gate.
+
+For long local parallel runs, set `DHPK_TEST_PROGRESS=1` to receive compact
+test-start and completion updates on stderr. Ordered stdout, assertion
+accounting, timing reports, and the aggregate exit status remain authoritative.
+For example: `DHPK_TEST_JOBS=2 DHPK_TEST_PROGRESS=1 npm run ci`.
+
 Model-driven or GUI sessions and live context, budget, count, or benchmark
 measurements are on-demand research, not routine CI gates. Those research
 budget and benchmark tests live under `tests/on-demand/` and run with

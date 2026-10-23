@@ -26,6 +26,13 @@ PR self-merge is classifier-blocked in this repository. Hand merge to a human;
 do not attempt `gh pr merge --admin` or remote branch deletion from an agent
 session.
 
+After syncing this checkout, check a locally installed compatibility projection
+when `.agents/skills/.dhpk-projection.json` exists with `npm run check:local-skills`.
+Use `npm run sync:local-skills` to update owned files from canonical sources and
+validate the result. Preserve reported modified or unmanaged conflicts; keep a
+backup before repair. This local installation check is separate from package CI
+and is not required in a fresh checkout without that receipt.
+
 ## Delivery and verification
 
 Resolve all assigned tasks, applicable reviews, and verification obligations

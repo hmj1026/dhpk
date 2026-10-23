@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.66.6",
-  "sourceCommit": "99da54e2d0ab7873b22772a69bfb0baebe4db358",
-  "generatedFromCommit": "99da54e2d0ab7873b22772a69bfb0baebe4db358",
-  "generatedFromTree": "b3b41163f661d107b44ad7a9bfea2c2e923f836e",
-  "inventoryDigest": "1346f249121df566b6481991c90309d8fa53602854ed6fdd95ab09d07767a7a9",
-  "inventoryRevision": "sha256:18429fdab11f73717a75e4f447851f9c2346f1b86a138211a5ba110a185f264e",
+  "sourceCommit": "9012bcd83b01e066650268dbec06e1dd1b425c57",
+  "generatedFromCommit": "9012bcd83b01e066650268dbec06e1dd1b425c57",
+  "generatedFromTree": "e5307ef8e77c5892cd62d2c05f213adfaca1276e",
+  "inventoryDigest": "2d5f4b7ae476e4e4a7771ff0dfeb4f4076b8a02b3a03fc6847c23866ca1a2d49",
+  "inventoryRevision": "sha256:9ce52a60aaa32cae1915f091e6170b55c7e6a23c8a28e0d0859bdb40bd721250",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "change-verdict",
@@ -1841,7 +1841,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "d0f814fc1f2b079b29090aade8748f15baf6cc53"
+        "originalGitBlobDigest": "57f3ed8307bc88bdabdc7884e02630b2f31ff2b6"
       },
       {
         "ownerId": "flow-guide",
@@ -2465,7 +2465,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/SKILL.md",
         "destination": "skills/precommit/SKILL.md",
-        "originalGitBlobDigest": "4c4d739f78ac214816ac277a3d50604bbacabd32"
+        "originalGitBlobDigest": "689550bc7b921caebaff4fae9e332ed22892a78a"
       },
       {
         "ownerId": "precommit",
@@ -2477,13 +2477,13 @@
         "ownerId": "precommit",
         "source": "skills/precommit/distribution.yaml",
         "destination": "skills/precommit/distribution.yaml",
-        "originalGitBlobDigest": "bb297c4467e2e558baeed932258a1e642bc51170"
+        "originalGitBlobDigest": "323a138aa862464766db4846972fe1b723446921"
       },
       {
         "ownerId": "precommit",
         "source": "skills/precommit/references/workflow.md",
         "destination": "skills/precommit/references/workflow.md",
-        "originalGitBlobDigest": "9125e53e0b6ea12caccf8a7c94597971b71b1d32"
+        "originalGitBlobDigest": "93f4754b29e2961771d6c8553d8d9c661f17117e"
       },
       {
         "ownerId": "precommit",
@@ -2495,7 +2495,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/scripts/precommit-runner.js",
         "destination": "skills/precommit/scripts/precommit-runner.js",
-        "originalGitBlobDigest": "ee8438a838fb028284073496ff81aa1d7cf5a37d"
+        "originalGitBlobDigest": "2a230495fdf31191974db9f2b33e53dab884d06f"
       },
       {
         "ownerId": "proposal-analyze",
@@ -6362,12 +6362,12 @@
     "create-pr": "df24afa37cc7c399f6165a2e2de3f9194cb62dc08fa846572c48c7611e641983",
     "doc-maintain": "3cb1171aef79455048d92ecf6e657978c3753ea5e072f1330f7079e15796f571",
     "flow-drive": "7db6271119c72f61f4f13c14a9b53ed6e2953e2811a356006350d047f1c709cd",
-    "flow-guide": "9abd075423dfb024838686bd14f268cf7fda4e1700dff7d9b48f06f1de5e4918",
+    "flow-guide": "a91c469b4a0c93b7db649919aa07590447df78305b5c9aa90be5f917dc43c4b2",
     "git-smart-commit": "be2ab21933aea77a6affcce845222325d8a2622f3ebfb39fa7fdd6d61dc974ad",
     "git-worktree": "1d13ed5f23a0c686666a0f6ea0859e42e113d6d589a01ca3ee2580d11678bd0c",
     "library-author": "d43c5329860a3e2c9737c320312aaee87008b212aa2cc11ffb028cbebb7509d3",
     "opsx-apply-resume": "0d039e05ba452c2a175adb00e74995f916432870bbd6bbc209afb8dffa30ceab",
-    "precommit": "6fd045bedfc80345c5cd01ba73f9cbe06630b4a938ceb3b9f78f924206d78568",
+    "precommit": "c5b3614758ebc7625824ed6913498921a728b9e54857eab99910d8cee8ccebb2",
     "proposal-analyze": "8dca8f57397c348afacdfde139c3b0afd1873aaeb29600f3545f42debf794a32",
     "release-creator": "ff3cc95aa1db023e76746dc78f35126cef9899f349b806062bc25ba37745583f",
     "repo-verify": "906374367137797741d9d144bb586680f7dd0b20d94da1d4861ed92e20a071af",
@@ -6376,7 +6376,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "11d4f1db8f8b27893d36eaa050af55aa8c88924b0579fc27cdeb3215af5705db",
+    "planId": "8b256fb44254d447e6e68aa222a0b3ac9ff41bf32ba7f87b96801348e204f8cb",
     "scope": "project",
     "profileId": "codex-native",
     "selectedStableIds": [
@@ -6424,10 +6424,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "11d4f1db8f8b27893d36eaa050af55aa8c88924b0579fc27cdeb3215af5705db",
-      "inventory": "1346f249121df566b6481991c90309d8fa53602854ed6fdd95ab09d07767a7a9"
+      "plan": "8b256fb44254d447e6e68aa222a0b3ac9ff41bf32ba7f87b96801348e204f8cb",
+      "inventory": "2d5f4b7ae476e4e4a7771ff0dfeb4f4076b8a02b3a03fc6847c23866ca1a2d49"
     },
-    "rollbackIdentity": "07144ab3d83875ebba0c6f91d76969b3660a16026af72a0fefb8abb8bb08eb33"
+    "rollbackIdentity": "105d0c4a74030649371e60bca6728b0e65e213444f7fd730e7867855737f9638"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
@@ -7284,7 +7284,7 @@
     "precommit": {
       "display_name": "Precommit",
       "summary": "Run the packaged deterministic pre-commit pipeline",
-      "syntax": "$precommit [--fast]",
+      "syntax": "$precommit [--fast] [--dry-run]",
       "input_kind": "none",
       "invocation_class": "implicit-eligible",
       "effect_authority": "workspace-write",
@@ -7293,7 +7293,7 @@
         {
           "id": "run",
           "summary": "Run fast or full pre-commit stages",
-          "syntax": "$precommit [--fast]",
+          "syntax": "$precommit [--fast] [--dry-run]",
           "input_kind": "none",
           "effect_authority": "workspace-write"
         }
@@ -7305,6 +7305,14 @@
           "value_kind": "boolean",
           "required": false,
           "summary": "Run the fast stage set",
+          "default": false
+        },
+        {
+          "id": "dry-run",
+          "syntax": "--dry-run",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Preview selected commands without running checks or writing cache files",
           "default": false
         }
       ],
@@ -7555,7 +7563,7 @@
     "git-worktree": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689",
     "library-author": "14052ef1f5adf7dd51882e8c59f8f4db9d927d9c064e34a5e788f4619f3b7948",
     "opsx-apply-resume": "b7f6b8da2093f3fca1d0d3d7d95c1dba9bc08566da7a8b5c7b81afdc3b63aa07",
-    "precommit": "920521f2abafda14ea87a7e44569f5bb5aec2b4b245bff78d43271b5d54ea699",
+    "precommit": "aaf9311f021b41665056b6fdb7ffe3762853b3d72efc4354395d0437053f3e4e",
     "proposal-analyze": "89e3a151663d1389f14f9c10b547d09fb58dee3ab10a126491f546f0070f5e33",
     "release-creator": "7e3c907d8a22657cdfb8f3ba4f4962b13368f6621905bf23e9b8210ef8ae0e8c",
     "repo-verify": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb",
@@ -7620,6 +7628,6 @@
   ],
   "compatibilityMode": "profile",
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "433d94920469cd8e4bec75859d4030070810f3bedc84436a184b2d478b8f7a9a",
-  "surfaceSelectionFingerprint": "9f910f98b26f14d1508db0d41c2fbff93898b2c90ab10b17ac3a7d28ce5058a6"
+  "selectionFingerprint": "bc434e06c6d442760ae49f28d9e28d9818bbd7a36395fcee4610039fa9ce648c",
+  "surfaceSelectionFingerprint": "5627300ca983954d2e3fd919de89509c7f16bb7389b387cae261ea30d61f53b8"
 }

@@ -17,17 +17,24 @@ this page carries only the tool order and the recovery paths.
 
 ## Recovery
 
-- **Stale index:** run `node .gitnexus/run.cjs analyze --index-only` from the
-  repository root before relying on impact or process results.
+- **Stale index:** run `node .gitnexus/run.cjs analyze --skip-agents-md` from the
+  repository root before relying on impact or process results. This preserves
+  checked-in repository guidance. Check `analyze --help` for the installed
+  version: `--index-only` is not supported by every runner.
 - In Git repositories, GitNexus checks both the indexed commit and working-tree
   dirtiness. A successful analysis can update changed-file content from the
   working tree; a new or changed symbol is available only after that content is
   indexed and included by the scanner. Absence from an older index is unresolved.
-- **"Trying to read a database file with a different version":** the global
-  `gitnexus` that `run.cjs` selects first is older than the one that built the
-  index. Compare `gitnexus --version` with `cliVersion` in
-  `.gitnexus/meta.json`, upgrade the global install, and restart the session so
-  the MCP server picks up the new version.
+- **Tool arguments:** use the exposed tool schema. MCP concept search accepts
+  `query({query: "concept"})`; the CLI's positional `<search_query>` is not an
+  MCP field. Preserve this distinction when updating the generated guidance.
+- **"Trying to read a database file with a different version":** the CLI or
+  MCP native storage reader differs from the reader that built the index.
+  Compare `gitnexus --version`, available index version metadata, and the MCP
+  runtime; matching package versions alone do not prove storage compatibility.
+  Use a compatible runner and restart its session before rebuilding the index.
+  Keep existing graph evidence and the failed refresh explicit until then;
+  avoid deleting the index or changing global installations to hide the error.
 - **Ambiguous `impact` target:** a name shared by many symbols returns
   `risk: UNKNOWN` with a candidate list; narrow it with the file path or
   `target_uid` before treating the result as evidence.

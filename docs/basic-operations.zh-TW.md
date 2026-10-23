@@ -378,7 +378,8 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
     ```
   - **提交前驗證管線**：
     ```text
-    /dhpk:precommit --fast                            # 本機快速檢查（靜態分析 + 單元測試）
+    /dhpk:precommit --fast --dry-run                  # 預覽選定的指令
+    /dhpk:precommit --fast                            # 略過 build；選定測試仍可能是全套
     /dhpk:precommit                                   # 完整管線（lint:fix -> build -> test:unit）
     /dhpk:verify                                      # 專案跨層完整驗證（含整合與 E2E）
     ```
@@ -604,12 +605,13 @@ Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launch
 #### 7. precommit（提交前品質驗證管線）
 
 - **定位**：封裝確定性的提交前品質檢查管線，自動依專案生態系執行 Lint 修復、編譯建置與單元測試。
-- **呼叫語法**：`/dhpk:precommit [--fast]`
+- **呼叫語法**：`/dhpk:precommit [--fast] [--dry-run]`
 - **參數說明**：
 
   | 參數 | 類型 | 說明 |
   |---|---|---|
-  | `--fast` | 布林旗標 | 快速模式。僅執行快速靜態檢查與單元測試，跳過耗時的大型建置與整合檢查。省略時執行完整管線（`lint:fix -> build -> test:unit`）。 |
+  | `--fast` | 布林旗標 | 略過 build；設定的測試指令或 package script fallback 仍可能選到全套測試。省略時執行完整階段（`lint:fix -> build -> test:unit`）。 |
+  | `--dry-run` | 布林旗標 | 預覽選定階段、指令與工作目錄，不執行檢查或寫入 cache／log；計畫不提供驗證結果。 |
 
 - **實戰範例**：
   ```text
