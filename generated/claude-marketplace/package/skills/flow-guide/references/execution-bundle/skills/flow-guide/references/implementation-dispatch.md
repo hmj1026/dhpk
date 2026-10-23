@@ -33,15 +33,14 @@ from another skill, tool, or person.
 Ask for only the missing outcome. Consult `planner` when unresolved choices,
 dependencies, ownership boundaries, cross-owner sequencing, or named material
 risk make a planning result necessary before work can proceed. An explicit
-`--plan` request remains a request for a pre-implementation consult under the
-existing parser and capability rules; where it overlaps another planning need,
-one consult can satisfy both. #815 owns option grammar, model/effort resolution,
-and bounded-consult budgets. Task count alone does not require planner.
+planner-consult request remains honored under its supported caller and
+capability rules; where it overlaps another planning need, one consult can
+satisfy both. Flow Drive has no planner option. Task count alone does not
+require planner.
 
-`--plan[=auto|bounded|discovery]` sets the scope of that consult; bare `--plan`
-equals `--plan=auto`. An enabled legacy handoff without a mode uses `auto`. The
-parser validates grammar, while Flow Drive selects scope from the supplied
-brief according to the single policy in
+A scope named in the consult brief selects `auto`, `bounded`, or `discovery`.
+When no scope is named, use `auto`. The orchestrator selects scope from the
+supplied brief according to the single policy in
 `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Planner consult scope.
 For `auto`, bounded requires a clear consult question and intended outcome,
 named sources sufficient within the bounded limit (including required protocol
@@ -198,9 +197,10 @@ Worker dispatch never weakens a gate. `fast-worker` always reports its complete 
 
 Before dependent verification starts, require the writer's `RESULT: DONE` and
 an exact receipt for every assigned file. Run the downstream command through
-the Flow Drive verification handoff gate documented at
-`${POLICY_BUNDLE_ROOT}/skills/flow-drive/references/verification-handoff.md`:
-it rejects a stale receipt before launch and any assigned-file snapshot change
+the shared verification handoff gate documented at
+`${POLICY_BUNDLE_ROOT}/docs/agent-guidance/verification-handoff.md` and
+implemented at `${POLICY_BUNDLE_ROOT}/scripts/cli-dispatch/verify-handoff.js`.
+It rejects a stale receipt before launch and any assigned-file snapshot change
 after the command completes. A post-check mismatch is not a verification PASS;
 obtain fresh writer completion evidence and a new receipt before retrying. The
 gate detects edits but does not lock files or grant authority.

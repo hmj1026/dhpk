@@ -94,7 +94,7 @@ back-stop.
 
 Every report also identifies `Requested backend: claude` and
 `Selected backend: claude`. CLI-backed selection and the shared failure-class
-fallback policy are governed by `skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js`
+fallback policy are governed by `scripts/fast-worker-selector.js`
 and `rules/execution-policy.md`; this worker never
 silently changes backend after dispatch.
 

@@ -62,12 +62,11 @@ metadata 檔案推論可用。
 | Codex skill | discovery 後使用 `$<public-skill-name>` | `$change-verdict --mode code` |
 | Cursor generated command | 產生的 host adapter | Cursor `do` command（`host=cursor`） |
 | Codex guidance entry | discovery 後使用 `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` | `$flow-guide help flow-drive` |
-| Codex implementation entry | discovery 後使用 `$flow-drive <confirmed-spec-or-change-id>` | `$flow-drive my-change-id --plan` |
+| Codex implementation entry | discovery 後使用 `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--help]` | `$flow-drive "修正收據總額並驗證。"` |
 
 Codex 內建 command（`/hooks`、`/agent`）不是 dhpk 自訂 `/dhpk:*` command。
 `flow-guide` 擁有唯讀 usage help、routing、policy、progression 與 closeout；`flow-drive`
-是針對已確認 specification 或 OpenSpec change 的 explicit-only、無 mode implementation
-entry。可用性證據是 receipt-owned 的
+是使用目前 Host 和 Model 的 explicit native task/help entry，沒有 dispatch selector。可用性證據是 receipt-owned 的
 `.codex/skills/flow-drive` 能解析為 `$flow-drive`；`codex plugin list` 只是管理層
 證據。若 family 未被發現，instruction routing 與明確 `/opsx:*` OpenSpec command
 仍可用——不要宣稱 Codex 有可呼叫的 `/dhpk:do`。
@@ -277,9 +276,9 @@ Codex 使用 `$flow-guide` 做 discovery 與 guidance、使用 `$flow-drive` 做
 implementation，沒有 `/dhpk:do`。主要入口為：
 
 - `$flow-guide <help|route|rules|next|close> [--go] [query]`：Codex guidance。
-- `$flow-drive <confirmed-spec-or-change-id> [implementation-options]`：Codex implementation。
+- `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>`：Codex 有界 native task；`--help` 唯讀。
 - `/dhpk:flow-guide <help|route|rules|next|close> [query]`：Claude 明確呼叫 guidance。
-- `/dhpk:flow-drive <confirmed-spec-or-change-id> [implementation-options]`：Claude 明確呼叫 implementation。
+- `/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>`：Claude 明確呼叫 task；`--help` 唯讀。
 - `/dhpk:change-verdict --mode <code|pr|security|tests|docs|risk>`：唯讀 review variants。
 - `/dhpk:precommit`，需要時搭配 `--fast`。
 - `/dhpk:setup --install hooks|rules|scripts|all`：設定與 asset 安裝。

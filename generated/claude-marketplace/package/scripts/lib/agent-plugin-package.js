@@ -34,6 +34,7 @@ const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
+const { NATIVE_AGENT_SUPPORT_FILES } = require('./native-agent-support');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 
@@ -1111,6 +1112,35 @@ function buildAgentPluginProjection(options = {}) {
       asset.source,
       { id: 'agent-plugin-standalone-dependency', version: generatorVersion },
     ));
+  }
+
+  const nativeAgentSources = ['agents/codex-worker.md', 'agents/agy-worker.md'];
+  const hasNativeAgentSources = nativeAgentSources.some((relative) => {
+    const candidate = path.join(resolvedRoot, ...relative.split('/'));
+    const stat = lstatOrNull(candidate);
+    return Boolean(stat && stat.isFile() && !stat.isSymbolicLink());
+  });
+  if (selectionMode !== 'standalone' && hasNativeAgentSources) {
+    for (const relative of NATIVE_AGENT_SUPPORT_FILES) {
+      if (!safeRelative(relative)) throw new Error(`unsafe native agent support path: ${relative}`);
+      const source = path.join(resolvedRoot, ...relative.split('/'));
+      const stat = lstatOrNull(source);
+      if (!stat || !stat.isFile() || stat.isSymbolicLink()) {
+        throw new Error(`native agent support file is missing or not physical: ${relative}`);
+      }
+      assertSourceTreeContained(path.dirname(source), resolvedRoot);
+      if (existingDestinations.has(relative)) {
+        throw new Error(`native agent support collides with Agent Plugin output: ${relative}`);
+      }
+      existingDestinations.add(relative);
+      files.push(outputRecord(
+        `native-agent-support:${relative}`,
+        relative,
+        readFileBounded(source),
+        relative,
+        { id: 'agent-plugin-native-agent-support', version: generatorVersion },
+      ));
+    }
   }
 
   const sourceManifest = readManifestMetadata(resolvedRoot, manifestMetadata);

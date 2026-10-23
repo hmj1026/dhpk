@@ -1,4 +1,10 @@
-# Flow Drive acceptance evidence
+# Historical Flow Drive runner acceptance evidence
+
+> This record describes the retired `v0.66.7` Flow Drive runner. It is kept
+> only as historical release evidence and as context for the frozen comparison
+> baseline. Its suites and runner guarantees are not acceptance criteria for
+> the current native task/help skill. Current source portability is checked by
+> `tests/flow-drive-relocation.test.js` and `tests/flow-drive-native-contract.test.js`.
 
 The public scenarios are the REQ-01 through REQ-16 acceptance table in
 [issue #917](https://github.com/hmj1026/dhpk/issues/917). Their scenario names,
@@ -25,7 +31,12 @@ dependencies change.
 Source fingerprint: `7a275e9eaf80fbbe37177d8911c63821e3b287840ff7de6b7ae0c167f268e41f`.
 It binds the runner sources, test suites/helpers, requirement map and fixed QA
 inputs. Unchanged execution-bundle dependencies are bound by the base commit.
-Reproduce it from the repository root with:
+The checkpoint included unstaged source fixes that were not archived as a
+separate tree. Its original input command is retained below for provenance;
+the fingerprint is historical and cannot be recomputed from the current tree,
+which intentionally no longer contains the retired runner files.
+
+Original checkpoint input command (not runnable on the current source):
 
 ```sh
 sha256sum skills/flow-drive/scripts/*.js tests/flow-drive*.test.js tests/_lib/flow-drive*.js tests/fixtures/flow-drive/requirements.json tests/fixtures/flow-drive/dev-qa-sanitized/*.json | sha256sum

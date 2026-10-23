@@ -139,7 +139,8 @@
         "references/workflow-checklists.md",
         "references/workflow-feature-delivery.md",
         "references/workflow-lightweight.md",
-        "references/execution-bundle/skills/flow-drive/references/verification-handoff.md"
+        "references/execution-bundle/docs/agent-guidance/verification-handoff.md",
+        "references/execution-bundle/scripts/cli-dispatch/verify-handoff.js"
       ],
       "executable_entries": [
         {
@@ -201,9 +202,9 @@
           ]
         },
         {
-          "path": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
+          "path": "references/execution-bundle/scripts/cli-dispatch/verify-handoff.js",
           "fixture_ids": [
-            "flow-drive-bundled-verification-handoff-missing-input"
+            "shared-verification-handoff-missing-input"
           ]
         }
       ],
@@ -436,171 +437,16 @@
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml",
-        "references/parent-cli-dispatch.md",
-        "references/execution-bundle/docs/subagent-prompt-template.md",
-        "references/execution-bundle/manifests/host-profiles.json",
-        "references/execution-bundle/manifests/provider-model-catalog.json",
-        "references/execution-bundle/rules/anti-rationalization.md",
-        "references/execution-bundle/rules/execution-policy-kernel.md",
-        "references/execution-bundle/rules/execution-policy.md",
-        "references/execution-bundle/rules/model-economics.md",
-        "references/execution-bundle/rules/tool-routing.md",
-        "references/execution-bundle/scripts/lib/partial-writer-handoff.js",
-        "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
-        "references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
-        "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-        "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
-        "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
-        "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
-        "references/portability.md",
-        "references/recovery.md",
-        "references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-        "references/verification-handoff.md"
+        "references/migration.md"
       ],
-      "executable_entries": [
-        {
-          "path": "scripts/launch-dispatch.js",
-          "fixture_ids": [
-            "flow-drive-cli-missing-packet"
-          ]
-        },
-        {
-          "path": "scripts/invocation.js",
-          "fixture_ids": [
-            "flow-drive-confirmed-input",
-            "flow-drive-retired-codex-block"
-          ]
-        },
-        {
-          "path": "references/execution-bundle/scripts/fast-worker-selector.js",
-          "consumer": "AGY native agent projection via scripts/lib/native-agent-support.js; no Flow Drive script requires this bundle",
-          "fixture_ids": [
-            "flow-drive-bundled-selector-native"
-          ]
-        },
-        {
-          "path": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-          "fixture_ids": [
-            "flow-drive-bundled-verification-handoff-missing-input"
-          ]
-        },
-        {
-          "path": "scripts/verify-handoff.js",
-          "fixture_ids": [
-            "flow-drive-verification-handoff-missing-input"
-          ]
-        }
+      "executable_entries": [],
+      "host_capabilities": [
+        "read the supplied task and relevant consumer project files",
+        "make edits within the user's authorized scope",
+        "run appropriate verification with the consumer Host's available tools"
       ],
-      "host_capabilities": [],
-      "api_entries": [
-        {
-          "path": "scripts/dispatch.js",
-          "fixture_ids": [
-            "flow-drive-dispatch-valid",
-            "flow-drive-dispatch-invalid-authority"
-          ]
-        },
-        {
-          "path": "scripts/run.js",
-          "fixture_ids": [
-            "flow-drive-public-runner-native"
-          ]
-        }
-      ],
-      "internal_helpers": [
-        {
-          "path": "scripts/role-intents.js",
-          "required_by": [
-            "scripts/run.js"
-          ]
-        },
-        {
-          "path": "scripts/dispatch-runtime/launch-cli-dispatch.js",
-          "required_by": [
-            "scripts/launch-dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/dispatch-runtime/build-cli-dispatch-context.js",
-          "required_by": [
-            "scripts/dispatch-runtime/launch-cli-dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/dispatch-runtime/cli-role-resolver.js",
-          "required_by": [
-            "scripts/dispatch-runtime/build-cli-dispatch-context.js",
-            "scripts/dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/dispatch-runtime/physical-file.js",
-          "required_by": [
-            "scripts/dispatch-runtime/launch-cli-dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/dispatch-runtime/physical-file.py",
-          "required_by": [
-            "scripts/dispatch-runtime/physical-file.js"
-          ]
-        },
-        {
-          "path": "scripts/adapters/run-codex.sh",
-          "required_by": [
-            "scripts/dispatch-runtime/launch-cli-dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/transport/prepare-cli-request.py",
-          "required_by": [
-            "scripts/adapters/run-codex.sh",
-            "scripts/adapters/run-agy.sh"
-          ]
-        },
-        {
-          "path": "scripts/transport/run-cli-transport.py",
-          "required_by": [
-            "scripts/adapters/run-codex.sh",
-            "scripts/adapters/run-agy.sh"
-          ]
-        },
-        {
-          "path": "references/execution-bundle/scripts/lib/dispatch-contract.js",
-          "required_by": [
-            "references/execution-bundle/scripts/fast-worker-selector.js",
-            "scripts/dispatch.js",
-            "references/execution-bundle/scripts/lib/dispatch-engine.js"
-          ]
-        },
-        {
-          "path": "references/execution-bundle/scripts/lib/dispatch-engine.js",
-          "required_by": [
-            "references/execution-bundle/scripts/fast-worker-selector.js",
-            "scripts/dispatch.js"
-          ]
-        },
-        {
-          "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-          "required_by": [
-            "references/execution-bundle/scripts/fast-worker-selector.js",
-            "scripts/dispatch.js"
-          ]
-        },
-        {
-          "path": "references/execution-bundle/scripts/lib/flow-handoff-contract.js",
-          "required_by": [
-            "scripts/dispatch.js"
-          ]
-        },
-        {
-          "path": "scripts/adapters/run-agy.sh",
-          "required_by": [
-            "scripts/dispatch-runtime/launch-cli-dispatch.js"
-          ]
-        }
-      ]
+      "api_entries": [],
+      "internal_helpers": []
     },
     "deploy-list": {
       "entry": "SKILL.md",

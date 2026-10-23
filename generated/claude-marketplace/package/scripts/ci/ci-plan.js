@@ -2,7 +2,7 @@
 'use strict';
 
 const fs = require('node:fs');
-const { createCiPlan, validateCiPlan, verifyCiResults } = require('../lib/ci-plan');
+const { createCiPlan, validateCiPlan, verifyCiResults, loadClassification } = require('../lib/ci-plan');
 
 function value(args, name, required = true) {
   const index = args.indexOf(name);
@@ -13,6 +13,7 @@ function value(args, name, required = true) {
 
 function main(argv = process.argv.slice(2)) {
   const command = argv[0] || 'plan';
+  const classification = loadClassification({ classificationFile: value(argv, '--classification-file', false) });
   if (command === 'plan') {
     const outputPath = value(argv, '--out', false);
     const githubOutputPath = value(argv, '--github-output', false);
@@ -22,6 +23,7 @@ function main(argv = process.argv.slice(2)) {
     const plan = createCiPlan({
       root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
       checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
+      ...classification,
     });
     const serializedPlan = `${JSON.stringify(plan)}\n`;
     if (outputPath) {
@@ -48,6 +50,7 @@ function main(argv = process.argv.slice(2)) {
     const result = validateCiPlan(plan, {
       root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
       checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
+      ...classification,
     });
     if (!result.ok) result.errors.forEach((error) => process.stderr.write(`FAIL: ${error}\n`));
     else process.stdout.write('PASS: CI plan is valid\n');
@@ -59,6 +62,7 @@ function main(argv = process.argv.slice(2)) {
     const result = verifyCiResults(plan, results, {
       root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
       checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
+      ...classification,
     });
     if (!result.ok) result.errors.forEach((error) => process.stderr.write(`FAIL: ${error}\n`));
     else process.stdout.write('PASS: CI plan aggregate is valid\n');

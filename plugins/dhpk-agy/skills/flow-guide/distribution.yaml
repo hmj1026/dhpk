@@ -50,7 +50,8 @@
       "references/workflow-checklists.md",
       "references/workflow-feature-delivery.md",
       "references/workflow-lightweight.md",
-      "references/execution-bundle/skills/flow-drive/references/verification-handoff.md"
+      "references/execution-bundle/docs/agent-guidance/verification-handoff.md",
+      "references/execution-bundle/scripts/cli-dispatch/verify-handoff.js"
     ],
     "executable_entries": [
       {
@@ -112,9 +113,9 @@
         ]
       },
       {
-        "path": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
+        "path": "references/execution-bundle/scripts/cli-dispatch/verify-handoff.js",
         "fixture_ids": [
-          "flow-drive-bundled-verification-handoff-missing-input"
+          "shared-verification-handoff-missing-input"
         ]
       }
     ],
@@ -321,12 +322,12 @@
       "destination": "scripts/_lib/frontmatter.js"
     },
     {
-      "source": "skills/flow-drive/references/verification-handoff.md",
-      "destination": "references/execution-bundle/skills/flow-drive/references/verification-handoff.md"
+      "source": "docs/agent-guidance/verification-handoff.md",
+      "destination": "references/execution-bundle/docs/agent-guidance/verification-handoff.md"
     },
     {
-      "source": "skills/flow-drive/scripts/verify-handoff.js",
-      "destination": "references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js"
+      "source": "scripts/cli-dispatch/verify-handoff.js",
+      "destination": "references/execution-bundle/scripts/cli-dispatch/verify-handoff.js"
     }
   ],
   "usage": {
