@@ -37,36 +37,46 @@ function skill(overrides = {}) {
 function usage(overrides = {}) {
   return {
     display_name: 'Flow Drive',
-    summary: 'Implement one confirmed specification with bounded verification',
-    syntax: '$flow-drive <confirmed-spec-or-change-id>',
-    input_kind: 'identifier',
+    summary: 'Complete one bounded task with the current Host and Model',
+    syntax: '$flow-drive <task-text|task-file|confirmed-spec-or-change-id> | --help',
+    input_kind: 'mixed',
     invocation_class: 'explicit-only',
     effect_authority: 'workspace-write',
     inputs: [{
-      id: 'confirmed-spec-or-change-id',
-      syntax: '<confirmed-spec-or-change-id>',
+      id: 'task-input',
+      syntax: '<task-text|task-file|confirmed-spec-or-change-id>',
       value_kind: 'string',
       required: true,
-      summary: 'Select the confirmed specification or change',
+      summary: 'Provide one bounded task, task-file path, or confirmed specification/change ID',
     }],
     actions: [{
       id: 'apply',
-      summary: 'Apply the confirmed specification',
-      syntax: '$flow-drive <confirmed-spec-or-change-id>',
-      input_kind: 'identifier',
+      summary: 'Use the current Host and Model to complete the bounded task, verify its acceptance criteria, and report evidence or a blocker',
+      syntax: '$flow-drive <task-text|task-file|confirmed-spec-or-change-id>',
+      input_kind: 'mixed',
       effect_authority: 'workspace-write',
+    }, {
+      id: 'help',
+      summary: 'Describe the task-only entry and migration path without changing the project',
+      syntax: '$flow-drive --help',
+      input_kind: 'none',
+      effect_authority: 'read-only',
     }],
     options: [{
-      id: 'plan',
-      syntax: '--plan[=<model>:<effort>]',
-      value_kind: 'string',
+      id: 'help',
+      syntax: '--help',
+      value_kind: 'boolean',
       required: false,
-      summary: 'Request a planning pass before implementation',
-      applies_to: ['apply'],
+      default: false,
+      summary: 'Show current usage and the legacy-interface migration guide',
+      applies_to: ['help'],
     }],
     examples: [{
-      prompt: '$flow-drive consolidate-remaining-dhpk-skill-families',
-      summary: 'Apply a confirmed OpenSpec change',
+      prompt: '$flow-drive "Fix the receipt total and verify it matches the receipt lines."',
+      summary: 'Complete one bounded task and report observed verification',
+    }, {
+      prompt: '$flow-drive --help',
+      summary: 'Show the current task-only entry',
     }],
     ...overrides,
   };
@@ -133,7 +143,7 @@ test('usage schema rejects duplicate action and option identifiers', () => {
   const result = validateUsageContract(skill(), candidate);
   assert.strictEqual(result.ok, false);
   assert.ok(result.errors.includes("flow-drive usage has duplicate action id 'apply'"), result.errors.join('\n'));
-  assert.ok(result.errors.includes("flow-drive usage has duplicate option id 'plan'"), result.errors.join('\n'));
+  assert.ok(result.errors.includes("flow-drive usage has duplicate option id 'help'"), result.errors.join('\n'));
 });
 
 test('usage schema requires closed positional-input metadata and valid enum defaults', () => {
@@ -158,15 +168,15 @@ test('usage schema validates legacy compatibility markers without promoting them
     options: [
       usage().options[0],
       {
-        id: 'legacy-plan',
-        syntax: '--legacy-plan',
+        id: 'legacy-help',
+        syntax: '--legacy-help',
         value_kind: 'boolean',
         required: false,
-        summary: 'Retired planning compatibility diagnostic',
+        summary: 'Retired help compatibility diagnostic',
         legacy: {
-          replacement_id: 'plan',
+          replacement_id: 'help',
           diagnostic_only: true,
-          reason: 'Use the canonical plan option instead',
+          reason: 'Use the canonical help option instead',
         },
       },
     ],
@@ -240,10 +250,7 @@ test('normalization returns a deterministic closed usage object', () => {
   const api = usageApi();
   assert.strictEqual(typeof api.normalizeSkillUsage, 'function',
     'skill-usage.js must expose normalizeSkillUsage at the public contract seam');
-  const candidate = usage({
-    actions: [usage().actions[0]],
-    options: [usage().options[0]],
-  });
+  const candidate = usage();
   const normalized = api.normalizeSkillUsage({ skill: skill(), usage: candidate });
   assert.ok(normalized && typeof normalized === 'object', 'normalized usage must be an object');
   assert.deepStrictEqual(Object.keys(normalized).sort(), [
@@ -259,10 +266,7 @@ test('normalization returns a deterministic closed usage object', () => {
 test('normalization does not mutate the caller-owned usage object', () => {
   const api = usageApi();
   assert.strictEqual(typeof api.normalizeSkillUsage, 'function');
-  const candidate = usage({
-    actions: [usage().actions[0]],
-    options: [usage().options[0]],
-  });
+  const candidate = usage();
   const before = clone(candidate);
   api.normalizeSkillUsage({ skill: skill(), usage: candidate });
   assert.deepStrictEqual(candidate, before);
@@ -284,21 +288,21 @@ test('usage renderer discloses grammar and authority without procedure prose', (
     card.invocation_class || card.invocationClass || card.usage && (card.usage.invocation_class || card.usage.invocationClass),
     'explicit-only',
   );
-  assert.ok(JSON.stringify(card).includes('plan'), 'usage card must expose the option grammar');
+  assert.ok(JSON.stringify(card).includes('--help'), 'usage card must expose the supported option grammar');
   assert.doesNotMatch(JSON.stringify(card), /load references and execute|completion procedure/i);
 });
 
-test('$flow-guide help cards disclose inputs, enums, defaults, and retired markers', () => {
+test('$flow-guide help card exposes Flow Drive task input and read-only help', () => {
   const card = usageCardJsonHelp('flow-drive');
   assert.deepStrictEqual(card.inputs.map((input) => input.id), ['task-input']);
-  const worker = card.options.find((option) => option.id === 'worker');
-  assert.strictEqual(worker.syntax, '--worker=auto|provider[/model[:effort]]');
-  assert.strictEqual(worker.default, 'auto');
-  const crossProvider = card.options.find((option) => option.id === 'cross');
-  assert.strictEqual(crossProvider.default, false);
-  const retired = card.options.find((option) => option.id === 'codex');
-  assert.strictEqual(retired.legacy.diagnostic_only, true);
-  assert.strictEqual(retired.legacy.replacement_id, 'worker');
+  assert.deepStrictEqual(card.actions.map((action) => action.id), ['apply', 'help']);
+  const help = card.options.find((option) => option.id === 'help');
+  assert.strictEqual(help.syntax, '--help');
+  assert.strictEqual(help.default, false);
+  assert.deepStrictEqual(help.applies_to, ['help']);
+  assert.strictEqual(card.actions.find((action) => action.id === 'apply').effect_authority, 'workspace-write');
+  assert.strictEqual(card.actions.find((action) => action.id === 'help').effect_authority, 'read-only');
+  assert.deepStrictEqual(card.options.map((option) => option.id), ['help']);
 });
 
 test('$flow-guide help variants remain metadata-only and deterministic', () => {
@@ -311,8 +315,8 @@ test('$flow-guide help variants remain metadata-only and deterministic', () => {
     assert.match(first.stdout, new RegExp('\\$' + name));
     assert.doesNotMatch(first.stdout, /execute target|load target procedure|workspace-write granted/i);
   }
-  assert.ok(usageCardHelp(['flow-drive']).stdout.includes('--worker=auto|provider[/model[:effort]]'));
-  assert.doesNotMatch(usageCardHelp(['flow-drive']).stdout, /--worker-target|--cross-provider|--plan-mode/);
+  assert.ok(usageCardHelp(['flow-drive']).stdout.includes('--help'));
+  assert.doesNotMatch(usageCardHelp(['flow-drive']).stdout, /--worker|--reasoner|--cross|--plan|--architect|--codex/);
 });
 
 test('generated usage artifacts bind to one catalog revision and derive Argument Hints', () => {
@@ -340,8 +344,8 @@ test('generated usage artifacts bind to one catalog revision and derive Argument
 
   const flowDrive = inventory.skills.find((skill) => skill.id === 'flow-drive');
   assert.ok(flowDrive, 'the source inventory must contain flow-drive');
-  const expectedArgumentHint = '<task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]';
-  assert.strictEqual(flowDrive.usage.syntax, '$flow-drive ' + expectedArgumentHint);
+  const expectedArgumentHint = '<task-text|task-file|confirmed-spec-or-change-id> | --help';
+  assert.strictEqual(flowDrive.usage.syntax, '$flow-drive <task-text|task-file|confirmed-spec-or-change-id> | --help');
   const frontmatter = fs.readFileSync(path.join(ROOT, 'skills/flow-drive/SKILL.md'), 'utf8');
   assert.ok(
     frontmatter.split(/\r?\n/).includes("argument-hint: '" + expectedArgumentHint + "'"),

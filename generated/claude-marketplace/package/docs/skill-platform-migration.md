@@ -69,12 +69,12 @@ Names are deliberately different across host surfaces:
 | Codex skill | `$<public-skill-name>` after discovery | `$change-verdict --mode code` |
 | Cursor generated command | generated host adapter | Cursor `do` command (`host=cursor`) |
 | Codex guidance entry | `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` after discovery | `$flow-guide help flow-drive` |
-| Codex implementation entry | `$flow-drive <confirmed-spec-or-change-id>` after discovery | `$flow-drive my-change-id --plan` |
+| Codex implementation entry | `$flow-drive <task-text\|task-file\|confirmed-spec-or-change-id> [--help]` after discovery | `$flow-drive "Fix the receipt total and verify it."` |
 
 Codex built-in commands (`/hooks`, `/agent`) are not dhpk custom `/dhpk:*`
 commands. `flow-guide` owns read-only usage help, routing, policy, progression,
-and closeout; `flow-drive` is the explicit-only, mode-free implementation entry
-for a confirmed specification or OpenSpec change. Availability evidence is a
+and closeout; `flow-drive` is an explicit native task/help entry that uses the
+current Host and Model. It has no dispatch selectors. Availability evidence is a
 receipt-owned `.codex/skills/flow-guide` or `.codex/skills/flow-drive` that
 resolves as the corresponding `$name`; `codex plugin list` is management
 evidence only. If a family is not discovered, instruction routing and explicit
@@ -313,9 +313,9 @@ confirmed implementation, and has no `/dhpk:do` command. Overlapping workflows
 use these primary entry points:
 
 - `$flow-guide <help|route|rules|next|close> [--go] [query]` for Codex guidance.
-- `$flow-drive <confirmed-spec-or-change-id> [implementation-options]` for Codex implementation.
+- `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` for a bounded native Codex task; `--help` is read-only.
 - `/dhpk:flow-guide <help|route|rules|next|close> [query]` on Claude when explicitly invoked.
-- `/dhpk:flow-drive <confirmed-spec-or-change-id> [implementation-options]` on Claude when explicitly invoked.
+- `/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>` on Claude when explicitly invoked; `--help` is read-only.
 - `/dhpk:change-verdict --mode <code|pr|security|tests|docs|risk>` for read-only review variants.
 - `/dhpk:precommit` with `--fast` where applicable.
 - `/dhpk:setup --install hooks|rules|scripts|all` for configuration and assets.

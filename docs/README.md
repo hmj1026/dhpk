@@ -49,6 +49,7 @@ and installation are owned by the external tool.
 ## Guides by type
 
 - Installation and environment: [platform installation](platform-installation.md),
+  [standalone Flow Drive for Codex](flow-drive-standalone.md),
   [Docker setup](docker-setup.md), [permissions](recommended-permissions.md),
   [configuration](configuration.md), and [AGY plugins](agy-subagent-plugin-guide.md).
 - Operations and commands: [basic operations](basic-operations.md),

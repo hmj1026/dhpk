@@ -357,7 +357,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8"
+      "sha256": "5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc"
     },
     {
       "skillId": "code-trace",
@@ -749,7 +749,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "2521da414bb5238e52f88436933cad9270c7ca41e68f704f81b1c66f5585fb0d"
+      "sha256": "7fbc0a3565ef2c9dbc9b9e34f18b37e700d2f6170c819b1ff1f8c5fdddffed45"
     },
     {
       "skillId": "flow-drive",
@@ -757,7 +757,7 @@
       "sourcePath": "skills/flow-drive/agents/openai.yaml",
       "destination": "skills/flow-drive/agents/openai.yaml",
       "kind": "entry",
-      "sha256": "fb77b353b6d92248f62f5042b1c014dac04d2a850d4e38290676b5ea0157b47a"
+      "sha256": "f46b8bf14905163afe9d8722cc49ec15ad63533446bcb3ddb3f256ccb0e4d1ce"
     },
     {
       "skillId": "flow-drive",
@@ -765,31 +765,7 @@
       "sourcePath": "skills/flow-drive/distribution.yaml",
       "destination": "skills/flow-drive/distribution.yaml",
       "kind": "entry",
-      "sha256": "7d4223a1462e8926fe182ba0e1989c0271556f60232c8ca306163f61dc6d0d7c"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "rules/execution-policy-kernel.md",
-      "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy-kernel.md",
-      "kind": "dependency",
-      "sha256": "234ae902161a9253dabae7190bab46ccb9b62a091188919523c11e1a5a4b962b"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "rules/execution-policy.md",
-      "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
-      "kind": "dependency",
-      "sha256": "01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "scripts/lib/flow-handoff-contract.js",
-      "destination": "skills/flow-drive/references/_dependencies/scripts/lib/flow-handoff-contract.js",
-      "kind": "dependency",
-      "sha256": "5d9adae49b755ad85fcf5eba0a990be99dbffdb26f20489928f29e6349f222e2"
+      "sha256": "1f5f727880723d481317d2f1ffd807d0298b8bd4e16e178399ecfe1b7b212a85"
     },
     {
       "skillId": "code-simplify",
@@ -870,214 +846,6 @@
       "destination": "skills/flow-drive/references/dhpk-vue-2-notes/distribution.yaml",
       "kind": "reference",
       "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md",
-      "destination": "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md",
-      "kind": "entry",
-      "sha256": "fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/manifests/host-profiles.json",
-      "destination": "skills/flow-drive/references/execution-bundle/manifests/host-profiles.json",
-      "kind": "entry",
-      "sha256": "3af9a81e2e5bdd78f2af845436ac2f78f5ffcf1f58389309e936c9b07f5a92e0"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
-      "destination": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
-      "kind": "entry",
-      "sha256": "567ff2658ba0d04bea5d72f364acf08959bd480a8d4f1929bd4c3acd54d9bf43"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md",
-      "destination": "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md",
-      "kind": "entry",
-      "sha256": "af4e49880d9420734e2cf3ed03fd84bdb55aeeaf1755f9211a67e42bf58b8352"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md",
-      "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md",
-      "kind": "entry",
-      "sha256": "234ae902161a9253dabae7190bab46ccb9b62a091188919523c11e1a5a4b962b"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
-      "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
-      "kind": "entry",
-      "sha256": "01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-      "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
-      "kind": "entry",
-      "sha256": "cd0beb55b967a6d46653a4eb6ad9577321931d9237193094a62ee5cfa345e7d2"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/rules/tool-routing.md",
-      "destination": "skills/flow-drive/references/execution-bundle/rules/tool-routing.md",
-      "kind": "entry",
-      "sha256": "4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js",
-      "destination": "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js",
-      "kind": "entry",
-      "sha256": "1568fd179cffe72cc04c9a3bfe21ddcac4309947daaf2b509513046993425373"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js",
-      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js",
-      "kind": "entry",
-      "sha256": "b661f77a76c6f5796804228b170003b9d35efd8b5fd4b45ed089e3e2071ac6f1"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
-      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
-      "kind": "entry",
-      "sha256": "5a1d2402c98b85d67a129d7e2b1c795206e6c5274de3950fbbfc3da46c4c3fb7"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js",
-      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js",
-      "kind": "entry",
-      "sha256": "e142544825f7fc4a83fc0790aaeab184afcc262c21d65b15f59526c52f2d70d9"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-scheduler.js",
-      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-scheduler.js",
-      "kind": "entry",
-      "sha256": "4ab269e21b3d11cabb1df91587940b4e87098f10516ca0a796ec94caba3a4c4e"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-writer-lease.js",
-      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-writer-lease.js",
-      "kind": "entry",
-      "sha256": "9b56ed7fb28fb0ed5bffc7af115fc3563c9b2e6128edda1ee0cdd203fce11e3b"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
-      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
-      "kind": "entry",
-      "sha256": "5d9adae49b755ad85fcf5eba0a990be99dbffdb26f20489928f29e6349f222e2"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-      "kind": "entry",
-      "sha256": "639ea3e4b750547b02aef37ee2d9b64074a6880f3ff88489780c0a49cf553b34"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
-      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
-      "kind": "entry",
-      "sha256": "aa92ae684a6eb95532a8ca77d3e99fbda4013906f7e2447e2d327ec3c7de98ea"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-      "kind": "entry",
-      "sha256": "f44e3330e790e3d9fa91a002ce9cd9e4d36e8fc8b81c5401e8558588da7c6293"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-      "kind": "entry",
-      "sha256": "04bbf2d70c13196489391bb40c16e6674c47cff2f0e761992b9a0162e46bdde7"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
-      "kind": "entry",
-      "sha256": "97007c5be09a1845bd6beffd24b90da680933f03d37cce78c3e793a39b295978"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
-      "kind": "entry",
-      "sha256": "876be6413d8981138bb7bbed93a751b1559f0e70cbb6e422369fce82b69b68a5"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-      "kind": "entry",
-      "sha256": "8f3e19586686f8dc01f658b1fd7c41f5749ff55afa527794046af7b883f67d9a"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
-      "kind": "entry",
-      "sha256": "c5aea4a94f48b3888be31c928a9384bf93ca178e99006958f68da1d0932470bc"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
-      "kind": "entry",
-      "sha256": "7f585bcc5c085ebc69fbc244864d84d90336420d2cf4e09f9b321f1bf2776f7d"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
-      "kind": "entry",
-      "sha256": "97e141e65014b674bddb208c2411f0107239947e98c2df5917fc72de115c985d"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
-      "kind": "entry",
-      "sha256": "3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9"
     },
     {
       "skillId": "js-static-checks",
@@ -1272,6 +1040,14 @@
       "sha256": "4ca38cea8303752a552565b5b7da7ad9a849930a7bb23cc487dd8bb3a0685a6c"
     },
     {
+      "skillId": "flow-drive",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/flow-drive/references/migration.md",
+      "destination": "skills/flow-drive/references/migration.md",
+      "kind": "entry",
+      "sha256": "e52eba9ae64e0cd0bebaf39b82f446e347d9877804d018e3f2582b364030b983"
+    },
+    {
       "skillId": "nextjs",
       "ownerId": "flow-drive",
       "sourcePath": "skills/nextjs/SKILL.md",
@@ -1318,14 +1094,6 @@
       "destination": "skills/flow-drive/references/nextjs/references/target-selection.md",
       "kind": "reference",
       "sha256": "49d53ad74e0af31cc3bbb71db48556fc97785a885bcda93c867e702212f9d9c7"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/parent-cli-dispatch.md",
-      "destination": "skills/flow-drive/references/parent-cli-dispatch.md",
-      "kind": "entry",
-      "sha256": "a66b4d519e888e54dca9edbaa4a6e6c8bffab21da8759a09248718d69d091c80"
     },
     {
       "skillId": "php",
@@ -1504,22 +1272,6 @@
       "sha256": "f41ed61cd1aa35cb7b7fc79715dacbd3cfd6eeaf6d3066d68fc4d247e6d8e3a1"
     },
     {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/portability.md",
-      "destination": "skills/flow-drive/references/portability.md",
-      "kind": "entry",
-      "sha256": "26ca36ec19b879493ca21c91a134f32cc19f68fe5646c205ea3bd2df57ffbc94"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/portable-runner.md",
-      "destination": "skills/flow-drive/references/portable-runner.md",
-      "kind": "entry",
-      "sha256": "e5456f4ef96d0d73395e6ae47d0249d5dd234e3aa729ba1f3302664c3481a2f3"
-    },
-    {
       "skillId": "python",
       "ownerId": "flow-drive",
       "sourcePath": "skills/python/SKILL.md",
@@ -1630,14 +1382,6 @@
       "destination": "skills/flow-drive/references/react/references/target-selection.md",
       "kind": "reference",
       "sha256": "db2da2cd477d7e54c2dab9dddbf5257532da97138fc6565f0e155aa83aee2489"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/recovery.md",
-      "destination": "skills/flow-drive/references/recovery.md",
-      "kind": "entry",
-      "sha256": "e4040068db8dde403351444ff18c4ef7f30d59a699eadcf5e04158f677ec505a"
     },
     {
       "skillId": "swift",
@@ -1944,14 +1688,6 @@
       "sha256": "37a2f68c477bd60337cb8481b72c8ffc9e43634336a396949b6301bb09ee0d7d"
     },
     {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/references/verification-handoff.md",
-      "destination": "skills/flow-drive/references/verification-handoff.md",
-      "kind": "entry",
-      "sha256": "f44e3330e790e3d9fa91a002ce9cd9e4d36e8fc8b81c5401e8558588da7c6293"
-    },
-    {
       "skillId": "yii1",
       "ownerId": "flow-drive",
       "sourcePath": "skills/yii1/SKILL.md",
@@ -2056,188 +1792,12 @@
       "sha256": "c1763816e7a1b8179032e5e5c2d603d6442e34e3dc9d87df4d0a25c9ffc3e3ba"
     },
     {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/adapters/run-agy.sh",
-      "destination": "skills/flow-drive/scripts/adapters/run-agy.sh",
-      "kind": "entry",
-      "sha256": "13f307a15152f4ef9555c520d8cb3deffa4de86d1721f98de93dcedf08da0d1f"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/adapters/run-codex.sh",
-      "destination": "skills/flow-drive/scripts/adapters/run-codex.sh",
-      "kind": "entry",
-      "sha256": "e165965109e7b923d3bb76984db6dbd577222879fdf57371851cba76a2108816"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/attempt-executor.js",
-      "destination": "skills/flow-drive/scripts/attempt-executor.js",
-      "kind": "entry",
-      "sha256": "e560e3e29b4a419c7f65e8572da31e40c549886a99dfb1a3d92493203cc515ed"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
-      "destination": "skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context.js",
-      "kind": "entry",
-      "sha256": "c6e9509dddd860dc19671c35486485c3eacf3c954fafce2a236a812f38df83fc"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
-      "destination": "skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver.js",
-      "kind": "entry",
-      "sha256": "8e0e0102924b45e73914b764cc8d6a15fe4210bb51bd694341b7b2ded6c2d48b"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/launch-cli-dispatch.js",
-      "destination": "skills/flow-drive/scripts/dispatch-runtime/launch-cli-dispatch.js",
-      "kind": "entry",
-      "sha256": "f10d8f7c51b73863b1bce2ee6dd8f2b90f4567490f9962465f328515aa9cdb31"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/physical-file.js",
-      "destination": "skills/flow-drive/scripts/dispatch-runtime/physical-file.js",
-      "kind": "entry",
-      "sha256": "fc3698a983dca798bbe66899606d4f98f308cd5c7bfedc85254966cfc4b24b77"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/dispatch-runtime/physical-file.py",
-      "destination": "skills/flow-drive/scripts/dispatch-runtime/physical-file.py",
-      "kind": "entry",
-      "sha256": "cdd78e8637b09e7816e4b32e25223a63f8597d04db538085861015eab929504c"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/dispatch.js",
-      "destination": "skills/flow-drive/scripts/dispatch.js",
-      "kind": "entry",
-      "sha256": "8207accb393a76a995a342ec6f6da7c89260c9c40826fd2079beb5d176970545"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/graph-runner.js",
-      "destination": "skills/flow-drive/scripts/graph-runner.js",
-      "kind": "entry",
-      "sha256": "95e471882c48f744dc360d75630d81a7608ee96ea4f8d4eca28bfc3e2320b5e0"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/invocation.js",
-      "destination": "skills/flow-drive/scripts/invocation.js",
-      "kind": "entry",
-      "sha256": "68d71f358fdd2d3b9b4bc212b6deff139868308d085b768696e621393a2ab8b3"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/launch-dispatch.js",
-      "destination": "skills/flow-drive/scripts/launch-dispatch.js",
-      "kind": "entry",
-      "sha256": "13ef5bd0907a00410d5c239bc52a997be920c039cecbcd77fd3634727311c1af"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/provider-permissions.js",
-      "destination": "skills/flow-drive/scripts/provider-permissions.js",
-      "kind": "entry",
-      "sha256": "17333fc4cc964dbe1324fd5a3409b1e62965eb6c1d95d287719e6ee109ca2960"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/role-intents.js",
-      "destination": "skills/flow-drive/scripts/role-intents.js",
-      "kind": "entry",
-      "sha256": "8cc523e47d8aac9ddc1315e65f94d7a8c4839d3c2578361be81733d17fa7e2b6"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/run.js",
-      "destination": "skills/flow-drive/scripts/run.js",
-      "kind": "entry",
-      "sha256": "82e5f8376f656d77f452ee260f955cc133b2ee202f420c8ddb58fc86777595f2"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/scope-baseline.js",
-      "destination": "skills/flow-drive/scripts/scope-baseline.js",
-      "kind": "entry",
-      "sha256": "d8df6408201b0a2bbe42349976305f33e2eb1750e03ce619363d7f29f0dde957"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/target-policy.js",
-      "destination": "skills/flow-drive/scripts/target-policy.js",
-      "kind": "entry",
-      "sha256": "5e641904fadf326148da84140c3d0cd92b452bb2e2cfc65777f275602f5ae332"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/task-contract.js",
-      "destination": "skills/flow-drive/scripts/task-contract.js",
-      "kind": "entry",
-      "sha256": "5215d11c390f184c8f0cdbc0b2817dfef2ceabaa71b7c636097b78736c05e16b"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/task-graph.js",
-      "destination": "skills/flow-drive/scripts/task-graph.js",
-      "kind": "entry",
-      "sha256": "4bb19edf31b2290d94ab9db621aa40effe9b57c221057bd27586cdab2b2c899e"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/transport/prepare-cli-request.py",
-      "destination": "skills/flow-drive/scripts/transport/prepare-cli-request.py",
-      "kind": "entry",
-      "sha256": "ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/transport/run-cli-transport.py",
-      "destination": "skills/flow-drive/scripts/transport/run-cli-transport.py",
-      "kind": "entry",
-      "sha256": "a1a76b2e53d57dc3127ba726592625828c1f8276b00f3de3b933260fea1789a7"
-    },
-    {
-      "skillId": "flow-drive",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/flow-drive/scripts/verify-handoff.js",
-      "destination": "skills/flow-drive/scripts/verify-handoff.js",
-      "kind": "entry",
-      "sha256": "04bbf2d70c13196489391bb40c16e6674c47cff2f0e761992b9a0162e46bdde7"
-    },
-    {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/SKILL.md",
       "destination": "skills/flow-guide/SKILL.md",
       "kind": "entry",
-      "sha256": "c28d93ef1fc81009a43ad729a345218dfeed34e4199009bcdc41639c71d20951"
+      "sha256": "116a7e176d2e8bac38e005e50bc45b5846d8f5db141dae96ba7b93068e93e8b9"
     },
     {
       "skillId": "flow-guide",
@@ -2261,7 +1821,7 @@
       "sourcePath": "skills/flow-guide/distribution.yaml",
       "destination": "skills/flow-guide/distribution.yaml",
       "kind": "entry",
-      "sha256": "62d5ba09408766246e986a3461001861572c676f4dbc423ef44701a8ec43bfdd"
+      "sha256": "e1657c03b55de5256b5e85ebf10576f3795befba228364af8529a531d6dd0d2b"
     },
     {
       "skillId": "flow-guide",
@@ -2277,7 +1837,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8"
+      "sha256": "5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc"
     },
     {
       "skillId": "flow-guide",
@@ -2301,7 +1861,7 @@
       "sourcePath": "skills/flow-guide/references/codex-mode.md",
       "destination": "skills/flow-guide/references/codex-mode.md",
       "kind": "entry",
-      "sha256": "0234970e54764b9e8d3a07125b9baa5679f9fb818af5d0df9019fe0e202487c5"
+      "sha256": "e4b9e0767ff510843f60099f3aaa272381324af0c7050e54eedbe76ae5c87912"
     },
     {
       "skillId": "flow-guide",
@@ -2309,7 +1869,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "b9bcb01973ea32e553b83141bb894dbb9a23eb667199c041ba9b4f75200ac4e8"
+      "sha256": "c4a7aba1de1e574ebad61d0788db1327371ecd56379c1172e443aeb3bd69e949"
     },
     {
       "skillId": "flow-guide",
@@ -2350,6 +1910,14 @@
       "destination": "skills/flow-guide/references/dispatch-and-gates.md",
       "kind": "entry",
       "sha256": "06992ee2a146633610bcda672f3c91fc45b2943fb1346720324f5677e8e276dc"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/references/execution-bundle/docs/agent-guidance/verification-handoff.md",
+      "destination": "skills/flow-guide/references/execution-bundle/docs/agent-guidance/verification-handoff.md",
+      "kind": "entry",
+      "sha256": "f5a54e1b6abaaad0583b40924b74e951cc09f5143777c4dc153ea9be4729c7c9"
     },
     {
       "skillId": "flow-guide",
@@ -2397,7 +1965,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8"
+      "sha256": "5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc"
     },
     {
       "skillId": "flow-guide",
@@ -2414,6 +1982,14 @@
       "destination": "skills/flow-guide/references/execution-bundle/rules/tool-routing.md",
       "kind": "entry",
       "sha256": "4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/cli-dispatch/verify-handoff.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/cli-dispatch/verify-handoff.js",
+      "kind": "entry",
+      "sha256": "04bbf2d70c13196489391bb40c16e6674c47cff2f0e761992b9a0162e46bdde7"
     },
     {
       "skillId": "flow-guide",
@@ -2474,22 +2050,6 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
-      "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-drive/references/verification-handoff.md",
-      "kind": "entry",
-      "sha256": "f44e3330e790e3d9fa91a002ce9cd9e4d36e8fc8b81c5401e8558588da7c6293"
-    },
-    {
-      "skillId": "flow-guide",
-      "ownerId": "flow-guide",
-      "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js",
-      "kind": "entry",
-      "sha256": "04bbf2d70c13196489391bb40c16e6674c47cff2f0e761992b9a0162e46bdde7"
-    },
-    {
-      "skillId": "flow-guide",
-      "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
       "kind": "entry",
@@ -2509,7 +2069,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "8f3e19586686f8dc01f658b1fd7c41f5749ff55afa527794046af7b883f67d9a"
+      "sha256": "c107fd3c5beb5615129e091cea279efefa09766a8e892f23aeefff147d63f078"
     },
     {
       "skillId": "flow-guide",
@@ -2517,7 +2077,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
       "kind": "entry",
-      "sha256": "c5aea4a94f48b3888be31c928a9384bf93ca178e99006958f68da1d0932470bc"
+      "sha256": "fe88b81d49672ff698f469190b96b60bebb5ed45dd3777d25dd69bcbe11b6f18"
     },
     {
       "skillId": "flow-guide",
@@ -2549,7 +2109,7 @@
       "sourcePath": "skills/flow-guide/references/handoff-and-verification.md",
       "destination": "skills/flow-guide/references/handoff-and-verification.md",
       "kind": "entry",
-      "sha256": "1de2158fa49c470cc147b4f25e562bae5bed9247cbde12900ae63c7122a10869"
+      "sha256": "4c94381fd838b315f03db26540d29021a0e1ba7cc6a996ccf3c0f2ffedf95ce1"
     },
     {
       "skillId": "flow-guide",
@@ -2557,7 +2117,7 @@
       "sourcePath": "skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "8f3e19586686f8dc01f658b1fd7c41f5749ff55afa527794046af7b883f67d9a"
+      "sha256": "c107fd3c5beb5615129e091cea279efefa09766a8e892f23aeefff147d63f078"
     },
     {
       "skillId": "flow-guide",
@@ -2565,7 +2125,7 @@
       "sourcePath": "skills/flow-guide/references/invocation-classification.md",
       "destination": "skills/flow-guide/references/invocation-classification.md",
       "kind": "entry",
-      "sha256": "c5aea4a94f48b3888be31c928a9384bf93ca178e99006958f68da1d0932470bc"
+      "sha256": "fe88b81d49672ff698f469190b96b60bebb5ed45dd3777d25dd69bcbe11b6f18"
     },
     {
       "skillId": "flow-guide",
@@ -2605,7 +2165,7 @@
       "sourcePath": "skills/flow-guide/references/progression-tables.md",
       "destination": "skills/flow-guide/references/progression-tables.md",
       "kind": "entry",
-      "sha256": "ee621c56ffd019024cb0e7517c08c368cd6d59e2b3c0aff6b4b33169728f244e"
+      "sha256": "c60f8438da457514e52681b09f5e7e172c0ea6bbcf4367c8d028d85caf9bf607"
     },
     {
       "skillId": "flow-guide",
@@ -2765,7 +2325,7 @@
       "sourcePath": "skills/flow-guide/scripts/_lib/skill-next-map.js",
       "destination": "skills/flow-guide/scripts/_lib/skill-next-map.js",
       "kind": "entry",
-      "sha256": "839f31ada88dcf34edd9bcee1b928a79f2accb23259fe1e107a81f71cbba2c28"
+      "sha256": "ff844f4b2d6492b9e4d9a1689eb520d879298694aec74538e92be4ba787a2de6"
     },
     {
       "skillId": "flow-guide",
@@ -2893,7 +2453,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8"
+      "sha256": "5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc"
     },
     {
       "skillId": "git-smart-commit",

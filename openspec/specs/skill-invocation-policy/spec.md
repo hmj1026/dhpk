@@ -60,9 +60,11 @@ An explicit-only entry SHALL NOT be selected or programmatically invoked by a
 model. Advisory routing guidance SHALL NOT instruct a model to call an
 explicit-only entry through a generic Skill tool; it SHALL either remain silent
 or present the exact supported human command. `flow-drive` SHALL remain
-explicit-only and SHALL expose only the confirmed-implementation entry
-`$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [implementation-options]`; it SHALL
-not accept a `route` or `implement` mode selector. The advisory `flow-guide`
+explicit-only and SHALL expose one task action accepting task text, a task
+file, or a confirmed specification/change ID, plus a separate read-only
+`$flow-drive --help` action. Its only supported option SHALL be `--help`; it
+SHALL not expose a `route` or `implement` mode selector or execution-selection
+options. The advisory `flow-guide`
 actions `help`, `route`, `rules`, `next`, and `close` MAY be used for advisory
 routing according to their own invocation class. `route --go` MAY produce one
 bounded delegation handoff only for an implicit-eligible target and SHALL report
@@ -82,18 +84,17 @@ authority.
 
 #### Scenario: User invokes flow-drive with a confirmed specification
 
-- **WHEN** a user directly invokes `$flow-drive` with a confirmed specification
-  or OpenSpec change identifier
-- **THEN** implementation may run subject to its confirmation, planning,
-  worker, review, and verification gates
+- **WHEN** a user directly invokes `$flow-drive` with a task text, task-file
+  path, or confirmed specification/change identifier
+- **THEN** the current Host and Model may act within the user's authorization
+  and applicable project instructions and report observed verification or a
+  concrete blocker
 
-#### Scenario: Flow-drive receives a removed mode flag
+#### Scenario: Flow-drive help is read-only
 
-- **WHEN** a user supplies `$flow-drive --mode route` or
-  `$flow-drive --mode implement`
-- **THEN** parsing fails closed, reports that `flow-drive` is mode-free, and
-  points to `$flow-guide route` for routing or `$flow-drive <confirmed-spec>`
-  for implementation
+- **WHEN** a user directly invokes `$flow-drive --help`
+- **THEN** the Host describes the task-only entry and migration path without
+  starting task execution or changing the project
 
 #### Scenario: Route-go resolves an explicit-only target
 
@@ -150,23 +151,24 @@ An implicit-eligible skill SHALL carry model-facing routing cues that identify p
 
 ### Requirement: Explicit-only workflows call only implicit-eligible disciplines automatically
 
-An explicitly invoked workflow MAY invoke implicit-eligible skills or agents
-needed for its contract. It SHALL NOT invoke another explicit-only workflow
+An explicitly invoked workflow SHALL be permitted, but is not required, to
+invoke implicit-eligible skills or agents needed for its contract. It SHALL
+NOT invoke another explicit-only workflow
 unless the human invocation carries a reviewed entry-specific delegation.
 `flow-guide route --go` is limited to one handoff for a resolved
 implicit-eligible target and does not itself execute that target;
 authority SHALL NOT cascade, retry through another explicit target, or bypass a
 downstream confirmation gate. `flow-drive` SHALL use this same rule while
-executing a confirmed specification and SHALL stop with the exact next
+acting on its explicitly supplied task and SHALL stop with the exact next
 invocation when a required explicit-only handoff is reached.
 
 #### Scenario: Confirmed implementation reaches an implicit review discipline
 
 - **WHEN** `$flow-drive` requires an implicit-eligible review or test discipline
-- **THEN** it may dispatch that discipline within the confirmed implementation
-  scope
+- **THEN** the current Host may use that discipline through its available
+  authorized mechanisms within the task scope
 
-#### Scenario: Confirmed implementation reaches an explicit release entry
+#### Scenario: Flow Drive reaches an explicit release entry
 
 - **WHEN** `$flow-drive` reaches an explicit release or publication entry
   without reviewed delegation
@@ -258,28 +260,33 @@ Marketplace publication SHALL retain each selected inventory public name, stable
 - **WHEN** a selected skill uses an approved unprefixed name
 - **THEN** publication preserves its inventory naming policy and invocation class rather than inferring a new family marker
 
-### Requirement: Explicit Flow Drive task inputs settle outcomes before mutation
+### Requirement: Flow Drive task authority stays with the current Host
 
-Flow Drive SHALL accept one explicitly invoked task text, task file, or
-confirmed specification/change identifier. Host resolution SHALL establish a
-bounded goal, acceptance, constraints, and assigned scope before execution.
-For workspace-write task text, the Host SHALL materialize a physical prompt
-file under already authorized input-preparation scope and bind its device,
-inode, and SHA-256 before returning the resolved task contract. If that
-preparation is unavailable, execution SHALL remain blocked until a bound task
-file is supplied. Read-only task text MAY resolve without a physical prompt
-file. The runner SHALL NOT infer preparation write authority from task text.
-An unknown cause MAY trigger read-only evidence and diagnosis within that
-settled outcome; dependent writes SHALL wait for sufficient attributable cause,
-repair, and verification evidence. Task text SHALL NOT grant external Provider,
-Git mutation, merge, deployment, or OpenSpec authoring authority.
+Flow Drive SHALL accept one task text, task-file path, or confirmed
+specification/change identifier through its explicit task action, or provide
+read-only help through `$flow-drive --help`. The current Host and Model SHALL
+handle task interpretation, investigation, authorized edits, and verification
+using the Host's available capabilities, project instructions, and grants. A
+task input SHALL NOT itself grant external Provider access, Git mutation,
+merge, deployment, or publication authority. Flow Drive SHALL report observed
+verification or a concrete blocker and SHALL NOT require its own task parser,
+runner, dispatch coordinator, or execution receipt.
 
-#### Scenario: Confirmed outcome has an unknown cause
+#### Scenario: Flow Drive receives a task input
 
-- **WHEN** the user explicitly invokes Flow Drive to fix a symptom with settled acceptance but insufficient root-cause evidence
-- **THEN** diagnosis may proceed and the dependent writer remains blocked until its evidence is sufficient
+- **WHEN** a user directly invokes Flow Drive with task text, a task-file path,
+  or a confirmed specification/change identifier
+- **THEN** the current Host handles the task within the user's authorization
+  and applicable project instructions
 
-#### Scenario: Independent assigned manual proposal
+#### Scenario: Flow Drive cannot read a confirmed input
 
-- **WHEN** the confirmed task assigns a scratch manual proposal and a read-only merge plan
-- **THEN** those items may proceed under the same writer and scope rules while merge remains subject to separate approval
+- **WHEN** the Host cannot read the supplied task file or confirmed
+  specification/change identifier
+- **THEN** it reports the concrete blocker before dependent edits
+
+#### Scenario: Task outcome has an unknown cause
+
+- **WHEN** the task's acceptance is clear but its cause is not yet established
+- **THEN** the Host may gather read-only evidence and diagnose before edits that
+  depend on the cause

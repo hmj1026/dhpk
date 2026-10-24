@@ -69,7 +69,7 @@ task/semantic, and timeout/interruption failures stay on their existing policy p
    # Supplied by the dispatcher after it validates maximum authority and scope.
    export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
    before="$(git status --porcelain)"
-   bash "skills/flow-drive/scripts/adapters/run-codex.sh" \
+   bash "scripts/cli-dispatch/adapters/run-codex.sh" \
      workspace-write "<workdir>" "<prompt-file>" "<model>" "<effort>"
    after="$(git status --porcelain)"
    ```
@@ -79,13 +79,13 @@ task/semantic, and timeout/interruption failures stay on their existing policy p
    flags at this call site or unset the role.
 
    When `Parallel: yes`, replace both captures with path-scoped equivalents limited to
-   the assigned files — the Flow Drive `run-codex.sh` adapter takes no file-list
+   the assigned files — the shared `run-codex.sh` adapter takes no file-list
    argument, so scoping
    happens at this call site, before and after the same wrapper invocation:
 
    ```bash
    before="$(git status --porcelain -- "${ASSIGNED_FILES[@]}")"
-   bash "skills/flow-drive/scripts/adapters/run-codex.sh" \
+   bash "scripts/cli-dispatch/adapters/run-codex.sh" \
      workspace-write "<workdir>" "<prompt-file>" "<model>" "<effort>"
    after="$(git status --porcelain -- "${ASSIGNED_FILES[@]}")"
    ```

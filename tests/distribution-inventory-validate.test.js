@@ -742,32 +742,31 @@ test('projection contract rejects missing, unknown, conflicting, and broadened s
   assert.ok(broadenedResult.errors.some((error) => /entry_surfaces.*precedence|broaden/.test(error)));
 });
 
-// Merged from tests/internal-cli-transport-inventory.test.js.
-
-test('Flow Drive owns transport closure without retired runtime Skill registrations', () => {
+// Shared CLI support is distributed as supporting assets for native roles;
+// Flow Drive is not a runtime owner or internal runtime Skill.
+test('Flow Drive remains a native entry without owning a shared runtime closure', () => {
   const inventory = JSON.parse(JSON.stringify(require('../manifests/distribution-inventory.json')));
   const retiredIds = ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge'];
   for (const id of retiredIds) assert.ok(!inventory.skills.some((skill) => skill.id === id), id);
   const entry = inventory.skills.find((skill) => skill.id === 'flow-drive');
   assert.ok(entry);
-  for (const resource of ['scripts/transport/run-cli-transport.py', 'scripts/dispatch-runtime/launch-cli-dispatch.js', 'scripts/adapters/run-codex.sh', 'scripts/adapters/run-agy.sh']) {
-    assert.ok(fs.statSync(path.join(ROOT, entry.path, resource)).isFile(), resource);
-  }
+  const source = path.join(ROOT, entry.path);
+  assert.deepStrictEqual(fs.readdirSync(source).sort(), ['SKILL.md', 'agents', 'distribution.yaml', 'references']);
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(source, 'distribution.yaml'), 'utf8')).resource_copies, []);
   const validation = validateDistributionInventory({ inventory });
   assert.deepStrictEqual(validation.errors, [], validation.errors.join('\n'));
   const generated = generateClaudeSkillRoots(inventory);
   assert.ok(generated.generatedSkillIds.includes('flow-drive'));
   for (const id of retiredIds) assert.ok(!generated.registeredSkillIds.includes(id), id);
 
-  const expectedRuntimeSupport = [];
   for (const surface of ['agent-plugin', 'cursor-plugin', 'codex-native']) {
     assert.deepStrictEqual(
       inventory.internal_runtime_skills[surface],
-      expectedRuntimeSupport,
-      `${surface} must use the selected Flow Drive runtime owner`,
+      [],
+      `${surface} must use generated shared supporting assets rather than a runtime Skill`,
     );
   }
-  assert.deepStrictEqual(inventory.internal_runtime_skills['agy-plugin'], [...expectedRuntimeSupport, 'flow-guide'],
+  assert.deepStrictEqual(inventory.internal_runtime_skills['agy-plugin'], ['flow-guide'],
     'AGY must explicitly carry the flow-guide runtime closure');
 
   const unknownSupport = JSON.parse(JSON.stringify(inventory));

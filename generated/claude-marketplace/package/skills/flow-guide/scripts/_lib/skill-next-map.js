@@ -5,7 +5,7 @@ const { qualifyCommand } = require('./command-namespace');
 const STATES = Object.freeze(['PASS', 'FAIL', 'BLOCKED', 'NOT_RUN', 'UNAVAILABLE']);
 const FIRST_WAVE_SKILLS = Object.freeze([
   'code-trace', 'tdd-workflow', 'repo-verify', 'change-verdict', 'precommit',
-  'code-simplify', 'doc-maintain', 'git-smart-commit', 'create-pr', 'flow-drive',
+  'code-simplify', 'doc-maintain', 'git-smart-commit', 'create-pr',
   'opsx-apply-resume',
 ]);
 const IDENTITY = /^([a-z][a-z0-9]*(?:-[a-z0-9]+)*)(?::([a-z][a-z0-9]*(?:-[a-z0-9]+)*))?$/;

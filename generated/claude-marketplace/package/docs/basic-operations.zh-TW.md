@@ -245,10 +245,10 @@ missing outcome → owning workflow or method → applicable evidence → next a
 
 技能能獨立使用，仍需要 Host 能力與已聲明的必要資源。缺可選輔助技能不應自動
 阻塞。缺必要能力時精確回報 `BLOCKED`、`UNAVAILABLE` 或 `NOT_RUN`，不要默默
-改走別條路。可否獨立安裝依 dependency-closure 與分發契約判定；裸 `SKILL.md`
-不是可執行 runtime。
+改走別條路。可否獨立安裝依 dependency-closure 與分發契約判定；複製完整
+canonical skill directory，並確認其聲明的 Host capability 與必要資源。
 
-`flow-guide` 是唯讀建議；`flow-drive` 是 explicit-only 實作。以下案例都不授
+`flow-guide` 是唯讀建議；`flow-drive` 是 explicit native task/help entry。以下案例都不授
 權 commit、push、merge 或 deploy。Claude 用 `/dhpk:<name>`；Codex 在
 project-local sync 之後用 `$<name>`；Cursor 用產生出來的本地 command。完整
 Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到什麼) 與
@@ -277,7 +277,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
 按需串接：實作已確認契約。
 
 - **輸入**：已確認的需求與驗收條件。
-- **入口**：`/dhpk:flow-drive <confirmed-spec-or-change-id>`。
+- **入口**：`/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>`。
 - **產物**：符合驗收的實作，再對**最終** diff 做適用審查與驗證。
 - **完成**：最終 diff 上的驗收檢查通過；被觸發路徑的必要審查仍有效。
 - **阻塞**：缺少驗收條件；必要能力不可用；未明確呼叫 `flow-drive`
@@ -348,17 +348,17 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
 #### 步驟三：規格確認後實作與 TDD
 
 - **操作**：
-  - 當驗收條件、OpenSpec change 或修復方案確認後，呼叫實作入口：
+  - 當任務範圍與驗收條件清楚後，呼叫 native task entry：
     ```text
-    /dhpk:flow-drive <confirmed-spec-or-change-id>
+    /dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>
     ```
   - **測試驅動開發（TDD）**：行為變更套用 `tdd-workflow`（或適用的 `tdd-guide` 任務），推進 RED → GREEN → REFACTOR。純文字指引以語意審查及適用的 metadata／reference 檢查驗證。
 - **實作決策與調度規範（Co-located Rules）**：
   - **決策前置狀態**：開始實作前必須具備明確狀態標記：`CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或 `BLOCKED`。若涉及領域邊界應先諮詢 `architect`；仍有不確定性時取得唯讀 Reasoner 結果後才允許 Writer 介入。
   - **OpenSpec 生命週期**：Project Convention 或已確認任務採用 OpenSpec 時，使用它的外部 authoring workflow；歸檔前解決適用的 task、驗證與審查義務。已有充分的確認規格可直接實作；跨 session 本身不要求新增 artifacts。
-  - **Planner 諮詢範疇**：`--plan` 可搭配 `--plan=bounded`（限制最多 4 次直接讀取且無子代理）或 `--plan=discovery`（最多 12 次讀取與 2 個子代理）。未指定時預設 `auto`，在無 Material Risk Signal 且依據充足時自動採 bounded。
-  - **Worker 調度邊界**：`orchestration_dispatch=on`（預設）時，依 [Implementation dispatch](../rules/execution-policy.md#implementation-dispatch) 選擇 inline 或 `--worker=<claude|codex|agy>`；檔案數量單獨不能決定。
-  - **Codex CLI 整合**：dhpk 預設不啟用 Codex。使用 `--worker=codex` 走 CLI 機械 Worker；`--reasoner=codex/<model>[:<effort>]` 走獨立推理；`--second-opinion=codex-exec` 取得單次盲審意見。缺少執行檔時回報可選後端不可用，不繞過安全檢查。
+  - **Planner 諮詢範疇**：支援的 caller 請求 planner consult 時，從 brief 選擇 `auto`、`bounded`（最多 4 次直接讀取，無子代理）或 `discovery`（最多 12 次讀取、2 個唯讀子代理）。Flow Drive 沒有 planner option。
+  - **Worker 調度邊界**：`orchestration_dispatch=on`（預設）時，依 [Implementation dispatch](../rules/execution-policy.md#implementation-dispatch) 選擇 inline 或支援的 delegated route；檔案數量單獨不能決定。Flow Drive 沒有 worker selector。
+  - **Codex CLI 整合**：Flow Drive 使用目前 Host 與 Model。共用 Codex CLI role 與獨立 second opinion 僅透過支援該能力的 owner 使用。缺少執行檔時回報可選後端不可用，不繞過安全檢查。
 - **完成標準**：已接受的 scope 有仍適用的驗證；未滿足的義務與跳過檢查均明確保留。
 
 #### 步驟四：變更審查與品質門禁
@@ -459,40 +459,28 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
   /dhpk:flow-guide close
   ```
 
-#### 2. flow-drive（已確認任務實作入口）
+#### 2. flow-drive（原生任務實作）
 
-- **定位**：明確實作（explicit-only）入口，負責執行目標、限制與驗收邊界已確認的任務。可先診斷未知原因，取得充分證據後才進行相依寫入；正式 OpenSpec authoring 由外部 owner 負責。
-- **呼叫語法**：`/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id> [options]`（Codex: `$flow-drive ...`）
-- 多字任務文字或含空白路徑須用引號保留為單一 argument，例如 `/dhpk:flow-drive "修正結帳並驗證收據金額" --worker=codex`。
-- **參數說明**：
+- **定位**：使用目前的 Host 與 Model 完成一項有界且已授權的任務，回報實際觀察到的驗證證據或明確阻礙。
+- **呼叫語法**：`/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--help]`（Codex：`$flow-drive ...`）
+- 此入口為 explicit-only，不提供 worker、reasoner、provider、planning 或 architect 選擇旗標。`--help` 只顯示使用與遷移說明，不變更專案。
 
-  | 參數 | 類型 / 選項 | 預設值 | 說明 |
-  |---|---|---|---|
-  | `<task-text\|task-file\|confirmed-spec-or-change-id>` | 字串 | （必填） | 任務文字、任務檔案或已確認的規格／OpenSpec Change ID。 |
-  | `--plan[=auto\|bounded\|discovery]` | 字串（可選值） | 無 | 在實作前啟動 Planner 進行審查；選擇 `auto`、`bounded` 或 `discovery` 範圍，使用當前 Host 宣告的有效目標。 |
-  | `--worker=auto\|provider[/model[:effort]]` | `claude`、`codex`、`agy` 或精確目標 | `auto` | auto 預設 native；外部選取仍須當前 Host 的精確 role/target/authority grant。 |
-  | `--cross` | 布林旗標 | 關閉 | 在 `--worker=auto` 時允許考慮外部跨供應商候選（如 Codex），不影響明確指定的 target。 |
-  | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | 無 | 請求獨立 Reasoner 進行唯讀架構或複雜決策審查（例如 `codex/gpt-6.1-sol:high`）。 |
-  | `--architect` / `--no-architect` | 布林旗標 | 依政策 | 要求 consultation（portable runner 目前回報 UNAVAILABLE）或停用可選 consult；不得繞過必要 gate。 |
+| 參數 | 類型 / 選項 | 預設值 | 說明 |
+|---|---|---|---|
+| `<task-text\|task-file\|confirmed-spec-or-change-id>` | 字串 | 必填 | 一項有界任務、task-file 路徑或已確認的規格／OpenSpec Change ID。 |
+| `--help` | 布林旗標 | 關閉 | 顯示 task-only 入口與遷移參考。 |
 
-- **實戰範例**：
-  ```text
-  # 最簡實作：以當前環境實作已確認的 change
-  /dhpk:flow-drive change-add-user-avatar
+```text
+# 使用目前 Host 與 Model 完成並驗證一項任務
+/dhpk:flow-drive "修正收據總額並確認與收據明細一致。"
 
-  # 包含限定範圍（Bounded）的 Planner 審查
-  /dhpk:flow-drive change-add-user-avatar --plan=bounded
+# 查看目前使用方式與遷移說明
+/dhpk:flow-drive --help
+```
 
-  # 以當前 Host planner 進行 discovery 規劃並指定 Worker
-  /dhpk:flow-drive payment-webhook-retry --plan=discovery --worker=claude
-
-  # 包含外部 CLI Reasoner 第二意見與架構審查
-  /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex/gpt-6.1-sol:high
-  ```
-
-Claude Code 的 Codex worker／reasoner 由 parent session 呼叫 bundled launcher；建立私有 attempt 目錄、packet 與 context 的完整流程見 [parent CLI dispatch](../skills/flow-drive/references/parent-cli-dispatch.md)。明確的 `--worker=codex` 不需要 `--cross`，仍須通過目前的 access 與 capability 檢查。
-
-若以程式整合 `runFlowDrive`，請依 [portable runner contract](../skills/flow-drive/references/portable-runner.md)：此路徑的 `--cross` 只開啟授權問題，旗標本身不授權；planner、reasoner、architect 選項需使用 Host 操作流程。
+舊 worker、reasoner、cross-provider、planner、architect、backend 與程式化
+runner 介面均已退役。舊介面的處置與保留這些功能的固定版本，請見
+[Flow Drive 遷移指南](../skills/flow-drive/references/migration.md)。
 
 #### 3. code-trace（程式碼追蹤、根因診斷與工具選取）
 

@@ -17,7 +17,7 @@ list of the selected collection:
 |---|---|---|
 | `flow-guide` | You need help, routing, policy, the next step, or closeout advice | Read-only guidance or one bounded eligible handoff; never implements an explicit-only target |
 | `code-trace` | You need to explore code, diagnose a failure, inspect history, or select a navigation tool | Evidence-backed trace or an explicit blocker; does not apply a fix |
-| `flow-drive` | The specification or change is already confirmed | Workspace implementation and verification; stops on missing authority, unresolved gates, or scope expansion |
+| `flow-drive` | You have one bounded task to complete | Current-Host implementation and observed verification; `--help` is read-only |
 | `change-verdict` | You need a read-only verdict on code, PRs, security, tests, docs, or risk | Findings plus `READY`, `BLOCKED`, or `INCONCLUSIVE`; never edits the reviewed scope |
 
 Host support, selected collection membership, and supported skill selection are
@@ -50,7 +50,8 @@ documented in the [platform installation SSOT](./platform-installation.md).
 $flow-guide route <task>
 $flow-guide route --go <task>
 $code-trace --mode=diagnose <failure>
-$flow-drive <confirmed-spec-or-change-id>
+$flow-drive "Fix the receipt total and verify it against the receipt lines."
+$flow-drive --help
 $change-verdict pending
 ```
 

@@ -42,7 +42,7 @@ test('bash -n syntax check passes', () => {
   assert.strictEqual(res.status, 0, `syntax error: ${res.stderr}`);
 });
 
-test('fresh Codex install selects the common collection and keeps runtime support', () => {
+test('fresh Codex install selects the common collection and keeps Flow Drive portable', () => {
   const scratch = projectRoot();
   try {
     const installed = runInstaller(scratch, ['--copy', '--force']);
@@ -58,9 +58,10 @@ test('fresh Codex install selects the common collection and keeps runtime suppor
     for (const name of ['dhpk-cli-dispatch-context', 'dhpk-cli-transport', 'dhpk-codex-bridge', 'dhpk-agy-fast-worker']) {
       assert.ok(!receipt.managed_entries.skills[name], `${name} must remain retired`);
     }
-    const runtime = path.join(scratch, '.codex', 'skills', 'flow-drive', 'scripts', 'run.js');
-    const loaded = spawnSync(process.execPath, ['-e', 'require(process.argv[1])', runtime], { cwd: scratch, encoding: 'utf8' });
-    assert.strictEqual(loaded.status, 0, loaded.stderr);
+    const flowDrive = path.join(scratch, '.codex', 'skills', 'flow-drive');
+    assert.strictEqual(fs.existsSync(path.join(flowDrive, 'scripts')), false,
+      'the native task skill does not install a separate runtime');
+    assert.ok(fs.statSync(path.join(flowDrive, 'references', 'migration.md')).isFile());
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -536,7 +537,7 @@ test('successful update emits no deprecation warning and preserves UTC receipt t
   }
 });
 
-test('Codex sync installs its transport runtime without granting it profile capability', () => {
+test('Codex sync installs Flow Drive as instructions without a transport runtime', () => {
   const scratch = projectRoot();
   try {
     const result = runInstaller(scratch, ['--copy', '--force']);
@@ -550,9 +551,10 @@ test('Codex sync installs its transport runtime without granting it profile capa
     assert.ok(!receipt.managed_entries.skills['dhpk-cli-dispatch-context']);
     assert.ok(!receipt.managed_entries.skills['dhpk-cli-transport']);
     assert.ok(receipt.emittedStableIds.includes('flow-drive'));
-    for (const resource of ['transport/run-cli-transport.py', 'dispatch-runtime/launch-cli-dispatch.js', 'adapters/run-codex.sh', 'adapters/run-agy.sh']) {
-      assert.ok(fs.statSync(path.join(scratch, '.codex/skills/flow-drive/scripts', resource)).isFile(), resource);
-    }
+    const flowDrive = path.join(scratch, '.codex/skills/flow-drive');
+    assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), ['SKILL.md', 'agents', 'distribution.yaml', 'references']);
+    assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'agents')), ['openai.yaml']);
+    assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'references')), ['migration.md']);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

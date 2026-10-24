@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { findTests } = require('../../tests/run-all');
-const { validateCiPlan } = require('../lib/ci-plan');
+const { validateCiPlan, loadClassification } = require('../lib/ci-plan');
 const { validateAssertionSummary } = require('../lib/assertion-evidence');
 
 const TIMING_SCHEMA = 'dhpk.test-timing.v1';
@@ -320,7 +320,7 @@ function verifyShardReports(input = {}) {
 
 function parseArgs(argv = process.argv.slice(2)) {
   const options = {};
-  const names = new Set(['--directory', '--count', '--run-id', '--run-attempt', '--checkout-sha', '--head-sha', '--base-sha', '--base-ref', '--summary', '--plan']);
+  const names = new Set(['--directory', '--count', '--run-id', '--run-attempt', '--checkout-sha', '--head-sha', '--base-sha', '--base-ref', '--summary', '--plan', '--classification-file']);
   for (let index = 0; index < argv.length; index += 1) {
     const name = argv[index];
     if (!names.has(name)) throw new Error(`unknown option: ${name}`);
@@ -351,6 +351,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     baseRef: options['--base-ref'] || null,
     summary: options['--summary'] || null,
     plan: options['--plan'] || null,
+    classificationFile: options['--classification-file'] || null,
   };
 }
 
@@ -381,6 +382,7 @@ function formatSummary(result) {
 
 function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
+  const classification = loadClassification({ classificationFile: options.classificationFile });
   if (options.plan) {
     let plan;
     try { plan = JSON.parse(fs.readFileSync(path.resolve(options.plan), 'utf8')); } catch (error) { throw new Error(`plan is not valid JSON: ${error.message}`); }
@@ -389,6 +391,7 @@ function main(argv = process.argv.slice(2)) {
     const planValidation = validateCiPlan(plan, {
       root: process.cwd(), baseSha: options.baseSha, headSha: options.headSha,
       checkoutSha: options.checkoutSha, baseRef: options.baseRef,
+      ...classification,
     });
     if (!planValidation.ok) throw new Error(`plan is not authoritative: ${planValidation.errors.join('; ')}`);
     if (plan.shardCount !== options.shardCount) throw new Error('plan shard count does not match --count');

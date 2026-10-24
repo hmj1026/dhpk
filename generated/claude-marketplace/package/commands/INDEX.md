@@ -64,8 +64,9 @@ output and stop-condition metadata. Coverage review uses
 
 For Codex usage discovery, run `$flow-guide help` or `$flow-guide help <skill>`;
 use `$flow-guide <help|route|rules|next|close>` for guidance and
-`$flow-drive <confirmed-spec-or-change-id>` for explicit, mode-free
-implementation. Proposal authoring belongs to external `$openspec-propose`;
+`$flow-drive <bounded-task|task-file|confirmed-spec-or-change-id>` for an
+explicit native task, and `$flow-drive --help` for read-only usage. Proposal
+authoring belongs to external `$openspec-propose`;
 OnePassword authentication is the operator action `op signin`.
 
 `git-smart-commit` keeps its existing public name and stable ID. `agy-commit` is

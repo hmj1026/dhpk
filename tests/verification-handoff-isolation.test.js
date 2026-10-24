@@ -9,9 +9,7 @@ const { registerFlowFamilyFixtures, runFlowFamilyFixture } = require('./_lib/ski
 
 const fixtures = registerFlowFamilyFixtures();
 for (const [skill, entry, fixtureId] of [
-  ['flow-drive', 'scripts/verify-handoff.js', 'flow-drive-verification-handoff-missing-input'],
-  ['flow-drive', 'references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js', 'flow-drive-bundled-verification-handoff-missing-input'],
-  ['flow-guide', 'references/execution-bundle/skills/flow-drive/scripts/verify-handoff.js', 'flow-drive-bundled-verification-handoff-missing-input'],
+  ['flow-guide', 'references/execution-bundle/scripts/cli-dispatch/verify-handoff.js', 'shared-verification-handoff-missing-input'],
 ]) {
   test(`${skill}/${entry} runs without a sibling skill or checkout`, () => {
     withIsolatedSkill({ source: path.join(__dirname, '..', 'skills', skill) }, (context) => {

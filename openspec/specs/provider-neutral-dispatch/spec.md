@@ -4,6 +4,12 @@
 
 Define Provider-neutral target resolution, current bound capabilities, role and authority validation, observable receipts, and safe scheduling and recovery across Host runtimes.
 
+The native Flow Drive task/help entry is governed by
+`flow-drive-invocation-contract` and ADR-0029. It does not define an
+invocation-level scheduler or receipt system. Shared Engine role,
+authorization, receipt, fallback, and parallelism contracts below remain in
+force for their actual consumers.
+
 ## Requirements
 
 ### Requirement: Canonical dispatch schemas are versioned and Provider-scoped
@@ -205,28 +211,3 @@ and runtime observed identity SHALL come from actual outcome evidence.
 
 - **WHEN** the Host refuses a Provider or one fresh batch contradicts itself for the same execution tuple
 - **THEN** the engine blocks that target without external execution or policy bypass
-
-### Requirement: Flow Drive recovery preserves exclusive writer lifecycle and attempt evidence
-
-Flow Drive SHALL serialize every workspace writer, including scratch output,
-across solo and coordinated invocations. Readers MAY continue independently.
-An invocation-wide retry budget SHALL count only admitted replacements, and
-prior immutable attempt receipts SHALL retain actual IDs, failure class,
-side effects, verification, capability provenance, and reconciliation state.
-Availability substitution SHALL require confirmed no effects, authorization,
-non-strict selection, and remaining budget. Semantic repair SHALL stay on the
-same Provider with actual diff reconciliation. Safety/user denial and affected
-quota failure SHALL stop. Timeout, interruption, thrown execution, or malformed
-launched outcomes SHALL require positive matching stop and physical scope/diff
-reconciliation; missing proof SHALL suspend writers. This Flow Drive policy
-SHALL preserve generic legacy scheduler parallelism and configuration semantics.
-
-#### Scenario: Interrupted writer cannot overlap its replacement
-
-- **WHEN** a launched writer is interrupted with incomplete stop or reconciliation proof
-- **THEN** queued and new writers remain blocked while independent readers may progress
-
-#### Scenario: Verified dependency recovery invalidates stale downstream reuse
-
-- **WHEN** an affected prerequisite executes freshly or recovers
-- **THEN** dependent acceptance evidence is verified freshly while unrelated validated reuse may remain

@@ -1,0 +1,80 @@
+{
+  "schema": "dhpk.flow-drive-comparison.v1",
+  "oracleSha256": "193bc05fa94b3970aa15fba71c550aba5eb2ba3bd6b64d2bf106478e90318178",
+  "baseline": {
+    "dhpkVersion": "v0.66.7",
+    "dhpkCommit": "5440dc516a7ffd0b52620546bb8f106210e79ce4",
+    "host": "codex-cli",
+    "hostVersion": "0.163.0",
+    "provider": "openai",
+    "model": "gpt-6.1-sol",
+    "effort": "medium",
+    "runtime": "node v26.12.0"
+  },
+  "protocol": {
+    "freshSessionPerCell": true,
+    "freshProjectCopyPerCell": true,
+    "sameConsumerInstructions": true,
+    "sameTaskPromptAcrossConditions": true,
+    "nativeHasDhpkProjectInjection": false,
+    "maximumRuns": 9,
+    "maximumRunsPerCell": 1,
+    "automaticRetries": false,
+    "newPaidApi": false,
+    "providerSwitching": false,
+    "taskSessionCanReadDhpkCheckout": false,
+    "taskSessionCanReadSiblingPublicSkills": false,
+    "taskSessionCanReadOracleOrReferenceAnswers": false,
+    "taskSessionCanModifyOracleOrReferenceAnswers": false
+  },
+  "conditions": [
+    {
+      "id": "native",
+      "skill": null,
+      "projectGuidance": "No dhpk project instructions or installed skills; retain only the shared consumer instructions."
+    },
+    {
+      "id": "current",
+      "skill": "Codex-materialized Flow Drive artifact from git archive 5440dc516a7ffd0b52620546bb8f106210e79ce4:plugins/dhpk/skills/flow-drive; install project-local at .agents/skills/flow-drive."
+    },
+    {
+      "id": "simplified",
+      "skill": "Raw canonical Flow Drive directory from the completed #1111 integration commit:skills/flow-drive; install project-local at .agents/skills/flow-drive. Bind its final commit before the first comparison run."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "receipt-quantity",
+      "prompt": "tasks/receipt-quantity/prompt.md",
+      "promptSha256": "aa7d7fcb9d59426cba5a94c394e142b2353d62c50d086a83a026e5b92247e63c",
+      "project": "tasks/receipt-quantity/project",
+      "projectSha256": "642efc4fa2aa94ccf7f34b1dd76b97995a22557f79b50021f175de187fa67504",
+      "referenceSha256": "1d3dc67e403176e7e57208d84805d16076664142f72feb05983f6a757f486195",
+      "referenceAnswer": "reference-answers/receipt-quantity/src/receipt.js",
+      "allowedEdits": ["src/receipt.js"],
+      "oracleChecks": ["quantity-is-multiplied", "empty-receipt-is-zero"]
+    },
+    {
+      "id": "discount-diagnosis",
+      "prompt": "tasks/discount-diagnosis/prompt.md",
+      "promptSha256": "fabae77c8918a23cc82bfdb7a7afcd5b1a5cd9464f5f14b938a365d8760ee261",
+      "project": "tasks/discount-diagnosis/project",
+      "projectSha256": "ef4ad7b52519e020f68ae56af380761531cfe4de9fceab7cbec17bd79b884745",
+      "referenceSha256": "043045f8823bb5a55eac1f6c6ba779251ea6e7e54f56c0603fb31b233170158b",
+      "referenceAnswer": "reference-answers/discount-diagnosis/src/discount.js",
+      "allowedEdits": ["src/discount.js"],
+      "oracleChecks": ["explicit-zero-preserves-price", "omitted-discount-uses-default"]
+    },
+    {
+      "id": "status-filter",
+      "prompt": "tasks/status-filter/prompt.md",
+      "promptSha256": "c33c3fc7280c098a159d9fc94c2b28dda6ebdf84422b0157a17dbdcb3352c881",
+      "project": "tasks/status-filter/project",
+      "projectSha256": "22a75ece6becb94252da57fede71faae5a8279506fa933d2a659d83acf85c101",
+      "referenceSha256": "db7885bdd3863b01ba4b08afbb3f03e016f3e7397e059edb6600295f66f6f4d5",
+      "referenceAnswer": "reference-answers/status-filter/src/cli.js",
+      "allowedEdits": ["src/cli.js"],
+      "oracleChecks": ["paid-status-filter", "open-status-filter", "no-filter-keeps-existing-output", "invalid-status-is-an-error"]
+    }
+  ]
+}

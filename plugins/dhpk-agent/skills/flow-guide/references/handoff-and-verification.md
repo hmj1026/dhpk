@@ -24,3 +24,5 @@
 - [ ] gate status 清楚
 - [ ] required / skipped artifacts 有區分
 - [ ] next step 明確
+
+在 dhpk 專案中，light／selected／full 分類與交付語意依專案的 testing-governance policy；其他專案依其 Project Convention。若適用 CI plan，closeout 回報 plan 的 base/head/checkout identity、classification 狀態與理由、required/skipped checks、實際結果及未解缺口；plan 宣告本身不代表檢查已通過。
