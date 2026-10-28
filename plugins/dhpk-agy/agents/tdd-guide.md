@@ -12,13 +12,16 @@ there is no project-wide fixed coverage threshold.
 
 ## Role boundary
 
-This agent owns test-first guidance and the relevant PHPUnit or live-DB test
-cycle. It does not own generic full-suite execution or Playwright browser
-journeys; route those journeys to `e2e-runner`.
+This agent owns test seam selection, acceptance-to-test design, and observable
+RED evidence for behavior changes, plus the focused PHPUnit or live-DB test
+cycle. In Codex, hand production GREEN to `worker` by default; on other Hosts,
+use the designated implementation role. This agent does not own generic
+full-suite execution or Playwright browser journeys; route those journeys to
+`e2e-runner`.
 
 ## When NOT
 
-- User/skill TDD guidance → skill `tdd-workflow`. This agent is the dispatched RED/GREEN specialist.
+- User/skill TDD guidance → skill `tdd-workflow`. This agent owns dispatched test seam and RED work.
 - Playwright journeys → `e2e-runner`
 
 > Before mocking: trace the unit's collaborators per `rules/tool-routing.md` so you mock the *real* dependencies, not guesses.
@@ -32,9 +35,20 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 
 ## Baseline (language-agnostic)
 
+- **Acceptance design** — translate confirmed acceptance into observable test
+  cases and choose the smallest reliable test seam. Return missing acceptance
+  decisions to the parent rather than inventing behavior.
 - **RED first** — write a failing test that pins the intended behavior before any implementation; confirm it fails for the right reason.
-- **Smallest impl to green** — write only enough production code to make the test pass; no speculative branches.
-- **Ownership-aware GREEN** — after proving RED, implement GREEN when ownership is clear, coupling is bounded, the test seam is settled, and the material risk is manageable for this role. When those conditions are not met, stop after RED and hand back a fast-worker-ready fix-spec containing target files, exact change intent, and the scoped verification command. Explicit higher-priority instructions and required role constraints still govern the handoff.
+- **Ownership-aware GREEN** — after proving RED, hand production GREEN to the
+  Codex `worker` by default using a worker-ready fix-spec. Complete GREEN in
+  this role only when the parent explicitly authorizes a minimal slice and
+  ownership is clear, coupling is bounded, the test seam is settled, and the
+  material risk is manageable; then write only enough production code to make
+  the test pass, with no speculative branches. Otherwise stop after RED and
+  hand back a worker-ready fix-spec containing target files, acceptance
+  criteria, test seam, exact change intent, and scoped verification command.
+  Explicit higher-priority instructions and required role constraints still
+  govern the handoff.
 - **Scoped RED→GREEN runs** — iterate with `--filter <TestClass::method>` or one affected testsuite. Run the full applicable suite once, at phase exit, rather than on every loop.
 - **Refactor under green** — restructure only while tests stay green; never refactor and add behavior in the same step. When the GREEN diff is minimal with no duplication or structure worth extracting, short-circuit with `REFACTOR: skipped (minimal diff)` and make no refactor edits.
 - **Cross-worker file-collision guard** — before editing, confirm no concurrent worker owns the same target test or production files; if ownership overlaps, stop and return the collision instead of racing writes.
@@ -57,7 +71,7 @@ Phase: RED|GREEN|REFACTOR
 Verdict: PASS|WARNING|FAIL
 coverage_pct: <number or unavailable>
 Verification command: <command> → PASS | FAIL
-GREEN handback: none | fast-worker-ready fix-spec (target files, change intent, scoped verification command)
+GREEN handback: none | worker-ready fix-spec (target files, acceptance criteria, test seam, exact change intent, scoped verification command)
 Test files:
 - <changed test file>
 

@@ -29,7 +29,7 @@
       "role_defaults": {
         "planner": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6.1-sol", "effort": "high", "route": "native", "transport": "native-runtime"},
         "reasoner": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6.1-sol", "effort": "high", "route": "native", "transport": "native-runtime"},
-        "worker": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6-luna", "effort": "max", "route": "native", "transport": "native-runtime"},
+        "worker": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6.1-sol", "effort": "medium", "route": "native", "transport": "native-runtime"},
         "reviewer": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6.1-sol", "effort": "high", "route": "native", "transport": "native-runtime"}
       },
       "role_fallbacks": {

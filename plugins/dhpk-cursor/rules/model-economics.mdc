@@ -34,21 +34,27 @@ custom `max_output_tokens` field, so token economics are controlled through the
 model tier, effort, prompt scope, concurrency, and retry policy. The current
 standard API rates used for comparison are documented in the [OpenAI model
 catalog](https://developers.openai.com/api/docs/models) and [API pricing
-guide](https://developers.openai.com/api/docs/pricing) (checked 2026-10-05):
-GPT-6.1 Sol (`gpt-6.1-sol`) is `$2/$10` and GPT-6 Luna is `$0.10/$0.50` per
-million input/output tokens. The Codex models cache read on 2026-10-21 (CLI 0.163.0, cache
-client_version 0.162.0), for this Host, advertises `gpt-6.1-sol` and `gpt-6-sol` as `low`, `medium`, `high`,
+guide](https://developers.openai.com/api/docs/pricing) (checked 2026-10-28):
+GPT-6.1 Sol (`gpt-6.1-sol`) is `$2/$10`, GPT-6.1 Terra is `$1/$5`, and GPT-6
+Luna is `$0.10/$0.50` per million input/output tokens. The Codex models cache
+read on 2026-10-21 (CLI 0.163.0, cache client_version 0.162.0), for this Host,
+advertises `gpt-6.1-sol` and `gpt-6-sol` as `low`, `medium`, `high`,
 `xhigh`, `max`, and `ultra`, and `gpt-6-luna` as `low`, `medium`, `high`,
 `xhigh`, and `max` without `ultra`. That cache is not a promise for every
 API or Host route. `none` and `minimal` are not in the cache. CLI worker
-default stays `xhigh`, the Codex-native worker default stays `max`, and the
-Claude-host Codex fallback stays `high`. Existing explicit
-`gpt-6-sol` compatibility routes remain available while role defaults move to
-GPT-6.1 Sol. GPT-6 has no Terra tier; former Terra roles move to Sol, which is
-cheaper than GPT-5.6 Terra (`$2/$12`). GPT-6 Astra (`$10/$50`) is the frontier
-tier and stays an explicit opt-in, never a role default. See the
-[GPT-6.1 Sol model page](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
-for its current rates and effort support.
+default stays `xhigh`, the Codex-native worker default is `gpt-6.1-sol` at
+`medium`, and the Claude-host Codex fallback stays `high`. Existing explicit
+`gpt-6-sol` compatibility routes remain available. GPT-6.1 Terra is documented
+for visual reasoning, computer use, concise writing, and scoped code fixes; its
+model page lists `medium` as the default reasoning effort. Terra is declared
+only for Codex-native worker and reviewer requests at `medium`. API model
+documentation does not establish Codex CLI runtime support, so effective model
+and effort remain separate runtime evidence.
+GPT-6 Astra (`$10/$50`) is the frontier tier and stays an explicit opt-in,
+never a role default. See the [GPT-6.1 Sol model page](https://developers.openai.com/api/docs/models/gpt-6.1-sol),
+[GPT-6.1 Terra model page](https://developers.openai.com/api/docs/models/gpt-6.1-terra),
+and [model-selection guide](https://developers.openai.com/api/docs/guides/model-selection)
+for current model guidance and effort support.
 
 Do not copy live `model` / `model_reasoning_effort` values into this page.
 Generated Codex agents are owned by `RUNTIME_METADATA` in
@@ -73,9 +79,12 @@ Cost/quality rationale, without restating the live values:
   capability is absent.
 - Read-heavy evidence gathering needs breadth and coherent synthesis, not
   frontier judgment by default.
-- Implementation and RED→GREEN guidance are an explicit quality-first
-  exception on the efficient tier, because accepted-outcome and retry cost
-  dominate one-call price.
+- Test-first guidance establishes observable RED evidence before a worker
+  implements the confirmed change; the handoff separates acceptance design
+  from implementation cost.
+- Terra roles are task-scoped candidates for UI observation, source-grounded
+  writing, and confirmed local fixes. Compare them with Sol on identical inputs
+  and effort before making quality or rework claims.
 - Deterministic frontmatter/link/SSOT checks are narrow and frequent.
 - Polling and state-change reporting are low-complexity, high-volume work.
 

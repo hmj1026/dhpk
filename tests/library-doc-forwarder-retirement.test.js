@@ -69,6 +69,7 @@ function cloneGeneratorFixture(prefix) {
   for (const file of ['agent-projection-manifest.json', 'agent-role-map.json']) {
     fs.copyFileSync(path.join(ROOT, 'codex', file), path.join(fixtureRoot, 'codex', file));
   }
+  fs.cpSync(path.join(ROOT, 'codex', 'agent-sources'), path.join(fixtureRoot, 'codex', 'agent-sources'), { recursive: true });
   fs.cpSync(path.join(ROOT, 'scripts'), path.join(fixtureRoot, 'scripts'), { recursive: true });
   return fixtureRoot;
 }

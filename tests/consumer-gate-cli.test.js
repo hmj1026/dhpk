@@ -52,6 +52,7 @@ if [ "$1" != "exec" ]; then exit 93; fi
 case "$*" in
   *"values: security-reviewer."*) role=security-reviewer ;;
   *"values: explorer."*) role=explorer ;;
+  *"values: scoped-worker."*) role=scoped-worker ;;
   *) echo 'expected one exact role in prompt' >&2; exit 94 ;;
 esac
 role_path=$(printf '%s' "$role" | tr '-' '_')
@@ -1374,6 +1375,7 @@ test('native Codex requirements execute authorized singleton roles once per capa
         makeCheck('security-reviewer-authorized', 'named-role-security-reviewer', true),
         makeCheck('security-reviewer-unauthorized', 'named-role-security-reviewer', false),
         makeCheck('explorer-authorized', 'named-role-explorer', true),
+        makeCheck('scoped-worker-authorized', 'named-role-scoped-worker', true),
       ],
     }, {
       PATH: `${bin}:${NODE_BASH_ONLY_PATH}`,
@@ -1408,6 +1410,12 @@ test('native Codex requirements execute authorized singleton roles once per capa
     assert.strictEqual(evidence.check3.nativeProof.roles[0].agentTypeAccepted, true);
     assert.ok(evidence.check3.nativeProof.roles[0].threadId);
     assert.strictEqual(evidence.check3.nativeProof.roles[0].childCompleted, true);
+    assert.strictEqual(evidence.check4.status, 'PASS', JSON.stringify(evidence.check4));
+    assert.strictEqual(evidence.check4.nativeProof.roles[0].id, 'scoped-worker');
+    assert.strictEqual(evidence.check4.nativeProof.roles[0].agentTypeAccepted, true);
+    assert.ok(evidence.check4.nativeProof.roles[0].threadId);
+    assert.strictEqual(evidence.check4.nativeProof.roles[0].childCompleted, true);
+    assert.match(evidence.check4.identity.sourceFingerprint, /^sha256:[a-f0-9]{64}$/);
     assert.strictEqual(codex.runtimeEvidence.status, 'NOT_RUN');
     assert.notStrictEqual(stage.runtimeVerified, true);
     const roundTrip = normalizeConsumerEvidence(stage);
@@ -1425,9 +1433,10 @@ test('native Codex requirements execute authorized singleton roles once per capa
       'surfaceResults.codex-sync.requirementEvidence.check1',
     );
     const prompts = fs.readFileSync(log, 'utf8').split(/\r?\n/).filter((line) => /^exec /.test(line));
-    assert.strictEqual(prompts.length, 2, 'one authorized check per unique role should execute');
+    assert.strictEqual(prompts.length, 3, 'one authorized check per unique role should execute');
     assert.ok(prompts.some((line) => /values: security-reviewer\./.test(line)), prompts.join('\n'));
     assert.ok(prompts.some((line) => /values: explorer\./.test(line)), prompts.join('\n'));
+    assert.ok(prompts.some((line) => /values: scoped-worker\./.test(line)), prompts.join('\n'));
     assert.ok(prompts.every((line) => !/values: explorer,|values: security-reviewer,/.test(line)), prompts.join('\n'));
   });
 });

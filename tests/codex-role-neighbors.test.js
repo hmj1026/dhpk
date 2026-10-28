@@ -18,6 +18,8 @@ const {
   collectCodexRoleNeighborErrors,
 } = require(path.join(ROOT, 'scripts', 'lib', 'codex-role-neighbors'));
 
+const CODEX_ONLY_ROLES = ['ui-verifier', 'docs-writer', 'scoped-worker'];
+
 function tmpRoot(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-${prefix}-`));
 }
@@ -59,6 +61,19 @@ test('known direct role neighbors pass the committed projection fence', () => {
     assert.deepStrictEqual(errors, [], errors.join('\n'));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Codex-only scoped roles are direct package-owned roles with separate authoring sources', () => {
+  const ownership = JSON.parse(fs.readFileSync(path.join(ROOT, 'codex', 'agent-projection-manifest.json'), 'utf8'));
+  const roleMap = JSON.parse(fs.readFileSync(path.join(ROOT, 'codex', 'agent-role-map.json'), 'utf8'));
+  for (const role of CODEX_ONLY_ROLES) {
+    assert.ok(ownership.generated_roles.includes(role), `${role}: generated role missing`);
+    assert.ok(ownership.package_roles.includes(role), `${role}: package role missing`);
+    assert.deepStrictEqual(roleMap.roles[role], { status: 'direct', target: role }, role);
+    assert.ok(fs.existsSync(path.join(ROOT, 'codex', 'agent-sources', `${role}.md`)), `${role}: authoring source missing`);
+    assert.ok(fs.existsSync(path.join(ROOT, 'codex', 'agents', `${role}.toml`)), `${role}: generated TOML missing`);
+    assert.strictEqual(fs.existsSync(path.join(ROOT, 'agents', `${role}.md`)), false, `${role} must not enter shared discovery`);
   }
 });
 

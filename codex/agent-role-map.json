@@ -20,6 +20,7 @@
     "doc-reviewer": { "status": "direct", "target": "doc-reviewer" },
     "doc-updater": { "status": "skill/manual-fallback", "target": "capability:documentation" },
     "docs-lookup": { "status": "skill/manual-fallback", "target": "capability:documentation" },
+    "docs-writer": { "status": "direct", "target": "docs-writer" },
     "e2e-runner": { "status": "direct", "target": "e2e-runner" },
     "explorer": { "status": "direct", "target": "explorer" },
     "fast-worker": { "status": "merged", "target": "worker" },
@@ -33,6 +34,7 @@
     "python-build-resolver": { "status": "skill/manual-fallback", "target": "capability:language-build" },
     "refactor-cleaner": { "status": "merged", "target": "worker" },
     "rust-build-resolver": { "status": "skill/manual-fallback", "target": "capability:language-build" },
+    "scoped-worker": { "status": "direct", "target": "scoped-worker" },
     "security-reviewer": { "status": "direct", "target": "security-reviewer" },
     "silent-failure-hunter": { "status": "merged", "target": "code-reviewer/deep-reasoner" },
     "smoke-tester": { "status": "capability-gated", "target": "capability:runtime-probe" },
@@ -40,6 +42,7 @@
     "tdd-guide": { "status": "direct", "target": "tdd-guide" },
     "type-design-analyzer": { "status": "merged", "target": "architect/deep-reasoner" },
     "ui-ux-verifier": { "status": "capability-gated", "target": "capability:browser-ui-audit" },
+    "ui-verifier": { "status": "direct", "target": "ui-verifier" },
     "version-matrix-impact-reviewer": { "status": "skill/manual-fallback", "target": "capability:compatibility-review" },
     "worker": { "status": "direct", "target": "worker" }
   },

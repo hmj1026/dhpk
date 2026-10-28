@@ -7,7 +7,6 @@ const { collectCodexRoleNeighborErrors } = require('./lib/codex-role-neighbors')
 
 // Plugin root: this script lives in scripts/, so root is one level up.
 const ROOT = path.join(__dirname, '..');
-const SOURCE_DIR = path.join(ROOT, 'agents');
 const DEFAULT_OUT_DIR = path.join(ROOT, 'codex', 'agents');
 const OWNERSHIP_MANIFEST = path.join(ROOT, 'codex', 'agent-projection-manifest.json');
 const ROLE_MAP = path.join(ROOT, 'codex', 'agent-role-map.json');
@@ -20,34 +19,41 @@ const RUNTIME_METADATA = Object.freeze({
   'code-reviewer': { model: 'gpt-6.1-sol', effort: 'medium' },
   'security-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
   'database-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
-  'tdd-guide': { model: 'gpt-6-luna', effort: 'max' },
+  'tdd-guide': { model: 'gpt-6-luna', effort: 'high' },
   'deep-reasoner': { model: 'gpt-6.1-sol', effort: 'high' },
-  'doc-reviewer': { model: 'gpt-6-luna', effort: 'medium' },
+  'doc-reviewer': { model: 'gpt-6-luna', effort: 'high' },
   planner: { model: 'gpt-6.1-sol', effort: 'high' },
-  'frontend-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
+  'frontend-reviewer': { model: 'gpt-6.1-sol', effort: 'medium' },
   'migration-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
-  'e2e-runner': { model: 'gpt-6.1-sol', effort: 'high' },
+  'e2e-runner': { model: 'gpt-6.1-sol', effort: 'medium' },
+  'ui-verifier': { model: 'gpt-6.1-terra', effort: 'medium' },
+  'docs-writer': { model: 'gpt-6.1-terra', effort: 'medium' },
+  'scoped-worker': { model: 'gpt-6.1-terra', effort: 'medium' },
 });
 
-// Curated allowlist — EXACTLY these 11, in emit order. Each entry pins a
-// category (not the source frontmatter's effort). The 4 hand-maintained Codex
-// roles (bug-investigator, explorer, monitor, worker) are intentionally absent
-// and are never read or overwritten: any drift check scopes to these names.
+// Each Codex role names its canonical source explicitly. Existing shared roles
+// continue to read from agents/; Codex-only roles stay in codex/agent-sources/.
+// The 4 hand-maintained Codex roles (bug-investigator, explorer, monitor, worker)
+// are intentionally absent and are never read or overwritten.
 const AGENTS = [
-  { name: 'architect' },
-  { name: 'code-reviewer' },
-  { name: 'security-reviewer' },
-  { name: 'database-reviewer' },
-  { name: 'tdd-guide' },
-  { name: 'deep-reasoner' },
-  { name: 'doc-reviewer' },
-  { name: 'planner' },
-  { name: 'frontend-reviewer' },
-  { name: 'migration-reviewer' },
-  { name: 'e2e-runner' },
+  { name: 'architect', source: 'agents/architect.md' },
+  { name: 'code-reviewer', source: 'agents/code-reviewer.md' },
+  { name: 'security-reviewer', source: 'agents/security-reviewer.md' },
+  { name: 'database-reviewer', source: 'agents/database-reviewer.md' },
+  { name: 'tdd-guide', source: 'agents/tdd-guide.md' },
+  { name: 'deep-reasoner', source: 'agents/deep-reasoner.md' },
+  { name: 'doc-reviewer', source: 'agents/doc-reviewer.md' },
+  { name: 'planner', source: 'agents/planner.md' },
+  { name: 'frontend-reviewer', source: 'agents/frontend-reviewer.md' },
+  { name: 'migration-reviewer', source: 'agents/migration-reviewer.md' },
+  { name: 'e2e-runner', source: 'agents/e2e-runner.md' },
+  { name: 'ui-verifier', source: 'codex/agent-sources/ui-verifier.md' },
+  { name: 'docs-writer', source: 'codex/agent-sources/docs-writer.md' },
+  { name: 'scoped-worker', source: 'codex/agent-sources/scoped-worker.md' },
 ];
 
-const GENERATED_NAMES = Object.freeze(AGENTS.map((agent) => agent.name));
+const AGENT_SOURCES = Object.freeze(AGENTS.map((agent) => Object.freeze({ ...agent })));
+const GENERATED_NAMES = Object.freeze(AGENT_SOURCES.map((agent) => agent.name));
 
 // Read-only is an instruction plus the parent session's permission policy.
 // These roles have no Write/Edit tool. The shared contract owns the rule;
@@ -62,6 +68,7 @@ const READ_ONLY_ROLES = new Set([
   'planner',
   'frontend-reviewer',
   'migration-reviewer',
+  'ui-verifier',
 ]);
 
 const CODEX_READ_ONLY_HANDOFF = [
@@ -454,7 +461,7 @@ function buildToml(agent, frontmatter, body) {
   const fm = parseFrontmatter(frontmatter);
   const description = adaptCodexBody(agent.name, (fm.description || '').trim());
   if (!description) {
-    throw new Error(`Empty description in agents/${agent.name}.md`);
+    throw new Error(`Empty description in ${agent.source}`);
   }
   const runtime = RUNTIME_METADATA[agent.name];
   if (!runtime) {
@@ -498,7 +505,6 @@ function buildToml(agent, frontmatter, body) {
 }
 
 function generate(outDir) {
-  fs.mkdirSync(outDir, { recursive: true });
   const ownership = readOwnershipManifest(outDir);
   assertNoStaleToml(outDir, ownership);
   const roleMap = readJson(ROLE_MAP, 'Codex role map');
@@ -509,9 +515,9 @@ function generate(outDir) {
   const planned = [];
   const summary = [];
   for (const agent of AGENTS) {
-    const sourcePath = path.join(SOURCE_DIR, `${agent.name}.md`);
+    const sourcePath = path.join(ROOT, agent.source);
     if (!fs.existsSync(sourcePath)) {
-      throw new Error(`Source agent not found: ${sourcePath}`);
+      throw new Error(`Source agent not found: ${agent.source}`);
     }
     const text = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n');
     const { frontmatter, body } = splitFrontmatter(text);
@@ -531,13 +537,14 @@ function generate(outDir) {
       generatedRoles: ownership.generatedNames,
       packageRoles: ownership.packageNames,
       resolvableTargets: plannedRoles,
-      file: `agents/${agent.name}.md`,
+      file: agent.source,
     }));
   }
   if (neighborErrors.length > 0) {
     throw new Error(neighborErrors.join('\n'));
   }
 
+  fs.mkdirSync(outDir, { recursive: true });
   for (const { agent, built } of planned) {
     const { toml, effort } = built;
     const outFile = path.join(outDir, `${agent.name}.toml`);
@@ -558,7 +565,7 @@ function main() {
   console.log(`Generated ${summary.length} Codex role file(s).`);
 }
 
-module.exports = { RUNTIME_METADATA, generate };
+module.exports = { AGENT_SOURCES, RUNTIME_METADATA, generate };
 
 if (require.main === module) {
   try {
