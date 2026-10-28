@@ -49,6 +49,12 @@ verdict: APPROVE | WARNING | BLOCK
 Audit-style roles may use `PASS | WARNING | FAIL` instead. Non-reviewer roles
 document their own extra fields inline; do not invent a third verdict vocabulary.
 
+`doc-reviewer` may additionally report
+`local_rules_loaded: [<project-relative-path>]` for each non-empty local rules
+file it actually loaded. Omit the field when no such file was loaded. A load
+failure is an evidence gap, not a loaded path. Codex includes the field in its
+inline result rather than writing an artifact.
+
 `BLOCK` and `FAIL` record a defect from checked evidence at that role's own
 threshold. `code-reviewer` and `frontend-reviewer` use `BLOCK` for any CRITICAL
 finding. The library-author polyfill review uses that same CRITICAL threshold.

@@ -457,8 +457,8 @@
       "id": "codex-supporting-contracts-artifact-contract-md",
       "source": "codex/supporting/contracts/artifact-contract.md",
       "canonical_source": "docs/contracts/artifact-contract.md",
-      "canonical_digest": "445939f0f1c939e8f18223eba7e782a6feb14384c5675182e42da814646bde84",
-      "projection_digest": "ebe6e000730c8c585155b958d526268ee73291601e7e386f14105838d97b8911",
+      "canonical_digest": "d247f5fec20fb073f223500215eb11aa38b588f0d51ebb7755ca17de58afcecf",
+      "projection_digest": "2f7d5afaa09fbd37be0d90bf373a812d08c5c07d334e517177cac0cbbc7f22b2",
       "destination": "dhpk/contracts/artifact-contract.md"
     },
     {

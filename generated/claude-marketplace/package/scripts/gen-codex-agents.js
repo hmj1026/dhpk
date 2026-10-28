@@ -379,7 +379,13 @@ function adaptCodexBody(agentName, body) {
   if (agentName === 'doc-reviewer') {
     adapted = adapted
       .replaceAll('`doc-updater`', 'a documentation-refresh pass (no Codex role; update the docs directly)')
-      .replaceAll('`docs-lookup`', 'a library-documentation lookup (no Codex role; consult the vendor docs directly)');
+      .replaceAll('`docs-lookup`', 'a library-documentation lookup (no Codex role; consult the vendor docs directly)')
+      .replace(
+        '   `.codex/docs/doc-review-local.md` for Claude and AGY,\n'
+        + '   `.codex/docs/doc-review-local.md` for Codex, or\n'
+        + '   `.cursor/docs/doc-review-local.md` for Cursor.',
+        '   `.codex/docs/doc-review-local.md` for Codex.',
+      );
   }
   if (agentName === 'frontend-reviewer') {
     adapted = adapted

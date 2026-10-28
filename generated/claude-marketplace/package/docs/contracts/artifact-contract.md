@@ -73,6 +73,13 @@ severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }
 verdict: APPROVE | WARNING | BLOCK   # or PASS | WARNING | FAIL — see below
 ```
 
+`doc-reviewer` may additionally record
+`local_rules_loaded: [<project-relative-path>]` in frontmatter for each
+non-empty local rules file it actually loaded. Omit the field when no such file
+was loaded. A load failure is an evidence gap, not a loaded path. Hosts that
+return reviews inline report the same field in the inline result rather than
+writing an artifact.
+
 Two verdict vocabularies are both in current use — pick the one matching the agent's own body, don't invent a third:
 
 - **APPROVE | WARNING | BLOCK** (`code-reviewer`, `frontend-reviewer`, `polyfill-reviewer`): BLOCK = any CRITICAL finding. `doc-reviewer`: BLOCK = any HIGH finding. Other roles that use this family keep the threshold written in their own body.
