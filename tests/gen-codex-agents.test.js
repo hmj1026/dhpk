@@ -1,10 +1,9 @@
 'use strict';
 
 // Coverage for scripts/gen-codex-agents.js — generates Codex CLI role .toml
-// files from the curated 11-agent allowlist under agents/<name>.md. Source
-// dir is fixed to the repo's real agents/ (read-only, never mutated by this
-// script), but the output dir is a CLI arg — always point it at a temp dir
-// so the repo's own codex/agents/ output is never touched.
+// files from the explicit Codex role descriptors. Legacy role sources live
+// under agents/; Codex-only sources live under codex/agent-sources/. Output
+// is always redirected to a temp dir so the checked-in projection is untouched.
 
 const path = require('node:path');
 const fs = require('node:fs');
@@ -27,7 +26,12 @@ const EXPECTED_AGENTS = [
   'frontend-reviewer',
   'migration-reviewer',
   'e2e-runner',
+  'ui-verifier',
+  'docs-writer',
+  'scoped-worker',
 ];
+
+const CODEX_ONLY_AGENTS = ['ui-verifier', 'docs-writer', 'scoped-worker'];
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-codex-agents-'));
@@ -48,8 +52,28 @@ function cloneGeneratorFixture(prefix) {
   for (const file of ['agent-projection-manifest.json', 'agent-role-map.json']) {
     fs.copyFileSync(path.join(ROOT, 'codex', file), path.join(root, 'codex', file));
   }
+  writeCodexOnlySourceFixtures(root);
   fs.cpSync(path.join(ROOT, 'scripts'), path.join(root, 'scripts'), { recursive: true });
   return root;
+}
+
+function writeCodexOnlySourceFixtures(root) {
+  const sourceDir = path.join(root, 'codex', 'agent-sources');
+  fs.mkdirSync(sourceDir, { recursive: true });
+  for (const role of CODEX_ONLY_AGENTS) {
+    fs.writeFileSync(
+      path.join(sourceDir, `${role}.md`),
+      [
+        '---',
+        `name: ${role}`,
+        `description: "Codex-only ${role} fixture role."`,
+        '---',
+        '',
+        `Canonical fixture instructions for ${role}.`,
+        '',
+      ].join('\n'),
+    );
+  }
 }
 
 function runFixtureScript(root, args) {
@@ -152,13 +176,13 @@ test('generated source keeps unknown prose and fenced-code mentions out of the e
   }
 });
 
-test('generates exactly the 11-agent allowlist as .toml files with derived fields', () => {
-  const tmp = mkTmp();
+test('generates the explicit 14-role Codex projection without packaging authoring sources', () => {
+  const root = cloneGeneratorFixture('gen-codex-projection');
   try {
-    const outDir = path.join(tmp, 'out');
-    const res = runScript([outDir]);
+    const outDir = path.join(root, 'out');
+    const res = runFixtureScript(root, [outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(res.stdout.includes('Generated 11 Codex role file(s).'), res.stdout);
+    assert.ok(res.stdout.includes('Generated 14 Codex role file(s).'), res.stdout);
 
     const files = fs.readdirSync(outDir).sort();
     assert.deepStrictEqual(files, EXPECTED_AGENTS.map((n) => `${n}.toml`).sort());
@@ -171,7 +195,14 @@ test('generates exactly the 11-agent allowlist as .toml files with derived field
 
     const tddGuide = fs.readFileSync(path.join(outDir, 'tdd-guide.toml'), 'utf8');
     assert.ok(tddGuide.includes('model = "gpt-6-luna"'), tddGuide);
-    assert.ok(tddGuide.includes('model_reasoning_effort = "max"'), tddGuide);
+    assert.ok(tddGuide.includes('model_reasoning_effort = "high"'), tddGuide);
+    for (const name of CODEX_ONLY_AGENTS) {
+      const body = fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8');
+      assert.ok(body.includes(`model = "gpt-6.1-terra"`), name);
+      assert.ok(body.includes('model_reasoning_effort = "medium"'), name);
+      assert.ok(body.includes(`Canonical fixture instructions for ${name}.`), name);
+      assert.strictEqual(fs.existsSync(path.join(root, 'agents', `${name}.md`)), false, `${name} must remain Codex-only`);
+    }
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
     assert.doesNotMatch(e2eRunner, /^sandbox_mode\s*=/m);
     assert.match(e2eRunner, /Verdict: BLOCKED/);
@@ -185,7 +216,29 @@ test('generates exactly the 11-agent allowlist as .toml files with derived field
     assert.match(migrationReviewer, /`cx`\/GitNexus symbol-level pre-edit guidance/);
     assert.doesNotMatch(fs.readFileSync(path.join(outDir, 'deep-reasoner.toml'), 'utf8'), /dhpk:/);
   } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('missing Codex-only source reports its actual path before writing any TOML', () => {
+  const root = cloneGeneratorFixture('gen-codex-missing-source-red');
+  try {
+    const missingRole = 'ui-verifier';
+    const missingSource = path.join(root, 'codex', 'agent-sources', `${missingRole}.md`);
+    fs.rmSync(missingSource);
+    const outDir = path.join(root, 'out');
+    fs.mkdirSync(outDir, { recursive: true });
+    const sentinelPath = path.join(outDir, 'architect.toml');
+    fs.writeFileSync(sentinelPath, 'preserve existing output\n');
+
+    const result = runFixtureScript(root, [outDir]);
+    const output = diagnostic(result);
+    assert.notStrictEqual(result.status, 0, output);
+    assert.match(output, /codex\/agent-sources\/ui-verifier\.md/);
+    assert.strictEqual(fs.readFileSync(sentinelPath, 'utf8'), 'preserve existing output\n');
+    assert.deepStrictEqual(fs.readdirSync(outDir).sort(), ['architect.toml']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

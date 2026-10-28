@@ -1,7 +1,7 @@
 name = "bug-investigator"
 description = "Bounded root-cause intake triage for bugs and regressions; escalate reasoning-heavy cases to deep-reasoner."
 model = "gpt-6.1-sol"
-model_reasoning_effort = "high"
+model_reasoning_effort = "medium"
 
 developer_instructions = """
 Role: bug-investigator

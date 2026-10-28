@@ -96,7 +96,8 @@ unrelated project assets.
 
 ## dhpk main flow for Codex
 
-dhpk ships 15 direct Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 11 roles generated from the canonical agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`.
+dhpk ships 18 direct Codex agent roles under `codex/agents/` (synced into
+`.codex/agents/`): 4 hand-maintained roles and 14 generated roles.
 
 Use `$flow-guide` when ownership, policy, the next action, closeout, or Codex
 arguments are unclear. Its five read-only actions are `help`, `route`, `rules`,
@@ -143,7 +144,7 @@ When `$flow-guide` or `$flow-drive` is available, the roles below remain `/agent
 dispatch targets for the downstream handoff:
 
 - **Bug with unknown root cause**: use `bug-investigator` only for bounded intake triage; escalate confirmed reasoning-heavy cases to `deep-reasoner`, then invoke `worker` and `code-reviewer`.
-- **New feature / cross-module design**: resolve any unsettled layer placement or boundary through the necessary architecture evidence, then establish the required RED evidence before implementation. Use `architect` or `tdd-guide` when their separate ownership or runtime expertise is needed; after RED, the settled owner may finish GREEN or hand back a bounded worker change, followed by the applicable review wave. TDD and explicit higher-priority instructions remain binding.
+- **New feature / cross-module design**: resolve any unsettled layer placement or boundary through the necessary architecture evidence, then establish the required RED evidence before implementation. Use `architect` or `tdd-guide` when their separate ownership or runtime expertise is needed; after the TDD guide establishes RED, hand production GREEN to `worker` by default, followed by the applicable review wave. TDD and explicit higher-priority instructions remain binding.
 - **Investigation / "how does X work?"**: invoke `explorer` (read-only, no edits).
 - **Deep root-cause analysis or algorithm design**: invoke `deep-reasoner`.
 
@@ -194,7 +195,7 @@ Read-only roles follow the inline result in `.codex/dhpk/contracts/artifact-cont
 
 ### Agent roster → Codex role map
 
-**Available in Codex** (`codex/agents/`, 15 roles):
+**Available in Codex** (`codex/agents/`, 18 roles):
 
 | Role | Use for |
 |------|---------|
@@ -213,6 +214,9 @@ Read-only roles follow the inline result in `.codex/dhpk/contracts/artifact-cont
 | `frontend-reviewer` | Frontend JavaScript/TypeScript review |
 | `migration-reviewer` | Migration safety and rollback review |
 | `e2e-runner` | Playwright user-journey authoring and execution |
+| `ui-verifier` | Verification of a rendered page against stated UI criteria |
+| `docs-writer` | Documentation authoring for a settled content packet |
+| `scoped-worker` | Bounded implementation with exact file ownership |
 
 The canonical source also contains roles that are not standalone Codex
 dispatch targets. Their outcome is explicit in
@@ -257,12 +261,24 @@ Codex lifecycle hooks and the parent session sandbox are independent controls. H
 dhpk targets Codex's project-local `.codex/agents/*.toml` discovery path. Each
 role file carries its own `name`; matching the filename is a convention, while
 the TOML field is the identifier. The `[agents.<name>]` blocks in
-`config.toml.example` are optional metadata, not a runtime workaround. The
+`config.toml.example` are optional metadata; their presence does not prove
+that Codex discovered or loaded the corresponding custom role. The
 supported top-level concurrency setting is `max_concurrent_threads_per_session`;
 the example also shows the effective default subagent model and reasoning
 effort.
 
-Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's `validate_codex` guardrail enforces this static metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 11 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles. Model and effort rationale is maintained in `../rules/model-economics.md`.
+Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`,
+`model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's
+`validate_codex` guardrail enforces this static metadata contract. Codex agent
+definitions are TOML-only; legacy Markdown role bodies are not dispatchable.
+The 14 generated roles are produced by `scripts/gen-codex-agents.js`: 11 from
+shared `agents/*.md` sources and 3 from Codex-only
+`codex/agent-sources/{ui-verifier,docs-writer,scoped-worker}.md` sources. The
+Codex-only sources are authoring inputs only and are not installed; generated
+TOMLs are installed under `.codex/agents/`. The generator is
+deterministic/idempotent (re-running with no source change produces
+byte-identical output) and does not touch the 4 hand-maintained roles. Model
+and effort rationale is maintained in `../rules/model-economics.md`.
 
 When a custom agent file sets model or model_reasoning_effort, that file value takes precedence. Before the file applies, Codex resolves each setting from an explicit spawn value, then the [agents] default, then the parent. A start argument does not rewrite a pinned file effort. Do not declare sandbox_mode in the role file.
 

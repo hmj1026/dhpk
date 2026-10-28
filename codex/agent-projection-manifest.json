@@ -11,7 +11,10 @@
     "planner",
     "frontend-reviewer",
     "migration-reviewer",
-    "e2e-runner"
+    "e2e-runner",
+    "ui-verifier",
+    "docs-writer",
+    "scoped-worker"
   ],
   "package_roles": [
     "architect",
@@ -20,14 +23,17 @@
     "database-reviewer",
     "deep-reasoner",
     "doc-reviewer",
+    "docs-writer",
     "e2e-runner",
     "explorer",
     "frontend-reviewer",
     "migration-reviewer",
     "monitor",
     "planner",
+    "scoped-worker",
     "security-reviewer",
     "tdd-guide",
+    "ui-verifier",
     "worker"
   ],
   "workspace_local_extensions": []
