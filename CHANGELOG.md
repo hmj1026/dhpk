@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## 0.67.0 — 2026-10-28 — Switch Flow Drive to native task-only execution, add Codex Terra roles and installer tuning preservation, add doc-reviewer local rules, constrain forwarder tool grants, project standalone skill dependencies, and document GitNexus force recovery
+
+- **BREAKING(flow-drive)** — Replace Flow Drive's CLI selectors and runner API with a native task-only workflow; pin v0.66.7 for the retired interfaces.
+- **feat(codex-agents)** — Codex now provides Terra-powered UI verification, documentation writing, and scoped implementation roles, while the general worker uses the Sol tier at medium effort.
+- **feat(codex-installer)** — Add regression coverage and lifecycle guidance for preserving local Codex agent model, effort, and prompt tuning during installer updates and explicit adoption.
+- **feat(doc-reviewer)** — Add project-local supplemental rules and evidence checks for operational playbooks to doc-reviewer.
+- **fix(claude-commands)** — The simplify and matrix-cell-onboard command forwarders no longer pregrant bare Bash unless their owning skill explicitly allows it.
+- **fix(codex-agents)** — Codex role files no longer declare sandbox_mode. Read-only roles return an inline result, and review is assigned to a completed implementation wave.
+- **fix(project-agent-projection)** — Project skill projections now include inventory-declared standalone dependencies and track them through receipt validation and authorized updates.
+- **fix(delivery-preflight-progress)** — Validate planned package coverage and checkout cleanliness before generation, emit opt-in test progress for single-worker runs, and clarify fixed-snapshot review concurrency, recoverable checkpoints, and bounded GitNexus diagnosis.
+- **docs(gitnexus-recovery)** — Document `--force` staging rebuild for `@ladybugdb/core` 0.18.3 incremental 64-row string-segment scan corruption and serial MCP reopen ordering after index refresh.
+
 ## 0.66.7 — 2026-10-23 — Rename root glossary to GLOSSARY.md, gate downstream verification on completed handoffs, strengthen evidence and retrospective workflows, enforce permission and hook boundaries, improve installer reliability and package portability, and update distribution rules
 
 - **fix(distribution)** — Keep only the AGY policy kernel always visible and point the conditional execution-policy rule to the complete on-demand bundle.
