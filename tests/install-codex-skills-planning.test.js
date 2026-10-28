@@ -175,12 +175,15 @@ for (const drift of ['destination', 'source']) {
       fs.writeFileSync(worker, 'name = "worker"\nmodel = "gpt-6.1-sol"\nmodel_reasoning_effort = "high"\ndeveloper_instructions = "consumer tuning"\n');
       const plan = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
       const report = JSON.parse(plan.stdout);
+      const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+      const receiptBeforeAdoption = fs.readFileSync(receiptPath, 'utf8');
       if (drift === 'destination') fs.appendFileSync(worker, 'changed after plan\n');
       else fs.appendFileSync(fixture.workerSource, 'changed after plan\n');
       const adopted = runInstaller(scratch, ['--copy', '--update', agentAdoptArg(report, 'agents/worker.toml'), '--force'], fixture.fakePlugin);
       assert.notStrictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
       assert.match(`${adopted.stdout}\n${adopted.stderr}`, /changed|fresh plan|preflight/i);
       assert.match(fs.readFileSync(worker, 'utf8'), /consumer tuning/);
+      assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBeforeAdoption);
     } finally {
       fs.rmSync(scratch, { recursive: true, force: true });
       fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
