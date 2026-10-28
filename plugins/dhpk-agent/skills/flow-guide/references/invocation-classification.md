@@ -34,7 +34,7 @@ families introduced by this change are classified by their maximum authority:
 
 | Skill | Rationale |
 |---|---|
-| `flow-drive` | Route/implementation modes can start a broad execution workflow. |
+| `flow-drive` | Its explicit task entry may perform authorized workspace edits. |
 
 ### implicit-eligible
 

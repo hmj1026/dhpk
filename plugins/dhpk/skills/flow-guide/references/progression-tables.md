@@ -34,11 +34,6 @@ Agent fallback only. The next analyzer follows canonical frontmatter declaration
 | doc-maintain | NOT_RUN | none |
 | doc-maintain | UNAVAILABLE | none |
 | doc-maintain | update:PASS | git-smart-commit |
-| flow-drive | PASS | repo-verify |
-| flow-drive | FAIL | none |
-| flow-drive | BLOCKED | none |
-| flow-drive | NOT_RUN | none |
-| flow-drive | UNAVAILABLE | none |
 | git-smart-commit | PASS | change-verdict:pr |
 | git-smart-commit | FAIL | none |
 | git-smart-commit | BLOCKED | none |

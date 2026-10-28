@@ -28,6 +28,10 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；release probe 使用隔離的 shared-network bubblewrap namespace，不得 unrestricted 執行 |
 | AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`、明確的 `migrate`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
 
+只需要 Flow Drive 的 Codex 使用者，可將完整且固定版本的 canonical skill
+安裝到目前專案。安裝、明確更新／移除，以及 managed installation 切換方式，請見
+[Flow Drive 單技能指南](./flow-drive-standalone.md)。
+
 ## Prerequisites 與版本假設
 
 以下各安裝段落使用對應表格列。此 repository 會記錄 package 與 schema
@@ -240,7 +244,7 @@ dependency 一律 fail closed。runtime-only support 只記錄為 support metada
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.7 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.67.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -936,7 +940,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.66.7 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.67.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

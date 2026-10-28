@@ -147,6 +147,42 @@ claims runtime support. Evidence verdicts remain the closed vocabulary
 `PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, and
 `UNAVAILABLE`.
 
+## Generated and plugin copy assessment (#1104)
+
+The repository keeps generated publication trees because supported checkout and
+local-install routes consume those directories directly. This is an assessment
+boundary, not permission to remove a tree or combine Host packages. Host
+surfaces remain independent, consistent with #1104 (its reference to #970 is
+historical context; the current #970 title is a model-configuration proposal).
+
+At the 2026-10-28 `develop` snapshot, `git ls-files generated plugins` found
+2,458 regular files. Comparing Git blob identities with tracked canonical files
+outside those output roots found 2,314 byte-identical files. The remainder are
+transformed Host metadata, manifests, provenance, fingerprints, or other
+package-specific output. The measurement is reproducible with:
+
+```sh
+git ls-files generated plugins
+git hash-object -- <path>
+```
+
+| Surface | Tracked files | Byte-identical | Package-specific | Decision |
+| --- | ---: | ---: | ---: | --- |
+| `generated/claude-marketplace/package` | 1,141 | 1,128 | 13 | Keep for checkout marketplace loading; defer removal until a clean-checkout materializer and relocation probe replace the direct path. |
+| `plugins/dhpk` (Codex native) | 435 | 415 | 20 | Keep; the experimental native route and package gate consume the tracked root and its provenance/fingerprints. |
+| `plugins/dhpk-agent` | 389 | 364 | 25 | Keep; Agent publication owns this physical shared-skill tree and package manifest. |
+| `plugins/dhpk-cursor` | 67 | 32 | 35 | Keep; Cursor-native rules, agents, commands, and hooks are Host-specific and remain separate from `dhpk-agent`. |
+| `plugins/dhpk-agy` | 426 | 375 | 51 | Keep; AGY installation and receipt checks consume the prepared package root. |
+
+The safe follow-up is a bounded packaging-only experiment for selected
+byte-identical helper/reference classes. It must first add an explicit
+materializer input and clean-checkout/relocation fixtures for every direct
+consumer, preserve manifest/provenance/digest ownership, and prove update and
+rollback behavior. Until that evidence exists, removing tracked files would
+make standalone skills, execution bundles, or checkout installs fail with
+missing files. The experiment must not change release signing semantics or
+require symmetry between Host packages.
+
 ## Standard Agent Plugin and Cursor native ownership
 
 The platform capability matrix gives identical portable skills one physical
@@ -356,9 +392,12 @@ fallback or `lifecycle=promoted` — via `materializeNativePackage()` in
 never generated fresh at install time.
 
 **Native package membership.** The inventory owns native package membership.
-Flow Drive now contains its transport, context, and adapter runtime; the
-standalone `cli-transport` and `cli-dispatch-context` entries retire in 0.66.2.
-Package generation/provenance and actual Host discovery remain separate gates.
+Flow Drive is a portable task/help instruction directory and owns no transport,
+context, adapter, or runner runtime. Shared CLI dispatch support is maintained
+under `scripts/cli-dispatch/` and included in native-agent packages through the
+supporting-asset closure. The standalone `cli-transport` and
+`cli-dispatch-context` entries retire in 0.66.2. Package
+generation/provenance and actual Host discovery remain separate gates.
 `codex-sync` and `codex-native` are separately published and acquired surfaces
 with independent acquisition/update/verification contracts — adding an
 invokable skill to one does not add it to the other. `codex-sync` is the

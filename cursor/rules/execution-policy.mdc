@@ -26,6 +26,11 @@ chain.
 > resource. Keep the local copy short and cross-link rather than copying this
 > body wholesale.
 
+The consumer project's Project Convention supplies its branching, changelog,
+OpenSpec adoption, delivery, merge, and shell practices. Public Workflows
+follow that convention within their own authority; this portable policy does
+not supply a repository-specific delivery sequence.
+
 ## Glossary (inline)
 
 - **reviewer trigger**: a file-path/extension pattern (built-in defaults, active-module triggers, or `userConfig.review_trigger_extra_paths`) that identifies which reviewer role(s) apply to a diff. Trigger matching is AI judgment at dispatch time — there is no hook-armed marker file; see "Post-implementation agent gate" and the trigger table under "Reviewer dispatch."
@@ -52,22 +57,13 @@ Determine the workflow type (Small change / Bug / Feature / Architecture) from t
 
 Single source of truth for the six change types, their flow, and when an OpenSpec conversation may fill a missing outcome. `flow-guide` owns classification and routing; `flow-drive` accepts only confirmed implementation scope and acceptance, which may be carried by an existing specification, plain text, a file, or a report. Reference the table from `skills/flow-guide/SKILL.md` and `skills/flow-drive/SKILL.md` rather than adding another router.
 
-The explicitly invoked portable Flow Drive runner consumes task text, a file,
-or a confirmed identifier through Host resolution. A settled outcome permits
-bounded diagnosis of unknown causes; sufficient source, cause, repair, and
-verification evidence gates each dependent writer. Current session/executor
-bound capability records may resolve a target absent from a stale catalog;
-static declarations and `EXPOSED` selectors do not claim observed identity.
-Provider permission uses the trusted invocation ledger, Host allowed set,
-constraints, and selected-tuple refresh. Explicit Host refusal remains binding.
-All Flow Drive workspace writes, including scratch/manual proposals, share one
-writer lease. Recovery uses immutable attempt receipts and one invocation-wide
-budget; interrupted or uncertain launched writers need positive matching stop
-and actual scope/diff reconciliation before another writer may start. Missing
-proof suspends writers while readers can continue. Required independent review
-and parent acceptance remain completion gates. These portable contracts do not
-change legacy `cross_provider` configuration, generic scheduler parallelism,
-or the external `/opsx:apply` owner.
+Flow Drive is an explicit native task entry. It accepts one bounded task,
+task file, or confirmed specification/change ID and uses the current Host and
+Model to investigate, make authorized edits, verify, and report. Its only option
+is read-only `--help`; it exposes no worker, reasoner, provider, planning,
+architect, runner, or execution-receipt interface. A flag embedded in task
+content remains task data. Delegated dispatch performed by another supported
+entrypoint continues to follow this shared policy and its Host grants.
 
 | Change type | Planning / OpenSpec | Flow |
 |---|---|---|
@@ -114,23 +110,22 @@ Neither task count nor file count alone triggers planning or delegation; choose
 inline work, a worker, or parallel ownership from independence, coupling,
 context locality, scope clarity, verification needs, and coordination benefit.
 
-An accepted explicit planner-consult option continues to be honored under its
-existing parser and capability rules. The `--plan` option remains the caller's
-request for a consult where it is supported. #815 owns its option grammar,
-model/effort precedence, bounded-consult choices, and consult budgets; this
-policy changes planner applicability when the caller did not explicitly
-request a consult.
+A supported explicit planner-consult request continues to be honored under its
+own capability rules. The caller's brief may provide a consult scope; Flow
+Drive does not expose a planner option. This policy changes planner
+applicability when the caller did not explicitly request a consult.
 
 #### Planner consult scope
 
 Scope selection is an orchestrator judgment for an already requested planner
-consult. `--plan[=auto|bounded|discovery]` selects consult scope; it does not
-select the planner's critique, blind-sketch, dual-plan, warm-review, or
-cold-review work mode. The Flow Drive parser validates the option grammar but
-does not choose scope or calculate risk. An enabled legacy handoff with no mode
+consult. A scope named in the caller's consult brief selects `auto`, `bounded`,
+or `discovery`; it does not select the planner's critique, blind-sketch,
+dual-plan, warm-review, or
+cold-review work mode. The caller validates its own option grammar; the orchestrator chooses scope and
+does not calculate risk with a runtime engine. An enabled handoff with no mode
 uses `auto`; a disabled plan has no consult scope.
 
-For `auto`, Flow Drive selects **bounded** only when all three conditions hold:
+For `auto`, the orchestrator selects **bounded** only when all three conditions hold:
 the consult question and intended outcome are clear; the named sources are
 sufficient to answer it within the bounded read limit, including mandatory
 role-protocol reads; and no named Material Risk Signal applies. If any condition
@@ -214,7 +209,7 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 
 **Model tier**: use agent defaults, with judgment-based risk escalation or eligible known-finding reduction. The normative role/tier rules live in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
 
-**Configured role models** (`deep-reasoner` / `fast-worker`): `session-start.sh` announces the effective `deep_reasoner_model` / `fast_worker_model` at session start only when they differ from the shipped default (opus / sonnet) — configured via the `deep_reasoner_model` / `fast_worker_model` / `orchestration_dispatch` `userConfig` keys in `.claude-plugin/plugin.json`. When announced, the orchestrator passes that value on the `Agent` call's `model` param for every dispatch of that role; frontmatter is never edited. An invalid configured value (not a model name the running Claude Code supports) triggers one warning per session and the dispatch falls back to the agent's frontmatter default — it never fails the dispatch. The judgment-based HIGH-risk escalation above still applies on top of a configured value and takes precedence for that single dispatch (e.g. a configured `fast_worker_model=haiku` may still be raised to sonnet/opus for one high-risk task). The two workers also carry effort keys (`deep_reasoner_effort` / `fast_worker_effort`), applied on the `Agent` call's `effort` param by the same announce-when-non-default mechanism; the cost rationale for both dials is in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
+**Configured role models:** public dispatch targets use `agent/model[:effort]` on the four canonical keys `worker_target`, `reasoner_target`, `planner_target`, and `reviewer_target`. Legacy `*_model` / `*_effort` keys remain compatibility inputs and are normalized to Catalog model IDs before existing Host route/effort checks; invalid values and retired `codex_deep_reasoner_model` / `codex_deep_reasoner_effort` fail closed. `architect_model` / `architect_effort` have no dispatch effect and are not mapped onto `reasoner_target`. `session-start.sh` emits a conditional dispatch-config report when the project, global, or environment layer has a non-default canonical target, a legacy `*_model` / `*_effort` value, a retired or unsupported model key, or a non-default `orchestration_dispatch`, `fallback_allow`, or `preference_order`, and also when `DHPK_DISPATCH_CONFIG_REPORT=1`; it does not apply a native Agent model override. Judgment-based HIGH-risk escalation may still raise a single dispatch. The cost rationale for model/effort dials is in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
 
 The CLI-backed Codex/AGY roles use the same normalized project-over-global configuration seam for timeout budgets: canonical keys `codex_worker_timeout_secs`, `codex_reasoner_timeout_secs`, `codex_reviewer_timeout_secs` override shared `codex_timeout_secs` within their scope (legacy aliases `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, `codex_bridge_timeout_secs` accepted for one release with canonical-key precedence), and the shared `agy_worker` role joins the selection; the shipped `360`-second default applies below both scopes. `0` is an intentional dispatcher-attested no-deadline request; malformed values fail closed before the affected dispatch. The portable runner reports the effective role, budget, source, disabled state, and explicit outer-budget unknown/warning status without changing Claude's external tool wait; it never falls back to a shell timeout tool.
 
@@ -332,18 +327,17 @@ handoff evidence before requesting another planning outcome. Reuse an adequate
 approved plan regardless of its producer or the number of unchecked tasks.
 Consult `planner` when material decisions, dependencies, ownership boundaries,
 or cross-owner sequencing remain unresolved; record the specific gap and the
-actionable result. A requested `$flow-drive --plan` consult remains explicit
-under its parser contract. `orchestration_dispatch=off` disables optional
+actionable result. A supported caller's explicit planner request remains explicit. `orchestration_dispatch=off` disables optional
 worker/reasoner routing; it does not bypass actual prerequisites, authorization,
 project acceptance, or applicable verification.
 After each implementation wave, dispatching the applicable reviewers is
 recommended (see [Post-implementation agent gate](#post-implementation-agent-gate-ssot));
-fix CRITICAL findings before reporting done. Delivery order is:
-verify all tasks and gates → archive/sync OpenSpec → add a valid changelog
-fragment → open a Draft PR targeting `develop` → monitor that PR's actual CI with
-`gh run watch` to a terminal completed CI conclusion → human merge gate. Queued
-or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
-`UNAVAILABLE` is non-terminal and cannot count as completed CI. The external `/opsx:apply` flow remains unchanged; this policy governs the project-owned orchestration around it.
+fix CRITICAL findings before reporting done. Follow the consumer project's
+Project Convention for applicable OpenSpec delivery, version control,
+changelog, CI, and merge requirements. Where CI or consumer verification is
+required, record its actual terminal conclusion; queued, partial, `NOT_RUN`,
+or `UNAVAILABLE` evidence does not satisfy that obligation. The external
+`/opsx:apply` flow remains unchanged.
 
 | Work shape | Dispatch |
 |---|---|
@@ -405,23 +399,18 @@ pluginConfig > `false`; `.claude/settings.local.json` is preferred over
 `.claude/settings.json`. Dispatch
 selection never creates a review PASS or a retired Sentinel state.
 
-For Flow Drive, invocation grammar and candidate scope are owned by its Skill.
-Automatic candidates remain native unless this invocation supplies `--cross`;
-legacy cross configuration/environment cannot broaden that scope. Explicit
-`--worker=provider[/model[:effort]]` and `--reasoner=provider[/model[:effort]]`
-express role-scoped intent and require a current Host grant before external
-probe or launch. An exact target grant includes Provider, Agent, Model, Effort,
-Role, and authority; read-only cannot authorize workspace-write. The initial
-capability request disables external probes. The configuration precedence
-above remains valid for non-Flow Drive common-engine consumers. Cancellation, no answer, or a
-missing question callback creates no grant. Host allowed-provider policy,
-task constraints, current binding, and matching capability evidence remain
-binding after consent. An answered Host selection and root-supplied
-`authorizationEvidence` must carry a nonblank answer ID; only a sanitized ID
-is retained with the grant, never raw answer text. After side-effect-free
-coordination identifies selected candidates, Flow Drive scopes any external
-refresh to those concrete Provider/Agent/Model/Effort/Role/authority tuples;
-Provider consent never triggers a provider-wide model probe.
+Flow Drive's task-only entry does not select a delegated target or widen
+provider scope. Other supported dispatch callers may express role-scoped target
+intent; an external target still requires a current Host grant before probe or
+launch. An exact target grant includes Provider, Agent, Model, Effort, Role,
+and authority; read-only cannot authorize workspace-write. Initial capability
+requests disable external probes. Cancellation, no answer, or a missing
+question callback creates no grant. Host allowed-provider policy, task
+constraints, current binding, and matching capability evidence remain binding
+after consent. Host selections and root-supplied `authorizationEvidence` must
+carry a nonblank answer ID; only a sanitized ID is retained with the grant.
+Refresh only concrete selected Provider/Agent/Model/Effort/Role/authority
+tuples; provider consent never triggers a provider-wide model probe.
 
 The Dispatch Engine enforces this baseline for all four Roles; adapters
 consume the same neutral request without duplicating candidate-selection logic.
@@ -481,34 +470,29 @@ reconciliation paths and never silently switch semantics.
 Every fast-worker report includes requested backend, selected backend, any
 fallback reason, model/effort, effective Codex timeout budget/source when the
 Codex backend is selected, verification result, and the complete edited-file
-list. Worker-backend selection is independent of the retired `CODEX` flag:
-`CODEX=on` and `CODEX=off` no longer select a review peer or alter worker
-selection. Use `--worker=codex` to select the retained Codex CLI worker, or use
-`--reasoner=codex/<model>[:<effort>]` for a read-only reasoning pass. The
-bare `--reasoner=codex` value uses the resolved reasoner configuration;
-Flow Drive accepts `codex` as its Provider spelling. On Claude Code, its
-parent session launches the bundled attested CLI runtime directly instead of
-passing transport context through the Agent tool. The standalone `codex-bridge`
-Skill and agent are retired in 0.66.2; their compatible rollback pin is 0.66.1. An explicit backend request is
-blocked only by selector availability/fallback rules, never silently downgraded.
+list. Worker-backend selection remains independent of the retired `CODEX` flag.
+The shared CLI adapters use the bundled attested runtime on Claude Code. The
+standalone `codex-bridge` Skill and agent are retired in 0.66.2; their rollback
+pin is 0.66.1. A supported dispatch caller uses configured role targets and the
+selector contract; backend requests do not silently downgrade.
 
 ### Reasoner target compatibility boundary
 
 Reasoning-heavy dispatches use the canonical read-only `reasoner` Role and
 default to the current Host-native target. The
-`$flow-drive --reasoner=<provider>/<model>[:<effort>]` flag (or its userConfig
-chain) provides an explicit Provider-scoped target. Legacy `claude` and
-`codex` values remain bounded compatibility inputs: `claude` maps to the
-Host-native Claude projection when that is the current Host, while `codex`
-maps to `codex-cli` and the canonical `codex-reasoner` projection. Both
-targets receive the **same** reasoning brief and return the canonical
-reasoner contract above (`## Conclusion` + file-and-line evidence + `## Next actions`). `agy` has no
-reasoning tier and is unsupported. Model/effort resolve flag > Provider-scoped
-target configuration > Host-native catalog default. A post-dispatch CLI or
-auth/model unavailability may use the shared
-native-first fallback contract after confirmed no side effects; safety, task,
-and timeout failures remain `RESULT: BLOCKED` or on their existing recovery
-path — never silently switched.
+Canonical `reasoner_target` and the applicable Host-native catalog default
+supply the Provider-scoped role target for supported dispatch callers. Legacy
+`claude` and `codex` values remain bounded compatibility inputs: `claude` maps
+to the Host-native Claude projection when that is the current Host, while
+`codex` maps to `codex-cli` and the canonical `codex-reasoner` projection. Both
+targets receive the **same** reasoning brief and return the canonical reasoner
+contract above (`## Conclusion` + file-and-line evidence + `## Next actions`).
+`agy` has no reasoning tier and is unsupported. Model/effort resolve from
+applicable target configuration, then the Host-native catalog default. A
+post-dispatch CLI or auth/model unavailability may use the shared native-first
+fallback contract after confirmed no side effects; safety, task, and timeout
+failures remain blocked or on their existing recovery path — never silently
+switched.
 
 **Orchestrator posture**: implement-phase work defaults to **decide → assign ownership → verify**. Choose inline, a worker, or independent parallel scopes from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit; task and file counts alone do not decide. Keep one cohesive change wave together instead of slicing it to influence routing. Verify runtime premises with the applicable E2E lane or a scratch executable probe. Implementation orientation binds the confirmed work to the kernel and selected route reference. Full routing, premise, verification, waiting, and plan-brief rules: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
 
@@ -516,27 +500,12 @@ path — never silently switched.
 
 **Operational detail** (posture rationale, task-fit ownership selection, `general-purpose` prohibition, gate-preservation back-stop, verify-worker-output cross-check, phase scoping, the premise-verification trio, kill switch, and explicit second-opinion path): load `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md` when dispatching implement-phase work.
 
-### Retired `CODEX=on` / `$flow-drive --codex` interface
+### Flow Drive legacy invocation migration
 
-`CODEX=on` and `$flow-drive --codex` are retired per-session flags. The parser
-removes the flag from the query, emits `DEPRECATED_CODEX_FLAG`, and stops with
-`blocked`; it never selects a peer, worker, reasoner, `codex exec` route, or
-app-server plugin. There is no hidden fallback. Exact replacements are:
-
-- Use `$flow-guide help` or `$flow-guide route <task>` for usage discovery and
-  guidance; this entry is read-only.
-- Use `$flow-drive <confirmed-spec-or-change-id>` for explicit implementation,
-  with `--worker=codex` when a Codex CLI mechanical worker is deliberately
-  selected.
-- Use `$flow-drive <confirmed-spec-or-change-id> --reasoner=codex/<model>:<effort>`
-  for an explicitly selected Codex CLI reasoning pass.
-- Use a named owner's supported second-opinion interface for an additive
-  independent perspective; the standalone bridge entry is retired.
-- Invoke the external `openai/codex-plugin-cc` app-server commands directly;
-  `$flow-drive` does not translate this retired flag into that plugin.
-
-The flag's only supported outcome is the blocking deprecation diagnostic; users
-must choose one of the replacements above and rerun the task.
+Current Flow Drive has no runtime option parser or runner compatibility layer.
+Its migration reference lists each retired invocation form and points to the
+pinned release for users who need those interfaces. This new entry does not
+change behavior or resolve defects in earlier releases.
 
 ### High-stakes second opinion after flag retirement
 
@@ -571,12 +540,11 @@ evidence to the affected risk domains and request only the missing outcome;
 do not rerun a named reviewer solely because another producer supplied the
 same outcome.
 
-Reuse review evidence only while its relevant source, scope, configuration,
-tools, environment, and review premise remain applicable. A changed source,
-configuration, environment, specification, or mutating check invalidates the
-affected conclusion; recheck only those affected domains unless an existing
-checkpoint requires a complete wave. An unchanged implementation wave does
-not receive a second semantically identical review.
+Apply the kernel's Evidence snapshots section
+(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md`)
+when reusing review evidence; retain any existing checkpoint that requires a
+complete wave. An unchanged implementation wave does not receive a second
+semantically identical review.
 
 Reviewers are read-only evaluators. They inspect and report findings within
 their supplied scope, may write their own review artifact when their role
@@ -689,9 +657,10 @@ For audit / setup / inventory / generation work, separate fact-collection from i
 
 ## Self-check (before reply)
 
-Wrap-up before reply / after a large Edit / before smart-commit → run `$flow-guide close` for the full self-audit (Per-reply / Conditional / Task-end three-stage + trigger-condition matrix). Daily single-line edits / pure research / typos do not need this.
-
-Any applicable NO → fix first, then reply.
+Account for changed files, applicable checks, unresolved risks, and the next
+handoff using the selected entry's Verification contract. Follow any additional
+closeout required by the consumer project's Project Convention. Reuse adequate
+current evidence; request only a missing required outcome.
 
 ## Anti-rationalization
 
@@ -699,18 +668,11 @@ Before skipping any TDD / reviewer mandated step, load `${POLICY_BUNDLE_ROOT}/ru
 
 ## Git pipeline
 
-`feat|fix|docs|refactor/*` → `develop` → `master` (or your equivalent branching model). Standard flow: feature branch → `/dhpk:change-verdict --mode code --backend cli` → `/precommit` → `/dhpk:change-verdict --mode pr` → PR. dhpk does **not** auto `git add/commit/push/stash` — invoke `/smart-commit` or `/precommit`.
-
-**Shell trap**: this policy's shell is zsh, where `status` is a read-only variable — use `st=` / `rc=` for captured exit codes, never `status=`. Words beginning with `=` trigger zsh `=cmd` path expansion (an unquoted `==` yields `== not found`) — quote `=`-leading words. **PR self-merge is classifier-blocked** — never attempt `gh pr merge --admin` or remote branch deletion; hand off to a human.
-
-**PR-branch follow-up trap**: before pushing a follow-up commit to a branch that already has an open PR, check `gh pr view <branch> --json state,baseRefName` first — a concurrent session or a human may have merged (and deleted) it, orphaning the new commit onto a dead branch and forcing a second PR. For CI/run waits, prefer `gh run watch <run-id>` (or the harness completion-notification pattern) over hand-rolled `sleep`-poll loops over `gh run list` — the same "background waits use completion notifications, never bash polling" rule the anti-loop safety floor already assumes.
-
-### Squash merge hygiene (recommended)
-
-For squash-merge PRs (collapsing multiple feature-branch commits into a single commit on the integration branch), the PR description should include an `## Unrelated Changes` section listing variations not directly tied to the PR's stated feature (file paths, line count, why mixed in, assigned reviewer). Reformats / CI yml tweaks / README typos **don't count** as unrelated; new controller actions / new services / schema changes / cron jobs / private→protected refactors / service factory extractions **do count**.
-
-The `change-verdict` skill's `pr` mode includes an optional
-`check-unrelated-changes.sh` script (advisory, not blocking).
+Resolve branch targets, commit style, PR requirements, changelog, and merge
+policy from the consumer project's Project Convention. Keep Git mutations
+within the caller's authorization and preserve unrelated dirty work. A passing
+review or verification is evidence, not commit, push, merge, or release
+authority. Use the kernel's snapshot rule when delivery steps mutate files.
 
 ## Anti-loop & output
 
@@ -735,18 +697,9 @@ identity and the conclusion that it supports; ordinary text, files, and reports
 are valid evidence carriers when they establish scope, observations, conclusion,
 and remaining gaps.
 
-Reassess only affected evidence when source files, specifications, lockfiles,
-configuration, tools, or environment change. A changed behavior invalidates the
-affected test or review result; a changed specification or acceptance criterion
-invalidates evidence whose conclusion no longer covers the requested outcome.
-Unchanged, unrelated work does not require a complete rerun when the existing
-checkpoint and all applicability bindings remain valid.
-
-Order checks by their effect on evidence: run formatters, generators, migrations,
-fixture refreshes, package materialization, and other mutating checks before the
-final affected review or verification. If a mutating check runs afterward, rerun
-the affected checks before claiming completion. Never use evidence produced before
-the last mutation as the final result for the changed scope.
+For snapshot validity, mutation ordering, and affected-scope reuse, follow the
+kernel's Evidence snapshots section
+(`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md`).
 
 Choose focused or selected checks from changed behavior and acceptance criteria,
 then retain every applicable plugin handoff, archive, CI, formal-package, and

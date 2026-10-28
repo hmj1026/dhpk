@@ -5,8 +5,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-const { resolveConfig, resolveRole } = require('../skills/flow-drive/scripts/dispatch-runtime/cli-role-resolver');
-const { buildContext } = require('../skills/flow-drive/scripts/dispatch-runtime/build-cli-dispatch-context');
+const { resolveConfig, resolveRole } = require('../scripts/cli-dispatch/dispatch-runtime/cli-role-resolver');
+const { buildContext } = require('../scripts/cli-dispatch/dispatch-runtime/build-cli-dispatch-context');
 const selector = require('../scripts/fast-worker-selector');
 const pluginManifest = require('../.claude-plugin/plugin.json');
 
@@ -69,6 +69,7 @@ function cloneGeneratorFixture(prefix) {
   for (const file of ['agent-projection-manifest.json', 'agent-role-map.json']) {
     fs.copyFileSync(path.join(ROOT, 'codex', file), path.join(fixtureRoot, 'codex', file));
   }
+  fs.cpSync(path.join(ROOT, 'codex', 'agent-sources'), path.join(fixtureRoot, 'codex', 'agent-sources'), { recursive: true });
   fs.cpSync(path.join(ROOT, 'scripts'), path.join(fixtureRoot, 'scripts'), { recursive: true });
   return fixtureRoot;
 }

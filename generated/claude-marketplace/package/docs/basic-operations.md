@@ -258,11 +258,12 @@ because a case lists them.
 Skills still need the Host capability and their declared required resources.
 Optional helpers do not block. A missing required capability is
 `BLOCKED`, `UNAVAILABLE`, or `NOT_RUN` — not a silent fallback.
-Installability follows dependency-closure and the distribution contract; a
-bare `SKILL.md` is not a standalone runtime.
+Installability follows dependency-closure and the distribution contract. Copy
+the complete canonical skill directory; declared Host capabilities and
+required resources define what the skill needs.
 
-`flow-guide` is read-only advice. `flow-drive` is explicit-only
-implementation. None of the cases below authorizes commit, push, merge, or deploy.
+`flow-guide` is read-only advice. `flow-drive` is an explicit native task/help
+entry. None of the cases below authorizes commit, push, merge, or deploy.
 Claude uses `/dhpk:<name>`; Codex uses `$<name>` after project-local sync;
 Cursor uses the generated local command. Full Host grammar stays in
 [README — What you get](../README.md#what-you-get) and
@@ -295,7 +296,7 @@ Single-skill start: diagnose first.
 On-demand chain: implement a confirmed contract.
 
 - **Input**: confirmed requirements and acceptance criteria.
-- **Entry**: `/dhpk:flow-drive <confirmed-spec-or-change-id>`.
+- **Entry**: `/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>`.
 - **Output**: an implementation that meets acceptance, then applicable review
   and verification of the **final** diff.
 - **Done**: acceptance checks pass on that diff; required reviews for
@@ -380,17 +381,17 @@ owns the requested outcome. The vocabulary and boundary are defined in
 #### Step 3: Implement Confirmed Work with TDD
 
 - **Actions**:
-  - Once requirements, acceptance criteria, or OpenSpec changes are confirmed, invoke the implementation front door:
+  - Once task scope and acceptance criteria are clear, invoke the native task front door:
     ```text
-    /dhpk:flow-drive <confirmed-spec-or-change-id>
+    /dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>
     ```
   - **Test-Driven Development (TDD)**: For behavior changes, apply `tdd-workflow` (or an appropriate `tdd-guide` task) through RED → GREEN → REFACTOR. Prose-only work uses semantic review and applicable metadata/reference checks.
 - **Implementation & Dispatch Policy (Co-located Rules)**:
   - **Pre-Implementation Decision State**: Every task must begin with an explicit state label: `CLEAR`, `REASONER_REQUIRED`, `HUMAN_REQUIRED`, or `BLOCKED`. Domain boundary questions consult `architect`; unresolved uncertainty requires a read-only Reasoner before any Writer runs.
   - **OpenSpec Lifecycle**: When the Project Convention or confirmed task adopts OpenSpec, use its external authoring workflow. Resolve applicable task, verification, and review obligations before archiving. A sufficient confirmed specification may proceed directly to implementation; cross-session work alone does not require new artifacts.
-  - **Planner Consult Scope**: `--plan` supports `--plan=bounded` (max 4 direct reads, 0 child agent) or `--plan=discovery` (up to 12 reads, 2 child agents). Defaults to `auto` (chooses bounded when evidence is clear and no Material Risk Signal applies).
-  - **Worker Dispatch**: When `orchestration_dispatch=on` (default), choose inline or `--worker=<claude|codex|agy>` from [Implementation dispatch](../rules/execution-policy.md#implementation-dispatch); file count alone does not decide.
-  - **Codex CLI Integration**: dhpk is Codex-free by default. Use `--worker=codex` for CLI mechanical execution, `--reasoner=codex/<model>[:<effort>]` for independent reasoning passes, or `--second-opinion=codex-exec` for single blind reviews. Missing binaries report unavailable optional backends without bypassing security gates.
+  - **Planner Consult Scope**: When a supported caller requests a planner consult, choose `auto`, `bounded` (max 4 direct reads, 0 child agents), or `discovery` (up to 12 reads, 2 read-only children) from the consult brief. Flow Drive does not expose a planner option.
+  - **Worker Dispatch**: When `orchestration_dispatch=on` (default), choose inline or a supported delegated route from [Implementation dispatch](../rules/execution-policy.md#implementation-dispatch); file count alone does not decide. Flow Drive itself has no worker selector.
+  - **Codex CLI Integration**: Flow Drive uses the current Host and Model. Shared Codex CLI roles and independent second opinions remain available only through their supported owners. Missing binaries report unavailable optional backends without bypassing security gates.
 - **Completion Criterion**: The accepted scope has current applicable verification; unmet obligations and skipped checks remain explicit.
 
 #### Step 4: Review, Audit & Quality Gates
@@ -493,40 +494,29 @@ the core capabilities used in the project-defined workflow:
   /dhpk:flow-guide close
   ```
 
-#### 2. flow-drive (Confirmed Task Implementation Entrypoint)
+#### 2. flow-drive (Native Task Implementation)
 
-- **Purpose**: Explicit-only implementation for tasks with settled goals, constraints, and acceptance. Diagnosis may establish an unknown cause before dependent writes; formal OpenSpec authoring remains with its external owner.
-- **Invocation Syntax**: `/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id> [options]` (Codex: `$flow-drive ...`)
-- Quote multiword task text or paths containing spaces as one argument, for example `/dhpk:flow-drive "Fix checkout flow and verify receipt totals" --worker=codex`.
-- **Parameter Breakdown**:
+- **Purpose**: Complete one bounded, authorized task with the current Host and Model; report the verification evidence actually observed or the precise blocker.
+- **Invocation Syntax**: `/dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--help]` (Codex: `$flow-drive ...`)
+- The task entry is explicit-only and has no worker, reasoner, provider, planning, or architect selection options. Use `--help` for a read-only usage card.
 
-  | Parameter | Type / Choices | Default | Description |
-  |---|---|---|---|
-  | `<task-text\|task-file\|confirmed-spec-or-change-id>` | String | (Required) | Task text, task file, or confirmed specification / OpenSpec Change ID. |
-  | `--plan[=auto\|bounded\|discovery]` | String (optional value) | None | Request pre-implementation critique by a Planner; select `auto`, `bounded`, or `discovery` scope using the current Host declared effective target. |
-  | `--worker=auto\|provider[/model[:effort]]` | `claude`, `codex`, `agy`, or an exact target | `auto` | Automatic native candidates by default; external intent still requires a current exact Host role/target/authority grant. |
-  | `--cross` | Boolean flag | Off | Allow external cross-provider candidates (such as Codex) when `--worker=auto` is used. |
-  | `--reasoner=<target>` | `<provider>[/<model>[:<effort>]]` | None | Request a read-only Reasoner pass for architecture or complex decisions (e.g., `codex/gpt-6.1-sol:high`). |
-  | `--architect` / `--no-architect` | Boolean flag | Policy default | Request consultation (currently UNAVAILABLE in the portable runner), or suppress an optional consult while preserving required gates. |
+| Parameter | Type / Choices | Default | Description |
+|---|---|---|---|
+| `<task-text\|task-file\|confirmed-spec-or-change-id>` | String | Required | One bounded task, task-file path, or confirmed specification / OpenSpec Change ID. |
+| `--help` | Boolean flag | Off | Show the task-only entry and migration reference without changing the project. |
 
-- **Practical Examples**:
-  ```text
-  # Minimal implementation: execute confirmed change in the current environment
-  /dhpk:flow-drive change-add-user-avatar
+```text
+# Complete and verify one task with the current Host and Model
+/dhpk:flow-drive "Fix the receipt total and verify it against the receipt lines."
 
-  # Implementation with bounded Planner consult
-  /dhpk:flow-drive change-add-user-avatar --plan=bounded
+# Read the current invocation and migration guidance
+/dhpk:flow-drive --help
+```
 
-  # Discovery-scope planning with the current Host target and a designated Worker
-  /dhpk:flow-drive payment-webhook-retry --plan=discovery --worker=claude
-
-  # Implementation with CLI Reasoner second opinion and architecture pass
-  /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex/gpt-6.1-sol:high
-  ```
-
-On Claude Code, the parent session launches Codex workers and reasoners through the bundled launcher. Follow [parent CLI dispatch](../skills/flow-drive/references/parent-cli-dispatch.md) for the private attempt directory, packet, and context procedure. Explicit `--worker=codex` needs no `--cross` flag and still requires current access and capability evidence.
-
-For programmatic `runFlowDrive` integration, follow the [portable runner contract](../skills/flow-drive/references/portable-runner.md): its `--cross` opens an authorization question and grants nothing by itself; planner, reasoner, and architect selections use the Host procedure instead.
+The previous worker, reasoner, cross-provider, planner, architect, backend, and
+programmatic runner interfaces are retired. See the
+[Flow Drive migration guide](../skills/flow-drive/references/migration.md) for
+legacy dispositions and the pinned release that retains those interfaces.
 
 #### 3. code-trace (Code Exploration, Root-Cause Diagnosis & Tool Selection)
 

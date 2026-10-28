@@ -54,13 +54,9 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 Persistent dispatch-config resolution uses project > global > environment.
 Within the same layer, a canonical `*_target` wins over legacy keys. `auto`
 takes its effective target from the known Host Profile `role_defaults` for
-that Role. `--worker` and `--reasoner` are one-shot invocation choices for
-that call; they are not persistent config-layer overrides, and a setup or
-config report does not include them unless that invocation is in scope.
-`--plan` selects planner consult scope and is not a planner model override.
-`--cross` is a one-shot cross-provider opt-in for that invocation; it is not
-a planner or reviewer model override, and it is not a worker-target rule
-above project.
+that Role. Shared delegated-dispatch settings govern only entrypoints that
+support those dispatch roles; Flow Drive itself accepts task input and
+read-only `--help`, with no worker, reasoner, planner, or provider selectors.
 
 ### Provider-neutral dispatch settings
 
@@ -121,11 +117,10 @@ selections are independent from Model default/fallback pairs.
 
 ## Core dispatch & review
 
-Planner consult scope is selected per invocation with
-`--plan[=auto|bounded|discovery]`; an enabled `--plan`
-without a mode defaults to `auto`. This is not a `userConfig` key and does not
-change the `planner_model` / `planner_effort` defaults or the planner's work
-mode. See [Basic Operations](./basic-operations.md)
+Planner consult scope belongs to a requested planner handoff. The orchestrator
+uses the named evidence in its brief to choose `auto`, `bounded`, or
+`discovery`; Flow Drive has no planner option. Scope selection does not change
+the configured planner model, effort, or work mode. See [Basic Operations](./basic-operations.md)
 for the scope budgets and [execution policy](../rules/execution-policy.md#planner-consult-scope)
 for the selection rule.
 
@@ -152,9 +147,9 @@ for the selection rule.
 | `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
 | `architect_model` | string | `fable` | no dispatch effect | Unsupported dispatch input. Not mapped onto `reasoner_target`; dispatch is unaffected. Default `fable` names the architecture-consult role in current pricing evidence, not a runtime override. |
 | `architect_effort` | string | `low` | no dispatch effect | Unsupported dispatch input. Not mapped onto `reasoner_target`; dispatch is unaffected. |
-| `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive; applicable verification gates remain active, and planner applicability follows missing outcomes or an explicit consult request rather than task count. |
+| `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for delegated implementation routing in the Implementation dispatch table. `on` routes applicable implement-phase delegation through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive; applicable verification gates remain active, and planner applicability follows missing outcomes or an explicit consult request rather than task count. Flow Drive's native task entry does not expose a dispatch mode. |
 | `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for cross-Agent candidates during automatic fast-worker selection. `false` keeps `auto` on the current Host's native/default path; `true` allows declared cross-Agent fallback candidates to be checked. An explicit `--worker=<target>` remains directional and does not open other target Agents. |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:flow-drive --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
+| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector for supported delegated routes. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. Flow Drive does not accept a per-invocation worker selector. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker only through an entrypoint that supports shared dispatch. |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used by `auto` when `cross_provider=true`; rejected candidates and reasons are recorded. With the opt-in disabled, external entries are suppressed and not probed. Invalid values warn once per session and use the shipped order. |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | Retained for an explicitly registered advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
@@ -176,23 +171,22 @@ native-only unless cross-provider dispatch is explicitly enabled.
 
 To opt in for a project, add the setting under
 `pluginConfigs.dhpk@dhpk.options` in `.claude/settings.local.json` (or the
-project `settings.json`). To opt in for one automatic selection only, use
-`--worker=auto --cross`. `--cross` is a one-shot invocation opt-in for that
-call's cross-provider candidate set; it does not replace the persistent
-project > global > environment resolver or override `*_target` model
-selection. Setting the project value to `false` rolls
+project `settings.json`). The shared automatic selection policy applies only
+to supported delegated-dispatch callers. It does not change Flow Drive's
+task-only native entry or replace the persistent project > global >
+environment resolver for other dispatch settings. Setting the project value to `false` rolls
 back to native-only automatic selection; removing the project override instead
 re-exposes the installed-user value, so verify that value is also unset or
 `false` before treating removal as a rollback. The retired `CODEX=on` and
 `--codex` flags are not migration aliases.
 
-The dispatcher validates the resolved deadline as unsigned decimal seconds
-before it creates the `0600` immutable transport context. Empty, fractional,
-negative, or otherwise malformed values block the dispatch instead of silently
-falling back to `360`; set `0` deliberately only when no portable runner
-deadline is required. The Python transport runner, not `timeout` or `gtimeout`,
-enforces the attested deadline and writes a contained terminal receipt. The
-separate agy setting is likewise an attested dispatch input.
+The shared CLI dispatcher validates the resolved deadline as unsigned decimal
+seconds before it creates the `0600` immutable transport context. Empty,
+fractional, negative, or otherwise malformed values block the dispatch
+instead of silently falling back to `360`; set `0` deliberately only when no
+CLI transport deadline is required. Its Python transport enforces the
+attested deadline and writes a contained terminal receipt. The separate agy
+setting is likewise an attested dispatch input.
 
 <a id="codex-mcp-dependency-not-a-userconfig-knob"></a>
 
@@ -201,9 +195,11 @@ separate agy setting is likewise an attested dispatch input.
 Current dhpk capabilities run with the in-process model or an explicit CLI
 backend. No active skill or command requires a Codex MCP server. The current
 CLI-only review path is `change-verdict --mode code --backend cli`;
-its sibling CLI roles are `codex-worker`, `codex-reasoner`, `codex-reviewer`,
-and implementation-scoped Flow Drive adapters. Use `--worker=codex`, `--reasoner=codex/<model>[:<effort>]`, or an
-explicit `codex exec` second opinion when a Codex CLI transport is wanted.
+its sibling CLI roles are `codex-worker`, `codex-reasoner`, and
+`codex-reviewer`. These roles use the shared CLI-dispatch support closure.
+Flow Drive does not expose those role selectors. Use the supported delegated
+dispatch route or an explicit `codex exec` second opinion when a Codex CLI
+transport is wanted.
 
 ### Historical: Codex MCP server (retired)
 
@@ -248,9 +244,10 @@ The `CODEX=on` and `/dhpk:do --codex` flags were legacy per-session MCP-peer
 interfaces. They are removed, are not persisted `userConfig` values, and are
 not silently reinterpreted as `codex exec`, `--worker=codex`,
 `--reasoner=codex/<model>[:<effort>]`, or the external plugin. The bare
-`--reasoner=codex` value selects the current role configuration. Use `/dhpk:flow-drive` for
-current-model implementation, select a CLI role explicitly when needed, and
-request a second opinion by its named `codex exec` opt-in.
+`--reasoner=codex` value selects the current role configuration. Use
+`$flow-drive` for current-Host task execution, select a CLI role through a
+supported delegated route when needed, and request a second opinion by its
+named `codex exec` opt-in.
 
 ### Codex agent roles (dual-track sync)
 
@@ -363,9 +360,8 @@ claude plugin install dhpk@dhpk \
 
 See `manifests/install-profiles.json` for curated module bundles and `manifests/module-catalog.json` for the full stack/version catalog (SSOT).
 
-Flow Drive uses invocation-only `--cross`; legacy cross environment/configuration
-cannot broaden its automatic candidates. `--worker=provider[/model[:effort]]`
-and reasoner selection express intent and still require current Host grants
-before external probes/launches. `--plan[=auto|bounded|discovery]` consumes the
-current Host declared effective planner tuple; the portable runner imports no
-Claude planner settings. The standalone bridge retires in 0.66.2.
+Shared delegated-dispatch settings govern their supported callers only;
+Flow Drive accepts task input and read-only `--help`, and does not expose
+worker, reasoner, cross-provider, planner, architect, or runner options.
+Delegated external targets still require current Host grants before external
+probes or launches. The standalone bridge retires in 0.66.2.

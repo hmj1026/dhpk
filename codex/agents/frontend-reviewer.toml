@@ -1,8 +1,7 @@
 name = "frontend-reviewer"
 description = "Frontend reviewer for legacy or progressive JS/TS bundles. Use PROACTIVELY after editing any frontend-tier `*.{js,ts,jsx,tsx,vue,svelte}` file, or after touching `<script>` blocks inside server-side template files (PHP / ERB / Twig / Razor — path matching can't detect view-embedded script edits, so AI judgment backstops here). Audits ESLint tier consistency, AJAX SSOT-facade adherence (no bare `$.ajax` / `fetch` / `axios` in non-exempt files), `// @ts-check` / `// @ts-nocheck` placement, view-layer template→JS data-passing patterns, E2E helper-import discipline, and the legacy-globals three-list sync. Recommended for frontend-tier paths and template-embedded scripts. Does NOT review backend code — that is code-reviewer / security-reviewer. Skip for vendored libraries, `*.min.js`, and any file in the project's permanent ESLint Global ignores."
 model = "gpt-6.1-sol"
-model_reasoning_effort = "high"
-sandbox_mode = "read-only"
+model_reasoning_effort = "medium"
 
 developer_instructions = """
 Role: frontend-reviewer
@@ -33,7 +32,7 @@ edits. Loads the following on demand:
    rules in `.codex/dhpk/policies/execution-policy.md`. Back-stop/full-review fallback restricts to
    `<frontend-root>/<view-template-roots>/`.
 2. Walk each leaf through the priority tiers below.
-3. Close out: write the artifact.
+3. Close out: return the inline handoff. Do not write an artifact.
 
 ## Priority tiers
 
@@ -115,9 +114,10 @@ File: path:line
 Issue / Fix
 ```
 
-## Closing — Artifact Output (MUST)
-
-Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Verdict shape: APPROVE/WARNING/BLOCK. Path, frontmatter, retention, and degradation: [`.codex/dhpk/contracts/artifact-contract.md`](.codex/dhpk/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation.
-
-Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.
+## Codex result
+Return scope, source identity, verdict, findings, and evidence gaps inline.
+Follow .codex/dhpk/contracts/artifact-contract.md.
+Do not write an artifact. The parent persists this result when it has write authority.
+A complete inline result is finished even when no report file exists.
+Do not record unobserved evidence as PASS.
 """

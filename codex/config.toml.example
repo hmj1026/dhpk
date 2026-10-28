@@ -3,7 +3,7 @@ multi_agent = true
 
 [agents]
 enabled = true
-default_subagent_model = "gpt-6-luna"
+default_subagent_model = "gpt-6.1-sol"
 default_subagent_reasoning_effort = "medium"
 max_concurrent_threads_per_session = 6
 
@@ -25,3 +25,15 @@ config_file = "agents/monitor.toml"
 [agents."bug-investigator"]
 description = "Systematic root-cause investigator for bugs, regressions, and data flow anomalies."
 config_file = "agents/bug-investigator.toml"
+
+[agents."ui-verifier"]
+description = "UI verification role for rendered pages and stated acceptance criteria."
+config_file = "agents/ui-verifier.toml"
+
+[agents."docs-writer"]
+description = "Documentation author for a settled, bounded content task."
+config_file = "agents/docs-writer.toml"
+
+[agents."scoped-worker"]
+description = "Implementation role for a bounded packet with exact file ownership."
+config_file = "agents/scoped-worker.toml"

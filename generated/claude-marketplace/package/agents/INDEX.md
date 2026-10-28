@@ -24,11 +24,11 @@ here.
 
 | Agent | Model | When it fires |
 |-------|-------|----------------|
-| [tdd-guide](tdd-guide.md) | sonnet | Test-first unit/integration work (AI-judgment, pre-edit): owns RED and scoped runs; implements GREEN when ownership, coupling, the settled test seam, and material risk fit the role, otherwise returns a fast-worker-ready fix-spec and later accepts with the scoped command |
+| [tdd-guide](tdd-guide.md) | sonnet | Test-first unit/integration work (AI-judgment, pre-edit): owns test seam, acceptance design, RED, and scoped runs; hands production GREEN to the configured implementation role by default, with TDD-owned GREEN only for an explicitly authorized minimal slice |
 | [database-reviewer](database-reviewer.md) | sonnet | SQL / schema / migration / Repository edits |
 | [security-reviewer](security-reviewer.md) | sonnet | Auth / authz / crypto / file-upload edits |
 | [frontend-reviewer](frontend-reviewer.md) | sonnet | JS/TS edits when the `js` module is active; template-embedded `<script>` blocks (AI-judgment backfill) |
-| [code-reviewer](code-reviewer.md) | sonnet | **Recommended after any source-code Edit/Write** |
+| [code-reviewer](code-reviewer.md) | sonnet | **Recommended for a completed implementation wave** |
 | [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity checks |
 
 Agent names are overridable via `userConfig.review_agents` — a project can point reviewer dispatch at its own `code-reviewer-<project>` and friends instead of the plugin defaults. All seven reviewer roles are available by default; reduce or replace the list through configuration.
@@ -68,7 +68,7 @@ This index only lists the shipped roles above.
 | Agent | Model | When to invoke |
 |-------|-------|----------------|
 | [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (Fable 5.1 is the highest per-token Claude tier; up-only escalation for HIGH-risk designs) |
-| [planner](planner.md) | opus | Plan consultant, opt-in via `$flow-drive --plan`. Consult scope is `auto\|bounded\|discovery`, distinct from critique / blind-sketch / dual-plan / review work modes; bounded permits ≤4 named-source reads and 0 children, discovery ≤12 reads and ≤2 read-only children, and warm review ≤4 new reads. Pre-implementation verdicts remain `ENDORSE\|AMEND\|REPLACE`; review verdicts remain `SHIP\|FIX-THEN-SHIP\|RECONSULT`; actual reads, children, and blockers fit the existing 400-token VERDICT-first + `END` protocol. Neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries this verdict/critique contract or dual-role warm review. |
+| [planner](planner.md) | opus | Requested plan consultant for critique / blind-sketch / dual-plan and manual warm or cold review. Caller-provided scope is `auto\|bounded\|discovery`, distinct from work mode; bounded permits ≤4 named-source reads and 0 children, discovery ≤12 reads and ≤2 read-only children, and warm review ≤4 new reads. Pre-implementation verdicts remain `ENDORSE\|AMEND\|REPLACE`; review verdicts remain `SHIP\|FIX-THEN-SHIP\|RECONSULT`; actual reads, children, and blockers fit the existing 400-token VERDICT-first + `END` protocol. Neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries this verdict/critique contract or dual-role warm review. |
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
 | [performance-analyzer](performance-analyzer.md) | sonnet | N+1 queries, EXPLAIN, index/perf audits |

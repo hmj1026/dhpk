@@ -76,6 +76,22 @@ test('the real repository satisfies the workflow policy', () => {
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
 });
 
+test('daily CI reruns when a pull request classification is edited', () => {
+  const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  assert.match(workflow, /pull_request:\s*\n\s+types:\s*(?:\[open(?:ed)?,\s*synchronize,\s*reopened,\s*edited\]|\n(?:\s+-\s+[^\n]+\n)*\s+-\s+edited)(?:\s|\n)/);
+});
+
+test('CI reads PR classification from event data without shell interpolation', () => {
+  const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  assert.ok(!workflow.includes('${{ github.event.pull_request.body }}'), 'PR body data must stay in the event JSON file');
+});
+
+test('selected CI plans run their required generated companion checks', () => {
+  const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  assert.match(workflow, /- name: Validate bounded generated companions\s+if: needs\.plan\.outputs\.mode != 'full'/,
+    'selected and light plan obligations both run generated companion checks');
+});
+
 test('release policy requires one repository-global, non-cancelling concurrency group', () => {
   const result = runReleasePolicy((workflow) => workflow
     .replace('  group: release-${{ github.repository }}', '  group: release-${{ github.ref }}')

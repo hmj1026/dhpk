@@ -47,12 +47,9 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **76 個 active `userConfig` 旋
 
 持續性 dispatch-config 解析層為 project > global > environment。同層
 canonical `*_target` 優先於 legacy keys。`auto` 的有效值來自已知 Host
-Profile 該 Role 的 `role_defaults`。`--worker` 與 `--reasoner` 是該次
-invocation 的單次選擇，不是持續設定層覆寫；setup 或設定報告未取得該次
-invocation 時，不得宣稱已納入這些 CLI 選擇。`--plan` 選擇 planner consult
-scope，不是 planner 模型覆寫。`--cross` 是該次 invocation 的跨供應商
-opt-in，不是 planner／reviewer 模型覆寫，也不是高於 project 的 worker
-target 規則。
+Profile 該 Role 的 `role_defaults`。共用 delegated-dispatch 設定只適用於
+支援該 dispatch role 的入口；Flow Drive 本身只接受 task 與唯讀 `--help`，
+沒有 worker、reasoner、planner 或 provider selector。
 
 ### Provider-neutral 派發設定
 
@@ -86,10 +83,9 @@ key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保�
 
 ## 核心派發與 Review
 
-Planner consult scope 使用逐次 invocation 旗標
-`--plan[=auto|bounded|discovery]` 選擇；啟用 `--plan` 但省略
-mode 時預設為 `auto`。這不是 `userConfig` 設定，不會改變 `planner_model` 的 `opus`、
-`planner_effort` 的 `high`，也不會改變 planner work mode。範圍預算見
+Planner consult scope 屬於明確請求的 planner handoff。Orchestrator 依 brief
+中的具名證據選擇 `auto`、`bounded` 或 `discovery`；Flow Drive 沒有 planner
+option。Scope selection 不會改變已設定的 planner model、effort 或 work mode。範圍預算見
 [基本操作](./basic-operations.zh-TW.md)，選擇規則見
 [execution policy](../rules/execution-policy.md#planner-consult-scope)。
 
@@ -116,9 +112,9 @@ mode 時預設為 `auto`。這不是 `userConfig` 設定，不會改變 `planner
 | `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | `agy models` 列出的任何模型 | 規範角色 `agy-worker` 派發時傳給 agy CLI 後端的模型顯示字串。Agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。舊別名：`agy_fast_worker_model`。 |
 | `architect_model` | string | `fable` | 無派工效果 | 不支援的派工輸入。不會映射到 `reasoner_target`，派工不受影響。預設 `fable` 只標示架構諮詢角色（依目前定價證據為最高單價 Claude 層），不是 runtime override。 |
 | `architect_effort` | string | `low` | 無派工效果 | 不支援的派工輸入。不會映射到 `reasoner_target`，派工不受影響。 |
-| `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示；適用的 verification gates 仍有效，planner 是否適用依缺少的 outcome 或明確 consult request 決定，不依 task count。 |
+| `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中 delegated implementation routing 的關閉開關。`on` 時適用的實作階段委派工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示；適用的 verification gates 仍有效，planner 是否適用依缺少的 outcome 或明確 consult request 決定，不依 task count。Flow Drive 的 native task entry 沒有 dispatch mode。 |
 | `cross_provider` | boolean | `false` | `true` \| `false` | 自動 fast-worker 選擇時開放外部候選的 opt-in。`false` 讓 `auto` 僅使用 native 並禁止外部探查；`true` 才依 `fast_worker_backend_order` 檢查。明確的 `--worker=<target>` 仍是定向選取，不會連帶開放其他 provider。 |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 只有在 `cross_provider=true` 時才依 `fast_worker_backend_order` 檢查外部可用性。`/dhpk:flow-drive --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
+| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 支援 delegated route 使用的機械 worker 確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 依 `fast_worker_backend_order` 檢查可用候選。Flow Drive 不接受單次 worker selector。Codex CLI 可用性檢查與已退休的 `CODEX=on` flag 無關；僅透過支援的 delegated dispatch 入口選擇 Codex worker。 |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | `cross_provider=true` 時供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。未 opt-in 時會抑制外部項目且不探查。值無效時每個 session 警告一次並使用 shipped 順序。 |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | 只允許對明確選取但缺少 CLI 執行檔的情況使用 `claude` 備援。驗證、授權、模型、任務、執行與 verification 失敗都維持 blocked，不得靜默切換。 |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對明確註冊的 reviewer quality advisory 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 unresolved obligation。預設 `off`（無作用，不做啟發式評估）。 |
@@ -139,15 +135,15 @@ native-only。
 | `fast_worker_fallback=claude` | 只有明確選定的 CLI executable 缺少時才 fallback。 | 只有需要這個狹義的 missing-executable fallback 時才保留；不涵蓋 auth、quota、task、execution 或 verification failure。 |
 
 要對單一專案 opt-in，請在 `.claude/settings.local.json`（或 project
-`settings.json`）的 `pluginConfigs.dhpk@dhpk.options` 下加入設定。只對單次
-automatic selection opt-in 則使用 `--worker=auto --cross`。`--cross` 是該次
-invocation 的跨供應商候選 opt-in，不會取代 project > global > environment
-解析層，也不覆寫 `*_target` 模型選擇。將 project 值設為 `false` 可回到
+`settings.json`）的 `pluginConfigs.dhpk@dhpk.options` 下加入設定。共用
+automatic selection policy 只適用於支援的 delegated-dispatch 入口，不會改變
+Flow Drive 的 task-only native entry，也不取代其他 dispatch 設定的 project >
+global > environment 解析層。將 project 值設為 `false` 可回到
 native-only automatic selection；移除 project override 則會重新暴露 installed-user
 值，因此只有在該值也未設定或為 `false` 時，才能把移除視為 rollback。已退休的
 `CODEX=on` 與 `--codex` 不是遷移 alias。
 
-dispatcher 在建立 `0600` immutable transport context 前，會將解析後的 deadline 驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`；只有不需要 portable runner deadline 時才明確設定 `0`。Python transport runner 而非 `timeout`/`gtimeout` 會強制執行已證明的 deadline，並寫入 contained terminal receipt。agy 的獨立設定也同樣是已證明的 dispatch input。
+共用 CLI dispatcher 在建立 `0600` immutable transport context 前，會將解析後的 deadline 驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`；只有不需要 CLI transport deadline 時才明確設定 `0`。Python transport 會強制執行已證明的 deadline，並寫入 contained terminal receipt。agy 的獨立設定也同樣是已證明的 dispatch input。
 
 <a id="codex-mcp-dependency-not-a-userconfig-knob"></a>
 <a id="codex-mcp-依賴並非-userconfig-旋鈕"></a>
@@ -157,9 +153,9 @@ dispatcher 在建立 `0600` immutable transport context 前，會將解析後的
 目前 dhpk capability 使用 in-process model 或明確指定的 CLI backend。沒有任何
 active skill 或 command 需要 Codex MCP server。現行 CLI-only review path 是
 `change-verdict --mode code --backend cli`；同族 CLI role 為
-`codex-worker`、`codex-reasoner`、`codex-reviewer` 與 Flow Drive implementation-scoped adapters。需要
-Codex CLI transport 時，請明確使用 `--worker=codex`、`--reasoner=codex/<model>[:<effort>]` 或
-`codex exec` 第二意見。
+`codex-worker`、`codex-reasoner`、`codex-reviewer`，使用共用 CLI-dispatch
+support closure。Flow Drive 不暴露這些 role selector。需要 Codex CLI transport
+時，請走支援的 delegated dispatch route，或明確使用 `codex exec` 第二意見。
 
 ### 歷史：Codex MCP server（已退休）
 
@@ -199,9 +195,9 @@ docs/basic-operations.zh-TW.md）也與已退休的 MCP 機制
 `CODEX=on` 與 `/dhpk:do --codex` 曾是單次 session 的 legacy MCP-peer interface。
 兩者現在都已移除，不是持久化的 `userConfig` 值，也不會靜默重新解讀成
 `codex exec`、`--worker=codex`、`--reasoner=codex/<model>[:<effort>]` 或外部 plugin。裸值
-`--reasoner=codex` 是相容性 shorthand。請用
-`/dhpk:flow-drive` 進行 current-model implementation，需要時明確選 CLI
-role，並以具名 `codex exec` opt-in 請求第二意見。
+`--reasoner=codex` 是相容性 shorthand。請用 `$flow-drive` 以 current Host
+執行 task；需要 CLI role 時走支援的 delegated route，並以具名 `codex exec`
+opt-in 請求第二意見。
 
 ### Codex agent 角色（雙軌同步）
 
@@ -314,8 +310,7 @@ claude plugin install dhpk@dhpk \
 
 精選的模組組合請見 `manifests/install-profiles.json`；完整技術棧／版本目錄（SSOT）請見 `manifests/module-catalog.json`。
 
-Flow Drive 使用單次 invocation 的 `--cross`；舊 cross environment/configuration
-不會擴大其 auto 候選。`--worker=provider[/model[:effort]]` 與 reasoner
-只表達選取意圖，外部 probe/launch 前仍須當前 Host grant。
-`--plan[=auto|bounded|discovery]` 使用當前 Host 宣告的有效 planner tuple；
-portable runner 不另讀取 Claude planner 設定。standalone bridge 已於 0.66.2 退休。
+共用 delegated-dispatch 設定只適用於支援的 caller。Flow Drive 僅接受 task
+與唯讀 `--help`，沒有 worker、reasoner、cross-provider、planner、architect
+或 runner options。外部 delegated target 在 probe/launch 前仍須當前 Host grant。
+standalone bridge 已於 0.66.2 退休。

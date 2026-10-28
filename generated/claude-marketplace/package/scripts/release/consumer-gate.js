@@ -1114,6 +1114,16 @@ function currentConsumerSourceRecord(root, relativePath) {
   return { path: relativePath, digest };
 }
 
+function declaredCodexAgentSource(root, role) {
+  const generator = path.join(root, 'scripts', 'gen-codex-agents.js');
+  if (!fs.existsSync(generator)) return null;
+  const descriptors = require(generator).AGENT_SOURCES;
+  if (!Array.isArray(descriptors)) return null;
+  const descriptor = descriptors.find((entry) => entry && entry.name === role);
+  if (!descriptor || typeof descriptor.source !== 'string' || !safeConsumerRepoPath(descriptor.source)) return null;
+  return descriptor.source;
+}
+
 function readConsumerRoleSourceText(root, relativePath) {
   if (!safeConsumerRepoPath(relativePath)) throw new Error('Codex role resource source path is unsafe');
   const target = path.join(root, ...relativePath.split('/'));
@@ -1218,7 +1228,6 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
     missingFields.add('configFingerprint');
     const model = selectedCodexRoleSetting(roleText, 'model');
     const effort = selectedCodexRoleSetting(roleText, 'model_reasoning_effort');
-    const sandboxMode = selectedCodexRoleSetting(roleText, 'sandbox_mode');
     missingFields.delete('configFingerprint');
     const roleEntry = receipt && receipt.managed_entries && receipt.managed_entries.agents
       ? receipt.managed_entries.agents[`${role}.toml`]
@@ -1243,6 +1252,11 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
     if (!packageOwned || workspaceLocal) {
       missingFields.add('selectionFingerprint');
       throw new Error('Codex role is not in the fixed package-owned role set');
+    }
+    const generatedSource = generated ? declaredCodexAgentSource(root, role) : null;
+    if (generated && !generatedSource) {
+      missingFields.add('sourceFingerprint');
+      throw new Error('Codex generated role has no safe declared canonical source');
     }
 
     let inventory;
@@ -1304,7 +1318,7 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
       'openspec/specs/codex-agent-role-parity/spec.md',
       'openspec/specs/codex-install-materialization/spec.md',
     ]);
-    if (generated) sourcePaths.add(`agents/${role}.md`);
+    if (generatedSource) sourcePaths.add(generatedSource);
     for (const { asset } of references) {
       sourcePaths.add(asset.source);
       if (asset.canonical_source) sourcePaths.add(asset.canonical_source);
@@ -1383,7 +1397,7 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
       configurationLoading: 'strict-config',
       model,
       effort,
-      roleSandboxMode: sandboxMode,
+      sandboxAuthority: 'parent-session',
       networkPolicy: 'Codex read-only sandbox default',
       authentication: 'operator auth.json referenced read-only; secret contents excluded',
     });

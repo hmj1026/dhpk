@@ -49,16 +49,38 @@ verdict: APPROVE | WARNING | BLOCK
 Audit-style roles may use `PASS | WARNING | FAIL` instead. Non-reviewer roles
 document their own extra fields inline; do not invent a third verdict vocabulary.
 
-## Retention and degradation
+`doc-reviewer` may additionally report
+`local_rules_loaded: [<project-relative-path>]` for each non-empty local rules
+file it actually loaded. Omit the field when no such file was loaded. A load
+failure is an evidence gap, not a loaded path. Codex includes the field in its
+inline result rather than writing an artifact.
 
-Retention is advisory: prune old reports for navigability, never as a runtime
-requirement. If `.cursor/artifacts/` or its category directory is absent, emit
-the report to stdout and continue; do not fail only because the directory is
-missing.
+`BLOCK` and `FAIL` record a defect from checked evidence at that role's own
+threshold. `code-reviewer` and `frontend-reviewer` use `BLOCK` for any CRITICAL
+finding. The library-author polyfill review uses that same CRITICAL threshold.
+It is capability-gated and has no direct Codex role here. `doc-reviewer`
+uses `BLOCK` for any HIGH finding. `BLOCKED` means required capability or
+evidence is missing. It is not a worse defect and not a synonym of `BLOCK` or
+`FAIL`. A review that did not run stays `NOT_RUN` or `UNAVAILABLE`.
+change-verdict `READY` / `BLOCKED` / `INCONCLUSIVE` is a separate response gate
+and is not mapped here.
 
-## Codex lifecycle boundary
+## Codex read-only handoff
 
-The parent flow invokes reviewers manually and owns lifecycle. A reviewer writes
-one fresh artifact, returns its final verdict in the same run, and never calls a
-Claude hook, sentinel, or host-specific cleanup helper. A missing or stale
-artifact means the review is unresolved and the parent must dispatch again.
+A read-only role returns one inline result with scope, source identity, verdict, findings, and evidence gaps. It does not write an artifact. When the parent has write authority, the parent may persist that result. A complete inline result is finished; do not dispatch the role again only because the report file is missing.
+
+A role that writes may still produce assigned test traces and runner output. Those files stay separate from the summary, which is the inline result. Evidence that was not observed stays NOT_RUN, UNAVAILABLE, or BLOCKED. It is not PASS.
+
+Retention of any parent-persisted copy is advisory. Prune old copies for navigability, never as a runtime requirement.
+
+## Model and effort precedence
+
+When a custom agent file sets model or model_reasoning_effort, that file value takes precedence. Before the file applies, Codex resolves each setting from an explicit spawn value, then the [agents] default, then the parent. A start argument does not rewrite a pinned file effort. Warm review at medium uses a separate verified profile whose file sets model_reasoning_effort to medium.
+
+## Permission boundary
+
+sandbox_mode in a custom agent file does not create an independent sandbox. The parent session owns sandbox and approval. Read-only behavior is the role instruction together with that parent policy. Hard isolation uses the root session or tool policy, not an agent-file sandbox field.
+
+## Codex agent TOML schema
+
+Required fields are name, description, and developer_instructions. dhpk roles also set model and model_reasoning_effort. Do not require Claude tools or Claude model aliases. Do not declare sandbox_mode. A citation that the consumer install cannot resolve is UNAVAILABLE, not PASS.

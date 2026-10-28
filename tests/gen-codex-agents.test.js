@@ -1,10 +1,9 @@
 'use strict';
 
 // Coverage for scripts/gen-codex-agents.js — generates Codex CLI role .toml
-// files from the curated 11-agent allowlist under agents/<name>.md. Source
-// dir is fixed to the repo's real agents/ (read-only, never mutated by this
-// script), but the output dir is a CLI arg — always point it at a temp dir
-// so the repo's own codex/agents/ output is never touched.
+// files from the explicit Codex role descriptors. Legacy role sources live
+// under agents/; Codex-only sources live under codex/agent-sources/. Output
+// is always redirected to a temp dir so the checked-in projection is untouched.
 
 const path = require('node:path');
 const fs = require('node:fs');
@@ -27,7 +26,12 @@ const EXPECTED_AGENTS = [
   'frontend-reviewer',
   'migration-reviewer',
   'e2e-runner',
+  'ui-verifier',
+  'docs-writer',
+  'scoped-worker',
 ];
+
+const CODEX_ONLY_AGENTS = ['ui-verifier', 'docs-writer', 'scoped-worker'];
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-codex-agents-'));
@@ -48,8 +52,28 @@ function cloneGeneratorFixture(prefix) {
   for (const file of ['agent-projection-manifest.json', 'agent-role-map.json']) {
     fs.copyFileSync(path.join(ROOT, 'codex', file), path.join(root, 'codex', file));
   }
+  writeCodexOnlySourceFixtures(root);
   fs.cpSync(path.join(ROOT, 'scripts'), path.join(root, 'scripts'), { recursive: true });
   return root;
+}
+
+function writeCodexOnlySourceFixtures(root) {
+  const sourceDir = path.join(root, 'codex', 'agent-sources');
+  fs.mkdirSync(sourceDir, { recursive: true });
+  for (const role of CODEX_ONLY_AGENTS) {
+    fs.writeFileSync(
+      path.join(sourceDir, `${role}.md`),
+      [
+        '---',
+        `name: ${role}`,
+        `description: "Codex-only ${role} fixture role."`,
+        '---',
+        '',
+        `Canonical fixture instructions for ${role}.`,
+        '',
+      ].join('\n'),
+    );
+  }
 }
 
 function runFixtureScript(root, args) {
@@ -152,13 +176,13 @@ test('generated source keeps unknown prose and fenced-code mentions out of the e
   }
 });
 
-test('generates exactly the 11-agent allowlist as .toml files with derived fields', () => {
-  const tmp = mkTmp();
+test('generates the explicit 14-role Codex projection without packaging authoring sources', () => {
+  const root = cloneGeneratorFixture('gen-codex-projection');
   try {
-    const outDir = path.join(tmp, 'out');
-    const res = runScript([outDir]);
+    const outDir = path.join(root, 'out');
+    const res = runFixtureScript(root, [outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(res.stdout.includes('Generated 11 Codex role file(s).'), res.stdout);
+    assert.ok(res.stdout.includes('Generated 14 Codex role file(s).'), res.stdout);
 
     const files = fs.readdirSync(outDir).sort();
     assert.deepStrictEqual(files, EXPECTED_AGENTS.map((n) => `${n}.toml`).sort());
@@ -171,17 +195,50 @@ test('generates exactly the 11-agent allowlist as .toml files with derived field
 
     const tddGuide = fs.readFileSync(path.join(outDir, 'tdd-guide.toml'), 'utf8');
     assert.ok(tddGuide.includes('model = "gpt-6-luna"'), tddGuide);
-    assert.ok(tddGuide.includes('model_reasoning_effort = "max"'), tddGuide);
+    assert.ok(tddGuide.includes('model_reasoning_effort = "high"'), tddGuide);
+    for (const name of CODEX_ONLY_AGENTS) {
+      const body = fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8');
+      assert.ok(body.includes(`model = "gpt-6.1-terra"`), name);
+      assert.ok(body.includes('model_reasoning_effort = "medium"'), name);
+      assert.ok(body.includes(`Canonical fixture instructions for ${name}.`), name);
+      assert.strictEqual(fs.existsSync(path.join(root, 'agents', `${name}.md`)), false, `${name} must remain Codex-only`);
+    }
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
-    assert.ok(e2eRunner.includes('sandbox_mode = "workspace-write"'), e2eRunner);
+    assert.doesNotMatch(e2eRunner, /^sandbox_mode\s*=/m);
     assert.match(e2eRunner, /Verdict: BLOCKED/);
+    for (const name of EXPECTED_AGENTS) {
+      const body = fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8');
+      assert.doesNotMatch(body, /^sandbox_mode\s*=/m, name);
+    }
     const migrationReviewer = fs.readFileSync(path.join(outDir, 'migration-reviewer.toml'), 'utf8');
     assert.doesNotMatch(migrationReviewer, /(?:dhpk:|claude-mem)/);
     assert.match(migrationReviewer, /`database-reviewer`/);
     assert.match(migrationReviewer, /`cx`\/GitNexus symbol-level pre-edit guidance/);
     assert.doesNotMatch(fs.readFileSync(path.join(outDir, 'deep-reasoner.toml'), 'utf8'), /dhpk:/);
   } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('missing Codex-only source reports its actual path before writing any TOML', () => {
+  const root = cloneGeneratorFixture('gen-codex-missing-source-red');
+  try {
+    const missingRole = 'ui-verifier';
+    const missingSource = path.join(root, 'codex', 'agent-sources', `${missingRole}.md`);
+    fs.rmSync(missingSource);
+    const outDir = path.join(root, 'out');
+    fs.mkdirSync(outDir, { recursive: true });
+    const sentinelPath = path.join(outDir, 'architect.toml');
+    fs.writeFileSync(sentinelPath, 'preserve existing output\n');
+
+    const result = runFixtureScript(root, [outDir]);
+    const output = diagnostic(result);
+    assert.notStrictEqual(result.status, 0, output);
+    assert.match(output, /codex\/agent-sources\/ui-verifier\.md/);
+    assert.strictEqual(fs.readFileSync(sentinelPath, 'utf8'), 'preserve existing output\n');
+    assert.deepStrictEqual(fs.readdirSync(outDir).sort(), ['architect.toml']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
@@ -262,27 +319,62 @@ test('selected role prompts do not duplicate discovery descriptions', () => {
   }
 });
 
-test('generated reviewer roles use Codex review artifact semantics', () => {
+test('generated read-only roles return an inline handoff and do not require a review file', () => {
   const tmp = mkTmp();
   try {
     const outDir = path.join(tmp, 'out');
     const res = runScript([outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
     for (const name of [
+      'architect',
       'code-reviewer',
       'security-reviewer',
       'database-reviewer',
+      'deep-reasoner',
       'doc-reviewer',
+      'planner',
       'frontend-reviewer',
       'migration-reviewer',
     ]) {
       const body = fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8');
-      assert.doesNotMatch(body, /\.pending-[a-z-]+/);
-      assert.doesNotMatch(body, /subagent-stop-verify|clear-sentinel|post-edit-remind/);
-      assert.doesNotMatch(body, /\.claude\/artifacts|CLAUDE_PLUGIN_ROOT/);
-      assert.match(body, /\.codex\/artifacts/);
-      assert.match(body, /\.codex\/artifacts\/reviews\//);
+      assert.doesNotMatch(body, /\.pending-[a-z-]+/, name);
+      assert.doesNotMatch(body, /subagent-stop-verify|clear-sentinel|post-edit-remind/, name);
+      assert.doesNotMatch(body, /\.claude\/artifacts|CLAUDE_PLUGIN_ROOT/, name);
+      assert.doesNotMatch(body, /Write the final review under/, name);
+      assert.doesNotMatch(body, /dispatch again/, name);
+      assert.match(body, /Return scope, source identity, verdict, findings, and evidence gaps inline\./, name);
+      assert.match(body, /parent persists this result when it has write authority/, name);
+      assert.match(body, /even when no report file exists/, name);
+      assert.match(body, /Do not record unobserved evidence as PASS/, name);
     }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('generated role methods keep host-specific judgment and do not copy a second rule set', () => {
+  const tmp = mkTmp();
+  try {
+    const outDir = path.join(tmp, 'out');
+    const res = runScript([outDir]);
+    assert.strictEqual(res.status, 0, res.stderr);
+    const docReviewer = fs.readFileSync(path.join(outDir, 'doc-reviewer.toml'), 'utf8');
+    assert.match(docReviewer, /Codex agent TOML/);
+    assert.match(docReviewer, /Do not apply the YAML checks/);
+    assert.doesNotMatch(docReviewer, /docs\/agent-guidance\/frontmatter-schema\.md/);
+    assert.match(docReviewer, /\.codex\/docs\/doc-review-local\.md/);
+    assert.match(docReviewer, /for Codex/);
+    assert.doesNotMatch(docReviewer, /for Claude and AGY/);
+    assert.doesNotMatch(docReviewer, /for Cursor/);
+    assert.match(docReviewer, /local_rules_loaded/);
+    const database = fs.readFileSync(path.join(outDir, 'database-reviewer.toml'), 'utf8');
+    assert.match(database, /No N\+1/);
+    assert.match(database, /Query plans/);
+    assert.doesNotMatch(database, /Latency \/ N\+1 \/ EXPLAIN/);
+    const codeReviewer = fs.readFileSync(path.join(outDir, 'code-reviewer.toml'), 'utf8');
+    assert.doesNotMatch(codeReviewer, /REST paths are plural nouns, not verbs/);
+    assert.match(codeReviewer, /not a defect unless the project contract/);
+    assert.doesNotMatch(codeReviewer, /phpunit-11/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -300,7 +392,11 @@ test('generated planner keeps its inline verdict protocol without a review artif
     assert.match(planner, /Every reply begins with `VERDICT:` and ends with literal `END`/);
     assert.match(planner, /model = "gpt-6.1-sol"/);
     assert.match(planner, /model_reasoning_effort = "high"/);
-    assert.match(planner, /sandbox_mode = "read-only"/);
+    assert.doesNotMatch(planner, /^sandbox_mode\s*=/m);
+    assert.doesNotMatch(planner, /stronger judgment than the driver/);
+    assert.doesNotMatch(planner, /omits model_reasoning_effort/);
+    assert.match(planner, /CONSULT USE:/);
+    assert.doesNotMatch(planner, /override this agent's `high` frontmatter effort with `medium`/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -316,10 +412,14 @@ test('generated deep reasoner keeps its inline conclusion contract without a rev
     const reasoner = fs.readFileSync(path.join(outDir, 'deep-reasoner.toml'), 'utf8');
     assert.doesNotMatch(reasoner, /Write the final review under `\.codex\/artifacts\/reviews\//);
     assert.match(reasoner, /Reasoner result: READY_FOR_DISPATCH/);
+    assert.match(reasoner, /Evidence status: confirmed/);
+    assert.match(reasoner, /leading hypothesis/);
+    assert.match(reasoner, /unresolved/);
+    assert.doesNotMatch(reasoner, /stated as fact/);
     assert.match(reasoner, /## Next actions/);
     assert.match(reasoner, /model = "gpt-6.1-sol"/);
     assert.match(reasoner, /model_reasoning_effort = "high"/);
-    assert.match(reasoner, /sandbox_mode = "read-only"/);
+    assert.doesNotMatch(reasoner, /^sandbox_mode\s*=/m);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -333,8 +433,9 @@ test('generated architect keeps its plan and ADR artifact paths without a review
     assert.strictEqual(result.status, 0, diagnostic(result));
 
     const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
-    assert.match(architect, /\.codex\/artifacts\/plans\/architect-/);
-    assert.match(architect, /\.codex\/artifacts\/adr\/ADR-/);
+    assert.doesNotMatch(architect, /\.codex\/artifacts\/plans\/architect-/);
+    assert.doesNotMatch(architect, /\.codex\/artifacts\/adr\/ADR-/);
+    assert.match(architect, /inline handoff/);
     assert.doesNotMatch(architect, /Write the final review under `\.codex\/artifacts\/reviews\//);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -349,8 +450,9 @@ test('generated TDD guide keeps its substantive report contract without a review
     assert.strictEqual(result.status, 0, diagnostic(result));
 
     const tddGuide = fs.readFileSync(path.join(outDir, 'tdd-guide.toml'), 'utf8');
-    assert.match(tddGuide, /substantive TDD session report/);
-    assert.match(tddGuide, /tdd-\{yyyymmdd-HHMMSS\}-\{slug\}\.md/);
+    assert.match(tddGuide, /Assigned test traces and runner output may be written separately/);
+    assert.match(tddGuide, /Do not record unobserved evidence as PASS/);
+    assert.doesNotMatch(tddGuide, /tdd-\{yyyymmdd-HHMMSS\}-\{slug\}\.md/);
     assert.doesNotMatch(tddGuide, /Write the final review under `\.codex\/artifacts\/reviews\//);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

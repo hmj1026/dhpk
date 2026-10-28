@@ -120,6 +120,44 @@ test('forwarder-specific grants stay distinct from broader owner tools and dispo
   assert.strictEqual(ctx.invoke(forwarders, '--check').status, 1);
 }));
 
+test('code-simplify and library-author aliases generate without undeclared tool grants', () => fixture(ctx => {
+  const declarations = [
+    { id: 'simplify', owner: 'code-simplify', public_name: '/dhpk:simplify' },
+    { id: 'matrix-cell-onboard', owner: 'library-author', public_name: '/dhpk:matrix-cell-onboard' },
+  ];
+  for (const { id, owner, public_name } of declarations) {
+    ctx.put(`skills/${owner}/SKILL.md`, `---\nname: ${owner}\ndescription: ${id} workflow\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\n`);
+    ctx.put(`skills/${owner}/distribution.yaml`, JSON.stringify({
+      schema: 'dhpk.skill-distribution.v1',
+      commands: [{
+        id,
+        public_name,
+        argument_contract: '<target>',
+        authority: 'workspace-write',
+        disposition: 'thin-front-door',
+      }],
+    }));
+  }
+
+  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0);
+  for (const { id } of declarations) {
+    const bytes = fs.readFileSync(path.join(ctx.root, 'commands', `${id}.md`), 'utf8');
+    assert.doesNotMatch(bytes, /^allowed-tools:/m, id);
+  }
+  assert.strictEqual(ctx.invoke(forwarders, '--check').status, 0);
+
+  const root = path.join(__dirname, '..');
+  for (const { id, owner } of declarations) {
+    const distribution = JSON.parse(fs.readFileSync(path.join(root, 'skills', owner, 'distribution.yaml'), 'utf8'));
+    const declaration = distribution.commands.find(command => command.id === id);
+    assert.ok(declaration, `${owner}/${id} canonical declaration exists`);
+    assert.strictEqual(declaration.allowed_tools, undefined, `${owner}/${id} canonical declaration has no tool grant`);
+
+    const bytes = fs.readFileSync(path.join(root, 'commands', `${id}.md`), 'utf8');
+    assert.doesNotMatch(bytes, /^allowed-tools:/m, `commands/${id}.md`);
+  }
+}));
+
 test('forwarder grants reject empty or multiline declarations', () => fixture(ctx => {
   for (const allowed_tools of ['', 'Read\nWrite', 42]) {
     ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [{ ...ctx.declaration, allowed_tools }] }));

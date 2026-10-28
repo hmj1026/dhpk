@@ -1,0 +1,6 @@
+[
+  { "id": "R-101", "status": "paid", "amountCents": 1200 },
+  { "id": "R-102", "status": "open", "amountCents": 800 },
+  { "id": "R-103", "status": "paid", "amountCents": 250 },
+  { "id": "R-104", "status": "open", "amountCents": 600 }
+]

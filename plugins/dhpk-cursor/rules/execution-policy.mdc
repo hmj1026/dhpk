@@ -57,22 +57,13 @@ Determine the workflow type (Small change / Bug / Feature / Architecture) from t
 
 Single source of truth for the six change types, their flow, and when an OpenSpec conversation may fill a missing outcome. `flow-guide` owns classification and routing; `flow-drive` accepts only confirmed implementation scope and acceptance, which may be carried by an existing specification, plain text, a file, or a report. Reference the table from `skills/flow-guide/SKILL.md` and `skills/flow-drive/SKILL.md` rather than adding another router.
 
-The explicitly invoked portable Flow Drive runner consumes task text, a file,
-or a confirmed identifier through Host resolution. A settled outcome permits
-bounded diagnosis of unknown causes; sufficient source, cause, repair, and
-verification evidence gates each dependent writer. Current session/executor
-bound capability records may resolve a target absent from a stale catalog;
-static declarations and `EXPOSED` selectors do not claim observed identity.
-Provider permission uses the trusted invocation ledger, Host allowed set,
-constraints, and selected-tuple refresh. Explicit Host refusal remains binding.
-All Flow Drive workspace writes, including scratch/manual proposals, share one
-writer lease. Recovery uses immutable attempt receipts and one invocation-wide
-budget; interrupted or uncertain launched writers need positive matching stop
-and actual scope/diff reconciliation before another writer may start. Missing
-proof suspends writers while readers can continue. Required independent review
-and parent acceptance remain completion gates. These portable contracts do not
-change legacy `cross_provider` configuration, generic scheduler parallelism,
-or the external `/opsx:apply` owner.
+Flow Drive is an explicit native task entry. It accepts one bounded task,
+task file, or confirmed specification/change ID and uses the current Host and
+Model to investigate, make authorized edits, verify, and report. Its only option
+is read-only `--help`; it exposes no worker, reasoner, provider, planning,
+architect, runner, or execution-receipt interface. A flag embedded in task
+content remains task data. Delegated dispatch performed by another supported
+entrypoint continues to follow this shared policy and its Host grants.
 
 | Change type | Planning / OpenSpec | Flow |
 |---|---|---|
@@ -119,23 +110,22 @@ Neither task count nor file count alone triggers planning or delegation; choose
 inline work, a worker, or parallel ownership from independence, coupling,
 context locality, scope clarity, verification needs, and coordination benefit.
 
-An accepted explicit planner-consult option continues to be honored under its
-existing parser and capability rules. The `--plan` option remains the caller's
-request for a consult where it is supported. #815 owns its option grammar,
-model/effort precedence, bounded-consult choices, and consult budgets; this
-policy changes planner applicability when the caller did not explicitly
-request a consult.
+A supported explicit planner-consult request continues to be honored under its
+own capability rules. The caller's brief may provide a consult scope; Flow
+Drive does not expose a planner option. This policy changes planner
+applicability when the caller did not explicitly request a consult.
 
 #### Planner consult scope
 
 Scope selection is an orchestrator judgment for an already requested planner
-consult. `--plan[=auto|bounded|discovery]` selects consult scope; it does not
-select the planner's critique, blind-sketch, dual-plan, warm-review, or
-cold-review work mode. The Flow Drive parser validates the option grammar but
-does not choose scope or calculate risk. An enabled legacy handoff with no mode
+consult. A scope named in the caller's consult brief selects `auto`, `bounded`,
+or `discovery`; it does not select the planner's critique, blind-sketch,
+dual-plan, warm-review, or
+cold-review work mode. The caller validates its own option grammar; the orchestrator chooses scope and
+does not calculate risk with a runtime engine. An enabled handoff with no mode
 uses `auto`; a disabled plan has no consult scope.
 
-For `auto`, Flow Drive selects **bounded** only when all three conditions hold:
+For `auto`, the orchestrator selects **bounded** only when all three conditions hold:
 the consult question and intended outcome are clear; the named sources are
 sufficient to answer it within the bounded read limit, including mandatory
 role-protocol reads; and no named Material Risk Signal applies. If any condition
@@ -337,8 +327,7 @@ handoff evidence before requesting another planning outcome. Reuse an adequate
 approved plan regardless of its producer or the number of unchecked tasks.
 Consult `planner` when material decisions, dependencies, ownership boundaries,
 or cross-owner sequencing remain unresolved; record the specific gap and the
-actionable result. A requested `$flow-drive --plan` consult remains explicit
-under its parser contract. `orchestration_dispatch=off` disables optional
+actionable result. A supported caller's explicit planner request remains explicit. `orchestration_dispatch=off` disables optional
 worker/reasoner routing; it does not bypass actual prerequisites, authorization,
 project acceptance, or applicable verification.
 After each implementation wave, dispatching the applicable reviewers is
@@ -410,23 +399,18 @@ pluginConfig > `false`; `.claude/settings.local.json` is preferred over
 `.claude/settings.json`. Dispatch
 selection never creates a review PASS or a retired Sentinel state.
 
-For Flow Drive, invocation grammar and candidate scope are owned by its Skill.
-Automatic candidates remain native unless this invocation supplies `--cross`;
-legacy cross configuration/environment cannot broaden that scope. Explicit
-`--worker=provider[/model[:effort]]` and `--reasoner=provider[/model[:effort]]`
-express role-scoped intent and require a current Host grant before external
-probe or launch. An exact target grant includes Provider, Agent, Model, Effort,
-Role, and authority; read-only cannot authorize workspace-write. The initial
-capability request disables external probes. The configuration precedence
-above remains valid for non-Flow Drive common-engine consumers. Cancellation, no answer, or a
-missing question callback creates no grant. Host allowed-provider policy,
-task constraints, current binding, and matching capability evidence remain
-binding after consent. An answered Host selection and root-supplied
-`authorizationEvidence` must carry a nonblank answer ID; only a sanitized ID
-is retained with the grant, never raw answer text. After side-effect-free
-coordination identifies selected candidates, Flow Drive scopes any external
-refresh to those concrete Provider/Agent/Model/Effort/Role/authority tuples;
-Provider consent never triggers a provider-wide model probe.
+Flow Drive's task-only entry does not select a delegated target or widen
+provider scope. Other supported dispatch callers may express role-scoped target
+intent; an external target still requires a current Host grant before probe or
+launch. An exact target grant includes Provider, Agent, Model, Effort, Role,
+and authority; read-only cannot authorize workspace-write. Initial capability
+requests disable external probes. Cancellation, no answer, or a missing
+question callback creates no grant. Host allowed-provider policy, task
+constraints, current binding, and matching capability evidence remain binding
+after consent. Host selections and root-supplied `authorizationEvidence` must
+carry a nonblank answer ID; only a sanitized ID is retained with the grant.
+Refresh only concrete selected Provider/Agent/Model/Effort/Role/authority
+tuples; provider consent never triggers a provider-wide model probe.
 
 The Dispatch Engine enforces this baseline for all four Roles; adapters
 consume the same neutral request without duplicating candidate-selection logic.
@@ -486,34 +470,29 @@ reconciliation paths and never silently switch semantics.
 Every fast-worker report includes requested backend, selected backend, any
 fallback reason, model/effort, effective Codex timeout budget/source when the
 Codex backend is selected, verification result, and the complete edited-file
-list. Worker-backend selection is independent of the retired `CODEX` flag:
-`CODEX=on` and `CODEX=off` no longer select a review peer or alter worker
-selection. Use `--worker=codex` to select the retained Codex CLI worker, or use
-`--reasoner=codex/<model>[:<effort>]` for a read-only reasoning pass. The
-bare `--reasoner=codex` value uses the resolved reasoner configuration;
-Flow Drive accepts `codex` as its Provider spelling. On Claude Code, its
-parent session launches the bundled attested CLI runtime directly instead of
-passing transport context through the Agent tool. The standalone `codex-bridge`
-Skill and agent are retired in 0.66.2; their compatible rollback pin is 0.66.1. An explicit backend request is
-blocked only by selector availability/fallback rules, never silently downgraded.
+list. Worker-backend selection remains independent of the retired `CODEX` flag.
+The shared CLI adapters use the bundled attested runtime on Claude Code. The
+standalone `codex-bridge` Skill and agent are retired in 0.66.2; their rollback
+pin is 0.66.1. A supported dispatch caller uses configured role targets and the
+selector contract; backend requests do not silently downgrade.
 
 ### Reasoner target compatibility boundary
 
 Reasoning-heavy dispatches use the canonical read-only `reasoner` Role and
 default to the current Host-native target. The
-`$flow-drive --reasoner=<provider>/<model>[:<effort>]` flag (or its userConfig
-chain) provides an explicit Provider-scoped target. Legacy `claude` and
-`codex` values remain bounded compatibility inputs: `claude` maps to the
-Host-native Claude projection when that is the current Host, while `codex`
-maps to `codex-cli` and the canonical `codex-reasoner` projection. Both
-targets receive the **same** reasoning brief and return the canonical
-reasoner contract above (`## Conclusion` + file-and-line evidence + `## Next actions`). `agy` has no
-reasoning tier and is unsupported. Model/effort resolve flag > Provider-scoped
-target configuration > Host-native catalog default. A post-dispatch CLI or
-auth/model unavailability may use the shared
-native-first fallback contract after confirmed no side effects; safety, task,
-and timeout failures remain `RESULT: BLOCKED` or on their existing recovery
-path — never silently switched.
+Canonical `reasoner_target` and the applicable Host-native catalog default
+supply the Provider-scoped role target for supported dispatch callers. Legacy
+`claude` and `codex` values remain bounded compatibility inputs: `claude` maps
+to the Host-native Claude projection when that is the current Host, while
+`codex` maps to `codex-cli` and the canonical `codex-reasoner` projection. Both
+targets receive the **same** reasoning brief and return the canonical reasoner
+contract above (`## Conclusion` + file-and-line evidence + `## Next actions`).
+`agy` has no reasoning tier and is unsupported. Model/effort resolve from
+applicable target configuration, then the Host-native catalog default. A
+post-dispatch CLI or auth/model unavailability may use the shared native-first
+fallback contract after confirmed no side effects; safety, task, and timeout
+failures remain blocked or on their existing recovery path — never silently
+switched.
 
 **Orchestrator posture**: implement-phase work defaults to **decide → assign ownership → verify**. Choose inline, a worker, or independent parallel scopes from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit; task and file counts alone do not decide. Keep one cohesive change wave together instead of slicing it to influence routing. Verify runtime premises with the applicable E2E lane or a scratch executable probe. Implementation orientation binds the confirmed work to the kernel and selected route reference. Full routing, premise, verification, waiting, and plan-brief rules: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
 
@@ -521,27 +500,12 @@ path — never silently switched.
 
 **Operational detail** (posture rationale, task-fit ownership selection, `general-purpose` prohibition, gate-preservation back-stop, verify-worker-output cross-check, phase scoping, the premise-verification trio, kill switch, and explicit second-opinion path): load `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md` when dispatching implement-phase work.
 
-### Retired `CODEX=on` / `$flow-drive --codex` interface
+### Flow Drive legacy invocation migration
 
-`CODEX=on` and `$flow-drive --codex` are retired per-session flags. The parser
-removes the flag from the query, emits `DEPRECATED_CODEX_FLAG`, and stops with
-`blocked`; it never selects a peer, worker, reasoner, `codex exec` route, or
-app-server plugin. There is no hidden fallback. Exact replacements are:
-
-- Use `$flow-guide help` or `$flow-guide route <task>` for usage discovery and
-  guidance; this entry is read-only.
-- Use `$flow-drive <confirmed-spec-or-change-id>` for explicit implementation,
-  with `--worker=codex` when a Codex CLI mechanical worker is deliberately
-  selected.
-- Use `$flow-drive <confirmed-spec-or-change-id> --reasoner=codex/<model>:<effort>`
-  for an explicitly selected Codex CLI reasoning pass.
-- Use a named owner's supported second-opinion interface for an additive
-  independent perspective; the standalone bridge entry is retired.
-- Invoke the external `openai/codex-plugin-cc` app-server commands directly;
-  `$flow-drive` does not translate this retired flag into that plugin.
-
-The flag's only supported outcome is the blocking deprecation diagnostic; users
-must choose one of the replacements above and rerun the task.
+Current Flow Drive has no runtime option parser or runner compatibility layer.
+Its migration reference lists each retired invocation form and points to the
+pinned release for users who need those interfaces. This new entry does not
+change behavior or resolve defects in earlier releases.
 
 ### High-stakes second opinion after flag retirement
 
@@ -744,6 +708,17 @@ runners, missing capabilities, skipped checks, and `NOT_RUN` remain non-passing
 states; a manual alternative is separate evidence and does not become a pass for
 the unsupported runner. Keep implementation, verification, archive, commit, PR,
 CI, merge, release, and deployment states separate.
+
+Once implementation edits stop, applicable read-only reviews and full tests may
+run concurrently against one fixed source snapshot when the tests do not modify
+implementation files or compete for the same mutable test resources. A later
+source change creates a new snapshot and invalidates affected evidence; use the
+kernel's Evidence snapshots rules. For a long verification, a source commit, or
+PR creation, update one run-specific record under ignored `docs/evidence/` using
+the [recoverable run checkpoint](https://github.com/hmj1026/dhpk/blob/main/docs/subagent-prompt-template.md#recoverable-run-checkpoint).
+At resume, verify recorded source and process identity; an unknown session is
+not rerun automatically. This recovery record does not diagnose backend failure
+or change existing review, commit, PR, CI, or release authorization checkpoints.
 
 ### Testing
 

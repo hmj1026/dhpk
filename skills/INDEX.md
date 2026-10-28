@@ -28,7 +28,7 @@ are finite and disclosed by the family package.
 | Public skill | Stable ID | Interface |
 | --- | --- | --- |
 | [flow-guide](flow-guide/SKILL.md) | `flow-guide` | `help`, `route`, `rules`, `next`, `close` |
-| [flow-drive](flow-drive/SKILL.md) | `flow-drive` | confirmed specification or change; no mode |
+| [flow-drive](flow-drive/SKILL.md) | `flow-drive` | bounded task, task file, or confirmed specification/change; task/help only |
 | [change-verdict](change-verdict/SKILL.md) | `change-verdict` | Six verdict modes, `pending`, dependency audit and explicit bounded fix |
 | [code-trace](code-trace/SKILL.md) | `code-trace` | `explore`, `diagnose`, `history`, `select-tool` |
 | [laravel](laravel/SKILL.md) | `laravel` | selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, `mix` |
@@ -95,7 +95,7 @@ transport contract.
 ## Discovery rules
 
 - Use `flow-guide` for help, routing, policy, progression, or closeout. Use
-  `flow-drive` only for a confirmed specification or OpenSpec change.
+  `flow-drive` directly for one bounded task; its completion is terminal.
 - Use a family selector or mode instead of reviving a retired predecessor.
 - For Codex, invoke the exact public name shown in the generated catalogue;
   `agents/openai.yaml` is metadata, not a second argument schema.

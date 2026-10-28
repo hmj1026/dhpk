@@ -72,7 +72,6 @@ task/semantic, and timeout/interruption failures stay on their existing policy p
    # Supplied by the dispatcher; AGY wrapper blocks without it.
    export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
    before="$(git status --porcelain)"
-   bash "${CURSOR_PLUGIN_ROOT}/skills/flow-drive/scripts/adapters/run-agy.sh" \
      "<workdir>" "<prompt-file>" "<model>"
    after="$(git status --porcelain)"
    ```
@@ -90,7 +89,7 @@ When a contained runner timeout hits a multi-file dispatch, follow
 `skills/flow-guide/references/implementation-dispatch.md`
 §CLI worker mid-batch timeout recovery. Do not fork that state machine here.
 
-Agent-only deltas: a runner-reported timeout is `run-agy.sh` exit `124` with a
+Agent-only deltas: a transport-reported timeout is `run-agy.sh` exit `124` with a
 contained `dhpk.cli.receipt.v1` terminal `TIMEOUT` (not a shell timeout binary).
 This mid-batch timeout retry is separate from, and does not extend, the internal
 verification-retry carve-out below — that carve-out counts only agy's self-run

@@ -20,21 +20,9 @@
     "flow-guide": {
       "files": [
         {
-          "source": "rules/execution-policy.md",
-          "destination": "rules/execution-policy.md"
+          "source": "docs/subagent-prompt-template.md",
+          "destination": "docs/subagent-prompt-template.md"
         },
-        {
-          "source": "rules/execution-policy-kernel.md",
-          "destination": "rules/execution-policy-kernel.md"
-        },
-        {
-          "source": "scripts/lib/flow-handoff-contract.js",
-          "destination": "scripts/lib/flow-handoff-contract.js"
-        }
-      ]
-    },
-    "flow-drive": {
-      "files": [
         {
           "source": "rules/execution-policy.md",
           "destination": "rules/execution-policy.md"
@@ -71,6 +59,10 @@
     },
     "git-smart-commit": {
       "files": [
+        {
+          "source": "docs/subagent-prompt-template.md",
+          "destination": "docs/subagent-prompt-template.md"
+        },
         {
           "source": "rules/execution-policy.md",
           "destination": "rules/execution-policy.md"
@@ -465,16 +457,16 @@
       "id": "codex-supporting-contracts-artifact-contract-md",
       "source": "codex/supporting/contracts/artifact-contract.md",
       "canonical_source": "docs/contracts/artifact-contract.md",
-      "canonical_digest": "5c1853e26da16fe5fa4c3890311df830ccf6198f7f448adeb85d66838e72d265",
-      "projection_digest": "bc7f6ad223ccf4dcaf8a742132a7cc41f3539ffc1788cfcb82b65060f38002c4",
+      "canonical_digest": "d247f5fec20fb073f223500215eb11aa38b588f0d51ebb7755ca17de58afcecf",
+      "projection_digest": "2f7d5afaa09fbd37be0d90bf373a812d08c5c07d334e517177cac0cbbc7f22b2",
       "destination": "dhpk/contracts/artifact-contract.md"
     },
     {
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "01895f4a6581d6f0fda47088a527f9b6499fb1fd0fc700c5c32d2ae4d0e4b5c8",
-      "projection_digest": "370a6ce81923636b05b937e7308ed336a48bf9f88f160f732ee7988ebae52353",
+      "canonical_digest": "650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670",
+      "projection_digest": "4cf998323a4ec247b1785f06de203184386d0a13c0e3f8fe356114deb6a11e34",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
@@ -929,8 +921,8 @@
       ],
       "usage": {
         "display_name": "Flow Drive",
-        "summary": "Execute one scoped task with diagnosis and acceptance evidence",
-        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]",
+        "summary": "Complete one bounded task with the current Host and Model",
+        "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id> | --help",
         "input_kind": "mixed",
         "inputs": [
           {
@@ -938,7 +930,7 @@
             "syntax": "<task-text|task-file|confirmed-spec-or-change-id>",
             "value_kind": "string",
             "required": true,
-            "summary": "Provide one task text argument, task file path, or confirmed specification/change ID; quote text and paths containing spaces",
+            "summary": "Provide one bounded task, task-file path, or confirmed specification/change ID",
             "applies_to": [
               "apply"
             ]
@@ -949,104 +941,40 @@
         "actions": [
           {
             "id": "apply",
-            "summary": "Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance",
+            "summary": "Use the current Host and Model to complete the bounded task, verify its acceptance criteria, and report evidence or a blocker",
             "syntax": "$flow-drive <task-text|task-file|confirmed-spec-or-change-id>",
             "input_kind": "mixed",
             "effect_authority": "workspace-write"
+          },
+          {
+            "id": "help",
+            "summary": "Describe the task-only entry and migration path without changing the project",
+            "syntax": "$flow-drive --help",
+            "input_kind": "none",
+            "effect_authority": "read-only"
           }
         ],
         "options": [
           {
-            "id": "plan",
-            "syntax": "--plan[=auto|bounded|discovery]",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Request a planner scope using the current Host declared effective target",
-            "applies_to": [
-              "apply"
-            ],
-            "enum_values": [
-              "auto",
-              "bounded",
-              "discovery"
-            ]
-          },
-          {
-            "id": "worker",
-            "syntax": "--worker=auto|provider[/model[:effort]]",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant",
-            "applies_to": [
-              "apply"
-            ],
-            "default": "auto"
-          },
-          {
-            "id": "cross",
-            "syntax": "--cross",
+            "id": "help",
+            "syntax": "--help",
             "value_kind": "boolean",
             "required": false,
             "default": false,
-            "summary": "Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches",
+            "summary": "Show current usage and the legacy-interface migration guide",
             "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "reasoner",
-            "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers",
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "architect",
-            "syntax": "--architect",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Request consultation; report UNAVAILABLE when the current Host has no supported architecture route",
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "no-architect",
-            "syntax": "--no-architect",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Suppress an optional consult while preserving required Host gates",
-            "applies_to": [
-              "apply"
-            ]
-          },
-          {
-            "id": "codex",
-            "syntax": "--codex",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Request the retired Codex diagnostic",
-            "legacy": {
-              "replacement_id": "worker",
-              "diagnostic_only": true,
-              "reason": "Use an explicit worker or reasoner instead of the retired Codex shortcut"
-            },
-            "applies_to": [
-              "apply"
+              "help"
             ]
           }
         ],
         "examples": [
           {
             "prompt": "$flow-drive \"Fix the receipt total and verify it matches the receipt lines.\"",
-            "summary": "Resolve and implement a bounded task with explicit acceptance"
+            "summary": "Complete one bounded task and report observed verification"
           },
           {
-            "prompt": "$flow-drive \"Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal.\" --cross",
-            "summary": "Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes"
+            "prompt": "$flow-drive --help",
+            "summary": "Show the current task-only entry"
           }
         ]
       }

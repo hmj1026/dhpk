@@ -25,7 +25,7 @@ report.
 - In-process default → `deep-reasoner`
 - This file is only the Codex CLI backend of the same reasoning role — not a duplicate role.
 - DDD-layer placement / cross-module architecture → `architect` (do not produce a competing design).
-- Opt-in `$flow-drive --plan` critique or plan sketch → `planner`
+- Explicit planner consult for plan critique or sketch → `planner`
 
 ## Shared reasoning contract
 
@@ -69,7 +69,6 @@ backend or produce a reasoning result from your own analysis when the CLI is una
    ```bash
    # The dispatcher created this 0600 context; this role must not fabricate it.
    export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
-   bash "${CURSOR_PLUGIN_ROOT}/skills/flow-drive/scripts/adapters/run-codex.sh" \
      read-only "<workdir>" "$prompt_file" "<model>" "<effort>"
    ```
 

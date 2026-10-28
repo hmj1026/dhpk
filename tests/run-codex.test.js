@@ -9,7 +9,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { buildToolsOnlyDir } = require('./_lib/restricted-path');
 
 const ROOT = path.join(__dirname, '..');
-const WRAPPER = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'adapters', 'run-codex.sh');
+const WRAPPER = path.join(ROOT, 'scripts', 'cli-dispatch', 'adapters', 'run-codex.sh');
 const REQUIRED_TOOLS = ['mktemp', 'rm', 'cat', 'bash', 'python3'];
 const SYSTEM_PYTHON = '/usr/bin/python3';
 

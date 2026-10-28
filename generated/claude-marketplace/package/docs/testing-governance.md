@@ -27,7 +27,35 @@ create a coverage ledger merely to pair every production file with a test.
 
 Daily pull-request CI remains the routine suite entry and uses the existing
 light/selected/full router. It uses the runner's positional-file mode for
-known script changes. Daily CI's two operability gates are (a) Skill-script
+known script changes. Markdown edits require a semantic declaration reviewed
+against the diff; file extension alone cannot establish a wording-only change.
+The pull-request body carries exactly one inert `dhpk-ci-classification` JSON
+fence, or local commands can read the same object with `--classification-file`:
+
+```json
+{"baseSha":"<base>","headSha":"<head>","entries":[{"path":"skills/example/SKILL.md","kind":"wording","reason":"Clarifies an existing example without changing task behavior."}]}
+```
+
+Each changed path is declared exactly once, including both old and new names
+for a rename. Kinds are `wording`, `behavior`, `shared-core`, and `unknown`;
+entries cannot choose suites or request a plan mode. The declaration is an
+author's reviewable assertion, not machine proof of meaning. Review it with the
+changed content, especially Markdown that may alter authorization, task scope,
+stopping conditions, invocation semantics, or required evidence. Missing,
+malformed, incomplete, duplicate, extra, or base/head-stale declarations route
+to full. PR body edits rerun CI. Planning, aggregate verification, and shard
+verification independently read the event declaration and recompute against
+Git changes; a downloaded plan is evidence, not classification authority.
+
+`wording` can use light only for canonical content and bounded, exact generated
+companions after applicable consistency checks. `behavior` selects existing
+owner suites, including the explicit harness-setup installer mapping; unmapped
+behavior falls back to full. Shared-core paths, `shared-core`, `unknown`,
+unmapped changes, and formal releases stay full. The planner records
+classification status and reasons in its output. Its final verifier requires
+every required job to pass and every skipped job to report skipped.
+
+Daily CI's two operability gates are (a) Skill-script
 operability smoke (`tests/skill-script-operability.test.js`) and (b) the
 install/package keep-list suites. Help-only or start-fixture smoke MUST NOT
 be recorded as representative isolated runtime PASS. The plan selects a union
@@ -42,8 +70,9 @@ resource-runtime owner changes also run the macOS installer job. Unknown
 paths still fail closed to the full plan, which keeps that job.
 
 This routing is an execution optimization and does not create a
-script-to-test coverage obligation. Markdown prose remains outside automated
-test obligations; shared metadata and resource checks continue through their
+script-to-test coverage obligation. Tests do not assert live prose wording,
+section order, examples, or body length; human semantic review determines the
+declaration, and shared metadata and resource checks continue through their
 existing owner validators.
 
 Test shared behavior once through the common path. Add Host-specific checks
@@ -55,8 +84,9 @@ it.
 Canonical content may use the light CI route with exact owned Markdown,
 receipt, fingerprint, or resource-ledger companions. The authoritative plan
 records affected package surfaces and Claude checks, and preflight runs the
-recorded checks. Claude generated checks selected for the light plan run even
-for canonical prose; physical package checks follow the affected surfaces.
+recorded checks. Claude generated checks selected for light or selected plans
+run even for canonical prose; physical package checks follow affected
+surfaces.
 Unknown generated data, executables, generated-only changes, and runtime or
 script changes remain full-plan work; the route does not skip their behavioral
 suites. Existing CI plans retain the source harness structure, permission,
@@ -88,10 +118,21 @@ APIs in marked test source; use executable routes, shared metadata parsers,
 or resource-existence checks. It is a bounded source check, not cross-file
 dataflow analysis or a document-wording gate.
 
-For long local parallel runs, set `DHPK_TEST_PROGRESS=1` to receive compact
-test-start and completion updates on stderr. Ordered stdout, assertion
-accounting, timing reports, and the aggregate exit status remain authoritative.
-For example: `DHPK_TEST_JOBS=2 DHPK_TEST_PROGRESS=1 npm run ci`.
+For long local runs, choose `DHPK_TEST_JOBS` explicitly; `2` is a recommended
+starting point when local resources allow, and the runner default remains
+`1`. A typical progress-enabled run is:
+
+```sh
+DHPK_TEST_JOBS=2 DHPK_TEST_PROGRESS=1 npm test
+```
+
+Runner owner fixtures exercise progress with both `DHPK_TEST_JOBS=1` and `2`
+in [verify-test-shards.test.js](../tests/verify-test-shards.test.js); do not
+repeat the full local suite solely to observe progress in both modes.
+
+Progress emits compact test-start and completion updates on stderr. Ordered
+stdout, assertion accounting, timing reports, and the aggregate exit status
+remain authoritative; progress output does not establish a timing improvement.
 
 Model-driven or GUI sessions and live context, budget, count, or benchmark
 measurements are on-demand research, not routine CI gates. Those research
@@ -105,8 +146,11 @@ prose or variable numerical quotas. Run Host runtime checks only for a new
 integration, a loader, role, or tool-mapping change, a reproducible activation
 defect, or an explicitly authorized request.
 
-This daily and change-scoped policy does not retire release or publication
-acceptance; those gates remain in the
+For a handoff or closeout, record the plan's base/head/checkout identity,
+classification status and reason, required and skipped jobs, their observed
+results, and remaining gaps. A plan does not itself prove that its required
+checks passed. This daily and change-scoped policy does not retire release or
+publication acceptance; those gates remain in the
 [plugin development contract](agent-guidance/plugin-development.md#release-acceptance).
 
 ## Darwin installer subset

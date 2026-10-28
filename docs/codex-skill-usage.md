@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:9ce52a60aaa32cae1915f091e6170b55c7e6a23c8a28e0d0859bdb40bd721250`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:43fd81d6878d6cc01975d648ef638c72573711ffd7e2269205b5880700722eb7`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -105,31 +105,24 @@ Examples:
 
 ### `$flow-drive`
 
-Summary: Execute one scoped task with diagnosis and acceptance evidence
-Syntax: `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> [--worker=auto|provider[/model[:effort]]] [--reasoner=provider[/model[:effort]]] [--cross] [--plan[=auto|bounded|discovery]] [--architect|--no-architect]`
+Summary: Complete one bounded task with the current Host and Model
+Syntax: `$flow-drive <task-text|task-file|confirmed-spec-or-change-id> | --help`
 Invocation class: `explicit-only`
 Maximum authority: `workspace-write`
 
 Inputs:
-- `task-input` `<task-text|task-file|confirmed-spec-or-change-id>` (required, string) — Provide one task text argument, task file path, or confirmed specification/change ID; quote text and paths containing spaces
+- `task-input` `<task-text|task-file|confirmed-spec-or-change-id>` (required, string) — Provide one bounded task, task-file path, or confirmed specification/change ID
 
 Actions:
-- `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Resolve task text, a file or confirmed ID; diagnose prerequisites, implement assigned items and verify acceptance
+- `apply` `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` — Use the current Host and Model to complete the bounded task, verify its acceptance criteria, and report evidence or a blocker
+- `help` `$flow-drive --help` — Describe the task-only entry and migration path without changing the project
 
 Options:
-- `plan` `--plan[=auto|bounded|discovery]` (optional, enum, values=auto|bounded|discovery) — Request a planner scope using the current Host declared effective target
-- `worker` `--worker=auto|provider[/model[:effort]]` (optional, string, default=auto) — Select automatic native candidates, one Provider, or an exact Worker target; external intent still requires a current Host grant
-- `cross` `--cross` (optional, boolean, default=false) — Expand automatic candidates for this invocation only; obtain grants before selected external probes or launches
-- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (optional, string) — Request a read-only reasoner whose verified READY_FOR_DISPATCH conclusion gates dependent writers
-- `architect` `--architect` (optional, boolean) — Request consultation; report UNAVAILABLE when the current Host has no supported architecture route
-- `no-architect` `--no-architect` (optional, boolean) — Suppress an optional consult while preserving required Host gates
-
-Legacy diagnostics (not primary syntax):
-- `--codex` — Use an explicit worker or reasoner instead of the retired Codex shortcut
+- `help` `--help` (optional, boolean, default=false) — Show current usage and the legacy-interface migration guide
 
 Examples:
-- `$flow-drive "Fix the receipt total and verify it matches the receipt lines."` — Resolve and implement a bounded task with explicit acceptance
-- `$flow-drive "Diagnose the display symptom, repair the receipt total, and draft an assigned manual proposal." --cross` — Request additional Provider candidates under the selected interface authorization contract; unknown cause gates only dependent writes
+- `$flow-drive "Fix the receipt total and verify it matches the receipt lines."` — Complete one bounded task and report observed verification
+- `$flow-drive --help` — Show the current task-only entry
 
 ### `$flow-guide`
 

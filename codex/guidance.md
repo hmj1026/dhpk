@@ -94,20 +94,32 @@ adopted into a new receipt entry. Use `--uninstall` for ownership-aware
 cleanup. Modified receipt entries are reported as orphaned and retained, as are
 unrelated project assets.
 
+For local agent tuning, edit the materialized `.codex/agents/*.toml` file and
+run `--update --plan --json` first. The plan reports destination and source
+fingerprints for an edited role; a normal update preserves that role and any
+unmanaged local guidance while updating unchanged managed roles. Apply a
+reported collision only with the exact `--adopt=<path>@<destination>@<source>`
+token from that plan. Adoption backs up the local role, verifies both
+fingerprints again, and records ownership; a source or destination change
+after planning aborts safely. Supporting assets remain source-linked, so keep
+consumer-specific instructions in a separate local guidance file rather than
+editing through a symlink.
+
 ## dhpk main flow for Codex
 
-dhpk ships 15 direct Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 11 roles generated from the canonical agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`.
+dhpk ships 18 direct Codex agent roles under `codex/agents/` (synced into
+`.codex/agents/`): 4 hand-maintained roles and 14 generated roles.
 
 Use `$flow-guide` when ownership, policy, the next action, closeout, or Codex
 arguments are unclear. Its five read-only actions are `help`, `route`, `rules`,
 `next`, and `close`. Use `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` only when
-the task goal, constraints, and acceptance contract are settled; it is
-explicit-only and has no route/workflow mode. Unknown causes may be diagnosed
-within that confirmed outcome; sufficient cause and verification evidence must
-precede dependent writes. Current bound Host capabilities and explicit Provider
-grants govern each selected target. `--cross-provider` requests a scope question
-and grants nothing without an answer. Its `--plan[=auto|bounded|discovery]` selects planner
-consult scope only. Codex CLI has no `/dhpk:do` command or dhpk
+the task goal, constraints, and acceptance contract are settled; `$flow-drive
+--help` is read-only. It is explicit-only and has no route/workflow mode.
+Unknown causes may be diagnosed within that confirmed outcome; sufficient
+cause and verification evidence must precede dependent writes. Flow Drive uses
+the current Host and Model. Shared delegated dispatch, when requested through
+another supported entrypoint, remains subject to current Host capabilities and
+explicit Provider grants. Codex CLI has no `/dhpk:do` command or dhpk
 slash-command router. The nine portable families
 (`flow-guide`, `flow-drive`, `change-verdict`, `code-trace`, `laravel`,
 `phpunit`, `js-static-checks`, `php`, and `yii1`) use their unprefixed
@@ -133,11 +145,17 @@ invoke roles with `/agent <role-name>`, and use the external OpenSpec plugin's
 `/opsx:*` commands or `$openspec-propose` where appropriate. Do not claim a
 missing `$name` is callable.
 
+For a standalone Flow Drive installation without the dhpk projection, copy the
+complete pinned canonical skill into the project `.agents/skills/flow-drive`.
+The [installation and lifecycle guide](../docs/flow-drive-standalone.md) owns
+its pin, update, removal, and managed-source switch. A fresh-session discovery
+check is required before claiming the skill is callable.
+
 When `$flow-guide` or `$flow-drive` is available, the roles below remain `/agent`
 dispatch targets for the downstream handoff:
 
 - **Bug with unknown root cause**: use `bug-investigator` only for bounded intake triage; escalate confirmed reasoning-heavy cases to `deep-reasoner`, then invoke `worker` and `code-reviewer`.
-- **New feature / cross-module design**: resolve any unsettled layer placement or boundary through the necessary architecture evidence, then establish the required RED evidence before implementation. Use `architect` or `tdd-guide` when their separate ownership or runtime expertise is needed; after RED, the settled owner may finish GREEN or hand back a bounded worker change, followed by the applicable review wave. TDD and explicit higher-priority instructions remain binding.
+- **New feature / cross-module design**: resolve any unsettled layer placement or boundary through the necessary architecture evidence, then establish the required RED evidence before implementation. Use `architect` or `tdd-guide` when their separate ownership or runtime expertise is needed; after the TDD guide establishes RED, hand production GREEN to `worker` by default, followed by the applicable review wave. TDD and explicit higher-priority instructions remain binding.
 - **Investigation / "how does X work?"**: invoke `explorer` (read-only, no edits).
 - **Deep root-cause analysis or algorithm design**: invoke `deep-reasoner`.
 
@@ -169,39 +187,35 @@ specialist handoffs, but the generator adapts those references for Codex:
   review and `architect` for non-trivial type/design review; the reviewer may
   perform either check directly when a second role is unnecessary.
 - `tdd-guide` may hand browser journeys to the available `e2e-runner` role.
-- `e2e-runner` is workspace-write because it may create and maintain test
-  specs, fixtures, and artifacts; if Playwright or a browser is unavailable it
-  must return `Verdict: BLOCKED` with the resume command instead of claiming a
-  pass.
+- `e2e-runner` may create and maintain test specs, fixtures, and runner output when the parent session allows writes. It does not receive a separate sandbox from its role file. If Playwright or a browser is unavailable it must return `Verdict: BLOCKED` with the resume command instead of claiming a pass.
+- `explorer` stays read-only and returns evidence inline. Implementation goes to `worker`.
 
 If a project does not expose the required runner or role, use the documented
 manual fallback; do not invoke an unavailable agent name.
 
 ### Review discipline and hook boundaries
 
-On both hosts, post-edit review is advisory: dispatching the matching reviewer after an edit is recommended, with no sentinel files or enforced gate. Codex CLI supports lifecycle hooks from user/project `hooks.json` files or inline `[hooks]` TOML ([official Hooks documentation](https://learn.chatgpt.com/docs/hooks)), but those hooks are a separate Codex contract. A Codex `PreToolUse` hook can block a tool call; a `PostToolUse` hook runs after the tool and cannot undo its side effects.
+Post-edit review is advisory. Assign the matching reviewers to a completed implementation wave and its source snapshot. Do not run the full reviewer batch after every edit, and do not use a sentinel file as a gate. Codex CLI supports lifecycle hooks from user/project `hooks.json` files or inline `[hooks]` TOML ([official Hooks documentation](https://learn.chatgpt.com/docs/hooks)), but those hooks are a separate Codex contract. A Codex `PreToolUse` hook can block a tool call; a `PostToolUse` hook runs after the tool and cannot undo its side effects.
 
-Because of this, after ANY code edit made via a Codex role, the user or parent flow should invoke the appropriate review role via `/agent`:
+- `code-reviewer` — source changes in that wave.
+- `security-reviewer` — auth, crypto, money-handling, file-upload, or input-handling changes in that wave.
+- `database-reviewer` — SQL, Repository, or migration changes in that wave.
+- `doc-reviewer` — policy or documentation edits in that wave.
 
-- `code-reviewer` — after any source edit.
-- `security-reviewer` — after auth, crypto, money-handling, file-upload, or input-handling changes.
-- `database-reviewer` — after SQL, Repository, or migration changes.
-- `doc-reviewer` — after policy or documentation edits.
-
-`sandbox_mode` (read-only vs `workspace-write`) remains the primary built-in execution boundary. Configured Codex lifecycle hooks can add event-level checks, while review sequencing, security discipline, and workflow routing remain instruction-based unless the project explicitly implements them with Codex's hook contract.
+Read-only roles follow the inline result in `.codex/dhpk/contracts/artifact-contract.md`. The parent session owns sandbox and approval. A role file does not create an independent sandbox. Configured Codex lifecycle hooks can add event-level checks, while review sequencing remains instruction-based unless the project implements it with Codex's hook contract.
 
 ### Agent roster → Codex role map
 
-**Available in Codex** (`codex/agents/`, 15 roles):
+**Available in Codex** (`codex/agents/`, 18 roles):
 
 | Role | Use for |
 |------|---------|
-| `explorer` | Read-only investigation and evidence gathering |
+| `explorer` | Read-only investigation; implementation goes to `worker` |
 | `worker` | Generic scoped implementation |
 | `monitor` | Watching long-running tasks/processes |
 | `bug-investigator` | Root-cause investigation for bugs and regressions |
 | `architect` | Layer placement and cross-module design decisions |
-| `code-reviewer` | Post-edit code review |
+| `code-reviewer` | Review of a completed implementation wave |
 | `security-reviewer` | Security review of auth/crypto/money/upload/input paths |
 | `database-reviewer` | SQL, Repository, and migration review |
 | `tdd-guide` | Write-tests-first workflow |
@@ -211,6 +225,9 @@ Because of this, after ANY code edit made via a Codex role, the user or parent f
 | `frontend-reviewer` | Frontend JavaScript/TypeScript review |
 | `migration-reviewer` | Migration safety and rollback review |
 | `e2e-runner` | Playwright user-journey authoring and execution |
+| `ui-verifier` | Verification of a rendered page against stated UI criteria |
+| `docs-writer` | Documentation authoring for a settled content packet |
+| `scoped-worker` | Bounded implementation with exact file ownership |
 
 The canonical source also contains roles that are not standalone Codex
 dispatch targets. Their outcome is explicit in
@@ -246,21 +263,35 @@ an implicit unavailable-agent handoff.
 | Context file | CLAUDE.md + AGENTS.md | AGENTS.md only |
 | Commands | Custom `/slash` commands | Built-in `/hooks`; `$flow-guide` for discovery and `$flow-drive` for confirmed implementation; instruction fallback otherwise. No `/dhpk:do` |
 | Agents | `Task`/subagent tool | Multi-agent via `/agent` and `[agents.<name>]` roles |
-| Security / review | Safety hooks + advisory reviewer dispatch | `sandbox_mode` + optional Codex lifecycle hooks + instruction-based review |
+| Security / review | Safety hooks + advisory reviewer dispatch | Parent-session sandbox and approval, plus instruction-based read-only roles |
 
-Codex lifecycle hooks and `sandbox_mode` are independent controls: hooks can enforce event-specific policy, while `sandbox_mode` controls tool execution permissions.
+Codex lifecycle hooks and the parent session sandbox are independent controls. Hooks can enforce event-specific policy. The parent session owns sandbox and approval, and a custom agent file cannot replace that sandbox.
 
 ### Role discovery
 
 dhpk targets Codex's project-local `.codex/agents/*.toml` discovery path. Each
 role file carries its own `name`; matching the filename is a convention, while
 the TOML field is the identifier. The `[agents.<name>]` blocks in
-`config.toml.example` are optional metadata, not a runtime workaround. The
+`config.toml.example` are optional metadata; their presence does not prove
+that Codex discovered or loaded the corresponding custom role. The
 supported top-level concurrency setting is `max_concurrent_threads_per_session`;
 the example also shows the effective default subagent model and reasoning
 effort.
 
-Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's `validate_codex` guardrail enforces this static metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 11 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles. Model and effort rationale is maintained in `../rules/model-economics.md`.
+Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`,
+`model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's
+`validate_codex` guardrail enforces this static metadata contract. Codex agent
+definitions are TOML-only; legacy Markdown role bodies are not dispatchable.
+The 14 generated roles are produced by `scripts/gen-codex-agents.js`: 11 from
+shared `agents/*.md` sources and 3 from Codex-only
+`codex/agent-sources/{ui-verifier,docs-writer,scoped-worker}.md` sources. The
+Codex-only sources are authoring inputs only and are not installed; generated
+TOMLs are installed under `.codex/agents/`. The generator is
+deterministic/idempotent (re-running with no source change produces
+byte-identical output) and does not touch the 4 hand-maintained roles. Model
+and effort rationale is maintained in `../rules/model-economics.md`.
+
+When a custom agent file sets model or model_reasoning_effort, that file value takes precedence. Before the file applies, Codex resolves each setting from an explicit spawn value, then the [agents] default, then the parent. A start argument does not rewrite a pinned file effort. Do not declare sandbox_mode in the role file.
 
 A physical file, valid metadata, and successful built-in `explorer` dispatch do
 not prove that the project custom-role registry loaded. Runtime PASS requires a

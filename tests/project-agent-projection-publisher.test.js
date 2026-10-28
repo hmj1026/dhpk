@@ -5,6 +5,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 {
   // Source suite: tests/project-agent-projection-publisher.test.js
   const crypto = require('node:crypto');
+  const childProcess = require('node:child_process');
   const fs = require('node:fs');
   const os = require('node:os');
   const path = require('node:path');
@@ -145,6 +146,50 @@ const { test, run, assert } = require('./_lib/tinytest');
       assert.strictEqual(installed.receipt.entries[0].entityKind, 'skill');
       assert.ok(installed.receipt.sourceFingerprints['skill:sample']);
       assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory }).ok, true);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('project publisher projects inventory standalone dependencies into each skill and receipt', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-dependency-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-dependency-project-'));
+    const inventory = projectInventory();
+    inventory.standalone_dependencies = { 'dhpk-sample': { files: [{ source: 'rules/policy.md', destination: 'rules/execution-policy.md' }] } };
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      write(path.join(sourceRoot, 'skills/dhpk-sample/scripts/collect-changes.js'), fs.readFileSync(path.join(__dirname, '../skills/git-smart-commit/scripts/collect-changes.js')));
+      write(path.join(sourceRoot, 'rules/policy.md'), '# consumer policy\n');
+      const installed = publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory });
+      const projected = path.join(projectRoot, '.agents/skills/dhpk-sample/references/_dependencies/rules/execution-policy.md');
+      assert.strictEqual(fs.readFileSync(projected, 'utf8'), '# consumer policy\n');
+      assert.ok(installed.receipt.entries[0].generatedPaths.includes('dhpk-sample/references/_dependencies/rules/execution-policy.md'));
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory }).ok, true);
+      const script = path.join(projectRoot, '.agents/skills/dhpk-sample/scripts/collect-changes.js');
+      const result = childProcess.spawnSync(process.execPath, [script, '--require-policy'], { encoding: 'utf8' });
+      assert.strictEqual(result.status, 0, result.stderr);
+      assert.ok(result.stdout.includes(projected));
+      write(path.join(sourceRoot, 'rules/policy.md'), '# updated consumer policy\n');
+      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory }), /source changed.*explicit update authority/i);
+      publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory, update: true });
+      assert.strictEqual(fs.readFileSync(projected, 'utf8'), '# updated consumer policy\n');
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory }).ok, true);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('project publisher rejects unsafe standalone dependency paths before publication', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-dependency-unsafe-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-dependency-unsafe-project-'));
+    const inventory = projectInventory();
+    inventory.standalone_dependencies = { 'dhpk-sample': { files: [{ source: '../outside.md', destination: 'rules/policy.md' }] } };
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory }), /safe relative path/);
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.json')), false);
     } finally {
       fs.rmSync(sourceRoot, { recursive: true, force: true });
       fs.rmSync(projectRoot, { recursive: true, force: true });

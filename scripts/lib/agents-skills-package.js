@@ -15,6 +15,7 @@ const {
 } = require('./agent-plugin-package');
 const { resolveInventoryRevision } = require('./distribution-projection-contract');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { resolveStandaloneSkillDependencies } = require('./standalone-skill-dependencies');
 const { planRetiredAgentSkills } = require('./agents-skills-retirement');
 const {
   materializeRelocatableAgentsSkillsProjection,
@@ -173,11 +174,19 @@ function mergeLogicalFiles(sourceFiles, runtimeFiles, label) {
   return sorted;
 }
 
-// A Skill publishes its complete physical directory; nothing is overlaid from
-// outside it.  The root and inventory parameters are kept for caller symmetry.
-function logicalSkillFiles(_root, skill, _availableEntries = []) {
+// A Skill publishes its complete physical directory plus inventory-declared
+// standalone resources. The receipt treats both sets as one logical tree.
+function logicalSkillFiles(root, skill, inventory = {}) {
   const sourceFiles = collectFiles(skill.sourceDir, createTraversalBudget());
-  return mergeLogicalFiles(sourceFiles, [], `skill '${skill.name}'`);
+  const dependencies = resolveStandaloneSkillDependencies(
+    Array.isArray(inventory) ? {} : inventory,
+    skill.name,
+    root,
+  ).map(({ relative, absolute }) => {
+    assertPhysicalAncestors(absolute, `standalone dependency '${relative}'`, root);
+    return { relative, absolute };
+  });
+  return mergeLogicalFiles(sourceFiles, dependencies, `skill '${skill.name}'`);
 }
 
 function treeFingerprint(files, budget) {
@@ -612,7 +621,7 @@ function materializeAgentsSkillsProjection(options = {}) {
   const entries = [];
   try {
     for (const skill of selected) {
-      const sourceFiles = logicalSkillFiles(sourceRoot, skill, inventory.skills);
+      const sourceFiles = logicalSkillFiles(sourceRoot, skill, inventory);
       const sourceFingerprint = treeFingerprint(sourceFiles, createTraversalBudget());
       const cursorRoot = path.join(stage, skill.name);
       const copied = copyFiles(sourceFiles, cursorRoot, createTraversalBudget());
@@ -645,8 +654,8 @@ function materializeAgentsSkillsProjection(options = {}) {
     const currentPaths = stageManaged.map((file) => file.path);
     const currentPathSet = new Set(currentPaths);
     const currentNames = new Set(entries.map((entry) => entry.name));
-    const previous = readReceipt(outputRoot, selected, sourceRoot, inventory.skills);
-    if (previous) validateExistingManagedFiles(outputRoot, previous, previous.trustedManagedPaths, selected, allowCanonicalChanges, sourceRoot, inventory.skills);
+    const previous = readReceipt(outputRoot, selected, sourceRoot, inventory);
+    if (previous) validateExistingManagedFiles(outputRoot, previous, previous.trustedManagedPaths, selected, allowCanonicalChanges, sourceRoot, inventory);
     const renamed = previous ? renamedReceiptPaths(outputRoot, previous, selected, inventory) : [];
     const renamedIds = new Set(renamed.map((migration) => migration.entry.id));
     const renamedPaths = new Set(renamed.flatMap((migration) => migration.paths));
@@ -771,12 +780,12 @@ function validateAgentsSkillsProjection(options = {}) {
     const stat = lstatOrNull(outputRoot);
     if (!stat || !stat.isDirectory() || stat.isSymbolicLink()) throw new Error('projection output root is missing or unsafe');
     const selected = selectedSkills(path.resolve(root), inventory);
-    const receipt = readReceipt(outputRoot, selected, path.resolve(root), inventory.skills);
+    const receipt = readReceipt(outputRoot, selected, path.resolve(root), inventory);
     if (!receipt) throw new Error(`projection receipt is missing: ${RECEIPT_NAME}`);
     const selectedIds = selected.map((skill) => skill.id).sort();
     if (stableStringify(receipt.selectedIds) !== stableStringify(selectedIds)) errors.push('receipt selected IDs do not match inventory selection');
     const selectedNames = new Set(selected.map((skill) => skill.name));
-    const expectedCurrentPaths = expectedGeneratedPaths(selected, path.resolve(root), inventory.skills);
+    const expectedCurrentPaths = expectedGeneratedPaths(selected, path.resolve(root), inventory);
     for (const relative of receipt.managedPaths) {
       const top = relative.split('/')[0];
       if (selectedNames.has(top.replace(/\.md$/, '')) && !expectedCurrentPaths.has(relative)) {
@@ -804,7 +813,7 @@ function validateAgentsSkillsProjection(options = {}) {
         errors.push(`receipt entry is missing: ${skill.id}`);
         continue;
       }
-      const sourceFiles = logicalSkillFiles(path.resolve(root), skill, inventory.skills);
+      const sourceFiles = logicalSkillFiles(path.resolve(root), skill, inventory);
       const sourceFingerprint = treeFingerprint(sourceFiles, createTraversalBudget());
       if (entry.sourceFingerprint !== sourceFingerprint) errors.push(`source fingerprint drifted: ${skill.name}`);
       const source = readPhysicalFile(skill.sourceFile, createTraversalBudget(), `canonical skill ${skill.name}/SKILL.md`).toString('utf8');

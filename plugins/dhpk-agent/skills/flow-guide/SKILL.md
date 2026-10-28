@@ -16,7 +16,7 @@ owner's authority.
 
 ## When NOT to Use
 
-- Implementing a confirmed change: invoke `$flow-drive <confirmed-spec-or-change-id>` directly.
+- Implementing a bounded task: invoke `$flow-drive <task-text|task-file|confirmed-spec-or-change-id>` directly.
 - Reviewing a completed diff: use `change-verdict`.
 - Tracing code or diagnosing a failure: use `code-trace`.
 

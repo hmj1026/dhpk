@@ -7,10 +7,18 @@ const { collectCodexRoleNeighborErrors } = require('../../lib/codex-role-neighbo
 
 const TIER_LABEL = /\b(?:haiku|sonnet|opus)\b/i;
 const BACKTICKED_TOKEN = /`([a-z0-9]+(?:-[a-z0-9]+)*)`/g;
-const VALID_CODEX_MODELS = new Set(['gpt-6-luna', 'gpt-6-sol', 'gpt-6.1-sol', 'gpt-6-astra', 'gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol']);
+const VALID_CODEX_MODELS = new Set([
+  'gpt-6-luna',
+  'gpt-6-sol',
+  'gpt-6.1-sol',
+  'gpt-6.1-terra',
+  'gpt-6-astra',
+  'gpt-5.6-luna',
+  'gpt-5.6-terra',
+  'gpt-5.6-sol',
+]);
 const VALID_REASONING_EFFORTS = new Set(['low', 'medium', 'high', 'max', 'xhigh']);
-const VALID_SANDBOX_MODES = new Set(['read-only', 'workspace-write', 'danger-full-access']);
-const DEFAULT_SUBAGENT_MODEL = 'gpt-6-luna';
+const DEFAULT_SUBAGENT_MODEL = 'gpt-6.1-sol';
 const DEFAULT_SUBAGENT_EFFORT = 'medium';
 const ROLE_OWNERSHIP_MANIFEST = 'codex/agent-projection-manifest.json';
 
@@ -38,6 +46,13 @@ function namesFrom(directory, extension) {
     .map((entry) => entry.name)
     .filter((name) => name.endsWith(extension))
     .map((name) => name.slice(0, -extension.length));
+}
+
+function loadCodexAgentSources(root) {
+  const generator = path.join(root, 'scripts', 'gen-codex-agents.js');
+  if (!fs.existsSync(generator)) return [];
+  const sources = require(generator).AGENT_SOURCES;
+  return Array.isArray(sources) ? sources : [];
 }
 
 function walkFiles(directory, predicate, output = [], budget = createTraversalBudget(), depth = 0) {
@@ -131,6 +146,7 @@ function canonicalAgentNames(root) {
   const names = new Set(
     namesFrom(path.join(root, 'agents'), '.md').filter((name) => name !== 'INDEX'),
   );
+  for (const { name } of loadCodexAgentSources(root)) names.add(name);
   const modulesDir = path.join(root, 'modules');
   if (!fs.existsSync(modulesDir)) return names;
   for (const entry of readDirectoryEntries(modulesDir)) {
@@ -223,14 +239,18 @@ function collectCodexRoleOwnershipErrors(root) {
   }
 
   if (ownership.manifest) {
+    const sourceByRole = new Map(loadCodexAgentSources(root).map(({ name, source }) => [name, source]));
     for (const role of [...ownership.packageRoles].sort()) {
       if (!fileNames.has(role)) {
         errors.push(`${ROLE_OWNERSHIP_MANIFEST} — package-owned role '${role}' is missing from codex/agents`);
       }
     }
     for (const role of [...ownership.generated].sort()) {
-      if (!fs.existsSync(path.join(root, 'agents', `${role}.md`))) {
-        errors.push(`${ROLE_OWNERSHIP_MANIFEST} — generated role '${role}' has no canonical agents/${role}.md source`);
+      const source = sourceByRole.get(role);
+      if (!source) {
+        errors.push(`${ROLE_OWNERSHIP_MANIFEST} — generated role '${role}' has no declared canonical source`);
+      } else if (!fs.existsSync(path.join(root, source))) {
+        errors.push(`${ROLE_OWNERSHIP_MANIFEST} — generated role '${role}' has no canonical ${source} source`);
       }
     }
     for (const role of files.sort()) {
@@ -257,10 +277,9 @@ function collectCodexRoleMetadataErrors(root) {
       description: tomlStringField(source, 'description'),
       model: tomlStringField(source, 'model'),
       model_reasoning_effort: tomlStringField(source, 'model_reasoning_effort'),
-      sandbox_mode: tomlStringField(source, 'sandbox_mode'),
       developer_instructions: tomlStringField(source, 'developer_instructions'),
     };
-    for (const field of ['name', 'description', 'model', 'model_reasoning_effort', 'sandbox_mode', 'developer_instructions']) {
+    for (const field of ['name', 'description', 'model', 'model_reasoning_effort', 'developer_instructions']) {
       if (fields[field] == null || !fields[field].trim()) {
         errors.push(`${relativeFile} — missing non-empty ${field}`);
       }
@@ -274,8 +293,8 @@ function collectCodexRoleMetadataErrors(root) {
     if (fields.model_reasoning_effort && !VALID_REASONING_EFFORTS.has(fields.model_reasoning_effort)) {
       errors.push(`${relativeFile} — invalid model_reasoning_effort '${fields.model_reasoning_effort}'`);
     }
-    if (fields.sandbox_mode && !VALID_SANDBOX_MODES.has(fields.sandbox_mode)) {
-      errors.push(`${relativeFile} — invalid sandbox_mode '${fields.sandbox_mode}'`);
+    if (/^\s*sandbox_mode\s*=/m.test(source)) {
+      errors.push(`${relativeFile} — sandbox_mode does not create an independent sandbox and must not be set; the parent session owns sandbox and approval`);
     }
   }
   return errors;

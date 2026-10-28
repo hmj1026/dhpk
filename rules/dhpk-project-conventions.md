@@ -44,10 +44,14 @@ authoring requirement from this convention. External `/opsx:apply` is unchanged.
 
 Every non-test-only change includes a valid changelog fragment or `.none`
 marker under the [plugin development contract](../docs/agent-guidance/plugin-development.md).
-For affected distribution surfaces, follow its canonical-source commit,
-external generation, generated-output commit, and final local `npm run ci`
-checkpoint. Reuse evidence under the kernel's snapshot rule and report local
-aggregate, focused checks, and Hosted CI separately.
+Daily verification follows [testing governance](../docs/testing-governance.md):
+the authoritative plan's required checks and affected surfaces close the scoped
+obligation, with no added unconditional `npm run ci`. For outputs the plan
+selects, follow the scoped clean-source provenance and generated-output steps
+in the plugin development contract. Full and release routes retain complete
+validation, including four-surface generation when required and `npm run ci`
+on a clean generated-output commit. Reuse evidence under the kernel's snapshot
+rule and report local aggregate, focused checks, and Hosted CI separately.
 
 Open a Draft PR targeting `develop`, monitor that PR's actual CI to a terminal
 conclusion, and retain the human merge checkpoint. Prefer `gh run watch`
@@ -65,6 +69,9 @@ Before substantial handoff, after a large edit, or before smart-commit, use
 the next action. Daily single-line edits, pure research, and typos do not
 need it. Fix applicable unmet obligations before claiming completion; the
 closeout report does not itself prove merge, release, or deployment.
+When a CI plan applies, report its base/head/checkout identity, classification
+status and reason, required and skipped checks, observed outcomes, and remaining
+gaps according to testing governance.
 
 ## Shell habits
 

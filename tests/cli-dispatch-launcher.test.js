@@ -7,10 +7,10 @@ const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SOURCE_SCRIPTS = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime');
-const SOURCE_CODEX_BRIDGE = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'adapters');
-const SOURCE_AGY_WORKER = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'adapters');
-const SOURCE_TRANSPORT = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'transport');
+const SOURCE_SCRIPTS = path.join(ROOT, 'scripts', 'cli-dispatch', 'dispatch-runtime');
+const SOURCE_CODEX_BRIDGE = path.join(ROOT, 'scripts', 'cli-dispatch', 'adapters');
+const SOURCE_AGY_WORKER = path.join(ROOT, 'scripts', 'cli-dispatch', 'adapters');
+const SOURCE_TRANSPORT = path.join(ROOT, 'scripts', 'cli-dispatch', 'transport');
 
 function writeJson(filePath, value) {
   fs.writeFileSync(filePath, JSON.stringify(value));
@@ -18,7 +18,7 @@ function writeJson(filePath, value) {
 
 function projectedPackage() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cli-dispatch-launcher-'));
-  const scripts = path.join(root, 'skills', 'flow-drive', 'scripts', 'dispatch-runtime');
+  const scripts = path.join(root, 'scripts', 'cli-dispatch', 'dispatch-runtime');
   fs.mkdirSync(scripts, { recursive: true });
   for (const fileName of ['cli-role-resolver.js', 'build-cli-dispatch-context.js', 'launch-cli-dispatch.js', 'physical-file.js', 'physical-file.py']) {
     fs.copyFileSync(path.join(SOURCE_SCRIPTS, fileName), path.join(scripts, fileName));

@@ -1,15 +1,6 @@
 ---
 name: update-codemaps
-description: "掃描程式碼結構，產生或更新 docs/CODEMAPS/ 架構文件，供 AI 快速載入專案全貌。"
+description: "Maintain documentation through stale-doc refresh, architecture codemap generation, or a bounded Markdown refactor. Selects update, codemap, or refactor while preserving each output and evidence contract. Not for application source, tests, manifests, route tables, generated projections, or broad policy review."
 ---
-# Update Codemaps
-
-Forward to the canonical [`$doc-maintain` mode `codemap` skill](https://github.com/hmj1026/dhpk/blob/main/skills/doc-maintain/SKILL.md)
-with `$ARGUMENTS` unchanged (including an empty argument list). It owns the
-live structure scan, five codemap outputs, metadata header, 30% confirmation
-guard, and `.reports/codemap-diff.txt` report.
-
-Not for: rewriting application source or updating user documentation outside codemaps.
-
-Preserve `PASS`, `BLOCKED`, `CONFIRMATION_REQUIRED`, or `NOT_RUN` exactly. This
-command does not duplicate generation procedure or authorize source changes.
+Load the canonical `$doc-maintain` Skill from [SKILL.md](https://github.com/hmj1026/dhpk/blob/main/skills/doc-maintain/SKILL.md) and follow it with `codemap $ARGUMENTS`.
+Keep its argument contract, authority boundary, verification, and output.

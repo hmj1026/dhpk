@@ -31,6 +31,166 @@ const {
   provenanceDriftPlanFixture
 } = fixtures;
 
+function agentTuningFixture() {
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-agent-tuning-plugin-')));
+  fs.cpSync(ROOT, fakePlugin, { recursive: true, dereference: true });
+  const agents = path.join(fakePlugin, 'codex', 'agents');
+  fs.mkdirSync(agents, { recursive: true });
+  fs.writeFileSync(path.join(agents, 'worker.toml'), 'name = "worker"\nmodel = "gpt-6-luna"\nmodel_reasoning_effort = "medium"\ndeveloper_instructions = "upstream worker"\n');
+  fs.writeFileSync(path.join(agents, 'terra.toml'), 'name = "terra"\nmodel = "gpt-6.1-terra"\nmodel_reasoning_effort = "medium"\ndeveloper_instructions = "upstream terra"\n');
+  const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+  inventory.agent_roster = [...new Set([...(inventory.agent_roster || []), 'worker', 'terra'])];
+  fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  return { fakePlugin, workerSource: path.join(agents, 'worker.toml'), terraSource: path.join(agents, 'terra.toml') };
+}
+
+function agentTuningProject(fixture) {
+  const scratch = projectRoot();
+  const installed = runInstaller(scratch, ['--copy', '--force'], fixture.fakePlugin);
+  assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+  return scratch;
+}
+
+function agentHybridProject(fixture) {
+  const scratch = projectRoot();
+  const installed = runInstaller(scratch, ['--force'], fixture.fakePlugin);
+  assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+  return scratch;
+}
+
+function agentAdoptArg(report, relative) {
+  const collision = report.collisions.find((entry) => entry.path === relative);
+  assert.ok(collision, `missing agent collision ${relative}: ${JSON.stringify(report.collisions)}`);
+  return `--adopt=${relative}@${collision.destination_fingerprint}@${collision.source_fingerprint}`;
+}
+
+test('agent tuning preserves local edits while updating managed siblings and supporting guidance', () => {
+  const fixture = agentTuningFixture();
+  const scratch = agentTuningProject(fixture);
+  try {
+    const codex = path.join(scratch, '.codex');
+    const worker = path.join(codex, 'agents', 'worker.toml');
+    const terra = path.join(codex, 'agents', 'local-terra.toml');
+    const localWorker = 'name = "worker"\nmodel = "gpt-6.1-sol"\nmodel_reasoning_effort = "high"\ndeveloper_instructions = "consumer tuning"\n';
+    fs.writeFileSync(worker, localWorker);
+    fs.writeFileSync(terra, 'name = "terra-local"\nmodel = "gpt-6.1-terra"\nmodel_reasoning_effort = "max"\ndeveloper_instructions = "consumer role"\n');
+    const localGuidance = path.join(codex, 'local-guidance.md');
+    fs.writeFileSync(localGuidance, 'consumer-only guidance\n');
+    fs.writeFileSync(path.join(fixture.fakePlugin, 'codex', 'agents', 'worker.toml'), 'name = "worker"\nmodel = "gpt-6.1-sol"\nmodel_reasoning_effort = "xhigh"\ndeveloper_instructions = "updated upstream worker"\n');
+    fs.appendFileSync(path.join(fixture.fakePlugin, 'codex', 'agents', 'fixture-agent.toml'), 'description = "updated sibling"\n');
+    const beforePlan = fs.readFileSync(worker, 'utf8');
+    const beforeReceipt = fs.readFileSync(path.join(codex, '.dhpk-installed.json'), 'utf8');
+    const beforeProjection = completeTreeFingerprint(codex);
+    const beforeTransactions = transactionMetadataSnapshot(codex);
+    const plan = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0, `${plan.stdout}\n${plan.stderr}`);
+    const report = JSON.parse(plan.stdout);
+    assert.strictEqual(fs.readFileSync(worker, 'utf8'), beforePlan);
+    assert.strictEqual(fs.readFileSync(localGuidance, 'utf8'), 'consumer-only guidance\n');
+    assert.strictEqual(fs.readFileSync(path.join(codex, '.dhpk-installed.json'), 'utf8'), beforeReceipt);
+    assert.strictEqual(completeTreeFingerprint(codex), beforeProjection);
+    assert.deepStrictEqual(transactionMetadataSnapshot(codex), beforeTransactions);
+    assert.ok(report.collisions.some((entry) => entry.path === 'agents/worker.toml'));
+    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.strictEqual(fs.readFileSync(worker, 'utf8'), beforePlan);
+    assert.match(fs.readFileSync(path.join(codex, 'agents', 'fixture-agent.toml'), 'utf8'), /updated sibling/);
+    assert.strictEqual(fs.readFileSync(localGuidance, 'utf8'), 'consumer-only guidance\n');
+    const repeated = runInstaller(scratch, ['--copy', '--update', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(repeated.status, 0, `${repeated.stdout}\n${repeated.stderr}`);
+    assert.strictEqual(fs.readFileSync(worker, 'utf8'), beforePlan);
+    const adopted = runInstaller(scratch, ['--copy', '--update', agentAdoptArg(report, 'agents/worker.toml'), '--force'], fixture.fakePlugin);
+    assert.strictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    assert.strictEqual(fs.readFileSync(worker, 'utf8'), fs.readFileSync(fixture.workerSource, 'utf8'));
+    assert.strictEqual(fs.readFileSync(terra, 'utf8'), 'name = "terra-local"\nmodel = "gpt-6.1-terra"\nmodel_reasoning_effort = "max"\ndeveloper_instructions = "consumer role"\n');
+    assert.strictEqual(fs.readFileSync(localGuidance, 'utf8'), 'consumer-only guidance\n');
+    const receipt = JSON.parse(fs.readFileSync(path.join(codex, '.dhpk-installed.json'), 'utf8'));
+    assert.ok(receipt.managed_entries.agents['worker.toml']);
+    assert.ok(receipt.reconciliation.evidence.paths.adopted.includes('agents/worker.toml'));
+    const backup = receipt.reconciliation.evidence.backups.find((entry) => entry.original === 'agents/worker.toml');
+    assert.ok(backup);
+    assert.strictEqual(fs.readFileSync(path.join(scratch, backup.path), 'utf8'), localWorker);
+    const uninstalled = runInstaller(scratch, ['--uninstall', '--force'], fixture.fakePlugin);
+    assert.strictEqual(uninstalled.status, 0, `${uninstalled.stdout}\n${uninstalled.stderr}`);
+    assert.strictEqual(fs.readFileSync(terra, 'utf8'), 'name = "terra-local"\nmodel = "gpt-6.1-terra"\nmodel_reasoning_effort = "max"\ndeveloper_instructions = "consumer role"\n');
+    assert.strictEqual(fs.readFileSync(localGuidance, 'utf8'), 'consumer-only guidance\n');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('hybrid agent updates keep physical roles isolated from supporting symlinks', () => {
+  const fixture = agentTuningFixture();
+  const scratch = agentHybridProject(fixture);
+  try {
+    const codex = path.join(scratch, '.codex');
+    const worker = path.join(codex, 'agents', 'worker.toml');
+    fs.appendFileSync(worker, '\n# local tuning\n');
+    const support = path.join(codex, 'dhpk', 'agent-traps', '_common', 'prompt-defense.md');
+    assert.ok(fs.lstatSync(support).isSymbolicLink(), 'hybrid supporting asset remains source-linked');
+    fs.appendFileSync(fixture.workerSource, 'description = "new upstream"\n');
+    const sourceAfter = fs.readFileSync(fixture.workerSource, 'utf8');
+    const updated = runInstaller(scratch, ['--update', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(fs.readFileSync(worker, 'utf8'), /local tuning/);
+    assert.strictEqual(fs.readFileSync(fixture.workerSource, 'utf8'), sourceAfter);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('retired edited agent remains orphaned and survives uninstall', () => {
+  const fixture = agentTuningFixture();
+  const scratch = agentTuningProject(fixture);
+  try {
+    const worker = path.join(scratch, '.codex', 'agents', 'worker.toml');
+    fs.appendFileSync(worker, '\n# retained local tuning\n');
+    fs.rmSync(fixture.workerSource);
+    const inventoryPath = path.join(fixture.fakePlugin, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    inventory.agent_roster = inventory.agent_roster.filter((name) => name !== 'worker');
+    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+    const updated = runInstaller(scratch, ['--update', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.ok(receipt.orphaned_entries['agents/worker.toml']);
+    const removed = runInstaller(scratch, ['--uninstall', '--force'], fixture.fakePlugin);
+    assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
+    assert.strictEqual(fs.readFileSync(worker, 'utf8'), 'name = "worker"\nmodel = "gpt-6-luna"\nmodel_reasoning_effort = "medium"\ndeveloper_instructions = "upstream worker"\n\n# retained local tuning\n');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+for (const drift of ['destination', 'source']) {
+  test(`agent adoption rejects a planned ${drift} change`, () => {
+    const fixture = agentTuningFixture();
+    const scratch = agentTuningProject(fixture);
+    try {
+      const worker = path.join(scratch, '.codex', 'agents', 'worker.toml');
+      fs.writeFileSync(worker, 'name = "worker"\nmodel = "gpt-6.1-sol"\nmodel_reasoning_effort = "high"\ndeveloper_instructions = "consumer tuning"\n');
+      const plan = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+      const report = JSON.parse(plan.stdout);
+      const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+      const receiptBeforeAdoption = fs.readFileSync(receiptPath, 'utf8');
+      if (drift === 'destination') fs.appendFileSync(worker, 'changed after plan\n');
+      else fs.appendFileSync(fixture.workerSource, 'changed after plan\n');
+      const adopted = runInstaller(scratch, ['--copy', '--update', agentAdoptArg(report, 'agents/worker.toml'), '--force'], fixture.fakePlugin);
+      assert.notStrictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+      assert.match(`${adopted.stdout}\n${adopted.stderr}`, /changed|fresh plan|preflight/i);
+      assert.match(fs.readFileSync(worker, 'utf8'), /consumer tuning/);
+      assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBeforeAdoption);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+    }
+  });
+}
+
 test('orphan-only retired receipt plans a fresh install without changing evidence', () => {
   const scratch = projectRoot();
   try {

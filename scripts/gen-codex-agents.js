@@ -7,7 +7,6 @@ const { collectCodexRoleNeighborErrors } = require('./lib/codex-role-neighbors')
 
 // Plugin root: this script lives in scripts/, so root is one level up.
 const ROOT = path.join(__dirname, '..');
-const SOURCE_DIR = path.join(ROOT, 'agents');
 const DEFAULT_OUT_DIR = path.join(ROOT, 'codex', 'agents');
 const OWNERSHIP_MANIFEST = path.join(ROOT, 'codex', 'agent-projection-manifest.json');
 const ROLE_MAP = path.join(ROOT, 'codex', 'agent-role-map.json');
@@ -20,47 +19,75 @@ const RUNTIME_METADATA = Object.freeze({
   'code-reviewer': { model: 'gpt-6.1-sol', effort: 'medium' },
   'security-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
   'database-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
-  'tdd-guide': { model: 'gpt-6-luna', effort: 'max' },
+  'tdd-guide': { model: 'gpt-6-luna', effort: 'high' },
   'deep-reasoner': { model: 'gpt-6.1-sol', effort: 'high' },
-  'doc-reviewer': { model: 'gpt-6-luna', effort: 'medium' },
+  'doc-reviewer': { model: 'gpt-6-luna', effort: 'high' },
   planner: { model: 'gpt-6.1-sol', effort: 'high' },
-  'frontend-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
+  'frontend-reviewer': { model: 'gpt-6.1-sol', effort: 'medium' },
   'migration-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
-  'e2e-runner': { model: 'gpt-6.1-sol', effort: 'high' },
+  'e2e-runner': { model: 'gpt-6.1-sol', effort: 'medium' },
+  'ui-verifier': { model: 'gpt-6.1-terra', effort: 'medium' },
+  'docs-writer': { model: 'gpt-6.1-terra', effort: 'medium' },
+  'scoped-worker': { model: 'gpt-6.1-terra', effort: 'medium' },
 });
 
-// Curated allowlist — EXACTLY these 11, in emit order. Each entry pins a
-// category (not the source frontmatter's effort). The 4 hand-maintained Codex
-// roles (bug-investigator, explorer, monitor, worker) are intentionally absent
-// and are never read or overwritten: any drift check scopes to these names.
+// Each Codex role names its canonical source explicitly. Existing shared roles
+// continue to read from agents/; Codex-only roles stay in codex/agent-sources/.
+// The 4 hand-maintained Codex roles (bug-investigator, explorer, monitor, worker)
+// are intentionally absent and are never read or overwritten.
 const AGENTS = [
-  { name: 'architect' },
-  { name: 'code-reviewer' },
-  { name: 'security-reviewer' },
-  { name: 'database-reviewer' },
-  { name: 'tdd-guide' },
-  { name: 'deep-reasoner' },
-  { name: 'doc-reviewer' },
-  { name: 'planner' },
-  { name: 'frontend-reviewer' },
-  { name: 'migration-reviewer' },
-  { name: 'e2e-runner' },
+  { name: 'architect', source: 'agents/architect.md' },
+  { name: 'code-reviewer', source: 'agents/code-reviewer.md' },
+  { name: 'security-reviewer', source: 'agents/security-reviewer.md' },
+  { name: 'database-reviewer', source: 'agents/database-reviewer.md' },
+  { name: 'tdd-guide', source: 'agents/tdd-guide.md' },
+  { name: 'deep-reasoner', source: 'agents/deep-reasoner.md' },
+  { name: 'doc-reviewer', source: 'agents/doc-reviewer.md' },
+  { name: 'planner', source: 'agents/planner.md' },
+  { name: 'frontend-reviewer', source: 'agents/frontend-reviewer.md' },
+  { name: 'migration-reviewer', source: 'agents/migration-reviewer.md' },
+  { name: 'e2e-runner', source: 'agents/e2e-runner.md' },
+  { name: 'ui-verifier', source: 'codex/agent-sources/ui-verifier.md' },
+  { name: 'docs-writer', source: 'codex/agent-sources/docs-writer.md' },
+  { name: 'scoped-worker', source: 'codex/agent-sources/scoped-worker.md' },
 ];
 
-const GENERATED_NAMES = Object.freeze(AGENTS.map((agent) => agent.name));
+const AGENT_SOURCES = Object.freeze(AGENTS.map((agent) => Object.freeze({ ...agent })));
+const GENERATED_NAMES = Object.freeze(AGENT_SOURCES.map((agent) => agent.name));
 
-// Codex has no host hook lifecycle. Only reviewer roles with a review artifact
-// deliverable receive this final-review location instruction.
-const CODEX_MANUAL_REVIEW_LIFECYCLE =
-  "Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.";
-const CODEX_MANUAL_REVIEW_ROLES = new Set([
+// Read-only is an instruction plus the parent session's permission policy.
+// These roles have no Write/Edit tool. The shared contract owns the rule;
+// each projection only points at it.
+const READ_ONLY_ROLES = new Set([
+  'architect',
   'code-reviewer',
   'security-reviewer',
   'database-reviewer',
+  'deep-reasoner',
   'doc-reviewer',
+  'planner',
   'frontend-reviewer',
   'migration-reviewer',
+  'ui-verifier',
 ]);
+
+const CODEX_READ_ONLY_HANDOFF = [
+  '## Codex result',
+  'Return scope, source identity, verdict, findings, and evidence gaps inline.',
+  'Follow .codex/dhpk/contracts/artifact-contract.md.',
+  'Do not write an artifact. The parent persists this result when it has write authority.',
+  'A complete inline result is finished even when no report file exists.',
+  'Do not record unobserved evidence as PASS.',
+].join('\n');
+
+const CODEX_WRITER_HANDOFF = [
+  '## Codex result',
+  'Keep the summary inline: scope, source identity, verdict, findings, and evidence gaps.',
+  'Assigned test traces and runner output may be written separately from that summary.',
+  'Follow .codex/dhpk/contracts/artifact-contract.md.',
+  'A complete inline summary is finished even when no summary file exists.',
+  'Do not record unobserved evidence as PASS.',
+].join('\n');
 
 function readJson(file, label) {
   if (!fs.existsSync(file)) {
@@ -249,20 +276,21 @@ function splitFrontmatter(text) {
   return { frontmatter: match[1], body: text.slice(match[0].length) };
 }
 
-function parseToolList(raw) {
-  if (!raw) return [];
-  return raw
-    .replace(/^\[|\]$/g, '')
-    .split(',')
-    .map((tool) => tool.trim().replace(/^['"]|['"]$/g, ''))
-    .filter(Boolean);
-}
-
-// sandbox_mode is DERIVED from the source tools list, never hardcoded.
-function deriveSandbox(toolsRaw) {
-  const tools = parseToolList(toolsRaw);
-  const writes = tools.includes('Write') || tools.includes('Edit');
-  return writes ? 'workspace-write' : 'read-only';
+function stripArtifactSections(body) {
+  const lines = body.split('\n');
+  const kept = [];
+  let index = 0;
+  while (index < lines.length) {
+    if (/^## (?:Closing — Artifact Output|Artifacts)\b/.test(lines[index])) {
+      index += 1;
+      while (index < lines.length && lines[index].trim() === '') index += 1;
+      while (index < lines.length && lines[index].trim() !== '') index += 1;
+      continue;
+    }
+    kept.push(lines[index]);
+    index += 1;
+  }
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 // Drop Claude-only boilerplate lines, strip trailing whitespace, collapse the
@@ -351,7 +379,13 @@ function adaptCodexBody(agentName, body) {
   if (agentName === 'doc-reviewer') {
     adapted = adapted
       .replaceAll('`doc-updater`', 'a documentation-refresh pass (no Codex role; update the docs directly)')
-      .replaceAll('`docs-lookup`', 'a library-documentation lookup (no Codex role; consult the vendor docs directly)');
+      .replaceAll('`docs-lookup`', 'a library-documentation lookup (no Codex role; consult the vendor docs directly)')
+      .replace(
+        '   `.codex/docs/doc-review-local.md` for Claude and AGY,\n'
+        + '   `.codex/docs/doc-review-local.md` for Codex, or\n'
+        + '   `.cursor/docs/doc-review-local.md` for Cursor.',
+        '   `.codex/docs/doc-review-local.md` for Codex.',
+      );
   }
   if (agentName === 'frontend-reviewer') {
     adapted = adapted
@@ -383,6 +417,27 @@ function adaptCodexBody(agentName, body) {
       .replaceAll('`fast-worker`', '`worker`')
       .replaceAll('`e2e-runner`', 'a project-specific executable browser probe');
   }
+  if (agentName === 'doc-reviewer') {
+    adapted = adapted.replaceAll(
+      '[`docs/agent-guidance/frontmatter-schema.md`](../docs/agent-guidance/frontmatter-schema.md)',
+      'the Claude frontmatter schema when that file is present in the checkout; if it is absent, record the citation as UNAVAILABLE instead of a broken-link failure',
+    );
+  }
+  if (agentName === 'architect') {
+    adapted = adapted.replaceAll(
+      'or is saved as an ADR at `.codex/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`.',
+      'or is returned in the inline handoff for the parent to persist when it has write authority.',
+    );
+  }
+  adapted = stripArtifactSections(adapted);
+  if (READ_ONLY_ROLES.has(agentName)) {
+    adapted = adapted
+      .replaceAll('Close out: write the artifact.', 'Close out: return the inline handoff. Do not write an artifact.')
+      .replaceAll(
+        "Writing the role's required review artifact remains allowed.",
+        'Return the review inline. Do not write an artifact.',
+      );
+  }
   return adapted;
 }
 
@@ -412,25 +467,24 @@ function buildToml(agent, frontmatter, body) {
   const fm = parseFrontmatter(frontmatter);
   const description = adaptCodexBody(agent.name, (fm.description || '').trim());
   if (!description) {
-    throw new Error(`Empty description in agents/${agent.name}.md`);
+    throw new Error(`Empty description in ${agent.source}`);
   }
   const runtime = RUNTIME_METADATA[agent.name];
   if (!runtime) {
     throw new Error(`No Codex runtime metadata for ${agent.name}`);
   }
-  const sandbox = deriveSandbox(fm.tools);
   // Keep the discovery description in the catalog field only. Repeating it in
   // the selected role prompt charges every spawn for metadata the router has
   // already exposed. The role id and canonical body remain the runtime
   // contract; route-specific detail stays behind the body's references.
+  // A custom agent file cannot set sandbox_mode; the parent session owns it.
   const instructions = [
     `Role: ${agent.name}`,
     'Use the supplied scoped task packet and load only references required by the route.',
     '',
     adaptCodexBody(agent.name, cleanBody(body)),
-    ...(CODEX_MANUAL_REVIEW_ROLES.has(agent.name)
-      ? ['', CODEX_MANUAL_REVIEW_LIFECYCLE]
-      : []),
+    '',
+    READ_ONLY_ROLES.has(agent.name) ? CODEX_READ_ONLY_HANDOFF : CODEX_WRITER_HANDOFF,
   ]
     .join('\n')
     .trim();
@@ -442,7 +496,6 @@ function buildToml(agent, frontmatter, body) {
     `description = ${tomlBasicString(description)}`,
     `model = ${tomlBasicString(runtime.model)}`,
     `model_reasoning_effort = ${tomlBasicString(runtime.effort)}`,
-    `sandbox_mode = ${tomlBasicString(sandbox)}`,
     '',
     'developer_instructions = """',
     escapeMultiline(instructions),
@@ -452,14 +505,12 @@ function buildToml(agent, frontmatter, body) {
   return {
     toml: lines.join('\n'),
     effort: runtime.effort,
-    sandbox,
     description,
     instructions,
   };
 }
 
 function generate(outDir) {
-  fs.mkdirSync(outDir, { recursive: true });
   const ownership = readOwnershipManifest(outDir);
   assertNoStaleToml(outDir, ownership);
   const roleMap = readJson(ROLE_MAP, 'Codex role map');
@@ -470,9 +521,9 @@ function generate(outDir) {
   const planned = [];
   const summary = [];
   for (const agent of AGENTS) {
-    const sourcePath = path.join(SOURCE_DIR, `${agent.name}.md`);
+    const sourcePath = path.join(ROOT, agent.source);
     if (!fs.existsSync(sourcePath)) {
-      throw new Error(`Source agent not found: ${sourcePath}`);
+      throw new Error(`Source agent not found: ${agent.source}`);
     }
     const text = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n');
     const { frontmatter, body } = splitFrontmatter(text);
@@ -492,20 +543,19 @@ function generate(outDir) {
       generatedRoles: ownership.generatedNames,
       packageRoles: ownership.packageNames,
       resolvableTargets: plannedRoles,
-      file: `agents/${agent.name}.md`,
+      file: agent.source,
     }));
   }
   if (neighborErrors.length > 0) {
     throw new Error(neighborErrors.join('\n'));
   }
 
+  fs.mkdirSync(outDir, { recursive: true });
   for (const { agent, built } of planned) {
-    const { toml, effort, sandbox } = built;
+    const { toml, effort } = built;
     const outFile = path.join(outDir, `${agent.name}.toml`);
     fs.writeFileSync(outFile, toml);
-    summary.push(
-      `wrote ${path.relative(ROOT, outFile)} [effort=${effort}, sandbox=${sandbox}]`
-    );
+    summary.push(`wrote ${path.relative(ROOT, outFile)} [effort=${effort}]`);
   }
   return summary;
 }
@@ -521,7 +571,7 @@ function main() {
   console.log(`Generated ${summary.length} Codex role file(s).`);
 }
 
-module.exports = { RUNTIME_METADATA, generate };
+module.exports = { AGENT_SOURCES, RUNTIME_METADATA, generate };
 
 if (require.main === module) {
   try {

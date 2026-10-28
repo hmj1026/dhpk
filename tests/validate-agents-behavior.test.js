@@ -18,6 +18,10 @@ function makeTempRepo() {
   for (const directory of ['agents', 'codex', 'manifests', 'modules']) {
     fs.cpSync(path.join(ROOT, directory), path.join(tmp, directory), { recursive: true });
   }
+  fs.mkdirSync(path.join(tmp, 'scripts', 'lib'), { recursive: true });
+  for (const file of ['gen-codex-agents.js', path.join('lib', 'codex-role-neighbors.js')]) {
+    fs.copyFileSync(path.join(ROOT, 'scripts', file), path.join(tmp, 'scripts', file));
+  }
   return tmp;
 }
 

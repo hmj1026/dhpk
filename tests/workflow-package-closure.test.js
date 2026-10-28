@@ -28,14 +28,22 @@ function writeSkill(root, relative, name) {
   return skillRoot;
 }
 
-test('flow-guide and flow-drive publish their execution bundles from their own trees', () => {
-  for (const id of ['flow-guide', 'flow-drive']) {
-    const files = physicalSkillTree(ROOT, { id }).map((file) => file.relative);
-    assert.ok(files.includes('SKILL.md'), `${id} entry`);
-    assert.ok(files.includes('references/execution-bundle/rules/execution-policy.md'), `${id} policy bundle`);
-    assert.ok(files.includes('references/execution-bundle/scripts/lib/flow-handoff-contract.js'), `${id} handoff contract`);
-    assert.ok(!files.includes('skill-package.json'), `${id} retired descriptor`);
-  }
+test('Flow Guide publishes its retained policy bundle from its own tree', () => {
+  const files = physicalSkillTree(ROOT, { id: 'flow-guide' }).map((file) => file.relative);
+  assert.ok(files.includes('SKILL.md'));
+  assert.ok(files.includes('references/execution-bundle/rules/execution-policy.md'));
+  assert.ok(files.includes('references/execution-bundle/scripts/lib/flow-handoff-contract.js'));
+  assert.ok(!files.includes('skill-package.json'), 'retired descriptors have no special meaning');
+});
+
+test('Flow Drive publishes only its portable native task contract', () => {
+  const files = physicalSkillTree(ROOT, { id: 'flow-drive' }).map((file) => file.relative).sort();
+  assert.deepStrictEqual(files, [
+    'SKILL.md',
+    'agents/openai.yaml',
+    'distribution.yaml',
+    'references/migration.md',
+  ]);
 });
 
 test('an inventory path outside the source root fails closed', () => {
@@ -173,19 +181,6 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
         assert.strictEqual(report.status, 'manual-evidence-required');
       }
 
-      const invocation = runIsolated(path.join(surface, 'skills/flow-drive/scripts/invocation.js'), [
-        'confirmed-change-123', '--plan=bounded',
-        '--cross', '--reasoner=codex/terra:high', '--architect',
-      ]);
-      assert.strictEqual(invocation.status, 0, invocation.stdout + '\n' + invocation.stderr);
-      const context = JSON.parse(invocation.stdout);
-      assert.strictEqual(context.schema, 'dhpk.flow-drive-invocation.v1');
-      assert.strictEqual(context.options.plan.enabled, true);
-      assert.strictEqual(context.options.plan.model, null);
-      assert.strictEqual(context.options.plan.effort, null);
-      assert.strictEqual(context.options.plan.mode, 'bounded');
-      assert.strictEqual(context.options.crossProvider, true);
-      assert.strictEqual(context.options.reasoner.backend, 'codex');
     });
 
     test(surface + ' preserves declared next mode semantics in its packaged runtime', () => {
@@ -214,28 +209,6 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
       for (const action of terminal) {
         assert.strictEqual(action.skill, null);
         assert.strictEqual(action.handoff.execution, 'not-started');
-      }
-    });
-
-    test(surface + ' flow-drive CLI rejects malformed planner modes with exit 2', () => {
-      const invocationScript = path.join(surface, 'skills/flow-drive/scripts/invocation.js');
-      const invalidOptions = [
-        ['empty', ['--plan=']],
-        ['unknown', ['--plan=unknown']],
-        ['duplicate', ['--plan=bounded', '--plan=discovery']],
-        ['orphan', ['--plan-mode=bounded']],
-        ['bare', ['--plan-mode']],
-        ['separated', ['--plan-mode', 'bounded']],
-      ];
-
-      for (const [label, options] of invalidOptions) {
-        const result = runIsolated(invocationScript, ['confirmed-change-123', ...options]);
-        const message = `${surface} ${label}: ${result.stdout}\n${result.stderr}`;
-
-        assert.strictEqual(result.status, 2, message);
-        const context = JSON.parse(result.stdout);
-        assert.strictEqual(context.schema, 'dhpk.flow-drive-invocation.v1');
-        assert.strictEqual(context.status, 'blocked');
       }
     });
   }

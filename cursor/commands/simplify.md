@@ -1,14 +1,6 @@
 ---
 name: simplify
-description: "Clean up the changed code for reuse, simplicity, efficiency, and altitude without changing behavior."
+description: "Use when cleaning changed code for reuse, simplicity, efficiency, and the right abstraction level without changing behavior. Not for correctness review, broad redesign, or unbounded cleanup. Output: four-angle findings, applied/skipped changes, and baseline/final test evidence with degraded status when needed."
 ---
-Forward to the canonical [`$code-simplify` skill](https://github.com/hmj1026/dhpk/blob/main/skills/code-simplify/SKILL.md)
-with `$ARGUMENTS` unchanged. It owns explicit/automatic scope resolution,
-baseline/final test gates, the four cleanup angles, degraded inline fallback,
-and registered worker/architect escalation for heavy cleanup.
-
-Not for: correctness review, broad redesign, or unbounded cleanup.
-
-Preserve the skill’s `degraded:` execution mode, applied/skipped findings, and
-baseline/final test results. This command does not duplicate the cleanup
-procedure or claim an unavailable role ran.
+Load the canonical `$code-simplify` Skill from [SKILL.md](https://github.com/hmj1026/dhpk/blob/main/skills/code-simplify/SKILL.md) and follow it with `$ARGUMENTS`.
+Keep its argument contract, authority boundary, verification, and output.

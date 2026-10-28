@@ -30,21 +30,24 @@ const EXPECTED_RUNTIME = {
   'code-reviewer': ['gpt-6.1-sol', 'medium'],
   'security-reviewer': ['gpt-6.1-sol', 'high'],
   'database-reviewer': ['gpt-6.1-sol', 'high'],
-  'tdd-guide': ['gpt-6-luna', 'max'],
+  'tdd-guide': ['gpt-6-luna', 'high'],
   'deep-reasoner': ['gpt-6.1-sol', 'high'],
-  'doc-reviewer': ['gpt-6-luna', 'medium'],
+  'doc-reviewer': ['gpt-6-luna', 'high'],
   planner: ['gpt-6.1-sol', 'high'],
-  'frontend-reviewer': ['gpt-6.1-sol', 'high'],
+  'frontend-reviewer': ['gpt-6.1-sol', 'medium'],
   'migration-reviewer': ['gpt-6.1-sol', 'high'],
-  'e2e-runner': ['gpt-6.1-sol', 'high'],
+  'e2e-runner': ['gpt-6.1-sol', 'medium'],
+  'ui-verifier': ['gpt-6.1-terra', 'medium'],
+  'docs-writer': ['gpt-6.1-terra', 'medium'],
+  'scoped-worker': ['gpt-6.1-terra', 'medium'],
 };
 
 const EXPECTED_DIRECT_RUNTIME = {
   ...EXPECTED_RUNTIME,
-  explorer: ['gpt-6.1-sol', 'medium'],
-  worker: ['gpt-6-luna', 'max'],
+  explorer: ['gpt-6-luna', 'high'],
+  worker: ['gpt-6.1-sol', 'medium'],
   monitor: ['gpt-6-luna', 'low'],
-  'bug-investigator': ['gpt-6.1-sol', 'high'],
+  'bug-investigator': ['gpt-6.1-sol', 'medium'],
 };
 
 const UNAVAILABLE_HANDOFFS = /`(?:silent-failure-hunter|type-design-analyzer|ui-ux-verifier|fast-worker)`/;
@@ -110,12 +113,71 @@ function cloneProjectionFixture(prefix) {
   for (const entry of ['agents', 'agent-traps', 'codex', 'manifests', 'modules']) {
     fs.cpSync(path.join(ROOT, entry), path.join(root, entry), { recursive: true });
   }
+  fs.mkdirSync(path.join(root, 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(
+    path.join(ROOT, 'scripts', 'gen-codex-agents.js'),
+    path.join(root, 'scripts', 'gen-codex-agents.js'),
+  );
+  fs.copyFileSync(
+    path.join(ROOT, 'scripts', 'lib', 'codex-role-neighbors.js'),
+    path.join(root, 'scripts', 'lib', 'codex-role-neighbors.js'),
+  );
   return root;
 }
+
+test('the Codex handoff contract keeps parent permissions, inline completion, and file precedence', () => {
+  const contract = fs.readFileSync(path.join(ROOT, 'codex', 'supporting', 'contracts', 'artifact-contract.md'), 'utf8');
+  assert.match(contract, /file value takes precedence/);
+  assert.match(contract, /explicit spawn value, then the \[agents\] default, then the parent/);
+  assert.match(contract, /does not create an independent sandbox/);
+  assert.match(contract, /do not dispatch the role again only because the report file is missing/);
+  assert.match(contract, /NOT_RUN/);
+  assert.doesNotMatch(contract, /must dispatch again/);
+  const guidance = fs.readFileSync(path.join(ROOT, 'codex', 'guidance.md'), 'utf8');
+  assert.match(guidance, /completed implementation wave/);
+  assert.doesNotMatch(guidance, /after ANY code edit/);
+  assert.doesNotMatch(guidance, /after an edit is recommended/);
+  assert.doesNotMatch(guidance, /remains the primary built-in execution boundary/);
+  const explorer = fs.readFileSync(path.join(ROOT, 'codex', 'agents', 'explorer.toml'), 'utf8');
+  assert.strictEqual(readTomlField(path.join(ROOT, 'codex', 'agents', 'explorer.toml'), 'sandbox_mode'), null);
+  assert.match(explorer, /Hand implementation to `worker`/);
+  assert.doesNotMatch(explorer, /unless explicitly asked/);
+  for (const role of ['monitor', 'bug-investigator']) {
+    const body = fs.readFileSync(path.join(ROOT, 'codex', 'agents', `${role}.toml`), 'utf8');
+    assert.match(body, /Return scope, source identity, verdict, findings, and evidence gaps inline/);
+    assert.match(body, /Do not write an artifact/);
+  }
+});
 
 test('the Codex projection satisfies runtime metadata and handoff contracts', () => {
   const errors = collectCodexRuntimeErrors(ROOT);
   assert.deepStrictEqual(errors, [], errors.join('\n'));
+});
+
+test('minimal projection validation does not import role names from the module checkout', () => {
+  const root = tmpRoot('codex-minimal-agent-names');
+  try {
+    const agents = path.join(root, 'codex', 'agents');
+    fs.mkdirSync(agents, { recursive: true });
+    fs.writeFileSync(path.join(agents, 'worker.toml'), [
+      'name = "worker"',
+      'description = "Minimal fixture worker"',
+      'model = "gpt-6.1-sol"',
+      'model_reasoning_effort = "medium"',
+      'developer_instructions = """',
+      'A display reference to `ui-verifier` appears here.',
+      '"""',
+      '',
+    ].join('\n'));
+
+    const errors = collectCodexRuntimeErrors(root);
+    assert.ok(
+      !errors.some((error) => /references non-dispatchable Codex agent 'ui-verifier'/i.test(error)),
+      errors.join('\n'),
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('the canonical agent coverage matrix classifies every role exactly once', () => {
@@ -124,15 +186,27 @@ test('the canonical agent coverage matrix classifies every role exactly once', (
 });
 
 test('all committed direct roles match the approved runtime map and global defaults', () => {
+  const ownership = JSON.parse(fs.readFileSync(path.join(ROOT, 'codex', 'agent-projection-manifest.json'), 'utf8'));
+  assert.strictEqual(ownership.generated_roles.length, 14);
+  assert.strictEqual(ownership.package_roles.length, 18);
+  for (const role of ['ui-verifier', 'docs-writer', 'scoped-worker']) {
+    assert.ok(ownership.generated_roles.includes(role), role);
+    assert.ok(ownership.package_roles.includes(role), role);
+  }
+
   for (const [role, [model, effort]] of Object.entries(EXPECTED_DIRECT_RUNTIME)) {
     const file = path.join(ROOT, 'codex', 'agents', `${role}.toml`);
     assert.strictEqual(readTomlField(file, 'model'), model, role);
     assert.strictEqual(readTomlField(file, 'model_reasoning_effort'), effort, role);
-    assert.match(model, /^gpt-6(?:\.1-sol|-(?:sol|luna))$/, role);
+    assert.strictEqual(readTomlField(file, 'sandbox_mode'), null, role);
+    assert.match(model, /^gpt-6(?:\.1-(?:sol|terra)|-(?:sol|luna))$/, role);
   }
   const config = fs.readFileSync(path.join(ROOT, 'codex', 'config.toml.example'), 'utf8');
-  assert.match(config, /default_subagent_model\s*=\s*"gpt-6-luna"/);
+  assert.match(config, /default_subagent_model\s*=\s*"gpt-6\.1-sol"/);
   assert.match(config, /default_subagent_reasoning_effort\s*=\s*"medium"/);
+  for (const role of ['ui-verifier', 'docs-writer', 'scoped-worker']) {
+    assert.match(config, new RegExp(`\\[agents\\."${role}"\\][\\s\\S]*?config_file = "agents/${role}\\.toml"`), role);
+  }
 });
 
 test('every active Codex bridge surface selects only the GPT-6 family', () => {
@@ -176,7 +250,8 @@ test('the generator emits the effective Codex model metadata and compatible hand
     }
 
     const e2eRunner = fs.readFileSync(path.join(output, 'e2e-runner.toml'), 'utf8');
-    assert.strictEqual(readTomlField(path.join(output, 'e2e-runner.toml'), 'sandbox_mode'), 'workspace-write');
+    assert.strictEqual(readTomlField(path.join(output, 'e2e-runner.toml'), 'sandbox_mode'), null);
+    assert.match(e2eRunner, /Assigned test traces and runner output may be written separately/);
     assert.match(e2eRunner, /Verdict: BLOCKED/);
     assert.match(e2eRunner, /playwright-cli/);
     assert.doesNotMatch(e2eRunner, /ui-ux-verifier/);
@@ -237,6 +312,10 @@ test('clean consumer projection resolves every generated role reference', () => 
       encoding: 'utf8',
     });
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    for (const role of ['ui-verifier', 'docs-writer', 'scoped-worker']) {
+      assert.ok(fs.statSync(path.join(root, '.codex', 'agents', `${role}.toml`)).isFile(), `${role} must materialize as a physical role`);
+    }
+    assert.strictEqual(fs.existsSync(path.join(root, '.codex', 'agent-sources')), false, 'authoring sources must not be installed');
     const errors = collectCodexProjectionReferenceErrors(root, ROOT);
     assert.deepStrictEqual(errors, [], errors.join('\n'));
   } finally {
@@ -413,9 +492,14 @@ test('generic Codex roles skip the neighbor fence while metadata, ownership, and
       ].join('\n'),
     );
     const explorer = path.join(root, 'codex', 'agents', 'explorer.toml');
+    const explorerModel = readTomlField(explorer, 'model');
+    assert.ok(explorerModel, 'explorer model should be present before mutation');
     fs.writeFileSync(
       explorer,
-      fs.readFileSync(explorer, 'utf8').replace('model = "gpt-6.1-sol"', 'model = "not-a-codex-model"'),
+      fs.readFileSync(explorer, 'utf8').replace(
+        `model = "${explorerModel}"`,
+        'model = "not-a-codex-model"',
+      ),
     );
     fs.rmSync(path.join(root, 'codex', 'agents', 'monitor.toml'));
 
@@ -444,12 +528,15 @@ test('mutation: role metadata, filename, and sandbox drift fail closed', () => {
   const root = cloneProjectionFixture('codex-role-metadata-mutation');
   try {
     const file = path.join(root, 'codex', 'agents', 'explorer.toml');
+    const explorerModel = readTomlField(file, 'model');
+    const explorerEffort = readTomlField(file, 'model_reasoning_effort');
+    assert.ok(explorerModel, 'explorer model should be present before mutation');
+    assert.ok(explorerEffort, 'explorer effort should be present before mutation');
     let source = fs.readFileSync(file, 'utf8')
       .replace('name = "explorer"', 'name = "not-explorer"')
-      .replace('model = "gpt-6.1-sol"', 'model = "not-a-codex-model"')
-      .replace('model_reasoning_effort = "medium"', 'model_reasoning_effort = "not-an-effort"')
-      .replace('sandbox_mode = "read-only"', 'sandbox_mode = "not-a-sandbox"');
-    fs.writeFileSync(file, source);
+      .replace(`model = "${explorerModel}"`, 'model = "not-a-codex-model"')
+      .replace(`model_reasoning_effort = "${explorerEffort}"`, 'model_reasoning_effort = "not-an-effort"');
+    fs.writeFileSync(file, `${source}\nsandbox_mode = "read-only"\n`);
     const errors = [
       ...collectCodexRuntimeErrors(root),
       ...collectCodexCoverageErrors(root),
@@ -457,7 +544,7 @@ test('mutation: role metadata, filename, and sandbox drift fail closed', () => {
     assert.ok(errors.some((error) => /filename.*name|name.*filename|does not match/i.test(error)), errors.join('\n'));
     assert.ok(errors.some((error) => /invalid.*model|unknown model|model.*catalog/i.test(error)), errors.join('\n'));
     assert.ok(errors.some((error) => /invalid.*reasoning_effort|reasoning_effort.*invalid/i.test(error)), errors.join('\n'));
-    assert.ok(errors.some((error) => /invalid.*sandbox|sandbox.*invalid/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /sandbox_mode does not create an independent sandbox/i.test(error)), errors.join('\n'));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -570,8 +657,10 @@ test('a drifted worker toml value names the canonical role', () => {
   const root = cloneProjectionFixture('codex-worker-toml-drift');
   try {
     const file = path.join(root, 'codex', 'agents', 'worker.toml');
+    const currentEffort = readTomlField(file, 'model_reasoning_effort');
+    assert.ok(currentEffort, 'worker effort should be present before mutation');
     fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(
-      /model_reasoning_effort\s*=\s*"max"/,
+      `model_reasoning_effort = "${currentEffort}"`,
       'model_reasoning_effort = "low"',
     ));
     const errors = collectCodexCanonicalRoleDefaultErrors(root);

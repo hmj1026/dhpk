@@ -108,7 +108,19 @@ test('default common receipts retain canonical IDs and the platform verifier rep
       assert.strictEqual(report.skillCount, expectedPhysicalIds.length, `${surface} must retain its declared physical entries`);
       assert.deepStrictEqual(fs.readdirSync(path.join(output, 'skills')).sort(), expectedPhysicalIds.map((id) => byId.get(id).name).sort());
       for (const id of ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']) assert.ok(!expectedPhysicalIds.includes(id), id);
-      assert.strictEqual(typeof require(path.join(output, 'skills/flow-drive/scripts/run.js')).runFlowDrive, 'function');
+      const flowDrive = path.join(output, 'skills', byId.get('flow-drive').name);
+      const expectedFlowDriveEntries = ['SKILL.md', 'distribution.yaml', 'references'];
+      if (surface === 'codex-native') expectedFlowDriveEntries.push('agents');
+      assert.deepStrictEqual(fs.readdirSync(flowDrive).sort(), expectedFlowDriveEntries.sort(), `${surface} Flow Drive package entries`);
+      if (surface === 'codex-native') {
+        assert.deepStrictEqual(fs.readdirSync(path.join(flowDrive, 'agents')), ['openai.yaml']);
+      }
+      const flowDriveReferences = fs.readdirSync(path.join(flowDrive, 'references')).sort();
+      const curatedChildren = selection.skills
+        .filter((entry) => entry.owner === 'flow-drive' && entry.kind !== 'entry')
+        .map((entry) => byId.get(entry.id).name);
+      assert.deepStrictEqual(flowDriveReferences, ['migration.md', ...curatedChildren].sort());
+      assert.ok(!flowDriveReferences.includes('execution-bundle'), 'retired Flow Drive runtime resources stay absent');
       const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
       if (surface === 'codex-native') assert.deepStrictEqual(provenance.runtimeSupportStableIds, inventory.internal_runtime_skills[surface]);
       assert.strictEqual(provenance.profileId, surface === 'codex-native' ? 'codex-native' : 'common', `${surface} must record its named default selection`);
