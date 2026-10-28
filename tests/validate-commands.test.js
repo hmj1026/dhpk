@@ -31,9 +31,25 @@ function commandFile(allowedTools) {
   return `---\ndescription: 'Check a target'\n${tools}---\n\nbody\n`;
 }
 
-function skillFile(name, allowedTools) {
+function skillFile(name, allowedTools, skillId) {
   const tools = allowedTools === undefined ? '' : `allowed-tools: ${allowedTools}\n`;
-  return `---\nname: ${name}\ndescription: 'Check a target'\n${tools}---\n\nbody\n`;
+  const metadata = skillId === undefined ? '' : `metadata:\n  dhpk-capability-id: dhpk.skill.${skillId}\n`;
+  return `---\nname: ${name}\ndescription: 'Check a target'\n${tools}${metadata}---\n\nbody\n`;
+}
+
+function commandDeclaration(id, allowedTools) {
+  return {
+    id,
+    public_name: `/dhpk:${id}`,
+    argument_contract: '<target>',
+    authority: 'workspace-write',
+    disposition: 'thin-front-door',
+    ...(allowedTools === undefined ? {} : { allowed_tools: allowedTools }),
+  };
+}
+
+function distributionFile(commands) {
+  return JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands });
 }
 
 test('a command grant wider than its same-name skill fails', () => {
@@ -102,16 +118,50 @@ test('a different command id is not compared with another skill grant', () => {
   });
 });
 
-test('INDEX.md is not checked even when a skill directory shares that name', () => {
+test('a declared alias forwarder needs an explicit owner grant for bare Bash', () => {
   withFixture({
-    'commands/INDEX.md': commandFile('Bash'),
-    'skills/INDEX/SKILL.md': skillFile('INDEX'),
+    'commands/inspect.md': commandFile("'Read, Bash'"),
+    'skills/fixture/SKILL.md': skillFile('fixture', "'Read, Bash(git:*)'"),
+    'skills/fixture/distribution.yaml': distributionFile([commandDeclaration('inspect', 'Read, Bash')]),
+  }, (root) => {
+    const findings = commandToolSubsetFindings(root);
+    assert.equal(findings.length, 1);
+    assert.match(findings[0], /commands\/inspect\.md/);
+    assert.match(findings[0], /skills\/fixture\/SKILL\.md/);
+    assert.match(findings[0], /bare Bash/);
+  });
+});
+
+test('a declared alias forwarder with owner bare Bash grant passes', () => {
+  withFixture({
+    'commands/inspect.md': commandFile("'Read, Bash'"),
+    'skills/fixture/SKILL.md': skillFile('fixture', "'Read, Bash'"),
+    'skills/fixture/distribution.yaml': distributionFile([commandDeclaration('inspect', 'Read, Bash')]),
   }, (root) => {
     assert.deepStrictEqual(commandToolSubsetFindings(root), []);
   });
 });
 
-test('the real repo same-name command grants stay inside the skill grant', () => {
+test('a declared alias forwarder with patterned Bash does not require owner bare Bash', () => {
+  withFixture({
+    'commands/inspect.md': commandFile("'Bash(git:*)'"),
+    'skills/fixture/SKILL.md': skillFile('fixture'),
+    'skills/fixture/distribution.yaml': distributionFile([commandDeclaration('inspect', 'Bash(git:*)')]),
+  }, (root) => {
+    assert.deepStrictEqual(commandToolSubsetFindings(root), []);
+  });
+});
+
+test('INDEX.md is not checked even when a skill directory shares that name', () => {
+  withFixture({
+    'commands/INDEX.md': commandFile('Bash'),
+    'skills/INDEX/SKILL.md': skillFile('INDEX', undefined, 'index'),
+  }, (root) => {
+    assert.deepStrictEqual(commandToolSubsetFindings(root), []);
+  });
+});
+
+test('the real repo same-name and alias command grants satisfy validation', () => {
   const flowGuide = fs.readFileSync(path.join(ROOT, 'commands/flow-guide.md'), 'utf8');
   assert.match(flowGuide, /^allowed-tools: 'Read, Grep, Glob, Skill, Agent'$/m);
   const skillLine = fs.readFileSync(path.join(ROOT, 'skills/flow-guide/SKILL.md'), 'utf8')

@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.7",
-  "sourceCommit": "f6cf720e2c2b96daa9446be4c8308c5275133794",
-  "generatedFromCommit": "f6cf720e2c2b96daa9446be4c8308c5275133794",
-  "generatedFromTree": "f390711eea5b1a25d5c5601deda6717ab5aa528c",
+  "sourceCommit": "08c43f06e43da5097c4e419a1f652b497d2f3e27",
+  "generatedFromCommit": "08c43f06e43da5097c4e419a1f652b497d2f3e27",
+  "generatedFromTree": "55cdbb7bac52e73476f086f15cdc44d574092070",
   "inventoryDigest": "a72bb20615ea64ab1b2a1d308872c7e4579e75aa858b2d962f205dc34f008d5f",
   "inventoryRevision": "sha256:aa8f4cf526f9be99092d37d406a42bf48addd8535c259157970b4fd6b6341bd2",
   "generatorVersion": "1.0.0",
@@ -651,7 +651,7 @@
         "ownerId": "flow-drive",
         "source": "skills/code-simplify/distribution.yaml",
         "destination": "skills/flow-drive/references/code-simplify/distribution.yaml",
-        "originalGitBlobDigest": "30564fa71b1b832841f97a824bd6425be0df1eb0"
+        "originalGitBlobDigest": "96155bd0be8279a9df9681956ab11c7c4bd95302"
       },
       {
         "ownerId": "flow-drive",

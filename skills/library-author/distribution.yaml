@@ -104,8 +104,7 @@
         "commands/matrix-cell-onboard.md"
       ],
       "reason": "Stable Claude front door forwards normalized arguments to library-author mode cell-onboard.",
-      "mode": "cell-onboard",
-      "allowed_tools": "Read, Grep, Glob, Bash, Skill, AskUserQuestion"
+      "mode": "cell-onboard"
     }
   ]
 }

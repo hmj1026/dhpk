@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.66.7",
-  "sourceCommit": "f6cf720e2c2b96daa9446be4c8308c5275133794",
-  "generatedFromCommit": "f6cf720e2c2b96daa9446be4c8308c5275133794",
-  "generatedFromTree": "f390711eea5b1a25d5c5601deda6717ab5aa528c",
+  "sourceCommit": "08c43f06e43da5097c4e419a1f652b497d2f3e27",
+  "generatedFromCommit": "08c43f06e43da5097c4e419a1f652b497d2f3e27",
+  "generatedFromTree": "55cdbb7bac52e73476f086f15cdc44d574092070",
   "inventoryDigest": "dd9c0d30754d8e54105ec92bb61393e04d7ac87467d0814702e2db7d5963a814",
   "inventoryRevision": "sha256:aa8f4cf526f9be99092d37d406a42bf48addd8535c259157970b4fd6b6341bd2",
   "generatorVersion": "1.0.0",
@@ -696,7 +696,7 @@
         "ownerId": "flow-drive",
         "source": "skills/code-simplify/distribution.yaml",
         "destination": "skills/flow-drive/references/code-simplify/distribution.yaml",
-        "originalGitBlobDigest": "30564fa71b1b832841f97a824bd6425be0df1eb0"
+        "originalGitBlobDigest": "96155bd0be8279a9df9681956ab11c7c4bd95302"
       },
       {
         "ownerId": "flow-drive",
@@ -5359,7 +5359,7 @@
     "code-trace": "96e1a383944fa9d2fcb3a3529afc1d096248d6268c30949276d0d27d8f86b6a6",
     "create-pr": "722696c143447a8107fe7c842fc4f1cfcbb775ab0456af1d6bb623be93e92b10",
     "doc-maintain": "d2b6e12533e99c08d143be5ecc5ada0db0c45c92e35f3d89a691cb7851eef921",
-    "flow-drive": "04ab4f1d742d9764a224bafc4e103f0eedfe5695b49afad9c3966e9bcbd39456",
+    "flow-drive": "1aeb3fb2c8b2b7a0116a447244e5d82dd20f69337308bcff7e8914c8d6040c99",
     "flow-guide": "141e9d231cba478e4fa20fc77041f1e192638a07700ba42978a883e4e5a6beb2",
     "git-smart-commit": "f4a92dee766eca4480698fbf5bdf73fa394e47b9d1b8f38d4c0b1493389cc1db",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",
