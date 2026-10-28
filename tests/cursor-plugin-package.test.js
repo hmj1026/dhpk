@@ -361,7 +361,7 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
 
   test('rewriteCursorHarnessBody maps doc-reviewer local rules to the Cursor project path', () => {
     const rewritten = rewriteCursorHarnessBody(
-      'Read `.claude/docs/doc-review-local.md` for Claude and AGY,\n'
+      '   `.claude/docs/doc-review-local.md` for Claude and AGY,\n'
       + '   `.codex/docs/doc-review-local.md` for Codex, or\n'
       + '   `.cursor/docs/doc-review-local.md` for Cursor.',
     );
