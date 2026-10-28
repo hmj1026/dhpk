@@ -49,18 +49,38 @@ const AGENTS = [
 
 const GENERATED_NAMES = Object.freeze(AGENTS.map((agent) => agent.name));
 
-// Codex has no host hook lifecycle. Only reviewer roles with a review artifact
-// deliverable receive this final-review location instruction.
-const CODEX_MANUAL_REVIEW_LIFECYCLE =
-  "Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.";
-const CODEX_MANUAL_REVIEW_ROLES = new Set([
+// Read-only is an instruction plus the parent session's permission policy.
+// These roles have no Write/Edit tool. The shared contract owns the rule;
+// each projection only points at it.
+const READ_ONLY_ROLES = new Set([
+  'architect',
   'code-reviewer',
   'security-reviewer',
   'database-reviewer',
+  'deep-reasoner',
   'doc-reviewer',
+  'planner',
   'frontend-reviewer',
   'migration-reviewer',
 ]);
+
+const CODEX_READ_ONLY_HANDOFF = [
+  '## Codex result',
+  'Return scope, source identity, verdict, findings, and evidence gaps inline.',
+  'Follow .codex/dhpk/contracts/artifact-contract.md.',
+  'Do not write an artifact. The parent persists this result when it has write authority.',
+  'A complete inline result is finished even when no report file exists.',
+  'Do not record unobserved evidence as PASS.',
+].join('\n');
+
+const CODEX_WRITER_HANDOFF = [
+  '## Codex result',
+  'Keep the summary inline: scope, source identity, verdict, findings, and evidence gaps.',
+  'Assigned test traces and runner output may be written separately from that summary.',
+  'Follow .codex/dhpk/contracts/artifact-contract.md.',
+  'A complete inline summary is finished even when no summary file exists.',
+  'Do not record unobserved evidence as PASS.',
+].join('\n');
 
 function readJson(file, label) {
   if (!fs.existsSync(file)) {
@@ -249,20 +269,21 @@ function splitFrontmatter(text) {
   return { frontmatter: match[1], body: text.slice(match[0].length) };
 }
 
-function parseToolList(raw) {
-  if (!raw) return [];
-  return raw
-    .replace(/^\[|\]$/g, '')
-    .split(',')
-    .map((tool) => tool.trim().replace(/^['"]|['"]$/g, ''))
-    .filter(Boolean);
-}
-
-// sandbox_mode is DERIVED from the source tools list, never hardcoded.
-function deriveSandbox(toolsRaw) {
-  const tools = parseToolList(toolsRaw);
-  const writes = tools.includes('Write') || tools.includes('Edit');
-  return writes ? 'workspace-write' : 'read-only';
+function stripArtifactSections(body) {
+  const lines = body.split('\n');
+  const kept = [];
+  let index = 0;
+  while (index < lines.length) {
+    if (/^## (?:Closing — Artifact Output|Artifacts)\b/.test(lines[index])) {
+      index += 1;
+      while (index < lines.length && lines[index].trim() === '') index += 1;
+      while (index < lines.length && lines[index].trim() !== '') index += 1;
+      continue;
+    }
+    kept.push(lines[index]);
+    index += 1;
+  }
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 // Drop Claude-only boilerplate lines, strip trailing whitespace, collapse the
@@ -383,6 +404,27 @@ function adaptCodexBody(agentName, body) {
       .replaceAll('`fast-worker`', '`worker`')
       .replaceAll('`e2e-runner`', 'a project-specific executable browser probe');
   }
+  if (agentName === 'doc-reviewer') {
+    adapted = adapted.replaceAll(
+      '[`docs/agent-guidance/frontmatter-schema.md`](../docs/agent-guidance/frontmatter-schema.md)',
+      'the Claude frontmatter schema when that file is present in the checkout; if it is absent, record the citation as UNAVAILABLE instead of a broken-link failure',
+    );
+  }
+  if (agentName === 'architect') {
+    adapted = adapted.replaceAll(
+      'or is saved as an ADR at `.codex/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`.',
+      'or is returned in the inline handoff for the parent to persist when it has write authority.',
+    );
+  }
+  adapted = stripArtifactSections(adapted);
+  if (READ_ONLY_ROLES.has(agentName)) {
+    adapted = adapted
+      .replaceAll('Close out: write the artifact.', 'Close out: return the inline handoff. Do not write an artifact.')
+      .replaceAll(
+        "Writing the role's required review artifact remains allowed.",
+        'Return the review inline. Do not write an artifact.',
+      );
+  }
   return adapted;
 }
 
@@ -418,19 +460,18 @@ function buildToml(agent, frontmatter, body) {
   if (!runtime) {
     throw new Error(`No Codex runtime metadata for ${agent.name}`);
   }
-  const sandbox = deriveSandbox(fm.tools);
   // Keep the discovery description in the catalog field only. Repeating it in
   // the selected role prompt charges every spawn for metadata the router has
   // already exposed. The role id and canonical body remain the runtime
   // contract; route-specific detail stays behind the body's references.
+  // A custom agent file cannot set sandbox_mode; the parent session owns it.
   const instructions = [
     `Role: ${agent.name}`,
     'Use the supplied scoped task packet and load only references required by the route.',
     '',
     adaptCodexBody(agent.name, cleanBody(body)),
-    ...(CODEX_MANUAL_REVIEW_ROLES.has(agent.name)
-      ? ['', CODEX_MANUAL_REVIEW_LIFECYCLE]
-      : []),
+    '',
+    READ_ONLY_ROLES.has(agent.name) ? CODEX_READ_ONLY_HANDOFF : CODEX_WRITER_HANDOFF,
   ]
     .join('\n')
     .trim();
@@ -442,7 +483,6 @@ function buildToml(agent, frontmatter, body) {
     `description = ${tomlBasicString(description)}`,
     `model = ${tomlBasicString(runtime.model)}`,
     `model_reasoning_effort = ${tomlBasicString(runtime.effort)}`,
-    `sandbox_mode = ${tomlBasicString(sandbox)}`,
     '',
     'developer_instructions = """',
     escapeMultiline(instructions),
@@ -452,7 +492,6 @@ function buildToml(agent, frontmatter, body) {
   return {
     toml: lines.join('\n'),
     effort: runtime.effort,
-    sandbox,
     description,
     instructions,
   };
@@ -500,12 +539,10 @@ function generate(outDir) {
   }
 
   for (const { agent, built } of planned) {
-    const { toml, effort, sandbox } = built;
+    const { toml, effort } = built;
     const outFile = path.join(outDir, `${agent.name}.toml`);
     fs.writeFileSync(outFile, toml);
-    summary.push(
-      `wrote ${path.relative(ROOT, outFile)} [effort=${effort}, sandbox=${sandbox}]`
-    );
+    summary.push(`wrote ${path.relative(ROOT, outFile)} [effort=${effort}]`);
   }
   return summary;
 }

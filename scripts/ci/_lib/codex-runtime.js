@@ -9,7 +9,6 @@ const TIER_LABEL = /\b(?:haiku|sonnet|opus)\b/i;
 const BACKTICKED_TOKEN = /`([a-z0-9]+(?:-[a-z0-9]+)*)`/g;
 const VALID_CODEX_MODELS = new Set(['gpt-6-luna', 'gpt-6-sol', 'gpt-6.1-sol', 'gpt-6-astra', 'gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol']);
 const VALID_REASONING_EFFORTS = new Set(['low', 'medium', 'high', 'max', 'xhigh']);
-const VALID_SANDBOX_MODES = new Set(['read-only', 'workspace-write', 'danger-full-access']);
 const DEFAULT_SUBAGENT_MODEL = 'gpt-6-luna';
 const DEFAULT_SUBAGENT_EFFORT = 'medium';
 const ROLE_OWNERSHIP_MANIFEST = 'codex/agent-projection-manifest.json';
@@ -257,10 +256,9 @@ function collectCodexRoleMetadataErrors(root) {
       description: tomlStringField(source, 'description'),
       model: tomlStringField(source, 'model'),
       model_reasoning_effort: tomlStringField(source, 'model_reasoning_effort'),
-      sandbox_mode: tomlStringField(source, 'sandbox_mode'),
       developer_instructions: tomlStringField(source, 'developer_instructions'),
     };
-    for (const field of ['name', 'description', 'model', 'model_reasoning_effort', 'sandbox_mode', 'developer_instructions']) {
+    for (const field of ['name', 'description', 'model', 'model_reasoning_effort', 'developer_instructions']) {
       if (fields[field] == null || !fields[field].trim()) {
         errors.push(`${relativeFile} — missing non-empty ${field}`);
       }
@@ -274,8 +272,8 @@ function collectCodexRoleMetadataErrors(root) {
     if (fields.model_reasoning_effort && !VALID_REASONING_EFFORTS.has(fields.model_reasoning_effort)) {
       errors.push(`${relativeFile} — invalid model_reasoning_effort '${fields.model_reasoning_effort}'`);
     }
-    if (fields.sandbox_mode && !VALID_SANDBOX_MODES.has(fields.sandbox_mode)) {
-      errors.push(`${relativeFile} — invalid sandbox_mode '${fields.sandbox_mode}'`);
+    if (/^\s*sandbox_mode\s*=/m.test(source)) {
+      errors.push(`${relativeFile} — sandbox_mode does not create an independent sandbox and must not be set; the parent session owns sandbox and approval`);
     }
   }
   return errors;

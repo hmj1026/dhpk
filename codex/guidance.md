@@ -175,26 +175,22 @@ specialist handoffs, but the generator adapts those references for Codex:
   review and `architect` for non-trivial type/design review; the reviewer may
   perform either check directly when a second role is unnecessary.
 - `tdd-guide` may hand browser journeys to the available `e2e-runner` role.
-- `e2e-runner` is workspace-write because it may create and maintain test
-  specs, fixtures, and artifacts; if Playwright or a browser is unavailable it
-  must return `Verdict: BLOCKED` with the resume command instead of claiming a
-  pass.
+- `e2e-runner` may create and maintain test specs, fixtures, and runner output when the parent session allows writes. It does not receive a separate sandbox from its role file. If Playwright or a browser is unavailable it must return `Verdict: BLOCKED` with the resume command instead of claiming a pass.
+- `explorer` stays read-only and returns evidence inline. Implementation goes to `worker`.
 
 If a project does not expose the required runner or role, use the documented
 manual fallback; do not invoke an unavailable agent name.
 
 ### Review discipline and hook boundaries
 
-On both hosts, post-edit review is advisory: dispatching the matching reviewer after an edit is recommended, with no sentinel files or enforced gate. Codex CLI supports lifecycle hooks from user/project `hooks.json` files or inline `[hooks]` TOML ([official Hooks documentation](https://learn.chatgpt.com/docs/hooks)), but those hooks are a separate Codex contract. A Codex `PreToolUse` hook can block a tool call; a `PostToolUse` hook runs after the tool and cannot undo its side effects.
+Post-edit review is advisory. Assign the matching reviewers to a completed implementation wave and its source snapshot. Do not run the full reviewer batch after every edit, and do not use a sentinel file as a gate. Codex CLI supports lifecycle hooks from user/project `hooks.json` files or inline `[hooks]` TOML ([official Hooks documentation](https://learn.chatgpt.com/docs/hooks)), but those hooks are a separate Codex contract. A Codex `PreToolUse` hook can block a tool call; a `PostToolUse` hook runs after the tool and cannot undo its side effects.
 
-Because of this, after ANY code edit made via a Codex role, the user or parent flow should invoke the appropriate review role via `/agent`:
+- `code-reviewer` — source changes in that wave.
+- `security-reviewer` — auth, crypto, money-handling, file-upload, or input-handling changes in that wave.
+- `database-reviewer` — SQL, Repository, or migration changes in that wave.
+- `doc-reviewer` — policy or documentation edits in that wave.
 
-- `code-reviewer` — after any source edit.
-- `security-reviewer` — after auth, crypto, money-handling, file-upload, or input-handling changes.
-- `database-reviewer` — after SQL, Repository, or migration changes.
-- `doc-reviewer` — after policy or documentation edits.
-
-`sandbox_mode` (read-only vs `workspace-write`) remains the primary built-in execution boundary. Configured Codex lifecycle hooks can add event-level checks, while review sequencing, security discipline, and workflow routing remain instruction-based unless the project explicitly implements them with Codex's hook contract.
+Read-only roles follow the inline result in `.codex/dhpk/contracts/artifact-contract.md`. The parent session owns sandbox and approval. A role file does not create an independent sandbox. Configured Codex lifecycle hooks can add event-level checks, while review sequencing remains instruction-based unless the project implements it with Codex's hook contract.
 
 ### Agent roster → Codex role map
 
@@ -202,12 +198,12 @@ Because of this, after ANY code edit made via a Codex role, the user or parent f
 
 | Role | Use for |
 |------|---------|
-| `explorer` | Read-only investigation and evidence gathering |
+| `explorer` | Read-only investigation; implementation goes to `worker` |
 | `worker` | Generic scoped implementation |
 | `monitor` | Watching long-running tasks/processes |
 | `bug-investigator` | Root-cause investigation for bugs and regressions |
 | `architect` | Layer placement and cross-module design decisions |
-| `code-reviewer` | Post-edit code review |
+| `code-reviewer` | Review of a completed implementation wave |
 | `security-reviewer` | Security review of auth/crypto/money/upload/input paths |
 | `database-reviewer` | SQL, Repository, and migration review |
 | `tdd-guide` | Write-tests-first workflow |
@@ -252,9 +248,9 @@ an implicit unavailable-agent handoff.
 | Context file | CLAUDE.md + AGENTS.md | AGENTS.md only |
 | Commands | Custom `/slash` commands | Built-in `/hooks`; `$flow-guide` for discovery and `$flow-drive` for confirmed implementation; instruction fallback otherwise. No `/dhpk:do` |
 | Agents | `Task`/subagent tool | Multi-agent via `/agent` and `[agents.<name>]` roles |
-| Security / review | Safety hooks + advisory reviewer dispatch | `sandbox_mode` + optional Codex lifecycle hooks + instruction-based review |
+| Security / review | Safety hooks + advisory reviewer dispatch | Parent-session sandbox and approval, plus instruction-based read-only roles |
 
-Codex lifecycle hooks and `sandbox_mode` are independent controls: hooks can enforce event-specific policy, while `sandbox_mode` controls tool execution permissions.
+Codex lifecycle hooks and the parent session sandbox are independent controls. Hooks can enforce event-specific policy. The parent session owns sandbox and approval, and a custom agent file cannot replace that sandbox.
 
 ### Role discovery
 
@@ -267,6 +263,8 @@ the example also shows the effective default subagent model and reasoning
 effort.
 
 Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's `validate_codex` guardrail enforces this static metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 11 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles. Model and effort rationale is maintained in `../rules/model-economics.md`.
+
+When a custom agent file sets model or model_reasoning_effort, that file value takes precedence. Before the file applies, Codex resolves each setting from an explicit spawn value, then the [agents] default, then the parent. A start argument does not rewrite a pinned file effort. Do not declare sandbox_mode in the role file.
 
 A physical file, valid metadata, and successful built-in `explorer` dispatch do
 not prove that the project custom-role registry loaded. Runtime PASS requires a

@@ -59,16 +59,22 @@ evidence is missing. It is not a worse defect and not a synonym of `BLOCK` or
 change-verdict `READY` / `BLOCKED` / `INCONCLUSIVE` is a separate response gate
 and is not mapped here.
 
-## Retention and degradation
+## Codex read-only handoff
 
-Retention is advisory: prune old reports for navigability, never as a runtime
-requirement. If `.cursor/artifacts/` or its category directory is absent, emit
-the report to stdout and continue; do not fail only because the directory is
-missing.
+A read-only role returns one inline result with scope, source identity, verdict, findings, and evidence gaps. It does not write an artifact. When the parent has write authority, the parent may persist that result. A complete inline result is finished; do not dispatch the role again only because the report file is missing.
 
-## Codex lifecycle boundary
+A role that writes may still produce assigned test traces and runner output. Those files stay separate from the summary, which is the inline result. Evidence that was not observed stays NOT_RUN, UNAVAILABLE, or BLOCKED. It is not PASS.
 
-The parent flow invokes reviewers manually and owns lifecycle. A reviewer writes
-one fresh artifact, returns its final verdict in the same run, and never calls a
-Claude hook, sentinel, or host-specific cleanup helper. A missing or stale
-artifact means the review is unresolved and the parent must dispatch again.
+Retention of any parent-persisted copy is advisory. Prune old copies for navigability, never as a runtime requirement.
+
+## Model and effort precedence
+
+When a custom agent file sets model or model_reasoning_effort, that file value takes precedence. Before the file applies, Codex resolves each setting from an explicit spawn value, then the [agents] default, then the parent. A start argument does not rewrite a pinned file effort. Warm review at medium uses a separate verified profile whose file sets model_reasoning_effort to medium.
+
+## Permission boundary
+
+sandbox_mode in a custom agent file does not create an independent sandbox. The parent session owns sandbox and approval. Read-only behavior is the role instruction together with that parent policy. Hard isolation uses the root session or tool policy, not an agent-file sandbox field.
+
+## Codex agent TOML schema
+
+Required fields are name, description, and developer_instructions. dhpk roles also set model and model_reasoning_effort. Do not require Claude tools or Claude model aliases. Do not declare sandbox_mode. A citation that the consumer install cannot resolve is UNAVAILABLE, not PASS.

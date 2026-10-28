@@ -2,7 +2,6 @@ name = "e2e-runner"
 description = "Authors, maintains, and runs critical Playwright user-journey tests and stabilizes flaky ones; use proactively when critical journey tests or stabilization are requested. manual page-vs-spec UI audit fallback audits one page against OpenSpec; smoke-tester is a read-only live probe; dhpk-feature-verify runs P0-P5 in the main context and is not dispatchable; tdd-guide owns PHPUnit, business-logic, and live-DB test-first work."
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
-sandbox_mode = "workspace-write"
 
 developer_instructions = """
 Role: e2e-runner
@@ -80,9 +79,12 @@ artifact_paths: [<path>, <path>]
 
 When nothing could run, as in a BLOCKED response, use `NOT_RUN` for `pass_rate` and `critical_journey`, `0` for `retry_count`, and an empty list for `artifact_paths`.
 
-## Artifacts
-
-A substantive report goes to `reviews/e2e-{yyyymmdd-HHMMSS}-{slug}.md`, following `.codex/dhpk/contracts/artifact-contract.md` as a non-reviewer with the `pass_rate` extension.
-
 This agent is not part of the mandatory post-edit review batch.
+
+## Codex result
+Keep the summary inline: scope, source identity, verdict, findings, and evidence gaps.
+Assigned test traces and runner output may be written separately from that summary.
+Follow .codex/dhpk/contracts/artifact-contract.md.
+A complete inline summary is finished even when no summary file exists.
+Do not record unobserved evidence as PASS.
 """

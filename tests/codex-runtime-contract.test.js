@@ -113,6 +113,30 @@ function cloneProjectionFixture(prefix) {
   return root;
 }
 
+test('the Codex handoff contract keeps parent permissions, inline completion, and file precedence', () => {
+  const contract = fs.readFileSync(path.join(ROOT, 'codex', 'supporting', 'contracts', 'artifact-contract.md'), 'utf8');
+  assert.match(contract, /file value takes precedence/);
+  assert.match(contract, /explicit spawn value, then the \[agents\] default, then the parent/);
+  assert.match(contract, /does not create an independent sandbox/);
+  assert.match(contract, /do not dispatch the role again only because the report file is missing/);
+  assert.match(contract, /NOT_RUN/);
+  assert.doesNotMatch(contract, /must dispatch again/);
+  const guidance = fs.readFileSync(path.join(ROOT, 'codex', 'guidance.md'), 'utf8');
+  assert.match(guidance, /completed implementation wave/);
+  assert.doesNotMatch(guidance, /after ANY code edit/);
+  assert.doesNotMatch(guidance, /after an edit is recommended/);
+  assert.doesNotMatch(guidance, /remains the primary built-in execution boundary/);
+  const explorer = fs.readFileSync(path.join(ROOT, 'codex', 'agents', 'explorer.toml'), 'utf8');
+  assert.strictEqual(readTomlField(path.join(ROOT, 'codex', 'agents', 'explorer.toml'), 'sandbox_mode'), null);
+  assert.match(explorer, /Hand implementation to `worker`/);
+  assert.doesNotMatch(explorer, /unless explicitly asked/);
+  for (const role of ['monitor', 'bug-investigator']) {
+    const body = fs.readFileSync(path.join(ROOT, 'codex', 'agents', `${role}.toml`), 'utf8');
+    assert.match(body, /Return scope, source identity, verdict, findings, and evidence gaps inline/);
+    assert.match(body, /Do not write an artifact/);
+  }
+});
+
 test('the Codex projection satisfies runtime metadata and handoff contracts', () => {
   const errors = collectCodexRuntimeErrors(ROOT);
   assert.deepStrictEqual(errors, [], errors.join('\n'));
@@ -128,6 +152,7 @@ test('all committed direct roles match the approved runtime map and global defau
     const file = path.join(ROOT, 'codex', 'agents', `${role}.toml`);
     assert.strictEqual(readTomlField(file, 'model'), model, role);
     assert.strictEqual(readTomlField(file, 'model_reasoning_effort'), effort, role);
+    assert.strictEqual(readTomlField(file, 'sandbox_mode'), null, role);
     assert.match(model, /^gpt-6(?:\.1-sol|-(?:sol|luna))$/, role);
   }
   const config = fs.readFileSync(path.join(ROOT, 'codex', 'config.toml.example'), 'utf8');
@@ -176,7 +201,8 @@ test('the generator emits the effective Codex model metadata and compatible hand
     }
 
     const e2eRunner = fs.readFileSync(path.join(output, 'e2e-runner.toml'), 'utf8');
-    assert.strictEqual(readTomlField(path.join(output, 'e2e-runner.toml'), 'sandbox_mode'), 'workspace-write');
+    assert.strictEqual(readTomlField(path.join(output, 'e2e-runner.toml'), 'sandbox_mode'), null);
+    assert.match(e2eRunner, /Assigned test traces and runner output may be written separately/);
     assert.match(e2eRunner, /Verdict: BLOCKED/);
     assert.match(e2eRunner, /playwright-cli/);
     assert.doesNotMatch(e2eRunner, /ui-ux-verifier/);
@@ -447,9 +473,8 @@ test('mutation: role metadata, filename, and sandbox drift fail closed', () => {
     let source = fs.readFileSync(file, 'utf8')
       .replace('name = "explorer"', 'name = "not-explorer"')
       .replace('model = "gpt-6.1-sol"', 'model = "not-a-codex-model"')
-      .replace('model_reasoning_effort = "medium"', 'model_reasoning_effort = "not-an-effort"')
-      .replace('sandbox_mode = "read-only"', 'sandbox_mode = "not-a-sandbox"');
-    fs.writeFileSync(file, source);
+      .replace('model_reasoning_effort = "medium"', 'model_reasoning_effort = "not-an-effort"');
+    fs.writeFileSync(file, `${source}\nsandbox_mode = "read-only"\n`);
     const errors = [
       ...collectCodexRuntimeErrors(root),
       ...collectCodexCoverageErrors(root),
@@ -457,7 +482,7 @@ test('mutation: role metadata, filename, and sandbox drift fail closed', () => {
     assert.ok(errors.some((error) => /filename.*name|name.*filename|does not match/i.test(error)), errors.join('\n'));
     assert.ok(errors.some((error) => /invalid.*model|unknown model|model.*catalog/i.test(error)), errors.join('\n'));
     assert.ok(errors.some((error) => /invalid.*reasoning_effort|reasoning_effort.*invalid/i.test(error)), errors.join('\n'));
-    assert.ok(errors.some((error) => /invalid.*sandbox|sandbox.*invalid/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /sandbox_mode does not create an independent sandbox/i.test(error)), errors.join('\n'));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

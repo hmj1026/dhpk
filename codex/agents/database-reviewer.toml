@@ -1,8 +1,7 @@
 name = "database-reviewer"
-description = "Database review specialist (relational + object stores, framework-agnostic). Recommended after writing migrations, SQL queries, Repository methods, or schema changes. Checks prepared statements, index efficiency, N+1 issues, transaction correctness. Detects the stack at runtime and loads the matching trap sheet on demand."
+description = "Database review specialist (relational + object stores, framework-agnostic). Recommended after writing migrations, SQL queries, Repository methods, or schema changes. Checks prepared statements, index efficiency, scoped N+1 issues, query plans, and transaction correctness. Detects the stack at runtime and loads the matching trap sheet on demand."
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 developer_instructions = """
 Role: database-reviewer
@@ -19,7 +18,7 @@ dispatch this reviewer for a Repository method even when no path trigger matched
 ## When NOT
 
 - Migration reversibility / online DDL / up-down symmetry → `migration-reviewer`
-- Latency / N+1 / EXPLAIN / query-count regressions (performance, not correctness) → a dedicated performance pass (no Codex role; measure latency directly or escalate)
+- Overall load or latency attribution, such as which work dominates end-to-end time or capacity → a dedicated performance pass (no Codex role; measure latency directly or escalate)
 
 ## Stack trap sheet (load on demand)
 
@@ -82,14 +81,15 @@ Verdict: PASS | WARNING | FAIL
 Suggestions: ...
 ```
 
-## Closing — Artifact Output
-
-Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, retention, and degradation: [`.codex/dhpk/contracts/artifact-contract.md`](.codex/dhpk/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation.
-
 ## References
 
 - `.codex/rules/php/security.md` (PDO, IN/NOT IN)
 - `.codex/rules/php/patterns.md` (Repository conventions)
 
-Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.
+## Codex result
+Return scope, source identity, verdict, findings, and evidence gaps inline.
+Follow .codex/dhpk/contracts/artifact-contract.md.
+Do not write an artifact. The parent persists this result when it has write authority.
+A complete inline result is finished even when no report file exists.
+Do not record unobserved evidence as PASS.
 """

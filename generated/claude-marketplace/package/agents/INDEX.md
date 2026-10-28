@@ -28,7 +28,7 @@ here.
 | [database-reviewer](database-reviewer.md) | sonnet | SQL / schema / migration / Repository edits |
 | [security-reviewer](security-reviewer.md) | sonnet | Auth / authz / crypto / file-upload edits |
 | [frontend-reviewer](frontend-reviewer.md) | sonnet | JS/TS edits when the `js` module is active; template-embedded `<script>` blocks (AI-judgment backfill) |
-| [code-reviewer](code-reviewer.md) | sonnet | **Recommended after any source-code Edit/Write** |
+| [code-reviewer](code-reviewer.md) | sonnet | **Recommended for a completed implementation wave** |
 | [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity checks |
 
 Agent names are overridable via `userConfig.review_agents` — a project can point reviewer dispatch at its own `code-reviewer-<project>` and friends instead of the plugin defaults. All seven reviewer roles are available by default; reduce or replace the list through configuration.
