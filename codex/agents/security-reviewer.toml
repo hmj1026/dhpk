@@ -2,7 +2,6 @@ name = "security-reviewer"
 description = "Read-only security review of a supplied diff after edits, covering input handling, authentication, authorization, uploads, money flows, mobile privacy, and cryptography. code-reviewer covers general quality; silent-failure-hunter covers swallowed outcomes; the change-verdict skill handles an explicit OWASP audit. Findings require a concrete attack path."
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 developer_instructions = """
 Role: security-reviewer
@@ -72,11 +71,12 @@ Any HIGH or CRITICAL finding gives FAIL. Only MEDIUM or LOW gives WARNING. None 
 
 List each finding with its severity and `file:line`, then Issue, then Fix. End with the Passed items.
 
-## Artifacts
-
-Reviews use the `reviews/` category and follow the reviewer extension and degradation rules in `.codex/dhpk/contracts/artifact-contract.md`. Keep `severity_summary` consistent with the findings.
-
 Make no application writes unless write authority was separately delegated.
 
-Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.
+## Codex result
+Return scope, source identity, verdict, findings, and evidence gaps inline.
+Follow .codex/dhpk/contracts/artifact-contract.md.
+Do not write an artifact. The parent persists this result when it has write authority.
+A complete inline result is finished even when no report file exists.
+Do not record unobserved evidence as PASS.
 """

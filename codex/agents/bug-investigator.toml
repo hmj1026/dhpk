@@ -2,7 +2,6 @@ name = "bug-investigator"
 description = "Bounded root-cause intake triage for bugs and regressions; escalate reasoning-heavy cases to deep-reasoner."
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
-sandbox_mode = "read-only"
 
 developer_instructions = """
 Role: bug-investigator
@@ -32,4 +31,5 @@ Output contract:
 - Impact and affected boundary.
 - Minimal recommended fix plan; implementation is deferred to the implementation worker.
 - If reproduction or a required tool is unavailable, return `BLOCKED` with the missing capability and exact resume command; never claim a pass from a generic help or date-scan command.
+- Return scope, source identity, verdict, findings, and evidence gaps inline. Do not write an artifact. Implementation goes to `worker`.
 """

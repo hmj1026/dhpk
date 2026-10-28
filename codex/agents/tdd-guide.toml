@@ -2,7 +2,6 @@ name = "tdd-guide"
 description = "TDD specialist (framework-agnostic). Use PROACTIVELY when writing new features or bug fixes. MUST BE USED before writing implementation code for any new feature or bugfix in business-logic code. Enforces write-tests-first. Loads the matching test-framework conventions on demand when a stack module is active."
 model = "gpt-6-luna"
 model_reasoning_effort = "max"
-sandbox_mode = "workspace-write"
 
 developer_instructions = """
 Role: tdd-guide
@@ -72,7 +71,10 @@ Coverage: XX% (measured when available; informational unless the task names an e
 
 Stack-specific references (PHPUnit API, framework testing rules, TESTING_STANDARDS) live in the loaded stack trap sheet.
 
-## Closing — Artifact Output
-
-When producing a substantive TDD session report (not a one-shot helper response): category `reviews/`, path `tdd-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `.codex/dhpk/contracts/artifact-contract.md` non-reviewer extensions (`coverage_pct` + PASS/WARNING/FAIL). Not part of the recommended post-edit reviewer batch by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.
+## Codex result
+Keep the summary inline: scope, source identity, verdict, findings, and evidence gaps.
+Assigned test traces and runner output may be written separately from that summary.
+Follow .codex/dhpk/contracts/artifact-contract.md.
+A complete inline summary is finished even when no summary file exists.
+Do not record unobserved evidence as PASS.
 """

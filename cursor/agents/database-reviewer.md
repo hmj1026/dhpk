@@ -1,6 +1,6 @@
 ---
 name: database-reviewer
-description: "Database review specialist (relational + object stores, framework-agnostic). Recommended after writing migrations, SQL queries, Repository methods, or schema changes. Checks prepared statements, index efficiency, N+1 issues, transaction correctness. Detects the stack at runtime and loads the matching trap sheet on demand."
+description: "Database review specialist (relational + object stores, framework-agnostic). Recommended after writing migrations, SQL queries, Repository methods, or schema changes. Checks prepared statements, index efficiency, scoped N+1 issues, query plans, and transaction correctness. Detects the stack at runtime and loads the matching trap sheet on demand."
 model: "cursor-grok-4.6-high"
 readonly: true
 ---
@@ -15,7 +15,7 @@ dispatch this reviewer for a Repository method even when no path trigger matched
 ## When NOT
 
 - Migration reversibility / online DDL / up-down symmetry → `migration-reviewer`
-- Latency / N+1 / EXPLAIN / query-count regressions (performance, not correctness) → `performance-analyzer`
+- Overall load or latency attribution, such as which work dominates end-to-end time or capacity → `performance-analyzer`
 
 ## Stack trap sheet (load on demand)
 

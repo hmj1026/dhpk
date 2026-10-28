@@ -119,3 +119,5 @@ suspected cost here, and do not restate a threshold that nothing enforces.
 ## Degradation
 
 If `.claude/artifacts/` (or the specific category subdirectory) does not exist, emit the report to stdout only — do not error.
+
+The Codex projection does not treat a missing report file as a reason to dispatch the role again. Read-only Codex roles return an inline result; see `codex/supporting/contracts/artifact-contract.md`.

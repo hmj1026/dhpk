@@ -173,8 +173,12 @@ test('generates exactly the 11-agent allowlist as .toml files with derived field
     assert.ok(tddGuide.includes('model = "gpt-6-luna"'), tddGuide);
     assert.ok(tddGuide.includes('model_reasoning_effort = "max"'), tddGuide);
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
-    assert.ok(e2eRunner.includes('sandbox_mode = "workspace-write"'), e2eRunner);
+    assert.doesNotMatch(e2eRunner, /^sandbox_mode\s*=/m);
     assert.match(e2eRunner, /Verdict: BLOCKED/);
+    for (const name of EXPECTED_AGENTS) {
+      const body = fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8');
+      assert.doesNotMatch(body, /^sandbox_mode\s*=/m, name);
+    }
     const migrationReviewer = fs.readFileSync(path.join(outDir, 'migration-reviewer.toml'), 'utf8');
     assert.doesNotMatch(migrationReviewer, /(?:dhpk:|claude-mem)/);
     assert.match(migrationReviewer, /`database-reviewer`/);
@@ -262,27 +266,57 @@ test('selected role prompts do not duplicate discovery descriptions', () => {
   }
 });
 
-test('generated reviewer roles use Codex review artifact semantics', () => {
+test('generated read-only roles return an inline handoff and do not require a review file', () => {
   const tmp = mkTmp();
   try {
     const outDir = path.join(tmp, 'out');
     const res = runScript([outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
     for (const name of [
+      'architect',
       'code-reviewer',
       'security-reviewer',
       'database-reviewer',
+      'deep-reasoner',
       'doc-reviewer',
+      'planner',
       'frontend-reviewer',
       'migration-reviewer',
     ]) {
       const body = fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8');
-      assert.doesNotMatch(body, /\.pending-[a-z-]+/);
-      assert.doesNotMatch(body, /subagent-stop-verify|clear-sentinel|post-edit-remind/);
-      assert.doesNotMatch(body, /\.claude\/artifacts|CLAUDE_PLUGIN_ROOT/);
-      assert.match(body, /\.codex\/artifacts/);
-      assert.match(body, /\.codex\/artifacts\/reviews\//);
+      assert.doesNotMatch(body, /\.pending-[a-z-]+/, name);
+      assert.doesNotMatch(body, /subagent-stop-verify|clear-sentinel|post-edit-remind/, name);
+      assert.doesNotMatch(body, /\.claude\/artifacts|CLAUDE_PLUGIN_ROOT/, name);
+      assert.doesNotMatch(body, /Write the final review under/, name);
+      assert.doesNotMatch(body, /dispatch again/, name);
+      assert.match(body, /Return scope, source identity, verdict, findings, and evidence gaps inline\./, name);
+      assert.match(body, /parent persists this result when it has write authority/, name);
+      assert.match(body, /even when no report file exists/, name);
+      assert.match(body, /Do not record unobserved evidence as PASS/, name);
     }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('generated role methods keep host-specific judgment and do not copy a second rule set', () => {
+  const tmp = mkTmp();
+  try {
+    const outDir = path.join(tmp, 'out');
+    const res = runScript([outDir]);
+    assert.strictEqual(res.status, 0, res.stderr);
+    const docReviewer = fs.readFileSync(path.join(outDir, 'doc-reviewer.toml'), 'utf8');
+    assert.match(docReviewer, /Codex agent TOML/);
+    assert.match(docReviewer, /Do not apply the YAML checks/);
+    assert.doesNotMatch(docReviewer, /docs\/agent-guidance\/frontmatter-schema\.md/);
+    const database = fs.readFileSync(path.join(outDir, 'database-reviewer.toml'), 'utf8');
+    assert.match(database, /No N\+1/);
+    assert.match(database, /Query plans/);
+    assert.doesNotMatch(database, /Latency \/ N\+1 \/ EXPLAIN/);
+    const codeReviewer = fs.readFileSync(path.join(outDir, 'code-reviewer.toml'), 'utf8');
+    assert.doesNotMatch(codeReviewer, /REST paths are plural nouns, not verbs/);
+    assert.match(codeReviewer, /not a defect unless the project contract/);
+    assert.doesNotMatch(codeReviewer, /phpunit-11/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -300,7 +334,11 @@ test('generated planner keeps its inline verdict protocol without a review artif
     assert.match(planner, /Every reply begins with `VERDICT:` and ends with literal `END`/);
     assert.match(planner, /model = "gpt-6.1-sol"/);
     assert.match(planner, /model_reasoning_effort = "high"/);
-    assert.match(planner, /sandbox_mode = "read-only"/);
+    assert.doesNotMatch(planner, /^sandbox_mode\s*=/m);
+    assert.doesNotMatch(planner, /stronger judgment than the driver/);
+    assert.doesNotMatch(planner, /omits model_reasoning_effort/);
+    assert.match(planner, /CONSULT USE:/);
+    assert.doesNotMatch(planner, /override this agent's `high` frontmatter effort with `medium`/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -316,10 +354,14 @@ test('generated deep reasoner keeps its inline conclusion contract without a rev
     const reasoner = fs.readFileSync(path.join(outDir, 'deep-reasoner.toml'), 'utf8');
     assert.doesNotMatch(reasoner, /Write the final review under `\.codex\/artifacts\/reviews\//);
     assert.match(reasoner, /Reasoner result: READY_FOR_DISPATCH/);
+    assert.match(reasoner, /Evidence status: confirmed/);
+    assert.match(reasoner, /leading hypothesis/);
+    assert.match(reasoner, /unresolved/);
+    assert.doesNotMatch(reasoner, /stated as fact/);
     assert.match(reasoner, /## Next actions/);
     assert.match(reasoner, /model = "gpt-6.1-sol"/);
     assert.match(reasoner, /model_reasoning_effort = "high"/);
-    assert.match(reasoner, /sandbox_mode = "read-only"/);
+    assert.doesNotMatch(reasoner, /^sandbox_mode\s*=/m);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -333,8 +375,9 @@ test('generated architect keeps its plan and ADR artifact paths without a review
     assert.strictEqual(result.status, 0, diagnostic(result));
 
     const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
-    assert.match(architect, /\.codex\/artifacts\/plans\/architect-/);
-    assert.match(architect, /\.codex\/artifacts\/adr\/ADR-/);
+    assert.doesNotMatch(architect, /\.codex\/artifacts\/plans\/architect-/);
+    assert.doesNotMatch(architect, /\.codex\/artifacts\/adr\/ADR-/);
+    assert.match(architect, /inline handoff/);
     assert.doesNotMatch(architect, /Write the final review under `\.codex\/artifacts\/reviews\//);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -349,8 +392,9 @@ test('generated TDD guide keeps its substantive report contract without a review
     assert.strictEqual(result.status, 0, diagnostic(result));
 
     const tddGuide = fs.readFileSync(path.join(outDir, 'tdd-guide.toml'), 'utf8');
-    assert.match(tddGuide, /substantive TDD session report/);
-    assert.match(tddGuide, /tdd-\{yyyymmdd-HHMMSS\}-\{slug\}\.md/);
+    assert.match(tddGuide, /Assigned test traces and runner output may be written separately/);
+    assert.match(tddGuide, /Do not record unobserved evidence as PASS/);
+    assert.doesNotMatch(tddGuide, /tdd-\{yyyymmdd-HHMMSS\}-\{slug\}\.md/);
     assert.doesNotMatch(tddGuide, /Write the final review under `\.codex\/artifacts\/reviews\//);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

@@ -1218,7 +1218,6 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
     missingFields.add('configFingerprint');
     const model = selectedCodexRoleSetting(roleText, 'model');
     const effort = selectedCodexRoleSetting(roleText, 'model_reasoning_effort');
-    const sandboxMode = selectedCodexRoleSetting(roleText, 'sandbox_mode');
     missingFields.delete('configFingerprint');
     const roleEntry = receipt && receipt.managed_entries && receipt.managed_entries.agents
       ? receipt.managed_entries.agents[`${role}.toml`]
@@ -1383,7 +1382,7 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
       configurationLoading: 'strict-config',
       model,
       effort,
-      roleSandboxMode: sandboxMode,
+      sandboxAuthority: 'parent-session',
       networkPolicy: 'Codex read-only sandbox default',
       authentication: 'operator auth.json referenced read-only; secret contents excluded',
     });

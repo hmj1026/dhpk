@@ -78,6 +78,17 @@ grep -m1 '^model:' "$f" | sed 's/^model:[[:space:]]*//'
 printf '%s' "$name" | grep -Eq '^[a-z0-9]+(-[a-z0-9]+)*$' && echo kebab-ok || echo kebab-FAIL
 ```
 
+### 0b. Codex agent TOML
+
+Apply this branch when the file is a Codex custom agent: a `.toml` file with name, description, and developer_instructions fields. Do not apply the YAML checks, Claude model aliases, or the local tools requirement.
+
+- name, description, and developer_instructions are non-empty.
+- dhpk roles also set model and model_reasoning_effort. A pinned file value takes precedence over an explicit start value, the agents default, and the parent. Do not treat that start value as a rewrite of the pinned effort.
+- The name field matches the filename stem.
+- Do not declare sandbox_mode. It does not create an independent sandbox. The parent session owns sandbox and approval.
+- Citations in the instructions must resolve for that host. A missing consumer path is an evidence gap (UNAVAILABLE), not a PASS, and not a broken-link failure against a file the host does not ship.
+- Claude tools and haiku, sonnet, opus, or fable aliases are not TOML requirements.
+
 ### 1. Manifest structural validity (`.json` / `.yml` / `.yaml` manifests only)
 
 For `.claude/manifests/**/*.{json,yml,yaml}` in the diff: same-schema fields
@@ -86,6 +97,8 @@ present; parses cleanly; no trailing commas; no BOM.
 ### 2. Cross-reference validity
 
 For every new / changed reference in the diff:
+
+When the file is a Codex custom agent TOML, a citation the consumer install does not ship is UNAVAILABLE, not a broken-link failure.
 
 ```bash
 # Path references
@@ -187,6 +200,7 @@ State `Verdict: APPROVE | WARNING | BLOCK` as the FIRST line of the reply:
 - APPROVE = no HIGH; any MEDIUM has a defensible reason to stay.
 - WARNING = MEDIUM but no HIGH.
 - BLOCK = any HIGH (broken link, SSOT contradiction, malformed manifest).
+- For a Codex custom agent TOML file, a citation the consumer install does not ship is UNAVAILABLE, not a broken-link BLOCK.
 
 Follow with the severity table, then:
 
