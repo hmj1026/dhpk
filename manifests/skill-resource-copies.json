@@ -40,7 +40,7 @@
     "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md": {
       "skill_id": "flow-guide",
       "source": "docs/subagent-prompt-template.md",
-      "sha256": "sha256:fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9",
+      "sha256": "sha256:c0b417e1ba13082701ce9bda67d5fbf6ef8e39b8881afeae9169d1e96fc3738f",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/manifests/host-profiles.json": {
@@ -70,7 +70,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc",
+      "sha256": "sha256:650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {

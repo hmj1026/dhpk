@@ -451,6 +451,38 @@ test('malformed shard timing JSON is rejected', () => {
     return { ...env, ...overrides };
   }
 
+  function assertProgressTranscript(stderr, expectedStatuses) {
+    const progressLines = stderr.split(/\r?\n/).filter((line) => line.startsWith('[test-progress]'));
+    const startedFiles = [];
+    const completedStatuses = {};
+    let completed = 0;
+
+    for (const line of progressLines) {
+      const started = line.match(/^\[test-progress\] started ([^ ]+) \(completed (\d+)\/(\d+)\)$/);
+      if (started) {
+        assert.strictEqual(Number(started[2]), completed, line);
+        assert.strictEqual(Number(started[3]), Object.keys(expectedStatuses).length, line);
+        startedFiles.push(started[1]);
+        continue;
+      }
+
+      const done = line.match(/^\[test-progress\] completed ([^ ]+) status=(PASS|FAIL) \(completed (\d+)\/(\d+)\)$/);
+      assert.ok(done, `unexpected progress line: ${line}`);
+      assert.strictEqual(Number(done[3]), completed + 1, line);
+      assert.strictEqual(Number(done[4]), Object.keys(expectedStatuses).length, line);
+      assert.strictEqual(done[2], expectedStatuses[done[1]], line);
+      completedStatuses[done[1]] = done[2];
+      completed += 1;
+    }
+
+    assert.deepStrictEqual(startedFiles.sort(), Object.keys(expectedStatuses).sort());
+    assert.deepStrictEqual(
+      Object.entries(completedStatuses).sort(([left], [right]) => left.localeCompare(right)),
+      Object.entries(expectedStatuses).sort(([left], [right]) => left.localeCompare(right)),
+    );
+    assert.strictEqual(completed, Object.keys(expectedStatuses).length);
+  }
+
   test('default options preserve the complete sequential runner contract', () => {
     assert.deepStrictEqual(parseOptions([], {}), {
       shardIndex: 0,
@@ -734,36 +766,58 @@ test('malformed shard timing JSON is rejected', () => {
     assert.strictEqual(parseTimingPayload('DHPK_TEST_TIMING_PAYLOAD={invalid}\n'), null);
   });
 
-  test('parallel progress is opt-in on stderr and preserves aggregate stdout', () => {
+  test('progress is opt-in on stderr and preserves file outcomes across sequential and parallel jobs', () => {
     const fixture = isolatedRunnerFixture({
-      'quick.test.js': "console.log('quick: 1/1 passed');\n",
-      'other.test.js': "console.log('other: 1/1 passed');\n",
+      'quick.test.js': "console.log('quick.test.js: 1/1 passed');\n",
+      'fail.test.js': "console.log('fail.test.js: 0/1 passed');\nprocess.exitCode = 1;\n",
+      'timeout.test.js': "console.log('timeout.test.js: 1/1 passed');\nsetInterval(() => {}, 1000);\n",
     });
     try {
       const args = [fixture.runner, ...fixture.testFiles];
-      const baseline = spawnSync(process.execPath, args, {
-        cwd: fixture.root,
-        env: isolatedRunnerEnv(),
-        encoding: 'utf8',
-        timeout: 30000,
-      });
-      const progress = spawnSync(process.execPath, args, {
-        cwd: fixture.root,
-        env: isolatedRunnerEnv({ DHPK_TEST_PROGRESS: '1' }),
-        encoding: 'utf8',
-        timeout: 30000,
-      });
+      const expectedStatuses = {
+        'quick.test.js': 'PASS',
+        'fail.test.js': 'FAIL',
+        'timeout.test.js': 'FAIL',
+      };
+      const withoutProgress = (stderr) => stderr.split(/\r?\n/)
+        .filter((line) => !line.startsWith('[test-progress]'))
+        .join('\n');
 
-      assert.strictEqual(baseline.status, 0, baseline.stdout + '\n' + baseline.stderr);
-      assert.strictEqual(progress.status, 0, progress.stdout + '\n' + progress.stderr);
-      assert.strictEqual(progress.stdout, baseline.stdout, 'progress must not change worker or aggregate stdout');
-      assert.match(progress.stdout, /PASS: 2\/2 test file\(s\) passed/);
-      assert.doesNotMatch(baseline.stderr, /\[test-progress\]/i);
-      assert.match(progress.stderr, /\[test-progress\]/i);
-      assert.ok(
-        /\.test\.js\b|\b[12]\s*\/\s*2\b/i.test(progress.stderr),
-        progress.stderr,
-      );
+      for (const jobs of [1, 2]) {
+        const baseline = spawnSync(process.execPath, args, {
+          cwd: fixture.root,
+          env: isolatedRunnerEnv({ DHPK_TEST_JOBS: String(jobs), DHPK_TEST_TIMEOUT_MS: '100' }),
+          encoding: 'utf8',
+          timeout: 30000,
+        });
+        const progress = spawnSync(process.execPath, args, {
+          cwd: fixture.root,
+          env: isolatedRunnerEnv({
+            DHPK_TEST_JOBS: String(jobs),
+            DHPK_TEST_TIMEOUT_MS: '100',
+            DHPK_TEST_PROGRESS: '1',
+          }),
+          encoding: 'utf8',
+          timeout: 30000,
+        });
+        const baselineOutput = baseline.stdout + '\n' + baseline.stderr;
+        const progressOutput = progress.stdout + '\n' + progress.stderr;
+
+        assert.strictEqual(baseline.error, undefined, baselineOutput);
+        assert.strictEqual(progress.error, undefined, progressOutput);
+        assert.strictEqual(baseline.status, 1, baselineOutput);
+        assert.strictEqual(progress.status, 1, progressOutput);
+        assert.strictEqual(progress.stdout, baseline.stdout, `jobs=${jobs}: progress must preserve stdout`);
+        assert.doesNotMatch(baseline.stderr, /\[test-progress\]/i);
+        assert.doesNotMatch(progress.stdout, /\[test-progress\]/i);
+        assert.strictEqual(withoutProgress(progress.stderr), withoutProgress(baseline.stderr));
+        assert.match(progress.stdout, /quick\.test\.js: 1\/1 passed/);
+        assert.match(progress.stdout, /fail\.test\.js: 0\/1 passed/);
+        assert.match(progress.stdout, /timeout\.test\.js: 1\/1 passed/);
+        assert.match(progress.stderr, /ASSERTION EVIDENCE: fail\.test\.js contains failed assertions\./);
+        assert.match(progressOutput, /FAIL: 2\/3 test file\(s\) failed/);
+        assertProgressTranscript(progress.stderr, expectedStatuses);
+      }
     } finally {
       fs.rmSync(fixture.root, { recursive: true, force: true });
     }

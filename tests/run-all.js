@@ -274,22 +274,40 @@ function sendWorkerProgress(event, file, status) {
   });
 }
 
+function writeTestProgress(event, file, status, progress) {
+  const name = path.basename(file);
+  if (event === 'start') {
+    process.stderr.write(`[test-progress] started ${name} (completed ${progress.completed}/${progress.total})\n`);
+    return;
+  }
+  progress.completed += 1;
+  const result = status === 'PASS' ? 'PASS' : 'FAIL';
+  process.stderr.write(`[test-progress] completed ${name} status=${result} (completed ${progress.completed}/${progress.total})\n`);
+}
+
 async function runSequential(files, env, timeoutMs) {
   let failed = 0;
   const fileTimings = [];
   const startedAt = process.hrtime.bigint();
-  const progressEnabled = env.DHPK_TEST_PROGRESS === '1' && typeof process.send === 'function';
+  const progressEnabled = env.DHPK_TEST_PROGRESS === '1';
+  const progress = { completed: 0, total: files.length };
   for (const file of files) {
     const relative = path.relative(TESTS_DIR, file);
     console.log(`\n# ${relative}`);
-    if (progressEnabled) await sendWorkerProgress('start', file);
+    if (progressEnabled) {
+      if (typeof process.send === 'function') await sendWorkerProgress('start', file);
+      else writeTestProgress('start', file, undefined, progress);
+    }
     const fileStartedAt = process.hrtime.bigint();
     const result = runNodeTest(file, { env, timeoutMs: fileTimeoutMs(file, timeoutMs), captureOutput: true });
     if (result.stdout) process.stdout.write(result.stdout);
     if (result.stderr) process.stderr.write(result.stderr);
     const timing = createFileTiming(file, result, elapsedMilliseconds(fileStartedAt));
     fileTimings.push(timing);
-    if (progressEnabled) await sendWorkerProgress('complete', file, timing.status);
+    if (progressEnabled) {
+      if (typeof process.send === 'function') await sendWorkerProgress('complete', file, timing.status);
+      else writeTestProgress('complete', file, timing.status, progress);
+    }
     if (timing.status !== 'PASS') {
       failed += 1;
       if (result.error) console.error(`ERROR in ${relative}: ${result.error.message}`);
@@ -370,12 +388,10 @@ function runWorker(files, workerIndex, workerCount, env, progress) {
           || path.basename(message.file) !== message.file
           || !message.file.endsWith('.test.js')) return;
         if (message.event === 'start') {
-          process.stderr.write(`[test-progress] started ${message.file} (completed ${progress.completed}/${progress.total})\n`);
+          writeTestProgress('start', message.file, undefined, progress);
           return;
         }
-        progress.completed += 1;
-        const status = message.status === 'PASS' ? 'PASS' : 'FAIL';
-        process.stderr.write(`[test-progress] completed ${message.file} status=${status} (completed ${progress.completed}/${progress.total})\n`);
+        writeTestProgress('complete', message.file, message.status, progress);
       });
     }
     child.once('error', (error) => finish({ status: null, error }));

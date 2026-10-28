@@ -57,3 +57,24 @@ this page carries only the tool order and the recovery paths.
   result completeness separately.
 - **Sibling worktree hides changes:** use `detect-changes --scope all` or
   `--scope compare` and inspect the real diff/status.
+
+## Bounded diagnosis
+
+For one unchanged failure, perform at most one justified index refresh and one
+query narrowed by file or symbol unique identifier (UID). Coordinate a shared index refresh with
+other active users. Retry again only when new evidence changes the suspected
+cause; otherwise preserve the unresolved result and use CX and source inspection
+to account for the affected boundary. This limits retries; it does not waive the
+required impact attempt, HIGH/CRITICAL warnings, or unresolved-risk reporting.
+
+Keep freshness, missing symbols, malformed result data, resolver caps, output
+truncation, and MCP transport failures separate. Record the checkout/index
+identity, CLI and native-reader versions, exact command, and redacted raw result
+under local `docs/evidence/`. Compare raw data before presentation truncation
+before attributing unexpected characters to the output budget. A cap that omits
+edges is incomplete evidence even after a successful refresh.
+
+Use an owned disposable fixture for a minimal reproduction. Preserve the shared
+index and installed tools; a dependency upgrade, cap change, or index deletion
+requires a separately scoped repair. If the failing layer cannot be identified,
+report UNKNOWN with the next discriminating check rather than a guessed cause.
