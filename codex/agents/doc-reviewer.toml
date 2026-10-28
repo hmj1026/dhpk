@@ -46,9 +46,7 @@ Out of scope:
    rules in `.codex/dhpk/policies/execution-policy.md`. Back-stop/full-review fallback restricts to
    `.codex/ docs/ openspec/`.
 2. Check whether the consumer project contains a non-empty local rules file:
-   `.codex/docs/doc-review-local.md` for Claude and AGY,
-   `.codex/docs/doc-review-local.md` for Codex, or
-   `.cursor/docs/doc-review-local.md` for Cursor. Read an existing file and
+   `.codex/docs/doc-review-local.md` for Codex. Read an existing file and
    apply it as additional checklist items. A missing or empty file adds no
    checks and no output field; a file that cannot be read is an evidence gap.
    Local rules may add checks or raise severity, but cannot waive, weaken, or

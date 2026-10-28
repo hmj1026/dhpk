@@ -361,10 +361,14 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
 
   test('rewriteCursorHarnessBody maps doc-reviewer local rules to the Cursor project path', () => {
     const rewritten = rewriteCursorHarnessBody(
-      'Read `.claude/docs/doc-review-local.md` when it exists.',
+      'Read `.claude/docs/doc-review-local.md` for Claude and AGY,\n'
+      + '   `.codex/docs/doc-review-local.md` for Codex, or\n'
+      + '   `.cursor/docs/doc-review-local.md` for Cursor.',
     );
     assert.match(rewritten, /\.cursor\/docs\/doc-review-local\.md/);
-    assert.doesNotMatch(rewritten, /\.claude\/docs\/doc-review-local\.md/);
+    assert.match(rewritten, /for Cursor/);
+    assert.doesNotMatch(rewritten, /for Claude and AGY/);
+    assert.doesNotMatch(rewritten, /for Codex/);
   });
 
   test('native Cursor agents use the co-installed shared dispatch support package', () => {

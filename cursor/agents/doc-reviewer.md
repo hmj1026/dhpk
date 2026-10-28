@@ -43,8 +43,6 @@ Out of scope:
    rules in `.cursor/dhpk/policies/execution-policy.md`. Back-stop/full-review fallback restricts to
    `.claude/ docs/ openspec/`.
 2. Check whether the consumer project contains a non-empty local rules file:
-   `.cursor/docs/doc-review-local.md` for Claude and AGY,
-   `.codex/docs/doc-review-local.md` for Codex, or
    `.cursor/docs/doc-review-local.md` for Cursor. Read an existing file and
    apply it as additional checklist items. A missing or empty file adds no
    checks and no output field; a file that cannot be read is an evidence gap.
@@ -238,9 +236,9 @@ State `Verdict: APPROVE | WARNING | BLOCK` as the FIRST line of the reply:
 Follow with the severity table, then:
 
 When a local rules file was loaded, include `local_rules_loaded` with its
-project-relative path in the reply and artifact frontmatter. Omit this field
-when no non-empty local rules file was loaded. A load failure is an evidence
-gap, not a successfully loaded rule.
+project-relative path in the reply and, where the Host persists a review
+artifact, its frontmatter. Omit this field when no non-empty local rules file
+was loaded. A load failure is an evidence gap, not a successfully loaded rule.
 
 ```
 [HIGH|MEDIUM|LOW] Title
