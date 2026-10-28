@@ -25,6 +25,15 @@ this page carries only the tool order and the recovery paths.
   dirtiness. A successful analysis can update changed-file content from the
   working tree; a new or changed symbol is available only after that content is
   indexed and included by the scanner. Absence from an older index is unresolved.
+- **Incremental scan corruption or post-refresh `Transport closed`:** when an
+  incremental `analyze` still misses source-present symbols or returns `NUL` or
+  concatenated strings in table scans (`@ladybugdb/core` `0.18.3` out-of-place
+  `CHECKPOINT` splits `>256 KiB` string columns into 64-row segments that
+  `StringColumn::scanFiltered` skips at `offset % 2048 >= 64`), rebuild through
+  staging with `node .gitnexus/run.cjs analyze --force --skip-agents-md --skip-skills`.
+  After any index refresh, send one serial MCP request before issuing concurrent
+  MCP queries so the server reopens the replaced database without racing
+  in-flight connections.
 - **Tool arguments:** use the exposed tool schema. MCP concept search accepts
   `query({query: "concept"})`; the CLI's positional `<search_query>` is not an
   MCP field. Preserve this distinction when updating the generated guidance.
