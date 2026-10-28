@@ -987,7 +987,7 @@ test('an authorized but unsupported AGY plugin-loader requirement stays blocked 
 test('default installation acceptance passes configured contracts while runtime remains excluded', () => {
   const root = makeConfiguredScopeRoot([
     '.claude-plugin', 'skills', 'agents', 'commands', 'modules',
-    'rules', 'cursor', 'scripts', 'manifests',
+    'rules', 'cursor', 'scripts', 'manifests', 'docs',
     'plugins/dhpk-agent', 'plugins/dhpk-cursor', 'plugins/dhpk-agy',
     'AGENTS.md',
   ]);

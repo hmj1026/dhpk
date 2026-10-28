@@ -24,6 +24,7 @@ const {
   validatePortableSkillMetadata,
 } = require('./portable-skill-metadata');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { resolveStandaloneSkillDependencies } = require('./standalone-skill-dependencies');
 const {
   createProjectAgentProviderAdapters,
   CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
@@ -343,8 +344,15 @@ function validateLogicalFiles(sourceFiles, label) {
   return sorted;
 }
 
-function sourceManifest(sourceDirectory) {
-  const files = validateLogicalFiles(collectFiles(sourceDirectory), `skill '${path.basename(sourceDirectory)}'`);
+function sourceManifest(sourceDirectory, dependencies = []) {
+  const files = validateLogicalFiles([
+    ...collectFiles(sourceDirectory),
+    ...dependencies.map((dependency) => ({
+      relative: dependency.relative,
+      absolute: dependency.absolute,
+      sourcePath: dependency.source,
+    })),
+  ], `skill '${path.basename(sourceDirectory)}'`);
   const manifest = [];
   const hash = crypto.createHash('sha256');
   for (const file of files) {
@@ -573,7 +581,11 @@ function buildArtifactInputs({
     }
     assertPhysicalAncestors(sourceDirectory, `canonical skill '${name}'`, sourceRoot);
     // The complete physical Skill directory is the projection unit.
-    const manifest = sourceManifest(sourceDirectory);
+    const standaloneDependencies = resolveStandaloneSkillDependencies(inventory, name, sourceRoot);
+    for (const dependency of standaloneDependencies) {
+      assertPhysicalAncestors(dependency.absolute, `standalone dependency '${dependency.source}'`, sourceRoot);
+    }
+    const manifest = sourceManifest(sourceDirectory, standaloneDependencies);
     const skillFile = manifest.files.find((file) => file.relative === 'SKILL.md');
     if (!skillFile) throw fail('MISSING_SKILL', `canonical skill '${name}' is missing SKILL.md`, { stableIds: [planEntry.stableId] });
     const skillContent = readPhysicalFile(skillFile.absolute, `canonical skill '${name}/SKILL.md'`);
@@ -601,7 +613,7 @@ function buildArtifactInputs({
             : sourceContent;
           addRecord({
             stableId: outputStableId(planEntry.stableId, 'directory', file.relative),
-            source: `${sourceEntry.path}/${file.relative}`,
+            source: file.sourcePath || `${sourceEntry.path}/${file.relative}`,
             destination,
             content: portableContent,
             transform: providers.directory.transform,
@@ -615,7 +627,7 @@ function buildArtifactInputs({
         if (hasClaudeDirectoryOutput) {
           addRecord({
             stableId: outputStableId(planEntry.stableId, 'claude-directory', file.relative),
-            source: `${sourceEntry.path}/${file.relative}`,
+            source: file.sourcePath || `${sourceEntry.path}/${file.relative}`,
             destination,
             content: sourceContent,
             transform: providers.directory.transform,
@@ -2000,7 +2012,11 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         if (!sourceEntry) continue;
         const sourceDirectory = path.resolve(roots.sourceRoot, sourceEntry.path);
         if (!lstatOrNull(sourceDirectory)) continue;
-        const current = sourceManifest(sourceDirectory).sourceFingerprint;
+        const dependencies = resolveStandaloneSkillDependencies(options.inventory, entry.name, roots.sourceRoot);
+        for (const dependency of dependencies) {
+          assertPhysicalAncestors(dependency.absolute, `standalone dependency '${dependency.source}'`, roots.sourceRoot);
+        }
+        const current = sourceManifest(sourceDirectory, dependencies).sourceFingerprint;
         if (current !== entry.sourceFingerprint) errors.push(`source fingerprint drifted: ${entry.name}`);
       }
     }
