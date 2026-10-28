@@ -740,10 +740,10 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     for (const config of [stringConfig, providerObject, agentObject]) {
       assert.ok(config.legacy_sources.some((entry) => entry.field === 'worker_target'
         && entry.diagnostic === 'legacy provider/route target spelling translated at input boundary'
-        && entry.removal_version === '0.67.0'));
+        && entry.removal_version === '0.67.0')); // dhpk:historical-version-fixture
     }
-    assert.strictEqual(LEGACY_REMOVAL_VERSION, '0.67.0');
-    assert.ok(adr.includes('0.67.0'));
+    assert.strictEqual(LEGACY_REMOVAL_VERSION, '0.67.0'); // dhpk:historical-version-fixture
+    assert.ok(adr.includes('0.67.0')); // dhpk:historical-version-fixture
     assert.ok(adr.includes('0.66.0 shipped'));
   });
 
