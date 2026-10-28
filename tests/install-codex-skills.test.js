@@ -67,6 +67,30 @@ test('fresh Codex install selects the common collection and keeps Flow Drive por
   }
 });
 
+test('fresh install materializes the current worker and Terra role payload byte-for-byte', () => {
+  const scratch = projectRoot();
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    for (const role of ['worker.toml', 'ui-verifier.toml', 'scoped-worker.toml']) {
+      const source = path.join(ROOT, 'codex', 'agents', role);
+      const destination = path.join(scratch, '.codex', 'agents', role);
+      assert.strictEqual(fs.readFileSync(destination, 'utf8'), fs.readFileSync(source, 'utf8'), role);
+      assert.ok(receipt.managed_entries.agents[role], `receipt must own ${role}`);
+    }
+    for (const role of ['ui-verifier.toml', 'scoped-worker.toml']) {
+      const content = fs.readFileSync(path.join(scratch, '.codex', 'agents', role), 'utf8');
+      assert.match(content, /model = "gpt-6\.1-terra"/);
+      assert.match(content, /model_reasoning_effort =/);
+      assert.match(content, /developer_instructions =/);
+    }
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('Codex installer and harness-setup adapter reject retired profile flags before writes', () => {
   for (const args of [['--profile', 'minimal'], ['--profile=compat-v1']]) {
     const scratch = projectRoot();
