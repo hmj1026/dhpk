@@ -62,7 +62,8 @@ Do not emit the pipe-separated notation `Reasoner result: READY_FOR_DISPATCH | D
 ```
 ## Conclusion
 Reasoner result: READY_FOR_DISPATCH
-<one paragraph — the root cause / design / algorithm, stated as fact, not a hedge>
+Evidence status: confirmed
+<one paragraph at the evidence status below>
 
 ## Evidence
 - file:line — <what this shows>
@@ -74,9 +75,9 @@ task spec verbatim — do not require the reader to re-derive anything from
 Evidence. Include a verification command if one is obvious from the repo.>
 ```
 
-A conclusion without file:line evidence is not acceptable. "Next actions" must name files, not areas ("fix the auth bug" is not a next action; "in `src/Auth/Session.php:142`, the token comparison uses `==` instead of `hash_equals()`" is).
+The line immediately after Reasoner result is exactly one evidence status: `Evidence status: confirmed`, `Evidence status: leading hypothesis`, or `Evidence status: unresolved`. Use confirmed only when cited file:line evidence supports the claim. Use leading hypothesis when the evidence points that way and a gap remains. Use unresolved when the evidence is insufficient, and name the gap. These statuses apply to static code claims and to runtime, browser, and environment claims. Insufficient evidence stays a leading hypothesis or unresolved.
 
-**Untested-hypothesis carve-out (runtime/browser/environment claims).** The `stated as fact, not a hedge` rule above applies to claims this agent can verify by reading and reasoning over the code. It does NOT extend to runtime/browser/environment behavior the agent cannot itself execute or observe — how a page actually scrolls, renders, or times in a live browser, or any environment-dependent effect. Label such a claim an **"untested hypothesis"** in the Conclusion rather than stating it as fact, and make the Next actions recommend re-dispatching it to an executable probe — `e2e-runner` or a scratch runnable probe — to confirm it before it is treated as a conclusion.
+A confirmed conclusion cites file:line evidence. A leading hypothesis cites the supporting evidence and the gap. An unresolved conclusion names the missing evidence instead of fabricating file:line proof. Next actions name files or the missing evidence, not a vague area ("fix the auth bug" is not a next action; "in `src/Auth/Session.php:142`, the token comparison uses `==` instead of `hash_equals()`" is).
 
 ## No-edit discipline
 
