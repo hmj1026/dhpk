@@ -789,7 +789,7 @@
       "sourcePath": "skills/code-simplify/distribution.yaml",
       "destination": "skills/flow-drive/references/code-simplify/distribution.yaml",
       "kind": "branch",
-      "sha256": "7b9038e17df1b049a32579a7232068c58fcf3dc4ce12e639feef19febfb15dc3"
+      "sha256": "a9d9b51d52b410cec1df2a3ac88781664e80c0396a996c41fc55cbbe0d56835d"
     },
     {
       "skillId": "code-simplify",
@@ -2621,7 +2621,7 @@
       "sourcePath": "skills/library-author/distribution.yaml",
       "destination": "skills/library-author/distribution.yaml",
       "kind": "entry",
-      "sha256": "855a756df2ad268cf6223fe36663c571e53cb0b5e994bb6267a2bd88f7a09435"
+      "sha256": "6183e62aca9a6add4dbc50b49a179fb5a682745cac6d44be53a743b9ae84dd71"
     },
     {
       "skillId": "library-author",

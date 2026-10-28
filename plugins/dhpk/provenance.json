@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.66.7",
-  "sourceCommit": "f6cf720e2c2b96daa9446be4c8308c5275133794",
-  "generatedFromCommit": "f6cf720e2c2b96daa9446be4c8308c5275133794",
-  "generatedFromTree": "f390711eea5b1a25d5c5601deda6717ab5aa528c",
+  "sourceCommit": "08c43f06e43da5097c4e419a1f652b497d2f3e27",
+  "generatedFromCommit": "08c43f06e43da5097c4e419a1f652b497d2f3e27",
+  "generatedFromTree": "55cdbb7bac52e73476f086f15cdc44d574092070",
   "inventoryDigest": "a72bb20615ea64ab1b2a1d308872c7e4579e75aa858b2d962f205dc34f008d5f",
   "inventoryRevision": "sha256:aa8f4cf526f9be99092d37d406a42bf48addd8535c259157970b4fd6b6341bd2",
   "generatorVersion": "2.3.0",
@@ -725,7 +725,7 @@
         "ownerId": "flow-drive",
         "source": "skills/code-simplify/distribution.yaml",
         "destination": "skills/flow-drive/references/code-simplify/distribution.yaml",
-        "originalGitBlobDigest": "30564fa71b1b832841f97a824bd6425be0df1eb0"
+        "originalGitBlobDigest": "96155bd0be8279a9df9681956ab11c7c4bd95302"
       },
       {
         "ownerId": "flow-drive",
@@ -2027,7 +2027,7 @@
         "ownerId": "library-author",
         "source": "skills/library-author/distribution.yaml",
         "destination": "skills/library-author/distribution.yaml",
-        "originalGitBlobDigest": "71dc0786d4723f1ef370209a13cadb8f99950003"
+        "originalGitBlobDigest": "11b0ba1126687eb252b5b36140d3cd7d07f3f3ce"
       },
       {
         "ownerId": "library-author",
@@ -5724,11 +5724,11 @@
     "code-trace": "e654a433b1386b738ef94d24f6920a70016501ef478d9e94e5ccb8531dee93dd",
     "create-pr": "df24afa37cc7c399f6165a2e2de3f9194cb62dc08fa846572c48c7611e641983",
     "doc-maintain": "3cb1171aef79455048d92ecf6e657978c3753ea5e072f1330f7079e15796f571",
-    "flow-drive": "563b621abe1d0dd01131ad0d4c699c6e01487a71037ddc19fe775dc54c0dbeee",
+    "flow-drive": "911acd28b74231de10e714682491470a403785976c5269398d339c2edcd3189a",
     "flow-guide": "630c20eaf18cf0d30a6e00ba86b234eb05bb778c61fa3bbded5bd3a004ae0cf9",
     "git-smart-commit": "4413e1354c503a9873f6bfcc17a2addcc2a4a1646b4cbaef840f6aea04977bdc",
     "git-worktree": "1d13ed5f23a0c686666a0f6ea0859e42e113d6d589a01ca3ee2580d11678bd0c",
-    "library-author": "d43c5329860a3e2c9737c320312aaee87008b212aa2cc11ffb028cbebb7509d3",
+    "library-author": "73e758dd74efed044822b4e2fe749d819eacb50b0a166d45dd12dba38ae60cd0",
     "opsx-apply-resume": "0d039e05ba452c2a175adb00e74995f916432870bbd6bbc209afb8dffa30ceab",
     "precommit": "c5b3614758ebc7625824ed6913498921a728b9e54857eab99910d8cee8ccebb2",
     "proposal-analyze": "8dca8f57397c348afacdfde139c3b0afd1873aaeb29600f3545f42debf794a32",

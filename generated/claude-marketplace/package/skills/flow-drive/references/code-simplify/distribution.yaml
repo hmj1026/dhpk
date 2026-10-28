@@ -60,8 +60,7 @@
       "outcome": "retain",
       "callers": [
         "commands/simplify.md"
-      ],
-      "allowed_tools": "Read, Grep, Glob, Edit, Agent, Bash"
+      ]
     }
   ]
 }
