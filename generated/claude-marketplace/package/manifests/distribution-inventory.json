@@ -20,6 +20,10 @@
     "flow-guide": {
       "files": [
         {
+          "source": "docs/subagent-prompt-template.md",
+          "destination": "docs/subagent-prompt-template.md"
+        },
+        {
           "source": "rules/execution-policy.md",
           "destination": "rules/execution-policy.md"
         },
@@ -55,6 +59,10 @@
     },
     "git-smart-commit": {
       "files": [
+        {
+          "source": "docs/subagent-prompt-template.md",
+          "destination": "docs/subagent-prompt-template.md"
+        },
         {
           "source": "rules/execution-policy.md",
           "destination": "rules/execution-policy.md"
@@ -457,7 +465,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc",
+      "canonical_digest": "650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670",
       "projection_digest": "4cf998323a4ec247b1785f06de203184386d0a13c0e3f8fe356114deb6a11e34",
       "destination": "dhpk/policies/execution-policy.md"
     },

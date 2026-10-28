@@ -36,6 +36,49 @@ Output contract:
 - <required headings, evidence shape, edited-file report, and terminal status>
 ```
 
+## Recoverable run checkpoint
+
+For a long verification, update one run-specific record under the ignored
+`docs/evidence/` directory when the command starts, when its status changes,
+after a source commit, and after PR creation. Keep the same record for the
+task/attempt so a resumed agent can recover the exact work state.
+
+```text
+Task id:
+Attempt id:
+Branch:
+Source snapshot:
+  HEAD:
+  Working tree: clean | dirty (<owned changed paths or diff reference>)
+Completed:
+Pending:
+Verification:
+  Command:
+  Session/process id:
+  Log location:
+  Status: not started | running | passed | failed | stopped | unknown
+Review snapshot:
+  Scope and source identity (branch, HEAD, dirty state):
+  Reviewer(s), outcomes, and remaining gaps:
+PR / CI:
+  PR id or status:
+  CI run id or status:
+Delivery identity (optional; include only when applicable):
+  Source S commit:
+  Frozen plan path:
+  Plan digest/fingerprint:
+  Selected surfaces:
+  Resolved surfaces:
+  Generated commit G:
+Next action:
+```
+
+On resume, verify the current branch, HEAD, dirty state, and command
+session/process identity against the record. If the session cannot be
+identified, leave its status `unknown` and do not rerun that command
+automatically. The checkpoint reduces recovery cost; it does not diagnose a
+backend failure.
+
 ## Source-reading guidance (select by capability)
 
 When a task needs source inspection, include only instructions for tools the

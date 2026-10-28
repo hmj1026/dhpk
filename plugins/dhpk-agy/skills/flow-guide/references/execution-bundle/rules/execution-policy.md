@@ -704,6 +704,17 @@ states; a manual alternative is separate evidence and does not become a pass for
 the unsupported runner. Keep implementation, verification, archive, commit, PR,
 CI, merge, release, and deployment states separate.
 
+Once implementation edits stop, applicable read-only reviews and full tests may
+run concurrently against one fixed source snapshot when the tests do not modify
+implementation files or compete for the same mutable test resources. A later
+source change creates a new snapshot and invalidates affected evidence; use the
+kernel's Evidence snapshots rules. For a long verification, a source commit, or
+PR creation, update one run-specific record under ignored `docs/evidence/` using
+the [recoverable run checkpoint](../docs/subagent-prompt-template.md#recoverable-run-checkpoint).
+At resume, verify recorded source and process identity; an unknown session is
+not rerun automatically. This recovery record does not diagnose backend failure
+or change existing review, commit, PR, CI, or release authorization checkpoints.
+
 ### Testing
 
 Run meaningful behavior tests for changed behavior and use the project's standard
