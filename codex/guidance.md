@@ -94,6 +94,17 @@ adopted into a new receipt entry. Use `--uninstall` for ownership-aware
 cleanup. Modified receipt entries are reported as orphaned and retained, as are
 unrelated project assets.
 
+For local agent tuning, edit the materialized `.codex/agents/*.toml` file and
+run `--update --plan --json` first. The plan reports destination and source
+fingerprints for an edited role; a normal update preserves that role and any
+unmanaged local guidance while updating unchanged managed roles. Apply a
+reported collision only with the exact `--adopt=<path>@<destination>@<source>`
+token from that plan. Adoption backs up the local role, verifies both
+fingerprints again, and records ownership; a source or destination change
+after planning aborts safely. Supporting assets remain source-linked, so keep
+consumer-specific instructions in a separate local guidance file rather than
+editing through a symlink.
+
 ## dhpk main flow for Codex
 
 dhpk ships 18 direct Codex agent roles under `codex/agents/` (synced into
