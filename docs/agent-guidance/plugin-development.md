@@ -103,25 +103,75 @@ node scripts/ci/gen-distribution-inventory.js --check
 node scripts/ci/sync-skill-resources.js --check
 git diff --check
 # Commit canonical sources and synchronized catalogs before formal generation.
+
+# Supply the reviewed base and classification for the exact B..S source diff.
+# Keep the classification and plan evidence outside this checkout.
+: "${DHPK_PREFLIGHT_BASE_SHA:?Set the base commit SHA for B..S}"
+: "${DHPK_PREFLIGHT_BASE_REF:?Set the base ref used to route this source plan}"
+: "${DHPK_PREFLIGHT_CLASSIFICATION_FILE:?Set the independently reviewed B..S classification JSON}"
+: "${DHPK_PACKAGE_VERSION:?Set the package version for generated artifacts}"
+dhpk_source_sha=$(git rev-parse HEAD)
+dhpk_preflight_dir=$(mktemp -d /tmp/dhpk-ci-preflight.XXXXXX)
+dhpk_preflight_dir=$(cd "$dhpk_preflight_dir" && pwd -P)
+dhpk_plan_file="$dhpk_preflight_dir/ci-plan.json"
+
+node scripts/ci/ci-plan.js plan \
+  --base-sha "$DHPK_PREFLIGHT_BASE_SHA" \
+  --head-sha "$dhpk_source_sha" \
+  --checkout-sha "$dhpk_source_sha" \
+  --base-ref "$DHPK_PREFLIGHT_BASE_REF" \
+  --classification-file "$DHPK_PREFLIGHT_CLASSIFICATION_FILE" \
+  --out "$dhpk_plan_file"
+
+dhpk_surfaces_csv=$(node -e 'const fs = require("node:fs"); const plan = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(plan.packageSurfaces.join(","));' "$dhpk_plan_file")
+dhpk_validate_args=(
+  --plan "$dhpk_plan_file"
+  --base-sha "$DHPK_PREFLIGHT_BASE_SHA"
+  --head-sha "$dhpk_source_sha"
+  --checkout-sha "$dhpk_source_sha"
+  --base-ref "$DHPK_PREFLIGHT_BASE_REF"
+  --classification-file "$DHPK_PREFLIGHT_CLASSIFICATION_FILE"
+  --require-clean
+)
+if [[ -n "$dhpk_surfaces_csv" ]]; then
+  dhpk_validate_args+=(--surfaces "$dhpk_surfaces_csv")
+fi
+node scripts/ci/ci-plan.js validate "${dhpk_validate_args[@]}"
+
 dhpk_packages=$(mktemp -d /tmp/dhpk-packages.XXXXXX)
 dhpk_packages=$(cd "$dhpk_packages" && pwd -P)
-# Set this to the affected surfaces from the plan; use all four for a release
-# or explicit unfiltered platform validation.
-dhpk_surfaces=(agent-plugin)
-for surface in "${dhpk_surfaces[@]}"; do
-  bin/dhpk distribution "$surface" generate --output "$dhpk_packages/$surface" --version=<version> --json
-done
+dhpk_surfaces=()
+if [[ -n "$dhpk_surfaces_csv" ]]; then
+  IFS=, read -r -a dhpk_surfaces <<< "$dhpk_surfaces_csv"
+  for surface in "${dhpk_surfaces[@]}"; do
+    bin/dhpk distribution "$surface" generate \
+      --output "$dhpk_packages/$surface" --version="$DHPK_PACKAGE_VERSION" --json
+  done
+fi
 ```
 
-Copy only generated outputs owned by the requested surfaces; run
-`verify-platform-packages.js --surface <name>` for that selected set. Regenerate
-and check the Claude marketplace when the plan records that companion. For a
-release or explicit unfiltered platform request, generate and verify all four
-platforms from the same clean source commit, regenerate and check the Claude
-marketplace, commit all owned outputs, and run `npm run ci` on the clean
-generated-output commit. That aggregate includes repository validation,
-generated-output checks, catalog checks, and the complete test suite. Report
-its result separately from scoped checks and hosted CI.
+Copy only generated outputs owned by the selected surfaces and commit those
+outputs as commit G. Then run selected platform verification on G. The preflight
+plan is bound to source commit S; final CI builds a fresh B..G plan. Keep the S
+plan as source-commit evidence and never validate it on G.
+
+```bash
+if [[ ${#dhpk_surfaces[@]} -gt 0 ]]; then
+  dhpk_verify_args=()
+  for surface in "${dhpk_surfaces[@]}"; do
+    dhpk_verify_args+=(--surface "$surface")
+  done
+  node scripts/ci/verify-platform-packages.js "${dhpk_verify_args[@]}"
+fi
+```
+
+Regenerate and check the Claude marketplace when the plan records that
+companion. For a release or explicit unfiltered platform request, generate and
+verify all four platforms from the same clean source commit, regenerate and
+check the Claude marketplace, commit all owned outputs, and run `npm run ci`
+on the clean generated-output commit. That aggregate includes repository
+validation, generated-output checks, catalog checks, and the complete test
+suite. Report its result separately from scoped checks and hosted CI.
 
 The project-local `.agents/skills` compatibility projection is generated from
 the same canonical `skills/` tree and is not hand-edited:

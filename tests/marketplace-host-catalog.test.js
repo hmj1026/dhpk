@@ -65,6 +65,8 @@ function fixture() {
   write(path.join(root, 'skills/flow-guide/references/codex-usage-catalog.json'), fs.readFileSync(path.join(ROOT, 'skills/flow-guide/references/codex-usage-catalog.json')));
   const executionPolicy = 'skills/flow-guide/references/execution-bundle/rules/execution-policy.md';
   write(path.join(root, executionPolicy), fs.readFileSync(path.join(ROOT, executionPolicy), 'utf8'));
+  const promptTemplate = 'skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md';
+  write(path.join(root, promptTemplate), fs.readFileSync(path.join(ROOT, promptTemplate)));
   for (const skill of INVENTORY.skills) {
     const ownedChildren = CHILDREN.filter((child) => child.owner === skill.id);
     const links = ownedChildren.map((child) => {

@@ -118,10 +118,21 @@ APIs in marked test source; use executable routes, shared metadata parsers,
 or resource-existence checks. It is a bounded source check, not cross-file
 dataflow analysis or a document-wording gate.
 
-For long local parallel runs, set `DHPK_TEST_PROGRESS=1` to receive compact
-test-start and completion updates on stderr. Ordered stdout, assertion
-accounting, timing reports, and the aggregate exit status remain authoritative.
-For example: `DHPK_TEST_JOBS=2 DHPK_TEST_PROGRESS=1 npm run ci`.
+For long local runs, choose `DHPK_TEST_JOBS` explicitly; `2` is a recommended
+starting point when local resources allow, and the runner default remains
+`1`. A typical progress-enabled run is:
+
+```sh
+DHPK_TEST_JOBS=2 DHPK_TEST_PROGRESS=1 npm test
+```
+
+Runner owner fixtures exercise progress with both `DHPK_TEST_JOBS=1` and `2`
+in [verify-test-shards.test.js](../tests/verify-test-shards.test.js); do not
+repeat the full local suite solely to observe progress in both modes.
+
+Progress emits compact test-start and completion updates on stderr. Ordered
+stdout, assertion accounting, timing reports, and the aggregate exit status
+remain authoritative; progress output does not establish a timing improvement.
 
 Model-driven or GUI sessions and live context, budget, count, or benchmark
 measurements are on-demand research, not routine CI gates. Those research

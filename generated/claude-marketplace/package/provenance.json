@@ -341,7 +341,7 @@
       "sourcePath": "docs/subagent-prompt-template.md",
       "destination": "skills/code-trace/references/_dependencies/docs/subagent-prompt-template.md",
       "kind": "dependency",
-      "sha256": "fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9"
+      "sha256": "c0b417e1ba13082701ce9bda67d5fbf6ef8e39b8881afeae9169d1e96fc3738f"
     },
     {
       "skillId": "code-trace",
@@ -357,7 +357,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc"
+      "sha256": "650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670"
     },
     {
       "skillId": "code-trace",
@@ -1826,6 +1826,14 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
+      "sourcePath": "docs/subagent-prompt-template.md",
+      "destination": "skills/flow-guide/references/_dependencies/docs/subagent-prompt-template.md",
+      "kind": "dependency",
+      "sha256": "c0b417e1ba13082701ce9bda67d5fbf6ef8e39b8881afeae9169d1e96fc3738f"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
       "sourcePath": "rules/execution-policy-kernel.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy-kernel.md",
       "kind": "dependency",
@@ -1837,7 +1845,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc"
+      "sha256": "650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670"
     },
     {
       "skillId": "flow-guide",
@@ -1869,7 +1877,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "41d2833d25a72b7513a12e27a716238b16c8c7995a70cfae857767732219068a"
+      "sha256": "87655b4b86666feccc0bee5c74f4017c215145df6839278d60d0f8e7563cf5a7"
     },
     {
       "skillId": "flow-guide",
@@ -1925,7 +1933,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
       "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
       "kind": "entry",
-      "sha256": "fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9"
+      "sha256": "c0b417e1ba13082701ce9bda67d5fbf6ef8e39b8881afeae9169d1e96fc3738f"
     },
     {
       "skillId": "flow-guide",
@@ -1965,7 +1973,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc"
+      "sha256": "650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670"
     },
     {
       "skillId": "flow-guide",
@@ -2442,6 +2450,14 @@
     {
       "skillId": "git-smart-commit",
       "ownerId": "git-smart-commit",
+      "sourcePath": "docs/subagent-prompt-template.md",
+      "destination": "skills/git-smart-commit/references/_dependencies/docs/subagent-prompt-template.md",
+      "kind": "dependency",
+      "sha256": "c0b417e1ba13082701ce9bda67d5fbf6ef8e39b8881afeae9169d1e96fc3738f"
+    },
+    {
+      "skillId": "git-smart-commit",
+      "ownerId": "git-smart-commit",
       "sourcePath": "rules/execution-policy-kernel.md",
       "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy-kernel.md",
       "kind": "dependency",
@@ -2453,7 +2469,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "5a956cca12187eb2d3864073466f45a6b03b0be825787ec959b1d09bd7808cfc"
+      "sha256": "650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670"
     },
     {
       "skillId": "git-smart-commit",

@@ -3,9 +3,12 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { createCiPlan } = require('../scripts/lib/ci-plan');
+
+const CI_PLAN_CLI = path.join(__dirname, '..', 'scripts/ci/ci-plan.js');
+const ALL_PACKAGE_SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin'];
 
 const SMOKE_SUITE = 'skill-script-operability.test.js';
 const RESOURCE_SUITES = [
@@ -79,6 +82,92 @@ function assertFullPlan(plan) {
   assert.strictEqual(plan.shardCount, 4);
   assert.deepStrictEqual(plan.testFiles, AVAILABLE_SUITES.slice().sort());
   assert.ok(plan.requiredJobs.includes('macos-installer'));
+}
+
+function withCiPlanCliFixture(
+  check,
+  changedPaths = ['scripts/ci/verify-platform-packages.js'],
+  kindForPath = () => 'behavior',
+) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-cli-source-'));
+  const evidenceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-cli-evidence-'));
+  const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
+  const writeSource = (file, content) => {
+    const target = path.join(root, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  };
+  const runCli = (args) => spawnSync(process.execPath, [CI_PLAN_CLI, ...args], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+
+  try {
+    git('init', '-q');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Test');
+    git('config', 'commit.gpgsign', 'false');
+    git('config', 'maintenance.auto', 'false');
+    git('config', 'gc.auto', '0');
+    writeSource('tests/fixture.test.js', '// committed suite fixture\n');
+    changedPaths.forEach((file) => writeSource(file, 'before\n'));
+    git('add', '-A');
+    git('commit', '--no-verify', '-qm', 'base source');
+    const baseSha = git('rev-parse', 'HEAD');
+    changedPaths.forEach((file) => writeSource(file, 'after\n'));
+    git('add', '-A');
+    git('commit', '--no-verify', '-qm', 'changed source');
+    const headSha = git('rev-parse', 'HEAD');
+
+    const classificationPath = path.join(evidenceRoot, 'classification.json');
+    const planPath = path.join(evidenceRoot, 'ci-plan.json');
+    const classification = {
+      baseSha,
+      headSha,
+      entries: changedPaths.map((file) => ({
+        path: file,
+        kind: kindForPath(file),
+        reason: 'The fixture declares this committed source change.',
+      })),
+    };
+    fs.writeFileSync(classificationPath, `${JSON.stringify(classification)}\n`);
+    const planResult = runCli([
+      'plan', '--base-sha', baseSha, '--head-sha', headSha, '--checkout-sha', headSha,
+      '--base-ref', 'develop', '--classification-file', classificationPath, '--out', planPath,
+    ]);
+    assert.strictEqual(planResult.status, 0, `${planResult.stdout}\n${planResult.stderr}`);
+    const validateArgs = [
+      'validate', '--plan', planPath, '--base-sha', baseSha, '--head-sha', headSha,
+      '--checkout-sha', headSha, '--base-ref', 'develop', '--classification-file', classificationPath,
+    ];
+
+    check({
+      root,
+      evidenceRoot,
+      baseSha,
+      headSha,
+      classificationPath,
+      planPath,
+      plan: JSON.parse(fs.readFileSync(planPath, 'utf8')),
+      git,
+      writeSource,
+      runCli,
+      validate: (flags = []) => runCli([...validateArgs, ...flags]),
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(evidenceRoot, { recursive: true, force: true });
+  }
+}
+
+function assertCliPass(result) {
+  assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /PASS: CI plan is valid/);
+}
+
+function assertCliFailure(result, pattern) {
+  assert.notStrictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, pattern);
 }
 
 test('wording declarations for the execution-policy kernel retain full CI', () => {
@@ -339,6 +428,149 @@ test('shared policy paths and declared unknown impact always retain full verific
     assert.strictEqual(plan.mode, 'full');
     assert.strictEqual(plan.reason, 'shared-core-change');
   }, AVAILABLE_SUITES, () => 'shared-core');
+});
+
+test('validate requires the complete planned surface set when preflight selection is requested', () => {
+  withCiPlanCliFixture(({ plan, validate }) => {
+    assert.deepStrictEqual(plan.packageSurfaces, ALL_PACKAGE_SURFACES);
+    assertCliFailure(validate(['--surfaces', 'agent-plugin']), /selected package surfaces do not match the plan/);
+  });
+});
+
+test('validate accepts repeated surface flags that match a full plan', () => {
+  withCiPlanCliFixture(({ validate }) => {
+    const flags = ALL_PACKAGE_SURFACES.flatMap((surface) => ['--surface', surface]);
+    assertCliPass(validate([...flags, '--require-clean']));
+  });
+});
+
+test('validate accepts comma-separated IDs through the singular surface option', () => {
+  withCiPlanCliFixture(({ validate }) => {
+    const surfaces = ALL_PACKAGE_SURFACES.join(',');
+    assertCliPass(validate(['--surface', surfaces, '--require-clean']));
+    assertCliPass(validate([`--surface=${surfaces}`, '--require-clean']));
+  });
+});
+
+test('validate accepts a comma-separated surface list that matches a full plan', () => {
+  withCiPlanCliFixture(({ validate }) => {
+    assertCliPass(validate(['--surfaces', ALL_PACKAGE_SURFACES.join(','), '--require-clean']));
+  });
+});
+
+test('validate accepts equals forms of surface selectors', () => {
+  withCiPlanCliFixture(({ validate }) => {
+    const flags = ALL_PACKAGE_SURFACES.map((surface) => `--surface=${surface}`);
+    assertCliPass(validate([...flags, '--require-clean']));
+    assertCliPass(validate([`--surfaces=${ALL_PACKAGE_SURFACES.join(',')}`, '--require-clean']));
+  });
+});
+
+test('validate expands Cursor dependency closure when comparing selected and planned surfaces', () => {
+  withCiPlanCliFixture(({ plan, validate }) => {
+    assert.deepStrictEqual(plan.packageSurfaces, ALL_PACKAGE_SURFACES);
+    assertCliPass(validate(['--surface', 'cursor-plugin', '--surface', 'codex-native', '--surface', 'agy-plugin', '--require-clean']));
+  });
+});
+
+test('validate rejects unknown and empty package surface selectors', () => {
+  withCiPlanCliFixture(({ validate }) => {
+    assertCliFailure(validate(['--surface', 'not-a-package-surface']), /unknown package surface/);
+    assertCliFailure(validate(['--surfaces', ',']), /unknown package surface/);
+    assertCliFailure(validate(['--surface=']), /--surface requires a value/);
+    assertCliFailure(validate(['--require-clean=false']), /--require-clean does not accept a value/);
+  });
+});
+
+test('surface preflight reports an invalid plan without reading missing plan fields', () => {
+  withCiPlanCliFixture(({ planPath, validate }) => {
+    fs.writeFileSync(planPath, '{"schema":"dhpk.ci-plan.v1"}\n');
+    const result = validate(['--surface', 'agent-plugin', '--require-clean']);
+    assertCliFailure(result, /plan package surfaces are missing/);
+    assert.doesNotMatch(result.stderr, /Cannot read properties of undefined/);
+  });
+});
+
+test('validate preserves classification identity checks for stale plans', () => {
+  withCiPlanCliFixture(({ classificationPath, validate }) => {
+    const classification = JSON.parse(fs.readFileSync(classificationPath, 'utf8'));
+    fs.writeFileSync(classificationPath, `${JSON.stringify({ ...classification, baseSha: 'stale-base' })}\n`);
+    assertCliFailure(
+      validate(['--surfaces', ALL_PACKAGE_SURFACES.join(','), '--require-clean']),
+      /plan classification does not match the independently supplied classification/,
+    );
+  });
+});
+
+test('validate rejects a source plan after the checkout advances to a generated-output commit', () => {
+  withCiPlanCliFixture(({ git, writeSource, validate }) => {
+    writeSource('generated/package/marker.txt', 'generated output\n');
+    git('add', '-A');
+    git('commit', '--no-verify', '-qm', 'generated package output');
+    assertCliFailure(
+      validate(['--surfaces', ALL_PACKAGE_SURFACES.join(','), '--require-clean']),
+      /checkout identity does not match git HEAD/,
+    );
+  });
+});
+
+test('validate with --require-clean rejects tracked and untracked source dirt', () => {
+  withCiPlanCliFixture(({ writeSource, root, validate }) => {
+    writeSource('scripts/ci/verify-platform-packages.js', 'local tracked edit\n');
+    assertCliFailure(
+      validate(['--surfaces', ALL_PACKAGE_SURFACES.join(','), '--require-clean']),
+      /source checkout must be clean/,
+    );
+
+    writeSource('scripts/ci/verify-platform-packages.js', 'after\n');
+    assertCliPass(validate(['--surfaces', ALL_PACKAGE_SURFACES.join(','), '--require-clean']));
+    fs.writeFileSync(path.join(root, 'untracked.txt'), 'untracked evidence\n');
+    assertCliFailure(
+      validate(['--surfaces', ALL_PACKAGE_SURFACES.join(','), '--require-clean']),
+      /source checkout must be clean/,
+    );
+  });
+});
+
+test('clean source validation passes with the required plan surfaces', () => {
+  withCiPlanCliFixture(({ validate }) => {
+    assertCliPass(validate(['--surfaces', ALL_PACKAGE_SURFACES.join(','), '--require-clean']));
+  });
+});
+
+test('empty-surface light plans allow valid extra selected surfaces', () => {
+  withCiPlanCliFixture(({ plan, validate }) => {
+    assert.strictEqual(plan.mode, 'light');
+    assert.deepStrictEqual(plan.packageSurfaces, []);
+    assertCliPass(validate(['--surface', 'agent-plugin', '--require-clean']));
+  }, ['skills/demo/SKILL.md'], () => 'wording');
+});
+
+test('plain validate retains its existing behavior without new preflight flags', () => {
+  withCiPlanCliFixture(({ writeSource, validate }) => {
+    writeSource('scripts/ci/verify-platform-packages.js', 'local tracked edit\n');
+    assertCliPass(validate());
+  });
+});
+
+test('surface and clean preflight flags are rejected outside validate', () => {
+  withCiPlanCliFixture(({ baseSha, headSha, classificationPath, planPath, runCli }) => {
+    const planArgs = [
+      '--base-sha', baseSha, '--head-sha', headSha, '--checkout-sha', headSha,
+      '--base-ref', 'develop', '--classification-file', classificationPath,
+    ];
+    const aggregateArgs = ['--plan', planPath, '--results', path.join(os.tmpdir(), 'missing-results.json')];
+    for (const result of [
+      runCli(['plan', ...planArgs, '--require-clean']),
+      runCli(['plan', ...planArgs, '--surface', 'agent-plugin']),
+      runCli(['plan', ...planArgs, '--surfaces=agent-plugin']),
+      runCli(['aggregate', ...aggregateArgs, '--require-clean']),
+      runCli(['aggregate', ...aggregateArgs, '--surfaces', 'agent-plugin']),
+      runCli(['aggregate', ...aggregateArgs, '--require-clean=false']),
+    ]) {
+      assertCliFailure(result, /only supported by validate/);
+    }
+  });
 });
 
 run('ci-plan');
