@@ -43,8 +43,6 @@ Out of scope:
    rules in `${CURSOR_PLUGIN_ROOT}/rules/execution-policy.mdc`. Back-stop/full-review fallback restricts to
    `.claude/ docs/ openspec/`.
 2. Check whether the consumer project contains a non-empty local rules file:
-   `.cursor/docs/doc-review-local.md` for Claude and AGY,
-   `.codex/docs/doc-review-local.md` for Codex, or
    `.cursor/docs/doc-review-local.md` for Cursor. Read an existing file and
    apply it as additional checklist items. A missing or empty file adds no
    checks and no output field; a file that cannot be read is an evidence gap.

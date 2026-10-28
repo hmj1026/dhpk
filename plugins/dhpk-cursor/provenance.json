@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.66.7",
-  "sourceCommit": "a031a88de58cd23c1302a2cee16af5542c8872fa",
-  "generatedFromCommit": "a031a88de58cd23c1302a2cee16af5542c8872fa",
-  "generatedFromTree": "975f91ee46ba64dc3d96c271914f0cd9ecbf14da",
-  "inventoryDigest": "614da500012822f609cef3f4ede2618a79c6caabf7a204be596c68fdf7241372",
-  "inventoryRevision": "sha256:d96865c2d87c4610e3cfdf331968b131d097709d2eea5f332200d91e1a5a7e8c",
+  "sourceCommit": "18aa60ceb03bee0b6ce2fcff7ae6bc9e09308d6f",
+  "generatedFromCommit": "18aa60ceb03bee0b6ce2fcff7ae6bc9e09308d6f",
+  "generatedFromTree": "afdbef6958facf73e3a987e73b318e8d8d359eed",
+  "inventoryDigest": "c6d9adb47d04f7cef4c1002909957d0e8cdcbd2714ff19dfca4b744afbe0eae5",
+  "inventoryRevision": "sha256:43fd81d6878d6cc01975d648ef638c72573711ffd7e2269205b5880700722eb7",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -5684,14 +5684,14 @@
   ],
   "fingerprints": {
     "rules": "be20583d9f57c6cbb9b43381d725fa389798525a8bcabd5df2bb9ef5067a6cdf",
-    "agents": "ced61753afa9d2cac7048d5007a221d55c7255229e23cab42ea071927ad94753",
+    "agents": "93aa5176fd062606caf783163bf2e1cec74e2778f24c628cfa185f70a3851b95",
     "commands": "f649a36d828b081d0c1fdb43f0df90dbf1aae8c43af34d0fc966cc28d8785ba1",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a",
     "agent-traps": "b3467f22a69b647b6f101dd314e79e427c118f6c569f0401d0e7026ea541cffd"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "ad6ab4dc7b01d9f38eed11f12b453ffb508e3f490c472142597d850996e3c7eb",
+    "planId": "6d5175c60a5a8c5933f2119f4833d02f04ff2b8fa53e77b8dcf6221b72fba1c4",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5735,10 +5735,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "ad6ab4dc7b01d9f38eed11f12b453ffb508e3f490c472142597d850996e3c7eb",
-      "inventory": "614da500012822f609cef3f4ede2618a79c6caabf7a204be596c68fdf7241372"
+      "plan": "6d5175c60a5a8c5933f2119f4833d02f04ff2b8fa53e77b8dcf6221b72fba1c4",
+      "inventory": "c6d9adb47d04f7cef4c1002909957d0e8cdcbd2714ff19dfca4b744afbe0eae5"
     },
-    "rollbackIdentity": "b0db98fd0862186cd4a62953ffc7f5b57e6689929f60760302f40f215c86e711"
+    "rollbackIdentity": "3751516faec14ea12991d6ed766ba7f681d766639af4395262602aaa6bad67cf"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6753,5 +6753,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "5ef0689eef11c77dc8897519223e529137ca02193145694580c89508478a0e25",
   "surfaceSelectionFingerprint": "5353a4f8544319424f3e7e56900b6d9b5484671cd590715ac4bf07d41442c0cc",
-  "planFingerprint": "6e18ea72ce0b03906ae6c6f58821a1e56f2c84eb83ed9b7aac58c58d04459ca7"
+  "planFingerprint": "c7bba402c26bbabf9c197602523de187b734242f44546bc799cbf348ec16edbb"
 }

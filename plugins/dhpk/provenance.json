@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.66.7",
-  "sourceCommit": "c9232b13f571fba2f7756748136ab2631e3646b0",
-  "generatedFromCommit": "c9232b13f571fba2f7756748136ab2631e3646b0",
-  "generatedFromTree": "6874c15e10fc3df7b2c9b8f67cccfd02f7cb89b1",
-  "inventoryDigest": "614da500012822f609cef3f4ede2618a79c6caabf7a204be596c68fdf7241372",
-  "inventoryRevision": "sha256:d96865c2d87c4610e3cfdf331968b131d097709d2eea5f332200d91e1a5a7e8c",
+  "sourceCommit": "18aa60ceb03bee0b6ce2fcff7ae6bc9e09308d6f",
+  "generatedFromCommit": "18aa60ceb03bee0b6ce2fcff7ae6bc9e09308d6f",
+  "generatedFromTree": "afdbef6958facf73e3a987e73b318e8d8d359eed",
+  "inventoryDigest": "c6d9adb47d04f7cef4c1002909957d0e8cdcbd2714ff19dfca4b744afbe0eae5",
+  "inventoryRevision": "sha256:43fd81d6878d6cc01975d648ef638c72573711ffd7e2269205b5880700722eb7",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "change-verdict",
@@ -5765,7 +5765,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "5813eb5a97f8adc37a93ea525e592d2f88b4412d92c4f282cff9a5433feb49d2",
+    "planId": "66d0595a3bd87c195cdf06f95850f827a645141ba52ff6c8b4a9f80606a0ba82",
     "scope": "project",
     "profileId": "codex-native",
     "selectedStableIds": [
@@ -5813,10 +5813,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "5813eb5a97f8adc37a93ea525e592d2f88b4412d92c4f282cff9a5433feb49d2",
-      "inventory": "614da500012822f609cef3f4ede2618a79c6caabf7a204be596c68fdf7241372"
+      "plan": "66d0595a3bd87c195cdf06f95850f827a645141ba52ff6c8b4a9f80606a0ba82",
+      "inventory": "c6d9adb47d04f7cef4c1002909957d0e8cdcbd2714ff19dfca4b744afbe0eae5"
     },
-    "rollbackIdentity": "30d8e1cffa3398c1c87abf56703785ab2305344308a295411df24f228bfed0cc"
+    "rollbackIdentity": "4fa18bb94f7f1724e2de6e4515a68b9faf89af1003a98e56a9a59ca3a9171c18"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
