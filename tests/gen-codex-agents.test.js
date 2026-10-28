@@ -362,6 +362,8 @@ test('generated role methods keep host-specific judgment and do not copy a secon
     assert.match(docReviewer, /Codex agent TOML/);
     assert.match(docReviewer, /Do not apply the YAML checks/);
     assert.doesNotMatch(docReviewer, /docs\/agent-guidance\/frontmatter-schema\.md/);
+    assert.match(docReviewer, /\.codex\/docs\/doc-review-local\.md/);
+    assert.match(docReviewer, /local_rules_loaded/);
     const database = fs.readFileSync(path.join(outDir, 'database-reviewer.toml'), 'utf8');
     assert.match(database, /No N\+1/);
     assert.match(database, /Query plans/);

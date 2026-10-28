@@ -359,6 +359,14 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
     assert.ok(!rewritten.includes(PLUGIN_ROOT_TOKEN));
   });
 
+  test('rewriteCursorHarnessBody maps doc-reviewer local rules to the Cursor project path', () => {
+    const rewritten = rewriteCursorHarnessBody(
+      'Read `.claude/docs/doc-review-local.md` when it exists.',
+    );
+    assert.match(rewritten, /\.cursor\/docs\/doc-review-local\.md/);
+    assert.doesNotMatch(rewritten, /\.claude\/docs\/doc-review-local\.md/);
+  });
+
   test('native Cursor agents use the co-installed shared dispatch support package', () => {
     const rewritten = rewriteCursorNativeAgentBody(
       'bash "' + PLUGIN_ROOT_TOKEN + '/scripts/cli-dispatch/adapters/run-codex.sh" read-only /work prompt.txt',

@@ -77,6 +77,7 @@ function rewriteCursorHarnessBody(body) {
       .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/agent-traps').join(CURSOR_SUPPORT_ROOT + '/agent-traps')
       .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/docs/contracts').join(CURSOR_SUPPORT_ROOT + '/contracts')
       .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/rules/execution-policy.md').join(CURSOR_SUPPORT_ROOT + '/policies/execution-policy.md')
+      .split('.claude/docs/doc-review-local.md').join('.cursor/docs/doc-review-local.md')
       .replace(remainingRulePattern, '.cursor/rules/$1.mdc')
       .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/agents/').join('.cursor/agents/'),
   )
