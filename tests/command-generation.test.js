@@ -145,6 +145,17 @@ test('code-simplify and library-author aliases generate without undeclared tool 
     assert.doesNotMatch(bytes, /^allowed-tools:/m, id);
   }
   assert.strictEqual(ctx.invoke(forwarders, '--check').status, 0);
+
+  const root = path.join(__dirname, '..');
+  for (const { id, owner } of declarations) {
+    const distribution = JSON.parse(fs.readFileSync(path.join(root, 'skills', owner, 'distribution.yaml'), 'utf8'));
+    const declaration = distribution.commands.find(command => command.id === id);
+    assert.ok(declaration, `${owner}/${id} canonical declaration exists`);
+    assert.strictEqual(declaration.allowed_tools, undefined, `${owner}/${id} canonical declaration has no tool grant`);
+
+    const bytes = fs.readFileSync(path.join(root, 'commands', `${id}.md`), 'utf8');
+    assert.doesNotMatch(bytes, /^allowed-tools:/m, `commands/${id}.md`);
+  }
 }));
 
 test('forwarder grants reject empty or multiline declarations', () => fixture(ctx => {
