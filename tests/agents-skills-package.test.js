@@ -132,6 +132,29 @@ test('materializes Cursor and AGY skill shapes from one canonical package', () =
   }
 });
 
+test('local compatibility projection includes declared standalone dependencies in its receipt and validation', () => {
+  const root = makeFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  const inventory = fixtureInventory();
+  inventory.standalone_dependencies = { 'dhpk-sample': { files: [{ source: 'rules/policy.md', destination: 'rules/policy.md' }] } };
+  try {
+    write(path.join(root, 'rules/policy.md'), '# consumer policy\n');
+    materializeAgentsSkillsProjection({ root, inventory, outDir });
+    const projected = path.join(outDir, 'dhpk-sample/references/_dependencies/rules/policy.md');
+    assert.strictEqual(fs.readFileSync(projected, 'utf8'), '# consumer policy\n');
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'));
+    assert.ok(receipt.entries[0].sourceFiles.some((file) => file.path === 'references/_dependencies/rules/policy.md'));
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory, outDir }).ok, true);
+    write(path.join(root, 'rules/policy.md'), '# updated consumer policy\n');
+    assert.throws(() => materializeAgentsSkillsProjection({ root, inventory, outDir }), /stale or foreign/i);
+    materializeAgentsSkillsProjection({ root, inventory, outDir, allowCanonicalChanges: true });
+    assert.strictEqual(fs.readFileSync(projected, 'utf8'), '# updated consumer policy\n');
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory, outDir }).ok, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('regeneration is deterministic and preserves unmanaged entries', () => {
   const root = makeFixture();
   const first = path.join(root, 'first');
