@@ -46,13 +46,13 @@
     "skills/flow-guide/references/execution-bundle/manifests/host-profiles.json": {
       "skill_id": "flow-guide",
       "source": "manifests/host-profiles.json",
-      "sha256": "sha256:3af9a81e2e5bdd78f2af845436ac2f78f5ffcf1f58389309e936c9b07f5a92e0",
+      "sha256": "sha256:8425f906a2c1bc73ca2059fa36e881e1b417cf7a130111f7050623e194267ae7",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-guide",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:567ff2658ba0d04bea5d72f364acf08959bd480a8d4f1929bd4c3acd54d9bf43",
+      "sha256": "sha256:946e636863e7a67c78899fa459d65097abe81d8c03bc3c522cd197c36e703f8d",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md": {
@@ -76,7 +76,7 @@
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:cd0beb55b967a6d46653a4eb6ad9577321931d9237193094a62ee5cfa345e7d2",
+      "sha256": "sha256:f760a8717e7020153d2e86461121933f638682fb6e0db95c5b5d89f1b47b307c",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
