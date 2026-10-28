@@ -123,6 +123,34 @@ runtime support，也不能讓 experimental surface 自動畢業。Evidence verd
 集合：`PASS`、`FAIL`、`NOT_RUN`、`NOT_CONFIGURED`、`SKIP_INCOMPATIBLE`、`BLOCKED`、
 `UNAVAILABLE`。
 
+## generated／plugin 副本評估（#1104）
+
+目前仍保留 generated 發佈樹，因為支援的 checkout 與本機安裝路徑會直接讀取
+這些目錄。本節是評估界線，不授權刪除整棵樹，也不合併各 Host 套件；各 Host
+surface 仍維持獨立。#1104 對 #970 的引用視為歷史脈絡；目前 #970 的標題是模型
+設定提案。
+
+在 2026-10-28 的 `develop` snapshot，`git ls-files generated plugins` 找到 2,458
+個 regular files。與輸出根目錄以外的 tracked canonical files 比對 Git blob，
+其中 2,314 個為位元組完全相同，其餘是 Host metadata、manifest、provenance、
+fingerprint 或其他套件專屬輸出。可用 `git ls-files generated plugins` 與
+`git hash-object -- <path>` 重現。
+
+| Surface | tracked 檔案 | 位元組相同 | 套件專屬 | 決策 |
+| --- | ---: | ---: | ---: | --- |
+| `generated/claude-marketplace/package` | 1,141 | 1,128 | 13 | 保留；需先以 clean-checkout materializer 與 relocation probe 取代直接路徑，才能評估移除。 |
+| `plugins/dhpk`（Codex native） | 435 | 415 | 20 | 保留；native 實驗路徑與 package gate 直接使用此根目錄及其 provenance/fingerprint。 |
+| `plugins/dhpk-agent` | 389 | 364 | 25 | 保留；Agent 發佈擁有此共享 skill 實體樹與 package manifest。 |
+| `plugins/dhpk-cursor` | 67 | 32 | 35 | 保留；Cursor-native 規則、agent、command、hook 是 Host 專屬，與 `dhpk-agent` 分開。 |
+| `plugins/dhpk-agy` | 426 | 375 | 51 | 保留；AGY 安裝與 receipt 檢查使用準備好的 package root。 |
+
+安全的後續工作是針對選定的位元組相同 helper／reference 類別進行有界的
+packaging-only 實驗：先加入明確 materializer 輸入、每個直接 consumer 的
+clean-checkout／relocation fixture，保留 manifest／provenance／digest ownership，
+並驗證 update 與 rollback。在這些證據完成前移除 tracked files 會使 standalone
+skill、execution bundle 或 checkout 安裝缺檔。實驗不得改變 release signing
+語意，也不得要求各 Host 套件對稱。
+
 ## Standard Agent Plugin 與 Cursor native ownership
 
 Platform capability matrix 讓相同的 portable skill 只有一個 physical publication

@@ -147,6 +147,42 @@ claims runtime support. Evidence verdicts remain the closed vocabulary
 `PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, and
 `UNAVAILABLE`.
 
+## Generated and plugin copy assessment (#1104)
+
+The repository keeps generated publication trees because supported checkout and
+local-install routes consume those directories directly. This is an assessment
+boundary, not permission to remove a tree or combine Host packages. Host
+surfaces remain independent, consistent with #1104 (its reference to #970 is
+historical context; the current #970 title is a model-configuration proposal).
+
+At the 2026-10-28 `develop` snapshot, `git ls-files generated plugins` found
+2,458 regular files. Comparing Git blob identities with tracked canonical files
+outside those output roots found 2,314 byte-identical files. The remainder are
+transformed Host metadata, manifests, provenance, fingerprints, or other
+package-specific output. The measurement is reproducible with:
+
+```sh
+git ls-files generated plugins
+git hash-object -- <path>
+```
+
+| Surface | Tracked files | Byte-identical | Package-specific | Decision |
+| --- | ---: | ---: | ---: | --- |
+| `generated/claude-marketplace/package` | 1,141 | 1,128 | 13 | Keep for checkout marketplace loading; defer removal until a clean-checkout materializer and relocation probe replace the direct path. |
+| `plugins/dhpk` (Codex native) | 435 | 415 | 20 | Keep; the experimental native route and package gate consume the tracked root and its provenance/fingerprints. |
+| `plugins/dhpk-agent` | 389 | 364 | 25 | Keep; Agent publication owns this physical shared-skill tree and package manifest. |
+| `plugins/dhpk-cursor` | 67 | 32 | 35 | Keep; Cursor-native rules, agents, commands, and hooks are Host-specific and remain separate from `dhpk-agent`. |
+| `plugins/dhpk-agy` | 426 | 375 | 51 | Keep; AGY installation and receipt checks consume the prepared package root. |
+
+The safe follow-up is a bounded packaging-only experiment for selected
+byte-identical helper/reference classes. It must first add an explicit
+materializer input and clean-checkout/relocation fixtures for every direct
+consumer, preserve manifest/provenance/digest ownership, and prove update and
+rollback behavior. Until that evidence exists, removing tracked files would
+make standalone skills, execution bundles, or checkout installs fail with
+missing files. The experiment must not change release signing semantics or
+require symmetry between Host packages.
+
 ## Standard Agent Plugin and Cursor native ownership
 
 The platform capability matrix gives identical portable skills one physical
