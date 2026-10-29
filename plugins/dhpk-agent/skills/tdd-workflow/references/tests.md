@@ -3,29 +3,21 @@
 ## Seam tradeoff
 
 When proposing a seam, attach one line that names what that seam catches and
-what it misses. The line belongs to the proposal. A reused, already approved
-seam keeps its recorded line.
-
-Catches is the caller-visible behavior a test at that boundary can observe.
-Misses is the behavior the seam leaves untested. Prefer the seam whose catches
-cover the requested behavior. A seam that only catches a mocked collaborator
-call misses the outcome the caller sees, so it cannot stand in for that
-behavior.
+what it misses. Catches is what a test at that boundary can observe. Misses
+is the behavior the seam leaves untested. Prefer the seam whose catches cover
+the requested caller-visible behavior. A line whose catches name only a test
+double leaves that behavior untested, so that seam cannot stand in for it.
 
 ```text
-Seam: checkout(cart, paymentMethod) -> confirmation
-Catches: a valid cart and payment produce a confirmation the caller can read back
-Misses: card-network decline codes and inventory reservation races
+checkout(cart, paymentMethod) -> confirmation — Catches: a valid cart and payment produce a confirmation the caller can read back. Misses: card-network decline codes and inventory reservation races.
 ```
 
 ```text
-Seam: paymentService.process(cart.total)
-Catches: the test double received the cart total
-Misses: whether checkout confirms the order, persists it, or rejects a declined payment
+paymentService.process(cart.total) — Catches: only that the test double received the cart total. Misses: whether checkout confirms the order, persists it, or rejects a declined payment.
 ```
 
-Use the checkout seam when the requested behavior is confirmation. The
-payment-service seam is a collaborator probe. It does not replace the
+Use the checkout line when the requested behavior is confirmation. The
+payment-service line is a collaborator probe. It does not replace the
 checkout contract.
 
 ## Good Tests

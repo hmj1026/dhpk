@@ -35,9 +35,8 @@ before choosing domain vocabulary or a new seam.
    other boundary. Reuse the requested or approved seam and its existing test
    owner; ask only about a material missing behavior or constraint. When
    proposing a seam, add one line that names what it catches and what it
-   misses. Catches is the requested caller-visible behavior that seam
-   observes. Misses is the behavior that seam leaves untested. The worked
-   example is [Seam tradeoff](references/tests.md#seam-tradeoff).
+   misses. Definitions and the worked example are in
+   [Seam tradeoff](references/tests.md#seam-tradeoff).
 2. Find the smallest safe verification command. Keep tests isolated from shared
    services and data unless their use is explicitly authorized.
 3. Check supplied RED/GREEN evidence against the current behavior, test, seam,
