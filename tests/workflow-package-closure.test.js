@@ -384,16 +384,17 @@ test('change-verdict authorizes the installed helper paths without unrestricted 
   assert.doesNotMatch(backend, /skills\/change-verdict\/scripts\/review-cli\.sh/);
 });
 
-test('standalone git-smart-commit ships its policy and stops when that file is missing', () => {
+test('standalone commit and trace skills package without injected policy dependencies', () => {
   const { compileMarketplaceSkillContent } = require('../scripts/lib/marketplace-skill-content');
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
   const declared = inventory.standalone_dependencies['git-smart-commit'];
-  assert.ok(declared.files.some((file) => file.destination === 'rules/execution-policy.md'));
+  assert.strictEqual(declared, undefined);
+  assert.deepStrictEqual(Object.keys(inventory.standalone_dependencies), ['flow-guide']);
   const compiled = compileMarketplaceSkillContent({
     root: ROOT,
     inventory,
     publicationView: {
-      publicEntries: [{ id: 'git-smart-commit' }],
+      publicEntries: [{ id: 'git-smart-commit' }, { id: 'code-trace' }],
       bundledChildren: {},
       hostOnly: [],
       selectionDigest: 'a'.repeat(64),
@@ -402,11 +403,10 @@ test('standalone git-smart-commit ships its policy and stops when that file is m
   });
   assert.strictEqual(compiled.ok, true, compiled.errors && compiled.errors.join('\n'));
   const policy = compiled.files.find((file) => file.path === 'skills/git-smart-commit/references/_dependencies/rules/execution-policy.md');
-  assert.ok(policy, 'standalone policy dependency');
-  assert.match(policy.bytes.toString('utf8'), /manual\/automatic|Implementation dispatch/);
+  assert.strictEqual(policy, undefined);
+  assert.ok(!compiled.files.some((file) => file.path.includes('/_dependencies/')));
   const packaged = compiled.files.find((file) => file.path === 'skills/git-smart-commit/SKILL.md').bytes.toString('utf8');
-  assert.match(packaged, /\$SKILL_DIR\/references\/_dependencies\/rules\/execution-policy\.md/);
-  assert.match(packaged, /--require-policy/);
+  assert.doesNotMatch(packaged, /_dependencies|--require-policy/);
   assert.doesNotMatch(packaged, /read `rules\/execution-policy\.md`/);
 });
 

@@ -441,31 +441,6 @@ function registerRemainingFixtures() {
         }, state.before, 'collector must leave the repository unchanged');
       },
     },
-    {
-      id: 'remaining-git-smart-commit-require-policy-missing',
-      skill: 'git-smart-commit', entry: 'scripts/collect-changes.js',
-      args: ['--require-policy'],
-      prepare(context) {
-        writeFile(path.join(context.projectDir, 'rules', 'execution-policy.md'), 'consumer decoy\n');
-        return {};
-      },
-      expected: { status: 1, output: ['POLICY_MISSING'], absent: ['UNAVAILABLE', 'GIT_QUERY_FAILED', 'consumer decoy'] },
-    },
-    {
-      id: 'remaining-git-smart-commit-require-policy-present',
-      skill: 'git-smart-commit', entry: 'scripts/collect-changes.js',
-      args: ['--require-policy'],
-      prepare(context) {
-        const policy = path.join(context.skillDir, 'references', '_dependencies', 'rules', 'execution-policy.md');
-        writeFile(policy, 'installed policy\n');
-        writeFile(path.join(context.projectDir, 'rules', 'execution-policy.md'), 'consumer decoy\n');
-        return { policy };
-      },
-      expected: { status: 0, output: ['execution-policy.md'], absent: ['UNAVAILABLE', 'GIT_QUERY_FAILED', 'consumer decoy'] },
-      verify(result, _context, state) {
-        assert.strictEqual(String(result.stdout).trim(), state.policy);
-      },
-    },
   ];
 
   for (const definition of definitions) fixture(definition);
