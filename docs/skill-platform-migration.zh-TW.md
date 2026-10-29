@@ -17,6 +17,33 @@ tooling 記為 `UNAVAILABLE`，prerequisite 失敗記為 `BLOCKED`。
 
 ## 目前契約
 
+### 最後一批無前綴遷移
+
+以下八筆 rename ledger 保留 stable identity、profiles 與 surfaces，rollback
+固定 `0.67.0`，不新增 callable alias 或 Codex publication membership：
+
+| 舊公開名稱 | 目前公開名稱 |
+|---|---|
+| `dhpk-deploy-list` | `deploy-list` |
+| `dhpk-feature-verify` | `feature-verify` |
+| `dhpk-issue-analyze` | `issue-analyze` |
+| `dhpk-project-audit` | `project-audit` |
+| `dhpk-repo-intake` | `repo-intake` |
+| `dhpk-openspec-artifact-guard` | `openspec-artifact-guard` |
+| `dhpk-legacy-characterization-tests` | `legacy-characterization-tests` |
+| `dhpk-vue-2-notes` | `vue-2-notes` |
+
+全部 canonical 公開名稱已無前綴，Claude 保留 `/dhpk:` namespace。未修改的
+receipt-owned 目錄可遷移；本地修改或未受管理目錄保留並回報 conflict。回滾使用
+ownership-aware installer。Characterization 保留 `legacy-code-characterization` ID。
+
+`git-smart-commit` 與 `code-trace` 可直接搬移技能目錄，不需注入外部政策檔；
+只有 `flow-guide` 保留 `standalone_dependencies`。Commit 安全邊界內聚於技能，
+訊息格式優先遵循消費專案 Project Convention，再使用 bundled fallback。
+`tdd-workflow` 與 `code-simplify` 由目前 Host／Model 直接執行，單趟四角度檢視
+是標準模式，可選用原生 fan-out。兩個 Method 及 `code-trace` 的五種結果都返回
+caller 並終止；Public Workflow 保留既有 progression。
+
 | 關注點 | 目前實作 |
 |---|---|
 | Canonical source | `skills/<public-name>/` 下由 inventory 管理的 Skill package |
@@ -136,8 +163,8 @@ target 或 hidden fallback。Parity matrix 記錄完整 capability evidence；�
 | `doc-review` | `dhpk-doc-review` 的 MCP review/reply | `dhpk-doc-review`；portable 五維 review 與 gate，只能明確選用 `codex exec` | `migrated-to-portable-review` | `0.51.0` |
 | `test-review` | `dhpk-test-review` 的 MCP review/reply | `dhpk-test-review`；portable sufficiency、edge-case、quality 與 AC-trace review；generation 仍由 `dhpk-tdd-workflow` 負責 | `migrated-to-portable-review` | `0.51.0` |
 | `codebase-exploration` | `dhpk-codebase-exploration` 的 MCP dual perspective | `dhpk-codebase-exploration`；current-model trace 加 isolated 或明確選取的 CLI second opinion | `migrated-to-isolated-perspective` | `0.51.0` |
-| `feature-verify` | `dhpk-feature-verify` 的 MCP P5 verdict | `dhpk-feature-verify`；independent reviewer 只可明確選用，primary-only 結果標記 degraded | `migrated-to-explicit-reviewer` | `0.51.0` |
-| `issue-analyze` | `dhpk-issue-analyze` 的 fresh MCP verdict | `dhpk-issue-analyze`；current-model classification 加 isolated 或明確選取的 CLI blind opinion | `migrated-to-explicit-reviewer` | `0.51.0` |
+| `feature-verify` | `dhpk-feature-verify` 的 MCP P5 verdict | `feature-verify`；目前 Host／Model 給出 verdict，可明確選用獨立 review | `migrated-to-explicit-reviewer` | `0.51.0` |
+| `issue-analyze` | `dhpk-issue-analyze` 的 fresh MCP verdict | `issue-analyze`；目前 Host／Model classification，可選用獨立意見 | `migrated-to-explicit-reviewer` | `0.51.0` |
 | `feasibility-study` | `dhpk-feasibility-study` 的 MCP discussion/reply | `dhpk-feasibility-study`；current-model options/comparison 加 isolated 或明確選取的 CLI opinion | `migrated-to-explicit-reviewer` | `0.51.0` |
 
 每一列的 rollback path 都相同：pin 並透過 receipt-bound installation flow 重新安裝仍帶有

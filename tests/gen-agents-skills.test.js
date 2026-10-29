@@ -10,6 +10,7 @@ const {
   materializeAgentsSkillsProjection,
   validateAgentsSkillsProjection,
 } = require('../scripts/lib/agents-skills-package');
+const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
 
 const ROOT = path.join(__dirname, '..');
 const GENERATOR = path.join(ROOT, 'scripts', 'ci', 'gen-agents-skills.js');
@@ -81,7 +82,6 @@ test('gen-agents-skills CLI can materialize outside the canonical source checkou
 });
 
 test('gen-agents-skills CLI updates a v1 receipt with a retired selected-only identity', () => {
-  const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-skills-retired-v1-'));
   const args = ['--source-root', ROOT, '--project-root', projectRoot, '--profile', 'portable-core', '--host', 'codex'];
   try {
@@ -108,6 +108,52 @@ test('gen-agents-skills CLI updates a v1 receipt with a retired selected-only id
     assert.ok(receipt.emittedIdentities.some((entry) => entry.entityKind === 'skill' && entry.stableId === 'flow-guide'));
     const checked = spawnSync(process.execPath, [VALIDATOR, '--source-root', ROOT, '--project-root', projectRoot], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(checked.status, 0, checked.stderr);
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('gen-agents-skills CLI updates a v2 receipt with preserved legacy Claude bindings', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-skills-preserved-claude-v2-'));
+  const args = [
+    '--source-root', ROOT,
+    '--project-root', projectRoot,
+    '--profile', 'portable-core',
+    '--host', 'claude',
+    '--host', 'codex',
+  ];
+  const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+  try {
+    const seeded = spawnSync(process.execPath, [GENERATOR, ...args], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(seeded.status, 0, seeded.stderr);
+    const legacy = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    legacy.schema = 'dhpk.project-agent-projection-receipt.v2';
+    legacy.hostBindings.claude.discovery.sourceRoot = '.agents/skills';
+    legacy.hostBindings.claude.discovery.paths.forEach((entry, index) => {
+      legacy.bindingPaths.claude[index].target = legacy.bindingPaths.claude[index].target
+        .replace('../../.agents/claude-skills/', '../../.agents/skills/');
+      const bindingPath = path.join(projectRoot, entry);
+      fs.unlinkSync(bindingPath);
+      fs.symlinkSync(legacy.bindingPaths.claude[index].target, bindingPath);
+    });
+    legacy.bindings.claude = JSON.parse(JSON.stringify(legacy.hostBindings.claude));
+    delete legacy.receiptFingerprint;
+    legacy.receiptFingerprint = fingerprint(legacy);
+    fs.writeFileSync(receiptPath, JSON.stringify(legacy));
+
+    const updated = spawnSync(process.execPath, [GENERATOR, ...args.slice(0, -2), '--host', 'codex', '--update'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    });
+    assert.strictEqual(updated.status, 0, `${updated.stdout || ''}\n${updated.stderr || ''}`);
+    const migrated = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(migrated.schema, 'dhpk.project-agent-projection-receipt.v3');
+    assert.strictEqual(migrated.hostBindings.claude.discovery.sourceRoot, '.agents/claude-skills');
+    assert.ok(migrated.bindingPaths.claude.every(({ target }) => target.startsWith('../../.agents/claude-skills/')));
+    const checked = spawnSync(process.execPath, [
+      VALIDATOR, '--source-root', ROOT, '--project-root', projectRoot,
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(checked.status, 0, `${checked.stdout || ''}\n${checked.stderr || ''}`);
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }

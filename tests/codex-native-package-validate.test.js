@@ -702,7 +702,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       skills: [
         { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
         { id: 'skill-judge', name: 'dhpk-skill-quality-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
-        { id: 'vue-2-notes', name: 'dhpk-vue-2-notes', path: 'skills/dhpk-vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
+        { id: 'vue-2-notes', name: 'vue-2-notes', path: 'skills/vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
       ],
     };
     const out = tmpDir('dhpk-native-materialize-');
@@ -712,7 +712,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       assert.ok(fs.existsSync(path.join(out, 'skills', 'tdd-workflow', 'SKILL.md')));
       // skill-judge is promoted but NOT codex-native — must be excluded.
       assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-skill-quality-judge')));
-      assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-vue-2-notes')));
+      assert.ok(!fs.existsSync(path.join(out, 'skills', 'vue-2-notes')));
       const validation = validateNativeCandidate({ manifestSkillsField: result.manifestSkillsField, packageRoot: out });
       assert.deepStrictEqual(validation.errors, []);
     } finally {

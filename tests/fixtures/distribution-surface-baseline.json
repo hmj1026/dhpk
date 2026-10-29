@@ -82,7 +82,7 @@
       },
       {
         "id": "openspec-artifact-guard",
-        "path": "skills/dhpk-openspec-artifact-guard/SKILL.md",
+        "path": "skills/openspec-artifact-guard/SKILL.md",
         "module": "library-author"
       },
       {
@@ -122,7 +122,7 @@
       },
       {
         "id": "legacy-code-characterization",
-        "path": "skills/dhpk-legacy-characterization-tests/SKILL.md",
+        "path": "skills/legacy-characterization-tests/SKILL.md",
         "module": "phpunit-5.7"
       },
       {
@@ -172,7 +172,7 @@
       },
       {
         "id": "vue-2-notes",
-        "path": "skills/dhpk-vue-2-notes/SKILL.md",
+        "path": "skills/vue-2-notes/SKILL.md",
         "module": "vue-2"
       },
       {

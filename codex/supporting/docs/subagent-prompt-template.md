@@ -38,6 +38,9 @@ Output contract:
 
 ## Recoverable run checkpoint
 
+For dhpk maintainer delivery with an exclusive, recoverable verification run,
+use the [maintainer delivery guide](https://github.com/hmj1026/dhpk/blob/develop/docs/agent-guidance/maintainer-delivery.md#verification-run).
+
 For a long verification, update one run-specific record under the ignored
 `docs/evidence/` directory when the command starts, when its status changes,
 after a source commit, and after PR creation. Keep the same record for the
@@ -72,6 +75,11 @@ Delivery identity (optional; include only when applicable):
   Generated commit G:
 Next action:
 ```
+
+For dhpk maintainer runs, store record paths in the ledger and use
+`verification-run.js overview --ledger <absolute-file>` from the maintainer
+guide to derive verification state. Keep the manual status fields above for
+projects without that runner; they are not a second maintainer status store.
 
 On resume, verify the current branch, HEAD, dirty state, and command
 session/process identity against the record. If the session cannot be

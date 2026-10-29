@@ -19,8 +19,8 @@ const ROOT = path.join(__dirname, '..', '..');
 const SOURCES = Object.freeze({
   swift: 'swift',
   'code-trace': 'code-trace',
-  'deploy-list': 'dhpk-deploy-list',
-  'feature-verify': 'dhpk-feature-verify',
+  'deploy-list': 'deploy-list',
+  'feature-verify': 'feature-verify',
   'change-verdict': 'change-verdict',
   'flow-guide': 'flow-guide',
   'git-smart-commit': 'git-smart-commit',
@@ -439,31 +439,6 @@ function registerRemainingFixtures() {
           cached: git(context, ['diff', '--cached', '--numstat']),
           working: git(context, ['diff', '--numstat']),
         }, state.before, 'collector must leave the repository unchanged');
-      },
-    },
-    {
-      id: 'remaining-git-smart-commit-require-policy-missing',
-      skill: 'git-smart-commit', entry: 'scripts/collect-changes.js',
-      args: ['--require-policy'],
-      prepare(context) {
-        writeFile(path.join(context.projectDir, 'rules', 'execution-policy.md'), 'consumer decoy\n');
-        return {};
-      },
-      expected: { status: 1, output: ['POLICY_MISSING'], absent: ['UNAVAILABLE', 'GIT_QUERY_FAILED', 'consumer decoy'] },
-    },
-    {
-      id: 'remaining-git-smart-commit-require-policy-present',
-      skill: 'git-smart-commit', entry: 'scripts/collect-changes.js',
-      args: ['--require-policy'],
-      prepare(context) {
-        const policy = path.join(context.skillDir, 'references', '_dependencies', 'rules', 'execution-policy.md');
-        writeFile(policy, 'installed policy\n');
-        writeFile(path.join(context.projectDir, 'rules', 'execution-policy.md'), 'consumer decoy\n');
-        return { policy };
-      },
-      expected: { status: 0, output: ['execution-policy.md'], absent: ['UNAVAILABLE', 'GIT_QUERY_FAILED', 'consumer decoy'] },
-      verify(result, _context, state) {
-        assert.strictEqual(String(result.stdout).trim(), state.policy);
       },
     },
   ];

@@ -36,42 +36,6 @@
           "destination": "scripts/lib/flow-handoff-contract.js"
         }
       ]
-    },
-    "code-trace": {
-      "files": [
-        {
-          "source": "rules/tool-routing.md",
-          "destination": "rules/tool-routing.md"
-        },
-        {
-          "source": "rules/execution-policy.md",
-          "destination": "rules/execution-policy.md"
-        },
-        {
-          "source": "rules/execution-policy-kernel.md",
-          "destination": "rules/execution-policy-kernel.md"
-        },
-        {
-          "source": "docs/subagent-prompt-template.md",
-          "destination": "docs/subagent-prompt-template.md"
-        }
-      ]
-    },
-    "git-smart-commit": {
-      "files": [
-        {
-          "source": "docs/subagent-prompt-template.md",
-          "destination": "docs/subagent-prompt-template.md"
-        },
-        {
-          "source": "rules/execution-policy.md",
-          "destination": "rules/execution-policy.md"
-        },
-        {
-          "source": "rules/execution-policy-kernel.md",
-          "destination": "rules/execution-policy-kernel.md"
-        }
-      ]
     }
   },
   "lifecycles": [
@@ -530,8 +494,8 @@
     },
     {
       "id": "openspec-artifact-guard",
-      "name": "dhpk-openspec-artifact-guard",
-      "path": "skills/dhpk-openspec-artifact-guard",
+      "name": "openspec-artifact-guard",
+      "path": "skills/openspec-artifact-guard",
       "capability_id": "dhpk.skill.openspec-artifact-guard",
       "lifecycle": "optional",
       "tier": "optional",
@@ -541,10 +505,8 @@
       "surfaces": [
         "claude-module"
       ],
-      "legacy_names": [
-        "openspec-artifact-guard"
-      ],
-      "invocation_class": "implicit-eligible"
+      "invocation_class": "implicit-eligible",
+      "name_style": "portable-skill"
     },
     {
       "id": "phpunit",
@@ -566,8 +528,8 @@
     },
     {
       "id": "legacy-code-characterization",
-      "name": "dhpk-legacy-characterization-tests",
-      "path": "skills/dhpk-legacy-characterization-tests",
+      "name": "legacy-characterization-tests",
+      "path": "skills/legacy-characterization-tests",
       "capability_id": "dhpk.skill.legacy-code-characterization",
       "lifecycle": "optional",
       "tier": "optional",
@@ -580,13 +542,10 @@
         "codex-sync",
         "codex-native"
       ],
-      "legacy_names": [
-        "legacy-code-characterization"
-      ],
       "usage": {
         "display_name": "Legacy Code Characterization",
         "summary": "Lock observed legacy behavior before refactoring safely",
-        "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
+        "syntax": "$legacy-characterization-tests <legacy-target>",
         "input_kind": "path",
         "inputs": [
           {
@@ -603,7 +562,7 @@
           {
             "id": "characterize",
             "summary": "Write tests that capture the current legacy behavior",
-            "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
+            "syntax": "$legacy-characterization-tests <legacy-target>",
             "input_kind": "path",
             "effect_authority": "workspace-write"
           }
@@ -611,16 +570,17 @@
         "options": [],
         "examples": [
           {
-            "prompt": "$dhpk-legacy-characterization-tests protected/models/Order.php",
+            "prompt": "$legacy-characterization-tests protected/models/Order.php",
             "summary": "Lock an untested legacy model before refactoring"
           }
         ]
-      }
+      },
+      "name_style": "portable-skill"
     },
     {
       "id": "vue-2-notes",
-      "name": "dhpk-vue-2-notes",
-      "path": "skills/dhpk-vue-2-notes",
+      "name": "vue-2-notes",
+      "path": "skills/vue-2-notes",
       "capability_id": "dhpk.skill.vue-2-notes",
       "lifecycle": "optional",
       "tier": "optional",
@@ -630,10 +590,8 @@
       "surfaces": [
         "claude-module"
       ],
-      "legacy_names": [
-        "vue-2-notes"
-      ],
-      "invocation_class": "implicit-eligible"
+      "invocation_class": "implicit-eligible",
+      "name_style": "portable-skill"
     },
     {
       "id": "flow-guide",
@@ -981,8 +939,8 @@
     },
     {
       "id": "deploy-list",
-      "name": "dhpk-deploy-list",
-      "path": "skills/dhpk-deploy-list",
+      "name": "deploy-list",
+      "path": "skills/deploy-list",
       "capability_id": "dhpk.skill.deploy-list",
       "lifecycle": "promoted",
       "tier": "core",
@@ -996,12 +954,13 @@
       "legacy_names": [
         "deploy-list"
       ],
-      "invocation_class": "implicit-eligible"
+      "invocation_class": "implicit-eligible",
+      "name_style": "portable-skill"
     },
     {
       "id": "feature-verify",
-      "name": "dhpk-feature-verify",
-      "path": "skills/dhpk-feature-verify",
+      "name": "feature-verify",
+      "path": "skills/feature-verify",
       "capability_id": "dhpk.skill.feature-verify",
       "invocation_class": "explicit-only",
       "lifecycle": "promoted",
@@ -1015,7 +974,8 @@
       ],
       "legacy_names": [
         "feature-verify"
-      ]
+      ],
+      "name_style": "portable-skill"
     },
     {
       "id": "git-smart-commit",
@@ -1095,8 +1055,8 @@
     },
     {
       "id": "issue-analyze",
-      "name": "dhpk-issue-analyze",
-      "path": "skills/dhpk-issue-analyze",
+      "name": "issue-analyze",
+      "path": "skills/issue-analyze",
       "capability_id": "dhpk.skill.issue-analyze",
       "invocation_class": "explicit-only",
       "lifecycle": "promoted",
@@ -1110,12 +1070,13 @@
       ],
       "legacy_names": [
         "issue-analyze"
-      ]
+      ],
+      "name_style": "portable-skill"
     },
     {
       "id": "project-audit",
-      "name": "dhpk-project-audit",
-      "path": "skills/dhpk-project-audit",
+      "name": "project-audit",
+      "path": "skills/project-audit",
       "capability_id": "dhpk.skill.project-audit",
       "lifecycle": "promoted",
       "tier": "core",
@@ -1129,7 +1090,8 @@
       "legacy_names": [
         "project-audit"
       ],
-      "invocation_class": "implicit-eligible"
+      "invocation_class": "implicit-eligible",
+      "name_style": "portable-skill"
     },
     {
       "id": "release-creator",
@@ -1194,8 +1156,8 @@
     },
     {
       "id": "repo-intake",
-      "name": "dhpk-repo-intake",
-      "path": "skills/dhpk-repo-intake",
+      "name": "repo-intake",
+      "path": "skills/repo-intake",
       "capability_id": "dhpk.skill.repo-intake",
       "lifecycle": "promoted",
       "tier": "core",
@@ -1209,7 +1171,8 @@
       "legacy_names": [
         "repo-intake"
       ],
-      "invocation_class": "explicit-only"
+      "invocation_class": "explicit-only",
+      "name_style": "portable-skill"
     },
     {
       "id": "software-architecture",
@@ -5460,6 +5423,86 @@
       "newPath": "skills/tdd-workflow",
       "rollback": {
         "release": "0.62.4"
+      }
+    },
+    {
+      "id": "deploy-list",
+      "oldName": "dhpk-deploy-list",
+      "oldPath": "skills/dhpk-deploy-list",
+      "newName": "deploy-list",
+      "newPath": "skills/deploy-list",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "feature-verify",
+      "oldName": "dhpk-feature-verify",
+      "oldPath": "skills/dhpk-feature-verify",
+      "newName": "feature-verify",
+      "newPath": "skills/feature-verify",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "issue-analyze",
+      "oldName": "dhpk-issue-analyze",
+      "oldPath": "skills/dhpk-issue-analyze",
+      "newName": "issue-analyze",
+      "newPath": "skills/issue-analyze",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "project-audit",
+      "oldName": "dhpk-project-audit",
+      "oldPath": "skills/dhpk-project-audit",
+      "newName": "project-audit",
+      "newPath": "skills/project-audit",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "repo-intake",
+      "oldName": "dhpk-repo-intake",
+      "oldPath": "skills/dhpk-repo-intake",
+      "newName": "repo-intake",
+      "newPath": "skills/repo-intake",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "openspec-artifact-guard",
+      "oldName": "dhpk-openspec-artifact-guard",
+      "oldPath": "skills/dhpk-openspec-artifact-guard",
+      "newName": "openspec-artifact-guard",
+      "newPath": "skills/openspec-artifact-guard",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "legacy-code-characterization",
+      "oldName": "dhpk-legacy-characterization-tests",
+      "oldPath": "skills/dhpk-legacy-characterization-tests",
+      "newName": "legacy-characterization-tests",
+      "newPath": "skills/legacy-characterization-tests",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "vue-2-notes",
+      "oldName": "dhpk-vue-2-notes",
+      "oldPath": "skills/dhpk-vue-2-notes",
+      "newName": "vue-2-notes",
+      "newPath": "skills/vue-2-notes",
+      "rollback": {
+        "release": "0.67.0"
       }
     }
   ],

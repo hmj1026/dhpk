@@ -157,4 +157,4 @@ the confirmations.
 ## Related skills
 
 - `$library-author composer` — semver decisions when adding/removing a polyfill branch (raising the floor is a major bump)
-- `dhpk-legacy-characterization-tests` — for the single-version case where the polyfill branch IS the legacy code
+- `legacy-characterization-tests` — for the single-version case where the polyfill branch IS the legacy code

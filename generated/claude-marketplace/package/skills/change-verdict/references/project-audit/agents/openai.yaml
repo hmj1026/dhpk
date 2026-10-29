@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Audit"
+  short_description: "Project health audit with deterministic scoring."
+  default_prompt: "Use $project-audit to apply the Project Audit workflow with its verification rules."

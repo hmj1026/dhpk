@@ -13,6 +13,9 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+For a maintainer delivery that needs a durable, complete issue snapshot, use
+the [maintainer delivery guide](../agent-guidance/maintainer-delivery.md#issue-snapshot).
+
 ### Shell-safe bodies
 
 Treat issue bodies and comments as byte streams, not shell arguments. A

@@ -73,4 +73,53 @@ test('testDhpkCli_distribution_keepsForwardingToDistributionExecutable', () => {
   assert.strictEqual(result.stderr, "dhpk distribution: unknown surface 'not-a-surface'\n");
 });
 
+for (const linkKind of ['absolute', 'relative', 'chain']) {
+  test(`testDhpkCli_PATH_${linkKind}Symlinks_resolvePhysicalEntrypoints`, () => {
+    const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk cli links '));
+    const linkDirectory = path.join(temporaryRoot, 'path bin');
+    const hopDirectory = path.join(temporaryRoot, 'link hops');
+    fs.mkdirSync(linkDirectory);
+    fs.mkdirSync(hopDirectory);
+    try {
+      for (const name of ['dhpk', 'dhpk-install', 'dhpk-distribution']) {
+        const target = path.join(ROOT, 'bin', name);
+        const link = path.join(linkDirectory, name);
+        if (linkKind === 'chain') {
+          const hop = path.join(hopDirectory, name);
+          fs.symlinkSync(path.relative(hopDirectory, target), hop);
+          fs.symlinkSync(path.relative(linkDirectory, hop), link);
+        } else {
+          fs.symlinkSync(linkKind === 'absolute' ? target : path.relative(linkDirectory, target), link);
+        }
+      }
+      const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+      const cases = [
+        ['dhpk', ['--version'], 0, `${version}\n`, ''],
+        ['dhpk', ['--help'], 0, USAGE, ''],
+        ['dhpk', ['unknown command'], 64, '', USAGE],
+        ['dhpk', ['harness', 'unknown phase'], 64, '', "unknown phase 'unknown phase'\n"],
+        ['dhpk', ['install', 'cursor', 'status', '--sentinel option'], 64, '', "dhpk-install: unknown option '--sentinel option'\n"],
+        ['dhpk', ['distribution', 'unknown surface', 'generate'], 64, '', "dhpk distribution: unknown surface 'unknown surface'\n"],
+        ['dhpk-install', ['cursor', 'status', '--sentinel option'], 64, '', "dhpk-install: unknown option '--sentinel option'\n"],
+        ['dhpk-distribution', ['unknown surface', 'generate'], 64, '', "dhpk distribution: unknown surface 'unknown surface'\n"],
+      ];
+      for (const [command, args, status, stdout, stderr] of cases) {
+        const result = spawnSync(command, args, {
+          cwd: temporaryRoot,
+          env: { ...process.env, PATH: `${linkDirectory}${path.delimiter}${process.env.PATH}` },
+          encoding: 'utf8',
+          timeout: 30000,
+        });
+        const label = `${linkKind}: ${command} ${args.join(' ')}: ${result.stderr}`;
+        assert.ifError(result.error);
+        assert.strictEqual(result.status, status, label);
+        assert.strictEqual(result.stdout, stdout, label);
+        assert.strictEqual(result.stderr, stderr, label);
+      }
+    } finally {
+      fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+}
+
 run('dhpk-cli');

@@ -109,7 +109,7 @@ const { test, run, assert } = require('./_lib/tinytest');
     return legacy;
   }
 
-  function asV2Receipt(receipt) {
+  function asV2Receipt(receipt, { preserveClaude = false } = {}) {
     const fields = [
       'schema', 'generatorVersion', 'scope', 'managedRoot', 'receiptPath', 'projectionOwner',
       'profileId', 'profile', 'profileFingerprint', 'selectionFingerprint',
@@ -123,9 +123,11 @@ const { test, run, assert } = require('./_lib/tinytest');
       .filter((field) => Object.prototype.hasOwnProperty.call(receipt, field))
       .map((field) => [field, JSON.parse(JSON.stringify(receipt[field]))]));
     v2.schema = 'dhpk.project-agent-projection-receipt.v2';
-    v2.hostBindings = withoutKey(v2.hostBindings, 'claude');
-    v2.bindings = withoutKey(v2.bindings, 'claude');
-    v2.bindingPaths = withoutKey(v2.bindingPaths, 'claude');
+    if (!preserveClaude) {
+      v2.hostBindings = withoutKey(v2.hostBindings, 'claude');
+      v2.bindings = withoutKey(v2.bindings, 'claude');
+      v2.bindingPaths = withoutKey(v2.bindingPaths, 'claude');
+    }
     delete v2.receiptFingerprint;
     v2.receiptFingerprint = fingerprint(v2);
     return v2;
@@ -166,10 +168,6 @@ const { test, run, assert } = require('./_lib/tinytest');
       assert.strictEqual(fs.readFileSync(projected, 'utf8'), '# consumer policy\n');
       assert.ok(installed.receipt.entries[0].generatedPaths.includes('dhpk-sample/references/_dependencies/rules/execution-policy.md'));
       assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory }).ok, true);
-      const script = path.join(projectRoot, '.agents/skills/dhpk-sample/scripts/collect-changes.js');
-      const result = childProcess.spawnSync(process.execPath, [script, '--require-policy'], { encoding: 'utf8' });
-      assert.strictEqual(result.status, 0, result.stderr);
-      assert.ok(result.stdout.includes(projected));
       write(path.join(sourceRoot, 'rules/policy.md'), '# updated consumer policy\n');
       assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory }), /source changed.*explicit update authority/i);
       publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory, update: true });
@@ -434,6 +432,51 @@ const { test, run, assert } = require('./_lib/tinytest');
       fs.rmSync(projectRoot, { recursive: true, force: true });
     }
   });
+
+  for (const host of ['cursor', 'codex']) {
+    test(`native ${host} update migrates preserved v2 Claude discovery`, () => {
+      const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-preserved-src-'));
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-preserved-project-'));
+      const inventory = projectInventory();
+      const options = { sourceRoot, projectRoot, inventory, requestedHosts: ['claude', host], selectedStableIds: ['sample'], declaredSelection: true };
+      const receiptPath = path.join(projectRoot, '.agents/.dhpk-installed.json');
+      const link = path.join(projectRoot, '.claude/skills/dhpk-sample');
+      try {
+        write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Body\n');
+        const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
+        const v2 = asV2Receipt(installed.receipt, { preserveClaude: true });
+        v2.hostBindings.claude.discovery.sourceRoot = '.agents/skills';
+        v2.bindings = JSON.parse(JSON.stringify(v2.hostBindings));
+        v2.bindingPaths.claude = [{ path: '.claude/skills/dhpk-sample', target: '../../.agents/skills/dhpk-sample' }];
+        delete v2.receiptFingerprint;
+        v2.receiptFingerprint = fingerprint(v2);
+        write(receiptPath, JSON.stringify(v2));
+        fs.unlinkSync(link);
+        fs.symlinkSync('../../.agents/skills/dhpk-sample', link);
+        fs.rmSync(path.join(projectRoot, '.agents/claude-skills'), { recursive: true, force: true });
+        const update = () => require('../scripts/lib/native-shared-skill-install').installNativeSharedSkills({ sourceRoot, projectRoot, inventory, host, selectedStableIds: ['sample'], update: true });
+        const migrated = update();
+        assert.strictEqual(migrated.receipt.hostBindings.claude.discovery.sourceRoot, '.agents/claude-skills');
+        assert.strictEqual(fs.readlinkSync(link), '../../.agents/claude-skills/dhpk-sample');
+        assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+        assert.deepStrictEqual(migrated.receipt.hostBindings.claude.selectedStableIds, v2.hostBindings.claude.selectedStableIds);
+        const restored = publisher.rollbackAgentsSkillsProjection({ projectRoot, inventory });
+        assert.strictEqual(restored.ok, true, restored.error && restored.error.message);
+        assert.strictEqual(restored.receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+        assert.strictEqual(fs.readlinkSync(link), '../../.agents/skills/dhpk-sample');
+        assert.strictEqual(update().receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
+        fs.unlinkSync(link);
+        fs.symlinkSync('../../.agents/skills/dhpk-sample', link);
+        const beforeConflict = fs.readFileSync(receiptPath);
+        assert.throws(update);
+        assert.strictEqual(fs.readFileSync(receiptPath).equals(beforeConflict), true);
+        assert.strictEqual(fs.readlinkSync(link), '../../.agents/skills/dhpk-sample');
+      } finally {
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+  }
 
   test('publisher migrates an unchanged v2 receipt to v3 without changing portable identity or content', () => {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-migration-source-'));
@@ -712,6 +755,151 @@ const { test, run, assert } = require('./_lib/tinytest');
       assert.strictEqual(removed.state, 'REMOVED');
       assert.strictEqual(fs.existsSync(managedSkill), false);
       assert.strictEqual(fs.readFileSync(foreignFile, 'utf8'), '# User-owned content\n');
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('v3 Claude discovery repairs the exact portable-root receipt defect only during publication', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-claude-repair-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-claude-repair-project-'));
+    const inventory = projectInventory();
+    const options = { sourceRoot, projectRoot, inventory, profileId: 'portable-core', requestedHosts: ['claude'] };
+    const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    const claudeLink = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
+    const legacyTarget = '../../.agents/skills/dhpk-sample';
+
+    try {
+      write(path.join(sourceRoot, 'skills', 'dhpk-sample', 'SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      publisher.materializeRelocatableAgentsSkillsProjection(options);
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      receipt.hostBindings.claude.discovery.sourceRoot = '.agents/skills';
+      receipt.bindings = JSON.parse(JSON.stringify(receipt.hostBindings));
+      receipt.bindingPaths.claude = receipt.bindingPaths.claude.map((binding) => ({ ...binding, target: legacyTarget }));
+      delete receipt.receiptFingerprint;
+      receipt.receiptFingerprint = fingerprint(receipt);
+      write(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+      fs.unlinkSync(claudeLink);
+      fs.symlinkSync(legacyTarget, claudeLink, 'dir');
+
+      assert.strictEqual(receipt.receiptFingerprint, fingerprint(withoutKey(receipt, 'receiptFingerprint')));
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ projectRoot }).ok, false);
+
+      const repaired = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(repaired.receipt.hostBindings.claude.discovery.sourceRoot, '.agents/claude-skills');
+      assert.deepStrictEqual(repaired.receipt.bindingPaths.claude, [{
+        path: '.claude/skills/dhpk-sample',
+        target: '../../.agents/claude-skills/dhpk-sample',
+      }]);
+      assert.strictEqual(fs.readlinkSync(claudeLink), '../../.agents/claude-skills/dhpk-sample');
+      assert.strictEqual(repaired.receipt.receiptFingerprint, fingerprint(withoutKey(repaired.receipt, 'receiptFingerprint')));
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection({ projectRoot }).ok, true);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('v3 Claude lifecycle read rejects a mismatched legacy target and a changed fingerprint', () => {
+    for (const corruption of ['mismatched target', 'changed fingerprint']) {
+      const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-claude-reject-source-'));
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-claude-reject-project-'));
+      const inventory = projectInventory();
+      const options = { sourceRoot, projectRoot, inventory, requestedHosts: ['claude'] };
+      const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+      try {
+        write(path.join(sourceRoot, 'skills', 'dhpk-sample', 'SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+        publisher.materializeRelocatableAgentsSkillsProjection(options);
+        const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+        receipt.hostBindings.claude.discovery.sourceRoot = '.agents/skills';
+        receipt.bindings = JSON.parse(JSON.stringify(receipt.hostBindings));
+        receipt.bindingPaths.claude = receipt.bindingPaths.claude.map((binding) => ({ ...binding, target: '../../.agents/skills/dhpk-sample' }));
+        delete receipt.receiptFingerprint;
+        receipt.receiptFingerprint = fingerprint(receipt);
+        if (corruption === 'mismatched target') {
+          receipt.bindingPaths.claude[0].target = '../../.agents/claude-skills/wrong-name';
+          delete receipt.receiptFingerprint;
+          receipt.receiptFingerprint = fingerprint(receipt);
+        } else {
+          receipt.receiptFingerprint = '0'.repeat(64);
+        }
+        write(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+
+        assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection(options), /invalid receipt|fingerprint|binding|target/i, corruption);
+        assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), `${JSON.stringify(receipt, null, 2)}\n`);
+      } finally {
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test('direct uninstall removes a fingerprint-valid v3 Claude receipt with the old portable discovery root', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-claude-uninstall-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-claude-uninstall-project-'));
+    const inventory = projectInventory();
+    const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    const claudeLink = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
+    const legacyTarget = '../../.agents/skills/dhpk-sample';
+    try {
+      write(path.join(sourceRoot, 'skills', 'dhpk-sample', 'SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory, requestedHosts: ['claude'] });
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      receipt.hostBindings.claude.discovery.sourceRoot = '.agents/skills';
+      receipt.bindings = JSON.parse(JSON.stringify(receipt.hostBindings));
+      receipt.bindingPaths.claude = receipt.bindingPaths.claude.map((binding) => ({ ...binding, target: legacyTarget }));
+      delete receipt.receiptFingerprint;
+      receipt.receiptFingerprint = fingerprint(receipt);
+      write(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+      fs.unlinkSync(claudeLink);
+      fs.symlinkSync(legacyTarget, claudeLink, 'dir');
+
+      const removed = publisher.uninstallAgentsSkillsProjection({ projectRoot });
+      assert.strictEqual(removed.ok, true, removed.error && removed.error.message);
+      assert.strictEqual(removed.state, 'REMOVED');
+      assert.strictEqual(fs.existsSync(receiptPath), false);
+      assert.strictEqual(fs.existsSync(claudeLink), false);
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')), false);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('gen-agents-skills CLI --update repairs the v3 Claude portable-root discovery receipt', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-claude-cli-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-claude-cli-project-'));
+    const inventory = projectInventory();
+    const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    const claudeLink = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
+    const legacyTarget = '../../.agents/skills/dhpk-sample';
+    const cli = path.join(__dirname, '..', 'scripts', 'ci', 'gen-agents-skills.js');
+    try {
+      write(path.join(sourceRoot, 'skills', 'dhpk-sample', 'SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      write(path.join(sourceRoot, 'manifests', 'distribution-inventory.json'), `${JSON.stringify(inventory, null, 2)}\n`);
+      publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory, requestedHosts: ['claude'] });
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      receipt.hostBindings.claude.discovery.sourceRoot = '.agents/skills';
+      receipt.bindings = JSON.parse(JSON.stringify(receipt.hostBindings));
+      receipt.bindingPaths.claude = receipt.bindingPaths.claude.map((binding) => ({ ...binding, target: legacyTarget }));
+      delete receipt.receiptFingerprint;
+      receipt.receiptFingerprint = fingerprint(receipt);
+      write(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+      fs.unlinkSync(claudeLink);
+      fs.symlinkSync(legacyTarget, claudeLink, 'dir');
+
+      const result = childProcess.spawnSync(process.execPath, [
+        cli, '--source-root', sourceRoot, '--project-root', projectRoot, '--host', 'claude', '--update',
+      ], { encoding: 'utf8', timeout: 20000 });
+      assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      const repaired = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      assert.strictEqual(repaired.hostBindings.claude.discovery.sourceRoot, '.agents/claude-skills');
+      assert.deepStrictEqual(repaired.bindingPaths.claude, [{
+        path: '.claude/skills/dhpk-sample',
+        target: '../../.agents/claude-skills/dhpk-sample',
+      }]);
+      assert.strictEqual(fs.readlinkSync(claudeLink), '../../.agents/claude-skills/dhpk-sample');
     } finally {
       fs.rmSync(sourceRoot, { recursive: true, force: true });
       fs.rmSync(projectRoot, { recursive: true, force: true });

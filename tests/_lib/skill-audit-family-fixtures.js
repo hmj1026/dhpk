@@ -237,7 +237,7 @@ function registerAuditFamilyFixtures() {
     }),
     jsonDefinition({
       id: 'audit-project-audit-healthy',
-      skill: 'dhpk-project-audit',
+      skill: 'project-audit',
       entry: 'scripts/audit.js',
       args: ['--dir', '.'],
       prepare: prepareConsumerProject,
@@ -254,7 +254,7 @@ function registerAuditFamilyFixtures() {
     }),
     jsonDefinition({
       id: 'audit-project-audit-empty',
-      skill: 'dhpk-project-audit',
+      skill: 'project-audit',
       entry: 'scripts/audit.js',
       args: ['--dir', '.'],
       prepare: prepareEmptyProject,
@@ -270,7 +270,7 @@ function registerAuditFamilyFixtures() {
     }),
     jsonDefinition({
       id: 'audit-repo-intake-scan',
-      skill: 'dhpk-repo-intake',
+      skill: 'repo-intake',
       entry: 'scripts/scan_repo.js',
       args: ['--format', 'json', '--top', '10'],
       prepare: prepareConsumerProject,
@@ -289,7 +289,7 @@ function registerAuditFamilyFixtures() {
     }),
     jsonDefinition({
       id: 'audit-repo-intake-scan-no-git',
-      skill: 'dhpk-repo-intake',
+      skill: 'repo-intake',
       entry: 'scripts/scan_repo.js',
       args: ['--format', 'json', '--top', '10'],
       prepare: prepareConsumerProject,
@@ -308,7 +308,7 @@ function registerAuditFamilyFixtures() {
     }),
     jsonDefinition({
       id: 'audit-repo-intake-cached',
-      skill: 'dhpk-repo-intake',
+      skill: 'repo-intake',
       entry: 'scripts/intake_cached.js',
       args: ['--mode', 'full', '--format', 'json', '--top', '10'],
       cachedArgs: ['--mode', 'auto', '--format', 'json', '--top', '10'],
@@ -326,7 +326,7 @@ function registerAuditFamilyFixtures() {
     }),
     jsonDefinition({
       id: 'audit-repo-intake-delta',
-      skill: 'dhpk-repo-intake',
+      skill: 'repo-intake',
       entry: 'scripts/scan_delta.js',
       args: ['--base', 'HEAD', '--format', 'json'],
       prepare: prepareConsumerProject,
@@ -342,7 +342,7 @@ function registerAuditFamilyFixtures() {
     }),
     jsonDefinition({
       id: 'audit-repo-intake-delta-no-git',
-      skill: 'dhpk-repo-intake',
+      skill: 'repo-intake',
       entry: 'scripts/scan_delta.js',
       args: ['--base', 'HEAD', '--format', 'json'],
       prepare: prepareEmptyProject,

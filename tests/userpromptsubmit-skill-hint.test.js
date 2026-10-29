@@ -33,7 +33,7 @@ function mkRouteTable() {
       {
         pattern: 'deploy.{0,20}(prod|production)',
         label: 'production deploy',
-        target: { kind: 'skill', id: 'dhpk-deploy-list' },
+        target: { kind: 'skill', id: 'deploy-list' },
       },
     ],
   }));
@@ -135,7 +135,7 @@ test('prompt matching the route pattern emits an additionalContext hint', () => 
   const res = runHook('please deploy to production now');
   assertHintOutput(
     res,
-    '[skill-hint] This prompt looks like a production deploy task — the /dhpk:dhpk-deploy-list workflow may fit. Suggest it (or run it) if appropriate.',
+    '[skill-hint] This prompt looks like a production deploy task — the /dhpk:deploy-list workflow may fit. Suggest it (or run it) if appropriate.',
     'production deploy hint'
   );
 });
@@ -186,7 +186,7 @@ test('normal matching prompt still hints after notification filter added', () =>
   const res = runHook('please deploy to production now');
   assertHintOutput(
     res,
-    '[skill-hint] This prompt looks like a production deploy task — the /dhpk:dhpk-deploy-list workflow may fit. Suggest it (or run it) if appropriate.',
+    '[skill-hint] This prompt looks like a production deploy task — the /dhpk:deploy-list workflow may fit. Suggest it (or run it) if appropriate.',
     'production deploy hint after notification filter'
   );
 });

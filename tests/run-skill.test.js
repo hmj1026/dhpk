@@ -58,7 +58,7 @@ test('missing args prints usage and exits 2', () => {
 });
 
 test('resolves and execs a real .js skill script (read-only repo-intake scan)', () => {
-  const res = runScript(['dhpk-repo-intake', 'scan_repo.js', '--format', 'json']);
+  const res = runScript(['repo-intake', 'scan_repo.js', '--format', 'json']);
   assert.strictEqual(res.status, 0, res.stderr);
   assert.ok(res.stdout.length > 0);
   assert.doesNotThrow(() => JSON.parse(res.stdout));
@@ -73,7 +73,7 @@ test('missing canonical skills root fails closed before script lookup', () => {
       path.join(ROOT, 'manifests', 'distribution-inventory.json'),
       path.join(scratch, 'manifests', 'distribution-inventory.json'),
     );
-    const res = spawnSync('bash', [path.join(scratch, 'scripts', 'run-skill.sh'), 'dhpk-repo-intake', 'scan_repo.js'], {
+    const res = spawnSync('bash', [path.join(scratch, 'scripts', 'run-skill.sh'), 'repo-intake', 'scan_repo.js'], {
       cwd: scratch,
       encoding: 'utf8',
       timeout: 10000,
@@ -146,7 +146,7 @@ test('rejects a script symlink that resolves outside the canonical skills root',
 
 test('an existing bare unsupported script is rejected without executing its contents', () => {
   const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
-  const helper = { skill: 'dhpk-repo-intake', file: 'retained.txt' };
+  const helper = { skill: 'repo-intake', file: 'retained.txt' };
   const { result, scratch, outside } = isolatedRunSkill({ inventory, helper });
   try {
     assert.strictEqual(result.status, 2, result.stderr);

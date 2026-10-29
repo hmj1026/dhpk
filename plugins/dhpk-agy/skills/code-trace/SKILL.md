@@ -95,14 +95,14 @@ avoid changing refs, the index, or the worktree. Load
 
 ## `select-tool`
 
-1. Read `references/_dependencies/rules/tool-routing.md` sections “Decision tree”
-   and “Tie-breakers”; that policy card owns row order and tie-breaks.
+1. Read `references/select-tool/decision-tree.md` for the local decision table
+   and tie-breakers.
 2. Map the request to exactly one intent row and select its primary tool.
 3. Use the named fallback only when the primary is unavailable or returns no
    useful result. Prefer CX when both CX and GitNexus are valid, except for
    GitNexus-only operations; leave GitNexus-specific semantics to its external
    package skill.
-4. For a planned edit, rename, or refactor, read the policy card's impact
+4. For a planned edit, rename, or refactor, use the local reference's impact
    timing before touching an existing symbol.
 
 Return:

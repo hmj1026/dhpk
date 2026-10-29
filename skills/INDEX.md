@@ -70,14 +70,14 @@ front doors. Invoke the public name directly from Codex.
 
 | Public skill | Stable ID | Purpose |
 | --- | --- | --- |
-| [dhpk-deploy-list](dhpk-deploy-list/SKILL.md) | `deploy-list` | Deployment file-list and checklist |
-| [dhpk-feature-verify](dhpk-feature-verify/SKILL.md) | `feature-verify` | Read-only post-deploy verification |
+| [deploy-list](deploy-list/SKILL.md) | `deploy-list` | Deployment file-list and checklist |
+| [feature-verify](feature-verify/SKILL.md) | `feature-verify` | Read-only post-deploy verification |
 | [git-smart-commit](git-smart-commit/SKILL.md) | `git-smart-commit` | Group and execute cohesive Git commits |
-| [dhpk-issue-analyze](dhpk-issue-analyze/SKILL.md) | `issue-analyze` | GitHub issue and review-thread triage |
+| [issue-analyze](issue-analyze/SKILL.md) | `issue-analyze` | GitHub issue and review-thread triage |
 | [module-design](module-design/SKILL.md) | `software-architecture` | Architecture boundaries and deep-module design |
-| [dhpk-project-audit](dhpk-project-audit/SKILL.md) | `project-audit` | Deterministic project health audit |
+| [project-audit](project-audit/SKILL.md) | `project-audit` | Deterministic project health audit |
 | [release-creator](release-creator/SKILL.md) | `release-creator` | Release preparation workflow |
-| [dhpk-repo-intake](dhpk-repo-intake/SKILL.md) | `repo-intake` | Repository inventory onboarding |
+| [repo-intake](repo-intake/SKILL.md) | `repo-intake` | Repository inventory onboarding |
 | [tdd-workflow](tdd-workflow/SKILL.md) | `tdd` | Behavior-first test workflow |
 
 ## Optional module and transport skills
@@ -88,9 +88,9 @@ transport contract.
 
 | Public skill | Stable ID | Scope |
 | --- | --- | --- |
-| [dhpk-legacy-characterization-tests](dhpk-legacy-characterization-tests/SKILL.md) | `legacy-code-characterization` | Legacy behavior locking |
-| [dhpk-openspec-artifact-guard](dhpk-openspec-artifact-guard/SKILL.md) | `openspec-artifact-guard` | OpenSpec artifact guard |
-| [dhpk-vue-2-notes](dhpk-vue-2-notes/SKILL.md) | `vue-2-notes` | Vue 2 guidance |
+| [legacy-characterization-tests](legacy-characterization-tests/SKILL.md) | `legacy-code-characterization` | Legacy behavior locking |
+| [openspec-artifact-guard](openspec-artifact-guard/SKILL.md) | `openspec-artifact-guard` | OpenSpec artifact guard |
+| [vue-2-notes](vue-2-notes/SKILL.md) | `vue-2-notes` | Vue 2 guidance |
 
 ## Discovery rules
 

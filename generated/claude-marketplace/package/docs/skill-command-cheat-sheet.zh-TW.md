@@ -59,7 +59,7 @@ handoff and does not invoke Flow Drive automatically.
 | [`dhpk-php-runtime-router`](../skills/dhpk-php-runtime-router/SKILL.md) | PHP/Laravel/Symfony/Yii runtime 需要分流 | 先判斷 runtime，再載入一條 reference |
 | [`dhpk-yii1-php56-development`](../skills/dhpk-yii1-php56-development/SKILL.md) | Yii 1.x / PHP 5.6 backend 工作 | 不用於前端或非 PHP 專案 |
 | [`dhpk-yii1-security-audit`](../skills/dhpk-yii1-security-audit/SKILL.md) | Yii 1.1 安全白盒審計 | 不用於 Yii2 或非 PHP 專案 |
-| [`dhpk-legacy-characterization-tests`](../skills/tdd-workflow/references/dhpk-legacy-characterization-tests/SKILL.md) | 重構前鎖定 legacy behavior | 不代替功能設計或一般 TDD |
+| [`legacy-characterization-tests`](../skills/tdd-workflow/references/legacy-characterization-tests/SKILL.md) | 重構前鎖定 legacy behavior | 不代替功能設計或一般 TDD |
 
 Git、release、setup、review 與其他 slash command 的完整清單在
 [`commands/INDEX.md`](../commands/INDEX.md)。

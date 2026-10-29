@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## 0.68.0 — 2026-10-29 — Rename core and optional skills to unprefixed names, align native terminal methods, resolve CLI PATH symlinks, recover receipt migrations, and add maintainer delivery guardrails
+
+- **feat(skills)** — Rename five core skills to unprefixed public names while preserving stable identities and alias-free upgrade mappings with rollback to 0.67.0.
+- **feat(skills)** — Rename three optional module skills to unprefixed public names while preserving stable identities and self-contained references.
+- **fix(cli)** — Rebuild preserved Claude discovery targets during native Cursor and Codex receipt migration to v3, and recover fingerprint-valid v3 receipts with legacy Claude bindings during update or uninstall while keeping general validation strict.
+- **fix(cli)** — Resolve PATH symlinks before locating CLI resources, including relative and chained links.
+- **fix(cli)** — Add complete issue snapshots, recoverable verification ownership, and pinned-head checks before authorized merges, with final PR metadata and bounded context guidance.
+- **fix(cli)** — Add early maintainer preflight, record-derived verification overview, and quiet pinned-head CI watching with a missing-run grace period; register maintainer suite owners.
+- **refactor(skills)** — Complete the final eight unprefixed skill migrations and align TDD and simplification Methods with native Host and Model terminal execution.
+- **refactor(skills)** — Make git-smart-commit and code-trace self-contained with consumer project conventions and no injected policy dependencies.
+- **docs(docs)** — Update basic operations examples to final unprefixed skill names and the native Host and Model TDD handback procedure.
+
 ## 0.67.0 — 2026-10-28 — Switch Flow Drive to native task-only execution, add Codex Terra roles and installer tuning preservation, add doc-reviewer local rules, constrain forwarder tool grants, project standalone skill dependencies, and document GitNexus force recovery
 
 - **BREAKING(flow-drive)** — Replace Flow Drive's CLI selectors and runner API with a native task-only workflow; pin v0.66.7 for the retired interfaces.

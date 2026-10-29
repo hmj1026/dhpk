@@ -14,5 +14,5 @@ triggers:
     extensions: []
     paths: []
 provides:
-  skills: [dhpk-legacy-characterization-tests]
+  skills: [legacy-characterization-tests]
   references: [testing.md]

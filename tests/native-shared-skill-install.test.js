@@ -12,6 +12,50 @@ const {
   materializeRelocatableAgentsSkillsProjection,
 } = require('../scripts/lib/project-agent-projection-publisher');
 
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  }
+  return value;
+}
+
+function seedClaudeAndCodexProjection(sourceRoot, projectRoot) {
+  const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+  inventory.skills[0].surfaces.push('claude-core');
+  fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  materializeRelocatableAgentsSkillsProjection({
+    sourceRoot,
+    projectRoot,
+    inventory,
+    profileId: 'portable-core',
+    requestedHosts: ['claude', 'codex'],
+    selectedStableIds: ['sample'],
+    declaredSelection: true,
+    hostSelections: { claude: ['sample'], codex: ['sample'] },
+  });
+  return inventory;
+}
+
+function corruptV3ClaudeDiscovery(projectRoot, { target = '../../.agents/skills/dhpk-sample', seal = true } = {}) {
+  const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  receipt.hostBindings.claude.discovery.sourceRoot = '.agents/skills';
+  receipt.bindings = JSON.parse(JSON.stringify(receipt.hostBindings));
+  receipt.bindingPaths.claude = receipt.bindingPaths.claude.map((binding) => ({ ...binding, target }));
+  delete receipt.receiptFingerprint;
+  if (seal) {
+    receipt.receiptFingerprint = crypto.createHash('sha256')
+      .update(JSON.stringify(canonical(receipt))).digest('hex');
+  }
+  fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  const claudeLink = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
+  fs.unlinkSync(claudeLink);
+  fs.symlinkSync(target, claudeLink, 'dir');
+  return { receiptPath, receipt, claudeLink };
+}
+
 function tmpDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
@@ -830,6 +874,63 @@ test('uninstallNativeSharedSkills blocks a corrupt receipt and leaves the instal
     assert.strictEqual(result.code, 'INVALID_RECEIPT');
     assert.ok(fs.existsSync(skill));
     assert.strictEqual(fs.readFileSync(receipt, 'utf8'), '{ corrupted receipt');
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('installNativeSharedSkills repairs a fingerprint-valid v3 Claude discovery defect', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-claude-repair-install-');
+  try {
+    const inventory = seedClaudeAndCodexProjection(sourceRoot, projectRoot);
+    const corrupted = corruptV3ClaudeDiscovery(projectRoot);
+    const { receiptFingerprint, ...payload } = corrupted.receipt;
+    assert.strictEqual(receiptFingerprint, crypto.createHash('sha256').update(JSON.stringify(canonical(payload))).digest('hex'));
+    assert.strictEqual(validateRelocatableAgentsSkillsProjection({ projectRoot }).ok, false);
+
+    const result = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      inventory,
+      host: 'cursor',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+
+    assert.strictEqual(result.receipt.hostBindings.claude.discovery.sourceRoot, '.agents/claude-skills');
+    assert.deepStrictEqual(result.receipt.bindingPaths.claude, [{
+      path: '.claude/skills/dhpk-sample',
+      target: '../../.agents/claude-skills/dhpk-sample',
+    }]);
+    assert.strictEqual(fs.readlinkSync(corrupted.claudeLink), '../../.agents/claude-skills/dhpk-sample');
+    const { receiptFingerprint: repairedFingerprint, ...repairedPayload } = result.receipt;
+    assert.strictEqual(repairedFingerprint, crypto.createHash('sha256').update(JSON.stringify(canonical(repairedPayload))).digest('hex'));
+    assert.strictEqual(validateRelocatableAgentsSkillsProjection({ projectRoot }).ok, true);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('uninstallNativeSharedSkills repairs Claude discovery while removing another Host', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-claude-repair-uninstall-');
+  try {
+    const inventory = seedClaudeAndCodexProjection(sourceRoot, projectRoot);
+    const corrupted = corruptV3ClaudeDiscovery(projectRoot);
+    const result = uninstallNativeSharedSkills({ sourceRoot, projectRoot, inventory, host: 'codex' });
+
+    assert.strictEqual(result.ok, true, result.error && result.error.message);
+    assert.strictEqual(result.receipt.hostBindings.codex, undefined);
+    assert.strictEqual(result.receipt.hostBindings.claude.discovery.sourceRoot, '.agents/claude-skills');
+    assert.deepStrictEqual(result.receipt.bindingPaths.claude, [{
+      path: '.claude/skills/dhpk-sample',
+      target: '../../.agents/claude-skills/dhpk-sample',
+    }]);
+    assert.strictEqual(fs.readlinkSync(corrupted.claudeLink), '../../.agents/claude-skills/dhpk-sample');
+    assert.strictEqual(validateRelocatableAgentsSkillsProjection({ projectRoot }).ok, true);
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
     fs.rmSync(projectRoot, { recursive: true, force: true });

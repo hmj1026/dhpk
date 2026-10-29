@@ -21,6 +21,35 @@ failed prerequisites as `BLOCKED`.
 
 ## Current contract
 
+### Final unprefixed wave
+
+The eight rename rows below pin rollback to `0.67.0`, retain stable identity,
+profiles and surfaces, and add no callable aliases or Codex membership:
+
+| Former public name | Current public name |
+|---|---|
+| `dhpk-deploy-list` | `deploy-list` |
+| `dhpk-feature-verify` | `feature-verify` |
+| `dhpk-issue-analyze` | `issue-analyze` |
+| `dhpk-project-audit` | `project-audit` |
+| `dhpk-repo-intake` | `repo-intake` |
+| `dhpk-openspec-artifact-guard` | `openspec-artifact-guard` |
+| `dhpk-legacy-characterization-tests` | `legacy-characterization-tests` |
+| `dhpk-vue-2-notes` | `vue-2-notes` |
+
+All canonical public names are unprefixed; Claude keeps `/dhpk:`. Unchanged
+receipt-owned destinations migrate; modified or unowned destinations remain as
+conflicts. Rollback uses the ownership-aware installer. Characterization keeps
+stable ID `legacy-code-characterization`.
+
+`git-smart-commit` and `code-trace` relocate without injected policy files;
+only `flow-guide` retains `standalone_dependencies`. Commit safety is inlined
+and consumer Project Convention takes precedence over bundled formatting.
+`tdd-workflow` and `code-simplify` run directly on the current Host and Model.
+Single-pass four-angle review is standard, with optional native fan-out. Both
+Methods and `code-trace` return control for all five outcomes. Public Workflow
+progression remains configured.
+
 | Concern | Current implementation |
 |---|---|
 | Canonical source | Inventory-owned Skill packages at `skills/<public-name>/` |
@@ -156,8 +185,8 @@ evidence; this table records the identity disposition and rollback pin.
 | `doc-review` | `dhpk-doc-review` with MCP review/reply | `dhpk-doc-review`; portable five-dimension review and gate, with explicit optional `codex exec` only | `migrated-to-portable-review` | `0.51.0` |
 | `test-review` | `dhpk-test-review` with MCP review/reply | `dhpk-test-review`; portable sufficiency, edge-case, quality, and AC-trace review; generation remains `dhpk-tdd-workflow` | `migrated-to-portable-review` | `0.51.0` |
 | `codebase-exploration` | `dhpk-codebase-exploration` with MCP dual perspective | `dhpk-codebase-exploration`; current-model trace plus isolated or explicitly selected CLI second opinion | `migrated-to-isolated-perspective` | `0.51.0` |
-| `feature-verify` | `dhpk-feature-verify` with MCP P5 verdict | `dhpk-feature-verify`; independent reviewer is explicit-only and primary-only results are marked degraded | `migrated-to-explicit-reviewer` | `0.51.0` |
-| `issue-analyze` | `dhpk-issue-analyze` with a fresh MCP verdict | `dhpk-issue-analyze`; current-model classification with isolated or explicitly selected CLI blind opinion | `migrated-to-explicit-reviewer` | `0.51.0` |
+| `feature-verify` | `dhpk-feature-verify` with MCP P5 verdict | `feature-verify`; current Host/Model verdict with optional explicitly requested independent review | `migrated-to-explicit-reviewer` | `0.51.0` |
+| `issue-analyze` | `dhpk-issue-analyze` with a fresh MCP verdict | `issue-analyze`; current Host/Model classification with optional independent opinion | `migrated-to-explicit-reviewer` | `0.51.0` |
 | `feasibility-study` | `dhpk-feasibility-study` with MCP discussion/reply | `dhpk-feasibility-study`; current-model options/comparison with isolated or explicitly selected CLI opinion | `migrated-to-explicit-reviewer` | `0.51.0` |
 
 The rollback path for every row is the same: pin the last compatible `0.51.0`

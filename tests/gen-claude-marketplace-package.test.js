@@ -39,6 +39,8 @@ function makeHarnessPackageRoot(parent) {
 
   fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'),
     '{"name":"dhpk","version":"1.0.0"}\n');
+  fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'icon.png'),
+    path.join(root, '.claude-plugin', 'icon.png'));
   const skillRoot = path.join(root, 'skills', 'harness-setup');
   fs.mkdirSync(path.join(skillRoot, 'scripts'), { recursive: true });
   fs.writeFileSync(path.join(skillRoot, 'SKILL.md'), [
@@ -143,6 +145,7 @@ test('Claude marketplace generator omits local process docs and keeps durable co
       fs.mkdirSync(path.join(root, rel), { recursive: true });
     }
     fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), '{"name":"dhpk","version":"1.0.0"}');
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'icon.png'), path.join(root, '.claude-plugin', 'icon.png'));
     for (const rel of [
       'docs/design/retired-proposal.md',
       'docs/evidence/local-run.md',
@@ -249,6 +252,7 @@ test('check reports a drifted generated Claude marketplace package as out of dat
       fs.mkdirSync(path.join(root, rel), { recursive: true });
     }
     fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), '{"name":"dhpk","version":"1.0.0"}');
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'icon.png'), path.join(root, '.claude-plugin', 'icon.png'));
     fs.mkdirSync(path.join(root, 'docs', 'contracts'), { recursive: true });
     fs.writeFileSync(path.join(root, 'docs', 'contracts', 'keep-me.md'), 'keep me\n');
 
@@ -290,6 +294,7 @@ function transientPackageFixture() {
     'manifests', 'modules', 'rules', 'scripts', 'skills', 'templates',
   ]) fs.mkdirSync(path.join(root, relative), { recursive: true });
   fs.writeFileSync(path.join(root, '.claude-plugin/plugin.json'), '{"name":"dhpk","version":"1.0.0"}\n');
+  fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'icon.png'), path.join(root, '.claude-plugin/icon.png'));
   fs.writeFileSync(path.join(root, 'scripts/keep.js'), 'module.exports = 1;\n');
   return { temp, root, out };
 }

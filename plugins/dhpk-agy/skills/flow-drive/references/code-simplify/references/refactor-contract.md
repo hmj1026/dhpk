@@ -1,6 +1,6 @@
 # Simplification contract
 
-Use this reference only when a review angle fails, fan-out is unavailable, or a
+Use this reference only when a review angle is incomplete or a
 cleanup exceeds the bounded single-file path. The main skill owns the ordered
 workflow; this file defines the evidence and handoff shape.
 
@@ -20,25 +20,20 @@ Do not treat an absence of a textual match as proof that a dynamic dispatch,
 reflection hook, framework callback, or public consumer is unused. Keep such a
 finding or mark it for human confirmation.
 
-## Degraded review
+## Execution evidence
 
-- `4-agent fan-out`: all four independent read-only angles completed.
-- `degraded: mixed`: some registered reviewers completed and missing angles ran
-  inline.
-- `degraded: single-pass`: the current worker performed all four angles inline;
-  explicitly say that no independent fan-out ran.
+- `current Host/Model single-pass`: the standard path completes all four angles.
+- `optional fan-out`: supported read-only subagents supply independent angles.
+- `mixed`: subagent observations and inline review complete the four angles.
 
-An unavailable worker is degraded evidence, not permission to invent a role or
-silently drop an angle.
+Name every unreviewed angle as incomplete evidence; preserve completed angles.
 
 ## Heavy-cleanup handoff
 
-Use a registered `worker` for scoped implementation and a registered
-`architect` for cross-module design or dependency-direction decisions. Pass the
-resolved scope, baseline test command/result, finding records, assigned files,
-and the exact requested verification. If neither role is registered, keep the
-current change bounded, document deferred files and why they were deferred, and
-recommend one concrete follow-up dispatch. A plan is not an applied cleanup.
+Keep implementation within the resolved scope using the current Host and Model.
+Return unresolved cross-module design or dependency-direction decisions to the
+caller with baseline test command/result, finding records, affected files and
+the required verification. A plan is not an applied cleanup.
 
 ## Safety boundary
 

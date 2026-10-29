@@ -1,5 +1,5 @@
 ---
-description: 'Use when cleaning changed code for reuse, simplicity, efficiency, and the right abstraction level without changing behavior. Not for correctness review, broad redesign, or unbounded cleanup. Output: four-angle findings, applied/skipped changes, and baseline/final test evidence with degraded status when needed.'
+description: 'Use when cleaning changed code for reuse, simplicity, efficiency, and the right abstraction level without changing behavior. Not for correctness review, broad redesign, or unbounded cleanup. Output: four-angle findings, applied/skipped changes, and baseline/final test evidence.'
 argument-hint: '[<PR|branch|file|directory>]'
 metadata:
   dhpk-invocation-class: implicit-eligible

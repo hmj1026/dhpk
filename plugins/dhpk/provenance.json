@@ -3,12 +3,12 @@
   "surface": "codex-native",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
-  "sourceVersion": "0.67.0",
-  "sourceCommit": "ddbec7387eb1098d8f6a0dc2cf2c4d8c89378438",
-  "generatedFromCommit": "ddbec7387eb1098d8f6a0dc2cf2c4d8c89378438",
-  "generatedFromTree": "5161baaeddb824749ea7ce4ca6317ea71d877d8a",
-  "inventoryDigest": "c6d9adb47d04f7cef4c1002909957d0e8cdcbd2714ff19dfca4b744afbe0eae5",
-  "inventoryRevision": "sha256:43fd81d6878d6cc01975d648ef638c72573711ffd7e2269205b5880700722eb7",
+  "sourceVersion": "0.68.0",
+  "sourceCommit": "c876737f833a750030f3f304efc033b0f6404973",
+  "generatedFromCommit": "c876737f833a750030f3f304efc033b0f6404973",
+  "generatedFromTree": "b0f2d75d1bf5b27f26f3c1d27cd88691879780d6",
+  "inventoryDigest": "affa088e9407bca7394ed44b3fad01227c4503a948fb82e99882f309eb7d8297",
+  "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "change-verdict",
@@ -201,54 +201,6 @@
       },
       {
         "ownerId": "change-verdict",
-        "source": "skills/dhpk-project-audit/SKILL.md",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/SKILL.md",
-        "originalGitBlobDigest": "992018cadecf76b06a221f713e58217556026fcd"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-project-audit/agents/openai.yaml",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/agents/openai.yaml",
-        "originalGitBlobDigest": "b6a18b060ff661c9e114ddc171f8fdfd584b7f6e"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-project-audit/distribution.yaml",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/distribution.yaml",
-        "originalGitBlobDigest": "bb40ab8812bea9092009d454d4ca203295f15608"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-project-audit/references/check-catalog.md",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/references/check-catalog.md",
-        "originalGitBlobDigest": "42a463033f66065c01ca741b3a1091d6eb662d9f"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-project-audit/references/output-template.md",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/references/output-template.md",
-        "originalGitBlobDigest": "a6d64a8007d6c78a941253b38f216b989f12634e"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-project-audit/scripts/audit.js",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/audit.js",
-        "originalGitBlobDigest": "4d5c9e207910ba7343ff8bf452f31ef56c5868b0"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-project-audit/scripts/lib/command-namespace.js",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/lib/command-namespace.js",
-        "originalGitBlobDigest": "181d4274eb1a0c05b3df44283cae5ef9223d1376"
-      },
-      {
-        "ownerId": "change-verdict",
-        "source": "skills/dhpk-project-audit/scripts/lib/runner-utils.js",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
-      },
-      {
-        "ownerId": "change-verdict",
         "source": "skills/change-verdict/references/docs/codex-prompt-doc.md",
         "destination": "skills/change-verdict/references/docs/codex-prompt-doc.md",
         "originalGitBlobDigest": "7d67426a986e9b7a2738a3249f84b4fd34c5cb87"
@@ -258,6 +210,54 @@
         "source": "skills/change-verdict/references/docs/review-loop-doc.md",
         "destination": "skills/change-verdict/references/docs/review-loop-doc.md",
         "originalGitBlobDigest": "1401a82da53a1dd9eb98f712be9fd4503a29ac90"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/project-audit/SKILL.md",
+        "destination": "skills/change-verdict/references/project-audit/SKILL.md",
+        "originalGitBlobDigest": "54d6fe252547e8107501f256ca98b15cb8dcceae"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/project-audit/agents/openai.yaml",
+        "destination": "skills/change-verdict/references/project-audit/agents/openai.yaml",
+        "originalGitBlobDigest": "dfa1bbea3476a01b8dfc869c25a64a6e1ba91841"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/project-audit/distribution.yaml",
+        "destination": "skills/change-verdict/references/project-audit/distribution.yaml",
+        "originalGitBlobDigest": "bb40ab8812bea9092009d454d4ca203295f15608"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/project-audit/references/check-catalog.md",
+        "destination": "skills/change-verdict/references/project-audit/references/check-catalog.md",
+        "originalGitBlobDigest": "42a463033f66065c01ca741b3a1091d6eb662d9f"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/project-audit/references/output-template.md",
+        "destination": "skills/change-verdict/references/project-audit/references/output-template.md",
+        "originalGitBlobDigest": "a6d64a8007d6c78a941253b38f216b989f12634e"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/project-audit/scripts/audit.js",
+        "destination": "skills/change-verdict/references/project-audit/scripts/audit.js",
+        "originalGitBlobDigest": "4d5c9e207910ba7343ff8bf452f31ef56c5868b0"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/project-audit/scripts/lib/command-namespace.js",
+        "destination": "skills/change-verdict/references/project-audit/scripts/lib/command-namespace.js",
+        "originalGitBlobDigest": "181d4274eb1a0c05b3df44283cae5ef9223d1376"
+      },
+      {
+        "ownerId": "change-verdict",
+        "source": "skills/project-audit/scripts/lib/runner-utils.js",
+        "destination": "skills/change-verdict/references/project-audit/scripts/lib/runner-utils.js",
+        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
       },
       {
         "ownerId": "change-verdict",
@@ -371,7 +371,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "da9fa5659a9154fe101e9a4be9c153bf23d62dca"
+        "originalGitBlobDigest": "b44ccc1814e884d376c96b5d92ca6bee78deba93"
       },
       {
         "ownerId": "code-trace",
@@ -384,78 +384,6 @@
         "source": "skills/code-trace/distribution.yaml",
         "destination": "skills/code-trace/distribution.yaml",
         "originalGitBlobDigest": "189958e957927397318de99ad0b5963a866e3658"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "docs/subagent-prompt-template.md",
-        "destination": "skills/code-trace/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "rules/execution-policy-kernel.md",
-        "destination": "skills/code-trace/references/_dependencies/rules/execution-policy-kernel.md",
-        "originalGitBlobDigest": "42dd384640bcafa5f4d02c9e65216efd342df8e9"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "rules/execution-policy.md",
-        "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "bcf767d5b56bf64c37da5c062b89ab709d53ef04"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "rules/tool-routing.md",
-        "destination": "skills/code-trace/references/_dependencies/rules/tool-routing.md",
-        "originalGitBlobDigest": "50a7a9c681cfdbe8129bde55be4fb7b3a413067c"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "skills/dhpk-repo-intake/SKILL.md",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/SKILL.md",
-        "originalGitBlobDigest": "5e213c70cedb16211729e54a6b1a92a9ebfa3130"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "skills/dhpk-repo-intake/agents/openai.yaml",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/agents/openai.yaml",
-        "originalGitBlobDigest": "c6cb3686342dfcf48679610e3fed4f153bad7088"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "skills/dhpk-repo-intake/distribution.yaml",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/distribution.yaml",
-        "originalGitBlobDigest": "c09666a6d59d5518f7ac0ef6989723a799eee5ef"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "skills/dhpk-repo-intake/references/archived/MIDWAY_HEURISTICS.md",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/references/archived/MIDWAY_HEURISTICS.md",
-        "originalGitBlobDigest": "b55e36577c0de9a1f81c02162e3302096265145a"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "skills/dhpk-repo-intake/scripts/intake_cached.js",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/intake_cached.js",
-        "originalGitBlobDigest": "30036c8e8efc755c7aab2107e2558dd925141c11"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "skills/dhpk-repo-intake/scripts/lib/runner-utils.js",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "skills/dhpk-repo-intake/scripts/scan_delta.js",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/scan_delta.js",
-        "originalGitBlobDigest": "d6d533aac49b18ffe39a1623f9d46b636ece5a4e"
-      },
-      {
-        "ownerId": "code-trace",
-        "source": "skills/dhpk-repo-intake/scripts/scan_repo.js",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/scan_repo.js",
-        "originalGitBlobDigest": "1d964e9065726fc38566a6e1cb9b404b0e489379"
       },
       {
         "ownerId": "code-trace",
@@ -543,9 +471,57 @@
       },
       {
         "ownerId": "code-trace",
+        "source": "skills/repo-intake/SKILL.md",
+        "destination": "skills/code-trace/references/repo-intake/SKILL.md",
+        "originalGitBlobDigest": "9eca4eb93697054e8c949930615df7e494df88e6"
+      },
+      {
+        "ownerId": "code-trace",
+        "source": "skills/repo-intake/agents/openai.yaml",
+        "destination": "skills/code-trace/references/repo-intake/agents/openai.yaml",
+        "originalGitBlobDigest": "5e792c04f34d790d507f6384dfbe2fd27e701dff"
+      },
+      {
+        "ownerId": "code-trace",
+        "source": "skills/repo-intake/distribution.yaml",
+        "destination": "skills/code-trace/references/repo-intake/distribution.yaml",
+        "originalGitBlobDigest": "c09666a6d59d5518f7ac0ef6989723a799eee5ef"
+      },
+      {
+        "ownerId": "code-trace",
+        "source": "skills/repo-intake/references/archived/MIDWAY_HEURISTICS.md",
+        "destination": "skills/code-trace/references/repo-intake/references/archived/MIDWAY_HEURISTICS.md",
+        "originalGitBlobDigest": "b55e36577c0de9a1f81c02162e3302096265145a"
+      },
+      {
+        "ownerId": "code-trace",
+        "source": "skills/repo-intake/scripts/intake_cached.js",
+        "destination": "skills/code-trace/references/repo-intake/scripts/intake_cached.js",
+        "originalGitBlobDigest": "30036c8e8efc755c7aab2107e2558dd925141c11"
+      },
+      {
+        "ownerId": "code-trace",
+        "source": "skills/repo-intake/scripts/lib/runner-utils.js",
+        "destination": "skills/code-trace/references/repo-intake/scripts/lib/runner-utils.js",
+        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+      },
+      {
+        "ownerId": "code-trace",
+        "source": "skills/repo-intake/scripts/scan_delta.js",
+        "destination": "skills/code-trace/references/repo-intake/scripts/scan_delta.js",
+        "originalGitBlobDigest": "d6d533aac49b18ffe39a1623f9d46b636ece5a4e"
+      },
+      {
+        "ownerId": "code-trace",
+        "source": "skills/repo-intake/scripts/scan_repo.js",
+        "destination": "skills/code-trace/references/repo-intake/scripts/scan_repo.js",
+        "originalGitBlobDigest": "1d964e9065726fc38566a6e1cb9b404b0e489379"
+      },
+      {
+        "ownerId": "code-trace",
         "source": "skills/code-trace/references/select-tool/decision-tree.md",
         "destination": "skills/code-trace/references/select-tool/decision-tree.md",
-        "originalGitBlobDigest": "fe22dbc53e0a0eea54831ae88193f1c5e77a5509"
+        "originalGitBlobDigest": "b7ab19ecfa84a8fc4d52ad7342f93ff09936b2ff"
       },
       {
         "ownerId": "code-trace",
@@ -713,7 +689,7 @@
         "ownerId": "flow-drive",
         "source": "skills/code-simplify/SKILL.md",
         "destination": "skills/flow-drive/references/code-simplify/SKILL.md",
-        "originalGitBlobDigest": "88d4b84f078d849388e720945948146ee63a96dd"
+        "originalGitBlobDigest": "1704f8d29a82bebbb9b86570f5cd65757659e7af"
       },
       {
         "ownerId": "flow-drive",
@@ -731,43 +707,7 @@
         "ownerId": "flow-drive",
         "source": "skills/code-simplify/references/refactor-contract.md",
         "destination": "skills/flow-drive/references/code-simplify/references/refactor-contract.md",
-        "originalGitBlobDigest": "4f83c5006e55745e3510ffad0f2c6f0b8cd1c1b6"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-openspec-artifact-guard/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/SKILL.md",
-        "originalGitBlobDigest": "88b97b58f0c62573809ef4bd2a1880ec38802356"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-openspec-artifact-guard/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/agents/openai.yaml",
-        "originalGitBlobDigest": "9ea0ebb0289c1e22a59588399bd1b79f05c2dfc0"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-openspec-artifact-guard/distribution.yaml",
-        "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/distribution.yaml",
-        "originalGitBlobDigest": "73cec387fa408811fe61129c769f8f1b2abc1a98"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-vue-2-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-vue-2-notes/SKILL.md",
-        "originalGitBlobDigest": "5d77d7f2162c9e22ac0b6f719aee9b2ee79bff26"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-vue-2-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-vue-2-notes/agents/openai.yaml",
-        "originalGitBlobDigest": "edfe81984e0ce9fd8c51a2c902b0f096520114ef"
-      },
-      {
-        "ownerId": "flow-drive",
-        "source": "skills/dhpk-vue-2-notes/distribution.yaml",
-        "destination": "skills/flow-drive/references/dhpk-vue-2-notes/distribution.yaml",
-        "originalGitBlobDigest": "73cec387fa408811fe61129c769f8f1b2abc1a98"
+        "originalGitBlobDigest": "20c3815700d313a0a8b84346c704fdd5c2c93210"
       },
       {
         "ownerId": "flow-drive",
@@ -899,7 +839,7 @@
         "ownerId": "flow-drive",
         "source": "skills/laravel/references/mix.md",
         "destination": "skills/flow-drive/references/laravel/references/mix.md",
-        "originalGitBlobDigest": "337c95255122248b77f33457b7af0ac47e87c102"
+        "originalGitBlobDigest": "fd157e65d6808d0872fc1c8d2dd8ecda3f186424"
       },
       {
         "ownerId": "flow-drive",
@@ -954,6 +894,24 @@
         "source": "skills/nextjs/references/target-selection.md",
         "destination": "skills/flow-drive/references/nextjs/references/target-selection.md",
         "originalGitBlobDigest": "40274b4f9fa0182be2367e145515a3a8b4b66a8d"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/openspec-artifact-guard/SKILL.md",
+        "destination": "skills/flow-drive/references/openspec-artifact-guard/SKILL.md",
+        "originalGitBlobDigest": "3edc2721023705f336aa20a9cd924de4f17651a5"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/openspec-artifact-guard/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/openspec-artifact-guard/agents/openai.yaml",
+        "originalGitBlobDigest": "7a5d857ee3e5ba3037ffe9ecb2087765971aa632"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/openspec-artifact-guard/distribution.yaml",
+        "destination": "skills/flow-drive/references/openspec-artifact-guard/distribution.yaml",
+        "originalGitBlobDigest": "73cec387fa408811fe61129c769f8f1b2abc1a98"
       },
       {
         "ownerId": "flow-drive",
@@ -1401,6 +1359,24 @@
       },
       {
         "ownerId": "flow-drive",
+        "source": "skills/vue-2-notes/SKILL.md",
+        "destination": "skills/flow-drive/references/vue-2-notes/SKILL.md",
+        "originalGitBlobDigest": "04ea0304674a09822930d814d4b48a5bed4b662a"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/vue-2-notes/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/vue-2-notes/agents/openai.yaml",
+        "originalGitBlobDigest": "c7713518391ef59b76b58a2b00572f40b87a24c7"
+      },
+      {
+        "ownerId": "flow-drive",
+        "source": "skills/vue-2-notes/distribution.yaml",
+        "destination": "skills/flow-drive/references/vue-2-notes/distribution.yaml",
+        "originalGitBlobDigest": "73cec387fa408811fe61129c769f8f1b2abc1a98"
+      },
+      {
+        "ownerId": "flow-drive",
         "source": "skills/yii1/SKILL.md",
         "destination": "skills/flow-drive/references/yii1/SKILL.md",
         "originalGitBlobDigest": "ed5fa8b4c4670b7013db464b599dcf253486fa7b"
@@ -1505,7 +1481,7 @@
         "ownerId": "flow-guide",
         "source": "docs/subagent-prompt-template.md",
         "destination": "skills/flow-guide/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "be09edc25e31dfccacacddfecfb5d40939d7bfe5"
       },
       {
         "ownerId": "flow-guide",
@@ -1541,7 +1517,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "8901d49ce12995e2612c390c5a48e9c79e6ba62d"
+        "originalGitBlobDigest": "99f9f18102641ea75a088742a4a6399f1f13104e"
       },
       {
         "ownerId": "flow-guide",
@@ -1565,7 +1541,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/deterministic-first.md",
         "destination": "skills/flow-guide/references/deterministic-first.md",
-        "originalGitBlobDigest": "c8976faf86822e08d046b4fbfa39cf08d7adf4aa"
+        "originalGitBlobDigest": "1c71ebe41fc5f2875ec75643787c179faa5cdf76"
       },
       {
         "ownerId": "flow-guide",
@@ -1583,7 +1559,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
         "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "be09edc25e31dfccacacddfecfb5d40939d7bfe5"
       },
       {
         "ownerId": "flow-guide",
@@ -1685,7 +1661,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
-        "originalGitBlobDigest": "c8976faf86822e08d046b4fbfa39cf08d7adf4aa"
+        "originalGitBlobDigest": "1c71ebe41fc5f2875ec75643787c179faa5cdf76"
       },
       {
         "ownerId": "flow-guide",
@@ -1763,7 +1739,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/progression-tables.md",
         "destination": "skills/flow-guide/references/progression-tables.md",
-        "originalGitBlobDigest": "6567d0966882c7f78f99e965af8b02f8ab04ca93"
+        "originalGitBlobDigest": "2cbe21d8c8988aa2107020721db451da34ebc6dc"
       },
       {
         "ownerId": "flow-guide",
@@ -1787,7 +1763,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/route-table.json",
         "destination": "skills/flow-guide/references/route-table.json",
-        "originalGitBlobDigest": "0ca0bfe1d564f0da282e6fa6cadbba300044c79c"
+        "originalGitBlobDigest": "7c95af768e8b4f8b5e173912e522f2f886c5398b"
       },
       {
         "ownerId": "flow-guide",
@@ -1955,7 +1931,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/SKILL.md",
         "destination": "skills/git-smart-commit/SKILL.md",
-        "originalGitBlobDigest": "cf00c3254d5539a138a3bae7a34e4198889202e8"
+        "originalGitBlobDigest": "8383482f29f50293b7de1dc7f13a4a4a1fc13414"
       },
       {
         "ownerId": "git-smart-commit",
@@ -1967,25 +1943,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/distribution.yaml",
         "destination": "skills/git-smart-commit/distribution.yaml",
-        "originalGitBlobDigest": "2691f7cdabe574db60fd7f844d661701b47c576c"
-      },
-      {
-        "ownerId": "git-smart-commit",
-        "source": "docs/subagent-prompt-template.md",
-        "destination": "skills/git-smart-commit/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
-      },
-      {
-        "ownerId": "git-smart-commit",
-        "source": "rules/execution-policy-kernel.md",
-        "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy-kernel.md",
-        "originalGitBlobDigest": "42dd384640bcafa5f4d02c9e65216efd342df8e9"
-      },
-      {
-        "ownerId": "git-smart-commit",
-        "source": "rules/execution-policy.md",
-        "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "bcf767d5b56bf64c37da5c062b89ab709d53ef04"
+        "originalGitBlobDigest": "c58931b2a6f8757cbf4b8dd04b42322fb06ffe6a"
       },
       {
         "ownerId": "git-smart-commit",
@@ -1997,7 +1955,7 @@
         "ownerId": "git-smart-commit",
         "source": "skills/git-smart-commit/scripts/collect-changes.js",
         "destination": "skills/git-smart-commit/scripts/collect-changes.js",
-        "originalGitBlobDigest": "77903aec76603675a8417f364b21f680d64d15cd"
+        "originalGitBlobDigest": "4cdabf09ec40fff37ca73bba1a629ff9401a157e"
       },
       {
         "ownerId": "git-worktree",
@@ -2075,7 +2033,7 @@
         "ownerId": "library-author",
         "source": "skills/library-author/references/polyfill-audit.md",
         "destination": "skills/library-author/references/polyfill-audit.md",
-        "originalGitBlobDigest": "9bf31eb525d7114c33849b7798181f5cf3011351"
+        "originalGitBlobDigest": "23a1507609aa118cff10da77d9d709378a970c9c"
       },
       {
         "ownerId": "library-author",
@@ -2235,33 +2193,33 @@
       },
       {
         "ownerId": "proposal-analyze",
-        "source": "skills/dhpk-issue-analyze/SKILL.md",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/SKILL.md",
-        "originalGitBlobDigest": "dd50e2e27d0cbb3b9e8d5f1daa89a6270ca27916"
+        "source": "skills/issue-analyze/SKILL.md",
+        "destination": "skills/proposal-analyze/references/issue-analyze/SKILL.md",
+        "originalGitBlobDigest": "837efb4f2cde048296f30af2d6db3b7be9d7d7d3"
       },
       {
         "ownerId": "proposal-analyze",
-        "source": "skills/dhpk-issue-analyze/agents/openai.yaml",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/agents/openai.yaml",
-        "originalGitBlobDigest": "33acf51567e0d900723c3cc2d1cd451a4d9b57f2"
+        "source": "skills/issue-analyze/agents/openai.yaml",
+        "destination": "skills/proposal-analyze/references/issue-analyze/agents/openai.yaml",
+        "originalGitBlobDigest": "1748390741ab51e5cd6f7a811679e42b9441a51c"
       },
       {
         "ownerId": "proposal-analyze",
-        "source": "skills/dhpk-issue-analyze/distribution.yaml",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/distribution.yaml",
+        "source": "skills/issue-analyze/distribution.yaml",
+        "destination": "skills/proposal-analyze/references/issue-analyze/distribution.yaml",
         "originalGitBlobDigest": "ee72ffecca30add4003323bad31ebb7a654ad281"
       },
       {
         "ownerId": "proposal-analyze",
-        "source": "skills/dhpk-issue-analyze/references/classification.md",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/references/classification.md",
-        "originalGitBlobDigest": "40ba34c4cb7161ff5d1d92bf8b5213e31e2b2f4e"
+        "source": "skills/issue-analyze/references/classification.md",
+        "destination": "skills/proposal-analyze/references/issue-analyze/references/classification.md",
+        "originalGitBlobDigest": "a7b55c9ff676b9d1d91e3f67b54e1868a868ca41"
       },
       {
         "ownerId": "proposal-analyze",
-        "source": "skills/dhpk-issue-analyze/references/report-template.md",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/references/report-template.md",
-        "originalGitBlobDigest": "d254fb3c5f3fc0861c283b4c94215d45eaceb95b"
+        "source": "skills/issue-analyze/references/report-template.md",
+        "destination": "skills/proposal-analyze/references/issue-analyze/references/report-template.md",
+        "originalGitBlobDigest": "5615015f742e6de9f8e1f79c357932934f2550cd"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2325,177 +2283,177 @@
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/SKILL.md",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/SKILL.md",
-        "originalGitBlobDigest": "e7d608ec6c25be56928aaeeb6ad7f42f83ff2d98"
+        "source": "skills/deploy-list/SKILL.md",
+        "destination": "skills/release-creator/references/deploy-list/SKILL.md",
+        "originalGitBlobDigest": "fdf818ebb4f7bc2b84556de732701bf2b74fad6f"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/agents/openai.yaml",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/agents/openai.yaml",
-        "originalGitBlobDigest": "0dcb49372d7567c85599b991330a0500faae29c6"
+        "source": "skills/deploy-list/agents/openai.yaml",
+        "destination": "skills/release-creator/references/deploy-list/agents/openai.yaml",
+        "originalGitBlobDigest": "5d213ad5a35dd9845dd566032df29af4a1d9d098"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/config.sh.example",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/config.sh.example",
+        "source": "skills/deploy-list/config.sh.example",
+        "destination": "skills/release-creator/references/deploy-list/config.sh.example",
         "originalGitBlobDigest": "b4f5337816b0912844f9a389bcc4ddd08e655ac4"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/distribution.yaml",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/distribution.yaml",
+        "source": "skills/deploy-list/distribution.yaml",
+        "destination": "skills/release-creator/references/deploy-list/distribution.yaml",
         "originalGitBlobDigest": "c301c572ae2dc8f06e5b34edc308959dec08956c"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/evals.json",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/evals.json",
+        "source": "skills/deploy-list/evals/evals.json",
+        "destination": "skills/release-creator/references/deploy-list/evals/evals.json",
         "originalGitBlobDigest": "2f1f78aa8817c968b863ea572620cfb9655ed534"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
+        "source": "skills/deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
         "originalGitBlobDigest": "7033f4afbec2615dae5a366c02b654e485768fe5"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
+        "source": "skills/deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
         "originalGitBlobDigest": "297b001c896235c133b242affd8932f17840f941"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
+        "source": "skills/deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
         "originalGitBlobDigest": "94762d3c8524796ae6cb4cd4b9e3e5422a21ad60"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
+        "source": "skills/deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
         "originalGitBlobDigest": "f6523a8c4d451218c22b569512d28fd0bc9bdc83"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
+        "source": "skills/deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
         "originalGitBlobDigest": "f4b023c382aa8d104d60ce80587c36241d42a050"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
+        "source": "skills/deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
         "originalGitBlobDigest": "5d9aef353c8398ff2ef2534c86aa42d64f41a7d8"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
+        "source": "skills/deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
         "originalGitBlobDigest": "08cb654d55526ea1d2d533306363093473c72e49"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
+        "source": "skills/deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
         "originalGitBlobDigest": "61f049591eead35a7d1fb4752eafa93c6609f2c2"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-03-node.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-03-node.sh",
+        "source": "skills/deploy-list/evals/generic/fixtures/fixture-03-node.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-03-node.sh",
         "originalGitBlobDigest": "2fdec9000959ac54bcb93f2fad494111ecf97ed4"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-04-python.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-04-python.sh",
+        "source": "skills/deploy-list/evals/generic/fixtures/fixture-04-python.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-04-python.sh",
         "originalGitBlobDigest": "fbc4dc760daa71984f6c788cfdc7b5c1102ba644"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
+        "source": "skills/deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
         "originalGitBlobDigest": "fd2657cadc607fd7b12f572fe7b67c14689ec494"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
+        "source": "skills/deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
         "originalGitBlobDigest": "3b68a0c72965697b3ae6ed08d534f697cf9bfe8b"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/i18n/en.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/i18n/en.sh",
+        "source": "skills/deploy-list/i18n/en.sh",
+        "destination": "skills/release-creator/references/deploy-list/i18n/en.sh",
         "originalGitBlobDigest": "32877552f991e4b79ccfd2e3568bc5e33af3de34"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/i18n/zh-TW.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/i18n/zh-TW.sh",
+        "source": "skills/deploy-list/i18n/zh-TW.sh",
+        "destination": "skills/release-creator/references/deploy-list/i18n/zh-TW.sh",
         "originalGitBlobDigest": "999a1a502ffc31c7dd80880fecb167a805e6e3da"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/presets/generic.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/generic.sh",
+        "source": "skills/deploy-list/presets/generic.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/generic.sh",
         "originalGitBlobDigest": "4098c63fef9fe5dcf968c7f23b6861a81550b3a1"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/presets/laravel.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/laravel.sh",
+        "source": "skills/deploy-list/presets/laravel.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/laravel.sh",
         "originalGitBlobDigest": "782597a8d199d7544215ec71d205c465cbd8e37a"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/presets/node.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/node.sh",
+        "source": "skills/deploy-list/presets/node.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/node.sh",
         "originalGitBlobDigest": "0863526ad3007a61910867f6190a6c7225e4844c"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/presets/php-yii.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/php-yii.sh",
+        "source": "skills/deploy-list/presets/php-yii.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/php-yii.sh",
         "originalGitBlobDigest": "04f4e82cff2494a9d887739a2d3ded355b34227d"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/presets/python.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/python.sh",
+        "source": "skills/deploy-list/presets/python.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/python.sh",
         "originalGitBlobDigest": "e93967fca846d94b84fcc27beb85d0ff41eb18fa"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
+        "source": "skills/deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
+        "destination": "skills/release-creator/references/deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
         "originalGitBlobDigest": "605400ca2f14b763b064b1d51bb0ed91587432bd"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/references/presets.md",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/references/presets.md",
+        "source": "skills/deploy-list/references/presets.md",
+        "destination": "skills/release-creator/references/deploy-list/references/presets.md",
         "originalGitBlobDigest": "8bae10259eea5b4de8026198a05c8f89a4f1d5d9"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/references/why-this-grouping.md",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/references/why-this-grouping.md",
+        "source": "skills/deploy-list/references/why-this-grouping.md",
+        "destination": "skills/release-creator/references/deploy-list/references/why-this-grouping.md",
         "originalGitBlobDigest": "02067ff6eee9daf3948119e96b379f4a0056caba"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/scripts/check-golden.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/scripts/check-golden.sh",
+        "source": "skills/deploy-list/scripts/check-golden.sh",
+        "destination": "skills/release-creator/references/deploy-list/scripts/check-golden.sh",
         "originalGitBlobDigest": "c04ac191d4764a7e09f675a38467f25292346062"
       },
       {
         "ownerId": "release-creator",
-        "source": "skills/dhpk-deploy-list/scripts/deploy-list.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/scripts/deploy-list.sh",
-        "originalGitBlobDigest": "588015a5a627deac62b1b51f116f5b729818c7ba"
+        "source": "skills/deploy-list/scripts/deploy-list.sh",
+        "destination": "skills/release-creator/references/deploy-list/scripts/deploy-list.sh",
+        "originalGitBlobDigest": "7ec8725847355137a21598d569cada563483c474"
       },
       {
         "ownerId": "release-creator",
@@ -2529,62 +2487,62 @@
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/SKILL.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/SKILL.md",
-        "originalGitBlobDigest": "d9859b531bd5af7ded953ed28a99ef6b12d18ba1"
+        "source": "skills/feature-verify/SKILL.md",
+        "destination": "skills/repo-verify/references/feature-verify/SKILL.md",
+        "originalGitBlobDigest": "2e03e6bd60361ecaa6f9b66e43280a97c03abbf3"
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/agents/openai.yaml",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/agents/openai.yaml",
-        "originalGitBlobDigest": "80b4ee875a4a02c240d8371a4a44fed8f47817f6"
+        "source": "skills/feature-verify/agents/openai.yaml",
+        "destination": "skills/repo-verify/references/feature-verify/agents/openai.yaml",
+        "originalGitBlobDigest": "69e8844307ae1053c2e69676a2e13fb2ebf5c965"
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/distribution.yaml",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/distribution.yaml",
+        "source": "skills/feature-verify/distribution.yaml",
+        "destination": "skills/repo-verify/references/feature-verify/distribution.yaml",
         "originalGitBlobDigest": "9b90419d49d75daa7fb20f7d5c53e455bb7b5440"
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/references/blackbox-testing.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/blackbox-testing.md",
-        "originalGitBlobDigest": "174df3b2a8e40e35caff4d1c47df903186d1666e"
+        "source": "skills/feature-verify/references/blackbox-testing.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/blackbox-testing.md",
+        "originalGitBlobDigest": "ed004b1281c621d09f59e2bc3f2fb1895e80e1c5"
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/references/environments.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/environments.md",
+        "source": "skills/feature-verify/references/environments.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/environments.md",
         "originalGitBlobDigest": "227900b609662dd823544f129401bf2927ff735b"
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/references/output-template.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/output-template.md",
-        "originalGitBlobDigest": "fa4339c1ba268470c68226a8e6a1c41d91442dbf"
+        "source": "skills/feature-verify/references/output-template.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/output-template.md",
+        "originalGitBlobDigest": "112dee081c0024d2e1ba6163168da086da1507bf"
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/references/safety-rules.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/safety-rules.md",
-        "originalGitBlobDigest": "658493f9e0e26d8f5ad56d170e4550ab66cb57f3"
+        "source": "skills/feature-verify/references/safety-rules.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/safety-rules.md",
+        "originalGitBlobDigest": "3f150a21bd10ba162f48a2cdded9643fbc4420c5"
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/references/verification-playbook.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/verification-playbook.md",
-        "originalGitBlobDigest": "45e872a82b8827b7bb3d270859f29cb13ecd6124"
+        "source": "skills/feature-verify/references/verification-playbook.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/verification-playbook.md",
+        "originalGitBlobDigest": "289482d2a4454f09164220c05cb847881eb730e1"
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/scripts/api-exec.sh",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/scripts/api-exec.sh",
+        "source": "skills/feature-verify/scripts/api-exec.sh",
+        "destination": "skills/repo-verify/references/feature-verify/scripts/api-exec.sh",
         "originalGitBlobDigest": "09fba7233812ce7b5b82e3913958cd6f2d9eff4a"
       },
       {
         "ownerId": "repo-verify",
-        "source": "skills/dhpk-feature-verify/scripts/health-probe.sh",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/scripts/health-probe.sh",
+        "source": "skills/feature-verify/scripts/health-probe.sh",
+        "destination": "skills/repo-verify/references/feature-verify/scripts/health-probe.sh",
         "originalGitBlobDigest": "a4404c66ffe2089e5ba50acc473d8770d1ae13b4"
       },
       {
@@ -2609,7 +2567,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "36f55711ec4b0c834fc5fd0c29fcee0583e6463b"
+        "originalGitBlobDigest": "53fe355e39f62ed0183190d8c995ba8356b71ebc"
       },
       {
         "ownerId": "tdd",
@@ -2625,27 +2583,33 @@
       },
       {
         "ownerId": "tdd",
-        "source": "skills/dhpk-legacy-characterization-tests/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/SKILL.md",
-        "originalGitBlobDigest": "28e77d0c45d313793d7ed6f22ba28e57d035e78f"
+        "source": "skills/legacy-characterization-tests/SKILL.md",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/SKILL.md",
+        "originalGitBlobDigest": "fd32751d2df3d4598c85adceedd70ff4986591a0"
       },
       {
         "ownerId": "tdd",
-        "source": "skills/dhpk-legacy-characterization-tests/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/agents/openai.yaml",
-        "originalGitBlobDigest": "a11ba8530602a6dac1c88515eb4b2ae6a6a240e5"
+        "source": "skills/legacy-characterization-tests/agents/openai.yaml",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/agents/openai.yaml",
+        "originalGitBlobDigest": "94a0287b90658d4b798de43cc0415e05d373ad45"
       },
       {
         "ownerId": "tdd",
-        "source": "skills/dhpk-legacy-characterization-tests/distribution.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/distribution.yaml",
-        "originalGitBlobDigest": "a8aee87bd1948e052c12912b6299ac1eb5fffd85"
+        "source": "skills/legacy-characterization-tests/distribution.yaml",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/distribution.yaml",
+        "originalGitBlobDigest": "4a1abab6a53603df905e4ac8cab875aa1690f325"
       },
       {
         "ownerId": "tdd",
-        "source": "skills/dhpk-legacy-characterization-tests/evals/evals.json",
-        "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/evals/evals.json",
+        "source": "skills/legacy-characterization-tests/evals/evals.json",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/evals/evals.json",
         "originalGitBlobDigest": "444d049d19dde703f2012b779b80b8c3e9cf41d7"
+      },
+      {
+        "ownerId": "tdd",
+        "source": "skills/legacy-characterization-tests/references/php-yii-examples.md",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/references/php-yii-examples.md",
+        "originalGitBlobDigest": "36cb8e1d2780ccefb5833cb180c49f0c17778f6b"
       },
       {
         "ownerId": "tdd",
@@ -2791,62 +2755,6 @@
       },
       {
         "ownerId": "change-verdict",
-        "skillId": "project-audit",
-        "sourcePath": "skills/dhpk-project-audit/SKILL.md",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/SKILL.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "project-audit",
-        "sourcePath": "skills/dhpk-project-audit/agents/openai.yaml",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/agents/openai.yaml",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "project-audit",
-        "sourcePath": "skills/dhpk-project-audit/distribution.yaml",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/distribution.yaml",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "project-audit",
-        "sourcePath": "skills/dhpk-project-audit/references/check-catalog.md",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/references/check-catalog.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "project-audit",
-        "sourcePath": "skills/dhpk-project-audit/references/output-template.md",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/references/output-template.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "project-audit",
-        "sourcePath": "skills/dhpk-project-audit/scripts/audit.js",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/audit.js",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "project-audit",
-        "sourcePath": "skills/dhpk-project-audit/scripts/lib/command-namespace.js",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/lib/command-namespace.js",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
-        "skillId": "project-audit",
-        "sourcePath": "skills/dhpk-project-audit/scripts/lib/runner-utils.js",
-        "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/lib/runner-utils.js",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "change-verdict",
         "skillId": "change-verdict",
         "sourcePath": "skills/change-verdict/references/docs/codex-prompt-doc.md",
         "destination": "skills/change-verdict/references/docs/codex-prompt-doc.md",
@@ -2858,6 +2766,62 @@
         "sourcePath": "skills/change-verdict/references/docs/review-loop-doc.md",
         "destination": "skills/change-verdict/references/docs/review-loop-doc.md",
         "kind": "entry"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "project-audit",
+        "sourcePath": "skills/project-audit/SKILL.md",
+        "destination": "skills/change-verdict/references/project-audit/SKILL.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "project-audit",
+        "sourcePath": "skills/project-audit/agents/openai.yaml",
+        "destination": "skills/change-verdict/references/project-audit/agents/openai.yaml",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "project-audit",
+        "sourcePath": "skills/project-audit/distribution.yaml",
+        "destination": "skills/change-verdict/references/project-audit/distribution.yaml",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "project-audit",
+        "sourcePath": "skills/project-audit/references/check-catalog.md",
+        "destination": "skills/change-verdict/references/project-audit/references/check-catalog.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "project-audit",
+        "sourcePath": "skills/project-audit/references/output-template.md",
+        "destination": "skills/change-verdict/references/project-audit/references/output-template.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "project-audit",
+        "sourcePath": "skills/project-audit/scripts/audit.js",
+        "destination": "skills/change-verdict/references/project-audit/scripts/audit.js",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "project-audit",
+        "sourcePath": "skills/project-audit/scripts/lib/command-namespace.js",
+        "destination": "skills/change-verdict/references/project-audit/scripts/lib/command-namespace.js",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "change-verdict",
+        "skillId": "project-audit",
+        "sourcePath": "skills/project-audit/scripts/lib/runner-utils.js",
+        "destination": "skills/change-verdict/references/project-audit/scripts/lib/runner-utils.js",
+        "kind": "branch"
       },
       {
         "ownerId": "change-verdict",
@@ -3009,90 +2973,6 @@
       {
         "ownerId": "code-trace",
         "skillId": "code-trace",
-        "sourcePath": "docs/subagent-prompt-template.md",
-        "destination": "skills/code-trace/references/_dependencies/docs/subagent-prompt-template.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "code-trace",
-        "sourcePath": "rules/execution-policy-kernel.md",
-        "destination": "skills/code-trace/references/_dependencies/rules/execution-policy-kernel.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "code-trace",
-        "sourcePath": "rules/execution-policy.md",
-        "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "code-trace",
-        "sourcePath": "rules/tool-routing.md",
-        "destination": "skills/code-trace/references/_dependencies/rules/tool-routing.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "repo-intake",
-        "sourcePath": "skills/dhpk-repo-intake/SKILL.md",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/SKILL.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "repo-intake",
-        "sourcePath": "skills/dhpk-repo-intake/agents/openai.yaml",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/agents/openai.yaml",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "repo-intake",
-        "sourcePath": "skills/dhpk-repo-intake/distribution.yaml",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/distribution.yaml",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "repo-intake",
-        "sourcePath": "skills/dhpk-repo-intake/references/archived/MIDWAY_HEURISTICS.md",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/references/archived/MIDWAY_HEURISTICS.md",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "repo-intake",
-        "sourcePath": "skills/dhpk-repo-intake/scripts/intake_cached.js",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/intake_cached.js",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "repo-intake",
-        "sourcePath": "skills/dhpk-repo-intake/scripts/lib/runner-utils.js",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/lib/runner-utils.js",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "repo-intake",
-        "sourcePath": "skills/dhpk-repo-intake/scripts/scan_delta.js",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/scan_delta.js",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "repo-intake",
-        "sourcePath": "skills/dhpk-repo-intake/scripts/scan_repo.js",
-        "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/scan_repo.js",
-        "kind": "branch"
-      },
-      {
-        "ownerId": "code-trace",
-        "skillId": "code-trace",
         "sourcePath": "skills/code-trace/references/diagnose/checklists.md",
         "destination": "skills/code-trace/references/diagnose/checklists.md",
         "kind": "entry"
@@ -3187,6 +3067,62 @@
         "sourcePath": "skills/code-trace/references/history/wsl-traps.md",
         "destination": "skills/code-trace/references/history/wsl-traps.md",
         "kind": "entry"
+      },
+      {
+        "ownerId": "code-trace",
+        "skillId": "repo-intake",
+        "sourcePath": "skills/repo-intake/SKILL.md",
+        "destination": "skills/code-trace/references/repo-intake/SKILL.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "code-trace",
+        "skillId": "repo-intake",
+        "sourcePath": "skills/repo-intake/agents/openai.yaml",
+        "destination": "skills/code-trace/references/repo-intake/agents/openai.yaml",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "code-trace",
+        "skillId": "repo-intake",
+        "sourcePath": "skills/repo-intake/distribution.yaml",
+        "destination": "skills/code-trace/references/repo-intake/distribution.yaml",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "code-trace",
+        "skillId": "repo-intake",
+        "sourcePath": "skills/repo-intake/references/archived/MIDWAY_HEURISTICS.md",
+        "destination": "skills/code-trace/references/repo-intake/references/archived/MIDWAY_HEURISTICS.md",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "code-trace",
+        "skillId": "repo-intake",
+        "sourcePath": "skills/repo-intake/scripts/intake_cached.js",
+        "destination": "skills/code-trace/references/repo-intake/scripts/intake_cached.js",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "code-trace",
+        "skillId": "repo-intake",
+        "sourcePath": "skills/repo-intake/scripts/lib/runner-utils.js",
+        "destination": "skills/code-trace/references/repo-intake/scripts/lib/runner-utils.js",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "code-trace",
+        "skillId": "repo-intake",
+        "sourcePath": "skills/repo-intake/scripts/scan_delta.js",
+        "destination": "skills/code-trace/references/repo-intake/scripts/scan_delta.js",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "code-trace",
+        "skillId": "repo-intake",
+        "sourcePath": "skills/repo-intake/scripts/scan_repo.js",
+        "destination": "skills/code-trace/references/repo-intake/scripts/scan_repo.js",
+        "kind": "branch"
       },
       {
         "ownerId": "code-trace",
@@ -3414,48 +3350,6 @@
       },
       {
         "ownerId": "flow-drive",
-        "skillId": "openspec-artifact-guard",
-        "sourcePath": "skills/dhpk-openspec-artifact-guard/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "openspec-artifact-guard",
-        "sourcePath": "skills/dhpk-openspec-artifact-guard/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "openspec-artifact-guard",
-        "sourcePath": "skills/dhpk-openspec-artifact-guard/distribution.yaml",
-        "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/distribution.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "vue-2-notes",
-        "sourcePath": "skills/dhpk-vue-2-notes/SKILL.md",
-        "destination": "skills/flow-drive/references/dhpk-vue-2-notes/SKILL.md",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "vue-2-notes",
-        "sourcePath": "skills/dhpk-vue-2-notes/agents/openai.yaml",
-        "destination": "skills/flow-drive/references/dhpk-vue-2-notes/agents/openai.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
-        "skillId": "vue-2-notes",
-        "sourcePath": "skills/dhpk-vue-2-notes/distribution.yaml",
-        "destination": "skills/flow-drive/references/dhpk-vue-2-notes/distribution.yaml",
-        "kind": "reference"
-      },
-      {
-        "ownerId": "flow-drive",
         "skillId": "js-static-checks",
         "sourcePath": "skills/js-static-checks/SKILL.md",
         "destination": "skills/flow-drive/references/js-static-checks/SKILL.md",
@@ -3669,6 +3563,27 @@
         "skillId": "nextjs",
         "sourcePath": "skills/nextjs/references/target-selection.md",
         "destination": "skills/flow-drive/references/nextjs/references/target-selection.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "openspec-artifact-guard",
+        "sourcePath": "skills/openspec-artifact-guard/SKILL.md",
+        "destination": "skills/flow-drive/references/openspec-artifact-guard/SKILL.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "openspec-artifact-guard",
+        "sourcePath": "skills/openspec-artifact-guard/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/openspec-artifact-guard/agents/openai.yaml",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "openspec-artifact-guard",
+        "sourcePath": "skills/openspec-artifact-guard/distribution.yaml",
+        "destination": "skills/flow-drive/references/openspec-artifact-guard/distribution.yaml",
         "kind": "reference"
       },
       {
@@ -4188,6 +4103,27 @@
         "sourcePath": "skills/swift/scripts/iconify_gen.sh",
         "destination": "skills/flow-drive/references/swift/scripts/iconify_gen.sh",
         "kind": "branch"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "vue-2-notes",
+        "sourcePath": "skills/vue-2-notes/SKILL.md",
+        "destination": "skills/flow-drive/references/vue-2-notes/SKILL.md",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "vue-2-notes",
+        "sourcePath": "skills/vue-2-notes/agents/openai.yaml",
+        "destination": "skills/flow-drive/references/vue-2-notes/agents/openai.yaml",
+        "kind": "reference"
+      },
+      {
+        "ownerId": "flow-drive",
+        "skillId": "vue-2-notes",
+        "sourcePath": "skills/vue-2-notes/distribution.yaml",
+        "destination": "skills/flow-drive/references/vue-2-notes/distribution.yaml",
+        "kind": "reference"
       },
       {
         "ownerId": "flow-drive",
@@ -4857,27 +4793,6 @@
       {
         "ownerId": "git-smart-commit",
         "skillId": "git-smart-commit",
-        "sourcePath": "docs/subagent-prompt-template.md",
-        "destination": "skills/git-smart-commit/references/_dependencies/docs/subagent-prompt-template.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "git-smart-commit",
-        "skillId": "git-smart-commit",
-        "sourcePath": "rules/execution-policy-kernel.md",
-        "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy-kernel.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "git-smart-commit",
-        "skillId": "git-smart-commit",
-        "sourcePath": "rules/execution-policy.md",
-        "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy.md",
-        "kind": "dependency"
-      },
-      {
-        "ownerId": "git-smart-commit",
-        "skillId": "git-smart-commit",
         "sourcePath": "skills/git-smart-commit/references/collector.md",
         "destination": "skills/git-smart-commit/references/collector.md",
         "kind": "entry"
@@ -5165,36 +5080,36 @@
       {
         "ownerId": "proposal-analyze",
         "skillId": "issue-analyze",
-        "sourcePath": "skills/dhpk-issue-analyze/SKILL.md",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/SKILL.md",
+        "sourcePath": "skills/issue-analyze/SKILL.md",
+        "destination": "skills/proposal-analyze/references/issue-analyze/SKILL.md",
         "kind": "branch"
       },
       {
         "ownerId": "proposal-analyze",
         "skillId": "issue-analyze",
-        "sourcePath": "skills/dhpk-issue-analyze/agents/openai.yaml",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/agents/openai.yaml",
+        "sourcePath": "skills/issue-analyze/agents/openai.yaml",
+        "destination": "skills/proposal-analyze/references/issue-analyze/agents/openai.yaml",
         "kind": "branch"
       },
       {
         "ownerId": "proposal-analyze",
         "skillId": "issue-analyze",
-        "sourcePath": "skills/dhpk-issue-analyze/distribution.yaml",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/distribution.yaml",
+        "sourcePath": "skills/issue-analyze/distribution.yaml",
+        "destination": "skills/proposal-analyze/references/issue-analyze/distribution.yaml",
         "kind": "branch"
       },
       {
         "ownerId": "proposal-analyze",
         "skillId": "issue-analyze",
-        "sourcePath": "skills/dhpk-issue-analyze/references/classification.md",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/references/classification.md",
+        "sourcePath": "skills/issue-analyze/references/classification.md",
+        "destination": "skills/proposal-analyze/references/issue-analyze/references/classification.md",
         "kind": "branch"
       },
       {
         "ownerId": "proposal-analyze",
         "skillId": "issue-analyze",
-        "sourcePath": "skills/dhpk-issue-analyze/references/report-template.md",
-        "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/references/report-template.md",
+        "sourcePath": "skills/issue-analyze/references/report-template.md",
+        "destination": "skills/proposal-analyze/references/issue-analyze/references/report-template.md",
         "kind": "branch"
       },
       {
@@ -5270,204 +5185,204 @@
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/SKILL.md",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/SKILL.md",
+        "sourcePath": "skills/deploy-list/SKILL.md",
+        "destination": "skills/release-creator/references/deploy-list/SKILL.md",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/agents/openai.yaml",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/agents/openai.yaml",
+        "sourcePath": "skills/deploy-list/agents/openai.yaml",
+        "destination": "skills/release-creator/references/deploy-list/agents/openai.yaml",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/config.sh.example",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/config.sh.example",
+        "sourcePath": "skills/deploy-list/config.sh.example",
+        "destination": "skills/release-creator/references/deploy-list/config.sh.example",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/distribution.yaml",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/distribution.yaml",
+        "sourcePath": "skills/deploy-list/distribution.yaml",
+        "destination": "skills/release-creator/references/deploy-list/distribution.yaml",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/evals.json",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/evals.json",
+        "sourcePath": "skills/deploy-list/evals/evals.json",
+        "destination": "skills/release-creator/references/deploy-list/evals/evals.json",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
+        "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
+        "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
+        "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
+        "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
+        "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
+        "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
+        "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
+        "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-03-node.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-03-node.sh",
+        "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-03-node.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-03-node.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-04-python.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-04-python.sh",
+        "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-04-python.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-04-python.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
+        "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
+        "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
+        "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/i18n/en.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/i18n/en.sh",
+        "sourcePath": "skills/deploy-list/i18n/en.sh",
+        "destination": "skills/release-creator/references/deploy-list/i18n/en.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/i18n/zh-TW.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/i18n/zh-TW.sh",
+        "sourcePath": "skills/deploy-list/i18n/zh-TW.sh",
+        "destination": "skills/release-creator/references/deploy-list/i18n/zh-TW.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/presets/generic.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/generic.sh",
+        "sourcePath": "skills/deploy-list/presets/generic.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/generic.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/presets/laravel.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/laravel.sh",
+        "sourcePath": "skills/deploy-list/presets/laravel.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/laravel.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/presets/node.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/node.sh",
+        "sourcePath": "skills/deploy-list/presets/node.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/node.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/presets/php-yii.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/php-yii.sh",
+        "sourcePath": "skills/deploy-list/presets/php-yii.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/php-yii.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/presets/python.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/presets/python.sh",
+        "sourcePath": "skills/deploy-list/presets/python.sh",
+        "destination": "skills/release-creator/references/deploy-list/presets/python.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
+        "sourcePath": "skills/deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
+        "destination": "skills/release-creator/references/deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/references/presets.md",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/references/presets.md",
+        "sourcePath": "skills/deploy-list/references/presets.md",
+        "destination": "skills/release-creator/references/deploy-list/references/presets.md",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/references/why-this-grouping.md",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/references/why-this-grouping.md",
+        "sourcePath": "skills/deploy-list/references/why-this-grouping.md",
+        "destination": "skills/release-creator/references/deploy-list/references/why-this-grouping.md",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/scripts/check-golden.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/scripts/check-golden.sh",
+        "sourcePath": "skills/deploy-list/scripts/check-golden.sh",
+        "destination": "skills/release-creator/references/deploy-list/scripts/check-golden.sh",
         "kind": "branch"
       },
       {
         "ownerId": "release-creator",
         "skillId": "deploy-list",
-        "sourcePath": "skills/dhpk-deploy-list/scripts/deploy-list.sh",
-        "destination": "skills/release-creator/references/dhpk-deploy-list/scripts/deploy-list.sh",
+        "sourcePath": "skills/deploy-list/scripts/deploy-list.sh",
+        "destination": "skills/release-creator/references/deploy-list/scripts/deploy-list.sh",
         "kind": "branch"
       },
       {
@@ -5508,71 +5423,71 @@
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/SKILL.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/SKILL.md",
+        "sourcePath": "skills/feature-verify/SKILL.md",
+        "destination": "skills/repo-verify/references/feature-verify/SKILL.md",
         "kind": "branch"
       },
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/agents/openai.yaml",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/agents/openai.yaml",
+        "sourcePath": "skills/feature-verify/agents/openai.yaml",
+        "destination": "skills/repo-verify/references/feature-verify/agents/openai.yaml",
         "kind": "branch"
       },
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/distribution.yaml",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/distribution.yaml",
+        "sourcePath": "skills/feature-verify/distribution.yaml",
+        "destination": "skills/repo-verify/references/feature-verify/distribution.yaml",
         "kind": "branch"
       },
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/references/blackbox-testing.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/blackbox-testing.md",
+        "sourcePath": "skills/feature-verify/references/blackbox-testing.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/blackbox-testing.md",
         "kind": "branch"
       },
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/references/environments.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/environments.md",
+        "sourcePath": "skills/feature-verify/references/environments.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/environments.md",
         "kind": "branch"
       },
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/references/output-template.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/output-template.md",
+        "sourcePath": "skills/feature-verify/references/output-template.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/output-template.md",
         "kind": "branch"
       },
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/references/safety-rules.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/safety-rules.md",
+        "sourcePath": "skills/feature-verify/references/safety-rules.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/safety-rules.md",
         "kind": "branch"
       },
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/references/verification-playbook.md",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/references/verification-playbook.md",
+        "sourcePath": "skills/feature-verify/references/verification-playbook.md",
+        "destination": "skills/repo-verify/references/feature-verify/references/verification-playbook.md",
         "kind": "branch"
       },
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/scripts/api-exec.sh",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/scripts/api-exec.sh",
+        "sourcePath": "skills/feature-verify/scripts/api-exec.sh",
+        "destination": "skills/repo-verify/references/feature-verify/scripts/api-exec.sh",
         "kind": "branch"
       },
       {
         "ownerId": "repo-verify",
         "skillId": "feature-verify",
-        "sourcePath": "skills/dhpk-feature-verify/scripts/health-probe.sh",
-        "destination": "skills/repo-verify/references/dhpk-feature-verify/scripts/health-probe.sh",
+        "sourcePath": "skills/feature-verify/scripts/health-probe.sh",
+        "destination": "skills/repo-verify/references/feature-verify/scripts/health-probe.sh",
         "kind": "branch"
       },
       {
@@ -5620,29 +5535,36 @@
       {
         "ownerId": "tdd",
         "skillId": "legacy-code-characterization",
-        "sourcePath": "skills/dhpk-legacy-characterization-tests/SKILL.md",
-        "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/SKILL.md",
+        "sourcePath": "skills/legacy-characterization-tests/SKILL.md",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/SKILL.md",
         "kind": "branch"
       },
       {
         "ownerId": "tdd",
         "skillId": "legacy-code-characterization",
-        "sourcePath": "skills/dhpk-legacy-characterization-tests/agents/openai.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/agents/openai.yaml",
+        "sourcePath": "skills/legacy-characterization-tests/agents/openai.yaml",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/agents/openai.yaml",
         "kind": "branch"
       },
       {
         "ownerId": "tdd",
         "skillId": "legacy-code-characterization",
-        "sourcePath": "skills/dhpk-legacy-characterization-tests/distribution.yaml",
-        "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/distribution.yaml",
+        "sourcePath": "skills/legacy-characterization-tests/distribution.yaml",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/distribution.yaml",
         "kind": "branch"
       },
       {
         "ownerId": "tdd",
         "skillId": "legacy-code-characterization",
-        "sourcePath": "skills/dhpk-legacy-characterization-tests/evals/evals.json",
-        "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/evals/evals.json",
+        "sourcePath": "skills/legacy-characterization-tests/evals/evals.json",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/evals/evals.json",
+        "kind": "branch"
+      },
+      {
+        "ownerId": "tdd",
+        "skillId": "legacy-code-characterization",
+        "sourcePath": "skills/legacy-characterization-tests/references/php-yii-examples.md",
+        "destination": "skills/tdd-workflow/references/legacy-characterization-tests/references/php-yii-examples.md",
         "kind": "branch"
       },
       {
@@ -5746,26 +5668,26 @@
     ]
   },
   "fingerprints": {
-    "change-verdict": "6a330f785a52edaa120dc5372ac798c0319f5c16280b3b61c7c750c3285a4524",
-    "code-trace": "c009c36594f587aecbc1e72c34b30f18e0d2d0008b1e6f2fb853b5935c1356b6",
+    "change-verdict": "db458c29cf3c396ca0dd7464f2e92c0e927d54ee28f476a547bb5936c383c13b",
+    "code-trace": "1e9f1b5009f3867cef5ed11f25c3b93134905aeec3759b5977c562c1509902ae",
     "create-pr": "df24afa37cc7c399f6165a2e2de3f9194cb62dc08fa846572c48c7611e641983",
     "doc-maintain": "3cb1171aef79455048d92ecf6e657978c3753ea5e072f1330f7079e15796f571",
-    "flow-drive": "911acd28b74231de10e714682491470a403785976c5269398d339c2edcd3189a",
-    "flow-guide": "c07ae0ea22803e283ed1e74980dda0ec57fb36d34b03cde452cb7d6f0dbb7cce",
-    "git-smart-commit": "a57d5b26dbd3c45ce861737bb35d536c6e072055e061547827a64ca8bb7ff7c1",
+    "flow-drive": "5a6af1a88d9851ab1fbef47b10f3126cfba26a28f2d82b1ceeab32fd586ad1a9",
+    "flow-guide": "b4ce99afe1fd61bd9a7ade484e4e559c9260eb0cef364e2e9b540e46171b017b",
+    "git-smart-commit": "de2c1742f9760e46d9ad805b65b3b49b13080597b264e63d4ad56f66ca63957c",
     "git-worktree": "1d13ed5f23a0c686666a0f6ea0859e42e113d6d589a01ca3ee2580d11678bd0c",
-    "library-author": "73e758dd74efed044822b4e2fe749d819eacb50b0a166d45dd12dba38ae60cd0",
+    "library-author": "e846e873c1aaddaef8ea3c5532341956fe161f398674f899b0e9bfb1390f2491",
     "opsx-apply-resume": "0d039e05ba452c2a175adb00e74995f916432870bbd6bbc209afb8dffa30ceab",
     "precommit": "c5b3614758ebc7625824ed6913498921a728b9e54857eab99910d8cee8ccebb2",
-    "proposal-analyze": "8dca8f57397c348afacdfde139c3b0afd1873aaeb29600f3545f42debf794a32",
-    "release-creator": "ff3cc95aa1db023e76746dc78f35126cef9899f349b806062bc25ba37745583f",
-    "repo-verify": "906374367137797741d9d144bb586680f7dd0b20d94da1d4861ed92e20a071af",
-    "tdd-workflow": "343071c557f58ba3242a0e67bb423675c4184bf2f5af0c5c2d4e20488f21951c",
+    "proposal-analyze": "1cdc79d9a15185737599bd66b7b65c50c743d14b1110bf2c12a301b4479c41a6",
+    "release-creator": "472c0cb27bf5ecd37a7c558d3d481c1161cc349b18fb76dc18f7ffd4c39a87a8",
+    "repo-verify": "3d4207b6308ec1513302bf1882b6a596788829cb566f9b8b3966844ab67e5384",
+    "tdd-workflow": "d75ec3394b08f74faa1b83701e980b647f0b0303424c0cd0e9dce323ef4a8a0c",
     "ui-ux-verify": "aae163c7463917019abf67ed651ef4b6de40a0bd54033c2dcee2ffbf3aba3640"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "0c9e56cb027f41247845e64fe597a87bb791c1720ff5d95ce47c8af92dd1268d",
+    "planId": "3a222337a390ddadae8ff6352f11ec32c19d7affa3b0f5110d1cead3a5200bad",
     "scope": "project",
     "profileId": "codex-native",
     "selectedStableIds": [
@@ -5813,10 +5735,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "0c9e56cb027f41247845e64fe597a87bb791c1720ff5d95ce47c8af92dd1268d",
-      "inventory": "c6d9adb47d04f7cef4c1002909957d0e8cdcbd2714ff19dfca4b744afbe0eae5"
+      "plan": "3a222337a390ddadae8ff6352f11ec32c19d7affa3b0f5110d1cead3a5200bad",
+      "inventory": "affa088e9407bca7394ed44b3fad01227c4503a948fb82e99882f309eb7d8297"
     },
-    "rollbackIdentity": "a8f8984bcbbbccb0ac7d70298a903531130c94f96a3f51e40ec3a87b16e9728b"
+    "rollbackIdentity": "c041509fdc93cccff3790e968c9be6ffae6f7727d5a8028d77f872d0be14b6ca"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
@@ -6953,6 +6875,6 @@
   ],
   "compatibilityMode": "profile",
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "2f5516c0b7d43eb7590771da1a02a2bc19c754f54fa116ec1c6bf5bbd4eb3613",
-  "surfaceSelectionFingerprint": "18cf126f0a8828216fc6f794dfcee9922a57f3325a3c2fb032e4a696c0473d01"
+  "selectionFingerprint": "866c5628f067b5220a1f3dea2a44bbafa7ae1ea2f79d0d1e205cd5d87529eb7d",
+  "surfaceSelectionFingerprint": "799a8462ee236348701cb623c9bb3fd6cc883461d18cd790434806f72fe10dd1"
 }

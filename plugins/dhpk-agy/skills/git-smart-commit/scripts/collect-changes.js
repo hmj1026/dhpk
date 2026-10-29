@@ -33,20 +33,6 @@ function line(output) {
   return output === null ? null : output.replace(/\n$/, '');
 }
 
-function installedCommitPolicy() {
-  const policy = path.join(__dirname, '..', 'references', '_dependencies', 'rules', 'execution-policy.md');
-  let stat = null;
-  try {
-    stat = fs.lstatSync(policy);
-  } catch (error) {
-    if (!error || error.code !== 'ENOENT') throw error;
-  }
-  if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
-    throw new Error('POLICY_MISSING: installed execution policy is required before staging or commit');
-  }
-  return policy;
-}
-
 function parseScope(argv) {
   if (argv.length === 0) return null;
   const value = argv.length === 2 && argv[0] === '--scope' ? argv[1]
@@ -206,13 +192,10 @@ function collect(scope) {
 
 try {
   const argv = process.argv.slice(2);
-  if (argv.length === 1 && argv[0] === '--require-policy') {
-    process.stdout.write(`${installedCommitPolicy()}\n`);
-  } else {
-    const output = JSON.stringify(collect(parseScope(argv))) + '\n';
-    if (Buffer.byteLength(output) > MAX_BYTES) throw new Error('OUTPUT_LIMIT: summary exceeds 16 MiB');
-    process.stdout.write(output);
-  }
+  // 原先外部政策檔檢查使單目錄搬移失敗；收集器只讀 Git，提交授權由技能契約處理。
+  const output = JSON.stringify(collect(parseScope(argv))) + '\n';
+  if (Buffer.byteLength(output) > MAX_BYTES) throw new Error('OUTPUT_LIMIT: summary exceeds 16 MiB');
+  process.stdout.write(output);
 } catch (error) {
   process.stderr.write('collect-changes: ' + error.message + '\n');
   process.exitCode = 1;

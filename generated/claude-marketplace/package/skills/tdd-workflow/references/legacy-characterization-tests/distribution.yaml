@@ -1,0 +1,46 @@
+{
+  "schema": "dhpk.skill-distribution.v1",
+  "coverage": {
+    "entry": "SKILL.md",
+    "references": [
+      "agents/openai.yaml",
+      "evals/evals.json",
+      "references/php-yii-examples.md"
+    ],
+    "executable_entries": [],
+    "host_capabilities": []
+  },
+  "usage": {
+    "display_name": "Legacy Code Characterization",
+    "summary": "Lock observed legacy behavior before refactoring safely",
+    "syntax": "$legacy-characterization-tests <legacy-target>",
+    "input_kind": "path",
+    "inputs": [
+      {
+        "id": "legacy-target",
+        "syntax": "<legacy-target>",
+        "value_kind": "string",
+        "required": true,
+        "summary": "Select the legacy code target to characterize"
+      }
+    ],
+    "invocation_class": "implicit-eligible",
+    "effect_authority": "workspace-write",
+    "actions": [
+      {
+        "id": "characterize",
+        "summary": "Write tests that capture the current legacy behavior",
+        "syntax": "$legacy-characterization-tests <legacy-target>",
+        "input_kind": "path",
+        "effect_authority": "workspace-write"
+      }
+    ],
+    "options": [],
+    "examples": [
+      {
+        "prompt": "$legacy-characterization-tests protected/models/Order.php",
+        "summary": "Lock an untested legacy model before refactoring"
+      }
+    ]
+  }
+}

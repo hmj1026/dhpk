@@ -62,6 +62,7 @@ function fixture() {
   write(path.join(root, 'manifests/distribution-inventory.json'), `${JSON.stringify(INVENTORY, null, 2)}\n`);
   write(path.join(root, 'manifests/marketplace-selection.json'), `${JSON.stringify(SELECTION, null, 2)}\n`);
   write(path.join(root, '.claude-plugin/plugin.json'), fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json')));
+  fs.copyFileSync(path.join(ROOT, '.claude-plugin/icon.png'), path.join(root, '.claude-plugin/icon.png'));
   write(path.join(root, 'skills/flow-guide/references/codex-usage-catalog.json'), fs.readFileSync(path.join(ROOT, 'skills/flow-guide/references/codex-usage-catalog.json')));
   const executionPolicy = 'skills/flow-guide/references/execution-bundle/rules/execution-policy.md';
   write(path.join(root, executionPolicy), fs.readFileSync(path.join(ROOT, executionPolicy), 'utf8'));

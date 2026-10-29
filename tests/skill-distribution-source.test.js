@@ -45,7 +45,7 @@ test('usage invocation class cannot disagree with compact frontmatter', () => {
 });
 
 test('stable identity survives a different public directory name', () => {
-  for (const [directory, id] of [['tdd-workflow', 'tdd'], ['dhpk-openspec-artifact-guard', 'openspec-artifact-guard']]) {
+  for (const [directory, id] of [['tdd-workflow', 'tdd'], ['openspec-artifact-guard', 'openspec-artifact-guard']]) {
     const root = path.join(__dirname, '..');
     const skill = readSkillDirectory(root, path.join(root, 'skills', directory));
     assert.strictEqual(skill.id, id);

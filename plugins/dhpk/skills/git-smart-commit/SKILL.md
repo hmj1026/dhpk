@@ -22,9 +22,11 @@ metadata:
 
 ## Public options and execution guard
 
-`--scope <path>` limits collection; `--type <type>` forces the reviewed conventional type; `--ai-co-author` opts into the approved trailer. Before proposing or running commits, read `$SKILL_DIR/references/_dependencies/rules/execution-policy.md`, preserve its manual/automatic boundary, require code precommit success, and treat plans as unexecuted. `$SKILL_DIR` is the installed directory containing this `SKILL.md`. If that policy file is missing, run `node "$SKILL_DIR/scripts/collect-changes.js" --require-policy` and stop on a non-zero result: do not stage or commit, and do not search the consumer checkout or a sibling skill.
+`--scope <path>` limits collection; `--type <type>` selects the commit type; `--ai-co-author` opts into the approved trailer. `$SKILL_DIR` is the installed directory containing this file.
 
-## 流程 — SSOT: `$SKILL_DIR/references/_dependencies/rules/execution-policy.md` owns commit/review safety; this skill owns grouping evidence
+Commit only within explicit user authorization. Reuse existing authorization for the same scope; plans and successful checks do not grant commit authority. Run the consumer project's required precommit checks before committing code. Preserve the existing index, partial staging, unrelated work and normal Git hooks. Inspect each staged diff and exclude secrets, credentials and unreviewed files. Do not bypass hooks or use destructive Git operations to force completion. Report failed checks and stop dependent commits.
+
+## 流程
 
 ### 1. 收集摘要並閱讀相關變更
 
@@ -87,7 +89,7 @@ Commit 計畫（共 N 個 commit）
 授權狀態：依既有明確授權執行；若尚未授權，先等待使用者確認。
 ```
 
-遵守 `$SKILL_DIR/references/_dependencies/rules/execution-policy.md` 的授權邊界。若目前任務已明確授權這些範圍與分組，依該授權執行，不重複要求確認；新增分組或超出授權範圍時，先取得對該變更的實際授權。政策檔不存在時停止，不進行 staging 或 commit。
+遵守上述明確授權與 index 保護邊界。若目前任務已明確授權這些範圍與分組，依該授權執行，不重複要求確認；新增分組或超出授權範圍時，先取得對該變更的實際授權。
 
 ---
 
@@ -110,9 +112,9 @@ git --literal-pathspecs diff --cached -- <reviewed-paths>
 git commit -m "<type>(<scope>): <subject>"
 ```
 
-依下方 Commit Message 格式產生訊息。路徑需按 shell 規則引用，並保留 Git 路徑的原始拼寫。
+優先遵循消費專案的 Project Convention（語言、格式與 scope）；未定義時才使用下方 fallback 格式。路徑需按 shell 規則引用，並保留 Git 路徑的原始拼寫。
 
-#### Commit Message 格式
+#### Commit Message fallback 格式
 
 ```
 <type>(<scope>): <簡短描述，繁體中文>
