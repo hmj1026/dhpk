@@ -13,7 +13,7 @@ Agent fallback only. The next analyzer follows canonical frontmatter declaration
 | change-verdict | UNAVAILABLE | none |
 | change-verdict | code:PASS | precommit |
 | change-verdict | docs:PASS | git-smart-commit |
-| code-simplify | PASS | repo-verify |
+| code-simplify | PASS | none |
 | code-simplify | FAIL | none |
 | code-simplify | BLOCKED | none |
 | code-simplify | NOT_RUN | none |
@@ -54,8 +54,8 @@ Agent fallback only. The next analyzer follows canonical frontmatter declaration
 | repo-verify | BLOCKED | none |
 | repo-verify | NOT_RUN | repo-verify |
 | repo-verify | UNAVAILABLE | none |
-| tdd-workflow | PASS | repo-verify |
-| tdd-workflow | FAIL | tdd-workflow |
+| tdd-workflow | PASS | none |
+| tdd-workflow | FAIL | none |
 | tdd-workflow | BLOCKED | none |
-| tdd-workflow | NOT_RUN | tdd-workflow |
+| tdd-workflow | NOT_RUN | none |
 | tdd-workflow | UNAVAILABLE | none |

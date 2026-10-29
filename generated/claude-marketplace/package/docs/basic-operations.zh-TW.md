@@ -291,7 +291,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
 
 - **輸入**：版本或相容限制，以及必須保留的行為。
 - **入口**：擁有該契約的 family skill（例如
-  `/dhpk:dhpk-legacy-characterization-tests` 或作用中的 stack module），或把該契約當
+  `/dhpk:legacy-characterization-tests` 或作用中的 stack module），或把該契約當
   成 confirmed spec 交給 `/dhpk:flow-drive`。
 - **產物**：保留契約的最小 diff，加上必要回歸證據。
 - **完成**：相容行為仍成立；必要回歸仍有效。
@@ -352,7 +352,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
     ```text
     /dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>
     ```
-  - **測試驅動開發（TDD）**：行為變更套用 `tdd-workflow`（或適用的 `tdd-guide` 任務），推進 RED → GREEN → REFACTOR。純文字指引以語意審查及適用的 metadata／reference 檢查驗證。
+  - **測試驅動開發（TDD）**：行為變更由目前 Host 與 Model 套用 `tdd-workflow`，推進 RED → GREEN → REFACTOR。純文字指引以語意審查及適用的 metadata／reference 檢查驗證。
 - **實作決策與調度規範（Co-located Rules）**：
   - **決策前置狀態**：開始實作前必須具備明確狀態標記：`CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或 `BLOCKED`。若涉及領域邊界應先諮詢 `architect`；仍有不確定性時取得唯讀 Reasoner 結果後才允許 Writer 介入。
   - **OpenSpec 生命週期**：Project Convention 或已確認任務採用 OpenSpec 時，使用它的外部 authoring workflow；歸檔前解決適用的 task、驗證與審查義務。已有充分的確認規格可直接實作；跨 session 本身不要求新增 artifacts。
@@ -407,7 +407,7 @@ Host 語法見 [README — 你會得到什麼](../README.zh-TW.md#你會得到�
   - **發布與部署清單**：只在另行要求 release 或部署結果時使用：
     ```text
     /dhpk:create-release                              # 升版、更新 Changelog 與 Tag
-    dhpk-deploy-list --tag="[RELEASE-1.0.0]" --description="上線摘要" --lang=zh-TW
+    deploy-list --tag="[RELEASE-1.0.0]" --description="上線摘要" --lang=zh-TW
     ```
 - **完成標準**：依 Project Convention 產出要求的交接結果，並交代必要檢查。Commit、PR、merge、release 與 deployment 保持分開的狀態。
 
@@ -572,10 +572,10 @@ runner 介面均已退役。舊介面的處置與保留這些功能的固定版�
 
   | 參數 | 類型 / 選項 | 必填 | 說明 |
   |---|---|---|---|
-  | `<mode>` | `standard` \| `test-generation` \| `fast-worker` | 是 | 執行模式。 |
+  | `<mode>` | `standard` \| `test-generation` \| `worker-handback` | 是 | 由目前 Host 與 Model 執行的方法模式。 |
   | `standard` | 模式 | — | 標準 TDD 流程。依序推進 RED（失敗測試）→ GREEN（最小通過代碼）→ REFACTOR（重構）。 |
   | `test-generation` | 模式 | — | 針對現有生產代碼接縫，生成以可觀察行為為核心的最小測試骨架。 |
-  | `fast-worker` | 模式 | — | 由已確認的 RED 規格或 Task 描述，交由 Worker 進行機械式的 GREEN 實作。 |
+  | `worker-handback` | 模式 | — | 依呼叫端已確認的接縫與驗證契約執行有界 GREEN 或測試骨架工作。 |
   | `[target]` | 字串 | 否 | 目標檔案、函式或功能接縫名稱。 |
 
 - **實戰範例**：
@@ -587,7 +587,7 @@ runner 介面均已退役。舊介面的處置與保留這些功能的固定版�
   /dhpk:tdd-workflow test-generation "app/Http/Controllers/Api/OrderController.php"
 
   # 機械化完成 GREEN 測試通過階段
-  /dhpk:tdd-workflow fast-worker "tests/Unit/DiscountCalculatorTest.php"
+  /dhpk:tdd-workflow worker-handback "tests/Unit/DiscountCalculatorTest.php"
   ```
 
 #### 7. precommit（提交前品質驗證管線）
@@ -684,10 +684,10 @@ runner 介面均已退役。舊介面的處置與保留這些功能的固定版�
   /dhpk:create-pr --base=main --title="feat: [PROJ-890] 重構訂單支付處理管線" --execute
   ```
 
-#### 11. dhpk-deploy-list（跨技術棧部署清單產生器）
+#### 11. deploy-list（跨技術棧部署清單產生器）
 
 - **定位**：從 Git 歷史中萃取發布清單，過濾測試與 CI 檔案，依技術棧 Preset（Yii、Laravel、Node、Python 等）分群輸出確定性的上線檔案檢查清單。
-- **呼叫語法**：`dhpk-deploy-list --tag <[TAG]> --description "<text>" [options]`
+- **呼叫語法**：`deploy-list --tag <[TAG]> --description "<text>" [options]`
 - **參數說明**：
 
   | 參數 | 類型 | 必填 | 說明 |
@@ -704,10 +704,10 @@ runner 介面均已退役。舊介面的處置與保留這些功能的固定版�
 - **實戰範例**：
   ```text
   # 產生常規上線清單（以當前分支比對 main）
-  dhpk-deploy-list --tag="[RELEASE-1.4.0]" --description="會員中心資料改版" --lang=zh-TW
+  deploy-list --tag="[RELEASE-1.4.0]" --description="會員中心資料改版" --lang=zh-TW
 
   # 指定特定上線 Commits
-  dhpk-deploy-list --tag="[HOTFIX-20261006]" --description="修正結帳計算浮點數精度" --deploy-commits="a1b2c3d,e4f5a6b" --lang=zh-TW
+  deploy-list --tag="[HOTFIX-20261006]" --description="修正結帳計算浮點數精度" --deploy-commits="a1b2c3d,e4f5a6b" --lang=zh-TW
   ```
 
 #### 12. opsx-apply-resume（長任務跨 Context 狀態保存與接續）

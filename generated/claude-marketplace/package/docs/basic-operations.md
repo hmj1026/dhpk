@@ -314,7 +314,7 @@ Minimal edit under a compatibility contract.
 - **Input**: the version or compatibility limit and the behavior that must
   stay.
 - **Entry**: the family skill that owns that contract (for example
-  `/dhpk:dhpk-legacy-characterization-tests` or the active stack module), or
+  `/dhpk:legacy-characterization-tests` or the active stack module), or
   `/dhpk:flow-drive` with that contract as the confirmed spec.
 - **Output**: the smallest diff that preserves the contract, plus the
   required regression evidence.
@@ -385,7 +385,7 @@ owns the requested outcome. The vocabulary and boundary are defined in
     ```text
     /dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>
     ```
-  - **Test-Driven Development (TDD)**: For behavior changes, apply `tdd-workflow` (or an appropriate `tdd-guide` task) through RED → GREEN → REFACTOR. Prose-only work uses semantic review and applicable metadata/reference checks.
+  - **Test-Driven Development (TDD)**: For behavior changes, apply `tdd-workflow` on the current Host and Model through RED → GREEN → REFACTOR. Prose-only work uses semantic review and applicable metadata/reference checks.
 - **Implementation & Dispatch Policy (Co-located Rules)**:
   - **Pre-Implementation Decision State**: Every task must begin with an explicit state label: `CLEAR`, `REASONER_REQUIRED`, `HUMAN_REQUIRED`, or `BLOCKED`. Domain boundary questions consult `architect`; unresolved uncertainty requires a read-only Reasoner before any Writer runs.
   - **OpenSpec Lifecycle**: When the Project Convention or confirmed task adopts OpenSpec, use its external authoring workflow. Resolve applicable task, verification, and review obligations before archiving. A sufficient confirmed specification may proceed directly to implementation; cross-session work alone does not require new artifacts.
@@ -441,7 +441,7 @@ owns the requested outcome. The vocabulary and boundary are defined in
   - **Release & Deployment Checklist**: Use for a separately requested release or deployment outcome:
     ```text
     /dhpk:create-release                              # version bump, changelog update, and Git tag
-    dhpk-deploy-list --tag="[RELEASE-1.0.0]" --description="Release summary" --lang=en
+    deploy-list --tag="[RELEASE-1.0.0]" --description="Release summary" --lang=en
     ```
 - **Completion Criterion**: The requested handoff outcome is produced under the Project Convention, with required checks accounted for. Commit, PR, merge, release, and deployment remain separate states.
 
@@ -608,10 +608,10 @@ legacy dispositions and the pinned release that retains those interfaces.
 
   | Parameter | Type / Choices | Required | Description |
   |---|---|---|---|
-  | `<mode>` | `standard` \| `test-generation` \| `fast-worker` | Yes | TDD operational mode. |
+  | `<mode>` | `standard` \| `test-generation` \| `worker-handback` | Yes | Method mode executed by the current Host and Model. |
   | `standard` | Mode | — | Full TDD cycle: write failing test (RED) -> minimal code to pass (GREEN) -> clean up (REFACTOR). |
   | `test-generation` | Mode | — | Generate a minimal behavior-focused test scaffold for an existing production seam. |
-  | `fast-worker` | Mode | — | Mechanical GREEN implementation driven by settled RED specs or task contracts. |
+  | `worker-handback` | Mode | — | Bounded GREEN or scaffold task using the caller's settled seam and verification contract. |
   | `[target]` | String | No | Target file, method, or production seam name. |
 
 - **Practical Examples**:
@@ -622,8 +622,8 @@ legacy dispositions and the pinned release that retains those interfaces.
   # Generate behavior test scaffold for an existing controller
   /dhpk:tdd-workflow test-generation "app/Http/Controllers/Api/OrderController.php"
 
-  # Fast mechanical execution of the GREEN pass
-  /dhpk:tdd-workflow fast-worker "tests/Unit/DiscountCalculatorTest.php"
+  # Current Host/Model executes a settled GREEN task and returns evidence
+  /dhpk:tdd-workflow worker-handback "tests/Unit/DiscountCalculatorTest.php"
   ```
 
 #### 7. precommit (Pre-Commit Quality Pipeline)
@@ -720,10 +720,10 @@ legacy dispositions and the pinned release that retains those interfaces.
   /dhpk:create-pr --base=main --title="feat: [PROJ-890] Refactor checkout payment pipeline" --execute
   ```
 
-#### 11. dhpk-deploy-list (Cross-Ecosystem Deploy File-List Generator)
+#### 11. deploy-list (Cross-Ecosystem Deploy File-List Generator)
 
 - **Purpose**: Generates a release file checklist from Git history, filtering dev-only assets (tests, CI, docs) and grouping files by ecosystem preset (Yii, Laravel, Node, Python, generic).
-- **Invocation Syntax**: `dhpk-deploy-list --tag <[TAG]> --description "<text>" [options]`
+- **Invocation Syntax**: `deploy-list --tag <[TAG]> --description "<text>" [options]`
 - **Parameter Breakdown**:
 
   | Parameter | Type | Required | Description |
@@ -740,10 +740,10 @@ legacy dispositions and the pinned release that retains those interfaces.
 - **Practical Examples**:
   ```text
   # Generate standard deployment checklist against main
-  dhpk-deploy-list --tag="[RELEASE-1.4.0]" --description="User profile redesign" --lang=en
+  deploy-list --tag="[RELEASE-1.4.0]" --description="User profile redesign" --lang=en
 
   # Pin specific commit range for hotfix release
-  dhpk-deploy-list --tag="[HOTFIX-20261006]" --description="Fix checkout float precision" --deploy-commits="a1b2c3d,e4f5a6b" --lang=en
+  deploy-list --tag="[HOTFIX-20261006]" --description="Fix checkout float precision" --deploy-commits="a1b2c3d,e4f5a6b" --lang=en
   ```
 
 #### 12. opsx-apply-resume (Long-Running Task Context Save & Resume)

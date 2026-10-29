@@ -8,8 +8,8 @@
 # Resolves to <repo>/skills/<skill-name>/scripts/<script-file> relative to this
 # wrapper's own location (works regardless of CWD), then executes it with the
 # matching interpreter. Documented invocation for skills that ship a helper
-# script (`skill-scope`, `change-verdict`, `dhpk-project-audit`, `flow-guide`,
-# and `dhpk-repo-intake`).
+# script (`skill-scope`, `change-verdict`, `project-audit`, `flow-guide`,
+# and `repo-intake`).
 #
 # Exit codes: passes through the target script; 2 = bad usage / script not found.
 set -euo pipefail

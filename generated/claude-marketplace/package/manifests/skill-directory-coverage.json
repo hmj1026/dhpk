@@ -76,7 +76,8 @@
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml",
-        "evals/evals.json"
+        "evals/evals.json",
+        "references/php-yii-examples.md"
       ],
       "executable_entries": [],
       "host_capabilities": []
@@ -546,9 +547,7 @@
         {
           "path": "scripts/collect-changes.js",
           "fixture_ids": [
-            "remaining-git-smart-commit-collect-changes-scope-readonly",
-            "remaining-git-smart-commit-require-policy-missing",
-            "remaining-git-smart-commit-require-policy-present"
+            "remaining-git-smart-commit-collect-changes-scope-readonly"
           ]
         }
       ],

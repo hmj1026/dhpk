@@ -1,11 +1,11 @@
 ---
 name: tdd-workflow
-description: "Use for test-first feature or bug implementation, regression tests, test-generation scaffolds, and choosing public test seams or boundary mocks. Guides framework-agnostic unit/integration RED-GREEN-REFACTOR and verified worker handbacks. Reuse adequate test-first evidence and settled ownership; explicit tdd-guide requirements remain binding. Not for Playwright journeys, post-hoc coverage audits, or documentation/formatting/rename-only work. Output: scoped tests or implementation with RED/GREEN evidence and honest verification status."
+description: "Use for test-first feature or bug implementation, regression tests, test-generation scaffolds, and choosing public test seams or boundary mocks. Guides framework-agnostic RED-GREEN-REFACTOR on the current Host and Model. Not for Playwright journeys, post-hoc coverage audits, or documentation/formatting/rename-only work. Output: scoped tests or implementation with RED/GREEN evidence and honest verification status."
 metadata:
   dhpk-capability-id: "dhpk.skill.tdd"
   dhpk-invocation-class: "implicit-eligible"
   dhpk-name-style: "portable-skill"
-  dhpk-next: "{\"PASS\":\"repo-verify\",\"FAIL\":\"tdd-workflow\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"tdd-workflow\",\"UNAVAILABLE\":\"none\"}"
+  dhpk-next: "{\"PASS\":\"none\",\"FAIL\":\"none\",\"BLOCKED\":\"none\",\"NOT_RUN\":\"none\",\"UNAVAILABLE\":\"none\"}"
 ---
 
 # Test-Driven Development
@@ -41,14 +41,10 @@ before choosing domain vocabulary or a new seam.
    rerun the scoped command when the source or test has drifted, or the failure
    reason is missing. An old failure alone does not establish current RED.
 
-Choose inline work or a worker handback from ownership, coupling, runtime
-expertise, and material risk; file count alone does not decide the route.
-Resolve a missing specialist outcome with `tdd-guide` when separate expertise
-is needed. Explicit Host, user, acceptance, and higher-priority requirements
-for that role remain binding. If the required role or runtime is unavailable,
-report `BLOCKED` and the action needed to resume. An equivalent capable owner
-may proceed only when applicable instructions allow it. In dhpk,
-`rules/execution-policy.md` owns dispatch and ownership decisions.
+Execute the method directly with the current Host and Model. Reuse settled
+ownership and supplied evidence for a bounded handback. If a required runtime
+or capability is unavailable, report `BLOCKED` and the action needed to resume.
+The caller owns any delegation and downstream workflow decisions.
 
 ## Standard TDD
 
@@ -87,8 +83,7 @@ proof of RED or GREEN. Distinguish expected failure from observed failure.
 
 ## Worker handback
 
-This includes `fast-worker`, `codex-worker`, and `agy-worker`
-tasks with a settled owner:
+For a bounded task supplied by a caller with a settled owner:
 
 1. Preserve the dispatcher's target files, behavior, public seam, and command.
    Do not request another seam approval or start a separate test strategy.
@@ -125,3 +120,5 @@ project acceptance or runner configuration requires it.
 Before reporting, check that the evidence establishes the intended failure
 (or an adequate handback), the test observes the public behavior with an
 independent oracle, and scoped/suite results match what actually ran.
+Return the method evidence to the caller and stop; the caller owns subsequent
+repository-wide verification or delivery workflows.
