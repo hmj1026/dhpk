@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.68.0",
-  "sourceCommit": "60506d255cd0da549e9ab76fcc3ff9b82e5c1f2f",
-  "generatedFromCommit": "60506d255cd0da549e9ab76fcc3ff9b82e5c1f2f",
-  "generatedFromTree": "775b626ea695e840d9dad51db4a191a557ba0749",
+  "sourceCommit": "9aa29c8912de4e4c8007f024149f22f42b15bde9",
+  "generatedFromCommit": "9aa29c8912de4e4c8007f024149f22f42b15bde9",
+  "generatedFromTree": "d64a4a610dd7c6f5e7f586e233ad5045e2a7c5c6",
   "inventoryDigest": "ffda92a434ef8816444feeea689c5517187ba10fcd7ff08eb0904fd69c121098",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "1.0.0",
@@ -2382,7 +2382,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "a0ffcd34f9e8a9790d13a1df55978fd0871f3ba0"
+        "originalGitBlobDigest": "644beccc66bb3d1c8ff245209393d33c59bb1f54"
       },
       {
         "ownerId": "tdd",
@@ -2484,7 +2484,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/references/tests.md",
         "destination": "skills/tdd-workflow/references/tests.md",
-        "originalGitBlobDigest": "caca5ae7a7d44666e0a762bfa690171d6b58f3d1"
+        "originalGitBlobDigest": "004809d71683098476141043819a2478e5f86b95"
       },
       {
         "ownerId": "ui-ux-verify",
@@ -5315,7 +5315,7 @@
     "proposal-analyze": "a3cfd7751b0e87497a28aba746e328f57714ef343aad94cbb9eecc7adcf4e392",
     "release-creator": "1e8db2d66dd9d526466746baca053541acd0cef84ddd25027eddb20a58a435a6",
     "repo-verify": "0bdff21b2c9ae79c1fa276de0a993a2684908452b70e956bd4213cd4f7aa82af",
-    "tdd-workflow": "e6ce757cb32fccee1c6bff9f213abba5a8787aa2bc34bf89ec5aad39ae9cb8eb",
+    "tdd-workflow": "47b44afafcc5c8c49d99cf7e2ecdcd97cac91c9aaf23a8ade5e90179d7cd9714",
     "ui-ux-verify": "9ffa940ca3bfefb2cfd4cd91c233010a2aef4caa8c951d6c72a6b4ed86958cd8"
   },
   "installation": {
