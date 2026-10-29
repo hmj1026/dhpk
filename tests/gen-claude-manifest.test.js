@@ -98,7 +98,7 @@ test('omitting the implicit ./skills/ default passes --check without changing th
 
   test('optional module skill stays registered under its module root', () => {
     const inv = inventoryWith([
-      { id: 'vue-2-notes', path: 'modules/vue-2/skills/dhpk-vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
+      { id: 'vue-2-notes', path: 'modules/vue-2/skills/vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
     ]);
     const gen = generateClaudeSkillRoots(inv);
     assert.deepStrictEqual(gen.roots, ['./modules/vue-2/skills/']);
@@ -129,7 +129,7 @@ test('omitting the implicit ./skills/ default passes --check without changing th
 
   test('a module root drops out only when every one of its skills is deprecated', () => {
     const inv = inventoryWith([
-      { id: 'vue-2-notes', path: 'modules/vue-2/skills/dhpk-vue-2-notes', lifecycle: 'deprecated', surfaces: ['claude-module'] },
+      { id: 'vue-2-notes', path: 'modules/vue-2/skills/vue-2-notes', lifecycle: 'deprecated', surfaces: ['claude-module'] },
     ]);
     const gen = generateClaudeSkillRoots(inv);
     assert.deepStrictEqual(gen.roots, []);

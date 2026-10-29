@@ -937,7 +937,11 @@ function validateRenamedSkillNames({ inventory } = {}) {
     oldName: `dhpk-${name}`, oldPath: `skills/dhpk-${name}`,
     newName: name, newPath: `skills/${name}`, rollbackRelease: '0.67.0',
   }]));
-  const fixedRows = { ...RENAMED_SKILL_NAMES_054, ...RENAMED_SKILL_NAMES_0624, ...core067 };
+  // 模組技能同批遷移公開名稱，但 characterization 的穩定身分不可隨目錄改名。
+  const module067 = Object.fromEntries(Object.entries({ 'openspec-artifact-guard': 'openspec-artifact-guard', 'legacy-code-characterization': 'legacy-characterization-tests', 'vue-2-notes': 'vue-2-notes' }).map(([id, name]) => [id, {
+    oldName: `dhpk-${name}`, oldPath: `skills/dhpk-${name}`, newName: name, newPath: `skills/${name}`, rollbackRelease: '0.67.0',
+  }]));
+  const fixedRows = { ...RENAMED_SKILL_NAMES_054, ...RENAMED_SKILL_NAMES_0624, ...core067, ...module067 };
   const fixedIds = Object.keys(fixedRows);
   const activeFixedIds = fixedIds.filter((id) => {
     const active = activeById.get(id);
@@ -947,7 +951,8 @@ function validateRenamedSkillNames({ inventory } = {}) {
     // migration is actually active.  This keeps legacy inventories readable
     // while still fail-closing a partially applied generic-name migration.
     if (Object.prototype.hasOwnProperty.call(RENAMED_SKILL_NAMES_0624, id)
-      || Object.prototype.hasOwnProperty.call(core067, id)) {
+      || Object.prototype.hasOwnProperty.call(core067, id)
+      || Object.prototype.hasOwnProperty.call(module067, id)) {
       return active.name === expected.newName && active.path === expected.newPath;
     }
     return true;

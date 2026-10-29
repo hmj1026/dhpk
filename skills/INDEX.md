@@ -88,9 +88,9 @@ transport contract.
 
 | Public skill | Stable ID | Scope |
 | --- | --- | --- |
-| [dhpk-legacy-characterization-tests](dhpk-legacy-characterization-tests/SKILL.md) | `legacy-code-characterization` | Legacy behavior locking |
-| [dhpk-openspec-artifact-guard](dhpk-openspec-artifact-guard/SKILL.md) | `openspec-artifact-guard` | OpenSpec artifact guard |
-| [dhpk-vue-2-notes](dhpk-vue-2-notes/SKILL.md) | `vue-2-notes` | Vue 2 guidance |
+| [legacy-characterization-tests](legacy-characterization-tests/SKILL.md) | `legacy-code-characterization` | Legacy behavior locking |
+| [openspec-artifact-guard](openspec-artifact-guard/SKILL.md) | `openspec-artifact-guard` | OpenSpec artifact guard |
+| [vue-2-notes](vue-2-notes/SKILL.md) | `vue-2-notes` | Vue 2 guidance |
 
 ## Discovery rules
 

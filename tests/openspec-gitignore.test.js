@@ -34,7 +34,7 @@ test('External agent skill installs are ignored without hiding project surfaces'
     'repo-scoped marketplace metadata must remain trackable');
   assert.notStrictEqual(checkIgnore('docs/agents/domain.md').status, 0,
     'project agent documentation must remain trackable');
-  assert.notStrictEqual(checkIgnore('skills/dhpk-openspec-artifact-guard/SKILL.md').status, 0,
+  assert.notStrictEqual(checkIgnore('skills/openspec-artifact-guard/SKILL.md').status, 0,
     'first-party OpenSpec adapter skills must remain trackable');
   assert.notStrictEqual(checkIgnore('openspec/specs/example/spec.md').status, 0,
     'accepted OpenSpec specs must remain trackable');

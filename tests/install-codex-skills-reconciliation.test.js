@@ -689,7 +689,7 @@ for (const brokenSymlink of [false, true]) {
       const first = runInstaller(scratch, [...(brokenSymlink ? [] : ['--copy']), '--force', '--skill', 'legacy-code-characterization'], fakePlugin);
       assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
 
-      const retired = 'dhpk-legacy-characterization-tests';
+      const retired = 'legacy-characterization-tests';
       const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
       const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
       const retiredEntry = inventory.skills.find((entry) => entry.name === retired);

@@ -120,7 +120,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/dhpk-openspec-artifact-guard/SKILL.md",
+      "path": "skills/openspec-artifact-guard/SKILL.md",
       "name": "openspec-artifact-guard",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -184,7 +184,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/dhpk-legacy-characterization-tests/SKILL.md",
+      "path": "skills/legacy-characterization-tests/SKILL.md",
       "name": "legacy-code-characterization",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -264,7 +264,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/dhpk-vue-2-notes/SKILL.md",
+      "path": "skills/vue-2-notes/SKILL.md",
       "name": "vue-2-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,

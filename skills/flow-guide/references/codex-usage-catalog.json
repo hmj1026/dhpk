@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:0fe05939661a8c59a234189fde14ad6b7b93127d6070ce11d31ee527f6e32341",
+  "sourceInventoryRevision": "sha256:011ccee89ea109e1e6d91fe74cf10f2451e8b595fddee5f42e200f3f2aa67625",
   "entries": [
     {
       "id": "change-verdict",
@@ -1161,9 +1161,9 @@
       },
       "legacy-code-characterization": {
         "id": "legacy-code-characterization",
-        "publicName": "dhpk-legacy-characterization-tests",
+        "publicName": "legacy-characterization-tests",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-legacy-characterization-tests <input>",
+        "command": "$legacy-characterization-tests <input>",
         "codexInvokable": false
       },
       "library-author": {
@@ -1189,9 +1189,9 @@
       },
       "openspec-artifact-guard": {
         "id": "openspec-artifact-guard",
-        "publicName": "dhpk-openspec-artifact-guard",
+        "publicName": "openspec-artifact-guard",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-openspec-artifact-guard <input>",
+        "command": "$openspec-artifact-guard <input>",
         "codexInvokable": false
       },
       "opsx-apply-resume": {
@@ -1334,9 +1334,9 @@
       },
       "vue-2-notes": {
         "id": "vue-2-notes",
-        "publicName": "dhpk-vue-2-notes",
+        "publicName": "vue-2-notes",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-vue-2-notes <input>",
+        "command": "$vue-2-notes <input>",
         "codexInvokable": false
       },
       "yii1": {
@@ -1556,6 +1556,10 @@
         "target": "library-author",
         "disposition": "retired"
       },
+      "dhpk-legacy-characterization-tests": {
+        "target": "legacy-characterization-tests",
+        "disposition": "renamed"
+      },
       "dhpk-library-dual-testsuite-map": {
         "target": "library-author",
         "disposition": "retired"
@@ -1575,6 +1579,10 @@
       "dhpk-onepassword-session": {
         "target": "flow-guide",
         "disposition": "retired"
+      },
+      "dhpk-openspec-artifact-guard": {
+        "target": "openspec-artifact-guard",
+        "disposition": "renamed"
       },
       "dhpk-opsx-apply-goal": {
         "target": "flow-guide",
@@ -1688,6 +1696,10 @@
         "target": "code-trace",
         "disposition": "retired"
       },
+      "dhpk-vue-2-notes": {
+        "target": "vue-2-notes",
+        "disposition": "renamed"
+      },
       "doc-refactor": {
         "target": "doc-maintain",
         "disposition": "retired"
@@ -1704,17 +1716,9 @@
         "target": "js-static-checks",
         "disposition": "retired"
       },
-      "legacy-code-characterization": {
-        "target": "dhpk-legacy-characterization-tests",
-        "disposition": "legacy"
-      },
       "matrix-cell-onboard": {
         "target": "library-author",
         "disposition": "retired"
-      },
-      "openspec-artifact-guard": {
-        "target": "dhpk-openspec-artifact-guard",
-        "disposition": "legacy"
       },
       "review-pending": {
         "target": "change-verdict",
@@ -1743,10 +1747,6 @@
       "update-docs": {
         "target": "doc-maintain",
         "disposition": "retired"
-      },
-      "vue-2-notes": {
-        "target": "dhpk-vue-2-notes",
-        "disposition": "legacy"
       }
     }
   }

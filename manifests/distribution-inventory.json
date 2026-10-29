@@ -530,8 +530,8 @@
     },
     {
       "id": "openspec-artifact-guard",
-      "name": "dhpk-openspec-artifact-guard",
-      "path": "skills/dhpk-openspec-artifact-guard",
+      "name": "openspec-artifact-guard",
+      "path": "skills/openspec-artifact-guard",
       "capability_id": "dhpk.skill.openspec-artifact-guard",
       "lifecycle": "optional",
       "tier": "optional",
@@ -541,10 +541,8 @@
       "surfaces": [
         "claude-module"
       ],
-      "legacy_names": [
-        "openspec-artifact-guard"
-      ],
-      "invocation_class": "implicit-eligible"
+      "invocation_class": "implicit-eligible",
+      "name_style": "portable-skill"
     },
     {
       "id": "phpunit",
@@ -566,8 +564,8 @@
     },
     {
       "id": "legacy-code-characterization",
-      "name": "dhpk-legacy-characterization-tests",
-      "path": "skills/dhpk-legacy-characterization-tests",
+      "name": "legacy-characterization-tests",
+      "path": "skills/legacy-characterization-tests",
       "capability_id": "dhpk.skill.legacy-code-characterization",
       "lifecycle": "optional",
       "tier": "optional",
@@ -580,13 +578,10 @@
         "codex-sync",
         "codex-native"
       ],
-      "legacy_names": [
-        "legacy-code-characterization"
-      ],
       "usage": {
         "display_name": "Legacy Code Characterization",
         "summary": "Lock observed legacy behavior before refactoring safely",
-        "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
+        "syntax": "$legacy-characterization-tests <legacy-target>",
         "input_kind": "path",
         "inputs": [
           {
@@ -603,7 +598,7 @@
           {
             "id": "characterize",
             "summary": "Write tests that capture the current legacy behavior",
-            "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
+            "syntax": "$legacy-characterization-tests <legacy-target>",
             "input_kind": "path",
             "effect_authority": "workspace-write"
           }
@@ -611,16 +606,17 @@
         "options": [],
         "examples": [
           {
-            "prompt": "$dhpk-legacy-characterization-tests protected/models/Order.php",
+            "prompt": "$legacy-characterization-tests protected/models/Order.php",
             "summary": "Lock an untested legacy model before refactoring"
           }
         ]
-      }
+      },
+      "name_style": "portable-skill"
     },
     {
       "id": "vue-2-notes",
-      "name": "dhpk-vue-2-notes",
-      "path": "skills/dhpk-vue-2-notes",
+      "name": "vue-2-notes",
+      "path": "skills/vue-2-notes",
       "capability_id": "dhpk.skill.vue-2-notes",
       "lifecycle": "optional",
       "tier": "optional",
@@ -630,10 +626,8 @@
       "surfaces": [
         "claude-module"
       ],
-      "legacy_names": [
-        "vue-2-notes"
-      ],
-      "invocation_class": "implicit-eligible"
+      "invocation_class": "implicit-eligible",
+      "name_style": "portable-skill"
     },
     {
       "id": "flow-guide",
@@ -5513,6 +5507,36 @@
       "oldPath": "skills/dhpk-repo-intake",
       "newName": "repo-intake",
       "newPath": "skills/repo-intake",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "openspec-artifact-guard",
+      "oldName": "dhpk-openspec-artifact-guard",
+      "oldPath": "skills/dhpk-openspec-artifact-guard",
+      "newName": "openspec-artifact-guard",
+      "newPath": "skills/openspec-artifact-guard",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "legacy-code-characterization",
+      "oldName": "dhpk-legacy-characterization-tests",
+      "oldPath": "skills/dhpk-legacy-characterization-tests",
+      "newName": "legacy-characterization-tests",
+      "newPath": "skills/legacy-characterization-tests",
+      "rollback": {
+        "release": "0.67.0"
+      }
+    },
+    {
+      "id": "vue-2-notes",
+      "oldName": "dhpk-vue-2-notes",
+      "oldPath": "skills/dhpk-vue-2-notes",
+      "newName": "vue-2-notes",
+      "newPath": "skills/vue-2-notes",
       "rollback": {
         "release": "0.67.0"
       }

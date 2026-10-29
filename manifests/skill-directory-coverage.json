@@ -76,7 +76,8 @@
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml",
-        "evals/evals.json"
+        "evals/evals.json",
+        "references/php-yii-examples.md"
       ],
       "executable_entries": [],
       "host_capabilities": []
