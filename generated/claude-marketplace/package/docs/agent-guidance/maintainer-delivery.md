@@ -47,7 +47,7 @@ node scripts/maintainer/delivery-gate.js --repo OWNER/REPO --pr N --head SHA --e
 
 The default gate is read-only. It checks the exact head, local `PASS`, review
 `APPROVE` with nonempty artifacts, final PR metadata and its body SHA-256, and
-live hosted required checks. The maintainer evidence schema v1 has root
+live hosted required checks. The evidence object uses `schema: "dhpk.delivery-evidence.v1"` and root
 `headSha`; `local` has `headSha`, `status`, `command`, and `logPath`; `review`
 has `headSha`, `status`, `reviewers`, and `reportPath`; and `metadata` has
 `title` and `bodySha256`. These records are attestations, not cryptographic
