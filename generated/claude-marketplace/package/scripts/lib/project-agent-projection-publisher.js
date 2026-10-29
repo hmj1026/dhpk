@@ -260,7 +260,7 @@ function flattenBindingPaths(bindingPaths) {
   })));
 }
 
-function validateReceiptBindings(receipt, roots) {
+function validateReceiptBindings(receipt, roots, { allowLegacyClaudeDiscovery = false } = {}) {
   try {
     validateLegacyUnboundFlag(receipt);
   } catch (error) {
@@ -278,9 +278,16 @@ function validateReceiptBindings(receipt, roots) {
   if (legacyUnbound) return bindingPaths;
 
   try {
+    // 舊版跨 Host 更新曾留下 v3 receipt 卻仍指向 portable root；只在生命週期
+    // 讀取時驗證這個精確舊形狀，保留原始所有權與 fingerprint 供安全重綁。
+    const legacyClaudeDiscovery = allowLegacyClaudeDiscovery
+      && receipt.schema === PROJECT_RECEIPT_SCHEMA
+      && receipt.hostBindings.claude
+      && receipt.hostBindings.claude.discovery
+      && receipt.hostBindings.claude.discovery.sourceRoot === roots.config.managed_root;
     const providers = createProjectAgentProviderAdapters(receipt.hostBindings, {
       entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible })),
-      claudeSourceRoot: receipt.schema === PROJECT_RECEIPT_SCHEMA
+      claudeSourceRoot: receipt.schema === PROJECT_RECEIPT_SCHEMA && !legacyClaudeDiscovery
         ? roots.claudeManagedRootRelative
         : roots.config.managed_root,
       portableSourceRoot: roots.config.managed_root,
@@ -772,11 +779,11 @@ function buildArtifactInputs({
     }
   }
   const preservedHosts = new Set(Object.keys(preserveHostBindings || {}));
-  if (!preservedHosts.has('claude')) {
-    ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
-      hostId: 'claude',
-    }));
-  }
+  // 舊 receipt 的 Claude discovery 仍指向 portable root；保留選取集合，
+  // 但依目前 schema 重建 discovery，避免升級後留下無法驗證的舊連結。
+  ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
+    hostId: 'claude',
+  }));
   if (!preservedHosts.has('cursor')) {
     ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
       hostId: 'cursor',
@@ -836,7 +843,7 @@ function readJsonFile(filePath, label) {
   }
 }
 
-function validateReceipt(receipt, roots) {
+function validateReceipt(receipt, roots, bindingOptions = {}) {
   if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) throw fail('INVALID_RECEIPT', 'project projection receipt must be an object');
   if (![PROJECT_RECEIPT_SCHEMA, PREVIOUS_PROJECT_RECEIPT_SCHEMA, LEGACY_PROJECT_RECEIPT_SCHEMA].includes(receipt.schema)) {
     throw fail('INVALID_RECEIPT', `project projection receipt must use ${PROJECT_RECEIPT_SCHEMA}, ${PREVIOUS_PROJECT_RECEIPT_SCHEMA}, or ${LEGACY_PROJECT_RECEIPT_SCHEMA}`);
@@ -994,7 +1001,7 @@ function validateReceipt(receipt, roots) {
       }
     }
   }
-  validateReceiptBindings(receipt, roots);
+  validateReceiptBindings(receipt, roots, bindingOptions);
   if (receipt.rollback !== null && receipt.rollback !== undefined) {
     const expectedRollbackSchema = receipt.schema === PROJECT_RECEIPT_SCHEMA ? PROJECT_ROLLBACK_SCHEMA : LEGACY_PROJECT_ROLLBACK_SCHEMA;
     if (!receipt.rollback || receipt.rollback.schema !== expectedRollbackSchema
@@ -1009,11 +1016,20 @@ function validateReceipt(receipt, roots) {
   return receipt;
 }
 
-function readProjectProjectionReceipt(roots) {
+function readProjectionReceipt(roots, bindingOptions = {}) {
   const stat = lstatOrNull(roots.receiptPath);
   if (!stat) return null;
   if (stat.isSymbolicLink() || !stat.isFile()) throw fail('INVALID_RECEIPT', `project projection receipt is not a regular file: ${roots.receiptPath}`);
-  return validateReceipt(readJsonFile(roots.receiptPath, 'project projection receipt'), roots);
+  return validateReceipt(readJsonFile(roots.receiptPath, 'project projection receipt'), roots, bindingOptions);
+}
+
+function readProjectProjectionReceipt(roots) {
+  return readProjectionReceipt(roots);
+}
+
+function readLifecycleProjectionReceipt(roots) {
+  // 自癒只能隨發布或移除完成；一般驗證與 rollback 仍使用嚴格讀取入口。
+  return readProjectionReceipt(roots, { allowLegacyClaudeDiscovery: true });
 }
 
 function legacyManifestPath(roots) {
@@ -1812,11 +1828,11 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
   const sourceRoot = options.sourceRoot || options.root;
   if (!sourceRoot || !options.inventory) throw fail('INVALID_INPUT', 'sourceRoot and inventory are required');
   const roots = resolveRoots({ sourceRoot, projectRoot: options.projectRoot, outDir: options.outDir, inventory: options.inventory });
-  readProjectProjectionReceipt(roots);
+  readLifecycleProjectionReceipt(roots);
   ensureDirectory(roots.projectRoot, 'project root', roots.projectRoot);
   ensureDirectory(roots.agentsRoot, 'project agents root', roots.projectRoot);
   recoverProjectProjectionTransaction(roots);
-  let previous = readProjectProjectionReceipt(roots);
+  let previous = readLifecycleProjectionReceipt(roots);
   if (!previous && lstatOrNull(legacyManifestPath(roots))) {
     if (!(options.adopt || options.repair || options.allowLegacyAdoption)) {
       throw fail('LEGACY_UNBOUND', 'legacy project projection is present without the lifecycle receipt; explicit adopt or repair is required');
@@ -2055,11 +2071,11 @@ function operationRoots(options = {}) {
 function uninstallAgentsSkillsProjection(options = {}) {
   try {
     const roots = operationRoots(options);
-    readProjectProjectionReceipt(roots);
+    readLifecycleProjectionReceipt(roots);
     ensureDirectory(roots.projectRoot, 'project root', roots.projectRoot);
     ensureDirectory(roots.agentsRoot, 'project agents root', roots.projectRoot);
     recoverProjectProjectionTransaction(roots);
-    const receipt = readProjectProjectionReceipt(roots);
+    const receipt = readLifecycleProjectionReceipt(roots);
     if (!receipt) {
       if (lstatOrNull(legacyManifestPath(roots))) throw fail('LEGACY_UNBOUND', 'legacy project projection has no lifecycle receipt and cannot be removed automatically');
       return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
