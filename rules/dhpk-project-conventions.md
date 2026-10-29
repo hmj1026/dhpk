@@ -22,9 +22,9 @@ evidence; a verification verdict alone does not grant Git write authority.
 Before a follow-up push, check the PR's state and base so a merged/deleted
 branch does not receive orphaned work.
 
-PR self-merge is classifier-blocked in this repository. Hand merge to a human;
-do not attempt `gh pr merge --admin` or remote branch deletion from an agent
-session.
+Hand PR merge to a human by default. When the user explicitly authorizes an
+agent to merge, use the [maintainer delivery gate](../docs/agent-guidance/maintainer-delivery.md#delivery-gate)
+after its required checks pass.
 
 After syncing this checkout, check a locally installed compatibility projection
 when `.agents/skills/.dhpk-projection.json` exists with `npm run check:local-skills`.
@@ -54,7 +54,7 @@ on a clean generated-output commit. Reuse evidence under the kernel's snapshot
 rule and report local aggregate, focused checks, and Hosted CI separately.
 
 Open a Draft PR targeting `develop`, monitor that PR's actual CI to a terminal
-conclusion, and retain the human merge checkpoint. Prefer `gh run watch`
+conclusion, and retain the default human merge checkpoint. Prefer `gh run watch`
 over shell polling. Queued or partial CI and unavailable required consumer
 evidence remain incomplete.
 

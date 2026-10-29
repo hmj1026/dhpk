@@ -1,0 +1,1 @@
+Add repository maintainer tools for complete issue snapshots, recoverable verification ownership, and pinned-head delivery checks before authorized merges. Document final PR metadata publication and bounded context loading.
