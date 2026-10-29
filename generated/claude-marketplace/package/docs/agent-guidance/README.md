@@ -15,6 +15,8 @@ current branch of work.
   skill fields, plugin-ignored fields, and labeled dhpk local policy.
 - [Command contract](command-contract.md) — invocation, failure boundaries,
   preserved arguments, and observable completion.
+- [Maintainer delivery](maintainer-delivery.md) — issue snapshots, recoverable
+  verification, and explicitly authorized exact-head PR delivery for dhpk.
 - [Deprecated aliases](command-aliases.md) — compatibility forwarding and
   target-verdict propagation.
 
