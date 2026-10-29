@@ -1113,7 +1113,8 @@ test('final eight public names preserve identity and require the protected renam
     assert.match(fs.readFileSync(path.join(ROOT, skill.path, 'SKILL.md'), 'utf8'), /dhpk-name-style: portable-skill/);
     assert.deepStrictEqual(inventory.renamed_skill_names.find(entry => entry.id === id), {
       id, oldName: `dhpk-${name}`, oldPath: `skills/dhpk-${name}`,
-      newName: name, newPath: `skills/${name}`, rollback: { release: '0.67.0' },
+      newName: name, newPath: `skills/${name}`, // dhpk:historical-version-fixture
+      rollback: { release: '0.67.0' }, // dhpk:historical-version-fixture
     });
     const missing = structuredClone(inventory);
     missing.renamed_skill_names = missing.renamed_skill_names.filter(entry => entry.id !== id);
