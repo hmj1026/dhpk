@@ -109,7 +109,7 @@ const { test, run, assert } = require('./_lib/tinytest');
     return legacy;
   }
 
-  function asV2Receipt(receipt) {
+  function asV2Receipt(receipt, { preserveClaude = false } = {}) {
     const fields = [
       'schema', 'generatorVersion', 'scope', 'managedRoot', 'receiptPath', 'projectionOwner',
       'profileId', 'profile', 'profileFingerprint', 'selectionFingerprint',
@@ -123,9 +123,11 @@ const { test, run, assert } = require('./_lib/tinytest');
       .filter((field) => Object.prototype.hasOwnProperty.call(receipt, field))
       .map((field) => [field, JSON.parse(JSON.stringify(receipt[field]))]));
     v2.schema = 'dhpk.project-agent-projection-receipt.v2';
-    v2.hostBindings = withoutKey(v2.hostBindings, 'claude');
-    v2.bindings = withoutKey(v2.bindings, 'claude');
-    v2.bindingPaths = withoutKey(v2.bindingPaths, 'claude');
+    if (!preserveClaude) {
+      v2.hostBindings = withoutKey(v2.hostBindings, 'claude');
+      v2.bindings = withoutKey(v2.bindings, 'claude');
+      v2.bindingPaths = withoutKey(v2.bindingPaths, 'claude');
+    }
     delete v2.receiptFingerprint;
     v2.receiptFingerprint = fingerprint(v2);
     return v2;
@@ -434,6 +436,51 @@ const { test, run, assert } = require('./_lib/tinytest');
       fs.rmSync(projectRoot, { recursive: true, force: true });
     }
   });
+
+  for (const host of ['cursor', 'codex']) {
+    test(`native ${host} update migrates preserved v2 Claude discovery`, () => {
+      const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-preserved-src-'));
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-preserved-project-'));
+      const inventory = projectInventory();
+      const options = { sourceRoot, projectRoot, inventory, requestedHosts: ['claude', host], selectedStableIds: ['sample'], declaredSelection: true };
+      const receiptPath = path.join(projectRoot, '.agents/.dhpk-installed.json');
+      const link = path.join(projectRoot, '.claude/skills/dhpk-sample');
+      try {
+        write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Body\n');
+        const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
+        const v2 = asV2Receipt(installed.receipt, { preserveClaude: true });
+        v2.hostBindings.claude.discovery.sourceRoot = '.agents/skills';
+        v2.bindings = JSON.parse(JSON.stringify(v2.hostBindings));
+        v2.bindingPaths.claude = [{ path: '.claude/skills/dhpk-sample', target: '../../.agents/skills/dhpk-sample' }];
+        delete v2.receiptFingerprint;
+        v2.receiptFingerprint = fingerprint(v2);
+        write(receiptPath, JSON.stringify(v2));
+        fs.unlinkSync(link);
+        fs.symlinkSync('../../.agents/skills/dhpk-sample', link);
+        fs.rmSync(path.join(projectRoot, '.agents/claude-skills'), { recursive: true, force: true });
+        const update = () => require('../scripts/lib/native-shared-skill-install').installNativeSharedSkills({ sourceRoot, projectRoot, inventory, host, selectedStableIds: ['sample'], update: true });
+        const migrated = update();
+        assert.strictEqual(migrated.receipt.hostBindings.claude.discovery.sourceRoot, '.agents/claude-skills');
+        assert.strictEqual(fs.readlinkSync(link), '../../.agents/claude-skills/dhpk-sample');
+        assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+        assert.deepStrictEqual(migrated.receipt.hostBindings.claude.selectedStableIds, v2.hostBindings.claude.selectedStableIds);
+        const restored = publisher.rollbackAgentsSkillsProjection({ projectRoot, inventory });
+        assert.strictEqual(restored.ok, true, restored.error && restored.error.message);
+        assert.strictEqual(restored.receipt.schema, 'dhpk.project-agent-projection-receipt.v2');
+        assert.strictEqual(fs.readlinkSync(link), '../../.agents/skills/dhpk-sample');
+        assert.strictEqual(update().receipt.schema, 'dhpk.project-agent-projection-receipt.v3');
+        fs.unlinkSync(link);
+        fs.symlinkSync('../../.agents/skills/dhpk-sample', link);
+        const beforeConflict = fs.readFileSync(receiptPath);
+        assert.throws(update);
+        assert.strictEqual(fs.readFileSync(receiptPath).equals(beforeConflict), true);
+        assert.strictEqual(fs.readlinkSync(link), '../../.agents/skills/dhpk-sample');
+      } finally {
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+  }
 
   test('publisher migrates an unchanged v2 receipt to v3 without changing portable identity or content', () => {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-v2-migration-source-'));
