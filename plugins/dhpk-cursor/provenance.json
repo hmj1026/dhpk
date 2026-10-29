@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.67.0",
-  "sourceCommit": "08da962ec6f3a095417b4e55a09a9d66d0efc14e",
-  "generatedFromCommit": "08da962ec6f3a095417b4e55a09a9d66d0efc14e",
-  "generatedFromTree": "c3de8307dbe986905005d57a663ae54ae5c4721e",
+  "sourceCommit": "b68a57305670c02cb9e716876ec470546851fcae",
+  "generatedFromCommit": "b68a57305670c02cb9e716876ec470546851fcae",
+  "generatedFromTree": "ddf781b99a0f0c8083a137e4de9c63e931055c46",
   "inventoryDigest": "affa088e9407bca7394ed44b3fad01227c4503a948fb82e99882f309eb7d8297",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "1.0.0",
@@ -2379,7 +2379,7 @@
         "ownerId": "tdd",
         "source": "skills/legacy-characterization-tests/references/php-yii-examples.md",
         "destination": "skills/tdd-workflow/references/legacy-characterization-tests/references/php-yii-examples.md",
-        "originalGitBlobDigest": "1de3ddbd0882420981b7ae80221d172f02011b07"
+        "originalGitBlobDigest": "36cb8e1d2780ccefb5833cb180c49f0c17778f6b"
       },
       {
         "ownerId": "tdd",
