@@ -72,6 +72,46 @@ function status(recordPath) {
   });
 }
 
+function overview(fixture, ledgerPath, expectSuccess = true) {
+  const result = spawnSync(process.execPath, [CLI, 'overview', '--ledger', ledgerPath], {
+    cwd: ROOT, encoding: 'utf8', timeout: 5000,
+  });
+  if (expectSuccess) assert.strictEqual(result.status, 0, result.stderr || result.stdout);
+  let response;
+  try { response = JSON.parse(result.stdout.trim().split('\n').pop()); } catch (_) { response = null; }
+  return { ...result, response };
+}
+
+function writeLedger(fixture, entries, ledgerPath = path.join(fixture.tmp, 'ledger.json')) {
+  fs.writeFileSync(ledgerPath, `${JSON.stringify({ schema: 'dhpk.verification-ledger.v1', ...entries }, null, 2)}\n`);
+  return ledgerPath;
+}
+
+function findRecordPath(fixture) {
+  const root = path.join(fixture.repo, RECORD_DIR);
+  if (!fs.existsSync(root)) return null;
+  const pending = [root];
+  while (pending.length) {
+    const current = pending.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const location = path.join(current, entry.name);
+      if (entry.isDirectory()) pending.push(location);
+      else if (entry.isFile() && entry.name === 'record.json') return location;
+    }
+  }
+  return null;
+}
+
+async function waitForRecordPath(fixture, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const recordPath = findRecordPath(fixture);
+    if (recordPath) return recordPath;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.fail('verification-run did not create a record before timeout');
+}
+
 function readRecord(result) {
   assert.ok(result.response && result.response.recordPath, result.stdout);
   return JSON.parse(fs.readFileSync(result.response.recordPath, 'utf8'));
@@ -433,5 +473,253 @@ test('source drift during a successful command becomes unknown and cannot be reu
     assert.strictEqual(reused.response.reused, true);
   } finally { cleanup(fixture); }
 });
+
+test('overview resolves a passed record and ignores stale ledger status fields', () => {
+  const fixture = makeFixture();
+  try {
+    const run = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
+    const record = readRecord(run);
+    const ledgerPath = writeLedger(fixture, {
+      verification: { recordPath: run.response.recordPath, status: 'failed', exitCode: 88, cached: true },
+    });
+    const result = overview(fixture, ledgerPath);
+    assert.strictEqual(result.response.schema, 'dhpk.verification-overview.v1');
+    assert.strictEqual(result.response.ledgerPath, ledgerPath);
+    assert.deepStrictEqual(result.response.records.map(({ label }) => label), ['verification']);
+    const [summary] = result.response.records;
+    assert.strictEqual(summary.status, 'passed');
+    assert.strictEqual(summary.exitCode, 0);
+    assert.strictEqual(summary.recordPath, run.response.recordPath);
+    assert.deepStrictEqual(summary.snapshot, record.snapshot);
+    assert.strictEqual(summary.root, fixture.repo);
+    assert.strictEqual(summary.cached, undefined);
+    // hash 與 PID 都可能含 88；比對完整 record 才能證明沒有混入 ledger 快取欄位。
+    assert.deepStrictEqual(summary, { ...record, label: 'verification', recordPath: run.response.recordPath });
+  } finally { cleanup(fixture); }
+});
+
+test('overview resolves relative record paths from the ledger and reads status changes without a ledger edit', async () => {
+  const fixture = makeFixture();
+  try {
+    const ledgerPath = path.join(fixture.tmp, 'ledger.json');
+    const pending = runStartAsync(fixture, { args: commandArgs(fixture, { delay: 350 }) });
+    const recordPath = await waitForRecordPath(fixture);
+    const relativeRecordPath = path.relative(path.dirname(ledgerPath), recordPath);
+    writeLedger(fixture, {
+      priorVerification: { recordPath: relativeRecordPath, status: 'passed' },
+    }, ledgerPath);
+    const originalLedgerBytes = fs.readFileSync(ledgerPath);
+
+    const running = overview(fixture, ledgerPath);
+    assert.deepStrictEqual(running.response.records.map(({ status: value }) => value), ['running']);
+    const finished = await pending;
+    assert.strictEqual(finished.code, 0, finished.stderr || finished.stdout);
+    const passed = overview(fixture, ledgerPath);
+    assert.deepStrictEqual(passed.response.records.map(({ status: value }) => value), ['passed']);
+    assert.deepStrictEqual(fs.readFileSync(ledgerPath), originalLedgerBytes);
+  } finally { cleanup(fixture); }
+});
+
+test('overview returns the failed child exit code from its record', () => {
+  const fixture = makeFixture();
+  try {
+    const failed = runStart(fixture, { args: commandArgs(fixture, { delay: 20, exitCode: 23 }), expectSuccess: false });
+    const ledgerPath = writeLedger(fixture, {
+      verification: { recordPath: failed.response.recordPath, status: 'passed', exitCode: 0 },
+    });
+    const result = overview(fixture, ledgerPath, false);
+    assert.strictEqual(result.status, 23);
+    assert.strictEqual(result.response.records[0].status, 'failed');
+    assert.strictEqual(result.response.records[0].exitCode, 23);
+  } finally { cleanup(fixture); }
+});
+
+test('overview falls back to exit code 1 when a failed record has no usable child exit code', () => {
+  const fixture = makeFixture();
+  try {
+    const failed = runStart(fixture, { args: commandArgs(fixture, { delay: 20, exitCode: 4 }), expectSuccess: false });
+    const record = readRecord(failed);
+    delete record.exitCode;
+    fs.writeFileSync(failed.response.recordPath, `${JSON.stringify(record, null, 2)}\n`);
+    const ledgerPath = writeLedger(fixture, {
+      verification: { recordPath: failed.response.recordPath, status: 'passed', exitCode: 0 },
+    });
+    const result = overview(fixture, ledgerPath, false);
+    assert.strictEqual(result.status, 1);
+    assert.strictEqual(result.response.records[0].status, 'failed');
+    assert.strictEqual(result.response.records[0].exitCode, undefined);
+  } finally { cleanup(fixture); }
+});
+
+test('overview maps a dead running owner to unknown and exits 2', () => {
+  const fixture = makeFixture();
+  try {
+    const run = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
+    const record = readRecord(run);
+    record.status = 'running';
+    record.pid = 2147483647;
+    record.processStartIdentity = 'unprovable-fixture-owner';
+    fs.writeFileSync(run.response.recordPath, `${JSON.stringify(record, null, 2)}\n`);
+    const ledgerPath = writeLedger(fixture, {
+      verification: { recordPath: run.response.recordPath, status: 'passed' },
+    });
+    const result = overview(fixture, ledgerPath, false);
+    assert.strictEqual(result.status, 2);
+    assert.strictEqual(result.response.records[0].status, 'unknown');
+  } finally { cleanup(fixture); }
+});
+
+test('overview exits 2 when any referenced record is unknown', () => {
+  const fixture = makeFixture();
+  try {
+    const first = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
+    // 不同 argv 才會建立兩份獨立 record，避免重用同一 claim 使測試誤撞重複路徑檢查。
+    const second = runStart(fixture, { args: commandArgs(fixture, { delay: 20, extra: ['second-record'] }) });
+    const record = readRecord(second);
+    record.status = 'unknown';
+    fs.writeFileSync(second.response.recordPath, `${JSON.stringify(record, null, 2)}\n`);
+    const ledgerPath = writeLedger(fixture, {
+      verification: { recordPath: first.response.recordPath, status: 'passed' },
+      priorVerification: { recordPath: second.response.recordPath, status: 'passed' },
+    });
+    const result = overview(fixture, ledgerPath, false);
+    assert.strictEqual(result.status, 2);
+    assert.deepStrictEqual(result.response.records.map(({ status: value }) => value), ['passed', 'unknown']);
+  } finally { cleanup(fixture); }
+});
+
+test('overview reports blocked for invalid ledgers and missing or corrupt record references', () => {
+  const fixture = makeFixture();
+  try {
+    const corruptPath = path.join(fixture.tmp, 'corrupt-record.json');
+    fs.writeFileSync(corruptPath, '{not-json');
+    const cases = [
+      { name: 'invalid schema', ledger: { schema: 'wrong-ledger-schema', verification: { recordPath: '/unused' } } },
+      { name: 'missing reference', ledger: { schema: 'dhpk.verification-ledger.v1', verification: { recordPath: path.join(fixture.tmp, 'missing.json'), status: 'CACHED_PASS_MUST_NOT_APPEAR' } } },
+      { name: 'corrupt reference', ledger: { schema: 'dhpk.verification-ledger.v1', verification: { recordPath: corruptPath, status: 'CACHED_PASS_MUST_NOT_APPEAR' } } },
+    ];
+    for (const item of cases) {
+      const ledgerPath = path.join(fixture.tmp, `${item.name.replaceAll(' ', '-')}.json`);
+      fs.writeFileSync(ledgerPath, `${JSON.stringify(item.ledger, null, 2)}\n`);
+      const result = overview(fixture, ledgerPath, false);
+      assert.notStrictEqual(result.status, 0, item.name);
+      assert.match(`${result.stdout}\n${result.stderr}`, /BLOCKED/i, item.name);
+      assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /CACHED_PASS_MUST_NOT_APPEAR|"status": "passed"/i, item.name);
+    }
+  } finally { cleanup(fixture); }
+});
+
+test('overview rejects duplicate canonical record paths', () => {
+  const fixture = makeFixture();
+  try {
+    const run = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
+    const ledgerPath = path.join(fixture.repo, 'ledger.json');
+    const relativeRecordPath = path.relative(path.dirname(ledgerPath), run.response.recordPath);
+    fs.writeFileSync(ledgerPath, `${JSON.stringify({
+      schema: 'dhpk.verification-ledger.v1',
+      verification: { recordPath: run.response.recordPath, status: 'CACHED_PASS_MUST_NOT_APPEAR' },
+      priorVerification: { recordPath: relativeRecordPath, status: 'CACHED_PASS_MUST_NOT_APPEAR' },
+    }, null, 2)}\n`);
+    const result = overview(fixture, ledgerPath, false);
+    assert.notStrictEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /BLOCKED/i);
+  } finally { cleanup(fixture); }
+});
+
+test('requiring verification-run exports readRecord without running the CLI', () => {
+  const source = `const api = require(${JSON.stringify(CLI)}); process.stdout.write(JSON.stringify({ readRecord: typeof api.readRecord }));`;
+  const result = spawnSync(process.execPath, ['-e', source], { cwd: ROOT, encoding: 'utf8', timeout: 5000 });
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert.strictEqual(result.stdout, '{"readRecord":"function"}');
+  assert.strictEqual(result.stderr, '');
+});
+
+test('preflight CLI serializes real helper stages and propagates a checker failure', () => {
+  const fixture = makeFixture();
+  try {
+    for (const [relative, exitCode] of [
+      ['scripts/ci/validate-changelog-fragments.js', 0],
+      ['tests/codex-skill-metadata.test.js', 7],
+      ['scripts/ci/catalog.js', 0],
+    ]) {
+      const file = path.join(fixture.repo, relative);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, `console.log('fixture checker'); process.exit(${exitCode});\n`);
+    }
+    const result = spawnSync(process.execPath, [CLI, 'preflight', '--root', fixture.repo,
+      '--base', git(fixture.repo, 'rev-parse', 'HEAD'), '--base-ref', 'develop'], {
+      cwd: ROOT, encoding: 'utf8', timeout: 5000,
+    });
+    assert.strictEqual(result.status, 7, result.stderr || result.stdout);
+    const response = JSON.parse(result.stdout.trim());
+    assert.strictEqual(response.status, 'failed');
+    assert.strictEqual(response.exitCode, 7);
+    assert.deepStrictEqual(response.stages.map(({ name }) => name), ['changelog', 'metadata']);
+    assert.match(response.stages[0].stdout, /fixture checker/);
+  } finally { cleanup(fixture); }
+});
+
+test('ci-watch CLI performs a nonblocking missing-run lookup through the real helper', () => {
+  const fixture = makeFixture();
+  try {
+    const bin = path.join(fixture.tmp, 'bin');
+    const trace = path.join(fixture.tmp, 'gh-calls.jsonl');
+    const log = path.join(fixture.tmp, 'ci-watch.log');
+    const head = 'a'.repeat(40);
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'gh'), `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(trace)}, JSON.stringify(args) + '\\n');
+const endpoint = args.find((value) => value.startsWith('repos/')) || '';
+if (args[0] !== 'api') process.exit(91);
+if (endpoint.includes('/pulls/42')) console.log(JSON.stringify({
+  number: 42, created_at: '2026-10-28T09:00:00Z',
+  base: { ref: 'develop', repo: { full_name: 'acme/widget' } },
+  head: { sha: '${head}', ref: 'feature/cli', repo: { id: 9001 } }
+}));
+else if (endpoint.includes('/actions/workflows/ci.yml/runs')) console.log(JSON.stringify({ total_count: 0, workflow_runs: [] }));
+else process.exit(92);
+`, { mode: 0o755 });
+    const result = spawnSync(process.execPath, [CLI, 'ci-watch', '--repo', 'acme/widget',
+      '--pr', '42', '--head', head, '--log', log, '--wait-seconds', '0'], {
+      cwd: ROOT, encoding: 'utf8', timeout: 5000,
+      env: { ...process.env, PATH: `${bin}${path.sep === '/' ? ':' : ';'}${process.env.PATH}` },
+    });
+    assert.strictEqual(result.status, 2, result.stderr || result.stdout);
+    const response = JSON.parse(result.stdout.trim().split('\n').pop());
+    assert.strictEqual(response.status, 'blocked');
+    assert.strictEqual(response.exitCode, 2);
+    const calls = fs.readFileSync(trace, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    assert.ok(calls.some((args) => args.some((arg) => arg.includes('/actions/workflows/ci.yml/runs'))));
+    assert.ok(calls.every((args) => args[0] === 'api'));
+  } finally { cleanup(fixture); }
+});
+
+for (const [extraStatus, childExitCode, expectedExitCode] of [['failed', 23, 23], ['unknown', 0, 2]]) {
+  test(`overview includes additional top-level ${extraStatus} references`, () => {
+    const fixture = makeFixture();
+    try {
+      const passed = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
+      const extra = runStart(fixture, {
+        args: commandArgs(fixture, { delay: 20, exitCode: childExitCode, extra: ['additional-record'] }),
+        expectSuccess: childExitCode === 0,
+      });
+      if (extraStatus === 'unknown') {
+        const record = readRecord(extra);
+        fs.writeFileSync(extra.response.recordPath, JSON.stringify({ ...record, status: 'unknown' }));
+      }
+      const ledgerPath = writeLedger(fixture, {
+        verification: { recordPath: passed.response.recordPath },
+        extra: { recordPath: extra.response.recordPath, status: 'passed' },
+        metadata: { nested: { recordPath: '/must-not-recurse' } },
+      });
+      const result = overview(fixture, ledgerPath, false);
+      assert.strictEqual(result.status, expectedExitCode, result.stderr || result.stdout);
+      assert.deepStrictEqual(result.response.records.map(({ label, status: value }) => [label, value]),
+        [['verification', 'passed'], ['extra', extraStatus]]);
+    } finally { cleanup(fixture); }
+  });
+}
 
 run('maintainer-verification-run');

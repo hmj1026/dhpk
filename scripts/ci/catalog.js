@@ -37,6 +37,12 @@ const RETIRED_CODEX_MCP_SURFACE = Object.freeze({ skills: 0, commands: 0, comman
 // a similarly named suite cannot inherit another suite's owner by accident.
 const SUITE_OWNER_REGISTRY = Object.freeze({
   'tests/check-hook-shellcheck.test.js': 'scripts/ci/check-hook-shellcheck.js',
+  // 維護工具的 suite 明列來源，讓本地與 CI 的 admission 使用相同對照。
+  'tests/maintainer-issue-snapshot.test.js': 'scripts/maintainer/issue-snapshot.js',
+  'tests/maintainer-verification-run.test.js': 'scripts/maintainer/verification-run.js',
+  'tests/maintainer-delivery-gate.test.js': 'scripts/maintainer/delivery-gate.js',
+  'tests/maintainer-preflight.test.js': 'scripts/maintainer/delivery-preflight.js',
+  'tests/maintainer-ci-watch.test.js': 'scripts/maintainer/ci-watch.js',
 });
 
 function computeCounts() {

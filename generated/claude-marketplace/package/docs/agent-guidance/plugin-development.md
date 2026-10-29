@@ -110,6 +110,9 @@ git diff --check
 : "${DHPK_PREFLIGHT_BASE_REF:?Set the base ref used to route this source plan}"
 : "${DHPK_PREFLIGHT_CLASSIFICATION_FILE:?Set the independently reviewed B..S classification JSON}"
 : "${DHPK_PACKAGE_VERSION:?Set the package version for generated artifacts}"
+node scripts/maintainer/verification-run.js preflight \
+  --root "$PWD" --base "$DHPK_PREFLIGHT_BASE_SHA" --base-ref "$DHPK_PREFLIGHT_BASE_REF"
+
 dhpk_source_sha=$(git rev-parse HEAD)
 dhpk_preflight_dir=$(mktemp -d /tmp/dhpk-ci-preflight.XXXXXX)
 dhpk_preflight_dir=$(cd "$dhpk_preflight_dir" && pwd -P)

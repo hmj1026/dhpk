@@ -4,6 +4,22 @@ This guide applies to dhpk repository maintenance. Portable `create-pr` keeps
 its existing scope and grants no merge authority. A human merge checkpoint is
 the default; an agent may execute a merge only with explicit user authorization.
 
+## Preflight
+
+After synchronizing canonical resources and the inventory-declared copies in
+`codex/supporting/` (the [supporting assets](../distribution-surfaces.md#lifecycle-model)),
+run the short preflight before formal package generation or the full suite:
+
+```sh
+node scripts/maintainer/verification-run.js preflight --root PATH --base FULL_SHA --base-ref develop
+```
+
+Use the full commit SHA of the reviewed base. The preflight reuses the existing
+changelog validator, Codex skill metadata suite, and catalog check with that
+diff base. It stops at the first failure. Catalog admission checks whether a
+new test suite has a registered source owner; missing owners remain warnings. Coverage is evaluated against committed changes; run
+this after the canonical commit and before generating its outputs.
+
 ## Issue snapshot
 
 For a complete, durable issue intake, run:
@@ -29,11 +45,50 @@ node scripts/maintainer/verification-run.js status --record /absolute/path/recor
 The run records durable logs and holds an exclusive claim. A duplicate running
 request attaches to the existing run; a passed run is reused. If the owner is
 unknown, retain that state and do not rerun automatically. Retry a failed run
-only explicitly with `--retry` and a new attempt. Preserve the record and log
-as evidence for the exact source, command, and effective environment. The
+only explicitly with `--retry` and a new attempt. Keep only `recordPath` references in the task ledger; derive verification
+state from the records rather than saving a second status copy:
+
+```sh
+node scripts/maintainer/verification-run.js overview --ledger /absolute/path/run.json
+```
+
+The ledger uses `dhpk.verification-ledger.v1`; each top-level object with its
+own `recordPath` is a record reference. For example:
+
+```json
+{
+  "schema": "dhpk.verification-ledger.v1",
+  "verification": {"recordPath": "/absolute/path/record.json"}
+}
+```
+
+Relative record paths resolve beside the ledger. The overview retains each
+record's source identity; historical PASS does not attest the current checkout.
+Missing, corrupt, duplicate, or unknown records never fall back to a cached
+ledger status. Preserve the records and logs as evidence for their exact source,
+command, and effective environment. The
 runner stores an environment digest rather than raw secret values. A source
 change detected between the beginning and end leaves verification unknown;
 this check does not prove a hermetic run or detect every transient edit.
+
+## Hosted CI watch
+
+Publish final PR metadata once, then observe the pinned head without changing
+PR state to trigger another run:
+
+```sh
+node scripts/maintainer/verification-run.js ci-watch --repo OWNER/REPO --pr N --head SHA --log /absolute/path/ci-watch.log
+```
+
+A missing run has a 180-second grace period with a fresh lookup at the deadline.
+Queued or running CI is followed rather than retriggered. An absent run after
+the grace period is BLOCKED. `--wait-seconds 0` performs the immediate lookups;
+`--interval-seconds` controls polling and defaults to 20. The watcher follows
+the latest matching `ci.yml` PR run, rechecks head and run identity after watch,
+and follows a newer run before reporting success. It performs no workflow or
+PR mutations. Full watch output goes to the log; console output contains only
+observed state transitions and the final result. Delivery-gate evidence remains
+a separate requirement.
 
 ## Delivery gate
 

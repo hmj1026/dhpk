@@ -12,6 +12,9 @@ const directoryHandles = [];
 const USAGE = `Usage:
   node scripts/maintainer/verification-run.js start --root PATH --task ID --attempt ID --key NAME [--retry] -- <argv...>
   node scripts/maintainer/verification-run.js status --record ABSFILE
+  node scripts/maintainer/verification-run.js overview --ledger ABSFILE
+  node scripts/maintainer/verification-run.js preflight --root PATH --base SHA --base-ref develop
+  node scripts/maintainer/verification-run.js ci-watch --repo OWNER/REPO --pr N --head SHA --log ABSFILE [--wait-seconds 180] [--interval-seconds 20]
 `;
 
 function requireValue(condition, message) {
@@ -20,9 +23,14 @@ function requireValue(condition, message) {
 
 function parseArgs(argv) {
   const [action, ...args] = argv;
-  requireValue(['start', 'status'].includes(action), 'Invalid action');
+  const fields = {
+    start: ['root', 'task', 'attempt', 'key'], status: ['record'], overview: ['ledger'],
+    preflight: ['root', 'base', 'base-ref'], 'ci-watch': ['repo', 'pr', 'head', 'log'],
+  };
+  requireValue(Object.hasOwn(fields, action), 'Invalid action');
   const options = { action };
-  const permitted = action === 'start' ? ['root', 'task', 'attempt', 'key'] : ['record'];
+  const required = fields[action];
+  const permitted = [...required, ...(action === 'ci-watch' ? ['wait-seconds', 'interval-seconds'] : [])];
   for (let i = 0; i < args.length; i += 1) {
     if (args[i] === '--' && action === 'start') { options.command = args.slice(i + 1); break; }
     if (args[i] === '--retry' && action === 'start' && !options.retry) { options.retry = true; continue; }
@@ -31,9 +39,20 @@ function parseArgs(argv) {
       && args[i + 1] && !args[i + 1].startsWith('--'), 'Invalid arguments');
     options[name] = args[++i];
   }
-  requireValue(permitted.every((name) => options[name]), 'Missing required arguments');
+  requireValue(required.every((name) => options[name]), 'Missing required arguments');
   if (action === 'start') requireValue(options.command?.length > 0, 'Missing command argv');
-  else requireValue(path.isAbsolute(options.record), 'Record path must be absolute');
+  if (action === 'status') requireValue(path.isAbsolute(options.record), 'Record path must be absolute');
+  if (action === 'overview') requireValue(path.isAbsolute(options.ledger), 'Ledger path must be absolute');
+  if (action === 'ci-watch') {
+    requireValue(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(options.repo)
+      && /^[1-9]\d*$/.test(options.pr) && Number.isSafeInteger(Number(options.pr))
+      && /^[0-9a-f]{40}$/i.test(options.head) && path.isAbsolute(options.log), 'Invalid CI watch arguments');
+    for (const name of ['wait-seconds', 'interval-seconds']) {
+      if (options[name] !== undefined) requireValue(/^\d+$/.test(options[name])
+        && Number.isSafeInteger(Number(options[name])) && Number(options[name]) >= (name === 'wait-seconds' ? 0 : 1),
+      'Invalid CI watch timing');
+    }
+  }
   return options;
 }
 
@@ -246,9 +265,57 @@ async function main() {
   if (process.argv.length < 3 || process.argv[2] === '--help') { process.stdout.write(USAGE); return; }
   const options = parseArgs(process.argv.slice(2));
   if (options.action === 'status') summary(readRecord(options.record), true);
-  else await start(options);
+  else if (options.action === 'start') await start(options);
+  else if (options.action === 'overview') overview(options.ledger);
+  else {
+    // helper 延後載入，避免讀取舊 record 時因其他維護工具缺少依賴而失效。
+    const result = options.action === 'preflight'
+      ? await require('./delivery-preflight').runPreflight({ root: options.root, base: options.base, baseRef: options['base-ref'] })
+      : await require('./ci-watch').runCiWatch({
+        repo: options.repo, pr: Number(options.pr), head: options.head, log: options.log,
+        waitSeconds: options['wait-seconds'] === undefined ? 180 : Number(options['wait-seconds']),
+        intervalSeconds: options['interval-seconds'] === undefined ? 20 : Number(options['interval-seconds']),
+      });
+    requireValue(result && typeof result.status === 'string' && Number.isInteger(result.exitCode)
+      && result.exitCode >= 0 && result.exitCode <= 255, 'Invalid helper result');
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    process.exitCode = result.exitCode;
+  }
 }
 
-main().catch((error) => {
-  process.stderr.write(`verification-run: ${error.message}\n`); process.exitCode = 2;
-}).finally(() => { for (const fd of directoryHandles) fs.closeSync(fd); });
+function overview(ledgerPath) {
+  try {
+    const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+    requireValue(ledger && ledger.schema === 'dhpk.verification-ledger.v1', 'Invalid ledger schema');
+    const seen = new Set();
+    // 固定兩個名稱會漏掉其他頂層證據的失敗；讀取所有直接參照，並保留舊欄位的格式檢查。
+    const records = Object.entries(ledger).filter(([label, entry]) =>
+      ['verification', 'priorVerification'].includes(label)
+      || (entry && typeof entry === 'object' && !Array.isArray(entry) && Object.hasOwn(entry, 'recordPath')))
+      .map(([label, entry]) => {
+      requireValue(entry && typeof entry.recordPath === 'string' && entry.recordPath.length > 0, 'Invalid ledger reference');
+      const recordPath = fs.realpathSync(path.resolve(path.dirname(ledgerPath), entry.recordPath));
+      requireValue(!seen.has(recordPath), 'Duplicate canonical record path');
+      seen.add(recordPath);
+      // ledger 的快取狀態可能過時；只沿用 record 的來源身分，不能冒稱目前 workspace 已通過。
+      return { ...readRecord(recordPath), label, recordPath };
+    });
+    requireValue(records.length > 0, 'Missing ledger references');
+    const failed = records.find((record) => record.status === 'failed');
+    process.stdout.write(`${JSON.stringify({ schema: 'dhpk.verification-overview.v1', ledgerPath, records })}\n`);
+    if (records.some((record) => record.status === 'unknown')) process.exitCode = 2;
+    else if (failed) process.exitCode = Number.isInteger(failed.exitCode) && failed.exitCode > 0 && failed.exitCode <= 255
+      ? failed.exitCode : 1;
+  } catch (error) {
+    throw new Error(`BLOCKED: ${error.message}`);
+  }
+}
+
+// 共用 readRecord 時不可觸發 CLI，否則其他工具 import 便會意外執行使用者 argv。
+if (require.main === module) {
+  main().catch((error) => {
+    process.stderr.write(`verification-run: ${error.message}\n`); process.exitCode = 2;
+  }).finally(() => { for (const fd of directoryHandles) fs.closeSync(fd); });
+}
+
+module.exports = { readRecord };
