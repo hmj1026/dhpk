@@ -70,7 +70,7 @@ test('default route table does not target frozen Codex-MCP candidates', () => {
   const frozen = new Set([
     'dhpk-codex-architect', 'dhpk-codex-implement', 'dhpk-change-review',
     'dhpk-doc-review', 'dhpk-test-review', 'dhpk-codebase-exploration',
-    'dhpk-feature-verify', 'dhpk-issue-analyze', 'dhpk-feasibility-study',
+    'feature-verify', 'issue-analyze', 'dhpk-feasibility-study',
     'codex-review', 'codex-review-branch', 'codex-review-doc',
     'codex-review-fast', 'codex-security', 'codex-test-gen',
     'codex-test-review', 'review-spec',

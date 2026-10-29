@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:43fd81d6878d6cc01975d648ef638c72573711ffd7e2269205b5880700722eb7",
+  "sourceInventoryRevision": "sha256:0fe05939661a8c59a234189fde14ad6b7b93127d6070ce11d31ee527f6e32341",
   "entries": [
     {
       "id": "change-verdict",
@@ -1062,9 +1062,9 @@
       },
       "deploy-list": {
         "id": "deploy-list",
-        "publicName": "dhpk-deploy-list",
+        "publicName": "deploy-list",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-deploy-list <input>",
+        "command": "$deploy-list <input>",
         "codexInvokable": false
       },
       "doc-maintain": {
@@ -1081,9 +1081,9 @@
       },
       "feature-verify": {
         "id": "feature-verify",
-        "publicName": "dhpk-feature-verify",
+        "publicName": "feature-verify",
         "invocationClass": "explicit-only",
-        "command": "$dhpk-feature-verify <input>",
+        "command": "$feature-verify <input>",
         "codexInvokable": false
       },
       "flow-drive": {
@@ -1140,9 +1140,9 @@
       },
       "issue-analyze": {
         "id": "issue-analyze",
-        "publicName": "dhpk-issue-analyze",
+        "publicName": "issue-analyze",
         "invocationClass": "explicit-only",
-        "command": "$dhpk-issue-analyze <input>",
+        "command": "$issue-analyze <input>",
         "codexInvokable": false
       },
       "js-static-checks": {
@@ -1234,9 +1234,9 @@
       },
       "project-audit": {
         "id": "project-audit",
-        "publicName": "dhpk-project-audit",
+        "publicName": "project-audit",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-project-audit <input>",
+        "command": "$project-audit <input>",
         "codexInvokable": false
       },
       "project-brief": {
@@ -1282,9 +1282,9 @@
       },
       "repo-intake": {
         "id": "repo-intake",
-        "publicName": "dhpk-repo-intake",
+        "publicName": "repo-intake",
         "invocationClass": "explicit-only",
-        "command": "$dhpk-repo-intake <input>",
+        "command": "$repo-intake <input>",
         "codexInvokable": false
       },
       "repo-verify": {
@@ -1351,10 +1351,6 @@
       "dep-audit": {
         "target": "change-verdict",
         "disposition": "retired"
-      },
-      "deploy-list": {
-        "target": "dhpk-deploy-list",
-        "disposition": "legacy"
       },
       "dhpk-adaptive-dev-workflow": {
         "target": "flow-guide",
@@ -1432,6 +1428,10 @@
         "target": "flow-guide",
         "disposition": "retired"
       },
+      "dhpk-deploy-list": {
+        "target": "deploy-list",
+        "disposition": "renamed"
+      },
       "dhpk-do": {
         "target": "flow-guide",
         "disposition": "retired"
@@ -1455,6 +1455,10 @@
       "dhpk-feature-dev": {
         "target": "flow-guide",
         "disposition": "retired"
+      },
+      "dhpk-feature-verify": {
+        "target": "feature-verify",
+        "disposition": "renamed"
       },
       "dhpk-git-history-investigation": {
         "target": "code-trace",
@@ -1503,6 +1507,10 @@
       "dhpk-implement": {
         "target": "flow-drive",
         "disposition": "retired"
+      },
+      "dhpk-issue-analyze": {
+        "target": "issue-analyze",
+        "disposition": "renamed"
       },
       "dhpk-laravel": {
         "target": "laravel",
@@ -1608,6 +1616,10 @@
         "target": "change-verdict",
         "disposition": "retired"
       },
+      "dhpk-project-audit": {
+        "target": "project-audit",
+        "disposition": "renamed"
+      },
       "dhpk-project-setup": {
         "target": "flow-guide",
         "disposition": "retired"
@@ -1618,6 +1630,10 @@
       },
       "dhpk-release-creator": {
         "target": "release-creator",
+        "disposition": "renamed"
+      },
+      "dhpk-repo-intake": {
+        "target": "repo-intake",
         "disposition": "renamed"
       },
       "dhpk-risk-assess": {
@@ -1676,10 +1692,6 @@
         "target": "doc-maintain",
         "disposition": "retired"
       },
-      "feature-verify": {
-        "target": "dhpk-feature-verify",
-        "disposition": "legacy"
-      },
       "harness-audit": {
         "target": "flow-guide",
         "disposition": "retired"
@@ -1687,10 +1699,6 @@
       "harness-govern": {
         "target": "flow-guide",
         "disposition": "retired"
-      },
-      "issue-analyze": {
-        "target": "dhpk-issue-analyze",
-        "disposition": "legacy"
       },
       "js-static-check-strategy": {
         "target": "js-static-checks",
@@ -1706,14 +1714,6 @@
       },
       "openspec-artifact-guard": {
         "target": "dhpk-openspec-artifact-guard",
-        "disposition": "legacy"
-      },
-      "project-audit": {
-        "target": "dhpk-project-audit",
-        "disposition": "legacy"
-      },
-      "repo-intake": {
-        "target": "dhpk-repo-intake",
         "disposition": "legacy"
       },
       "review-pending": {

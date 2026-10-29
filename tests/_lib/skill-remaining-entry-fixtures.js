@@ -19,8 +19,8 @@ const ROOT = path.join(__dirname, '..', '..');
 const SOURCES = Object.freeze({
   swift: 'swift',
   'code-trace': 'code-trace',
-  'deploy-list': 'dhpk-deploy-list',
-  'feature-verify': 'dhpk-feature-verify',
+  'deploy-list': 'deploy-list',
+  'feature-verify': 'feature-verify',
   'change-verdict': 'change-verdict',
   'flow-guide': 'flow-guide',
   'git-smart-commit': 'git-smart-commit',
