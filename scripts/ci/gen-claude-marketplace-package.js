@@ -16,6 +16,7 @@ const ROOT = path.join(__dirname, '..', '..');
 const DEFAULT_OUTPUT = path.join(ROOT, 'generated', 'claude-marketplace', 'package');
 const PACKAGE_PATHS = [
   '.claude-plugin/plugin.json',
+  '.claude-plugin/icon.png',
   'agent-traps',
   'agents',
   'commands',
