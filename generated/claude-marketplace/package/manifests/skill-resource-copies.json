@@ -13,24 +13,6 @@
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     },
-    "skills/dhpk-project-audit/scripts/lib/command-namespace.js": {
-      "skill_id": "project-audit",
-      "source": "scripts/lib/command-namespace.js",
-      "sha256": "sha256:ae1fda30141499de5aa8b6fadc5ec6fd0a99e869e4a81fd5d0f7316b5ff8bd96",
-      "mode": "0644"
-    },
-    "skills/dhpk-project-audit/scripts/lib/runner-utils.js": {
-      "skill_id": "project-audit",
-      "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
-      "mode": "0644"
-    },
-    "skills/dhpk-repo-intake/scripts/lib/runner-utils.js": {
-      "skill_id": "repo-intake",
-      "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
-      "mode": "0644"
-    },
     "skills/flow-guide/references/execution-bundle/docs/agent-guidance/verification-handoff.md": {
       "skill_id": "flow-guide",
       "source": "docs/agent-guidance/verification-handoff.md",
@@ -142,7 +124,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/deterministic-first.md",
-      "sha256": "sha256:876be6413d8981138bb7bbed93a751b1559f0e70cbb6e422369fce82b69b68a5",
+      "sha256": "sha256:c040fe827d431f2e34fc70a6ef70bcf37d632f01b2aaab8d15b823118ca6d05c",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
@@ -237,6 +219,24 @@
     },
     "skills/precommit/scripts/lib/runner-utils.js": {
       "skill_id": "precommit",
+      "source": "scripts/lib/runner-utils.js",
+      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "mode": "0644"
+    },
+    "skills/project-audit/scripts/lib/command-namespace.js": {
+      "skill_id": "project-audit",
+      "source": "scripts/lib/command-namespace.js",
+      "sha256": "sha256:ae1fda30141499de5aa8b6fadc5ec6fd0a99e869e4a81fd5d0f7316b5ff8bd96",
+      "mode": "0644"
+    },
+    "skills/project-audit/scripts/lib/runner-utils.js": {
+      "skill_id": "project-audit",
+      "source": "scripts/lib/runner-utils.js",
+      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "mode": "0644"
+    },
+    "skills/repo-intake/scripts/lib/runner-utils.js": {
+      "skill_id": "repo-intake",
       "source": "scripts/lib/runner-utils.js",
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"

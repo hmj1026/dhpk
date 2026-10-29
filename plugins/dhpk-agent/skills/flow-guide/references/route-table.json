@@ -65,7 +65,7 @@
       "label": "project audit",
       "target": {
         "kind": "skill",
-        "id": "dhpk-project-audit"
+        "id": "project-audit"
       }
     },
     {
@@ -73,7 +73,7 @@
       "label": "deploy list",
       "target": {
         "kind": "skill",
-        "id": "dhpk-deploy-list"
+        "id": "deploy-list"
       }
     },
     {

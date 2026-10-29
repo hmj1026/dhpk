@@ -49,9 +49,9 @@ const OFFICIAL_STRICT_FAILURE_SET = [
   'flow-guide',
   'flow-drive',
   'library-author',
-  'dhpk-openspec-artifact-guard',
+  'openspec-artifact-guard',
   'doc-maintain',
-  'dhpk-vue-2-notes',
+  'vue-2-notes',
 ];
 
 function unquoteScalar(value) {

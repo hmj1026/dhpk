@@ -40,7 +40,7 @@ provides:
   agents: [polyfill-reviewer]
   skills:
     - library-author
-    - dhpk-openspec-artifact-guard
+    - openspec-artifact-guard
   references:
     - polyfill-patterns.md
     - openspec-naming-gotchas.md

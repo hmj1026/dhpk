@@ -14,8 +14,19 @@ New portable workflows use descriptive, unprefixed public names. Existing
 capability families keep `portable-family`; individual portable workflows use
 `portable-skill`. Public names, stable IDs, and capability IDs are separate:
 renaming `dhpk-tdd-workflow` to `tdd-workflow` preserves stable ID `tdd`.
-Only the approved workflow names change; this is not a blanket rename of the
-canonical catalog. Claude's `/dhpk:` plugin namespace remains unchanged.
+The final eight names also become `portable-skill`: `deploy-list`,
+`feature-verify`, `issue-analyze`, `project-audit`, `repo-intake`,
+`openspec-artifact-guard`, `legacy-characterization-tests`, and `vue-2-notes`.
+All canonical public names are now unprefixed. Claude's `/dhpk:` namespace,
+stable identities, profiles, surfaces and the closed family-wave list remain
+unchanged. The eight rename rows pin rollback to `0.67.0` without callable aliases.
+
+`git-smart-commit` and `code-trace` own their safety and routing references
+inside their canonical directories; only `flow-guide` retains injected standalone
+dependencies. Commit formatting follows the consumer's Project Convention first.
+`tdd-workflow`, `code-simplify`, and `code-trace` terminate for all five outcomes.
+Methods run directly on the current Host and Model; optional fan-out does not
+make the standard inline four-angle review degraded.
 
 Public-name migration is recorded in the distribution inventory. The installer
 uses stable identity and ownership receipts to migrate unchanged managed

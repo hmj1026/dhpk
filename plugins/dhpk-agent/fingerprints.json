@@ -2,19 +2,19 @@
   "generatorVersion": "1.0.0",
   "surface": "agent-plugin",
   "skills": {
-    "change-verdict": "b3476faab412bea5348c5575e84b381273ace5588d8e954b8bd7aa6198a7eafe",
-    "code-trace": "417009d5edfa0a4f53c288844664e5874f63404abc25c8296e0087ff8a5be352",
+    "change-verdict": "da104363c10f4de72c16ff92001ab891e4d6c312bc6fdfd341c13830dcdf565c",
+    "code-trace": "87d49bdf57a7732920ce25703fe46c076568edae444a9b7aabc42268b1c8970f",
     "create-pr": "722696c143447a8107fe7c842fc4f1cfcbb775ab0456af1d6bb623be93e92b10",
     "doc-maintain": "d2b6e12533e99c08d143be5ecc5ada0db0c45c92e35f3d89a691cb7851eef921",
-    "flow-drive": "1aeb3fb2c8b2b7a0116a447244e5d82dd20f69337308bcff7e8914c8d6040c99",
-    "flow-guide": "2921328266f03a826f2ed175ccdd32298bbb3f48cbb855ce1e7b2539a29143cb",
-    "git-smart-commit": "66f113cc15d95322b5fdd57b225d608b1f32de9b0bb166bf24d998e2a9d98d62",
+    "flow-drive": "4eebdf4565d30e62883e15d86ad1669eb8287397bc5e2eb852425a7b76e962b7",
+    "flow-guide": "b804bbb8824879cd521c9c7334342d2e00903abe425ff7f8b2e119ae3e79e451",
+    "git-smart-commit": "b21cf7de6b555ada30c0c4db7c8f0326599607f95c87cd00924fa571663dbc4f",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",
     "precommit": "565accfb658863ae359b200ee516083d7f7122757c41db1e19f10198041621ce",
-    "proposal-analyze": "1f0657b36272adb57815dbfc2316156bb9b42739ed99d6a12f89164dfdffb5cb",
-    "release-creator": "ecc03d28430d66eba2f257dd3a881064b11ee78ba60374e67f2469e43c1f1fac",
-    "repo-verify": "8af4c75a61ca564e9c858fb3190818cbe7feae54a8799dae72c0b913bf7ffb12",
-    "tdd-workflow": "9cda541f684706bc621f6f7d8748867a97774c0638c97d9d296837afd4db0af0",
+    "proposal-analyze": "a3cfd7751b0e87497a28aba746e328f57714ef343aad94cbb9eecc7adcf4e392",
+    "release-creator": "1e8db2d66dd9d526466746baca053541acd0cef84ddd25027eddb20a58a435a6",
+    "repo-verify": "0bdff21b2c9ae79c1fa276de0a993a2684908452b70e956bd4213cd4f7aa82af",
+    "tdd-workflow": "15400e64867db8275e5c47e4f73302c793b88a8e2aaf8933c863c85f42e00ece",
     "ui-ux-verify": "9ffa940ca3bfefb2cfd4cd91c233010a2aef4caa8c951d6c72a6b4ed86958cd8"
   }
 }

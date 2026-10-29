@@ -17,7 +17,7 @@ const PUBLIC_SKILLS = [
 const OVERLAY_SKILLS = [
   { id: 'code-simplify', name: 'code-simplify' },
   { id: 'js-static-checks', name: 'js-static-checks' },
-  { id: 'legacy-code-characterization', name: 'dhpk-legacy-characterization-tests' },
+  { id: 'legacy-code-characterization', name: 'legacy-characterization-tests' },
 ];
 const RUNTIME_SKILLS = [
   { id: 'fixture-native-runtime-a', name: 'fixture-native-runtime-a' },

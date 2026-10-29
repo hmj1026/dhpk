@@ -93,7 +93,7 @@ test('active profiles select catalogued shipped modules and common owns marketpl
 test('library-author module exposes resolvable current family skill links', () => {
   const skillsRoot = path.join(ROOT, 'modules', 'library-author', 'skills');
   const skills = fs.readdirSync(skillsRoot).sort();
-  assert.deepStrictEqual(skills, ['dhpk-openspec-artifact-guard', 'library-author']);
+  assert.deepStrictEqual(skills, ['library-author', 'openspec-artifact-guard']);
 
   for (const skill of skills) {
     assert.strictEqual(fs.realpathSync(path.join(skillsRoot, skill)),

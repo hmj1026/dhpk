@@ -88,70 +88,6 @@
       "sha256": "0515b66ff0a781ce89794f6773072f1008669c2d9dcc73976c612fccf28b8fb8"
     },
     {
-      "skillId": "project-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-project-audit/SKILL.md",
-      "destination": "skills/change-verdict/references/dhpk-project-audit/SKILL.md",
-      "kind": "branch",
-      "sha256": "8eeb2289907b78bf27a69bded663d909a48b7dbcc871505a7cd96aec9289a017"
-    },
-    {
-      "skillId": "project-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-project-audit/agents/openai.yaml",
-      "destination": "skills/change-verdict/references/dhpk-project-audit/agents/openai.yaml",
-      "kind": "branch",
-      "sha256": "5210cb7afffc0359bacbf60184d91eb80d893f941de292c310ffe2ffb1801618"
-    },
-    {
-      "skillId": "project-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-project-audit/distribution.yaml",
-      "destination": "skills/change-verdict/references/dhpk-project-audit/distribution.yaml",
-      "kind": "branch",
-      "sha256": "5cae75c9e195511817d1d557840b9a80ef31a36dbede7cfe28c4231119f2fa51"
-    },
-    {
-      "skillId": "project-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-project-audit/references/check-catalog.md",
-      "destination": "skills/change-verdict/references/dhpk-project-audit/references/check-catalog.md",
-      "kind": "branch",
-      "sha256": "ce7ddfe11227aa3a7b4f53c7a88987cbfb2806d8e451af592e39c11d356855f5"
-    },
-    {
-      "skillId": "project-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-project-audit/references/output-template.md",
-      "destination": "skills/change-verdict/references/dhpk-project-audit/references/output-template.md",
-      "kind": "branch",
-      "sha256": "bf3b9daa9a32ddea9310eac0b656f59a8b044338cfd7b003dc5af95ec920ecfb"
-    },
-    {
-      "skillId": "project-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-project-audit/scripts/audit.js",
-      "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/audit.js",
-      "kind": "branch",
-      "sha256": "1440d8c48cc6117abb8421aa5169ac62870275cc149cfd8c50d67863ed8d287d"
-    },
-    {
-      "skillId": "project-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-project-audit/scripts/lib/command-namespace.js",
-      "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/lib/command-namespace.js",
-      "kind": "branch",
-      "sha256": "ae1fda30141499de5aa8b6fadc5ec6fd0a99e869e4a81fd5d0f7316b5ff8bd96"
-    },
-    {
-      "skillId": "project-audit",
-      "ownerId": "change-verdict",
-      "sourcePath": "skills/dhpk-project-audit/scripts/lib/runner-utils.js",
-      "destination": "skills/change-verdict/references/dhpk-project-audit/scripts/lib/runner-utils.js",
-      "kind": "branch",
-      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
-    },
-    {
       "skillId": "change-verdict",
       "ownerId": "change-verdict",
       "sourcePath": "skills/change-verdict/references/docs/codex-prompt-doc.md",
@@ -166,6 +102,70 @@
       "destination": "skills/change-verdict/references/docs/review-loop-doc.md",
       "kind": "entry",
       "sha256": "9b773bbbd6bba41b02d46a7c6fd210a064b83365515a267aa29935b0cf02ec31"
+    },
+    {
+      "skillId": "project-audit",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/project-audit/SKILL.md",
+      "destination": "skills/change-verdict/references/project-audit/SKILL.md",
+      "kind": "branch",
+      "sha256": "ea70d2804e796fc98d88b98380170a51712c797bf33bb86624150cb4926ef6ce"
+    },
+    {
+      "skillId": "project-audit",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/project-audit/agents/openai.yaml",
+      "destination": "skills/change-verdict/references/project-audit/agents/openai.yaml",
+      "kind": "branch",
+      "sha256": "441eb984b4ae808784486ee51145caae0812f988191ea6b253df80fc02af7c88"
+    },
+    {
+      "skillId": "project-audit",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/project-audit/distribution.yaml",
+      "destination": "skills/change-verdict/references/project-audit/distribution.yaml",
+      "kind": "branch",
+      "sha256": "5cae75c9e195511817d1d557840b9a80ef31a36dbede7cfe28c4231119f2fa51"
+    },
+    {
+      "skillId": "project-audit",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/project-audit/references/check-catalog.md",
+      "destination": "skills/change-verdict/references/project-audit/references/check-catalog.md",
+      "kind": "branch",
+      "sha256": "ce7ddfe11227aa3a7b4f53c7a88987cbfb2806d8e451af592e39c11d356855f5"
+    },
+    {
+      "skillId": "project-audit",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/project-audit/references/output-template.md",
+      "destination": "skills/change-verdict/references/project-audit/references/output-template.md",
+      "kind": "branch",
+      "sha256": "bf3b9daa9a32ddea9310eac0b656f59a8b044338cfd7b003dc5af95ec920ecfb"
+    },
+    {
+      "skillId": "project-audit",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/project-audit/scripts/audit.js",
+      "destination": "skills/change-verdict/references/project-audit/scripts/audit.js",
+      "kind": "branch",
+      "sha256": "1440d8c48cc6117abb8421aa5169ac62870275cc149cfd8c50d67863ed8d287d"
+    },
+    {
+      "skillId": "project-audit",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/project-audit/scripts/lib/command-namespace.js",
+      "destination": "skills/change-verdict/references/project-audit/scripts/lib/command-namespace.js",
+      "kind": "branch",
+      "sha256": "ae1fda30141499de5aa8b6fadc5ec6fd0a99e869e4a81fd5d0f7316b5ff8bd96"
+    },
+    {
+      "skillId": "project-audit",
+      "ownerId": "change-verdict",
+      "sourcePath": "skills/project-audit/scripts/lib/runner-utils.js",
+      "destination": "skills/change-verdict/references/project-audit/scripts/lib/runner-utils.js",
+      "kind": "branch",
+      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
     },
     {
       "skillId": "change-verdict",
@@ -317,7 +317,7 @@
       "sourcePath": "skills/code-trace/SKILL.md",
       "destination": "skills/code-trace/SKILL.md",
       "kind": "entry",
-      "sha256": "8ed2d13df56f3fc1aa52c9901515e71e885183838f9cad0d261a0ef486f19d7f"
+      "sha256": "2b1c507872d75874d2138be9d4b23c6d5c720123e7c06c882a24c0ebfc258f31"
     },
     {
       "skillId": "code-trace",
@@ -334,102 +334,6 @@
       "destination": "skills/code-trace/distribution.yaml",
       "kind": "entry",
       "sha256": "67c151a8dea4ae1a831eb04fcd70ea662cb7df72555805f777b7c7fb3e4dcc60"
-    },
-    {
-      "skillId": "code-trace",
-      "ownerId": "code-trace",
-      "sourcePath": "docs/subagent-prompt-template.md",
-      "destination": "skills/code-trace/references/_dependencies/docs/subagent-prompt-template.md",
-      "kind": "dependency",
-      "sha256": "2b9a5e92d83946b32d01a0dc9c121d2479a2a2fa827c5a188b041bfdbabe104b"
-    },
-    {
-      "skillId": "code-trace",
-      "ownerId": "code-trace",
-      "sourcePath": "rules/execution-policy-kernel.md",
-      "destination": "skills/code-trace/references/_dependencies/rules/execution-policy-kernel.md",
-      "kind": "dependency",
-      "sha256": "234ae902161a9253dabae7190bab46ccb9b62a091188919523c11e1a5a4b962b"
-    },
-    {
-      "skillId": "code-trace",
-      "ownerId": "code-trace",
-      "sourcePath": "rules/execution-policy.md",
-      "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
-      "kind": "dependency",
-      "sha256": "650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670"
-    },
-    {
-      "skillId": "code-trace",
-      "ownerId": "code-trace",
-      "sourcePath": "rules/tool-routing.md",
-      "destination": "skills/code-trace/references/_dependencies/rules/tool-routing.md",
-      "kind": "dependency",
-      "sha256": "4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039"
-    },
-    {
-      "skillId": "repo-intake",
-      "ownerId": "code-trace",
-      "sourcePath": "skills/dhpk-repo-intake/SKILL.md",
-      "destination": "skills/code-trace/references/dhpk-repo-intake/SKILL.md",
-      "kind": "branch",
-      "sha256": "4a47d068df797e31f019e9b6037c1351530296772b78be87cdb896afe85586a2"
-    },
-    {
-      "skillId": "repo-intake",
-      "ownerId": "code-trace",
-      "sourcePath": "skills/dhpk-repo-intake/agents/openai.yaml",
-      "destination": "skills/code-trace/references/dhpk-repo-intake/agents/openai.yaml",
-      "kind": "branch",
-      "sha256": "c7abdefaab057bb1086af63e707adecbcb0fb3f9f49633d37461e16547abbad7"
-    },
-    {
-      "skillId": "repo-intake",
-      "ownerId": "code-trace",
-      "sourcePath": "skills/dhpk-repo-intake/distribution.yaml",
-      "destination": "skills/code-trace/references/dhpk-repo-intake/distribution.yaml",
-      "kind": "branch",
-      "sha256": "e4ea295bd71416f82185c517846d86f595a576b20fb7f2d32c83706802b83ab2"
-    },
-    {
-      "skillId": "repo-intake",
-      "ownerId": "code-trace",
-      "sourcePath": "skills/dhpk-repo-intake/references/archived/MIDWAY_HEURISTICS.md",
-      "destination": "skills/code-trace/references/dhpk-repo-intake/references/archived/MIDWAY_HEURISTICS.md",
-      "kind": "branch",
-      "sha256": "08b1b8ff5a36917d554280fe5f5d49512ca00f44fb6f6d38e78ac72ca516ba57"
-    },
-    {
-      "skillId": "repo-intake",
-      "ownerId": "code-trace",
-      "sourcePath": "skills/dhpk-repo-intake/scripts/intake_cached.js",
-      "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/intake_cached.js",
-      "kind": "branch",
-      "sha256": "22756262a400c62d959dcf00e29c95fce2053b5ebdd9440e6c2a536af29e9a9f"
-    },
-    {
-      "skillId": "repo-intake",
-      "ownerId": "code-trace",
-      "sourcePath": "skills/dhpk-repo-intake/scripts/lib/runner-utils.js",
-      "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/lib/runner-utils.js",
-      "kind": "branch",
-      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
-    },
-    {
-      "skillId": "repo-intake",
-      "ownerId": "code-trace",
-      "sourcePath": "skills/dhpk-repo-intake/scripts/scan_delta.js",
-      "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/scan_delta.js",
-      "kind": "branch",
-      "sha256": "ab8356f15f3653663fad7d09985cfd20cf14e81d88fb3b233a0fe56db20dfbe9"
-    },
-    {
-      "skillId": "repo-intake",
-      "ownerId": "code-trace",
-      "sourcePath": "skills/dhpk-repo-intake/scripts/scan_repo.js",
-      "destination": "skills/code-trace/references/dhpk-repo-intake/scripts/scan_repo.js",
-      "kind": "branch",
-      "sha256": "180f398129586c02eea464a4770034f507bcb8506c0c4b905608897abee3b86f"
     },
     {
       "skillId": "code-trace",
@@ -544,12 +448,76 @@
       "sha256": "ff0562a8eb3816049754973079857d7a93b3147332d7788ae7a49f8ee6b66a61"
     },
     {
+      "skillId": "repo-intake",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/repo-intake/SKILL.md",
+      "destination": "skills/code-trace/references/repo-intake/SKILL.md",
+      "kind": "branch",
+      "sha256": "33cf3e31e8dfd00eb4a89e16be5e9ec588ff6193bf23386f6856f21012a7a089"
+    },
+    {
+      "skillId": "repo-intake",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/repo-intake/agents/openai.yaml",
+      "destination": "skills/code-trace/references/repo-intake/agents/openai.yaml",
+      "kind": "branch",
+      "sha256": "16aa5ed6fbbe07398cc956b6ee7c8705f229a5f541803637493184c488f30b1e"
+    },
+    {
+      "skillId": "repo-intake",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/repo-intake/distribution.yaml",
+      "destination": "skills/code-trace/references/repo-intake/distribution.yaml",
+      "kind": "branch",
+      "sha256": "e4ea295bd71416f82185c517846d86f595a576b20fb7f2d32c83706802b83ab2"
+    },
+    {
+      "skillId": "repo-intake",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/repo-intake/references/archived/MIDWAY_HEURISTICS.md",
+      "destination": "skills/code-trace/references/repo-intake/references/archived/MIDWAY_HEURISTICS.md",
+      "kind": "branch",
+      "sha256": "08b1b8ff5a36917d554280fe5f5d49512ca00f44fb6f6d38e78ac72ca516ba57"
+    },
+    {
+      "skillId": "repo-intake",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/repo-intake/scripts/intake_cached.js",
+      "destination": "skills/code-trace/references/repo-intake/scripts/intake_cached.js",
+      "kind": "branch",
+      "sha256": "22756262a400c62d959dcf00e29c95fce2053b5ebdd9440e6c2a536af29e9a9f"
+    },
+    {
+      "skillId": "repo-intake",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/repo-intake/scripts/lib/runner-utils.js",
+      "destination": "skills/code-trace/references/repo-intake/scripts/lib/runner-utils.js",
+      "kind": "branch",
+      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
+    },
+    {
+      "skillId": "repo-intake",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/repo-intake/scripts/scan_delta.js",
+      "destination": "skills/code-trace/references/repo-intake/scripts/scan_delta.js",
+      "kind": "branch",
+      "sha256": "ab8356f15f3653663fad7d09985cfd20cf14e81d88fb3b233a0fe56db20dfbe9"
+    },
+    {
+      "skillId": "repo-intake",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/repo-intake/scripts/scan_repo.js",
+      "destination": "skills/code-trace/references/repo-intake/scripts/scan_repo.js",
+      "kind": "branch",
+      "sha256": "180f398129586c02eea464a4770034f507bcb8506c0c4b905608897abee3b86f"
+    },
+    {
       "skillId": "code-trace",
       "ownerId": "code-trace",
       "sourcePath": "skills/code-trace/references/select-tool/decision-tree.md",
       "destination": "skills/code-trace/references/select-tool/decision-tree.md",
       "kind": "entry",
-      "sha256": "f36950e86873a4d499132e604e3c088e67ac4ebacbc1bb367dbad9eb8d774431"
+      "sha256": "6660e444b89447ee79267fec456b61c6aec43597fcb4fc5faadc31601f623e1c"
     },
     {
       "skillId": "code-trace",
@@ -773,7 +741,7 @@
       "sourcePath": "skills/code-simplify/SKILL.md",
       "destination": "skills/flow-drive/references/code-simplify/SKILL.md",
       "kind": "branch",
-      "sha256": "7ee1e6e8a55be9c5848dc55492bb3b5f574fac87fe842d9c8f32bedb10b19a0c"
+      "sha256": "3680987b3a39bba1bb368ad2e9cebfeb81a793e4044eab0b52fcb475becff46f"
     },
     {
       "skillId": "code-simplify",
@@ -797,55 +765,7 @@
       "sourcePath": "skills/code-simplify/references/refactor-contract.md",
       "destination": "skills/flow-drive/references/code-simplify/references/refactor-contract.md",
       "kind": "branch",
-      "sha256": "320294ab165a2fcf27b2475e0758ea31b5a383aa4da7fc86f05280a4c203b730"
-    },
-    {
-      "skillId": "openspec-artifact-guard",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-openspec-artifact-guard/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/SKILL.md",
-      "kind": "reference",
-      "sha256": "75b7e94d5d16fe8cb56c072b1ddd458cb1b8bf3a49904a988de49ffe72249490"
-    },
-    {
-      "skillId": "openspec-artifact-guard",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-openspec-artifact-guard/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "79985685c0993c4fb20c74514a2fa70dae98ca89f257e31f4ef087831fac885e"
-    },
-    {
-      "skillId": "openspec-artifact-guard",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-openspec-artifact-guard/distribution.yaml",
-      "destination": "skills/flow-drive/references/dhpk-openspec-artifact-guard/distribution.yaml",
-      "kind": "reference",
-      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
-    },
-    {
-      "skillId": "vue-2-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-vue-2-notes/SKILL.md",
-      "destination": "skills/flow-drive/references/dhpk-vue-2-notes/SKILL.md",
-      "kind": "reference",
-      "sha256": "9645705f175803380ef8df6030dd7a78fcdc737db3b1205fca39d62bf7b00496"
-    },
-    {
-      "skillId": "vue-2-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-vue-2-notes/agents/openai.yaml",
-      "destination": "skills/flow-drive/references/dhpk-vue-2-notes/agents/openai.yaml",
-      "kind": "reference",
-      "sha256": "f820ba6c4f2809dedc201fcaff700424dddedabf4922b7d653b374b871c8967c"
-    },
-    {
-      "skillId": "vue-2-notes",
-      "ownerId": "flow-drive",
-      "sourcePath": "skills/dhpk-vue-2-notes/distribution.yaml",
-      "destination": "skills/flow-drive/references/dhpk-vue-2-notes/distribution.yaml",
-      "kind": "reference",
-      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
+      "sha256": "1d7b7d583ff10272d094a08238ad9f9c4a783f5d8e1670eb3d27c505daedc10a"
     },
     {
       "skillId": "js-static-checks",
@@ -1021,7 +941,7 @@
       "sourcePath": "skills/laravel/references/mix.md",
       "destination": "skills/flow-drive/references/laravel/references/mix.md",
       "kind": "branch",
-      "sha256": "7e031c2ae917b2be3c0039c1032ee57e11ec0eaf56094571dc91a4a088287785"
+      "sha256": "d047c8a16f7dbf9367e3f0f663419810123b6e447265d5e774287d6fc18c3f9a"
     },
     {
       "skillId": "laravel",
@@ -1094,6 +1014,30 @@
       "destination": "skills/flow-drive/references/nextjs/references/target-selection.md",
       "kind": "reference",
       "sha256": "49d53ad74e0af31cc3bbb71db48556fc97785a885bcda93c867e702212f9d9c7"
+    },
+    {
+      "skillId": "openspec-artifact-guard",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/openspec-artifact-guard/SKILL.md",
+      "destination": "skills/flow-drive/references/openspec-artifact-guard/SKILL.md",
+      "kind": "reference",
+      "sha256": "6d9c04e9a552f359abb86c2e07d6341ef575384967ba6ac18f6cdf7446b1a2c6"
+    },
+    {
+      "skillId": "openspec-artifact-guard",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/openspec-artifact-guard/agents/openai.yaml",
+      "destination": "skills/flow-drive/references/openspec-artifact-guard/agents/openai.yaml",
+      "kind": "reference",
+      "sha256": "5c8ec8be9a97b76698a2946d1131dbaf5e42dfce6bfb93bb8efc384fb1fe13f0"
+    },
+    {
+      "skillId": "openspec-artifact-guard",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/openspec-artifact-guard/distribution.yaml",
+      "destination": "skills/flow-drive/references/openspec-artifact-guard/distribution.yaml",
+      "kind": "reference",
+      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
     },
     {
       "skillId": "php",
@@ -1688,6 +1632,30 @@
       "sha256": "37a2f68c477bd60337cb8481b72c8ffc9e43634336a396949b6301bb09ee0d7d"
     },
     {
+      "skillId": "vue-2-notes",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/vue-2-notes/SKILL.md",
+      "destination": "skills/flow-drive/references/vue-2-notes/SKILL.md",
+      "kind": "reference",
+      "sha256": "44dc617861e03b3b7978ef5653ac573ed17c434fa1e37ed7fa4d8f1c50eb5385"
+    },
+    {
+      "skillId": "vue-2-notes",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/vue-2-notes/agents/openai.yaml",
+      "destination": "skills/flow-drive/references/vue-2-notes/agents/openai.yaml",
+      "kind": "reference",
+      "sha256": "293c1b7fa3f67b16a35cd5705a7be7a54f9425ee68ad386f778f48f5bb53ba13"
+    },
+    {
+      "skillId": "vue-2-notes",
+      "ownerId": "flow-drive",
+      "sourcePath": "skills/vue-2-notes/distribution.yaml",
+      "destination": "skills/flow-drive/references/vue-2-notes/distribution.yaml",
+      "kind": "reference",
+      "sha256": "0b0adf56b6c5540b38d9150e88dedd0da492aa3a32cd2162c87227f8fca4c6f3"
+    },
+    {
       "skillId": "yii1",
       "ownerId": "flow-drive",
       "sourcePath": "skills/yii1/SKILL.md",
@@ -1877,7 +1845,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "81a6c919800bf5f9e67dad89a1ae9ec2828273dbf18f2bb6be41c00be1448b36"
+      "sha256": "878df19353f28fd1884ee0539ebcaa113809e730b9e0b5e29f6d205f8df4cea3"
     },
     {
       "skillId": "flow-guide",
@@ -1909,7 +1877,7 @@
       "sourcePath": "skills/flow-guide/references/deterministic-first.md",
       "destination": "skills/flow-guide/references/deterministic-first.md",
       "kind": "entry",
-      "sha256": "876be6413d8981138bb7bbed93a751b1559f0e70cbb6e422369fce82b69b68a5"
+      "sha256": "c040fe827d431f2e34fc70a6ef70bcf37d632f01b2aaab8d15b823118ca6d05c"
     },
     {
       "skillId": "flow-guide",
@@ -2069,7 +2037,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
       "kind": "entry",
-      "sha256": "876be6413d8981138bb7bbed93a751b1559f0e70cbb6e422369fce82b69b68a5"
+      "sha256": "c040fe827d431f2e34fc70a6ef70bcf37d632f01b2aaab8d15b823118ca6d05c"
     },
     {
       "skillId": "flow-guide",
@@ -2173,7 +2141,7 @@
       "sourcePath": "skills/flow-guide/references/progression-tables.md",
       "destination": "skills/flow-guide/references/progression-tables.md",
       "kind": "entry",
-      "sha256": "c60f8438da457514e52681b09f5e7e172c0ea6bbcf4367c8d028d85caf9bf607"
+      "sha256": "cbd77e48916f58074d24df901efcaac4961ad32e20d2189fb51fbd2fc9a0b71b"
     },
     {
       "skillId": "flow-guide",
@@ -2205,7 +2173,7 @@
       "sourcePath": "skills/flow-guide/references/route-table.json",
       "destination": "skills/flow-guide/references/route-table.json",
       "kind": "entry",
-      "sha256": "174e29c6d4435a0475ffa28ac1e5dce1803bbbcf5476998dc90411b84a59d8da"
+      "sha256": "8b1139bf1831db71d728301be374d503d8c37fcb93897dab5210c84f59e19778"
     },
     {
       "skillId": "flow-guide",
@@ -2429,7 +2397,7 @@
       "sourcePath": "skills/git-smart-commit/SKILL.md",
       "destination": "skills/git-smart-commit/SKILL.md",
       "kind": "entry",
-      "sha256": "0a8b5b2304f144312bab12177b37b4a2a137649906813ae6627753ba8dd940c0"
+      "sha256": "652a5ca5dd7875a2573e937d37a4498bd484d97e52d92f31060012196edb34c9"
     },
     {
       "skillId": "git-smart-commit",
@@ -2445,31 +2413,7 @@
       "sourcePath": "skills/git-smart-commit/distribution.yaml",
       "destination": "skills/git-smart-commit/distribution.yaml",
       "kind": "entry",
-      "sha256": "bdb62366c324b63110b4c20fd0fbe2ba01cfa09a2c7472b37c323fcc927decae"
-    },
-    {
-      "skillId": "git-smart-commit",
-      "ownerId": "git-smart-commit",
-      "sourcePath": "docs/subagent-prompt-template.md",
-      "destination": "skills/git-smart-commit/references/_dependencies/docs/subagent-prompt-template.md",
-      "kind": "dependency",
-      "sha256": "2b9a5e92d83946b32d01a0dc9c121d2479a2a2fa827c5a188b041bfdbabe104b"
-    },
-    {
-      "skillId": "git-smart-commit",
-      "ownerId": "git-smart-commit",
-      "sourcePath": "rules/execution-policy-kernel.md",
-      "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy-kernel.md",
-      "kind": "dependency",
-      "sha256": "234ae902161a9253dabae7190bab46ccb9b62a091188919523c11e1a5a4b962b"
-    },
-    {
-      "skillId": "git-smart-commit",
-      "ownerId": "git-smart-commit",
-      "sourcePath": "rules/execution-policy.md",
-      "destination": "skills/git-smart-commit/references/_dependencies/rules/execution-policy.md",
-      "kind": "dependency",
-      "sha256": "650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670"
+      "sha256": "0896ea4becddd7ecd4adb97c65b7e95ca8cfcde20362d286bfaa9ce5b7a7f186"
     },
     {
       "skillId": "git-smart-commit",
@@ -2485,7 +2429,7 @@
       "sourcePath": "skills/git-smart-commit/scripts/collect-changes.js",
       "destination": "skills/git-smart-commit/scripts/collect-changes.js",
       "kind": "entry",
-      "sha256": "c21b93202c15f0a718e46e39613906a56376a310f4992864c3155b5ae6ee12be"
+      "sha256": "16e2a76e613763be51297886d3ffbc1e091be96d68466d776c08b2a38d92e2ff"
     },
     {
       "skillId": "git-worktree",
@@ -2685,7 +2629,7 @@
       "sourcePath": "skills/library-author/references/polyfill-audit.md",
       "destination": "skills/library-author/references/polyfill-audit.md",
       "kind": "entry",
-      "sha256": "31890722d572a06270b4caca5d89fb4c27f3ff399cc892bea67b1b8ec5c78b6b"
+      "sha256": "2d661a7c2feaafbc157aae7daa6e010bd06e244aba63c0b2f018458727fe5e7e"
     },
     {
       "skillId": "library-author",
@@ -2898,42 +2842,42 @@
     {
       "skillId": "issue-analyze",
       "ownerId": "proposal-analyze",
-      "sourcePath": "skills/dhpk-issue-analyze/SKILL.md",
-      "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/SKILL.md",
+      "sourcePath": "skills/issue-analyze/SKILL.md",
+      "destination": "skills/proposal-analyze/references/issue-analyze/SKILL.md",
       "kind": "branch",
-      "sha256": "c13a3e78845e3b814f423ce3cff7e4418b2dc06414073183b89354e4a44fd054"
+      "sha256": "36bbcee29bd4efd2d52e833226d4d6326c78ef9187333f16498bcf72b8a36087"
     },
     {
       "skillId": "issue-analyze",
       "ownerId": "proposal-analyze",
-      "sourcePath": "skills/dhpk-issue-analyze/agents/openai.yaml",
-      "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/agents/openai.yaml",
+      "sourcePath": "skills/issue-analyze/agents/openai.yaml",
+      "destination": "skills/proposal-analyze/references/issue-analyze/agents/openai.yaml",
       "kind": "branch",
-      "sha256": "55364746aa63e451892130aef4a1a8c3b2bb44ffcd8b9d200b8e0e55d069e015"
+      "sha256": "fc5badeb8a78cc6d1db3a88bfdfdcc4aacccb0fbb0acb4fce1b2a0c341c1286a"
     },
     {
       "skillId": "issue-analyze",
       "ownerId": "proposal-analyze",
-      "sourcePath": "skills/dhpk-issue-analyze/distribution.yaml",
-      "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/distribution.yaml",
+      "sourcePath": "skills/issue-analyze/distribution.yaml",
+      "destination": "skills/proposal-analyze/references/issue-analyze/distribution.yaml",
       "kind": "branch",
       "sha256": "7f65eaddfec4e8a59c59dc7153cd5fae1c281ef3ff1fefaac8ad4a6cbcc9f017"
     },
     {
       "skillId": "issue-analyze",
       "ownerId": "proposal-analyze",
-      "sourcePath": "skills/dhpk-issue-analyze/references/classification.md",
-      "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/references/classification.md",
+      "sourcePath": "skills/issue-analyze/references/classification.md",
+      "destination": "skills/proposal-analyze/references/issue-analyze/references/classification.md",
       "kind": "branch",
-      "sha256": "4ddb7d11fa4d17fda0301b4deefe7372a804934c991ac7b2b0b9007352468813"
+      "sha256": "0ffad8eda76c9a3ea1a5b6ee9573b97634a8293441abc69578e77b28f27c02da"
     },
     {
       "skillId": "issue-analyze",
       "ownerId": "proposal-analyze",
-      "sourcePath": "skills/dhpk-issue-analyze/references/report-template.md",
-      "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/references/report-template.md",
+      "sourcePath": "skills/issue-analyze/references/report-template.md",
+      "destination": "skills/proposal-analyze/references/issue-analyze/references/report-template.md",
       "kind": "branch",
-      "sha256": "d8f9e8b2f1ab442c961febd3effc57df688ae4d9705a6d2eb5e9dab6950ab6a1"
+      "sha256": "08f3a2dfe90b6182e15b6496528b3979d2327ddc98c18c3330ec7647562777f5"
     },
     {
       "skillId": "software-architecture",
@@ -3018,234 +2962,234 @@
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/SKILL.md",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/SKILL.md",
+      "sourcePath": "skills/deploy-list/SKILL.md",
+      "destination": "skills/release-creator/references/deploy-list/SKILL.md",
       "kind": "branch",
-      "sha256": "da7dbeb50074488a4e16d151f7aa8ce0a5ccd4cd5c8f2ea62c00e059494168df"
+      "sha256": "3cd9190b260c240f7af42cf731174a37d9f4699f8849ec36f8420aa202e00cd4"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/agents/openai.yaml",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/agents/openai.yaml",
+      "sourcePath": "skills/deploy-list/agents/openai.yaml",
+      "destination": "skills/release-creator/references/deploy-list/agents/openai.yaml",
       "kind": "branch",
-      "sha256": "33af0bee433b56d596dcc0b28d6419c4c1af468d85b62559827210bc47abbe8b"
+      "sha256": "985c3855eb83f0af2885d8e6854d6aee9267c09ff998944ceeff09998089b3d5"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/config.sh.example",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/config.sh.example",
+      "sourcePath": "skills/deploy-list/config.sh.example",
+      "destination": "skills/release-creator/references/deploy-list/config.sh.example",
       "kind": "branch",
       "sha256": "61eb1885feca5c72c1bef71542f5891a7545bec1c5b939dc8d0a03ed44f37062"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/distribution.yaml",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/distribution.yaml",
+      "sourcePath": "skills/deploy-list/distribution.yaml",
+      "destination": "skills/release-creator/references/deploy-list/distribution.yaml",
       "kind": "branch",
       "sha256": "9422a32eb08b994ac8154c47611dca606631d76007febf2cb5a1da4887224245"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/evals.json",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/evals.json",
+      "sourcePath": "skills/deploy-list/evals/evals.json",
+      "destination": "skills/release-creator/references/deploy-list/evals/evals.json",
       "kind": "branch",
       "sha256": "a144282a0965796df8963ab27d9519c56cf064adada633bfb122d52c3a1d5ef6"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
+      "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt",
       "kind": "branch",
       "sha256": "ef7b09987100136cc340a0f19090a8ed02065af3c3ea6ae0fd2254b855f38454"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
+      "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt",
       "kind": "branch",
       "sha256": "0ad5ffa6dc61c0d9abb54b0971170eb201849d39ab7a40f2ab7db4f5a20deb23"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
+      "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-03-node.txt",
       "kind": "branch",
       "sha256": "133f5964271171cc1184b66a350ced933f7eecf7a3b5e5da655e4f2d67c870ac"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
+      "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-04-python.txt",
       "kind": "branch",
       "sha256": "d96d1a10edf8fabd2342bfd8c33875a2d135fa2baf970c2ec1f63cdd53d560c2"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
+      "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-05-generic.txt",
       "kind": "branch",
       "sha256": "49ef705417cb9a917d248c75e3b6ba1dc8243290eff5fdf5c8b8c17505acb1f0"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
+      "sourcePath": "skills/deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt",
       "kind": "branch",
       "sha256": "41348ec6ca493194440099846d2feadcf770eb574acf375a2915fbb878add5ba"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
+      "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh",
       "kind": "branch",
       "sha256": "eed61532358ce5606d09418240c646d0fe9f34af40610f2eacfed98ba17dc0ef"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
+      "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-02-laravel.sh",
       "kind": "branch",
       "sha256": "1b782942b577584520db28495f106f50b650aeef0f3f65e0128b32575fc63d1a"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-03-node.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-03-node.sh",
+      "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-03-node.sh",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-03-node.sh",
       "kind": "branch",
       "sha256": "6b55ba1a6e26601ef5bb425d2f4e1d572c18ed8753a35f0460b756f21771cc57"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-04-python.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-04-python.sh",
+      "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-04-python.sh",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-04-python.sh",
       "kind": "branch",
       "sha256": "610be7931d52e76ed2deeb92529c48820e3e9b0f667a2ae34710f2d997534bb8"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
+      "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-05-generic.sh",
       "kind": "branch",
       "sha256": "0dda0cc26fab750554d17a4e7e10dbb7da069aafe9d8596557417d78acb5c439"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
+      "sourcePath": "skills/deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
+      "destination": "skills/release-creator/references/deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh",
       "kind": "branch",
       "sha256": "7c9df88de808cc5658d44346ce9c5e3043588908e75b2c7a43ec9e3cd7e3be1b"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/i18n/en.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/i18n/en.sh",
+      "sourcePath": "skills/deploy-list/i18n/en.sh",
+      "destination": "skills/release-creator/references/deploy-list/i18n/en.sh",
       "kind": "branch",
       "sha256": "30a9e0f83625ed9a866b4ed05767927a9333701223b0487b344fa84e4f585601"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/i18n/zh-TW.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/i18n/zh-TW.sh",
+      "sourcePath": "skills/deploy-list/i18n/zh-TW.sh",
+      "destination": "skills/release-creator/references/deploy-list/i18n/zh-TW.sh",
       "kind": "branch",
       "sha256": "e2e36af8849a51243bd3801372c0c0ecfb7ccfae3e527f9462b8b0a0e940a6e6"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/presets/generic.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/presets/generic.sh",
+      "sourcePath": "skills/deploy-list/presets/generic.sh",
+      "destination": "skills/release-creator/references/deploy-list/presets/generic.sh",
       "kind": "branch",
       "sha256": "1cbe7fa428f93b190b2b5b9a28fca629b9dd7b9c23ad95d637ce2cf5dd56e623"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/presets/laravel.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/presets/laravel.sh",
+      "sourcePath": "skills/deploy-list/presets/laravel.sh",
+      "destination": "skills/release-creator/references/deploy-list/presets/laravel.sh",
       "kind": "branch",
       "sha256": "e73db64a78c1d4142486cfd44558793d08d47a6297072de710e6e551cd6fa10c"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/presets/node.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/presets/node.sh",
+      "sourcePath": "skills/deploy-list/presets/node.sh",
+      "destination": "skills/release-creator/references/deploy-list/presets/node.sh",
       "kind": "branch",
       "sha256": "c1e822a2fa497bb2893f9fbd339b8bcc0d418b372cdedc443b7773ca083c74d1"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/presets/php-yii.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/presets/php-yii.sh",
+      "sourcePath": "skills/deploy-list/presets/php-yii.sh",
+      "destination": "skills/release-creator/references/deploy-list/presets/php-yii.sh",
       "kind": "branch",
       "sha256": "f695b91a43ff7b81465ba423a1824fc48c1369d4028ceda7fc9e88fdfbb27223"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/presets/python.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/presets/python.sh",
+      "sourcePath": "skills/deploy-list/presets/python.sh",
+      "destination": "skills/release-creator/references/deploy-list/presets/python.sh",
       "kind": "branch",
       "sha256": "a3b613a2b80fa46e326a46ee4973016a8df69b901a4a945d9532109629ee264d"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
+      "sourcePath": "skills/deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
+      "destination": "skills/release-creator/references/deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
       "kind": "branch",
       "sha256": "7acba82df5ff4c932202c54bdb42cf087a2cd20a37d8850c88e3938efa04a19c"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/references/presets.md",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/references/presets.md",
+      "sourcePath": "skills/deploy-list/references/presets.md",
+      "destination": "skills/release-creator/references/deploy-list/references/presets.md",
       "kind": "branch",
       "sha256": "ffd726ceaad1e47774147a6b330df387cfab5b18711f4eee4b3847ab4280e3b1"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/references/why-this-grouping.md",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/references/why-this-grouping.md",
+      "sourcePath": "skills/deploy-list/references/why-this-grouping.md",
+      "destination": "skills/release-creator/references/deploy-list/references/why-this-grouping.md",
       "kind": "branch",
       "sha256": "85dda4a2bf3dc26fbe126a1f2dae4883d8ae8b1e2bec4a65a79f006a420d1a0f"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/scripts/check-golden.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/scripts/check-golden.sh",
+      "sourcePath": "skills/deploy-list/scripts/check-golden.sh",
+      "destination": "skills/release-creator/references/deploy-list/scripts/check-golden.sh",
       "kind": "branch",
       "sha256": "90e99a3858f613411697e928744daf99fd205f9a46597bdf3c268b67b10d58a0"
     },
     {
       "skillId": "deploy-list",
       "ownerId": "release-creator",
-      "sourcePath": "skills/dhpk-deploy-list/scripts/deploy-list.sh",
-      "destination": "skills/release-creator/references/dhpk-deploy-list/scripts/deploy-list.sh",
+      "sourcePath": "skills/deploy-list/scripts/deploy-list.sh",
+      "destination": "skills/release-creator/references/deploy-list/scripts/deploy-list.sh",
       "kind": "branch",
-      "sha256": "150a6016f4e7aaddf6abe18387b4c3f2a5dc482b30e28eb0f6fb32fa39d3c2a7"
+      "sha256": "30b52c364a3e9c0e4bbc61fd89f185b1240969990cb9382de7b69fb7e3320f95"
     },
     {
       "skillId": "release-creator",
@@ -3290,80 +3234,80 @@
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/SKILL.md",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/SKILL.md",
+      "sourcePath": "skills/feature-verify/SKILL.md",
+      "destination": "skills/repo-verify/references/feature-verify/SKILL.md",
       "kind": "branch",
-      "sha256": "7baffc827bbcf8555e277f38e7c3a118f1142b63364caa7b1197ca612f4a0e79"
+      "sha256": "f53c5a48c2508837641a56dc1e15068cadce3f3a1aa246460ebf29accbe39b09"
     },
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/agents/openai.yaml",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/agents/openai.yaml",
+      "sourcePath": "skills/feature-verify/agents/openai.yaml",
+      "destination": "skills/repo-verify/references/feature-verify/agents/openai.yaml",
       "kind": "branch",
-      "sha256": "23c26ded36bd12364cdd714539b15ebcdaf5b4ff0c63855fce91ab405f966289"
+      "sha256": "47b4b2709e84b9b8c971be39ef5686156fd4247ffc5937a863aebfb1a650874e"
     },
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/distribution.yaml",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/distribution.yaml",
+      "sourcePath": "skills/feature-verify/distribution.yaml",
+      "destination": "skills/repo-verify/references/feature-verify/distribution.yaml",
       "kind": "branch",
       "sha256": "9c446b38fc8d035f7771af60cd7471b6c6291bd5190f3d3ca086c2b6405587fb"
     },
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/references/blackbox-testing.md",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/references/blackbox-testing.md",
+      "sourcePath": "skills/feature-verify/references/blackbox-testing.md",
+      "destination": "skills/repo-verify/references/feature-verify/references/blackbox-testing.md",
       "kind": "branch",
-      "sha256": "4ac17957f39e65996f348a4a6f7daf178b6904a782c1584a8d85dcccd07c62c6"
+      "sha256": "316658507fdacd6f21880b1b63be4dbc86faf531eb8a654e778c7a8feb2f84e2"
     },
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/references/environments.md",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/references/environments.md",
+      "sourcePath": "skills/feature-verify/references/environments.md",
+      "destination": "skills/repo-verify/references/feature-verify/references/environments.md",
       "kind": "branch",
       "sha256": "b257d98e60e44a1200b425a9ee39e6e9d8ab7785924cc1e2e75a54e90d54741e"
     },
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/references/output-template.md",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/references/output-template.md",
+      "sourcePath": "skills/feature-verify/references/output-template.md",
+      "destination": "skills/repo-verify/references/feature-verify/references/output-template.md",
       "kind": "branch",
-      "sha256": "65ec2ec6e88e05424907c4c6641cd6d4bf263790721def96596ad7f19ccb953a"
+      "sha256": "3ab137c495458a66fc1da806f5afae034e1a8781d29035a1156f44f164f8387f"
     },
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/references/safety-rules.md",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/references/safety-rules.md",
+      "sourcePath": "skills/feature-verify/references/safety-rules.md",
+      "destination": "skills/repo-verify/references/feature-verify/references/safety-rules.md",
       "kind": "branch",
-      "sha256": "4e4ab54c8ac54637026493391ba853880ed3c6bea2f41674b247e5e554b47a33"
+      "sha256": "9d2cbce68cf434b07a76372705ca9f181333eb24d46b06bc0ae3e8d198abc015"
     },
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/references/verification-playbook.md",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/references/verification-playbook.md",
+      "sourcePath": "skills/feature-verify/references/verification-playbook.md",
+      "destination": "skills/repo-verify/references/feature-verify/references/verification-playbook.md",
       "kind": "branch",
-      "sha256": "cdd80d4b609600ed102663150defc07b149ef16d3c452dc74f0dbf04c3724bea"
+      "sha256": "ae4321998cf6ee5f2fa91d3e39b4e86fd49f2c706311d62cd59ab90647abed4b"
     },
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/scripts/api-exec.sh",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/scripts/api-exec.sh",
+      "sourcePath": "skills/feature-verify/scripts/api-exec.sh",
+      "destination": "skills/repo-verify/references/feature-verify/scripts/api-exec.sh",
       "kind": "branch",
       "sha256": "25c52b83e881dc7c3a01a484e37db7573c4c4fccc088289a0cf5be79283bfe69"
     },
     {
       "skillId": "feature-verify",
       "ownerId": "repo-verify",
-      "sourcePath": "skills/dhpk-feature-verify/scripts/health-probe.sh",
-      "destination": "skills/repo-verify/references/dhpk-feature-verify/scripts/health-probe.sh",
+      "sourcePath": "skills/feature-verify/scripts/health-probe.sh",
+      "destination": "skills/repo-verify/references/feature-verify/scripts/health-probe.sh",
       "kind": "branch",
       "sha256": "91570a9bd43e90659b8eef0e43dc1bbe99cbfb0a82f4f40226619712e579cf27"
     },
@@ -3397,7 +3341,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "1876c34745dce242c5209dded28c9651ed46542c416373c31c332447a18fbb2d"
+      "sha256": "ae9d9e73dda8dfec25415491f7080d381d1acc73884c3eb337c1ec2e0e0b4fc5"
     },
     {
       "skillId": "tdd",
@@ -3418,34 +3362,42 @@
     {
       "skillId": "legacy-code-characterization",
       "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-legacy-characterization-tests/SKILL.md",
-      "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/SKILL.md",
+      "sourcePath": "skills/legacy-characterization-tests/SKILL.md",
+      "destination": "skills/tdd-workflow/references/legacy-characterization-tests/SKILL.md",
       "kind": "branch",
-      "sha256": "c408b77413f2f3707188b3d3590a6df5bb7e62eecbb052737fe6d57aea3a38cc"
+      "sha256": "c742db094acc1e0c5809218714c23b28de47d47d6cfff36cf065a4ed55e3f6d7"
     },
     {
       "skillId": "legacy-code-characterization",
       "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-legacy-characterization-tests/agents/openai.yaml",
-      "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/agents/openai.yaml",
+      "sourcePath": "skills/legacy-characterization-tests/agents/openai.yaml",
+      "destination": "skills/tdd-workflow/references/legacy-characterization-tests/agents/openai.yaml",
       "kind": "branch",
-      "sha256": "0ba9446f53da6069240b50a62a95dd5d16c1d9d56929d718800b2509f89e6032"
+      "sha256": "0d5c5d2d733bf25bad06031a1263e9c756cb8d3a27e3e0ee6c76da475e9276f1"
     },
     {
       "skillId": "legacy-code-characterization",
       "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-legacy-characterization-tests/distribution.yaml",
-      "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/distribution.yaml",
+      "sourcePath": "skills/legacy-characterization-tests/distribution.yaml",
+      "destination": "skills/tdd-workflow/references/legacy-characterization-tests/distribution.yaml",
       "kind": "branch",
-      "sha256": "500aff1d33cb7388744bc33cb45818916fd5db757ebc05c2722dd7d611eb297b"
+      "sha256": "667adedf983a90d7b1fab7416cedbbb1becec4ffd2ca23934725551a5aff01d4"
     },
     {
       "skillId": "legacy-code-characterization",
       "ownerId": "tdd",
-      "sourcePath": "skills/dhpk-legacy-characterization-tests/evals/evals.json",
-      "destination": "skills/tdd-workflow/references/dhpk-legacy-characterization-tests/evals/evals.json",
+      "sourcePath": "skills/legacy-characterization-tests/evals/evals.json",
+      "destination": "skills/tdd-workflow/references/legacy-characterization-tests/evals/evals.json",
       "kind": "branch",
       "sha256": "f2d11cedda8cd7dbd2f3ca084de768139819fb62b0ea8d59d3940b0ee3eb4777"
+    },
+    {
+      "skillId": "legacy-code-characterization",
+      "ownerId": "tdd",
+      "sourcePath": "skills/legacy-characterization-tests/references/php-yii-examples.md",
+      "destination": "skills/tdd-workflow/references/legacy-characterization-tests/references/php-yii-examples.md",
+      "kind": "branch",
+      "sha256": "5ea0340f2b532c6a5bd0398a248fb6cb01511926dffc19261e9641951be9ad8e"
     },
     {
       "skillId": "tdd",
