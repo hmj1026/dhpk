@@ -784,9 +784,10 @@ test('malformed shard timing JSON is rejected', () => {
         .join('\n');
 
       for (const jobs of [1, 2]) {
+        // Allow for Node startup on slower hosts while the hanging fixture still times out.
         const baseline = spawnSync(process.execPath, args, {
           cwd: fixture.root,
-          env: isolatedRunnerEnv({ DHPK_TEST_JOBS: String(jobs), DHPK_TEST_TIMEOUT_MS: '100' }),
+          env: isolatedRunnerEnv({ DHPK_TEST_JOBS: String(jobs), DHPK_TEST_TIMEOUT_MS: '2000' }),
           encoding: 'utf8',
           timeout: 30000,
         });
@@ -794,7 +795,7 @@ test('malformed shard timing JSON is rejected', () => {
           cwd: fixture.root,
           env: isolatedRunnerEnv({
             DHPK_TEST_JOBS: String(jobs),
-            DHPK_TEST_TIMEOUT_MS: '100',
+            DHPK_TEST_TIMEOUT_MS: '2000',
             DHPK_TEST_PROGRESS: '1',
           }),
           encoding: 'utf8',
