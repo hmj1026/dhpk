@@ -31,7 +31,7 @@ configuration work without testable runtime behavior need no TDD loop.
 
 Read [tests.md](references/tests.md) when choosing assertions and [mocking.md](references/mocking.md)
 when introducing test doubles. Use the repository's existing test framework,
-runner, and nearby conventions. Read `CONTEXT.md` and relevant ADRs when present
+runner, and nearby conventions. Read `GLOSSARY.md` and relevant ADRs when present
 before choosing domain vocabulary or a new seam.
 
 ## Establish the seam and evidence
