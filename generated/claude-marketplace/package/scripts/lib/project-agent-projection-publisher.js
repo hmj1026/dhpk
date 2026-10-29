@@ -772,11 +772,11 @@ function buildArtifactInputs({
     }
   }
   const preservedHosts = new Set(Object.keys(preserveHostBindings || {}));
-  if (!preservedHosts.has('claude')) {
-    ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
-      hostId: 'claude',
-    }));
-  }
+  // 舊 receipt 的 Claude discovery 仍指向 portable root；保留選取集合，
+  // 但依目前 schema 重建 discovery，避免升級後留下無法驗證的舊連結。
+  ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
+    hostId: 'claude',
+  }));
   if (!preservedHosts.has('cursor')) {
     ({ hostBindings, bindingPaths } = stampDiscoveryHost(hostBindings, bindingPaths, providers, {
       hostId: 'cursor',
