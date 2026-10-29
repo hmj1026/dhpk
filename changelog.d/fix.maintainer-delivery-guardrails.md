@@ -1,1 +1,2 @@
-Add repository maintainer tools for complete issue snapshots, recoverable verification ownership, and pinned-head delivery checks before authorized merges. Document final PR metadata publication and bounded context loading.
+scope: cli
+note: Add complete issue snapshots, recoverable verification ownership, and pinned-head checks before authorized merges, with final PR metadata and bounded context guidance.
