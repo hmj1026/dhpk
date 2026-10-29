@@ -76,6 +76,11 @@ Delivery identity (optional; include only when applicable):
 Next action:
 ```
 
+For dhpk maintainer runs, store record paths in the ledger and use
+`verification-run.js overview --ledger <absolute-file>` from the maintainer
+guide to derive verification state. Keep the manual status fields above for
+projects without that runner; they are not a second maintainer status store.
+
 On resume, verify the current branch, HEAD, dirty state, and command
 session/process identity against the record. If the session cannot be
 identified, leave its status `unknown` and do not rerun that command

@@ -40,7 +40,7 @@
     "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md": {
       "skill_id": "flow-guide",
       "source": "docs/subagent-prompt-template.md",
-      "sha256": "sha256:376f3e817418686af9e02be559b7098ba4ba57ec61a72fba147f13d7653b22e0",
+      "sha256": "sha256:2b9a5e92d83946b32d01a0dc9c121d2479a2a2fa827c5a188b041bfdbabe104b",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/manifests/host-profiles.json": {

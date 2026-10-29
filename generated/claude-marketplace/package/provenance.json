@@ -341,7 +341,7 @@
       "sourcePath": "docs/subagent-prompt-template.md",
       "destination": "skills/code-trace/references/_dependencies/docs/subagent-prompt-template.md",
       "kind": "dependency",
-      "sha256": "376f3e817418686af9e02be559b7098ba4ba57ec61a72fba147f13d7653b22e0"
+      "sha256": "2b9a5e92d83946b32d01a0dc9c121d2479a2a2fa827c5a188b041bfdbabe104b"
     },
     {
       "skillId": "code-trace",
@@ -1829,7 +1829,7 @@
       "sourcePath": "docs/subagent-prompt-template.md",
       "destination": "skills/flow-guide/references/_dependencies/docs/subagent-prompt-template.md",
       "kind": "dependency",
-      "sha256": "376f3e817418686af9e02be559b7098ba4ba57ec61a72fba147f13d7653b22e0"
+      "sha256": "2b9a5e92d83946b32d01a0dc9c121d2479a2a2fa827c5a188b041bfdbabe104b"
     },
     {
       "skillId": "flow-guide",
@@ -1933,7 +1933,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
       "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
       "kind": "entry",
-      "sha256": "376f3e817418686af9e02be559b7098ba4ba57ec61a72fba147f13d7653b22e0"
+      "sha256": "2b9a5e92d83946b32d01a0dc9c121d2479a2a2fa827c5a188b041bfdbabe104b"
     },
     {
       "skillId": "flow-guide",
@@ -2453,7 +2453,7 @@
       "sourcePath": "docs/subagent-prompt-template.md",
       "destination": "skills/git-smart-commit/references/_dependencies/docs/subagent-prompt-template.md",
       "kind": "dependency",
-      "sha256": "376f3e817418686af9e02be559b7098ba4ba57ec61a72fba147f13d7653b22e0"
+      "sha256": "2b9a5e92d83946b32d01a0dc9c121d2479a2a2fa827c5a188b041bfdbabe104b"
     },
     {
       "skillId": "git-smart-commit",
