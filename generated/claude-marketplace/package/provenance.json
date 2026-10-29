@@ -3341,7 +3341,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "5ffadb4f95f73f287dc4dd06ae6339a0d176dec85f5b957813eb228e2311f30b"
+      "sha256": "1e7f70f56b33430baa125c219bd1556b32ae460642b5359f60b8d616fa93de07"
     },
     {
       "skillId": "tdd",
@@ -3477,7 +3477,7 @@
       "sourcePath": "skills/tdd-workflow/references/tests.md",
       "destination": "skills/tdd-workflow/references/tests.md",
       "kind": "entry",
-      "sha256": "bd8c7daa182811b57309ecd15b41078b1657b71f1775bc81c7829c690a114d61"
+      "sha256": "6292c815cc7c6ef8e2992d6be5e8f3752e65bcbf21e166cde5a467b5f1a59749"
     },
     {
       "skillId": "ui-ux-verify",
