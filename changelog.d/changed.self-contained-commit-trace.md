@@ -1,1 +1,0 @@
-`git-smart-commit` and `code-trace` now keep required safety and tool-routing guidance inside their own directories, without injected policy dependencies. Commit messages follow the consumer project's conventions first.

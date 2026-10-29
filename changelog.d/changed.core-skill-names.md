@@ -1,1 +1,0 @@
-Rename five core skills to unprefixed public names, preserve stable identities, and record alias-free upgrade mappings with rollback to 0.67.0. Make independent runtime and issue-analysis opinions optional under the current Host and Model.

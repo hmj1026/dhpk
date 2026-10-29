@@ -1,1 +1,0 @@
-Rename the remaining three optional module skills to unprefixed public names, preserving stable identities and publication boundaries. Record alias-free migration with rollback release 0.67.0, and keep OpenSpec guard rules and legacy characterization examples inside their skill directories.
