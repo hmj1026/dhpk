@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.67.0",
-  "sourceCommit": "ddbec7387eb1098d8f6a0dc2cf2c4d8c89378438",
-  "generatedFromCommit": "ddbec7387eb1098d8f6a0dc2cf2c4d8c89378438",
-  "generatedFromTree": "5161baaeddb824749ea7ce4ca6317ea71d877d8a",
+  "sourceCommit": "ea2d268c88730f1a53ba5f3bad7bc5eeb64729ee",
+  "generatedFromCommit": "ea2d268c88730f1a53ba5f3bad7bc5eeb64729ee",
+  "generatedFromTree": "d3aed58e6ac6c0a4b1d8da4e6159c2a44b455080",
   "inventoryDigest": "c6d9adb47d04f7cef4c1002909957d0e8cdcbd2714ff19dfca4b744afbe0eae5",
   "inventoryRevision": "sha256:43fd81d6878d6cc01975d648ef638c72573711ffd7e2269205b5880700722eb7",
   "generatorVersion": "2.3.0",
@@ -389,7 +389,7 @@
         "ownerId": "code-trace",
         "source": "docs/subagent-prompt-template.md",
         "destination": "skills/code-trace/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "005960a2b65c11b85e1f3de5c712a924ff4c32be"
       },
       {
         "ownerId": "code-trace",
@@ -1505,7 +1505,7 @@
         "ownerId": "flow-guide",
         "source": "docs/subagent-prompt-template.md",
         "destination": "skills/flow-guide/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "005960a2b65c11b85e1f3de5c712a924ff4c32be"
       },
       {
         "ownerId": "flow-guide",
@@ -1583,7 +1583,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
         "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "005960a2b65c11b85e1f3de5c712a924ff4c32be"
       },
       {
         "ownerId": "flow-guide",
@@ -1973,7 +1973,7 @@
         "ownerId": "git-smart-commit",
         "source": "docs/subagent-prompt-template.md",
         "destination": "skills/git-smart-commit/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "005960a2b65c11b85e1f3de5c712a924ff4c32be"
       },
       {
         "ownerId": "git-smart-commit",
@@ -5747,12 +5747,12 @@
   },
   "fingerprints": {
     "change-verdict": "6a330f785a52edaa120dc5372ac798c0319f5c16280b3b61c7c750c3285a4524",
-    "code-trace": "c009c36594f587aecbc1e72c34b30f18e0d2d0008b1e6f2fb853b5935c1356b6",
+    "code-trace": "ce18138010507ec987435437c9dba4ed1e7f9aa0dc0586cc24b301a6ece100c2",
     "create-pr": "df24afa37cc7c399f6165a2e2de3f9194cb62dc08fa846572c48c7611e641983",
     "doc-maintain": "3cb1171aef79455048d92ecf6e657978c3753ea5e072f1330f7079e15796f571",
     "flow-drive": "911acd28b74231de10e714682491470a403785976c5269398d339c2edcd3189a",
-    "flow-guide": "c07ae0ea22803e283ed1e74980dda0ec57fb36d34b03cde452cb7d6f0dbb7cce",
-    "git-smart-commit": "a57d5b26dbd3c45ce861737bb35d536c6e072055e061547827a64ca8bb7ff7c1",
+    "flow-guide": "4efc39eff93e060fce117a38cfa19daea5c81218f6ed2171cb8d14344a07d5e8",
+    "git-smart-commit": "4cbeb64f9c0fa9b76d00c50d5bd85313b137d2fa493c93e1544aaf43a821720d",
     "git-worktree": "1d13ed5f23a0c686666a0f6ea0859e42e113d6d589a01ca3ee2580d11678bd0c",
     "library-author": "73e758dd74efed044822b4e2fe749d819eacb50b0a166d45dd12dba38ae60cd0",
     "opsx-apply-resume": "0d039e05ba452c2a175adb00e74995f916432870bbd6bbc209afb8dffa30ceab",

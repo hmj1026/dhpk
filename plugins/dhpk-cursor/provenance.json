@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.67.0",
-  "sourceCommit": "ddbec7387eb1098d8f6a0dc2cf2c4d8c89378438",
-  "generatedFromCommit": "ddbec7387eb1098d8f6a0dc2cf2c4d8c89378438",
-  "generatedFromTree": "5161baaeddb824749ea7ce4ca6317ea71d877d8a",
+  "sourceCommit": "ea2d268c88730f1a53ba5f3bad7bc5eeb64729ee",
+  "generatedFromCommit": "ea2d268c88730f1a53ba5f3bad7bc5eeb64729ee",
+  "generatedFromTree": "d3aed58e6ac6c0a4b1d8da4e6159c2a44b455080",
   "inventoryDigest": "c6d9adb47d04f7cef4c1002909957d0e8cdcbd2714ff19dfca4b744afbe0eae5",
   "inventoryRevision": "sha256:43fd81d6878d6cc01975d648ef638c72573711ffd7e2269205b5880700722eb7",
   "generatorVersion": "1.0.0",
@@ -315,7 +315,7 @@
         "ownerId": "code-trace",
         "source": "docs/subagent-prompt-template.md",
         "destination": "skills/code-trace/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "005960a2b65c11b85e1f3de5c712a924ff4c32be"
       },
       {
         "ownerId": "code-trace",
@@ -1431,7 +1431,7 @@
         "ownerId": "flow-guide",
         "source": "docs/subagent-prompt-template.md",
         "destination": "skills/flow-guide/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "005960a2b65c11b85e1f3de5c712a924ff4c32be"
       },
       {
         "ownerId": "flow-guide",
@@ -1509,7 +1509,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
         "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "005960a2b65c11b85e1f3de5c712a924ff4c32be"
       },
       {
         "ownerId": "flow-guide",
@@ -1899,7 +1899,7 @@
         "ownerId": "git-smart-commit",
         "source": "docs/subagent-prompt-template.md",
         "destination": "skills/git-smart-commit/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be15e1324c58ba1c8dedab9c963e737187ddf27c"
+        "originalGitBlobDigest": "005960a2b65c11b85e1f3de5c712a924ff4c32be"
       },
       {
         "ownerId": "git-smart-commit",
@@ -5683,7 +5683,7 @@
     }
   ],
   "fingerprints": {
-    "rules": "be20583d9f57c6cbb9b43381d725fa389798525a8bcabd5df2bb9ef5067a6cdf",
+    "rules": "7bc20b001f6bc0a8fd81fa7874b307cb1842e0e41fb496aab2e7caf224a0199f",
     "agents": "93aa5176fd062606caf783163bf2e1cec74e2778f24c628cfa185f70a3851b95",
     "commands": "f649a36d828b081d0c1fdb43f0df90dbf1aae8c43af34d0fc966cc28d8785ba1",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a",
@@ -6753,5 +6753,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "5ef0689eef11c77dc8897519223e529137ca02193145694580c89508478a0e25",
   "surfaceSelectionFingerprint": "5353a4f8544319424f3e7e56900b6d9b5484671cd590715ac4bf07d41442c0cc",
-  "planFingerprint": "9adfd191a4c25d6e9a8a178bb3ee5432eca8fbbbd6a7c9c4299cdab9189bc888"
+  "planFingerprint": "2f6b45cab4fd92bc50dc4aedaa456a2acbf70b22c0dee59c144992c89f28abd0"
 }

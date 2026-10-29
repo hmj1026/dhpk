@@ -38,6 +38,9 @@ Output contract:
 
 ## Recoverable run checkpoint
 
+For dhpk maintainer delivery with an exclusive, recoverable verification run,
+use the [maintainer delivery guide](https://github.com/hmj1026/dhpk/blob/develop/docs/agent-guidance/maintainer-delivery.md#verification-run).
+
 For a long verification, update one run-specific record under the ignored
 `docs/evidence/` directory when the command starts, when its status changes,
 after a source commit, and after PR creation. Keep the same record for the
