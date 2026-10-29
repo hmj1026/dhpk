@@ -34,6 +34,7 @@ const {
   validateSkillRetirements,
   resolveSkillIdentity,
   formatSkillIdentityDiagnostic,
+  validateRenamedSkillNames,
 } = require('../scripts/lib/distribution-inventory');
 const {
   INTERNAL_RUNTIME_SURFACES,
@@ -1091,6 +1092,36 @@ test('collection policy rejects an empty or malformed declared collection', () =
   assert.match(validateCapabilityProfilePolicy({ inventory }).errors.join('\n'), /profiles.*non-empty/);
   inventory.profile_policy.profiles = { common: { selection: '' } };
   assert.match(validateCapabilityProfilePolicy({ inventory }).errors.join('\n'), /common.*selection.*non-empty/);
+});
+
+test('final eight public names preserve identity and require the protected rename ledger', () => {
+  const inventory = require('../manifests/distribution-inventory.json');
+  const names = {
+    'deploy-list': 'deploy-list',
+    'feature-verify': 'feature-verify',
+    'issue-analyze': 'issue-analyze',
+    'project-audit': 'project-audit',
+    'repo-intake': 'repo-intake',
+    'openspec-artifact-guard': 'openspec-artifact-guard',
+    'legacy-code-characterization': 'legacy-characterization-tests',
+    'vue-2-notes': 'vue-2-notes',
+  };
+  for (const [id, name] of Object.entries(names)) {
+    const skill = inventory.skills.find(entry => entry.id === id);
+    assert.strictEqual(skill.name, name);
+    assert.strictEqual(skill.path, `skills/${name}`);
+    assert.match(fs.readFileSync(path.join(ROOT, skill.path, 'SKILL.md'), 'utf8'), /dhpk-name-style: portable-skill/);
+    assert.deepStrictEqual(inventory.renamed_skill_names.find(entry => entry.id === id), {
+      id, oldName: `dhpk-${name}`, oldPath: `skills/dhpk-${name}`,
+      newName: name, newPath: `skills/${name}`, rollback: { release: '0.67.0' },
+    });
+    const missing = structuredClone(inventory);
+    missing.renamed_skill_names = missing.renamed_skill_names.filter(entry => entry.id !== id);
+    assert.ok(validateRenamedSkillNames({ inventory: missing }).errors.some(error => error.includes(id)));
+    const wrong = structuredClone(inventory);
+    wrong.renamed_skill_names.find(entry => entry.id === id).rollback.release = '0.66.0';
+    assert.ok(validateRenamedSkillNames({ inventory: wrong }).errors.some(error => error.includes(id)));
+  }
 });
 
 run('distribution-inventory-validate');
