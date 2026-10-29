@@ -385,7 +385,7 @@ owns the requested outcome. The vocabulary and boundary are defined in
     ```text
     /dhpk:flow-drive <task-text|task-file|confirmed-spec-or-change-id>
     ```
-  - **Test-Driven Development (TDD)**: For behavior changes, apply `tdd-workflow` (or an appropriate `tdd-guide` task) through RED → GREEN → REFACTOR. Prose-only work uses semantic review and applicable metadata/reference checks.
+  - **Test-Driven Development (TDD)**: For behavior changes, apply `tdd-workflow` on the current Host and Model through RED → GREEN → REFACTOR. Prose-only work uses semantic review and applicable metadata/reference checks.
 - **Implementation & Dispatch Policy (Co-located Rules)**:
   - **Pre-Implementation Decision State**: Every task must begin with an explicit state label: `CLEAR`, `REASONER_REQUIRED`, `HUMAN_REQUIRED`, or `BLOCKED`. Domain boundary questions consult `architect`; unresolved uncertainty requires a read-only Reasoner before any Writer runs.
   - **OpenSpec Lifecycle**: When the Project Convention or confirmed task adopts OpenSpec, use its external authoring workflow. Resolve applicable task, verification, and review obligations before archiving. A sufficient confirmed specification may proceed directly to implementation; cross-session work alone does not require new artifacts.
