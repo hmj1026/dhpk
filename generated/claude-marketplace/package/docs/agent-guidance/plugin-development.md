@@ -69,6 +69,24 @@ provenance below. Full and release routes retain all applicable platform
 checks. Dispatching reviewers from the execution-policy trigger table is
 recommended.
 
+## Daily skill prose
+
+Use this path when the change is canonical skill or guidance Markdown that
+distribution surfaces copy.
+
+1. Edit the canonical file and a changelog fragment. `cursor/skills` and
+   `codex/skills` are symlinks to `skills/`.
+2. Refresh the marketplace companion in place with `npm run gen:marketplace`,
+   then `npm run check:marketplace`.
+3. Commit that tree. Package generation requires a clean checkout.
+4. Generate the affected surfaces outside the checkout and copy the owned
+   directories back, using the command list in
+   [platform installation](../platform-installation.md). Commit those copies.
+5. Run `node scripts/ci/verify-platform-packages.js` on that clean package
+   commit.
+
+Formal and release-shaped generation stays in the preflight below.
+
 ## CI preflight for generated and release-shaped changes
 
 Daily and change-scoped work follows the authoritative route in

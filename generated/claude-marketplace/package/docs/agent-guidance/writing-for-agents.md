@@ -48,5 +48,8 @@ Follow [testing governance](../testing-governance.md) for the route that
 matches the changed behavior and any affected distribution surface. Review
 Markdown content and links directly; run metadata, invocation, route,
 distribution, or contract validators only when their machine-readable
-contract or surface is affected. Release acceptance remains in the
+contract or surface is affected. Skill and guidance Markdown review belongs
+to `doc-reviewer`, plus a spec check against the originating issue. A
+two-axis code review is for source diffs; its standards axis does not repeat
+the doc review. Release acceptance remains in the
 [plugin development contract](plugin-development.md#release-acceptance).

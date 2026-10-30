@@ -5,6 +5,14 @@ or unfamiliar execution flow. The required impact, change-detection, and
 rename gates live in the GitNexus block of the root `AGENTS.md` / `CLAUDE.md`;
 this page carries only the tool order and the recovery paths.
 
+## Prose edits
+
+Impact applies before a function, class, or method change. Skill, guidance,
+and other prose have no call-graph symbol. Run `detect_changes` before commit.
+A target-not-found impact is not a gate for those files. Refresh the index
+with `node .gitnexus/run.cjs analyze --skip-agents-md` so this repository's
+wording in the root GitNexus block stays in place.
+
 ## Exploration order
 
 1. Prefer `cx overview <file>` for structure and symbols.
