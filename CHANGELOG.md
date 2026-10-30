@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.68.1 — 2026-10-30 — Require clean-copy diffs for diagnose forced mutations, standardize PR visual summaries and merge danger, and refine TDD vocabulary and seam notes
+
+- **docs(code-trace)** — Require a clean-copy git diff before a diagnose forced mutation counts as a valid red reproduction.
+- **docs(create-pr)** — Require a visual summary, a before/after evidence pair, and merge-danger door plus blast radius in generated pull request bodies.
+- **docs(tdd-workflow)** — Point the TDD skill at GLOSSARY.md when it chooses domain vocabulary.
+- **docs(tdd-workflow)** — Require a one-line catches and misses note when proposing a TDD seam.
+
 ## 0.68.0 — 2026-10-29 — Rename core and optional skills to unprefixed names, align native terminal methods, resolve CLI PATH symlinks, recover receipt migrations, and add maintainer delivery guardrails
 
 - **feat(skills)** — Rename five core skills to unprefixed public names while preserving stable identities and alias-free upgrade mappings with rollback to 0.67.0.
