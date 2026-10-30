@@ -317,7 +317,7 @@
       "sourcePath": "skills/code-trace/SKILL.md",
       "destination": "skills/code-trace/SKILL.md",
       "kind": "entry",
-      "sha256": "2b1c507872d75874d2138be9d4b23c6d5c720123e7c06c882a24c0ebfc258f31"
+      "sha256": "c8858bd4d42cce5ea359953de883268e3eab52cb193cf28b1c3daacacfe2530f"
     },
     {
       "skillId": "code-trace",
@@ -381,7 +381,7 @@
       "sourcePath": "skills/code-trace/references/diagnose/reproduction-evidence.md",
       "destination": "skills/code-trace/references/diagnose/reproduction-evidence.md",
       "kind": "entry",
-      "sha256": "e3005f589fa6b18f55389eff89c4e977899e9aaa41e23e9d675c19a43f9304dc"
+      "sha256": "648eda48aa9ff7675f76ef0df6c99ea7f0a44112476d31ce90ef2aa883c96f1c"
     },
     {
       "skillId": "code-trace",
