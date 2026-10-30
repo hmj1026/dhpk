@@ -149,8 +149,13 @@ defect, or an explicitly authorized request.
 For a handoff or closeout, record the plan's base/head/checkout identity,
 classification status and reason, required and skipped jobs, their observed
 results, and remaining gaps. A plan does not itself prove that its required
-checks passed. This daily and change-scoped policy does not retire release or
-publication acceptance; those gates remain in the
+checks passed. When the accepted plan mode is `full` and Hosted CI will run
+the `tests` job, a local `npm test` already recorded on that same head is
+reusable evidence. Do not start a second full suite only because another
+instruction also asks for one. When no local full run exists, Hosted CI is
+the suite evidence. Focused checks that protect the edit still run locally
+before the pull request. This daily and change-scoped policy does not retire
+release or publication acceptance; those gates remain in the
 [plugin development contract](agent-guidance/plugin-development.md#release-acceptance).
 
 ## Darwin installer subset
