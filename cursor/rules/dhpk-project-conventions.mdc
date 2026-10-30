@@ -27,9 +27,13 @@ evidence; a verification verdict alone does not grant Git write authority.
 Before a follow-up push, check the PR's state and base so a merged/deleted
 branch does not receive orphaned work.
 
-PR self-merge is classifier-blocked in this repository. Hand merge to a human;
-do not attempt `gh pr merge --admin` or remote branch deletion from an agent
-session.
+Hand PR merge to a human by default. When the user explicitly authorizes an
+agent to merge, open a ready pull request and use the
+[maintainer delivery gate](https://github.com/hmj1026/dhpk/blob/main/docs/agent-guidance/maintainer-delivery.md#delivery-gate)
+after its required checks pass. The live `develop` ruleset must require
+`Validate harness assets`. The gate merges with `gh pr merge --merge` for that
+exact head. It does not use `--auto`, `--admin`, or remote branch deletion.
+A classifier block on the merge command hands the PR URL to a human.
 
 After syncing this checkout, check a locally installed compatibility projection
 when `.agents/skills/.dhpk-projection.json` exists with `npm run check:local-skills`.
@@ -58,10 +62,11 @@ validation, including four-surface generation when required and `npm run ci`
 on a clean generated-output commit. Reuse evidence under the kernel's snapshot
 rule and report local aggregate, focused checks, and Hosted CI separately.
 
-Open a Draft PR targeting `develop`, monitor that PR's actual CI to a terminal
-conclusion, and retain the human merge checkpoint. Prefer `gh run watch`
-over shell polling. Queued or partial CI and unavailable required consumer
-evidence remain incomplete.
+Open a Draft PR targeting `develop` when the merge stays with a human. When
+the user explicitly authorizes the merge, open a ready PR and follow the
+delivery gate above. Monitor that PR's actual CI to a terminal conclusion.
+Prefer `gh run watch` over shell polling. Queued or partial CI and unavailable
+required consumer evidence remain incomplete.
 
 For squash-merge PRs, include an `Unrelated Changes` section when relevant:
 list unrelated paths, size, reason, and reviewer. The `change-verdict` PR
@@ -72,8 +77,11 @@ mode's unrelated-change checker remains advisory.
 Before substantial handoff, after a large edit, or before smart-commit, use
 `$flow-guide close` to account for changed files, applicable gates, risks, and
 the next action. Daily single-line edits, pure research, and typos do not
-need it. Fix applicable unmet obligations before claiming completion; the
-closeout report does not itself prove merge, release, or deployment.
+need it. `$flow-guide close` returns `manual-evidence-required`. That status
+reminds the session to attach the evidence list. The list is the handoff; the
+runner status is not a gate PASS. Fix applicable unmet obligations before
+claiming completion; the closeout report does not itself prove merge, release,
+or deployment.
 When a CI plan applies, report its base/head/checkout identity, classification
 status and reason, required and skipped checks, observed outcomes, and remaining
 gaps according to testing governance.
@@ -82,4 +90,10 @@ gaps according to testing governance.
 
 This development environment uses zsh. `status` is read-only: use `st` or `rc`
 for captured exit codes. Quote words beginning with `=` to avoid zsh command
-path expansion. Consumer environments choose their own shell conventions.
+path expansion. When the start point is a remote-tracking branch,
+`git checkout -b <name> <start>` records that remote branch as upstream.
+Clear it with `git branch --unset-upstream` before the first push, then push
+with `git push -u origin HEAD:<name>`. When a heredoc `git commit -m` command
+is rejected because the session hook parses the tool payload as shell, write
+the message to a file and commit with `git commit -F <file>`. Consumer
+environments choose their own shell conventions.

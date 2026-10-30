@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.68.2 — 2026-10-30 — Point skill-prose distribution, GitNexus impact, develop merges, and commit-hook fallbacks at the existing guides
+
+- **docs(agent-guidance)** — Point skill-prose distribution, GitNexus impact, develop merges, and commit-hook fallbacks at the existing guides.
+
 ## 0.68.1 — 2026-10-30 — Require clean-copy diffs for diagnose forced mutations, standardize PR visual summaries and merge danger, and refine TDD vocabulary and seam notes
 
 - **docs(code-trace)** — Require a clean-copy git diff before a diagnose forced mutation counts as a valid red reproduction.
