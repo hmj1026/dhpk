@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.68.0",
-  "sourceCommit": "253df4503a15f2a68440dc7f4db10fadb09ed3a5",
-  "generatedFromCommit": "253df4503a15f2a68440dc7f4db10fadb09ed3a5",
-  "generatedFromTree": "897c60174773106c2ede7f3ab67ec7d5ae3a05d5",
+  "sourceCommit": "edc6bbdf1255861a41b15fefbdf92fef6bedcc62",
+  "generatedFromCommit": "edc6bbdf1255861a41b15fefbdf92fef6bedcc62",
+  "generatedFromTree": "69e2010efd142b1846d8cf5f83ad4d18c0d8cb82",
   "inventoryDigest": "affa088e9407bca7394ed44b3fad01227c4503a948fb82e99882f309eb7d8297",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "1.0.0",
@@ -2337,7 +2337,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "a0ffcd34f9e8a9790d13a1df55978fd0871f3ba0"
+        "originalGitBlobDigest": "2c09ecced7ca50931010fe1e12ea6216d7bee844"
       },
       {
         "ownerId": "tdd",
@@ -2439,7 +2439,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/references/tests.md",
         "destination": "skills/tdd-workflow/references/tests.md",
-        "originalGitBlobDigest": "caca5ae7a7d44666e0a762bfa690171d6b58f3d1"
+        "originalGitBlobDigest": "aa5cd8b24ecb8444f971dfcaf5fe5e57d3c9c9e9"
       },
       {
         "ownerId": "ui-ux-verify",
