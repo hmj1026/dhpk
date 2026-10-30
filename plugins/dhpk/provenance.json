@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.68.0",
-  "sourceCommit": "b482faba22762c3a349e0689092c85e02c2e925d",
-  "generatedFromCommit": "b482faba22762c3a349e0689092c85e02c2e925d",
-  "generatedFromTree": "a8cf12b6f73cf614bc9173771796d4c945f7c81e",
+  "sourceCommit": "edc6bbdf1255861a41b15fefbdf92fef6bedcc62",
+  "generatedFromCommit": "edc6bbdf1255861a41b15fefbdf92fef6bedcc62",
+  "generatedFromTree": "69e2010efd142b1846d8cf5f83ad4d18c0d8cb82",
   "inventoryDigest": "affa088e9407bca7394ed44b3fad01227c4503a948fb82e99882f309eb7d8297",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "2.3.0",
@@ -563,7 +563,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/SKILL.md",
         "destination": "skills/create-pr/SKILL.md",
-        "originalGitBlobDigest": "a0ed92d052dc6eaaa17ab3721a958167ada853e9"
+        "originalGitBlobDigest": "c1acd408e9b8525da455384e1c3bf5c5caff75c1"
       },
       {
         "ownerId": "create-pr",
@@ -629,7 +629,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/references/workflow.md",
         "destination": "skills/create-pr/references/workflow.md",
-        "originalGitBlobDigest": "b515fe5854f5cd06e45dd155f23178e4e123650e"
+        "originalGitBlobDigest": "a7c78265ca3091a4085956dcf9119084b05dc190"
       },
       {
         "ownerId": "doc-maintain",
@@ -5670,7 +5670,7 @@
   "fingerprints": {
     "change-verdict": "db458c29cf3c396ca0dd7464f2e92c0e927d54ee28f476a547bb5936c383c13b",
     "code-trace": "1e9f1b5009f3867cef5ed11f25c3b93134905aeec3759b5977c562c1509902ae",
-    "create-pr": "df24afa37cc7c399f6165a2e2de3f9194cb62dc08fa846572c48c7611e641983",
+    "create-pr": "d7e57d7aa9d2d6b312cb158459e686de9724bc638b453d2265921a3ed80db28b",
     "doc-maintain": "3cb1171aef79455048d92ecf6e657978c3753ea5e072f1330f7079e15796f571",
     "flow-drive": "5a6af1a88d9851ab1fbef47b10f3126cfba26a28f2d82b1ceeab32fd586ad1a9",
     "flow-guide": "b4ce99afe1fd61bd9a7ade484e4e559c9260eb0cef364e2e9b540e46171b017b",
