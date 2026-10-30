@@ -4,10 +4,10 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.68.0",
-  "sourceCommit": "c876737f833a750030f3f304efc033b0f6404973",
-  "generatedFromCommit": "c876737f833a750030f3f304efc033b0f6404973",
-  "generatedFromTree": "b0f2d75d1bf5b27f26f3c1d27cd88691879780d6",
+  "sourceVersion": "0.68.1",
+  "sourceCommit": "e56b007b381e5d00344579b029d58e7ffa9f7b4d",
+  "generatedFromCommit": "e56b007b381e5d00344579b029d58e7ffa9f7b4d",
+  "generatedFromTree": "11a6fab9829521f064a41a3009b7e904ab205cff",
   "inventoryDigest": "affa088e9407bca7394ed44b3fad01227c4503a948fb82e99882f309eb7d8297",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "1.0.0",
@@ -297,7 +297,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "b44ccc1814e884d376c96b5d92ca6bee78deba93"
+        "originalGitBlobDigest": "0e1d86d20b92cf0582291232233ee027b4397a9c"
       },
       {
         "ownerId": "code-trace",
@@ -345,7 +345,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/references/diagnose/reproduction-evidence.md",
         "destination": "skills/code-trace/references/diagnose/reproduction-evidence.md",
-        "originalGitBlobDigest": "151d0f077cb0cdcbb5a8d44d4eaa1f6e7879c917"
+        "originalGitBlobDigest": "2b6469374fa73869ddd285c54b31f771e060f114"
       },
       {
         "ownerId": "code-trace",
@@ -489,7 +489,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/SKILL.md",
         "destination": "skills/create-pr/SKILL.md",
-        "originalGitBlobDigest": "a0ed92d052dc6eaaa17ab3721a958167ada853e9"
+        "originalGitBlobDigest": "c1acd408e9b8525da455384e1c3bf5c5caff75c1"
       },
       {
         "ownerId": "create-pr",
@@ -555,7 +555,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/references/workflow.md",
         "destination": "skills/create-pr/references/workflow.md",
-        "originalGitBlobDigest": "b515fe5854f5cd06e45dd155f23178e4e123650e"
+        "originalGitBlobDigest": "a7c78265ca3091a4085956dcf9119084b05dc190"
       },
       {
         "ownerId": "doc-maintain",
@@ -2337,7 +2337,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "53fe355e39f62ed0183190d8c995ba8356b71ebc"
+        "originalGitBlobDigest": "2c09ecced7ca50931010fe1e12ea6216d7bee844"
       },
       {
         "ownerId": "tdd",
@@ -2439,7 +2439,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/references/tests.md",
         "destination": "skills/tdd-workflow/references/tests.md",
-        "originalGitBlobDigest": "caca5ae7a7d44666e0a762bfa690171d6b58f3d1"
+        "originalGitBlobDigest": "aa5cd8b24ecb8444f971dfcaf5fe5e57d3c9c9e9"
       },
       {
         "ownerId": "ui-ux-verify",
@@ -5613,7 +5613,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "e8f1b6581a67ac3cddbcf8fec7409e215e8c176ca921566162e90789d4b0a011",
+    "planId": "d7363ae3ccf60f2561d8f9b90ae2507f3dfe2e99c88006432b38add739252554",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5657,10 +5657,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "e8f1b6581a67ac3cddbcf8fec7409e215e8c176ca921566162e90789d4b0a011",
+      "plan": "d7363ae3ccf60f2561d8f9b90ae2507f3dfe2e99c88006432b38add739252554",
       "inventory": "affa088e9407bca7394ed44b3fad01227c4503a948fb82e99882f309eb7d8297"
     },
-    "rollbackIdentity": "79e88ca5fb69e4efb84e264f8b77999f33240a558b85ec4f079d98e87aee73b0"
+    "rollbackIdentity": "670f2cf99a909988f1f12f3a82ebe0eea2f9481933d7be0f344d1662ca18a1d3"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6675,5 +6675,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "484753e5ee00a4c44b75108703a3f9749f4fff544935e2d77f2ec470af4ac72d"
+  "planFingerprint": "6f557c4ee4c38011cb5b8484a08073cf11b6013a563cdd65de6038045d585af2"
 }

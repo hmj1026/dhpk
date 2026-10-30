@@ -3,10 +3,10 @@
   "surface": "agent-plugin",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
-  "sourceVersion": "0.68.0",
-  "sourceCommit": "c876737f833a750030f3f304efc033b0f6404973",
-  "generatedFromCommit": "c876737f833a750030f3f304efc033b0f6404973",
-  "generatedFromTree": "b0f2d75d1bf5b27f26f3c1d27cd88691879780d6",
+  "sourceVersion": "0.68.1",
+  "sourceCommit": "e56b007b381e5d00344579b029d58e7ffa9f7b4d",
+  "generatedFromCommit": "e56b007b381e5d00344579b029d58e7ffa9f7b4d",
+  "generatedFromTree": "11a6fab9829521f064a41a3009b7e904ab205cff",
   "inventoryDigest": "ffda92a434ef8816444feeea689c5517187ba10fcd7ff08eb0904fd69c121098",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "1.0.0",
@@ -342,7 +342,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "b44ccc1814e884d376c96b5d92ca6bee78deba93"
+        "originalGitBlobDigest": "0e1d86d20b92cf0582291232233ee027b4397a9c"
       },
       {
         "ownerId": "code-trace",
@@ -390,7 +390,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/references/diagnose/reproduction-evidence.md",
         "destination": "skills/code-trace/references/diagnose/reproduction-evidence.md",
-        "originalGitBlobDigest": "151d0f077cb0cdcbb5a8d44d4eaa1f6e7879c917"
+        "originalGitBlobDigest": "2b6469374fa73869ddd285c54b31f771e060f114"
       },
       {
         "ownerId": "code-trace",
@@ -534,7 +534,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/SKILL.md",
         "destination": "skills/create-pr/SKILL.md",
-        "originalGitBlobDigest": "a0ed92d052dc6eaaa17ab3721a958167ada853e9"
+        "originalGitBlobDigest": "c1acd408e9b8525da455384e1c3bf5c5caff75c1"
       },
       {
         "ownerId": "create-pr",
@@ -600,7 +600,7 @@
         "ownerId": "create-pr",
         "source": "skills/create-pr/references/workflow.md",
         "destination": "skills/create-pr/references/workflow.md",
-        "originalGitBlobDigest": "b515fe5854f5cd06e45dd155f23178e4e123650e"
+        "originalGitBlobDigest": "a7c78265ca3091a4085956dcf9119084b05dc190"
       },
       {
         "ownerId": "doc-maintain",
@@ -2382,7 +2382,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "53fe355e39f62ed0183190d8c995ba8356b71ebc"
+        "originalGitBlobDigest": "2c09ecced7ca50931010fe1e12ea6216d7bee844"
       },
       {
         "ownerId": "tdd",
@@ -2484,7 +2484,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/references/tests.md",
         "destination": "skills/tdd-workflow/references/tests.md",
-        "originalGitBlobDigest": "caca5ae7a7d44666e0a762bfa690171d6b58f3d1"
+        "originalGitBlobDigest": "aa5cd8b24ecb8444f971dfcaf5fe5e57d3c9c9e9"
       },
       {
         "ownerId": "ui-ux-verify",
@@ -5304,8 +5304,8 @@
   "mcpServerNames": [],
   "fingerprints": {
     "change-verdict": "da104363c10f4de72c16ff92001ab891e4d6c312bc6fdfd341c13830dcdf565c",
-    "code-trace": "87d49bdf57a7732920ce25703fe46c076568edae444a9b7aabc42268b1c8970f",
-    "create-pr": "722696c143447a8107fe7c842fc4f1cfcbb775ab0456af1d6bb623be93e92b10",
+    "code-trace": "c0562e6f0599f46922fcc23d92ed9b354b54826a567326d713cfb026c71b36fc",
+    "create-pr": "ecea4c51400b24a50a6aa852f1796c1ccd281e0a1c3d4d8b845c1a72e1518f24",
     "doc-maintain": "d2b6e12533e99c08d143be5ecc5ada0db0c45c92e35f3d89a691cb7851eef921",
     "flow-drive": "4eebdf4565d30e62883e15d86ad1669eb8287397bc5e2eb852425a7b76e962b7",
     "flow-guide": "b804bbb8824879cd521c9c7334342d2e00903abe425ff7f8b2e119ae3e79e451",
@@ -5315,12 +5315,12 @@
     "proposal-analyze": "a3cfd7751b0e87497a28aba746e328f57714ef343aad94cbb9eecc7adcf4e392",
     "release-creator": "1e8db2d66dd9d526466746baca053541acd0cef84ddd25027eddb20a58a435a6",
     "repo-verify": "0bdff21b2c9ae79c1fa276de0a993a2684908452b70e956bd4213cd4f7aa82af",
-    "tdd-workflow": "15400e64867db8275e5c47e4f73302c793b88a8e2aaf8933c863c85f42e00ece",
+    "tdd-workflow": "c4d4ee69d8f287ced7e05fc813563c86ad4959e32868685bcf7cb980e8a258b8",
     "ui-ux-verify": "9ffa940ca3bfefb2cfd4cd91c233010a2aef4caa8c951d6c72a6b4ed86958cd8"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "ce970e03d87cd1082bf1820b61f8feabdece38de08642b85ac5aa635ea4b3e50",
+    "planId": "bc61959d50f6728bc3b1b78c55deab4959c2b65d4f096c3bf0a49f04107bcf02",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5364,10 +5364,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "ce970e03d87cd1082bf1820b61f8feabdece38de08642b85ac5aa635ea4b3e50",
+      "plan": "bc61959d50f6728bc3b1b78c55deab4959c2b65d4f096c3bf0a49f04107bcf02",
       "inventory": "ffda92a434ef8816444feeea689c5517187ba10fcd7ff08eb0904fd69c121098"
     },
-    "rollbackIdentity": "156aaa3bcd1430b6c90d5e267e81dbfe1a0902be61cfe7c2e73b45a73d038973"
+    "rollbackIdentity": "69d9ab33765d26b8893582706cb9e5ec46d4d263278df5daf65d3dbc17a099ae"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {

@@ -30,16 +30,19 @@ Extract a ticket from the selected head name with `{TICKET_PATTERN}`.
 When the project does not set `{TICKET_PATTERN}`, use `[A-Z]+-\d+`.
 When the head name does not match, say the ticket was not resolved and
 do not invent one. Then generate `<type>: [<TICKET>] <summary>` unless
-`--title` overrides it. Build the body from a concise summary, the ticket link
-when resolved, and verification evidence for that selected range. Separate
-checks actually run on the selected range from planned checks marked
-`NOT RUN`. A result observed only on a different checkout is `NOT RUN` for
-this request. For behavior changes, include a compact before/after example or
-evidence. Label an unobserved after-state as expected and list its check as
-`NOT RUN`. Add rollback and blast-radius details when they materially affect
-review. Use a visual aid only when it clarifies the change; do not include
-one by default. Before any PR creation, run the pre-flight checks in
-[`references/workflow.md`](references/workflow.md). Count commits with
+`--title` overrides it. Build the body in this order: Summary, Evidence,
+Merge Danger, the ticket link when resolved, then verification.
+Summary uses one visual form from the workflow guide: pseudocode, a call
+tree, a component tree, a Mermaid sequence diagram, or a minimal diff.
+Evidence pairs a pre-change Before with an After observed on the selected
+head. Merge Danger states Door (`one-way` or `two-way`) and Blast Radius
+(the callers, packages, or surfaces affected, plus any chain reaction).
+Separate checks actually run on the selected range from planned checks
+marked `NOT RUN`. A result observed only on a different checkout is
+`NOT RUN` for this request. The section shape, form guide, and
+unobserved-after rule live in
+[`references/workflow.md`](references/workflow.md). Before any PR creation,
+run the pre-flight checks in that reference. Count commits with
 `git rev-list --count <selected-base>..<selected-head>`. A zero count stops
 with `No commits between <selected-base> and <selected-head> — nothing to open a PR for`.
 
@@ -68,9 +71,11 @@ for confirmation, and then report the URL. Do not push or create commits.
 - [ ] The selected head is pushed and no matching PR already exists for that head and base.
 - [ ] Dry-run performed no PR mutation, or execute mode has a returned URL.
 - [ ] The title, body, ticket, and diff describe the selected head and base.
-- [ ] Observed checks and planned `NOT RUN` checks are distinct; behavior
-      changes include before/after evidence, with unobserved after-states
-      marked expected; material rollback or blast radius is described.
+- [ ] Summary uses one form from the workflow guide; Evidence pairs a
+      pre-change Before with an After on the selected head; Merge Danger
+      states Door and Blast Radius.
+- [ ] Observed checks and planned `NOT RUN` checks are distinct; an
+      unobserved after-state is marked expected.
 
 ## References
 

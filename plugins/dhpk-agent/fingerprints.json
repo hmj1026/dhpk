@@ -3,8 +3,8 @@
   "surface": "agent-plugin",
   "skills": {
     "change-verdict": "da104363c10f4de72c16ff92001ab891e4d6c312bc6fdfd341c13830dcdf565c",
-    "code-trace": "87d49bdf57a7732920ce25703fe46c076568edae444a9b7aabc42268b1c8970f",
-    "create-pr": "722696c143447a8107fe7c842fc4f1cfcbb775ab0456af1d6bb623be93e92b10",
+    "code-trace": "c0562e6f0599f46922fcc23d92ed9b354b54826a567326d713cfb026c71b36fc",
+    "create-pr": "ecea4c51400b24a50a6aa852f1796c1ccd281e0a1c3d4d8b845c1a72e1518f24",
     "doc-maintain": "d2b6e12533e99c08d143be5ecc5ada0db0c45c92e35f3d89a691cb7851eef921",
     "flow-drive": "4eebdf4565d30e62883e15d86ad1669eb8287397bc5e2eb852425a7b76e962b7",
     "flow-guide": "b804bbb8824879cd521c9c7334342d2e00903abe425ff7f8b2e119ae3e79e451",
@@ -14,7 +14,7 @@
     "proposal-analyze": "a3cfd7751b0e87497a28aba746e328f57714ef343aad94cbb9eecc7adcf4e392",
     "release-creator": "1e8db2d66dd9d526466746baca053541acd0cef84ddd25027eddb20a58a435a6",
     "repo-verify": "0bdff21b2c9ae79c1fa276de0a993a2684908452b70e956bd4213cd4f7aa82af",
-    "tdd-workflow": "15400e64867db8275e5c47e4f73302c793b88a8e2aaf8933c863c85f42e00ece",
+    "tdd-workflow": "c4d4ee69d8f287ced7e05fc813563c86ad4959e32868685bcf7cb980e8a258b8",
     "ui-ux-verify": "9ffa940ca3bfefb2cfd4cd91c233010a2aef4caa8c951d6c72a6b4ed86958cd8"
   }
 }

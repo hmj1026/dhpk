@@ -317,7 +317,7 @@
       "sourcePath": "skills/code-trace/SKILL.md",
       "destination": "skills/code-trace/SKILL.md",
       "kind": "entry",
-      "sha256": "2b1c507872d75874d2138be9d4b23c6d5c720123e7c06c882a24c0ebfc258f31"
+      "sha256": "c8858bd4d42cce5ea359953de883268e3eab52cb193cf28b1c3daacacfe2530f"
     },
     {
       "skillId": "code-trace",
@@ -381,7 +381,7 @@
       "sourcePath": "skills/code-trace/references/diagnose/reproduction-evidence.md",
       "destination": "skills/code-trace/references/diagnose/reproduction-evidence.md",
       "kind": "entry",
-      "sha256": "e3005f589fa6b18f55389eff89c4e977899e9aaa41e23e9d675c19a43f9304dc"
+      "sha256": "648eda48aa9ff7675f76ef0df6c99ea7f0a44112476d31ce90ef2aa883c96f1c"
     },
     {
       "skillId": "code-trace",
@@ -573,7 +573,7 @@
       "sourcePath": "skills/create-pr/SKILL.md",
       "destination": "skills/create-pr/SKILL.md",
       "kind": "entry",
-      "sha256": "f4baeb403587e31a500ebf92c1eda6a3faadb4fd7f2283509504d4393327a3ad"
+      "sha256": "b8780cd4704ca8d0a567a9d450ef51d2e7e4d02d04c6280b553e41d1b9806521"
     },
     {
       "skillId": "create-pr",
@@ -661,7 +661,7 @@
       "sourcePath": "skills/create-pr/references/workflow.md",
       "destination": "skills/create-pr/references/workflow.md",
       "kind": "entry",
-      "sha256": "6d4d048aaf5ade70554e4ee095334ccf3210576636056136bed1607e98a0c2a9"
+      "sha256": "5a2e2e907f68837ed5b8a5cd103da68c6b59cc42274ea14af36922ca4cb32386"
     },
     {
       "skillId": "doc-maintain",
@@ -3341,7 +3341,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "ae9d9e73dda8dfec25415491f7080d381d1acc73884c3eb337c1ec2e0e0b4fc5"
+      "sha256": "1e7f70f56b33430baa125c219bd1556b32ae460642b5359f60b8d616fa93de07"
     },
     {
       "skillId": "tdd",
@@ -3477,7 +3477,7 @@
       "sourcePath": "skills/tdd-workflow/references/tests.md",
       "destination": "skills/tdd-workflow/references/tests.md",
       "kind": "entry",
-      "sha256": "bd8c7daa182811b57309ecd15b41078b1657b71f1775bc81c7829c690a114d61"
+      "sha256": "6292c815cc7c6ef8e2992d6be5e8f3752e65bcbf21e166cde5a467b5f1a59749"
     },
     {
       "skillId": "ui-ux-verify",

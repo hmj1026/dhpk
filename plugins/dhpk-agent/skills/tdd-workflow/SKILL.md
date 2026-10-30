@@ -26,14 +26,17 @@ configuration work without testable runtime behavior need no TDD loop.
 
 Read [tests.md](references/tests.md) when choosing assertions and [mocking.md](references/mocking.md)
 when introducing test doubles. Use the repository's existing test framework,
-runner, and nearby conventions. Read `CONTEXT.md` and relevant ADRs when present
+runner, and nearby conventions. Read `GLOSSARY.md` and relevant ADRs when present
 before choosing domain vocabulary or a new seam.
 
 ## Establish the seam and evidence
 
 1. Identify the caller-visible behavior and its public API, command, event, or
    other boundary. Reuse the requested or approved seam and its existing test
-   owner; ask only about a material missing behavior or constraint.
+   owner; ask only about a material missing behavior or constraint. When
+   proposing a seam, add one line that names what it catches and what it
+   misses. Definitions and the worked example are in
+   [Seam tradeoff](references/tests.md#seam-tradeoff).
 2. Find the smallest safe verification command. Keep tests isolated from shared
    services and data unless their use is explicitly authorized.
 3. Check supplied RED/GREEN evidence against the current behavior, test, seam,
@@ -119,6 +122,7 @@ project acceptance or runner configuration requires it.
 
 Before reporting, check that the evidence establishes the intended failure
 (or an adequate handback), the test observes the public behavior with an
-independent oracle, and scoped/suite results match what actually ran.
+independent oracle, and scoped/suite results match what actually ran. When
+this run proposed the seam, include its catches and misses line.
 Return the method evidence to the caller and stop; the caller owns subsequent
 repository-wide verification or delivery workflows.
