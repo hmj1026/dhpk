@@ -71,7 +71,7 @@ jobs:
 
       - name: Validate workflow syntax
         if: needs.plan.outputs.mode == 'full'
-        uses: reviewdog/action-actionlint@419a49378266e892f40c773b4f2fc6de9aa87499 # v1.80.4
+        uses: reviewdog/action-actionlint@48e36f54d8da326b83ab061aee2cc5e01b5ca46f # v1.80.6
         with:
           actionlint_flags: -color
           fail_level: error
@@ -432,7 +432,7 @@ jobs:
         with:
           persist-credentials: false
       - name: markdownlint
-        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24.2.0
+        uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25.0.0
         with:
           globs: |
             *.md
