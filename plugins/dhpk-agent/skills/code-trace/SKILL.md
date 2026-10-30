@@ -60,8 +60,14 @@ output, and the expected-versus-actual assertion. If reproduction is
 unavailable, blocked, or flaky, state that; for flaky behavior, include the
 observed attempts, successes, and known conditions. For performance symptoms,
 record a baseline from a comparable workload when available. Reduce one input
-at a time only while the check is bounded and preserves the signal. See
-`references/diagnose/reproduction-evidence.md` for these evidence details and
+at a time only while the check is bounded and preserves the signal. When
+changed code, an injected fault, or an altered fixture is what forced that
+check red, the red result counts as reproduction evidence only after the
+forced-mutation check passes. Confirm a mutation that is already present.
+Applying a mutation, or repairing a setup, belongs to the authorized isolated
+workflow in `references/diagnose/root-cause-tracing.md`. See
+`references/diagnose/reproduction-evidence.md` for these evidence details,
+including the clean-copy `git diff`, and
 `references/diagnose/root-cause-tracing.md` when following a call or data path.
 
 Keep diagnosis read-only: do not reproduce a destructive action or write to a
@@ -131,9 +137,11 @@ Fallback: <exact command or MCP call, or none>
 - <one handoff, or none>
 ```
 
-For `diagnose`, include expected/actual behavior, reproduction status, ranked
+For `diagnose`, include expected/actual behavior, reproduction status, the
+clean-copy diff verdict when a forced mutation produced the red result, ranked
 hypotheses, one confirmed cause or blocker, options/risks/verification intent,
-and stop-loss state. For `explore --dual`, keep primary and independent
+and stop-loss state. The verdict words are defined in
+`references/diagnose/reproduction-evidence.md`. For `explore --dual`, keep primary and independent
 findings separate before the agreement/difference table.
 
 ## References

@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.68.0",
-  "sourceCommit": "edc6bbdf1255861a41b15fefbdf92fef6bedcc62",
-  "generatedFromCommit": "edc6bbdf1255861a41b15fefbdf92fef6bedcc62",
-  "generatedFromTree": "69e2010efd142b1846d8cf5f83ad4d18c0d8cb82",
+  "sourceCommit": "f90a45ac1b8ff84e8a66bb721b839e00d1e2084f",
+  "generatedFromCommit": "f90a45ac1b8ff84e8a66bb721b839e00d1e2084f",
+  "generatedFromTree": "079ed1d524c9f53f8fd891633d29dd6165fbdd94",
   "inventoryDigest": "ffda92a434ef8816444feeea689c5517187ba10fcd7ff08eb0904fd69c121098",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "1.0.0",
@@ -342,7 +342,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "b44ccc1814e884d376c96b5d92ca6bee78deba93"
+        "originalGitBlobDigest": "0e1d86d20b92cf0582291232233ee027b4397a9c"
       },
       {
         "ownerId": "code-trace",
@@ -390,7 +390,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/references/diagnose/reproduction-evidence.md",
         "destination": "skills/code-trace/references/diagnose/reproduction-evidence.md",
-        "originalGitBlobDigest": "151d0f077cb0cdcbb5a8d44d4eaa1f6e7879c917"
+        "originalGitBlobDigest": "2b6469374fa73869ddd285c54b31f771e060f114"
       },
       {
         "ownerId": "code-trace",
@@ -5304,7 +5304,7 @@
   "mcpServerNames": [],
   "fingerprints": {
     "change-verdict": "da104363c10f4de72c16ff92001ab891e4d6c312bc6fdfd341c13830dcdf565c",
-    "code-trace": "87d49bdf57a7732920ce25703fe46c076568edae444a9b7aabc42268b1c8970f",
+    "code-trace": "c0562e6f0599f46922fcc23d92ed9b354b54826a567326d713cfb026c71b36fc",
     "create-pr": "ecea4c51400b24a50a6aa852f1796c1ccd281e0a1c3d4d8b845c1a72e1518f24",
     "doc-maintain": "d2b6e12533e99c08d143be5ecc5ada0db0c45c92e35f3d89a691cb7851eef921",
     "flow-drive": "4eebdf4565d30e62883e15d86ad1669eb8287397bc5e2eb852425a7b76e962b7",

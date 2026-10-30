@@ -23,6 +23,35 @@ inference. Name the smallest missing input, permission, or environment fact
 that would unblock the next check. Do not treat a static code path or a
 plausible report as a confirmed reproduction.
 
+## Confirm a forced mutation
+
+Use this section when a reproduction or probe is already red because code was
+edited, a fault was injected, or a fixture was altered. The clean copy is the
+executed tree without that mutation. Confirm the mutation that is already
+present. Applying a new mutation, or repairing a setup, belongs to the
+authorized isolated workflow named by the main skill.
+
+1. Name the clean copy and the mutated tree that produced the red result.
+   - Uncommitted mutation: the clean copy is `HEAD` and the mutated tree is
+     the worktree. Run `git diff HEAD`.
+   - Committed mutation: the clean copy is the revision that lacks the
+     mutation, and the mutated tree is the commit that contains that mutation
+     without later unrelated commits. Run `git diff <clean-copy> <mutated>`.
+2. Record the command and a redacted summary of the diff. Leave the index,
+   refs, and worktree unchanged.
+3. The verdict is `valid forced-mutation evidence` when the diff shows the
+   intended mutation, including an intentional fixture change, and the
+   observed failure matches that mutation.
+4. The verdict is `setup problem` when the diff contains an edit that is not
+   the intended mutation, such as an unrelated syntax error or missing
+   dependency, or when the failure is an environment problem the mutation
+   does not explain. Hand the setup repair to the authorized isolated
+   workflow, rerun the check, and replace this verdict only when a later diff
+   meets step 3.
+
+Record the clean copy, the mutated tree, the diff command, the redacted diff
+summary, the failing assertion, and the verdict.
+
 ## Report intermittent behavior
 
 For a flaky signal, preserve the observations rather than forcing them into a
@@ -52,7 +81,8 @@ shared state.
 
 ## Keep facts and conclusions separate
 
-Keep the command, output, symptom assertion, and observed counts as facts.
+Keep the command, output, symptom assertion, observed counts, and any
+forced-mutation diff summary as facts.
 List explanations separately as ranked hypotheses, each with a discriminating
 check and evidence that would reject it. A missing reproduction or baseline is
 a reported limitation, not evidence for a particular cause.
