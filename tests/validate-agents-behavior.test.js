@@ -50,6 +50,29 @@ function agentFrontmatter(fields) {
   ].join('\n');
 }
 
+test('agent frontmatter with an embedded --- delimiter fails the validator', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeAgent(tmp, [
+      '---',
+      'name: architect',
+      'description: >-',
+      '  files carrying a `---` frontmatter block',
+      'model: fable',
+      'tools: Read',
+      'effort: low',
+      '---',
+      'body',
+      '',
+    ].join('\n'));
+    const result = runValidator(tmp);
+    assert.notStrictEqual(result.status, 0, result.out);
+    assert.match(result.out, /architect\.md.*line 4.*embedded/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('fable model passes through the agent validator', () => {
   const tmp = makeTempRepo();
   try {

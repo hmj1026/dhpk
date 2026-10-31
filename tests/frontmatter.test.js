@@ -4,7 +4,7 @@
 // (extract/isEmpty), not just transitively via validate-agents-behavior.test.js.
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { extract, isEmpty, extractInvocationClass, extractMetadata } = require('../scripts/ci/_lib/frontmatter');
+const { extract, findEmbeddedDelimiters, isEmpty, extractInvocationClass, extractMetadata } = require('../scripts/ci/_lib/frontmatter');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -259,6 +259,35 @@ test('distribution identity metadata preserves handoff keys and rejects unknown 
   assert.deepStrictEqual(parsed.errors, []);
   assert.strictEqual(parsed.values['dhpk-capability-id'], 'dhpk.skill.fixture');
   assert.ok(extractMetadata('---\nmetadata:\n  dhpk-unregistered: value\n---\n').errors.some(error => error.includes('dhpk-unregistered')));
+});
+
+test('findEmbeddedDelimiters reports an inline --- inside a folded description', () => {
+  const content = [
+    '---',
+    'name: foo',
+    'description: >-',
+    '  agent files carrying a `---` frontmatter block',
+    'model: haiku',
+    '---',
+    'body',
+    '',
+  ].join('\n');
+  assert.deepStrictEqual(findEmbeddedDelimiters(content), [4]);
+});
+
+test('findEmbeddedDelimiters reports nothing for normal frontmatter', () => {
+  assert.deepStrictEqual(findEmbeddedDelimiters('---\nname: foo\nmodel: haiku\n---\nbody\n'), []);
+  assert.deepStrictEqual(findEmbeddedDelimiters('no frontmatter\n'), []);
+});
+
+test('findEmbeddedDelimiters ignores --- that appears only in the body', () => {
+  const content = '---\nname: foo\n---\nbody\n\n---\nmore `---` text\n';
+  assert.deepStrictEqual(findEmbeddedDelimiters(content), []);
+});
+
+test('findEmbeddedDelimiters tolerates BOM and CRLF', () => {
+  const content = '\uFEFF---\r\nname: foo\r\ndescription: a `---` b\r\n---\r\nbody\r\n';
+  assert.deepStrictEqual(findEmbeddedDelimiters(content), [3]);
 });
 
 run('frontmatter');

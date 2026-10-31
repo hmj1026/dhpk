@@ -108,10 +108,10 @@ This index only lists the shipped roles above.
 
 ## Models
 
-- **opus**: deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
+- **opus**: deep-reasoner (may be raised to fable per dispatch for multi-question policy adjudication, see rules/model-economics.md), planner (low-frequency, high-impact, deep reasoning)
 - **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-worker, agy-worker, codex-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
-- **fable**: architect (Fable 5.1 is the highest per-token Claude tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
+- **fable**: architect, plus per-dispatch deep-reasoner raises for multi-question policy adjudication (see rules/model-economics.md) (Fable 5.1 is the highest per-token Claude tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
 
 ## Partial outputs and agent continuation
 
