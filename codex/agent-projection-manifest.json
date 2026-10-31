@@ -12,6 +12,7 @@
     "frontend-reviewer",
     "migration-reviewer",
     "e2e-runner",
+    "qa-executor",
     "ui-verifier",
     "docs-writer",
     "scoped-worker"
@@ -30,6 +31,7 @@
     "migration-reviewer",
     "monitor",
     "planner",
+    "qa-executor",
     "scoped-worker",
     "security-reviewer",
     "tdd-guide",
