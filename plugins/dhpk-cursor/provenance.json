@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "0810c050e2582e5dedab0e810ae70c6283206648",
-  "generatedFromCommit": "0810c050e2582e5dedab0e810ae70c6283206648",
-  "generatedFromTree": "3884489a9f89a4c6475012fcfa0fcccaef5a1cf0",
+  "sourceCommit": "ffc16aad48aee839bdd55b9efd274f4b019f7045",
+  "generatedFromCommit": "ffc16aad48aee839bdd55b9efd274f4b019f7045",
+  "generatedFromTree": "91e8281307a4cd609b5215b64fe4b9b7cacfda0f",
   "inventoryDigest": "8852442b0b41df931aae49c142afb8c85194b9df3768ec637bb47c1f56446843",
   "inventoryRevision": "sha256:2cc5f16a4b554e72b873607cc7bbbb8757a694972426d1307decc5d45bd9b23d",
   "generatorVersion": "1.0.0",
@@ -1443,7 +1443,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "eb8a9248c19e32cbccccd295c7dd6994f998ac87"
+        "originalGitBlobDigest": "4b325bc555193f2373c4858250acfb47b6e74617"
       },
       {
         "ownerId": "flow-guide",
