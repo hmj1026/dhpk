@@ -216,6 +216,9 @@ test('generates the explicit 15-role Codex projection without packaging authorin
     assert.ok(qaExecutor.includes('model_reasoning_effort = "medium"'), qaExecutor);
     assert.match(qaExecutor, /host-supported skill-loading mechanism/);
     assert.doesNotMatch(qaExecutor, /with the Skill tool/);
+    // Claude-only neighbors must not survive into the Codex discovery description.
+    assert.doesNotMatch(qaExecutor, /ui-ux-verifier|smoke-tester/);
+    assert.match(qaExecutor, /\(ui-verifier\)/);
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
     assert.doesNotMatch(e2eRunner, /^sandbox_mode\s*=/m);
     assert.match(e2eRunner, /Verdict: BLOCKED/);

@@ -358,10 +358,15 @@ function adaptCodexBody(agentName, body) {
   }
   if (agentName === 'qa-executor') {
     // Shared source names Claude's Skill tool; Codex roles need the installed skill's host-supported loading path.
-    adapted = adapted.replace(
-      'Load the browser skill the parent names with the Skill tool.',
-      'Load the browser skill the parent names using the host-supported skill-loading mechanism.',
-    );
+    // The discovery description names Claude-only neighbors in plain text, which
+    // the backtick-scoped neighbor fence does not scan; map them to Codex terms.
+    adapted = adapted
+      .replace(
+        'Load the browser skill the parent names with the Skill tool.',
+        'Load the browser skill the parent names using the host-supported skill-loading mechanism.',
+      )
+      .replaceAll('(ui-ux-verifier)', '(ui-verifier)')
+      .replaceAll('a single-scenario runtime probe (smoke-tester)', 'a single-scenario runtime probe (no Codex role; probe directly)');
   }
   if (agentName === 'e2e-runner') {
     adapted = adapted
