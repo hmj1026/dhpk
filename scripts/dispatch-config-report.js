@@ -156,7 +156,6 @@ function coveredScope(flags, unreadable) {
 
 const SUMMARY_PREFIX_LENGTH = '[session-start] dispatch config: '.length;
 const SUMMARY_LIMIT = 300;
-const SUMMARY_HINT = '; full: node scripts/dispatch-config-report.js';
 const SUMMARY_ROLES = Object.freeze(['planner', 'reasoner', 'worker', 'reviewer']);
 const LEGACY_REPORT_KEYS = Object.freeze([...new Set([
   ...Object.values(LEGACY_KEYS).flat(),
@@ -200,11 +199,11 @@ function truncateLongest(items, excess) {
   return next;
 }
 
-function composeSummary({ roles, flags, scope, legacy, forced }, budget) {
-  const assemble = (roleTexts, legacyText) => {
+function composeSummary({ roles, flags, scope, legacy, forced, hint = '' }, budget) {
+  const assemble = (roleTexts, legacyText, suffix = hint) => {
     const tokens = [...roleTexts, ...flags, ...scope, ...(legacyText ? [legacyText] : [])];
     if (tokens.length === 0 && forced) tokens.push('defaults');
-    return `${tokens.join(' ')}${SUMMARY_HINT}`;
+    return `${tokens.join(' ')}${suffix}`;
   };
   const fullLegacy = legacy.length > 0 ? `legacy=${legacy.join(',')}` : '';
   const countLegacy = legacy.length > 0 ? `legacy=${legacy.length}` : '';
@@ -215,11 +214,17 @@ function composeSummary({ roles, flags, scope, legacy, forced }, budget) {
     const line = assemble(roleTexts, legacyText);
     if (line.length <= budget) return line;
   }
-  const overflow = assemble(without, countLegacy).length - budget;
-  return assemble(truncateLongest(without, overflow), countLegacy);
+  // The hint is never truncated: roles shrink to make room, and the hint is
+  // dropped only when it cannot fit even then.
+  const attempt = (suffix) => {
+    const overflow = assemble(without, countLegacy, suffix).length - budget;
+    return assemble(truncateLongest(without, overflow), countLegacy, suffix);
+  };
+  const withHint = hint === '' ? '' : attempt(hint);
+  return withHint !== '' && withHint.length <= budget ? withHint : attempt('');
 }
 
-function formatSummary(report, config, layerOptions, forced) {
+function formatSummary(report, config, layerOptions, forced, hint) {
   const roles = [];
   for (const role of SUMMARY_ROLES) {
     const plain = roleSummary(role, report.targets[role], false);
@@ -233,8 +238,21 @@ function formatSummary(report, config, layerOptions, forced) {
     ? [`scope=incomplete(${unreadable.map((entry) => `${entry.layer}:${entry.reason}`).join(',')})`]
     : [];
   return composeSummary({
-    roles, flags, scope, legacy: legacyEntries(layerOptions), forced,
+    roles, flags, scope, legacy: legacyEntries(layerOptions), forced, hint,
   }, SUMMARY_LIMIT - SUMMARY_PREFIX_LENGTH);
+}
+
+function writeFullReport(report, fullOut) {
+  if (typeof fullOut !== 'string' || fullOut === '') return '';
+  try {
+    fs.mkdirSync(path.dirname(fullOut), { recursive: true });
+    fs.writeFileSync(fullOut, `${JSON.stringify(report)}\n`);
+  } catch {
+    return '';
+  }
+  const relative = path.relative(process.cwd(), fullOut);
+  const local = relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+  return `; full: ${local ? relative : path.resolve(fullOut)}`;
 }
 
 function main(environment = process.env, options = {}) {
@@ -273,6 +291,7 @@ function main(environment = process.env, options = {}) {
       ...(unreadable.length > 0 ? { unreadable } : {}),
     },
   });
+  const hint = writeFullReport(report, isRecord(options) ? options.fullOut : '');
   const summary = isRecord(options) && options.format === 'summary'
     && (report.diagnostics || []).length === 0;
   if (summary) {
@@ -282,7 +301,7 @@ function main(environment = process.env, options = {}) {
       ['environment', environmentOptions(source)],
     ];
     const forced = source.DHPK_DISPATCH_CONFIG_REPORT === '1';
-    process.stdout.write(`${formatSummary(report, config, layerOptions, forced)}\n`);
+    process.stdout.write(`${formatSummary(report, config, layerOptions, forced, hint)}\n`);
     return 0;
   }
   process.stdout.write(`${JSON.stringify(report)}\n`);
@@ -292,5 +311,11 @@ function main(environment = process.env, options = {}) {
 module.exports = Object.freeze({ ENVIRONMENT_KEYS, environmentOptions, main, shouldReport });
 
 if (require.main === module) {
-  process.exitCode = main(process.env, process.argv.includes('--summary') ? { format: 'summary' } : {});
+  const outIndex = process.argv.indexOf('--full-out');
+  const fullOut = outIndex >= 0 ? process.argv[outIndex + 1] : undefined;
+  const cliOptions = {
+    ...(process.argv.includes('--summary') ? { format: 'summary' } : {}),
+    ...(fullOut ? { fullOut } : {}),
+  };
+  process.exitCode = main(process.env, cliOptions);
 }

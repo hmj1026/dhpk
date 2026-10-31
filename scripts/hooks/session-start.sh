@@ -13,7 +13,8 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 # layers, including legacy *_model keys, and stays silent when every value is
 # the default. Forcing the flag here would hide that predicate.
 if command -v node >/dev/null 2>&1; then
-    node "$PLUGIN_ROOT/scripts/dispatch-config-report.js" --summary 2>/dev/null | while IFS= read -r report; do
+    SESS="$(dhpk_sessions_dir)"
+    node "$PLUGIN_ROOT/scripts/dispatch-config-report.js" --summary --full-out "$SESS/dispatch-config.json" 2>/dev/null | while IFS= read -r report; do
         echo "[session-start] dispatch config: $report"
     done
 fi

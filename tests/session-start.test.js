@@ -78,7 +78,10 @@ test('explicit canonical dispatch targets are reported without runtime probing',
     assert.ok(line.length <= 300, `line is ${line.length} chars`);
     const body = line.slice(prefix.length);
     assert.ok(body.startsWith('worker=codex-cli/sol5.6:high'), body);
-    assert.ok(body.endsWith('; full: node scripts/dispatch-config-report.js'), body);
+    const fullRel = path.join('.claude', 'artifacts', 'sessions', 'dispatch-config.json');
+    assert.ok(body.endsWith(`; full: ${fullRel}`), body);
+    const written = JSON.parse(fs.readFileSync(path.join(scratch, fullRel), 'utf8'));
+    assert.strictEqual(written.schema, 'dhpk.dispatch.config-report.v1');
     assert.ok(!body.includes('{'), 'summary must not embed the JSON report');
     assert.strictEqual(res.status, 0);
   } finally {
