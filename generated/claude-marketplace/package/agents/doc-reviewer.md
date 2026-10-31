@@ -7,7 +7,7 @@ description: >-
   CLAUDE.md / AGENTS.md / README*.md, and any `docs/**/*.md` or
   `openspec/**/*.md`. Covers two concerns: (1) frontmatter schema validation
   for `.md` DSL artifacts (agent / skill / command / rule files carrying a
-  `---` frontmatter block) — name kebab-case, required per-kind fields,
+  YAML frontmatter block) — name kebab-case, required per-kind fields,
   model value; (2) cross-file SSOT / link-validity checks for all in-scope
   docs. Does NOT review code quality — that's code-reviewer's job. Skip for `.claude/{memory,artifacts,
   worktrees}/**` (auto / transient content) and any `.sh` / source file in

@@ -1797,7 +1797,7 @@
       "sourcePath": "docs/subagent-prompt-template.md",
       "destination": "skills/flow-guide/references/_dependencies/docs/subagent-prompt-template.md",
       "kind": "dependency",
-      "sha256": "2b9a5e92d83946b32d01a0dc9c121d2479a2a2fa827c5a188b041bfdbabe104b"
+      "sha256": "ba88c34cbbe81b6e1595f6abc4c33df6811009599030d99504ed6c6d2562b3dd"
     },
     {
       "skillId": "flow-guide",
@@ -1901,7 +1901,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
       "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
       "kind": "entry",
-      "sha256": "2b9a5e92d83946b32d01a0dc9c121d2479a2a2fa827c5a188b041bfdbabe104b"
+      "sha256": "ba88c34cbbe81b6e1595f6abc4c33df6811009599030d99504ed6c6d2562b3dd"
     },
     {
       "skillId": "flow-guide",
@@ -1949,7 +1949,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "kind": "entry",
-      "sha256": "47bea947ea42ad0a9f7f7df8f4d5fa9f014b36128dd1b286ed5b194ab5285ea0"
+      "sha256": "96817405d7b4383938bdd7814dacedbc25c136aa63387e10d9ddaafc2ed04034"
     },
     {
       "skillId": "flow-guide",
@@ -2277,7 +2277,7 @@
       "sourcePath": "skills/flow-guide/scripts/_lib/frontmatter.js",
       "destination": "skills/flow-guide/scripts/_lib/frontmatter.js",
       "kind": "entry",
-      "sha256": "bce4449d3ea1e7bbdaca942ca5f3bd1b8d1bc3a0375904cfd5a0f40cbebeffd6"
+      "sha256": "409b947c7d494d3aaaa1e3c6764d66c2730572c9b3f3ac130344d64ac50afae6"
     },
     {
       "skillId": "flow-guide",

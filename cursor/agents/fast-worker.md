@@ -66,6 +66,7 @@ When the spec is underspecified — missing target files, ambiguous change inten
 
 - Edit exactly the files named in the spec, exactly the intent described.
 - No opportunistic refactors, no formatting sweeps, no changes outside the spec's scope.
+- Leave git history to the orchestrator: do not commit, push, or stash.
 - Notice unrelated dead code or an adjacent issue? Mention it in the report. Do not touch it.
 - In parallel mode, the assigned file list is the authoritative write, diff, and verification boundary. If another file is required, return `RESULT: BLOCKED` rather than expanding scope.
 - Out-of-scope changes may be reported as observations, but never reverted, reset, cleaned, force-deleted, or otherwise mutated. `git checkout`, `git restore`, `git reset`, and `git clean` are prohibited for out-of-scope paths.

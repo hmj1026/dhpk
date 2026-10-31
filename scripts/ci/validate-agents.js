@@ -3,8 +3,8 @@
 
 // Validate agents/*.md frontmatter.
 //   FAIL: missing frontmatter, missing/empty name or description, duplicate
-//         keys, name/basename mismatch, missing/empty tools, invalid model /
-//         effort / maxTurns value.
+//         keys, embedded '---' inside frontmatter, name/basename mismatch,
+//         missing/empty tools, invalid model / effort / maxTurns value.
 //   WARN: missing model / effort (promoted to FAIL under
 //         --strict for fields that are explicitly present but empty).
 //   Local policy (not official schema): tools required; name matches basename.
@@ -12,7 +12,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { extract, isEmpty } = require('./_lib/frontmatter');
+const { extract, findEmbeddedDelimiters, isEmpty } = require('./_lib/frontmatter');
 const { createReporter } = require('./_lib/report');
 const { collectCodexCoverageErrors, collectCodexRuntimeErrors } = require('./_lib/codex-runtime');
 
@@ -75,11 +75,15 @@ const files = collectAgentFiles(validationRoot);
 
 for (const fullPath of files) {
   const file = path.relative(validationRoot, fullPath).split(path.sep).join('/');
-  const fm = extract(fs.readFileSync(fullPath, 'utf8'));
+  const content = fs.readFileSync(fullPath, 'utf8');
+  const fm = extract(content);
 
   if (!fm.present) {
     r.err(`${file} — missing frontmatter`);
     continue;
+  }
+  for (const line of findEmbeddedDelimiters(content)) {
+    r.err(`${file} — line ${line}: embedded '---' inside frontmatter (Claude Code truncates frontmatter there)`);
   }
   if (fm.duplicates.length) {
     r.err(`${file} — duplicate frontmatter keys: ${[...new Set(fm.duplicates)].join(', ')}`);

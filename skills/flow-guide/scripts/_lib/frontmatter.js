@@ -61,6 +61,26 @@ function extract(content) {
 }
 
 /**
+ * 1-based line numbers of frontmatter body lines that contain a literal `---`.
+ * Claude Code ends frontmatter at the first embedded `---`, silently dropping
+ * every later key, so such lines are a defect. The block runs from an opening
+ * `---` first line to the next line that is exactly `---`.
+ * @param {string} content
+ * @returns {number[]}
+ */
+function findEmbeddedDelimiters(content) {
+  const lines = content.replace(/^\uFEFF/, '').split(/\r?\n/);
+  if (lines[0] !== '---') return [];
+  const close = lines.findIndex((line, i) => i > 0 && line === '---');
+  if (close === -1) return [];
+  const found = [];
+  for (let i = 1; i < close; i++) {
+    if (lines[i].includes('---')) found.push(i + 1);
+  }
+  return found;
+}
+
+/**
  * True when a frontmatter value is absent or semantically empty (incl. empty
  * quoted strings like `''` / `""`).
  * @param {string|undefined} val
@@ -146,4 +166,4 @@ function extractInvocationClass(content) {
   };
 }
 
-module.exports = { extract, isEmpty, unquote, extractInvocationClass, extractMetadata, KNOWN_INVOCATION_CLASSES, KNOWN_METADATA_KEYS };
+module.exports = { extract, findEmbeddedDelimiters, isEmpty, unquote, extractInvocationClass, extractMetadata, KNOWN_INVOCATION_CLASSES, KNOWN_METADATA_KEYS };

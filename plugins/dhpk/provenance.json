@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.68.2",
-  "sourceCommit": "fd6ea7491bca035ce4704a13d69578012f6ee2c4",
-  "generatedFromCommit": "fd6ea7491bca035ce4704a13d69578012f6ee2c4",
-  "generatedFromTree": "55d4db415c9f5f5287e44aa2b91871c878510ffa",
+  "sourceCommit": "3beb7c64abeacf393c23f9358b36b396a7708c8e",
+  "generatedFromCommit": "3beb7c64abeacf393c23f9358b36b396a7708c8e",
+  "generatedFromTree": "8bc0d60e16150292df33de2db425cfd3da2061ee",
   "inventoryDigest": "affa088e9407bca7394ed44b3fad01227c4503a948fb82e99882f309eb7d8297",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "2.3.0",
@@ -1481,7 +1481,7 @@
         "ownerId": "flow-guide",
         "source": "docs/subagent-prompt-template.md",
         "destination": "skills/flow-guide/references/_dependencies/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be09edc25e31dfccacacddfecfb5d40939d7bfe5"
+        "originalGitBlobDigest": "bb349f80f435e64f6ed1c0f7dceaf1b13a3f6c5b"
       },
       {
         "ownerId": "flow-guide",
@@ -1559,7 +1559,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
         "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
-        "originalGitBlobDigest": "be09edc25e31dfccacacddfecfb5d40939d7bfe5"
+        "originalGitBlobDigest": "bb349f80f435e64f6ed1c0f7dceaf1b13a3f6c5b"
       },
       {
         "ownerId": "flow-guide",
@@ -1595,7 +1595,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "26071d71234ebcc51e2fb0347af6a541cf85016e"
+        "originalGitBlobDigest": "341e97b6e981feaf06eeafb18dbb6a03b322bded"
       },
       {
         "ownerId": "flow-guide",
@@ -1841,7 +1841,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/frontmatter.js",
         "destination": "skills/flow-guide/scripts/_lib/frontmatter.js",
-        "originalGitBlobDigest": "18f05d77311b7f096529940b8498103ab1124187"
+        "originalGitBlobDigest": "ccbac89d6435ff94b101b8f56c0a4cd782200d19"
       },
       {
         "ownerId": "flow-guide",
@@ -5673,7 +5673,7 @@
     "create-pr": "d7e57d7aa9d2d6b312cb158459e686de9724bc638b453d2265921a3ed80db28b",
     "doc-maintain": "e5b280fe413fefc4b5d318084a300dba869012aca78a4cff2f781fec5d67247d",
     "flow-drive": "5a6af1a88d9851ab1fbef47b10f3126cfba26a28f2d82b1ceeab32fd586ad1a9",
-    "flow-guide": "f43a392bb741a281b45fc56bf3ec06128edb7aac68dcd8422caca14c637eda21",
+    "flow-guide": "d61a8d47f17eed66c66fd1bcff05ba9bc5a06cdc0eb1606962824ac75af61a13",
     "git-smart-commit": "de2c1742f9760e46d9ad805b65b3b49b13080597b264e63d4ad56f66ca63957c",
     "git-worktree": "1d13ed5f23a0c686666a0f6ea0859e42e113d6d589a01ca3ee2580d11678bd0c",
     "library-author": "de5c31219b5525e04489af5f2fa1e8ab7e2d6a0d20bfe27889e9772aba2f770a",
