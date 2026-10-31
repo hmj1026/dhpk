@@ -78,7 +78,8 @@
         "commands/doc-refactor.md"
       ],
       "mode": "refactor",
-      "allowed_tools": "Read, Grep, Glob, Edit"
+      "allowed_tools": "Read, Grep, Glob, Edit",
+      "description": "Alias of $doc-maintain refactor; same contract."
     },
     {
       "id": "update-codemaps",
@@ -99,7 +100,8 @@
         "commands/update-codemaps.md"
       ],
       "mode": "codemap",
-      "allowed_tools": "Read, Grep, Glob, Bash(ls:*), Bash(git:*), Write, Edit"
+      "allowed_tools": "Read, Grep, Glob, Bash(ls:*), Bash(git:*), Write, Edit",
+      "description": "Alias of $doc-maintain codemap; same contract."
     },
     {
       "id": "update-docs",
@@ -120,7 +122,8 @@
         "commands/update-docs.md"
       ],
       "mode": "update",
-      "allowed_tools": "Read, Write, Edit, Grep, Glob, Bash(bash:*), Bash(cx:*), Bash(git:*), Bash(ls:*), Bash(node:*)"
+      "allowed_tools": "Read, Write, Edit, Grep, Glob, Bash(bash:*), Bash(cx:*), Bash(git:*), Bash(ls:*), Bash(node:*)",
+      "description": "Alias of $doc-maintain update; same contract."
     }
   ]
 }

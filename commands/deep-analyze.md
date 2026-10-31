@@ -1,5 +1,5 @@
 ---
-description: 'Use when turning an initial proposal or proposal file into an evidence-backed implementation roadmap. Not for applying an approved OpenSpec change or writing OpenSpec artifacts. Output: validated assumptions, code-research summary, roadmap, alternatives, risks, and immediate actions.'
+description: 'Alias of $proposal-analyze; same contract.'
 argument-hint: '<initial proposal description or file path>'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(node:*), Write'
 metadata:

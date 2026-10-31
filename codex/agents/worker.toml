@@ -30,6 +30,7 @@ Completion contract:
 - Record unresolved failures as `BLOCKED` or `NOT RUN` with the reason and resume command.
 - Do not claim completion, a passing test, or a clean worktree without direct evidence.
 - Leave review and release decisions to the parent flow; do not push or open a PR.
+- Leave git history to the orchestrator: do not commit, push, or stash.
 - Keep the summary inline and separate from assigned edits, test traces, and runner output.
 - A complete inline summary is finished even when no summary file exists.
 - Do not record unobserved evidence as PASS.

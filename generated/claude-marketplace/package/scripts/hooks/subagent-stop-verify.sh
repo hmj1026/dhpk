@@ -6,7 +6,10 @@
 # unresolved-verdict sidecar, lifecycle event emission) was entirely keyed to
 # `.pending-*` sentinel state and retired with the rest of Sentinel
 # (#376/#377) — no Review-Gate-native replacement exists at this hook layer
-# today. What remains: clearing a stopped fast-worker's liveness marker.
+# today. What remains: clearing a stopped fast-worker's liveness marker, and
+# appending one record per stopped subagent (any agent_type) to the dispatch
+# log so its effective model/effort is retrievable later. The log write is
+# silent (no stdout/stderr, never injected into context) and best-effort.
 #
 # Trigger: SubagentStop event (wired once in hooks/hooks.json).
 # Cost: one jq/python3 parse, <20ms.
@@ -73,6 +76,48 @@ remove_matching_active_entry() {
         rm -f "$tmp" "$file"
     fi
 }
+
+# Last assistant `message.model` from the subagent's own transcript. Tolerates
+# malformed lines (fromjson?) and a missing/unreadable file; prints nothing then.
+last_transcript_model() {
+    local path="$1"
+    [ -n "$path" ] && [ -r "$path" ] || return 0
+    tail -n 200 "$path" 2>/dev/null \
+        | jq -R -r 'fromjson? | select(type == "object" and .type == "assistant") | .message.model // empty' 2>/dev/null \
+        | tail -n 1
+    return 0
+}
+
+# Append one JSONL dispatch record. Skips silently without jq. effort is the
+# SubagentStop hook-input value (may be session-level, not per-subagent).
+log_subagent_dispatch() {
+    local payload="$1" file="$SESS/$DHPK_SIDECAR_SUBAGENT_LOG" fields="" model="" size=0
+    local atype aid tpath effort
+    [ -n "$payload" ] || return 0
+    command -v jq >/dev/null 2>&1 || return 0
+    fields="$(printf '%s' "$payload" | jq -r '[(.agent_type // ""), (.agent_id // ""), (.agent_transcript_path // ""), ((.effort // "") | tostring)] | join("\u001f")' 2>/dev/null)" || return 0
+    IFS=$'\x1f' read -r atype aid tpath effort <<< "$fields"
+    model="$(last_transcript_model "$tpath")"
+    mkdir -p "$SESS" 2>/dev/null || return 0
+    if [ -f "$file" ]; then
+        size="$(wc -c < "$file" 2>/dev/null | tr -d ' ')"
+        [ "${size:-0}" -gt 1048576 ] && mv -f "$file" "$file.1" 2>/dev/null
+    fi
+    jq -n -c \
+        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --arg agent_type "$atype" --arg agent_id "$aid" --arg model "$model" --arg effort "$effort" \
+        '{ts: $ts,
+          agent_type: (if $agent_type == "" then null else $agent_type end),
+          agent_id: (if $agent_id == "" then null else $agent_id end),
+          model: (if $model == "" then null else $model end),
+          model_source: "agent_transcript",
+          effort: (if $effort == "" then null else $effort end),
+          effort_source: (if $effort == "" then null else "hook_input" end)}' \
+        >> "$file" 2>/dev/null || true
+    return 0
+}
+
+log_subagent_dispatch "$PAYLOAD" >/dev/null 2>&1 || true
 
 SUBAGENT="$(extract_subagent_name "$PAYLOAD")"
 

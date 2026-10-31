@@ -79,7 +79,10 @@ key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保�
 不是第二份公開權威。`architect_model` / `architect_effort` 沒有派工效果，
 也不會映射到 `reasoner_target`。`scripts/hooks/session-start.sh` 只在明確
 非預設 canonical target（或 `DHPK_DISPATCH_CONFIG_REPORT=1`）時發出條件式
-設定報告，不會套用原生 Agent model override。
+設定報告，不會套用原生 Agent model override。沒有 diagnostics 時，報告是
+最多 300 字元的一行摘要，完整 JSON 寫入
+`.claude/artifacts/sessions/dispatch-config.json`；有 diagnostics 時直接輸出
+完整 JSON。
 
 ## 核心派發與 Review
 

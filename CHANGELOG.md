@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 0.68.3 — 2026-10-31 — Subagent dispatch retro guidance, resident context cuts, and dispatch logging
+
+- **feat(hooks)** — The SubagentStop hook appends each subagent's observed model and hook-reported effort to `.claude/artifacts/sessions/subagent-dispatch.jsonl` without adding context.
+- **fix(agents)** — doc-reviewer frontmatter is no longer truncated by an embedded delimiter so its haiku model and the review role's restricted tool list apply, and the agent validator now rejects an embedded `---` inside frontmatter.
+- **perf(commands)** — Alias command forwarders (`doc-refactor`, `update-codemaps`, `update-docs`, `matrix-cell-onboard`, `verify`, `deep-analyze`) now carry a one-line alias description instead of repeating the owner skill description in every request.
+- **perf(session-start)** — SessionStart prints a one-line dispatch summary (at most 300 characters) instead of the full dispatch config JSON, and writes the full report to `.claude/artifacts/sessions/dispatch-config.json`; the full JSON is printed only when diagnostics exist.
+- **docs(model-economics)** — Document when a `fast-worker` dispatch may use `model: haiku` for mechanical sweeps and when it must stay on sonnet.
+- **docs(dispatch)** — Add dispatch sizing and phrasing guidance, when deep-reasoner may use Fable, Haiku 5.5 effort facts as of 2026-10-31, per-dispatch effort advice, fast-worker leaving git history to the orchestrator, and an e2e-runner one-spec-per-dispatch rule.
+
 ## 0.68.2 — 2026-10-30 — Point skill-prose distribution, GitNexus impact, develop merges, and commit-hook fallbacks at the existing guides
 
 - **docs(agent-guidance)** — Point skill-prose distribution, GitNexus impact, develop merges, and commit-hook fallbacks at the existing guides.

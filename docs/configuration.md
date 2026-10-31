@@ -108,7 +108,10 @@ are not mapped onto `reasoner_target`.
 `scripts/hooks/session-start.sh` emits a conditional config report only when
 an explicit non-default canonical target is set, or when
 `DHPK_DISPATCH_CONFIG_REPORT=1`. It does not apply a native Agent model
-override.
+override. Without diagnostics the report is a one-line summary of at most 300
+characters, and the full JSON is written to
+`.claude/artifacts/sessions/dispatch-config.json`; with diagnostics the full
+JSON is printed.
 
 Former skill-bundle selections, including `compat-v1`, remain only as historical
 receipt metadata. The current main installation default is the `common`

@@ -68,7 +68,19 @@ test('existing folded Skill descriptions generate a valid compact forwarder', ()
   assert.ok(fs.readFileSync(path.join(ctx.root, 'commands/inspect.md'), 'utf8').includes("description: 'Inspect the selected target safely'"));
 }));
 
-test('removed declarations retire only unchanged receipt-owned forwarders', () => fixture(ctx => {
+test('declared command description overrides the owner Skill description and stays out of the disposition row', () => fixture(ctx => {
+  const description = 'Alias of $fixture inspect; same contract.';
+  ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [{ ...ctx.declaration, description }] }));
+  assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0, ctx.messages.join(''));
+  const expected = "---\ndescription: 'Alias of $fixture inspect; same contract.'\nargument-hint: '<target>'\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\n\nLoad the canonical `$fixture` Skill from [SKILL.md](../skills/fixture/SKILL.md) and follow it with `$ARGUMENTS`.\nKeep its argument contract, authority boundary, verification, and output.\n";
+  assert.strictEqual(fs.readFileSync(path.join(ctx.root, 'commands/inspect.md'), 'utf8'), expected);
+  assert.strictEqual(ctx.invoke(forwarders, '--check').status, 0, ctx.messages.join(''));
+  assert.strictEqual(ctx.invoke(dispositions, '--write').status, 0, ctx.messages.join(''));
+  const row = JSON.parse(fs.readFileSync(path.join(ctx.root, 'manifests/command-skill-dispositions.json'), 'utf8')).commands[0];
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(row, 'description'), false);
+}));
+
+test('removed declarations retire only unchanged receipt-owned forwarders',() => fixture(ctx => {
   assert.strictEqual(ctx.invoke(forwarders, '--write').status, 0);
   ctx.put('commands/host-only.md', 'unowned Host command\n');
   ctx.put('skills/fixture/distribution.yaml', JSON.stringify({ schema: 'dhpk.skill-distribution.v1', commands: [] }));

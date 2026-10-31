@@ -36,6 +36,18 @@ Output contract:
 - <required headings, evidence shape, edited-file report, and terminal status>
 ```
 
+## Dispatch sizing and phrasing
+
+Observed in a 7-day dispatch retrospective (2026-10-31, 278 subagent runs):
+
+- One package, spec, or test file per dispatch; split a packet that grows past about 2,500 characters (prompts of 4,000+ characters ran a median 40 turns vs 14).
+- Include one runnable verification command for a writer; give a read-only role an observable pass condition. (Dispatches without a command ran nearly twice the turns.)
+- Inside the standalone packet, a reviewer dispatch puts the diff and base ref under Scope and the question under Goal; leave verdict vocabulary and artifact writing to the reviewer's agent contract. Prompt-level length caps were exceeded in nearly every observed run, so put a length need in the reviewer contract instead.
+- Name the shell when commands will run (for zsh, quote arguments containing globs or `?`); half of exploration tool errors were zsh quoting.
+- State rules positively ("edit only the listed files"); back hard bans with hooks or the agent definition rather than repeating them in every prompt.
+- For a Fable recipient (tier map: `rules/model-economics.md`), give the goal, constraints, and done criterion rather than a step list; Anthropic's Fable 5.1 migration guidance notes that prompts written for earlier models are often too prescriptive and can reduce output quality.
+- Send read-only discovery to a read-only discovery role and a live probe to the live-probe role; send writes and command execution to a named writer role rather than a general-purpose agent.
+
 ## Recoverable run checkpoint
 
 For dhpk maintainer delivery with an exclusive, recoverable verification run,

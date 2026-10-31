@@ -31,7 +31,7 @@ Use the playwright-cli skill for interactive discovery. If it is missing, fall b
 
 ## Planning
 
-Prioritize journeys by risk: authentication and money are high; navigation and search are medium; polish is low. Cover critical paths, edge cases, and error paths.
+Prioritize journeys by risk: authentication and money are high; navigation and search are medium; polish is low. Cover critical paths, edge cases, and error paths. Run one spec (or one journey) per dispatch; return the remaining specs as next actions.
 
 When a field that used to be empty now carries real data, inventory every screen, edit view, print view, export, and other render surface that shows it, and the journeys that reach them.
 
