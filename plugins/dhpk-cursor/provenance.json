@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.68.2",
-  "sourceCommit": "61ef37b6fda7bc9aa3fbfdf70cf3180e87d7a675",
-  "generatedFromCommit": "61ef37b6fda7bc9aa3fbfdf70cf3180e87d7a675",
-  "generatedFromTree": "335e1259b6b3677122ac2e30c78925456c2e316c",
+  "sourceCommit": "fd6ea7491bca035ce4704a13d69578012f6ee2c4",
+  "generatedFromCommit": "fd6ea7491bca035ce4704a13d69578012f6ee2c4",
+  "generatedFromTree": "55d4db415c9f5f5287e44aa2b91871c878510ffa",
   "inventoryDigest": "affa088e9407bca7394ed44b3fad01227c4503a948fb82e99882f309eb7d8297",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "1.0.0",
@@ -573,7 +573,7 @@
         "ownerId": "doc-maintain",
         "source": "skills/doc-maintain/distribution.yaml",
         "destination": "skills/doc-maintain/distribution.yaml",
-        "originalGitBlobDigest": "1d39266f30160dcbe125fd6ad0730ace20816470"
+        "originalGitBlobDigest": "c4fd903406153c1aaf066b9b454e0dc5747eef99"
       },
       {
         "ownerId": "doc-maintain",
@@ -1521,7 +1521,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "acf6097cde79cc6195f130ea5a1fe0f4e58c9268"
+        "originalGitBlobDigest": "26071d71234ebcc51e2fb0347af6a541cf85016e"
       },
       {
         "ownerId": "flow-guide",
@@ -1959,7 +1959,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/proposal-analyze/distribution.yaml",
         "destination": "skills/proposal-analyze/distribution.yaml",
-        "originalGitBlobDigest": "a2e080d5960769a2d228e7597310e24b9261f207"
+        "originalGitBlobDigest": "91d579e837761fdf7f5b9fddc98608d5617d11bc"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2253,7 +2253,7 @@
         "ownerId": "repo-verify",
         "source": "skills/repo-verify/distribution.yaml",
         "destination": "skills/repo-verify/distribution.yaml",
-        "originalGitBlobDigest": "da1e2d3d7e35c671ef0c8cb2177ab0a0039bca27"
+        "originalGitBlobDigest": "837bdb52d0e0044bb40f506676aef3871fb8cd78"
       },
       {
         "ownerId": "repo-verify",
@@ -5605,9 +5605,9 @@
     }
   ],
   "fingerprints": {
-    "rules": "60cc5b86557564e4f9fd5db0392985fca04118f0b32c634e9473ae0c228a7139",
+    "rules": "4e704a40a5802cc7e8488ab4126dbf617f7e0bde7f6e1910944154ae593880c8",
     "agents": "93aa5176fd062606caf783163bf2e1cec74e2778f24c628cfa185f70a3851b95",
-    "commands": "026bf07fc6dfbfb88777aae79037674dec723ba90505d81906a64f5fbbe8f3b2",
+    "commands": "9104c6ec54a2cc1a77357ce279e096d2de2b86876a2137388a2a1e9d65b44314",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a",
     "agent-traps": "b3467f22a69b647b6f101dd314e79e427c118f6c569f0401d0e7026ea541cffd"
   },
@@ -6675,5 +6675,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "573224d7a437a6de9bf99b47f9107e22c047d7eac346be9967501ad947ebc171"
+  "planFingerprint": "1f2c3e965d871156d9f3b1aa73ff8769a659d82b9235d4df20f933cbff4b836e"
 }

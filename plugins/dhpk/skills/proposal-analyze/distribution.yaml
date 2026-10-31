@@ -60,7 +60,8 @@
       "callers": [
         "commands/deep-analyze.md"
       ],
-      "allowed_tools": "Read, Grep, Glob, Bash(git:*), Bash(node:*), Write"
+      "allowed_tools": "Read, Grep, Glob, Bash(git:*), Bash(node:*), Write",
+      "description": "Alias of $proposal-analyze; same contract."
     }
   ]
 }

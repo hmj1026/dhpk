@@ -104,7 +104,8 @@
         "commands/matrix-cell-onboard.md"
       ],
       "reason": "Stable Claude front door forwards normalized arguments to library-author mode cell-onboard.",
-      "mode": "cell-onboard"
+      "mode": "cell-onboard",
+      "description": "Alias of $library-author cell-onboard; same contract."
     }
   ]
 }
