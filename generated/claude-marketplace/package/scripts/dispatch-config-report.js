@@ -180,7 +180,9 @@ function legacyEntries(layerOptions) {
     for (const key of LEGACY_REPORT_KEYS) {
       if (!Object.prototype.hasOwnProperty.call(layerValues, key)) continue;
       if (isDefaultReportValue(key, layerValues[key])) continue;
-      entries.push(`${layer}.${key}=${layerValues[key]}`);
+      // Model/effort values identify the effective target; selector keys stay name-only.
+      const showValue = /_(model|effort)$/.test(key);
+      entries.push(showValue ? `${layer}.${key}=${layerValues[key]}` : `${layer}.${key}`);
     }
   }
   return entries;
