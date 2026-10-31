@@ -3,12 +3,12 @@
   "files": {
     "commands/create-pr.md": "116b4f776b0895e109f5c931603ba1044984ee8d4118086086fb1fb2c830e102",
     "commands/create-release.md": "2cdfe59ce014c713ead7ff8e62c7bd70c1d2f984c51783d4586609ce78397374",
-    "commands/deep-analyze.md": "60a146350c85ff17abd98efe9769a8d71a1dc1dd0339a57f502e267df04cd22e",
-    "commands/doc-refactor.md": "0fbd564e21d63f44b8ec87921f862d39e3a35824da3c7d39e29d948b7f925303",
+    "commands/deep-analyze.md": "566d388d719d313ab3acf342a7b36e66b5d444a262f83e5de89849466b468228",
+    "commands/doc-refactor.md": "23898fb3e007c7b371036b7093bf469f7cdbbb026e24fa8e523e5f104b8662d7",
     "commands/flow-drive.md": "666e399986f866b8114f0fbb80ebfb31b98c2c2844db613c4a405c8350ab4e13",
     "commands/flow-guide.md": "258ad9be25adcc217300bbeeec76fb80537a71c12ed9c0c820415b3866c0c59a",
     "commands/git-worktree.md": "af98dbee02e5030cba93785f09563c64bb38edb94f3935240ded782574c0cfdb",
-    "commands/matrix-cell-onboard.md": "617c9f4e80df0f80bdba2588bcd74a94815c5d9afd0996f76b2a0089607a1397",
+    "commands/matrix-cell-onboard.md": "f1bab80e143bd8ad23a561e3c08521b57001d07f955bb15c4f93ca1d295382d3",
     "commands/merge-prep.md": "03b4c78b49f0a62e8daa158a06aeeda4c8ed00c2e638431d0fd712fa6748a734",
     "commands/opsx-apply-resume.md": "48307f84b8e018f55e10a7a1613503a838914f568e4c6be6cb46b8263b31801e",
     "commands/pr-summary.md": "aa21dba3c914ded3fcff4e5537ebf81e32ff797884a21fd8a0cde5b157e5fd0f",
@@ -18,8 +18,8 @@
     "commands/simplify.md": "7042437178fb085677e3c83d645456c879340413b3a4a9660fef3921d729b774",
     "commands/smart-commit.md": "e556561a406002217b12403381b1f71d84a6fe4cb0cc013c50160d81e2a61739",
     "commands/ui-ux-verify.md": "fc564b6c6b40e831128d4bd8d8979d789b429a79415a79ac320464f0febe6df7",
-    "commands/update-codemaps.md": "53d010a076cd7d75219c5639f321f6f5944f21ecc073d59105273e87598e165e",
-    "commands/update-docs.md": "2b82f3f2e82e887421de3e233b7ea2e2b8d5e119defb792be73d100811e15468",
-    "commands/verify.md": "33130265ba48379c2ddc5d32ef87a936e525360d14d13d48bc2c4ffdf6e39b53"
+    "commands/update-codemaps.md": "412a8fb2885a71692a01f92bfb9855c0b4fb8f787c46f4a6cca25dc3937cddd6",
+    "commands/update-docs.md": "28b54c3f14c284331521b3eba8cce9d343cb7aa5de780b2e978486300e1221de",
+    "commands/verify.md": "63d6fc70103b5fb6a0499b9ed01ef693931e9311cdb942db0966cbd3307d2139"
   }
 }

@@ -1184,6 +1184,203 @@ test('Codex Host native fallback is derived from its Host profile', () => {
       invalid.cleanup();
     }
   });
+
+  const SUMMARY_PREFIX = '[session-start] dispatch config: ';
+
+  function readSummary(environment, options) {
+    const captured = captureStdout(() => main(environment, { ...options, format: 'summary' }));
+    assert.strictEqual(captured.result, 0, captured.output);
+    assert.ok(captured.output.endsWith('\n'), captured.output);
+    const body = captured.output.slice(0, -1);
+    assert.ok(!body.includes('\n'), body);
+    return body;
+  }
+
+  test('summary format fits 300 chars with prefix for four long roles plus legacy keys', () => {
+    const roots = isolatedRoots();
+    try {
+      const long = 'x'.repeat(40);
+      const body = readSummary({
+        CLAUDE_PLUGIN_OPTION_PLANNER_TARGET: `claude-code/anthropic/planner-${long}:high`,
+        CLAUDE_PLUGIN_OPTION_REASONER_TARGET: `codex-cli/openai/reasoner-${long}:xhigh`,
+        CLAUDE_PLUGIN_OPTION_WORKER_TARGET: `agy/google/worker-${long}:medium`,
+        CLAUDE_PLUGIN_OPTION_REVIEWER_TARGET: `codex-cli/openai/reviewer-${long}:high`,
+        CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet',
+        CLAUDE_PLUGIN_OPTION_FAST_WORKER_EFFORT: 'high',
+        CLAUDE_PLUGIN_OPTION_DEEP_REASONER_MODEL: 'opus',
+        CLAUDE_PLUGIN_OPTION_PLANNER_MODEL: 'opus',
+        CLAUDE_PLUGIN_OPTION_REVIEWER_MODEL: 'opus',
+        CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH: 'off',
+        CLAUDE_PLUGIN_OPTION_FALLBACK_ALLOW: 'false',
+      }, roots);
+      assert.ok(`${SUMMARY_PREFIX}${body}`.length <= 300, `${SUMMARY_PREFIX}${body}`.length);
+      assert.ok(!body.includes('; full:'), body);
+      assert.ok(body.includes('dispatch=off'), body);
+      assert.ok(body.includes('fallback=deny'), body);
+      assert.ok(body.includes('worker='), body);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format names a configured role with agent, model and effort', () => {
+    const roots = isolatedRoots();
+    try {
+      const body = readSummary({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }, roots);
+      assert.ok(body.startsWith('worker=codex-cli/sol5.6:high'), body);
+      assert.ok(!body.includes('{'), body);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format lists a lone legacy effort key by layer even without a target', () => {
+    const roots = isolatedRoots();
+    try {
+      const envBody = readSummary({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_EFFORT: 'high' }, roots);
+      assert.ok(envBody.includes('legacy=environment.fast_worker_effort=high'), envBody);
+      writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), { fast_worker_effort: 'high' });
+      const projectBody = readSummary({}, roots);
+      assert.ok(projectBody.includes('legacy=project.fast_worker_effort=high'), projectBody);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format marks an unreadable settings layer as incomplete scope', () => {
+    const roots = isolatedRoots();
+    try {
+      fs.mkdirSync(path.join(roots.projectRoot, '.claude'), { recursive: true });
+      fs.writeFileSync(path.join(roots.projectRoot, '.claude', 'settings.local.json'), '{');
+      const body = readSummary({}, roots);
+      assert.ok(body.includes('scope=incomplete(project:invalid-json)'), body);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format says defaults when forced with nothing non-default', () => {
+    const roots = isolatedRoots();
+    try {
+      const body = readSummary({ DHPK_DISPATCH_CONFIG_REPORT: '1' }, roots);
+      assert.ok(body.startsWith('defaults'), body);
+      const silent = captureStdout(() => main({}, { ...roots, format: 'summary' }));
+      assert.strictEqual(silent.output, '');
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format with fullOut writes the full JSON and names its relative path', () => {
+    const roots = isolatedRoots();
+    const cwd = process.cwd();
+    try {
+      const fullOut = path.join(cwd, 'tmp-dhpk-fullout-test', 'nested', 'dispatch-config.json');
+      try {
+        const body = readSummary({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }, { ...roots, fullOut });
+        assert.ok(body.endsWith(`; full: ${path.relative(cwd, fullOut)}`), body);
+        const raw = fs.readFileSync(fullOut, 'utf8');
+        assert.ok(raw.endsWith('\n'), 'trailing newline');
+        assert.strictEqual(JSON.parse(raw).schema, 'dhpk.dispatch.config-report.v1');
+      } finally {
+        fs.rmSync(path.join(cwd, 'tmp-dhpk-fullout-test'), { recursive: true, force: true });
+      }
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format with an absolute fullOut outside cwd shows the absolute path', () => {
+    const roots = isolatedRoots();
+    try {
+      const fullOut = path.join(roots.projectRoot, 'out', 'report.json');
+      const body = readSummary({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }, { ...roots, fullOut });
+      assert.ok(path.relative(process.cwd(), fullOut).startsWith('..') || path.isAbsolute(path.relative(process.cwd(), fullOut)));
+      assert.ok(body.endsWith(`; full: ${fullOut}`), body);
+      assert.ok(fs.existsSync(fullOut));
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format without fullOut carries no full-report hint', () => {
+    const roots = isolatedRoots();
+    try {
+      const body = readSummary({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }, roots);
+      assert.ok(!body.includes('full:'), body);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format omits the hint and still exits 0 when fullOut is unwritable', () => {
+    const roots = isolatedRoots();
+    try {
+      const blocker = path.join(roots.projectRoot, 'regular-file');
+      fs.writeFileSync(blocker, 'x');
+      const body = readSummary({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' },
+        { ...roots, fullOut: path.join(blocker, 'sub', 'report.json') });
+      assert.ok(body.startsWith('worker=codex-cli/sol5.6:high'), body);
+      assert.ok(!body.includes('full:'), body);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format keeps 300 chars with a long fullOut hint and drops the hint when it alone cannot fit', () => {
+    const roots = isolatedRoots();
+    try {
+      const long = 'x'.repeat(40);
+      const env = {
+        CLAUDE_PLUGIN_OPTION_PLANNER_TARGET: `claude-code/anthropic/planner-${long}:high`,
+        CLAUDE_PLUGIN_OPTION_WORKER_TARGET: `agy/google/worker-${long}:medium`,
+      };
+      const fullOut = path.join(roots.projectRoot, 'a'.repeat(40), 'report.json');
+      const body = readSummary(env, { ...roots, fullOut });
+      assert.ok(`${SUMMARY_PREFIX}${body}`.length <= 300, `${SUMMARY_PREFIX}${body}`.length);
+      assert.ok(body.endsWith(`; full: ${fullOut}`), body);
+      const huge = path.join(roots.projectRoot, 'b'.repeat(400), 'report.json');
+      const dropped = readSummary(env, { ...roots, fullOut: huge });
+      assert.ok(`${SUMMARY_PREFIX}${dropped}`.length <= 300, `${SUMMARY_PREFIX}${dropped}`.length);
+      assert.ok(!dropped.includes('full:'), dropped);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format with diagnostics prints full JSON and also writes fullOut', () => {
+    const roots = isolatedRoots();
+    try {
+      const fullOut = path.join(roots.projectRoot, 'diag.json');
+      const captured = captureStdout(() => main({ CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL: 'opus' }, { ...roots, format: 'summary', fullOut }));
+      assert.strictEqual(JSON.parse(captured.output).schema, 'dhpk.dispatch.config-report.v1');
+      assert.strictEqual(JSON.parse(fs.readFileSync(fullOut, 'utf8')).schema, 'dhpk.dispatch.config-report.v1');
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format falls back to full JSON when diagnostics are present', () => {
+    const roots = isolatedRoots();
+    try {
+      const captured = captureStdout(() => main({ CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL: 'opus' }, { ...roots, format: 'summary' }));
+      const parsed = JSON.parse(captured.output);
+      assert.strictEqual(parsed.schema, 'dhpk.dispatch.config-report.v1');
+      assert.ok(parsed.diagnostics.length > 0);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('default format keeps the full JSON report', () => {
+    const roots = isolatedRoots();
+    try {
+      const report = readReport({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }, roots);
+      assert.strictEqual(report.schema, 'dhpk.dispatch.config-report.v1');
+    } finally {
+      roots.cleanup();
+    }
+  });
 }
 
 // Source suite: dispatch-contract.test.js

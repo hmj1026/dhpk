@@ -1,5 +1,5 @@
 ---
-description: 'Maintain documentation through stale-doc refresh, architecture codemap generation, or a bounded Markdown refactor. Selects update, codemap, or refactor while preserving each output and evidence contract. Not for application source, tests, manifests, route tables, generated projections, or broad policy review.'
+description: 'Alias of $doc-maintain refactor; same contract.'
 argument-hint: '<file path>'
 allowed-tools: 'Read, Grep, Glob, Edit'
 metadata:

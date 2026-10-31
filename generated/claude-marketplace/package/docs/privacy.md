@@ -30,7 +30,11 @@ permissions provided by that host and authorized by the user.
   user. The host may also retain conversation history, caches, or local logs
   under its own settings. Some optional dhpk features can write local receipts,
   logs, or artifacts when enabled; the user controls those files and their
-  local retention.
+  local retention. The default hooks also write two local files under the
+  project's `.claude/artifacts/sessions/`: `dispatch-config.json` (the full
+  dispatch config report, when one is reported) and `subagent-dispatch.jsonl`
+  (each stopped subagent's type, id, model, and effort; rotated past 1 MB).
+  They never leave the machine.
 - DHPK does not operate a telemetry service for this plugin and does not
   independently send workflow contents or usage events to a DHPK server.
 

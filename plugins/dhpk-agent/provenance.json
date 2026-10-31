@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.68.2",
-  "sourceCommit": "61ef37b6fda7bc9aa3fbfdf70cf3180e87d7a675",
-  "generatedFromCommit": "61ef37b6fda7bc9aa3fbfdf70cf3180e87d7a675",
-  "generatedFromTree": "335e1259b6b3677122ac2e30c78925456c2e316c",
+  "sourceCommit": "fd6ea7491bca035ce4704a13d69578012f6ee2c4",
+  "generatedFromCommit": "fd6ea7491bca035ce4704a13d69578012f6ee2c4",
+  "generatedFromTree": "55d4db415c9f5f5287e44aa2b91871c878510ffa",
   "inventoryDigest": "ffda92a434ef8816444feeea689c5517187ba10fcd7ff08eb0904fd69c121098",
   "inventoryRevision": "sha256:aaf7609b2767af4de4dba35214981d6e14de3893c65f0aa5d1f2b2f6ac032a13",
   "generatorVersion": "1.0.0",
@@ -618,7 +618,7 @@
         "ownerId": "doc-maintain",
         "source": "skills/doc-maintain/distribution.yaml",
         "destination": "skills/doc-maintain/distribution.yaml",
-        "originalGitBlobDigest": "1d39266f30160dcbe125fd6ad0730ace20816470"
+        "originalGitBlobDigest": "c4fd903406153c1aaf066b9b454e0dc5747eef99"
       },
       {
         "ownerId": "doc-maintain",
@@ -1566,7 +1566,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "acf6097cde79cc6195f130ea5a1fe0f4e58c9268"
+        "originalGitBlobDigest": "26071d71234ebcc51e2fb0347af6a541cf85016e"
       },
       {
         "ownerId": "flow-guide",
@@ -2004,7 +2004,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/proposal-analyze/distribution.yaml",
         "destination": "skills/proposal-analyze/distribution.yaml",
-        "originalGitBlobDigest": "a2e080d5960769a2d228e7597310e24b9261f207"
+        "originalGitBlobDigest": "91d579e837761fdf7f5b9fddc98608d5617d11bc"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2298,7 +2298,7 @@
         "ownerId": "repo-verify",
         "source": "skills/repo-verify/distribution.yaml",
         "destination": "skills/repo-verify/distribution.yaml",
-        "originalGitBlobDigest": "da1e2d3d7e35c671ef0c8cb2177ab0a0039bca27"
+        "originalGitBlobDigest": "837bdb52d0e0044bb40f506676aef3871fb8cd78"
       },
       {
         "ownerId": "repo-verify",
@@ -5306,15 +5306,15 @@
     "change-verdict": "da104363c10f4de72c16ff92001ab891e4d6c312bc6fdfd341c13830dcdf565c",
     "code-trace": "c0562e6f0599f46922fcc23d92ed9b354b54826a567326d713cfb026c71b36fc",
     "create-pr": "ecea4c51400b24a50a6aa852f1796c1ccd281e0a1c3d4d8b845c1a72e1518f24",
-    "doc-maintain": "d2b6e12533e99c08d143be5ecc5ada0db0c45c92e35f3d89a691cb7851eef921",
+    "doc-maintain": "8a428db65c040d66128944fac45ab46f68200c8e0e442d809bbea6f8f2fbad0d",
     "flow-drive": "4eebdf4565d30e62883e15d86ad1669eb8287397bc5e2eb852425a7b76e962b7",
-    "flow-guide": "b804bbb8824879cd521c9c7334342d2e00903abe425ff7f8b2e119ae3e79e451",
+    "flow-guide": "6069994d3dbc04c1820f26d8fb94482f4b8e1620ef6618c1b18e009714344384",
     "git-smart-commit": "b21cf7de6b555ada30c0c4db7c8f0326599607f95c87cd00924fa571663dbc4f",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",
     "precommit": "565accfb658863ae359b200ee516083d7f7122757c41db1e19f10198041621ce",
-    "proposal-analyze": "a3cfd7751b0e87497a28aba746e328f57714ef343aad94cbb9eecc7adcf4e392",
+    "proposal-analyze": "36a8b4b5664244525111487e9222410fc56d7a700ee39974faec1e00a757f612",
     "release-creator": "1e8db2d66dd9d526466746baca053541acd0cef84ddd25027eddb20a58a435a6",
-    "repo-verify": "0bdff21b2c9ae79c1fa276de0a993a2684908452b70e956bd4213cd4f7aa82af",
+    "repo-verify": "88c1487b769de7b433d65b00f024f968b6bedeccb8d79f72c1d074d3b8156611",
     "tdd-workflow": "c4d4ee69d8f287ced7e05fc813563c86ad4959e32868685bcf7cb980e8a258b8",
     "ui-ux-verify": "9ffa940ca3bfefb2cfd4cd91c233010a2aef4caa8c951d6c72a6b4ed86958cd8"
   },
