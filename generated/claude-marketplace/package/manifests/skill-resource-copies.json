@@ -52,7 +52,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:650ec46923c75f9bbb7116ecd8fcb697fec38583a752692892bd14a91de9d670",
+      "sha256": "sha256:6fa6872cf37a695918c1226ed815d2fd1e54943f86556b9e4fba894d4f32f29e",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
@@ -130,7 +130,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:c107fd3c5beb5615129e091cea279efefa09766a8e892f23aeefff147d63f078",
+      "sha256": "sha256:4a388711b3aad2017eec6ef4c399ce1c1040ba592a9b10b7ca4aa38d9ce8a3f3",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {

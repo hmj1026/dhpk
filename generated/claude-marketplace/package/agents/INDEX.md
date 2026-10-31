@@ -5,7 +5,7 @@ description: 'Reference index for the agents shipped by the dhpk plugin.'
 
 # Agents Index (dhpk plugin)
 
-<!-- dhpk-agent-roster-counts: {"schema":"dhpk.agent-roster-counts.v1","total":30,"root":29,"module":1} -->
+<!-- dhpk-agent-roster-counts: {"schema":"dhpk.agent-roster-counts.v1","total":32,"root":31,"module":1} -->
 
 > The roster is registered in `.claude-plugin/plugin.json` and discovered as `dhpk:<name>` after install.
 
@@ -62,6 +62,8 @@ This index only lists the shipped roles above.
 - `general-purpose` cannot cover it: no dhpk policy context, inherits the main-session model (cost misallocation when the orchestrator is a top-tier model and the task is mechanical), no defined input/output contract for gate enforcement.
 - `architect` cannot cover it: design-domain-scoped (DDD layering, cross-module ADRs) with a design-review posture — stretching it to general debugging/mechanical-implementation work would blur its trigger conditions and INDEX contract. `deep-reasoner` explicitly defers to `architect` for that domain rather than competing with it.
 - `smoke-tester` is not covered by any existing agent: `e2e-runner` writes Playwright spec files and is web-scoped (write-capable), and `feature-verify` is a main-context skill (heavyweight P0-P5, not a dispatchable isolated agent) — neither overlaps a read-only, scenario-driven, single-concrete-scenario live probe, so `smoke-tester` is a genuinely new capability.
+- `qa-executor` is not covered by any existing agent: `smoke-tester` drives one scenario and has no Skill tool, so it cannot load a browser skill; `e2e-runner` authors spec files; `ui-ux-verifier` audits one page against one spec. Recurring live QA work was otherwise sent to `general-purpose` with a repeated brief/results/credential/write-fence preamble that this contract absorbs (evidence: OpenSpec change `add-qa-executor-and-docs-writer-agents`).
+- `docs-writer` is not covered by `doc-updater`: `doc-updater` refreshes docs made stale by a structural change, while assigned authoring from supplied sources had no Claude role. The Codex projection already shipped `docs-writer`; this makes it a shared canonical source.
 
 ## Situational
 
@@ -72,7 +74,8 @@ This index only lists the shipped roles above.
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
 | [performance-analyzer](performance-analyzer.md) | sonnet | N+1 queries, EXPLAIN, index/perf audits |
-| [doc-updater](doc-updater.md) | haiku | Doc / codemap updates |
+| [doc-updater](doc-updater.md) | haiku | Doc / codemap updates after a structural change makes docs stale |
+| [docs-writer](docs-writer.md) | sonnet | Write or revise assigned documentation (QA manuals, guides, docblock prose) from confirmed sources; reports sources and unresolved facts. Distinct from doc-updater (stale-doc refresh after a structural change) |
 | [docs-lookup](docs-lookup.md) | haiku | Library / framework / API doc lookup (Context7) |
 | [harness-reviser](harness-reviser.md) | sonnet | Scoped harness configuration review and fixes; retired governance scoring and scenario coverage are unavailable |
 | [migration-reviewer](migration-reviewer.md) | sonnet | DB migration up/down symmetry, multi-tenant FK/index collision, online-DDL safety on high-volume tables |
@@ -84,6 +87,7 @@ This index only lists the shipped roles above.
 | [type-design-analyzer](type-design-analyzer.md) | sonnet | Score a type's design on encapsulation / invariant expression / usefulness / enforcement ("make illegal states unrepresentable"). Read-only |
 | [e2e-runner](e2e-runner.md) | sonnet | Author / run / stabilize Playwright journeys, helpers, fixtures, and artifacts. Application-code failures return a fast-worker-ready fix-spec; after the fix, this agent re-runs the originating journey as acceptance. Distinct from ui-ux-verifier (page-vs-spec audit) |
 | [smoke-tester](smoke-tester.md) | sonnet | Read-only live-runtime probe: drives the real running system with one orchestrator-supplied concrete scenario and asserts on observed values (`Verdict:`-first-line contract). Distinct from e2e-runner (authors/runs Playwright specs, write-capable, web-scoped) and the feature-verify skill (main-context P0-P5, not a dispatchable isolated agent) |
+| [qa-executor](qa-executor.md) | haiku | Live manual QA executor: runs assigned QA-manual cases through a browser skill, writes one verdict per case with observed evidence into one assigned results file; live-data writes only inside an explicit authorized fixture scope. Distinct from smoke-tester (one scenario, no Skill tool), e2e-runner (authors specs), and ui-ux-verifier (page-vs-spec audit) |
 
 > **How situational agents are reached** (none are unconditional post-edit roles). Trigger
 > ownership is the AI-judgment back-stop list in
@@ -96,7 +100,7 @@ This index only lists the shipped roles above.
 > - `docs-lookup` ← execution-policy back-stop (current library/API docs, Context7)
 > - `tdd-guide` / `tdd-workflow` ← unit/integration post-development routes; the TDD capability is `UNAVAILABLE` when its configured test stack or dispatch backend is absent, and must not be silently remapped.
 > - `e2e-runner` ← Playwright route-table entry (`agent:e2e-runner`); report `UNAVAILABLE` when the Playwright agent capability is absent rather than falling back to the retired post-development skill.
-> - `smoke-tester` ← `rules/execution-policy.md` §Implementation dispatch table
+> - `smoke-tester`, `qa-executor`, `docs-writer` ← `rules/execution-policy.md` §Implementation dispatch table
 > - `swift-build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop (module-gated)
 > - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `flow-guide`, which does **not** itself name these agents — so there is no deterministic route-table dispatch; they fire purely on the AI-judgment back-stop
 
@@ -109,8 +113,8 @@ This index only lists the shipped roles above.
 ## Models
 
 - **opus**: deep-reasoner (may be raised to fable per dispatch for multi-question policy adjudication, see rules/model-economics.md), planner (low-frequency, high-impact, deep reasoning)
-- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-worker, agy-worker, codex-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
-- **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
+- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, docs-writer, fast-worker, codex-worker, agy-worker, codex-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
+- **haiku**: doc-updater, docs-lookup, doc-reviewer, qa-executor (high-frequency, templated, cost-first)
 - **fable**: architect, plus per-dispatch deep-reasoner raises for multi-question policy adjudication (see rules/model-economics.md) (Fable 5.1 is the highest per-token Claude tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
 
 ## Partial outputs and agent continuation
