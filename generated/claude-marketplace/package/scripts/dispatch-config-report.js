@@ -154,6 +154,89 @@ function coveredScope(flags, unreadable) {
   return names.join('+');
 }
 
+const SUMMARY_PREFIX_LENGTH = '[session-start] dispatch config: '.length;
+const SUMMARY_LIMIT = 300;
+const SUMMARY_HINT = '; full: node scripts/dispatch-config-report.js';
+const SUMMARY_ROLES = Object.freeze(['planner', 'reasoner', 'worker', 'reviewer']);
+const LEGACY_REPORT_KEYS = Object.freeze([...new Set([
+  ...Object.values(LEGACY_KEYS).flat(),
+  ...Object.values(LEGACY_EFFORT_KEYS).flat(),
+])]);
+
+function roleSummary(role, target, withProvider) {
+  if (!isRecord(target)) return null;
+  const parts = [target.target_agent];
+  if (withProvider) parts.push(target.provider);
+  parts.push(target.model_id);
+  const text = parts.filter(Boolean).join('/');
+  const effort = target.effort && target.effort !== 'auto' ? `:${target.effort}` : '';
+  if (!text && !effort) return null;
+  return `${role}=${text}${effort}`;
+}
+
+function legacyEntries(layerOptions) {
+  const entries = [];
+  for (const [layer, layerValues] of layerOptions) {
+    if (!isRecord(layerValues)) continue;
+    for (const key of LEGACY_REPORT_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(layerValues, key)) continue;
+      if (isDefaultReportValue(key, layerValues[key])) continue;
+      entries.push(`${layer}.${key}`);
+    }
+  }
+  return entries;
+}
+
+function truncateLongest(items, excess) {
+  const next = [...items];
+  let remaining = excess;
+  while (remaining > 0) {
+    let index = 0;
+    next.forEach((item, i) => { if (item.length > next[index].length) index = i; });
+    if (next[index].length <= 10) break;
+    next[index] = `${next[index].slice(0, -2)}…`;
+    remaining -= 1;
+  }
+  return next;
+}
+
+function composeSummary({ roles, flags, scope, legacy, forced }, budget) {
+  const assemble = (roleTexts, legacyText) => {
+    const tokens = [...roleTexts, ...flags, ...scope, ...(legacyText ? [legacyText] : [])];
+    if (tokens.length === 0 && forced) tokens.push('defaults');
+    return `${tokens.join(' ')}${SUMMARY_HINT}`;
+  };
+  const fullLegacy = legacy.length > 0 ? `legacy=${legacy.join(',')}` : '';
+  const countLegacy = legacy.length > 0 ? `legacy=${legacy.length}` : '';
+  const withProvider = roles.map((role) => role.withProvider);
+  const without = roles.map((role) => role.plain);
+  const attempts = [[withProvider, fullLegacy], [withProvider, countLegacy], [without, countLegacy]];
+  for (const [roleTexts, legacyText] of attempts) {
+    const line = assemble(roleTexts, legacyText);
+    if (line.length <= budget) return line;
+  }
+  const overflow = assemble(without, countLegacy).length - budget;
+  return assemble(truncateLongest(without, overflow), countLegacy);
+}
+
+function formatSummary(report, config, layerOptions, forced) {
+  const roles = [];
+  for (const role of SUMMARY_ROLES) {
+    const plain = roleSummary(role, report.targets[role], false);
+    if (plain) roles.push({ plain, withProvider: roleSummary(role, report.targets[role], true) });
+  }
+  const flags = [];
+  if (config.orchestration_dispatch !== 'on') flags.push('dispatch=off');
+  if (config.fallback_allow !== true) flags.push('fallback=deny');
+  const unreadable = (report.covered_inputs && report.covered_inputs.unreadable) || [];
+  const scope = unreadable.length > 0
+    ? [`scope=incomplete(${unreadable.map((entry) => `${entry.layer}:${entry.reason}`).join(',')})`]
+    : [];
+  return composeSummary({
+    roles, flags, scope, legacy: legacyEntries(layerOptions), forced,
+  }, SUMMARY_LIMIT - SUMMARY_PREFIX_LENGTH);
+}
+
 function main(environment = process.env, options = {}) {
   const source = isRecord(environment) ? environment : {};
   const roots = resolveRoots(source, options);
@@ -190,6 +273,18 @@ function main(environment = process.env, options = {}) {
       ...(unreadable.length > 0 ? { unreadable } : {}),
     },
   });
+  const summary = isRecord(options) && options.format === 'summary'
+    && (report.diagnostics || []).length === 0;
+  if (summary) {
+    const layerOptions = [
+      ['project', projectOptions],
+      ['global', globalOptions],
+      ['environment', environmentOptions(source)],
+    ];
+    const forced = source.DHPK_DISPATCH_CONFIG_REPORT === '1';
+    process.stdout.write(`${formatSummary(report, config, layerOptions, forced)}\n`);
+    return 0;
+  }
   process.stdout.write(`${JSON.stringify(report)}\n`);
   return 0;
 }
@@ -197,5 +292,5 @@ function main(environment = process.env, options = {}) {
 module.exports = Object.freeze({ ENVIRONMENT_KEYS, environmentOptions, main, shouldReport });
 
 if (require.main === module) {
-  process.exitCode = main();
+  process.exitCode = main(process.env, process.argv.includes('--summary') ? { format: 'summary' } : {});
 }

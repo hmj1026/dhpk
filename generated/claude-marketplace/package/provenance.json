@@ -685,7 +685,7 @@
       "sourcePath": "skills/doc-maintain/distribution.yaml",
       "destination": "skills/doc-maintain/distribution.yaml",
       "kind": "entry",
-      "sha256": "6e08975affa2b6676bab773336e2247ee4afe954d4f417091d6afecabe51260b"
+      "sha256": "dcd84cf996c64cccf15cb5f37f2ec74e9a058455669394066e3561f157cfcdb0"
     },
     {
       "skillId": "doc-maintain",
@@ -1949,7 +1949,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "kind": "entry",
-      "sha256": "f760a8717e7020153d2e86461121933f638682fb6e0db95c5b5d89f1b47b307c"
+      "sha256": "47bea947ea42ad0a9f7f7df8f4d5fa9f014b36128dd1b286ed5b194ab5285ea0"
     },
     {
       "skillId": "flow-guide",
@@ -2581,7 +2581,7 @@
       "sourcePath": "skills/library-author/distribution.yaml",
       "destination": "skills/library-author/distribution.yaml",
       "kind": "entry",
-      "sha256": "6183e62aca9a6add4dbc50b49a179fb5a682745cac6d44be53a743b9ae84dd71"
+      "sha256": "6ef02f59786b374038e07f079ec766dd5860d265bee8dd9509b42cc6c48ad93a"
     },
     {
       "skillId": "library-author",
@@ -2837,7 +2837,7 @@
       "sourcePath": "skills/proposal-analyze/distribution.yaml",
       "destination": "skills/proposal-analyze/distribution.yaml",
       "kind": "entry",
-      "sha256": "bcdbb13ff7a55cbb18f4943c8960bb1448cc792719e519816e1d02198ece00a6"
+      "sha256": "2ebc51daaa54506cb91583e6cb9020e834265dd77b171e6322388fbf0005d1ab"
     },
     {
       "skillId": "issue-analyze",
@@ -3229,7 +3229,7 @@
       "sourcePath": "skills/repo-verify/distribution.yaml",
       "destination": "skills/repo-verify/distribution.yaml",
       "kind": "entry",
-      "sha256": "fab0fb338b329bd223ae716f73c3b8b41ccd5030e371b65e804eb40f14b836e5"
+      "sha256": "9953c6af44c266ce639d932f18a240b06fac1ec2be9da81ff75c71e8bfeed6bc"
     },
     {
       "skillId": "feature-verify",

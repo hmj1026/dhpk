@@ -24,6 +24,7 @@
 # Session-state sidecar basenames (registry — keeps hooks off bare literals):
 #   DHPK_SIDECAR_MODULE_FINDINGS       — post-edit-dispatch / stop-advisory-dispatch accumulator
 #   DHPK_SIDECAR_FAST_WORKER_ACTIVE    — shared fast-worker liveness marker
+#   DHPK_SIDECAR_SUBAGENT_LOG          — per-subagent model/effort dispatch log (JSONL)
 #
 # The Review Sentinel `.pending-*`/`.active-*` mechanism and its sidecars
 # (unresolved-verdict escalation, review-reminder backoff, resumed-review
@@ -35,6 +36,7 @@
 # shellcheck disable=SC2034  # sourced consumers read these sidecar basenames
 DHPK_SIDECAR_MODULE_FINDINGS=".module-findings"
 DHPK_SIDECAR_FAST_WORKER_ACTIVE=".active-fast-worker"
+DHPK_SIDECAR_SUBAGENT_LOG="subagent-dispatch.jsonl"
 
 dhpk_root() {
     if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then

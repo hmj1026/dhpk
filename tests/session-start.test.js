@@ -74,20 +74,12 @@ test('explicit canonical dispatch targets are reported without runtime probing',
     const prefix = '[session-start] dispatch config: ';
     const reportLines = report.stdout.split(/\r?\n/).filter((line) => line.startsWith(prefix));
     assert.strictEqual(reportLines.length, 1, report.stdout);
-    const config = JSON.parse(reportLines[0].slice(prefix.length));
-    assert.strictEqual(config.schema, 'dhpk.dispatch.config-report.v1');
-    assert.deepStrictEqual(config.targets.worker, {
-      target_agent: 'codex-cli',
-      model_id: 'sol5.6',
-      effort: 'high',
-    });
-    assert.strictEqual(config.sources.worker_target, 'environment.worker_target');
-    assert.deepStrictEqual(config.status, {
-      catalog_support: 'NOT_RUN',
-      host_access: 'NOT_RUN',
-      runtime: 'NOT_RUN',
-      fallback: 'only UNAVAILABLE candidates advance; NOT_RUN and BLOCKED do not fall back',
-    });
+    const line = reportLines[0];
+    assert.ok(line.length <= 300, `line is ${line.length} chars`);
+    const body = line.slice(prefix.length);
+    assert.ok(body.startsWith('worker=codex-cli/sol5.6:high'), body);
+    assert.ok(body.endsWith('; full: node scripts/dispatch-config-report.js'), body);
+    assert.ok(!body.includes('{'), 'summary must not embed the JSON report');
     assert.strictEqual(res.status, 0);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
@@ -115,9 +107,8 @@ test('legacy model settings use the same report trigger as the config CLI', () =
     const prefix = '[session-start] dispatch config: ';
     const envLines = envOnly.stdout.split(/\r?\n/).filter((line) => line.startsWith(prefix));
     assert.strictEqual(envLines.length, 1, envOnly.stdout);
-    const envReport = JSON.parse(envLines[0].slice(prefix.length));
-    assert.strictEqual(envReport.sources.worker_target, 'environment.fast_worker_model');
-    assert.strictEqual(envReport.status.runtime, 'NOT_RUN');
+    assert.ok(envLines[0].length <= 300, `line is ${envLines[0].length} chars`);
+    assert.ok(envLines[0].includes('legacy=environment.fast_worker_model'), envLines[0]);
 
     fs.mkdirSync(path.join(scratch, '.claude'), { recursive: true });
     fs.writeFileSync(path.join(scratch, '.claude', 'settings.local.json'), `${JSON.stringify({
@@ -137,9 +128,8 @@ test('legacy model settings use the same report trigger as the config CLI', () =
     assert.strictEqual(projectOnly.status, 0, projectOnly.stderr);
     const projectLines = projectOnly.stdout.split(/\r?\n/).filter((line) => line.startsWith(prefix));
     assert.strictEqual(projectLines.length, 1, projectOnly.stdout);
-    const projectReport = JSON.parse(projectLines[0].slice(prefix.length));
-    assert.strictEqual(projectReport.sources.worker_target, 'project.fast_worker_model');
-    assert.ok(projectReport.legacy_sources.some((entry) => entry.source === 'project.fast_worker_model'));
+    assert.ok(projectLines[0].length <= 300, `line is ${projectLines[0].length} chars`);
+    assert.ok(projectLines[0].includes('legacy=project.fast_worker_model'), projectLines[0]);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
