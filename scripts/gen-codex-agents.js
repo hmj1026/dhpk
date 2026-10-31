@@ -28,11 +28,13 @@ const RUNTIME_METADATA = Object.freeze({
   'e2e-runner': { model: 'gpt-6.1-sol', effort: 'medium' },
   'ui-verifier': { model: 'gpt-6.1-terra', effort: 'medium' },
   'docs-writer': { model: 'gpt-6.1-terra', effort: 'medium' },
+  'qa-executor': { model: 'gpt-6-luna', effort: 'medium' },
   'scoped-worker': { model: 'gpt-6.1-terra', effort: 'medium' },
 });
 
 // Each Codex role names its canonical source explicitly. Existing shared roles
-// continue to read from agents/; Codex-only roles stay in codex/agent-sources/.
+// continue to read from agents/ (including docs-writer and qa-executor);
+// Codex-only roles stay in codex/agent-sources/.
 // The 4 hand-maintained Codex roles (bug-investigator, explorer, monitor, worker)
 // are intentionally absent and are never read or overwritten.
 const AGENTS = [
@@ -47,8 +49,9 @@ const AGENTS = [
   { name: 'frontend-reviewer', source: 'agents/frontend-reviewer.md' },
   { name: 'migration-reviewer', source: 'agents/migration-reviewer.md' },
   { name: 'e2e-runner', source: 'agents/e2e-runner.md' },
+  { name: 'qa-executor', source: 'agents/qa-executor.md' },
+  { name: 'docs-writer', source: 'agents/docs-writer.md' },
   { name: 'ui-verifier', source: 'codex/agent-sources/ui-verifier.md' },
-  { name: 'docs-writer', source: 'codex/agent-sources/docs-writer.md' },
   { name: 'scoped-worker', source: 'codex/agent-sources/scoped-worker.md' },
 ];
 
@@ -351,6 +354,13 @@ function adaptCodexBody(agentName, body) {
     adapted = adapted.replace(
       'spawn the built-in read-only `Explore` agent through\n  `Agent`. If `Explore` is unavailable, use a read-only `general-purpose` child.',
       'dispatch the direct Codex `explorer` role. If `explorer` is unavailable, return `VERDICT: RECONSULT` with the missing capability.',
+    );
+  }
+  if (agentName === 'qa-executor') {
+    // Shared source names Claude's Skill tool; Codex roles need the installed skill's host-supported loading path.
+    adapted = adapted.replace(
+      'Load the browser skill the parent names with the Skill tool.',
+      'Load the browser skill the parent names using the host-supported skill-loading mechanism.',
     );
   }
   if (agentName === 'e2e-runner') {
