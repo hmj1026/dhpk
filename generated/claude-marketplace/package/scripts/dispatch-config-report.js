@@ -181,7 +181,7 @@ function legacyEntries(layerOptions) {
     for (const key of LEGACY_REPORT_KEYS) {
       if (!Object.prototype.hasOwnProperty.call(layerValues, key)) continue;
       if (isDefaultReportValue(key, layerValues[key])) continue;
-      entries.push(`${layer}.${key}`);
+      entries.push(`${layer}.${key}=${layerValues[key]}`);
     }
   }
   return entries;

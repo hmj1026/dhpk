@@ -1238,10 +1238,10 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     const roots = isolatedRoots();
     try {
       const envBody = readSummary({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_EFFORT: 'high' }, roots);
-      assert.ok(envBody.includes('legacy=environment.fast_worker_effort'), envBody);
+      assert.ok(envBody.includes('legacy=environment.fast_worker_effort=high'), envBody);
       writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), { fast_worker_effort: 'high' });
       const projectBody = readSummary({}, roots);
-      assert.ok(projectBody.includes('legacy=project.fast_worker_effort'), projectBody);
+      assert.ok(projectBody.includes('legacy=project.fast_worker_effort=high'), projectBody);
     } finally {
       roots.cleanup();
     }
