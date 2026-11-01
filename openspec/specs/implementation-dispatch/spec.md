@@ -700,6 +700,7 @@ Architecture migration SHALL reuse the current dispatch table, applicable review
 - **THEN** architecture validation rejects the duplicate acceptance path
 
 ### Requirement: Live QA execution, documentation authoring, and exploration have typed dispatch rows
+
 The execution-policy Implementation dispatch table SHALL contain the following rows:
 - a row routing live manual QA-case execution against a running environment to `qa-executor`
 - a row routing assigned documentation authoring or revision from confirmed sources to `docs-writer`
@@ -708,13 +709,16 @@ The execution-policy Implementation dispatch table SHALL contain the following r
 The implementation-dispatch reference SHALL state that `general-purpose` is not a substitute when one of these typed roles fits.
 
 #### Scenario: Manual QA batch
+
 - **WHEN** the orchestrator needs QA-manual cases executed on a live environment
 - **THEN** the dispatch table selects `qa-executor`, not `general-purpose`
 
 #### Scenario: QA manual revision
+
 - **WHEN** the orchestrator needs a QA manual corrected from recorded results
 - **THEN** the dispatch table selects `docs-writer`
 
 #### Scenario: Read-only diagnosis
+
 - **WHEN** the orchestrator needs read-only evidence gathering with no file writes
 - **THEN** the dispatch table selects Explore or the Host's read-only explorer role
