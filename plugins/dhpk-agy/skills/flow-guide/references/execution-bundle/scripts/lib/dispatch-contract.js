@@ -555,6 +555,8 @@ function normalizeScope(value) {
   };
 }
 
+const MAX_FALLBACK_BACKENDS = 64;
+
 function normalizeFallback(value) {
   const fallback = value === undefined ? {} : requiredRecord(value, 'fallback');
   if (fallback.allow !== undefined && typeof fallback.allow !== 'boolean') throw new TypeError('fallback.allow must be boolean');
@@ -563,6 +565,8 @@ function normalizeFallback(value) {
   if (fallback.cross_provider !== undefined && typeof fallback.cross_provider !== 'boolean') throw new TypeError('fallback.cross_provider must be boolean');
   const attempted = fallback.attempted_backends === undefined ? [] : uniqueStrings(fallback.attempted_backends, 'fallback.attempted_backends');
   const unavailable = fallback.unavailable_backends === undefined ? [] : uniqueStrings(fallback.unavailable_backends, 'fallback.unavailable_backends');
+  if (attempted.length > MAX_FALLBACK_BACKENDS) throw new TypeError(`fallback.attempted_backends must not exceed ${MAX_FALLBACK_BACKENDS} entries`);
+  if (unavailable.length > MAX_FALLBACK_BACKENDS) throw new TypeError(`fallback.unavailable_backends must not exceed ${MAX_FALLBACK_BACKENDS} entries`);
   return {
     allow: fallback.allow === true,
     retry_budget: retryBudget,

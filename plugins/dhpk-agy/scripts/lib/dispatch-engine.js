@@ -458,6 +458,16 @@ function initialFallbackHistory(resolution) {
   }];
 }
 
+function targetIdentity(target) {
+  if (!target) return null;
+  const targetAgent = target.target_agent || target.targetAgent || target.agent;
+  const provider = target.provider;
+  const modelId = target.model_id || target.model;
+  const route = target.route || '';
+  const transport = target.transport || '';
+  return targetAgent && provider && modelId ? `${targetAgent}/${provider}/${modelId}/${route}/${transport}` : null;
+}
+
 function decideRecoveryCandidate({ request, resolution, failureClass, sideEffects, catalog, candidate_request, reconciliation, recovery_action }) {
   const blocked = (reason, status = 'BLOCKED') => Object.freeze({ status, request, target: null,
     failure_class: failureClass, side_effects: sideEffects, action: 'stop',
@@ -497,10 +507,26 @@ function decideRecoveryCandidate({ request, resolution, failureClass, sideEffect
     if (!AVAILABILITY_FAILURES.has(failureClass) || sideEffects !== 'none'
         || recovery_action !== 'substitute') return blocked('Provider substitution requires confirmed no side effects', 'RECONCILIATION_REQUIRED');
     if (request.strict_target) return blocked('strict target prevents substitution');
+    if (request.fallback.cross_provider !== true && candidate.target.provider !== request.host_profile.native_provider) {
+      return blocked('Provider substitution requires cross-provider opt-in');
+    }
+    const seen = new Set([...(request.fallback.attempted_backends || []), ...(request.fallback.unavailable_backends || []),
+      targetIdentity(resolution && resolution.target), targetIdentity(resolution && resolution.requested_target), targetIdentity(request.target)]);
+    const candidateIdentity = targetIdentity(candidate.target);
+    const routeless = candidateIdentity && !candidate.target.route && !candidate.target.transport;
+    const revisited = candidateIdentity && [...seen].some((identity) => identity === candidateIdentity
+      || (routeless && identity && identity.startsWith(candidateIdentity.slice(0, -1))));
+    if (revisited) return blocked('recovery candidate was already attempted');
   }
   const next = resolveTarget(candidate, { catalog });
   if (next.status !== 'RESOLVED') return blocked('recovery candidate is unavailable');
-  const chained = createDispatchRequest({ ...candidate, fallback: { ...request.fallback, retry_budget: request.fallback.retry_budget - 1 } });
+  const failedIdentity = targetIdentity(original) || targetIdentity(resolution && resolution.requested_target);
+  const withFailed = (list) => (failedIdentity ? [...new Set([...(list || []), failedIdentity])] : (list || []));
+  const chained = createDispatchRequest({ ...candidate, fallback: { ...request.fallback,
+    retry_budget: request.fallback.retry_budget - 1,
+    attempted_backends: withFailed(request.fallback.attempted_backends),
+    unavailable_backends: BACKEND_UNAVAILABLE_FAILURES.has(failureClass)
+      ? withFailed(request.fallback.unavailable_backends) : (request.fallback.unavailable_backends || []) } });
   return Object.freeze({ status: 'FALLBACK', action: recovery_action, request, next_request: chained,
     target: next.target, resolution: next, failure_class: failureClass, side_effects: sideEffects,
     reconciliation: reconciliation || null, retry_budget_remaining: request.fallback.retry_budget - 1 });
@@ -576,15 +602,6 @@ function decideFallback({ request, resolution, failureClass, sideEffects = 'unkn
   const roleDefault = normalizedRequest.host_profile.role_defaults
     && normalizedRequest.host_profile.role_defaults[normalizedRequest.role];
   const fallbackTargets = [roleDefault || nativeTarget, ...declaredFallbacks];
-  const targetIdentity = (target) => {
-    if (!target) return null;
-    const targetAgent = target.target_agent || target.targetAgent || target.agent;
-    const provider = target.provider;
-    const modelId = target.model_id || target.model;
-    const route = target.route || '';
-    const transport = target.transport || '';
-    return targetAgent && provider && modelId ? `${targetAgent}/${provider}/${modelId}/${route}/${transport}` : null;
-  };
   const backendKey = targetIdentity;
   const failedTargets = [resolution && resolution.target, resolution && resolution.requested_target, normalizedRequest.target];
   const failedKey = backendKey(resolution && resolution.target) || backendKey(resolution && resolution.requested_target);
