@@ -666,4 +666,82 @@ test('harness receipt remains a compatibility facade for extracted primitives', 
   }
 });
 
+// Characterization pins recorded from the implementation that existed before
+// the digest helpers moved to scripts/lib/content-fingerprint.js. They must not
+// change: harness receipts persist these values.
+test('sha256 pins published vectors for strings, empty input, and raw bytes', () => {
+  assert.strictEqual(primitives.sha256(''), 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  assert.strictEqual(primitives.sha256('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  assert.strictEqual(primitives.sha256('é'), primitives.sha256(Buffer.from('é', 'utf8')));
+  assert.strictEqual(primitives.sha256(Buffer.from([0x80])), '76be8b528d0075f7aae98d6fa57a6d3c83ae480a8469e668d7b0af968995ac71');
+});
+
+test('canonicalJson pins deep key sorting, array order, null, and dropped undefined', () => {
+  assert.strictEqual(
+    primitives.canonicalJson({ z: [{ y: 1, x: [3, { b: 1, a: 2 }] }], a: null, 'é': '€', u: undefined }),
+    '{"a":null,"z":[{"x":[3,{"a":2,"b":1}],"y":1}],"é":"€"}',
+  );
+  assert.strictEqual(primitives.canonicalJson([]), '[]');
+  assert.strictEqual(primitives.canonicalJson('x'), '"x"');
+});
+
+function receiptFingerprintFixture() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'receipt-fingerprint-'));
+  fs.cpSync(path.join(__dirname, 'fixtures', 'content-fingerprint', 'adversarial'), dir, { recursive: true });
+  fs.mkdirSync(path.join(dir, 'empty'));
+  fs.mkdirSync(path.join(dir, '__pycache__'));
+  fs.writeFileSync(path.join(dir, '__pycache__', 'x.pyc'), 'pyc');
+  fs.writeFileSync(path.join(dir, 'skip.pyc'), 'pyc2');
+  for (const file of ['a.txt', 'a/inner.txt', 'B.txt', 'b.txt', 'sub/Z.txt', 'sub/a.txt', 'sub/binary.bin']) {
+    fs.chmodSync(path.join(dir, file), 0o644);
+  }
+  fs.chmodSync(path.join(dir, 'b.txt'), 0o755);
+  return dir;
+}
+
+test('fingerprintDirectory pins the recorded value, recording modes, empty directories, and bytecode', () => {
+  const dir = receiptFingerprintFixture();
+  try {
+    const before = primitives.fingerprintDirectory(dir);
+    assert.strictEqual(before, 'sha256:580d562a776f02e67392cf5848dbb18a8294409cf0b7e0dea77519132fff113f');
+    fs.chmodSync(path.join(dir, 'b.txt'), 0o644);
+    assert.notStrictEqual(primitives.fingerprintDirectory(dir), before, 'file mode must be part of the fingerprint');
+    fs.chmodSync(path.join(dir, 'b.txt'), 0o755);
+    fs.rmdirSync(path.join(dir, 'empty'));
+    assert.notStrictEqual(primitives.fingerprintDirectory(dir), before, 'empty directory must be part of the fingerprint');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fingerprintDirectory refuses symlink entries, file roots, and symlinked roots', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'receipt-fingerprint-refuse-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'real.txt'), 'x');
+    assert.throws(() => primitives.fingerprintDirectory(path.join(dir, 'real.txt')), /is not a physical directory/);
+    fs.symlinkSync('real.txt', path.join(dir, 'link.txt'));
+    assert.throws(() => primitives.fingerprintDirectory(dir), /cannot fingerprint symlink 'link.txt'/);
+    fs.rmSync(path.join(dir, 'link.txt'));
+    fs.symlinkSync(dir, `${dir}-alias`);
+    try {
+      assert.throws(() => primitives.fingerprintDirectory(`${dir}-alias`), /is not a physical directory/);
+    } finally {
+      fs.rmSync(`${dir}-alias`, { force: true });
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('revalidateBytes compares a directory reference against fingerprintDirectory', () => {
+  const dir = receiptFingerprintFixture();
+  try {
+    const expected = 'sha256:580d562a776f02e67392cf5848dbb18a8294409cf0b7e0dea77519132fff113f';
+    assert.strictEqual(primitives.revalidateBytes({ kind: 'directory', path: dir, fingerprint: expected }).ok, true);
+    assert.strictEqual(primitives.revalidateBytes({ kind: 'directory', path: dir, fingerprint: `sha256:${'0'.repeat(64)}` }).ok, false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 run('receipt-primitives');

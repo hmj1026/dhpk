@@ -20,6 +20,12 @@ const {
   resolveInventoryRevision,
   skillProjectionMetadata,
 } = require('./distribution-projection-contract');
+const {
+  collectDirectoryEntries,
+  inventoryDigestInsertionOrder,
+  merkleFingerprint,
+  sha256Hex,
+} = require('./content-fingerprint');
 const { selectPortableSkills } = require('./agent-plugin-package');
 const {
   serializePortableSkillMetadata,
@@ -453,14 +459,6 @@ function adaptNativeDocument(content, kind, basename, sourceFile = null, canonic
   return { ok: true, content: renderFrontmatter(fields, body), transform: `cursor-${kind}-frontmatter` };
 }
 
-function stableInventoryDigest(inventory) {
-  const source = { ...(inventory || {}) };
-  delete source.profile_policy;
-  delete source.standalone_dependencies;
-  delete source.project_agent_projection;
-  return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
-}
-
 function listComponentFiles(directory, extensions) {
   if (!fs.existsSync(directory)) return [];
   return readDirectoryEntries(directory)
@@ -637,46 +635,13 @@ function fingerprintPath(target, options = {}) {
   if (!stat) return '';
   if (stat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${target}`);
   const budget = createTraversalBudget(options);
-  const hashNode = (current, depth) => {
-    const currentStat = lstatOrNull(current);
-    if (!currentStat) return '';
-    if (currentStat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${current}`);
-    if (currentStat.isDirectory()) {
-      const realDirectory = budget.enterDirectory(current, depth);
-      try {
-        const nodeDigest = crypto.createHash('sha256');
-        nodeDigest.update('directory\0');
-        for (const entry of readDirectoryEntries(current, { budget, sort: true })) {
-          const name = entry.name;
-          if (name === '__pycache__' || name.endsWith('.pyc')) continue;
-          nodeDigest.update(name);
-          nodeDigest.update('\0');
-          nodeDigest.update(hashNode(path.join(current, name), depth + 1));
-          nodeDigest.update('\0');
-        }
-        return nodeDigest.digest('hex');
-      } finally {
-        budget.leaveDirectory(realDirectory);
-      }
-    }
-    if (currentStat.isFile()) {
-      const nodeDigest = crypto.createHash('sha256');
-      nodeDigest.update('file\0');
-      nodeDigest.update(budget.readFile(current, currentStat));
-      return nodeDigest.digest('hex');
-    }
-    throw new Error(`cannot fingerprint special entry: ${current}`);
-  };
-  if (stat.isDirectory()) {
-    return hashNode(target, 0);
-  }
   if (stat.isFile()) {
-    const fileDigest = crypto.createHash('sha256');
-    fileDigest.update('file\0');
-    fileDigest.update(budget.readFile(target, stat));
-    return fileDigest.digest('hex');
+    return merkleFingerprint([{ path: 'node', type: 'file', content: budget.readFile(target, stat) }], 'node');
   }
-  throw new Error(`cannot fingerprint special entry: ${target}`);
+  if (!stat.isDirectory()) throw new Error(`cannot fingerprint special entry: ${target}`);
+  const entries = collectDirectoryEntries(target, { budget, skipBytecode: true })
+    .map((entry) => ({ ...entry, path: `node/${entry.path}` }));
+  return merkleFingerprint([{ path: 'node', type: 'directory' }, ...entries], 'node');
 }
 
 function fingerprintDir(directory, options = {}) {
@@ -811,21 +776,10 @@ function collectAdaptedCursorHooks(root, transformations, traversalBudget) {
 }
 
 function cursorVirtualFingerprint(files, prefix) {
-  const normalized = prefix ? `${prefix.replace(/\/$/, '')}/` : '';
-  const exact = files.find((file) => file.destination === prefix);
-  if (exact) return crypto.createHash('sha256').update('file\0').update(exact.content).digest('hex');
-  const names = new Set();
-  for (const file of files) {
-    if (!file.destination.startsWith(normalized)) continue;
-    const remainder = file.destination.slice(normalized.length);
-    if (remainder) names.add(remainder.split('/')[0]);
-  }
-  if (names.size === 0) return '';
-  const hash = crypto.createHash('sha256').update('directory\0');
-  for (const name of [...names].sort()) {
-    hash.update(name).update('\0').update(cursorVirtualFingerprint(files, prefix ? `${prefix}/${name}` : name)).update('\0');
-  }
-  return hash.digest('hex');
+  return merkleFingerprint(
+    files.map((file) => ({ path: file.destination, type: 'file', content: file.content })),
+    prefix,
+  );
 }
 
 function cursorReadmeContents() {
@@ -1040,7 +994,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     sourceCommit,
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
-    inventoryDigest: stableInventoryDigest(inventory),
+    inventoryDigest: inventoryDigestInsertionOrder(inventory),
     inventoryRevision,
     generatorVersion,
     selectedSkillIds: [...selectedIds].sort(),
@@ -1074,7 +1028,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     fingerprints,
     ...(installationSelectedIds.length > 0 ? { installation: createInstallationReceiptIdentity({
       surface: 'cursor-plugin', scope: 'project', sourceVersion: version,
-      inventoryDigest: stableInventoryDigest(inventory),
+      inventoryDigest: inventoryDigestInsertionOrder(inventory),
       profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
       selectedStableIds: profileSelection && profileSelection.selectedStableIds || installationSelectedIds,
       supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -1168,7 +1122,7 @@ function compileCursorPackage({
       // staged physical output.
       expectedFingerprint: file.destination === 'provenance.json'
         ? null
-        : crypto.createHash('sha256').update(file.content).digest('hex'),
+        : sha256Hex(file.content),
       mode: file.mode,
       symlinkPolicy: 'forbid',
       ...(file.skillId ? {
@@ -1187,7 +1141,7 @@ function compileCursorPackage({
         || (selectionMode !== 'legacy' && (!projection.selection || !projection.selection.selectionPolicy)),
       surface: 'cursor-plugin',
       compilerVersion: `cursor-${generatorVersion}`,
-      inventoryFingerprint: stableInventoryDigest(inventory),
+      inventoryFingerprint: inventoryDigestInsertionOrder(inventory),
       inventoryRevision,
       ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
       // Plan identity is a contract identity, not a host-specific temp path.
@@ -1647,7 +1601,20 @@ function validateCursorPackage(input = {}) {
   if (fs.existsSync(path.join(root, 'fingerprints.json'))) {
     try {
       const fingerprints = JSON.parse(readFileBounded(path.join(root, 'fingerprints.json')).toString('utf8'));
-      for (const key of Object.keys(fingerprints || {})) if (!isSafeRelativePath(key)) errors.push(`fingerprint path escapes package root: '${key}'`);
+      // The Agent Plugin overlay validated here carries its own fingerprint
+      // format (it declares a `surface`); only Cursor-format entries are
+      // path -> Merkle digest pairs that can be recomputed from the package.
+      const recompute = !(fingerprints && Object.prototype.hasOwnProperty.call(fingerprints, 'surface'));
+      for (const [key, expected] of Object.entries(fingerprints || {})) {
+        if (!isSafeRelativePath(key)) {
+          errors.push(`fingerprint path escapes package root: '${key}'`);
+          continue;
+        }
+        if (!recompute) continue;
+        let actual;
+        try { actual = fingerprintPath(path.join(root, key)); } catch (error) { actual = `unreadable: ${error.message}`; }
+        if (actual !== expected) errors.push(`fingerprints.json entry '${key}' does not match package content`);
+      }
     } catch (error) { errors.push(`fingerprints.json is invalid JSON: ${error.message}`); }
   }
   const provenancePath = path.join(root, 'provenance.json');
@@ -1679,7 +1646,7 @@ function validateCursorPackage(input = {}) {
         } catch (error) {
           errors.push(`Cursor runtime support inventory is invalid: ${error.message}`);
         }
-        if (provenance.inventoryDigest !== stableInventoryDigest(inventory)) {
+        if (provenance.inventoryDigest !== inventoryDigestInsertionOrder(inventory)) {
           errors.push('Cursor provenance inventoryDigest does not match the validation inventory');
         } else if (JSON.stringify(declaredRuntimeSupportIds) !== JSON.stringify(expectedRuntimeSupportIds)) {
           errors.push('Cursor provenance runtime support IDs do not match the validation inventory');

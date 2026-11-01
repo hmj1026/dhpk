@@ -14,6 +14,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const {
+  collectDirectoryEntries,
+  fileSetFingerprintCodeUnit,
+  inventoryDigestInsertionOrder,
+} = require('./content-fingerprint');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
@@ -426,31 +431,13 @@ function nativeSourceFiles(sourceDir, relative = '', options = {}) {
   }
 }
 
+// Flat code-unit ordering matches the legacy fingerprintDir byte-for-byte;
+// localeCompare would reorder the same source tree and create false drift.
 function nativeSkillFingerprint(files) {
-  const hash = crypto.createHash('sha256');
-  // Keep the legacy fingerprintDir ordering byte-for-byte compatible. Node's
-  // default Array#sort uses code-unit ordering (uppercase SKILL.md before
-  // lowercase resource directories); localeCompare would reorder the same
-  // source tree and create false package drift.
-  for (const file of files.slice().sort((a, b) => (a.destination < b.destination ? -1 : a.destination > b.destination ? 1 : 0))) {
-    hash.update(file.destination.split(path.sep).join('/'));
-    hash.update('\0');
-    hash.update(file.content);
-  }
-  return hash.digest('hex');
-}
-
-// The pre-profile native package receipt used the inventory lifecycle and
-// surface contract as its source identity. Profile policy and project-agent
-// projection metadata are bound separately through selectionFingerprint, so
-// adding either policy must not invalidate the legacy compatibility package
-// byte identity.
-function legacyInventoryDigest(inventory) {
-  const source = { ...(inventory || {}) };
-  delete source.profile_policy;
-  delete source.standalone_dependencies;
-  delete source.project_agent_projection;
-  return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
+  return fileSetFingerprintCodeUnit(files.map((file) => ({
+    path: file.destination.split(path.sep).join('/'),
+    content: file.content,
+  })));
 }
 
 function nativeOutputRecord(stableId, source, destination, content, transform, mode = 0o644, metadata = {}) {
@@ -664,7 +651,12 @@ function compileNativePackage({
   const selectedSkillNames = nativeSelection.selected.map((entry) => entry.name || entry.id).sort();
   const materializedSkillIds = selectedEntries.map((entry) => entry.id).sort();
   const materializedSkillNames = selectedEntries.map((entry) => entry.name || entry.id).sort();
-  const inventoryDigest = legacyInventoryDigest(inventory);
+  // The pre-profile native package receipt used the inventory lifecycle and
+  // surface contract as its source identity. Profile policy and project-agent
+  // projection metadata are bound separately through selectionFingerprint, so
+  // adding either policy must not invalidate the legacy compatibility package
+  // byte identity.
+  const inventoryDigest = inventoryDigestInsertionOrder(inventory);
   const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
   const provenance = {
     schema: RECEIPT_SCHEMA,
@@ -1301,44 +1293,12 @@ function verifyNativePackage({
 }
 
 function fingerprintDir(dir, options = {}) {
-  const digest = crypto.createHash('sha256');
   const budget = createTraversalBudget(options);
-  const lexicalRoot = path.resolve(dir);
-  const canonicalRoot = fs.realpathSync(dir);
-  if (lexicalRoot !== canonicalRoot) {
+  if (path.resolve(dir) !== fs.realpathSync(dir)) {
     throw new Error(`cannot fingerprint symlinked root or ancestor: ${dir}`);
   }
-  const rootStat = fs.lstatSync(canonicalRoot);
-  if (rootStat.isSymbolicLink()) {
-    throw new Error(`cannot fingerprint symlink root: ${dir}`);
-  }
-  const walk = (d, relBase, depth) => {
-    const realDirectory = budget.enterDirectory(d, depth);
-    try {
-      for (const entry of readDirectoryEntries(d, { budget, sort: true })) {
-        const name = entry.name;
-        if (name === '__pycache__' || name.endsWith('.pyc')) continue;
-        const fp = path.join(d, name);
-        const rel = path.join(relBase, name);
-        const stat = fs.lstatSync(fp);
-        if (stat.isDirectory()) {
-          walk(fp, rel, depth + 1);
-        } else if (stat.isSymbolicLink()) {
-          throw new Error(`cannot fingerprint symlink entry: ${fp}`);
-        } else if (stat.isFile()) {
-          digest.update(rel.split(path.sep).join('/'));
-          digest.update('\0');
-          digest.update(budget.readFile(fp, stat));
-        } else {
-          throw new Error(`cannot fingerprint special entry: ${fp}`);
-        }
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  walk(canonicalRoot, '', 0);
-  return digest.digest('hex');
+  const entries = collectDirectoryEntries(dir, { budget, skipBytecode: true });
+  return fileSetFingerprintCodeUnit(entries.filter((entry) => entry.type === 'file'));
 }
 
 module.exports = {
