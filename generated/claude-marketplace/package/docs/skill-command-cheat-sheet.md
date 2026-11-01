@@ -57,7 +57,7 @@ $change-verdict pending
 
 Proposal authoring belongs to the external `$openspec-propose` owner. Git,
 release, setup, review, and maintenance slash commands are listed in
-[`commands/INDEX.md`](../commands/INDEX.md).
+[`docs/commands-index.md`](commands-index.md).
 
 ## Retired names and rollback
 

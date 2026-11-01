@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "ffc16aad48aee839bdd55b9efd274f4b019f7045",
-  "generatedFromCommit": "ffc16aad48aee839bdd55b9efd274f4b019f7045",
-  "generatedFromTree": "91e8281307a4cd609b5215b64fe4b9b7cacfda0f",
-  "inventoryDigest": "4f19121e0e873b0b143c83980109e258d4d97519af636b41d657715b4aebd920",
-  "inventoryRevision": "sha256:2cc5f16a4b554e72b873607cc7bbbb8757a694972426d1307decc5d45bd9b23d",
+  "sourceCommit": "a76b5f6e249fcfaa1dae284664b762dbdd30d560",
+  "generatedFromCommit": "a76b5f6e249fcfaa1dae284664b762dbdd30d560",
+  "generatedFromTree": "75b2f89b29fe2ee7978a9101ab60dc6ad5bae379",
+  "inventoryDigest": "7a5302517b04dd5221853bb169d5d00dbe5721e7a19fcb22a77396df5e42f259",
+  "inventoryRevision": "sha256:61960d976ec6fc145111ee146a2d32e56a5ab48e0bf4239e58e897be0db22f43",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -1422,7 +1422,7 @@
         "ownerId": "flow-drive",
         "source": "skills/yii1/references/yii1-security-patterns.md",
         "destination": "skills/flow-drive/references/yii1/references/yii1-security-patterns.md",
-        "originalGitBlobDigest": "7a904b68d6074f36cf6329f3d090b84c7f53c7b6"
+        "originalGitBlobDigest": "f0abd6e3ab9f911bcf8b7404c41780f4e5edecd5"
       },
       {
         "ownerId": "flow-guide",
@@ -1488,7 +1488,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "4b325bc555193f2373c4858250acfb47b6e74617"
+        "originalGitBlobDigest": "e5e685af2d5bf27d303f0d25d5899c00774fa01e"
       },
       {
         "ownerId": "flow-guide",
@@ -5307,8 +5307,8 @@
     "code-trace": "c0562e6f0599f46922fcc23d92ed9b354b54826a567326d713cfb026c71b36fc",
     "create-pr": "ecea4c51400b24a50a6aa852f1796c1ccd281e0a1c3d4d8b845c1a72e1518f24",
     "doc-maintain": "8a428db65c040d66128944fac45ab46f68200c8e0e442d809bbea6f8f2fbad0d",
-    "flow-drive": "4eebdf4565d30e62883e15d86ad1669eb8287397bc5e2eb852425a7b76e962b7",
-    "flow-guide": "8b602924297bcdeac7642b2573054b45ae246447775f7e04a584dee7ad62fbc5",
+    "flow-drive": "553506b4ef2f68c906298a816d43bfd8500309c41823a9dbea31a8dac891046e",
+    "flow-guide": "83653452c2450f4ee30947d12bf8b63a7318710811198dd2f74852bea499ddc4",
     "git-smart-commit": "b21cf7de6b555ada30c0c4db7c8f0326599607f95c87cd00924fa571663dbc4f",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",
     "precommit": "565accfb658863ae359b200ee516083d7f7122757c41db1e19f10198041621ce",
@@ -5320,7 +5320,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "cc0c5392c87cf01e3aa4de01e9772be6919408054c03e9dc7128462109f19f17",
+    "planId": "e04d37cda12855133923bab81fd386a9e4f8d859c6a2e264465d6ddf1e6c2571",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5364,10 +5364,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "cc0c5392c87cf01e3aa4de01e9772be6919408054c03e9dc7128462109f19f17",
-      "inventory": "4f19121e0e873b0b143c83980109e258d4d97519af636b41d657715b4aebd920"
+      "plan": "e04d37cda12855133923bab81fd386a9e4f8d859c6a2e264465d6ddf1e6c2571",
+      "inventory": "7a5302517b04dd5221853bb169d5d00dbe5721e7a19fcb22a77396df5e42f259"
     },
-    "rollbackIdentity": "cff96e4bd24fc8564237fbf54a812fb3ef1b47067c3ceb5a3c33e576fbdeeec6"
+    "rollbackIdentity": "a7eb72846f7d7f87a7b7a949802db34813d66361fae7504c5482545e6e3241a2"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {

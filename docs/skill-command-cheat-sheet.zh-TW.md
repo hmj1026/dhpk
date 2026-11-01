@@ -56,13 +56,12 @@ handoff and does not invoke Flow Drive automatically.
 |---|---|---|
 | [`tdd-workflow`](../skills/tdd-workflow/SKILL.md) | 需要 tests-first RED/GREEN/REFACTOR | 不負責瀏覽器旅程或未確認的需求 authoring |
 | [`module-design`](../skills/module-design/SKILL.md) | 需要 module boundary、deep-module 或 architecture decision | 不取代 OpenSpec proposal owner |
-| [`dhpk-php-runtime-router`](../skills/dhpk-php-runtime-router/SKILL.md) | PHP/Laravel/Symfony/Yii runtime 需要分流 | 先判斷 runtime，再載入一條 reference |
-| [`dhpk-yii1-php56-development`](../skills/dhpk-yii1-php56-development/SKILL.md) | Yii 1.x / PHP 5.6 backend 工作 | 不用於前端或非 PHP 專案 |
-| [`dhpk-yii1-security-audit`](../skills/dhpk-yii1-security-audit/SKILL.md) | Yii 1.1 安全白盒審計 | 不用於 Yii2 或非 PHP 專案 |
+| [`php`](../skills/php/SKILL.md) | PHP 5.6／7.4／8.x 實作、審查、測試與 runtime 相容性 | 不用於框架專屬工作 |
+| [`yii1`](../skills/yii1/SKILL.md) | Yii 1.1 backend 開發、回歸測試與靜態安全審計 | 不用於 Yii2 或非 PHP 專案 |
 | [`legacy-characterization-tests`](../skills/legacy-characterization-tests/SKILL.md) | 重構前鎖定 legacy behavior | 不代替功能設計或一般 TDD |
 
 Git、release、setup、review 與其他 slash command 的完整清單在
-[`commands/INDEX.md`](../commands/INDEX.md)。
+[`docs/commands-index.md`](commands-index.md)。
 
 ## 0.54 退役與 operator 邊界
 

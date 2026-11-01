@@ -121,6 +121,24 @@ test('too many positional args throws and exits 1', () => {
   assert.ok(res.stderr.includes('at most one output directory'), res.stderr);
 });
 
+test('generated description naming a non-package dhpk role in plain text fails generation', () => {
+  const root = cloneGeneratorFixture('gen-codex-plain-neighbor-red');
+  try {
+    const file = path.join(root, 'agents', 'docs-writer.md');
+    const text = fs.readFileSync(file, 'utf8');
+    fs.writeFileSync(file, text.replace(/^description: "/m, 'description: "Probe via (smoke-tester) first. '));
+    const outDir = path.join(root, 'out');
+    const result = runFixtureScript(root, [outDir]);
+    const output = diagnostic(result);
+    assert.notStrictEqual(result.status, 0, output);
+    assert.match(output, /docs-writer/);
+    assert.match(output, /smoke-tester/);
+    assert.strictEqual(fs.existsSync(path.join(outDir, 'docs-writer.toml')), false, output);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('generated source rejects a known non-direct neighbor before writing its TOML', () => {
   const root = cloneGeneratorFixture('gen-codex-known-neighbor-red');
   try {
@@ -216,6 +234,9 @@ test('generates the explicit 15-role Codex projection without packaging authorin
     assert.ok(qaExecutor.includes('model_reasoning_effort = "medium"'), qaExecutor);
     assert.match(qaExecutor, /host-supported skill-loading mechanism/);
     assert.doesNotMatch(qaExecutor, /with the Skill tool/);
+    // Claude-only neighbors must not survive into the Codex discovery description.
+    assert.doesNotMatch(qaExecutor, /ui-ux-verifier|smoke-tester/);
+    assert.match(qaExecutor, /\(ui-verifier\)/);
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
     assert.doesNotMatch(e2eRunner, /^sandbox_mode\s*=/m);
     assert.match(e2eRunner, /Verdict: BLOCKED/);

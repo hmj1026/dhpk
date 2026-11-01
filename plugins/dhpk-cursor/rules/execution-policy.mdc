@@ -1,6 +1,6 @@
 ---
 name: execution-policy
-description: "Execution Policy"
+description: "Execution policy single source of truth"
 alwaysApply: false
 ---
 # Execution Policy

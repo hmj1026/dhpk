@@ -1,6 +1,6 @@
 ---
 name: model-economics
-description: "Model Economics — tier map & cost rules"
+description: "Opt-in model tier and cost rules"
 alwaysApply: false
 ---
 # Model Economics — tier map & cost rules

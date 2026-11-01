@@ -1,7 +1,7 @@
 # code-reviewer — Yii 1.1 traps
 
 PHP language floor → `modules/php-5.6/references/coding-style.md`. Deeper Yii
-security patterns → `skills/dhpk-yii1-security-audit/references/yii1-security-patterns.md`.
+security patterns → `skills/yii1/references/yii1-security-patterns.md`.
 SQL injection as an OWASP finding → `security-reviewer/php.md` / `security-reviewer/yii.md`.
 
 | Trigger | Action | Non-apply |

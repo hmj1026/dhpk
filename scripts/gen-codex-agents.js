@@ -358,14 +358,20 @@ function adaptCodexBody(agentName, body) {
   }
   if (agentName === 'qa-executor') {
     // Shared source names Claude's Skill tool; Codex roles need the installed skill's host-supported loading path.
-    adapted = adapted.replace(
-      'Load the browser skill the parent names with the Skill tool.',
-      'Load the browser skill the parent names using the host-supported skill-loading mechanism.',
-    );
+    // The discovery description names Claude-only neighbors in plain text, which
+    // the backtick-scoped neighbor fence does not scan; map them to Codex terms.
+    adapted = adapted
+      .replace(
+        'Load the browser skill the parent names with the Skill tool.',
+        'Load the browser skill the parent names using the host-supported skill-loading mechanism.',
+      )
+      .replaceAll('(ui-ux-verifier)', '(ui-verifier)')
+      .replaceAll('a single-scenario runtime probe (smoke-tester)', 'a single-scenario runtime probe (no Codex role; probe directly)');
   }
   if (agentName === 'e2e-runner') {
     adapted = adapted
       .replaceAll('`smoke-tester`', 'perform the live probe directly (no Codex role)')
+      .replaceAll('smoke-tester is a read-only live probe', 'a read-only live probe has no Codex role (probe directly)')
       .replaceAll('`ui-ux-verifier`', 'a manual page-vs-spec UI audit fallback')
       .replaceAll('**ui-ux-verifier**', '**manual page-vs-spec UI audit fallback**')
       .replaceAll('ui-ux-verifier', 'manual page-vs-spec UI audit fallback')
@@ -384,7 +390,8 @@ function adaptCodexBody(agentName, body) {
   }
   if (agentName === 'security-reviewer') {
     adapted = adapted
-      .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)');
+      .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)')
+      .replaceAll('silent-failure-hunter', 'deep-reasoner (Codex fallback)');
   }
   if (agentName === 'doc-reviewer') {
     adapted = adapted
@@ -520,6 +527,35 @@ function buildToml(agent, frontmatter, body) {
   };
 }
 
+function readDhpkRoleRoster(roleMap) {
+  const agentsDir = path.join(ROOT, 'agents');
+  const fromAgents = fs.existsSync(agentsDir)
+    ? fs.readdirSync(agentsDir)
+        .filter((f) => f.endsWith('.md') && f !== 'INDEX.md')
+        .map((f) => f.slice(0, -3))
+    : [];
+  const fromMap = Object.keys((roleMap && roleMap.roles) || {});
+  return sortedNames([...fromAgents, ...fromMap]);
+}
+
+// Whole-token match where '-' belongs to the name, so `ui-verifier` never
+// matches inside `ui-ux-verifier`. Applies with or without backticks.
+function collectDescriptionRoleErrors(planned, roster, packageNames) {
+  const errors = [];
+  for (const { agent, built } of planned) {
+    for (const role of roster) {
+      if (packageNames.has(role)) continue;
+      const escaped = role.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(`(?<![A-Za-z0-9-])${escaped}(?![A-Za-z0-9-])`).test(built.description)) {
+        errors.push(
+          `Generated Codex role '${agent.name}' description names dhpk role '${role}', which is not a Codex package role; adapt it in adaptCodexBody (${agent.source})`,
+        );
+      }
+    }
+  }
+  return errors;
+}
+
 function generate(outDir) {
   const ownership = readOwnershipManifest(outDir);
   assertNoStaleToml(outDir, ownership);
@@ -544,7 +580,11 @@ function generate(outDir) {
   // Validate the complete adapted batch before publishing any TOML.  Direct
   // targets therefore resolve independently of the order in which files are
   // eventually written.
-  const neighborErrors = [];
+  const neighborErrors = collectDescriptionRoleErrors(
+    planned,
+    readDhpkRoleRoster(roleMap),
+    ownership.packageNames,
+  );
   for (const { agent, built } of planned) {
     neighborErrors.push(...collectCodexRoleNeighborErrors({
       sourceRole: agent.name,

@@ -1,5 +1,5 @@
 name = "qa-executor"
-description = "Live manual QA executor. Runs assigned QA-manual cases against a running environment through a browser skill, records one verdict per case with observed evidence in one assigned results file, and returns defects and authorization requests to the parent. Use for manual QA batches, retests, and regression rounds on a live environment. Not for authoring Playwright specs (e2e-runner), auditing one page against a spec (ui-ux-verifier), a single-scenario runtime probe (smoke-tester), or fixing code."
+description = "Live manual QA executor. Runs assigned QA-manual cases against a running environment through a browser skill, records one verdict per case with observed evidence in one assigned results file, and returns defects and authorization requests to the parent. Use for manual QA batches, retests, and regression rounds on a live environment. Not for authoring Playwright specs (e2e-runner), auditing one page against a spec (ui-verifier), a single-scenario runtime probe (no Codex role; probe directly), or fixing code."
 model = "gpt-6-luna"
 model_reasoning_effort = "medium"
 

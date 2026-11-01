@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { adaptFrontmatter } = require('../agy-adapt-agents');
+const { RULE_ACTIVATION_MAP } = require('./rule-activation-map');
 const {
   createSurfaceReceipt,
   createInstallationReceiptIdentity,
@@ -69,29 +70,15 @@ const AGY_EXECUTION_POLICY_POINTER = [
   'real grandparent. Read its kernel first, then load only required sections.',
   '',
 ].join('\n');
-// Descriptions are fixed literals. Do not derive them from rule prose.
-const AGY_RULE_TRIGGER_MAP = Object.freeze({
-  'rules/execution-policy-kernel.md': Object.freeze({
-    trigger: 'always_on',
-    description: 'Always-visible execution policy kernel',
-  }),
-  'rules/execution-policy.md': Object.freeze({
-    trigger: 'model_decision',
-    description: 'Execution policy single source of truth',
-  }),
-  'rules/anti-rationalization.md': Object.freeze({
-    trigger: 'model_decision',
-    description: 'Anti-rationalization patterns stop-loss reference',
-  }),
-  'rules/model-economics.md': Object.freeze({
-    trigger: 'model_decision',
-    description: 'Opt-in model tier and cost rules',
-  }),
-  'rules/tool-routing.md': Object.freeze({
-    trigger: 'model_decision',
-    description: 'Tool routing reference card',
-  }),
-});
+// Descriptions are fixed literals owned by ./rule-activation-map. Do not derive them from rule prose.
+const AGY_RULE_TRIGGER_MAP = Object.freeze(Object.fromEntries(
+  Object.entries(RULE_ACTIVATION_MAP)
+    .filter(([, entry]) => !entry.cursorOnly)
+    .map(([relative, entry]) => [relative, Object.freeze({
+      trigger: entry.alwaysOn ? 'always_on' : 'model_decision',
+      description: entry.description,
+    })]),
+));
 
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
