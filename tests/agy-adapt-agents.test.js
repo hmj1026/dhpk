@@ -118,7 +118,7 @@ test('rewrites tools list to AGY names, dedupes, strips color, and reports count
 
     const rewritten = fs.readFileSync(path.join(agentsDir, 'sample.md'), 'utf8');
     assert.ok(!rewritten.includes('color:'), rewritten);
-    assert.ok(rewritten.includes('tools: ["view_file", "write_to_file", "mcp_foo_bar"]'), rewritten);
+    assert.ok(rewritten.includes('tools: ["view_file", "write_to_file"]'), rewritten);
     assert.ok(rewritten.endsWith(body), rewritten);
 
     const adaptedDigest = crypto.createHash('sha256').update(rewritten).digest('hex');
@@ -269,7 +269,7 @@ test('rejects a tampered staging package before rewriting any file', () => {
     const result = adaptFrontmatter(SOURCE);
     assert.strictEqual(result.changed, true);
     assert.ok(result.text.includes(
-      'tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "search_web", "read_url_content", "invoke_subagent", "mcp_foo_bar"]',
+      'tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "search_web", "read_url_content", "invoke_subagent"]',
     ), result.text);
     assert.ok(result.text.includes('model: pro'), result.text);
     assert.ok(!result.text.includes('effort:'), result.text);
@@ -278,6 +278,26 @@ test('rejects a tampered staging package before rewriting any file', () => {
     assert.ok(!result.text.includes('skills:'), result.text);
     assert.deepStrictEqual(result.droppedFields, ['effort', 'maxTurns', 'color', 'skills']);
     assert.ok(result.text.includes('# Body'), result.text);
+  });
+
+  test('MCP tool without a packaged server is dropped', () => {
+    const body = '# Body mentions mcp__gitnexus__impact literally.\n';
+    const source = ['---', 'name: sample', 'description: Sample', 'tools: Read, Grep, mcp__gitnexus__impact', 'model: inherit', '---', body].join('\n');
+    const result = adaptFrontmatter(source, { filePath: 'agents/sample.md' });
+    assert.ok(result.text.includes('tools: ["view_file", "grep_search"]'), result.text);
+    assert.deepStrictEqual(result.droppedTools, [{ tool: 'mcp__gitnexus__impact', path: 'agents/sample.md' }]);
+    assert.ok(result.text.endsWith(body), result.text);
+    const none = adaptFrontmatter(source, { filePath: 'agents/sample.md', mcpServers: [] });
+    assert.deepStrictEqual(none.droppedTools, result.droppedTools);
+    const other = adaptFrontmatter(source, { filePath: 'agents/sample.md', mcpServers: ['context7'] });
+    assert.deepStrictEqual(other.droppedTools.map((d) => d.tool), ['mcp__gitnexus__impact']);
+  });
+
+  test('MCP tool with a packaged server is kept', () => {
+    const source = ['---', 'name: sample', 'description: Sample', 'tools: Read, mcp__context7__query_docs', 'model: inherit', '---', 'Body', ''].join('\n');
+    const result = adaptFrontmatter(source, { filePath: 'agents/sample.md', mcpServers: new Set(['context7']) });
+    assert.ok(result.text.includes('tools: ["view_file", "mcp_context7_query_docs"]'), result.text);
+    assert.deepStrictEqual(result.droppedTools, []);
   });
 
   test('preserves valid AGY model values and defaults an omitted model to inherit', () => {

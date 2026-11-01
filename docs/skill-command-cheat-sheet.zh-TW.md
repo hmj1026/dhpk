@@ -62,7 +62,7 @@ handoff and does not invoke Flow Drive automatically.
 | [`legacy-characterization-tests`](../skills/legacy-characterization-tests/SKILL.md) | 重構前鎖定 legacy behavior | 不代替功能設計或一般 TDD |
 
 Git、release、setup、review 與其他 slash command 的完整清單在
-[`commands/INDEX.md`](../commands/INDEX.md)。
+[`docs/commands-index.md`](commands-index.md)。
 
 ## 0.54 退役與 operator 邊界
 

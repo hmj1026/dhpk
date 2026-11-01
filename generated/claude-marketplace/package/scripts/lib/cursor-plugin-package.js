@@ -33,6 +33,7 @@ const {
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
+const { RULE_ACTIVATION_MAP, canonicalRulePath } = require('./rule-activation-map');
 const { collectStandalonePackageAssets, collectNativeAgentTrapAssets } = require('./standalone-package-assets');
 const { cursorNativeAgentClosureErrors } = require('./native-agent-support');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
@@ -425,11 +426,17 @@ function adaptNativeDocument(content, kind, basename, sourceFile = null, canonic
   const parsed = parseFrontmatter(content);
   const fallbackName = basename.replace(/\.(?:md|mdc|markdown|txt)$/i, '').toLowerCase().replace(/[^a-z0-9.-]+/g, '-');
   const name = parsed.fields.name || fallbackName;
-  const description = parsed.fields.description || firstHeading(parsed.body, `${kind} component ${name}`);
+  let rulePolicy = null;
+  if (kind === 'rules') {
+    const rulePath = canonicalRulePath(basename);
+    rulePolicy = RULE_ACTIVATION_MAP[rulePath];
+    if (!rulePolicy) throw new Error(`Cursor rule has no entry in the rule activation map: ${rulePath}`);
+  }
+  const description = rulePolicy ? rulePolicy.description : parsed.fields.description || firstHeading(parsed.body, `${kind} component ${name}`);
   if (!name || !description || !NAME_PATTERN.test(name)) return { ok: false, reason: 'requires Cursor-safe name and description' };
   const fields = { name, description };
   if (kind === 'rules') {
-    fields.alwaysApply = parsed.fields.alwaysApply === true || String(parsed.fields.alwaysApply).toLowerCase() === 'true';
+    fields.alwaysApply = rulePolicy.alwaysOn;
     if (parsed.fields.globs) fields.globs = parsed.fields.globs;
   }
   if (kind === 'agents') {
@@ -753,7 +760,7 @@ function collectAdaptedCursorDocuments(sourceDir, destinationDir, kind, transfor
 
 function collectAdaptedCursorHooks(root, transformations, traversalBudget) {
   const sourcePath = path.join(root, 'hooks', 'hooks.json');
-  const adapted = { hooks: {} };
+  const adapted = { version: 1, hooks: {} };
   const files = [];
   if (fs.existsSync(sourcePath)) {
     let source;
@@ -1537,6 +1544,9 @@ function validateHooks(packageRoot, hookRoots, errors) {
     try { config = JSON.parse(readFileBounded(hooksPath).toString('utf8')); } catch (error) {
       errors.push(`${path.relative(packageRoot, hooksPath).split(path.sep).join('/')} is invalid JSON: ${error.message}`);
       continue;
+    }
+    if (config && typeof config === 'object' && !(Number.isInteger(config.version) && config.version > 0)) {
+      errors.push(`${path.relative(packageRoot, hooksPath).split(path.sep).join('/')} must declare a positive-integer version`);
     }
     if (!config || typeof config !== 'object' || !config.hooks || typeof config.hooks !== 'object' || Array.isArray(config.hooks)) {
       errors.push('Cursor hooks config must contain a hooks object');

@@ -35,15 +35,16 @@ projection 內容後，才能宣稱 client 可呼叫。
 ## Prerequisites 與版本假設
 
 以下各安裝段落使用對應表格列。此 repository 會記錄 package 與 schema
-版本，但尚未驗證任何 consumer client 的最低版本。release evidence 必須記錄
+版本；目前唯一已驗證的 client 最低版本是 Codex CLI 0.159.0（role 使用
+`gpt-6.1-terra`），其他 consumer client 的最低版本尚未驗證。release evidence 必須記錄
 實際 client version 與 probe result；不可由 package check 推導 runtime
 `PASS`。
 
 | Route | Client／版本假設 | OS 與 shell 假設 | 必要 tooling | Evidence gate |
 |---|---|---|---|---|
 | Claude Code | 支援 marketplace/plugin；最低版本尚未建立 | Client 支援的 OS 與 POSIX shell | `bash`、Claude Code | 執行 installer，並在 fresh session 觀察 selected package |
-| Codex project-local sync | Codex project-local loader；schema-v3 receipt；最低 Codex version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.codex/.dhpk-installed.json`，並執行列出的 metadata/test 命令 |
-| Codex legacy/native | 支援 marketplace/plugin 命令的 Codex CLI；執行 `codex --version`；最低 CLI version 尚未建立 | Linux、macOS 或 WSL shell；使用 disposable isolated `CODEX_HOME` | `codex`、marketplace access、`git` | 執行 marketplace route 並記錄 CLI 輸出；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
+| Codex project-local sync | Codex project-local loader；schema-v3 receipt；最低 Codex CLI 0.159.0（role 使用 `gpt-6.1-terra`，需 0.159.0+；本機以 0.166.0 驗證） | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.codex/.dhpk-installed.json`，並執行列出的 metadata/test 命令 |
+| Codex legacy/native | 支援 marketplace/plugin 命令的 Codex CLI；執行 `codex --version`；最低 Codex CLI 0.159.0（role 使用 `gpt-6.1-terra`，需 0.159.0+；本機以 0.166.0 驗證） | Linux、macOS 或 WSL shell；使用 disposable isolated `CODEX_HOME` | `codex`、marketplace access、`git` | 執行 marketplace route 並記錄 CLI 輸出；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | OpenAI Public Plugin Directory | Codex 或 ChatGPT Work 的 public plugin manager；最低 client version 尚未建立 | 產品支援的 client 或 web surface | 已發布的 DHPK listing 與 account access | 公開 listing 核准並可見前維持 `NOT_PUBLISHED`；分別記錄 client version 與 fresh-session discovery |
 | Standard Agent Plugin | 實作 Agent Plugins 1.0.0 schema 的 consumer；最低 client version 尚未建立 | client 支援的 OS；package validation 從 POSIX shell 執行 | 已驗證的 Agent Plugin loader；Node.js 僅供結構驗證 | 執行兩個 package 命令，再記錄 client discovery evidence |
 | Cursor standard Agent Plugin | 接受 portable package 的 Cursor desktop/plugin loader；記錄 Cursor version；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor Customize → Plugins 或 local loader；Node.js 僅供 validation | reload 後觀察 discovered skills/MCP；無 loader 為 `UNAVAILABLE` 或 `BLOCKED` |
@@ -314,8 +315,10 @@ bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 `.codex/agents/*.toml` materialize 為實體檔；Codex 必須把後者作為
 configuration layer 載入。Supporting asset 預設仍使用 relative symlink，
 `--copy` 會一併將它們改為實體檔。此規則適用於 source-directory materialization；
-native Shared Project 在 `.codex/skills` 建立的 discovery binding 仍可能是指向
-physical shared artifact 的 receipt-owned symlink：
+Codex 從 `.agents/skills` 探索 project skill
+（[Codex skills](https://developers.openai.com/codex/skills)），native Shared
+Project 在 `.codex/skills/<name>` 建立的 discovery binding 是 installer 建立並由
+receipt 擁有、指向 `../../.agents/skills/<name>` 的 compatibility symlink：
 
 ```bash
 bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh --copy
@@ -467,7 +470,7 @@ Remediation 由人決定。若選擇支援的 project sync 路徑，請手動執
 ## Codex legacy/native package（Experimental）
 
 Prerequisites：具 marketplace route 的實際 `codex` CLI、POSIX shell，以及已
-記錄的 `codex --version`；本 repository 尚未驗證最低 CLI version。這條實驗性
+記錄的 `codex --version`；最低 Codex CLI 為 0.159.0（role 使用 `gpt-6.1-terra`）。這條實驗性
 路徑只能使用 disposable isolated `CODEX_HOME`，不可與支援的 project-local
 sync 同時啟用。
 
@@ -913,6 +916,13 @@ path contract 版本固定在 `manifests/distribution-inventory.json`。AGY 1.2.
 `$HOME/.gemini/config/plugins/dhpk/` 仍保留為 legacy candidate，供唯讀偵測與
 明確 migration 使用。實測 AGY 1.2.2 可從兩種 layout 載入 agents，因此不會
 靜默丟棄 legacy path，但新的預設安裝一律使用 canonical path。
+
+證據（agy 1.4.12，2026-11-01 探測）：`agy agents` 列出 receipt-owned 安裝於
+`~/.gemini/antigravity-cli/plugins/dhpk/` 的全部 29 個 agent，而 `agy plugin list`
+回傳 `[]`（receipt-owned 安裝的預期結果）。宣告 `model: flash_lite` 的 agent
+在 runtime 成功執行，儘管 vendor subagent 頁面只列出 `inherit`、`flash`、`pro`。
+宣告 MCP tool 但其 server 未在 agy 註冊的 agent 會無法啟動；package 現在會移除
+這類 tool（本 change 內修正中）。
 
 預設的 `plan` 與 `status` 是唯讀操作。receipt-owned legacy installation 會
 回報 `LEGACY_OWNED`；canonical 與 legacy 同時存在時回報

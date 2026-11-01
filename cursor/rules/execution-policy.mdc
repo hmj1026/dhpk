@@ -1,6 +1,6 @@
 ---
 name: execution-policy
-description: "Execution Policy"
+description: "Execution policy single source of truth"
 alwaysApply: false
 ---
 # Execution Policy
@@ -190,6 +190,8 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `codex-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID; see §Implementation dispatch | — |
 | `agy-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run the agy CLI backend; canonical role ID; see §Implementation dispatch | — |
 | `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
+| `qa-executor` | Live manual QA-case execution through a browser skill; writes one assigned results file; live-data writes only inside an explicit authorized fixture scope — see §Implementation dispatch | — |
+| `docs-writer` | Assigned documentation authoring or revision from confirmed sources (not stale-doc refresh, which is `doc-updater`) — see §Implementation dispatch | — |
 | `code-reviewer` | Code review — triggered by source-file edits | consolidated wave |
 | `database-reviewer` | SQL / Repository / migration (SQL correctness) — triggered or back-stop | consolidated wave |
 | `security-reviewer` | Auth / crypto / money / file upload — triggered or back-stop | consolidated wave |
@@ -357,6 +359,9 @@ or `UNAVAILABLE` evidence does not satisfy that obligation. The external
 | A read-only, scenario-driven live-runtime probe (drive the real running system with one concrete scenario, observe rather than infer) — distinct from `e2e-runner` (authors/runs Playwright specs, write-capable, web-scoped) and the `feature-verify` skill (main-context, heavyweight P0–P5 scope, not a dispatchable isolated agent) | `dhpk:smoke-tester` |
 | Planning outcome is missing because of unresolved decisions, dependencies, ownership, coupling, or material risk; or an explicit pre-implementation consult is requested | `dhpk:planner` when available and permitted; adequate existing evidence does not require a duplicate consult |
 | Live CI/deploy verification (`gh run watch`, run-log triage, retry babysitting) — main context keeps only merge/fix decisions | `dhpk:smoke-tester` (read-only probe) or background `fast-worker` |
+| Live manual QA-case execution (run assigned QA-manual cases on a running environment, record per-case verdicts and evidence) — distinct from `smoke-tester` (one scenario, no browser skill) and `e2e-runner` (authors specs) | `dhpk:qa-executor` |
+| Assigned documentation authoring or revision from confirmed sources (QA manuals, guides, docblock prose) when no structural change made docs stale | `dhpk:docs-writer` |
+| Read-only codebase or environment exploration and evidence gathering with no file writes | Explore, or an equivalent read-only explorer role (Codex `explorer`) |
 
 For a parallel mechanical batch, every worker task spec MUST declare `Parallel: yes`, exact assigned repo-relative files, per-file intent, and either a path-scoped verification command or an explicit report-only outcome. The assigned list is the worker's authoritative write, diff, and verification boundary. New files must be listed before dispatch; workers must stop with `BLOCKED` rather than expand scope.
 
@@ -708,6 +713,17 @@ runners, missing capabilities, skipped checks, and `NOT_RUN` remain non-passing
 states; a manual alternative is separate evidence and does not become a pass for
 the unsupported runner. Keep implementation, verification, archive, commit, PR,
 CI, merge, release, and deployment states separate.
+
+Once implementation edits stop, applicable read-only reviews and full tests may
+run concurrently against one fixed source snapshot when the tests do not modify
+implementation files or compete for the same mutable test resources. A later
+source change creates a new snapshot and invalidates affected evidence; use the
+kernel's Evidence snapshots rules. For a long verification, a source commit, or
+PR creation, update one run-specific record under ignored `docs/evidence/` using
+the [recoverable run checkpoint](https://github.com/hmj1026/dhpk/blob/main/docs/subagent-prompt-template.md#recoverable-run-checkpoint).
+At resume, verify recorded source and process identity; an unknown session is
+not rerun automatically. This recovery record does not diagnose backend failure
+or change existing review, commit, PR, CI, or release authorization checkpoints.
 
 ### Testing
 

@@ -203,6 +203,11 @@ standalone `message` following
 a named specialist `agent_type`, because the full-history fork inherits the
 parent agent type.
 
+Prefer a named specialist over the default/inherited path whenever one fits:
+live manual QA-case execution goes to `qa-executor`, assigned documentation
+authoring or revision from confirmed sources to `docs-writer`, and read-only
+codebase or environment exploration to `explorer`.
+
 If a correctly formed named-specialist dispatch reports unavailable, diagnose
 in this order: (1) confirm the session started at the intended project root and
 can read `.codex/config.toml`; (2) use the exact registry id, such as

@@ -80,6 +80,6 @@ commands are retired; their former modes are no longer callable.
 
 ## 修改本檔時
 
-- 新增或移除 command → 與 `commands/` 目錄及 `commands/INDEX.md` 同步，避免在索引宣稱未註冊的 command。
+- 新增或移除 command → 與 `commands/` 目錄及 `docs/commands-index.md` 同步，避免在索引宣稱未註冊的 command。
 - 命令行為變更 → 檢查是否影響 `flow-guide` action、`flow-drive` confirmed
   implementation handoff，或相關 skill handoff。
