@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "072a9eb29f36491b128f849cd4e2320c21a6969c",
-  "generatedFromCommit": "072a9eb29f36491b128f849cd4e2320c21a6969c",
-  "generatedFromTree": "7a0b2ec1e65caef77460b04d09bc1f3dbf9b9030",
+  "sourceCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
+  "generatedFromCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
+  "generatedFromTree": "1c6256c6e38fcc670be75d26991b7280acd5cfa6",
   "inventoryDigest": "252e7e374acd7ad4f9adf1754bacb1a27d66eea1e076fcf45a8655f22a66509e",
   "inventoryRevision": "sha256:3f22193089868e59e1668a890a754dfff8935f524a891d38497a18c69b0bbcde",
   "generatorVersion": "2.3.0",
@@ -1613,7 +1613,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
-        "originalGitBlobDigest": "7670278a45ba3964c3add7c86cade64458b20fbb"
+        "originalGitBlobDigest": "5a4afa777e7d5a1482696f55f6d511cc00557994"
       },
       {
         "ownerId": "flow-guide",
@@ -1625,7 +1625,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
-        "originalGitBlobDigest": "30cf51c363114aa80649e9ddd8ccfb335f5a3413"
+        "originalGitBlobDigest": "e15f64536a4b7aa0d35f2a5a45e9df0a8942274a"
       },
       {
         "ownerId": "flow-guide",
@@ -5686,7 +5686,7 @@
     "create-pr": "d7e57d7aa9d2d6b312cb158459e686de9724bc638b453d2265921a3ed80db28b",
     "doc-maintain": "e5b280fe413fefc4b5d318084a300dba869012aca78a4cff2f781fec5d67247d",
     "flow-drive": "e7cb889f641a6111e1cb299e60d356188051b9aef802616a87bb4471706908fa",
-    "flow-guide": "a8ad1a0ae8cbdd199cb66cbd125129e53e9539d9fdcee8691762725617751b45",
+    "flow-guide": "0323c6efabd65aa3c7f8d282f07e0d677ac951bf7c54c0df784aa85ed6d2a1c2",
     "git-smart-commit": "de2c1742f9760e46d9ad805b65b3b49b13080597b264e63d4ad56f66ca63957c",
     "git-worktree": "1d13ed5f23a0c686666a0f6ea0859e42e113d6d589a01ca3ee2580d11678bd0c",
     "library-author": "de5c31219b5525e04489af5f2fa1e8ab7e2d6a0d20bfe27889e9772aba2f770a",

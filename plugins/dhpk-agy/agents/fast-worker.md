@@ -93,26 +93,28 @@ bypass normal tool events, deriving applicable reviewers from the
 actual edited paths. Omitting it (or reporting it incompletely) breaks that
 back-stop.
 
-Every report also identifies `Requested backend: claude` and
-`Selected backend: claude`. Target selection is governed by
+Every report also identifies `Requested target agent: claude-code` and
+`Selected target agent: claude-code`. Target selection is governed by
 `node scripts/fast-worker-selector.js [--target <agent>/<model>[:<effort>]]`,
 which detects the Host and resolves the Host `worker` Role Default (or the
 explicit target) through the Dispatch Engine. Its JSON output carries `status`
 (`RESOLVED`, `UNAVAILABLE`, or `BLOCKED`), `selected_target`, `selected_agent`
 (subagent name, presentation only), `capability_status`, and
 `resolution_source`. A non-`RESOLVED` status is a stop, not a prompt to pick
-another target. The shared failure-class fallback policy is in
+another target. On `BLOCKED` for an undetected or ambiguous Host (for example
+Codex or Cursor launched from a Claude Code terminal inherits `CLAUDECODE=1`),
+set `DHPK_HOST=<host>` explicitly and rerun the selector. The shared failure-class fallback policy is in
 `rules/execution-policy.md`; this worker never silently
-changes backend after dispatch.
+changes Target Agent after dispatch.
 
 ## Output
 
 ```
 RESULT: DONE | PARTIAL | BLOCKED
 ## Fast Worker Report
-Requested backend: claude
-Selected backend: claude
-Availability: in-process backend available
+Requested target agent: claude-code
+Selected target agent: claude-code
+Availability: in-process Target Agent available
 Fallback reason: none
 Model/effort: <effective model> / <effective effort>
 Verify: <command> → PASS | FAIL (N attempts)

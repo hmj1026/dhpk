@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "072a9eb29f36491b128f849cd4e2320c21a6969c",
-  "generatedFromCommit": "072a9eb29f36491b128f849cd4e2320c21a6969c",
-  "generatedFromTree": "7a0b2ec1e65caef77460b04d09bc1f3dbf9b9030",
+  "sourceCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
+  "generatedFromCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
+  "generatedFromTree": "1c6256c6e38fcc670be75d26991b7280acd5cfa6",
   "inventoryDigest": "252e7e374acd7ad4f9adf1754bacb1a27d66eea1e076fcf45a8655f22a66509e",
   "inventoryRevision": "sha256:3f22193089868e59e1668a890a754dfff8935f524a891d38497a18c69b0bbcde",
   "generatorVersion": "1.0.0",
@@ -1539,7 +1539,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
-        "originalGitBlobDigest": "7670278a45ba3964c3add7c86cade64458b20fbb"
+        "originalGitBlobDigest": "5a4afa777e7d5a1482696f55f6d511cc00557994"
       },
       {
         "ownerId": "flow-guide",
@@ -1551,7 +1551,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
-        "originalGitBlobDigest": "30cf51c363114aa80649e9ddd8ccfb335f5a3413"
+        "originalGitBlobDigest": "e15f64536a4b7aa0d35f2a5a45e9df0a8942274a"
       },
       {
         "ownerId": "flow-guide",
@@ -5629,7 +5629,7 @@
   ],
   "fingerprints": {
     "rules": "213fbedb2db10637c89b47b27fdea3b74f279a54d97b3031a4a598ef7538c10e",
-    "agents": "07d355798696cb6bf12fad7e500d5f321cf9b5445918aa91a8a6db9e5a8cb06e",
+    "agents": "8b30348bf9798bd37e57448350021b060b1cc54c18e129938a38757e327d05f8",
     "commands": "9104c6ec54a2cc1a77357ce279e096d2de2b86876a2137388a2a1e9d65b44314",
     "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
     "agent-traps": "b3467f22a69b647b6f101dd314e79e427c118f6c569f0401d0e7026ea541cffd"
@@ -6698,5 +6698,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "06e49afe750314f916e6ae8f68a7338788f735607e3dc83191d8dfbfc5e41f74"
+  "planFingerprint": "28143fe30b6cff589eb46f16f4ba0e357d11420e0c81378a007948be789edfc7"
 }

@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "072a9eb29f36491b128f849cd4e2320c21a6969c",
-  "generatedFromCommit": "072a9eb29f36491b128f849cd4e2320c21a6969c",
-  "generatedFromTree": "7a0b2ec1e65caef77460b04d09bc1f3dbf9b9030",
+  "sourceCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
+  "generatedFromCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
+  "generatedFromTree": "1c6256c6e38fcc670be75d26991b7280acd5cfa6",
   "inventoryDigest": "5f52401908e7f9c93a82aa95d5038c5cc22366720497380c791b5d0ad74c0802",
   "inventoryRevision": "sha256:3f22193089868e59e1668a890a754dfff8935f524a891d38497a18c69b0bbcde",
   "generatorVersion": "1.0.0",
@@ -1584,7 +1584,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
-        "originalGitBlobDigest": "7670278a45ba3964c3add7c86cade64458b20fbb"
+        "originalGitBlobDigest": "5a4afa777e7d5a1482696f55f6d511cc00557994"
       },
       {
         "ownerId": "flow-guide",
@@ -1596,7 +1596,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
-        "originalGitBlobDigest": "30cf51c363114aa80649e9ddd8ccfb335f5a3413"
+        "originalGitBlobDigest": "e15f64536a4b7aa0d35f2a5a45e9df0a8942274a"
       },
       {
         "ownerId": "flow-guide",
@@ -5321,7 +5321,7 @@
     "create-pr": "ecea4c51400b24a50a6aa852f1796c1ccd281e0a1c3d4d8b845c1a72e1518f24",
     "doc-maintain": "8a428db65c040d66128944fac45ab46f68200c8e0e442d809bbea6f8f2fbad0d",
     "flow-drive": "553506b4ef2f68c906298a816d43bfd8500309c41823a9dbea31a8dac891046e",
-    "flow-guide": "0e28d18c0fb8b781def9919768c3e2a5604a3f82efa28ba49e228eb330af29be",
+    "flow-guide": "c021fc49689ff4279ac76c19040fcd75a267a002271483363852646eb96ceb7f",
     "git-smart-commit": "b21cf7de6b555ada30c0c4db7c8f0326599607f95c87cd00924fa571663dbc4f",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",
     "precommit": "565accfb658863ae359b200ee516083d7f7122757c41db1e19f10198041621ce",
