@@ -1,6 +1,5 @@
 'use strict';
 
-const crypto = require('node:crypto');
 const {
   AUTHORITIES,
   CANONICAL_ROLES,
@@ -9,6 +8,7 @@ const {
   SCHEMAS,
   TRANSPORTS,
 } = require('./dispatch-contract');
+const { sha256Hex } = require('./content-fingerprint');
 
 const PROJECTION_SCHEMA = 'dhpk.dispatch.projection.v1';
 const SURFACES = Object.freeze(['claude-core', 'agent-plugin', 'cursor-plugin', 'cursor-sync', 'codex-native', 'codex-sync', 'agy-plugin']);
@@ -18,10 +18,6 @@ function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, clone(child)]));
   return value;
-}
-
-function digest(value) {
-  return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
 function buildDispatchProjection({ surface, catalog, hostProfiles, source = 'scripts/lib/dispatch-contract.js' } = {}) {
@@ -68,7 +64,7 @@ function buildDispatchProjection({ surface, catalog, hostProfiles, source = 'scr
       translation: 'input-edge only; canonical Role and Provider-scoped target remain authoritative',
     },
   };
-  return Object.freeze({ ...projection, fingerprint: digest(projection) });
+  return Object.freeze({ ...projection, fingerprint: sha256Hex(JSON.stringify(projection)) });
 }
 
 function validateDispatchProjection(projection) {
