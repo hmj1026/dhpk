@@ -13,6 +13,15 @@
 //
 //   node scripts/ci/validate-references.js     print findings, exit 1 on any
 //
+// Check 2 covers `/dhpk:<name>` and the bare `dhpk:<name>` form (code-span or
+// whitespace/`(`/start-led, so URLs and longer identifiers are not matched), so
+// a renamed skill cannot linger as "`dhpk:old-name`". Check 7 requires the first
+// segment (followed by `/`) of a bare or `${CLAUDE_PLUGIN_ROOT}/`-anchored `skills/<name>/...`
+// token to be an existing `skills/<name>/` directory; consumer/external paths
+// (`.claude/skills/`, `plugins/*/skills/`, `~/…/skills/`) and placeholders or
+// globs are skipped. Besides the harness Markdown, agent-traps/ and root
+// README*.md are scanned (CHANGELOG, docs/, openspec/ are historical, not scanned).
+//
 // Also exports `scanRepo` / `scanText` so tests can exercise reference
 // resolution against the real tree and synthetic fixtures.
 
@@ -49,6 +58,10 @@ function harnessFiles() {
   const files = [];
   for (const d of ['skills', 'commands', 'agents', 'rules']) {
     files.push(...walk(p(d), isMarkdown));
+  }
+  files.push(...walk(p('agent-traps'), isMarkdown));
+  for (const e of fs.readdirSync(ROOT, { withFileTypes: true })) {
+    if (e.isFile() && /^README.*\.md$/.test(e.name)) files.push(path.join(ROOT, e.name));
   }
   const modulesDir = p('modules');
   if (fs.existsSync(modulesDir)) {
@@ -114,11 +127,13 @@ function checkRulesRefs(relFile, text, whitelist) {
 
 function extractDhpkRefs(text) {
   const found = [];
-  const re = /\/dhpk:([a-z0-9-]+)(:?)/g;
+  // Slash form, or bare form led by start/whitespace/`(`/backtick (not a URL
+  // or part of a longer identifier).
+  const re = /(?:\/dhpk:|(?:^|[\s(`])dhpk:)([a-z0-9-]+)(:?)/gm;
   let m;
   while ((m = re.exec(text)) !== null) {
     if (m[2] === ':') continue; // e.g. /dhpk:opsx:<name> — namespaced, skip
-    found.push(m[1]);
+    found.push({ name: m[1], bare: !m[0].startsWith('/') });
   }
   return found;
 }
@@ -137,14 +152,21 @@ function dhpkRefResolves(name) {
   return false;
 }
 
-function checkDhpkRefs(relFile, text) {
+function isWhitelistedDhpkRef(whitelist, file, target) {
+  return (whitelist.dhpk_refs || []).some((w) => w.file === file && w.target === target);
+}
+
+function checkDhpkRefs(relFile, text, whitelist) {
   const findings = [];
-  for (const name of extractDhpkRefs(text)) {
+  for (const { name, bare } of extractDhpkRefs(text)) {
     if (dhpkRefResolves(name)) continue;
+    // Bare `dhpk:<name>` is also the Task subagent_type namespace.
+    if (bare && fs.existsSync(p('agents', `${name}.md`))) continue;
+    if (isWhitelistedDhpkRef(whitelist, relFile, `${bare ? '' : '/'}dhpk:${name}`)) continue;
     findings.push({
       file: relFile,
       check: 2,
-      detail: `/dhpk:${name} does not resolve to any commands/${name}.md or skills/${name}/SKILL.md`,
+      detail: `${bare ? '' : '/'}dhpk:${name} does not resolve to any commands/${name}.md or skills/${name}/SKILL.md`,
     });
   }
   return findings;
@@ -186,6 +208,33 @@ function checkPathRefs(relFile, text) {
   return findings;
 }
 
+// --- Check 7: skills/<name>/ first segment must be a real skill dir -------
+
+// Bare `skills/<name>/...` or `${CLAUDE_PLUGIN_ROOT}/skills/<name>/...`. A `/`,
+// `.`, `~`, `-` or word char before `skills/` means a longer path such as
+// `.claude/skills/`, `.agents/skills/`, `.codex/skills/`, `~/x/skills/` or
+// `plugins/*/skills/` (external or consumer-side), so only a clean boundary or
+// the plugin-root anchor counts. Placeholders/globs (`<name>`, `*`, `{a,b}`)
+// fail the kebab-case test and are skipped.
+function extractSkillDirRefs(text) {
+  const found = new Set();
+  const re = /(?:^|[^\w./~-]|\$\{CLAUDE_PLUGIN_ROOT\}\/)skills\/([^\s/`)"'\]]+)\//gm;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (/^[a-z0-9][a-z0-9-]*$/.test(m[1])) found.add(m[1]);
+  }
+  return [...found];
+}
+
+function checkSkillDirRefs(relFile, text) {
+  const findings = [];
+  for (const name of extractSkillDirRefs(text)) {
+    if (fs.existsSync(p('skills', name))) continue;
+    findings.push({ file: relFile, check: 7, detail: `skills/${name}/ does not exist` });
+  }
+  return findings;
+}
+
 // --- Check 6: imperative natural-language capability handoffs --------------
 // Markdown frequently names a Skill-tool capability without a slash command,
 // e.g. "Invoke the `dhpk-opsx-load-context` skill". These handoffs are part of
@@ -213,8 +262,9 @@ function scanText(relFile, text) {
   const whitelist = loadWhitelist();
   return [
     ...checkRulesRefs(relFile, text, whitelist),
-    ...checkDhpkRefs(relFile, text),
+    ...checkDhpkRefs(relFile, text, whitelist),
     ...checkPathRefs(relFile, text),
+    ...checkSkillDirRefs(relFile, text),
     ...checkNaturalLanguageRefs(relFile, text),
   ];
 }

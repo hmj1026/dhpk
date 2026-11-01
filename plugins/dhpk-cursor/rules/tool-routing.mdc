@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 # Tool Routing — gitnexus / cx / claude-mem / Read / Grep
 
-SSOT for code exploration in dhpk-using projects. Cross-references the existing `dhpk:tool-routing` skill (richer prose, examples, sub-agent prompt boilerplate); this file is the compact reference card consumable directly from a project's `CLAUDE.md`.
+SSOT for code exploration in dhpk-using projects. This file is the compact reference card consumable directly from a project's `CLAUDE.md`.
 
 > Tools mentioned (`cx`, `gitnexus`, `claude-mem`) are external — each project decides whether to install them. dhpk does not bundle them. The decision tree below degrades gracefully (fall back to `Grep` / `Read` if the primary tool is not installed).
 
@@ -76,9 +76,5 @@ is available and authorized.
 
 ## Not in scope
 
-- **Does not replace** `dhpk:tool-routing` skill's worked examples and detailed sub-agent prompt boilerplate — this file is the compact decision card only.
+- **Carries no worked examples or sub-agent prompt boilerplate** — this file is the compact decision card only.
 - **Not a general coding-style guide** — covers tool selection for code exploration/navigation only.
-
-## Cross-references
-
-The dhpk skill `tool-routing` carries the longer prose version with examples and detailed sub-agent prompt boilerplate. This file is the compact card.

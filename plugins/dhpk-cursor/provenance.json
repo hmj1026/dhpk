@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "a76b5f6e249fcfaa1dae284664b762dbdd30d560",
-  "generatedFromCommit": "a76b5f6e249fcfaa1dae284664b762dbdd30d560",
-  "generatedFromTree": "75b2f89b29fe2ee7978a9101ab60dc6ad5bae379",
+  "sourceCommit": "c74c22515c6902755688e28f986e66df62c16c16",
+  "generatedFromCommit": "c74c22515c6902755688e28f986e66df62c16c16",
+  "generatedFromTree": "24ef856783a9cfc52d59a614c02404c58cd32475",
   "inventoryDigest": "eeac6eda71df4e5ed7283b68f53f9e3a3029dd2637fbe67ead06ab5547e04690",
   "inventoryRevision": "sha256:61960d976ec6fc145111ee146a2d32e56a5ab48e0bf4239e58e897be0db22f43",
   "generatorVersion": "1.0.0",
@@ -1527,7 +1527,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/tool-routing.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/tool-routing.md",
-        "originalGitBlobDigest": "50a7a9c681cfdbe8129bde55be4fb7b3a413067c"
+        "originalGitBlobDigest": "0c65fc4b71fad8c39f38a09900cae966f1ffc17e"
       },
       {
         "ownerId": "flow-guide",
@@ -5615,7 +5615,7 @@
     }
   ],
   "fingerprints": {
-    "rules": "3a19949c9eeb0d76f19e922b574ad61fc8360d847a95533fa0c7f03efe206cf6",
+    "rules": "e88c6eb55faa98f854214d6df8b435adb8c1101c80618dd8b8424ccfb08a259e",
     "agents": "b7caa4b31ab9b06ebfff69e4a55e069dc3d47f0a6edf38b21c9fda631a05b847",
     "commands": "9104c6ec54a2cc1a77357ce279e096d2de2b86876a2137388a2a1e9d65b44314",
     "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
@@ -6685,5 +6685,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "8894401a792d051a375a8e79ac94f97a1b42d70965b04831c2bb4e73d927a85c"
+  "planFingerprint": "fd67b38809ecb1f9f77f6b59004ba75c8429d2eb3baaf288f309ea6989d8eb58"
 }
