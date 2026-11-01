@@ -22,6 +22,9 @@ const HOST_PROFILES = require('../manifests/host-profiles.json');
 // "Host detection findings" (openspec change deepen-role-default-resolution).
 const HOST_SIGNALS = Object.freeze([
   Object.freeze({ host: 'claude-code', signal: 'CLAUDECODE', matches: (env) => env.CLAUDECODE === '1' }),
+  // NOTE: the codex-cli, cursor, and agy signals below are inferred, not observed
+  // live; see the design appendix of openspec/changes/deepen-role-default-resolution.
+  // Set DHPK_HOST to override when detection is wrong or ambiguous.
   Object.freeze({ host: 'codex-cli', signal: 'CODEX_THREAD_ID', matches: (env) => Boolean(env.CODEX_THREAD_ID) }),
   Object.freeze({
     host: 'cursor',

@@ -76,7 +76,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js": {
       "skill_id": "flow-guide",
       "source": "scripts/fast-worker-selector.js",
-      "sha256": "sha256:6c1b261003a1cfbf4af3f7b228e49ee33437f46fa54ecd7b4719c2918f4feea0",
+      "sha256": "sha256:779af45fea14f792e1a9a90ddc2dbf525915a1c881c0eb5c1e39a2d97061f14c",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js": {
@@ -88,7 +88,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-config.js",
-      "sha256": "sha256:a5b97faa946f8c5a7e7c7bc873982d11205743521a2153170f03c5ff873c9138",
+      "sha256": "sha256:93a0e73d1a8254e3b466bfd2a1198184de3b33077b809ecff755c905966c952d",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js": {
