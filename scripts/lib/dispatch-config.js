@@ -1,9 +1,17 @@
 'use strict';
 
 const { resolveTarget } = require('./dispatch-engine');
-const { createHostProfile, createProviderModelCatalog, PROVIDERS, SUPPORT_STATUSES } = require('./dispatch-contract');
+const {
+  AGENT_PROVIDER,
+  createHostProfile,
+  createProviderModelCatalog,
+  PROVIDERS,
+  SUPPORT_STATUSES,
+  agentForAlias,
+  agentForVendor,
+  vendorFor,
+} = require('./dispatch-contract');
 const DEFAULT_CATALOG = require('../../manifests/provider-model-catalog.json');
-const DEFAULT_HOST_PROFILES = require('../../manifests/host-profiles.json');
 
 const DEFAULTS = Object.freeze({
   orchestration_dispatch: 'on',
@@ -15,51 +23,50 @@ const DEFAULTS = Object.freeze({
   fallback_allow: true,
 });
 
-const LEGACY_KEYS = Object.freeze({
-  worker_target: ['fast_worker_backend', 'fast_worker_model', 'codex_worker_model', 'codex_fast_worker_model', 'agy_worker_model', 'agy_fast_worker_model'],
-  reasoner_target: ['deep_reasoner_model', 'codex_reasoner_model'],
-  planner_target: ['planner_model'],
-  reviewer_target: ['reviewer_model', 'codex_reviewer_model'],
+// Removed in 0.69.0. Keys are diagnosed only: a value found under one of them is
+// never translated or applied. Value is the replacement key named in the diagnostic.
+const REMOVED_IN_VERSION = '0.69.0';
+const REMOVED_KEYS = Object.freeze({
+  fast_worker_backend: 'worker_target',
+  fast_worker_backend_order: 'preference_order',
+  fast_worker_fallback: 'fallback_allow',
+  fast_worker_model: 'worker_target',
+  fast_worker_effort: 'worker_target',
+  deep_reasoner_model: 'reasoner_target',
+  deep_reasoner_effort: 'reasoner_target',
+  planner_model: 'planner_target',
+  planner_effort: 'planner_target',
+  reviewer_model: 'reviewer_target',
+  reviewer_effort: 'reviewer_target',
+  codex_worker_model: 'worker_target',
+  codex_fast_worker_model: 'worker_target',
+  codex_worker_effort: 'worker_target',
+  codex_fast_worker_effort: 'worker_target',
+  agy_worker_model: 'worker_target',
+  agy_fast_worker_model: 'worker_target',
+  codex_reasoner_model: 'reasoner_target',
+  codex_reasoner_effort: 'reasoner_target',
+  codex_deep_reasoner_model: 'reasoner_target',
+  codex_deep_reasoner_effort: 'reasoner_target',
+  codex_reviewer_model: 'reviewer_target',
+  codex_reviewer_effort: 'reviewer_target',
+  codex_fast_worker_timeout_secs: 'codex_worker_timeout_secs',
+  codex_deep_reasoner_timeout_secs: 'codex_reasoner_timeout_secs',
+  codex_bridge_timeout_secs: 'codex_reviewer_timeout_secs',
+  architect_model: 'reasoner_target',
+  architect_effort: 'reasoner_target',
 });
+// Distinct from REMOVED_IN_VERSION: the removal version of the cursor-native
+// provider/route target spelling translated at the input boundary (ADR 0020).
+// Still live: it stamps legacy_sources entries.
 const LEGACY_REMOVAL_VERSION = '0.67.0';
-const LEGACY_KEY_AGENTS = Object.freeze({
-  fast_worker_model: 'claude-code',
-  deep_reasoner_model: 'claude-code',
-  planner_model: 'claude-code',
-  reviewer_model: 'claude-code',
-  codex_worker_model: 'codex-cli',
-  codex_fast_worker_model: 'codex-cli',
-  codex_reasoner_model: 'codex-cli',
-  codex_reviewer_model: 'codex-cli',
-  agy_worker_model: 'agy',
-  agy_fast_worker_model: 'agy',
-});
-const LEGACY_EFFORT_KEYS = Object.freeze({
-  fast_worker_model: ['fast_worker_effort'],
-  deep_reasoner_model: ['deep_reasoner_effort'],
-  planner_model: ['planner_effort'],
-  reviewer_model: ['reviewer_effort'],
-  codex_worker_model: ['codex_worker_effort', 'codex_fast_worker_effort'],
-  codex_fast_worker_model: ['codex_worker_effort', 'codex_fast_worker_effort'],
-  codex_reasoner_model: ['codex_reasoner_effort'],
-  codex_reviewer_model: ['codex_reviewer_effort'],
-  agy_worker_model: [],
-  agy_fast_worker_model: [],
-});
-const PROVIDER_ALIASES = Object.freeze({
-  'claude-code': 'anthropic',
-  'codex-cli': 'openai',
-  agy: 'google',
-  'cursor-native': 'cursor',
-});
-
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function canonicalProvider(value) {
   if (value === undefined || value === null) return value;
-  return PROVIDER_ALIASES[value] || value;
+  return vendorFor(value);
 }
 
 function fallbackDiagnostic(allow) {
@@ -84,17 +91,13 @@ function parseTarget(value, label) {
     const modelId = value.model_id || value.modelId || value.model;
     const legacyCursorProvider = value.provider === 'cursor-native' || value.provider === 'native';
     const provider = legacyCursorProvider ? undefined : value.provider;
-    const agentAliases = {
-      claude: 'claude-code', 'claude-code': 'claude-code', codex: 'codex-cli', 'codex-cli': 'codex-cli',
-      agy: 'agy', cursor: 'cursor', native: 'cursor', 'cursor-native': 'cursor',
-    };
     if (rawAgent) {
-      if (!Object.prototype.hasOwnProperty.call(agentAliases, rawAgent)) {
+      if (agentForAlias(rawAgent) === undefined) {
         throw new TypeError(`${label}.target_agent must identify a supported Target Agent`);
       }
       if (typeof modelId !== 'string' || !modelId) throw new TypeError(`${label}.model_id is required`);
       return {
-        target_agent: agentAliases[rawAgent],
+        target_agent: agentForAlias(rawAgent),
         model_id: modelId,
         ...(provider === undefined ? {} : { provider }),
         ...(value.effort === undefined ? {} : { effort: value.effort }),
@@ -116,12 +119,10 @@ function parseTarget(value, label) {
   if (typeof value !== 'string') throw new TypeError(`${label} must be an Agent/Model target`);
   const match = value.match(/^([^/]+)(?:\/([^:]+))?(?::([^:]+))?$/);
   if (!match || !match[2]) throw new TypeError(`${label} must use agent/model[:effort] syntax`);
-  const aliases = { claude: 'claude-code', 'claude-code': 'claude-code', codex: 'codex-cli', 'codex-cli': 'codex-cli', agy: 'agy', cursor: 'cursor', native: 'cursor', 'cursor-native': 'cursor' };
-  const providers = { anthropic: 'claude-code', openai: 'codex-cli', google: 'agy', xai: 'cursor' };
   const rawAgent = match[1];
-  const targetAgent = aliases[rawAgent] || rawAgent;
-  const legacyProvider = providers[rawAgent];
-  if (!['claude', 'codex', 'agy', 'cursor', 'claude-code', 'codex-cli'].includes(targetAgent) && !legacyProvider) {
+  const targetAgent = agentForAlias(rawAgent) || rawAgent;
+  const legacyProvider = agentForVendor(rawAgent);
+  if (!Object.prototype.hasOwnProperty.call(AGENT_PROVIDER, targetAgent) && !legacyProvider) {
     throw new TypeError(`${label} must identify a supported Target Agent`);
   }
   const result = legacyProvider
@@ -131,117 +132,39 @@ function parseTarget(value, label) {
   return result;
 }
 
-function layerValue(layers, canonical, legacyKeys) {
+function layerValue(layers, canonical) {
   for (const [name, layer] of layers) {
     if (!isRecord(layer)) continue;
-    if (Object.prototype.hasOwnProperty.call(layer, canonical)) return { value: layer[canonical], source: `${name}.${canonical}`, legacy: false };
-    for (const key of legacyKeys) {
-      if (Object.prototype.hasOwnProperty.call(layer, key)) return { value: layer[key], source: `${name}.${key}`, legacy: true };
-    }
+    if (Object.prototype.hasOwnProperty.call(layer, canonical)) return { value: layer[canonical], source: `${name}.${canonical}` };
   }
-  return { value: undefined, source: undefined, legacy: false };
+  return { value: undefined, source: undefined };
 }
 
-function firstPresent(values, keys) {
-  for (const key of keys || []) {
-    if (isRecord(values) && Object.prototype.hasOwnProperty.call(values, key) && values[key] !== undefined && values[key] !== '') {
-      return values[key];
+function removedKeyDiagnostics(layers) {
+  const found = [];
+  for (const [layer, values] of layers) {
+    if (!isRecord(values)) continue;
+    for (const [key, replacement] of Object.entries(REMOVED_KEYS)) {
+      if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
+      found.push({
+        field: key,
+        status: 'BLOCKED',
+        layer,
+        key,
+        replacement,
+        source: `${layer}.${key}`,
+        reason: `removed in ${REMOVED_IN_VERSION}; use ${replacement}`,
+      });
     }
   }
-  return undefined;
-}
-
-function hostedModelIds(hostProfiles = DEFAULT_HOST_PROFILES) {
-  const ids = new Set();
-  for (const profile of hostProfiles.profiles || []) {
-    if (profile.native_model) ids.add(profile.native_model);
-    for (const roleDefault of Object.values(profile.role_defaults || {})) {
-      if (roleDefault && roleDefault.model_id) ids.add(roleDefault.model_id);
-    }
-  }
-  return ids;
-}
-
-function resolveCatalogModel(raw, catalog = DEFAULT_CATALOG, hostProfiles = DEFAULT_HOST_PROFILES) {
-  if (typeof raw !== 'string' || raw === '') return null;
-  const models = Object.values(catalog.models || {});
-  const exact = models.filter((model) => model.model_id === raw);
-  if (exact.length === 1) return exact[0];
-  const named = models.filter((model) => model.display_name === raw);
-  if (named.length === 1) return named[0];
-  const aliased = models.filter((model) => model.model_id.startsWith(raw) && model.model_id !== raw && /^[.-]?\d/.test(model.model_id.slice(raw.length)));
-  if (aliased.length === 1) return aliased[0];
-  if (aliased.length > 1) {
-    const hosted = hostedModelIds(hostProfiles);
-    const preferred = aliased.filter((model) => hosted.has(model.model_id));
-    if (preferred.length === 1) return preferred[0];
-  }
-  return null;
-}
-
-function translateLegacyTarget({ role, sourceKey, value, layerValues }) {
-  if (typeof value === 'string' && !value.includes('/') && sourceKey && sourceKey.includes('backend')) {
-    const legacyProvider = { claude: 'claude-code', codex: 'codex-cli', agy: 'agy', native: 'cursor-native' }[value];
-    if (legacyProvider) {
-      const modelKeys = legacyProvider === 'codex-cli'
-        ? (role === 'reasoner' ? ['codex_reasoner_model'] : ['codex_worker_model', 'codex_fast_worker_model'])
-        : legacyProvider === 'agy'
-          ? ['agy_worker_model', 'agy_fast_worker_model']
-          : [role === 'worker' ? 'fast_worker_model' : role === 'reasoner' ? 'deep_reasoner_model' : `${role}_model`];
-      const effortKeys = legacyProvider === 'codex-cli'
-        ? (role === 'reasoner' ? ['codex_reasoner_effort'] : ['codex_worker_effort', 'codex_fast_worker_effort'])
-        : [role === 'worker' ? 'fast_worker_effort' : role === 'reasoner' ? 'deep_reasoner_effort' : `${role}_effort`];
-      const rawModel = firstPresent(layerValues, modelKeys);
-      const identity = rawModel === undefined ? null : resolveCatalogModel(rawModel);
-      const modelId = identity ? identity.model_id : rawModel;
-      const effort = firstPresent(layerValues, effortKeys);
-      return {
-        provider: legacyProvider,
-        ...(modelId === undefined ? {} : { model: modelId }),
-        ...(effort === undefined ? {} : { effort }),
-      };
-    }
-  }
-  if (typeof value === 'string' && !value.includes('/') && LEGACY_KEY_AGENTS[sourceKey]) {
-    const identity = resolveCatalogModel(value);
-    if (!identity) {
-      throw new TypeError(`${sourceKey} value ${JSON.stringify(value)} is not a Catalog model ID or published alias; migrate to agent/model[:effort]`);
-    }
-    const effort = firstPresent(layerValues, LEGACY_EFFORT_KEYS[sourceKey]);
-    return {
-      target_agent: LEGACY_KEY_AGENTS[sourceKey],
-      model_id: identity.model_id,
-      provider: identity.provider,
-      ...(effort === undefined ? {} : { effort }),
-    };
-  }
-  return value;
+  return found;
 }
 
 function resolveDispatchConfig({ project = {}, global = {}, environment = {} } = {}) {
   const layers = [['project', project], ['global', global], ['environment', environment]];
-  const diagnostics = [];
-  for (const [layerName, values] of layers) {
-    for (const suffix of ['model', 'effort']) {
-      const key = `codex_deep_reasoner_${suffix}`;
-      if (Object.prototype.hasOwnProperty.call(values, key)) {
-        diagnostics.push({ field: 'reasoner_target', status: 'BLOCKED', source: `${layerName}.${key}`,
-          reason: `retired config ${key} in 0.66.2; use codex_reasoner_${suffix}; rollback 0.66.1` });
-      }
-    }
-    for (const key of ['architect_model', 'architect_effort']) {
-      if (Object.prototype.hasOwnProperty.call(values, key)) {
-        diagnostics.push({
-          field: key,
-          status: 'UNSUPPORTED',
-          source: `${layerName}.${key}`,
-          reason: `${key} has no dispatch effect; it is not mapped onto reasoner_target and dispatch is unaffected`,
-        });
-      }
-    }
-  }
+  const diagnostics = removedKeyDiagnostics(layers);
   const result = { ...DEFAULTS, source: {}, legacy_sources: [] };
-  const switchValue = layerValue(layers, 'orchestration_dispatch', []);
+  const switchValue = layerValue(layers, 'orchestration_dispatch');
   try {
     result.orchestration_dispatch = switchValue.value === undefined ? DEFAULTS.orchestration_dispatch : (switchValue.value === 'on' || switchValue.value === true ? 'on' : switchValue.value === 'off' || switchValue.value === false ? 'off' : (() => { throw new TypeError('orchestration_dispatch must be on or off'); })());
   } catch (error) { diagnostics.push({ field: 'orchestration_dispatch', status: 'BLOCKED', reason: error.message }); }
@@ -249,22 +172,11 @@ function resolveDispatchConfig({ project = {}, global = {}, environment = {} } =
 
   for (const role of ['worker', 'reasoner', 'planner', 'reviewer']) {
     const canonical = `${role}_target`;
-    const selected = layerValue(layers, canonical, LEGACY_KEYS[canonical]);
+    const selected = layerValue(layers, canonical);
     try {
-      let targetValue = selected.value;
-      if (selected.legacy) {
-        const sourceParts = selected.source.split('.');
-        const layer = layers.find(([name]) => name === sourceParts[0]);
-        targetValue = translateLegacyTarget({
-          role,
-          sourceKey: sourceParts[1],
-          value: targetValue,
-          layerValues: layer ? layer[1] : {},
-        });
-      }
+      const targetValue = selected.value;
       result[canonical] = targetValue === undefined ? null : parseTarget(targetValue, canonical);
       result.source[canonical] = selected.source || 'default';
-      if (selected.legacy) result.legacy_sources.push({ field: canonical, source: selected.source, diagnostic: 'legacy target input translated at compatibility boundary', removal_version: LEGACY_REMOVAL_VERSION });
       const legacyCursorObject = isRecord(targetValue) && (
         ['native', 'cursor-native'].includes(targetValue.target_agent || targetValue.targetAgent || targetValue.agent)
         || ['native', 'cursor-native'].includes(targetValue.provider)
@@ -277,18 +189,16 @@ function resolveDispatchConfig({ project = {}, global = {}, environment = {} } =
     }
   }
 
-  const order = layerValue(layers, 'preference_order', ['fast_worker_backend_order']);
+  const order = layerValue(layers, 'preference_order');
   try {
     result.preference_order = order.value === undefined || order.value === '' ? [] : (Array.isArray(order.value) ? order.value : String(order.value).split(',')).map((item) => parseTarget(String(item).trim(), 'preference_order')).filter(Boolean);
     result.source.preference_order = order.source || 'default';
-    if (order.legacy) result.legacy_sources.push({ field: 'preference_order', source: order.source, diagnostic: 'legacy backend order translated at compatibility boundary', removal_version: LEGACY_REMOVAL_VERSION });
   } catch (error) { diagnostics.push({ field: 'preference_order', status: 'BLOCKED', reason: error.message, source: order.source }); }
 
-  const fallback = layerValue(layers, 'fallback_allow', ['fast_worker_fallback']);
+  const fallback = layerValue(layers, 'fallback_allow');
   try {
     result.fallback_allow = fallback.value === undefined ? DEFAULTS.fallback_allow : fallback.value === 'none' ? false : fallback.value === 'claude' ? true : parseBoolean(fallback.value, 'fallback_allow');
     result.source.fallback_allow = fallback.source || 'default';
-    if (fallback.legacy) result.legacy_sources.push({ field: 'fallback_allow', source: fallback.source, diagnostic: 'legacy fallback input translated at compatibility boundary', removal_version: LEGACY_REMOVAL_VERSION });
   } catch (error) { diagnostics.push({ field: 'fallback_allow', status: 'BLOCKED', reason: error.message, source: fallback.source }); }
   return Object.freeze({ ...result, source: Object.freeze(result.source), legacy_sources: Object.freeze(result.legacy_sources), diagnostics: Object.freeze(diagnostics) });
 }
@@ -301,9 +211,8 @@ function diagnoseDispatchConfig({ config, catalog, hostProfile, role = 'worker',
   if (!selected) return Object.freeze({ catalog_support: 'NOT_RUN', host_access: 'NOT_RUN', runtime: 'NOT_RUN', fallback: fallbackDiagnostic(config.fallback_allow === true), source: 'automatic-native-resolution' });
   if (!profile) throw new TypeError('hostProfile is required for an explicit target diagnostic');
   const normalizedAgent = selected.target_agent || selected.targetAgent || selected.agent;
-  const canonicalAgent = ({ claude: 'claude-code', codex: 'codex-cli' }[normalizedAgent] || normalizedAgent);
-  const provider = canonicalProvider(selected.provider)
-    || ({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', cursor: 'cursor' }[canonicalAgent]);
+  const canonicalAgent = agentForAlias(normalizedAgent) || normalizedAgent;
+  const provider = canonicalProvider(selected.provider) || AGENT_PROVIDER[canonicalAgent];
   const modelId = selected.model_id || selected.model;
   const selectedEffort = selected.effort || effort;
   const catalogSupport = catalogData.routes.some((route) => route.host === profile.host
@@ -331,13 +240,6 @@ function diagnoseDispatchConfig({ config, catalog, hostProfile, role = 'worker',
 }
 
 const REPORT_ROLES = Object.freeze(['planner', 'reasoner', 'worker', 'reviewer']);
-const TARGET_AGENT_PROVIDERS = Object.freeze({
-  'claude-code': 'anthropic',
-  'codex-cli': 'openai',
-  agy: 'google',
-  cursor: 'cursor',
-});
-
 function publicTargetFields(target) {
   if (!target || !isRecord(target)) return null;
   const out = {};
@@ -402,7 +304,7 @@ function diagnoseRoleStatus({ config, catalog, hostProfile, role, selected }) {
 
 function enrichExplicitTarget(selected, profile, catalogData, role) {
   const targetAgent = selected.target_agent;
-  const provider = canonicalProvider(selected.provider) || TARGET_AGENT_PROVIDERS[targetAgent];
+  const provider = canonicalProvider(selected.provider) || AGENT_PROVIDER[targetAgent];
   const modelId = selected.model_id;
   const effort = selected.effort;
   const fields = {
@@ -526,4 +428,69 @@ function applyDispatchConfig({ config, role = 'worker', request } = {}) {
   });
 }
 
-module.exports = Object.freeze({ APPLY_ROLE_CONFIG: applyDispatchConfig, DEFAULTS, LEGACY_EFFORT_KEYS, LEGACY_KEYS, LEGACY_REMOVAL_VERSION, applyDispatchConfig, createDispatchConfigReport, diagnoseDispatchConfig, parseTarget, resolveDispatchConfig });
+// CLI Role Agents (codex-*, agy-worker) pin the Target Agent they dispatch to, so a
+// `<role>_target` naming a different Target Agent is never applied to a CLI dispatch.
+// Canonical roles without a CLI (planner, reasoner, reviewer) are Host-resolved and
+// accept any Target Agent (agent: null). The bare `worker` role is currently pinned
+// to codex-cli (existing behavior, kept unchanged).
+const ROLE_CONFIG = Object.freeze({
+  'codex-worker': Object.freeze({ role: 'worker', agent: 'codex-cli', prefix: 'codex_worker' }),
+  'codex-reasoner': Object.freeze({ role: 'reasoner', agent: 'codex-cli', prefix: 'codex_reasoner' }),
+  'codex-reviewer': Object.freeze({ role: 'reviewer', agent: 'codex-cli', prefix: 'codex_reviewer' }),
+  'agy-worker': Object.freeze({ role: 'worker', agent: 'agy', prefix: 'agy_worker' }),
+  worker: Object.freeze({ role: 'worker', agent: 'codex-cli', prefix: 'codex_worker' }),
+  planner: Object.freeze({ role: 'planner', agent: null, prefix: 'planner' }),
+  reasoner: Object.freeze({ role: 'reasoner', agent: null, prefix: 'reasoner' }),
+  reviewer: Object.freeze({ role: 'reviewer', agent: null, prefix: 'reviewer' }),
+});
+
+function roleConfigEntry(value, source) {
+  return value === undefined || value === null || value === ''
+    ? { value: undefined, source: undefined }
+    : { value, source };
+}
+
+// Per-Role model, effort, and timeout from a flat config object. Model and effort come
+// from the canonical `<role>_target` when it names the Role's Target Agent; the timeout
+// comes from `<prefix>_timeout_secs`. Removed keys are never read.
+function resolveRoleConfig({ role, config = {} } = {}) {
+  const entry = Object.prototype.hasOwnProperty.call(ROLE_CONFIG, role) ? ROLE_CONFIG[role] : null;
+  if (!entry) return Object.freeze({ status: 'BLOCKED', reason: `unknown role: ${role}` });
+  const targetKey = `${entry.role}_target`;
+  let target = null;
+  try {
+    target = isRecord(config) ? parseTarget(config[targetKey], targetKey) : null;
+  } catch (error) {
+    return Object.freeze({ status: 'BLOCKED', reason: error.message });
+  }
+  const applies = target && (entry.agent === null || target.target_agent === entry.agent);
+  const timeoutKey = `${entry.prefix}_timeout_secs`;
+  return Object.freeze({
+    model: roleConfigEntry(applies ? target.model_id : undefined, targetKey),
+    effort: roleConfigEntry(applies ? target.effort : undefined, targetKey),
+    timeout_secs: roleConfigEntry(isRecord(config) ? config[timeoutKey] : undefined, timeoutKey),
+  });
+}
+
+// Fail-closed reader for callers that take a single flat config: every removed
+// key present is reported with its replacement, never silently ignored.
+function removedKeyReasons(config) {
+  if (!isRecord(config)) return [];
+  return Object.entries(REMOVED_KEYS)
+    .filter(([key]) => Object.prototype.hasOwnProperty.call(config, key))
+    .map(([key, replacement]) => `removed config key ${key} in ${REMOVED_IN_VERSION}; use ${replacement}`);
+}
+
+module.exports = Object.freeze({
+  APPLY_ROLE_CONFIG: applyDispatchConfig,
+  DEFAULTS,
+  LEGACY_REMOVAL_VERSION,
+  REMOVED_KEYS,
+  applyDispatchConfig,
+  createDispatchConfigReport,
+  diagnoseDispatchConfig,
+  parseTarget,
+  removedKeyReasons,
+  resolveDispatchConfig,
+  resolveRoleConfig,
+});

@@ -6,10 +6,7 @@
     "orchestrator": {"role": "planner", "authority": "read-only"},
     "architect": {"role": "reasoner", "authority": "read-only"},
     "deep-reasoner": {"role": "reasoner", "authority": "read-only"},
-    "codex-reasoner": {"role": "reasoner", "authority": "read-only"},
     "fast-worker": {"role": "worker", "authority": "workspace-write"},
-    "codex-worker": {"role": "worker", "authority": "workspace-write"},
-    "agy-worker": {"role": "worker", "authority": "workspace-write"},
     "doc-reviewer": {"role": "reviewer", "authority": "read-only"},
     "code-reviewer": {"role": "reviewer", "authority": "read-only"},
     "security-reviewer": {"role": "reviewer", "authority": "read-only"}

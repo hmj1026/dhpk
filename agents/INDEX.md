@@ -52,7 +52,7 @@ roster navigation for the shipped worker/reasoner roles.
 | [agy-worker](agy-worker.md) | sonnet + agy CLI | **agy CLI available** — canonical mechanical worker on the agy backend (default `Gemini 3.8 Flash (High)`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
 | [codex-reviewer](codex-reviewer.md) | sonnet + codex CLI | Internal shared-runner read-only reviewer; capability-gated and not a native Codex dispatch target; routes through the canonical launcher only when the capability is available |
 
-Role models are configurable per project via `userConfig.deep_reasoner_model` / `userConfig.fast_worker_model` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
+Role models are configurable per project via `userConfig.reasoner_target` / `userConfig.worker_target` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
 
 Selector, alias forwarding, and retired `CODEX=on`/`--codex` flags: see
 `rules/execution-policy.md` §Implementation dispatch and §Agent dispatch.

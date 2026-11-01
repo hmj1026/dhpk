@@ -182,8 +182,8 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
 | `codex-reasoner` | Selected by `--reasoner=codex[/<model>[:<effort>]]` — a `deep-reasoner` whose reasoning runs on the codex CLI backend (read-only sandbox); canonical role ID; see §Implementation dispatch | — |
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
-| `codex-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID; see §Implementation dispatch | — |
-| `agy-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run the agy CLI backend; canonical role ID; see §Implementation dispatch | — |
+| `codex-worker` | Selected by an explicit `codex-cli` worker target — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID; see §Implementation dispatch | — |
+| `agy-worker` | Selected by an explicit `agy` worker target — a `fast-worker` whose edits run the agy CLI backend; canonical role ID; see §Implementation dispatch | — |
 | `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
 | `qa-executor` | Live manual QA-case execution through a browser skill; writes one assigned results file; live-data writes only inside an explicit authorized fixture scope — see §Implementation dispatch | — |
 | `docs-writer` | Assigned documentation authoring or revision from confirmed sources (not stale-doc refresh, which is `doc-updater`) — see §Implementation dispatch | — |
@@ -206,9 +206,9 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 
 **Model tier**: use agent defaults, with judgment-based risk escalation or eligible known-finding reduction. The normative role/tier rules live in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
 
-**Configured role models:** public dispatch targets use `agent/model[:effort]` on the four canonical keys `worker_target`, `reasoner_target`, `planner_target`, and `reviewer_target`. Legacy `*_model` / `*_effort` keys remain compatibility inputs and are normalized to Catalog model IDs before existing Host route/effort checks; invalid values and retired `codex_deep_reasoner_model` / `codex_deep_reasoner_effort` fail closed. `architect_model` / `architect_effort` have no dispatch effect and are not mapped onto `reasoner_target`. `session-start.sh` emits a conditional dispatch-config report when the project, global, or environment layer has a non-default canonical target, a legacy `*_model` / `*_effort` value, a retired or unsupported model key, or a non-default `orchestration_dispatch`, `fallback_allow`, or `preference_order`, and also when `DHPK_DISPATCH_CONFIG_REPORT=1`; it does not apply a native Agent model override. Judgment-based HIGH-risk escalation may still raise a single dispatch. The cost rationale for model/effort dials is in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
+**Configured role models:** public dispatch targets use `agent/model[:effort]` on the four canonical keys `worker_target`, `reasoner_target`, `planner_target`, and `reviewer_target`. The former `*_model` / `*_effort` keys (including `architect_model` / `architect_effort`) are removed keys: they are reported `BLOCKED` and their values are not applied (the dispatch config `REMOVED_KEYS` table). `session-start.sh` emits a conditional dispatch-config report when the project, global, or environment layer has a non-default canonical target, a removed key, or a non-default `orchestration_dispatch`, `fallback_allow`, or `preference_order`, and also when `DHPK_DISPATCH_CONFIG_REPORT=1`; it does not apply a native Agent model override. Judgment-based HIGH-risk escalation may still raise a single dispatch. The cost rationale for model/effort dials is in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
 
-The CLI-backed Codex/AGY roles use the same normalized project-over-global configuration seam for timeout budgets: canonical keys `codex_worker_timeout_secs`, `codex_reasoner_timeout_secs`, `codex_reviewer_timeout_secs` override shared `codex_timeout_secs` within their scope (legacy aliases `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, `codex_bridge_timeout_secs` accepted for one release with canonical-key precedence), and the shared `agy_worker` role joins the selection; the shipped `360`-second default applies below both scopes. `0` is an intentional dispatcher-attested no-deadline request; malformed values fail closed before the affected dispatch. The portable runner reports the effective role, budget, source, disabled state, and explicit outer-budget unknown/warning status without changing Claude's external tool wait; it never falls back to a shell timeout tool.
+The CLI-backed Codex/AGY roles use the same normalized project-over-global configuration seam for timeout budgets: canonical keys `codex_worker_timeout_secs`, `codex_reasoner_timeout_secs`, `codex_reviewer_timeout_secs` override shared `codex_timeout_secs` within their scope, and the shared `agy_worker` role joins the selection; the shipped `360`-second default applies below both scopes. `0` is an intentional dispatcher-attested no-deadline request; malformed values fail closed before the affected dispatch. The portable runner reports the effective role, budget, source, disabled state, and explicit outer-budget unknown/warning status without changing Claude's external tool wait; it never falls back to a shell timeout tool.
 
 **Deferred-tool trap**: `SendMessage`, `Monitor`, and their background-task peers (`TaskStop` / `TaskOutput`, whichever the session roster exposes) are deferred tools — their schemas are not sent to the API at session start, only their names. Call `ToolSearch` with `select:<name>` (e.g. `ToolSearch select:SendMessage,Monitor`) to load the schema BEFORE the first invocation, or the call fails with `InputValidationError` ("this tool's schema was not sent to the API") and burns a recovery turn. This bites hardest mid-orchestration — resuming a background agent with `SendMessage` or waiting on one with `Monitor` after only ever having used the eagerly-loaded tools.
 
@@ -339,7 +339,7 @@ or `UNAVAILABLE` evidence does not satisfy that obligation. The external
 | Work shape | Dispatch |
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
-| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex[/<model>[:<effort>]]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-6.1-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID) |
+| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex[/<model>[:<effort>]]` or the `reasoner_target` userConfig key (default `gpt-6.1-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID) |
 | Bounded mechanical work with an exact scope and an independent owner or coordination benefit (boilerplate, test scaffolds, rename sweeps, doc-consistency work, applying an approved plan) | `fast-worker` when delegation improves ownership, focus, or concurrency |
 | Judgment-dense but standardizable work with a bounded repeatable intent, exact scope, and known verification (documentation migration, bilingual restructuring, or a known fix batch) | In-process `fast-worker` when a shared owner improves consistency |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; the retired `CODEX=on`/`--codex` review-peer flags cannot select it. | `codex-worker` (canonical role ID) |
@@ -440,28 +440,35 @@ preserves the role, task scope, read/write authority, model contract where
 applicable, and reviewer contract. The module named above owns this policy
 resolution; it is policy state, not a coordinator.
 
-### Fast-worker selector compatibility boundary
+### Fast-worker selector contract
 
 Mechanical implementation waves resolve through the canonical `worker` Role
-request. The following legacy selector remains a compatibility boundary and
-translates its backend vocabulary before invoking the Dispatch Engine:
-`${POLICY_BUNDLE_ROOT}/scripts/fast-worker-selector.js` and the three selector
-keys in `userConfig`:
+request. `${POLICY_BUNDLE_ROOT}/scripts/fast-worker-selector.js` is the command
+line entry to that request; it keeps no backend table of its own:
 
-| Requested value | Resolution |
+1. It detects the current Host (`DHPK_HOST` override, otherwise exactly one of
+   the Host signals) and loads that Host's profile. An undetectable or ambiguous
+   Host reports `BLOCKED` with the signals checked and exits non-zero; it never
+   defaults to Claude Code.
+2. Executable presence for `codex` or `agy` on `PATH` is capability evidence for
+   an explicit target of that Target Agent. It never selects a target.
+3. The Dispatch Engine returns the Target Agent, Model, Effort, and Route
+   (`resolution_source: dispatch-engine`). A missing executable makes an
+   explicit target `UNAVAILABLE`; no other target is selected.
+
+| Input | Resolution |
 |---|---|
-| `provider/model[:effort]` | Explicit Provider-scoped `worker` target; Model and Effort remain visible in the request and receipt. |
-| `auto` | Resolve the current Host-native target; external Providers require explicit cross-provider opt-in. |
-| legacy `claude` / `codex` / `agy` | Translate to Provider-scoped compatibility targets; missing executable blocks unless `fast_worker_fallback=claude` was explicitly configured. |
+| no argument | The detected Host's `worker` Role Default. |
+| `--target <agent>/<model>[:<effort>]` | Explicit Target Agent `worker` target; Model and Effort stay visible in the request and receipt. |
+| The former backend, order, fallback, failure, and cross-provider flags | Removed. The selector reports `BLOCKED` naming the argument and `--target`; values are not translated. |
 
-The existing `fast_worker_backend`, `fast_worker_backend_order`, and
-`fast_worker_fallback` settings remain valid. An explicit backend remains a
-directional selection; `auto` continues to honor the configured order only
-after `cross_provider` is enabled. This migration preserves old settings
-without turning an old `auto` configuration into an implicit external probe.
+The subagent name in `selected_agent` (`dhpk:fast-worker`, `dhpk:codex-worker`,
+`dhpk:agy-worker`) is presentation of the resolved Target Agent, not a selection
+rule. The removed `fast_worker_*` selector keys are reported by the dispatch configuration
+diagnostic and never read. The `--worker=<claude|codex|agy|auto>` edge flag is
+translated by the caller to an explicit `--target` (`auto` omits it).
 
-The configured `claude` selector fallback remains the pre-dispatch escape hatch
-for a missing executable. Post-dispatch availability and auth/model failures
+Post-dispatch availability and auth/model failures
 use the shared failure-class contract above only after confirmed no-side-effect
 unavailability; quota/rate-limit fallback requires an explicitly different
 authorized pool and cross-provider opt-in. Safety/user denial, task/semantic

@@ -146,8 +146,8 @@ out-of-scope observation for the report, never part of this edited-file list.
 RESULT: DONE | PARTIAL | BLOCKED
 ## Codex Fast Worker Report
 Backend: codex exec -m <model> -c model_reasoning_effort=<effort> (workspace-write)
-Requested backend: codex
-Selected backend: codex | claude (only with dispatcher-approved fallback)
+Requested target agent: codex-cli
+Selected target agent: codex-cli | claude-code (only with dispatcher-approved fallback)
 Availability: <codex executable available | missing executable: codex>
 Fallback reason: <none | canonical failure class and dispatcher decision>
 Model/effort: <model> / <effort>

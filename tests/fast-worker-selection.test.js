@@ -24,40 +24,24 @@ function fakeCli(dir, name) {
   return bin;
 }
 
-function select(args, env = {}) {
-  const keys = ['CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND', 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER', 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK', 'CODEX', 'PATH', 'DHPK_CLAUDE_BACKEND_AVAILABLE'];
-  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
-  try {
-    for (const key of keys) {
-      if (Object.prototype.hasOwnProperty.call(env, key)) process.env[key] = env[key];
-      else delete process.env[key];
-    }
-    const value = selector.select(selector.parseArgs(args));
-    return { status: value.status === 'blocked' ? 1 : 0, stdout: `${JSON.stringify(value)}\n`, stderr: '', value };
-  } finally {
-    for (const key of keys) {
-      if (previous[key] === undefined) delete process.env[key];
-      else process.env[key] = previous[key];
-    }
-  }
+function runCli(args, env = {}) {
+  // Explicit env only: the child sees no inherited Host signal.
+  const res = spawnSync(process.execPath, [SELECTOR, ...args], {
+    env: { PATH: '/usr/bin:/bin', ...env },
+    encoding: 'utf8',
+  });
+  let value = null;
+  try { value = JSON.parse(res.stdout); } catch (error) { value = null; }
+  return { status: res.status, stdout: res.stdout, stderr: res.stderr, value };
 }
 
-function parseWithEnvironment(args, env = {}) {
-  const keys = ['CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER', 'DHPK_PROJECT_OPTION_CROSS_PROVIDER'];
-  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
-  try {
-    for (const key of keys) {
-      if (Object.prototype.hasOwnProperty.call(env, key)) process.env[key] = env[key];
-      else delete process.env[key];
-    }
-    return selector.parseArgs(args);
-  } finally {
-    for (const key of keys) {
-      if (previous[key] === undefined) delete process.env[key];
-      else process.env[key] = previous[key];
-    }
-  }
-}
+const HOST_SIGNALS = Object.freeze({
+  'claude-code': { CLAUDECODE: '1' },
+  'codex-cli': { CODEX_THREAD_ID: 'thread-1' },
+  cursor: { CURSOR_AGENT: '1' },
+  agy: { ANTIGRAVITY_CONVERSATION_ID: 'conv-1' },
+});
+const profileOf = (host) => hostProfiles.profiles.find((profile) => profile.host === host);
 
 function sessionStart(repo, env = {}, payload = { source: 'startup', session_id: 'selection-test' }) {
   const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT, CLAUDE_PROJECT_DIR: repo, ...env };
@@ -68,116 +52,138 @@ function sessionStart(repo, env = {}, payload = { source: 'startup', session_id:
   });
 }
 
-test('default selector maps to the in-process fast-worker', () => {
-  const res = select([], { PATH: '/usr/bin:/bin', CLAUDE_PLUGIN_OPTION_CODEX: 'off' });
-  assert.strictEqual(res.status, 0, res.stderr);
-  assert.deepStrictEqual(res.value, {
-    status: 'selected',
-    requested_backend: 'claude',
-    selected_backend: 'claude',
-    selected_agent: 'dhpk:fast-worker',
-    reason: 'shipped default',
-    fallback: 'none',
-    candidate_scope: 'explicit',
-    suppressed_candidates: [],
-  });
+test('detectHost resolves exactly one Host from a single signal', () => {
+  for (const [host, signals] of Object.entries(HOST_SIGNALS)) {
+    const detected = selector.detectHost(signals);
+    assert.strictEqual(detected.status, 'DETECTED', host);
+    assert.strictEqual(detected.host, host);
+  }
 });
 
-test('cross-provider config resolves project over user settings and the one-shot flag wins', () => {
-  assert.strictEqual(parseWithEnvironment([], {
-    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'true',
-    DHPK_PROJECT_OPTION_CROSS_PROVIDER: 'false',
-  }).cross_provider, false);
-  assert.strictEqual(parseWithEnvironment([], {
-    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'false',
-    DHPK_PROJECT_OPTION_CROSS_PROVIDER: 'true',
-  }).cross_provider, true);
-  assert.strictEqual(parseWithEnvironment(['--cross-provider'], {
-    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'false',
-    DHPK_PROJECT_OPTION_CROSS_PROVIDER: 'false',
-  }).cross_provider, true);
+test('detectHost honors the explicit DHPK_HOST override over signals', () => {
+  const detected = selector.detectHost({ DHPK_HOST: 'codex-cli', CLAUDECODE: '1' });
+  assert.strictEqual(detected.status, 'DETECTED');
+  assert.strictEqual(detected.host, 'codex-cli');
+  assert.strictEqual(selector.detectHost({ DHPK_HOST: 'not-a-host' }).status, 'BLOCKED');
 });
 
-test('configured cross-provider opt-in expands auto selection without changing explicit targeting', () => {
-  const probed = [];
-  const result = selector.select(parseWithEnvironment(['--backend', 'auto', '--order', 'codex,agy,claude'], {
-    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'true',
-  }), {
-    availability(backend) {
-      probed.push(backend);
-      return { available: backend === 'codex', reason: `${backend} fixture` };
-    },
-  });
-  assert.strictEqual(result.selected_backend, 'codex');
-  assert.strictEqual(result.candidate_scope, 'cross-provider');
-  assert.deepStrictEqual(probed, ['codex']);
-
-  const explicit = selector.select(parseWithEnvironment(['--backend', 'agy'], {
-    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'true',
-  }), {
-    availability: (backend) => ({ available: backend === 'agy', reason: `${backend} fixture` }),
-  });
-  assert.strictEqual(explicit.selected_backend, 'agy');
-  assert.strictEqual(explicit.candidate_scope, 'explicit');
+test('detectHost is BLOCKED when no signal matches and names the signals checked', () => {
+  const detected = selector.detectHost({});
+  assert.strictEqual(detected.status, 'BLOCKED');
+  assert.strictEqual(detected.host, undefined);
+  for (const name of ['DHPK_HOST', 'CLAUDECODE', 'CODEX_THREAD_ID', 'CURSOR_AGENT', 'ANTIGRAVITY_CONVERSATION_ID']) {
+    assert.ok(detected.reason.includes(name), `reason must name ${name}: ${detected.reason}`);
+  }
 });
 
-test('explicit selection can use an external backend while auto selection stays native-only', () => {
-  const dir = tempDir('dhpk-selector-');
+test('detectHost is BLOCKED when two Hosts match at once', () => {
+  const detected = selector.detectHost({ CLAUDECODE: '1', CODEX_THREAD_ID: 'thread-1' });
+  assert.strictEqual(detected.status, 'BLOCKED');
+  assert.ok(detected.reason.includes('claude-code') && detected.reason.includes('codex-cli'), detected.reason);
+});
+
+test('selector CLI resolves each Host profile worker default through the dispatch engine', () => {
+  for (const host of Object.keys(HOST_SIGNALS)) {
+    const res = runCli([], { DHPK_HOST: host });
+    assert.strictEqual(res.status, 0, `${host}: ${res.stdout}${res.stderr}`);
+    const expected = profileOf(host).role_defaults.worker;
+    assert.strictEqual(res.value.status, 'RESOLVED');
+    assert.strictEqual(res.value.resolution_source, 'dispatch-engine');
+    assert.strictEqual(res.value.selected_target.target_agent, expected.target_agent, host);
+    assert.strictEqual(res.value.selected_target.provider, expected.provider, host);
+    assert.strictEqual(res.value.selected_target.model_id, expected.model_id, host);
+  }
+});
+
+test('selector CLI detects the Host from its native signal without an override', () => {
+  const res = runCli([], HOST_SIGNALS['codex-cli']);
+  assert.strictEqual(res.status, 0, res.stdout);
+  assert.strictEqual(res.value.selected_target.identity, `codex-cli/${profileOf('codex-cli').role_defaults.worker.model_id}`);
+});
+
+test('selector CLI keeps the mixed cursor and agy Role Defaults visible', () => {
+  assert.strictEqual(runCli([], { DHPK_HOST: 'cursor' }).value.selected_target.target_agent, 'cursor');
+  const agy = runCli([], { DHPK_HOST: 'agy' }).value.selected_target;
+  assert.strictEqual(agy.target_agent, 'agy');
+  assert.strictEqual(agy.provider, 'google');
+});
+
+test('undetectable Host exits non-zero with BLOCKED and selects no target', () => {
+  const res = runCli([], {});
+  assert.notStrictEqual(res.status, 0);
+  assert.strictEqual(res.value.status, 'BLOCKED');
+  assert.ok(res.value.reason.includes('host not detected'), res.value.reason);
+  assert.ok(!res.value.selected_target, 'must not default to a target');
+});
+
+test('ambiguous Host signals exit non-zero with BLOCKED', () => {
+  const res = runCli([], { CLAUDECODE: '1', CURSOR_AGENT: '1' });
+  assert.notStrictEqual(res.status, 0);
+  assert.strictEqual(res.value.status, 'BLOCKED');
+  assert.ok(!res.value.selected_target);
+});
+
+test('executable on PATH is capability evidence for an explicit codex-cli target', () => {
+  const dir = tempDir('dhpk-selector-codex-');
   try {
     const bin = fakeCli(dir, 'codex');
-    const explicit = select(['--backend', 'codex'], { PATH: `${bin}:/usr/bin:/bin`, CODEX: 'on' });
-    assert.strictEqual(explicit.value.selected_backend, 'codex');
-    assert.strictEqual(explicit.value.selected_agent, 'dhpk:codex-worker');
-    const auto = select(['--backend', 'auto', '--order', 'agy,codex,claude'], { PATH: `${bin}:/usr/bin:/bin`, CODEX: 'on' });
-    assert.strictEqual(auto.value.selected_backend, 'claude');
-    assert.strictEqual(auto.value.candidate_scope, 'native-only');
-    assert.deepStrictEqual(auto.value.suppressed_candidates, [
-      { backend: 'agy', reason: 'cross-provider disabled' },
-      { backend: 'codex', reason: 'cross-provider disabled' },
-    ]);
+    const res = runCli(['--target', 'codex-cli/gpt-6-luna:high'], { DHPK_HOST: 'claude-code', PATH: `${bin}:/usr/bin:/bin` });
+    assert.strictEqual(res.status, 0, res.stdout);
+    assert.strictEqual(res.value.status, 'RESOLVED');
+    assert.strictEqual(res.value.selected_target.target_agent, 'codex-cli');
+    assert.strictEqual(res.value.selected_target.model_id, 'gpt-6-luna');
+    assert.strictEqual(res.value.selected_target.effort, 'high');
+    assert.strictEqual(res.value.selected_agent, 'dhpk:codex-worker');
+    assert.strictEqual(res.value.resolution_source, 'dispatch-engine');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('native-only auto selection does not probe external executables', () => {
-  const probed = [];
-  const result = selector.select({
-    backend: 'auto',
-    order: 'codex,agy,claude',
-    fallback: 'none',
-    failure: '',
-  }, {
-    availability(backend) {
-      probed.push(backend);
-      return { available: backend === 'claude', reason: `${backend} fixture` };
-    },
-  });
-
-  assert.strictEqual(result.status, 'selected');
-  assert.strictEqual(result.selected_backend, 'claude');
-  assert.deepStrictEqual(probed, ['claude']);
+test('missing codex executable makes the explicit target UNAVAILABLE and selects nothing else', () => {
+  const res = runCli(['--target', 'codex-cli/gpt-6-luna:high'], { DHPK_HOST: 'claude-code', PATH: '/usr/bin:/bin' });
+  assert.notStrictEqual(res.status, 0);
+  assert.strictEqual(res.value.status, 'UNAVAILABLE');
+  assert.ok(!res.value.selected_target, 'no other target may be selected');
+  assert.ok(res.value.reason.includes('codex'), res.value.reason);
 });
 
-test('cross-provider auto selection probes configured external candidates only when opted in', () => {
-  const probed = [];
-  const result = selector.select({
-    backend: 'auto',
-    order: 'codex,agy,claude',
-    fallback: 'none',
-    failure: '',
-    cross_provider: true,
-  }, {
-    availability(backend) {
-      probed.push(backend);
-      return { available: backend === 'codex', reason: `${backend} fixture` };
-    },
-  });
+test('claude-code Host default maps to the dhpk:fast-worker subagent as presentation only', () => {
+  const res = runCli([], { DHPK_HOST: 'claude-code' });
+  assert.strictEqual(res.value.selected_agent, 'dhpk:fast-worker');
+  assert.strictEqual(res.value.selected_target.target_agent, 'claude-code');
+});
 
-  assert.strictEqual(result.status, 'selected');
-  assert.strictEqual(result.selected_backend, 'codex');
-  assert.strictEqual(result.candidate_scope, 'cross-provider');
-  assert.deepStrictEqual(probed, ['codex']);
+test('removed arguments exit BLOCKED naming the argument and its replacement', () => {
+  for (const arg of ['--backend', '--order', '--fallback', '--failure', '--cross-provider']) {
+    const res = runCli([arg, 'codex'], { DHPK_HOST: 'claude-code' });
+    assert.notStrictEqual(res.status, 0, arg);
+    assert.strictEqual(res.value.status, 'BLOCKED', arg);
+    assert.ok(res.value.reason.includes(arg), `${arg}: ${res.value.reason}`);
+    assert.ok(res.value.reason.includes('--target'), `${arg} must name the replacement: ${res.value.reason}`);
+    assert.ok(!res.value.selected_target, arg);
+  }
+});
+
+test('removed backend environment variables are not read', () => {
+  const res = runCli([], {
+    DHPK_HOST: 'codex-cli',
+    CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'agy',
+    CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER: 'agy,claude',
+    CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK: 'claude',
+  });
+  assert.strictEqual(res.status, 0, res.stdout);
+  assert.strictEqual(res.value.selected_target.target_agent, 'codex-cli');
+});
+
+test('selector source holds no legacy backend selection path', () => {
+  const source = fs.readFileSync(SELECTOR, 'utf8');
+  for (const needle of ['native-dispatch-policy', 'DEFAULT_ORDER', 'BACKENDS', 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND', 'selected_backend']) {
+    assert.ok(!source.includes(needle), `legacy identifier still present: ${needle}`);
+  }
+  for (const name of ['BACKENDS', 'DEFAULT_ORDER', 'parseArgs']) {
+    assert.strictEqual(selector[name], undefined, `${name} must not be exported`);
+  }
 });
 
 test('canonical worker selection builds a neutral request and returns resolved target evidence', () => {
@@ -207,7 +213,7 @@ test('canonical worker selection builds a neutral request and returns resolved t
     },
   });
 
-  assert.strictEqual(result.status, 'selected');
+  assert.strictEqual(result.status, 'RESOLVED');
   assert.strictEqual(result.request.role, 'worker');
   assert.strictEqual(result.request.authority, 'workspace-write');
   assert.strictEqual(result.request.host_profile.host, 'cursor');
@@ -224,62 +230,6 @@ test('canonical worker selection builds a neutral request and returns resolved t
   });
   assert.strictEqual(result.capability.status, 'AVAILABLE');
   assert.strictEqual(result.resolution_source, 'dispatch-engine');
-});
-
-test('missing executable blocks unless the configured fallback is claude', () => {
-  const blocked = select(['--backend', 'agy'], { PATH: '/usr/bin:/bin' });
-  assert.strictEqual(blocked.value.status, 'blocked');
-  assert.strictEqual(blocked.value.selected_backend, 'agy');
-  const fallback = select(['--backend', 'agy', '--fallback', 'claude'], { PATH: '/usr/bin:/bin' });
-  assert.strictEqual(fallback.value.status, 'selected');
-  assert.strictEqual(fallback.value.selected_backend, 'claude');
-  assert.ok(fallback.value.reason.includes('missing executable'));
-});
-
-test('agy backend dispatches the registered agy-worker role', () => {
-  const dir = tempDir('dhpk-selector-agy-');
-  try {
-    const bin = fakeCli(dir, 'agy');
-    const selected = select(['--backend', 'agy'], { PATH: `${bin}:/usr/bin:/bin` });
-    assert.strictEqual(selected.value.status, 'selected');
-    assert.strictEqual(selected.value.selected_agent, 'dhpk:agy-worker');
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('authorization or model failures never fall back, and CODEX review mode does not gate codex worker availability', () => {
-  const failed = select(['--backend', 'codex', '--failure', 'authorization', '--fallback', 'claude'], { PATH: '/usr/bin:/bin', CODEX: 'on' });
-  assert.strictEqual(failed.value.status, 'blocked');
-  assert.strictEqual(failed.value.selected_backend, 'codex');
-  assert.strictEqual(failed.value.fallback, 'none');
-  const modelFailed = select(['--backend', 'codex', '--failure', 'model', '--fallback', 'claude'], { PATH: '/usr/bin:/bin', CODEX: 'on' });
-  assert.strictEqual(modelFailed.value.status, 'blocked');
-  assert.ok(modelFailed.value.reason.includes('model failure'));
-  assert.strictEqual(modelFailed.value.fallback, 'none');
-  const dir = tempDir('dhpk-selector-codex-off-');
-  try {
-    const bin = fakeCli(dir, 'codex');
-    const off = select(['--backend', 'codex'], { PATH: `${bin}:/usr/bin:/bin`, CODEX: 'off' });
-    assert.strictEqual(off.value.status, 'selected');
-    assert.strictEqual(off.value.selected_backend, 'codex');
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('invalid selector inputs normalize to shipped defaults before dispatch', () => {
-  const invalidBackend = select(['--backend', 'wat'], { PATH: '/usr/bin:/bin' });
-  assert.strictEqual(invalidBackend.value.status, 'selected');
-  assert.strictEqual(invalidBackend.value.selected_backend, 'claude');
-
-  const invalidFallback = select(['--backend', 'agy', '--fallback', 'wat'], { PATH: '/usr/bin:/bin' });
-  assert.strictEqual(invalidFallback.value.status, 'blocked');
-  assert.strictEqual(invalidFallback.value.reason, 'missing executable: agy');
-
-  const invalidOrder = select(['--backend', 'auto', '--order', 'wat'], { PATH: '/usr/bin:/bin' });
-  assert.strictEqual(invalidOrder.value.status, 'selected');
-  assert.strictEqual(invalidOrder.value.selected_backend, 'claude');
 });
 
 test('session start remains activation-only when selector configuration is overridden or invalid', () => {
@@ -312,7 +262,7 @@ test('session start remains activation-only when selector configuration is overr
 test('all fast-worker report schemas expose the auditable selector contract', () => {
   for (const file of ['fast-worker.md', 'codex-worker.md', 'agy-worker.md']) {
     const prompt = fs.readFileSync(path.join(ROOT, 'agents', file), 'utf8');
-    for (const field of ['Requested backend:', 'Selected backend:', 'Availability:', 'Fallback reason:', 'Model/effort:', 'Verify:', 'Edited files']) {
+    for (const field of ['Requested target agent:', 'Selected target agent:', 'Availability:', 'Fallback reason:', 'Model/effort:', 'Verify:', 'Edited files']) {
       assert.ok(prompt.includes(field), `${file} missing report field: ${field}`);
     }
   }

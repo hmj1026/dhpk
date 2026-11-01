@@ -5,19 +5,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {
-  LEGACY_EFFORT_KEYS,
-  LEGACY_KEYS,
+  REMOVED_KEYS,
   createDispatchConfigReport,
   resolveDispatchConfig,
 } = require('./lib/dispatch-config');
 
 const PLUGIN_ID = 'dhpk@dhpk';
-const DIAGNOSTIC_FIELDS = new Set([
-  'codex_deep_reasoner_model',
-  'codex_deep_reasoner_effort',
-  'architect_model',
-  'architect_effort',
-]);
 const REPORT_OPTION_FIELDS = Object.freeze([...new Set([
   'orchestration_dispatch',
   'worker_target',
@@ -26,11 +19,7 @@ const REPORT_OPTION_FIELDS = Object.freeze([...new Set([
   'reviewer_target',
   'preference_order',
   'fallback_allow',
-  ...Object.values(LEGACY_KEYS).flat(),
-  ...Object.values(LEGACY_EFFORT_KEYS).flat(),
-  'fast_worker_backend_order',
-  'fast_worker_fallback',
-  ...DIAGNOSTIC_FIELDS,
+  ...Object.keys(REMOVED_KEYS),
 ])]);
 const ENVIRONMENT_KEYS = Object.freeze(REPORT_OPTION_FIELDS.map((field) => [
   field,
@@ -44,7 +33,7 @@ function isRecord(value) {
 function isDefaultReportValue(field, value) {
   if (value === undefined || value === null || value === '') return true;
   if (field === 'orchestration_dispatch') return value === 'on' || value === true;
-  if (field === 'fallback_allow' || field === 'fast_worker_fallback') return value === 'true' || value === true;
+  if (field === 'fallback_allow') return value === 'true' || value === true;
   if (typeof value === 'string') return value === 'auto';
   if (Array.isArray(value)) return value.length === 0;
   return false;
@@ -54,7 +43,7 @@ function layerWarrantsReport(options) {
   if (!isRecord(options)) return false;
   return REPORT_OPTION_FIELDS.some((field) => {
     if (!Object.prototype.hasOwnProperty.call(options, field)) return false;
-    if (DIAGNOSTIC_FIELDS.has(field)) return true;
+    if (Object.prototype.hasOwnProperty.call(REMOVED_KEYS, field)) return true;
     return !isDefaultReportValue(field, options[field]);
   });
 }
@@ -157,11 +146,6 @@ function coveredScope(flags, unreadable) {
 const SUMMARY_PREFIX_LENGTH = '[session-start] dispatch config: '.length;
 const SUMMARY_LIMIT = 300;
 const SUMMARY_ROLES = Object.freeze(['planner', 'reasoner', 'worker', 'reviewer']);
-const LEGACY_REPORT_KEYS = Object.freeze([...new Set([
-  ...Object.values(LEGACY_KEYS).flat(),
-  ...Object.values(LEGACY_EFFORT_KEYS).flat(),
-])]);
-
 function roleSummary(role, target, withProvider) {
   if (!isRecord(target)) return null;
   const parts = [target.target_agent];
@@ -173,19 +157,13 @@ function roleSummary(role, target, withProvider) {
   return `${role}=${text}${effort}`;
 }
 
-function legacyEntries(layerOptions) {
-  const entries = [];
-  for (const [layer, layerValues] of layerOptions) {
-    if (!isRecord(layerValues)) continue;
-    for (const key of LEGACY_REPORT_KEYS) {
-      if (!Object.prototype.hasOwnProperty.call(layerValues, key)) continue;
-      if (isDefaultReportValue(key, layerValues[key])) continue;
-      // Model/effort values identify the effective target; selector keys stay name-only.
-      const showValue = /_(model|effort)$/.test(key);
-      entries.push(showValue ? `${layer}.${key}=${layerValues[key]}` : `${layer}.${key}`);
-    }
-  }
-  return entries;
+function isRemovedKeyDiagnostic(entry) {
+  return isRecord(entry) && entry.status === 'BLOCKED'
+    && Object.prototype.hasOwnProperty.call(REMOVED_KEYS, entry.key);
+}
+
+function blockedEntries(diagnostics) {
+  return diagnostics.filter(isRemovedKeyDiagnostic).map((entry) => `${entry.source}->${entry.replacement}`);
 }
 
 function truncateLongest(items, excess) {
@@ -201,17 +179,17 @@ function truncateLongest(items, excess) {
   return next;
 }
 
-function composeSummary({ roles, flags, scope, legacy, forced, hint = '' }, budget) {
-  const assemble = (roleTexts, legacyText, suffix = hint) => {
-    const tokens = [...roleTexts, ...flags, ...scope, ...(legacyText ? [legacyText] : [])];
+function composeSummary({ roles, flags, scope, blocked, forced, hint = '' }, budget) {
+  const assemble = (roleTexts, blockedText, suffix = hint) => {
+    const tokens = [...roleTexts, ...flags, ...scope, ...(blockedText ? [blockedText] : [])];
     if (tokens.length === 0 && forced) tokens.push('defaults');
     return `${tokens.join(' ')}${suffix}`;
   };
-  const fullLegacy = legacy.length > 0 ? `legacy=${legacy.join(',')}` : '';
-  const countLegacy = legacy.length > 0 ? `legacy=${legacy.length}` : '';
+  const fullBlocked = blocked.length > 0 ? `blocked=${blocked.join(',')}` : '';
+  const countBlocked = blocked.length > 0 ? `blocked=${blocked.length}` : '';
   const withProvider = roles.map((role) => role.withProvider);
   const without = roles.map((role) => role.plain);
-  const attempts = [[withProvider, fullLegacy], [withProvider, countLegacy], [without, countLegacy]];
+  const attempts = [[withProvider, fullBlocked], [withProvider, countBlocked], [without, countBlocked]];
   for (const [roleTexts, legacyText] of attempts) {
     const line = assemble(roleTexts, legacyText);
     if (line.length <= budget) return line;
@@ -219,14 +197,14 @@ function composeSummary({ roles, flags, scope, legacy, forced, hint = '' }, budg
   // The hint is never truncated: roles shrink to make room, and the hint is
   // dropped only when it cannot fit even then.
   const attempt = (suffix) => {
-    const overflow = assemble(without, countLegacy, suffix).length - budget;
-    return assemble(truncateLongest(without, overflow), countLegacy, suffix);
+    const overflow = assemble(without, countBlocked, suffix).length - budget;
+    return assemble(truncateLongest(without, overflow), countBlocked, suffix);
   };
   const withHint = hint === '' ? '' : attempt(hint);
   return withHint !== '' && withHint.length <= budget ? withHint : attempt('');
 }
 
-function formatSummary(report, config, layerOptions, forced, hint) {
+function formatSummary(report, config, forced, hint) {
   const roles = [];
   for (const role of SUMMARY_ROLES) {
     const plain = roleSummary(role, report.targets[role], false);
@@ -240,7 +218,7 @@ function formatSummary(report, config, layerOptions, forced, hint) {
     ? [`scope=incomplete(${unreadable.map((entry) => `${entry.layer}:${entry.reason}`).join(',')})`]
     : [];
   return composeSummary({
-    roles, flags, scope, legacy: legacyEntries(layerOptions), forced, hint,
+    roles, flags, scope, blocked: blockedEntries(report.diagnostics || []), forced, hint,
   }, SUMMARY_LIMIT - SUMMARY_PREFIX_LENGTH);
 }
 
@@ -295,15 +273,10 @@ function main(environment = process.env, options = {}) {
   });
   const hint = writeFullReport(report, isRecord(options) ? options.fullOut : '');
   const summary = isRecord(options) && options.format === 'summary'
-    && (report.diagnostics || []).length === 0;
+    && (report.diagnostics || []).every(isRemovedKeyDiagnostic);
   if (summary) {
-    const layerOptions = [
-      ['project', projectOptions],
-      ['global', globalOptions],
-      ['environment', environmentOptions(source)],
-    ];
     const forced = source.DHPK_DISPATCH_CONFIG_REPORT === '1';
-    process.stdout.write(`${formatSummary(report, config, layerOptions, forced, hint)}\n`);
+    process.stdout.write(`${formatSummary(report, config, forced, hint)}\n`);
     return 0;
   }
   process.stdout.write(`${JSON.stringify(report)}\n`);

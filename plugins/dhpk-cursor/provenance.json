@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "cc4e5661a5a77370014db74677edc16c9bdbfc00",
-  "generatedFromCommit": "cc4e5661a5a77370014db74677edc16c9bdbfc00",
-  "generatedFromTree": "e9383f49d4b97d82bd61dbd40e8147551f00cf26",
-  "inventoryDigest": "eeac6eda71df4e5ed7283b68f53f9e3a3029dd2637fbe67ead06ab5547e04690",
-  "inventoryRevision": "sha256:61960d976ec6fc145111ee146a2d32e56a5ab48e0bf4239e58e897be0db22f43",
+  "sourceCommit": "b6d6352b5d42eba5cf59a596fe28c69ad90796c7",
+  "generatedFromCommit": "b6d6352b5d42eba5cf59a596fe28c69ad90796c7",
+  "generatedFromTree": "13a032b5e7d33cee8d118bc408be184042736eae",
+  "inventoryDigest": "252e7e374acd7ad4f9adf1754bacb1a27d66eea1e076fcf45a8655f22a66509e",
+  "inventoryRevision": "sha256:3f22193089868e59e1668a890a754dfff8935f524a891d38497a18c69b0bbcde",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -1401,7 +1401,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/distribution.yaml",
         "destination": "skills/flow-guide/distribution.yaml",
-        "originalGitBlobDigest": "281eb20ce5969f97064c06bcac36b72cbd84ad04"
+        "originalGitBlobDigest": "ebd1a7a8c7014d650270e9b9b9210e3e591fd28d"
       },
       {
         "ownerId": "flow-guide",
@@ -1419,7 +1419,7 @@
         "ownerId": "flow-guide",
         "source": "rules/execution-policy.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
-        "originalGitBlobDigest": "9f4835dbf50040c7cc81588828ff955effc23cb3"
+        "originalGitBlobDigest": "10be12d98a1ed626b7db80815c5acbe89aa9f3fb"
       },
       {
         "ownerId": "flow-guide",
@@ -1443,7 +1443,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "e5e685af2d5bf27d303f0d25d5899c00774fa01e"
+        "originalGitBlobDigest": "2615f19a8ec1258d33766ae848e577ad44a301b9"
       },
       {
         "ownerId": "flow-guide",
@@ -1497,7 +1497,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
         "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
-        "originalGitBlobDigest": "1c3d9d5ce14a9239b10314f6a5f184c155832088"
+        "originalGitBlobDigest": "e4c33efa661351a8e4e70aecd4a3c3c862d3f291"
       },
       {
         "ownerId": "flow-guide",
@@ -1515,13 +1515,13 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
-        "originalGitBlobDigest": "9f4835dbf50040c7cc81588828ff955effc23cb3"
+        "originalGitBlobDigest": "10be12d98a1ed626b7db80815c5acbe89aa9f3fb"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "341e97b6e981feaf06eeafb18dbb6a03b322bded"
+        "originalGitBlobDigest": "50c3bc52acbe152abeacbcc6e97a6ee1af521cf0"
       },
       {
         "ownerId": "flow-guide",
@@ -1539,7 +1539,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
-        "originalGitBlobDigest": "2d6e24ed12bc05a556fa250321b564cdb97494a5"
+        "originalGitBlobDigest": "5a4afa777e7d5a1482696f55f6d511cc00557994"
       },
       {
         "ownerId": "flow-guide",
@@ -1549,27 +1549,27 @@
       },
       {
         "ownerId": "flow-guide",
+        "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
+        "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
+        "originalGitBlobDigest": "e15f64536a4b7aa0d35f2a5a45e9df0a8942274a"
+      },
+      {
+        "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
-        "originalGitBlobDigest": "c6d51dab86b2a1c40e98174835f9b7b30a28a3f9"
+        "originalGitBlobDigest": "648f0becd8c044d89ef2f9f7a39cb5a0e32c7734"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js",
-        "originalGitBlobDigest": "93fe6651a7f2dbf118525be7ba9a4bd07c0dad69"
+        "originalGitBlobDigest": "21b275bbbe82ab81005a1af60519ef45c3260f39"
       },
       {
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
         "originalGitBlobDigest": "98ee51ce36200ccc5c0f448b7980f5d2413cc8f7"
-      },
-      {
-        "ownerId": "flow-guide",
-        "source": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "originalGitBlobDigest": "380a97528fbc13fa462342489f3f88fd655dd048"
       },
       {
         "ownerId": "flow-guide",
@@ -1593,7 +1593,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "37767170cd5371cf3f6bcc2e6cd4e18900faa07f"
+        "originalGitBlobDigest": "0ce09674870531733fd2d2c7a34b2650aba9dd37"
       },
       {
         "ownerId": "flow-guide",
@@ -1629,7 +1629,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "skills/flow-guide/references/implementation-dispatch.md",
-        "originalGitBlobDigest": "37767170cd5371cf3f6bcc2e6cd4e18900faa07f"
+        "originalGitBlobDigest": "0ce09674870531733fd2d2c7a34b2650aba9dd37"
       },
       {
         "ownerId": "flow-guide",
@@ -4185,6 +4185,13 @@
       {
         "ownerId": "flow-guide",
         "skillId": "flow-guide",
+        "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
+        "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-guide",
+        "skillId": "flow-guide",
         "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
         "kind": "entry"
@@ -4201,13 +4208,6 @@
         "skillId": "flow-guide",
         "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-guide",
-        "skillId": "flow-guide",
-        "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
         "kind": "entry"
       },
       {
@@ -5615,15 +5615,15 @@
     }
   ],
   "fingerprints": {
-    "rules": "e88c6eb55faa98f854214d6df8b435adb8c1101c80618dd8b8424ccfb08a259e",
-    "agents": "b7caa4b31ab9b06ebfff69e4a55e069dc3d47f0a6edf38b21c9fda631a05b847",
+    "rules": "213fbedb2db10637c89b47b27fdea3b74f279a54d97b3031a4a598ef7538c10e",
+    "agents": "8b30348bf9798bd37e57448350021b060b1cc54c18e129938a38757e327d05f8",
     "commands": "9104c6ec54a2cc1a77357ce279e096d2de2b86876a2137388a2a1e9d65b44314",
     "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
     "agent-traps": "b3467f22a69b647b6f101dd314e79e427c118f6c569f0401d0e7026ea541cffd"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "6ffcfedb37634400f0cd966842c1691094597b072992e44c5d8146b4c285aed7",
+    "planId": "3fbb7ea85bcfa353c2ab88dfa73c0f66e9867940f4635e1092db0dc1fbe949f8",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5667,10 +5667,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "6ffcfedb37634400f0cd966842c1691094597b072992e44c5d8146b4c285aed7",
-      "inventory": "eeac6eda71df4e5ed7283b68f53f9e3a3029dd2637fbe67ead06ab5547e04690"
+      "plan": "3fbb7ea85bcfa353c2ab88dfa73c0f66e9867940f4635e1092db0dc1fbe949f8",
+      "inventory": "252e7e374acd7ad4f9adf1754bacb1a27d66eea1e076fcf45a8655f22a66509e"
     },
-    "rollbackIdentity": "b0caa356a8e5650633d55c75a2272dcc6ba4031268cdb3c4bba0f1a770798eac"
+    "rollbackIdentity": "eb0fcc7906247950b3c3af416d80e28add5f1cbdf8b565bd176f90d66dda4364"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6685,5 +6685,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "fd67b38809ecb1f9f77f6b59004ba75c8429d2eb3baaf288f309ea6989d8eb58"
+  "planFingerprint": "28143fe30b6cff589eb46f16f4ba0e357d11420e0c81378a007948be789edfc7"
 }

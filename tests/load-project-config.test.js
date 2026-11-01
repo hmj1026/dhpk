@@ -232,6 +232,28 @@ test('DHPK_HOOK_PROFILE env one-shot override wins over settings file', () => {
     assert.strictEqual(res.stdout, '1200|project:codex_worker_timeout_secs|codex-worker');
   });
 
+  test('removed per-role timeout keys are never applied from project or global scope', () => {
+    for (const [role, removedKey, upperRemoved] of [
+      ['codex-worker', 'codex_fast_worker_timeout_secs', 'CODEX_FAST_WORKER_TIMEOUT_SECS'],
+      ['codex-reasoner', 'codex_deep_reasoner_timeout_secs', 'CODEX_DEEP_REASONER_TIMEOUT_SECS'],
+      ['codex-reviewer', 'codex_bridge_timeout_secs', 'CODEX_BRIDGE_TIMEOUT_SECS'],
+    ]) {
+      const projectRoot = tmpRoot();
+      settings(projectRoot, { [removedKey]: '45' });
+      const project = sh(projectRoot,
+        `dhpk_codex_timeout_export ${role}; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE"`);
+      assert.strictEqual(project.status, 0, project.stderr);
+      assert.strictEqual(project.stdout, '360|default', `${removedKey} must not be applied from project scope`);
+
+      const globalRoot = tmpRoot();
+      const global = sh(globalRoot,
+        `dhpk_codex_timeout_export ${role}; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE"`,
+        { [`CLAUDE_PLUGIN_OPTION_${upperRemoved}`]: '45' });
+      assert.strictEqual(global.status, 0, global.stderr);
+      assert.strictEqual(global.stdout, '360|default', `${removedKey} must not be applied from global scope`);
+    }
+  });
+
   test('retired worker labels block while mode-qualified bridge timeouts retain canonical precedence', () => {
     const root = tmpRoot();
     settings(root, {
