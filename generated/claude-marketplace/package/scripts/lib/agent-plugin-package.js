@@ -10,7 +10,6 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const { extractMetadata } = require('../ci/_lib/frontmatter');
 const {
@@ -29,6 +28,13 @@ const {
   readDirectoryEntries,
   listFilesNamedRecursively,
 } = require('./bounded-filesystem');
+const {
+  canonicalJson: stableStringify,
+  collectDirectoryEntries,
+  fileSetFingerprintLocale,
+  inventoryDigestKeySorted,
+  sha256Hex,
+} = require('./content-fingerprint');
 const { compileDistribution, materializeDistribution, verifyDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
@@ -66,30 +72,6 @@ const MCP_SECRET_PATTERNS = [
   /\bsk-[A-Za-z0-9_-]{20,}\b/i,
 ];
 const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
-
-function stableValue(value) {
-  if (Array.isArray(value)) return value.map(stableValue);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableValue(value[key])]));
-  }
-  return value;
-}
-
-function stableStringify(value) {
-  return JSON.stringify(stableValue(value));
-}
-
-function digest(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function legacyInventoryDigest(inventory) {
-  const source = { ...(inventory || {}) };
-  delete source.profile_policy;
-  delete source.standalone_dependencies;
-  delete source.project_agent_projection;
-  return digest(stableStringify(source));
-}
 
 function lstatOrNull(candidate) {
   try {
@@ -690,28 +672,9 @@ function selectPortableSkills(inventory, surface = 'agent-plugin', selectedStabl
 }
 
 function fingerprintDir(directory, options = {}) {
-  const hash = crypto.createHash('sha256');
   const budget = createTraversalBudget(options);
-  const walk = (current, relative, depth) => {
-    const realDirectory = budget.enterDirectory(current, depth);
-    try {
-      for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: true })) {
-        if (entry.name === '__pycache__' || entry.name.endsWith('.pyc')) continue;
-        const absolute = path.join(current, entry.name);
-        const rel = path.posix.join(relative, entry.name);
-        if (entry.isDirectory()) walk(absolute, rel, depth + 1);
-        else if (entry.isFile()) {
-          hash.update(rel);
-          hash.update('\0');
-          hash.update(budget.readFile(absolute, fs.statSync(absolute)));
-        } else throw new Error(`cannot fingerprint symlink or special file: ${absolute}`);
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  walk(directory, '', 0);
-  return hash.digest('hex');
+  const entries = collectDirectoryEntries(directory, { budget, order: 'locale', skipBytecode: true });
+  return fileSetFingerprintLocale(entries.filter((entry) => entry.type === 'file'));
 }
 
 function readManifestMetadata(root, manifestMetadata) {
@@ -777,13 +740,7 @@ function packageReadmeContents() {
 }
 
 function fingerprintProjectedFiles(files) {
-  const hash = crypto.createHash('sha256');
-  for (const file of files.slice().sort((a, b) => a.relative.localeCompare(b.relative))) {
-    hash.update(file.relative);
-    hash.update('\0');
-    hash.update(file.content);
-  }
-  return hash.digest('hex');
+  return fileSetFingerprintLocale(files.map((file) => ({ path: file.relative, content: file.content })));
 }
 
 function collectProjectedFiles(
@@ -1213,7 +1170,7 @@ function buildAgentPluginProjection(options = {}) {
     sourceCommit,
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
-    inventoryDigest: legacyInventoryDigest(inventory),
+    inventoryDigest: inventoryDigestKeySorted(inventory),
     inventoryRevision,
     generatorVersion,
     schemaVersion: AGENT_PLUGIN_VERSION,
@@ -1243,7 +1200,7 @@ function buildAgentPluginProjection(options = {}) {
     fingerprints,
     ...(selectedSkillIds.length > 0 ? { installation: createInstallationReceiptIdentity({
       surface: 'agent-plugin', scope: 'project', sourceVersion: version,
-      inventoryDigest: legacyInventoryDigest(inventory),
+      inventoryDigest: inventoryDigestKeySorted(inventory),
       profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
       selectedStableIds: profileSelection && profileSelection.selectedStableIds || selectedSkillIds,
       supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -1284,7 +1241,7 @@ function buildAgentPluginProjection(options = {}) {
     destination: file.destination,
     owner: 'plugins/dhpk-agent',
     transform: file.transform,
-    expectedFingerprint: digest(file.content),
+    expectedFingerprint: sha256Hex(file.content),
     symlinkPolicy: 'forbid',
     ...(file.skillId ? {
       skillId: file.skillId,
@@ -1301,7 +1258,7 @@ function buildAgentPluginProjection(options = {}) {
     internalCharacterization: Boolean(hostPublication) || (selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy)),
     surface: 'agent-plugin',
     compilerVersion: `agent-plugin-${generatorVersion}`,
-    inventoryFingerprint: legacyInventoryDigest(inventory),
+    inventoryFingerprint: inventoryDigestKeySorted(inventory),
     inventoryRevision,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: resolvedOut,
