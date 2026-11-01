@@ -4,7 +4,9 @@ Status: accepted
 
 Review-debt ownership in this ADR is superseded by
 [ADR-0011](0011-adopt-one-risk-adaptive-workflow.md). Its distribution and
-orchestration boundaries remain accepted.
+orchestration boundaries remain accepted. Store ownership, the
+`declared-source-relative` scope, and the adapter name are amended in part by
+the 2026-11-01 amendment below.
 
 ## Context
 
@@ -80,3 +82,25 @@ plan/artifact fingerprints, scope, timestamp, and verdict.
 - [ADR-0003 — Curate dhpk distribution surfaces](0003-curate-dhpk-distribution-surfaces.md)
 - [ADR-0005 — Separate resumed-review lifecycle clearance from approval](0005-resumed-review-lifecycle-clearance.md)
 - [ADR-0006 — Codex native publication artifact](0006-codex-native-publication-artifact.md)
+
+## Amendment 2026-11-01
+
+- **Store ownership covers build-time trees.** `ProjectionArtifactStore` is the
+  sole writer for managed projection trees that dhpk generates into its own
+  checkout. Install-time writes into a consumer project stay with the
+  Projection Receipt owner (`scripts/lib/project-agent-projection-publisher.js`,
+  per [ADR-0019](0019-shared-project-projection-with-host-adapters.md) and
+  [ADR-0023](0023-native-installers-delegate-skills-to-the-shared-projection.md)),
+  which owns the journal, Host Bindings, and recovery. The publisher shares the
+  store's path-safety helpers but not its publish step.
+- **`declared-source-relative` has two users.** The mode is used by `codex-sync`
+  and by `cursor-sync` (inventory `projection_contract` surfaces and the
+  `dhpk.platform.cursor-sync.skills` output), not by `codex-sync` alone. The
+  store resolves a link target relative to the link's own directory and then
+  requires it to land inside the plan-bound source root.
+- **Adapter name and shape.** The "ProjectionAdapter" above is called a Host
+  Adapter in `GLOSSARY.md`. Its shape today is `render` / `validate`, consumed
+  by `materializeDistribution`. The target shape, established by the
+  `complete-projection-store-ownership` change, is that every Host Adapter
+  exposes `compile`, `materialize`, and `verify`; AGY and cursor-sync lack
+  `compile` until that change lands.
