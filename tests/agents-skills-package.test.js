@@ -155,15 +155,16 @@ test('local compatibility projection includes declared standalone dependencies i
   }
 });
 
-test('regeneration is deterministic and preserves unmanaged entries', () => {
+test('regeneration is deterministic and refuses a tree holding unlisted entries', () => {
   const root = makeFixture();
   const first = path.join(root, 'first');
   const second = path.join(root, 'second');
   try {
-    write(path.join(first, 'unmanaged.md'), '# Keep me\n');
     materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir: first });
     materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir: second });
-    assert.deepStrictEqual(snapshot(first).filter(([name]) => name !== 'unmanaged.md'), snapshot(second));
+    assert.deepStrictEqual(snapshot(first), snapshot(second));
+    write(path.join(first, 'unmanaged.md'), '# Keep me\n');
+    assert.throws(() => materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir: first }), /OWNERSHIP_REFUSED/);
     assert.strictEqual(fs.readFileSync(path.join(first, 'unmanaged.md'), 'utf8'), '# Keep me\n');
     assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir: first }).ok, true);
   } finally {
@@ -249,7 +250,7 @@ test('explicit update authority still refuses unmanaged collisions', () => {
         outDir,
         allowCanonicalChanges: true,
       }),
-      /collides with unmanaged content/i,
+      /OWNERSHIP_REFUSED/,
     );
     assert.strictEqual(fs.readFileSync(unmanaged, 'utf8'), '# Keep me\n');
   } finally {
@@ -344,7 +345,7 @@ test('publishing rejects a nested symlink before it can escape the output root',
     write(path.join(root, 'skills', 'dhpk-sample', 'extras', 'new.md'), '# New\n');
     assert.throws(
       () => materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir }),
-      /symlinked ancestor|projection path/i,
+      /symlinked ancestor|projection path|OWNERSHIP_REFUSED/i,
     );
     assert.strictEqual(fs.existsSync(path.join(outside, 'new.md')), false);
   } finally {
@@ -353,37 +354,7 @@ test('publishing rejects a nested symlink before it can escape the output root',
   }
 });
 
-test('recovery journal restores a transaction interrupted after an old file move', () => {
-  const root = makeFixture();
-  const outDir = path.join(root, '.agents', 'skills');
-  const parent = path.dirname(outDir);
-  try {
-    materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
-    const backup = path.join(parent, '.dhpk-agents-skills-backup-fixture');
-    const stage = path.join(parent, '.dhpk-agents-skills-build-fixture');
-    fs.mkdirSync(backup, { recursive: true });
-    fs.mkdirSync(stage, { recursive: true });
-    fs.renameSync(path.join(outDir, '.dhpk-projection.json'), path.join(backup, '.dhpk-projection.json'));
-    const journalName = `.dhpk-agents-skills-${crypto.createHash('sha256').update(path.resolve(outDir)).digest('hex').slice(0, 16)}.transaction.json`;
-    fs.writeFileSync(path.join(parent, journalName), JSON.stringify({
-      schema: 'dhpk.agents-skills-transaction.v1',
-      outputName: path.basename(outDir),
-      backupName: path.basename(backup),
-      stageName: path.basename(stage),
-      phase: 'publishing',
-      oldPaths: ['.dhpk-projection.json'],
-      newPaths: ['.dhpk-projection.json'],
-    }));
-    const result = materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
-    assert.strictEqual(result.selectedIds[0], 'sample');
-    assert.ok(fs.existsSync(path.join(outDir, '.dhpk-projection.json')));
-    assert.strictEqual(fs.existsSync(path.join(parent, journalName)), false);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test('receipt paths outside the current canonical tree remain unmanaged', () => {
+test('a receipt claim over an underivable path grants no ownership', () => {
   const root = makeFixture();
   const outDir = path.join(root, '.agents', 'skills');
   try {
@@ -395,7 +366,7 @@ test('receipt paths outside the current canonical tree remain unmanaged', () => 
     receipt.managedPaths.push('dhpk-sample/unmanaged.md');
     receipt.generatedFingerprints['dhpk-sample/unmanaged.md'] = crypto.createHash('sha256').update('# Keep me\n').digest('hex');
     fs.writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`);
-    materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    assert.throws(() => materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir }), /OWNERSHIP_REFUSED/);
     assert.strictEqual(fs.readFileSync(unmanaged, 'utf8'), '# Keep me\n');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -421,7 +392,7 @@ test('receipt cannot claim a user file at a newly added canonical path', () => {
     fs.writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`);
     assert.throws(
       () => materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir }),
-      /source manifest|stale or foreign|collides with unmanaged content/i,
+      /source manifest|stale or foreign|OWNERSHIP_REFUSED/i,
     );
     assert.strictEqual(fs.readFileSync(unmanaged, 'utf8'), '# Keep me\n');
   } finally {

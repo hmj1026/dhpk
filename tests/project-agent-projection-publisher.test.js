@@ -154,6 +154,66 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
+  // Task 2.1 characterization of the publisher's path-safety errors.  These
+  // codes and messages are a public contract; the shared predicates must keep
+  // them byte-for-byte (task 2.2).
+  test('publisher rejects unsafe managed_root values with UNSAFE_PATH and its exact message', () => {
+    for (const bad of ['C:', 'C:foo', '.', '..', 'a//b', 'a/../b', 'a\\b', '/abs', '', 'a/']) {
+      const inventory = projectInventory();
+      inventory.project_agent_projection.managed_root = bad;
+      let error = null;
+      try {
+        publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot: path.join(os.tmpdir(), 'dhpk-no-such-source'), projectRoot: path.join(os.tmpdir(), 'dhpk-no-such-project'), inventory });
+      } catch (caught) { error = caught; }
+      assert.ok(error, `expected a rejection for ${JSON.stringify(bad)}`);
+      assert.strictEqual(error.projectionCode, 'UNSAFE_PATH', JSON.stringify(bad));
+      assert.strictEqual(error.message, 'project projection managed_root must be a normalized relative path', JSON.stringify(bad));
+    }
+  });
+
+  test('publisher rejects unsafe receipt binding paths and targets with its exact codes and messages', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-pathsafe-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-pathsafe-project-'));
+    const inventory = projectInventory();
+    const options = { sourceRoot, projectRoot, inventory, requestedHosts: ['claude'] };
+    const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    try {
+      write(path.join(sourceRoot, 'skills', 'dhpk-sample', 'SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      publisher.materializeRelocatableAgentsSkillsProjection(options);
+      const original = fs.readFileSync(receiptPath, 'utf8');
+      const attempt = (field, value) => {
+        const receipt = JSON.parse(original);
+        receipt.bindingPaths.claude[0][field] = value;
+        delete receipt.receiptFingerprint;
+        receipt.receiptFingerprint = fingerprint(receipt);
+        write(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+        try { publisher.materializeRelocatableAgentsSkillsProjection(options); } catch (caught) { return caught; }
+        return null;
+      };
+      const targetMessage = "project projection binding paths 'claude' target must be a normalized relative symlink target";
+      for (const bad of ['C:', 'C:foo', '.', 'a//b', '../a/./b', 'x/../y', 'a\\b', '/abs', '', 'a/']) {
+        const error = attempt('target', bad);
+        assert.ok(error, `target ${JSON.stringify(bad)} must be rejected`);
+        assert.strictEqual(error.projectionCode, 'UNSAFE_PATH', `target ${JSON.stringify(bad)}`);
+        assert.strictEqual(error.message, targetMessage, `target ${JSON.stringify(bad)}`);
+      }
+      // '..' is a well-formed relative target; it is refused by the containment rule instead.
+      const escape = attempt('target', '..');
+      assert.strictEqual(escape.projectionCode, 'PATH_ESCAPE');
+      assert.strictEqual(escape.message, "project projection binding paths 'claude' target must resolve inside a receipt-owned project artifact: ..");
+      const pathMessage = "project projection binding paths 'claude' path must be a normalized relative path";
+      for (const bad of ['C:', 'C:foo', '.', '..', 'a//b', '../a/./b', 'x/../y', 'a\\b', '/abs', '', 'a/']) {
+        const error = attempt('path', bad);
+        assert.ok(error, `path ${JSON.stringify(bad)} must be rejected`);
+        assert.strictEqual(error.projectionCode, 'UNSAFE_PATH', `path ${JSON.stringify(bad)}`);
+        assert.strictEqual(error.message, pathMessage, `path ${JSON.stringify(bad)}`);
+      }
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('project publisher projects inventory standalone dependencies into each skill and receipt', () => {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-dependency-source-'));
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-dependency-project-'));
@@ -1197,8 +1257,15 @@ const { test, run, assert } = require('./_lib/tinytest');
     try {
       write(root, 'skills/repo-check-old/SKILL.md', '---\nname: repo-check-old\ndescription: "Old check."\n---\nOld body.\n');
       materializeAgentsSkillsProjection({ root, inventory: oldInventory, outDir });
-      write(outDir, 'repo-check-old/foreign.txt', 'foreign skill content.\n');
       write(root, 'skills/repo-check-new/SKILL.md', '---\nname: repo-check-new\ndescription: "New check."\n---\nNew body.\n');
+
+      // Unmanaged content inside the tree blocks the whole-tree replace (REQ-9) and leaves it unchanged.
+      write(outDir, 'repo-check-old/foreign.txt', 'foreign skill content.\n');
+      const receiptBefore = fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8');
+      assert.throws(() => materializeAgentsSkillsProjection({ root, inventory: newInventory, outDir }), /OWNERSHIP_REFUSED/);
+      assert.strictEqual(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'), receiptBefore);
+      assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old', 'SKILL.md')), true);
+      fs.rmSync(path.join(outDir, 'repo-check-old', 'foreign.txt'));
 
       materializeAgentsSkillsProjection({ root, inventory: newInventory, outDir });
 
@@ -1206,7 +1273,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       assert.deepStrictEqual(receipt.entries.map((entry) => ({ id: entry.id, name: entry.name })), [{ id: 'rename-check', name: 'repo-check-new' }]);
       assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old', 'SKILL.md')), false);
       assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old.md')), false);
-      assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old', 'foreign.txt')), true);
+      assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old')), false);
       assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-new', 'SKILL.md')), true);
       assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-new.md')), true);
       const validation = validateAgentsSkillsProjection({ root, inventory: newInventory, outDir });

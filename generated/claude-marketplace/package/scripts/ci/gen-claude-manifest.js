@@ -20,7 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { compileClaudeProjection, verifyClaudeProjection } = require('../lib/distribution-inventory');
+const { compileClaudeProjection, verifyClaudeProjection } = require('../lib/claude-projection-adapter');
 
 const ROOT = path.join(__dirname, '..', '..');
 const INVENTORY_PATH = path.join(ROOT, 'manifests', 'distribution-inventory.json');

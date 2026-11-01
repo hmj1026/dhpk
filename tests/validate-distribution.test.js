@@ -8,7 +8,8 @@
 // checks (missing/invalid/duplicate/deprecated-leak).
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { reconcileDistribution, verifyClaudeProjection } = require('../scripts/lib/distribution-inventory');
+const { reconcileDistribution } = require('../scripts/lib/distribution-inventory');
+const { verifyClaudeProjection } = require('../scripts/lib/claude-projection-adapter');
 
 function baseInventory() {
   return {

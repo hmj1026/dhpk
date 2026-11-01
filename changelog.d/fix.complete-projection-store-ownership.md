@@ -1,0 +1,2 @@
+scope: distribution
+note: Build-time package and projection trees (AGY, cursor-sync, Claude marketplace, local skills sync) now publish through one artifact store that refuses to replace a tree it does not own, restores an interrupted publish, and applies file modes regardless of umask; `npm run sync:local-skills` now refuses when `.agents/skills` holds a file its receipt does not list. Generated output is unchanged.

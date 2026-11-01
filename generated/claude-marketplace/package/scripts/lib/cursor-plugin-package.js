@@ -1245,6 +1245,7 @@ function materializeCursorPackage(options = {}) {
     root: parent,
     sourceRoot: resolvedRoot,
     publishRoot: resolvedOut,
+    ownership: { owner: SURFACE_OWNERS['cursor-plugin'] },
   });
   const artifact = materializeDistribution(projection.plan, projection.adapter, artifactStore);
   if (!artifact.ok) throw new Error(`generated Cursor Plugin failed validation: ${artifact.error.message}`);

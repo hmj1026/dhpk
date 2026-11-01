@@ -99,8 +99,7 @@ plan/artifact fingerprints, scope, timestamp, and verdict.
   store resolves a link target relative to the link's own directory and then
   requires it to land inside the plan-bound source root.
 - **Adapter name and shape.** The "ProjectionAdapter" above is called a Host
-  Adapter in `GLOSSARY.md`. Its shape today is `render` / `validate`, consumed
-  by `materializeDistribution`. The target shape, established by the
-  `complete-projection-store-ownership` change, is that every Host Adapter
-  exposes `compile`, `materialize`, and `verify`; AGY and cursor-sync lack
-  `compile` until that change lands.
+  Adapter in `GLOSSARY.md`. Every Host Adapter exposes `compile`, `materialize`, and `verify`,
+  established by the `complete-projection-store-ownership` change. `render` /
+  `validate` (and the optional `renderDerived`) remain the callbacks consumed by
+  `materializeDistribution`.

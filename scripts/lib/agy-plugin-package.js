@@ -10,6 +10,7 @@ const path = require('node:path');
 const { adaptFrontmatter } = require('../agy-adapt-agents');
 const { RULE_ACTIVATION_MAP } = require('./rule-activation-map');
 const {
+  SURFACE_OWNERS,
   createSurfaceReceipt,
   createInstallationReceiptIdentity,
   resolveGeneratedFromTree,
@@ -22,7 +23,8 @@ const {
   sha256Hex,
 } = require('./content-fingerprint');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
-const { compileDistribution } = require('./distribution-compiler');
+const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
+const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { NATIVE_AGENT_TRAP_FILES, collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, agyNativeAgentClosureErrors } = require('./native-agent-support');
@@ -163,18 +165,36 @@ function assertContainedPhysical(root, candidate, label) {
   }
 }
 
-function copyFileContained(source, destination, sourceRoot, outputRoot, { transform = null } = {}) {
+// Read one source file for emission.  Nothing is written here: the artifact
+// store is the only writer, so this returns the bytes and the planned mode.
+function readContainedFile(source, sourceRoot, { transform = null } = {}) {
   assertContainedPhysical(sourceRoot, source, 'source file');
-  assertContainedPhysical(outputRoot, destination, 'output path');
   const sourceStat = assertNoSymlink(source, 'source file');
   if (!sourceStat || !sourceStat.isFile()) throw new Error(`source file is missing: ${source}`);
-  ensureDirectory(path.dirname(destination), 'package parent');
   if (typeof transform === 'function' && path.extname(source).toLowerCase() === '.md') {
-    const content = transform(readFileBounded(source).toString('utf8'), source);
-    fs.writeFileSync(destination, content, { mode: sourceStat.mode & 0o777 });
-    return;
+    return { content: transform(readFileBounded(source).toString('utf8'), source), mode: sourceStat.mode & 0o777 };
   }
-  fs.copyFileSync(source, destination);
+  return { content: fs.readFileSync(source), mode: sourceStat.mode & 0o7777 };
+}
+
+// In-memory set of the package files the adapter will emit, keyed by POSIX
+// destination.  A later add() of the same destination replaces the earlier one.
+function createEmission() {
+  const files = new Map();
+  return {
+    has: (destination) => files.has(destination),
+    add(destination, content, mode = 0o644) {
+      assertSafeRelative(destination, 'AGY output path');
+      files.set(destination, { destination, content, mode });
+    },
+    copy(destination, source, sourceRoot, options) {
+      const read = readContainedFile(source, sourceRoot, options);
+      this.add(destination, read.content, read.mode);
+    },
+    delete: (destination) => files.delete(destination),
+    sortedDestinations: () => [...files.keys()].sort(),
+    get: (destination) => files.get(destination),
+  };
 }
 
 function serializeAgySkillMarkdown(content, label) {
@@ -228,23 +248,6 @@ function projectAgyRuleContent(content, relative) {
   const entry = AGY_RULE_TRIGGER_MAP[relative];
   if (!entry) return content;
   return `${agyRuleFrontmatter(entry)}${content}`;
-}
-
-function copyDirectory(source, destination, sourceRoot, outputRoot, options = {}) {
-  assertContainedPhysical(sourceRoot, source, 'source directory');
-  assertContainedPhysical(outputRoot, destination, 'output directory');
-  const sourceStat = assertNoSymlink(source, 'source directory');
-  if (!sourceStat || !sourceStat.isDirectory()) throw new Error(`source directory is missing: ${source}`);
-  ensureDirectory(destination, 'package component');
-  for (const entry of sortedEntries(source)) {
-    if (entry.name === '__pycache__' || entry.name.endsWith('.pyc')) continue;
-    const childSource = path.join(source, entry.name);
-    const childDestination = path.join(destination, entry.name);
-    if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in source component: ${childSource}`);
-    if (entry.isDirectory()) copyDirectory(childSource, childDestination, sourceRoot, outputRoot, options);
-    else if (entry.isFile()) copyFileContained(childSource, childDestination, sourceRoot, outputRoot, options);
-    else throw new Error(`unsupported source entry: ${childSource}`);
-  }
 }
 
 function readJson(filePath, label) {
@@ -346,8 +349,8 @@ function containsSecret(content) {
   return SECRET_PATTERNS.some((pattern) => pattern.test(String(content)));
 }
 
-function writeJson(filePath, value) {
-  fs.writeFileSync(filePath, `${stableStringify(value)}\n`, { mode: 0o644 });
+function jsonText(value) {
+  return `${stableStringify(value)}\n`;
 }
 
 function assertOwnedOutputRoot(outDir) {
@@ -393,25 +396,30 @@ function assertOwnedOutputRoot(outDir) {
   return true;
 }
 
-function promoteOutputRoot(buildRoot, destination) {
-  const parent = path.dirname(destination);
-  const hadExisting = assertOwnedOutputRoot(destination);
-  if (!hadExisting) {
-    fs.renameSync(buildRoot, destination);
-    return;
-  }
-  const backup = path.join(parent, `.agy-plugin-backup-${process.pid}-${Date.now()}`);
-  fs.renameSync(destination, backup);
+// Ownership proof for an existing AGY output root.  The store runs it only
+// when the root exists and reports a refusal; the verdict keeps today's text.
+function verifyAgyOwnership(existingRoot) {
   try {
-    fs.renameSync(buildRoot, destination);
+    assertOwnedOutputRoot(existingRoot);
+    return { ok: true };
   } catch (error) {
-    fs.renameSync(backup, destination);
-    throw error;
+    return { ok: false, code: 'AGY_OWNERSHIP_REFUSED', message: error.message };
   }
-  fs.rmSync(backup, { recursive: true, force: true });
 }
 
-function materializeAgyPluginPackage({
+function planEntry(destination, content) {
+  return {
+    stableId: `${SURFACE}:${destination}`,
+    source: destination,
+    destination,
+    owner: SURFACE_OWNERS[SURFACE],
+    transform: { id: 'agy-agent-frontmatter-v1', version: '1' },
+    ...(content === undefined ? {} : { expectedFingerprint: sha256Hex(content) }),
+    symlinkPolicy: 'forbid',
+  };
+}
+
+function compileAgyPluginPackage({
   root,
   inventory,
   outDir,
@@ -442,45 +450,37 @@ function materializeAgyPluginPackage({
   const destination = path.resolve(outDir);
   const parent = ensureDirectory(path.dirname(destination), 'AGY output parent');
   if (!isInside(parent, destination)) throw new Error(`AGY output escapes its parent: ${destination}`);
-  const buildRoot = fs.mkdtempSync(path.join(parent, '.agy-plugin-build-'));
-  let promoted = false;
-  try {
-  const outputRoot = buildRoot;
 
+  const emission = createEmission();
   const manifest = {
     name: 'dhpk',
     version,
     description: 'dhpk native Antigravity CLI plugin',
     skills: ['./skills/'],
   };
-  writeJson(path.join(outputRoot, 'plugin.json'), manifest);
+  emission.add('plugin.json', jsonText(manifest));
 
-  const agentsDestination = ensureDirectory(path.join(outputRoot, 'agents'), 'AGY agents directory');
   let needsNativeDispatchSupport = false;
   for (const relative of selected.agents) {
     assertSafeRelative(`agents/${relative}`, 'AGY agent selection');
     const source = path.join(sourceRoot, 'agents', relative);
-    const target = path.join(agentsDestination, relative);
     if (path.extname(relative) !== '.md') throw new Error(`invalid AGY agent selection: ${relative}`);
     assertContainedPhysical(sourceRoot, source, 'source agent');
     const sourceStat = assertNoSymlink(source, 'source agent');
     if (!sourceStat || !sourceStat.isFile()) throw new Error(`source agent is missing: ${source}`);
-    ensureDirectory(path.dirname(target), 'AGY agent parent');
     const sourceContent = readFileBounded(source).toString('utf8');
     const adapted = adaptFrontmatter(sourceContent, { filePath: source });
     const linked = sanitizeMarkdownLinks(adapted.text, source, sourceRoot);
     const projected = rewriteAgyNativeAgentBody(linked);
     if (/scripts\/(?:cli-dispatch\/|fast-worker-selector\.js)/.test(projected)) needsNativeDispatchSupport = true;
-    fs.writeFileSync(target, projected, { mode: 0o644 });
+    emission.add(`agents/${relative}`, projected);
   }
 
-  const rulesDestination = ensureDirectory(path.join(outputRoot, 'rules'), 'AGY rules directory');
   for (const relative of selected.rules) {
     assertSafeRelative(relative, 'AGY rule selection');
     const source = path.join(sourceRoot, relative);
-    const target = path.join(outputRoot, relative);
     if (!relative.startsWith('rules/') || path.extname(relative) !== '.md') throw new Error(`invalid AGY rule selection: ${relative}`);
-    copyFileContained(source, target, sourceRoot, outputRoot, {
+    emission.copy(relative, source, sourceRoot, {
       transform: (content, sourceFile) => projectAgyRuleContent(
         sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
         relative,
@@ -492,59 +492,50 @@ function materializeAgyPluginPackage({
   for (const relative of NATIVE_AGENT_TRAP_FILES) {
     const source = path.join(sourceRoot, ...relative.split('/'));
     if (!lstatOrNull(source)) continue;
-    const target = path.join(outputRoot, ...relative.split('/'));
-    if (lstatOrNull(target)) continue;
-    copyFileContained(source, target, sourceRoot, outputRoot);
+    if (emission.has(relative)) continue;
+    emission.copy(relative, source, sourceRoot);
   }
   for (const asset of standaloneAssets) {
-    const target = path.join(outputRoot, asset.destination);
-    if (lstatOrNull(target)) continue;
-    copyFileContained(asset.path, target, sourceRoot, outputRoot);
+    if (emission.has(asset.destination)) continue;
+    emission.copy(asset.destination, asset.path, sourceRoot);
   }
   if (needsNativeDispatchSupport) {
     for (const relative of NATIVE_AGENT_SUPPORT_FILES) {
       const source = path.join(sourceRoot, ...relative.split('/'));
-      const target = path.join(outputRoot, ...relative.split('/'));
-      if (lstatOrNull(target)) continue;
-      copyFileContained(source, target, sourceRoot, outputRoot);
+      if (emission.has(relative)) continue;
+      emission.copy(relative, source, sourceRoot);
     }
   }
 
-  const skillsDestination = ensureDirectory(path.join(outputRoot, 'skills'), 'AGY skills directory');
   const selectedSkillIds = new Set(selected.skills.map((skill) => skill.id));
   if (marketplaceContent) {
     for (const file of marketplaceContent.files) {
       if (file.path.endsWith('/agents/openai.yaml')) continue;
-      const target = path.join(outputRoot, file.path);
       assertSafeRelative(file.path, 'AGY marketplace file');
-      ensureDirectory(path.dirname(target), 'AGY marketplace parent');
       const immediateSkill = /^skills\/[^/]+\/SKILL\.md$/.test(file.path);
       let content = file.bytes.toString('utf8');
       if (immediateSkill) content = adaptAgySkillContent(content, selectedSkillIds);
       if (file.path.startsWith('skills/') && file.path.endsWith('/SKILL.md')) {
         content = serializeAgySkillMarkdown(content, `AGY marketplace ${file.path}`);
       }
-      const bytes = Buffer.from(content);
-      fs.writeFileSync(target, bytes, { mode: file.mode & 0o111 ? 0o755 : 0o644 });
+      emission.add(file.path, Buffer.from(content), file.mode & 0o111 ? 0o755 : 0o644);
     }
   } else for (const skill of selected.skills) {
     const skillPath = skill.path.replace(/^skills\//, '');
     assertSafeRelative(skillPath, `AGY skill '${skill.id}'`);
     const source = path.join(sourceRoot, skill.path, 'SKILL.md');
-    const target = path.join(skillsDestination, skillPath, 'SKILL.md');
     assertContainedPhysical(sourceRoot, source, 'source skill');
     const sourceStat = assertNoSymlink(source, 'source skill');
     if (!sourceStat || !sourceStat.isFile()) throw new Error(`source skill is missing: ${source}`);
-    ensureDirectory(path.dirname(target), 'AGY skill parent');
     const sourceContent = readFileBounded(source).toString('utf8');
     const adaptedContent = sanitizeMarkdownLinks(adaptAgySkillContent(sourceContent, selectedSkillIds), source, sourceRoot);
-    fs.writeFileSync(target, serializeAgySkillMarkdown(adaptedContent, `AGY ${skillPath}/SKILL.md`), { mode: 0o644 });
+    emission.add(`skills/${skillPath}/SKILL.md`, serializeAgySkillMarkdown(adaptedContent, `AGY ${skillPath}/SKILL.md`));
     // The complete physical Skill directory is the package unit.
     for (const file of physicalSkillTree(sourceRoot, skill)) {
       // SKILL.md is adapted above; OpenAI interface metadata is Codex-only,
       // matching the Agent Plugin projection's surface-specific exclusion.
       if (file.relative === 'SKILL.md' || file.relative === 'agents/openai.yaml') continue;
-      copyFileContained(file.absolute, path.join(skillsDestination, skillPath, file.relative), sourceRoot, outputRoot, {
+      emission.copy(`skills/${skillPath}/${file.relative}`, file.absolute, sourceRoot, {
         transform: (content, sourceFile) => {
           const sanitized = sanitizeMarkdownLinks(content, sourceFile, sourceRoot);
           return path.basename(sourceFile) === 'SKILL.md'
@@ -560,98 +551,175 @@ function materializeAgyPluginPackage({
   // paths and event schema are client-owned.
   for (const optional of ['mcp_config.json', 'hooks.json']) {
     const source = path.join(sourceRoot, 'agy', optional);
-    if (lstatOrNull(source)) copyFileContained(source, path.join(outputRoot, optional), sourceRoot, outputRoot);
+    if (lstatOrNull(source)) emission.copy(optional, source, sourceRoot);
   }
 
-  const files = outputFiles(outputRoot);
-  const fingerprints = fingerprintFiles(outputRoot, files);
-  const receipt = createSurfaceReceipt({
-    surface: SURFACE,
-    sourceVersion,
-    sourceCommit,
-    generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
-    inventoryDigest: inventoryDigestKeySorted(inventory),
-    fingerprints,
-    ...(publication || {}),
-    installation: createInstallationReceiptIdentity({
-      surface: SURFACE, scope: 'user', sourceVersion,
+  // The receipts are rendered by this adapter, never copied from a source tree.
+  for (const receiptFile of ['provenance.json', 'fingerprints.json']) emission.delete(receiptFile);
+  const files = emission.sortedDestinations();
+
+  const buildReceipt = (fingerprints) => {
+    const receipt = createSurfaceReceipt({
+      surface: SURFACE,
+      sourceVersion,
+      sourceCommit,
+      generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
       inventoryDigest: inventoryDigestKeySorted(inventory),
-      profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
-      selectedStableIds: profileSelection && profileSelection.selectedStableIds || selected.selection.selectedStableIds,
-      supportClosure: profileSelection && profileSelection.dependencyClosure,
-      ownedRoots: ['plugins/dhpk-agy'],
-    }),
+      fingerprints,
+      ...(publication || {}),
+      installation: createInstallationReceiptIdentity({
+        surface: SURFACE, scope: 'user', sourceVersion,
+        inventoryDigest: inventoryDigestKeySorted(inventory),
+        profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
+        selectedStableIds: profileSelection && profileSelection.selectedStableIds || selected.selection.selectedStableIds,
+        supportClosure: profileSelection && profileSelection.dependencyClosure,
+        ownedRoots: ['plugins/dhpk-agy'],
+      }),
+      inventoryRevision,
+      ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+      route: { sourceRoot: 'agents/, rules/, skills/, agent-traps/', packageRoot: 'plugins/dhpk-agy/' },
+      generatorVersion,
+      profileId: profileSelection && (profileSelection.profileId || profileSelection.id),
+      selectedStableIds: profileSelection && profileSelection.selectedStableIds,
+      emittedStableIds: profileSelection && (profileSelection.emittedStableIds || profileSelection.selectedStableIds),
+      compatibilityMode: profileSelection && (profileSelection.compatibilityMode || profileSelection.mode),
+      selectionPolicyVersion: profileSelection && profileSelection.selectionPolicyVersion,
+      selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
+      surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
+      ...(profileSelection && profileSelection.selectionMode === 'standalone' ? {
+        selectionMode: 'standalone',
+        requestedStableIds: profileSelection.requestedStableIds || [],
+        dependencyClosure: profileSelection.dependencyClosure || null,
+        unavailableCapabilities: profileSelection.unavailableCapabilities || [],
+      } : {}),
+    });
+    receipt.schema = PACKAGE_SCHEMA;
+    receipt.provenanceSchema = 'dhpk.platform-provenance.v1';
+    receipt.inventoryRevision = inventoryRevision;
+    if (ownershipFingerprint !== undefined) receipt.externalSkillPackagesFingerprint = ownershipFingerprint;
+    receipt.selectedIds = {
+      agents: selected.agents,
+      rules: selected.rules,
+      skills: selected.skills.map((skill) => skill.id),
+    };
+    const usageSkills = selected.skills.filter((skill) => skill && skill.usage);
+    if (usageSkills.length > 0) {
+      receipt.usageSchema = 'dhpk.skill-usage.v1';
+      receipt.usage = Object.fromEntries(usageSkills.map((skill) => [skill.id, skill.usage]));
+      receipt.usageFingerprints = Object.fromEntries(usageSkills.map((skill) => [
+        skill.id,
+        skillProjectionMetadata(skill, {
+          owner: 'plugins/dhpk-agy',
+          inventoryRevision,
+          ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+        }).usageFingerprint,
+      ]));
+      receipt.skillProvenance = Object.fromEntries(usageSkills.map((skill) => [
+        skill.id,
+        skillProjectionMetadata(skill, {
+          owner: 'plugins/dhpk-agy',
+          inventoryRevision,
+          ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+        }).provenance,
+      ]));
+    }
+    receipt.transform = { id: 'agy-agent-frontmatter-v1', version: '1' };
+    receipt.packageRoot = 'plugins/dhpk-agy';
+    receipt.selection = selected.selection;
+    if (marketplaceContent) {
+      receipt.marketplaceCatalog = {
+        ...marketplaceContent.bundleProvenance,
+        publicEntryIds: selected.publicationView.publicEntries.map((entry) => entry.id),
+        hostOnlyIds: selected.publicationView.hostOnly.map((entry) => entry.id),
+        files: marketplaceContent.files.map((file) => ({
+          skillId: file.skillId, ownerId: file.ownerId, sourcePath: file.sourcePath,
+          destination: file.path, kind: file.kind,
+        })),
+      };
+    }
+    return receipt;
+  };
+
+  const plannedEntries = [
+    ...files.map((file) => planEntry(file, emission.get(file).content)),
+    planEntry('fingerprints.json'),
+    planEntry('provenance.json'),
+  ];
+  const planned = compileDistribution({
+    internalCharacterization: true,
+    surface: SURFACE,
+    compilerVersion: `agy-plugin-${generatorVersion}`,
+    inventoryFingerprint: inventoryDigestKeySorted(inventory),
     inventoryRevision,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
-    route: { sourceRoot: 'agents/, rules/, skills/, agent-traps/', packageRoot: 'plugins/dhpk-agy/' },
-    generatorVersion,
-    profileId: profileSelection && (profileSelection.profileId || profileSelection.id),
-    selectedStableIds: profileSelection && profileSelection.selectedStableIds,
-    emittedStableIds: profileSelection && (profileSelection.emittedStableIds || profileSelection.selectedStableIds),
-    compatibilityMode: profileSelection && (profileSelection.compatibilityMode || profileSelection.mode),
-    selectionPolicyVersion: profileSelection && profileSelection.selectionPolicyVersion,
-    selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
-    surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
-    ...(profileSelection && profileSelection.selectionMode === 'standalone' ? {
-      selectionMode: 'standalone',
-      requestedStableIds: profileSelection.requestedStableIds || [],
-      dependencyClosure: profileSelection.dependencyClosure || null,
-      unavailableCapabilities: profileSelection.unavailableCapabilities || [],
-    } : {}),
+    ownershipRoot: destination,
+    // The plan covers emitted files only; the profile's capability selection
+    // is recorded in the receipt, not in this file-level plan.
+    entries: plannedEntries,
   });
-  receipt.schema = PACKAGE_SCHEMA;
-  receipt.provenanceSchema = 'dhpk.platform-provenance.v1';
-  receipt.inventoryRevision = inventoryRevision;
-  if (ownershipFingerprint !== undefined) receipt.externalSkillPackagesFingerprint = ownershipFingerprint;
-  receipt.selectedIds = {
-    agents: selected.agents,
-    rules: selected.rules,
-    skills: selected.skills.map((skill) => skill.id),
-  };
-  const usageSkills = selected.skills.filter((skill) => skill && skill.usage);
-  if (usageSkills.length > 0) {
-    receipt.usageSchema = 'dhpk.skill-usage.v1';
-    receipt.usage = Object.fromEntries(usageSkills.map((skill) => [skill.id, skill.usage]));
-    receipt.usageFingerprints = Object.fromEntries(usageSkills.map((skill) => [
-      skill.id,
-      skillProjectionMetadata(skill, {
-        owner: 'plugins/dhpk-agy',
-        inventoryRevision,
-        ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
-      }).usageFingerprint,
-    ]));
-    receipt.skillProvenance = Object.fromEntries(usageSkills.map((skill) => [
-      skill.id,
-      skillProjectionMetadata(skill, {
-        owner: 'plugins/dhpk-agy',
-        inventoryRevision,
-        ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
-      }).provenance,
-    ]));
-  }
-  receipt.transform = { id: 'agy-agent-frontmatter-v1', version: '1' };
-  receipt.packageRoot = 'plugins/dhpk-agy';
-  receipt.selection = selected.selection;
-  if (marketplaceContent) {
-    receipt.marketplaceCatalog = {
-      ...marketplaceContent.bundleProvenance,
-      publicEntryIds: selected.publicationView.publicEntries.map((entry) => entry.id),
-      hostOnlyIds: selected.publicationView.hostOnly.map((entry) => entry.id),
-      files: marketplaceContent.files.map((file) => ({
-        skillId: file.skillId, ownerId: file.ownerId, sourcePath: file.sourcePath,
-        destination: file.path, kind: file.kind,
+  if (!planned.ok) throw new Error(planned.error.message);
+
+  // Receipt values exist only once the store has staged the data files.
+  const state = { fingerprints: null, receipt: null };
+  const adapter = {
+    identity: { id: SURFACE, version: generatorVersion },
+    render: () => ({
+      adapter: { id: SURFACE, version: generatorVersion },
+      outputs: files.map((file) => ({
+        stableId: `${SURFACE}:${file}`,
+        destination: file,
+        content: emission.get(file).content,
+        mode: emission.get(file).mode,
       })),
-    };
-  }
-  writeJson(path.join(outputRoot, 'fingerprints.json'), { schema: PACKAGE_SCHEMA, files: fingerprints });
-  writeJson(path.join(outputRoot, 'provenance.json'), receipt);
-  const checked = validateAgyPluginPackage(outputRoot, { expectedVersion: version, inventory, profileSelection, publicationView: selected.publicationView, allowPreview: Boolean(publication && publication.publicationMode === 'preview') });
-  if (!checked.ok) throw new Error(`generated AGY package failed validation: ${checked.errors.join('; ')}`);
-  promoteOutputRoot(outputRoot, destination);
-  promoted = true;
-  return { packageRoot: destination, manifest, selected, files, fingerprints, receipt };
-  } finally {
-    if (!promoted && lstatOrNull(buildRoot)) fs.rmSync(buildRoot, { recursive: true, force: true });
+      links: [],
+    }),
+    renderDerived: (_plan, { session }) => {
+      state.fingerprints = Object.fromEntries(files.map((file) => [file, session.fingerprintOf(file)]));
+      state.receipt = buildReceipt(state.fingerprints);
+      return {
+        outputs: [
+          { stableId: `${SURFACE}:fingerprints.json`, destination: 'fingerprints.json', mode: 0o644, content: jsonText({ schema: PACKAGE_SCHEMA, files: state.fingerprints }) },
+          { stableId: `${SURFACE}:provenance.json`, destination: 'provenance.json', mode: 0o644, content: jsonText(state.receipt) },
+        ],
+      };
+    },
+    validate: (_rendered, { session }) => {
+      const checked = validateAgyPluginPackage(session.stageRoot, {
+        expectedVersion: version,
+        inventory,
+        profileSelection,
+        publicationView: selected.publicationView,
+        allowPreview: Boolean(publication && publication.publicationMode === 'preview'),
+      });
+      if (!checked.ok) throw new Error(`generated AGY package failed validation: ${checked.errors.join('; ')}`);
+    },
+  };
+  return { plan: planned.value, adapter, state, manifest, selected, files, destination, sourceRoot, parent };
+}
+
+function materializeAgyPluginPackage(options = {}) {
+  const projection = compileAgyPluginPackage(options);
+  const store = new ProjectionArtifactStore({
+    root: projection.parent,
+    sourceRoot: projection.sourceRoot,
+    publishRoot: projection.destination,
+    ownership: { owner: SURFACE_OWNERS[SURFACE], verify: verifyAgyOwnership },
+  });
+  const artifact = materializeDistribution(projection.plan, projection.adapter, store);
+  if (!artifact.ok) throw new Error(artifact.error.message);
+  const { manifest, selected, files, destination, state } = projection;
+  return { packageRoot: destination, manifest, selected, files, fingerprints: state.fingerprints, receipt: state.receipt };
+}
+
+// The package receipt records the selected rule ids; an empty list means the
+// package legitimately has no rules/ directory.
+function receiptDeclaresNoRules(root) {
+  try {
+    const receipt = readJson(path.join(root, 'provenance.json'), 'AGY provenance');
+    return Boolean(receipt && receipt.selectedIds && Array.isArray(receipt.selectedIds.rules)
+      && receipt.selectedIds.rules.length === 0);
+  } catch {
+    return false;
   }
 }
 
@@ -679,8 +747,14 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
       errors.push('plugin.json skills must declare only ./skills/');
     }
   }
+  // The artifact store plans files only, so a package whose inventory declares
+  // no rules has no rules/ directory; a present entry must still be a directory.
+  const declaresNoRules = Boolean(inventory && inventory.agy_plugin
+    && Array.isArray(inventory.agy_plugin.rules) && inventory.agy_plugin.rules.length === 0)
+    || receiptDeclaresNoRules(root);
   for (const component of ['agents', 'rules']) {
     const stat = lstatOrNull(path.join(root, component));
+    if (!stat && component === 'rules' && declaresNoRules) continue;
     if (!stat || stat.isSymbolicLink() || !stat.isDirectory()) {
       errors.push(`AGY package ${component} directory is missing`);
     }
@@ -823,8 +897,11 @@ module.exports = {
   PACKAGE_SCHEMA,
   stableStringify,
   digest: sha256Hex,
+  compileAgyPluginPackage,
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
+  // Host Adapter contract name; validation is the verification of a package.
+  verifyAgyPluginPackage: validateAgyPluginPackage,
   sanitizeMarkdownLinks,
   projectAgyRuleContent,
 };

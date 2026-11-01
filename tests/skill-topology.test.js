@@ -11,8 +11,8 @@ const { test, run, assert } = require('./_lib/tinytest');
 const {
   validateDistributionInventoryV2,
   validateSkillTopology,
-  generateClaudeSkillRoots,
 } = require('../scripts/lib/distribution-inventory');
+const { generateClaudeSkillRoots } = require('../scripts/lib/claude-projection-adapter');
 
 function skill(overrides = {}) {
   return {

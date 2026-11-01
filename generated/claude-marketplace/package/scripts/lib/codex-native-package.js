@@ -944,6 +944,7 @@ function materializeNativePackage({
     root: parent,
     sourceRoot: resolvedRoot,
     publishRoot: resolvedOut,
+    ownership: { owner: SURFACE_OWNERS['codex-native'] },
   });
   const artifact = materializeDistribution(projection.plan, projection.adapter, store);
   if (!artifact.ok) throw new Error(`generated Codex native package failed validation: ${artifact.error.message}`);
