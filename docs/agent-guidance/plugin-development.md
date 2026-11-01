@@ -76,8 +76,9 @@ distribution surfaces copy.
 
 1. Edit the canonical file and a changelog fragment. `cursor/skills` and
    `codex/skills` are symlinks to `skills/`.
-2. Refresh the marketplace companion in place with `npm run gen:marketplace`,
-   then `npm run check:marketplace`.
+2. Run `npm run gen:fixpoint` (in-checkout generators in dependency order,
+   repeated until no file changes; digests use the non-destructive
+   `--refresh-supporting-digests`), then `npm run check:marketplace`.
 3. Commit that tree. Package generation requires a clean checkout.
 4. Generate the affected surfaces outside the checkout and copy the owned
    directories back, using the command list in

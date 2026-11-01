@@ -63,6 +63,7 @@
     "gen:manifest": "node scripts/ci/gen-claude-manifest.js",
     "gen:marketplace": "node scripts/ci/gen-claude-marketplace-package.js",
     "gen:codex-agents": "node scripts/gen-codex-agents.js",
+    "gen:fixpoint": "node scripts/ci/gen-fixpoint.js",
     "gen:all": "npm run catalog:write && npm run gen:manifest && npm run gen:marketplace && npm run gen:codex-agents"
   }
 }

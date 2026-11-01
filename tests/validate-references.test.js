@@ -160,6 +160,39 @@ test('a whitelisted @rules ref is not flagged by the CLI', () => {
     const detail = findings.map((f) => `  [check ${f.check}] ${f.detail}`).join('\n');
     assert.strictEqual(findings.length, 0, `expected 0 findings, got:\n${detail}`);
   });
+  // (4) Bare `dhpk:<name>` and bare `skills/<name>/` stale-rename guards.
+  test('check 2 flags a bare dhpk:<name> code-span and whitespace-led token', () => {
+    assert.ok(checksHit('use `dhpk:gone-skill-xyz` here').has(2));
+    assert.ok(checksHit('use (dhpk:gone-skill-xyz) here').has(2));
+    assert.ok(checksHit('dhpk:gone-skill-xyz at line start').has(2));
+  });
+
+  test('bare dhpk:<name> ignores resolvable, namespaced, URL and identifier-embedded forms', () => {
+    const text = [
+      'use `dhpk:setup` here',
+      'ns dhpk:opsx:<name> skip',
+      'url https://example.com?q=dhpk:gone-skill-xyz',
+      'ident my-dhpk:gone-skill-xyz and xdhpk:gone-skill-xyz',
+    ].join('\n');
+    assert.strictEqual(scanText('synthetic/clean.md', text).length, 0);
+  });
+
+  test('check 7 flags a bare or plugin-root skills/<name>/ path with no such skill dir', () => {
+    assert.ok(checksHit('see `skills/gone-skill-xyz/SKILL.md`').has(7));
+    assert.ok(checksHit('see ${CLAUDE_PLUGIN_ROOT}/skills/gone-skill-xyz/references/a.md').has(7));
+  });
+
+  test('check 7 accepts real skills and skips external/placeholder skills paths', () => {
+    const text = [
+      'real skills/tdd-workflow/SKILL.md',
+      'ext .claude/skills/gone-skill-xyz/ and .agents/skills/gone-skill-xyz/',
+      'ext .codex/skills/gone-skill-xyz/ and ~/x/skills/gone-skill-xyz/',
+      'ext plugins/foo/skills/gone-skill-xyz/',
+      'ph skills/<name>/SKILL.md skills/*/SKILL.md skills/{a,b}/x',
+    ].join('\n');
+    const findings = scanText('synthetic/clean.md', text).filter((f) => f.check === 7);
+    assert.strictEqual(findings.length, 0, JSON.stringify(findings));
+  });
 }
 
 run('validate-references');
