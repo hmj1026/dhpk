@@ -45,7 +45,7 @@ function mkRepo({ branch = 'develop' } = {}) {
       '# Sample',
       '',
     ].join('\n'));
-    fs.writeFileSync(path.join(root, 'rules', 'sample.md'), '# Rule\n');
+    fs.writeFileSync(path.join(root, 'rules', 'tool-routing.md'), '# Rule\n');
     fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), [
       '---',
       'name: dhpk-sample',
@@ -63,7 +63,7 @@ function mkRepo({ branch = 'develop' } = {}) {
           { id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] },
         ],
         surface_membership: { 'agy-plugin': ['sample'] },
-        agy_plugin: { agents: ['sample.md'], rules: ['rules/sample.md'] },
+        agy_plugin: { agents: ['sample.md'], rules: ['rules/tool-routing.md'] },
       })
     );
     fs.writeFileSync(path.join(root, 'manifests', 'install-profiles.json'), JSON.stringify({

@@ -1,6 +1,6 @@
 ---
 name: dhpk-project-conventions
-description: "dhpk Project Convention"
+description: "dhpk repository branch, changelog, and delivery conventions"
 alwaysApply: false
 ---
 # dhpk Project Convention
@@ -93,7 +93,8 @@ for captured exit codes. Quote words beginning with `=` to avoid zsh command
 path expansion. When the start point is a remote-tracking branch,
 `git checkout -b <name> <start>` records that remote branch as upstream.
 Clear it with `git branch --unset-upstream` before the first push, then push
-with `git push -u origin HEAD:<name>`. When a heredoc `git commit -m` command
-is rejected because the session hook parses the tool payload as shell, write
-the message to a file and commit with `git commit -F <file>`. Consumer
-environments choose their own shell conventions.
+with `git push -u origin HEAD:<name>`. When a
+`git commit -m "$(cat <<'EOF' ... EOF)"` command is rejected because the
+session hook parses the tool payload as shell, write the message to a file
+and commit with `git commit -F <file>`. Consumer environments choose their
+own shell conventions.

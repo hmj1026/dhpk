@@ -34,7 +34,7 @@ receipt, not this file, own that selection.
 
 | Concern | Claude Code | Codex CLI |
 |---------|-------------|-----------|
-| **Loading path** | `agents/`, `commands/`, `skills/`, `hooks/`, `modules/` at plugin root | `.codex/agents/`, `.codex/skills/` in the project (after sync); Codex lifecycle hooks use `~/.codex/hooks.json`, project `.codex/hooks.json`, or inline `[hooks]` in `config.toml` |
+| **Loading path** | `agents/`, `commands/`, `skills/`, `hooks/`, `modules/` at plugin root | `.codex/agents/` in the project (after sync); skills are discovered from `.agents/skills`, and the `.codex/skills/<name>` entries are compatibility symlinks to `../../.agents/skills/<name>` created by the installer; Codex lifecycle hooks use `~/.codex/hooks.json`, project `.codex/hooks.json`, or inline `[hooks]` in `config.toml` |
 | **userConfig** | Yes — Claude prompts at install | Codex has no equivalent; configure via the synced `config.toml.example` |
 | **Modules (`modules/<stack>-<version>/`)** | Selective activation via `userConfig.modules` | Not directly mirrored — Codex sees a flat skills set |
 | **MCP** | Full (servers declared in plugin or user settings) | Configured via `config.toml` and `codex mcp add` |
@@ -107,8 +107,8 @@ editing through a symlink.
 
 ## dhpk main flow for Codex
 
-dhpk ships 18 direct Codex agent roles under `codex/agents/` (synced into
-`.codex/agents/`): 4 hand-maintained roles and 14 generated roles.
+dhpk ships 19 direct Codex agent roles under `codex/agents/` (synced into
+`.codex/agents/`): 4 hand-maintained roles and 15 generated roles.
 
 Use `$flow-guide` when ownership, policy, the next action, closeout, or Codex
 arguments are unclear. Its five read-only actions are `help`, `route`, `rules`,
@@ -282,9 +282,9 @@ Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`,
 `model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's
 `validate_codex` guardrail enforces this static metadata contract. Codex agent
 definitions are TOML-only; legacy Markdown role bodies are not dispatchable.
-The 14 generated roles are produced by `scripts/gen-codex-agents.js`: 11 from
-shared `agents/*.md` sources and 3 from Codex-only
-`codex/agent-sources/{ui-verifier,docs-writer,scoped-worker}.md` sources. The
+The 15 generated roles are produced by `scripts/gen-codex-agents.js`: 13 from
+shared `agents/*.md` sources and 2 from Codex-only
+`codex/agent-sources/{ui-verifier,scoped-worker}.md` sources. The
 Codex-only sources are authoring inputs only and are not installed; generated
 TOMLs are installed under `.codex/agents/`. The generator is
 deterministic/idempotent (re-running with no source change produces

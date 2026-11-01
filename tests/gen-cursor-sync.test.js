@@ -64,13 +64,13 @@ function makeFixture() {
     `Bare token remains only as ${PLUGIN_ROOT_TOKEN} in this fixture.`,
     '',
   ].join('\n'));
-  write(path.join(root, 'rules', 'prefer-const.md'), [
+  write(path.join(root, 'rules', 'tool-routing.md'), [
     '---',
-    'name: prefer-const',
-    "description: 'Prefer const in fixture code.'",
+    'name: tool-routing',
+    "description: 'Tool routing in fixture code.'",
     'alwaysApply: false',
     '---',
-    '# Prefer const',
+    '# Tool routing',
     '',
     `See ${PLUGIN_ROOT_TOKEN}/rules/execution-policy.md`,
     '',
@@ -96,9 +96,9 @@ test('cursor-sync generator emits relative skill links, .mdc rules, and rewritte
     assert.ok(!path.isAbsolute(fs.readlinkSync(skillLink)));
     assert.strictEqual(fs.realpathSync(skillLink), fs.realpathSync(path.join(root, 'skills', 'dhpk-portable')));
 
-    const rule = fs.readFileSync(path.join(out, 'rules', 'prefer-const.mdc'), 'utf8');
-    assert.ok(!fs.existsSync(path.join(out, 'rules', 'prefer-const.md')));
-    assert.match(rule, /^name: prefer-const$/m);
+    const rule = fs.readFileSync(path.join(out, 'rules', 'tool-routing.mdc'), 'utf8');
+    assert.ok(!fs.existsSync(path.join(out, 'rules', 'tool-routing.md')));
+    assert.match(rule, /^name: tool-routing$/m);
     assert.match(rule, /^alwaysApply: false$/m);
     assert.ok(!rule.includes(PLUGIN_ROOT_TOKEN));
     assert.match(rule, /\.cursor\/dhpk\/policies\/execution-policy\.md/);
@@ -202,7 +202,7 @@ test('gen-cursor-sync CLI writes a valid tree', () => {
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     assert.match(res.stdout, /wrote 1 skill links/);
     assert.ok(fs.lstatSync(path.join(out, 'skills', 'dhpk-portable')).isSymbolicLink());
-    assert.ok(fs.existsSync(path.join(out, 'rules', 'prefer-const.mdc')));
+    assert.ok(fs.existsSync(path.join(out, 'rules', 'tool-routing.mdc')));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -569,5 +569,39 @@ test('rewritten Cursor harness paths resolve inside the generated cursor/ tree',
     assert.match(result.stdout, /^PASS \[cursor-sync\]: cursor-sync$/m);
   });
 }
+
+test('cursor-sync rules take alwaysApply and description from the shared activation map', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-sync-out-');
+  try {
+    write(path.join(root, 'rules', 'execution-policy-kernel.md'), '# Kernel heading\n\nBody.\n');
+    write(path.join(root, 'rules', 'execution-policy.md'), '---\nalwaysApply: true\n---\n# Policy heading\n');
+    materializeCursorSyncTree({ inventory: fixtureInventory(), root, outDir: out });
+    const kernel = fs.readFileSync(path.join(out, 'rules', 'execution-policy-kernel.mdc'), 'utf8');
+    assert.match(kernel, /^alwaysApply: true$/m);
+    assert.match(kernel, /^description: ["']?Always-visible execution policy kernel["']?$/m);
+    const policy = fs.readFileSync(path.join(out, 'rules', 'execution-policy.mdc'), 'utf8');
+    assert.match(policy, /^alwaysApply: false$/m);
+    assert.match(policy, /^description: ["']?Execution policy single source of truth["']?$/m);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('cursor-sync generation fails naming an unmapped rule path', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-sync-out-');
+  try {
+    write(path.join(root, 'rules', 'unmapped-rule.md'), '# Unmapped\n');
+    assert.throws(
+      () => materializeCursorSyncTree({ inventory: fixtureInventory(), root, outDir: out }),
+      /rules\/unmapped-rule\.md/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
 
 run('gen-cursor-sync');

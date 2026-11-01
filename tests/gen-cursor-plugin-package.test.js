@@ -77,7 +77,7 @@ function makeFixture() {
     '# Runtime',
     '',
   ].join('\n'));
-  write(path.join(root, 'rules', 'prefer-const.md'), '# Prefer const\nUse const when values do not change.\n');
+  write(path.join(root, 'rules', 'tool-routing.md'), '# Tool routing\nUse const when values do not change.\n');
   write(path.join(root, 'agents', 'reviewer.md'), [
     '---',
     'name: reviewer',
@@ -276,8 +276,8 @@ test('materializes selected Cursor skills and native components as physical file
     assert.deepStrictEqual(result.skillIds, ['portable']);
     assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-portable', 'SKILL.md')));
     assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-portable', 'agents', 'openai.yaml')));
-    assert.ok(fs.existsSync(path.join(out, 'rules', 'prefer-const.mdc')));
-    assert.ok(!fs.existsSync(path.join(out, 'rules', 'prefer-const.md')));
+    assert.ok(fs.existsSync(path.join(out, 'rules', 'tool-routing.mdc')));
+    assert.ok(!fs.existsSync(path.join(out, 'rules', 'tool-routing.md')));
     assert.ok(fs.existsSync(path.join(out, 'agents', 'reviewer.md')));
     assert.ok(fs.existsSync(path.join(out, 'commands', 'review.md')));
     assert.ok(fs.existsSync(path.join(out, '.cursor-plugin', 'plugin.json')));
@@ -1610,6 +1610,60 @@ test('CLI generates and validates a Cursor package without requiring the client'
     assert.strictEqual(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /PASS.*cursor-plugin/);
     assert.ok(fs.existsSync(path.join(out, '.cursor-plugin', 'plugin.json')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor rules take alwaysApply and description from the shared activation map', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-rulemap-');
+  try {
+    write(path.join(root, 'rules', 'execution-policy-kernel.md'), '# Kernel heading\n\nBody.\n');
+    write(path.join(root, 'rules', 'execution-policy.md'), '---\nalwaysApply: true\n---\n# Policy heading\n');
+    materializeCursorPackage({ inventory: fixtureInventory(), root, outDir: out });
+    const kernel = fs.readFileSync(path.join(out, 'rules', 'execution-policy-kernel.mdc'), 'utf8');
+    assert.match(kernel, /^alwaysApply: true$/m);
+    assert.match(kernel, /^description: ["']?Always-visible execution policy kernel["']?$/m);
+    const policy = fs.readFileSync(path.join(out, 'rules', 'execution-policy.mdc'), 'utf8');
+    assert.match(policy, /^alwaysApply: false$/m);
+    assert.match(policy, /^description: ["']?Execution policy single source of truth["']?$/m);
+    const routing = fs.readFileSync(path.join(out, 'rules', 'tool-routing.mdc'), 'utf8');
+    assert.match(routing, /^alwaysApply: false$/m);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor generation fails naming an unmapped rule path', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-rulemap-');
+  try {
+    write(path.join(root, 'rules', 'unmapped-rule.md'), '# Unmapped\n');
+    assert.throws(
+      () => materializeCursorPackage({ inventory: fixtureInventory(), root, outDir: out }),
+      /rules\/unmapped-rule\.md/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('generated Cursor hooks.json declares version 1, even when empty, and the verifier rejects it missing', () => {
+  const root = tmpDir('dhpk-cursor-hooksver-source-');
+  const out = tmpDir('dhpk-cursor-hooksver-out-');
+  try {
+    materializeCursorPackage({ inventory: { skills: [] }, root, outDir: out, version: '1.0.0' });
+    const hooksPath = path.join(out, 'hooks', 'hooks.json');
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(hooksPath, 'utf8')), { version: 1, hooks: {} });
+    for (const bad of [{ hooks: {} }, { version: 0, hooks: {} }, { version: '1', hooks: {} }, { version: 1.5, hooks: {} }]) {
+      fs.writeFileSync(hooksPath, JSON.stringify(bad));
+      const result = validateCursorPackage({ packageRoot: out, expectedManifestName: 'dhpk-cursor' });
+      assert.ok(result.errors.some((error) => /hooks\/hooks\.json.*version/i.test(error)), JSON.stringify(bad) + ' => ' + result.errors.join('\n'));
+    }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(out, { recursive: true, force: true });

@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "ffc16aad48aee839bdd55b9efd274f4b019f7045",
-  "generatedFromCommit": "ffc16aad48aee839bdd55b9efd274f4b019f7045",
-  "generatedFromTree": "91e8281307a4cd609b5215b64fe4b9b7cacfda0f",
-  "inventoryDigest": "8852442b0b41df931aae49c142afb8c85194b9df3768ec637bb47c1f56446843",
-  "inventoryRevision": "sha256:2cc5f16a4b554e72b873607cc7bbbb8757a694972426d1307decc5d45bd9b23d",
+  "sourceCommit": "a76b5f6e249fcfaa1dae284664b762dbdd30d560",
+  "generatedFromCommit": "a76b5f6e249fcfaa1dae284664b762dbdd30d560",
+  "generatedFromTree": "75b2f89b29fe2ee7978a9101ab60dc6ad5bae379",
+  "inventoryDigest": "eeac6eda71df4e5ed7283b68f53f9e3a3029dd2637fbe67ead06ab5547e04690",
+  "inventoryRevision": "sha256:61960d976ec6fc145111ee146a2d32e56a5ab48e0bf4239e58e897be0db22f43",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -1377,7 +1377,7 @@
         "ownerId": "flow-drive",
         "source": "skills/yii1/references/yii1-security-patterns.md",
         "destination": "skills/flow-drive/references/yii1/references/yii1-security-patterns.md",
-        "originalGitBlobDigest": "7a904b68d6074f36cf6329f3d090b84c7f53c7b6"
+        "originalGitBlobDigest": "f0abd6e3ab9f911bcf8b7404c41780f4e5edecd5"
       },
       {
         "ownerId": "flow-guide",
@@ -1443,7 +1443,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "4b325bc555193f2373c4858250acfb47b6e74617"
+        "originalGitBlobDigest": "e5e685af2d5bf27d303f0d25d5899c00774fa01e"
       },
       {
         "ownerId": "flow-guide",
@@ -5615,15 +5615,15 @@
     }
   ],
   "fingerprints": {
-    "rules": "be28083e9915cfe01e6ab9764f0f5fe82faf3e001058ecc0e7e7d9dbbc3f7cdb",
+    "rules": "3a19949c9eeb0d76f19e922b574ad61fc8360d847a95533fa0c7f03efe206cf6",
     "agents": "b7caa4b31ab9b06ebfff69e4a55e069dc3d47f0a6edf38b21c9fda631a05b847",
     "commands": "9104c6ec54a2cc1a77357ce279e096d2de2b86876a2137388a2a1e9d65b44314",
-    "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a",
+    "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
     "agent-traps": "b3467f22a69b647b6f101dd314e79e427c118f6c569f0401d0e7026ea541cffd"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "8c57e46c59087c2f05c2326c62b71bbb0be1e282846d76697bae43ffd79392d6",
+    "planId": "6ffcfedb37634400f0cd966842c1691094597b072992e44c5d8146b4c285aed7",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5667,10 +5667,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "8c57e46c59087c2f05c2326c62b71bbb0be1e282846d76697bae43ffd79392d6",
-      "inventory": "8852442b0b41df931aae49c142afb8c85194b9df3768ec637bb47c1f56446843"
+      "plan": "6ffcfedb37634400f0cd966842c1691094597b072992e44c5d8146b4c285aed7",
+      "inventory": "eeac6eda71df4e5ed7283b68f53f9e3a3029dd2637fbe67ead06ab5547e04690"
     },
-    "rollbackIdentity": "6d02c3c14836b46203d3a3c765ce76e20259807b353b0675d59df13c3e17e555"
+    "rollbackIdentity": "b0caa356a8e5650633d55c75a2272dcc6ba4031268cdb3c4bba0f1a770798eac"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6685,5 +6685,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "b6a1a3162522989a19ac7c7e31860c5ac4b7ea9760d4216984d0b21085fdae39"
+  "planFingerprint": "8894401a792d051a375a8e79ac94f97a1b42d70965b04831c2bb4e73d927a85c"
 }

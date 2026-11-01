@@ -38,6 +38,10 @@ test('real repo plugin.json passes validation', () => {
   assert.strictEqual(res.status, 0, `expected real repo to pass, got:\n${res.stdout}${res.stderr}`);
 });
 
+test('commands/ contains no INDEX.md (it would register as /dhpk:INDEX)', () => {
+  assert.equal(fs.existsSync(path.join(ROOT, 'commands', 'INDEX.md')), false);
+});
+
 test('missing plugin.json fails', () => {
   const tmp = makeTempRepo();
   try {

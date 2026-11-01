@@ -1,7 +1,7 @@
 {
-  "rules": "be28083e9915cfe01e6ab9764f0f5fe82faf3e001058ecc0e7e7d9dbbc3f7cdb",
+  "rules": "3a19949c9eeb0d76f19e922b574ad61fc8360d847a95533fa0c7f03efe206cf6",
   "agents": "b7caa4b31ab9b06ebfff69e4a55e069dc3d47f0a6edf38b21c9fda631a05b847",
   "commands": "9104c6ec54a2cc1a77357ce279e096d2de2b86876a2137388a2a1e9d65b44314",
-  "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a",
+  "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
   "agent-traps": "b3467f22a69b647b6f101dd314e79e427c118f6c569f0401d0e7026ea541cffd"
 }

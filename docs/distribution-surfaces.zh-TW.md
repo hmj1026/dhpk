@@ -232,7 +232,7 @@ Structural、installation、選用 budget research 與 native runtime evidence �
 ## Claude userConfig metadata candidate 與 rollback
 
 `scripts/ci/gen-claude-user-config.js` 從
-`manifests/claude-user-config-metadata.json` 產生精簡描述。它保留所有 59 個已
+`manifests/claude-user-config-metadata.json` 產生精簡描述。它保留所有 74 個已
 characterize 的 key、type、default、validation 相關欄位、alias 與 module 行為；
 對 active manifest 唯一改動的只有描述文字。詳細說明仍留在每個精簡 pointer
 所指向的 canonical 文件與 skill。
@@ -247,7 +247,8 @@ node scripts/ci/gen-claude-user-config.js --check
 ```
 
 啟用必須明確設定 `DHPK_ENABLE_COMPACT_USER_CONFIG=1`；rollback 使用 `--rollback`
-與已 characterize 的 `manifests/claude-user-config-legacy.json`。
+與 59-key rollback snapshot `manifests/claude-user-config-legacy.json`
+（version 0.43.0，早於 74-key metadata）。
 `claude-user-config` 類別與 skill discovery、profile bundle、agent、command 及
 runtime activation 分開量測；byte／word／token 的縮減只是 structural metadata
 evidence。Claude probe 使用 `claude plugin list --json`，將適用且已啟用的
