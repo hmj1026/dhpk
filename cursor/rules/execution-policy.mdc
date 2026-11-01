@@ -187,8 +187,8 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
 | `codex-reasoner` | Selected by `--reasoner=codex[/<model>[:<effort>]]` — a `deep-reasoner` whose reasoning runs on the codex CLI backend (read-only sandbox); canonical role ID; see §Implementation dispatch | — |
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
-| `codex-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID; see §Implementation dispatch | — |
-| `agy-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run the agy CLI backend; canonical role ID; see §Implementation dispatch | — |
+| `codex-worker` | Selected by an explicit `codex-cli` worker target — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID; see §Implementation dispatch | — |
+| `agy-worker` | Selected by an explicit `agy` worker target — a `fast-worker` whose edits run the agy CLI backend; canonical role ID; see §Implementation dispatch | — |
 | `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
 | `qa-executor` | Live manual QA-case execution through a browser skill; writes one assigned results file; live-data writes only inside an explicit authorized fixture scope — see §Implementation dispatch | — |
 | `docs-writer` | Assigned documentation authoring or revision from confirmed sources (not stale-doc refresh, which is `doc-updater`) — see §Implementation dispatch | — |
@@ -445,28 +445,35 @@ preserves the role, task scope, read/write authority, model contract where
 applicable, and reviewer contract. The module named above owns this policy
 resolution; it is policy state, not a coordinator.
 
-### Fast-worker selector compatibility boundary
+### Fast-worker selector contract
 
 Mechanical implementation waves resolve through the canonical `worker` Role
-request. The following legacy selector remains a compatibility boundary and
-translates its backend vocabulary before invoking the Dispatch Engine:
-`${POLICY_BUNDLE_ROOT}/scripts/fast-worker-selector.js` and the three selector
-keys in `userConfig`:
+request. `${POLICY_BUNDLE_ROOT}/scripts/fast-worker-selector.js` is the command
+line entry to that request; it keeps no backend table of its own:
 
-| Requested value | Resolution |
+1. It detects the current Host (`DHPK_HOST` override, otherwise exactly one of
+   the Host signals) and loads that Host's profile. An undetectable or ambiguous
+   Host reports `BLOCKED` with the signals checked and exits non-zero; it never
+   defaults to Claude Code.
+2. Executable presence for `codex` or `agy` on `PATH` is capability evidence for
+   an explicit target of that Target Agent. It never selects a target.
+3. The Dispatch Engine returns the Target Agent, Model, Effort, and Route
+   (`resolution_source: dispatch-engine`). A missing executable makes an
+   explicit target `UNAVAILABLE`; no other target is selected.
+
+| Input | Resolution |
 |---|---|
-| `provider/model[:effort]` | Explicit Provider-scoped `worker` target; Model and Effort remain visible in the request and receipt. |
-| `auto` | Resolve the current Host-native target; external Providers require explicit cross-provider opt-in. |
-| legacy `claude` / `codex` / `agy` | Translate to Provider-scoped compatibility targets; missing executable blocks unless `fast_worker_fallback=claude` was explicitly configured. |
+| no argument | The detected Host's `worker` Role Default. |
+| `--target <agent>/<model>[:<effort>]` | Explicit Target Agent `worker` target; Model and Effort stay visible in the request and receipt. |
+| The former backend, order, fallback, failure, and cross-provider flags | Removed. The selector reports `BLOCKED` naming the argument and `--target`; values are not translated. |
 
-The existing `fast_worker_backend`, `fast_worker_backend_order`, and
-`fast_worker_fallback` settings remain valid. An explicit backend remains a
-directional selection; `auto` continues to honor the configured order only
-after `cross_provider` is enabled. This migration preserves old settings
-without turning an old `auto` configuration into an implicit external probe.
+The subagent name in `selected_agent` (`dhpk:fast-worker`, `dhpk:codex-worker`,
+`dhpk:agy-worker`) is presentation of the resolved Target Agent, not a selection
+rule. The removed `fast_worker_*` selector keys are reported by the dispatch configuration
+diagnostic and never read. The `--worker=<claude|codex|agy|auto>` edge flag is
+translated by the caller to an explicit `--target` (`auto` omits it).
 
-The configured `claude` selector fallback remains the pre-dispatch escape hatch
-for a missing executable. Post-dispatch availability and auth/model failures
+Post-dispatch availability and auth/model failures
 use the shared failure-class contract above only after confirmed no-side-effect
 unavailability; quota/rate-limit fallback requires an explicitly different
 authorized pool and cross-provider opt-in. Safety/user denial, task/semantic

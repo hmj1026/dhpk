@@ -1,11 +1,15 @@
 'use strict';
 
 const {
+  AGENT_PROVIDER,
   CAPABILITY_STATUSES,
   EFFORTS,
+  LEGACY_CURSOR_SPELLINGS,
+  agentForAlias,
   createDispatchRequest,
   createExecutionTarget,
   createProviderModelCatalog,
+  vendorFor,
 } = require('./dispatch-contract');
 const { authorizeCapability, createCapabilityEvidence } = require('./dispatch-capability-evidence');
 
@@ -32,36 +36,14 @@ const FALLBACK_ACTIONS = Object.freeze({
 
 const unique = (items) => [...new Set(items)];
 
-const TARGET_AGENT_ALIASES = Object.freeze({
-  claude: 'claude-code',
-  'claude-code': 'claude-code',
-  codex: 'codex-cli',
-  'codex-cli': 'codex-cli',
-  agy: 'agy',
-  cursor: 'cursor',
-  native: 'cursor', // compatibility spelling; config parser records its deprecation
-  'cursor-native': 'cursor', // compatibility spelling; config parser records its deprecation
-});
-const PROVIDER_ALIASES = Object.freeze({
-  'claude-code': 'anthropic',
-  'codex-cli': 'openai',
-  agy: 'google',
-  'cursor-native': 'cursor',
-});
-const AGENT_PROVIDERS = Object.freeze({
-  'claude-code': 'anthropic',
-  'codex-cli': 'openai',
-  agy: 'google',
-  cursor: 'cursor',
-});
-const LEGACY_CURSOR_SPELLINGS = new Set(['native', 'cursor-native']);
+const LEGACY_CURSOR_SPELLING_SET = new Set(LEGACY_CURSOR_SPELLINGS);
 const LEGACY_CURSOR_DIAGNOSTIC = 'legacy provider/route target spelling translated at input boundary';
 function canonicalAgent(value) {
-  return value === undefined || value === null ? undefined : TARGET_AGENT_ALIASES[value] || value;
+  return value === undefined || value === null ? undefined : agentForAlias(value) || value;
 }
 
 function canonicalProvider(value) {
-  return value === undefined || value === null ? undefined : PROVIDER_ALIASES[value] || value;
+  return value === undefined || value === null ? undefined : vendorFor(value);
 }
 
 function routeAgentMatches(routeAgent, targetAgent) {
@@ -285,11 +267,11 @@ function evaluateCapabilityCandidate(request, candidate, evidence) {
 
 function preferenceLegacyDiagnostic(candidate) {
   if (typeof candidate === 'string') {
-    return LEGACY_CURSOR_SPELLINGS.has(candidate.split(/[/:]/)[0]) ? LEGACY_CURSOR_DIAGNOSTIC : null;
+    return LEGACY_CURSOR_SPELLING_SET.has(candidate.split(/[/:]/)[0]) ? LEGACY_CURSOR_DIAGNOSTIC : null;
   }
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
   const agent = candidate.target_agent || candidate.targetAgent;
-  return LEGACY_CURSOR_SPELLINGS.has(agent) || LEGACY_CURSOR_SPELLINGS.has(candidate.provider)
+  return LEGACY_CURSOR_SPELLING_SET.has(agent) || LEGACY_CURSOR_SPELLING_SET.has(candidate.provider)
     ? LEGACY_CURSOR_DIAGNOSTIC
     : null;
 }
@@ -299,7 +281,7 @@ function normalizePreference(candidate) {
     const match = candidate.match(/^([^/]+)(?:\/([^:]+))?(?::([^:]+))?$/);
     if (!match) throw new TypeError('preferenceOrder entries must be Agent/model[:effort] targets');
     const targetAgent = canonicalAgent(match[1]);
-    const provider = canonicalProvider(AGENT_PROVIDERS[targetAgent]);
+    const provider = canonicalProvider(AGENT_PROVIDER[targetAgent]);
     if (!targetAgent) throw new TypeError('preferenceOrder entries must identify a supported Target Agent');
     return { target_agent: targetAgent, ...(provider ? { provider } : {}), ...(match[2] ? { model_id: match[2] } : {}), ...(match[3] ? { effort: match[3] } : {}) };
   }
@@ -315,14 +297,14 @@ function normalizePreference(candidate) {
   if (candidate.target_agent === undefined && candidate.targetAgent === undefined && candidate.provider === undefined) throw new TypeError('preferenceOrder target requires a Target Agent or Provider');
   if (candidate.effort !== undefined && !EFFORTS.includes(candidate.effort)) throw new TypeError('preferenceOrder target effort must be canonical');
   const rawAgent = candidate.target_agent || candidate.targetAgent;
-  const legacyCursor = LEGACY_CURSOR_SPELLINGS.has(rawAgent) || LEGACY_CURSOR_SPELLINGS.has(candidate.provider);
+  const legacyCursor = LEGACY_CURSOR_SPELLING_SET.has(rawAgent) || LEGACY_CURSOR_SPELLING_SET.has(candidate.provider);
   let targetAgent = rawAgent ? canonicalAgent(rawAgent) : undefined;
-  let provider = candidate.provider && !LEGACY_CURSOR_SPELLINGS.has(candidate.provider)
+  let provider = candidate.provider && !LEGACY_CURSOR_SPELLING_SET.has(candidate.provider)
     ? canonicalProvider(candidate.provider)
     : undefined;
   if (legacyCursor) {
     targetAgent = targetAgent || 'cursor';
-    if (provider === undefined) provider = AGENT_PROVIDERS[targetAgent] || 'cursor';
+    if (provider === undefined) provider = AGENT_PROVIDER[targetAgent] || 'cursor';
   }
   return {
     ...(targetAgent ? { target_agent: targetAgent } : {}),

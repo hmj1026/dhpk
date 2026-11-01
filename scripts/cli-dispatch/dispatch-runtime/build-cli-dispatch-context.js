@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const path = require('node:path');
 const { resolveConfig, resolveRole } = require('./cli-role-resolver');
+const { removedKeyReasons } = require('../../lib/dispatch-config');
 
 const TRANSPORTS = Object.freeze({
   codex: Object.freeze({ transport: 'codex-exec', stdin_mode: 'prompt' }),
@@ -172,6 +173,8 @@ function buildContext(input = {}, { writeFile, diagnostics } = {}) {
 
   const scopeFailure = scopeError(input);
   if (scopeFailure) return blocked(scopeFailure, legacyReport(input, resolved, undefined, transport));
+  const removedKeys = removedKeyReasons(input.config);
+  if (removedKeys.length > 0) return blocked(removedKeys.join('; '), legacyReport(input, resolved, undefined, transport));
   const config = resolveConfig({ effectiveRole: resolved.effective_role, config: input.config || {} });
   if (config.status === 'BLOCKED') return blocked(config.reason, legacyReport(input, resolved, undefined, transport));
   const timeoutFailure = numberOrBlocked(config.timeout_secs.value, 'resolved timeout_secs');

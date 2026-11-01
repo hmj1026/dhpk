@@ -96,10 +96,16 @@ actual edited paths. Omitting it (or reporting it incompletely) breaks that
 back-stop.
 
 Every report also identifies `Requested backend: claude` and
-`Selected backend: claude`. CLI-backed selection and the shared failure-class
-fallback policy are governed by `${CLAUDE_PLUGIN_ROOT}/scripts/fast-worker-selector.js`
-and `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`; this worker never
-silently changes backend after dispatch.
+`Selected backend: claude`. Target selection is governed by
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/fast-worker-selector.js [--target <agent>/<model>[:<effort>]]`,
+which detects the Host and resolves the Host `worker` Role Default (or the
+explicit target) through the Dispatch Engine. Its JSON output carries `status`
+(`RESOLVED`, `UNAVAILABLE`, or `BLOCKED`), `selected_target`, `selected_agent`
+(subagent name, presentation only), `capability_status`, and
+`resolution_source`. A non-`RESOLVED` status is a stop, not a prompt to pick
+another target. The shared failure-class fallback policy is in
+`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`; this worker never silently
+changes backend after dispatch.
 
 ## Output
 

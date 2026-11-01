@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:61960d976ec6fc145111ee146a2d32e56a5ab48e0bf4239e58e897be0db22f43`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:ef90580ac89097093465a02d8d5b12fd3b6f0cc3aef7c1158b00b27f41eacb68`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 

@@ -110,7 +110,7 @@ shared `retry_budget`. Every fallback consumes one unit, switching providers
 does not reset it, and unavailable candidates are not probed again. The
 handoff retains the original role, assigned scope, read/write authority,
 model/effort contract, and reviewer contract. The pure decision seam is
-`${POLICY_BUNDLE_ROOT}/scripts/lib/native-dispatch-policy.js`; it is not a coordinator. Partial
+`decideFallback` in `${POLICY_BUNDLE_ROOT}/scripts/lib/dispatch-engine.js`; it is not a coordinator. Partial
 writer reconciliation is isolated in
 `${POLICY_BUNDLE_ROOT}/scripts/lib/partial-writer-handoff.js`.
 

@@ -23,6 +23,14 @@ function projectedPackage() {
   for (const fileName of ['cli-role-resolver.js', 'build-cli-dispatch-context.js', 'launch-cli-dispatch.js', 'physical-file.js', 'physical-file.py']) {
     fs.copyFileSync(path.join(SOURCE_SCRIPTS, fileName), path.join(scripts, fileName));
   }
+  // The resolver's transitive require closure, laid out as in a generated package.
+  for (const file of [
+    'scripts/lib/dispatch-capability-evidence.js', 'scripts/lib/dispatch-config.js', 'scripts/lib/dispatch-contract.js',
+    'scripts/lib/dispatch-engine.js', 'manifests/provider-model-catalog.json',
+  ]) {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    fs.copyFileSync(path.join(__dirname, '..', file), path.join(root, file));
+  }
   for (const [source, destination] of [
     [path.join(SOURCE_CODEX_BRIDGE, 'run-codex.sh'), path.join(scripts, '..', 'adapters', 'run-codex.sh')],
     [path.join(SOURCE_AGY_WORKER, 'run-agy.sh'), path.join(scripts, '..', 'adapters', 'run-agy.sh')],
@@ -111,8 +119,8 @@ test('public launcher keeps Codex dispatcher identity separate while AGY binds r
     });
     const baseConfig = path.join(projected.root, 'base-config.json');
     const taskConfig = path.join(projected.root, 'task-config.json');
-    writeJson(baseConfig, { agy_worker_model: 'base-model', agy_worker_timeout_secs: 90 });
-    writeJson(taskConfig, { agy_worker_model: 'task-model' });
+    writeJson(baseConfig, { worker_target: 'agy/base-model', agy_worker_timeout_secs: 90 });
+    writeJson(taskConfig, { worker_target: 'agy/task-model' });
 
     const result = spawnSync(process.execPath, [projected.launcher,
       '--dispatching-agent', 'codex',
@@ -173,7 +181,7 @@ test('contradictory authority is BLOCKED before context creation or adapter exec
       report_only: true,
       runtime_path: '/usr/bin:/bin',
     });
-    writeJson(configPath, { agy_worker_model: 'task-model', agy_worker_timeout_secs: 90 });
+    writeJson(configPath, { worker_target: 'agy/task-model', agy_worker_timeout_secs: 90 });
 
     const result = spawnSync(process.execPath, [projected.launcher,
       '--dispatching-agent', 'codex', '--execution-provider', 'agy',
@@ -206,7 +214,7 @@ test('symlink-resolved artifact or context paths are BLOCKED before any outside 
     const adapter = path.join(projected.scripts, '..', 'adapters', 'run-agy.sh');
     fs.writeFileSync(adapter, `#!/bin/sh\nprintf started > ${JSON.stringify(marker)}\n`, { mode: 0o755 });
     const configPath = path.join(projected.root, 'config.json');
-    writeJson(configPath, { agy_worker_model: 'task-model', agy_worker_timeout_secs: 90 });
+    writeJson(configPath, { worker_target: 'agy/task-model', agy_worker_timeout_secs: 90 });
 
     fs.symlinkSync(outside, path.join(workdir, '.dhpk'));
     const escapedArtifactRoot = path.join(workdir, '.dhpk', 'cli-receipts');
@@ -296,7 +304,7 @@ test('adapter execution uses only the declared restricted runtime PATH', () => {
       report_only: true,
       runtime_path: '/usr/bin:/bin',
     });
-    writeJson(configPath, { agy_worker_model: 'task-model', agy_worker_timeout_secs: 90 });
+    writeJson(configPath, { worker_target: 'agy/task-model', agy_worker_timeout_secs: 90 });
 
     const result = spawnSync(process.execPath, [projected.launcher,
       '--dispatching-agent', 'codex', '--execution-provider', 'agy',

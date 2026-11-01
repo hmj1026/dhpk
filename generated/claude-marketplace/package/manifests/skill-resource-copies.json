@@ -34,7 +34,7 @@
     "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-guide",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:946e636863e7a67c78899fa459d65097abe81d8c03bc3c522cd197c36e703f8d",
+      "sha256": "sha256:d6a000895e814acb03a4619838e3fa55ad85e97e3d6cec7f9de12534bfd1ecb8",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md": {
@@ -52,13 +52,13 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:6fa6872cf37a695918c1226ed815d2fd1e54943f86556b9e4fba894d4f32f29e",
+      "sha256": "sha256:97537d66e6eae31f78854bd00c03c7730f48dcbdbee979228f2fefc49426811e",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:96817405d7b4383938bdd7814dacedbc25c136aa63387e10d9ddaafc2ed04034",
+      "sha256": "sha256:e10ee97aa4f51de311d1eee197f68b3ca91c3c8c2523b6ea71a6cc61250732d2",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
@@ -76,7 +76,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js": {
       "skill_id": "flow-guide",
       "source": "scripts/fast-worker-selector.js",
-      "sha256": "sha256:1568fd179cffe72cc04c9a3bfe21ddcac4309947daaf2b509513046993425373",
+      "sha256": "sha256:6c1b261003a1cfbf4af3f7b228e49ee33437f46fa54ecd7b4719c2918f4feea0",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-capability-evidence.js": {
@@ -85,28 +85,28 @@
       "sha256": "sha256:b661f77a76c6f5796804228b170003b9d35efd8b5fd4b45ed089e3e2071ac6f1",
       "mode": "0644"
     },
+    "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js": {
+      "skill_id": "flow-guide",
+      "source": "scripts/lib/dispatch-config.js",
+      "sha256": "sha256:a5b97faa946f8c5a7e7c7bc873982d11205743521a2153170f03c5ff873c9138",
+      "mode": "0644"
+    },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:5a1d2402c98b85d67a129d7e2b1c795206e6c5274de3950fbbfc3da46c4c3fb7",
+      "sha256": "sha256:a8dfd02b5a00c0d788e55a7c9b6499c356d1e99f29a3a1a7b0d4972fa00b77e3",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-engine.js",
-      "sha256": "sha256:e142544825f7fc4a83fc0790aaeab184afcc262c21d65b15f59526c52f2d70d9",
+      "sha256": "sha256:12a6c529b0fad9ceca6481d0c0165d6e45492fde1c2d57d0fd5d016fa90677bd",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/flow-handoff-contract.js",
       "sha256": "sha256:5d9adae49b755ad85fcf5eba0a990be99dbffdb26f20489928f29e6349f222e2",
-      "mode": "0644"
-    },
-    "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js": {
-      "skill_id": "flow-guide",
-      "source": "scripts/lib/native-dispatch-policy.js",
-      "sha256": "sha256:639ea3e4b750547b02aef37ee2d9b64074a6880f3ff88489780c0a49cf553b34",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js": {
@@ -130,7 +130,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:4a388711b3aad2017eec6ef4c399ce1c1040ba592a9b10b7ca4aa38d9ce8a3f3",
+      "sha256": "sha256:bdaea4260d86e4345caf49032b12bf8b44b51043e60cc6d89f53c7d6a2497cde",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {

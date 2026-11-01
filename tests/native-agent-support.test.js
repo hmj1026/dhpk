@@ -7,7 +7,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { validateCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
 const { rewriteCursorHarnessBody, rewriteCursorNativeAgentBody } = require('../scripts/lib/cursor-harness-adapt');
-const { AGY_SUPPORT_FILES, rewriteAgyNativeAgentBody, cursorNativeAgentClosureErrors, agyNativeAgentClosureErrors } = require('../scripts/lib/native-agent-support');
+const { AGY_SUPPORT_FILES, NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, cursorNativeAgentClosureErrors, agyNativeAgentClosureErrors } = require('../scripts/lib/native-agent-support');
 
 const CLAUDE_ROOT = '${' + 'CLAUDE_PLUGIN_ROOT}';
 const CURSOR_ROOT = '${' + 'CURSOR_PLUGIN_ROOT}';
@@ -182,9 +182,10 @@ test('AGY validator accepts plugin-relative traps and rejects a Claude-only root
       'scripts/cli-dispatch/verify-handoff.js',
       'scripts/fast-worker-selector.js',
       'scripts/lib/dispatch-capability-evidence.js',
+      'scripts/lib/dispatch-config.js',
       'scripts/lib/dispatch-contract.js',
       'scripts/lib/dispatch-engine.js',
-      'scripts/lib/native-dispatch-policy.js',
+      'manifests/host-profiles.json',
       'manifests/provider-model-catalog.json',
     ];
     for (const relative of supportFiles) {
@@ -367,10 +368,11 @@ test('a generated AGY package carries its native agent support closure without F
       'scripts/cli-dispatch/dispatch-runtime/launch-cli-dispatch.js',
       'scripts/cli-dispatch/transport/prepare-cli-request.py',
       'scripts/fast-worker-selector.js',
-      'scripts/lib/native-dispatch-policy.js',
+      'scripts/lib/dispatch-config.js',
       'scripts/lib/dispatch-contract.js',
       'scripts/lib/dispatch-engine.js',
       'scripts/lib/dispatch-capability-evidence.js',
+      'manifests/host-profiles.json',
       'manifests/provider-model-catalog.json',
     ]) assert.ok(fs.existsSync(path.join(out, relative)), `AGY package includes ${relative}`);
     assert.ok(!fs.existsSync(path.join(out, 'skills', 'flow-drive', 'scripts', 'run.js')));
@@ -379,6 +381,39 @@ test('a generated AGY package carries its native agent support closure without F
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
+});
+
+// Independent oracle: the files a package must carry are those reachable by
+// require() (and JSON loads) from the selector and the CLI dispatch runtime.
+function requireClosure(entries) {
+  const seen = new Set();
+  const visit = (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    if (!file.endsWith('.js')) return;
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    for (const match of source.matchAll(/require\((['"])(\.[^'"]+)\1\)/g)) {
+      const base = path.join(path.dirname(file), match[2]);
+      const found = [base, `${base}.js`, `${base}.json`].find((candidate) => {
+        const absolute = path.join(ROOT, candidate);
+        return fs.existsSync(absolute) && fs.statSync(absolute).isFile();
+      });
+      if (found) visit(path.normalize(found));
+    }
+  };
+  entries.forEach(visit);
+  return [...seen].sort();
+}
+
+test('native agent support files carry the full require closure of the selector and CLI runtime', () => {
+  const runtime = fs.readdirSync(path.join(ROOT, 'scripts/cli-dispatch/dispatch-runtime'))
+    .filter((name) => name.endsWith('.js'))
+    .map((name) => `scripts/cli-dispatch/dispatch-runtime/${name}`);
+  const closure = requireClosure(['scripts/fast-worker-selector.js', ...runtime]);
+  const missing = closure.filter((file) => !NATIVE_AGENT_SUPPORT_FILES.includes(file));
+  assert.deepStrictEqual(missing, []);
+  assert.ok(closure.includes('scripts/lib/dispatch-config.js'));
+  assert.ok(closure.includes('manifests/host-profiles.json'));
 });
 
 run('native-agent-support');
