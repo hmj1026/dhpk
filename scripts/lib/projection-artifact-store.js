@@ -360,8 +360,17 @@ function processIsAlive(pid) {
 // untouched.  Names without a parsable PID (older stage names) are left alone.
 // A dead backup is the last accepted tree of an interrupted activation: when
 // the publish root is missing it is restored, never deleted; several candidates
-// are refused rather than guessed.  Backups tagged for another publish root
-// belong to that root's store and are left in place.
+// are refused rather than guessed.  Only backups tagged with THIS publish
+// root's tag are candidates.  Backups tagged for another root belong to that
+// root's store, and legacy untagged backups cannot be attributed to any root
+// (a shared store root such as cursor/ would restore one into the wrong
+// subdirectory); both are left in place and never restored or removed.
+//
+// Limitations of the PID liveness check: a PID is meaningful only inside its
+// own PID namespace.  A store root shared across containers or across WSL /
+// Windows interop can therefore misjudge liveness (a live foreign builder
+// looks dead, or a dead one looks alive).  PID reuse errs safe: a reused PID
+// makes a dead entry look alive, so it stays an orphan and is never deleted.
 function reconcileScratch(storeRoot, publishRoot) {
   const tag = rootTag(publishRoot);
   const candidates = [];
@@ -375,7 +384,7 @@ function reconcileScratch(storeRoot, publishRoot) {
     if (!Number.isSafeInteger(pid) || pid <= 0 || processIsAlive(pid)) continue;
     if (stage) {
       fs.rmSync(path.join(storeRoot, entry.name), { recursive: true, force: true });
-    } else if (!backup[2] || backup[2] === tag) {
+    } else if (backup[2] === tag) {
       candidates.push(entry.name);
     }
   }

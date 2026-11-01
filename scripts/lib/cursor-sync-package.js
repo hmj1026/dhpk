@@ -198,7 +198,6 @@ function preflightOwnership({ inventory, outDir, names }) {
     if (stat.isSymbolicLink() || !stat.isDirectory()) {
       throw new Error('OWNERSHIP_REFUSED: cursor/' + name + ' is not a physical directory');
     }
-    if (fs.readdirSync(existing).length === 0) continue;
     const verdict = cursorSyncOwnership(inventory, name).verify(existing);
     if (!verdict.ok) throw new Error('OWNERSHIP_REFUSED: ' + verdict.message);
   }
@@ -335,15 +334,28 @@ function materializeCursorSyncTree({ inventory, root, outDir }) {
   fs.mkdirSync(resolvedOut, { recursive: true });
   // One store session per owned subdirectory; cursor/AGENTS.md and
   // cursor/guidance.md are siblings of the publish roots and never touched.
-  for (const group of groups) {
-    const store = new ProjectionArtifactStore({
-      root: resolvedOut,
-      sourceRoot: resolvedRoot,
-      publishRoot: group.publishRoot,
-      ownership: group.ownership,
-    });
-    const artifact = materializeDistribution(group.plan, group.adapter, store);
-    if (!artifact.ok) throw new Error('cursor-sync ' + group.name + ' projection failed: ' + artifact.error.message);
+  // Phase 1 renders, writes, stages and validates every group without
+  // activating; phase 2 activates them in sequence.  Any phase-1 failure aborts
+  // every open session, so no subdirectory changes.  Remaining risk: an I/O
+  // error during the phase-2 rename sequence can leave earlier groups replaced.
+  const sessions = [];
+  try {
+    for (const group of groups) {
+      const store = new ProjectionArtifactStore({
+        root: resolvedOut,
+        sourceRoot: resolvedRoot,
+        publishRoot: group.publishRoot,
+        ownership: group.ownership,
+      });
+      const artifact = materializeDistribution(group.plan, group.adapter, store, {
+        activate: false,
+        activationGate: ({ session }) => { sessions.push(session); return { ok: true }; },
+      });
+      if (!artifact.ok) throw new Error('cursor-sync ' + group.name + ' projection failed: ' + artifact.error.message);
+    }
+    for (const session of sessions) session.activate();
+  } finally {
+    for (const session of sessions) session.abort();
   }
   const byName = Object.fromEntries(groups.map((group) => [group.name, group.report]));
   const selectedSkills = selectCursorSyncSkills(inventory);

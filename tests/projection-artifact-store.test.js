@@ -477,8 +477,7 @@ test('begin removes stage and backup directories of dead processes and keeps liv
     const first = store.begin(plan([{ stableId: 'one', destination: 'one' }]));
     const remaining = fs.readdirSync(root).sort();
     assert.strictEqual(remaining.includes(names.deadStage), false);
-    assert.strictEqual(remaining.includes(names.deadBackup), false);
-    for (const kept of [names.liveStage, names.liveBackup, names.legacyStage, names.unrelated]) {
+    for (const kept of [names.deadBackup, names.liveStage, names.liveBackup, names.legacyStage, names.unrelated]) {
       assert.ok(remaining.includes(kept), `${kept} must be kept`);
     }
     assert.ok(fs.existsSync(first.stageRoot), 'current session stage survives');
@@ -629,9 +628,11 @@ test('begin refuses to guess when several dead backups could restore the missing
   const root = tempRoot();
   try {
     const dead = deadPid();
+    const tag = require('node:crypto').createHash('sha256').update(path.resolve(root, 'published')).digest('hex').slice(0, 8);
     for (const stamp of ['1700000000000', '1700000000001']) {
-      fs.mkdirSync(path.join(root, `.projection-backup-${dead}-${stamp}`));
-      fs.writeFileSync(path.join(root, `.projection-backup-${dead}-${stamp}`, 'one'), stamp);
+      const name = `.projection-backup-${dead}-${stamp}-${tag}`;
+      fs.mkdirSync(path.join(root, name));
+      fs.writeFileSync(path.join(root, name, 'one'), stamp);
     }
     const store = new ProjectionArtifactStore({ root });
     let error = null;
@@ -652,6 +653,22 @@ test('a dead backup tagged for another publish root is neither restored nor remo
     assert.ok(fs.existsSync(path.join(root, other)));
     assert.strictEqual(fs.existsSync(path.join(root, 'published')), false);
     session.abort();
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('a legacy untagged dead backup is never restored and stays in place, with a shared store root', () => {
+  const root = tempRoot();
+  try {
+    const dead = deadPid();
+    const legacy = `.projection-backup-${dead}-1700000000000`;
+    fs.mkdirSync(path.join(root, legacy));
+    fs.writeFileSync(path.join(root, legacy, 'one'), 'legacy');
+    for (const publishRoot of ['agents', 'rules']) {
+      const store = new ProjectionArtifactStore({ root, publishRoot: path.join(root, publishRoot) });
+      store.begin(plan([{ stableId: 'one', destination: 'one' }])).abort();
+      assert.strictEqual(fs.existsSync(path.join(root, publishRoot)), false, publishRoot + ' must not be restored from an untagged backup');
+    }
+    assert.ok(fs.existsSync(path.join(root, legacy, 'one')), 'legacy backup left in place');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
