@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change align-agent-plugin-platform-support. Update Purpose after archive.
+Define how dhpk reaches Cursor: the portable Agent Plugin path for skills and MCP, and the optional native Cursor Plugin with rules, agents, commands, and hooks adapted to Cursor's schema, including fixed rule activation, versioned hooks, shared-skill ownership, provenance, and separate evidence classes for discovery and runtime.
 
 ## Requirements
 
@@ -181,3 +181,47 @@ or Cursor native execution is available.
   unavailable
 - **THEN** the report names the missing evidence and applies only the permitted
   fallback policy
+
+### Requirement: Cursor rule activation follows a fixed map
+
+The Cursor native and Cursor sync rule projections SHALL take each rule's `alwaysApply` value and `description` from a fixed map, keyed by canonical rule path. They SHALL NOT derive these from the rule's first heading.
+
+The map SHALL classify the execution-policy kernel as `alwaysApply: true`, and each other mapped rule as `alwaysApply: false` with a description that states when to request it.
+
+For every rule present in both the Cursor map and the AGY rule trigger map, the two maps SHALL agree:
+- AGY `always_on` SHALL correspond to Cursor `alwaysApply: true`.
+- AGY `model_decision` SHALL correspond to Cursor `alwaysApply: false`.
+- Both maps SHALL use the same description text.
+
+A canonical rule that is absent from the map SHALL fail generation with its path.
+
+#### Scenario: Kernel rule is always applied
+
+- **WHEN** the Cursor projection is generated
+- **THEN** the projected execution-policy kernel rule declares
+  `alwaysApply: true` and the fixed kernel description
+
+#### Scenario: Conditional rule carries a request description
+
+- **WHEN** the Cursor projection is generated
+- **THEN** the projected full execution policy declares `alwaysApply: false`
+  and the same description as its AGY `model_decision` entry
+
+#### Scenario: Unmapped rule fails generation
+
+- **WHEN** a canonical rule selected for Cursor has no map entry
+- **THEN** generation fails and names the rule path
+
+### Requirement: Cursor hooks manifest declares its schema version
+
+Every generated Cursor `hooks/hooks.json` SHALL declare a top-level `"version": 1` next to its `hooks` object, including when `hooks` is empty. The package verifier SHALL reject a hooks manifest without a positive-integer `version`.
+
+#### Scenario: Empty hooks manifest is versioned
+
+- **WHEN** the Cursor native package is generated with no selected hooks
+- **THEN** `hooks/hooks.json` is `{"version": 1, "hooks": {}}`
+
+#### Scenario: Unversioned hooks manifest is rejected
+
+- **WHEN** a Cursor package contains `hooks/hooks.json` without `version`
+- **THEN** package verification fails and names the file
