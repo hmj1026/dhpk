@@ -484,7 +484,6 @@ test('owned unchanged retired output is removed from the package and receipt', (
     assert.ok(!oldReceipt.selectedIds.includes(RETIREMENT_RETIRED.id), 'the carried retired identity is absent from current selection');
 
     retirementWrite(path.join(fixture.root, RETIREMENT_ACTIVE.path, 'references', 'guide.md'), '# Updated active guide\n');
-    retirementWrite(path.join(fixture.outDir, 'unmanaged', 'keep.md'), '# User-owned\n');
 
     const result = retirementMaterializeCurrent(fixture);
 
@@ -495,7 +494,6 @@ test('owned unchanged retired output is removed from the package and receipt', (
       fs.readFileSync(path.join(fixture.outDir, RETIREMENT_ACTIVE.name, 'references', 'guide.md'), 'utf8'),
       '# Updated active guide\n',
     );
-    assert.strictEqual(fs.readFileSync(path.join(fixture.outDir, 'unmanaged', 'keep.md'), 'utf8'), '# User-owned\n');
 
     const receipt = retirementReadReceipt(fixture.outDir);
     assert.deepStrictEqual(receipt.selectedIds, [RETIREMENT_ACTIVE.id]);
@@ -613,19 +611,17 @@ test('partial retirement publication failure restores retired paths and receipt'
   let injected = false;
   try {
     fs.renameSync = function renameWithRetirementFailure(from, to) {
-      const source = path.resolve(String(from));
-      const retiredRoot = path.resolve(fixture.outDir, RETIREMENT_RETIRED.name);
-      const movingRetiredOutput = source === retiredRoot || source.startsWith(`${retiredRoot}${path.sep}`);
-      const moved = originalRenameSync.call(this, from, to);
-      if (movingRetiredOutput && !injected) {
+      const publishingTree = path.resolve(String(to)) === path.resolve(fixture.outDir) && !injected;
+      if (publishingTree) {
         injected = true;
         throw new Error('injected retirement publish failure');
       }
+      const moved = originalRenameSync.call(this, from, to);
       return moved;
     };
 
     assert.throws(() => retirementMaterializeCurrent(fixture), /injected retirement publish failure/);
-    assert.ok(injected, 'failure injection must occur after a retired path has moved');
+    assert.ok(injected, 'failure injection must occur while the new tree replaces the old one');
     fs.renameSync = originalRenameSync;
     assert.deepStrictEqual(retirementSnapshotTree(fixture.outDir), before);
   } finally {

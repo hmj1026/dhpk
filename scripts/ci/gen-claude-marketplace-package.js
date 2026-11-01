@@ -7,13 +7,15 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
+const { createDistributionPlan } = require('../lib/distribution-projection-contract');
+const { ProjectionArtifactStore } = require('../lib/projection-artifact-store');
 const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
 const { compileMarketplaceSkillContent } = require('../lib/marketplace-skill-content');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DEFAULT_OUTPUT = path.join(ROOT, 'generated', 'claude-marketplace', 'package');
+const PROVENANCE_SCHEMA = 'dhpk.claude-marketplace-catalog.v1';
 const PACKAGE_PATHS = [
   '.claude-plugin/plugin.json',
   '.claude-plugin/icon.png',
@@ -71,36 +73,73 @@ function validateTransientTree(source, root) {
   }
 }
 
-function copyPhysicalEntry(source, destination, root) {
+// Collect package files in memory as { destination, content, mode }.  Later
+// writers win, which keeps the compiled skill tree authoritative over a plain
+// copy of the same path.
+function addFile(files, destination, content, executable) {
+  files.set(destination, { destination, content, mode: executable ? 0o755 : 0o644 });
+}
+
+function collectPhysicalEntry(source, destination, root, files) {
   const relative = path.relative(root, source).split(path.sep).join('/');
   if (['docs/design', 'docs/evidence', 'docs/knowledge'].some((local) =>
-    relative === local || relative.startsWith(`${local}/`))) return false;
+    relative === local || relative.startsWith(`${local}/`))) return;
   const stat = fs.lstatSync(source);
   if (stat.isSymbolicLink()) {
     const resolved = fs.realpathSync(source);
     if (!isInside(root, resolved)) throw new Error(`canonical Claude package symlink escapes the source root: ${source}`);
-    return copyPhysicalEntry(resolved, destination, root);
+    collectPhysicalEntry(resolved, destination, root, files);
+    return;
   }
   if (isTransientEntry(path.basename(source), stat)) {
     if (stat.isDirectory()) validateTransientTree(source, root);
-    return false;
+    return;
   }
   if (stat.isDirectory()) {
-    const copied = fs.readdirSync(source).map((entry) =>
-      copyPhysicalEntry(path.join(source, entry), path.join(destination, entry), root));
-    if (PACKAGE_PATHS.includes(relative) || copied.length === 0 || copied.some(Boolean)) {
-      fs.mkdirSync(destination, { recursive: true });
-      return true;
+    for (const entry of fs.readdirSync(source)) {
+      collectPhysicalEntry(path.join(source, entry), `${destination}/${entry}`, root, files);
     }
-    return false;
+    return;
   }
   if (!stat.isFile()) throw new Error(`canonical Claude package source is not a regular file: ${source}`);
-  fs.mkdirSync(path.dirname(destination), { recursive: true });
-  fs.copyFileSync(source, destination);
-  return true;
+  addFile(files, destination, fs.readFileSync(source), (stat.mode & 0o111) !== 0);
 }
 
-function copyCanonicalTree(root, output) {
+function relocateText(files, content) {
+  const relocations = content.files
+    .filter((file) => file.kind !== 'dependency' && file.sourcePath.endsWith('/SKILL.md'))
+    .map((file) => ({ source: file.sourcePath.slice(0, -9), destination: file.path.slice(0, -9) }))
+    .filter((entry) => entry.source !== entry.destination)
+    .sort((left, right) => right.source.length - left.source.length);
+  const roots = ['commands', 'docs', 'agents', 'rules', 'templates'];
+  for (const [destination, file] of files) {
+    if (!destination.endsWith('.md') || !roots.some((root) => destination.startsWith(`${root}/`))) continue;
+    const original = file.content.toString('utf8');
+    const rewritten = relocations.reduce((body, relocation) => {
+      const escaped = relocation.source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return body.replace(new RegExp(`${escaped}(?=/)`, 'g'), relocation.destination);
+    }, original);
+    if (rewritten !== original) files.set(destination, { ...file, content: Buffer.from(rewritten) });
+  }
+}
+
+function provenanceDocument(publicationView, content) {
+  return `${JSON.stringify({
+    schema: PROVENANCE_SCHEMA,
+    selectionDigest: publicationView.selectionDigest,
+    publicEntryIds: publicationView.publicEntries.map((entry) => entry.id),
+    hostOnlyIds: publicationView.hostOnly.map((entry) => entry.id),
+    files: content.files.map((file) => ({
+      skillId: file.skillId, ownerId: file.ownerId, sourcePath: file.sourcePath,
+      destination: file.path, kind: file.kind,
+      sha256: crypto.createHash('sha256').update(file.bytes).digest('hex'),
+    })),
+  }, null, 2)}\n`;
+}
+
+// Compile the package into planned outputs: every rewrite is applied before
+// the output is handed to the store, and provenance.json is a planned output.
+function planCanonicalTree(root) {
   const sourceRoot = fs.realpathSync(root);
   const inventoryPath = path.join(sourceRoot, 'manifests/distribution-inventory.json');
   const inventory = fs.existsSync(inventoryPath) ? JSON.parse(fs.readFileSync(inventoryPath, 'utf8')) : null;
@@ -120,53 +159,65 @@ function copyCanonicalTree(root, output) {
   const content = publicationView
     ? compileMarketplaceSkillContent({ root: sourceRoot, inventory, publicationView, retainedHostResourcePaths }) : null;
   if (content && !content.ok) throw new Error(content.errors.join('; '));
-  fs.mkdirSync(output, { recursive: true });
+  const files = new Map();
   for (const relative of PACKAGE_PATHS) {
     const source = path.join(sourceRoot, relative);
     if (!fs.existsSync(source)) throw new Error(`canonical Claude package source is missing: ${relative}`);
     if (relative === 'skills' && content) {
-      for (const file of content.files) {
-        const destination = path.join(output, file.path);
-        fs.mkdirSync(path.dirname(destination), { recursive: true });
-        fs.writeFileSync(destination, file.bytes, { mode: file.mode & 0o111 ? 0o755 : 0o644 });
-      }
-    } else copyPhysicalEntry(source, path.join(output, relative), sourceRoot);
+      for (const file of content.files) addFile(files, file.path, Buffer.from(file.bytes), (file.mode & 0o111) !== 0);
+    } else collectPhysicalEntry(source, relative, sourceRoot, files);
   }
   if (content) {
-    const relocations = content.files
-      .filter((file) => file.kind !== 'dependency' && file.sourcePath.endsWith('/SKILL.md'))
-      .map((file) => ({ source: file.sourcePath.slice(0, -9), destination: file.path.slice(0, -9) }))
-      .filter((entry) => entry.source !== entry.destination)
-      .sort((left, right) => right.source.length - left.source.length);
-    const relocateDocuments = (directory) => {
-      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-        const absolute = path.join(directory, entry.name);
-        if (entry.isDirectory()) relocateDocuments(absolute);
-        else if (entry.isFile() && entry.name.endsWith('.md')) {
-          const original = fs.readFileSync(absolute, 'utf8');
-          const rewritten = relocations.reduce((body, relocation) => {
-            const escaped = relocation.source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            return body.replace(new RegExp(`${escaped}(?=/)`, 'g'), relocation.destination);
-          }, original);
-          if (rewritten !== original) fs.writeFileSync(absolute, rewritten);
-        }
-      }
-    };
-    for (const relative of ['commands', 'docs', 'agents', 'rules', 'templates']) {
-      relocateDocuments(path.join(output, relative));
-    }
+    relocateText(files, content);
+    addFile(files, 'provenance.json', Buffer.from(provenanceDocument(publicationView, content)), false);
   }
-  if (content) fs.writeFileSync(path.join(output, 'provenance.json'), `${JSON.stringify({
-    schema: 'dhpk.claude-marketplace-catalog.v1',
-    selectionDigest: publicationView.selectionDigest,
-    publicEntryIds: publicationView.publicEntries.map((entry) => entry.id),
-    hostOnlyIds: publicationView.hostOnly.map((entry) => entry.id),
-    files: content.files.map((file) => ({
-      skillId: file.skillId, ownerId: file.ownerId, sourcePath: file.sourcePath,
-      destination: file.path, kind: file.kind,
-      sha256: crypto.createHash('sha256').update(file.bytes).digest('hex'),
+  const outputs = [...files.values()];
+  const planned = createDistributionPlan({
+    surface: 'claude-marketplace',
+    entries: outputs.map((output) => ({
+      stableId: output.destination, source: output.destination, destination: output.destination,
+      mode: output.mode, owner: 'claude-marketplace',
     })),
-  }, null, 2)}\n`);
+  });
+  if (!planned.ok) throw new Error(planned.error.message);
+  return { plan: planned.value, outputs };
+}
+
+// Ownership proof for replacing an existing package: the generated
+// provenance.json schema.  A package built without an inventory has no
+// receipt, so its plugin manifest is the only marker it carries.
+function verifyPackageOwnership(existingRoot) {
+  const receipt = path.join(existingRoot, 'provenance.json');
+  if (fs.existsSync(receipt)) {
+    let recorded = null;
+    try { recorded = JSON.parse(fs.readFileSync(receipt, 'utf8')); } catch { /* reported below */ }
+    return recorded && recorded.schema === PROVENANCE_SCHEMA
+      ? { ok: true }
+      : { ok: false, code: 'FOREIGN_OWNER', message: 'existing provenance.json is not a Claude marketplace package receipt' };
+  }
+  let manifest = null;
+  try { manifest = JSON.parse(fs.readFileSync(path.join(existingRoot, '.claude-plugin', 'plugin.json'), 'utf8')); } catch { /* reported below */ }
+  return manifest && manifest.name === 'dhpk'
+    ? { ok: true }
+    : { ok: false, code: 'NO_OWNER_RECEIPT', message: 'existing tree is not a generated Claude marketplace package' };
+}
+
+function publishPackage({ root, storeRoot, publishRoot }) {
+  const { plan, outputs } = planCanonicalTree(root);
+  const store = new ProjectionArtifactStore({
+    root: storeRoot, sourceRoot: fs.realpathSync(root), publishRoot,
+    ownership: { verify: verifyPackageOwnership },
+  });
+  const session = store.begin(plan);
+  try {
+    for (const output of outputs) {
+      session.write({ stableId: output.destination, destination: output.destination, content: output.content, mode: output.mode });
+    }
+    return session.publish();
+  } catch (error) {
+    session.abort();
+    throw error;
+  }
 }
 
 function assertSafeOutput(root, output) {
@@ -198,8 +249,9 @@ function fingerprint(directory) {
       const childRelative = path.posix.join(relative, entry.name);
       if (entry.isDirectory()) {
         const content = walk(child, childRelative);
-        return PACKAGE_PATHS.includes(childRelative) || content.retained
-          ? [`D:${childRelative}\n`, ...content.records] : [];
+        // The store publishes files only, so a package root is recorded when it
+        // holds content; a genuinely empty directory is still an extra.
+        return content.retained ? [`D:${childRelative}\n`, ...content.records] : [];
       } else if (entry.isFile()) {
         return [`F:${childRelative}:${crypto.createHash('sha256').update(fs.readFileSync(child)).digest('hex')}\n`];
       } else {
@@ -233,17 +285,9 @@ function materialize({ root = ROOT, out = DEFAULT_OUTPUT } = {}) {
   assertSafeOutput(root, output);
   const parent = path.dirname(output);
   fs.mkdirSync(parent, { recursive: true });
-  const temporary = temporaryPackage(parent);
-  try {
-    copyCanonicalTree(root, temporary);
-    assertPhysicalPackage(temporary);
-    if (fs.existsSync(output)) fs.rmSync(output, { recursive: true, force: true });
-    fs.renameSync(temporary, output);
-    return { output, fingerprint: fingerprint(output) };
-  } catch (error) {
-    fs.rmSync(temporary, { recursive: true, force: true });
-    throw error;
-  }
+  publishPackage({ root, storeRoot: parent, publishRoot: output });
+  assertPhysicalPackage(output);
+  return { output, fingerprint: fingerprint(output) };
 }
 
 function check({ root = ROOT, out = DEFAULT_OUTPUT } = {}) {
@@ -252,10 +296,11 @@ function check({ root = ROOT, out = DEFAULT_OUTPUT } = {}) {
   const parent = fs.realpathSync(path.dirname(output));
   const temporary = temporaryPackage(parent);
   try {
-    copyCanonicalTree(root, temporary);
-    assertPhysicalPackage(temporary);
+    const expectedRoot = path.join(temporary, 'package');
+    publishPackage({ root, storeRoot: temporary, publishRoot: expectedRoot });
+    assertPhysicalPackage(expectedRoot);
     assertPhysicalPackage(output);
-    const expected = fingerprint(temporary);
+    const expected = fingerprint(expectedRoot);
     const actual = fingerprint(output);
     return expected === actual
       ? { ok: true, output, fingerprint: actual }

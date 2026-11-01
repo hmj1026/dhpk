@@ -1257,8 +1257,15 @@ const { test, run, assert } = require('./_lib/tinytest');
     try {
       write(root, 'skills/repo-check-old/SKILL.md', '---\nname: repo-check-old\ndescription: "Old check."\n---\nOld body.\n');
       materializeAgentsSkillsProjection({ root, inventory: oldInventory, outDir });
-      write(outDir, 'repo-check-old/foreign.txt', 'foreign skill content.\n');
       write(root, 'skills/repo-check-new/SKILL.md', '---\nname: repo-check-new\ndescription: "New check."\n---\nNew body.\n');
+
+      // Unmanaged content inside the tree blocks the whole-tree replace (REQ-9) and leaves it unchanged.
+      write(outDir, 'repo-check-old/foreign.txt', 'foreign skill content.\n');
+      const receiptBefore = fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8');
+      assert.throws(() => materializeAgentsSkillsProjection({ root, inventory: newInventory, outDir }), /OWNERSHIP_REFUSED/);
+      assert.strictEqual(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'), receiptBefore);
+      assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old', 'SKILL.md')), true);
+      fs.rmSync(path.join(outDir, 'repo-check-old', 'foreign.txt'));
 
       materializeAgentsSkillsProjection({ root, inventory: newInventory, outDir });
 
@@ -1266,7 +1273,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       assert.deepStrictEqual(receipt.entries.map((entry) => ({ id: entry.id, name: entry.name })), [{ id: 'rename-check', name: 'repo-check-new' }]);
       assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old', 'SKILL.md')), false);
       assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old.md')), false);
-      assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old', 'foreign.txt')), true);
+      assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-old')), false);
       assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-new', 'SKILL.md')), true);
       assert.strictEqual(fs.existsSync(path.join(outDir, 'repo-check-new.md')), true);
       const validation = validateAgentsSkillsProjection({ root, inventory: newInventory, outDir });

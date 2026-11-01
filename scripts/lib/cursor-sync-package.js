@@ -15,6 +15,9 @@ const {
   rewriteCursorSupportingAssetBody,
 } = require('./cursor-harness-adapt');
 const { readDirectoryEntries } = require('./bounded-filesystem');
+const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
+const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { sha256Hex } = require('./content-fingerprint');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -22,6 +25,9 @@ const {
 } = require('./distribution-projection-contract');
 
 const GENERATOR_VERSION = '1.0.0';
+const SURFACE = 'cursor-sync';
+const OWNED_SUBDIRECTORIES = Object.freeze(['skills', 'agents', 'rules', 'commands', 'dhpk']);
+const NATIVE_SUBDIRECTORIES = Object.freeze(['agents', 'rules', 'commands', 'dhpk']);
 const INDEX_NAMES = /^(?:INDEX|README)\./i;
 const CANONICAL_SOURCE_TREES = Object.freeze([
   'skills', 'rules', 'agents', 'commands', 'hooks', 'modules', 'scripts', 'docs', 'manifests',
@@ -68,13 +74,6 @@ function assertProjectionDestination(root, outDir) {
   }
 }
 
-function ensureCleanDirectory(outDir, name) {
-  const directory = confinedChild(outDir, name);
-  if (fs.existsSync(directory)) fs.rmSync(directory, { recursive: true, force: true });
-  fs.mkdirSync(directory, { recursive: true });
-  return directory;
-}
-
 function hasDeclaredCursorSyncMembership(inventory) {
   const membership = inventory && inventory.surface_membership;
   return Boolean(membership && Object.prototype.hasOwnProperty.call(membership, 'cursor-sync'));
@@ -94,8 +93,8 @@ function dhpkSupportingAssets(inventory) {
   });
 }
 
-function generateCursorSkillSymlinks({ inventory, root, outDir }) {
-  const skillsDir = ensureCleanDirectory(outDir, 'skills');
+function skillGroup({ inventory, root, outDir }) {
+  const skillsDir = path.join(outDir, 'skills');
   const links = [];
   for (const skill of selectCursorSyncSkills(inventory)) {
     const publicName = skill.name || skill.id;
@@ -103,17 +102,20 @@ function generateCursorSkillSymlinks({ inventory, root, outDir }) {
     if (!fs.existsSync(path.join(sourceDir, 'SKILL.md'))) {
       throw new Error('cursor-sync skill is missing SKILL.md: ' + skill.path);
     }
-    const destination = path.join(skillsDir, publicName);
-    const target = relativePosix(skillsDir, sourceDir);
-    fs.symlinkSync(target, destination);
-    links.push({ id: skill.id, name: publicName, target });
+    confinedChild(skillsDir, publicName);
+    links.push({
+      id: skill.id,
+      name: publicName,
+      destination: publicName,
+      source: skill.path,
+      target: relativePosix(skillsDir, sourceDir),
+    });
   }
-  return links;
+  return { name: 'skills', files: [], links, report: { links } };
 }
 
-function generateCursorDocuments({ root, outDir, kind }) {
+function documentGroup({ root, kind }) {
   const sourceDir = path.join(root, kind);
-  const destinationDir = ensureCleanDirectory(outDir, kind);
   const files = [];
   const transformations = [];
   for (const source of listComponentFiles(sourceDir, COMPONENT_EXTENSIONS[kind])) {
@@ -124,27 +126,27 @@ function generateCursorDocuments({ root, outDir, kind }) {
       continue;
     }
     const destName = cursorDocumentDestinationName(kind, basename);
-    const destination = path.join(destinationDir, destName);
-    fs.writeFileSync(destination, adapted.content);
-    files.push(relativePosix(outDir, destination));
+    files.push({ destination: destName, source: kind + '/' + basename, content: adapted.content });
     transformations.push({ source: basename, destination: kind + '/' + destName, transform: adapted.transform });
   }
-  return { files, transformations };
+  return {
+    name: kind,
+    files,
+    links: [],
+    report: { files: files.map((file) => kind + '/' + file.destination), transformations },
+  };
 }
 
-function generateCursorSupportingAssets({ inventory, root, outDir }) {
-  const destRoot = ensureCleanDirectory(outDir, 'dhpk');
+function supportingAssetGroup({ inventory, root }) {
   const files = [];
   for (const asset of dhpkSupportingAssets(inventory)) {
     const source = path.resolve(root, ...String(asset.source).split('/'));
-    const destination = path.resolve(outDir, ...String(asset.destination).split('/'));
     if (!fs.existsSync(source)) {
       throw new Error('cursor-sync supporting asset source is missing: ' + asset.source);
     }
-    if (!isInside(destRoot, destination) && destination !== destRoot) {
+    if (String(asset.destination) === 'dhpk' || !String(asset.destination).startsWith('dhpk/')) {
       throw new Error('cursor-sync supporting asset destination escapes dhpk/: ' + asset.destination);
     }
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
     const buffer = fs.readFileSync(source);
     let output = buffer;
     if (!buffer.includes(0)) {
@@ -152,29 +154,200 @@ function generateCursorSupportingAssets({ inventory, root, outDir }) {
       const rewritten = rewriteCursorSupportingAssetBody(text);
       if (rewritten !== text) output = Buffer.from(rewritten);
     }
-    fs.writeFileSync(destination, output);
-    files.push(relativePosix(outDir, destination));
+    files.push({ destination: String(asset.destination).slice('dhpk/'.length), source: String(asset.source), content: output });
   }
-  return files;
+  return { name: 'dhpk', files, links: [], report: { files: files.map((file) => 'dhpk/' + file.destination) } };
 }
 
-function materializeCursorSyncTree({ inventory, root, outDir }) {
+// A subdirectory is owned only when the inventory declares it as a cursor-sync
+// output destination: `cursor/skills/` for the skill mirrors, and either its own
+// `cursor/<sub>/` or the `cursor/` overlay for the native components.
+function declaredSubdirectories(inventory) {
+  const matrix = inventory && inventory.platform_matrix;
+  const entries = matrix && Array.isArray(matrix.entries) ? matrix.entries : [];
+  const declared = new Set();
+  for (const entry of entries) {
+    if (!entry || entry.surface !== SURFACE || typeof entry.destination !== 'string') continue;
+    const destination = entry.destination.replace(/\/+$/, '');
+    if (destination === 'cursor') NATIVE_SUBDIRECTORIES.forEach((name) => declared.add(name));
+    else if (destination.startsWith('cursor/') && OWNED_SUBDIRECTORIES.includes(destination.slice('cursor/'.length))) {
+      declared.add(destination.slice('cursor/'.length));
+    }
+  }
+  return declared;
+}
+
+function cursorSyncOwnership(inventory, name) {
+  return {
+    verify: () => (declaredSubdirectories(inventory).has(name)
+      ? { ok: true }
+      : { ok: false, code: 'UNDECLARED_DESTINATION', message: 'cursor/' + name + ' is not a declared cursor-sync output destination' }),
+  };
+}
+
+// Same gate the store applies at activation, run for every subdirectory before
+// the first one is replaced, so a refusal cannot leave a partial update behind.
+function preflightOwnership({ inventory, outDir, names }) {
+  for (const name of names) {
+    const existing = path.join(outDir, name);
+    let stat;
+    try { stat = fs.lstatSync(existing); } catch (error) {
+      if (error.code === 'ENOENT') continue;
+      throw error;
+    }
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      throw new Error('OWNERSHIP_REFUSED: cursor/' + name + ' is not a physical directory');
+    }
+    if (fs.readdirSync(existing).length === 0) continue;
+    const verdict = cursorSyncOwnership(inventory, name).verify(existing);
+    if (!verdict.ok) throw new Error('OWNERSHIP_REFUSED: ' + verdict.message);
+  }
+}
+
+function validateDocumentFile(kind, name, full, errors) {
+  if (kind === 'rules' && !name.endsWith('.mdc')) {
+    errors.push('cursor/rules/' + name + ' must use the .mdc extension');
+  }
+  const content = fs.readFileSync(full, 'utf8');
+  if (retainsClaudePluginRoot(content)) {
+    errors.push('cursor/' + kind + '/' + name + ' retains Claude plugin-root interpolation');
+  }
+  if (retainsCodexSupportRoot(content)) {
+    errors.push('cursor/' + kind + '/' + name + ' retains Codex support-root paths');
+  }
+  const parsed = parseFrontmatter(content);
+  if (!parsed.present || !parsed.fields.name || !parsed.fields.description) {
+    errors.push('cursor/' + kind + '/' + name + ' is missing Cursor frontmatter');
+  }
+  if (kind === 'rules' && parsed.fields.alwaysApply !== true && !['true', 'false'].includes(String(parsed.fields.alwaysApply).toLowerCase())) {
+    errors.push('cursor/rules/' + name + ' must declare boolean alwaysApply');
+  }
+}
+
+function validateGroupStage(group, stageRoot) {
+  const errors = [];
+  if (group.name === 'skills') {
+    for (const entry of fs.readdirSync(stageRoot)) {
+      const full = path.join(stageRoot, entry);
+      if (!fs.lstatSync(full).isSymbolicLink()) errors.push('cursor/skills/' + entry + ' must be a relative symlink');
+      else if (path.isAbsolute(fs.readlinkSync(full))) errors.push('cursor/skills/' + entry + ' target is absolute');
+    }
+  } else if (group.name === 'dhpk') {
+    for (const file of group.files) {
+      const content = fs.readFileSync(path.join(stageRoot, ...file.destination.split('/')), 'utf8');
+      if (retainsClaudePluginRoot(content)) errors.push('cursor/dhpk/' + file.destination + ' retains Claude plugin-root interpolation');
+      if (retainsCodexSupportRoot(content)) errors.push('cursor/dhpk/' + file.destination + ' retains Codex support-root paths');
+    }
+  } else {
+    for (const name of fs.readdirSync(stageRoot)) {
+      validateDocumentFile(group.name, name, path.join(stageRoot, name), errors);
+    }
+  }
+  if (errors.length > 0) throw new Error('generated cursor/' + group.name + ' failed validation: ' + errors.join('; '));
+}
+
+function compileGroup(group, { inventory, outDir, inventoryRevision, ownershipFingerprint }) {
+  const entries = [
+    ...group.files.map((file) => ({
+      stableId: SURFACE + ':' + group.name + '/' + file.destination,
+      source: file.source,
+      destination: file.destination,
+      owner: 'plugins/dhpk-agent',
+      transform: { id: 'cursor-sync-render', version: GENERATOR_VERSION },
+      expectedFingerprint: sha256Hex(file.content),
+      symlinkPolicy: 'forbid',
+    })),
+    ...group.links.map((link) => ({
+      stableId: SURFACE + ':' + group.name + '/' + link.destination,
+      source: link.source,
+      destination: link.destination,
+      owner: 'plugins/dhpk-agent',
+      transform: { id: 'declared-source-relative-symlink', version: GENERATOR_VERSION },
+      symlinkPolicy: 'declared-source-relative',
+      symlinkTarget: link.target,
+    })),
+  ];
+  const compiled = compileDistribution({
+    internalCharacterization: true,
+    surface: SURFACE,
+    compilerVersion: 'cursor-sync-' + GENERATOR_VERSION,
+    inventoryRevision,
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+    ownershipRoot: 'cursor/' + group.name,
+    entries,
+  });
+  if (!compiled.ok) throw new Error(compiled.error.message);
+  const adapter = {
+    identity: { id: SURFACE, version: GENERATOR_VERSION },
+    render: () => ({
+      adapter: { id: SURFACE, version: GENERATOR_VERSION },
+      outputs: group.files.map((file) => ({
+        stableId: SURFACE + ':' + group.name + '/' + file.destination,
+        destination: file.destination,
+        content: file.content,
+      })),
+      links: group.links.map((link) => ({
+        stableId: SURFACE + ':' + group.name + '/' + link.destination,
+        destination: link.destination,
+        target: link.target,
+      })),
+    }),
+    validate: (rendered, context) => {
+      if (context && context.session && context.session.stageRoot) validateGroupStage(group, context.session.stageRoot);
+      return rendered;
+    },
+  };
+  return {
+    name: group.name,
+    publishRoot: path.join(outDir, group.name),
+    plan: compiled.value,
+    adapter,
+    ownership: cursorSyncOwnership(inventory, group.name),
+    report: group.report,
+  };
+}
+
+function compileCursorSyncProjection({ inventory, root, outDir }) {
   if (!inventory || typeof inventory !== 'object') throw new Error('cursor-sync inventory is required');
   if (!root || !outDir) throw new Error('cursor-sync root and outDir are required');
   const resolvedRoot = path.resolve(root);
   const resolvedOut = path.resolve(outDir);
   assertProjectionDestination(resolvedRoot, resolvedOut);
-  fs.mkdirSync(resolvedOut, { recursive: true });
-  const skills = generateCursorSkillSymlinks({ inventory, root: resolvedRoot, outDir: resolvedOut });
-  const agents = generateCursorDocuments({ root: resolvedRoot, outDir: resolvedOut, kind: 'agents' });
-  const rules = generateCursorDocuments({ root: resolvedRoot, outDir: resolvedOut, kind: 'rules' });
-  const commands = generateCursorDocuments({ root: resolvedRoot, outDir: resolvedOut, kind: 'commands' });
-  const supporting = generateCursorSupportingAssets({ inventory, root: resolvedRoot, outDir: resolvedOut });
-  const selectedSkills = selectCursorSyncSkills(inventory);
   const inventoryRevision = resolveInventoryRevision(inventory);
   const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
     ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
     : undefined;
+  const context = { inventory, outDir: resolvedOut, inventoryRevision, ownershipFingerprint };
+  const groups = [
+    skillGroup({ inventory, root: resolvedRoot, outDir: resolvedOut }),
+    documentGroup({ root: resolvedRoot, kind: 'agents' }),
+    documentGroup({ root: resolvedRoot, kind: 'rules' }),
+    documentGroup({ root: resolvedRoot, kind: 'commands' }),
+    supportingAssetGroup({ inventory, root: resolvedRoot }),
+  ].map((group) => compileGroup(group, context));
+  return { groups, root: resolvedRoot, outDir: resolvedOut, inventoryRevision, ownershipFingerprint };
+}
+
+function materializeCursorSyncTree({ inventory, root, outDir }) {
+  const compiled = compileCursorSyncProjection({ inventory, root, outDir });
+  const { groups, outDir: resolvedOut, root: resolvedRoot } = compiled;
+  preflightOwnership({ inventory, outDir: resolvedOut, names: groups.map((group) => group.name) });
+  fs.mkdirSync(resolvedOut, { recursive: true });
+  // One store session per owned subdirectory; cursor/AGENTS.md and
+  // cursor/guidance.md are siblings of the publish roots and never touched.
+  for (const group of groups) {
+    const store = new ProjectionArtifactStore({
+      root: resolvedOut,
+      sourceRoot: resolvedRoot,
+      publishRoot: group.publishRoot,
+      ownership: group.ownership,
+    });
+    const artifact = materializeDistribution(group.plan, group.adapter, store);
+    if (!artifact.ok) throw new Error('cursor-sync ' + group.name + ' projection failed: ' + artifact.error.message);
+  }
+  const byName = Object.fromEntries(groups.map((group) => [group.name, group.report]));
+  const selectedSkills = selectCursorSyncSkills(inventory);
+  const { inventoryRevision, ownershipFingerprint } = compiled;
   const usageEntries = selectedSkills.filter((skill) => skill && skill.usage).map((skill) => {
     const metadata = skillProjectionMetadata(skill, {
       owner: 'plugins/dhpk-agent',
@@ -191,18 +364,22 @@ function materializeCursorSyncTree({ inventory, root, outDir }) {
   });
   return {
     generatorVersion: GENERATOR_VERSION,
-    skills,
-    agents: agents.files,
-    rules: rules.files,
-    commands: commands.files,
-    supporting,
+    skills: byName.skills.links.map((link) => ({ id: link.id, name: link.name, target: link.target })),
+    agents: byName.agents.files,
+    rules: byName.rules.files,
+    commands: byName.commands.files,
+    supporting: byName.dhpk.files,
     inventoryRevision,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     usageSchema: 'dhpk.skill-usage.v1',
     usage: Object.fromEntries(usageEntries.map((entry) => [entry.id, entry.usage])),
     usageFingerprints: Object.fromEntries(usageEntries.map((entry) => [entry.id, entry.usageFingerprint])),
     provenance: Object.fromEntries(usageEntries.map((entry) => [entry.id, entry.provenance])),
-    transformations: [...agents.transformations, ...rules.transformations, ...commands.transformations],
+    transformations: [
+      ...byName.agents.transformations,
+      ...byName.rules.transformations,
+      ...byName.commands.transformations,
+    ],
   };
 }
 
@@ -246,23 +423,7 @@ function validateCursorSyncTree({ root, outDir, inventory }) {
     for (const name of fs.readdirSync(directory)) {
       const full = path.join(directory, name);
       if (!fs.statSync(full).isFile()) continue;
-      if (kind === 'rules' && !name.endsWith('.mdc')) {
-        errors.push('cursor/rules/' + name + ' must use the .mdc extension');
-      }
-      const content = fs.readFileSync(full, 'utf8');
-      if (retainsClaudePluginRoot(content)) {
-        errors.push('cursor/' + kind + '/' + name + ' retains Claude plugin-root interpolation');
-      }
-      if (retainsCodexSupportRoot(content)) {
-        errors.push('cursor/' + kind + '/' + name + ' retains Codex support-root paths');
-      }
-      const parsed = parseFrontmatter(content);
-      if (!parsed.present || !parsed.fields.name || !parsed.fields.description) {
-        errors.push('cursor/' + kind + '/' + name + ' is missing Cursor frontmatter');
-      }
-      if (kind === 'rules' && parsed.fields.alwaysApply !== true && !['true', 'false'].includes(String(parsed.fields.alwaysApply).toLowerCase())) {
-        errors.push('cursor/rules/' + name + ' must declare boolean alwaysApply');
-      }
+      validateDocumentFile(kind, name, full, errors);
     }
   }
   for (const asset of dhpkSupportingAssets(inventory)) {
@@ -288,6 +449,7 @@ function validateCursorSyncTree({ root, outDir, inventory }) {
 module.exports = {
   GENERATOR_VERSION,
   selectCursorSyncSkills,
+  compileCursorSyncProjection,
   materializeCursorSyncTree,
   validateCursorSyncTree,
 };

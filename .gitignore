@@ -1,8 +1,6 @@
 # dhpk runtime, receipts & transient transaction stages
 .dhpk/
 .dhpk-projection-*
-.agents-skills-*
-.dhpk-agents-skills-*
 
 # Host runtime artifacts (Claude Code)
 .claude/artifacts/
@@ -24,6 +22,7 @@
 # Keep the repo-scoped marketplace descriptor under .agents/plugins/ tracked.
 .agents/skills/
 .agents/.dhpk-*
+.agents/.projection-*
 .agent/
 .antigravity/
 .antigravitycli/

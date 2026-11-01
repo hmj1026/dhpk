@@ -6,6 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
+  compileCursorSyncProjection,
   materializeCursorSyncTree,
   validateCursorSyncTree,
 } = require('../scripts/lib/cursor-sync-package');
@@ -601,6 +602,144 @@ test('cursor-sync generation fails naming an unmapped rule path', () => {
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+// ---- Projection Artifact Store ownership (complete-projection-store-ownership 4.1/4.2) ----
+
+function declaredInventory() {
+  return {
+    ...fixtureInventory(),
+    platform_matrix: {
+      entries: [
+        { id: 'dhpk.platform.cursor-sync.skills', surface: 'cursor-sync', destination: 'cursor/skills/' },
+        { id: 'dhpk.platform.cursor-sync.native', surface: 'cursor-sync', destination: 'cursor/' },
+      ],
+    },
+  };
+}
+
+function seedTrackedCursorFiles(out) {
+  fs.mkdirSync(out, { recursive: true });
+  fs.symlinkSync('../AGENTS.md', path.join(out, 'AGENTS.md'));
+  fs.writeFileSync(path.join(out, 'guidance.md'), '# tracked guidance\n');
+}
+
+function snapshotTree(dir) {
+  const rows = [];
+  const walk = (current) => {
+    for (const name of fs.readdirSync(current).sort()) {
+      const full = path.join(current, name);
+      const stat = fs.lstatSync(full);
+      const rel = path.relative(dir, full);
+      if (stat.isSymbolicLink()) rows.push(`l ${rel} ${fs.readlinkSync(full)}`);
+      else if (stat.isDirectory()) { rows.push(`d ${rel}`); walk(full); }
+      else rows.push(`f ${rel} ${stat.mode & 0o7777} ${fs.readFileSync(full).toString('base64')}`);
+    }
+  };
+  walk(dir);
+  return rows;
+}
+
+test('cursor-sync compile yields one store plan per owned subdirectory with declared-source-relative links', () => {
+  const root = makeFixture();
+  const out = path.join(root, 'cursor');
+  try {
+    const compiled = compileCursorSyncProjection({ inventory: declaredInventory(), root, outDir: out });
+    assert.deepStrictEqual(compiled.groups.map((group) => group.name), ['skills', 'agents', 'rules', 'commands', 'dhpk']);
+    const skills = compiled.groups[0];
+    assert.strictEqual(skills.publishRoot, path.join(out, 'skills'));
+    assert.strictEqual(skills.plan.entries.length, 1);
+    assert.strictEqual(skills.plan.entries[0].symlink.policy, 'declared-source-relative');
+    assert.strictEqual(skills.plan.entries[0].destination, 'dhpk-portable');
+    assert.ok(compiled.groups.slice(1).every((group) => group.plan.entries.every((entry) => entry.symlink.policy === 'forbid')));
+    assert.ok(!fs.existsSync(out), 'compile must not write anything');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('cursor-sync keeps tracked cursor/AGENTS.md and cursor/guidance.md across regeneration', () => {
+  const root = makeFixture();
+  const out = path.join(root, 'cursor');
+  try {
+    seedTrackedCursorFiles(out);
+    materializeCursorSyncTree({ inventory: declaredInventory(), root, outDir: out });
+    const first = snapshotTree(out);
+    materializeCursorSyncTree({ inventory: declaredInventory(), root, outDir: out });
+    assert.deepStrictEqual(snapshotTree(out), first);
+    assert.strictEqual(fs.readlinkSync(path.join(out, 'AGENTS.md')), '../AGENTS.md');
+    assert.strictEqual(fs.readFileSync(path.join(out, 'guidance.md'), 'utf8'), '# tracked guidance\n');
+    assert.deepStrictEqual(fs.readdirSync(out).filter((name) => name.startsWith('.projection-')), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('cursor-sync refuses a symlinked owned subdirectory and leaves its target untouched', () => {
+  const root = makeFixture();
+  const out = path.join(root, 'cursor');
+  const outside = tmpDir('dhpk-cursor-sync-outside-');
+  try {
+    fs.mkdirSync(out, { recursive: true });
+    fs.writeFileSync(path.join(outside, 'keep.txt'), 'keep\n');
+    fs.symlinkSync(outside, path.join(out, 'rules'), 'dir');
+    assert.throws(
+      () => materializeCursorSyncTree({ inventory: declaredInventory(), root, outDir: out }),
+      /physical directory|OWNERSHIP_REFUSED|symlink/i,
+    );
+    assert.ok(fs.lstatSync(path.join(out, 'rules')).isSymbolicLink());
+    assert.deepStrictEqual(fs.readdirSync(outside), ['keep.txt']);
+    assert.ok(!fs.existsSync(path.join(out, 'skills')), 'no sibling subdirectory may be published before the refusal');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('cursor-sync refuses an existing subdirectory the inventory does not declare', () => {
+  const root = makeFixture();
+  const out = path.join(root, 'cursor');
+  try {
+    fs.mkdirSync(path.join(out, 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(out, 'agents', 'hand-written.md'), 'mine\n');
+    assert.throws(
+      () => materializeCursorSyncTree({ inventory: fixtureInventory(), root, outDir: out }),
+      /not a declared|OWNERSHIP_REFUSED|declared/i,
+    );
+    assert.strictEqual(fs.readFileSync(path.join(out, 'agents', 'hand-written.md'), 'utf8'), 'mine\n');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('cursor-sync compile failure leaves every existing owned subdirectory untouched', () => {
+  const root = makeFixture();
+  const out = path.join(root, 'cursor');
+  try {
+    materializeCursorSyncTree({ inventory: declaredInventory(), root, outDir: out });
+    fs.writeFileSync(path.join(out, 'dhpk', 'stale.txt'), 'previous accepted tree\n');
+    const before = snapshotTree(out);
+    const inventory = declaredInventory();
+    inventory.supporting_assets = [{ id: 'gone', source: 'codex/supporting/missing.md', destination: 'dhpk/missing.md' }];
+    assert.throws(() => materializeCursorSyncTree({ inventory, root, outDir: out }), /supporting asset source is missing/);
+    assert.deepStrictEqual(snapshotTree(out), before);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('cursor-sync regeneration replaces a stale generated file without a delete-then-rebuild window', () => {
+  const root = makeFixture();
+  const out = path.join(root, 'cursor');
+  try {
+    materializeCursorSyncTree({ inventory: declaredInventory(), root, outDir: out });
+    fs.writeFileSync(path.join(out, 'agents', 'stale.md'), 'stale\n');
+    materializeCursorSyncTree({ inventory: declaredInventory(), root, outDir: out });
+    assert.ok(!fs.existsSync(path.join(out, 'agents', 'stale.md')));
+    assert.ok(fs.existsSync(path.join(out, 'agents', 'reviewer.md')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
