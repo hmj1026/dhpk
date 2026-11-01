@@ -308,3 +308,42 @@ Hand-maintained generic Codex roles SHALL not hard-code one framework, language,
 
 - **WHEN** a task requires framework-specific investigation
 - **THEN** the dispatcher loads the relevant conditional trap or specialized role explicitly
+
+### Requirement: QA executor is a generated direct Codex role
+The generated Codex projection SHALL include a `qa-executor` role derived from the canonical `agents/qa-executor.md` source. The coverage matrix SHALL record `qa-executor` as `direct`. The role ownership manifest SHALL list `qa-executor` in both `generated_roles` and `package_roles`.
+
+#### Scenario: Projection includes qa-executor
+- **WHEN** the Codex agent generator runs on a clean checkout
+- **THEN** it writes `codex/agents/qa-executor.toml` with non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`
+
+#### Scenario: Coverage matrix records qa-executor
+- **WHEN** the coverage matrix is validated
+- **THEN** `qa-executor` has status `direct` and target `qa-executor`
+
+### Requirement: Docs writer uses a shared canonical source
+The Codex `docs-writer` role SHALL be generated from `agents/docs-writer.md`, the same source Claude dispatches. No Codex-only `docs-writer` authoring source SHALL remain.
+
+#### Scenario: Single docs-writer source
+- **WHEN** the generator source list is inspected
+- **THEN** `docs-writer` reads from `agents/docs-writer.md`, and `codex/agent-sources/docs-writer.md` does not exist
+
+### Requirement: Generated Codex role descriptions name only package roles
+
+The Codex role generator SHALL fail when a generated role's `description` names a dhpk role that is not in the projection manifest's `package_roles`. This applies whether or not the name is in backticks.
+
+The check SHALL compare against the dhpk agent roster, so ordinary English words are not matched. The failure SHALL name the generated role and the offending role name.
+
+A source that names a Claude-only neighbor SHALL be adapted in the generator, either to a Codex role or to an explicit manual fallback. The canonical source prose SHALL NOT be edited for this.
+
+#### Scenario: Plain-text Claude-only neighbor is rejected
+
+- **WHEN** a shared agent source description contains `(smoke-tester)` and the
+  generator has no adaptation for it
+- **THEN** generation fails, naming the generated role and `smoke-tester`
+
+#### Scenario: Adapted neighbor passes
+
+- **WHEN** the generator maps `ui-ux-verifier` to `ui-verifier` in the
+  qa-executor description
+- **THEN** generation succeeds and the description contains `ui-verifier`
+  but not `ui-ux-verifier`
