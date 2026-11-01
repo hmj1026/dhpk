@@ -107,8 +107,8 @@ editing through a symlink.
 
 ## dhpk main flow for Codex
 
-dhpk ships 18 direct Codex agent roles under `codex/agents/` (synced into
-`.codex/agents/`): 4 hand-maintained roles and 14 generated roles.
+dhpk ships 19 direct Codex agent roles under `codex/agents/` (synced into
+`.codex/agents/`): 4 hand-maintained roles and 15 generated roles.
 
 Use `$flow-guide` when ownership, policy, the next action, closeout, or Codex
 arguments are unclear. Its five read-only actions are `help`, `route`, `rules`,
@@ -282,9 +282,9 @@ Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`,
 `model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's
 `validate_codex` guardrail enforces this static metadata contract. Codex agent
 definitions are TOML-only; legacy Markdown role bodies are not dispatchable.
-The 14 generated roles are produced by `scripts/gen-codex-agents.js`: 11 from
-shared `agents/*.md` sources and 3 from Codex-only
-`codex/agent-sources/{ui-verifier,docs-writer,scoped-worker}.md` sources. The
+The 15 generated roles are produced by `scripts/gen-codex-agents.js`: 13 from
+shared `agents/*.md` sources and 2 from Codex-only
+`codex/agent-sources/{ui-verifier,scoped-worker}.md` sources. The
 Codex-only sources are authoring inputs only and are not installed; generated
 TOMLs are installed under `.codex/agents/`. The generator is
 deterministic/idempotent (re-running with no source change produces

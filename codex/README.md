@@ -87,7 +87,7 @@ observed failure. An exact-ID `unknown agent_type` is a registry failure, not
 evidence to rename the role or replace its GPT-6 family model; see
 [`guidance.md`](guidance.md#role-discovery).
 
-The 11 generated roles come from `scripts/gen-codex-agents.js`, run as:
+The 15 generated roles come from `scripts/gen-codex-agents.js`, run as:
 
 ```bash
 node scripts/gen-codex-agents.js

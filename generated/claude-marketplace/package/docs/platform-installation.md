@@ -1027,7 +1027,8 @@ loaded agents from both layouts, so the legacy path is not silently discarded,
 but new default installations always use the canonical path.
 
 Evidence (agy 1.4.12, probed 2026-11-01): `agy agents` listed all 29
-agents of the 0.68.3 package then installed (receipt-owned) from `~/.gemini/antigravity-cli/plugins/dhpk/`, while
+agents of the receipt-owned copy installed at that time, which predates
+`qa-executor` and `docs-writer` (the current package has 31), from `~/.gemini/antigravity-cli/plugins/dhpk/`, while
 `agy plugin list` returned `[]`, which is expected for a receipt-owned install.
 An agent declaring `model: flash_lite` ran successfully at runtime even though
 the vendor subagent page lists only `inherit`, `flash`, and `pro`. Agents that

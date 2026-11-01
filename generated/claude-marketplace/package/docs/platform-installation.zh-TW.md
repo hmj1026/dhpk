@@ -918,7 +918,7 @@ path contract 版本固定在 `manifests/distribution-inventory.json`。AGY 1.2.
 靜默丟棄 legacy path，但新的預設安裝一律使用 canonical path。
 
 證據（agy 1.4.12，2026-11-01 探測）：`agy agents` 列出當時以 receipt-owned 方式安裝於
-`~/.gemini/antigravity-cli/plugins/dhpk/` 的 0.68.3 package 全部 29 個 agent，而 `agy plugin list`
+`~/.gemini/antigravity-cli/plugins/dhpk/` 的全部 29 個 agent（該安裝早於 `qa-executor` 與 `docs-writer`，現行 package 為 31 個），而 `agy plugin list`
 回傳 `[]`（receipt-owned 安裝的預期結果）。宣告 `model: flash_lite` 的 agent
 在 runtime 成功執行，儘管 vendor subagent 頁面只列出 `inherit`、`flash`、`pro`。
 宣告 MCP tool 但其 server 未在 agy 註冊的 agent 會無法啟動，因此產生的 package
