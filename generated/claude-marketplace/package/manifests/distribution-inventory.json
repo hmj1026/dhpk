@@ -269,7 +269,7 @@
       "id": "codex-supporting-agent-traps-architect-yii-md",
       "source": "codex/supporting/agent-traps/architect/yii.md",
       "canonical_source": "agent-traps/architect/yii.md",
-      "canonical_digest": "f0863e3d83b4faa258ce17422b30ff1d986a2c8e0696102618c9f5cdf9573fdf",
+      "canonical_digest": "9d9bf32160b8ece8d3e1211921b56680ecb21a32e8aaf2583047e7a187143d06",
       "projection_digest": "5fdde7b8f51393f77f3efa122083dadea8f47344b679f8e041bdf84a7286b3e9",
       "destination": "dhpk/agent-traps/architect/yii.md"
     },
@@ -315,7 +315,7 @@
       "id": "codex-supporting-agent-traps-code-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/code-reviewer/yii.md",
       "canonical_source": "agent-traps/code-reviewer/yii.md",
-      "canonical_digest": "c214a727adcfa75bea5c762076cb53adf0e5dc861ef40983aabb14d45a1c280f",
+      "canonical_digest": "8db253a5736b90f07aa883f3fc2222da897d418f4327509dbc4d0d0783767eee",
       "projection_digest": "0a39df61133fe79ec68d915b7e556686d16aa727617658804e9effa57f89ba51",
       "destination": "dhpk/agent-traps/code-reviewer/yii.md"
     },
@@ -371,7 +371,7 @@
       "id": "codex-supporting-agent-traps-security-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/security-reviewer/yii.md",
       "canonical_source": "agent-traps/security-reviewer/yii.md",
-      "canonical_digest": "a9193bf4021c69ffef55ce93beea35bc78ec05968c46c35606ad46c0ba6785b0",
+      "canonical_digest": "fd6f2e7f862e3fda0cda0fe7f45e3d25153db6dc9b6be0b64be1e863ec38e8d1",
       "projection_digest": "d1b204ec3b44571e13029667c14a02c1d65c1b3c1fdc23b8ddae521aaad6b15d",
       "destination": "dhpk/agent-traps/security-reviewer/yii.md"
     },
@@ -384,7 +384,7 @@
       "id": "codex-supporting-agent-traps-tdd-guide-php-md",
       "source": "codex/supporting/agent-traps/tdd-guide/php.md",
       "canonical_source": "agent-traps/tdd-guide/php.md",
-      "canonical_digest": "374a85abb8cc2eb79eff2405293a57dc109be59b8147a3c38f52fd70e033ff54",
+      "canonical_digest": "8720b8e2cf15d6badbde25e729372cc55cb9ba70687225faab241eb6c5e82391",
       "projection_digest": "b5c99d0447652b364c9c3e62799ec39a6a7e07c73acb84a95029406f1c6ba51b",
       "destination": "dhpk/agent-traps/tdd-guide/php.md"
     },
