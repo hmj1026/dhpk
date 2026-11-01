@@ -45,8 +45,7 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **74 個 active `userConfig` 旋
 
 部分布林/模式類旋鈕額外支援**單次環境變數覆寫**（僅限當次 session）——見下表「Env 覆寫」欄。
 
-持續性 dispatch-config 解析層為 project > global > environment。同層
-canonical `*_target` 優先於 legacy keys。`auto` 的有效值來自已知 Host
+持續性 dispatch-config 解析層為 project > global > environment。`auto` 的有效值來自已知 Host
 Profile 該 Role 的 `role_defaults`。共用 delegated-dispatch 設定只適用於
 支援該 dispatch role 的入口；Flow Drive 本身只接受 task 與唯讀 `--help`，
 沒有 worker、reasoner、planner 或 provider selector。
@@ -68,16 +67,13 @@ Transport。公開 target 格式為 `agent/model[:effort]`，四個 canonical ke
 | `preference_order` | string[] | `[]` | 自動解析時的 Provider 或 Provider/Model 順序。 |
 | `fallback_allow` | boolean | `true` | 只允許 side effect 前已確認的 availability failure fallback。 |
 
-dispatch resolver 層為 project > global > environment。同層 canonical
-`*_target` 優先於 legacy model／effort keys。`auto` 使用已知 Host／Role
+dispatch resolver 層為 project > global > environment。`auto` 使用已知 Host／Role
 profile 預設值。欄位無效時只將該欄位標為
 `BLOCKED`，不會污染其他設定。diagnostics 分開記錄 catalog support、Host
 access、runtime availability 與 fallback permission；靜態 catalog 或 package
-discovery 絕不是 runtime proof。既有 `fast_worker_*`、Provider-specific Model
-key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保留證據。
-`reviewer_target` 是公開 reviewer 入口；`reviewer_model` 只是 legacy 相容輸入，
-不是第二份公開權威。`architect_model` / `architect_effort` 沒有派工效果，
-也不會映射到 `reasoner_target`。`scripts/hooks/session-start.sh` 只在明確
+discovery 絕不是 runtime proof。舊的 `fast_worker_*`、`*_model`、`*_effort`
+與 Provider-specific Model key 已移除（見 [0.69.0 移除的設定](#0690-移除的設定)）；
+`<role>_target` 是唯一的公開 Role 權威。`scripts/hooks/session-start.sh` 只在明確
 非預設 canonical target（或 `DHPK_DISPATCH_CONFIG_REPORT=1`）時發出條件式
 設定報告，不會套用原生 Agent model override。沒有 diagnostics 時，報告是
 最多 300 字元的一行摘要，完整 JSON 寫入
@@ -96,46 +92,15 @@ option。Scope selection 不會改變已設定的 planner model、effort 或 wor
 |-----|------|--------|------|------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Hook 輸出的詳細程度。`minimal` 抑制 Stop 提醒；`strict` 增加額外警告。 |
 | `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 任意 7 個 agent 名稱 | 依 role 順序（code、db、sec、frontend、doc、polyfill、migration）由建議性 reviewer 派工使用的 agent。可覆寫指向專案特定的 agent 名稱；較短的覆寫會以預設值補齊其餘 role。Slot 5–6（polyfill、migration）僅在 opt-in trigger 時選取。 |
-| `deep_reasoner_model` | string | `opus` | Catalog model ID 或已發佈 alias（例如 `opus`） | `reasoner_target` 的 legacy 相容輸入。正規化為 Catalog model ID 後由既有 Host route/effort 檢查判定。無效值 fail closed。 |
-| `fast_worker_model` | string | `sonnet` | Catalog model ID 或已發佈 alias（例如 `sonnet`） | `worker_target` 的 legacy 相容輸入。正規化與 fail-closed 行為同 `deep_reasoner_model`。 |
-| `planner_model` | string | `opus` | Catalog model ID 或已發佈 alias（例如 `opus`） | `planner_target` 的 legacy 相容輸入。正規化與 fail-closed 行為同 `deep_reasoner_model`。 |
-| `deep_reasoner_effort` | string | `high` | 該 Catalog route 的 Host／模型契約 effort | 與同層 `deep_reasoner_model` 配對的 legacy effort。無效值 fail closed。 |
-| `fast_worker_effort` | string | `medium` | 該 Catalog route 的 Host／模型契約 effort | 與同層 `fast_worker_model` 配對的 legacy effort。無效值 fail closed。 |
-| `planner_effort` | string | `high` | 該 Catalog route 的 Host／模型契約 effort | 與同層 `planner_model` 配對的 legacy effort。無效值 fail closed。 |
-| `codex_worker_model` | string | `gpt-6-luna` | codex CLI 接受的任何模型 | 規範角色 `codex-worker` 派發時傳給 codex CLI 後端的模型。依標準分層解析（專案 pluginConfigs > 全域 pluginConfigs > 出廠預設）後傳入 `run-codex.sh`。Codex 模型名稱汰換快速——預設值失效時在此覆寫，而非改原始碼（可用 `codex models` 查詢）。舊別名：`codex_fast_worker_model`。 |
-| `codex_worker_effort` | string | `xhigh` | codex CLI 接受的任何強度（如 `low` \| `medium` \| `high` \| `xhigh`） | `codex-worker` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`——強力機械層。舊別名：`codex_fast_worker_effort`。 |
-| `codex_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-worker` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_fast_worker_timeout_secs`。 |
-| `codex_reasoner_model` | string | `gpt-6.1-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex/<model>[:<effort>]` 使用唯讀 sandbox。裸值 `--reasoner=codex` 選擇目前 role 設定。已退役鍵 `codex_deep_reasoner_model` 會 fail closed；請使用規範鍵。 |
-| `codex_reasoner_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reasoner` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。已退役鍵 `codex_deep_reasoner_effort` 會 fail closed；請使用規範鍵。 |
-| `codex_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reasoner` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed。舊別名：`codex_deep_reasoner_timeout_secs`。 |
-| `codex_reviewer_model` | string | `gpt-6.1-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reviewer` 派發時傳給 codex CLI 後端的模型（此版本內部只用，無法直接派發）。 |
-| `codex_reviewer_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reviewer` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。 |
-| `codex_reviewer_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reviewer` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_bridge_timeout_secs`。 |
+| `codex_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-worker` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
+| `codex_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reasoner` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed。 |
+| `codex_reviewer_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reviewer` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
 | `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 所有 Codex CLI 角色共用的 dispatcher deadline。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。解析後的值會寫入 immutable transport context，wrapper 不會從環境讀取它。 |
-| `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | `agy models` 列出的任何模型 | 規範角色 `agy-worker` 派發時傳給 agy CLI 後端的模型顯示字串。Agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。舊別名：`agy_fast_worker_model`。 |
-| `architect_model` | string | `fable` | 無派工效果 | 不支援的派工輸入。不會映射到 `reasoner_target`，派工不受影響。預設 `fable` 只標示架構諮詢角色（依目前定價證據為最高單價 Claude 層），不是 runtime override。 |
-| `architect_effort` | string | `low` | 無派工效果 | 不支援的派工輸入。不會映射到 `reasoner_target`，派工不受影響。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中 delegated implementation routing 的關閉開關。`on` 時適用的實作階段委派工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示；適用的 verification gates 仍有效，planner 是否適用依缺少的 outcome 或明確 consult request 決定，不依 task count。Flow Drive 的 native task entry 沒有 dispatch mode。 |
-| `cross_provider` | boolean | `false` | `true` \| `false` | 自動 fast-worker 選擇時開放外部候選的 opt-in。`false` 讓 `auto` 僅使用 native 並禁止外部探查；`true` 才依 `fast_worker_backend_order` 檢查。明確的 `--worker=<target>` 仍是定向選取，不會連帶開放其他 provider。 |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 支援 delegated route 使用的機械 worker 確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 依 `fast_worker_backend_order` 檢查可用候選。Flow Drive 不接受單次 worker selector。Codex CLI 可用性檢查與已退休的 `CODEX=on` flag 無關；僅透過支援的 delegated dispatch 入口選擇 Codex worker。 |
-| `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | `cross_provider=true` 時供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。未 opt-in 時會抑制外部項目且不探查。值無效時每個 session 警告一次並使用 shipped 順序。 |
-| `fast_worker_fallback` | string | `none` | `none` \| `claude` | 只允許對明確選取但缺少 CLI 執行檔的情況使用 `claude` 備援。驗證、授權、模型、任務、執行與 verification 失敗都維持 blocked，不得靜默切換。 |
+| `cross_provider` | boolean | `false` | `true` \| `false` | 自動 worker 選擇時開放外部候選的 opt-in。`false` 讓 `auto` 僅使用 native 並禁止外部探查；`true` 才檢查宣告的跨 Agent fallback 候選。明確的 `--target <agent>/<model>` 仍是定向選取，不會連帶開放其他 provider。 |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對明確註冊的 reviewer quality advisory 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 unresolved obligation。預設 `off`（無作用，不做啟發式評估）。 |
 
-### 遷移既有的 automatic worker 設定
-
-既有的 `fast_worker_backend`、`fast_worker_backend_order` 與
-`fast_worker_fallback` 設定仍然有效。這次遷移只改變 automatic external
-discovery 的語意：`fast_worker_backend=auto` 在明確啟用跨家派發前，維持
-native-only。
-
-| 既有設定 | 目前行為 | 遷移動作 |
-|---|---|---|
-| `fast_worker_backend=claude` | 使用 native Claude worker。 | 不需要變更。 |
-| `fast_worker_backend=codex` 或 `agy` | 本次 invocation 定向選取該 external worker。 | 保留設定，另外確認選定的 CLI／authentication；不會連帶開放其他 provider。 |
-| `fast_worker_backend=auto` | `cross_provider=false` 時使用 native Claude candidate，不探查 external CLI。 | 若要維持 native-only 就保留 `auto`；若要讓設定的 external order 成為候選，請設定 `cross_provider=true`。 |
-| `fast_worker_backend_order` | 保留設定順序，但跨家派發關閉時會抑制 external entry。 | 保留原順序，不需重寫。 |
-| `fast_worker_fallback=claude` | 只有明確選定的 CLI executable 缺少時才 fallback。 | 只有需要這個狹義的 missing-executable fallback 時才保留；不涵蓋 auth、quota、task、execution 或 verification failure。 |
+### 跨家派發 opt-in
 
 要對單一專案 opt-in，請在 `.claude/settings.local.json`（或 project
 `settings.json`）的 `pluginConfigs.dhpk@dhpk.options` 下加入設定。共用
@@ -147,6 +112,50 @@ native-only automatic selection；移除 project override 則會重新暴露 ins
 `CODEX=on` 與 `--codex` 不是遷移 alias。
 
 共用 CLI dispatcher 在建立 `0600` immutable transport context 前，會將解析後的 deadline 驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`；只有不需要 CLI transport deadline 時才明確設定 `0`。Python transport 會強制執行已證明的 deadline，並寫入 contained terminal receipt。agy 的獨立設定也同樣是已證明的 dispatch input。
+
+## 0.69.0 移除的設定
+
+下列 key 不再設定派工。project、global 或 environment 設定中出現已移除的 key
+時，SessionStart 的 `[session-start] dispatch config:` 摘要會回報 `BLOCKED`
+（含 layer、key、replacement），其值不會被套用；同一設定中的 canonical key 仍照常解析。
+權威來源：`scripts/lib/dispatch-config.js` 的 `REMOVED_KEYS`。
+
+| 已移除的 key | 改用 |
+|---|---|
+| `fast_worker_backend` | `worker_target` |
+| `fast_worker_backend_order` | `preference_order` |
+| `fast_worker_fallback` | `fallback_allow` |
+| `fast_worker_model` | `worker_target` |
+| `fast_worker_effort` | `worker_target` |
+| `deep_reasoner_model` | `reasoner_target` |
+| `deep_reasoner_effort` | `reasoner_target` |
+| `planner_model` | `planner_target` |
+| `planner_effort` | `planner_target` |
+| `reviewer_model` | `reviewer_target` |
+| `reviewer_effort` | `reviewer_target` |
+| `codex_worker_model` | `worker_target` |
+| `codex_fast_worker_model` | `worker_target` |
+| `codex_worker_effort` | `worker_target` |
+| `codex_fast_worker_effort` | `worker_target` |
+| `agy_worker_model` | `worker_target` |
+| `agy_fast_worker_model` | `worker_target` |
+| `codex_reasoner_model` | `reasoner_target` |
+| `codex_reasoner_effort` | `reasoner_target` |
+| `codex_deep_reasoner_model` | `reasoner_target` |
+| `codex_deep_reasoner_effort` | `reasoner_target` |
+| `codex_reviewer_model` | `reviewer_target` |
+| `codex_reviewer_effort` | `reviewer_target` |
+| `codex_fast_worker_timeout_secs` | `codex_worker_timeout_secs` |
+| `codex_deep_reasoner_timeout_secs` | `codex_reasoner_timeout_secs` |
+| `codex_bridge_timeout_secs` | `codex_reviewer_timeout_secs` |
+| `architect_model` | `reasoner_target` |
+| `architect_effort` | `reasoner_target` |
+
+`architect_model` 與 `architect_effort` 本來就沒有派工效果，對應到
+`reasoner_target` 僅作為遷移提示。Codex 與 agy Role Agent 的 model／effort
+取自對應的 `<role>_target`（其 target Agent 為該 CLI 時）；只有
+`codex_*_timeout_secs` 仍是各角色專屬。Worker 選擇依 Host 的 `role_defaults`；
+單次 invocation 的 selector 是 `--target`，無法偵測 Host 時為 `BLOCKED`。
 
 <a id="codex-mcp-dependency-not-a-userconfig-knob"></a>
 <a id="codex-mcp-依賴並非-userconfig-旋鈕"></a>

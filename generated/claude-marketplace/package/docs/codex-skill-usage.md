@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:ef90580ac89097093465a02d8d5b12fd3b6f0cc3aef7c1158b00b27f41eacb68`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:274733145fdf68c48d8f8d5acd4ac34291a81a353d99d7cccd7818eb7fbbe479`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 

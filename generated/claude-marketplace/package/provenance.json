@@ -1813,7 +1813,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "97537d66e6eae31f78854bd00c03c7730f48dcbdbee979228f2fefc49426811e"
+      "sha256": "1e8122d2a7ccff730bbc450c7a55b917b6c516d68038c8070a29bd28239d6fe2"
     },
     {
       "skillId": "flow-guide",
@@ -1845,7 +1845,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "f2c67d90dfa7ad2d2d1f912d59ee0475af77ec5ba9797dbeee1c673edcd6a2dc"
+      "sha256": "debe9a03bb3137cc2161c6a58b16c4490387d2501aef1e407da33db6d8bc4689"
     },
     {
       "skillId": "flow-guide",
@@ -1941,7 +1941,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "97537d66e6eae31f78854bd00c03c7730f48dcbdbee979228f2fefc49426811e"
+      "sha256": "1e8122d2a7ccff730bbc450c7a55b917b6c516d68038c8070a29bd28239d6fe2"
     },
     {
       "skillId": "flow-guide",
@@ -1949,7 +1949,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "kind": "entry",
-      "sha256": "e10ee97aa4f51de311d1eee197f68b3ca91c3c8c2523b6ea71a6cc61250732d2"
+      "sha256": "30e07f497edccce9e35c03e4920318c200b64f5af4ff98b64c2ca5ac071a5bbb"
     },
     {
       "skillId": "flow-guide",

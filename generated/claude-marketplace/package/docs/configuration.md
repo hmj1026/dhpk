@@ -52,7 +52,7 @@ Reconfigure or inspect the effective config at any time from inside Claude Code:
 A handful of boolean/mode knobs additionally support a **one-shot environment-variable override** for a single session — see the "Env override" column below.
 
 Persistent dispatch-config resolution uses project > global > environment.
-Within the same layer, a canonical `*_target` wins over legacy keys. `auto`
+Within the same layer, `auto`
 takes its effective target from the known Host Profile `role_defaults` for
 that Role. Shared delegated-dispatch settings govern only entrypoints that
 support those dispatch roles; Flow Drive itself accepts task input and
@@ -83,9 +83,7 @@ the public target; these are target-Agent aliases, not Model or Provider names.
 | `preference_order` | string[] | `[]` | Legacy compatibility order only; it does not replace the Host Profile's declared fallback pairs. |
 | `fallback_allow` | boolean | `true` | Permit only the Host Profile's declared fallback pairs after confirmed pre-side-effect availability failure. |
 
-The dispatch resolver layers are project > global > environment. Same-layer
-canonical `*_target` keys take precedence over legacy model/effort keys.
-`auto` uses the known Host/Role profile defaults. Invalid fields are
+The dispatch resolver layers are project > global > environment. `auto` uses the known Host/Role profile defaults. Invalid fields are
 reported as `BLOCKED` without invalidating unrelated settings. Diagnostics keep
 catalog support, Host access, runtime availability, and fallback permission
 separate; static catalog membership or package discovery is never runtime proof.
@@ -99,12 +97,9 @@ evidence uses `AVAILABLE`/`UNAVAILABLE`/`BLOCKED`/`NOT_RUN`.
 The public `:effort` suffix uses canonical `low`, `medium`, `high`, or `max`;
 values such as `xhigh` remain Provider-specific compatibility values and are
 translated inside the Adapter.
-Legacy `fast_worker_*`, provider-specific model keys, and provider-bound Role
-aliases remain accepted only at the compatibility boundary and are recorded as
-translation evidence. `reviewer_target` is the public reviewer entry;
-`reviewer_model` is a legacy compatibility input, not a second public
-authority. `architect_model` / `architect_effort` have no dispatch effect and
-are not mapped onto `reasoner_target`.
+The legacy `fast_worker_*`, `*_model`, `*_effort`, and provider-specific model
+keys are removed (see [Removed in 0.69.0](#removed-in-0690)); the `<role>_target`
+keys are the only public Role authority.
 `scripts/hooks/session-start.sh` emits a conditional config report only when
 an explicit non-default canonical target is set, or when
 `DHPK_DISPATCH_CONFIG_REPORT=1`. It does not apply a native Agent model
@@ -131,46 +126,15 @@ for the selection rule.
 |-----|------|---------|---------|---------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Verbosity of active deterministic hook output. Retired Stop reminders are not default-wired. |
 | `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by advisory reviewer dispatch, in role order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
-| `deep_reasoner_model` | string | `opus` | Catalog model ID or published alias (for example `opus`) | Legacy compatibility input for `reasoner_target`. Normalized to a Catalog model ID and judged by existing Host route/effort checks. Invalid values fail closed. |
-| `fast_worker_model` | string | `sonnet` | Catalog model ID or published alias (for example `sonnet`) | Legacy compatibility input for `worker_target`. Same Catalog/Host normalization and fail-closed behavior as `deep_reasoner_model`. |
-| `planner_model` | string | `opus` | Catalog model ID or published alias (for example `opus`) | Legacy compatibility input for `planner_target`. Same Catalog/Host normalization and fail-closed behavior as `deep_reasoner_model`. |
-| `deep_reasoner_effort` | string | `high` | Host/model contract efforts for the resolved Catalog route | Legacy compatibility effort paired with `deep_reasoner_model` from the same source layer. Invalid values fail closed. |
-| `fast_worker_effort` | string | `medium` | Host/model contract efforts for the resolved Catalog route | Legacy compatibility effort paired with `fast_worker_model` from the same source layer. Invalid values fail closed. |
-| `planner_effort` | string | `high` | Host/model contract efforts for the resolved Catalog route | Legacy compatibility effort paired with `planner_model` from the same source layer. Invalid values fail closed. |
-| `codex_worker_model` | string | `gpt-6-luna` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-worker` dispatches. Resolved via the standard layering (project pluginConfigs > global pluginConfigs > shipped default) and passed into `run-codex.sh`. Codex model names rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Legacy alias: `codex_fast_worker_model`. |
-| `codex_worker_effort` | string | `xhigh` | any effort the codex CLI accepts (e.g. `low` \| `medium` \| `high` \| `xhigh`) | `model_reasoning_effort` passed to the codex CLI backend for `codex-worker` dispatches — the strong mechanical tier. Legacy alias: `codex_fast_worker_effort`. |
-| `codex_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-worker`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_fast_worker_timeout_secs`. |
-| `codex_reasoner_model` | string | `gpt-6.1-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reasoner` dispatches via `--reasoner=codex/<model>[:<effort>]` in a read-only sandbox. The bare `--reasoner=codex` value is a compatibility shorthand. Retired key `codex_deep_reasoner_model` fails closed; use the canonical key. |
-| `codex_reasoner_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reasoner` dispatches. Retired key `codex_deep_reasoner_effort` fails closed; use the canonical key. |
-| `codex_reasoner_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reasoner`. It wins over the shared value in the same scope; project values win over global values. Invalid values fail closed at dispatch time. Legacy alias: `codex_deep_reasoner_timeout_secs`. |
-| `codex_reviewer_model` | string | `gpt-6.1-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reviewer` (internal-only in this rollout; not directly dispatchable). |
-| `codex_reviewer_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reviewer` dispatches. |
-| `codex_reviewer_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reviewer`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_bridge_timeout_secs`. |
+| `codex_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-worker`. It wins over the shared value in the same scope; project values win over global values. |
+| `codex_reasoner_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reasoner`. It wins over the shared value in the same scope; project values win over global values. Invalid values fail closed at dispatch time. |
+| `codex_reviewer_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reviewer`. It wins over the shared value in the same scope; project values win over global values. |
 | `codex_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Shared dispatcher deadline for all Codex CLI roles. Precedence is project role-specific > project shared > global role-specific > global shared > shipped default; malformed values fail closed before dispatch. The resolved value is copied into the immutable transport context, never read by a wrapper from its environment. |
-| `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
-| `architect_model` | string | `fable` | no dispatch effect | Unsupported dispatch input. Not mapped onto `reasoner_target`; dispatch is unaffected. Default `fable` names the architecture-consult role in current pricing evidence, not a runtime override. |
-| `architect_effort` | string | `low` | no dispatch effect | Unsupported dispatch input. Not mapped onto `reasoner_target`; dispatch is unaffected. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for delegated implementation routing in the Implementation dispatch table. `on` routes applicable implement-phase delegation through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive; applicable verification gates remain active, and planner applicability follows missing outcomes or an explicit consult request rather than task count. Flow Drive's native task entry does not expose a dispatch mode. |
-| `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for cross-Agent candidates during automatic fast-worker selection. `false` keeps `auto` on the current Host's native/default path; `true` allows declared cross-Agent fallback candidates to be checked. An explicit `--worker=<target>` remains directional and does not open other target Agents. |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector for supported delegated routes. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. Flow Drive does not accept a per-invocation worker selector. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker only through an entrypoint that supports shared dispatch. |
-| `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used by `auto` when `cross_provider=true`; rejected candidates and reasons are recorded. With the opt-in disabled, external entries are suppressed and not probed. Invalid values warn once per session and use the shipped order. |
-| `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
+| `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for cross-Agent candidates during automatic worker selection. `false` keeps `auto` on the current Host's native/default path; `true` allows declared cross-Agent fallback candidates to be checked. An explicit `--target <agent>/<model>` remains directional and does not open other target Agents. |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | Retained for an explicitly registered advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
 
-### Migrating existing automatic worker settings
-
-The existing `fast_worker_backend`, `fast_worker_backend_order`, and
-`fast_worker_fallback` settings remain valid. The migration changes only the
-meaning of automatic external discovery: `fast_worker_backend=auto` is now
-native-only unless cross-provider dispatch is explicitly enabled.
-
-| Existing configuration | Current behavior | Migration action |
-|---|---|---|
-| `fast_worker_backend=claude` | Uses the native Claude worker. | No change required. |
-| `fast_worker_backend=codex` or `agy` | Directionally selects that external worker for the invocation. | Keep the setting, and verify the selected CLI/authentication separately. It does not open other providers. |
-| `fast_worker_backend=auto` | Uses the native Claude candidate and does not probe external CLIs while `cross_provider=false`. | Keep `auto` for the native-only default, or set `cross_provider=true` if the configured external order should be eligible. |
-| `fast_worker_backend_order` | Preserves the configured order, but external entries are suppressed while cross-provider dispatch is disabled. | Keep the order; no rewrite is needed. |
-| `fast_worker_fallback=claude` | Falls back only when an explicitly selected CLI executable is missing. | Keep it only if that narrow missing-executable fallback is intended; it does not cover auth, quota, task, execution, or verification failures. |
+### Cross-provider opt-in
 
 To opt in for a project, add the setting under
 `pluginConfigs.dhpk@dhpk.options` in `.claude/settings.local.json` (or the
@@ -190,6 +154,52 @@ instead of silently falling back to `360`; set `0` deliberately only when no
 CLI transport deadline is required. Its Python transport enforces the
 attested deadline and writes a contained terminal receipt. The separate agy
 setting is likewise an attested dispatch input.
+
+## Removed in 0.69.0
+
+The keys below no longer configure dispatch. A removed key found in project,
+global, or environment config is reported as `BLOCKED` in the SessionStart
+`[session-start] dispatch config:` summary (layer, key, replacement), and its
+value is not applied. A canonical key in the same config still resolves
+normally. Source of truth: `REMOVED_KEYS` in `scripts/lib/dispatch-config.js`.
+
+| Removed key | Use instead |
+|---|---|
+| `fast_worker_backend` | `worker_target` |
+| `fast_worker_backend_order` | `preference_order` |
+| `fast_worker_fallback` | `fallback_allow` |
+| `fast_worker_model` | `worker_target` |
+| `fast_worker_effort` | `worker_target` |
+| `deep_reasoner_model` | `reasoner_target` |
+| `deep_reasoner_effort` | `reasoner_target` |
+| `planner_model` | `planner_target` |
+| `planner_effort` | `planner_target` |
+| `reviewer_model` | `reviewer_target` |
+| `reviewer_effort` | `reviewer_target` |
+| `codex_worker_model` | `worker_target` |
+| `codex_fast_worker_model` | `worker_target` |
+| `codex_worker_effort` | `worker_target` |
+| `codex_fast_worker_effort` | `worker_target` |
+| `agy_worker_model` | `worker_target` |
+| `agy_fast_worker_model` | `worker_target` |
+| `codex_reasoner_model` | `reasoner_target` |
+| `codex_reasoner_effort` | `reasoner_target` |
+| `codex_deep_reasoner_model` | `reasoner_target` |
+| `codex_deep_reasoner_effort` | `reasoner_target` |
+| `codex_reviewer_model` | `reviewer_target` |
+| `codex_reviewer_effort` | `reviewer_target` |
+| `codex_fast_worker_timeout_secs` | `codex_worker_timeout_secs` |
+| `codex_deep_reasoner_timeout_secs` | `codex_reasoner_timeout_secs` |
+| `codex_bridge_timeout_secs` | `codex_reviewer_timeout_secs` |
+| `architect_model` | `reasoner_target` |
+| `architect_effort` | `reasoner_target` |
+
+`architect_model` and `architect_effort` never had a dispatch effect; they map
+to `reasoner_target` only as a migration hint. For Codex and agy Role Agents,
+the model and effort come from the matching `<role>_target` when its target
+Agent is that CLI; only the `codex_*_timeout_secs` keys remain role-specific.
+Worker selection follows the Host's `role_defaults`; the per-invocation
+selector is `--target`, and an undetectable Host is `BLOCKED`.
 
 <a id="codex-mcp-dependency-not-a-userconfig-knob"></a>
 
