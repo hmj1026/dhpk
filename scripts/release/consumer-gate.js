@@ -42,6 +42,7 @@ const {
 } = require('../lib/release-evidence');
 const { fingerprint: fingerprintStructuredValue } = require('../lib/distribution-projection-contract');
 const { fingerprintDir } = require('../lib/codex-native-package');
+const { inventoryDigestInsertionOrder, sha256Hex } = require('../lib/content-fingerprint');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
 const { redactSensitiveText } = require('../lib/redaction');
@@ -646,7 +647,7 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
         && JSON.stringify(selectedNativeNames) === JSON.stringify(expectedNativeNames)
         && JSON.stringify(Object.keys(nativeFingerprints).sort()) === JSON.stringify(expectedNativeNames);
       const expectedInventoryDigest = inventory
-        ? crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex')
+        ? sha256Hex(JSON.stringify(inventory))
         : null;
       // Pre-profile packages deliberately bind the legacy inventory contract,
       // which excludes profile policy, standalone dependencies, and the
@@ -654,15 +655,7 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
       // package carries no selection identity; profile-aware packages use the
       // same source digest and are checked against their selected/emitted IDs
       // above.
-      const legacyInventory = inventory ? { ...inventory } : null;
-      if (legacyInventory) {
-        delete legacyInventory.profile_policy;
-        delete legacyInventory.standalone_dependencies;
-        delete legacyInventory.project_agent_projection;
-      }
-      const legacyInventoryDigest = legacyInventory
-        ? crypto.createHash('sha256').update(JSON.stringify(legacyInventory)).digest('hex')
-        : null;
+      const legacyInventoryDigest = inventory ? inventoryDigestInsertionOrder(inventory) : null;
       const inventoryMatches = Boolean(
         (expectedInventoryDigest && provenance.inventoryDigest === expectedInventoryDigest)
         || (legacyInventoryDigest && provenance.inventoryDigest === legacyInventoryDigest),

@@ -6,7 +6,6 @@
 // through project-agent-projection-publisher; the in-checkout branch below is a
 // retained compatibility path for the historical generator contract.
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
@@ -15,6 +14,7 @@ const {
 } = require('./agent-plugin-package');
 const { resolveInventoryRevision } = require('./distribution-projection-contract');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { sha256Hex, fileSetFingerprintTerminated } = require('./content-fingerprint');
 const { resolveStandaloneSkillDependencies } = require('./standalone-skill-dependencies');
 const { planRetiredAgentSkills } = require('./agents-skills-retirement');
 const {
@@ -52,10 +52,6 @@ function stableClone(value) {
 
 function stableStringify(value) {
   return JSON.stringify(stableClone(value));
-}
-
-function digest(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
 }
 
 function lstatOrNull(filePath) {
@@ -190,16 +186,10 @@ function logicalSkillFiles(root, skill, inventory = {}) {
 }
 
 function treeFingerprint(files, budget) {
-  const hash = crypto.createHash('sha256');
-  for (const file of files) {
-    const relative = file.relative;
-    const content = readPhysicalFile(file.absolute, budget, `canonical skill file: ${relative}`);
-    hash.update(relative);
-    hash.update('\0');
-    hash.update(content);
-    hash.update('\0');
-  }
-  return hash.digest('hex');
+  return fileSetFingerprintTerminated(files.map((file) => ({
+    path: file.relative,
+    content: readPhysicalFile(file.absolute, budget, `canonical skill file: ${file.relative}`),
+  })));
 }
 
 function copyFiles(files, targetRoot, budget) {
@@ -213,7 +203,7 @@ function copyFiles(files, targetRoot, budget) {
     const sourceStat = lstatOrNull(file.absolute);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, content, { mode: sourceStat ? sourceStat.mode & 0o7777 : 0o644 });
-    output.push({ path: relative, digest: digest(content) });
+    output.push({ path: relative, digest: sha256Hex(content) });
   }
   return output;
 }
@@ -295,7 +285,7 @@ function readReceipt(outDir, selected = null, sourceRoot = null, availableEntrie
           ? logicalSkillFiles(sourceRoot, skill, availableEntries)
           : collectFiles(skill.sourceDir, createTraversalBudget()))
           .sort((left, right) => left.relative.localeCompare(right.relative))
-          .map((file) => ({ path: file.relative, digest: digest(readPhysicalFile(file.absolute, createTraversalBudget(), `canonical skill file: ${file.relative}`)) }));
+          .map((file) => ({ path: file.relative, digest: sha256Hex(readPhysicalFile(file.absolute, createTraversalBudget(), `canonical skill file: ${file.relative}`)) }));
         return { ...entry, sourceFiles };
       })
     : receipt.entries;
@@ -392,7 +382,7 @@ function canonicalSourceFingerprints(skills, sourceRoot = null, availableEntries
       ? logicalSkillFiles(sourceRoot, skill, availableEntries)
       : collectFiles(skill.sourceDir, createTraversalBudget());
     for (const file of files) {
-      fingerprints.set(`${skill.name}/${file.relative}`, digest(readPhysicalFile(file.absolute, createTraversalBudget(), `canonical skill file: ${file.relative}`)));
+      fingerprints.set(`${skill.name}/${file.relative}`, sha256Hex(readPhysicalFile(file.absolute, createTraversalBudget(), `canonical skill file: ${file.relative}`)));
     }
   }
   return fingerprints;
@@ -409,7 +399,7 @@ function validateExistingManagedFiles(outDir, receipt, managedPaths = receipt.ma
     const target = pathInOutput(outDir, relative);
     const stat = lstatOrNull(target);
     if (!stat || !stat.isFile() || stat.isSymbolicLink()) throw new Error(`receipt-owned file is missing or unsafe: ${relative}`);
-    const actual = digest(fs.readFileSync(target));
+    const actual = sha256Hex(fs.readFileSync(target));
     if (actual !== receipt.generatedFingerprints[relative]) {
       throw new Error(`receipt-owned managed file was modified or fingerprint drifted: ${relative}`);
     }
@@ -477,7 +467,7 @@ function renamedReceiptPaths(outDir, receipt, selected, inventory) {
       if (!stat || !stat.isFile() || stat.isSymbolicLink()) {
         throw new Error(`receipt-owned renamed skill file is missing or unsafe: ${relative}`);
       }
-      if (digest(fs.readFileSync(target)) !== receipt.generatedFingerprints[relative]) {
+      if (sha256Hex(fs.readFileSync(target)) !== receipt.generatedFingerprints[relative]) {
         throw new Error(`receipt-owned renamed skill file was modified or fingerprinted as foreign: ${relative}`);
       }
     }
@@ -497,7 +487,7 @@ function usesRelocatableProjection(options = {}) {
 }
 
 function transactionPathFor(outDir) {
-  return path.join(path.dirname(outDir), `.dhpk-agents-skills-${digest(path.resolve(outDir)).slice(0, 16)}.transaction.json`);
+  return path.join(path.dirname(outDir), `.dhpk-agents-skills-${sha256Hex(path.resolve(outDir)).slice(0, 16)}.transaction.json`);
 }
 
 function writeAtomicJson(filePath, value) {
@@ -639,7 +629,7 @@ function materializeAgentsSkillsProjection(options = {}) {
       const shim = Buffer.from(agyShim(skill.name, parsed.values.description), 'utf8');
       fs.writeFileSync(shimPath, shim, { mode: 0o644 });
       stageManaged.push(...copied.map((file) => ({ path: `${skill.name}/${file.path}`, digest: file.digest })));
-      stageManaged.push({ path: `${skill.name}.md`, digest: digest(shim) });
+      stageManaged.push({ path: `${skill.name}.md`, digest: sha256Hex(shim) });
       entries.push({
         id: skill.id,
         name: skill.name,
@@ -660,7 +650,7 @@ function materializeAgentsSkillsProjection(options = {}) {
     const renamedIds = new Set(renamed.map((migration) => migration.entry.id));
     const renamedPaths = new Set(renamed.flatMap((migration) => migration.paths));
     const retired = planRetiredAgentSkills({ inventory, previous, selected, outputRoot,
-      safeName, assertSafeRelative, pathInOutput, lstatOrNull, digest, treeFingerprint });
+      safeName, assertSafeRelative, pathInOutput, lstatOrNull, digest: sha256Hex, treeFingerprint });
     const carriedEntries = previous
       ? previous.entries.filter((entry) => !currentNames.has(entry.name) && !renamedIds.has(entry.id) && !retired.ids.has(entry.id))
       : [];
@@ -826,7 +816,7 @@ function validateAgentsSkillsProjection(options = {}) {
       const target = pathInOutput(outputRoot, relative);
       const stat = lstatOrNull(target);
       if (stat && stat.isSymbolicLink()) errors.push(`generated projection must not contain symlinks: ${relative}`);
-      if (stat && stat.isFile() && digest(fs.readFileSync(target)) !== receipt.generatedFingerprints[relative]) {
+      if (stat && stat.isFile() && sha256Hex(fs.readFileSync(target)) !== receipt.generatedFingerprints[relative]) {
         errors.push(`generated fingerprint drifted: ${relative}`);
       }
     }

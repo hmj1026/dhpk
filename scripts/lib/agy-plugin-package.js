@@ -7,7 +7,6 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { adaptFrontmatter } = require('../agy-adapt-agents');
 const { RULE_ACTIVATION_MAP } = require('./rule-activation-map');
 const {
@@ -17,6 +16,11 @@ const {
   validateSurfaceReceipt,
 } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  canonicalJson: stableStringify,
+  inventoryDigestKeySorted,
+  sha256Hex,
+} = require('./content-fingerprint');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { compileDistribution } = require('./distribution-compiler');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
@@ -79,30 +83,6 @@ const AGY_RULE_TRIGGER_MAP = Object.freeze(Object.fromEntries(
       description: entry.description,
     })]),
 ));
-
-function stableValue(value) {
-  if (Array.isArray(value)) return value.map(stableValue);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableValue(value[key])]));
-  }
-  return value;
-}
-
-function stableStringify(value) {
-  return JSON.stringify(stableValue(value));
-}
-
-function digest(value) {
-  return crypto.createHash('sha256').update(String(value)).digest('hex');
-}
-
-function legacyInventoryDigest(inventory) {
-  const source = { ...(inventory || {}) };
-  delete source.profile_policy;
-  delete source.standalone_dependencies;
-  delete source.project_agent_projection;
-  return digest(stableStringify(source));
-}
 
 function lstatOrNull(filePath) {
   try {
@@ -328,7 +308,7 @@ function selectedConfiguration(inventory, profileSelection = null, root = null, 
       surface: SURFACE,
       selectedStableIds: selectedIds,
       selectionPolicy: marketplace ? { source: 'marketplace-selection', selectionDigest: marketplace.selectionDigest } : selectionPolicy,
-      planFingerprint: marketplace ? digest(stableStringify({ surface: SURFACE, selectionDigest: marketplace.selectionDigest, selectedIds })) : compiled.value.planFingerprint,
+      planFingerprint: marketplace ? sha256Hex(stableStringify({ surface: SURFACE, selectionDigest: marketplace.selectionDigest, selectedIds })) : compiled.value.planFingerprint,
     },
   };
 }
@@ -358,7 +338,7 @@ function fingerprintFiles(packageRoot, files) {
   const budget = createTraversalBudget();
   return Object.fromEntries(files.filter((relative) => !['provenance.json', 'fingerprints.json'].includes(relative)).map((relative) => {
     const target = path.join(packageRoot, relative);
-    return [relative, digest(budget.readFile(target, fs.statSync(target)))];
+    return [relative, sha256Hex(budget.readFile(target, fs.statSync(target)))];
   }));
 }
 
@@ -399,7 +379,7 @@ function assertOwnedOutputRoot(outDir) {
   }
   for (const relative of dataFiles) {
     const target = path.join(outDir, relative);
-    if (!Object.prototype.hasOwnProperty.call(fingerprints, relative) || digest(readFileBounded(target)) !== fingerprints[relative]) {
+    if (!Object.prototype.hasOwnProperty.call(fingerprints, relative) || sha256Hex(readFileBounded(target)) !== fingerprints[relative]) {
       throw new Error(`refusing to replace changed AGY output: ${relative}`);
     }
   }
@@ -590,12 +570,12 @@ function materializeAgyPluginPackage({
     sourceVersion,
     sourceCommit,
     generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
-    inventoryDigest: legacyInventoryDigest(inventory),
+    inventoryDigest: inventoryDigestKeySorted(inventory),
     fingerprints,
     ...(publication || {}),
     installation: createInstallationReceiptIdentity({
       surface: SURFACE, scope: 'user', sourceVersion,
-      inventoryDigest: legacyInventoryDigest(inventory),
+      inventoryDigest: inventoryDigestKeySorted(inventory),
       profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
       selectedStableIds: profileSelection && profileSelection.selectedStableIds || selected.selection.selectedStableIds,
       supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -842,7 +822,7 @@ module.exports = {
   GENERATOR_VERSION,
   PACKAGE_SCHEMA,
   stableStringify,
-  digest,
+  digest: sha256Hex,
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
   sanitizeMarkdownLinks,

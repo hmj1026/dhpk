@@ -12,7 +12,7 @@
 // be generated from without touching disk beyond the one read.
 
 const fs = require('node:fs');
-const crypto = require('node:crypto');
+const { sha256Hex } = require('./content-fingerprint');
 const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
 const {
@@ -377,7 +377,7 @@ function validateSupportingAssets({ inventory, root, exists = fs.existsSync }) {
 }
 
 function digestFile(file) {
-  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  return sha256Hex(fs.readFileSync(file));
 }
 
 // Transformed Codex supporting assets are intentionally not byte-identical to
@@ -2335,7 +2335,7 @@ function projectionOutput(stableId, source, destination, content, transform) {
     source,
     destination,
     content: bytes,
-    expectedFingerprint: crypto.createHash('sha256').update(bytes).digest('hex'),
+    expectedFingerprint: sha256Hex(bytes),
     transform,
     mode: 0o644,
     symlinkPolicy: 'forbid',
