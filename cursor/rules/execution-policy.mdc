@@ -445,7 +445,7 @@ preserves the role, task scope, read/write authority, model contract where
 applicable, and reviewer contract. `decideFallback` in the Dispatch Engine
 (`dispatch-engine.js`) owns this policy resolution and carries the
 decremented budget plus the attempted and unavailable lists on the returned
-request (`fallback.retry_budget`, `fallback.attempted_backends`,
+request, which is the next-hop request rather than the one that failed (`fallback.retry_budget`, `fallback.attempted_backends`,
 `fallback.unavailable_backends`; `fallback.cross_provider` gates every non-native
 Provider candidate and quota-pool substitution); it is
 policy state, not a coordinator.

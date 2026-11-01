@@ -6,7 +6,7 @@ const {
   decideFallback,
   resolveTarget,
 } = require('../scripts/lib/dispatch-engine');
-const { SCHEMAS, createDispatchReceipt } = require('../scripts/lib/dispatch-contract');
+const { SCHEMAS, createDispatchReceipt, createDispatchRequest } = require('../scripts/lib/dispatch-contract');
 const catalog = require('../manifests/provider-model-catalog.json');
 const profiles = require('../manifests/host-profiles.json');
 
@@ -722,6 +722,52 @@ test('recovery next_request carries the decremented shared budget, not the calle
   assert.strictEqual(result.status, 'FALLBACK');
   assert.strictEqual(result.retry_budget_remaining, 2);
   assert.strictEqual(result.next_request.fallback.retry_budget, 2);
+});
+
+const agyCandidateTarget = { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high' };
+const substitute = (fallback, candidateOverrides = {}, failureClass = FAILURE_CLASSES.CLI_UNAVAILABLE) => {
+  const base = workerRequest(cursorWorkerHost(), fallback);
+  return decideFallback({ request: base, resolution: failedResolution(cursorTarget), failureClass, sideEffects: 'none', catalog,
+    recovery_action: 'substitute', candidate_request: { ...base, target: agyCandidateTarget, effort: 'high', ...candidateOverrides } });
+};
+
+test('provider substitution requires cross-provider opt-in for a non-native Provider', () => {
+  const blocked = substitute({ allow: true, retry_budget: 2 });
+  assert.strictEqual(blocked.status, 'BLOCKED');
+  assert.strictEqual(blocked.reason, 'Provider substitution requires cross-provider opt-in');
+  assert.strictEqual(substitute({ allow: true, retry_budget: 2, cross_provider: true }).status, 'FALLBACK');
+});
+
+test('provider substitution rejects a candidate already attempted or unavailable', () => {
+  const id = 'agy/google/gemini-3.7-flash-high';
+  for (const list of ['attempted_backends', 'unavailable_backends']) {
+    const result = substitute({ allow: true, retry_budget: 2, cross_provider: true, [list]: [`${id}//`] });
+    assert.strictEqual(result.status, 'BLOCKED', list);
+    assert.strictEqual(result.reason, 'recovery candidate was already attempted', list);
+  }
+});
+
+test('provider substitution rejects the failed target as its own candidate', () => {
+  const result = substitute({ allow: true, retry_budget: 2, cross_provider: true },
+    { target: { target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5' } });
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.strictEqual(result.reason, 'recovery candidate was already attempted');
+});
+
+test('provider substitution records the failed identity so a later fallback excludes it', () => {
+  const result = substitute({ allow: true, retry_budget: 2, cross_provider: true });
+  assert.strictEqual(result.status, 'FALLBACK');
+  const failed = 'cursor/cursor/composer-2.5/native/native-runtime';
+  assert.deepStrictEqual(result.next_request.fallback.attempted_backends, [failed]);
+  assert.deepStrictEqual(result.next_request.fallback.unavailable_backends, [failed]);
+});
+
+test('fallback attempted and unavailable lists are bounded', () => {
+  const many = Array.from({ length: 65 }, (_, index) => `b${index}`);
+  for (const key of ['attempted_backends', 'unavailable_backends']) {
+    assert.throws(() => createDispatchRequest(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1, [key]: many })), new RegExp(key));
+    assert.doesNotThrow(() => createDispatchRequest(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1, [key]: many.slice(0, 64) })));
+  }
 });
 
 test('an alternate Route of the same Model is not excluded by a failed Route', () => {
