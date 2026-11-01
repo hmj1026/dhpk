@@ -1,7 +1,7 @@
 ---
 name: architect
 description: "Read-only cross-module architecture work: layer placement, refactor direction, tech debt, interface changes, ADRs, and multi-file plans. Never writes application code. deep-reasoner is also read-only and analyzes a conclusion during implementation, and likewise never implements application code; planner is an opt-in critique of a plan. This role decides structure and sequencing."
-tools: ["view_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_query"]
+tools: ["view_file", "grep_search", "list_dir", "run_command"]
 model: flash
 ---
 
