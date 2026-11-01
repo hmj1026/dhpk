@@ -570,92 +570,6 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   assert.strictEqual(result.target.native, true);
 });
 
-// Source suite: dispatch.test.js
-{
-  const { test, assert } = require('./_lib/tinytest');
-  const { dispatch } = require('../scripts/lib/dispatch');
-  const { createAdapterRegistry } = require('../scripts/lib/provider-adapter');
-  const { SCHEMAS } = require('../scripts/lib/dispatch-contract');
-
-  const catalog = require('../manifests/provider-model-catalog.json');
-  const profile = {
-    schema: SCHEMAS.HOST_PROFILE, version: 'cursor-dispatch.v2', host: 'cursor', native_target_agent: 'cursor', native_provider: 'cursor', native_model: 'composer-2.5', native_transport: 'native-runtime',
-    allowed_providers: ['cursor', 'openai'],
-    access: {
-      cursor: { status: 'AVAILABLE', evidence: 'Cursor native fixture' },
-      openai: { status: 'AVAILABLE', evidence: 'Codex fixture' },
-    },
-    quota_pools: { cursor: 'native', openai: 'codex' }, concurrency_limits: { native: 1, codex: 1 }, observed_at: '2026-09-11T00:00:00.000Z',
-  };
-
-  function request(overrides = {}) {
-    const input = {
-      schema: SCHEMAS.REQUEST, host_profile: profile, task_id: 'dispatch-task', attempt_id: 'dispatch-attempt', role: 'reasoner', authority: 'read-only',
-      task: { description_digest: 'a'.repeat(64) }, scope: { workdir: '/workspace', assigned_files: [], prompt_evidence: { path: '/workspace/prompt', dev: 1, ino: 2, sha256: 'b'.repeat(64) } },
-      effort: 'high', fallback: { allow: true, retry_budget: 1 }, parallelism: { dependencies: [], max_concurrency: 1 }, ...overrides,
-    };
-    if (input.target && Object.prototype.hasOwnProperty.call(input.target, 'route')) {
-      const { route, ...target } = input.target;
-      input.target = target;
-    }
-    return input;
-  }
-
-  test('dispatch resolves Cursor to Codex Sol5.6 and returns the shared receipt', async () => {
-    const registry = createAdapterRegistry({ executors: {
-      openai: (target) => ({ status: 'SUCCEEDED', verification: 'PASSED', side_effects: 'none', receipt_id: `receipt-${target.identity}` }),
-    } });
-    const result = await dispatch(request({ target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', route: 'native', transport: 'native-runtime' } }), { catalog, registry, fallback: false });
-    assert.strictEqual(result.status, 'SUCCEEDED');
-    assert.strictEqual(result.receipt.schema, SCHEMAS.RECEIPT);
-    assert.strictEqual(result.receipt.host, 'cursor');
-    assert.strictEqual(result.receipt.resolved_target.identity, 'codex-cli/gpt-5.6-sol-high');
-    assert.strictEqual(result.receipt.requested_role, 'reasoner');
-    assert.strictEqual(result.receipt.verification, 'PASSED');
-  });
-
-  test('dispatch falls back from unavailable Codex to Cursor native only before side effects', async () => {
-    const unavailable = {
-      ...profile,
-      access: { ...profile.access, openai: { status: 'UNAVAILABLE', evidence: 'missing executable: codex' } },
-    };
-    const registry = createAdapterRegistry({ executors: {
-      cursor: (target) => ({ status: 'SUCCEEDED', verification: 'PASSED', receipt_id: `receipt-${target.identity}` }),
-    } });
-    const result = await dispatch(request({ host_profile: unavailable, role: 'worker', authority: 'workspace-write', effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }), { catalog, registry });
-    assert.strictEqual(result.status, 'SUCCEEDED');
-    assert.strictEqual(result.fallback.status, 'FALLBACK');
-    assert.strictEqual(result.receipt.resolved_target.identity, 'cursor/composer-2.5');
-    assert.strictEqual(result.fallback.fallback_history[0].provider, 'openai');
-  });
-
-  test('dispatch returns a blocked receipt when capability evidence is NOT_RUN', async () => {
-    const notRun = { ...profile, access: { ...profile.access, openai: { status: 'NOT_RUN', evidence: 'probe not run' } } };
-    const registry = createAdapterRegistry({ executors: { openai: () => ({ status: 'SUCCEEDED' }) } });
-    const result = await dispatch(request({ host_profile: notRun, target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', route: 'native', transport: 'native-runtime' } }), { catalog, registry, fallback: false });
-    assert.strictEqual(result.status, 'BLOCKED');
-    assert.strictEqual(result.receipt.status, 'BLOCKED');
-    assert.strictEqual(result.receipt.failure_class, 'CAPABILITY_PROBE_NOT_RUN');
-    assert.strictEqual(result.receipt.resolved_target.identity, 'codex-cli/gpt-5.6-sol-high');
-  });
-
-  test('dispatch does not reinterpret an unsupported target as an unavailable CLI', async () => {
-    const registry = createAdapterRegistry({ executors: {
-      cursor: () => ({ status: 'SUCCEEDED' }),
-      google: () => ({ status: 'SUCCEEDED' }),
-    } });
-    const result = await dispatch(request({
-      target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'unknown-model', route: 'headless-cli', transport: 'local-cli' },
-    }), { catalog, registry });
-
-    assert.strictEqual(result.status, 'BLOCKED');
-    assert.strictEqual(result.fallback, undefined);
-    assert.strictEqual(result.resolution.status, 'UNAVAILABLE');
-    assert.strictEqual(result.resolution.fallback_eligible, false);
-    assert.strictEqual(result.receipt.failure_class, 'CAPABILITY_UNAVAILABLE');
-  });
-}
-
 // Source suite: dispatch-config.test.js
 {
   const { test, assert } = require('./_lib/tinytest');
@@ -1643,67 +1557,6 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   });
 }
 
-// Source suite: dispatch-platform-validation.test.js
-{
-  const { test, assert } = require('./_lib/tinytest');
-  const {
-    VALIDATION_SCHEMA,
-    validateDispatchPlatformEvidence,
-    validateDispatchSurfaceSet,
-  } = require('../scripts/lib/dispatch-platform-validation');
-  const catalog = require('../manifests/provider-model-catalog.json');
-  const profile = require('../manifests/host-profiles.json').profiles.find((entry) => entry.host === 'cursor');
-
-  const target = { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', effort: 'high', route: 'native', transport: 'native-runtime' };
-
-  test('platform evidence separates catalog support, Host access, and runtime probe status', () => {
-    const evidence = validateDispatchPlatformEvidence({ hostProfile: profile, catalog, target });
-    assert.strictEqual(evidence.schema, 'dhpk.dispatch.platform-validation.v1');
-    assert.strictEqual(evidence.status.catalog_support, 'SUPPORTED');
-    assert.strictEqual(evidence.status.host_access, 'NOT_RUN');
-    assert.strictEqual(evidence.status.runtime, 'NOT_RUN');
-    assert.strictEqual(evidence.status.terminal, 'NOT_RUN');
-  });
-
-  test('runtime and verification evidence are recorded without turning a receipt into capability proof', () => {
-    const evidence = validateDispatchPlatformEvidence({
-      hostProfile: { ...profile, access: { ...profile.access, openai: { status: 'AVAILABLE', evidence: 'bounded probe' } } },
-      catalog,
-      target,
-      probe: { status: 'AVAILABLE', evidence: 'executable and auth fixture' },
-      receipt: { receipt_id: 'receipt-platform-1', status: 'SUCCEEDED', verification: 'PASSED' },
-    });
-    assert.strictEqual(evidence.status.host_access, 'AVAILABLE');
-    assert.strictEqual(evidence.status.runtime, 'AVAILABLE');
-    assert.strictEqual(evidence.status.terminal, 'SUCCEEDED');
-    assert.strictEqual(evidence.status.verification, 'PASSED');
-  });
-
-  test('successful receipt leaves Host access and runtime unproved without a probe', () => {
-    const evidence = validateDispatchPlatformEvidence({
-      hostProfile: profile,
-      catalog,
-      target,
-      receipt: { receipt_id: 'receipt-platform-2', status: 'SUCCEEDED', verification: 'PASSED' },
-    });
-    assert.strictEqual(evidence.status.host_access, 'NOT_RUN');
-    assert.strictEqual(evidence.status.runtime, 'NOT_RUN');
-    assert.strictEqual(evidence.status.terminal, 'SUCCEEDED');
-    assert.strictEqual(evidence.status.verification, 'PASSED');
-    assert.strictEqual(evidence.evidence.probe, 'runtime probe not run');
-  });
-
-  test('surface validation marks missing catalog support incomplete', () => {
-    const result = validateDispatchSurfaceSet([{
-      hostProfile: profile,
-      catalog,
-      target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'missing-model', effort: 'high', route: 'headless-cli', transport: 'local-cli' },
-    }]);
-    assert.strictEqual(result.verdict, 'INCOMPLETE');
-    assert.strictEqual(result.surfaces[0].status.catalog_support, 'UNSUPPORTED');
-  });
-}
-
 // Source suite: dispatch-projection.test.js
 {
   const { test, assert } = require('./_lib/tinytest');
@@ -1762,170 +1615,6 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   });
 }
 
-// Source suite: dispatch-scheduler.test.js
-{
-  const { test, assert } = require('./_lib/tinytest');
-  const { createSchedule, executeSchedule } = require('../scripts/lib/dispatch-scheduler');
-  const { dispatch } = require('../scripts/lib/dispatch');
-  const { createAdapterRegistry } = require('../scripts/lib/provider-adapter');
-  const { SCHEMAS } = require('../scripts/lib/dispatch-contract');
-
-  const catalog = require('../manifests/provider-model-catalog.json');
-  const baseProfile = {
-    schema: SCHEMAS.HOST_PROFILE, version: 'cursor-scheduler.v2', host: 'cursor', native_target_agent: 'cursor', native_provider: 'cursor', native_model: 'composer-2.5', native_transport: 'native-runtime',
-    allowed_providers: ['cursor', 'anthropic', 'openai', 'google'],
-    access: {
-      cursor: { status: 'AVAILABLE', evidence: 'native scheduler fixture' },
-      anthropic: { status: 'AVAILABLE', evidence: 'claude scheduler fixture' },
-      openai: { status: 'AVAILABLE', evidence: 'codex scheduler fixture' },
-      google: { status: 'AVAILABLE', evidence: 'agy scheduler fixture' },
-    },
-    quota_pools: { cursor: 'native', anthropic: 'claude', openai: 'codex', google: 'agy' },
-    concurrency_limits: { native: 1, claude: 1, codex: 1, agy: 1 },
-    observed_at: '2026-09-11T00:00:00.000Z',
-  };
-
-  function request(id, files, overrides = {}) {
-    const input = {
-      schema: SCHEMAS.REQUEST, host_profile: baseProfile, task_id: id, attempt_id: `${id}-attempt`,
-      role: 'worker', authority: 'workspace-write', task: { description_digest: 'a'.repeat(64) },
-      scope: { workdir: '/workspace', assigned_files: files, prompt_evidence: { path: `/workspace/${id}.prompt`, dev: 1, ino: id.length, sha256: 'b'.repeat(64) } },
-      effort: 'medium', fallback: { allow: false, retry_budget: 0 }, parallelism: { dependencies: [], max_concurrency: 3 },
-      ...overrides,
-    };
-    if (input.target && Object.prototype.hasOwnProperty.call(input.target, 'route')) {
-      const { route, ...target } = input.target;
-      input.target = target;
-    }
-    return input;
-  }
-
-  test('scheduler admits independent mixed-provider workers in one wave', () => {
-    const plan = createSchedule([
-      request('claude-task', ['src/claude.js'], { effort: 'medium', target: { target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5', route: 'native', transport: 'native-runtime' } }),
-      request('codex-task', ['src/codex.js'], { effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
-      request('agy-task', ['src/agy.js'], { effort: 'high', target: { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high', route: 'native', transport: 'native-runtime' } }),
-    ], { catalog });
-
-    assert.strictEqual(plan.status, 'READY');
-    assert.strictEqual(plan.waves.length, 1);
-    assert.deepStrictEqual(plan.waves[0].map((entry) => entry.target.provider), ['cursor', 'openai', 'google']);
-  });
-
-  test('scheduler separates conflicting assigned scopes without blaming Provider identity', () => {
-    const plan = createSchedule([
-      request('first', ['src/shared.js'], { effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
-      request('second', ['src/shared.js'], { effort: 'high', target: { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high', route: 'native', transport: 'native-runtime' } }),
-    ], { catalog });
-
-    assert.strictEqual(plan.status, 'READY');
-    assert.strictEqual(plan.waves.length, 2);
-    assert.strictEqual(plan.waves[0][0].target.provider, 'openai');
-    assert.strictEqual(plan.waves[1][0].target.provider, 'google');
-    assert.ok(plan.diagnostics.some((item) => item.reason === 'assigned scope conflict'));
-  });
-
-  test('scheduler enforces a shared Provider quota pool', () => {
-    const profile = { ...baseProfile, quota_pools: { ...baseProfile.quota_pools, openai: 'shared' }, concurrency_limits: { ...baseProfile.concurrency_limits, shared: 1 } };
-    const plan = createSchedule([
-      request('codex-one', ['src/one.js'], { host_profile: profile, effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
-      request('codex-two', ['src/two.js'], { host_profile: profile, effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
-    ], { catalog });
-
-    assert.strictEqual(plan.waves.length, 2);
-    assert.ok(plan.diagnostics.some((item) => item.reason === 'Provider quota limit'));
-  });
-
-  test('scheduler plans unavailable external work onto the current Host-native fallback', async () => {
-    const unavailable = {
-      ...baseProfile,
-      access: { ...baseProfile.access, openai: { status: 'UNAVAILABLE', evidence: 'missing Codex CLI' } },
-    };
-    const input = request('fallback-task', ['src/fallback.js'], {
-      host_profile: unavailable,
-      effort: 'high',
-      target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' },
-      fallback: { allow: true, retry_budget: 1 },
-    });
-    const plan = createSchedule([input], { catalog });
-    assert.strictEqual(plan.status, 'READY');
-    assert.strictEqual(plan.waves[0][0].target.identity, 'cursor/composer-2.5');
-    assert.strictEqual(plan.waves[0][0].fallback.status, 'FALLBACK');
-
-    const registry = createAdapterRegistry({ executors: {
-      cursor: (target) => ({ status: 'SUCCEEDED', verification: 'PASSED', receipt_id: `receipt-${target.identity}` }),
-    } });
-    const result = await executeSchedule([input], { catalog, registry, dispatch, fallback: true });
-    assert.strictEqual(result.results[0].status, 'SUCCEEDED');
-    assert.strictEqual(result.results[0].receipt.resolved_target.identity, 'cursor/composer-2.5');
-  });
-
-  test('scheduler honors dependencies before admitting a wave', () => {
-    const plan = createSchedule([
-      request('base', ['src/base.js']),
-      request('dependent', ['src/dependent.js'], { parallelism: { dependencies: ['base'], max_concurrency: 3 } }),
-    ], { catalog });
-    assert.strictEqual(plan.waves.length, 2);
-    assert.strictEqual(plan.waves[1][0].request.task_id, 'dependent');
-  });
-
-  test('execution scheduler reports timeout and cancellation without fallback substitution', async () => {
-    const controller = new AbortController();
-    const timeoutResult = await executeSchedule([request('timeout', ['src/timeout.js'])], {
-      catalog, timeoutMs: 10, dispatch: () => new Promise(() => {}),
-    });
-    assert.strictEqual(timeoutResult.results[0].status, 'TIMEOUT');
-    assert.strictEqual(timeoutResult.results[0].fallback, undefined);
-
-    controller.abort();
-    let dispatchCalls = 0;
-    const cancelled = await executeSchedule([request('cancelled', ['src/cancelled.js'])], {
-      catalog,
-      signal: controller.signal,
-      dispatch: async () => {
-        dispatchCalls += 1;
-        return { status: 'SUCCEEDED' };
-      },
-    });
-    assert.strictEqual(cancelled.results[0].status, 'CANCELLED');
-    assert.strictEqual(dispatchCalls, 0, 'pre-aborted work must not invoke dispatch');
-  });
-
-  test('execution scheduler preserves launch identity and distinguishes crash from unknown lifecycle state', async () => {
-    const crash = await executeSchedule([request('crash', ['src/crash.js'])], {
-      catalog,
-      dispatch: async () => { throw new Error('adapter process crashed'); },
-    });
-    assert.strictEqual(crash.results[0].status, 'CRASHED');
-    assert.deepStrictEqual(crash.results[0].launch_identity, {
-      task_id: 'crash',
-      attempt_id: 'crash-attempt',
-      target: 'cursor/composer-2.5',
-    });
-
-    const unknown = await executeSchedule([request('unknown', ['src/unknown.js'])], {
-      catalog,
-      dispatch: async () => ({ status: 'UNKNOWN' }),
-    });
-    assert.strictEqual(unknown.results[0].status, 'UNKNOWN');
-    assert.strictEqual(unknown.results[0].fallback, undefined);
-  });
-
-  test('failed lifecycle outcomes block dependent work instead of dispatching a duplicate task', async () => {
-    const calls = [];
-    const dependent = request('dependent-failure', ['src/dependent.js'], { parallelism: { dependencies: ['root-failure'], max_concurrency: 3 } });
-    const result = await executeSchedule([request('root-failure', ['src/root.js']), dependent], {
-      catalog,
-      dispatch: async (entry) => {
-        calls.push(entry.task_id);
-        return { status: 'FAILED' };
-      },
-    });
-    assert.deepStrictEqual(calls, ['root-failure']);
-    assert.strictEqual(result.results.find((entry) => entry.task_id === 'dependent-failure').status, 'BLOCKED');
-  });
-}
-
 // Source suite: issue-534-p1-dispatch-contract.test.js
 {
   const { test, assert } = require('./_lib/tinytest');
@@ -1938,8 +1627,6 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     createProviderModelCatalog,
     translateLegacyRequest,
   } = require('../scripts/lib/dispatch-contract');
-  const { buildInvocation } = require('../scripts/lib/provider-cli-adapters');
-  const { validateDispatchPlatformEvidence } = require('../scripts/lib/dispatch-platform-validation');
 
   const timestamp = '2026-09-16T00:00:00.000Z';
 
@@ -2113,47 +1800,12 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.strictEqual(translated.request.target, undefined);
     assert.match(translated.compatibility.diagnostic, /explicit target/i);
   });
-
-  test('all four adapters expose explicit argv contracts and Claude reads prompt from stdin', () => {
-    const request = { authority: 'read-only', scope: { workdir: '/workspace' } };
-    const claude = buildInvocation({ target_agent: 'claude-code', provider: 'anthropic', model_id: 'sonnet-5', model: 'sonnet-5', effort: 'high', route: 'headless-cli', transport: 'local-cli' }, request);
-    assert.deepStrictEqual(claude.argv, ['--print', '--model', 'sonnet-5', '--effort', 'high', '--output-format', 'json']);
-    assert.strictEqual(claude.stdin_mode, 'prompt');
-    assert.ok(!claude.argv.includes('--prompt-file'));
-
-    const codex = buildInvocation({ target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna', model: 'gpt-5.6-luna', effort: 'high', route: 'headless-cli', transport: 'local-cli' }, request);
-    assert.strictEqual(codex.executable, 'codex');
-    assert.deepStrictEqual(codex.argv, [
-      'exec', '--skip-git-repo-check', '--sandbox', 'read-only',
-      '-c', 'approval_policy=never', '--cd', '/workspace',
-      '-m', 'gpt-5.6-luna', '-c', 'model_reasoning_effort=high',
-      '--output-last-message', '{transport_output}', '-',
-    ]);
-    assert.strictEqual(codex.stdin_mode, 'prompt');
-    assert.strictEqual(codex.output, 'transport-file');
-
-    const agy = buildInvocation(
-      { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.8-flash-high', model: 'gemini-3.8-flash-high', effort: 'high', route: 'headless-cli', transport: 'local-cli' },
-      { ...request, authority: 'workspace-write' },
-      { catalog },
-    );
-    assert.strictEqual(agy.executable, 'agy');
-    assert.deepStrictEqual(agy.argv, [
-      '--dangerously-skip-permissions', '--mode', 'accept-edits', '--add-dir', '/workspace',
-      '--model', 'Gemini 3.8 Flash (High)', '--print-timeout', '300s', '-p', '{prompt}',
-    ]);
-    assert.strictEqual(agy.stdin_mode, 'agy-confirmation');
-    assert.strictEqual(agy.output, 'none');
-    const cursor = buildInvocation({ target_agent: 'cursor', provider: 'xai', model_id: 'cursor-grok-4.6-high', model: 'cursor-grok-4.6-high', effort: 'high', route: 'native', transport: 'native-runtime' }, request);
-    assert.deepStrictEqual(cursor.argv, []);
-  });
 }
 
 // Source suite: issue-534-p1-failure-matrix.test.js
 {
   const { test, assert } = require('./_lib/tinytest');
   const { resolveTarget, decideFallback, FAILURE_CLASSES } = require('../scripts/lib/dispatch-engine');
-  const { createSchedule } = require('../scripts/lib/dispatch-scheduler');
   const { createAdapterRegistry } = require('../scripts/lib/provider-adapter');
   const { createDispatchRequest, SCHEMAS } = require('../scripts/lib/dispatch-contract');
   const catalog = require('../manifests/provider-model-catalog.json');
@@ -2276,7 +1928,7 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.strictEqual(fallback.target.identity, 'cursor/composer-2.5');
   });
 
-  test('partial writes, missing tools, timeout, and scope collisions stay on their safety paths', () => {
+  test('partial writes, missing tools, and timeout stay on their safety paths', () => {
     const reconciliation = decideFallback({
       request: request(),
       resolution: { status: 'UNAVAILABLE', reason: 'writer started', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } },
@@ -2290,12 +1942,6 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     const blocked = adapter.execute({ target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', effort: 'high', route: 'native', transport: 'native-runtime' }, createDispatchRequest(request()));
     assert.strictEqual(blocked.status, 'BLOCKED');
     assert.strictEqual(blocked.failure_class, 'ADAPTER_NOT_CONFIGURED');
-
-    const collision = createSchedule([
-      request({ task_id: 'matrix-a', attempt_id: 'matrix-a-attempt' }),
-      request({ task_id: 'matrix-b', attempt_id: 'matrix-b-attempt' }),
-    ], { catalog });
-    assert.ok(collision.diagnostics.some((entry) => entry.reason === 'assigned scope conflict'));
   });
 }
 
@@ -2411,8 +2057,6 @@ test('T7 canonical executable evidence cannot override explicit Host refusal', (
 
 test('T7 native null and exposed selector preserve unknown observations through adapters', () => {
   const { createExecutionTarget } = require('../scripts/lib/dispatch-contract');
-  const { buildInvocation } = require('../scripts/lib/provider-cli-adapters');
-  const { validateDispatchPlatformEvidence } = require('../scripts/lib/dispatch-platform-validation');
   const { createExecutionAdapter } = require('../scripts/lib/provider-adapter');
   for (const model of [null, 'host-default-alias']) {
     const input = request(codexProfile, { target: { target_agent: 'codex-cli', provider: 'openai', model_id: model }, effort: undefined,
@@ -2424,11 +2068,9 @@ test('T7 native null and exposed selector preserve unknown observations through 
     assert.strictEqual(resolved.capability.observed_model, null); assert.strictEqual(resolved.capability.observed_effort, null);
     const normalized = createExecutionTarget({ ...resolved.target, allow_unknown_model: true, allow_unknown_effort: true });
     assert.strictEqual(normalized.model_id, model);
-    assert.deepStrictEqual(buildInvocation(resolved.target, resolved.request).argv, []);
     const adapter = createExecutionAdapter({ provider: 'openai', execute: () => ({ status: 'SUCCEEDED', verification: 'PASSED' }) });
     const receipt = adapter.execute(resolved.target, resolved.request).receipt;
     assert.strictEqual(receipt.resolved_target.model_id, model);
-    assert.strictEqual(validateDispatchPlatformEvidence({ hostProfile: codexProfile, catalog, target: resolved.target }).status.catalog_support, 'UNSUPPORTED');
   }
   assert.strictEqual(createExecutionTarget({ target_agent: 'codex-cli', provider: 'openai', effort: 'high', transport: 'local-cli' }).model_id, 'unknown');
   assert.throws(() => createExecutionTarget({ target_agent: 'codex-cli', provider: 'openai', model_id: null, effort: 'high',
@@ -2437,9 +2079,6 @@ test('T7 native null and exposed selector preserve unknown observations through 
 
 
 test('T7 explicit nullable foreign and transport-conflicting targets stay blocked', () => {
-  const { buildInvocation } = require('../scripts/lib/provider-cli-adapters');
-  assert.throws(() => buildInvocation({ target_agent: 'codex-cli', provider: 'openai', model_id: null,
-    effort: 'high', route: 'headless-cli', transport: 'local-cli' }, request(codexProfile)));
   for (const target of [
     { target_agent: 'codex-cli', provider: 'openai', model_id: null, transport: 'local-cli' },
     { target_agent: 'claude-code', provider: 'anthropic', model_id: null },
