@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change align-agent-plugin-platform-support. Update Purpose after archive.
+Define how dhpk reaches Cursor: the portable Agent Plugin path for skills and MCP, and the optional native Cursor Plugin with rules, agents, commands, and hooks adapted to Cursor's schema, including fixed rule activation, versioned hooks, shared-skill ownership, provenance, and separate evidence classes for discovery and runtime.
 
 ## Requirements
 
