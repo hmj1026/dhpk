@@ -31,8 +31,9 @@ test('runs generators in dependency order, digests before catalogs before compan
   assert.deepStrictEqual(h.calls, GENERATORS.map((g) => g.name));
   const idx = (n) => h.calls.indexOf(n);
   assert.ok(idx('gen-distribution-inventory') < idx('gen-skill-usage'));
+  assert.ok(idx('sync-skill-resources') < idx('gen-distribution-inventory'));
   assert.ok(idx('gen-skill-usage') < idx('gen-claude-marketplace-package'));
-  assert.ok(GENERATORS[0].args.includes('--refresh-supporting-digests'));
+  assert.ok(GENERATORS.find((g) => g.name === 'gen-distribution-inventory').args.includes('--refresh-supporting-digests'));
   assert.ok(!GENERATORS.some((g) => g.args.includes('--write') && /distribution-inventory/.test(g.args[0])));
 });
 

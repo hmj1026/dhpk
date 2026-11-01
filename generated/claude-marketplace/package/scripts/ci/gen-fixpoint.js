@@ -16,8 +16,10 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.resolve(__dirname, '..', '..');
 const MAX_PASSES = 5;
 
-// Order: digests -> catalogs that read them -> projections built from both.
+// Order: managed skill-resource copies -> digests -> catalogs that read them
+// -> projections built from both.
 const GENERATORS = [
+  { name: 'sync-skill-resources', args: ['scripts/ci/sync-skill-resources.js', '--write'] },
   { name: 'gen-distribution-inventory', args: ['scripts/ci/gen-distribution-inventory.js', '--refresh-supporting-digests'] },
   { name: 'catalog', args: ['scripts/ci/catalog.js', '--write'] },
   { name: 'gen-skill-usage', args: ['scripts/ci/gen-skill-usage.js', '--write'] },
