@@ -67,11 +67,29 @@ function parseArgs(argv) {
   return result;
 }
 
+// Profile bundles carry no provenance.json; their owner receipt is
+// bundle-receipt.json with the capability-bundle schema.
+function verifyBundleOwnership(existingRoot) {
+  // A pre-created empty bundle directory holds nothing to lose.
+  if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
+  const receiptPath = path.join(existingRoot, 'bundle-receipt.json');
+  let stat = null;
+  try { stat = fs.lstatSync(receiptPath); } catch { /* reported below */ }
+  if (!stat || !stat.isFile()) return { ok: false, code: 'NO_OWNER_RECEIPT', message: 'existing tree has no bundle-receipt.json' };
+  let receipt = null;
+  try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch { /* reported below */ }
+  if (!receipt || receipt.schema !== 'dhpk.claude-capability-bundle.v1') {
+    return { ok: false, code: 'FOREIGN_OWNER', message: 'existing bundle-receipt.json is not a dhpk capability bundle receipt' };
+  }
+  return { ok: true };
+}
+
 function materialize(compiled, outputRoot) {
   const store = new ProjectionArtifactStore({
     root: outputRoot,
     sourceRoot: ROOT,
     publishRoot: path.join(outputRoot, 'package'),
+    ownership: { verify: verifyBundleOwnership },
   });
   return materializeClaudeCapabilityBundle({
     compiled,

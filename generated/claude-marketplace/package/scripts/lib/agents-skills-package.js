@@ -17,6 +17,8 @@ const { createTraversalBudget, readDirectoryEntries } = require('./bounded-files
 const { sha256Hex, fileSetFingerprintTerminated } = require('./content-fingerprint');
 const { resolveStandaloneSkillDependencies } = require('./standalone-skill-dependencies');
 const { planRetiredAgentSkills } = require('./agents-skills-retirement');
+const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
+const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const {
   materializeRelocatableAgentsSkillsProjection,
   validateRelocatableAgentsSkillsProjection,
@@ -33,7 +35,6 @@ const {
 const SCHEMA = 'dhpk.agents-skills-projection.v1';
 const GENERATOR_VERSION = '1.0.0';
 const RECEIPT_NAME = '.dhpk-projection.json';
-const TRANSACTION_SCHEMA = 'dhpk.agents-skills-transaction.v1';
 const SAFE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const SECRET_PATTERNS = [
@@ -192,18 +193,14 @@ function treeFingerprint(files, budget) {
   })));
 }
 
-function copyFiles(files, targetRoot, budget) {
+function readSkillFiles(files, budget) {
   const output = [];
   for (const file of files) {
     const relative = file.relative;
-    const target = path.join(targetRoot, relative);
     assertSafeRelative(relative, 'generated skill file');
-    if (!isInside(targetRoot, target)) throw new Error(`generated skill file escapes output root: ${relative}`);
     const content = readPhysicalFile(file.absolute, budget, `canonical skill file: ${relative}`);
     const sourceStat = lstatOrNull(file.absolute);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, content, { mode: sourceStat ? sourceStat.mode & 0o7777 : 0o644 });
-    output.push({ path: relative, digest: sha256Hex(content) });
+    output.push({ path: relative, digest: sha256Hex(content), content, mode: sourceStat ? sourceStat.mode & 0o7777 : 0o644 });
   }
   return output;
 }
@@ -486,278 +483,184 @@ function usesRelocatableProjection(options = {}) {
   return false;
 }
 
-function transactionPathFor(outDir) {
-  return path.join(path.dirname(outDir), `.dhpk-agents-skills-${sha256Hex(path.resolve(outDir)).slice(0, 16)}.transaction.json`);
-}
-
-function writeAtomicJson(filePath, value) {
-  const temporary = `${filePath}.tmp-${process.pid}-${Date.now()}`;
-  try {
-    fs.writeFileSync(temporary, `${stableStringify(value)}\n`, { mode: 0o600 });
-    fs.renameSync(temporary, filePath);
-  } finally {
-    if (lstatOrNull(temporary)) fs.rmSync(temporary, { force: true });
-  }
-}
-
-function transactionPaths(outDir, transaction) {
-  if (!transaction || transaction.schema !== TRANSACTION_SCHEMA) throw new Error('agents-skills transaction journal has an unsupported schema');
-  const parent = path.dirname(outDir);
-  if (transaction.outputName !== path.basename(outDir) || typeof transaction.backupName !== 'string' || typeof transaction.stageName !== 'string') {
-    throw new Error('agents-skills transaction journal has an invalid output identity');
-  }
-  for (const name of [transaction.backupName, transaction.stageName]) {
-    if (!/^[.a-z0-9-]+$/i.test(name) || name.includes('/') || name === '.' || name === '..') throw new Error('agents-skills transaction journal has an unsafe temporary path');
-  }
-  const backup = path.join(parent, transaction.backupName);
-  const stage = path.join(parent, transaction.stageName);
-  if (!isInside(parent, backup) || !isInside(parent, stage)) throw new Error('agents-skills transaction path escapes its parent');
-  const parentStat = lstatOrNull(parent);
-  if (!parentStat || parentStat.isSymbolicLink() || !parentStat.isDirectory()) throw new Error('agents-skills transaction parent is not a physical directory');
-  assertPhysicalAncestors(backup, 'agents-skills transaction backup', parent);
-  assertPhysicalAncestors(stage, 'agents-skills transaction stage', parent);
-  const oldPaths = Array.isArray(transaction.oldPaths) ? transaction.oldPaths : null;
-  const newPaths = Array.isArray(transaction.newPaths) ? transaction.newPaths : null;
-  if (!oldPaths || !newPaths || !['prepared', 'publishing', 'published'].includes(transaction.phase)) {
-    throw new Error('agents-skills transaction journal has invalid state');
-  }
-  for (const relative of [...oldPaths, ...newPaths]) assertSafeRelative(relative, 'transaction path');
-  return { parent, backup, stage, oldPaths, newPaths };
-}
-
-function removeTransactionFile(root, relative) {
-  const target = pathInOutput(root, relative);
-  const stat = lstatOrNull(target);
-  if (!stat) return;
-  if (!stat.isFile() && !stat.isSymbolicLink()) throw new Error(`transaction target is not a removable file: ${relative}`);
-  fs.rmSync(target, { force: true });
-}
-
-function cleanupTransactionDirectory(directory, label) {
-  const stat = lstatOrNull(directory);
-  if (!stat) return;
-  if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`${label} is not a physical directory`);
-  fs.rmSync(directory, { recursive: true, force: true });
-}
-
-function recoverProjectionTransaction(outDir) {
-  const journalPath = transactionPathFor(outDir);
-  const journalStat = lstatOrNull(journalPath);
-  if (!journalStat) return;
-  if (journalStat.isSymbolicLink() || !journalStat.isFile()) throw new Error(`agents-skills transaction journal is not a regular file: ${journalPath}`);
-  let transaction;
-  try { transaction = JSON.parse(fs.readFileSync(journalPath, 'utf8')); } catch (error) { throw new Error(`agents-skills transaction journal is invalid JSON: ${error.message}`); }
-  const { backup, stage, oldPaths, newPaths } = transactionPaths(outDir, transaction);
-  if (transaction.phase === 'published') {
-    cleanupTransactionDirectory(backup, 'agents-skills transaction backup');
-    cleanupTransactionDirectory(stage, 'agents-skills transaction stage');
-    fs.rmSync(journalPath, { force: true });
-    return;
-  }
-  const oldSet = new Set(oldPaths);
-  for (const relative of newPaths) {
-    const backupSource = path.join(backup, relative);
-    const wasMoved = Boolean(lstatOrNull(backupSource));
-    if (!oldSet.has(relative) || wasMoved) removeTransactionFile(outDir, relative);
-  }
-  for (const relative of oldPaths) {
-    const source = path.join(backup, relative);
-    if (!lstatOrNull(source)) continue;
-    const target = pathInOutput(outDir, relative);
-    const targetStat = lstatOrNull(target);
-    if (targetStat) {
-      if (!targetStat.isFile() && !targetStat.isSymbolicLink()) throw new Error(`transaction restore target is not a file: ${relative}`);
-      fs.rmSync(target, { force: true });
-    }
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    assertPhysicalAncestors(target, 'transaction restore target', outDir);
-    fs.renameSync(source, target);
-  }
-  removeEmptyDirectories(outDir);
-  cleanupTransactionDirectory(backup, 'agents-skills transaction backup');
-  cleanupTransactionDirectory(stage, 'agents-skills transaction stage');
-  fs.rmSync(journalPath, { force: true });
-}
-
-function removeEmptyDirectories(root) {
-  const walk = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (entry.isDirectory() && !entry.isSymbolicLink()) walk(path.join(directory, entry.name));
-    }
-    if (directory !== root && fs.readdirSync(directory).length === 0) fs.rmdirSync(directory);
+// Ownership is the set of paths the previous receipt can prove it generated
+// (trusted by the current selection, renamed, retired, or carried), plus the
+// receipt itself. A path merely claimed by the receipt grants nothing.
+function agentsSkillsOwnership(ownedPaths) {
+  return {
+    verify: (existingRoot) => {
+      // A pre-created empty tree holds nothing to lose.
+      if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
+      const receiptStat = lstatOrNull(path.join(existingRoot, RECEIPT_NAME));
+      if (!receiptStat || receiptStat.isSymbolicLink() || !receiptStat.isFile()) {
+        return { ok: false, code: 'NO_OWNER_RECEIPT', message: `existing tree has no ${RECEIPT_NAME} receipt` };
+      }
+      const walk = (directory, prefix) => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+          const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+          if (entry.isDirectory()) {
+            const nested = walk(path.join(directory, entry.name), relative);
+            if (nested) return nested;
+          } else if (!ownedPaths.has(relative)) {
+            return relative;
+          }
+        }
+        return null;
+      };
+      const unlisted = walk(existingRoot, '');
+      return unlisted
+        ? { ok: false, code: 'UNLISTED_FILE', message: `existing tree holds a file the receipt does not own: ${unlisted}` }
+        : { ok: true };
+    },
   };
-  walk(root);
 }
 
-function writeJson(filePath, value) {
-  fs.writeFileSync(filePath, `${stableStringify(value)}\n`, { mode: 0o644 });
+function publishAgentsSkillsTree({ sourceRoot, outputRoot, inventory, outputs, ownedPaths }) {
+  const entries = outputs.map((output) => ({
+    stableId: `agents-skills:${output.path}`,
+    source: output.source,
+    destination: output.path,
+    owner: 'plugins/dhpk-agent',
+    transform: { id: 'agents-skills-render', version: GENERATOR_VERSION },
+    expectedFingerprint: sha256Hex(output.content),
+    symlinkPolicy: 'forbid',
+  }));
+  const compiled = compileDistribution({
+    internalCharacterization: true,
+    surface: 'agents-skills',
+    compilerVersion: `agents-skills-${GENERATOR_VERSION}`,
+    inventoryRevision: resolveInventoryRevision(inventory),
+    ownershipRoot: '.agents/skills',
+    entries,
+  });
+  if (!compiled.ok) throw new Error(compiled.error.message);
+  const adapter = {
+    identity: { id: 'agents-skills', version: GENERATOR_VERSION },
+    render: () => ({
+      adapter: { id: 'agents-skills', version: GENERATOR_VERSION },
+      outputs: outputs.map((output) => ({
+        stableId: `agents-skills:${output.path}`,
+        destination: output.path,
+        content: output.content,
+        mode: output.mode,
+      })),
+      links: [],
+    }),
+  };
+  const store = new ProjectionArtifactStore({
+    root: path.dirname(outputRoot),
+    sourceRoot,
+    publishRoot: outputRoot,
+    ownership: agentsSkillsOwnership(ownedPaths),
+  });
+  const artifact = materializeDistribution(compiled.value, adapter, store);
+  if (!artifact.ok) {
+    const code = artifact.error.code === 'OWNERSHIP_REFUSED' ? 'OWNERSHIP_REFUSED: ' : '';
+    throw new Error(`${code}${artifact.error.message}`);
+  }
 }
 
 function materializeAgentsSkillsProjection(options = {}) {
   if (usesRelocatableProjection(options)) return materializeRelocatableAgentsSkillsProjection(options);
-  // Compatibility-only writer: preserve the historical in-checkout byte and
-  // receipt contract until a separately reviewed retirement migration removes it.
+  // In-checkout build-time tree: planned outputs published as one tree through
+  // ProjectionArtifactStore, gated by a receipt-based ownership verifier.
   const { root, inventory, outDir = path.join(root, '.agents', 'skills'), allowCanonicalChanges = false } = options;
   if (!root || !inventory) throw new Error('root and inventory are required');
   const sourceRoot = path.resolve(root);
   const outputRoot = path.resolve(outDir);
   assertOutputRoot(sourceRoot, outputRoot);
-  ensureDirectory(outputRoot, 'agents-skills output', sourceRoot);
-  recoverProjectionTransaction(outputRoot);
+  ensureDirectory(path.dirname(outputRoot), 'agents-skills output parent', sourceRoot);
 
   const selected = selectedSkills(sourceRoot, inventory);
-  const stage = fs.mkdtempSync(path.join(path.dirname(outputRoot), '.dhpk-agents-skills-build-'));
-  const stageManaged = [];
+  const outputs = [];
   const entries = [];
-  try {
-    for (const skill of selected) {
-      const sourceFiles = logicalSkillFiles(sourceRoot, skill, inventory);
-      const sourceFingerprint = treeFingerprint(sourceFiles, createTraversalBudget());
-      const cursorRoot = path.join(stage, skill.name);
-      const copied = copyFiles(sourceFiles, cursorRoot, createTraversalBudget());
-      if (!copied.some((file) => file.path === 'SKILL.md')) throw new Error(`generated Cursor skill is missing SKILL.md: ${skill.name}`);
-      const sourceContent = readPhysicalFile(skill.sourceFile, createTraversalBudget(), `canonical skill ${skill.name}/SKILL.md`);
-      const parsed = parseFrontmatter(sourceContent.toString('utf8'));
-      if (!parsed.present || !parsed.values.name || !parsed.values.description) {
-        throw new Error(`canonical skill ${skill.name}/SKILL.md is missing name or description frontmatter`);
-      }
-      if (parsed.values.name !== skill.name) {
-        throw new Error(`canonical skill frontmatter name does not match inventory name: ${skill.name}`);
-      }
-      if (containsSecret(sourceContent.toString('utf8'))) throw new Error(`possible secret in canonical skill: ${skill.name}`);
-      const shimPath = path.join(stage, `${skill.name}.md`);
-      const shim = Buffer.from(agyShim(skill.name, parsed.values.description), 'utf8');
-      fs.writeFileSync(shimPath, shim, { mode: 0o644 });
-      stageManaged.push(...copied.map((file) => ({ path: `${skill.name}/${file.path}`, digest: file.digest })));
-      stageManaged.push({ path: `${skill.name}.md`, digest: sha256Hex(shim) });
-      entries.push({
-        id: skill.id,
-        name: skill.name,
-        source: path.relative(sourceRoot, skill.sourceDir).split(path.sep).join('/'),
-        sourceFingerprint,
-        sourceFiles: copied.map((file) => ({ path: file.path, digest: file.digest })),
-        cursorPath: `${skill.name}/SKILL.md`,
-        agyPath: `${skill.name}.md`,
-      });
+  for (const skill of selected) {
+    const sourceFiles = logicalSkillFiles(sourceRoot, skill, inventory);
+    const sourceFingerprint = treeFingerprint(sourceFiles, createTraversalBudget());
+    const copied = readSkillFiles(sourceFiles, createTraversalBudget());
+    if (!copied.some((file) => file.path === 'SKILL.md')) throw new Error(`generated Cursor skill is missing SKILL.md: ${skill.name}`);
+    const sourceContent = readPhysicalFile(skill.sourceFile, createTraversalBudget(), `canonical skill ${skill.name}/SKILL.md`);
+    const parsed = parseFrontmatter(sourceContent.toString('utf8'));
+    if (!parsed.present || !parsed.values.name || !parsed.values.description) {
+      throw new Error(`canonical skill ${skill.name}/SKILL.md is missing name or description frontmatter`);
     }
-    stageManaged.sort((left, right) => left.path.localeCompare(right.path));
-    const currentPaths = stageManaged.map((file) => file.path);
-    const currentPathSet = new Set(currentPaths);
-    const currentNames = new Set(entries.map((entry) => entry.name));
-    const previous = readReceipt(outputRoot, selected, sourceRoot, inventory);
-    if (previous) validateExistingManagedFiles(outputRoot, previous, previous.trustedManagedPaths, selected, allowCanonicalChanges, sourceRoot, inventory);
-    const renamed = previous ? renamedReceiptPaths(outputRoot, previous, selected, inventory) : [];
-    const renamedIds = new Set(renamed.map((migration) => migration.entry.id));
-    const renamedPaths = new Set(renamed.flatMap((migration) => migration.paths));
-    const retired = planRetiredAgentSkills({ inventory, previous, selected, outputRoot,
-      safeName, assertSafeRelative, pathInOutput, lstatOrNull, digest: sha256Hex, treeFingerprint });
-    const carriedEntries = previous
-      ? previous.entries.filter((entry) => !currentNames.has(entry.name) && !renamedIds.has(entry.id) && !retired.ids.has(entry.id))
-      : [];
-    const carriedPaths = previous
-      ? previous.managedPaths.filter((relative) => {
-          if (currentPathSet.has(relative) || renamedPaths.has(relative) || retired.paths.has(relative)) return false;
-          const top = relative.split('/')[0].replace(/\.md$/, '');
-          return !currentNames.has(top);
-        })
-      : [];
-    const carriedFingerprints = previous
-      ? Object.fromEntries(carriedPaths.map((relative) => [relative, previous.generatedFingerprints[relative]]))
-      : {};
-    const receipt = {
-      schema: SCHEMA,
-      generatorVersion: GENERATOR_VERSION,
-      selectionSurface: 'agent-plugin',
-      inventoryRevision: resolveInventoryRevision(inventory),
-      selectedIds: selected.map((skill) => skill.id).sort(),
-      entries: [...entries, ...carriedEntries].sort((left, right) => left.name.localeCompare(right.name)),
-      managedPaths: [...currentPaths, ...carriedPaths].sort(),
-      generatedFingerprints: {
-        ...Object.fromEntries(stageManaged.map((file) => [file.path, file.digest])),
-        ...carriedFingerprints,
-      },
-    };
-    writeJson(path.join(stage, RECEIPT_NAME), receipt);
-
-    const oldPaths = previous
-      ? [...new Set([...previous.trustedManagedPaths, ...renamedPaths, ...retired.paths, RECEIPT_NAME])]
-      : [];
-    const oldPathSet = new Set(oldPaths);
-    const newPaths = [...stageManaged.map((file) => file.path), RECEIPT_NAME];
-    const oldTopLevel = new Set(oldPaths.map((relative) => relative.split('/')[0]));
-    for (const relative of newPaths) {
-      const target = pathInOutput(outputRoot, relative);
-      if (lstatOrNull(target) && !oldPathSet.has(relative)) {
-        throw new Error(`generated path collides with unmanaged content: ${relative}`);
-      }
-      const top = relative.split('/')[0];
-      if (top !== RECEIPT_NAME && lstatOrNull(path.join(outputRoot, top)) && !oldTopLevel.has(top)) {
-        throw new Error(`generated skill directory collides with unmanaged content: ${top}`);
-      }
+    if (parsed.values.name !== skill.name) {
+      throw new Error(`canonical skill frontmatter name does not match inventory name: ${skill.name}`);
     }
-
-    const backup = fs.mkdtempSync(path.join(path.dirname(outputRoot), '.dhpk-agents-skills-backup-'));
-    const journalPath = transactionPathFor(outputRoot);
-    const journal = {
-      schema: TRANSACTION_SCHEMA,
-      outputName: path.basename(outputRoot),
-      backupName: path.basename(backup),
-      stageName: path.basename(stage),
-      phase: 'prepared',
-      oldPaths,
-      newPaths,
-    };
-    if (lstatOrNull(journalPath)) throw new Error(`agents-skills transaction journal already exists: ${journalPath}`);
-    writeAtomicJson(journalPath, journal);
-    let published = false;
-    try {
-      journal.phase = 'publishing';
-      writeAtomicJson(journalPath, journal);
-      for (const relative of oldPaths) {
-        const source = pathInOutput(outputRoot, relative);
-        if (!lstatOrNull(source)) continue;
-        const target = path.join(backup, relative);
-        fs.mkdirSync(path.dirname(target), { recursive: true });
-        assertPhysicalAncestors(target, 'agents-skills transaction backup target', backup);
-        fs.renameSync(source, target);
-      }
-      removeEmptyDirectories(outputRoot);
-      for (const relative of newPaths) {
-        const source = path.join(stage, relative);
-        const target = pathInOutput(outputRoot, relative);
-        fs.mkdirSync(path.dirname(target), { recursive: true });
-        assertPhysicalAncestors(target, 'agents-skills publish target', outputRoot);
-        fs.copyFileSync(source, target);
-        const sourceStat = lstatOrNull(source);
-        if (sourceStat && sourceStat.isFile()) fs.chmodSync(target, sourceStat.mode & 0o7777);
-      }
-      journal.phase = 'published';
-      writeAtomicJson(journalPath, journal);
-      published = true;
-      cleanupTransactionDirectory(backup, 'agents-skills transaction backup');
-      cleanupTransactionDirectory(stage, 'agents-skills transaction stage');
-      fs.rmSync(journalPath, { force: true });
-    } catch (error) {
-      if (!published) {
-        try {
-          recoverProjectionTransaction(outputRoot);
-        } catch (recoveryError) {
-          error.message = `${error.message}; transaction recovery failed: ${recoveryError.message}`;
-        }
-      }
-      throw error;
-    }
-    return {
-      outputRoot,
-      selectedIds: receipt.selectedIds,
-      managedPaths: receipt.managedPaths,
-      receipt,
-    };
-  } finally {
-    if (!lstatOrNull(transactionPathFor(outputRoot)) && lstatOrNull(stage)) {
-      cleanupTransactionDirectory(stage, 'agents-skills transaction stage');
-    }
+    if (containsSecret(sourceContent.toString('utf8'))) throw new Error(`possible secret in canonical skill: ${skill.name}`);
+    const source = path.relative(sourceRoot, skill.sourceDir).split(path.sep).join('/');
+    const shim = Buffer.from(agyShim(skill.name, parsed.values.description), 'utf8');
+    for (const file of copied) outputs.push({ path: `${skill.name}/${file.path}`, digest: file.digest, content: file.content, mode: file.mode, source });
+    outputs.push({ path: `${skill.name}.md`, digest: sha256Hex(shim), content: shim, mode: 0o644, source });
+    entries.push({
+      id: skill.id,
+      name: skill.name,
+      source,
+      sourceFingerprint,
+      sourceFiles: copied.map((file) => ({ path: file.path, digest: file.digest })),
+      cursorPath: `${skill.name}/SKILL.md`,
+      agyPath: `${skill.name}.md`,
+    });
   }
+  outputs.sort((left, right) => left.path.localeCompare(right.path));
+  const currentPaths = outputs.map((file) => file.path);
+  const currentPathSet = new Set(currentPaths);
+  const currentNames = new Set(entries.map((entry) => entry.name));
+  const previous = readReceipt(outputRoot, selected, sourceRoot, inventory);
+  if (previous) validateExistingManagedFiles(outputRoot, previous, previous.trustedManagedPaths, selected, allowCanonicalChanges, sourceRoot, inventory);
+  const renamed = previous ? renamedReceiptPaths(outputRoot, previous, selected, inventory) : [];
+  const renamedIds = new Set(renamed.map((migration) => migration.entry.id));
+  const renamedPaths = new Set(renamed.flatMap((migration) => migration.paths));
+  const retired = planRetiredAgentSkills({ inventory, previous, selected, outputRoot,
+    safeName, assertSafeRelative, pathInOutput, lstatOrNull, digest: sha256Hex, treeFingerprint });
+  const carriedEntries = previous
+    ? previous.entries.filter((entry) => !currentNames.has(entry.name) && !renamedIds.has(entry.id) && !retired.ids.has(entry.id))
+    : [];
+  const carriedPaths = previous
+    ? previous.managedPaths.filter((relative) => {
+        if (currentPathSet.has(relative) || renamedPaths.has(relative) || retired.paths.has(relative)) return false;
+        const top = relative.split('/')[0].replace(/\.md$/, '');
+        return !currentNames.has(top);
+      })
+    : [];
+  const carriedFingerprints = previous
+    ? Object.fromEntries(carriedPaths.map((relative) => [relative, previous.generatedFingerprints[relative]]))
+    : {};
+  const receipt = {
+    schema: SCHEMA,
+    generatorVersion: GENERATOR_VERSION,
+    selectionSurface: 'agent-plugin',
+    inventoryRevision: resolveInventoryRevision(inventory),
+    selectedIds: selected.map((skill) => skill.id).sort(),
+    entries: [...entries, ...carriedEntries].sort((left, right) => left.name.localeCompare(right.name)),
+    managedPaths: [...currentPaths, ...carriedPaths].sort(),
+    generatedFingerprints: {
+      ...Object.fromEntries(outputs.map((file) => [file.path, file.digest])),
+      ...carriedFingerprints,
+    },
+  };
+  const carriedOutputs = carriedPaths.map((relative) => {
+    const target = pathInOutput(outputRoot, relative);
+    const content = readPhysicalFile(target, createTraversalBudget(), `carried projection file: ${relative}`);
+    return { path: relative, content, mode: lstatOrNull(target).mode & 0o7777, source: 'skills' };
+  });
+  const receiptContent = Buffer.from(`${stableStringify(receipt)}\n`, 'utf8');
+  const ownedPaths = new Set(previous
+    ? [...previous.trustedManagedPaths, ...renamedPaths, ...retired.paths, ...carriedPaths, RECEIPT_NAME]
+    : []);
+  publishAgentsSkillsTree({
+    sourceRoot,
+    outputRoot,
+    inventory,
+    ownedPaths,
+    outputs: [...outputs, ...carriedOutputs, { path: RECEIPT_NAME, content: receiptContent, mode: 0o644, source: 'skills' }],
+  });
+  return {
+    outputRoot,
+    selectedIds: receipt.selectedIds,
+    managedPaths: receipt.managedPaths,
+    receipt,
+  };
 }
 
 function validateAgentsSkillsProjection(options = {}) {

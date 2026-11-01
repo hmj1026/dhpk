@@ -18,7 +18,7 @@ const {
   createDistributionPlan,
   fingerprint,
 } = require('./distribution-projection-contract');
-const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { ProjectionArtifactStore, safeRelative, safeLinkTarget, inside } = require('./projection-artifact-store');
 const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
@@ -99,18 +99,14 @@ function lstatOrNull(filePath) {
   }
 }
 
+// Path-safety predicates are shared with the build-time artifact store; this
+// module keeps its own error codes and messages around them.
 function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (relative && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+  return inside(path.resolve(parent), path.resolve(candidate));
 }
 
 function assertSafeRelative(relative, label) {
-  if (typeof relative !== 'string' || relative.length === 0 || relative.includes('\0')
-    || relative.includes('\\') || path.posix.isAbsolute(relative) || /^[A-Za-z]:/.test(relative)) {
-    throw fail('UNSAFE_PATH', `${label} must be a normalized relative path`, { paths: [relative] });
-  }
-  const parts = relative.split('/');
-  if (parts.includes('.') || parts.includes('..') || parts.includes('')) {
+  if (!safeRelative(relative)) {
     throw fail('UNSAFE_PATH', `${label} must be a normalized relative path`, { paths: [relative] });
   }
   return relative;
@@ -156,12 +152,7 @@ function pathIn(root, relative, label = 'projection path') {
 }
 
 function assertSafeLinkTarget(target, label) {
-  if (typeof target !== 'string' || target.length === 0 || target.includes('\0')
-    || target.includes('\\') || path.posix.isAbsolute(target) || /^[A-Za-z]:/.test(target)) {
-    throw fail('UNSAFE_PATH', `${label} must be a normalized relative symlink target`, { paths: [target] });
-  }
-  const parts = target.split('/');
-  if (parts.some((part) => part === '' || part === '.') || path.posix.normalize(target) !== target) {
+  if (!safeLinkTarget(target)) {
     throw fail('UNSAFE_PATH', `${label} must be a normalized relative symlink target`, { paths: [target] });
   }
   return target;
