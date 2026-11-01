@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.md#codex-project-local-sync-supported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.md#cursor-project-local-sync-supported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.md#surface-matrix)
 
-A generic, install-and-go Claude Code harness. It ships **30 role-based agents** (29 root-level agents plus one module-scoped reviewer), registered dhpk commands, six task-shaped capability families, a cross-session learning DB (opt-in), advisory reviewer dispatch (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. It ships **32 role-based agents** (31 root-level agents plus one module-scoped reviewer), registered dhpk commands, six task-shaped capability families, a cross-session learning DB (opt-in), advisory reviewer dispatch (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
 
 > **Harness engineering over prompt engineering.** dhpk treats the agent's operating environment — hooks, reviewer dispatch, routing rules, and stack-aware modules — as the unit of leverage. Rather than hand-tuning one-off prompts, you install a reusable harness that makes the right checks fire automatically and keeps the model on the rails across sessions.
 
@@ -410,7 +410,7 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
-├── agents/                       # 30 role-based agents (29 root + 1 module-scoped reviewer; INDEX.md is navigation)
+├── agents/                       # 32 role-based agents (31 root + 1 module-scoped reviewer; INDEX.md is navigation)
 ├── commands/                     # slash commands (review, setup, codex-*, smart-commit, opsx-apply-resume, ...)
 ├── skills/                       # SSOT: 68 flat canonical packages rooted at skills/<public-name>/ (six portable family names are unprefixed)
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
@@ -447,7 +447,7 @@ dhpk/
 ├── codex/                        # Codex CLI dual-track (Claude Code does NOT auto-load)
 │   ├── AGENTS.md                 # Codex-specific guidance
 │   ├── README.md, README.zh-TW.md # how to sync into a project
-│   ├── skills/                   # 32 relative symlinks (30 invokable + internal transport + dispatch-context runtimes)
+│   ├── skills/                   # 24 relative symlinks to canonical skills
 │   ├── agents/, config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
 ├── plugins/dhpk/                 # tracked Codex-native package: 19 physical entries, zero symlinks

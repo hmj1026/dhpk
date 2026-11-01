@@ -34,7 +34,7 @@ receipt, not this file, own that selection.
 
 | Concern | Claude Code | Codex CLI |
 |---------|-------------|-----------|
-| **Loading path** | `agents/`, `commands/`, `skills/`, `hooks/`, `modules/` at plugin root | `.codex/agents/`, `.codex/skills/` in the project (after sync); Codex lifecycle hooks use `~/.codex/hooks.json`, project `.codex/hooks.json`, or inline `[hooks]` in `config.toml` |
+| **Loading path** | `agents/`, `commands/`, `skills/`, `hooks/`, `modules/` at plugin root | `.codex/agents/` in the project (after sync); skills are discovered from `.agents/skills`, and the `.codex/skills/<name>` entries are compatibility symlinks to `../../.agents/skills/<name>` created by the installer; Codex lifecycle hooks use `~/.codex/hooks.json`, project `.codex/hooks.json`, or inline `[hooks]` in `config.toml` |
 | **userConfig** | Yes — Claude prompts at install | Codex has no equivalent; configure via the synced `config.toml.example` |
 | **Modules (`modules/<stack>-<version>/`)** | Selective activation via `userConfig.modules` | Not directly mirrored — Codex sees a flat skills set |
 | **MCP** | Full (servers declared in plugin or user settings) | Configured via `config.toml` and `codex mcp add` |

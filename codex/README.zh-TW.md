@@ -84,11 +84,12 @@ Skill invocation 是 chat syntax，不是 plugin-management command。每個同�
 
 ## Agent roles
 
-`codex/agents/` 提供 15 個可直接派送的角色：4 個手動維護的通用角色（`explorer`、
-`worker`、`monitor`、`bug-investigator`），以及 11 個由 canonical agent 產生的角色
+`codex/agents/` 提供 19 個可直接派送的角色：4 個手動維護的通用角色（`explorer`、
+`worker`、`monitor`、`bug-investigator`），以及 15 個由 canonical agent 產生的角色
 （`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、
 `deep-reasoner`、`doc-reviewer`、`planner`、`frontend-reviewer`、
-`migration-reviewer`、`e2e-runner`）。完整 role map、fallback 與 capability gate 見
+`migration-reviewer`、`e2e-runner`、`qa-executor`、`ui-verifier`、`docs-writer`、
+`scoped-worker`）。完整 role map、fallback 與 capability gate 見
 [`guidance.md`](./guidance.md) 及 [`agent-role-map.json`](./agent-role-map.json)。
 
 靜態 validation 與 current receipt 不等於可派發。必須啟動 fresh Codex session
