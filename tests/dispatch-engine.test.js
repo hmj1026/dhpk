@@ -676,6 +676,26 @@ const EXPECTED_REMOVED_KEYS = {
     }
   });
 
+  test('docs/configuration.md and the zh-TW page list exactly REMOVED_KEYS with the same replacements', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const tableAfter = (file, heading) => {
+      const lines = fs.readFileSync(path.join(__dirname, '..', file), 'utf8').split('\n');
+      const start = lines.findIndex((line) => line.trim() === heading);
+      assert.ok(start >= 0, `${file} lacks heading ${heading}`);
+      const rows = {};
+      for (const line of lines.slice(start + 1)) {
+        if (/^## /.test(line)) break;
+        const match = /^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|/.exec(line);
+        if (match) rows[match[1]] = match[2];
+      }
+      return rows;
+    };
+    const expected = { ...dispatchConfigModule.REMOVED_KEYS };
+    assert.deepStrictEqual(tableAfter('docs/configuration.md', '## Removed in 0.69.0'), expected);
+    assert.deepStrictEqual(tableAfter('docs/configuration.zh-TW.md', '## 0.69.0 移除的設定'), expected);
+  });
+
   test('every removed key in project, global, and environment yields a BLOCKED diagnostic and is never applied', () => {
     for (const [key, replacement] of Object.entries(EXPECTED_REMOVED_KEYS)) {
       for (const layer of ['project', 'global', 'environment']) {
@@ -754,6 +774,18 @@ const EXPECTED_REMOVED_KEYS = {
     assert.deepStrictEqual(agy.model, { value: 'gemini-3.8-flash-high', source: 'worker_target' });
     assert.strictEqual(resolveRoleConfig({ role: 'no-such-role', config: {} }).status, 'BLOCKED');
     assert.strictEqual(resolveRoleConfig({ role: 'codex-worker', config: { worker_target: 'bare-model' } }).status, 'BLOCKED');
+  });
+
+  test('a CLI Role Agent never applies a role target that names a different Target Agent', () => {
+    for (const [role, key] of [['codex-reviewer', 'reviewer_target'], ['codex-reasoner', 'reasoner_target'], ['codex-worker', 'worker_target']]) {
+      const other = resolveRoleConfig({ role, config: { [key]: 'claude-code/opus5:medium' } });
+      assert.strictEqual(other.model.value, undefined, role);
+      assert.strictEqual(other.effort.value, undefined, role);
+      const own = resolveRoleConfig({ role, config: { [key]: 'codex-cli/gpt-6-luna:xhigh' } });
+      assert.deepStrictEqual(own.model, { value: 'gpt-6-luna', source: key }, role);
+    }
+    const canonical = resolveRoleConfig({ role: 'reviewer', config: { reviewer_target: 'claude-code/opus5:medium' } });
+    assert.deepStrictEqual(canonical.model, { value: 'opus5', source: 'reviewer_target' });
   });
 
   test('invalid canonical values block only the invalid field and retain orchestration kill switch semantics', () => {

@@ -56,6 +56,9 @@ const REMOVED_KEYS = Object.freeze({
   architect_model: 'reasoner_target',
   architect_effort: 'reasoner_target',
 });
+// Distinct from REMOVED_IN_VERSION: the removal version of the cursor-native
+// provider/route target spelling translated at the input boundary (ADR 0020).
+// Still live: it stamps legacy_sources entries.
 const LEGACY_REMOVAL_VERSION = '0.67.0';
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -425,6 +428,11 @@ function applyDispatchConfig({ config, role = 'worker', request } = {}) {
   });
 }
 
+// CLI Role Agents (codex-*, agy-worker) pin the Target Agent they dispatch to, so a
+// `<role>_target` naming a different Target Agent is never applied to a CLI dispatch.
+// Canonical roles without a CLI (planner, reasoner, reviewer) are Host-resolved and
+// accept any Target Agent (agent: null). The bare `worker` role is currently pinned
+// to codex-cli (existing behavior, kept unchanged).
 const ROLE_CONFIG = Object.freeze({
   'codex-worker': Object.freeze({ role: 'worker', agent: 'codex-cli', prefix: 'codex_worker' }),
   'codex-reasoner': Object.freeze({ role: 'reasoner', agent: 'codex-cli', prefix: 'codex_reasoner' }),

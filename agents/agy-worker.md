@@ -145,8 +145,8 @@ writes and derives applicable reviewers from the actual edited paths. Omitting i
 RESULT: DONE | PARTIAL | BLOCKED
 ## Agy Fast Worker Report
 Backend: agy --model "<model>" --mode accept-edits -p (non-interactive)
-Requested backend: agy
-Selected backend: agy | claude (only with dispatcher-approved fallback)
+Requested target agent: agy
+Selected target agent: agy | claude-code (only with dispatcher-approved fallback)
 Availability: <agy executable available | missing executable: agy>
 Fallback reason: <none | canonical failure class and dispatcher decision>
 Model/effort: <model> / baked into model name

@@ -262,7 +262,7 @@ test('session start remains activation-only when selector configuration is overr
 test('all fast-worker report schemas expose the auditable selector contract', () => {
   for (const file of ['fast-worker.md', 'codex-worker.md', 'agy-worker.md']) {
     const prompt = fs.readFileSync(path.join(ROOT, 'agents', file), 'utf8');
-    for (const field of ['Requested backend:', 'Selected backend:', 'Availability:', 'Fallback reason:', 'Model/effort:', 'Verify:', 'Edited files']) {
+    for (const field of ['Requested target agent:', 'Selected target agent:', 'Availability:', 'Fallback reason:', 'Model/effort:', 'Verify:', 'Edited files']) {
       assert.ok(prompt.includes(field), `${file} missing report field: ${field}`);
     }
   }
