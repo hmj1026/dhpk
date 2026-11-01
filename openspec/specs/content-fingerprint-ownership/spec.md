@@ -1,6 +1,7 @@
 # content-fingerprint-ownership Specification
 
 ## Purpose
+
 Keep every digest that dhpk persists in a checked-in file and later re-computes
 for comparison owned by one implementation per algorithm, so a writer and its
 verifier cannot diverge and consolidation never changes a persisted value.
