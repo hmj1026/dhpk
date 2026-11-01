@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "b68f2c423fdca21bb9332570f14e90de5b340fde",
-  "generatedFromCommit": "b68f2c423fdca21bb9332570f14e90de5b340fde",
-  "generatedFromTree": "77c3345383d18f507f921b232b26edfa7096a206",
+  "sourceCommit": "94da89f32192faae884329bdaf5dbd54ae54bfa2",
+  "generatedFromCommit": "94da89f32192faae884329bdaf5dbd54ae54bfa2",
+  "generatedFromTree": "02e4d7229446c4c20d67275e0537f554f4190057",
   "inventoryDigest": "8852442b0b41df931aae49c142afb8c85194b9df3768ec637bb47c1f56446843",
   "inventoryRevision": "sha256:2cc5f16a4b554e72b873607cc7bbbb8757a694972426d1307decc5d45bd9b23d",
   "generatorVersion": "1.0.0",
@@ -1377,7 +1377,7 @@
         "ownerId": "flow-drive",
         "source": "skills/yii1/references/yii1-security-patterns.md",
         "destination": "skills/flow-drive/references/yii1/references/yii1-security-patterns.md",
-        "originalGitBlobDigest": "7a904b68d6074f36cf6329f3d090b84c7f53c7b6"
+        "originalGitBlobDigest": "f0abd6e3ab9f911bcf8b7404c41780f4e5edecd5"
       },
       {
         "ownerId": "flow-guide",
