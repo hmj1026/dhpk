@@ -2018,14 +2018,6 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
-      "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-      "kind": "entry",
-      "sha256": "639ea3e4b750547b02aef37ee2d9b64074a6880f3ff88489780c0a49cf553b34"
-    },
-    {
-      "skillId": "flow-guide",
-      "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
       "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
       "kind": "entry",
