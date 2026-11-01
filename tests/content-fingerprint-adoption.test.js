@@ -102,4 +102,20 @@ test('Cursor validator recomputes every fingerprints.json entry and names a corr
   }
 });
 
+test('Cursor validator cannot be bypassed by adding a surface key to fingerprints.json', () => {
+  const copy = tempDir('cursor-bypass');
+  try {
+    fs.cpSync(path.join(ROOT, 'plugins', 'dhpk-cursor'), copy, { recursive: true });
+    const fingerprintsPath = path.join(copy, 'fingerprints.json');
+    const fingerprints = JSON.parse(fs.readFileSync(fingerprintsPath, 'utf8'));
+    const tampered = { ...fingerprints, surface: 'x', agents: '0'.repeat(64) };
+    fs.writeFileSync(fingerprintsPath, `${JSON.stringify(tampered, null, 2)}\n`);
+    const errors = validateCursorPackage({ packageRoot: copy }).errors;
+    assert.ok(errors.includes("fingerprints.json entry 'agents' does not match package content"), errors.join('; '));
+    assert.ok(errors.some((error) => error.includes("'surface'")), errors.join('; '));
+  } finally {
+    fs.rmSync(copy, { recursive: true, force: true });
+  }
+});
+
 run('content-fingerprint-adoption');

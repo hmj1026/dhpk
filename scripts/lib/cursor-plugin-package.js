@@ -1602,15 +1602,22 @@ function validateCursorPackage(input = {}) {
     try {
       const fingerprints = JSON.parse(readFileBounded(path.join(root, 'fingerprints.json')).toString('utf8'));
       // The Agent Plugin overlay validated here carries its own fingerprint
-      // format (it declares a `surface`); only Cursor-format entries are
-      // path -> Merkle digest pairs that can be recomputed from the package.
-      const recompute = !(fingerprints && Object.prototype.hasOwnProperty.call(fingerprints, 'surface'));
+      // format: a `surface` string plus a nested `skills` object. Every other
+      // shape is Cursor format: path -> Merkle digest pairs recomputed from
+      // the package, so an added non-digest key cannot switch the check off.
+      const skills = fingerprints && fingerprints.skills;
+      const agentOverlay = Boolean(fingerprints) && typeof fingerprints.surface === 'string'
+        && Boolean(skills) && typeof skills === 'object' && !Array.isArray(skills);
       for (const [key, expected] of Object.entries(fingerprints || {})) {
         if (!isSafeRelativePath(key)) {
           errors.push(`fingerprint path escapes package root: '${key}'`);
           continue;
         }
-        if (!recompute) continue;
+        if (agentOverlay) continue;
+        if (typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected)) {
+          errors.push(`fingerprints.json entry '${key}' is not a SHA-256 hex digest`);
+          continue;
+        }
         let actual;
         try { actual = fingerprintPath(path.join(root, key)); } catch (error) { actual = `unreadable: ${error.message}`; }
         if (actual !== expected) errors.push(`fingerprints.json entry '${key}' does not match package content`);
