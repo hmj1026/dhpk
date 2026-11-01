@@ -211,3 +211,57 @@ and runtime observed identity SHALL come from actual outcome evidence.
 
 - **WHEN** the Host refuses a Provider or one fresh batch contradicts itself for the same execution tuple
 - **THEN** the engine blocks that target without external execution or policy bypass
+
+### Requirement: The Dispatch Engine is the only Role Default resolution authority
+
+Exactly one module, the Dispatch Engine, SHALL select the Target Agent, Model,
+Effort, and Invocation Route for a Role from the Host Role Defaults and the Model
+Catalog. No selector, policy module, configuration reader, or role resolver
+SHALL choose among Target Agents using a hard-coded backend list, default, or
+subagent map. Other modules MAY build requests, supply explicit targets or
+capability evidence, and render the engine's result.
+
+#### Scenario: Selector delegates to the engine
+
+- **WHEN** the worker selector is invoked on any detected Host
+- **THEN** its selected target equals the result of calling the Dispatch Engine
+  with that Host's profile and the same inputs
+
+#### Scenario: No second candidate policy
+
+- **WHEN** the repository is searched for backend candidate lists
+  (`claude|codex|agy` orderings, `candidate_scope`)
+- **THEN** none exists outside the Dispatch Engine's catalog-driven resolution
+
+#### Scenario: Mixed-vendor Host defaults resolve per Role
+
+- **WHEN** the `cursor` Host resolves `planner`, `worker`, and `reviewer`
+  without overrides
+- **THEN** each result is that Role's declared Host Role Default, with the
+  Provider taken from the Target Agent's vendor mapping
+
+### Requirement: Target Agent aliases and vendor mapping are defined once
+
+The contract module SHALL export one frozen table mapping an Invocation Alias to
+a Target Agent and one frozen table mapping a Target Agent to its Provider
+vendor. All modules that normalize an alias or derive a vendor SHALL import
+these tables and SHALL NOT keep local copies. The deprecated `native` and
+`cursor-native` spellings SHALL NOT be accepted.
+
+#### Scenario: One alias table
+
+- **WHEN** `claude`, `codex`, and `agy` are normalized by the engine, the
+  contract, the provider adapter, the CLI role resolver, and the dispatch
+  configuration
+- **THEN** every module returns `claude-code`, `codex-cli`, and `agy`
+
+#### Scenario: One vendor mapping
+
+- **WHEN** Target Agent `claude-code` is mapped to a Provider by any module
+- **THEN** the result is `anthropic`, never a Target Agent name
+
+#### Scenario: Deprecated Cursor spelling is rejected
+
+- **WHEN** a target uses `native` or `cursor-native`
+- **THEN** validation fails with an unsupported Target Agent error naming the
+  accepted spellings

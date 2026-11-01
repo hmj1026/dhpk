@@ -86,3 +86,57 @@ after an auth, model, execution, or timeout failure.
 - **WHEN** a provider exits successfully with a non-empty report
 - **THEN** the worker still verifies the assigned scope independently before it
   reports completion
+
+### Requirement: CLI Role Agents are explicit targets, not Role Aliases
+
+`codex-worker`, `codex-reasoner`, `codex-reviewer`, and `agy-worker` SHALL be
+treated as CLI Role Agents: each is bound to exactly one Target Agent through
+that agent's headless CLI. They SHALL NOT appear in the Model Catalog's
+`role_aliases`. Selecting one SHALL resolve as an explicit target
+(`codex-cli/<model>` or `agy/<model>`) validated by the Dispatch Engine, and
+the CLI role resolver SHALL continue to reject a Provider other than the
+agent's own. The CLI role resolver SHALL own only role and mode authority checks
+and `role_contract` evidence.
+
+#### Scenario: Provider pin is legitimate
+
+- **WHEN** the CLI role resolver is asked for `codex-worker` with Provider `agy`
+- **THEN** it reports `BLOCKED` stating the role is not bound to that Provider
+
+#### Scenario: CLI Role Agent is absent from the alias table
+
+- **WHEN** the catalog `role_aliases` is loaded
+- **THEN** it contains no entry for any CLI Role Agent
+
+#### Scenario: Retired role names stay blocked
+
+- **WHEN** a caller requests `codex-fast-worker`, `codex-deep-reasoner`, or
+  `agy-fast-worker`
+- **THEN** resolution fails closed with retirement guidance naming the
+  successor CLI Role Agent
+
+#### Scenario: Role and mode authority still enforced
+
+- **WHEN** `codex-worker` is requested with mode `read-only`
+- **THEN** the resolver reports `BLOCKED` because the role requires
+  `workspace-write`, and no `role_contract` is issued
+
+### Requirement: The shipped CLI dispatch closure includes selection support files
+
+The native agent supporting-asset closure SHALL include the dispatch
+configuration module and the Host profile manifest, in addition to the existing
+contract, engine, and catalog files, so a standalone installed copy can resolve
+a Role without a dhpk checkout.
+
+#### Scenario: Shipped closure resolves
+
+- **WHEN** the selector CLI is run from a generated native-agent package in an
+  empty directory with module search paths cleared
+- **THEN** it requires only files shipped in that package and returns a
+  resolution or a `BLOCKED` result
+
+#### Scenario: Closure listing is complete
+
+- **WHEN** the support-file list is compared with the transitive `require`
+  closure of the shipped selector and CLI role resolver
+- **THEN** every required repository file is listed
