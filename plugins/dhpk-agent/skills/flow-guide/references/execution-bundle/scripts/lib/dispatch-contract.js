@@ -45,7 +45,19 @@ const RETIRED_ROLES = Object.freeze({
   'agy-fast-worker': 'agy-worker',
 });
 
-const LEGACY_ROLE_ALIASES = Object.freeze({});
+// Retirement guidance naming the successor, or null when the name is not a retired Role.
+function retirementGuidance(name) {
+  if (!Object.prototype.hasOwnProperty.call(RETIRED_ROLES, name)) return null;
+  return `retired role ${name} in 0.66.2; use ${RETIRED_ROLES[name]}; rollback 0.66.1`;
+}
+
+// CLI Role Agents are explicit targets, not Role Aliases: they stay out of ROLE_ALIASES and the
+// catalog. The legacy v1 request boundary still accepts these names for their canonical Role.
+const LEGACY_REQUEST_ROLES = Object.freeze({
+  'codex-reasoner': Object.freeze({ role: 'reasoner', authority: 'read-only' }),
+  'codex-worker': Object.freeze({ role: 'worker', authority: 'workspace-write' }),
+  'agy-worker': Object.freeze({ role: 'worker', authority: 'workspace-write' }),
+});
 
 // Policy-facing names are deliberately a thin alias layer.  They describe a
 // Role and its authority ceiling only; target Agent/Provider selection stays
@@ -54,14 +66,10 @@ const ROLE_ALIASES = Object.freeze({
   orchestrator: Object.freeze({ role: 'planner', authority: 'read-only' }),
   architect: Object.freeze({ role: 'reasoner', authority: 'read-only' }),
   'deep-reasoner': Object.freeze({ role: 'reasoner', authority: 'read-only' }),
-  'codex-reasoner': Object.freeze({ role: 'reasoner', authority: 'read-only' }),
   'fast-worker': Object.freeze({ role: 'worker', authority: 'workspace-write' }),
-  'codex-worker': Object.freeze({ role: 'worker', authority: 'workspace-write' }),
-  'agy-worker': Object.freeze({ role: 'worker', authority: 'workspace-write' }),
   'doc-reviewer': Object.freeze({ role: 'reviewer', authority: 'read-only' }),
   'code-reviewer': Object.freeze({ role: 'reviewer', authority: 'read-only' }),
   'security-reviewer': Object.freeze({ role: 'reviewer', authority: 'read-only' }),
-  ...LEGACY_ROLE_ALIASES,
 });
 
 const LEGACY_SCHEMAS = Object.freeze([
@@ -72,6 +80,7 @@ const LEGACY_SCHEMAS = Object.freeze([
 const SHA256 = /^[a-f0-9]{64}$/;
 const IDENTIFIER = /^[a-z0-9][a-z0-9._-]*$/;
 
+// Invocation Alias (an input spelling) to Target Agent. The one alias table.
 const TARGET_AGENT_ALIASES = Object.freeze({
   claude: 'claude-code',
   'claude-code': 'claude-code',
@@ -80,16 +89,44 @@ const TARGET_AGENT_ALIASES = Object.freeze({
   agy: 'agy',
   cursor: 'cursor',
 });
-const LEGACY_VENDOR_MAP = Object.freeze({
+// Target Agent to the Provider vendor it runs on. The one vendor table.
+const AGENT_PROVIDER = Object.freeze({
   'claude-code': 'anthropic',
   'codex-cli': 'openai',
   agy: 'google',
-  'cursor-native': 'cursor',
+  cursor: 'cursor',
 });
+// `native` and `cursor-native` were route/provider spellings, not Agent identities.
+// They are translated to `cursor` only at an input compatibility boundary.
+const LEGACY_CURSOR_SPELLINGS = Object.freeze(['native', 'cursor-native']);
+
+// Target Agent for an alias or legacy Cursor spelling; undefined when unknown.
+function agentForAlias(value) {
+  if (LEGACY_CURSOR_SPELLINGS.includes(value)) return 'cursor';
+  return Object.prototype.hasOwnProperty.call(TARGET_AGENT_ALIASES, value) ? TARGET_AGENT_ALIASES[value] : undefined;
+}
+
+// Provider vendor for a Target Agent name or the legacy `cursor-native` spelling; other values pass through.
+function vendorFor(value) {
+  if (value === 'cursor-native') return 'cursor';
+  return Object.prototype.hasOwnProperty.call(AGENT_PROVIDER, value) ? AGENT_PROVIDER[value] : value;
+}
+
+// Target Agent a legacy `<vendor>/<model>` target spelling meant (`xai` was always Cursor's vendor).
+function agentForVendor(vendor) {
+  if (vendor === 'xai') return 'cursor';
+  return Object.keys(AGENT_PROVIDER).find((agent) => AGENT_PROVIDER[agent] === vendor);
+}
+
+// Legacy Host-profile maps may be keyed by a Target Agent name instead of its vendor.
+function legacyAgentKey(vendor) {
+  if (vendor === 'cursor') return 'cursor-native';
+  return Object.keys(AGENT_PROVIDER).find((agent) => AGENT_PROVIDER[agent] === vendor);
+}
 
 function canonicalTargetAgent(value, label = 'target_agent') {
   requiredString(value, label);
-  const canonical = TARGET_AGENT_ALIASES[value];
+  const canonical = Object.prototype.hasOwnProperty.call(TARGET_AGENT_ALIASES, value) ? TARGET_AGENT_ALIASES[value] : undefined;
   if (!canonical) throw new TypeError(`${label} must identify a supported Target Agent`);
   return canonical;
 }
@@ -98,14 +135,13 @@ function translatedTargetAgent(value, label = 'target_agent') {
   // `native` and `cursor-native` were route/provider spellings, not Agent
   // identities.  They are accepted only at an input compatibility boundary;
   // canonical catalog rows and normalized output always carry `cursor`.
-  if (value === 'native' || value === 'cursor-native') return 'cursor';
+  if (LEGACY_CURSOR_SPELLINGS.includes(value)) return 'cursor';
   return canonicalTargetAgent(value, label);
 }
 
 function canonicalProvider(value, label = 'provider') {
   requiredString(value, label);
-  if (LEGACY_VENDOR_MAP[value]) return LEGACY_VENDOR_MAP[value];
-  return oneOf(value, PROVIDERS, label);
+  return oneOf(vendorFor(value), PROVIDERS, label);
 }
 
 const PRICING_SENTINELS = Object.freeze(['unknown', 'subscription-included', 'not-published']);
@@ -242,7 +278,7 @@ function createHostProfile(input) {
   identifier(profile.native_model, 'host_profile.native_model');
   oneOf(profile.native_transport, TRANSPORTS, 'host_profile.native_transport');
   const nativeTargetAgent = translatedTargetAgent(
-    profile.native_target_agent || profile.native_agent || ({ 'claude-code': 'claude-code', 'codex-cli': 'codex-cli', agy: 'agy', cursor: 'cursor' }[profile.host] || profile.host),
+    profile.native_target_agent || profile.native_agent || (TARGET_AGENT_ALIASES[profile.host] || profile.host),
     'host_profile.native_target_agent',
   );
   const nativeRoute = profile.native_route === undefined
@@ -255,7 +291,7 @@ function createHostProfile(input) {
 
   const access = requiredRecord(profile.access, 'host_profile.access');
   for (const provider of normalizedAllowed) {
-    const entry = requiredRecord(access[provider] || access[Object.entries(LEGACY_VENDOR_MAP).find(([, vendor]) => vendor === provider)?.[0]], `host_profile.access.${provider}`);
+    const entry = requiredRecord(access[provider] || access[legacyAgentKey(provider)], `host_profile.access.${provider}`);
     oneOf(entry.status, CAPABILITY_STATUSES, `host_profile.access.${provider}.status`);
     boundedEvidence(entry.evidence, `host_profile.access.${provider}.evidence`);
   }
@@ -263,7 +299,7 @@ function createHostProfile(input) {
   const limits = requiredRecord(profile.concurrency_limits, 'host_profile.concurrency_limits');
   const normalizedQuotaPools = {};
   for (const provider of normalizedAllowed) {
-    const pool = quotaPools[provider] || quotaPools[Object.entries(LEGACY_VENDOR_MAP).find(([, vendor]) => vendor === provider)?.[0]];
+    const pool = quotaPools[provider] || quotaPools[legacyAgentKey(provider)];
     requiredString(pool, `host_profile.quota_pools.${provider}`);
     nonNegativeInteger(limits[pool], `host_profile.concurrency_limits.${pool}`);
     normalizedQuotaPools[provider] = pool;
@@ -314,7 +350,7 @@ function createHostProfile(input) {
     native_transport: profile.native_transport,
     native_route: nativeRoute,
     allowed_providers: normalizedAllowed,
-    access: Object.fromEntries(normalizedAllowed.map((provider) => [provider, access[provider] || access[Object.entries(LEGACY_VENDOR_MAP).find(([, vendor]) => vendor === provider)?.[0]]])),
+    access: Object.fromEntries(normalizedAllowed.map((provider) => [provider, access[provider] || access[legacyAgentKey(provider)]])),
     quota_pools: normalizedQuotaPools,
     concurrency_limits: profile.concurrency_limits,
     observed_at: profile.observed_at,
@@ -330,9 +366,7 @@ function createProviderModelCatalog(input) {
   isoTimestamp(catalog.observed_at, 'provider_model_catalog.observed_at');
   const roleAliasesInput = catalog.role_aliases === undefined ? ROLE_ALIASES : requiredRecord(catalog.role_aliases, 'provider_model_catalog.role_aliases');
   for (const alias of Object.keys(roleAliasesInput)) {
-    if (Object.prototype.hasOwnProperty.call(RETIRED_ROLES, alias)) {
-      throw new TypeError(`retired role ${alias} in 0.66.2; use ${RETIRED_ROLES[alias]}; rollback 0.66.1`);
-    }
+    if (retirementGuidance(alias)) throw new TypeError(retirementGuidance(alias));
   }
   const roleAliases = {};
   for (const [alias, rawAlias] of Object.entries(roleAliasesInput)) {
@@ -588,7 +622,7 @@ function createExecutionTarget(input) {
       : legacyProvider === 'codex-cli' ? 'codex-cli'
         : legacyProvider === 'agy' ? 'agy'
           : legacyProvider === 'cursor-native' ? 'cursor' : undefined), 'execution target.target_agent');
-  const canonical = canonicalProvider(target.provider || ({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', cursor: 'cursor' }[targetAgent]), 'execution target.provider');
+  const canonical = canonicalProvider(target.provider || AGENT_PROVIDER[targetAgent], 'execution target.provider');
   const provider = canonical;
   const model = Object.prototype.hasOwnProperty.call(target, 'model_id') ? target.model_id : target.model;
   const preserveUnknownModel = target.allow_unknown_model === true;
@@ -753,10 +787,8 @@ function translateLegacyRequest(input) {
   oneOf(legacy.schema, LEGACY_SCHEMAS, 'legacy request.schema');
   const requestedAlias = legacy.requested_role || legacy.role;
   requiredString(requestedAlias, 'legacy requested role');
-  if (Object.prototype.hasOwnProperty.call(RETIRED_ROLES, requestedAlias)) {
-    throw new TypeError(`retired role ${requestedAlias} in 0.66.2; use ${RETIRED_ROLES[requestedAlias]}; rollback 0.66.1`);
-  }
-  let mapping = ROLE_ALIASES[requestedAlias] || LEGACY_ROLE_ALIASES[requestedAlias];
+  if (retirementGuidance(requestedAlias)) throw new TypeError(retirementGuidance(requestedAlias));
+  let mapping = ROLE_ALIASES[requestedAlias] || LEGACY_REQUEST_ROLES[requestedAlias];
   if (!mapping && CANONICAL_ROLES.includes(requestedAlias)) mapping = { role: requestedAlias };
   if (!mapping) throw new TypeError(`unknown legacy role: ${requestedAlias}`);
   const authority = mapping.authority || legacy.authority || legacy.mode || MAX_AUTHORITY[mapping.role];
@@ -798,6 +830,7 @@ function translateLegacyRequest(input) {
 }
 
 module.exports = Object.freeze({
+  AGENT_PROVIDER,
   AUTHORITIES,
   CANONICAL_ROLES,
   CAPABILITY_STATUSES,
@@ -805,7 +838,8 @@ module.exports = Object.freeze({
   EFFORT_BINDINGS,
   EFFORTS,
   HOSTS,
-  LEGACY_ROLE_ALIASES,
+  LEGACY_CURSOR_SPELLINGS,
+  RETIRED_ROLES,
   ROLE_ALIASES,
   LEGACY_PROVIDERS,
   PRICING_SENTINELS,
@@ -814,6 +848,7 @@ module.exports = Object.freeze({
   TARGET_AGENTS,
   SCHEMAS,
   SIDE_EFFECT_STATES,
+  TARGET_AGENT_ALIASES,
   TERMINAL_STATUSES,
   TRANSPORTS,
   VERIFICATION_STATES,
@@ -822,6 +857,11 @@ module.exports = Object.freeze({
   createExecutionTarget,
   createHostProfile,
   createHostProfileSet,
+  agentForAlias,
+  agentForVendor,
   createProviderModelCatalog,
+  legacyAgentKey,
+  retirementGuidance,
   translateLegacyRequest,
+  vendorFor,
 });

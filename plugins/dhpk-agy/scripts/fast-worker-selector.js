@@ -1,187 +1,184 @@
 #!/usr/bin/env node
 'use strict';
 
-const { spawnSync } = require('node:child_process');
+// Fast-worker selector CLI. It detects the current Host, loads that Host's
+// profile, supplies executable presence as capability evidence, and lets the
+// Dispatch Engine choose every Target Agent, Model, Effort, and Route.
+// The subagent-name mapping below is presentation only.
+
+const fs = require('node:fs');
+const path = require('node:path');
 const {
-  VALID_BACKENDS,
-  resolveDispatchPlan,
-} = require('./lib/native-dispatch-policy');
-const {
-  SCHEMAS,
-  createDispatchRequest,
+  AGENT_PROVIDER, SCHEMAS, createDispatchRequest, retirementGuidance,
 } = require('./lib/dispatch-contract');
 const { resolveTarget } = require('./lib/dispatch-engine');
+const { parseTarget } = require('./lib/dispatch-config');
 
 const DEFAULT_CATALOG = require('../manifests/provider-model-catalog.json');
+const HOST_PROFILES = require('../manifests/host-profiles.json');
 
-const BACKENDS = VALID_BACKENDS;
-const DEFAULT_ORDER = Object.freeze([...BACKENDS]);
-const AGENTS = {
-  claude: 'dhpk:fast-worker',
-  codex: 'dhpk:codex-worker',
+// Host signals, one entry per Host. A Host matches when its predicate holds.
+// Evidence for each signal is recorded in the design appendix
+// "Host detection findings" (openspec change deepen-role-default-resolution).
+const HOST_SIGNALS = Object.freeze([
+  Object.freeze({ host: 'claude-code', signal: 'CLAUDECODE', matches: (env) => env.CLAUDECODE === '1' }),
+  Object.freeze({ host: 'codex-cli', signal: 'CODEX_THREAD_ID', matches: (env) => Boolean(env.CODEX_THREAD_ID) }),
+  Object.freeze({
+    host: 'cursor',
+    signal: 'CURSOR_AGENT|CURSOR_TRACE_ID',
+    matches: (env) => Boolean(env.CURSOR_AGENT || env.CURSOR_TRACE_ID),
+  }),
+  Object.freeze({ host: 'agy', signal: 'ANTIGRAVITY_CONVERSATION_ID', matches: (env) => Boolean(env.ANTIGRAVITY_CONVERSATION_ID) }),
+]);
+
+const OVERRIDE = 'DHPK_HOST';
+const SIGNALS_CHECKED = [OVERRIDE, ...HOST_SIGNALS.map((entry) => entry.signal)].join(', ');
+
+const REMOVED_ARGUMENTS = Object.freeze(['--backend', '--order', '--fallback', '--failure', '--cross-provider']);
+
+// Presentation only: the Claude Code subagent that fronts a resolved target.
+const SUBAGENT_FOR_TARGET_AGENT = Object.freeze({
+  'claude-code': 'dhpk:fast-worker',
+  'codex-cli': 'dhpk:codex-worker',
   agy: 'dhpk:agy-worker',
-};
-
-const parseBoolean = (value, fallback = false) => {
-  if (['1', 'true', 'TRUE', 'yes', 'YES', 'on', 'ON'].includes(String(value))) return true;
-  if (['0', 'false', 'FALSE', 'no', 'NO', 'off', 'OFF'].includes(String(value))) return false;
-  return fallback;
-};
-
-const configuredCrossProvider = () => {
-  if (Object.prototype.hasOwnProperty.call(process.env, 'DHPK_PROJECT_OPTION_CROSS_PROVIDER')) {
-    return parseBoolean(process.env.DHPK_PROJECT_OPTION_CROSS_PROVIDER);
-  }
-  if (Object.prototype.hasOwnProperty.call(process.env, 'CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER')) {
-    return parseBoolean(process.env.CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER);
-  }
-  return false;
-};
-
-const parseArgs = (argv) => {
-  const out = { backend: process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND || 'claude', order: process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER || DEFAULT_ORDER.join(','), fallback: process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK || 'none', failure: '', cross_provider: configuredCrossProvider() };
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === '--backend') out.backend = argv[++i] || '';
-    else if (arg === '--order') out.order = argv[++i] || '';
-    else if (arg === '--fallback') out.fallback = argv[++i] || '';
-    else if (arg === '--failure') out.failure = argv[++i] || '';
-    else if (arg === '--cross-provider') out.cross_provider = true;
-  }
-  return out;
-};
-
-const cliAvailable = (name) => spawnSync('bash', ['-c', 'command -v "$1" >/dev/null 2>&1', 'selector', name], { env: process.env }).status === 0;
-
-const availability = (backend) => {
-  if (backend === 'claude') return { available: process.env.DHPK_CLAUDE_BACKEND_AVAILABLE !== '0', reason: 'in-process backend' };
-  const executable = backend === 'codex' ? 'codex' : 'agy';
-  return cliAvailable(executable)
-    ? { available: true, reason: `${executable} executable available` }
-    : { available: false, reason: `missing executable: ${executable}` };
-};
-
-const blocked = (requested, selected, reason, metadata = {}) => ({
-  status: 'blocked',
-  requested_backend: requested,
-  selected_backend: selected,
-  selected_agent: AGENTS[selected] || `dhpk:${selected}-fast-worker`,
-  reason,
-  fallback: 'none',
-  ...metadata,
 });
 
-const canonicalRequest = (options) => {
-  if (options.request !== undefined) return createDispatchRequest(options.request);
-  const hostProfile = options.host_profile || options.hostProfile;
-  if (!hostProfile) throw new TypeError('canonical worker selection requires host_profile');
-  const descriptionDigest = options.description_digest || '0'.repeat(64);
-  const promptEvidence = options.prompt_evidence || {
-    path: `${options.workdir || process.cwd()}/.dhpk/prompt.txt`,
-    dev: 0,
-    ino: 0,
-    sha256: '0'.repeat(64),
+// Executable whose presence is capability evidence for a Target Agent.
+const EXECUTABLE_FOR_TARGET_AGENT = Object.freeze({ 'codex-cli': 'codex', agy: 'agy' });
+
+const detectHost = (env = process.env) => {
+  const override = env[OVERRIDE];
+  if (override) {
+    const known = HOST_SIGNALS.some((entry) => entry.host === override);
+    if (known) return { status: 'DETECTED', host: override, signal: OVERRIDE };
+    return { status: 'BLOCKED', reason: `host not detected: ${OVERRIDE}=${override} is not one of ${HOST_SIGNALS.map((entry) => entry.host).join(', ')}` };
+  }
+  const matched = HOST_SIGNALS.filter((entry) => entry.matches(env));
+  if (matched.length === 1) return { status: 'DETECTED', host: matched[0].host, signal: matched[0].signal };
+  if (matched.length === 0) return { status: 'BLOCKED', reason: `host not detected: no signal matched (checked ${SIGNALS_CHECKED})` };
+  return {
+    status: 'BLOCKED',
+    reason: `host not detected: ambiguous signals for ${matched.map((entry) => entry.host).join(', ')}; set ${OVERRIDE} to choose`,
   };
+};
+
+const executableOnPath = (name, env) => String(env.PATH || '').split(path.delimiter).filter(Boolean).some((dir) => {
+  try {
+    fs.accessSync(path.join(dir, name), fs.constants.X_OK);
+    return fs.statSync(path.join(dir, name)).isFile();
+  } catch (error) {
+    return false;
+  }
+});
+
+// PATH probe as capability evidence: only an explicit CLI-backed target needs it,
+// and only when that Target Agent is not the Host's own native runtime.
+const withExecutableEvidence = (hostProfile, target, env) => {
+  const executable = target && EXECUTABLE_FOR_TARGET_AGENT[target.target_agent];
+  if (!executable || hostProfile.native_target_agent === target.target_agent) return hostProfile;
+  const provider = target.provider || AGENT_PROVIDER[target.target_agent];
+  const access = executableOnPath(executable, env)
+    ? { status: 'AVAILABLE', evidence: `${executable} executable on PATH` }
+    : { status: 'UNAVAILABLE', evidence: `missing executable: ${executable}` };
+  return { ...hostProfile, access: { ...hostProfile.access, [provider]: access } };
+};
+
+const buildRequest = (options) => {
+  const workdir = options.workdir || process.cwd();
   return createDispatchRequest({
     schema: SCHEMAS.REQUEST,
-    host_profile: hostProfile,
+    host_profile: options.host_profile || options.hostProfile,
     task_id: options.task_id || 'fast-worker-task',
     attempt_id: options.attempt_id || 'fast-worker-attempt',
     role: 'worker',
     authority: 'workspace-write',
-    task: options.task || { description_digest: descriptionDigest },
+    task: options.task || { description_digest: options.description_digest || '0'.repeat(64) },
     scope: options.scope || {
-      workdir: options.workdir || process.cwd(),
+      workdir,
       assigned_files: options.assigned_files || [],
-      prompt_evidence: promptEvidence,
+      prompt_evidence: options.prompt_evidence || {
+        path: `${workdir}/.dhpk/prompt.txt`, dev: 0, ino: 0, sha256: '0'.repeat(64),
+      },
     },
     ...(options.target === undefined ? {} : { target: options.target }),
-    effort: options.effort || 'medium',
+    ...(options.effort === undefined ? {} : { effort: options.effort }),
     fallback: options.fallback || { allow: false, retry_budget: 0 },
     parallelism: options.parallelism || { dependencies: [], max_concurrency: 1 },
   });
 };
 
-const selectCanonical = (options) => {
-  const request = canonicalRequest(options);
-  const resolution = resolveTarget(request, {
+const select = (options) => {
+  const retired = retirementGuidance(options.backend);
+  if (retired) return { ...blocked(retired), requested_backend: options.backend };
+  if (!(options.host_profile || options.hostProfile)) throw new TypeError('worker selection requires host_profile');
+  const resolution = resolveTarget(buildRequest(options), {
     catalog: options.catalog || DEFAULT_CATALOG,
     ...(options.preference_order === undefined ? {} : { preferenceOrder: options.preference_order }),
   });
-  const selected = resolution.status === 'RESOLVED';
+  const target = resolution.status === 'RESOLVED' ? resolution.target : null;
   return {
-    status: selected ? 'selected' : 'blocked',
+    status: resolution.status,
+    host: (options.host_profile || options.hostProfile).host,
     request: resolution.request,
     requested_target: resolution.requested_target,
-    selected_target: resolution.target,
+    selected_target: target,
+    selected_agent: target ? SUBAGENT_FOR_TARGET_AGENT[target.target_agent] || null : null,
     capability: resolution.capability,
     capability_status: resolution.capability.status,
     resolution_status: resolution.status,
     resolution_source: 'dispatch-engine',
     reason: resolution.reason || resolution.capability.evidence,
-    fallback: 'none',
     rejected_candidates: resolution.rejected_candidates,
   };
 };
 
-const select = (options = {}, dependencies = {}) => {
-  const retired = { 'codex-fast-worker': 'codex-worker', 'agy-fast-worker': 'agy-worker', 'codex-deep-reasoner': 'codex-reasoner' };
-  if (Object.prototype.hasOwnProperty.call(retired, options.backend)) {
-    return blocked(options.backend, options.backend,
-      `retired role ${options.backend} in 0.66.2; use ${retired[options.backend]}; rollback 0.66.1`);
+const blocked = (reason) => ({ status: 'BLOCKED', selected_target: null, selected_agent: null, resolution_source: 'dispatch-engine', reason });
+
+const parseCliArgs = (argv) => {
+  let target;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (REMOVED_ARGUMENTS.includes(arg)) {
+      const retired = retirementGuidance(argv[i + 1]);
+      if (retired) return { error: retired };
+      return { error: `argument ${arg} was removed; use --target <agent>/<model>[:<effort>] for an explicit target, or omit it for the Host Role Default` };
+    }
+    if (arg === '--target') {
+      target = argv[i + 1];
+      i += 1;
+      if (!target) return { error: '--target requires <agent>/<model>[:<effort>]' };
+    } else {
+      return { error: `unknown argument ${arg}; supported: --target <agent>/<model>[:<effort>]` };
+    }
   }
-  if (options.request !== undefined || options.host_profile !== undefined || options.hostProfile !== undefined) {
-    return selectCanonical(options);
+  return { target };
+};
+
+const run = (argv, env = process.env) => {
+  const parsed = parseCliArgs(argv);
+  if (parsed.error) return blocked(parsed.error);
+  const detected = detectHost(env);
+  if (detected.status !== 'DETECTED') return blocked(detected.reason);
+  const profile = HOST_PROFILES.profiles.find((entry) => entry.host === detected.host);
+  if (!profile) return blocked(`host not detected: no profile for ${detected.host}`);
+  let target;
+  try {
+    target = parsed.target === undefined ? undefined : parseTarget(parsed.target, '--target');
+  } catch (error) {
+    return blocked(error.message);
   }
-  const requested = ['auto', ...BACKENDS].includes(options.backend) ? options.backend : 'claude';
-  const fallback = ['none', 'claude'].includes(options.fallback) ? options.fallback : 'none';
-  const configuredOrder = String(options.order).split(',').map((item) => item.trim()).filter(Boolean);
-  const order = configuredOrder.length > 0 && configuredOrder.every((item) => BACKENDS.includes(item))
-    ? configuredOrder
-    : DEFAULT_ORDER;
-  const plan = resolveDispatchPlan({
-    role: 'worker',
-    requestedBackend: requested,
-    configuredOrder: order,
-    crossProvider: options.cross_provider === true,
+  const { effort, ...requestedTarget } = target || {};
+  return select({
+    host_profile: withExecutableEvidence(profile, target, env),
+    ...(target ? { target: requestedTarget } : {}),
+    ...(effort ? { effort } : {}),
   });
-  const metadata = {
-    candidate_scope: plan.candidate_scope,
-    suppressed_candidates: plan.suppressed_candidates,
-  };
-  const checkAvailability = dependencies.availability || availability;
-  if (options.failure) return blocked(requested, requested, `execution ${options.failure} failure; fallback is not permitted`, metadata);
-
-  if (requested !== 'auto') {
-    const result = checkAvailability(plan.candidates[0]);
-    if (result.available) {
-      return { status: 'selected', requested_backend: requested, selected_backend: requested, selected_agent: AGENTS[requested], reason: requested === 'claude' ? 'shipped default' : result.reason, fallback: 'none', ...metadata };
-    }
-    if (result.reason.startsWith('missing executable') && fallback === 'claude') {
-      return { status: 'selected', requested_backend: requested, selected_backend: 'claude', selected_agent: AGENTS.claude, reason: `${result.reason}; configured fallback=claude`, fallback: 'claude', ...metadata };
-    }
-    return blocked(requested, requested, result.reason, metadata);
-  }
-
-  const rejected = [];
-  for (const candidate of plan.candidates) {
-    if (!BACKENDS.includes(candidate)) {
-      rejected.push({ backend: candidate, reason: 'invalid backend in order' });
-      continue;
-    }
-    const result = checkAvailability(candidate);
-    if (result.available) {
-      return { status: 'selected', requested_backend: 'auto', selected_backend: candidate, selected_agent: AGENTS[candidate], reason: result.reason, fallback: 'none', rejected_candidates: rejected, ...metadata };
-    }
-    rejected.push({ backend: candidate, reason: result.reason });
-  }
-  return { ...blocked('auto', 'auto', 'no backend available', metadata), rejected_candidates: rejected };
 };
 
 if (require.main === module) {
-  const result = select(parseArgs(process.argv.slice(2)));
+  const result = run(process.argv.slice(2));
   process.stdout.write(`${JSON.stringify(result)}\n`);
-  process.exitCode = result.status === 'blocked' ? 1 : 0;
+  process.exitCode = result.status === 'RESOLVED' ? 0 : 1;
 }
 
-module.exports = { BACKENDS, DEFAULT_ORDER, parseArgs, select };
+module.exports = { detectHost, run, select };

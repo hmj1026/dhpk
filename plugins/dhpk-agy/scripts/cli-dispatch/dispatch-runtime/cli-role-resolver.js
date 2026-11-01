@@ -1,18 +1,14 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const { agentForAlias, retirementGuidance } = require('../../lib/dispatch-contract');
+const { resolveRoleConfig } = require('../../lib/dispatch-config');
 
 const ROLE_MATRIX = Object.freeze({
   'codex-worker': Object.freeze({ provider: 'codex', authority: 'workspace-write', config: 'codex_worker' }),
   'codex-reasoner': Object.freeze({ provider: 'codex', authority: 'read-only', config: 'codex_reasoner' }),
   'codex-reviewer': Object.freeze({ provider: 'codex', authority: 'read-only', config: 'codex_reviewer' }),
   'agy-worker': Object.freeze({ provider: 'agy', authority: 'workspace-write', config: 'agy_worker' }),
-});
-
-const RETIRED_ROLES = Object.freeze({
-  'codex-fast-worker': 'codex-worker',
-  'codex-deep-reasoner': 'codex-reasoner',
-  'agy-fast-worker': 'agy-worker',
 });
 
 const ALIASES = Object.freeze({});
@@ -24,29 +20,11 @@ const CANONICAL_ROLES = Object.freeze({
   reviewer: Object.freeze({ authority: 'read-only' }),
 });
 
-const PROVIDER_ALIASES = Object.freeze({
-  claude: 'claude-code',
-  codex: 'codex-cli',
-  agy: 'agy',
-  'claude-code': 'claude-code',
-  'codex-cli': 'codex-cli',
-  'cursor-native': 'cursor-native',
-});
-
 const LEGACY_PROVIDER_ROLES = Object.freeze({
   'codex-worker': Object.freeze({ canonicalRole: 'worker', provider: 'codex-cli' }),
   'codex-reasoner': Object.freeze({ canonicalRole: 'reasoner', provider: 'codex-cli' }),
   'codex-reviewer': Object.freeze({ canonicalRole: 'reviewer', provider: 'codex-cli' }),
   'agy-worker': Object.freeze({ canonicalRole: 'worker', provider: 'agy' }),
-});
-
-const LEGACY_CONFIG = Object.freeze({
-  codex_worker: Object.freeze({
-    model: 'codex_fast_worker_model', effort: 'codex_fast_worker_effort', timeout_secs: 'codex_fast_worker_timeout_secs',
-  }),
-  codex_reasoner: Object.freeze({ timeout_secs: 'codex_deep_reasoner_timeout_secs' }),
-  codex_reviewer: Object.freeze({ timeout_secs: 'codex_bridge_timeout_secs' }),
-  agy_worker: Object.freeze({ model: 'agy_fast_worker_model' }),
 });
 
 const digest = (fields) => crypto.createHash('sha256')
@@ -68,9 +46,8 @@ function createSessionDiagnostics(emit = () => {}) {
 
 function resolveRole({ requestedRole, mode, provider, diagnostics } = {}) {
   if (typeof requestedRole !== 'string' || !requestedRole) return blocked('requested role is required');
-  if (Object.prototype.hasOwnProperty.call(RETIRED_ROLES, requestedRole)) {
-    return blocked(`retired role ${requestedRole} in 0.66.2; use ${RETIRED_ROLES[requestedRole]}; rollback 0.66.1`);
-  }
+  const retired = retirementGuidance(requestedRole);
+  if (retired) return blocked(retired);
 
   let effectiveRole = requestedRole;
   let canonicalRole = requestedRole;
@@ -97,7 +74,7 @@ function resolveRole({ requestedRole, mode, provider, diagnostics } = {}) {
   if (mode !== 'read-only' && mode !== 'workspace-write') return blocked('mode is required and must be explicit');
   if (definition.authority !== mode) return blocked(`role ${effectiveRole} contradicts mode ${mode}`);
 
-  const normalizedProvider = provider === undefined ? undefined : PROVIDER_ALIASES[provider];
+  const normalizedProvider = provider === undefined ? undefined : agentForAlias(provider);
   if (provider !== undefined && !normalizedProvider) return blocked(`unknown provider: ${provider}`);
   if (!providerConstraint && normalizedProvider !== undefined) providerConstraint = normalizedProvider;
   if (providerConstraint && normalizedProvider !== undefined && normalizedProvider !== providerConstraint) {
@@ -128,31 +105,9 @@ function resolveRole({ requestedRole, mode, provider, diagnostics } = {}) {
   });
 }
 
-const configValue = (config, canonical, legacy) => {
-  if (Object.prototype.hasOwnProperty.call(config, canonical)) return { value: config[canonical], source: canonical };
-  if (legacy && Object.prototype.hasOwnProperty.call(config, legacy)) return { value: config[legacy], source: legacy };
-  return { value: undefined, source: undefined };
-};
-
+// Model, effort, and timeout come from the dispatch-config reader; removed keys are never read.
 function resolveConfig({ effectiveRole, config = {} } = {}) {
-  for (const suffix of ['model', 'effort']) {
-    const key = `codex_deep_reasoner_${suffix}`;
-    if (Object.prototype.hasOwnProperty.call(config, key)) {
-      return blocked(`retired config ${key} in 0.66.2; use codex_reasoner_${suffix}; rollback 0.66.1`);
-    }
-  }
-  const canonicalDefinition = CANONICAL_ROLES[effectiveRole];
-  const definition = ROLE_MATRIX[effectiveRole] || (canonicalDefinition ? {
-    config: effectiveRole === 'worker' ? 'codex_worker' : effectiveRole,
-  } : null);
-  if (!definition) return Object.freeze({ status: 'BLOCKED', reason: `unknown role: ${effectiveRole}` });
-  const legacy = LEGACY_CONFIG[definition.config] || {};
-  const canonicalConfig = ROLE_MATRIX[effectiveRole] ? definition.config : effectiveRole;
-  return Object.freeze({
-    model: configValue(config, `${canonicalConfig}_model`, legacy.model || undefined),
-    effort: configValue(config, `${canonicalConfig}_effort`, legacy.effort || undefined),
-    timeout_secs: configValue(config, `${canonicalConfig}_timeout_secs`, legacy.timeout_secs || undefined),
-  });
+  return resolveRoleConfig({ role: effectiveRole, config });
 }
 
 function resolvePublication({ role, target, capabilities = [] } = {}) {

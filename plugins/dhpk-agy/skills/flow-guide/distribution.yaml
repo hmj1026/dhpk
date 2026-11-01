@@ -137,13 +137,13 @@
         ]
       },
       {
-        "path": "references/execution-bundle/scripts/lib/dispatch-engine.js",
+        "path": "references/execution-bundle/scripts/lib/dispatch-config.js",
         "required_by": [
           "references/execution-bundle/scripts/fast-worker-selector.js"
         ]
       },
       {
-        "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+        "path": "references/execution-bundle/scripts/lib/dispatch-engine.js",
         "required_by": [
           "references/execution-bundle/scripts/fast-worker-selector.js"
         ]
@@ -274,12 +274,12 @@
       "destination": "references/execution-bundle/scripts/lib/dispatch-capability-evidence.js"
     },
     {
-      "source": "scripts/lib/dispatch-engine.js",
-      "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
+      "source": "scripts/lib/dispatch-config.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-config.js"
     },
     {
-      "source": "scripts/lib/native-dispatch-policy.js",
-      "destination": "references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+      "source": "scripts/lib/dispatch-engine.js",
+      "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
     },
     {
       "source": "scripts/lib/partial-writer-handoff.js",
