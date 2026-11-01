@@ -437,8 +437,13 @@ valid configured candidate only when `cross_provider` is enabled → explicit
 decrements one shared `retry_budget` for every fallback; switching providers
 does not reset that budget and a candidate is never revisited. The fallback
 preserves the role, task scope, read/write authority, model contract where
-applicable, and reviewer contract. The module named above owns this policy
-resolution; it is policy state, not a coordinator.
+applicable, and reviewer contract. `decideFallback` in the Dispatch Engine
+(`dispatch-engine.js`) owns this policy resolution and carries the
+decremented budget plus the attempted and unavailable lists on the returned
+request (`fallback.retry_budget`, `fallback.attempted_backends`,
+`fallback.unavailable_backends`; `fallback.cross_provider` gates every non-native
+Provider candidate and quota-pool substitution); it is
+policy state, not a coordinator.
 
 ### Fast-worker selector contract
 

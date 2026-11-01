@@ -560,7 +560,16 @@ function normalizeFallback(value) {
   if (fallback.allow !== undefined && typeof fallback.allow !== 'boolean') throw new TypeError('fallback.allow must be boolean');
   const retryBudget = fallback.retry_budget === undefined ? 0 : fallback.retry_budget;
   nonNegativeInteger(retryBudget, 'fallback.retry_budget');
-  return { allow: fallback.allow === true, retry_budget: retryBudget };
+  if (fallback.cross_provider !== undefined && typeof fallback.cross_provider !== 'boolean') throw new TypeError('fallback.cross_provider must be boolean');
+  const attempted = fallback.attempted_backends === undefined ? [] : uniqueStrings(fallback.attempted_backends, 'fallback.attempted_backends');
+  const unavailable = fallback.unavailable_backends === undefined ? [] : uniqueStrings(fallback.unavailable_backends, 'fallback.unavailable_backends');
+  return {
+    allow: fallback.allow === true,
+    retry_budget: retryBudget,
+    ...(fallback.cross_provider === true ? { cross_provider: true } : {}),
+    ...(attempted.length === 0 ? {} : { attempted_backends: attempted }),
+    ...(unavailable.length === 0 ? {} : { unavailable_backends: unavailable }),
+  };
 }
 
 function normalizeParallelism(value) {

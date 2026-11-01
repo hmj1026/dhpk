@@ -462,6 +462,7 @@ test('unavailable explicit target may use contextual native fallback before side
   };
   const initial = resolveTarget(request(unavailable, {
     target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', route: 'native', transport: 'native-runtime' },
+    fallback: { allow: true, retry_budget: 1, cross_provider: true },
   }), { catalog });
   const result = decideFallback({
     request: initial.request,
@@ -501,7 +502,7 @@ test('fallback does not retry the same resolved target identity', () => {
     },
   };
   const result = decideFallback({
-    request: request(hostProfile, { role: 'worker', authority: 'workspace-write' }),
+    request: request(hostProfile, { role: 'worker', authority: 'workspace-write', fallback: { allow: true, retry_budget: 1, cross_provider: true } }),
     resolution: {
       status: 'UNAVAILABLE',
       reason: 'Cursor native runtime unavailable',
@@ -614,6 +615,120 @@ test('an exhausted retry budget blocks fallback even for an availability failure
   assert.strictEqual(result.status, 'BLOCKED');
   assert.strictEqual(result.action, 'stop');
   assert.strictEqual(result.retry_budget_remaining, 0);
+});
+
+const cursorWorkerHost = (quotaPools) => ({
+  ...cursorProfile,
+  ...(quotaPools ? { quota_pools: quotaPools } : {}),
+  access: { ...cursorProfile.access, google: { status: 'AVAILABLE', evidence: 'native AGY fallback fixture' } },
+});
+const cursorTarget = {
+  target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5',
+  effort: 'medium', route: 'native', transport: 'native-runtime', identity: 'cursor/composer-2.5',
+};
+const workerRequest = (hostProfile, fallback) => request(hostProfile, { role: 'worker', authority: 'workspace-write', fallback });
+const failedResolution = (target) => ({ status: 'UNAVAILABLE', reason: 'failed', target, fallback_eligible: true });
+const hop = (req, target, failureClass) => decideFallback({
+  request: req, resolution: failedResolution(target), failureClass, sideEffects: 'none', catalog,
+});
+
+test('a chained fallback never revisits a target that already failed', () => {
+  const first = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 3, cross_provider: true }), cursorTarget, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(first.status, 'FALLBACK');
+  assert.strictEqual(first.target.identity, 'agy/gemini-3.7-flash-high');
+  const second = hop(first.request, first.target, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(second.status, 'BLOCKED');
+  assert.strictEqual(second.action, 'stop');
+});
+
+test('the attempted list carried on the request excludes a target even without a resolution history', () => {
+  const req = workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 3, attempted_backends: ['cursor/cursor/composer-2.5/native/native-runtime'] });
+  const result = hop(req, { ...cursorTarget, target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high' }, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(result.status, 'BLOCKED');
+});
+
+test('the retry budget decrements across chained calls and blocks at zero', () => {
+  const first = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1, cross_provider: true }), cursorTarget, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(first.status, 'FALLBACK');
+  assert.strictEqual(first.request.fallback.retry_budget, 0);
+  assert.strictEqual(first.retry_budget_remaining, 0);
+  const second = hop(first.request, first.target, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(second.status, 'BLOCKED');
+  assert.strictEqual(second.reason, 'fallback retry budget is exhausted');
+  assert.strictEqual(second.retry_budget_remaining, 0);
+});
+
+test('quota exhaustion with cross-provider opt-in selects a different quota pool', () => {
+  const result = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1, cross_provider: true }),
+    cursorTarget, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT);
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.target.identity, 'agy/gemini-3.7-flash-high');
+  assert.strictEqual(result.request.fallback.retry_budget, 0);
+});
+
+test('quota exhaustion without cross-provider opt-in stops', () => {
+  const result = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1 }),
+    cursorTarget, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT);
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.strictEqual(result.action, 'stop');
+  assert.strictEqual(result.retry_budget_remaining, 1);
+});
+
+test('quota exhaustion with opt-in blocks when every candidate shares the exhausted pool', () => {
+  const sharedPool = { ...cursorProfile.quota_pools, google: cursorProfile.quota_pools.cursor };
+  const result = hop(workerRequest(cursorWorkerHost(sharedPool), { allow: true, retry_budget: 1, cross_provider: true }),
+    cursorTarget, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT);
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.strictEqual(result.action, 'stop');
+  assert.match(result.reason, /no declared fallback target is available/);
+});
+
+test('CLI unavailability without cross-provider opt-in refuses a declared cross-provider fallback', () => {
+  const result = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 2 }), cursorTarget, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.strictEqual(result.action, 'stop');
+  assert.strictEqual(result.retry_budget_remaining, 2);
+});
+
+test('authentication failure with cross-provider opt-in may use the declared cross-provider fallback', () => {
+  const result = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 2, cross_provider: true }),
+    cursorTarget, FAILURE_CLASSES.AUTHENTICATION_OR_MODEL_UNAVAILABLE);
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.target.identity, 'agy/gemini-3.7-flash-high');
+});
+
+test('CLI unavailability without opt-in still falls back to the Host-native target', () => {
+  const unavailable = { ...cursorWorkerHost() };
+  const target = { target_agent: 'codex-cli', provider: 'cursor', model_id: 'composer-2.5', effort: 'medium', route: 'headless-cli', transport: 'local-cli' };
+  const result = hop(workerRequest(unavailable, { allow: true, retry_budget: 2 }), target, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.target.identity, 'cursor/composer-2.5');
+});
+
+test('recovery next_request carries the decremented shared budget, not the caller-supplied one', () => {
+  const initialRequest = request(codexProfile, {
+    role: 'worker', authority: 'workspace-write', strict_target: true, effort: 'max',
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-6-luna' },
+    fallback: { allow: true, retry_budget: 3 },
+  });
+  const resolution = resolveTarget(initialRequest, { catalog });
+  assert.strictEqual(resolution.status, 'RESOLVED');
+  const normalized = resolution.request;
+  const reconciliation = { status: 'PASSED', task_id: normalized.task_id, attempt_id: normalized.attempt_id,
+    scope_contained: true, wip_preserved: true, diff_verified: true, out_of_scope: [] };
+  const result = decideFallback({ request: normalized, resolution, catalog,
+    failureClass: FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE, sideEffects: 'observed', reconciliation, recovery_action: 'repair',
+    candidate_request: { ...normalized, fallback: { allow: true, retry_budget: 9 } } });
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.retry_budget_remaining, 2);
+  assert.strictEqual(result.next_request.fallback.retry_budget, 2);
+});
+
+test('an alternate Route of the same Model is not excluded by a failed Route', () => {
+  const req = workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 2 });
+  const result = hop(req, { ...cursorTarget, route: 'headless-cli', transport: 'local-cli' }, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.request.fallback.attempted_backends[0], 'cursor/cursor/composer-2.5/headless-cli/local-cli');
 });
 
 // Independent oracle: the design D5 mapping table plus the keys the code already
