@@ -8,24 +8,25 @@ const {
   SCHEMAS,
   TERMINAL_STATUSES,
   VERIFICATION_STATES,
+  legacyAgentKey,
+  vendorFor,
 } = require('./dispatch-contract');
 
 const ADAPTER_PROVIDERS = Object.freeze(['claude-code', 'codex-cli', 'agy', 'cursor-native']);
 const CANONICAL_ADAPTER_PROVIDERS = Object.freeze(['anthropic', 'openai', 'google', 'xai', 'cursor']);
 const CAPABILITY_STATUSES = Object.freeze(['AVAILABLE', 'UNAVAILABLE', 'BLOCKED', 'NOT_RUN']);
-const ADAPTER_PROVIDER_ALIASES = Object.freeze({ 'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', 'cursor-native': 'cursor' });
 const CANONICAL_PROVIDER_ADAPTERS = Object.freeze({ anthropic: 'anthropic', openai: 'openai', google: 'google', xai: 'xai', cursor: 'cursor' });
 const safeString = (value, fallback) => typeof value === 'string' && value.trim() ? value : fallback;
 
 function validateAdapterProvider(provider) {
-  const canonical = ADAPTER_PROVIDER_ALIASES[provider] || provider;
+  const canonical = vendorFor(provider);
   if ((!ADAPTER_PROVIDERS.includes(provider) && !CANONICAL_ADAPTER_PROVIDERS.includes(provider)) || !PROVIDERS.includes(canonical)) throw new TypeError(`unsupported adapter Provider: ${provider}`);
 }
 
 function validateTarget(provider, target) {
   const normalized = createExecutionTarget({ ...target, ...(target && target.model_id === null && target.native === true ? { allow_unknown_model: true } : {}), ...(target && target.effort === null ? { allow_unknown_effort: true } : {}) });
-  const canonical = ADAPTER_PROVIDER_ALIASES[provider] || provider;
-  const normalizedProvider = ADAPTER_PROVIDER_ALIASES[normalized.provider] || normalized.provider;
+  const canonical = vendorFor(provider);
+  const normalizedProvider = vendorFor(normalized.provider);
   if (normalizedProvider !== canonical) throw new TypeError(`adapter ${provider} received target for ${normalized.provider}`);
   return normalized;
 }
@@ -134,7 +135,7 @@ function createAdapterRegistry({ executors = {}, probes = {} } = {}) {
   const adapters = Object.fromEntries(ADAPTER_PROVIDERS.map((provider) => [provider, createExecutionAdapter({ provider, execute: executors[provider] })]));
   const capabilityProbes = Object.fromEntries(ADAPTER_PROVIDERS.map((provider) => [provider, createCapabilityProbe({ provider, probe: probes[provider] })]));
   for (const provider of CANONICAL_ADAPTER_PROVIDERS) {
-    const legacy = Object.entries(ADAPTER_PROVIDER_ALIASES).find(([, canonical]) => canonical === provider)?.[0];
+    const legacy = legacyAgentKey(provider);
     adapters[provider] = createExecutionAdapter({ provider, execute: executors[provider] || legacy && executors[legacy] });
     capabilityProbes[provider] = createCapabilityProbe({ provider, probe: probes[provider] || legacy && probes[legacy] });
   }

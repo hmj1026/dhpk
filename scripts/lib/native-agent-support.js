@@ -20,9 +20,10 @@ const NATIVE_AGENT_SUPPORT_FILES = Object.freeze([
   'scripts/cli-dispatch/verify-handoff.js',
   'scripts/fast-worker-selector.js',
   'scripts/lib/dispatch-capability-evidence.js',
+  'scripts/lib/dispatch-config.js',
   'scripts/lib/dispatch-contract.js',
   'scripts/lib/dispatch-engine.js',
-  'scripts/lib/native-dispatch-policy.js',
+  'manifests/host-profiles.json',
   'manifests/provider-model-catalog.json',
 ]);
 

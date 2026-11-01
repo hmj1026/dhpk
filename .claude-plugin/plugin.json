@@ -83,24 +83,6 @@
         "migration-reviewer"
       ]
     },
-    "deep_reasoner_model": {
-      "type": "string",
-      "title": "deep-reasoner model",
-      "description": "Legacy compatibility input for reasoner_target. Published aliases such as opus are normalized to Catalog model IDs and judged by existing Host route/effort checks. Invalid values fail closed. Default 'opus'.",
-      "default": "opus"
-    },
-    "fast_worker_model": {
-      "type": "string",
-      "title": "fast-worker model",
-      "description": "Legacy compatibility input for worker_target. Published aliases such as sonnet are normalized to Catalog model IDs and judged by existing Host route/effort checks. Invalid values fail closed. Default 'sonnet'.",
-      "default": "sonnet"
-    },
-    "planner_model": {
-      "type": "string",
-      "title": "planner model",
-      "description": "Legacy compatibility input for planner_target. Published aliases such as opus are normalized to Catalog model IDs and judged by existing Host route/effort checks. Invalid values fail closed. Default 'opus'.",
-      "default": "opus"
-    },
     "orchestration_dispatch": {
       "type": "string",
       "title": "Implementation dispatch switch",
@@ -150,88 +132,16 @@
       "description": "Allow the Dispatch Engine to use the current Host-native target after confirmed availability failure before side effects; safety, semantic, timeout, and post-write failures never silently switch Providers.",
       "default": true
     },
-    "fast_worker_backend": {
-      "type": "string",
-      "title": "Fast-worker backend",
-      "description": "Mechanical worker backend: claude (default), codex, agy, or auto. Explicit selection is deterministic; auto uses fast_worker_backend_order.",
-      "default": "claude"
-    },
-    "fast_worker_backend_order": {
-      "type": "string",
-      "title": "Fast-worker auto order",
-      "description": "Comma-separated availability order for auto selection. Default: claude,codex,agy.",
-      "default": "claude,codex,agy"
-    },
-    "fast_worker_fallback": {
-      "type": "string",
-      "title": "Fast-worker missing-executable fallback",
-      "description": "Fallback for an explicitly selected missing CLI executable: none (default) or claude. Authentication, authorization, model, task, and verification failures never fall back.",
-      "default": "none"
-    },
     "subagent_quality_gate": {
       "type": "string",
       "title": "SubagentStop thin-report quality gate",
       "description": "Retained for an explicitly registered advisory scripts/hooks/subagent-stop-quality.sh hook. The shipped default hooks do not register it, so this setting has no default-lifecycle effect. When a consumer registers that hook, 'on'/'true'/'1' enables its one-retry thin-report check; 'off' keeps it inactive. Extraction hit/miss is recorded to .claude/artifacts/sessions/.subagent-stop-quality-extraction.json.",
       "default": "off"
     },
-    "deep_reasoner_effort": {
-      "type": "string",
-      "title": "deep-reasoner effort",
-      "description": "Legacy compatibility effort paired with deep_reasoner_model from the same source layer, then judged by existing Host route/effort checks. Invalid values fail closed. Default 'high'.",
-      "default": "high"
-    },
-    "fast_worker_effort": {
-      "type": "string",
-      "title": "fast-worker effort",
-      "description": "Legacy compatibility effort paired with fast_worker_model from the same source layer, then judged by existing Host route/effort checks. Invalid values fail closed. Default 'medium'.",
-      "default": "medium"
-    },
-    "codex_fast_worker_model": {
-      "type": "string",
-      "title": "codex-fast-worker model",
-      "description": "Model passed to the codex CLI backend when the codex-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). Resolved via the standard layering (project pluginConfigs > global > this default) and passed into run-codex.sh. Model names on the codex CLI rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Default 'gpt-6-luna'.",
-      "default": "gpt-6-luna"
-    },
-    "codex_worker_model": {
-      "type": "string",
-      "title": "codex-worker model",
-      "description": "Canonical model key for codex-worker; it takes precedence over the one-release codex_fast_worker_model alias.",
-      "default": "gpt-6-luna"
-    },
-    "codex_fast_worker_effort": {
-      "type": "string",
-      "title": "codex-fast-worker effort",
-      "description": "model_reasoning_effort passed to the codex CLI backend for codex-fast-worker dispatches (see rules/model-economics.md). Valid values: whatever the codex CLI accepts (e.g. low | medium | high | xhigh). Default 'xhigh' (the strong mechanical tier).",
-      "default": "xhigh"
-    },
-    "codex_worker_effort": {
-      "type": "string",
-      "title": "codex-worker effort",
-      "description": "Canonical effort key for codex-worker; it takes precedence over the one-release codex_fast_worker_effort alias.",
-      "default": "xhigh"
-    },
-    "codex_reasoner_model": {
-      "type": "string",
-      "title": "codex-reasoner model",
-      "description": "Canonical codex_reasoner_model for codex-reasoner; retired codex_deep_reasoner model/effort keys fail closed with migration guidance.",
-      "default": "gpt-6.1-sol"
-    },
-    "codex_reasoner_effort": {
-      "type": "string",
-      "title": "codex-reasoner effort",
-      "description": "Canonical codex_reasoner_effort for codex-reasoner; retired codex_deep_reasoner model/effort keys fail closed with migration guidance.",
-      "default": "high"
-    },
     "codex_timeout_secs": {
       "type": "string",
       "title": "Codex shared timeout (seconds)",
       "description": "Shared wrapper backstop for codex-fast-worker, codex-deep-reasoner, and codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables the wrapper backstop. Precedence is project role-specific > project shared > global role-specific > global shared > this shipped default. Invalid values fail closed before dispatch. This does not control Claude's external tool wait. Default '360'.",
-      "default": "360"
-    },
-    "codex_fast_worker_timeout_secs": {
-      "type": "string",
-      "title": "codex-fast-worker timeout (seconds)",
-      "description": "Role-specific wrapper backstop for codex-fast-worker. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
       "default": "360"
     },
     "codex_worker_timeout_secs": {
@@ -240,71 +150,17 @@
       "description": "Canonical timeout key for codex-worker; it takes precedence over the one-release codex_fast_worker_timeout_secs alias.",
       "default": "360"
     },
-    "codex_deep_reasoner_timeout_secs": {
-      "type": "string",
-      "title": "codex-deep-reasoner timeout (seconds)",
-      "description": "Role-specific wrapper backstop for codex-deep-reasoner. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
-      "default": "360"
-    },
     "codex_reasoner_timeout_secs": {
       "type": "string",
       "title": "codex-reasoner timeout (seconds)",
       "description": "Canonical timeout key for codex-reasoner; it takes precedence over the one-release codex_deep_reasoner_timeout_secs alias.",
       "default": "360"
     },
-    "codex_bridge_timeout_secs": {
-      "type": "string",
-      "title": "codex-bridge timeout (seconds)",
-      "description": "Role-specific wrapper backstop for codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. The legacy three-argument wrapper invocation remains supported. Default inherits the shared 360-second budget.",
-      "default": "360"
-    },
-    "codex_reviewer_model": {
-      "type": "string",
-      "title": "codex-reviewer model",
-      "description": "Canonical model key for the internal shared-runner codex-reviewer role.",
-      "default": "gpt-6.1-sol"
-    },
-    "codex_reviewer_effort": {
-      "type": "string",
-      "title": "codex-reviewer effort",
-      "description": "Canonical effort key for the internal shared-runner codex-reviewer role.",
-      "default": "high"
-    },
     "codex_reviewer_timeout_secs": {
       "type": "string",
       "title": "codex-reviewer timeout (seconds)",
       "description": "Canonical timeout key for codex-reviewer; it takes precedence over the one-release codex_bridge_timeout_secs alias.",
       "default": "360"
-    },
-    "architect_model": {
-      "type": "string",
-      "title": "architect model",
-      "description": "Unsupported dispatch input with no effect. architect_model is not mapped onto reasoner_target and dispatch is unaffected. Default 'fable' names the architecture-consult role in current pricing evidence (highest per-token Claude tier), not a runtime override.",
-      "default": "fable"
-    },
-    "architect_effort": {
-      "type": "string",
-      "title": "architect effort",
-      "description": "Unsupported dispatch input with no effect. architect_effort is not mapped onto reasoner_target and dispatch is unaffected. Default 'low'.",
-      "default": "low"
-    },
-    "agy_fast_worker_model": {
-      "type": "string",
-      "title": "agy-fast-worker model",
-      "description": "Model display string passed to the agy CLI backend when the agy-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). agy bakes the thinking level into the model name, so there is no separate effort key. Override here when a default is deprecated (check `agy models`). Default 'Gemini 3.8 Flash (High)'.",
-      "default": "Gemini 3.8 Flash (High)"
-    },
-    "agy_worker_model": {
-      "type": "string",
-      "title": "agy-worker model",
-      "description": "Canonical model key for agy-worker; it takes precedence over the one-release agy_fast_worker_model alias.",
-      "default": "Gemini 3.8 Flash (High)"
-    },
-    "planner_effort": {
-      "type": "string",
-      "title": "planner effort",
-      "description": "Legacy compatibility effort paired with planner_model from the same source layer, then judged by existing Host route/effort checks. Invalid values fail closed. Default 'high'.",
-      "default": "high"
     },
     "docker_containers": {
       "type": "string",

@@ -43,11 +43,11 @@ The `deep-reasoner` agent SHALL NOT own DDD-layer placement or cross-module arch
 
 ### Requirement: Default model opus, overridable per dispatch
 
-The `deep-reasoner` agent frontmatter SHALL declare `model: opus` as the shipped default. The orchestrator MAY override the model on any single dispatch via the Agent call `model` param, per the `orchestration-model-config` capability.
+The `deep-reasoner` agent frontmatter SHALL declare `model: opus` as the shipped default. The orchestrator MAY override the model on any single dispatch via the Agent call `model` param, resolved from the `reasoner_target` setting per the `orchestration-model-config` capability. The removed `deep_reasoner_model` key SHALL NOT drive dispatch.
 
 #### Scenario: No override configured
 
-- **WHEN** no `deep_reasoner_model` userConfig is set
+- **WHEN** no `reasoner_target` setting is present
 - **THEN** dispatches run on the frontmatter default (opus)
 
 ### Requirement: Codex isolation invariant

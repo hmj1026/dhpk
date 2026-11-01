@@ -66,7 +66,7 @@ backend or produce a reasoning result from your own analysis when the CLI is una
    ```
 3. Run the shared wrapper in **`read-only`** sandbox with the resolved model/effort
    (defaults `gpt-6.1-sol` / `high`; overridden by the dispatcher's resolved
-   `codex_reasoner_model` / `codex_reasoner_effort` or `--reasoner` segments):
+   `reasoner_target` (when its target Agent is codex) or `--reasoner` segments):
 
    ```bash
    # The dispatcher created this 0600 context; this role must not fabricate it.

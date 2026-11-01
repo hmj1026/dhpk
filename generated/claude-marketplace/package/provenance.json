@@ -1789,7 +1789,7 @@
       "sourcePath": "skills/flow-guide/distribution.yaml",
       "destination": "skills/flow-guide/distribution.yaml",
       "kind": "entry",
-      "sha256": "e1657c03b55de5256b5e85ebf10576f3795befba228364af8529a531d6dd0d2b"
+      "sha256": "91087959ae67a0bc4e81498cc8109315f0ec24b03180e5d65f6ab7b2d1644929"
     },
     {
       "skillId": "flow-guide",
@@ -1813,7 +1813,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "6fa6872cf37a695918c1226ed815d2fd1e54943f86556b9e4fba894d4f32f29e"
+      "sha256": "490759fbcff70abecde55d4672580132e8015596efd1bd7789504b46cd950712"
     },
     {
       "skillId": "flow-guide",
@@ -1845,7 +1845,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "92e9265d49c08ce93fc47f5ecdbdb84b443dc3b57cba2df87adcbdccdd70272d"
+      "sha256": "9741d9ad95ea5fe36069e6416c238af8595ed4057eb8d5f2aec2d911c953f355"
     },
     {
       "skillId": "flow-guide",
@@ -1917,7 +1917,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
       "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
       "kind": "entry",
-      "sha256": "946e636863e7a67c78899fa459d65097abe81d8c03bc3c522cd197c36e703f8d"
+      "sha256": "d6a000895e814acb03a4619838e3fa55ad85e97e3d6cec7f9de12534bfd1ecb8"
     },
     {
       "skillId": "flow-guide",
@@ -1941,7 +1941,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "6fa6872cf37a695918c1226ed815d2fd1e54943f86556b9e4fba894d4f32f29e"
+      "sha256": "490759fbcff70abecde55d4672580132e8015596efd1bd7789504b46cd950712"
     },
     {
       "skillId": "flow-guide",
@@ -1949,7 +1949,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "kind": "entry",
-      "sha256": "96817405d7b4383938bdd7814dacedbc25c136aa63387e10d9ddaafc2ed04034"
+      "sha256": "931da6d0cb7ceb5064f5383f92c6c7968d708eab96677a7161d621cec7ec5465"
     },
     {
       "skillId": "flow-guide",
@@ -1973,7 +1973,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
       "destination": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
       "kind": "entry",
-      "sha256": "1568fd179cffe72cc04c9a3bfe21ddcac4309947daaf2b509513046993425373"
+      "sha256": "779af45fea14f792e1a9a90ddc2dbf525915a1c881c0eb5c1e39a2d97061f14c"
     },
     {
       "skillId": "flow-guide",
@@ -1986,10 +1986,18 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js",
+      "kind": "entry",
+      "sha256": "93a0e73d1a8254e3b466bfd2a1198184de3b33077b809ecff755c905966c952d"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
       "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "kind": "entry",
-      "sha256": "5a1d2402c98b85d67a129d7e2b1c795206e6c5274de3950fbbfc3da46c4c3fb7"
+      "sha256": "a8dfd02b5a00c0d788e55a7c9b6499c356d1e99f29a3a1a7b0d4972fa00b77e3"
     },
     {
       "skillId": "flow-guide",
@@ -1997,7 +2005,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js",
       "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js",
       "kind": "entry",
-      "sha256": "e142544825f7fc4a83fc0790aaeab184afcc262c21d65b15f59526c52f2d70d9"
+      "sha256": "12a6c529b0fad9ceca6481d0c0165d6e45492fde1c2d57d0fd5d016fa90677bd"
     },
     {
       "skillId": "flow-guide",
@@ -2006,14 +2014,6 @@
       "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
       "kind": "entry",
       "sha256": "5d9adae49b755ad85fcf5eba0a990be99dbffdb26f20489928f29e6349f222e2"
-    },
-    {
-      "skillId": "flow-guide",
-      "ownerId": "flow-guide",
-      "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-      "kind": "entry",
-      "sha256": "639ea3e4b750547b02aef37ee2d9b64074a6880f3ff88489780c0a49cf553b34"
     },
     {
       "skillId": "flow-guide",
@@ -2045,7 +2045,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "4a388711b3aad2017eec6ef4c399ce1c1040ba592a9b10b7ca4aa38d9ce8a3f3"
+      "sha256": "bdaea4260d86e4345caf49032b12bf8b44b51043e60cc6d89f53c7d6a2497cde"
     },
     {
       "skillId": "flow-guide",
@@ -2093,7 +2093,7 @@
       "sourcePath": "skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "4a388711b3aad2017eec6ef4c399ce1c1040ba592a9b10b7ca4aa38d9ce8a3f3"
+      "sha256": "bdaea4260d86e4345caf49032b12bf8b44b51043e60cc6d89f53c7d6a2497cde"
     },
     {
       "skillId": "flow-guide",

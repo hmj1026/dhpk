@@ -771,10 +771,11 @@ test('default Agent Plugin generation publishes the canonical owner catalog', ()
       'scripts/cli-dispatch/dispatch-runtime/launch-cli-dispatch.js',
       'scripts/cli-dispatch/transport/prepare-cli-request.py',
       'scripts/fast-worker-selector.js',
-      'scripts/lib/native-dispatch-policy.js',
+      'scripts/lib/dispatch-config.js',
       'scripts/lib/dispatch-contract.js',
       'scripts/lib/dispatch-engine.js',
       'scripts/lib/dispatch-capability-evidence.js',
+      'manifests/host-profiles.json',
       'manifests/provider-model-catalog.json',
     ]) assert.ok(fs.existsSync(path.join(out, relative)), `Agent Plugin includes ${relative}`);
     assert.ok(!fs.existsSync(path.join(out, 'skills/flow-drive/scripts')));
