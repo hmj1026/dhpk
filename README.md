@@ -284,7 +284,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`xcode-tooling`** — SwiftLint guidance, xcodebuild/SPM pre-commit build+test gate (generic build destination, simulator auto-fallback, toolchain self-skip), and `ios-icon-gen` skill. Requires `swift`; consumers explicitly register any SwiftLint hook.
 
 When enabled, a module:
-- Makes its skills invocable as `dhpk:<skill-name>` (e.g. `dhpk:dhpk-php-runtime-router`, `dhpk:dhpk-yii1-security-audit`, `dhpk:dhpk-js-lint-config`). *(Skill **descriptions** are listed for every shipped module regardless of `modules` — see the budget note below.)*
+- Makes its skills invocable as `dhpk:<skill-name>` (e.g. `dhpk:laravel`, `dhpk:phpunit`, `dhpk:vue-2-notes`). *(Skill **descriptions** are listed for every shipped module regardless of `modules` — see the budget note below.)*
 - Contributes path triggers to reviewer dispatch for framework-specific paths.
 - May ship optional hook scripts under `modules/<m>/hooks/`; a consumer registers them explicitly. See [`docs/hook-extension.md`](./docs/hook-extension.md).
 - Prints a SessionStart activation line so Claude knows the module is in scope.

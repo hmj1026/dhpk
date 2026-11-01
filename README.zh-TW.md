@@ -272,7 +272,7 @@ OnePassword 驗證是 operator action，不是可 discovery 的 skill：需要 c
 - **`xcode-tooling`** — SwiftLint 指引、xcodebuild/SPM pre-commit build+test gate（generic build destination、模擬器自動回退、工具鏈不存在時自動跳過），以及 `ios-icon-gen` skill。需要 `swift`；任何 SwiftLint hook 由 consumer 明確註冊。
 
 啟用後，模組會：
-- 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:dhpk-php-runtime-router`、`dhpk:dhpk-yii1-security-audit`、`dhpk:dhpk-js-lint-config`）。
+- 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:laravel`、`dhpk:phpunit`、`dhpk:vue-2-notes`）。
 - 為 reviewer 派工貢獻框架特定路徑的觸發規則。
 - 可在 `modules/<m>/hooks/` 提供選用 hook 腳本；由 consumer 明確註冊。詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)。
 - 在 SessionStart 印出一行模組啟用訊息，讓 Claude 知道該模組已生效。
