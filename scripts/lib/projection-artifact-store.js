@@ -228,8 +228,9 @@ class ProjectionArtifactStore {
         if (entry.mode !== null && entry.mode !== undefined && mode !== entry.mode) {
           fail('MODE_MISMATCH', `output mode does not match the compiled plan for '${entry.stableId}'`, { stableIds: [entry.stableId] });
         }
-        if (mode === null || mode === undefined) fs.writeFileSync(target, output.content);
-        else fs.writeFileSync(target, output.content, { mode });
+        fs.writeFileSync(target, output.content);
+        // writeFileSync's mode is masked by the umask; apply the plan's mode exactly.
+        if (mode !== null && mode !== undefined) fs.chmodSync(target, mode);
         written.push({
           stableId: entry.stableId,
           destination: entry.destination,
@@ -442,8 +443,9 @@ function ownershipVerifier(ownership) {
       return { ok: false, code: 'NOT_PHYSICAL_DIRECTORY', message: 'existing publish root is not a physical directory' };
     }
     // An empty directory holds nothing to lose (a caller may pre-create its
-    // output directory), so it needs no owner receipt.
-    if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
+    // output directory), so the declared-owner receipt is not required of it.
+    // A caller-supplied verify still judges it: that surface decides.
+    if (typeof ownership.verify !== 'function' && fs.readdirSync(existingRoot).length === 0) return { ok: true };
     const verdict = surfaceVerify(existingRoot);
     if (!verdict || verdict.ok !== true) {
       return {

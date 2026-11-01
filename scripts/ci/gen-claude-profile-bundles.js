@@ -70,6 +70,8 @@ function parseArgs(argv) {
 // Profile bundles carry no provenance.json; their owner receipt is
 // bundle-receipt.json with the capability-bundle schema.
 function verifyBundleOwnership(existingRoot) {
+  // A pre-created empty bundle directory holds nothing to lose.
+  if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
   const receiptPath = path.join(existingRoot, 'bundle-receipt.json');
   let stat = null;
   try { stat = fs.lstatSync(receiptPath); } catch { /* reported below */ }

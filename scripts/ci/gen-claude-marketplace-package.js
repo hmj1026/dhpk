@@ -187,6 +187,8 @@ function planCanonicalTree(root) {
 // provenance.json schema.  A package built without an inventory has no
 // receipt, so its plugin manifest is the only marker it carries.
 function verifyPackageOwnership(existingRoot) {
+  // A pre-created empty package directory holds nothing to lose.
+  if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
   const receipt = path.join(existingRoot, 'provenance.json');
   if (fs.existsSync(receipt)) {
     let recorded = null;
@@ -339,6 +341,9 @@ module.exports = {
   DEFAULT_OUTPUT,
   PACKAGE_PATHS,
   check,
+  // Host Adapter contract names: compile = plan the canonical tree, verify = check.
+  compileClaudeMarketplacePackage: ({ root = ROOT } = {}) => planCanonicalTree(root),
+  verifyClaudeMarketplacePackage: check,
   fingerprint,
   main,
   materialize,

@@ -165,4 +165,13 @@ test('a failed generation keeps the previous owned tree and leaves no scratch di
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('a pre-existing empty output directory is refused without an owner receipt', () => {
+  const { root, source, inventory, output } = fixture();
+  try {
+    fs.mkdirSync(output, { recursive: true });
+    assert.throws(() => generate(source, inventory, output), /without an owner receipt/);
+    assert.deepStrictEqual(fs.readdirSync(output), []);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 run('agy-plugin-store-ownership');

@@ -489,6 +489,8 @@ function usesRelocatableProjection(options = {}) {
 function agentsSkillsOwnership(ownedPaths) {
   return {
     verify: (existingRoot) => {
+      // A pre-created empty tree holds nothing to lose.
+      if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
       const receiptStat = lstatOrNull(path.join(existingRoot, RECEIPT_NAME));
       if (!receiptStat || receiptStat.isSymbolicLink() || !receiptStat.isFile()) {
         return { ok: false, code: 'NO_OWNER_RECEIPT', message: `existing tree has no ${RECEIPT_NAME} receipt` };

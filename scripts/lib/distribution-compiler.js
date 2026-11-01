@@ -389,6 +389,20 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
       checkEmission(link);
       session.link(link);
     }
+    // Derived outputs (receipts) are rendered after every data write, so they
+    // can read the store's stage-time digests through session.fingerprintOf.
+    let derivedOutputs = [];
+    if (typeof adapter.renderDerived === 'function') {
+      const derived = adapter.renderDerived(plan, { session, rendered });
+      if (!derived || !Array.isArray(derived.outputs)) {
+        throw new Error('projection adapter renderDerived must return { outputs }');
+      }
+      derivedOutputs = derived.outputs;
+      for (const output of derivedOutputs) {
+        checkEmission(output);
+        session.write(output);
+      }
+    }
     const missingIds = plan.entries
       .map((entry) => entry.stableId)
       .filter((stableId) => !emittedIds.has(stableId));
@@ -415,7 +429,7 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
     const artifact = createDistributionArtifact({
       planFingerprint: plan.planFingerprint,
       adapter: rendered.adapter || adapter.identity || { id: 'unknown', version: 'unknown' },
-      outputs: published && published.outputs ? published.outputs : rendered.outputs,
+      outputs: published && published.outputs ? published.outputs : [...rendered.outputs, ...derivedOutputs],
       links: published && published.links ? published.links : links,
       artifactFingerprint: published && published.artifactFingerprint,
       metadata: rendered.metadata,

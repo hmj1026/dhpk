@@ -419,12 +419,6 @@ function planEntry(destination, content) {
   };
 }
 
-// Receipt outputs are rendered after the data files are staged: their content
-// is resolved when the store writes them, from the store's own stage digests.
-function deferredOutput(base, renderContent) {
-  return Object.defineProperty({ ...base }, 'content', { enumerable: true, get: renderContent });
-}
-
 function compileAgyPluginPackage({
   root,
   inventory,
@@ -669,35 +663,24 @@ function compileAgyPluginPackage({
   const state = { fingerprints: null, receipt: null };
   const adapter = {
     identity: { id: SURFACE, version: generatorVersion },
-    render: (_plan, { session }) => {
-      const stagedFingerprints = () => {
-        if (!state.fingerprints) {
-          state.fingerprints = Object.fromEntries(files.map((file) => [file, session.fingerprintOf(file)]));
-        }
-        return state.fingerprints;
-      };
+    render: () => ({
+      adapter: { id: SURFACE, version: generatorVersion },
+      outputs: files.map((file) => ({
+        stableId: `${SURFACE}:${file}`,
+        destination: file,
+        content: emission.get(file).content,
+        mode: emission.get(file).mode,
+      })),
+      links: [],
+    }),
+    renderDerived: (_plan, { session }) => {
+      state.fingerprints = Object.fromEntries(files.map((file) => [file, session.fingerprintOf(file)]));
+      state.receipt = buildReceipt(state.fingerprints);
       return {
-        adapter: { id: SURFACE, version: generatorVersion },
         outputs: [
-          ...files.map((file) => ({
-            stableId: `${SURFACE}:${file}`,
-            destination: file,
-            content: emission.get(file).content,
-            mode: emission.get(file).mode,
-          })),
-          deferredOutput(
-            { stableId: `${SURFACE}:fingerprints.json`, destination: 'fingerprints.json', mode: 0o644 },
-            () => jsonText({ schema: PACKAGE_SCHEMA, files: stagedFingerprints() }),
-          ),
-          deferredOutput(
-            { stableId: `${SURFACE}:provenance.json`, destination: 'provenance.json', mode: 0o644 },
-            () => {
-              state.receipt = buildReceipt(stagedFingerprints());
-              return jsonText(state.receipt);
-            },
-          ),
+          { stableId: `${SURFACE}:fingerprints.json`, destination: 'fingerprints.json', mode: 0o644, content: jsonText({ schema: PACKAGE_SCHEMA, files: state.fingerprints }) },
+          { stableId: `${SURFACE}:provenance.json`, destination: 'provenance.json', mode: 0o644, content: jsonText(state.receipt) },
         ],
-        links: [],
       };
     },
     validate: (_rendered, { session }) => {
@@ -917,6 +900,8 @@ module.exports = {
   compileAgyPluginPackage,
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
+  // Host Adapter contract name; validation is the verification of a package.
+  verifyAgyPluginPackage: validateAgyPluginPackage,
   sanitizeMarkdownLinks,
   projectAgyRuleContent,
 };

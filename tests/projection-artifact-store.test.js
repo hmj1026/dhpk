@@ -748,4 +748,69 @@ test('materializeDistribution returns store cleanup warnings and omits the key o
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+// ---- Wave 3A follow-ups: verifier judges empty dirs, explicit modes, derived outputs
+
+test('ownership: a supplied verify also judges an existing empty directory; no verify keeps accepting it', () => {
+  const root = tempRoot();
+  try {
+    fs.mkdirSync(path.join(root, 'published'));
+    const seen = [];
+    const refusing = new ProjectionArtifactStore({ root, ownership: { verify: (existing) => { seen.push(existing); return { ok: false, code: 'EMPTY_REFUSED', message: 'empty is not ours' }; } } });
+    const error = expectRefused(() => stageOwnedTree(refusing, undefined).publish());
+    assert.strictEqual(error.projectionDetails.reason, 'EMPTY_REFUSED');
+    assert.strictEqual(seen.length, 1);
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, 'published')), []);
+    const accepting = new ProjectionArtifactStore({ root, ownership: { verify: () => ({ ok: true }) } });
+    stageOwnedTree(accepting, undefined, 'verified empty').publish();
+    assert.strictEqual(fs.readFileSync(path.join(root, 'published/data.txt'), 'utf8'), 'verified empty');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('modes: planned modes are applied exactly, independent of the process umask', () => {
+  const root = tempRoot();
+  const previous = process.umask(0o077);
+  try {
+    const entries = [
+      { stableId: 'exec', destination: 'bin/run.sh', mode: 0o755 },
+      { stableId: 'data', destination: 'data.txt', mode: 0o644 },
+    ];
+    const session = new ProjectionArtifactStore({ root }).begin(plan(entries));
+    session.write({ stableId: 'exec', destination: 'bin/run.sh', content: '#!/bin/sh\n', mode: 0o755 });
+    session.write({ stableId: 'data', destination: 'data.txt', content: 'x', mode: 0o644 });
+    const published = session.publish();
+    assert.strictEqual(fs.statSync(path.join(root, 'published/bin/run.sh')).mode & 0o7777, 0o755);
+    assert.strictEqual(fs.statSync(path.join(root, 'published/data.txt')).mode & 0o7777, 0o644);
+    assert.deepStrictEqual(published.outputs.map((o) => o.mode).sort(), [0o644, 0o755]);
+  } finally { process.umask(previous); fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('two-phase render: derived outputs are rendered after every data write with session.fingerprintOf', () => {
+  const { materializeDistribution } = require('../scripts/lib/distribution-compiler');
+  const root = tempRoot();
+  try {
+    const entries = [{ stableId: 'a', destination: 'a.txt' }, { stableId: 'b', destination: 'b.txt' }, { stableId: 'r', destination: 'receipt.json' }];
+    const order = [];
+    const adapter = {
+      identity: { id: 't', version: '1' },
+      render: () => {
+        order.push('render');
+        return { adapter: { id: 't', version: '1' }, outputs: [{ stableId: 'a', destination: 'a.txt', content: 'A' }, { stableId: 'b', destination: 'b.txt', content: 'B' }], links: [] };
+      },
+      renderDerived: (_plan, { session }) => {
+        order.push('derived');
+        const files = { 'a.txt': session.fingerprintOf('a.txt'), 'b.txt': session.fingerprintOf('b.txt') };
+        return { outputs: [{ stableId: 'r', destination: 'receipt.json', content: JSON.stringify(files) }] };
+      },
+    };
+    const store = new ProjectionArtifactStore({ root, ownership: { verify: () => ({ ok: true }) } });
+    const result = materializeDistribution(plan(entries), adapter, store);
+    assert.strictEqual(result.ok, true, result.error && result.error.message);
+    assert.deepStrictEqual(order, ['render', 'derived']);
+    const receipt = JSON.parse(fs.readFileSync(path.join(root, 'published/receipt.json'), 'utf8'));
+    assert.match(receipt['a.txt'], /^[a-f0-9]{64}$/);
+    assert.notStrictEqual(receipt['a.txt'], receipt['b.txt']);
+    assert.strictEqual(result.value.outputs.length, 3);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 run('projection-artifact-store');

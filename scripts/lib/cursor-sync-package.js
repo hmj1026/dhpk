@@ -452,4 +452,6 @@ module.exports = {
   compileCursorSyncProjection,
   materializeCursorSyncTree,
   validateCursorSyncTree,
+  // Host Adapter contract name for validateCursorSyncTree.
+  verifyCursorSyncTree: validateCursorSyncTree,
 };
