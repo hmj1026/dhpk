@@ -1322,6 +1322,7 @@ function materializeAgentPluginPackage(options = {}) {
     root: parent,
     sourceRoot: resolvedRoot,
     publishRoot: resolvedOut,
+    ownership: { owner: SURFACE_OWNERS['agent-plugin'] },
   });
   const artifact = materializeDistribution(projection.plan, projection.adapter, artifactStore);
   if (!artifact.ok) throw new Error(`generated Agent Plugin failed validation: ${artifact.error.message}`);

@@ -430,6 +430,11 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
         : {}),
     });
     if (!artifact.ok) return artifact;
+    // Store cleanup warnings (for example a backup that could not be removed)
+    // ride beside the artifact so they never alter its fingerprint.
+    if (published && Array.isArray(published.warnings) && published.warnings.length > 0) {
+      return { ...artifact, warnings: published.warnings };
+    }
     return artifact;
   } catch (error) {
     if (session && typeof session.abort === 'function') {

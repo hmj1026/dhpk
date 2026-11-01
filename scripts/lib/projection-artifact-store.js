@@ -6,35 +6,32 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { createDistributionArtifact, projectionError, SYMLINK_POLICIES } = require('./distribution-projection-contract');
+const { sha256Hex } = require('./content-fingerprint');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
 
-function digest(file, budget = createTraversalBudget()) {
-  return crypto.createHash('sha256').update(budget.readFile(file)).digest('hex');
+// Shared path-safety predicates (also used by the Projection Receipt
+// publisher).  They reject the union of everything either prior implementation
+// rejected: empty values, NUL, backslash, absolute paths, any drive prefix, and
+// '.', '..', or empty segments.
+function hasDriveOrSeparatorHazard(value) {
+  return typeof value !== 'string'
+    || value.length === 0
+    || value.includes('\0')
+    || value.includes('\\')
+    || path.posix.isAbsolute(value)
+    || /^[A-Za-z]:/.test(value);
 }
 
 function safeRelative(value) {
-  return typeof value === 'string'
-    && value.length > 0
-    && !value.includes('\0')
-    && !value.includes('\\')
-    && !path.posix.isAbsolute(value)
-    && !/^[A-Za-z]:[\\/]/.test(value)
-    && path.posix.normalize(value) === value
-    && value !== '.'
-    && value !== '..'
-    && !value.startsWith('../');
+  if (hasDriveOrSeparatorHazard(value)) return false;
+  return !value.split('/').some((part) => part === '' || part === '.' || part === '..');
 }
 
 function safeLinkTarget(value) {
-  return typeof value === 'string'
-    && value.length > 0
-    && !value.includes('\0')
-    && !value.includes('\\')
-    && !path.posix.isAbsolute(value)
-    && !/^[A-Za-z]:[\\/]/.test(value)
-    && path.posix.normalize(value) !== '.';
+  if (hasDriveOrSeparatorHazard(value)) return false;
+  if (value.split('/').some((part) => part === '' || part === '.')) return false;
+  return path.posix.normalize(value) === value;
 }
 
 function inside(root, candidate) {
@@ -59,7 +56,7 @@ function stagedManifest(stageRoot) {
         } else if (entry.isSymbolicLink()) {
           files.set(childRelative, { type: 'symlink', target: fs.readlinkSync(child) });
         } else if (entry.isFile()) {
-          files.set(childRelative, { type: 'file', fingerprint: digest(child, budget), mode: fs.statSync(child).mode & 0o7777 });
+          files.set(childRelative, { type: 'file', fingerprint: sha256Hex(budget.readFile(child)), mode: fs.statSync(child).mode & 0o7777 });
         } else {
           files.set(childRelative, { type: 'other' });
         }
@@ -162,7 +159,7 @@ function assertStagedManifest(plan, stageRoot, written, links, fail) {
 }
 
 class ProjectionArtifactStore {
-  constructor({ root, sourceRoot = root, publishRoot = null } = {}) {
+  constructor({ root, sourceRoot = root, publishRoot = null, ownership = null, fs: fileSystem = fs } = {}) {
     if (typeof root !== 'string' || root.trim() === '') throw new TypeError('ProjectionArtifactStore root is required');
     this.root = path.resolve(root);
     this.sourceRoot = path.resolve(sourceRoot);
@@ -170,12 +167,18 @@ class ProjectionArtifactStore {
     if (!inside(this.root, this.publishRoot)) {
       throw new TypeError('ProjectionArtifactStore publishRoot must be contained by root');
     }
+    // Default ownership declaration for every session; begin() may override it.
+    this.ownership = ownership;
+    // Injectable so tests can fail publish-time filesystem calls deterministically.
+    this.fs = fileSystem;
     fs.mkdirSync(this.root, { recursive: true });
   }
 
-  begin(plan) {
+  begin(plan, { ownership = this.ownership } = {}) {
     if (!plan || !Array.isArray(plan.entries) || !plan.planFingerprint) throw new TypeError('begin requires a compiled plan');
-    const stageRoot = fs.mkdtempSync(path.join(this.root, '.projection-stage-'));
+    const verifyOwnership = ownershipVerifier(ownership);
+    reconcileScratch(this.root, this.publishRoot);
+    const stageRoot = fs.mkdtempSync(path.join(this.root, `${STAGE_PREFIX}${process.pid}-`));
     const entries = new Map(plan.entries.map((entry) => [entry.stableId, entry]));
     const written = [];
     const links = [];
@@ -230,7 +233,7 @@ class ProjectionArtifactStore {
         written.push({
           stableId: entry.stableId,
           destination: entry.destination,
-          fingerprint: digest(target),
+          fingerprint: sha256Hex(createTraversalBudget().readFile(target)),
           mode: fs.statSync(target).mode & 0o7777,
           ...(entry.skillId ? {
             skillId: entry.skillId,
@@ -252,15 +255,27 @@ class ProjectionArtifactStore {
         if (!safeLinkTarget(targetText)) fail('INVALID_LINK', `link target must be relative: '${targetText}'`, { stableIds: [entry.stableId] });
         const target = stagedPath(entry.destination);
         fs.mkdirSync(path.dirname(target), { recursive: true });
-        const resolved = path.resolve(path.dirname(target), targetText);
-        if (policy === 'contained-relative' && !inside(stageRoot, resolved)) {
+        // Judge the link where it will finally live: stage and publish roots can
+        // differ in depth, so the staged location is not authoritative.
+        const finalDirectory = path.dirname(path.join(this.publishRoot, entry.destination));
+        const resolved = path.resolve(finalDirectory, targetText);
+        if (policy === 'contained-relative' && !inside(this.publishRoot, resolved)) {
           fail('LINK_ESCAPE', `link target escapes artifact ownership root: '${targetText}'`, { stableIds: [entry.stableId] });
         }
-        if (policy === 'declared-source-relative' && !inside(this.sourceRoot, path.resolve(this.sourceRoot, targetText))) {
+        if (policy === 'declared-source-relative' && !inside(this.sourceRoot, resolved)) {
           fail('LINK_ESCAPE', `link target escapes declared source root: '${targetText}'`, { stableIds: [entry.stableId] });
         }
         fs.symlinkSync(targetText, target);
         links.push({ stableId: entry.stableId, destination: entry.destination, target: targetText, policy });
+      },
+      // Stage-time digest of a written file, so adapters can render receipts
+      // (fingerprints.json / provenance.json) without re-reading the stage.
+      fingerprintOf: (destination) => {
+        const record = written.findLast((output) => output.destination === destination);
+        if (!record) {
+          fail('FINGERPRINT_UNAVAILABLE', `no written file output for '${destination}'`, { paths: [destination] });
+        }
+        return record.fingerprint;
       },
       stage: () => {
         if (staged) fail('ALREADY_STAGED', 'artifact has already been staged');
@@ -272,18 +287,35 @@ class ProjectionArtifactStore {
         if (!staged) fail('NOT_STAGED', 'artifact must be staged before activation');
         if (activated) fail('ALREADY_ACTIVATED', 'artifact has already been activated');
         const publishRoot = this.publishRoot;
-        const backupRoot = path.join(this.root, `.projection-backup-${process.pid}-${Date.now()}`);
+        const backupRoot = path.join(this.root, `${BACKUP_PREFIX}${process.pid}-${Date.now()}-${rootTag(publishRoot)}`);
+        const existing = lstatOrNull(publishRoot);
+        if (existing) {
+          const verdict = verifyOwnership(publishRoot, existing);
+          if (!verdict.ok) {
+            fail('OWNERSHIP_REFUSED', `refusing to replace '${publishRoot}': ${verdict.message}`, { paths: [publishRoot], reason: verdict.code });
+          }
+        }
+        const io = this.fs;
         try {
-          if (fs.existsSync(publishRoot)) fs.renameSync(publishRoot, backupRoot);
-          fs.renameSync(stageRoot, publishRoot);
-          if (fs.existsSync(backupRoot)) fs.rmSync(backupRoot, { recursive: true, force: true });
-          activated = true;
-          return { outputs: written, links, artifactFingerprint: digestManifest(written, links) };
+          if (existing) io.renameSync(publishRoot, backupRoot);
+          io.renameSync(stageRoot, publishRoot);
         } catch (error) {
-          if (fs.existsSync(publishRoot) && !fs.existsSync(stageRoot)) fs.renameSync(publishRoot, stageRoot);
-          if (fs.existsSync(backupRoot) && !fs.existsSync(publishRoot)) fs.renameSync(backupRoot, publishRoot);
+          // Rollback applies only while the stage rename has not succeeded.
+          if (lstatOrNull(publishRoot) && !lstatOrNull(stageRoot)) io.renameSync(publishRoot, stageRoot);
+          if (lstatOrNull(backupRoot) && !lstatOrNull(publishRoot)) io.renameSync(backupRoot, publishRoot);
           throw error;
         }
+        activated = true;
+        const warnings = [];
+        // Best effort: a failed cleanup must never undo the published tree.
+        if (lstatOrNull(backupRoot)) {
+          try {
+            io.rmSync(backupRoot, { recursive: true, force: true });
+          } catch (error) {
+            warnings.push({ code: 'BACKUP_CLEANUP_FAILED', path: backupRoot, message: `previous tree backup was not removed: ${error.message}` });
+          }
+        }
+        return { outputs: written, links, artifactFingerprint: digestManifest(written, links), ...(warnings.length > 0 ? { warnings } : {}) };
       },
       publish: () => {
         if (!staged) session.stage();
@@ -297,8 +329,135 @@ class ProjectionArtifactStore {
   }
 }
 
+const STAGE_PREFIX = '.projection-stage-';
+const BACKUP_PREFIX = '.projection-backup-';
+const STAGE_NAME = /^\.projection-stage-(\d+)-[A-Za-z0-9]{6}$/;
+// Backups carry the creating PID and, since the restore rule, a short tag of
+// the publish root they came from (older names have no tag).
+const BACKUP_NAME = /^\.projection-backup-(\d+)-\d+(?:-([0-9a-f]{8}))?$/;
+
+function projectionFailure(code, message, details = {}) {
+  return Object.assign(new Error(message), { projectionCode: code, projectionDetails: details });
+}
+
+function rootTag(publishRoot) {
+  return sha256Hex(publishRoot).slice(0, 8);
+}
+
+function processIsAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // EPERM means the process exists but belongs to someone else.
+    return Boolean(error && error.code === 'EPERM');
+  }
+}
+
+// Reconcile scratch directories left by processes that no longer exist.
+// Decided by PID liveness only, never by age, so a slow concurrent build is
+// untouched.  Names without a parsable PID (older stage names) are left alone.
+// A dead backup is the last accepted tree of an interrupted activation: when
+// the publish root is missing it is restored, never deleted; several candidates
+// are refused rather than guessed.  Backups tagged for another publish root
+// belong to that root's store and are left in place.
+function reconcileScratch(storeRoot, publishRoot) {
+  const tag = rootTag(publishRoot);
+  const candidates = [];
+  for (const entry of fs.readdirSync(storeRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const stage = STAGE_NAME.exec(entry.name);
+    const backup = stage ? null : BACKUP_NAME.exec(entry.name);
+    const match = stage || backup;
+    if (!match) continue;
+    const pid = Number(match[1]);
+    if (!Number.isSafeInteger(pid) || pid <= 0 || processIsAlive(pid)) continue;
+    if (stage) {
+      fs.rmSync(path.join(storeRoot, entry.name), { recursive: true, force: true });
+    } else if (!backup[2] || backup[2] === tag) {
+      candidates.push(entry.name);
+    }
+  }
+  if (candidates.length === 0) return;
+  if (!lstatOrNull(publishRoot)) {
+    if (candidates.length > 1) {
+      throw projectionFailure('AMBIGUOUS_BACKUP_RESTORE', `publish root '${publishRoot}' is missing and ${candidates.length} interrupted-activation backups exist; restore one manually`, {
+        paths: candidates.map((name) => path.join(storeRoot, name)),
+      });
+    }
+    fs.renameSync(path.join(storeRoot, candidates[0]), publishRoot);
+    return;
+  }
+  for (const name of candidates) fs.rmSync(path.join(storeRoot, name), { recursive: true, force: true });
+}
+
+function lstatOrNull(target) {
+  try {
+    return fs.lstatSync(target);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+// Default ownership proof: a physical directory whose provenance.json records
+// the declared owner.  The store reads only the `owner` field, so it still
+// knows no Host receipt schema.
+function defaultOwnershipVerifier(owner) {
+  return (existingRoot) => {
+    const receipt = path.join(existingRoot, 'provenance.json');
+    const stat = lstatOrNull(receipt);
+    if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
+      return { ok: false, code: 'NO_OWNER_RECEIPT', message: 'existing tree has no owner receipt' };
+    }
+    let recorded = null;
+    try {
+      recorded = JSON.parse(fs.readFileSync(receipt, 'utf8'));
+    } catch {
+      return { ok: false, code: 'INVALID_OWNER_RECEIPT', message: 'existing owner receipt is not valid JSON' };
+    }
+    if (!recorded || typeof recorded !== 'object' || recorded.owner !== owner) {
+      return { ok: false, code: 'FOREIGN_OWNER', message: `existing tree is not owned by '${owner}'` };
+    }
+    return { ok: true };
+  };
+}
+
+// An existing publish root is always gated.  A caller that declares no owner
+// can only publish into a missing root.  The physical-directory rule always
+// applies; a surface verifier can only tighten it.
+function ownershipVerifier(ownership) {
+  if (!ownership) {
+    return (existingRoot, stat) => {
+      if (stat.isDirectory() && !stat.isSymbolicLink() && fs.readdirSync(existingRoot).length === 0) return { ok: true };
+      return { ok: false, code: 'OWNER_NOT_DECLARED', message: 'no owner was declared for this publish root' };
+    };
+  }
+  const surfaceVerify = typeof ownership.verify === 'function'
+    ? ownership.verify
+    : (typeof ownership.owner === 'string' && ownership.owner ? defaultOwnershipVerifier(ownership.owner) : null);
+  if (!surfaceVerify) throw new TypeError('ownership requires a verify function or an owner');
+  return (existingRoot, stat) => {
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      return { ok: false, code: 'NOT_PHYSICAL_DIRECTORY', message: 'existing publish root is not a physical directory' };
+    }
+    // An empty directory holds nothing to lose (a caller may pre-create its
+    // output directory), so it needs no owner receipt.
+    if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
+    const verdict = surfaceVerify(existingRoot);
+    if (!verdict || verdict.ok !== true) {
+      return {
+        ok: false,
+        code: (verdict && verdict.code) || 'OWNERSHIP_UNPROVEN',
+        message: (verdict && verdict.message) || 'ownership verification failed',
+      };
+    }
+    return { ok: true };
+  };
+}
+
 function digestManifest(outputs, links) {
-  return crypto.createHash('sha256').update(JSON.stringify({ outputs, links })).digest('hex');
+  return sha256Hex(JSON.stringify({ outputs, links }));
 }
 
 module.exports = {
