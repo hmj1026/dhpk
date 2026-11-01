@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
-  "generatedFromCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
-  "generatedFromTree": "1c6256c6e38fcc670be75d26991b7280acd5cfa6",
+  "sourceCommit": "8ee961810b3a45023bad0a3f91bfa687690cec10",
+  "generatedFromCommit": "8ee961810b3a45023bad0a3f91bfa687690cec10",
+  "generatedFromTree": "9bd086cada205ce0f34d9b21abb29e93c8d60309",
   "inventoryDigest": "5f52401908e7f9c93a82aa95d5038c5cc22366720497380c791b5d0ad74c0802",
   "inventoryRevision": "sha256:3f22193089868e59e1668a890a754dfff8935f524a891d38497a18c69b0bbcde",
   "generatorVersion": "1.0.0",
@@ -1615,12 +1615,6 @@
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
         "originalGitBlobDigest": "98ee51ce36200ccc5c0f448b7980f5d2413cc8f7"
-      },
-      {
-        "ownerId": "flow-guide",
-        "source": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "originalGitBlobDigest": "380a97528fbc13fa462342489f3f88fd655dd048"
       },
       {
         "ownerId": "flow-guide",
@@ -4264,13 +4258,6 @@
       {
         "ownerId": "flow-guide",
         "skillId": "flow-guide",
-        "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-guide",
-        "skillId": "flow-guide",
         "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
         "kind": "entry"
@@ -5321,7 +5308,7 @@
     "create-pr": "ecea4c51400b24a50a6aa852f1796c1ccd281e0a1c3d4d8b845c1a72e1518f24",
     "doc-maintain": "8a428db65c040d66128944fac45ab46f68200c8e0e442d809bbea6f8f2fbad0d",
     "flow-drive": "553506b4ef2f68c906298a816d43bfd8500309c41823a9dbea31a8dac891046e",
-    "flow-guide": "c021fc49689ff4279ac76c19040fcd75a267a002271483363852646eb96ceb7f",
+    "flow-guide": "de3a2bd728f62c69bb8652dd8b967d9e88ca9b12e2cf5c962ffa001ea1f4e582",
     "git-smart-commit": "b21cf7de6b555ada30c0c4db7c8f0326599607f95c87cd00924fa571663dbc4f",
     "git-worktree": "b5293171d19f08ae7b2fae2035f443f26ddbd09572a4813bba4e80669abc8781",
     "precommit": "565accfb658863ae359b200ee516083d7f7122757c41db1e19f10198041621ce",

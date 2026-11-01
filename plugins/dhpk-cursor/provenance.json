@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.68.3",
-  "sourceCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
-  "generatedFromCommit": "1823225398febbf993b649edbfced8cbfbdcd91f",
-  "generatedFromTree": "1c6256c6e38fcc670be75d26991b7280acd5cfa6",
+  "sourceCommit": "8ee961810b3a45023bad0a3f91bfa687690cec10",
+  "generatedFromCommit": "8ee961810b3a45023bad0a3f91bfa687690cec10",
+  "generatedFromTree": "9bd086cada205ce0f34d9b21abb29e93c8d60309",
   "inventoryDigest": "252e7e374acd7ad4f9adf1754bacb1a27d66eea1e076fcf45a8655f22a66509e",
   "inventoryRevision": "sha256:3f22193089868e59e1668a890a754dfff8935f524a891d38497a18c69b0bbcde",
   "generatorVersion": "1.0.0",
@@ -1570,12 +1570,6 @@
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
         "originalGitBlobDigest": "98ee51ce36200ccc5c0f448b7980f5d2413cc8f7"
-      },
-      {
-        "ownerId": "flow-guide",
-        "source": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "originalGitBlobDigest": "380a97528fbc13fa462342489f3f88fd655dd048"
       },
       {
         "ownerId": "flow-guide",
@@ -4214,13 +4208,6 @@
         "skillId": "flow-guide",
         "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
-        "kind": "entry"
-      },
-      {
-        "ownerId": "flow-guide",
-        "skillId": "flow-guide",
-        "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
-        "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
         "kind": "entry"
       },
       {
