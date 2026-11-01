@@ -169,7 +169,7 @@ for the full inspect → route → implement → review → verify → handoff f
 
 ## userConfig
 
-59 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
+74 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ```bash
 claude plugin install dhpk@dhpk \

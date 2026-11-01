@@ -37,16 +37,17 @@ for installation, explicit update and removal, and the managed-install switch.
 ## Prerequisites and version assumptions
 
 The route sections below use the corresponding row. This repository records
-package and schema versions. The only verified client minimum is Codex CLI
-0.159.0 (roles use `gpt-6.1-terra`); other consumer-client minimums are not
+package and schema versions. The Codex CLI minimum is 0.159.0, derived from the
+`gpt-6.1-terra` model requirement and not run on 0.159.0 itself (dhpk was
+probed on 0.166.0 on 2026-11-01); other consumer-client minimums are not
 verified. Release evidence must record the actual client version and probe
 result; do not infer a runtime `PASS` from a package check.
 
 | Route | Client/version assumption | OS and shell assumption | Required tooling | Evidence gate |
 |---|---|---|---|---|
 | Claude Code | Marketplace/plugin support; minimum version not established | Client-supported OS and POSIX shell | `bash`, Claude Code | Run the installer and observe the selected package in a fresh session |
-| Codex project-local sync | Codex project-local loader; schema-v3 receipt; minimum Codex CLI 0.159.0 (roles use `gpt-6.1-terra`, which requires 0.159.0+; verified locally on 0.166.0) | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.codex/.dhpk-installed.json`, and run the listed metadata/test commands |
-| Codex legacy/native | Codex CLI with marketplace/plugin commands; run `codex --version`; minimum Codex CLI 0.159.0 (roles use `gpt-6.1-terra`, which requires 0.159.0+; verified locally on 0.166.0) | Linux, macOS, or WSL shell for the documented route; use a disposable isolated `CODEX_HOME` | `codex`, marketplace access, `git` | Execute the marketplace route and record CLI output; absent CLI/route is `UNAVAILABLE` or `BLOCKED` |
+| Codex project-local sync | Codex project-local loader; schema-v3 receipt; minimum Codex CLI 0.159.0 (roles use `gpt-6.1-terra`, which requires 0.159.0+; probed on 0.166.0, 2026-11-01) | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.codex/.dhpk-installed.json`, and run the listed metadata/test commands |
+| Codex legacy/native | Codex CLI with marketplace/plugin commands; run `codex --version`; minimum Codex CLI 0.159.0 (roles use `gpt-6.1-terra`, which requires 0.159.0+; probed on 0.166.0, 2026-11-01) | Linux, macOS, or WSL shell for the documented route; use a disposable isolated `CODEX_HOME` | `codex`, marketplace access, `git` | Execute the marketplace route and record CLI output; absent CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | OpenAI Public Plugin Directory | Codex or ChatGPT Work with the public plugin manager; minimum client version not established | Product-supported client or web surface | Published DHPK listing and account access | `NOT_PUBLISHED` until the approved listing is visible; record client version and fresh-session discovery separately |
 | Standard Agent Plugin | Agent Plugins 1.0.0 schema consumer; minimum client version not established | Client-supported OS; package validation is performed from a POSIX shell | A verified Agent Plugin loader; Node.js for structural validation | Run both package commands, then record client discovery evidence |
 | Cursor standard Agent Plugin | Cursor desktop/plugin loader that accepts the portable package; record Cursor version; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor Customize → Plugins or its local loader; Node.js for validation only | Observe discovered skills/MCP after reload; no loader is `UNAVAILABLE` or `BLOCKED` |
@@ -505,7 +506,7 @@ isolated `CODEX_HOME` with no project-local projection.
 ## Codex legacy/native package (Experimental)
 
 Prerequisites: a real `codex` CLI with the marketplace route, a POSIX shell,
-and a recorded `codex --version`; the minimum verified CLI version is 0.159.0 (roles use `gpt-6.1-terra`).
+and a recorded `codex --version`; the minimum CLI version is 0.159.0 (derived from `gpt-6.1-terra`).
 This experimental route is for a disposable isolated `CODEX_HOME` only and
 must not be activated alongside the supported project-local sync route.
 
@@ -1026,12 +1027,12 @@ loaded agents from both layouts, so the legacy path is not silently discarded,
 but new default installations always use the canonical path.
 
 Evidence (agy 1.4.12, probed 2026-11-01): `agy agents` listed all 29
-receipt-owned agents from `~/.gemini/antigravity-cli/plugins/dhpk/`, while
+agents of the 0.68.3 package then installed (receipt-owned) from `~/.gemini/antigravity-cli/plugins/dhpk/`, while
 `agy plugin list` returned `[]`, which is expected for a receipt-owned install.
 An agent declaring `model: flash_lite` ran successfully at runtime even though
 the vendor subagent page lists only `inherit`, `flash`, and `pro`. Agents that
-declare MCP tools whose server is not registered in agy fail to start; the
-package now drops such tools (fix in progress in this change).
+declare MCP tools whose server is not registered in agy fail to start, so the
+generated package drops every MCP tool whose server it does not declare.
 
 Default `plan` and `status` are read-only. A receipt-owned legacy installation
 is reported as `LEGACY_OWNED`; if both canonical and legacy candidates exist,
