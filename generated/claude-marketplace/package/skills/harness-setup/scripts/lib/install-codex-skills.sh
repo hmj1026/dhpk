@@ -2392,7 +2392,7 @@ def tree_fingerprint_fd_directory(directory_fd, record_links=False, skip_bytecod
     return _tree_children_fd(directory_fd, '', record_links, skip_bytecode, True)
 
 
-def _tree_node_path(path, relative, symlinks, skip_bytecode, is_root):
+def _tree_node_path(path, relative, symlinks, skip_bytecode, is_root, ancestors=()):
     if os.path.islink(path):
         if symlinks == 'record':
             return _tree_link_digest(os.readlink(path))
@@ -2400,18 +2400,24 @@ def _tree_node_path(path, relative, symlinks, skip_bytecode, is_root):
             _tree_refuse_link(relative)
         path = os.path.realpath(path)
         if not os.path.exists(path):
-            return None
+            if is_root:
+                return None
+            raise ValueError(f"cannot fingerprint dangling symlink '{relative}'")
     if os.path.isfile(path):
         with open(path, 'rb') as handle:
             return _tree_file_digest(lambda: handle.read(1024 * 1024))
     if not os.path.isdir(path):
         _tree_refuse_special(relative)
+    real_directory = os.path.realpath(path)
+    if real_directory in ancestors:
+        raise ValueError(f"cannot fingerprint symlink cycle at '{relative}'")
+    ancestors = ancestors + (real_directory,)
     children = {}
     for name in os.listdir(path):
         if skip_bytecode and _tree_is_bytecode(name):
             continue
         child_relative = f'{relative}/{name}' if relative else name
-        digest = _tree_node_path(os.path.join(path, name), child_relative, symlinks, skip_bytecode, False)
+        digest = _tree_node_path(os.path.join(path, name), child_relative, symlinks, skip_bytecode, False, ancestors)
         if digest is not None:
             children[name] = digest
     if not children and not is_root:
