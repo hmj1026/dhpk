@@ -349,6 +349,19 @@ mode 與 fingerprint。edited、user-owned、retargeted、malformed、ambiguous
 或 collision 檔案必須保留並回報。未帶 `--adopt` 的 `--update` 在仍有
 collision 時以非零狀態結束，避免把 partial receipt 誤認為 current。
 
+Receipt 與每個 transaction journal 也會記錄 `fingerprint_algorithm`
+（`tree-merkle-v1`）：這是與產生的 package fingerprint 共用的單一 directory-tree
+recipe，為逐層 Merkle digest，空目錄、檔案 mode 與 root path 都不納入計算。
+舊版 installer 寫的 receipt 或 journal 沒有此欄位，於一個 transition minor
+內視為 legacy recipe。這段期間 legacy record 的 ownership 以 legacy recipe
+證明，所以未變更的 projection 不會被誤報為已編輯，真正的編輯仍是 collision。
+下一次 `--update` 或 `--migrate` 會以 `tree-merkle-v1` 重寫每個 entry；唯讀
+`--plan` 或檢查絕不重寫 receipt。若 record 指名其他 algorithm，installer 會以
+指名該欄位的診斷訊息 block，且不做任何變更。請勿在此 transition 期間降版
+installer：舊版 installer 無法驗證 `tree-merkle-v1` receipt。從舊版 installer
+產生的 plan 複製而來的 `--adopt` 帶的是 legacy fingerprint，會以
+`adoption preflight changed` 失敗；請重新 plan。
+
 若 projection stale 或有 unowned collision，先執行唯讀 plan：
 
 ```bash
@@ -852,6 +865,9 @@ safety。schema-v3 receipt 記錄 stable ID、public name、destination、source
 mode 與 fingerprint。已編輯、user-owned、retargeted、malformed、ambiguous 或
 colliding 的檔案會被保留並回報。未帶 `--adopt` 的 `--update` 在仍有
 collision 時以非零狀態結束，避免把 partial receipt 誤認為 current。
+
+Cursor 的 receipt 與 journal 遵循上方 Codex 相同的 `fingerprint_algorithm` 規則
+（同一個 installer 程式）。
 
 對 stale 或 unowned projection，先檢查再變更：
 

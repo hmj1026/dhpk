@@ -981,7 +981,7 @@ def receipt_has_retired_profile(receipt):
     return isinstance(historical, dict) and profile_id in historical
 
 
-def remove_relative_path(relative, expected_fingerprint=None):
+def remove_relative_path(relative, expected_fingerprint=None, algorithm=None):
     """Remove one receipt-relative entry through a pinned parent directory.
 
     The leaf is first renamed to a private tombstone.  A failed recursive
@@ -997,13 +997,13 @@ def remove_relative_path(relative, expected_fingerprint=None):
         if not fd_entry_exists(parent_fd, destination_name):
             return
         if (expected_fingerprint is not None
-                and hash_fd_entry(parent_fd, destination_name) != expected_fingerprint):
+                and fingerprint_fd_entry(parent_fd, destination_name, algorithm=algorithm) != expected_fingerprint):
             raise ValueError(f'destination changed before removal: {relative}')
         os.rename(destination_name, tombstone, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
         os.fsync(parent_fd)
         try:
             if (expected_fingerprint is not None
-                    and hash_fd_entry(parent_fd, tombstone) != expected_fingerprint):
+                    and fingerprint_fd_entry(parent_fd, tombstone, algorithm=algorithm) != expected_fingerprint):
                 os.rename(tombstone, destination_name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
                 os.fsync(parent_fd)
                 raise ValueError(f'destination changed during removal: {relative}')
@@ -1037,7 +1037,7 @@ def backup_destination(relative, destination, reason):
         copy_fd_entry(source_parent_fd, destination_name, backup_parent_fd, backup_name)
         fsync_fd_entry(backup_parent_fd, backup_name)
         os.fsync(backup_parent_fd)
-        original_fingerprint = hash_fd_entry(source_parent_fd, destination_name)
+        original_fingerprint = fingerprint_fd_entry(source_parent_fd, destination_name)
     finally:
         os.close(backup_parent_fd)
         os.close(source_parent_fd)
@@ -1482,6 +1482,7 @@ def begin_transaction(plugin_version, source_fingerprint, receipt_snapshot=None,
         'phase': 'active',
         'started': False,
         'plugin_version': plugin_version,
+        'fingerprint_algorithm': TREE_FINGERPRINT_ALGORITHM,
         'source_fingerprint': source_fingerprint,
         'receipt_snapshot_present': bool(receipt_snapshot_present),
         'receipt_snapshot': (
@@ -1703,7 +1704,16 @@ def finalize_recovered_receipt(receipt):
 
 def recover_stale_transactions():
     """Recover interrupted transactions before reading the current receipt."""
-    global TRANSACTION_JOURNAL
+    global ACTIVE_ALGORITHM, RECORD_ALGORITHM
+    saved = (ACTIVE_ALGORITHM, RECORD_ALGORITHM)
+    try:
+        _recover_stale_transactions()
+    finally:
+        ACTIVE_ALGORITHM, RECORD_ALGORITHM = saved
+
+
+def _recover_stale_transactions():
+    global TRANSACTION_JOURNAL, ACTIVE_ALGORITHM, RECORD_ALGORITHM
     if not lexists(CODEX_ROOT) or os.path.islink(CODEX_ROOT):
         return
     try:
@@ -1761,6 +1771,9 @@ def recover_stale_transactions():
             print(f'[install-codex-skills] ERROR: active transaction {run} is owned by a live process; refusing concurrent reconciliation', file=sys.stderr)
             raise ValueError(f'active transaction {run} is still running')
 
+        # Every fingerprint this interrupted run wrote, and every comparison
+        # recovery makes, uses the recipe the journal names.
+        ACTIVE_ALGORITHM = RECORD_ALGORITHM = record_fingerprint_algorithm(journal)
         TRANSACTION_JOURNAL = dict(journal)
         try:
             ensure_manifest_safe()
@@ -1952,6 +1965,11 @@ def inspect_stale_transactions_for_plan():
                 and journal.get('receipt_archive') != f'{BACKUP_DIR}/{run}/receipt.json'):
             blocked.append(f'{journal_name}: receipt archive is not transaction-bound')
             continue
+        try:
+            record_fingerprint_algorithm(journal)
+        except ValueError as error:
+            blocked.append(f'{journal_name}: {error}')
+            continue
         phase = journal.get('phase')
         if phase == 'active':
             blocked.append(f'{journal_name}: interrupted transaction requires recovery')
@@ -1977,7 +1995,7 @@ def prepare_adoption_backup(relative, destination, expected_fingerprint):
         if fd_entry_exists(backup_fd, backup_name):
             raise ValueError(f'adoption backup already exists: {relative}; retry with a fresh plan')
         copy_fd_entry(destination_fd, destination_name, backup_fd, backup_name)
-        actual = hash_fd_entry(backup_fd, backup_name)
+        actual = fingerprint_fd_entry(backup_fd, backup_name)
         if actual != expected_fingerprint:
             remove_fd_entry(backup_fd, backup_name)
             raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
@@ -2097,10 +2115,10 @@ def verify_staged_materialization(source, relative, stage_fd, staged_name, expec
                 return False
         except FileNotFoundError:
             return False
-        return hash_path(source, include_ignored=False) == expected_source
+        return fingerprint_source(source) == expected_source
     try:
         expected = expected_source if expected_destination is None else expected_destination
-        return hash_fd_entry(stage_fd, staged_name, include_ignored=False) == expected
+        return fingerprint_fd_entry(stage_fd, staged_name, include_ignored=False) == expected
     except FileNotFoundError:
         return False
 
@@ -2168,13 +2186,13 @@ def adopt_materialized(source, destination, relative, expected_source, expected_
         if ABORT_ADOPTION_PHASE_FOR_TEST == 'quarantine':
             os._exit(73)
         os.fsync(backup_fd)
-        if hash_fd_entry(backup_fd, quarantine_name) != expected_destination:
+        if fingerprint_fd_entry(backup_fd, quarantine_name) != expected_destination:
             restore_fd_copy(backup_fd, backup_name, destination_fd, destination_name)
             raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
         if source_fingerprint_for(source, relative) != expected_source:
             raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
         stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd, relative)
-        expected_projection = hash_fd_entry(stage_fd, staged_name, include_ignored=False)
+        expected_projection = fingerprint_fd_entry(stage_fd, staged_name, include_ignored=False)
         if not verify_staged_materialization(source, relative, stage_fd, staged_name, expected_source, expected_projection):
             raise ValueError(f'adoption materialization changed: {relative}; run a fresh plan')
         if source_fingerprint_for(source, relative) != expected_source:
@@ -2183,7 +2201,7 @@ def adopt_materialized(source, destination, relative, expected_source, expected_
             raise ValueError(f'adoption target reappeared: {relative}; run a fresh plan')
         os.replace(staged_name, destination_name, src_dir_fd=stage_fd, dst_dir_fd=destination_fd)
         os.fsync(destination_fd)
-        published_fingerprint = hash_fd_entry(destination_fd, destination_name)
+        published_fingerprint = fingerprint_fd_entry(destination_fd, destination_name)
         published_matches = False
         try:
             published_matches = verify_staged_materialization(
@@ -2203,7 +2221,7 @@ def adopt_materialized(source, destination, relative, expected_source, expected_
             source_matches = False
         if not published_matches or not source_matches:
             if (fd_entry_exists(destination_fd, destination_name)
-                    and hash_fd_entry(destination_fd, destination_name) == published_fingerprint):
+                    and fingerprint_fd_entry(destination_fd, destination_name) == published_fingerprint):
                 remove_fd_entry(destination_fd, destination_name)
             restore_fd_copy(backup_fd, backup_name, destination_fd, destination_name)
             reason = 'published materialization' if not published_matches else 'source'
@@ -2246,7 +2264,7 @@ def adopt_materialized(source, destination, relative, expected_source, expected_
             raise
         if fd_entry_exists(destination_fd, destination_name) and published_fingerprint is not None:
             try:
-                if hash_fd_entry(destination_fd, destination_name) == published_fingerprint:
+                if fingerprint_fd_entry(destination_fd, destination_name) == published_fingerprint:
                     remove_fd_entry(destination_fd, destination_name)
             except OSError:
                 pass
@@ -2273,6 +2291,165 @@ def adopt_materialized(source, destination, relative, expected_source, expected_
                         pass
         os.close(backup_fd)
         os.close(destination_fd)
+
+
+# BEGIN tree-fingerprint
+# Recipe `tree-merkle-v1` (OpenSpec unify-tree-fingerprint-algorithm). It mirrors
+# treeFingerprint in scripts/lib/content-fingerprint.js and is pinned to it by
+# tests/fixtures/tree-fingerprint-vectors.json. Self-contained: it needs only
+# hashlib, os and stat.
+#   file = sha256(b'file\0' + bytes)
+#   link = sha256(b'link\0' + utf8(target text))
+#   dir  = sha256(b'directory\0' + for each child in UTF-16 code-unit order of
+#                 its name: utf8(name) + b'\0' + hex(child digest) + b'\0')
+# A directory holding no file or link (after bytecode skipping) contributes
+# nothing to its parent; only the walk root hashes as an empty directory.
+# Modes and the root path are not inputs. A symlink raises unless the walk
+# records links (installer destinations); the path walk may instead follow them
+# (installer sources).
+TREE_FINGERPRINT_ALGORITHM = 'tree-merkle-v1'
+_TREE_DIRECTORY_FLAGS = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) | getattr(os, 'O_NOFOLLOW', 0)
+
+
+def _tree_is_bytecode(name):
+    return name == '__pycache__' or name.endswith('.pyc')
+
+
+def _tree_file_digest(read_chunk):
+    digest = hashlib.sha256(b'file\0')
+    while True:
+        chunk = read_chunk()
+        if not chunk:
+            return digest.hexdigest()
+        digest.update(chunk)
+
+
+def _tree_link_digest(target):
+    return hashlib.sha256(b'link\0' + target.encode('utf-8')).hexdigest()
+
+
+def _tree_directory_digest(children):
+    digest = hashlib.sha256(b'directory\0')
+    for name in sorted(children, key=lambda n: n.encode('utf-16-be')):
+        digest.update(name.encode('utf-8'))
+        digest.update(b'\0')
+        digest.update(children[name].encode('ascii'))
+        digest.update(b'\0')
+    return digest.hexdigest()
+
+
+def _tree_refuse_link(relative):
+    raise ValueError(f"cannot fingerprint symlink '{relative}'")
+
+
+def _tree_refuse_special(relative):
+    raise ValueError(f"cannot fingerprint special entry '{relative}'")
+
+
+def _tree_node_fd(parent_fd, name, relative, record_links, skip_bytecode, is_root):
+    """Digest one entry beneath an open parent descriptor, or None when empty."""
+    entry_stat = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+    if stat.S_ISLNK(entry_stat.st_mode):
+        if not record_links:
+            _tree_refuse_link(relative)
+        return _tree_link_digest(os.readlink(name, dir_fd=parent_fd))
+    if stat.S_ISREG(entry_stat.st_mode):
+        file_fd = os.open(name, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0), dir_fd=parent_fd)
+        try:
+            return _tree_file_digest(lambda: os.read(file_fd, 1024 * 1024))
+        finally:
+            os.close(file_fd)
+    if not stat.S_ISDIR(entry_stat.st_mode):
+        _tree_refuse_special(relative)
+    child_fd = os.open(name, _TREE_DIRECTORY_FLAGS, dir_fd=parent_fd)
+    try:
+        return _tree_children_fd(child_fd, relative, record_links, skip_bytecode, is_root)
+    finally:
+        os.close(child_fd)
+
+
+def _tree_children_fd(directory_fd, relative, record_links, skip_bytecode, is_root):
+    children = {}
+    for name in os.listdir(directory_fd):
+        if skip_bytecode and _tree_is_bytecode(name):
+            continue
+        child_relative = f'{relative}/{name}' if relative else name
+        digest = _tree_node_fd(directory_fd, name, child_relative, record_links, skip_bytecode, False)
+        if digest is not None:
+            children[name] = digest
+    if not children and not is_root:
+        return None
+    return _tree_directory_digest(children)
+
+
+def tree_fingerprint_fd_entry(parent_fd, name, record_links=False, skip_bytecode=True):
+    """Fingerprint one entry beneath an open parent; an empty directory is a root."""
+    return _tree_node_fd(parent_fd, name, name, record_links, skip_bytecode, True)
+
+
+def tree_fingerprint_fd_directory(directory_fd, record_links=False, skip_bytecode=True):
+    """Fingerprint an already-open directory without reopening any path."""
+    return _tree_children_fd(directory_fd, '', record_links, skip_bytecode, True)
+
+
+def _tree_node_path(path, relative, symlinks, skip_bytecode, is_root):
+    if os.path.islink(path):
+        if symlinks == 'record':
+            return _tree_link_digest(os.readlink(path))
+        if symlinks != 'follow':
+            _tree_refuse_link(relative)
+        path = os.path.realpath(path)
+        if not os.path.exists(path):
+            return None
+    if os.path.isfile(path):
+        with open(path, 'rb') as handle:
+            return _tree_file_digest(lambda: handle.read(1024 * 1024))
+    if not os.path.isdir(path):
+        _tree_refuse_special(relative)
+    children = {}
+    for name in os.listdir(path):
+        if skip_bytecode and _tree_is_bytecode(name):
+            continue
+        child_relative = f'{relative}/{name}' if relative else name
+        digest = _tree_node_path(os.path.join(path, name), child_relative, symlinks, skip_bytecode, False)
+        if digest is not None:
+            children[name] = digest
+    if not children and not is_root:
+        return None
+    return _tree_directory_digest(children)
+
+
+def tree_fingerprint_path(path, symlinks='refuse', skip_bytecode=True):
+    """Fingerprint a file or directory by path; symlinks: refuse, record or follow."""
+    if symlinks not in ('refuse', 'record', 'follow'):
+        raise ValueError(f'unknown symlink policy: {symlinks}')
+    return _tree_node_path(path, '', symlinks, skip_bytecode, True) or ''
+# END tree-fingerprint
+
+# Fingerprint recipes the installer can read. A record (receipt or transaction
+# journal) without `fingerprint_algorithm` was written by an installer that
+# used the legacy hash_path/hash_fd_entry recipe; this installer writes
+# tree-merkle-v1 and proves ownership of a legacy record with the legacy recipe
+# until the next update rewrites every entry. ACTIVE_ALGORITHM computes fresh
+# values; RECORD_ALGORITHM is the algorithm of the record being compared with.
+LEGACY_FINGERPRINT_ALGORITHM = 'legacy'
+ACTIVE_ALGORITHM = TREE_FINGERPRINT_ALGORITHM
+RECORD_ALGORITHM = TREE_FINGERPRINT_ALGORITHM
+ORIGINAL_ENTRIES = {}
+
+
+def record_fingerprint_algorithm(record):
+    """Return the recipe a receipt or journal names; unknown values fail closed."""
+    if not isinstance(record, dict) or 'fingerprint_algorithm' not in record:
+        return LEGACY_FINGERPRINT_ALGORITHM
+    value = record['fingerprint_algorithm']
+    if value == TREE_FINGERPRINT_ALGORITHM:
+        return TREE_FINGERPRINT_ALGORITHM
+    raise ValueError(
+        f'fingerprint_algorithm {value!r} is not supported by this installer '
+        f'(supported: {TREE_FINGERPRINT_ALGORITHM}); no changes were made'
+    )
+
 
 
 def is_ignored_distribution_name(name):
@@ -2334,7 +2511,7 @@ def source_fingerprint_for(source, relative):
     Skill directories are self-contained, so nothing is overlaid from outside
     the source tree; the relative path is kept for caller symmetry.
     """
-    return hash_path(source, include_ignored=False)
+    return fingerprint_source(source)
 
 
 def inventory_supporting_sources():
@@ -2400,14 +2577,14 @@ def source_fingerprint():
             relative = f'{root_name}/{name}'
             digest.update(relative.encode('utf-8'))
             digest.update(b'\0')
-            source_hash = hash_path(child, include_ignored=False)
+            source_hash = fingerprint_source(child)
             digest.update(source_hash.encode('ascii'))
             digest.update(b'\0')
     for relative, (supporting, destination) in sorted(inventory_supporting_sources().items()):
         validate_source_tree(supporting, 'supporting asset source')
         digest.update(destination.encode('utf-8'))
         digest.update(b'\0')
-        digest.update(hash_path(supporting, include_ignored=False).encode('ascii'))
+        digest.update(fingerprint_source(supporting).encode('ascii'))
         digest.update(b'\0')
     if shared_projection_relocatable():
         by_id = {
@@ -2430,7 +2607,7 @@ def source_fingerprint():
                 continue
             digest.update(f'shared-skill:{stable_id}'.encode('utf-8'))
             digest.update(b'\0')
-            digest.update(hash_path(source, include_ignored=False).encode('ascii'))
+            digest.update(fingerprint_source(source).encode('ascii'))
             digest.update(b'\0')
     return digest.hexdigest()
 
@@ -3438,13 +3615,16 @@ def validate_skill_metadata(sources, metadata):
 
 
 def read_receipt():
+    global RECORD_ALGORITHM
     ensure_manifest_safe()
+    RECORD_ALGORITHM = TREE_FINGERPRINT_ALGORITHM
     if not lexists(MANIFEST):
         return {}, False
     try:
         receipt = read_manifest_document()
     except Exception:
         return {}, True
+    RECORD_ALGORITHM = record_fingerprint_algorithm(receipt)
     entries = receipt.get('managed_entries')
     return receipt, not isinstance(entries, dict)
 
@@ -3504,6 +3684,9 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
     if isinstance(receipt, dict) and receipt.get('plugin_version') != plugin_version:
         requires_migration = True
         reasons.append('receipt plugin version differs from source')
+    if isinstance(receipt, dict) and receipt and RECORD_ALGORITHM != ACTIVE_ALGORITHM:
+        requires_migration = True
+        reasons.append('receipt has no fingerprint_algorithm; the update rewrites every entry as ' + TREE_FINGERPRINT_ALGORITHM)
     if isinstance(receipt, dict) and receipt.get('source_fingerprint') != fingerprint:
         requires_migration = True
         reasons.append(f'receipt source fingerprint differs from the current {SURFACE_LABEL} source')
@@ -3649,8 +3832,9 @@ def target_for(relative):
 
 def make_entry(source, relative, destination, metadata=None):
     source_fp = source_fingerprint_for(source, relative)
-    destination_fp = hash_path(destination)
     mode = effective_materialization_mode(relative)
+    destination_fp = (followed_destination_fingerprint(destination) if mode == 'symlink'
+                      else fingerprint_destination(destination))
     marker = f'{mode}:{relative}'
     entry = {
         'destination': relative,
@@ -3710,7 +3894,7 @@ def matches_effective_materialization(relative, destination):
             and not contains_symlink(destination))
 
 
-def is_owned(entry, destination):
+def is_owned(entry, destination, algorithm=None):
     if not isinstance(entry, dict) or entry.get('orphaned') or not lexists(destination):
         return False
     mode = entry.get('mode')
@@ -3730,7 +3914,8 @@ def is_owned(entry, destination):
     recorded = entry.get('destination_fingerprint') or entry.get('fingerprint')
     if not isinstance(recorded, str) or not recorded:
         return False
-    complete_destination = hash_path(destination)
+    complete_destination = fingerprint_destination(
+        destination, algorithm=entry_algorithm(entry) if algorithm is None else algorithm)
     # Destination ownership always uses complete integrity. This accepts the
     # unfiltered fingerprint written by pre-remediation receipts and ensures
     # an ignored bytecode edit cannot be treated as an owned, unchanged target.
@@ -3745,7 +3930,7 @@ def recorded_copy_fingerprint(entry):
     return fingerprint if isinstance(fingerprint, str) and len(fingerprint) == 64 else None
 
 
-def exact_source_match(source, destination, relative, old_entry=None):
+def exact_source_match(source, destination, relative, old_entry=None, algorithm=None):
     if not lexists(destination):
         return False
     if os.path.islink(destination):
@@ -3755,9 +3940,10 @@ def exact_source_match(source, destination, relative, old_entry=None):
             and old_entry.get('metadata_projection') == 'portable-skill-metadata.v1'):
         source_fp = old_entry.get('source_fingerprint')
         destination_fp = old_entry.get('destination_fingerprint') or old_entry.get('fingerprint')
-        return (source_fp == source_fingerprint_for(source, relative)
-                and destination_fp == hash_path(destination))
-    return source_fingerprint_for(source, relative) == hash_path(destination)
+        record = entry_algorithm(old_entry) if algorithm is None else algorithm
+        return (source_fp == fingerprint_source(source, algorithm=record)
+                and destination_fp == fingerprint_destination(destination, algorithm=record))
+    return fingerprint_source(source) == fingerprint_destination(destination)
 
 
 def hash_fd_entry(parent_fd, name, include_ignored=True):
@@ -3813,8 +3999,45 @@ def hash_fd_directory(directory_fd, include_ignored=True):
     return digest.hexdigest()
 
 
-def safe_destination_fingerprint(destination, include_ignored=True):
+def fingerprint_source(path, algorithm=None):
+    """Fingerprint an installer source (distributable view, links followed)."""
+    if (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM:
+        return hash_path(path, include_ignored=False)
+    return tree_fingerprint_path(path, 'follow', True)
+
+
+def fingerprint_fd_entry(parent_fd, name, include_ignored=True, algorithm=None):
+    """Fingerprint one entry beneath a pinned parent (destination view, links recorded)."""
+    if (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM:
+        return hash_fd_entry(parent_fd, name, include_ignored)
+    return tree_fingerprint_fd_entry(parent_fd, name, True, not include_ignored)
+
+
+def fingerprint_destination(destination, include_ignored=True, algorithm=None):
+    """Fingerprint a destination path; '' when it does not exist."""
+    if (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM:
+        return hash_path(destination, include_ignored)
+    try:
+        return safe_destination_fingerprint(destination, include_ignored, algorithm)
+    except (FileNotFoundError, NotADirectoryError):
+        return ''
+
+
+def followed_destination_fingerprint(destination, algorithm=None):
+    """Fingerprint what a symlink-mode destination resolves to (complete view).
+
+    A symlink-mode entry records the content its link reaches, which equals its
+    source fingerprint; ownership of the link itself is proven by readlink
+    against `destination_target`. The consumer gate verifies this value.
+    """
+    if (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM:
+        return hash_path(destination)
+    return tree_fingerprint_path(destination, 'follow', False)
+
+
+def safe_destination_fingerprint(destination, include_ignored=True, algorithm=None):
     """Hash a destination through descriptor-pinned, no-follow handles."""
+    legacy = (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM
     destination_abs = os.path.abspath(destination)
     root_abs = os.path.abspath(CODEX_ROOT)
     if destination_abs != root_abs and not destination_abs.startswith(root_abs + os.sep):
@@ -3823,13 +4046,15 @@ def safe_destination_fingerprint(destination, include_ignored=True):
     if relative == '.':
         root_fd = open_relative_directory('', create=False)
         try:
-            return hash_fd_directory(root_fd, include_ignored)
+            if legacy:
+                return hash_fd_directory(root_fd, include_ignored)
+            return tree_fingerprint_fd_directory(root_fd, True, not include_ignored)
         finally:
             os.close(root_fd)
     parent_relative, entry_name = os.path.split(relative)
     parent_fd = open_relative_directory(parent_relative, create=False)
     try:
-        return hash_fd_entry(parent_fd, entry_name, include_ignored)
+        return fingerprint_fd_entry(parent_fd, entry_name, include_ignored, algorithm)
     except FileNotFoundError:
         return ''
     finally:
@@ -4191,7 +4416,7 @@ def install_descriptor_safe(source, destination, replace_existing=True):
         stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd, relative)
         if source_fingerprint_for(source, relative) != source_fingerprint:
             raise ValueError(f'install source changed during materialization: {relative}; run a fresh update')
-        expected_projection = hash_fd_entry(stage_fd, staged_name, include_ignored=False)
+        expected_projection = fingerprint_fd_entry(stage_fd, staged_name, include_ignored=False)
         if not verify_staged_materialization(source, relative, stage_fd, staged_name, source_fingerprint, expected_projection):
             raise ValueError(f'install materialization changed: {relative}; run a fresh update')
         if fd_entry_exists(destination_fd, destination_name):
@@ -4200,7 +4425,7 @@ def install_descriptor_safe(source, destination, replace_existing=True):
             remove_fd_entry(destination_fd, destination_name)
         os.replace(staged_name, destination_name, src_dir_fd=stage_fd, dst_dir_fd=destination_fd)
         os.fsync(destination_fd)
-        published_fingerprint = hash_fd_entry(destination_fd, destination_name)
+        published_fingerprint = fingerprint_fd_entry(destination_fd, destination_name)
         published_matches = False
         try:
             published_matches = verify_staged_materialization(
@@ -4220,7 +4445,7 @@ def install_descriptor_safe(source, destination, replace_existing=True):
             source_matches = False
         if not published_matches or not source_matches:
             if (fd_entry_exists(destination_fd, destination_name)
-                    and hash_fd_entry(destination_fd, destination_name) == published_fingerprint):
+                    and fingerprint_fd_entry(destination_fd, destination_name) == published_fingerprint):
                 remove_fd_entry(destination_fd, destination_name)
             reason = 'published materialization' if not published_matches else 'source'
             raise ValueError(f'install {reason} changed: {relative}; run a fresh update')
@@ -4305,8 +4530,56 @@ def build_evidence(plugin_version, fingerprint, entries, counts, state):
     return evidence
 
 
+def entry_algorithm(entry):
+    """Recipe that produced one entry's recorded fingerprints.
+
+    An entry the installer could not rewrite (not proven owned) keeps its legacy
+    values inside a tree-merkle-v1 receipt and says so with
+    `fingerprint_algorithm: legacy`; every other entry follows the receipt.
+    """
+    if isinstance(entry, dict) and entry.get('fingerprint_algorithm') == LEGACY_FINGERPRINT_ALGORITHM:
+        return LEGACY_FINGERPRINT_ALGORITHM
+    return RECORD_ALGORITHM
+
+
+def refresh_legacy_entry(entry, original):
+    """Rewrite one unchanged entry, proven owned under its legacy recipe, with the active recipe.
+
+    An entry that stays legacy is marked so the receipt never presents a legacy
+    value as tree-merkle-v1; a later run proves it with the legacy recipe.
+    """
+    if entry is not original or not isinstance(entry, dict) or entry_algorithm(entry) == ACTIVE_ALGORITHM:
+        return entry
+    legacy_entry = dict(entry, fingerprint_algorithm=LEGACY_FINGERPRINT_ALGORITHM)
+    if entry.get('orphaned'):
+        return legacy_entry
+    relative = entry.get('destination') or entry.get('source')
+    try:
+        destination = safe_destination(relative)
+        if not is_owned(entry, destination):
+            return legacy_entry
+        current = (followed_destination_fingerprint(destination) if entry.get('mode') == 'symlink'
+                   else fingerprint_destination(destination))
+    except (OSError, ValueError, TypeError):
+        return legacy_entry
+    return {key: value for key, value in dict(entry, destination_fingerprint=current, fingerprint=current).items()
+            if key != 'fingerprint_algorithm'}
+
+
+def refresh_legacy_entries(entries):
+    """Never leave a receipt that names the active recipe holding unmarked legacy values."""
+    return {
+        kind: {
+            name: refresh_legacy_entry(entry, (ORIGINAL_ENTRIES.get(kind) or {}).get(name))
+            for name, entry in values.items()
+        }
+        for kind, values in entries.items()
+    }
+
+
 def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_pending=False, state=None):
     ensure_manifest_safe()
+    entries = refresh_legacy_entries(entries)
     if state is None:
         if legacy_pending:
             state = 'stale'
@@ -4327,6 +4600,7 @@ def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_
     receipt = {
         'schema_version': SCHEMA_VERSION,
         'plugin_version': plugin_version,
+        'fingerprint_algorithm': TREE_FINGERPRINT_ALGORITHM,
         'source_fingerprint': fingerprint,
         'mode': MODE,
         'installed_at': datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0, tzinfo=None).isoformat() + 'Z',
@@ -4535,7 +4809,7 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
                 if backup:
                     counts['backed_up'] += 1
                     register_pending_prune(relative, old_destination, backup)
-                remove_relative_path(relative, recorded_copy_fingerprint(old))
+                remove_relative_path(relative, recorded_copy_fingerprint(old), algorithm=entry_algorithm(old))
                 if key != public_name:
                     del entries['skills'][key]
                 entries['skills'][public_name] = make_entry(source, new_relative, new_destination, metadata.get(public_name))
@@ -4559,7 +4833,7 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
             # Publish the new destination first. Only after it is visible do we
             # remove the unchanged legacy path, preserving rollback safety.
             install_atomic(source, new_destination)
-            remove_relative_path(relative, recorded_copy_fingerprint(old))
+            remove_relative_path(relative, recorded_copy_fingerprint(old), algorithm=entry_algorithm(old))
             if key != public_name:
                 del entries['skills'][key]
             entries['skills'][public_name] = make_entry(source, new_relative, new_destination, metadata.get(public_name))
@@ -4610,6 +4884,16 @@ if not PLAN and not UNINSTALL:
         sys.exit(2)
     if early_profile_block:
         print_receipt_profile_update_block(early_profile_block)
+        sys.exit(2)
+elif UNINSTALL:
+    # An uninstall skips the profile check above, but a receipt naming an
+    # unknown fingerprint algorithm must still block before the lock file is
+    # created or any recovery runs.
+    try:
+        ensure_codex_root_safe()
+        read_receipt()
+    except (OSError, ValueError) as error:
+        print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
         sys.exit(2)
 
 try:
@@ -4687,6 +4971,7 @@ legacy_pending = bool(
     or (isinstance(receipt, dict) and receipt.get('legacy_pending'))
 )
 entries = entry_map(receipt)
+ORIGINAL_ENTRIES = {kind: dict(values) for kind, values in entries.items()}
 orphaned = dict(receipt.get('orphaned_entries') or {}) if isinstance(receipt, dict) else {}
 counts = {k: 0 for k in (
     'created', 'updated', 'adopted', 'migrated', 'preserved', 'skipped_collision', 'collided',
@@ -4799,7 +5084,7 @@ if UNINSTALL:
                     if backup:
                         register_pending_prune(relative, destination, backup)
                         counts['backed_up'] += 1
-                    remove_relative_path(relative, recorded_copy_fingerprint(old))
+                    remove_relative_path(relative, recorded_copy_fingerprint(old), algorithm=entry_algorithm(old))
                     clear_orphaned(relative)
                     counts['pruned'] += 1
                     counts['retired'] += 1
@@ -4930,7 +5215,7 @@ if UPDATE:
                 if backup:
                     counts['backed_up'] += 1
                     register_pending_prune(relative, destination, backup)
-                remove_relative_path(relative, recorded_copy_fingerprint(old))
+                remove_relative_path(relative, recorded_copy_fingerprint(old), algorithm=entry_algorithm(old))
                 del entries[kind][name]
                 counts['pruned'] += 1
                 counts['retired'] += 1

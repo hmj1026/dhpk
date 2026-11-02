@@ -5,10 +5,13 @@
 // fingerprints.json, provenance.json, distribution inventory digests, release
 // manifests, harness receipts).
 //
-// Every function documents the exact byte recipe it reproduces. The recipes are
-// deliberately NOT unified: a persisted value must not change when a call site
-// moves here, so algorithms that differ in sort order, terminators, or Merkle
-// shape stay separate named functions. Pure functions take lists; the only disk
+// Every function documents the exact byte recipe it reproduces. Directory trees
+// use one recipe, treeFingerprint (tree-merkle-v1); each persisted value records
+// its algorithm, and verifiers pick the recipe from that marker. The older
+// per-surface tree recipes remain only to verify values written before the
+// transition and are removed one minor release later. Recipes with a different
+// purpose (content+mode release fingerprints, receipt directory entries) stay
+// separate named functions. Pure functions take lists; the only disk
 // reader is collectDirectoryEntries. Node built-ins and bounded-filesystem.js
 // only, so the module can be mirrored into generated packages unchanged.
 
@@ -161,6 +164,113 @@ function merkleFingerprint(entries, prefix = '') {
   return merkleDigest(node);
 }
 
+const TREE_FINGERPRINT_ALGORITHM = 'tree-merkle-v1';
+
+function treePathSegments(entryPath) {
+  const names = String(entryPath).split('/');
+  for (const name of names) {
+    if (name === '' || name === '.' || name === '..' || name.includes('\0')) {
+      throw new Error(`invalid tree path '${entryPath}'`);
+    }
+    if (!name.isWellFormed()) throw new Error(`tree path '${entryPath}' is not valid Unicode`);
+  }
+  return names;
+}
+
+function buildTreeNodes(entries) {
+  const root = { type: 'directory', children: new Map() };
+  for (const entry of entries) {
+    if (entry.type === 'directory') continue;
+    const names = treePathSegments(entry.path);
+    let node = root;
+    for (const name of names.slice(0, -1)) {
+      let child = node.children.get(name);
+      if (!child) {
+        child = { type: 'directory', children: new Map() };
+        node.children.set(name, child);
+      } else if (child.type !== 'directory') {
+        throw new Error(`tree path '${entry.path}' conflicts with a file or link`);
+      }
+      node = child;
+    }
+    const leaf = names[names.length - 1];
+    if (node.children.has(leaf)) throw new Error(`tree path '${entry.path}' conflicts with another entry`);
+    node.children.set(leaf, entry.type === 'link'
+      ? { type: 'link', target: String(entry.target) }
+      : { type: 'file', content: entry.content });
+  }
+  return root;
+}
+
+function treeNodeDigest(node) {
+  if (node.type === 'file') return crypto.createHash('sha256').update('file\0').update(node.content).digest('hex');
+  if (node.type === 'link') {
+    if (!node.target.isWellFormed()) throw new Error('link target is not valid Unicode');
+    return crypto.createHash('sha256').update('link\0').update(node.target, 'utf8').digest('hex');
+  }
+  const hash = crypto.createHash('sha256').update('directory\0');
+  for (const name of [...node.children.keys()].sort(compareCodeUnit)) {
+    hash.update(name, 'utf8').update('\0').update(treeNodeDigest(node.children.get(name))).update('\0');
+  }
+  return hash.digest('hex');
+}
+
+// Recipe `tree-merkle-v1` (OpenSpec unify-tree-fingerprint-algorithm, design D1).
+// entries: [{ path, type: 'file', content }] or [{ path, type: 'link', target }]
+// with posix paths relative to the tree root. Directory entries are ignored, so
+// an empty directory never contributes; modes and the root path are not inputs.
+//   file  = sha256( "file\0" || bytes )
+//   link  = sha256( "link\0" || utf8(target text) )
+//   dir   = sha256( "directory\0" || per child in UTF-16 code-unit order of its
+//                   name: utf8(name) || "\0" || hex(childDigest) || "\0" )
+// A tree with no files hashes to sha256("directory\0"). Link entries exist only
+// when the walk used the record-links policy (collectDirectoryEntries
+// `symlinks: 'record'`); this function hashes whatever it is given and never
+// reads the disk. A name that is not valid Unicode, an empty or NUL-bearing
+// path segment, or a path used as both a file and a directory is refused.
+function treeFingerprint(entries) {
+  return treeNodeDigest(buildTreeNodes(entries));
+}
+
+// Digest of the node at `prefix` inside the tree described by `entries` ('' is
+// the root), or '' when nothing exists there. A file at `prefix` hashes to its
+// bare `file\0` leaf (not wrapped in a directory), so a caller that fingerprints
+// one file or one subtree of a larger file list gets the same value as the
+// subtree hashed on its own. Entries follow treeFingerprint; nothing is read
+// from disk.
+function treeNodeFingerprint(entries, prefix = '') {
+  let node = buildTreeNodes(entries);
+  for (const name of String(prefix).split('/').filter((part) => part !== '')) {
+    node = node.type === 'directory' ? node.children.get(name) : undefined;
+    if (!node) return '';
+  }
+  return treeNodeDigest(node);
+}
+
+const LEGACY_FINGERPRINT_ALGORITHM = 'legacy';
+
+// Selects the recipe a persisted tree value was written with from the record
+// that carries it (design D3). An absent field is the legacy per-surface
+// recipe, exactly `tree-merkle-v1` is the shared recipe, and anything else
+// (including null and the empty string) throws so a verifier fails closed
+// instead of trying both recipes.
+function resolveFingerprintAlgorithm(record, field = 'fingerprintAlgorithm') {
+  if (record === null || typeof record !== 'object' || !Object.prototype.hasOwnProperty.call(record, field)) {
+    return LEGACY_FINGERPRINT_ALGORITHM;
+  }
+  if (record[field] === TREE_FINGERPRINT_ALGORITHM) return TREE_FINGERPRINT_ALGORITHM;
+  throw new Error(`unknown fingerprint algorithm in '${field}': ${JSON.stringify(record[field])}`);
+}
+
+// Normalizes a caller-supplied `algorithm` option: undefined or 'legacy' keeps
+// the per-surface legacy recipe, the tree name selects `tree-merkle-v1`, and
+// anything else throws.
+function normalizeFingerprintAlgorithm(value) {
+  if (value === undefined || value === LEGACY_FINGERPRINT_ALGORITHM) return LEGACY_FINGERPRINT_ALGORITHM;
+  if (value === TREE_FINGERPRINT_ALGORITHM) return TREE_FINGERPRINT_ALGORITHM;
+  throw new Error(`unknown fingerprint algorithm: ${JSON.stringify(value)}`);
+}
+
 // entries: [{ path, content, mode }] in caller order (the release manifest
 // feeds per-directory locale order). Content hash is `path \0 bytes`; mode hash
 // is `path \0 (mode & 0o7777) \0`; the artifact fingerprint combines both with
@@ -207,16 +317,26 @@ function directoryEntriesFingerprint(entries) {
 // pre-order (a directory entry precedes its contents):
 //   { path (posix, relative), type: 'directory' }
 //   { path, type: 'file', content: Buffer, mode: stat.mode & 0o7777 }
+//   { path, type: 'link', target: string }   (only with symlinks: 'record')
 // options:
 //   budget        shared traversal budget; opt-in. Without one the walk is
 //                 unbounded, as every caller was before the consolidation.
 //   order         'codeUnit' (default) or 'locale' sort within each directory
 //   skipBytecode  skip __pycache__ and *.pyc names
-//   symlinks      'refuse' (default, throws) or 'skip'
+//   symlinks      walk policy for a symlink (the digest never sees the policy):
+//                   'refuse' (default, throws naming the relative path)
+//                   'skip'   (leave the link out)
+//                   'record' (record-links: emit { path, type: 'link', target }
+//                            with the link text exactly as read, never resolved
+//                            and never followed; for trees that legitimately hold
+//                            links, such as installer destinations and the
+//                            cursor/ and codex/ sync trees)
 function collectDirectoryEntries(directory, options = {}) {
   const { order = 'codeUnit', skipBytecode = false, symlinks = 'refuse' } = options;
   if (order !== 'codeUnit' && order !== 'locale') throw new TypeError(`unknown directory order: ${order}`);
-  if (symlinks !== 'refuse' && symlinks !== 'skip') throw new TypeError(`unknown symlink policy: ${symlinks}`);
+  if (symlinks !== 'refuse' && symlinks !== 'skip' && symlinks !== 'record') {
+    throw new TypeError(`unknown symlink policy: ${symlinks}`);
+  }
   const budget = options.budget || createTraversalBudget(UNLIMITED);
   const root = path.resolve(directory);
   const rootStat = fs.lstatSync(root);
@@ -234,6 +354,10 @@ function collectDirectoryEntries(directory, options = {}) {
         const stat = fs.lstatSync(absolute);
         if (stat.isSymbolicLink()) {
           if (symlinks === 'skip') continue;
+          if (symlinks === 'record') {
+            entries.push({ path: childRelative, type: 'link', target: fs.readlinkSync(absolute) });
+            continue;
+          }
           throw new Error(`cannot fingerprint symlink '${childRelative}'`);
         }
         if (stat.isDirectory()) {
@@ -268,6 +392,12 @@ module.exports = {
   fileSetFingerprintLocale,
   fileSetFingerprintTerminated,
   merkleFingerprint,
+  TREE_FINGERPRINT_ALGORITHM,
+  treeFingerprint,
+  treeNodeFingerprint,
+  LEGACY_FINGERPRINT_ALGORITHM,
+  resolveFingerprintAlgorithm,
+  normalizeFingerprintAlgorithm,
   packageContentAndModeFingerprints,
   directoryEntriesFingerprint,
   collectDirectoryEntries,
