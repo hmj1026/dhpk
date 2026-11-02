@@ -788,14 +788,16 @@ function cursorVirtualFingerprint(files, prefix) {
   );
 }
 
-// Recipe named by the package's provenance.json marker; absent provenance,
-// unreadable JSON (also reported elsewhere), or a missing marker fails closed
-// with the version-boundary diagnostic.
+// Recipe named by the package's provenance.json marker; absent provenance or a
+// missing marker fails closed with the version-boundary diagnostic, and
+// unparseable JSON fails closed as unreadable.
 function packageFingerprintAlgorithm(packageRoot) {
   const provenancePath = path.join(packageRoot, 'provenance.json');
   let provenance = null;
   if (fs.existsSync(provenancePath)) {
-    try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (_) { provenance = null; }
+    try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (error) {
+      return { algorithm: null, error: `provenance.json is unreadable: ${error.message}` };
+    }
   }
   try {
     return { algorithm: requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm') };

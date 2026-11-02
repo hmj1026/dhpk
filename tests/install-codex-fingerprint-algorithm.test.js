@@ -126,19 +126,46 @@ test('a transaction journal written by the installer names the algorithm', () =>
   for (const name of journals) assert.strictEqual(readJson(path.join(codex, name))[FIELD], ALGORITHM);
 });
 
-test('a receipt without fingerprint_algorithm blocks every mode and mutates nothing', () => {
+test('a receipt without fingerprint_algorithm blocks install, update and plan and mutates nothing', () => {
   const { project, codex, receiptPath, plugin } = installedProject();
   editReceipt(receiptPath, (receipt) => { delete receipt[FIELD]; });
   const before = fs.readFileSync(receiptPath, 'utf8');
   const projection = projectionOf(codex);
   const names = fs.readdirSync(codex).sort();
   const message = versionBoundaryMessage(FIELD, undefined);
-  for (const args of [UPDATE, ['--copy', '--force'], PLAN, ['--uninstall', '--force']]) {
+  for (const args of [UPDATE, ['--copy', '--force'], PLAN]) {
     assertBlocked(runInstaller(project, args, plugin), message, args.join(' '));
     assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), before, args.join(' '));
     assert.strictEqual(projectionOf(codex), projection, args.join(' '));
     assert.deepStrictEqual(fs.readdirSync(codex).sort(), names, args.join(' '));
   }
+});
+
+// --uninstall over a record the installer cannot interpret must stay reachable:
+// it deletes no destination file, removes the receipt and lists every entry.
+function assertUninstallReleasesEverything(label, edit) {
+  const { project, codex, receiptPath, plugin } = installedProject();
+  const listed = ['skills/sample-skill', 'agents/sample.toml'];
+  editReceipt(receiptPath, (receipt) => {
+    edit(receipt);
+    receipt.orphaned_entries = { 'skills/ghost-skill': { destination: 'skills/ghost-skill', source: 'skills/ghost-skill' } };
+  });
+  const projection = projectionOf(codex);
+  const result = runInstaller(project, ['--uninstall', '--force'], plugin);
+  assert.strictEqual(result.status, 0, `${label}\n${output(result)}`);
+  for (const relative of [...listed, 'skills/ghost-skill']) {
+    assert.ok(result.stdout.includes(`released: ${relative}`), `${label}: ${relative} not listed\n${output(result)}`);
+  }
+  assert.ok(!fs.existsSync(receiptPath), `${label}: the receipt is removed`);
+  assert.strictEqual(projectionOf(codex), projection, `${label}: no destination file is deleted`);
+}
+
+test('--uninstall over a receipt without fingerprint_algorithm releases every entry and deletes no file', () => {
+  assertUninstallReleasesEverything('missing', (receipt) => { delete receipt[FIELD]; });
+});
+
+test('--uninstall over a receipt naming another algorithm releases every entry and deletes no file', () => {
+  assertUninstallReleasesEverything('unknown', (receipt) => { receipt[FIELD] = 'tree-merkle-v9'; });
 });
 
 test('the frozen receipt of the previous installer (no fingerprint_algorithm) blocks', () => {
@@ -155,14 +182,14 @@ test('the frozen receipt of the previous installer (no fingerprint_algorithm) bl
   assert.strictEqual(projectionOf(codex), projection);
 });
 
-test('an unknown algorithm in a receipt blocks every mode and mutates nothing', () => {
+test('an unknown algorithm in a receipt blocks install, update and plan and mutates nothing', () => {
   const { project, codex, receiptPath, plugin } = installedProject();
   editReceipt(receiptPath, (receipt) => { receipt[FIELD] = 'tree-merkle-v9'; });
   const before = fs.readFileSync(receiptPath, 'utf8');
   const projection = projectionOf(codex);
   const names = fs.readdirSync(codex).sort();
   const message = versionBoundaryMessage(FIELD, 'tree-merkle-v9');
-  for (const args of [UPDATE, ['--copy', '--force'], PLAN, ['--uninstall', '--force']]) {
+  for (const args of [UPDATE, ['--copy', '--force'], PLAN]) {
     assertBlocked(runInstaller(project, args, plugin), message, args.join(' '));
     assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), before, args.join(' '));
     assert.strictEqual(projectionOf(codex), projection, args.join(' '));
@@ -194,6 +221,15 @@ test('a transaction journal without fingerprint_algorithm blocks recovery, the i
   assertBlocked(runInstaller(project, UPDATE, plugin), message, 'update');
   assertBlocked(runInstaller(project, ['--copy', '--plan', '--json', '--force'], plugin), message, 'plan');
   assert.strictEqual(fs.readFileSync(journalPath, 'utf8'), before, 'the journal is neither recovered nor rewritten');
+  assert.strictEqual(projectionOf(codex), projection);
+});
+
+test('a transaction journal without fingerprint_algorithm still blocks --uninstall', () => {
+  const { project, codex, plugin, journalPath } = projectWithJournal((journal) => { delete journal[FIELD]; });
+  const before = fs.readFileSync(journalPath, 'utf8');
+  const projection = projectionOf(codex);
+  assertBlocked(runInstaller(project, ['--uninstall', '--force'], plugin), versionBoundaryMessage(FIELD, undefined), 'uninstall');
+  assert.strictEqual(fs.readFileSync(journalPath, 'utf8'), before);
   assert.strictEqual(projectionOf(codex), projection);
 });
 
@@ -297,6 +333,57 @@ test('a legacy-marked symlink entry with a matching link target is kept without 
   assert.ok(receipt.managed_entries.skills['sample-skill'], 'the entry stays in the receipt');
   assertNoEntryMarker(receipt);
   assert.strictEqual(receipt.managed_entries.skills['sample-skill'].destination_fingerprint, completeTreeFingerprint(target));
+});
+
+test('a legacy-marked symlink entry whose link target differs from destination_target is released', () => {
+  const { project, codex, receiptPath, plugin } = installedProject();
+  const target = skillTarget(codex);
+  const source = path.join(plugin, 'codex', 'skills', 'sample-skill');
+  const link = path.relative(path.dirname(target), source);
+  fs.rmSync(target, { recursive: true, force: true });
+  fs.symlinkSync(link, target, 'dir');
+  editReceipt(receiptPath, (receipt) => {
+    Object.assign(receipt.managed_entries.skills['sample-skill'], {
+      mode: 'symlink',
+      destination_target: '../elsewhere/sample-skill',
+      ownership_marker: 'symlink:skills/sample-skill',
+      fingerprint_algorithm: 'legacy',
+    });
+    receipt.orphaned_entries = { 'skills/sample-skill': { ...receipt.managed_entries.skills['sample-skill'], reason: 'stale' } };
+  });
+  const result = runInstaller(project, UPDATE, plugin);
+  assert.ok([0, 1].includes(result.status), output(result));
+  assert.match(result.stdout, /released: skills\/sample-skill/);
+  assert.strictEqual(fs.readlinkSync(target), link, 'the link is untouched');
+  const receipt = readJson(receiptPath);
+  const entry = receipt.managed_entries.skills['sample-skill'];
+  assert.ok(!entry || entry.destination_target !== '../elsewhere/sample-skill', 'the mismatched record is gone');
+  assert.doesNotMatch(JSON.stringify(receipt), /"fingerprint_algorithm":\s*"legacy"/);
+});
+
+test('releasing a managed entry also drops its orphaned_entries record, and legacy-only orphan records are released', () => {
+  const { project, codex, receiptPath, plugin } = installedProject();
+  const relative = addLegacyCopyEntry(project, codex, receiptPath);
+  fs.cpSync(skillTarget(codex), path.join(codex, 'skills', 'ghost-skill'), { recursive: true });
+  editReceipt(receiptPath, (receipt) => {
+    const legacy = receipt.managed_entries.skills['retired-skill'];
+    receipt.orphaned_entries = {
+      [relative]: { ...legacy, reason: 'modified-before-uninstall' },
+      'skills/ghost-skill': {
+        ...legacy, source: 'skills/ghost-skill', destination: 'skills/ghost-skill', ownership_marker: 'copy:skills/ghost-skill',
+      },
+    };
+  });
+  const files = snapshotTree(path.join(codex, relative));
+  const result = runInstaller(project, UPDATE, plugin);
+  assert.strictEqual(result.status, 0, output(result));
+  assert.match(result.stdout, /released: skills\/retired-skill/);
+  assert.match(result.stdout, /released: skills\/ghost-skill/);
+  const receipt = readJson(receiptPath);
+  assert.deepStrictEqual(Object.keys(receipt.orphaned_entries || {}), [], JSON.stringify(receipt.orphaned_entries));
+  assert.doesNotMatch(JSON.stringify(receipt), /"fingerprint_algorithm":\s*"legacy"/);
+  assert.strictEqual(snapshotTree(path.join(codex, relative)), files);
+  assert.ok(fs.existsSync(path.join(codex, 'skills', 'ghost-skill')), 'orphan files stay in place');
 });
 
 test('a plan lists the entries an update would release and writes nothing', () => {

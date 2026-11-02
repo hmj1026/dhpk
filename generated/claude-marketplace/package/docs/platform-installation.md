@@ -384,19 +384,22 @@ or later. A record without `fingerprint_algorithm` fails closed with a
 diagnostic that names the field and changes nothing; so does a record naming any
 other algorithm. To recover, either upgrade through 0.69.x and run one install
 or update, which rewrites the receipt with `tree-merkle-v1`, or uninstall and
-reinstall. Do not downgrade the installer across this boundary: an older
+reinstall. `--uninstall` over a receipt without the marker deletes no file: it
+removes the receipt and lists every entry as a Released Entry, which you can
+delete by hand before reinstalling. Do not downgrade the installer across this boundary: an older
 installer cannot verify a `tree-merkle-v1` receipt. An `--adopt` request
 copied from a plan made by an earlier installer fails with
 `adoption preflight changed`; run a fresh plan.
 
 When an update or migration cannot prove ownership of a receipt entry, it
-releases the entry (a Released Entry): the entry is removed from the receipt, its
+releases the entry (a Released Entry, see `GLOSSARY.md`): the entry is removed from the receipt, its
 files stay in place untouched, and the output lists it. Release does not block
 the run that releases the entry, and the receipt is rewritten with
 `tree-merkle-v1`. Afterwards the path is unowned: if a later run still ships
 that skill, it reports a collision and keeps the files; run a fresh `--plan`
-and `--adopt` to manage them again. Symlink-mode entries stay provable by link
-target, so they are not released for lack of a fingerprint. A destination you
+and `--adopt` to manage them again. A symlink-mode entry whose link target
+matches its recorded target is kept; one with a mismatched target is released.
+A destination you
 edited after a `tree-merkle-v1` install is a modified collision, not a release. A read-only `--plan` or check never rewrites the receipt.
 
 For a stale or unowned projection, inspect before changing anything:

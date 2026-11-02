@@ -56,6 +56,9 @@ const CASES = [
   { name: 'object', field: 'fingerprint_algorithm', observed: { a: [1, 'b'] } },
 ];
 
+// Parity is guaranteed for strings, booleans, null and absent only. Numbers
+// such as floats can render differently between JSON.stringify and Python's
+// repr, so no float equality is asserted here.
 test('the Python builder equals the Node builder for every observed value', () => {
   const python = pythonMessages(CASES.map(({ name, ...rest }) => rest));
   CASES.forEach((entry, index) => {

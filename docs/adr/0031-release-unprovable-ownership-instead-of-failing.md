@@ -30,7 +30,10 @@ or update, or uninstall and reinstall. The one exception is an agents-skills
 receipt with `generatorVersion` `1.1.0` and no marker, which 0.69.x writes
 while it carries legacy entries: it is read, its carried legacy entries become
 Released Entries, and it is rewritten with `tree-merkle-v1`. An installer
-entry in symlink mode stays provable by its link target and is not released.
+entry in symlink mode whose link target matches its recorded target stays
+provable and is not released; one whose link target does not match is
+released. Of the legacy-marked installer entries, only copy-mode and orphaned
+entries are released.
 
 ## Consequences
 
@@ -41,6 +44,10 @@ entry in symlink mode stays provable by its link target and is not released.
 - Released Entries are no longer updated or removed by dhpk. The user must
   delete them by hand if they are not wanted, which is why the output lists
   them.
+- Release does not block the run that releases an entry. Afterwards the path
+  is unowned, and later runs apply the existing collision and ownership rules
+  to it: if the plugin still ships that skill, the installer reports a
+  collision until a fresh plan and `--adopt`.
 
 ## Alternatives considered
 

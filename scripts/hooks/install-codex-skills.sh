@@ -3611,7 +3611,13 @@ def validate_skill_metadata(sources, metadata):
         raise ValueError(f'distribution inventory skill metadata is missing or incomplete for {SURFACE_LABEL} skill sources: {joined} (schema-v3 receipts require id and name)')
 
 
-def read_receipt():
+def read_receipt(allow_unmarked=False):
+    """Return (receipt, malformed).
+
+    With allow_unmarked (uninstall only), a readable receipt without a
+    tree-merkle-v1 marker is returned as-is instead of raising, so the caller
+    can release it without interpreting its fingerprints.
+    """
     ensure_manifest_safe()
     if not lexists(MANIFEST):
         return {}, False
@@ -3619,9 +3625,52 @@ def read_receipt():
         receipt = read_manifest_document()
     except Exception:
         return {}, True
-    record_fingerprint_algorithm(receipt)
+    try:
+        record_fingerprint_algorithm(receipt)
+    except ValueError:
+        if not (allow_unmarked and isinstance(receipt, dict)):
+            raise
+        return receipt, False
     entries = receipt.get('managed_entries')
     return receipt, not isinstance(entries, dict)
+
+
+def receipt_has_tree_marker(receipt):
+    return not (isinstance(receipt, dict) and receipt and
+                receipt.get('fingerprint_algorithm') != TREE_FINGERPRINT_ALGORITHM)
+
+
+def release_unmarked_receipt_for_uninstall(receipt, plugin_version):
+    """Uninstall over a receipt this installer cannot interpret: release everything.
+
+    No destination file is touched. The receipt is quarantined, every managed
+    and orphaned entry is listed as released, and the process exits 0, so the
+    documented "uninstall and reinstall" remediation stays reachable.
+    """
+    released = []
+    managed = receipt.get('managed_entries')
+    for kind, values in (managed.items() if isinstance(managed, dict) else []):
+        for name, entry in (values.items() if isinstance(values, dict) else []):
+            fallback = f'{kind}/{name}'
+            path = (entry.get('destination') or entry.get('source') or fallback) if isinstance(entry, dict) else fallback
+            released.append(path)
+    orphaned_records = receipt.get('orphaned_entries')
+    released.extend(orphaned_records if isinstance(orphaned_records, dict) else [])
+    try:
+        begin_transaction(plugin_version, '', receipt_snapshot=receipt, receipt_snapshot_present=True)
+        archive_receipt_for_uninstall()
+        finish_transaction('committed')
+        clear_pending_transactions()
+    except ReceiptCommitError as error:
+        rollback_pending()
+        print(f'[install-codex-skills] ERROR: uninstall receipt quarantine committed but durability flush failed: {error}', file=sys.stderr)
+        sys.exit(2)
+    except (OSError, ValueError) as error:
+        fail_open_transaction(f'uninstall receipt quarantine failed: {error}')
+    for path in sorted(set(released)):
+        print(f'[install-codex-skills] released: {path} (removed from the receipt; its files stay in place)')
+    print('[install-codex-skills] receipt removed; no destination file was deleted')
+    sys.exit(0)
 
 
 def entry_map(receipt):
@@ -4511,9 +4560,33 @@ def release_unprovable_entries(receipt):
             released.append({'path': entry.get('destination') or entry.get('source') or f'{kind}/{name}',
                              'kind': kind, 'name': name})
         view[kind] = kept
-    if not released and not rewritten:
+    parked, parked_changed = release_parked_legacy_records(receipt.get('orphaned_entries'), released)
+    if not released and not rewritten and not parked_changed:
         return receipt, []
-    return dict(receipt, managed_entries=view), sorted(released, key=lambda item: item['path'])
+    rebuilt = dict(receipt, managed_entries=view)
+    if parked_changed:
+        rebuilt['orphaned_entries'] = parked
+    return rebuilt, sorted(released, key=lambda item: item['path'])
+
+
+def release_parked_legacy_records(orphaned_entries, released):
+    """Drop orphaned_entries records of Released Entries and legacy-marked records.
+
+    A legacy-marked record that exists only in orphaned_entries is appended to
+    `released` (in place) so the caller lists it. Returns (records, changed).
+    """
+    if not isinstance(orphaned_entries, dict):
+        return orphaned_entries, False
+    released_paths = {item['path'] for item in released}
+    kept = {}
+    for relative, record in orphaned_entries.items():
+        if relative in released_paths:
+            continue
+        if isinstance(record, dict) and record.get('fingerprint_algorithm') == ENTRY_LEGACY_MARKER:
+            released.append({'path': relative, 'kind': 'orphaned_entries', 'name': relative})
+            continue
+        kept[relative] = record
+    return kept, len(kept) != len(orphaned_entries)
 
 
 def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_pending=False, state=None):
@@ -4830,7 +4903,7 @@ elif UNINSTALL:
     # created or any recovery runs.
     try:
         ensure_codex_root_safe()
-        read_receipt()
+        read_receipt(allow_unmarked=True)
         check_transaction_journal_markers()
     except (OSError, ValueError) as error:
         print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
@@ -4863,10 +4936,12 @@ except (OSError, ValueError) as error:
 
 plugin_version = read_plugin_version()
 try:
-    original_receipt, legacy = read_receipt()
+    original_receipt, legacy = read_receipt(allow_unmarked=UNINSTALL)
 except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
+if UNINSTALL and not receipt_has_tree_marker(original_receipt):
+    release_unmarked_receipt_for_uninstall(original_receipt, plugin_version)
 receipt, released_entries = release_unprovable_entries(original_receipt)
 try:
     blocked_profile_update = receipt_profile_update_block(receipt)

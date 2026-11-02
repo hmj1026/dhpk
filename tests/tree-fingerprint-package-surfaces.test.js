@@ -179,6 +179,14 @@ test('Agent Plugin: the validator selects the recipe from the marker, never both
   assert.ok(fingerprintErrors().some((error) => error.includes(ABSENT_MARKER)), 'a package without provenance.json fails closed');
 }));
 
+test('Agent Plugin: unparseable provenance.json fails closed as unreadable, not as an absent marker', () => withDir('agent-unreadable', (out) => {
+  materializeAgent(out);
+  fs.writeFileSync(path.join(out, 'provenance.json'), '{ not json');
+  const errors = agent.validateAgentPluginPackage(out).errors.filter((error) => /provenance\.json/.test(error));
+  assert.ok(errors.some((error) => error.includes('provenance.json is unreadable')), errors.join('; '));
+  assert.ok(!errors.some((error) => error.includes(ABSENT_MARKER)), 'a parse error is not reported as an absent marker');
+}));
+
 test('AGY: the package carries no directory-level tree value and no tree marker (row 17)', () => {
   const provenance = readJson(path.join(ROOT, 'plugins', 'dhpk-agy', 'provenance.json'));
   const files = Object.keys(readJson(path.join(ROOT, 'plugins', 'dhpk-agy', 'fingerprints.json')).files);
@@ -241,6 +249,14 @@ test('Cursor: the validator requires the marker before comparing and fails close
   fs.appendFileSync(path.join(out, 'README.md'), 'x');
   fs.appendFileSync(path.join(out, 'hooks', 'hooks.json'), ' ');
   assert.ok(fingerprintErrors().some((error) => /does not match package content/.test(error)), 'a real edit is still detected');
+}));
+
+test('Cursor: unparseable provenance.json fails closed as unreadable, not as an absent marker', () => withDir('cursor-unreadable', (out) => {
+  materializeCursor(out);
+  fs.writeFileSync(path.join(out, 'provenance.json'), '{ not json');
+  const errors = cursor.validateCursorPackage({ packageRoot: out }).errors.filter((error) => /provenance\.json/.test(error));
+  assert.ok(errors.some((error) => error.includes('provenance.json is unreadable')), errors.join('; '));
+  assert.ok(!errors.some((error) => error.includes(ABSENT_MARKER)), 'a parse error is not reported as an absent marker');
 }));
 
 run('tree-fingerprint-package-surfaces');

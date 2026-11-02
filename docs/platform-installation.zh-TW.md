@@ -357,16 +357,18 @@ recipe，為逐層 Merkle digest，空目錄、檔案 mode 與 root path 都不�
 `fingerprint_algorithm` 的 record 會 fail closed，並以指名該欄位的診斷訊息 block，
 且不做任何變更；record 指名其他 algorithm 時亦同。復原方式有兩種：先升級經過
 0.69.x 並執行一次 install 或 update（會以 `tree-merkle-v1` 重寫 receipt），或
-uninstall 後重新 install。請勿跨此界線降版 installer：舊版 installer 無法驗證
+uninstall 後重新 install。對沒有 marker 的 receipt 執行 `--uninstall` 不會刪除任何
+檔案：它只移除 receipt，並將所有 entry 列為 Released Entry，可在重新 install 前
+自行刪除。請勿跨此界線降版 installer：舊版 installer 無法驗證
 `tree-merkle-v1` receipt。從較早 installer 產生的 plan 複製而來的 `--adopt`
 會以 `adoption preflight changed` 失敗；請重新 plan。
 
 當 update 或 migration 無法證明某個 receipt entry 的 ownership 時，會將該 entry
-釋放（Released Entry）：entry 從 receipt 移除，其檔案原地保留且不被更動，輸出
+釋放（Released Entry，見 `GLOSSARY.md`）：entry 從 receipt 移除，其檔案原地保留且不被更動，輸出
 會列出該 entry。釋放不會阻擋該次執行，且 receipt 會以 `tree-merkle-v1` 重寫。
 之後該路徑不再有歸屬：若後續執行仍提供該 skill，會回報 collision 並保留檔案；
-請重新 `--plan` 再 `--adopt` 以重新納管。symlink-mode entry 仍可由 link target
-證明，不會因缺少 fingerprint 而被釋放。在 `tree-merkle-v1` install 後手動修改的
+請重新 `--plan` 再 `--adopt` 以重新納管。link target 與紀錄相符的 symlink-mode
+entry 會保留；link target 不符者會被釋放。在 `tree-merkle-v1` install 後手動修改的
 destination 屬於 modified collision，不會被釋放。
 唯讀 `--plan` 或檢查絕不重寫 receipt。
 
