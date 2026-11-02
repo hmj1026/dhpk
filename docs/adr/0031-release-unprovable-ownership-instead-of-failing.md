@@ -26,7 +26,11 @@ lists every Released Entry in its output. The rest of the receipt is
 rewritten with `tree-merkle-v1`. A receipt or package that carries no
 algorithm marker at all, or a superseded `generatorVersion`, still fails
 closed, with two remediation paths: upgrade through 0.69.x and run one install
-or update, or uninstall and reinstall.
+or update, or uninstall and reinstall. The one exception is an agents-skills
+receipt with `generatorVersion` `1.1.0` and no marker, which 0.69.x writes
+while it carries legacy entries: it is read, its carried legacy entries become
+Released Entries, and it is rewritten with `tree-merkle-v1`. An installer
+entry in symlink mode stays provable by its link target and is not released.
 
 ## Consequences
 
