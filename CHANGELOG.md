@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.70.0 — 2026-11-02 — Remove the legacy tree fingerprint recipes and release unprovable entries
+
+- **BREAKING(distribution)** — Version 0.70.0 accepts only receipts and packages written by 0.69.x or later, so a record without the `tree-merkle-v1` algorithm marker now fails closed; upgrade through 0.69.x and run one install or update, or uninstall and reinstall.
+
 ## 0.69.0 — 2026-11-02 — Remove legacy dispatch config keys, unify tree fingerprints on tree-merkle-v1, add fallback guarantees, and add qa-executor and docs-writer agents
 
 - **BREAKING(dispatch)** — Remove the 28 legacy role model, effort, and `fast_worker_*` selector keys (use `worker_target`, `reasoner_target`, `planner_target`, `reviewer_target`, `preference_order`, `fallback_allow`, and the `codex_*_timeout_secs` keys), so a removed key in project, global, or environment config is reported `BLOCKED` in the SessionStart dispatch summary and not applied; `fast-worker-selector` now detects the Host and returns `BLOCKED` when it is undetectable, with `--target` as the per-invocation override, and CLI Role Agents take model and effort from their `<role>_target`. Migration mapping: [Removed in 0.69.0](docs/configuration.md#removed-in-0690).
