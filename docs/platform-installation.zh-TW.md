@@ -355,7 +355,7 @@ recipe，為逐層 Merkle digest，空目錄、檔案 mode 與 root path 都不�
 舊版 installer 寫的 receipt 或 journal 沒有此欄位，於一個 transition minor
 內視為 legacy recipe。這段期間 legacy record 的 ownership 以 legacy recipe
 證明，所以未變更的 projection 不會被誤報為已編輯，真正的編輯仍是 collision。
-下一次 `--update` 或 `--migrate` 會以 `tree-merkle-v1` 重寫每個 entry；唯讀
+下一次 `--update` 或 `--migrate` 會以 `tree-merkle-v1` 重寫每個 entry（尚未證明為己有的 entry 除外，其保留 entry 層級的 `legacy` 標記，直到後續執行證明 ownership）；唯讀
 `--plan` 或檢查絕不重寫 receipt。若 record 指名其他 algorithm，installer 會以
 指名該欄位的診斷訊息 block，且不做任何變更。請勿在此 transition 期間降版
 installer：舊版 installer 無法驗證 `tree-merkle-v1` receipt。從舊版 installer

@@ -6,6 +6,8 @@
 // and in the path walk used for installer sources.
 
 const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { loadVectors, materialize } = require('./_lib/tree-vectors');
 const { extractTreeFingerprintBlock, runTreeFingerprint } = require('./_lib/installer-tree-fingerprint');
@@ -61,6 +63,42 @@ test('mutation check: the default sort key breaks the supplementary-name vectors
   assert.ok(failing.includes('supplementary-sorts-before-private-use-and-replacement'),
     `a code-point sort must fail the supplementary vector; failing: ${failing.join(',')}`);
   assert.ok(!failing.includes('nested'), 'a BMP-only tree is insensitive to the sort key');
+});
+
+
+function followCase(build) {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tree-follow-')));
+  try {
+    build(root);
+    return runTreeFingerprint([{ kind: 'path', dir: root, symlinks: 'follow', skip_bytecode: true }])[0];
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('follow walk fails closed on a dangling non-root symlink', () => {
+  const result = followCase((root) => {
+    fs.writeFileSync(path.join(root, 'a'), 'a');
+    fs.symlinkSync('missing-target', path.join(root, 'dangling'));
+  });
+  assert.ok(result.error && result.error.includes("dangling symlink 'dangling'"), JSON.stringify(result));
+});
+
+test('follow walk reports a symlink cycle explicitly instead of recursing', () => {
+  const result = followCase((root) => {
+    fs.mkdirSync(path.join(root, 'd'));
+    fs.symlinkSync('..', path.join(root, 'd', 'up'));
+  });
+  assert.ok(result.error && result.error.includes('symlink cycle'), JSON.stringify(result));
+  assert.ok(!/recursion/i.test(result.error), JSON.stringify(result));
+});
+
+test('follow walk still hashes a live symlink to a file', () => {
+  const result = followCase((root) => {
+    fs.writeFileSync(path.join(root, 'real'), 'x');
+    fs.symlinkSync('real', path.join(root, 'alias'));
+  });
+  assert.match(result.digest, /^[0-9a-f]{64}$/);
 });
 
 run('install-codex-tree-fingerprint');

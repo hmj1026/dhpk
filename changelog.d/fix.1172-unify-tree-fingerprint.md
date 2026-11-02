@@ -1,2 +1,0 @@
-scope: distribution
-note: Directory-tree fingerprints in packages, install receipts, and consumer checks now use one per-directory Merkle recipe (`tree-merkle-v1`) and record it as `fingerprintAlgorithm` / `fingerprint_algorithm`; values written by earlier releases still verify during this transition release, and the legacy recipes are removed in the following minor. Regenerated packages change only fingerprint values, the algorithm marker, and generator versions.

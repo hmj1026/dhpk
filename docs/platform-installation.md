@@ -382,7 +382,8 @@ an earlier installer has no such field and is read as the legacy recipe for one
 transition minor. During that minor, ownership of a legacy record is proven with
 the legacy recipe, so an unchanged projection is never reported as edited and a
 real edit is still a collision. The next `--update` or `--migrate` rewrites every
-entry with `tree-merkle-v1`; a read-only `--plan` or check never rewrites the
+entry with `tree-merkle-v1` (except entries not yet proven owned, which keep an
+entry-level `legacy` marker until a later run proves them); a read-only `--plan` or check never rewrites the
 receipt. A record naming any other algorithm blocks with a diagnostic naming the
 field and changes nothing. Do not downgrade the installer across this transition:
 an older installer cannot verify a `tree-merkle-v1` receipt. An `--adopt` request
