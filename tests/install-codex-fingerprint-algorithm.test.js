@@ -164,6 +164,32 @@ test('--uninstall over a receipt without fingerprint_algorithm releases every en
   assertUninstallReleasesEverything('missing', (receipt) => { delete receipt[FIELD]; });
 });
 
+test('--uninstall over a receipt without fingerprint_algorithm rolls back when the receipt flush fails', () => {
+  const { project, codex, receiptPath, plugin } = installedProject();
+  editReceipt(receiptPath, (receipt) => { delete receipt[FIELD]; });
+  const receiptBytes = fs.readFileSync(receiptPath);
+  const projection = projectionOf(codex);
+  const result = runInstaller(project, ['--uninstall', '--force'], plugin, { DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC: '1' });
+  assert.strictEqual(result.status, 2, output(result));
+  assert.ok(fs.readFileSync(receiptPath).equals(receiptBytes), 'the original receipt is restored byte for byte');
+  assert.strictEqual(projectionOf(codex), projection, 'no destination file is deleted');
+  assert.doesNotMatch(result.stdout, /released:/);
+});
+
+test('--uninstall over a receipt without fingerprint_algorithm leaves no unfinished transaction journal', () => {
+  const { project, codex, receiptPath, plugin } = installedProject();
+  const journalNames = () => fs.readdirSync(codex).filter((name) => /^\.dhpk-transaction-\d{8}T\d{6}Z-\d+\.json$/.test(name));
+  const before = journalNames();
+  editReceipt(receiptPath, (receipt) => { delete receipt[FIELD]; });
+  const result = runInstaller(project, ['--uninstall', '--force'], plugin);
+  assert.strictEqual(result.status, 0, output(result));
+  const added = journalNames().filter((name) => !before.includes(name));
+  assert.strictEqual(added.length, 1, 'the uninstall journals exactly one transaction');
+  for (const name of journalNames()) {
+    assert.strictEqual(readJson(path.join(codex, name)).phase, 'committed', `${name} is not left active or pending`);
+  }
+});
+
 test('--uninstall over a receipt naming another algorithm releases every entry and deletes no file', () => {
   assertUninstallReleasesEverything('unknown', (receipt) => { receipt[FIELD] = 'tree-merkle-v9'; });
 });
@@ -352,7 +378,7 @@ test('a legacy-marked symlink entry whose link target differs from destination_t
     receipt.orphaned_entries = { 'skills/sample-skill': { ...receipt.managed_entries.skills['sample-skill'], reason: 'stale' } };
   });
   const result = runInstaller(project, UPDATE, plugin);
-  assert.ok([0, 1].includes(result.status), output(result));
+  assert.strictEqual(result.status, 1, output(result));
   assert.match(result.stdout, /released: skills\/sample-skill/);
   assert.strictEqual(fs.readlinkSync(target), link, 'the link is untouched');
   const receipt = readJson(receiptPath);
