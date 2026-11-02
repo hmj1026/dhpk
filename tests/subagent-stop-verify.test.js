@@ -122,6 +122,30 @@ test('dispatch log: missing transcript path yields model null and exit 0', () =>
   }
 });
 
+test('dispatch log: host effort object {level} is recorded as its level string', () => {
+  const repo = mkRepo();
+  try {
+    runHook(HOOK, { payload: { agent_type: 'dhpk:planner', agent_id: 'a5', effort: { level: 'xhigh' } }, projectDir: repo });
+    const [rec] = readLog(repo);
+    assert.strictEqual(rec.effort, 'xhigh');
+    assert.strictEqual(rec.effort_source, 'hook_input');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('dispatch log: effort object without a level is null with null source', () => {
+  const repo = mkRepo();
+  try {
+    runHook(HOOK, { payload: { agent_type: 'dhpk:planner', agent_id: 'a6', effort: {} }, projectDir: repo });
+    const [rec] = readLog(repo);
+    assert.strictEqual(rec.effort, null);
+    assert.strictEqual(rec.effort_source, null);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
 test('dispatch log: absent effort is null with null source', () => {
   const repo = mkRepo();
   try {
