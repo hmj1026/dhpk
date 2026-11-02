@@ -981,7 +981,7 @@ def receipt_has_retired_profile(receipt):
     return isinstance(historical, dict) and profile_id in historical
 
 
-def remove_relative_path(relative, expected_fingerprint=None, algorithm=None):
+def remove_relative_path(relative, expected_fingerprint=None):
     """Remove one receipt-relative entry through a pinned parent directory.
 
     The leaf is first renamed to a private tombstone.  A failed recursive
@@ -997,13 +997,13 @@ def remove_relative_path(relative, expected_fingerprint=None, algorithm=None):
         if not fd_entry_exists(parent_fd, destination_name):
             return
         if (expected_fingerprint is not None
-                and fingerprint_fd_entry(parent_fd, destination_name, algorithm=algorithm) != expected_fingerprint):
+                and fingerprint_fd_entry(parent_fd, destination_name) != expected_fingerprint):
             raise ValueError(f'destination changed before removal: {relative}')
         os.rename(destination_name, tombstone, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
         os.fsync(parent_fd)
         try:
             if (expected_fingerprint is not None
-                    and fingerprint_fd_entry(parent_fd, tombstone, algorithm=algorithm) != expected_fingerprint):
+                    and fingerprint_fd_entry(parent_fd, tombstone) != expected_fingerprint):
                 os.rename(tombstone, destination_name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
                 os.fsync(parent_fd)
                 raise ValueError(f'destination changed during removal: {relative}')
@@ -1702,18 +1702,38 @@ def finalize_recovered_receipt(receipt):
     return errors
 
 
+def check_transaction_journal_markers():
+    """Read-only gate: every readable journal must name tree-merkle-v1.
+
+    Runs before the project lock is taken and before any journal is recovered,
+    so a journal the installer cannot interpret changes nothing. Unreadable or
+    malformed journals are left to recovery, which reports them.
+    """
+    if not lexists(CODEX_ROOT) or os.path.islink(CODEX_ROOT):
+        return
+    try:
+        root_fd = open_relative_directory('', create=False)
+    except FileNotFoundError:
+        return
+    try:
+        journal_names = sorted(os.listdir(root_fd))
+        for journal_name in journal_names:
+            if not re.fullmatch(r'\.dhpk-transaction-\d{8}T\d{6}Z-\d+\.json', journal_name):
+                continue
+            try:
+                journal = _read_relative_json(root_fd, journal_name)
+            except (FileNotFoundError, OSError, ValueError, json.JSONDecodeError):
+                continue
+            if isinstance(journal, dict):
+                record_fingerprint_algorithm(journal)
+    finally:
+        os.close(root_fd)
+
+
 def recover_stale_transactions():
     """Recover interrupted transactions before reading the current receipt."""
-    global ACTIVE_ALGORITHM, RECORD_ALGORITHM
-    saved = (ACTIVE_ALGORITHM, RECORD_ALGORITHM)
-    try:
-        _recover_stale_transactions()
-    finally:
-        ACTIVE_ALGORITHM, RECORD_ALGORITHM = saved
-
-
-def _recover_stale_transactions():
-    global TRANSACTION_JOURNAL, ACTIVE_ALGORITHM, RECORD_ALGORITHM
+    global TRANSACTION_JOURNAL
+    check_transaction_journal_markers()
     if not lexists(CODEX_ROOT) or os.path.islink(CODEX_ROOT):
         return
     try:
@@ -1771,9 +1791,6 @@ def _recover_stale_transactions():
             print(f'[install-codex-skills] ERROR: active transaction {run} is owned by a live process; refusing concurrent reconciliation', file=sys.stderr)
             raise ValueError(f'active transaction {run} is still running')
 
-        # Every fingerprint this interrupted run wrote, and every comparison
-        # recovery makes, uses the recipe the journal names.
-        ACTIVE_ALGORITHM = RECORD_ALGORITHM = record_fingerprint_algorithm(journal)
         TRANSACTION_JOURNAL = dict(journal)
         try:
             ensure_manifest_safe()
@@ -2432,30 +2449,38 @@ def tree_fingerprint_path(path, symlinks='refuse', skip_bytecode=True):
     return _tree_node_path(path, '', symlinks, skip_bytecode, True) or ''
 # END tree-fingerprint
 
-# Fingerprint recipes the installer can read. A record (receipt or transaction
-# journal) without `fingerprint_algorithm` was written by an installer that
-# used the legacy hash_path/hash_fd_entry recipe; this installer writes
-# tree-merkle-v1 and proves ownership of a legacy record with the legacy recipe
-# until the next update rewrites every entry. ACTIVE_ALGORITHM computes fresh
-# values; RECORD_ALGORITHM is the algorithm of the record being compared with.
-LEGACY_FINGERPRINT_ALGORITHM = 'legacy'
-ACTIVE_ALGORITHM = TREE_FINGERPRINT_ALGORITHM
-RECORD_ALGORITHM = TREE_FINGERPRINT_ALGORITHM
-ORIGINAL_ENTRIES = {}
+# The installer reads and writes one fingerprint recipe, tree-merkle-v1. A
+# receipt or transaction journal that lacks `fingerprint_algorithm`, or names
+# another value, was written outside the 0.69.x line and blocks with the
+# version-boundary diagnostic below before anything is changed.
+ENTRY_LEGACY_MARKER = 'legacy'
+
+# BEGIN version-boundary-message
+# Held once in Python; scripts/lib/content-fingerprint.js versionBoundaryMessage
+# holds the Node copy and tests/install-codex-version-boundary.test.js compares
+# the two byte for byte.
+_ABSENT = object()
+
+
+def version_boundary_message(field, observed=_ABSENT):
+    shown = 'absent' if observed is _ABSENT else json.dumps(observed, separators=(',', ':'))
+    return (
+        f"fingerprint algorithm field '{field}' must be \"{TREE_FINGERPRINT_ALGORITHM}\" "
+        f'but the observed value is {shown}'
+        '; 0.70.0 accepts only records written by 0.69.x or later'
+        '; to continue, either upgrade through 0.69.x and run one install or update, or uninstall and reinstall'
+    )
+# END version-boundary-message
 
 
 def record_fingerprint_algorithm(record):
-    """Return the recipe a receipt or journal names; unknown values fail closed."""
+    """Return tree-merkle-v1 for a record that names it; anything else fails closed."""
     if not isinstance(record, dict) or 'fingerprint_algorithm' not in record:
-        return LEGACY_FINGERPRINT_ALGORITHM
+        raise ValueError(version_boundary_message('fingerprint_algorithm'))
     value = record['fingerprint_algorithm']
-    if value == TREE_FINGERPRINT_ALGORITHM:
-        return TREE_FINGERPRINT_ALGORITHM
-    raise ValueError(
-        f'fingerprint_algorithm {value!r} is not supported by this installer '
-        f'(supported: {TREE_FINGERPRINT_ALGORITHM}); no changes were made'
-    )
-
+    if value != TREE_FINGERPRINT_ALGORITHM:
+        raise ValueError(version_boundary_message('fingerprint_algorithm', value))
+    return TREE_FINGERPRINT_ALGORITHM
 
 
 def is_ignored_distribution_name(name):
@@ -2466,40 +2491,6 @@ def is_ignored_distribution_name(name):
 def ignore_distribution_entries(path, names):
     """Ignore generated Python bytecode during distributable copytree walks."""
     return {name for name in names if is_ignored_distribution_name(name)}
-
-
-def hash_path(path, include_ignored=True):
-    """Hash a file or directory deterministically, following source links.
-
-    Source fingerprints use the distributable view with generated bytecode
-    omitted. Destination ownership uses the complete view so an old receipt
-    can prove ownership of a projection that still contains stale bytecode and
-    the next update can replace it with a clean copy.
-    """
-    digest = hashlib.sha256()
-    if os.path.islink(path):
-        target = os.path.realpath(path)
-        return hash_path(target, include_ignored)
-    if not include_ignored and is_ignored_distribution_name(os.path.basename(path)):
-        return ''
-    if os.path.isfile(path):
-        digest.update(b'file\0')
-        with open(path, 'rb') as fh:
-            for chunk in iter(lambda: fh.read(1024 * 1024), b''):
-                digest.update(chunk)
-        return digest.hexdigest()
-    if not os.path.isdir(path):
-        return ''
-    digest.update(b'dir\0')
-    for name in sorted(os.listdir(path)):
-        if not include_ignored and is_ignored_distribution_name(name):
-            continue
-        child = os.path.join(path, name)
-        digest.update(name.replace(os.sep, '/').encode('utf-8'))
-        digest.update(b'\0')
-        digest.update(hash_path(child, include_ignored).encode('ascii'))
-        digest.update(b'\0')
-    return digest.hexdigest()
 
 
 def safe_inventory_relative(relative, label):
@@ -3621,16 +3612,14 @@ def validate_skill_metadata(sources, metadata):
 
 
 def read_receipt():
-    global RECORD_ALGORITHM
     ensure_manifest_safe()
-    RECORD_ALGORITHM = TREE_FINGERPRINT_ALGORITHM
     if not lexists(MANIFEST):
         return {}, False
     try:
         receipt = read_manifest_document()
     except Exception:
         return {}, True
-    RECORD_ALGORITHM = record_fingerprint_algorithm(receipt)
+    record_fingerprint_algorithm(receipt)
     entries = receipt.get('managed_entries')
     return receipt, not isinstance(entries, dict)
 
@@ -3690,9 +3679,6 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
     if isinstance(receipt, dict) and receipt.get('plugin_version') != plugin_version:
         requires_migration = True
         reasons.append('receipt plugin version differs from source')
-    if isinstance(receipt, dict) and receipt and RECORD_ALGORITHM != ACTIVE_ALGORITHM:
-        requires_migration = True
-        reasons.append('receipt has no fingerprint_algorithm; the update rewrites every entry as ' + TREE_FINGERPRINT_ALGORITHM)
     if isinstance(receipt, dict) and receipt.get('source_fingerprint') != fingerprint:
         requires_migration = True
         reasons.append(f'receipt source fingerprint differs from the current {SURFACE_LABEL} source')
@@ -3900,7 +3886,7 @@ def matches_effective_materialization(relative, destination):
             and not contains_symlink(destination))
 
 
-def is_owned(entry, destination, algorithm=None):
+def is_owned(entry, destination):
     if not isinstance(entry, dict) or entry.get('orphaned') or not lexists(destination):
         return False
     mode = entry.get('mode')
@@ -3920,8 +3906,7 @@ def is_owned(entry, destination, algorithm=None):
     recorded = entry.get('destination_fingerprint') or entry.get('fingerprint')
     if not isinstance(recorded, str) or not recorded:
         return False
-    complete_destination = fingerprint_destination(
-        destination, algorithm=entry_algorithm(entry) if algorithm is None else algorithm)
+    complete_destination = fingerprint_destination(destination)
     # Destination ownership always uses complete integrity. This accepts the
     # unfiltered fingerprint written by pre-remediation receipts and ensures
     # an ignored bytecode edit cannot be treated as an owned, unchanged target.
@@ -3936,7 +3921,7 @@ def recorded_copy_fingerprint(entry):
     return fingerprint if isinstance(fingerprint, str) and len(fingerprint) == 64 else None
 
 
-def exact_source_match(source, destination, relative, old_entry=None, algorithm=None):
+def exact_source_match(source, destination, relative, old_entry=None):
     if not lexists(destination):
         return False
     if os.path.islink(destination):
@@ -3946,104 +3931,41 @@ def exact_source_match(source, destination, relative, old_entry=None, algorithm=
             and old_entry.get('metadata_projection') == 'portable-skill-metadata.v1'):
         source_fp = old_entry.get('source_fingerprint')
         destination_fp = old_entry.get('destination_fingerprint') or old_entry.get('fingerprint')
-        record = entry_algorithm(old_entry) if algorithm is None else algorithm
-        return (source_fp == fingerprint_source(source, algorithm=record)
-                and destination_fp == fingerprint_destination(destination, algorithm=record))
+        return (source_fp == fingerprint_source(source)
+                and destination_fp == fingerprint_destination(destination))
     return fingerprint_source(source) == fingerprint_destination(destination)
 
 
-def hash_fd_entry(parent_fd, name, include_ignored=True):
-    """Hash one directory entry after pinning it beneath an open parent fd."""
-    entry_stat = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
-    digest = hashlib.sha256()
-    if stat.S_ISLNK(entry_stat.st_mode):
-        digest.update(b'symlink\0')
-        digest.update(os.readlink(name, dir_fd=parent_fd).encode('utf-8'))
-        return digest.hexdigest()
-    if stat.S_ISREG(entry_stat.st_mode):
-        if not include_ignored and is_ignored_distribution_name(name):
-            return ''
-        digest.update(b'file\0')
-        file_fd = os.open(name, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0), dir_fd=parent_fd)
-        try:
-            while True:
-                chunk = os.read(file_fd, 1024 * 1024)
-                if not chunk:
-                    break
-                digest.update(chunk)
-        finally:
-            os.close(file_fd)
-        return digest.hexdigest()
-    if not stat.S_ISDIR(entry_stat.st_mode):
-        return ''
-    digest.update(b'dir\0')
-    child_fd = os.open(name, _DIRECTORY_FLAGS, dir_fd=parent_fd)
-    try:
-        for child_name in sorted(os.listdir(child_fd)):
-            if not include_ignored and is_ignored_distribution_name(child_name):
-                continue
-            digest.update(child_name.replace(os.sep, '/').encode('utf-8'))
-            digest.update(b'\0')
-            digest.update(hash_fd_entry(child_fd, child_name, include_ignored).encode('ascii'))
-            digest.update(b'\0')
-    finally:
-        os.close(child_fd)
-    return digest.hexdigest()
-
-
-def hash_fd_directory(directory_fd, include_ignored=True):
-    """Hash an already-open directory without reopening any path components."""
-    digest = hashlib.sha256()
-    digest.update(b'dir\0')
-    for child_name in sorted(os.listdir(directory_fd)):
-        if not include_ignored and is_ignored_distribution_name(child_name):
-            continue
-        digest.update(child_name.replace(os.sep, '/').encode('utf-8'))
-        digest.update(b'\0')
-        digest.update(hash_fd_entry(directory_fd, child_name, include_ignored).encode('ascii'))
-        digest.update(b'\0')
-    return digest.hexdigest()
-
-
-def fingerprint_source(path, algorithm=None):
+def fingerprint_source(path):
     """Fingerprint an installer source (distributable view, links followed)."""
-    if (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM:
-        return hash_path(path, include_ignored=False)
     return tree_fingerprint_path(path, 'follow', True)
 
 
-def fingerprint_fd_entry(parent_fd, name, include_ignored=True, algorithm=None):
+def fingerprint_fd_entry(parent_fd, name, include_ignored=True):
     """Fingerprint one entry beneath a pinned parent (destination view, links recorded)."""
-    if (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM:
-        return hash_fd_entry(parent_fd, name, include_ignored)
     return tree_fingerprint_fd_entry(parent_fd, name, True, not include_ignored)
 
 
-def fingerprint_destination(destination, include_ignored=True, algorithm=None):
+def fingerprint_destination(destination, include_ignored=True):
     """Fingerprint a destination path; '' when it does not exist."""
-    if (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM:
-        return hash_path(destination, include_ignored)
     try:
-        return safe_destination_fingerprint(destination, include_ignored, algorithm)
+        return safe_destination_fingerprint(destination, include_ignored)
     except (FileNotFoundError, NotADirectoryError):
         return ''
 
 
-def followed_destination_fingerprint(destination, algorithm=None):
+def followed_destination_fingerprint(destination):
     """Fingerprint what a symlink-mode destination resolves to (complete view).
 
     A symlink-mode entry records the content its link reaches, which equals its
     source fingerprint; ownership of the link itself is proven by readlink
     against `destination_target`. The consumer gate verifies this value.
     """
-    if (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM:
-        return hash_path(destination)
     return tree_fingerprint_path(destination, 'follow', False)
 
 
-def safe_destination_fingerprint(destination, include_ignored=True, algorithm=None):
+def safe_destination_fingerprint(destination, include_ignored=True):
     """Hash a destination through descriptor-pinned, no-follow handles."""
-    legacy = (ACTIVE_ALGORITHM if algorithm is None else algorithm) == LEGACY_FINGERPRINT_ALGORITHM
     destination_abs = os.path.abspath(destination)
     root_abs = os.path.abspath(CODEX_ROOT)
     if destination_abs != root_abs and not destination_abs.startswith(root_abs + os.sep):
@@ -4052,15 +3974,13 @@ def safe_destination_fingerprint(destination, include_ignored=True, algorithm=No
     if relative == '.':
         root_fd = open_relative_directory('', create=False)
         try:
-            if legacy:
-                return hash_fd_directory(root_fd, include_ignored)
             return tree_fingerprint_fd_directory(root_fd, True, not include_ignored)
         finally:
             os.close(root_fd)
     parent_relative, entry_name = os.path.split(relative)
     parent_fd = open_relative_directory(parent_relative, create=False)
     try:
-        return fingerprint_fd_entry(parent_fd, entry_name, include_ignored, algorithm)
+        return fingerprint_fd_entry(parent_fd, entry_name, include_ignored)
     except FileNotFoundError:
         return ''
     finally:
@@ -4329,6 +4249,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         'missing': sorted(missing, key=lambda item: item.get('path', '')),
         'updates': sorted(updates, key=lambda item: item.get('path', '')),
         'retired': sorted(retired, key=lambda item: item.get('path', '')),
+        'released': list(classification.get('released') or []),
         'legacyNativeSkills': sorted(legacy_native_skills, key=lambda item: item.get('path', '')),
         'excluded': sorted(
             [dict(item) for item in EXCLUDED_SOURCE_ENTRIES],
@@ -4365,6 +4286,8 @@ def print_plan(report):
                 f"{collision['path']} ownership={collision['ownership']} "
                 f"action={collision['action']}"
             )
+        for item in report.get('released') or []:
+            print(f"[install-codex-skills] released: {item.get('path')} (an update releases it from the receipt; its files stay in place)")
         for item in report.get('legacyNativeSkills') or []:
             print(
                 '[install-codex-skills] legacy-native-skill: '
@@ -4536,56 +4459,65 @@ def build_evidence(plugin_version, fingerprint, entries, counts, state):
     return evidence
 
 
-def entry_algorithm(entry):
-    """Recipe that produced one entry's recorded fingerprints.
+def prove_symlink_entry(entry):
+    """Return a symlink-mode entry proven by its recorded link, rewritten without a marker.
 
-    An entry the installer could not rewrite (not proven owned) keeps its legacy
-    values inside a tree-merkle-v1 receipt and says so with
-    `fingerprint_algorithm: legacy`; every other entry follows the receipt.
+    Ownership is the readlink match in is_owned; the recorded value is renewed
+    with the active recipe. None when the link cannot be proven.
     """
-    if isinstance(entry, dict) and entry.get('fingerprint_algorithm') == LEGACY_FINGERPRINT_ALGORITHM:
-        return LEGACY_FINGERPRINT_ALGORITHM
-    return RECORD_ALGORITHM
-
-
-def refresh_legacy_entry(entry, original):
-    """Rewrite one unchanged entry, proven owned under its legacy recipe, with the active recipe.
-
-    An entry that stays legacy is marked so the receipt never presents a legacy
-    value as tree-merkle-v1; a later run proves it with the legacy recipe.
-    """
-    if entry is not original or not isinstance(entry, dict) or entry_algorithm(entry) == ACTIVE_ALGORITHM:
-        return entry
-    legacy_entry = dict(entry, fingerprint_algorithm=LEGACY_FINGERPRINT_ALGORITHM)
-    if entry.get('orphaned'):
-        return legacy_entry
-    relative = entry.get('destination') or entry.get('source')
+    if entry.get('mode') != 'symlink' or entry.get('orphaned'):
+        return None
     try:
-        destination = safe_destination(relative)
+        destination = safe_destination(entry.get('destination') or entry.get('source'))
         if not is_owned(entry, destination):
-            return legacy_entry
-        current = (followed_destination_fingerprint(destination) if entry.get('mode') == 'symlink'
-                   else fingerprint_destination(destination))
+            return None
+        current = followed_destination_fingerprint(destination)
     except (OSError, ValueError, TypeError):
-        return legacy_entry
+        return None
     return {key: value for key, value in dict(entry, destination_fingerprint=current, fingerprint=current).items()
             if key != 'fingerprint_algorithm'}
 
 
-def refresh_legacy_entries(entries):
-    """Never leave a receipt that names the active recipe holding unmarked legacy values."""
-    return {
-        kind: {
-            name: refresh_legacy_entry(entry, (ORIGINAL_ENTRIES.get(kind) or {}).get(name))
-            for name, entry in values.items()
-        }
-        for kind, values in entries.items()
-    }
+def release_unprovable_entries(receipt):
+    """Split off entries whose ownership the receipt can no longer prove.
+
+    An entry carrying the entry-level marker `fingerprint_algorithm: legacy`
+    (written by 0.69.x for an entry it could not prove owned) is a Released
+    Entry unless it is a symlink entry its recorded link proves; a proven one is
+    kept without the marker. Returns (receipt view without Released Entries,
+    [{'path', 'kind', 'name'}]). The input receipt and the files are untouched,
+    so a plan can report what an update would release.
+    """
+    managed = receipt.get('managed_entries') if isinstance(receipt, dict) else None
+    if not isinstance(managed, dict):
+        return receipt, []
+    released = []
+    rewritten = False
+    view = {}
+    for kind, values in managed.items():
+        if not isinstance(values, dict):
+            view[kind] = values
+            continue
+        kept = {}
+        for name, entry in values.items():
+            if not (isinstance(entry, dict) and entry.get('fingerprint_algorithm') == ENTRY_LEGACY_MARKER):
+                kept[name] = entry
+                continue
+            proven = prove_symlink_entry(entry)
+            if proven is not None:
+                kept[name] = proven
+                rewritten = True
+                continue
+            released.append({'path': entry.get('destination') or entry.get('source') or f'{kind}/{name}',
+                             'kind': kind, 'name': name})
+        view[kind] = kept
+    if not released and not rewritten:
+        return receipt, []
+    return dict(receipt, managed_entries=view), sorted(released, key=lambda item: item['path'])
 
 
 def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_pending=False, state=None):
     ensure_manifest_safe()
-    entries = refresh_legacy_entries(entries)
     if state is None:
         if legacy_pending:
             state = 'stale'
@@ -4815,7 +4747,7 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
                 if backup:
                     counts['backed_up'] += 1
                     register_pending_prune(relative, old_destination, backup)
-                remove_relative_path(relative, recorded_copy_fingerprint(old), algorithm=entry_algorithm(old))
+                remove_relative_path(relative, recorded_copy_fingerprint(old))
                 if key != public_name:
                     del entries['skills'][key]
                 entries['skills'][public_name] = make_entry(source, new_relative, new_destination, metadata.get(public_name))
@@ -4839,7 +4771,7 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
             # Publish the new destination first. Only after it is visible do we
             # remove the unchanged legacy path, preserving rollback safety.
             install_atomic(source, new_destination)
-            remove_relative_path(relative, recorded_copy_fingerprint(old), algorithm=entry_algorithm(old))
+            remove_relative_path(relative, recorded_copy_fingerprint(old))
             if key != public_name:
                 del entries['skills'][key]
             entries['skills'][public_name] = make_entry(source, new_relative, new_destination, metadata.get(public_name))
@@ -4884,6 +4816,7 @@ if not PLAN and not UNINSTALL:
     try:
         ensure_codex_root_safe()
         early_receipt, _early_legacy = read_receipt()
+        check_transaction_journal_markers()
         early_profile_block = receipt_profile_update_block(early_receipt)
     except (OSError, ValueError) as error:
         print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
@@ -4898,6 +4831,7 @@ elif UNINSTALL:
     try:
         ensure_codex_root_safe()
         read_receipt()
+        check_transaction_journal_markers()
     except (OSError, ValueError) as error:
         print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
         sys.exit(2)
@@ -4929,10 +4863,11 @@ except (OSError, ValueError) as error:
 
 plugin_version = read_plugin_version()
 try:
-    receipt, legacy = read_receipt()
+    original_receipt, legacy = read_receipt()
 except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
+receipt, released_entries = release_unprovable_entries(original_receipt)
 try:
     blocked_profile_update = receipt_profile_update_block(receipt)
 except ValueError as error:
@@ -4971,13 +4906,19 @@ if ADOPT_PATHS:
         MODE = recorded_mode
 
 classification = classify_receipt(receipt, legacy, sources, skill_metadata, plugin_version, fingerprint)
+if released_entries:
+    classification['requires_migration'] = True
+    classification['released'] = released_entries
+    classification['reasons'] = list(classification.get('reasons') or []) + [
+        'receipt entries without a provable tree-merkle-v1 value are released: '
+        + ', '.join(item['path'] for item in released_entries)
+    ]
 legacy_pending = bool(
     legacy
     or classification.get('requires_structural_migration')
     or (isinstance(receipt, dict) and receipt.get('legacy_pending'))
 )
 entries = entry_map(receipt)
-ORIGINAL_ENTRIES = {kind: dict(values) for kind, values in entries.items()}
 orphaned = dict(receipt.get('orphaned_entries') or {}) if isinstance(receipt, dict) else {}
 counts = {k: 0 for k in (
     'created', 'updated', 'adopted', 'migrated', 'preserved', 'skipped_collision', 'collided',
@@ -5000,6 +4941,9 @@ if PLAN:
             and not is_retired_orphan_only_receipt(receipt)):
         plan['next_action'] = 'run this installer with --uninstall, then perform a fresh install without --profile'
     print_plan(plan)
+if not PLAN:
+    for item in released_entries:
+        print(f"[install-codex-skills] released: {item['path']} (removed from the receipt; its files stay in place)")
 try:
     adopt_paths = validate_adoptions(plan)
 except ValueError as error:
@@ -5020,7 +4964,7 @@ if classification.get('requires_structural_migration') and not MIGRATE and UNINS
 
 prior_reconciliation = receipt.get('reconciliation') if isinstance(receipt, dict) else {}
 has_pending_conflicts = bool(orphaned) or bool(isinstance(prior_reconciliation, dict) and prior_reconciliation.get('skipped_collision'))
-if not UPDATE and not MIGRATE and not UNINSTALL and not legacy and not has_pending_conflicts and receipt.get('plugin_version') == plugin_version and receipt.get('source_fingerprint') == fingerprint:
+if not UPDATE and not MIGRATE and not UNINSTALL and not legacy and not released_entries and not has_pending_conflicts and receipt.get('plugin_version') == plugin_version and receipt.get('source_fingerprint') == fingerprint:
     try:
         maybe_install_shared_projection(adopt_paths)
     except ValueError as error:
@@ -5033,7 +4977,7 @@ try:
     begin_transaction(
         plugin_version,
         fingerprint,
-        receipt_snapshot=receipt,
+        receipt_snapshot=original_receipt,
         receipt_snapshot_present=lexists(MANIFEST),
     )
 except (OSError, ValueError) as error:
@@ -5090,7 +5034,7 @@ if UNINSTALL:
                     if backup:
                         register_pending_prune(relative, destination, backup)
                         counts['backed_up'] += 1
-                    remove_relative_path(relative, recorded_copy_fingerprint(old), algorithm=entry_algorithm(old))
+                    remove_relative_path(relative, recorded_copy_fingerprint(old))
                     clear_orphaned(relative)
                     counts['pruned'] += 1
                     counts['retired'] += 1
@@ -5221,7 +5165,7 @@ if UPDATE:
                 if backup:
                     counts['backed_up'] += 1
                     register_pending_prune(relative, destination, backup)
-                remove_relative_path(relative, recorded_copy_fingerprint(old), algorithm=entry_algorithm(old))
+                remove_relative_path(relative, recorded_copy_fingerprint(old))
                 del entries[kind][name]
                 counts['pruned'] += 1
                 counts['retired'] += 1

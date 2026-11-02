@@ -939,9 +939,12 @@ test('explicit Agent Plugin profile selection stays separate from the default ca
       ], { encoding: 'utf8' });
       assert.strictEqual(result.status, 1, result.stdout + result.stderr);
       const report = JSON.parse(result.stdout);
-      assert.strictEqual(report.structural, 'PASS');
+      // A provenance receipt without the algorithm marker fails closed, so the
+      // structural verdict fails too (remove-legacy-tree-fingerprints task 4).
+      assert.strictEqual(report.structural, 'FAIL');
       assert.strictEqual(report.provenance, 'FAIL');
       assert.ok(report.errors.some((error) => /provenance schema must be/.test(error)));
+      assert.ok(report.errors.some((error) => /fingerprint algorithm field 'fingerprintAlgorithm' must be "tree-merkle-v1" but the observed value is absent/.test(error)));
     } finally { fs.rmSync(packageRoot, { recursive: true, force: true }); }
   });
 
@@ -982,13 +985,14 @@ test('explicit Agent Plugin profile selection stays separate from the default ca
       ], { encoding: 'utf8' });
       assert.strictEqual(result.status, 1);
       const report = JSON.parse(result.stdout);
-      assert.strictEqual(report.structural, 'PASS');
+      assert.strictEqual(report.structural, 'FAIL');
       assert.strictEqual(report.provenance, 'FAIL');
       assert.ok(report.errors.some((error) => /provenance\.json is missing/.test(error)));
+      assert.ok(report.errors.some((error) => /fingerprint algorithm field 'fingerprintAlgorithm' must be "tree-merkle-v1" but the observed value is absent/.test(error)));
     } finally { fs.rmSync(packageRoot, { recursive: true, force: true }); }
   });
 
-  test('Agent Plugin validator still fails when provenance.json is unreadable (fingerprint recipe falls back to legacy)', () => {
+  test('Agent Plugin validator still fails when provenance.json is unreadable and the missing marker fails closed', () => {
     const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-unreadable-'));
     try {
       fs.cpSync(path.join(ROOT, 'plugins', 'dhpk-agent'), packageRoot, { recursive: true });
@@ -997,7 +1001,9 @@ test('explicit Agent Plugin profile selection stays separate from the default ca
         path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'), packageRoot,
       ], { encoding: 'utf8' });
       assert.strictEqual(result.status, 1, result.stdout + result.stderr);
-      assert.strictEqual(JSON.parse(result.stdout).provenance, 'FAIL');
+      const report = JSON.parse(result.stdout);
+      assert.strictEqual(report.provenance, 'FAIL');
+      assert.ok(report.errors.some((error) => /observed value is absent/.test(error)));
     } finally { fs.rmSync(packageRoot, { recursive: true, force: true }); }
   });
 }

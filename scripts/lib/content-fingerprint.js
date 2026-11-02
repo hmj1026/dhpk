@@ -7,9 +7,8 @@
 //
 // Every function documents the exact byte recipe it reproduces. Directory trees
 // use one recipe, treeFingerprint (tree-merkle-v1); each persisted value records
-// its algorithm, and verifiers pick the recipe from that marker. The older
-// per-surface tree recipes remain only to verify values written before the
-// transition and are removed one minor release later. Recipes with a different
+// its algorithm, and verifiers require that marker. Only tree-merkle-v1 exists;
+// the older per-surface tree recipes are removed. Recipes with a different
 // purpose (content+mode release fingerprints, receipt directory entries) stay
 // separate named functions. Pure functions take lists; the only disk
 // reader is collectDirectoryEntries. Node built-ins and bounded-filesystem.js
@@ -31,10 +30,6 @@ const PROFILE_KEYS = Object.freeze(['profile_policy', 'standalone_dependencies',
 
 function compareCodeUnit(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
-}
-
-function compareLocale(left, right) {
-  return left.localeCompare(right);
 }
 
 function isBytecodeName(name) {
@@ -81,87 +76,6 @@ function inventoryDigestInsertionOrder(inventory) {
 // Provenance inventoryDigest for the Agent and AGY plugins: key-sorted JSON.
 function inventoryDigestKeySorted(inventory) {
   return sha256Hex(canonicalJson(withoutProfileKeys(inventory)));
-}
-
-function fileSetDigest(sortedFiles, terminator) {
-  const hash = crypto.createHash('sha256');
-  for (const file of sortedFiles) {
-    hash.update(file.path);
-    hash.update('\0');
-    hash.update(file.content);
-    if (terminator) hash.update('\0');
-  }
-  return hash.digest('hex');
-}
-
-// files: [{ path, content }] with posix paths. Flat sort of the path by UTF-16
-// code unit; per file `path \0 bytes`, no terminator after the bytes.
-function fileSetFingerprintCodeUnit(files) {
-  return fileSetDigest(files.slice().sort((a, b) => compareCodeUnit(a.path, b.path)), false);
-}
-
-// Same recipe as fileSetFingerprintCodeUnit with a flat localeCompare sort.
-function fileSetFingerprintLocale(files) {
-  return fileSetDigest(files.slice().sort((a, b) => compareLocale(a.path, b.path)), false);
-}
-
-// Caller order kept; per file `path \0 bytes \0`.
-function fileSetFingerprintTerminated(files) {
-  return fileSetDigest(files, true);
-}
-
-function buildMerkleTree(entries) {
-  const root = { type: 'directory', children: new Map() };
-  for (const entry of entries) {
-    const names = entry.path.split('/').filter((name) => name !== '');
-    if (names.length === 0) continue;
-    let node = root;
-    let blocked = false;
-    for (let index = 0; index < names.length - 1; index += 1) {
-      let child = node.children.get(names[index]);
-      if (child && child.type === 'file') { blocked = true; break; }
-      if (!child) {
-        child = { type: 'directory', children: new Map() };
-        node.children.set(names[index], child);
-      }
-      node = child;
-    }
-    if (blocked) continue;
-    const leaf = names[names.length - 1];
-    if (entry.type === 'directory') {
-      if (!node.children.has(leaf)) node.children.set(leaf, { type: 'directory', children: new Map() });
-    } else {
-      node.children.set(leaf, { type: 'file', content: entry.content });
-    }
-  }
-  return root;
-}
-
-function merkleDigest(node) {
-  if (node.type === 'file') {
-    return crypto.createHash('sha256').update('file\0').update(node.content).digest('hex');
-  }
-  const hash = crypto.createHash('sha256').update('directory\0');
-  for (const name of [...node.children.keys()].sort(compareCodeUnit)) {
-    hash.update(name).update('\0').update(merkleDigest(node.children.get(name))).update('\0');
-  }
-  return hash.digest('hex');
-}
-
-// Merkle tree over entries [{ path, type: 'file'|'directory', content? }].
-// A file hashes `file\0 bytes`; a directory hashes `directory\0` followed by
-// `name \0 childDigest \0` per child in UTF-16 order. Returns the digest of the
-// node at `prefix` ('' is the root) or '' when nothing exists there. Entries
-// are not read from disk; directory entries let an empty directory contribute.
-function merkleFingerprint(entries, prefix = '') {
-  const tree = buildMerkleTree(entries);
-  let node = tree;
-  for (const name of String(prefix).split('/').filter((part) => part !== '')) {
-    node = node.type === 'directory' ? node.children.get(name) : undefined;
-    if (!node) return '';
-  }
-  if (node === tree && tree.children.size === 0) return '';
-  return merkleDigest(node);
 }
 
 const TREE_FINGERPRINT_ALGORITHM = 'tree-merkle-v1';
@@ -247,29 +161,51 @@ function treeNodeFingerprint(entries, prefix = '') {
   return treeNodeDigest(node);
 }
 
-const LEGACY_FINGERPRINT_ALGORITHM = 'legacy';
+// Observed-value rule shared with the installer's Python copy of the message
+// (OpenSpec remove-legacy-tree-fingerprints, design D1): `absent` for undefined,
+// otherwise compact JSON (no space after ':' or ',') with every character
+// outside printable ASCII written as a lowercase \uXXXX escape per UTF-16 unit,
+// which is what Python json.dumps(value, separators=(',', ':')) produces. The
+// result is one ASCII line.
+function renderObservedValue(observed) {
+  if (observed === undefined) return 'absent';
+  const json = JSON.stringify(observed);
+  if (json === undefined) return String(observed).replace(/[^\x20-\x7e]/g, '?');
+  return json.replace(/[^\x20-\x7e]/g, (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
+}
+
+// The one diagnostic for a persisted record whose algorithm marker is absent or
+// unrecognized. Names the field, states the observed value, states the 0.70.0
+// version boundary, and gives both remediation paths.
+function versionBoundaryMessage(field, observed) {
+  return `fingerprint algorithm field '${field}' must be "${TREE_FINGERPRINT_ALGORITHM}" but the observed value is ${renderObservedValue(observed)}`
+    + '; 0.70.0 accepts only records written by 0.69.x or later'
+    + '; to continue, either upgrade through 0.69.x and run one install or update, or uninstall and reinstall';
+}
+
+// Fail-closed gate: returns the marker for exactly 'tree-merkle-v1', and throws
+// versionBoundaryMessage(field, value) for anything else, absent included.
+function requireTreeMerkle(value, field) {
+  if (value === TREE_FINGERPRINT_ALGORITHM) return TREE_FINGERPRINT_ALGORITHM;
+  throw new Error(versionBoundaryMessage(field, value));
+}
 
 // Selects the recipe a persisted tree value was written with from the record
-// that carries it (design D3). An absent field is the legacy per-surface
-// recipe, exactly `tree-merkle-v1` is the shared recipe, and anything else
-// (including null and the empty string) throws so a verifier fails closed
-// instead of trying both recipes.
+// that carries it. Only tree-merkle-v1 exists: an absent field, a non-object
+// record, or any other value throws the version-boundary diagnostic.
 function resolveFingerprintAlgorithm(record, field = 'fingerprintAlgorithm') {
-  if (record === null || typeof record !== 'object' || !Object.prototype.hasOwnProperty.call(record, field)) {
-    return LEGACY_FINGERPRINT_ALGORITHM;
-  }
-  if (record[field] === TREE_FINGERPRINT_ALGORITHM) return TREE_FINGERPRINT_ALGORITHM;
-  throw new Error(`unknown fingerprint algorithm in '${field}': ${JSON.stringify(record[field])}`);
+  const observed = record !== null && typeof record === 'object' && Object.prototype.hasOwnProperty.call(record, field)
+    ? record[field]
+    : undefined;
+  return requireTreeMerkle(observed, field);
 }
 
-// Normalizes a caller-supplied `algorithm` option: undefined or 'legacy' keeps
-// the per-surface legacy recipe, the tree name selects `tree-merkle-v1`, and
-// anything else throws.
+// Validates a caller-supplied `algorithm` option: exactly tree-merkle-v1, else
+// the version-boundary diagnostic (absent included).
 function normalizeFingerprintAlgorithm(value) {
-  if (value === undefined || value === LEGACY_FINGERPRINT_ALGORITHM) return LEGACY_FINGERPRINT_ALGORITHM;
-  if (value === TREE_FINGERPRINT_ALGORITHM) return TREE_FINGERPRINT_ALGORITHM;
-  throw new Error(`unknown fingerprint algorithm: ${JSON.stringify(value)}`);
+  return requireTreeMerkle(value, 'algorithm');
 }
+
 
 // entries: [{ path, content, mode }] in caller order (the release manifest
 // feeds per-directory locale order). Content hash is `path \0 bytes`; mode hash
@@ -388,14 +324,11 @@ module.exports = {
   canonicalJsonSha256Prefixed,
   inventoryDigestInsertionOrder,
   inventoryDigestKeySorted,
-  fileSetFingerprintCodeUnit,
-  fileSetFingerprintLocale,
-  fileSetFingerprintTerminated,
-  merkleFingerprint,
   TREE_FINGERPRINT_ALGORITHM,
   treeFingerprint,
   treeNodeFingerprint,
-  LEGACY_FINGERPRINT_ALGORITHM,
+  versionBoundaryMessage,
+  requireTreeMerkle,
   resolveFingerprintAlgorithm,
   normalizeFingerprintAlgorithm,
   packageContentAndModeFingerprints,

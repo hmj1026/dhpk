@@ -1414,7 +1414,7 @@ test('legacy receipt and unowned symlink are fail-closed until explicit --migrat
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.symlinkSync(external, target, 'dir');
     fs.writeFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), JSON.stringify({
-      plugin_version: '0.1.0', mode: 'symlink', installed_at: '2020-01-01T00:00:00Z',
+      fingerprint_algorithm: 'tree-merkle-v1', plugin_version: '0.1.0', mode: 'symlink', installed_at: '2020-01-01T00:00:00Z',
     }));
     const before = fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8');
     const res = runInstaller(scratch, ['--force']);
@@ -1487,7 +1487,7 @@ test('--migrate adopts exact legacy copies but never overwrites mismatches', () 
     fs.mkdirSync(mismatchTarget, { recursive: true });
     fs.writeFileSync(path.join(mismatchTarget, 'user-owned.txt'), 'do not replace\n');
     fs.writeFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), JSON.stringify({
-      plugin_version: 'legacy', mode: 'copy', installed_at: '2020-01-01T00:00:00Z',
+      fingerprint_algorithm: 'tree-merkle-v1', plugin_version: 'legacy', mode: 'copy', installed_at: '2020-01-01T00:00:00Z',
     }));
     const res = runInstaller(scratch, ['--copy', '--migrate', '--force']);
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
@@ -1510,7 +1510,7 @@ test('legacy migration remains available after stale inspection', () => {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.cpSync(source, target, { recursive: true, dereference: true });
     fs.writeFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), JSON.stringify({
-      plugin_version: 'legacy', mode: 'copy', installed_at: '2020-01-01T00:00:00Z',
+      fingerprint_algorithm: 'tree-merkle-v1', plugin_version: 'legacy', mode: 'copy', installed_at: '2020-01-01T00:00:00Z',
     }));
     const normal = runInstaller(scratch, ['--copy', '--force']);
     assert.notStrictEqual(normal.status, 0, `${normal.stdout}\n${normal.stderr}`);

@@ -18,7 +18,13 @@ function runProbe(platform, packageRoot, extra = [], env = process.env) {
   return spawnSync(process.execPath, [SCRIPT, '--platform', platform, '--package-root', packageRoot, ...extra], { encoding: 'utf8', env });
 }
 
+// A hand-built package must name its fingerprint recipe (remove-legacy-tree-fingerprints).
+function writeFingerprintMarker(root) {
+  fs.writeFileSync(path.join(root, 'provenance.json'), JSON.stringify({ fingerprintAlgorithm: 'tree-merkle-v1' }));
+}
+
 function writeAgentManifest(root) {
+  writeFingerprintMarker(root);
   fs.writeFileSync(path.join(root, 'plugin.json'), JSON.stringify({
     $schema: AGENT_PLUGIN_SCHEMA,
     name: 'dhpk',
@@ -27,7 +33,21 @@ function writeAgentManifest(root) {
   }));
 }
 
+// A hand-built Cursor package also binds the repository inventory once it
+// carries provenance, so the receipt names the digest and runtime support IDs.
+function writeCursorProvenance(root) {
+  const { inventoryDigestInsertionOrder } = require('../scripts/lib/content-fingerprint');
+  const { runtimeSupportSkillIds } = require('../scripts/lib/internal-runtime-skills');
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  fs.writeFileSync(path.join(root, 'provenance.json'), JSON.stringify({
+    fingerprintAlgorithm: 'tree-merkle-v1',
+    inventoryDigest: inventoryDigestInsertionOrder(inventory),
+    runtimeSupportStableIds: runtimeSupportSkillIds(inventory, 'cursor-plugin').slice().sort(),
+  }));
+}
+
 function writeCursorPackage(root) {
+  writeCursorProvenance(root);
   fs.mkdirSync(path.join(root, '.cursor-plugin'), { recursive: true });
   fs.writeFileSync(path.join(root, '.cursor-plugin', 'plugin.json'), JSON.stringify({
     name: 'dhpk-cursor',

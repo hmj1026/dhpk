@@ -32,10 +32,8 @@ const {
   canonicalJson: stableStringify,
   TREE_FINGERPRINT_ALGORITHM,
   collectDirectoryEntries,
-  fileSetFingerprintLocale,
   inventoryDigestKeySorted,
-  normalizeFingerprintAlgorithm,
-  resolveFingerprintAlgorithm,
+  requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
 } = require('./content-fingerprint');
@@ -675,25 +673,29 @@ function selectPortableSkills(inventory, surface = 'agent-plugin', selectedStabl
   }).sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
 }
 
-// options.algorithm: 'legacy' (default, flat localeCompare recipe) or
-// TREE_FINGERPRINT_ALGORITHM. Callers read the choice from the package's
-// `fingerprintAlgorithm` marker with resolveFingerprintAlgorithm.
+// options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
+// the only recipe; any other value throws the version-boundary diagnostic.
+// Verifiers read the package marker with packageFingerprintAlgorithm first.
 function fingerprintDir(directory, options = {}) {
-  const algorithm = normalizeFingerprintAlgorithm(options.algorithm);
+  requireTreeMerkle(options.algorithm === undefined ? TREE_FINGERPRINT_ALGORITHM : options.algorithm, 'fingerprintAlgorithm');
   const budget = createTraversalBudget(options);
   const entries = collectDirectoryEntries(directory, { budget, order: 'locale', skipBytecode: true, symlinks: 'refuse' })
     .filter((entry) => entry.type === 'file');
-  return algorithm === TREE_FINGERPRINT_ALGORITHM ? treeFingerprint(entries) : fileSetFingerprintLocale(entries);
+  return treeFingerprint(entries);
 }
 
 // Recipe named by the package's provenance.json marker. A package without
-// provenance, or with unreadable provenance (reported elsewhere), is legacy.
+// provenance, with unreadable provenance (also reported elsewhere), or without
+// the marker fails closed with the version-boundary diagnostic.
 function packageFingerprintAlgorithm(packageRoot) {
   const provenancePath = path.join(packageRoot, 'provenance.json');
-  if (!fs.existsSync(provenancePath)) return { algorithm: resolveFingerprintAlgorithm(null) };
-  let provenance;
-  try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (_) { return { algorithm: resolveFingerprintAlgorithm(null) }; }
-  try { return { algorithm: resolveFingerprintAlgorithm(provenance) }; } catch (error) { return { algorithm: null, error: error.message }; }
+  let provenance = null;
+  if (fs.existsSync(provenancePath)) {
+    try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (_) { provenance = null; }
+  }
+  try {
+    return { algorithm: requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm') };
+  } catch (error) { return { algorithm: null, error: error.message }; }
 }
 
 function readManifestMetadata(root, manifestMetadata) {

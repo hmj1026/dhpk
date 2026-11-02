@@ -182,10 +182,8 @@ test('Codex native fingerprints.json entries are reproduced from the package on 
   assert.ok(names.length > 0);
   for (const name of names) {
     const entries = fingerprint.collectDirectoryEntries(path.join(ROOT, 'plugins', 'dhpk', 'skills', name), { skipBytecode: true });
-    const actual = algorithm === 'tree-merkle-v1'
-      ? fingerprint.treeFingerprint(filesOnly(entries))
-      : fingerprint.fileSetFingerprintCodeUnit(filesOnly(entries));
-    assert.strictEqual(actual, recorded[name], `codex skill ${name}`);
+    assert.strictEqual(algorithm, 'tree-merkle-v1');
+    assert.strictEqual(fingerprint.treeFingerprint(filesOnly(entries)), recorded[name], `codex skill ${name}`);
   }
 });
 
@@ -196,10 +194,8 @@ test('Agent plugin fingerprints.json entries are reproduced from the package on 
   assert.ok(names.length > 0);
   for (const name of names) {
     const entries = fingerprint.collectDirectoryEntries(path.join(ROOT, 'plugins', 'dhpk-agent', 'skills', name), { order: 'locale', skipBytecode: true });
-    const actual = algorithm === 'tree-merkle-v1'
-      ? fingerprint.treeFingerprint(filesOnly(entries))
-      : fingerprint.fileSetFingerprintLocale(filesOnly(entries));
-    assert.strictEqual(actual, recorded[name], `agent skill ${name}`);
+    assert.strictEqual(algorithm, 'tree-merkle-v1');
+    assert.strictEqual(fingerprint.treeFingerprint(filesOnly(entries)), recorded[name], `agent skill ${name}`);
   }
 });
 
@@ -209,7 +205,7 @@ test('Cursor fingerprints.json entries are reproduced from the package on disk',
   assert.ok(keys.length > 0);
   const entries = fingerprint.collectDirectoryEntries(path.join(ROOT, 'plugins', 'dhpk-cursor'), { skipBytecode: true });
   for (const key of keys) {
-    assert.strictEqual(fingerprint.merkleFingerprint(entries, key), recorded[key], `cursor entry ${key}`);
+    assert.strictEqual(fingerprint.treeNodeFingerprint(filesOnly(entries), key), recorded[key], `cursor entry ${key}`);
   }
 });
 
@@ -309,31 +305,6 @@ test('collector refuses symlinks and non-physical roots', () => {
   }
 });
 
-test('file-set fingerprints reproduce the recorded writer values on the adversarial tree', () => {
-  const dir = buildAdversarialTree();
-  try {
-    const flat = filesOnly(fingerprint.collectDirectoryEntries(dir, { skipBytecode: true }));
-    assert.strictEqual(fingerprint.fileSetFingerprintCodeUnit(flat), ADVERSARIAL_WRITER.codeUnit);
-    assert.strictEqual(fingerprint.fileSetFingerprintLocale(flat), ADVERSARIAL_WRITER.locale);
-    const codeUnitOrder = flat.slice().sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-    assert.strictEqual(fingerprint.fileSetFingerprintTerminated(codeUnitOrder), ADVERSARIAL_WRITER.terminatedCodeUnitOrder);
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('file-set fingerprints sort their input flat; the terminated form keeps caller order', () => {
-  const files = [
-    { path: 'b', content: Buffer.from('2') },
-    { path: 'a/x', content: Buffer.from('1') },
-    { path: 'a.md', content: Buffer.from('3') },
-  ];
-  const reversed = files.slice().reverse();
-  assert.strictEqual(fingerprint.fileSetFingerprintCodeUnit(files), fingerprint.fileSetFingerprintCodeUnit(reversed));
-  assert.strictEqual(fingerprint.fileSetFingerprintLocale(files), fingerprint.fileSetFingerprintLocale(reversed));
-  assert.notStrictEqual(fingerprint.fileSetFingerprintTerminated(files), fingerprint.fileSetFingerprintTerminated(reversed));
-});
-
 test('adversarial tree: writer values differ from the recorded legacy disk-walker values', () => {
   const dir = buildAdversarialTree();
   try {
@@ -349,25 +320,25 @@ test('adversarial tree: writer values differ from the recorded legacy disk-walke
   }
 });
 
-test('Merkle fingerprint reproduces writer values and matches the old disk Merkle for empty directories', () => {
+test('tree fingerprint reproduces the pinned writer values on the adversarial tree (empty directory and bytecode never count)', () => {
   const dir = buildAdversarialTree();
   try {
-    const entries = fingerprint.collectDirectoryEntries(dir, { skipBytecode: true });
-    assert.strictEqual(fingerprint.merkleFingerprint(filesOnly(entries), ''), ADVERSARIAL_WRITER.merkleFilesOnlyRoot);
-    assert.strictEqual(fingerprint.merkleFingerprint(entries, 'sub'), ADVERSARIAL_WRITER.merkleSub);
-    assert.strictEqual(fingerprint.merkleFingerprint(entries, ''), ADVERSARIAL_LEGACY_VERIFIER.cursorRootWithEmptyDirectory);
-    assert.strictEqual(fingerprint.merkleFingerprint(entries, 'empty'), ADVERSARIAL_LEGACY_VERIFIER.cursorEmptyDirectory);
-    assert.notStrictEqual(ADVERSARIAL_WRITER.merkleFilesOnlyRoot, ADVERSARIAL_LEGACY_VERIFIER.cursorRootWithEmptyDirectory);
+    const files = filesOnly(fingerprint.collectDirectoryEntries(dir, { skipBytecode: true }));
+    assert.strictEqual(fingerprint.treeFingerprint(files), ADVERSARIAL_WRITER.merkleFilesOnlyRoot);
+    assert.strictEqual(fingerprint.treeNodeFingerprint(files, 'sub'), ADVERSARIAL_WRITER.merkleSub);
+    assert.strictEqual(fingerprint.treeNodeFingerprint(files, 'empty'), '');
+    const all = fingerprint.collectDirectoryEntries(dir, { skipBytecode: true });
+    assert.strictEqual(fingerprint.treeFingerprint(all), ADVERSARIAL_WRITER.merkleFilesOnlyRoot);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('Merkle fingerprint of an absent prefix is empty and of a single file hashes file bytes', () => {
+test('tree node fingerprint of an absent prefix is empty and of a single file hashes file bytes', () => {
   const files = [{ path: 'rules/a.mdc', type: 'file', content: Buffer.from('hello') }];
-  assert.strictEqual(fingerprint.merkleFingerprint(files, 'missing'), '');
+  assert.strictEqual(fingerprint.treeNodeFingerprint(files, 'missing'), '');
   assert.strictEqual(
-    fingerprint.merkleFingerprint(files, 'rules/a.mdc'),
+    fingerprint.treeNodeFingerprint(files, 'rules/a.mdc'),
     fingerprint.sha256Hex(Buffer.concat([Buffer.from('file\0'), Buffer.from('hello')])),
   );
 });

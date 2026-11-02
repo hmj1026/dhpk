@@ -377,18 +377,27 @@ remains, so a partial receipt cannot be mistaken for a current projection.
 The receipt and every transaction journal also record `fingerprint_algorithm`
 (`tree-merkle-v1`), the one directory-tree recipe shared with the generated
 package fingerprints: a per-directory Merkle digest in which empty directories,
-file modes, and the root path do not contribute. A receipt or journal written by
-an earlier installer has no such field and is read as the legacy recipe for one
-transition minor. During that minor, ownership of a legacy record is proven with
-the legacy recipe, so an unchanged projection is never reported as edited and a
-real edit is still a collision. The next `--update` or `--migrate` rewrites every
-entry with `tree-merkle-v1` (except entries not yet proven owned, which keep an
-entry-level `legacy` marker until a later run proves them); a read-only `--plan` or check never rewrites the
-receipt. A record naming any other algorithm blocks with a diagnostic naming the
-field and changes nothing. Do not downgrade the installer across this transition:
-an older installer cannot verify a `tree-merkle-v1` receipt. An `--adopt` request
-copied from a plan made by the previous installer carries legacy fingerprints and
-fails with `adoption preflight changed`; run a fresh plan.
+file modes, and the root path do not contribute.
+
+Version 0.70.0 accepts only receipts, journals, and packages written by 0.69.x
+or later. A record without `fingerprint_algorithm` fails closed with a
+diagnostic that names the field and changes nothing; so does a record naming any
+other algorithm. To recover, either upgrade through 0.69.x and run one install
+or update, which rewrites the receipt with `tree-merkle-v1`, or uninstall and
+reinstall. Do not downgrade the installer across this boundary: an older
+installer cannot verify a `tree-merkle-v1` receipt. An `--adopt` request
+copied from a plan made by an earlier installer fails with
+`adoption preflight changed`; run a fresh plan.
+
+When an update or migration cannot prove ownership of a receipt entry, it
+releases the entry (a Released Entry): the entry is removed from the receipt, its
+files stay in place untouched, and the output lists it. Release does not block
+the run that releases the entry, and the receipt is rewritten with
+`tree-merkle-v1`. Afterwards the path is unowned: if a later run still ships
+that skill, it reports a collision and keeps the files; run a fresh `--plan`
+and `--adopt` to manage them again. Symlink-mode entries stay provable by link
+target, so they are not released for lack of a fingerprint. A destination you
+edited after a `tree-merkle-v1` install is a modified collision, not a release. A read-only `--plan` or check never rewrites the receipt.
 
 For a stale or unowned projection, inspect before changing anything:
 

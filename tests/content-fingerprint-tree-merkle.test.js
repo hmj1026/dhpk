@@ -204,10 +204,4 @@ test('a path with an empty segment or a NUL is refused', () => {
   assert.throws(() => fingerprint.treeFingerprint([file('a\0b', 'x')]), /invalid tree path/);
 });
 
-test('legacy merkleFingerprint is untouched: it agrees on files and still reports an empty tree as empty', () => {
-  const entries = [file('a.txt', 'alpha')];
-  assert.strictEqual(fingerprint.merkleFingerprint(entries), fingerprint.treeFingerprint(entries));
-  assert.strictEqual(fingerprint.merkleFingerprint([]), '');
-});
-
 run('content-fingerprint-tree-merkle');

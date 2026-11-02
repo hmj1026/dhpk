@@ -144,6 +144,7 @@ test('uninstall rejects receipt traversal paths without deleting outside .codex'
     fs.mkdirSync(path.join(scratch, '.codex'), { recursive: true });
     fs.writeFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), JSON.stringify({
       schema_version: 2,
+      fingerprint_algorithm: 'tree-merkle-v1',
       plugin_version: 'legacy',
       source_fingerprint: 'fixture',
       mode: 'copy',
@@ -445,7 +446,7 @@ function writeOrphanReceipt(scratch, orphanedEntries, managedEntries = {}) {
   const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
   fs.mkdirSync(path.dirname(receiptPath), { recursive: true });
   fs.writeFileSync(receiptPath, JSON.stringify({
-    schema_version: 2, plugin_version: 'legacy', source_fingerprint: 'fixture', mode: 'copy',
+    schema_version: 2, fingerprint_algorithm: 'tree-merkle-v1', plugin_version: 'legacy', source_fingerprint: 'fixture', mode: 'copy',
     profileId: 'compat-v1', compatibilityMode: 'compat-v1',
     managed_entries: { skills: {}, agents: {}, supporting_assets: {}, ...managedEntries },
     orphaned_entries: orphanedEntries,

@@ -153,6 +153,7 @@ test('excludes a deprecated codex-native skill from the expected membership set'
 test('native structural verification returns stage-bound evidence instead of a lifecycle aggregate', () => {
   const dir = makeTempPackage();
   try {
+    // A native package must name its fingerprint recipe (remove-legacy-tree-fingerprints).
     const inventory = {
       skills: [{
         id: 'hello',
@@ -162,6 +163,11 @@ test('native structural verification returns stage-bound evidence instead of a l
         surfaces: ['codex-native'],
       }],
     };
+    const { buildSkillRoutingProjection } = require('../scripts/lib/skill-routing-projection');
+    fs.writeFileSync(path.join(dir, 'provenance.json'), `${JSON.stringify({
+      fingerprintAlgorithm: 'tree-merkle-v1',
+      routingProjection: buildSkillRoutingProjection({ inventory, surface: 'codex-native' }),
+    })}\n`);
     const result = verifyNativePackage({
       packageRoot: dir,
       inventory,
