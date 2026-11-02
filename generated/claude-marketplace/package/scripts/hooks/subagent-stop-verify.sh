@@ -89,13 +89,14 @@ last_transcript_model() {
 }
 
 # Append one JSONL dispatch record. Skips silently without jq. effort is the
-# SubagentStop hook-input value (may be session-level, not per-subagent).
+# per-subagent SubagentStop hook-input value; the host sends {"level": "..."}
+# and the record keeps only the level string.
 log_subagent_dispatch() {
     local payload="$1" file="$SESS/$DHPK_SIDECAR_SUBAGENT_LOG" fields="" model="" size=0
     local atype aid tpath effort
     [ -n "$payload" ] || return 0
     command -v jq >/dev/null 2>&1 || return 0
-    fields="$(printf '%s' "$payload" | jq -r '[(.agent_type // ""), (.agent_id // ""), (.agent_transcript_path // ""), ((.effort // "") | tostring)] | join("\u001f")' 2>/dev/null)" || return 0
+    fields="$(printf '%s' "$payload" | jq -r '[(.agent_type // ""), (.agent_id // ""), (.agent_transcript_path // ""), ((.effort // "") | if type == "object" then (.level // "" | tostring) else tostring end)] | join("\u001f")' 2>/dev/null)" || return 0
     IFS=$'\x1f' read -r atype aid tpath effort <<< "$fields"
     model="$(last_transcript_model "$tpath")"
     mkdir -p "$SESS" 2>/dev/null || return 0
