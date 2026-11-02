@@ -28,7 +28,7 @@ const { packageFingerprints } = require('../scripts/lib/release-artifact-manifes
 const marketplace = require('../scripts/ci/gen-claude-marketplace-package');
 const agentsSkills = require('../scripts/lib/agents-skills-package');
 const publisher = require('../scripts/lib/project-agent-projection-publisher');
-const { canonicalJson, collectDirectoryEntries, treeFingerprint } = require('../scripts/lib/content-fingerprint');
+const { canonicalJson, collectDirectoryEntries, treeFingerprint, resolveFingerprintAlgorithm } = require('../scripts/lib/content-fingerprint');
 
 const ROOT = path.resolve(__dirname, '..');
 const ADVERSARIAL = path.join(__dirname, 'fixtures', 'content-fingerprint', 'adversarial');
@@ -47,6 +47,13 @@ const GOLDEN = Object.freeze({
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+const LEGACY_PACKAGES = readJson(path.join(__dirname, 'fixtures', 'content-fingerprint', 'legacy-package-fingerprints.json'));
+
+// Recipe named by the tracked package's provenance marker.
+function packageAlgorithm(packageName) {
+  return resolveFingerprintAlgorithm(readJson(path.join(ROOT, 'plugins', packageName, 'provenance.json')));
 }
 
 function tempDir(label) {
@@ -92,16 +99,34 @@ test('row 1 STAYS: receipt-primitives fingerprintDirectory keeps modes, empty di
 
 test('rows 2-3: Codex fingerprintDir reproduces every plugins/dhpk fingerprints.json entry', () => {
   const recorded = readJson(path.join(ROOT, 'plugins', 'dhpk', 'fingerprints.json'));
+  const algorithm = packageAlgorithm('dhpk');
   assert.ok(Object.keys(recorded).length > 0);
   for (const [name, value] of Object.entries(recorded)) {
+    assert.strictEqual(codexFingerprintDir(path.join(ROOT, 'plugins', 'dhpk', 'skills', name), { algorithm }), value, name);
+  }
+});
+
+test('rows 2-3: Codex legacy recipe reproduces the frozen pre-change plugins/dhpk values', () => {
+  const frozen = LEGACY_PACKAGES.codex;
+  assert.ok(Object.keys(frozen).length > 0);
+  for (const [name, value] of Object.entries(frozen)) {
     assert.strictEqual(codexFingerprintDir(path.join(ROOT, 'plugins', 'dhpk', 'skills', name)), value, name);
   }
 });
 
 test('rows 4-5: Agent fingerprintDir reproduces every plugins/dhpk-agent fingerprints.json entry', () => {
   const recorded = readJson(path.join(ROOT, 'plugins', 'dhpk-agent', 'fingerprints.json')).skills;
+  const algorithm = packageAlgorithm('dhpk-agent');
   assert.ok(Object.keys(recorded).length > 0);
   for (const [name, value] of Object.entries(recorded)) {
+    assert.strictEqual(agentFingerprintDir(path.join(ROOT, 'plugins', 'dhpk-agent', 'skills', name), { algorithm }), value, name);
+  }
+});
+
+test('rows 4-5: Agent legacy recipe reproduces the frozen pre-change plugins/dhpk-agent values', () => {
+  const frozen = LEGACY_PACKAGES.agent;
+  assert.ok(Object.keys(frozen).length > 0);
+  for (const [name, value] of Object.entries(frozen)) {
     assert.strictEqual(agentFingerprintDir(path.join(ROOT, 'plugins', 'dhpk-agent', 'skills', name)), value, name);
   }
 });
@@ -153,9 +178,10 @@ test('row 8: gate fingerprintPath follows an approved-root symlink and returns e
 });
 
 test('row 3: gate fingerprintDir (project skill verifier) is the Codex per-directory recipe', () => {
-  const recorded = readJson(path.join(ROOT, 'plugins', 'dhpk', 'fingerprints.json'));
-  const [name, value] = Object.entries(recorded)[0];
+  const [name, value] = Object.entries(LEGACY_PACKAGES.codex)[0];
   assert.strictEqual(gateFingerprintDir(path.join(ROOT, 'plugins', 'dhpk', 'skills', name)), value);
+  const recorded = readJson(path.join(ROOT, 'plugins', 'dhpk', 'fingerprints.json'));
+  assert.strictEqual(gateFingerprintDir(path.join(ROOT, 'plugins', 'dhpk', 'skills', name), { algorithm: packageAlgorithm('dhpk') }), recorded[name]);
 });
 
 // ---------------------------------------------------------------------------
