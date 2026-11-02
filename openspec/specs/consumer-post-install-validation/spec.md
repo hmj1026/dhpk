@@ -439,3 +439,32 @@ unsupported native AGY obligations remain required and `BLOCKED`.
 
 - **WHEN** a requirements declaration makes native AGY execution required but no fixed native adapter is supported
 - **THEN** the requirement remains `BLOCKED`, no native call occurs, and installation evidence cannot satisfy it
+
+### Requirement: Consumer gate verifies receipt fingerprints by the recorded algorithm
+
+The consumer gate SHALL compare each receipt `destination_fingerprint` with a value computed by the recipe named in the receipt's `fingerprint_algorithm`: the legacy consumer-gate recipe when the field is absent, `tree-merkle-v1` when it names that value. It SHALL keep its approved-root symlink resolution and complete (bytecode-keeping) view as walk policy, and SHALL report a mismatch or an unknown algorithm as a failed fingerprint check naming the entry.
+
+#### Scenario: New receipt verifies
+
+- **WHEN** the gate inspects an installation whose receipt names `tree-merkle-v1` and whose destinations are unchanged
+- **THEN** every entry fingerprint matches and the result is PASS
+
+#### Scenario: Legacy receipt verifies during the transition
+
+- **WHEN** the gate inspects an installation written by the previous installer, with no `fingerprint_algorithm`
+- **THEN** every entry fingerprint matches under the legacy recipe and the result is PASS
+
+#### Scenario: Edited destination fails under either algorithm
+
+- **WHEN** a managed destination file is edited after install
+- **THEN** the gate reports a fingerprint mismatch for that entry
+
+#### Scenario: Unproven legacy entry in a new receipt uses its own recipe
+
+- **WHEN** a receipt names `tree-merkle-v1` but one entry carries `fingerprint_algorithm: legacy` and its destination is unchanged
+- **THEN** the gate verifies that entry with the legacy recipe and the others with `tree-merkle-v1`, and the result is PASS
+
+#### Scenario: Unknown algorithm fails
+
+- **WHEN** the receipt names an unrecognized algorithm
+- **THEN** the gate result is a failed fingerprint check naming the field and value

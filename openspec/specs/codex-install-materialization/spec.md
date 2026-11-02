@@ -193,3 +193,42 @@ The shared project-local installer SHALL resolve a managed entry beneath an alre
 
 - **WHEN** the host provides a descriptor-backed filesystem path that safely supports child traversal
 - **THEN** copy, symlink, update, adoption, backup, rollback, and uninstall flows retain their existing observable results and ownership protections, including copy-mode source-link dereferencing and ignored Python-bytecode filtering
+
+### Requirement: Install receipts record the fingerprint algorithm and upgrade safely
+
+The Codex installer SHALL write `fingerprint_algorithm: "tree-merkle-v1"` in every receipt and transaction journal it creates and SHALL compute every source and destination fingerprint with that recipe (an unproven legacy entry excepted, as below). When it reads a record without the field it SHALL prove ownership with the legacy recipe, and on the next update or migration it SHALL rewrite every entry of the receipt with the new recipe, except an entry not yet proven owned, which keeps an entry-level `fingerprint_algorithm: legacy` marker (ownership, removal and the consumer gate use that entry's recipe) until a later run proves it. A read-only plan or check SHALL NOT rewrite a receipt. A record naming an unknown algorithm SHALL block with a structured diagnostic and no mutation.
+
+#### Scenario: Unproven legacy entry keeps an entry-level marker
+
+- **WHEN** a legacy receipt entry cannot be proven owned during an upgrade that writes a `tree-merkle-v1` receipt
+- **THEN** that entry keeps its legacy value with entry-level `fingerprint_algorithm: legacy`, ownership and removal checks use the entry's recipe, and the next run that proves it rewrites the entry and drops the marker
+
+#### Scenario: Legacy receipt proves ownership then upgrades
+
+- **WHEN** an update runs against a receipt without `fingerprint_algorithm` whose managed destinations are unchanged
+- **THEN** no destination is reported as edited, and the written receipt carries `fingerprint_algorithm: "tree-merkle-v1"` with new-recipe values for every entry
+
+#### Scenario: A real edit is still detected
+
+- **WHEN** a managed destination was edited after a legacy receipt was written
+- **THEN** the update classifies it as a modified collision exactly as before the change
+
+#### Scenario: In-flight legacy journal recovers
+
+- **WHEN** a transaction journal written by the previous installer is recovered by the new installer
+- **THEN** recovery compares fingerprints with the legacy recipe and completes or rolls back without reporting a spurious mismatch
+
+#### Scenario: Unknown algorithm blocks
+
+- **WHEN** a receipt names an algorithm the installer does not know
+- **THEN** the installer exits with a blocked diagnostic naming the field and mutates nothing
+
+#### Scenario: Symlinked destination never matches
+
+- **WHEN** a destination under the managed root contains a symlink
+- **THEN** it is classified through the existing unsafe-path collision path and its fingerprint never equals a source fingerprint
+
+#### Scenario: Stale adoption request fails closed
+
+- **WHEN** `--adopt` carries fingerprints from a planning report made by the previous installer
+- **THEN** the installer reports that the fingerprint changed since planning and requires a fresh plan before any mutation
