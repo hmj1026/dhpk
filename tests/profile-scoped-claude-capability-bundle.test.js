@@ -14,6 +14,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const bundleApi = require('../scripts/lib/claude-capability-bundle');
 const inventoryApi = require('../scripts/lib/distribution-inventory');
+const claudeProjection = require('../scripts/lib/claude-projection-adapter');
 const contextBudget = require('../scripts/ci/context-budget');
 const { ProjectionArtifactStore } = require('../scripts/lib/projection-artifact-store');
 
@@ -222,7 +223,7 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
   assert.strictEqual(summary.status, 0, `${summary.stdout}\n${summary.stderr}`);
   assert.match(summary.stdout, /dhpk Claude publication surface/);
   assert.match(summary.stdout, /roots:\s+1/);
-  const compiled = inventoryApi.compileClaudeProjection({ inventory });
+  const compiled = claudeProjection.compileClaudeProjection({ inventory });
   assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
   assert.deepStrictEqual(compiled.generated.roots, ['./skills/']);
   for (const id of JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8')).profiles.common.skillIds) {

@@ -1,7 +1,7 @@
 ---
 name: docs-lookup
 description: "REQUIRED for any question about library, framework, SDK, or API usage or current documentation: answers inline and read-only from Context7 docs. Use for how-does-X-work or what-is-the-current-option questions. Not for reviewing documentation quality (doc-reviewer) or maintaining codemaps and guides (doc-updater)."
-tools: ["view_file", "grep_search", "mcp_context7_resolve_library_id", "mcp_context7_query_docs"]
+tools: ["view_file", "grep_search"]
 model: flash_lite
 ---
 

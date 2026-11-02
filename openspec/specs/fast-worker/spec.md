@@ -45,11 +45,11 @@ When the task spec is underspecified — missing target files, ambiguous change 
 
 ### Requirement: Default model sonnet, overridable per dispatch
 
-The `fast-worker` agent frontmatter SHALL declare `model: sonnet` as the shipped default. The orchestrator MAY override the model on any single dispatch via the Agent call `model` param, per the `orchestration-model-config` capability.
+The `fast-worker` agent frontmatter SHALL declare `model: sonnet` as the shipped default. The orchestrator MAY override the model on any single dispatch via the Agent call `model` param, resolved from the `worker_target` setting per the `orchestration-model-config` capability. The removed `fast_worker_model` key SHALL NOT drive dispatch.
 
 #### Scenario: Project pins worker to haiku
 
-- **WHEN** `fast_worker_model=haiku` is configured
+- **WHEN** `worker_target` is configured as `claude-code/haiku`
 - **THEN** dispatches pass `model: haiku` on the Agent call
 
 ### Requirement: Codex isolation invariant and registration

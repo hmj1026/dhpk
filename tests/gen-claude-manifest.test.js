@@ -78,7 +78,7 @@ test('omitting the implicit ./skills/ default passes --check without changing th
   const fs = require('node:fs');
   const path = require('node:path');
   const { test, assert } = require('./_lib/tinytest');
-  const { generateClaudeSkillRoots, verifyClaudeProjection } = require('../scripts/lib/distribution-inventory');
+  const { generateClaudeSkillRoots, verifyClaudeProjection } = require('../scripts/lib/claude-projection-adapter');
 
   const ROOT = path.join(__dirname, '..');
 

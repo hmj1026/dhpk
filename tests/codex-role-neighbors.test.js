@@ -18,7 +18,7 @@ const {
   collectCodexRoleNeighborErrors,
 } = require(path.join(ROOT, 'scripts', 'lib', 'codex-role-neighbors'));
 
-const CODEX_ONLY_ROLES = ['ui-verifier', 'docs-writer', 'scoped-worker'];
+const CODEX_ONLY_ROLES = ['ui-verifier', 'scoped-worker'];
 
 function tmpRoot(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-${prefix}-`));

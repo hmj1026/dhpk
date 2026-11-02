@@ -1,5 +1,5 @@
 name = "e2e-runner"
-description = "Authors, maintains, and runs critical Playwright user-journey tests and stabilizes flaky ones; use proactively when critical journey tests or stabilization are requested. manual page-vs-spec UI audit fallback audits one page against OpenSpec; smoke-tester is a read-only live probe; dhpk-feature-verify runs P0-P5 in the main context and is not dispatchable; tdd-guide owns PHPUnit, business-logic, and live-DB test-first work."
+description = "Authors, maintains, and runs critical Playwright user-journey tests and stabilizes flaky ones; use proactively when critical journey tests or stabilization are requested. manual page-vs-spec UI audit fallback audits one page against OpenSpec; a read-only live probe has no Codex role (probe directly); dhpk-feature-verify runs P0-P5 in the main context and is not dispatchable; tdd-guide owns PHPUnit, business-logic, and live-DB test-first work."
 model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 

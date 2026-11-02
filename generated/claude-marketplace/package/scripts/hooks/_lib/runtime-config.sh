@@ -224,24 +224,21 @@ _dhpk_codex_timeout_role() {
 # highest-precedence compatibility/test override; a present-but-empty value is
 # malformed and therefore fails closed.
 dhpk_codex_timeout_export() {
-    local _requested_role="${1:-${DHPK_CODEX_ROLE:-}}" _mode="${2:-}" _role="" _role_key="" _legacy_role_key="" _upper="" _legacy_upper=""
-    local _project_role="" _project_legacy_role="" _project_shared="" _global_role="" _global_legacy_role="" _global_shared=""
+    local _requested_role="${1:-${DHPK_CODEX_ROLE:-}}" _mode="${2:-}" _role="" _role_key="" _upper=""
+    local _project_role="" _project_shared="" _global_role="" _global_shared=""
     local _value="" _source="default" _normalized="" _outer_status=""
     if ! _role="$(_dhpk_codex_timeout_role "$_requested_role" "$_mode")"; then
         return 78
     fi
     case "$_role" in
-        codex-worker)        _role_key='codex_worker_timeout_secs'; _legacy_role_key='codex_fast_worker_timeout_secs' ;;
-        codex-reasoner)      _role_key='codex_reasoner_timeout_secs'; _legacy_role_key='codex_deep_reasoner_timeout_secs' ;;
-        codex-reviewer)      _role_key='codex_reviewer_timeout_secs'; _legacy_role_key='codex_bridge_timeout_secs' ;;
+        codex-worker)        _role_key='codex_worker_timeout_secs' ;;
+        codex-reasoner)      _role_key='codex_reasoner_timeout_secs' ;;
+        codex-reviewer)      _role_key='codex_reviewer_timeout_secs' ;;
     esac
     _upper="$(printf '%s' "$_role_key" | tr '[:lower:]' '[:upper:]')"
-    _legacy_upper="$(printf '%s' "$_legacy_role_key" | tr '[:lower:]' '[:upper:]')"
     _project_role="DHPK_PROJECT_OPTION_${_upper}"
-    _project_legacy_role="DHPK_PROJECT_OPTION_${_legacy_upper}"
     _project_shared='DHPK_PROJECT_OPTION_CODEX_TIMEOUT_SECS'
     _global_role="CLAUDE_PLUGIN_OPTION_${_upper}"
-    _global_legacy_role="CLAUDE_PLUGIN_OPTION_${_legacy_upper}"
     _global_shared='CLAUDE_PLUGIN_OPTION_CODEX_TIMEOUT_SECS'
 
     if _dhpk_var_present CODEX_WRAP_TIMEOUT_SECS; then
@@ -250,18 +247,12 @@ dhpk_codex_timeout_export() {
     elif _dhpk_var_present "$_project_role"; then
         _value="$(_dhpk_var_value "$_project_role")"
         _source="project:${_role_key}"
-    elif _dhpk_var_present "$_project_legacy_role"; then
-        _value="$(_dhpk_var_value "$_project_legacy_role")"
-        _source="project:${_legacy_role_key}"
     elif _dhpk_var_present "$_project_shared"; then
         _value="$(_dhpk_var_value "$_project_shared")"
         _source='project:codex_timeout_secs'
     elif _dhpk_var_present "$_global_role"; then
         _value="$(_dhpk_var_value "$_global_role")"
         _source="global:${_role_key}"
-    elif _dhpk_var_present "$_global_legacy_role"; then
-        _value="$(_dhpk_var_value "$_global_legacy_role")"
-        _source="global:${_legacy_role_key}"
     elif _dhpk_var_present "$_global_shared"; then
         _value="$(_dhpk_var_value "$_global_shared")"
         _source='global:codex_timeout_secs'

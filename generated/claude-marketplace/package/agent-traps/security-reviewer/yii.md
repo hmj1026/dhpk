@@ -1,6 +1,6 @@
 # security-reviewer — Yii 1.1 traps
 
-Yii 1.1 OWASP lanes for `security-reviewer`. Deeper Yii security patterns: `skills/dhpk-yii1-security-audit/references/yii1-security-patterns.md`. Headers / cookie flags / Strict-Transport-Security — see `modules/yii-1.1/references/security.md`.
+Yii 1.1 OWASP lanes for `security-reviewer`. Deeper Yii security patterns: `skills/yii1/references/yii1-security-patterns.md`. Headers / cookie flags / Strict-Transport-Security — see `modules/yii-1.1/references/security.md`.
 
 | Trigger | Action | Non-apply |
 | --- | --- | --- |

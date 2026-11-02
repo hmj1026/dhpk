@@ -235,7 +235,7 @@ see [retirement guidance](./skill-platform-migration.md#alias-free-retirement-le
 ## Claude userConfig metadata candidate and rollback
 
 `scripts/ci/gen-claude-user-config.js` generates compact descriptions from
-`manifests/claude-user-config-metadata.json`. It preserves all 59 characterized
+`manifests/claude-user-config-metadata.json`. It preserves all 74 characterized
 keys, types, defaults, validation-related fields, aliases, and module behavior;
 the only active-manifest field it changes is description text. Guidance remains
 in the canonical documentation and skills referenced by each compact pointer.
@@ -250,8 +250,9 @@ node scripts/ci/gen-claude-user-config.js --check
 ```
 
 Activation is explicit and gated by `DHPK_ENABLE_COMPACT_USER_CONFIG=1`; rollback
-uses `--rollback` and the characterized
-`manifests/claude-user-config-legacy.json` artifact. The `claude-user-config`
+uses `--rollback` and the 59-key rollback snapshot
+`manifests/claude-user-config-legacy.json` (version 0.43.0, predating the
+74-key metadata). The `claude-user-config`
 category is measured separately from skill discovery, profile bundles, agents,
 commands, and runtime activation. Byte/word/token reduction is structural
 metadata evidence only. If the exact configured Claude probe cannot bind the

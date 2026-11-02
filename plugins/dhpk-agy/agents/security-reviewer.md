@@ -1,7 +1,7 @@
 ---
 name: security-reviewer
 description: "Read-only security review of a supplied diff after edits, covering input handling, authentication, authorization, uploads, money flows, mobile privacy, and cryptography. code-reviewer covers general quality; silent-failure-hunter covers swallowed outcomes; the change-verdict skill handles an explicit OWASP audit. Findings require a concrete attack path."
-tools: ["view_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact"]
+tools: ["view_file", "grep_search", "list_dir", "run_command"]
 model: pro
 ---
 

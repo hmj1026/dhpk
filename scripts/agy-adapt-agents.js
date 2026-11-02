@@ -314,11 +314,22 @@ function adaptModel(value, filePath) {
   return mapped;
 }
 
-function adaptToolNames(tools, filePath) {
+function mcpServerOf(toolName) {
+  const match = toolName.match(/^mcp__(.+?)__/);
+  return match ? match[1] : null;
+}
+
+function adaptToolNames(tools, filePath, options = {}) {
   const adaptedTools = [];
+  const droppedTools = [];
   const seen = new Set();
+  const servers = new Set(options.mcpServers || []);
 
   for (const sourceTool of tools) {
+    if (sourceTool.startsWith('mcp__') && !servers.has(mcpServerOf(sourceTool))) {
+      droppedTools.push({ tool: sourceTool, path: filePath || null });
+      continue;
+    }
     const tool = adaptToolName(sourceTool);
     const isMcpTool = tool.startsWith('mcp_');
     if (!SUPPORTED_AGY_TOOLS.has(tool) && !isMcpTool) {
@@ -330,18 +341,19 @@ function adaptToolNames(tools, filePath) {
     adaptedTools.push(tool);
   }
 
-  return adaptedTools;
+  return options.withDropped ? { tools: adaptedTools, droppedTools } : adaptedTools;
 }
 
 function adaptFrontmatter(text, options = {}) {
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/);
   if (!match) {
-    return { text, changed: false, droppedFields: [], warnings: [] };
+    return { text, changed: false, droppedFields: [], droppedTools: [], warnings: [] };
   }
 
   let changed = false;
   const updatedLines = [];
   const droppedFields = [];
+  const droppedTools = [];
   const warnings = [];
   let sawTools = false;
   let sawModel = false;
@@ -362,7 +374,12 @@ function adaptFrontmatter(text, options = {}) {
 
     if (parsed.key === 'tools') {
       const tools = parseToolList(line);
-      const updatedLine = formatToolLine(adaptToolNames(tools, options.filePath));
+      const adaptedTools = adaptToolNames(tools, options.filePath, { mcpServers: options.mcpServers, withDropped: true });
+      for (const dropped of adaptedTools.droppedTools) {
+        droppedTools.push(dropped);
+        warnings.push(`dropped MCP tool without a packaged server: ${dropped.tool}`);
+      }
+      const updatedLine = formatToolLine(adaptedTools.tools);
       sawTools = true;
       if (updatedLine !== line) changed = true;
       updatedLines.push(updatedLine);
@@ -390,18 +407,19 @@ function adaptFrontmatter(text, options = {}) {
   }
 
   if (!changed) {
-    return { text, changed: false, droppedFields: [], warnings: [] };
+    return { text, changed: false, droppedFields: [], droppedTools: [], warnings: [] };
   }
 
   return {
     text: `---\n${updatedLines.join('\n')}\n---${match[2]}${text.slice(match[0].length)}`,
     changed: true,
     droppedFields: [...new Set(droppedFields)],
+    droppedTools,
     warnings,
   };
 }
 
-function adaptAgents(dirPath) {
+function adaptAgents(dirPath, options = {}) {
   const agentsDir = path.resolve(dirPath);
   const packageRoot = path.dirname(agentsDir);
   const validatedAgentsDir = resolveStagingAgentsDir(packageRoot);
@@ -409,6 +427,7 @@ function adaptAgents(dirPath) {
 
   let updated = 0;
   let unchanged = 0;
+  const droppedTools = [];
 
   for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.endsWith('.md')) {
@@ -417,7 +436,8 @@ function adaptAgents(dirPath) {
 
     const filePath = path.join(agentsDir, entry.name);
     const original = fs.readFileSync(filePath, 'utf8');
-    const adapted = adaptFrontmatter(original, { filePath });
+    const adapted = adaptFrontmatter(original, { filePath, mcpServers: options.mcpServers });
+    droppedTools.push(...adapted.droppedTools);
 
     if (adapted.changed) {
       fs.writeFileSync(filePath, adapted.text);
@@ -429,7 +449,7 @@ function adaptAgents(dirPath) {
 
   if (updated > 0) refreshStagingReceipt(packageRoot);
 
-  return { updated, unchanged };
+  return { updated, unchanged, droppedTools };
 }
 
 function main() {

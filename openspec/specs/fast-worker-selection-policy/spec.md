@@ -12,8 +12,14 @@ The orchestration layer SHALL resolve a mechanical `worker` through a
 Provider-neutral target request containing optional Provider, Model, and Effort
 constraints. Automatic resolution SHALL use the current Host profile and
 Capability Matrix, with the Host Native Provider as the default preference and
-fallback. Explicit legacy `fast_worker_backend` values MAY be translated at
-the compatibility edge. The selected Provider, Model, Effort, Transport, Role,
+fallback. The selector command-line interface SHALL detect the current Host,
+load that Host's profile, and obtain every selected Target Agent, Model, Effort,
+and Invocation Route from the Dispatch Engine; it SHALL NOT keep a separate
+backend-to-subagent selection path. Executable presence for `codex` or `agy`
+SHALL be supplied to the engine as capability evidence and SHALL NOT itself
+select a target. When the current Host cannot be detected unambiguously, the
+selector SHALL report `BLOCKED` with the signals it checked and SHALL NOT
+default to Claude Code. The selected Provider, Model, Effort, Transport, Role,
 and fallback decision SHALL be recorded separately.
 
 #### Scenario: Host-native default
@@ -21,6 +27,13 @@ and fallback decision SHALL be recorded separately.
 - **WHEN** no target preference is configured
 - **THEN** a mechanical batch resolves to the current Host's Native Provider,
   not to a globally hard-coded Claude target
+
+#### Scenario: Selector CLI honors the Codex CLI Host default
+
+- **WHEN** the selector CLI runs on a detected `codex-cli` Host with no target
+  argument
+- **THEN** it reports the `codex-cli` profile's `worker` Role Default, and its
+  output records `resolution_source` `dispatch-engine`
 
 #### Scenario: Explicit Claude Code target from Cursor
 
@@ -33,6 +46,27 @@ and fallback decision SHALL be recorded separately.
 - **WHEN** a Host explicitly requests Codex CLI Model `sol5.6`
 - **THEN** the batch uses Provider `codex-cli`, Role `worker`, and its selected
   Effort/Transport without becoming `codex-worker`
+
+#### Scenario: Missing executable is evidence, not a rule
+
+- **WHEN** an explicit `codex-cli` target is requested and `codex` is not on
+  `PATH`
+- **THEN** the engine reports the target `UNAVAILABLE` with that evidence and
+  no other Target Agent is selected unless fallback was explicitly permitted
+
+#### Scenario: Undetectable Host
+
+- **WHEN** no Host signal matches, or signals for two Hosts match at once, and
+  no explicit Host override is set
+- **THEN** the selector exits non-zero with status `BLOCKED` naming the signals
+  checked, and selects no target
+
+#### Scenario: Legacy backend flag is rejected
+
+- **WHEN** the selector receives `--backend`, `--order`, `--fallback`,
+  `--failure`, or `--cross-provider`
+- **THEN** it reports `BLOCKED` naming the removed argument and its
+  replacement, and does not translate the value
 
 ### Requirement: Auto selection checks availability before dispatch
 
@@ -147,36 +181,43 @@ Only `Mechanical: yes` tasks are fast-worker candidates. The scanner SHALL norma
 
 ### Requirement: Legacy backend override is compatibility-only at the dispatch edge
 
-The compatibility edge SHALL require an explicit compatibility-window decision
-before `/dhpk:do` and `dhpk:opsx-apply-goal` MAY accept the legacy
-`--worker=<claude|codex|agy|auto>` input during the compatibility window, parsed
-and stripped before route matching. The compatibility edge SHALL translate it
-to a Provider/Model/Effort target constraint for the Provider-neutral Dispatch
-Engine; it SHALL not select a Provider-bound Role or define a Host-independent
-default. The legacy `fast_worker_backend` userConfig key remains observable at
-that edge, with flag > alias precedence, and invalid values SHALL warn and fall
-back to canonical Host-aware resolution rather than failing the route. The
-preserved invocation context SHALL be named `WORKER_OVERRIDE`.
+The compatibility edge SHALL accept the `--worker=<claude|codex|agy|auto>`
+input for `/dhpk:do` and `dhpk:opsx-apply-goal`, parsed and stripped before
+route matching. The edge SHALL translate it to an explicit
+`<target-agent>/<model>[:<effort>]` target for the selector (`claude` to
+`claude-code`, `codex` to `codex-cli`, `agy`; `auto` to the current Host's Role
+Default) and SHALL NOT select a Provider-bound Role or define a Host-independent
+default. The removed `fast_worker_backend` userConfig key SHALL NOT be read; its
+presence is reported by the dispatch configuration diagnostic. Invalid flag
+values SHALL warn and fall back to canonical Host-aware resolution rather than
+failing the route. The preserved invocation context SHALL be named
+`WORKER_OVERRIDE`.
 
 #### Scenario: Flag overrides userConfig for one session
 
-- **WHEN** the compatibility alias sets `fast_worker_backend=claude` and the user invokes `/dhpk:do --worker=agy ...`
-- **THEN** this invocation records an AGY target constraint subject to Host policy and availability, while later sessions without the flag use canonical Host-native resolution
+- **WHEN** a canonical `worker_target` is configured and the user invokes
+  `/dhpk:do --worker=agy ...`
+- **THEN** this invocation records an AGY target constraint subject to Host
+  policy and availability, while later sessions without the flag use the
+  canonical configured or Host-aware resolution
 
 #### Scenario: Goal generator embeds the override
 
 - **WHEN** `dhpk:opsx-apply-goal` runs with `--worker=codex`
-- **THEN** the emitted goal string carries the resolved compatibility target constraint so the unattended session invokes the Provider-neutral Dispatch Engine without reading userConfig
+- **THEN** the emitted goal string carries the resolved explicit target so the
+  unattended session invokes the selector without reading userConfig
 
 #### Scenario: Invalid flag value
 
 - **WHEN** the flag value is not one of `claude|codex|agy|auto`
-- **THEN** a one-line warning is printed and resolution falls back to canonical Host-aware configuration; the route proceeds
+- **THEN** a one-line warning is printed and resolution falls back to canonical
+  Host-aware configuration; the route proceeds
 
 #### Scenario: Legacy spelling flows through as task text
 
 - **WHEN** an invocation contains `--fast-worker=codex`
-- **THEN** it is not parsed as a backend override and no deprecation shim intervenes
+- **THEN** it is not parsed as a backend override and no deprecation shim
+  intervenes
 
 ### Requirement: Provider-neutral workers preserve assigned-file boundaries in a shared checkout
 

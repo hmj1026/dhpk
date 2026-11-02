@@ -1,7 +1,7 @@
 ---
 name: execution-policy-kernel
-description: "Execution Policy Kernel"
-alwaysApply: false
+description: "Always-visible execution policy kernel"
+alwaysApply: true
 ---
 # Execution Policy Kernel
 

@@ -1,8 +1,9 @@
 'use strict';
 
 // Coverage for scripts/gen-codex-agents.js — generates Codex CLI role .toml
-// files from the explicit Codex role descriptors. Legacy role sources live
-// under agents/; Codex-only sources live under codex/agent-sources/. Output
+// files from the explicit Codex role descriptors. Shared role sources live
+// under agents/ (including docs-writer and qa-executor); Codex-only sources
+// live under codex/agent-sources/. Output
 // is always redirected to a temp dir so the checked-in projection is untouched.
 
 const path = require('node:path');
@@ -26,12 +27,14 @@ const EXPECTED_AGENTS = [
   'frontend-reviewer',
   'migration-reviewer',
   'e2e-runner',
-  'ui-verifier',
+  'qa-executor',
   'docs-writer',
+  'ui-verifier',
   'scoped-worker',
 ];
 
-const CODEX_ONLY_AGENTS = ['ui-verifier', 'docs-writer', 'scoped-worker'];
+const CODEX_ONLY_AGENTS = ['ui-verifier', 'scoped-worker'];
+const SHARED_SOURCE_AGENTS = ['qa-executor', 'docs-writer'];
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-codex-agents-'));
@@ -118,6 +121,24 @@ test('too many positional args throws and exits 1', () => {
   assert.ok(res.stderr.includes('at most one output directory'), res.stderr);
 });
 
+test('generated description naming a non-package dhpk role in plain text fails generation', () => {
+  const root = cloneGeneratorFixture('gen-codex-plain-neighbor-red');
+  try {
+    const file = path.join(root, 'agents', 'docs-writer.md');
+    const text = fs.readFileSync(file, 'utf8');
+    fs.writeFileSync(file, text.replace(/^description: "/m, 'description: "Probe via (smoke-tester) first. '));
+    const outDir = path.join(root, 'out');
+    const result = runFixtureScript(root, [outDir]);
+    const output = diagnostic(result);
+    assert.notStrictEqual(result.status, 0, output);
+    assert.match(output, /docs-writer/);
+    assert.match(output, /smoke-tester/);
+    assert.strictEqual(fs.existsSync(path.join(outDir, 'docs-writer.toml')), false, output);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('generated source rejects a known non-direct neighbor before writing its TOML', () => {
   const root = cloneGeneratorFixture('gen-codex-known-neighbor-red');
   try {
@@ -176,13 +197,13 @@ test('generated source keeps unknown prose and fenced-code mentions out of the e
   }
 });
 
-test('generates the explicit 14-role Codex projection without packaging authoring sources', () => {
+test('generates the explicit 15-role Codex projection without packaging authoring sources', () => {
   const root = cloneGeneratorFixture('gen-codex-projection');
   try {
     const outDir = path.join(root, 'out');
     const res = runFixtureScript(root, [outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(res.stdout.includes('Generated 14 Codex role file(s).'), res.stdout);
+    assert.ok(res.stdout.includes('Generated 15 Codex role file(s).'), res.stdout);
 
     const files = fs.readdirSync(outDir).sort();
     assert.deepStrictEqual(files, EXPECTED_AGENTS.map((n) => `${n}.toml`).sort());
@@ -203,6 +224,19 @@ test('generates the explicit 14-role Codex projection without packaging authorin
       assert.ok(body.includes(`Canonical fixture instructions for ${name}.`), name);
       assert.strictEqual(fs.existsSync(path.join(root, 'agents', `${name}.md`)), false, `${name} must remain Codex-only`);
     }
+    for (const name of SHARED_SOURCE_AGENTS) {
+      assert.ok(fs.existsSync(path.join(root, 'agents', `${name}.md`)), `${name} must read its shared agents/ source`);
+      assert.strictEqual(fs.existsSync(path.join(root, 'codex', 'agent-sources', `${name}.md`)), false, `${name} must not keep a Codex-only source`);
+      assert.ok(fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8').includes(`name = "${name}"`), name);
+    }
+    const qaExecutor = fs.readFileSync(path.join(outDir, 'qa-executor.toml'), 'utf8');
+    assert.ok(qaExecutor.includes('model = "gpt-6-luna"'), qaExecutor);
+    assert.ok(qaExecutor.includes('model_reasoning_effort = "medium"'), qaExecutor);
+    assert.match(qaExecutor, /host-supported skill-loading mechanism/);
+    assert.doesNotMatch(qaExecutor, /with the Skill tool/);
+    // Claude-only neighbors must not survive into the Codex discovery description.
+    assert.doesNotMatch(qaExecutor, /ui-ux-verifier|smoke-tester/);
+    assert.match(qaExecutor, /\(ui-verifier\)/);
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
     assert.doesNotMatch(e2eRunner, /^sandbox_mode\s*=/m);
     assert.match(e2eRunner, /Verdict: BLOCKED/);
@@ -466,6 +500,14 @@ test('generated E2E runner keeps its journey artifact contract without a review 
     const result = runFixtureScript(root, [outDir]);
     assert.strictEqual(result.status, 0, diagnostic(result));
 
+    for (const name of SHARED_SOURCE_AGENTS) {
+      assert.ok(fs.existsSync(path.join(root, 'agents', `${name}.md`)), `${name} must read its shared agents/ source`);
+      assert.strictEqual(fs.existsSync(path.join(root, 'codex', 'agent-sources', `${name}.md`)), false, `${name} must not keep a Codex-only source`);
+      assert.ok(fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8').includes(`name = "${name}"`), name);
+    }
+    const qaExecutor = fs.readFileSync(path.join(outDir, 'qa-executor.toml'), 'utf8');
+    assert.ok(qaExecutor.includes('model = "gpt-6-luna"'), qaExecutor);
+    assert.ok(qaExecutor.includes('model_reasoning_effort = "medium"'), qaExecutor);
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
     assert.match(e2eRunner, /artifact_paths:/);
     assert.doesNotMatch(e2eRunner, /Write the final review under `\.codex\/artifacts\/reviews\//);
@@ -484,6 +526,14 @@ test('E2E verdict projection is idempotent when BLOCKED is already present', () 
     const result = runFixtureScript(root, [outDir]);
     assert.strictEqual(result.status, 0, diagnostic(result));
 
+    for (const name of SHARED_SOURCE_AGENTS) {
+      assert.ok(fs.existsSync(path.join(root, 'agents', `${name}.md`)), `${name} must read its shared agents/ source`);
+      assert.strictEqual(fs.existsSync(path.join(root, 'codex', 'agent-sources', `${name}.md`)), false, `${name} must not keep a Codex-only source`);
+      assert.ok(fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8').includes(`name = "${name}"`), name);
+    }
+    const qaExecutor = fs.readFileSync(path.join(outDir, 'qa-executor.toml'), 'utf8');
+    assert.ok(qaExecutor.includes('model = "gpt-6-luna"'), qaExecutor);
+    assert.ok(qaExecutor.includes('model_reasoning_effort = "medium"'), qaExecutor);
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
     assert.match(e2eRunner, /Verdict: PASS \| WARNING \| FAIL \| BLOCKED/);
     assert.doesNotMatch(e2eRunner, /Verdict: PASS \| WARNING \| FAIL \| BLOCKED(?: \| BLOCKED)+/);

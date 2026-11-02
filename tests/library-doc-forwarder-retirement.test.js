@@ -24,12 +24,10 @@ function dispatchInput({ requested_role, mode, execution_provider }) {
     requested_role,
     mode,
     config: {
-      codex_worker_model: 'canonical-codex-model',
+      worker_target: execution_provider === 'agy' ? 'agy/canonical-agy-model' : 'codex-cli/canonical-codex-model',
       codex_worker_timeout_secs: 90,
-      codex_reasoner_model: 'canonical-reasoner-model',
-      codex_reasoner_effort: 'high',
+      reasoner_target: 'codex-cli/canonical-reasoner-model:high',
       codex_reasoner_timeout_secs: 90,
-      agy_worker_model: 'canonical-agy-model',
       agy_worker_timeout_secs: 90,
     },
     workdir: '/trusted/workspace',
@@ -116,11 +114,10 @@ for (const role of RETIRED_ROLES) {
 
 for (const role of RETIRED_ROLES.filter((candidate) => candidate.name !== 'codex-deep-reasoner')) {
   test(`fast-worker selection blocks ${role.name} instead of silently selecting Claude`, () => {
-    const result = selector.select({ backend: role.name }, {
-      availability: () => ({ available: true, reason: 'available fixture' }),
-    });
+    // Retired names are blocked before, and independent of, Host detection.
+    const result = selector.select({ backend: role.name });
 
-    assert.strictEqual(result.status, 'blocked', `${role.name} must not become a successful worker selection`);
+    assert.strictEqual(result.status, 'BLOCKED', `${role.name} must not become a successful worker selection`);
     assert.strictEqual(result.requested_backend, role.name);
     assert.match(result.reason, new RegExp(role.successor));
     assert.match(result.reason, /0\.66\.1/);
@@ -179,8 +176,9 @@ test('canonical prompt-composition surfaces load Shared with the provider sectio
 test('retired deep-reasoner model and effort keys are absent from plugin configuration', () => {
   const keys = Object.keys(pluginManifest.userConfig);
 
-  assert.ok(keys.includes('codex_reasoner_model'));
-  assert.ok(keys.includes('codex_reasoner_effort'));
+  assert.ok(keys.includes('reasoner_target'));
+  assert.ok(!keys.includes('codex_reasoner_model'));
+  assert.ok(!keys.includes('codex_reasoner_effort'));
   assert.ok(!keys.includes('codex_deep_reasoner_model'));
   assert.ok(!keys.includes('codex_deep_reasoner_effort'));
 });
@@ -234,14 +232,22 @@ test('Codex role generator rejects retired forwarder references before publishin
   }
 });
 
-test('retired configuration fails closed before context publication', () => {
-  const writes = [];
+test('removed configuration keys are BLOCKED when a context is built and the canonical config alone is READY', () => {
   const input = dispatchInput({ requested_role: 'codex-reasoner', mode: 'read-only', execution_provider: 'codex' });
-  const result = buildContext({ ...input, config: { ...input.config, codex_deep_reasoner_model: 'old-model' } },
-    { writeFile: (...args) => writes.push(args) });
+  const clean = buildContext(input, { writeFile: () => {} });
+  assert.strictEqual(clean.status, 'READY');
+  assert.strictEqual(clean.context.requested_model, 'canonical-reasoner-model');
+  assert.strictEqual(clean.context.requested_effort, 'high');
+
+  const writes = [];
+  const result = buildContext({ ...input, config: {
+    ...input.config, codex_deep_reasoner_model: 'old-model', codex_deep_reasoner_effort: 'low',
+  } }, { writeFile: (...args) => writes.push(args) });
   assert.strictEqual(result.status, 'BLOCKED');
-  assert.match(result.reason, /codex_reasoner_model/);
-  assert.deepStrictEqual(writes, []);
+  assert.match(result.reason, /codex_deep_reasoner_model/);
+  assert.match(result.reason, /codex_deep_reasoner_effort/);
+  assert.match(result.reason, /reasoner_target/);
+  assert.strictEqual(writes.length, 0);
 });
 
 test('shared catalog and legacy request interfaces reject retired roles', () => {

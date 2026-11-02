@@ -19,8 +19,8 @@ const legacyManifest = JSON.parse(fs.readFileSync(LEGACY_MANIFEST_PATH, 'utf8'))
 const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PATH, 'utf8'));
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
 
-const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 74;
-const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '9a51435373066f13ae6d338d662382e1d30ff05f07f8f461e0b3100a9d05e492';
+const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 50;
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = 'bd6638b952f6aa736d3f6d874daf49a8136c51a79b14a6db46b81ee5f9400ff6';
 const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
   'cross_provider',
   'worker_target',
@@ -29,16 +29,9 @@ const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
   'reviewer_target',
   'preference_order',
   'fallback_allow',
-  'codex_worker_model',
-  'codex_worker_effort',
-  'codex_reasoner_model',
-  'codex_reasoner_effort',
   'codex_worker_timeout_secs',
   'codex_reasoner_timeout_secs',
-  'codex_reviewer_model',
-  'codex_reviewer_effort',
   'codex_reviewer_timeout_secs',
-  'agy_worker_model',
 ];
 
 let metadataApi = null;
@@ -132,7 +125,7 @@ test('legacy userConfig fixture contains exactly 59 options and preserves the le
   }
 });
 
-test('active userConfig preserves the canonical 74-key contract and metadata coverage', () => {
+test('active userConfig preserves the canonical 50-key contract and metadata coverage', () => {
   const activeEntries = contractEntries(activeManifest);
   const legacyKeys = Object.keys(legacyManifest.userConfig || {});
   const activeKeys = Object.keys(activeManifest.userConfig || {});
@@ -140,9 +133,6 @@ test('active userConfig preserves the canonical 74-key contract and metadata cov
 
   assert.strictEqual(activeEntries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);
   assert.strictEqual(digest(activeEntries), EXPECTED_ACTIVE_USER_CONFIG_SHA256);
-  for (const key of ['codex_reasoner_model', 'codex_reviewer_model']) {
-    assert.strictEqual(activeManifest.userConfig[key].default, 'gpt-6.1-sol', key);
-  }
   assert.deepStrictEqual(canonicalOnlyKeys, EXPECTED_CANONICAL_ROLE_CONFIG_KEYS);
   assert.ok(EXPECTED_CANONICAL_ROLE_CONFIG_KEYS.every((key) => !legacyKeys.includes(key)));
   assert.strictEqual(canonicalMetadataDocument.entries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);
@@ -172,9 +162,13 @@ test('active userConfig exposes cross_provider as a disabled-by-default opt-in',
   assert.match(option.description, /auto|external|provider/i);
 });
 
-test('active userConfig ships Gemini 3.8 Flash High for both AGY model keys', () => {
-  assert.strictEqual(activeManifest.userConfig.agy_worker_model.default, 'Gemini 3.8 Flash (High)');
-  assert.strictEqual(activeManifest.userConfig.agy_fast_worker_model.default, 'Gemini 3.8 Flash (High)');
+test('active userConfig and metadata offer no removed dispatch key', () => {
+  const { REMOVED_KEYS } = require('../scripts/lib/dispatch-config');
+  const offered = new Set([...Object.keys(activeManifest.userConfig), ...canonicalMetadataDocument.entries.map((entry) => entry.key)]);
+  assert.deepStrictEqual(Object.keys(REMOVED_KEYS).filter((key) => offered.has(key)), []);
+  for (const replacement of new Set(Object.values(REMOVED_KEYS))) {
+    assert.ok(activeManifest.userConfig[replacement], `${replacement} must remain offered`);
+  }
 });
 
 test('compact metadata source validates purpose, trigger, boundary, pointer, and schema compatibility', () => {

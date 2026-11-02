@@ -75,7 +75,7 @@ callable `/dhpk:do`.
 
 ## Agent roles
 
-`codex/agents/` ships 15 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 11 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`). See `guidance.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
+`codex/agents/` ships 19 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 15 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`, `qa-executor`, `ui-verifier`, `docs-writer`, `scoped-worker`). See `guidance.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
 
 Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` for Codex's documented project-local discovery path. Agent definitions use TOML only; the plugin's `validate_codex` gate enforces the static metadata contract.
 
@@ -87,7 +87,7 @@ observed failure. An exact-ID `unknown agent_type` is a registry failure, not
 evidence to rename the role or replace its GPT-6 family model; see
 [`guidance.md`](guidance.md#role-discovery).
 
-The 11 generated roles come from `scripts/gen-codex-agents.js`, run as:
+The 15 generated roles come from `scripts/gen-codex-agents.js`, run as:
 
 ```bash
 node scripts/gen-codex-agents.js

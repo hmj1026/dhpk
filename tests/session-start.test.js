@@ -89,7 +89,7 @@ test('explicit canonical dispatch targets are reported without runtime probing',
   }
 });
 
-test('legacy model settings use the same report trigger as the config CLI', () => {
+test('removed model settings print a blocked token on the dispatch config line', () => {
   const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ss-legacy-')));
   spawnSync('git', ['init', '-q'], { cwd: scratch });
   const globalSettings = path.join(scratch, 'missing-global-settings.json');
@@ -111,7 +111,7 @@ test('legacy model settings use the same report trigger as the config CLI', () =
     const envLines = envOnly.stdout.split(/\r?\n/).filter((line) => line.startsWith(prefix));
     assert.strictEqual(envLines.length, 1, envOnly.stdout);
     assert.ok(envLines[0].length <= 300, `line is ${envLines[0].length} chars`);
-    assert.ok(envLines[0].includes('legacy=environment.fast_worker_model'), envLines[0]);
+    assert.ok(envLines[0].includes('blocked=environment.fast_worker_model->worker_target'), envLines[0]);
 
     fs.mkdirSync(path.join(scratch, '.claude'), { recursive: true });
     fs.writeFileSync(path.join(scratch, '.claude', 'settings.local.json'), `${JSON.stringify({
@@ -132,7 +132,7 @@ test('legacy model settings use the same report trigger as the config CLI', () =
     const projectLines = projectOnly.stdout.split(/\r?\n/).filter((line) => line.startsWith(prefix));
     assert.strictEqual(projectLines.length, 1, projectOnly.stdout);
     assert.ok(projectLines[0].length <= 300, `line is ${projectLines[0].length} chars`);
-    assert.ok(projectLines[0].includes('legacy=project.fast_worker_model'), projectLines[0]);
+    assert.ok(projectLines[0].includes('blocked=project.fast_worker_model->worker_target'), projectLines[0]);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

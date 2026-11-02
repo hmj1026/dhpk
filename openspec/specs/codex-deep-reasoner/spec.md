@@ -28,12 +28,17 @@ the Codex deep-reasoning agent.
 
 ### Requirement: codex-deep-reasoner userConfig keys
 
-`.claude-plugin/plugin.json` SHALL declare `codex_reasoner_model` (default `gpt-6.1-sol`) and `codex_reasoner_effort` (default `high`), following the existing configured-role mechanism: validated and announced-when-non-default by `session-start.sh`, applied per dispatch, invalid values warn once per session and fall back to defaults without failing the dispatch. One-release aliases `codex_deep_reasoner_model` and `codex_deep_reasoner_effort` SHALL be retired with the forwarder; a remaining alias key SHALL fail closed or warn with successor guidance rather than silently drive dispatch. REQ-7.
+Codex reasoner model and effort SHALL be carried by the canonical `reasoner_target` setting (`codex-cli/<model>[:<effort>]`), resolved by the Dispatch Engine; the plugin SHALL NOT declare separate `codex_reasoner_model` or `codex_reasoner_effort` keys. The removed keys `codex_reasoner_model`, `codex_reasoner_effort`, `codex_deep_reasoner_model`, and `codex_deep_reasoner_effort` SHALL produce a `BLOCKED` diagnostic naming `reasoner_target` and SHALL NOT silently drive dispatch. A `reasoner_target` naming a different Target Agent SHALL NOT be applied to a `codex-reasoner` dispatch. REQ-7.
 
 #### Scenario: userConfig override applies
 
-- **WHEN** `codex_reasoner_effort=medium` is configured and no flag segment overrides it
-- **THEN** the canonical key supplies effort `medium` for `codex-reasoner` dispatches and session start announces the non-default value once
+- **WHEN** `reasoner_target` is `codex-cli/gpt-6.1-sol:medium` and no flag segment overrides it
+- **THEN** effort `medium` applies to `codex-reasoner` dispatches
+
+#### Scenario: Removed key is diagnosed
+
+- **WHEN** `codex_reasoner_effort=medium` is found in project, global, or environment config
+- **THEN** a `BLOCKED` diagnostic names `reasoner_target` and the value is not applied
 
 ### Requirement: Agent inventory and registration stay current
 

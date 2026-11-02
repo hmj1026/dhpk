@@ -810,8 +810,8 @@ malformed, or ambiguous legacy paths remain reported conflicts. Use
 `--uninstall` to remove unchanged receipt-owned entries without deleting
 unrelated project assets.
 The Codex tree is an explicitly curated subset of the canonical Claude
-packages, not a second complete inventory. `codex/agents/` ships 15 direct
-roles: four hand-maintained generic roles and 11 generated from canonical
+packages, not a second complete inventory. `codex/agents/` ships 19 direct
+roles: four hand-maintained generic roles and 15 generated from canonical
 Claude agents via `scripts/gen-codex-agents.js`. See `codex/guidance.md` and
 `codex/README.md` for the dual-harness model.
 

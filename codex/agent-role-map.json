@@ -32,6 +32,7 @@
     "planner": { "status": "direct", "target": "planner" },
     "polyfill-reviewer": { "status": "capability-gated", "target": "capability:module-library-author" },
     "python-build-resolver": { "status": "skill/manual-fallback", "target": "capability:language-build" },
+    "qa-executor": { "status": "direct", "target": "qa-executor" },
     "refactor-cleaner": { "status": "merged", "target": "worker" },
     "rust-build-resolver": { "status": "skill/manual-fallback", "target": "capability:language-build" },
     "scoped-worker": { "status": "direct", "target": "scoped-worker" },

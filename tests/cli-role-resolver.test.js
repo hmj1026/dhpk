@@ -109,25 +109,78 @@ test('canonical provider roles expose canonical Role and Provider metadata', () 
   assert.strictEqual(result.compatibility_source, 'legacy-provider-role');
 });
 
-test('canonical config wins over a legacy key and only declared aliases are considered', () => {
+test('resolveConfig returns the dispatch-config reader value and source for every CLI Role Agent', () => {
+  const { resolveRoleConfig } = require('../scripts/lib/dispatch-config');
   const config = {
-    codex_worker_model: 'canonical-model',
-    codex_fast_worker_model: 'legacy-model',
-    codex_worker_effort: 'high',
-    codex_fast_worker_effort: 'low',
+    worker_target: 'codex-cli/gpt-6-luna:xhigh',
+    reasoner_target: 'codex-cli/gpt-6.1-sol:high',
+    reviewer_target: 'codex-cli/gpt-6.1-sol:medium',
     codex_worker_timeout_secs: '90',
-    codex_fast_worker_timeout_secs: '30',
+    codex_reasoner_timeout_secs: '120',
+    codex_reviewer_timeout_secs: '60',
   };
-  const resolved = resolveConfig({ effectiveRole: 'codex-worker', config });
-  assert.deepStrictEqual(resolved, {
-    model: { value: 'canonical-model', source: 'codex_worker_model' },
-    effort: { value: 'high', source: 'codex_worker_effort' },
+  for (const role of ['codex-worker', 'codex-reasoner', 'codex-reviewer', 'agy-worker']) {
+    assert.deepStrictEqual(resolveConfig({ effectiveRole: role, config }), resolveRoleConfig({ role, config }), role);
+  }
+  assert.deepStrictEqual(resolveConfig({ effectiveRole: 'codex-worker', config }), {
+    model: { value: 'gpt-6-luna', source: 'worker_target' },
+    effort: { value: 'xhigh', source: 'worker_target' },
     timeout_secs: { value: '90', source: 'codex_worker_timeout_secs' },
   });
-  const fallback = resolveConfig({ effectiveRole: 'codex-worker', config: { codex_fast_worker_model: 'legacy-only' } });
-  assert.deepStrictEqual(fallback.model, { value: 'legacy-only', source: 'codex_fast_worker_model' });
-  assert.deepStrictEqual(fallback.effort, { value: undefined, source: undefined });
-  assert.deepStrictEqual(fallback.timeout_secs, { value: undefined, source: undefined });
+});
+
+test('resolveConfig reads no removed legacy key', () => {
+  const removed = {
+    codex_worker_model: 'removed-model',
+    codex_fast_worker_model: 'removed-model',
+    codex_worker_effort: 'high',
+    codex_fast_worker_effort: 'low',
+    codex_fast_worker_timeout_secs: '30',
+    codex_deep_reasoner_timeout_secs: '30',
+    codex_bridge_timeout_secs: '30',
+    agy_fast_worker_model: 'removed-model',
+  };
+  const none = { value: undefined, source: undefined };
+  for (const role of ['codex-worker', 'codex-reasoner', 'codex-reviewer', 'agy-worker']) {
+    assert.deepStrictEqual(resolveConfig({ effectiveRole: role, config: removed }),
+      { model: none, effort: none, timeout_secs: none }, role);
+  }
+});
+
+test('a Target Agent mismatch in the canonical target is not applied to a CLI Role Agent', () => {
+  const resolved = resolveConfig({ effectiveRole: 'agy-worker', config: { worker_target: 'codex-cli/gpt-6-luna:xhigh' } });
+  assert.strictEqual(resolved.model.value, undefined);
+  assert.strictEqual(resolved.effort.value, undefined);
+});
+
+test('the provider pin rejects a foreign Provider for every CLI Role Agent', () => {
+  for (const [requestedRole, mode, foreign] of [
+    ['codex-worker', 'workspace-write', 'agy'],
+    ['codex-reasoner', 'read-only', 'agy'],
+    ['codex-reviewer', 'read-only', 'agy'],
+    ['agy-worker', 'workspace-write', 'codex'],
+  ]) {
+    const result = resolveRole({ requestedRole, mode, provider: foreign });
+    assert.strictEqual(result.status, 'BLOCKED', requestedRole);
+    assert.match(result.reason, /not bound to provider/);
+    assert.strictEqual(result.role_contract, undefined);
+  }
+});
+
+test('a mode contradicting the role authority is BLOCKED without a role_contract', () => {
+  for (const [requestedRole, mode] of [['codex-worker', 'read-only'], ['codex-reasoner', 'workspace-write'], ['agy-worker', 'read-only']]) {
+    const result = resolveRole({ requestedRole, mode });
+    assert.strictEqual(result.status, 'BLOCKED', requestedRole);
+    assert.match(result.reason, /contradicts mode/);
+    assert.strictEqual(result.role_contract, undefined);
+  }
+});
+
+test('the resolver defines no private alias, vendor, role, or legacy-config tables', () => {
+  const source = require('node:fs').readFileSync(require.resolve('../scripts/cli-dispatch/dispatch-runtime/cli-role-resolver'), 'utf8');
+  for (const identifier of ['PROVIDER_ALIASES', 'LEGACY_CONFIG', 'configValue', 'RETIRED_ROLES = Object.freeze']) {
+    assert.ok(!source.includes(identifier), `${identifier} must not be defined in the resolver`);
+  }
 });
 
 test('codex-reviewer remains shared-runner-only until the native read-only capability is present', () => {
@@ -162,12 +215,8 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
       requested_role: 'codex-worker',
       mode: 'workspace-write',
       config: {
-        codex_worker_model: 'canonical-codex-model',
-        codex_fast_worker_model: 'legacy-codex-model',
-        codex_worker_effort: 'high',
-        codex_fast_worker_effort: 'low',
+        worker_target: 'codex-cli/canonical-codex-model:high',
         codex_worker_timeout_secs: 90,
-        codex_fast_worker_timeout_secs: 30,
       },
       workdir: '/trusted/workspace',
       prompt_file: '/trusted/workspace/prompt.txt',
@@ -211,7 +260,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
     assert.strictEqual(first.context.requested_effort, 'high');
     assert.strictEqual(first.context.timeout_secs, 90);
     assert.strictEqual(first.legacyReport.requested_role, 'codex-worker');
-    assert.strictEqual(first.legacyReport.model_source, 'codex_worker_model');
+    assert.strictEqual(first.legacyReport.model_source, 'worker_target');
     assert.strictEqual(writes.length, 1);
     const independentlyComputedSha256 = crypto.createHash('sha256')
       .update(writes[0].payload, 'utf8')
@@ -224,6 +273,24 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
     }]);
     assert.strictEqual(diagnostics.length, 0);
     assert.strictEqual(second.status, 'READY');
+  });
+
+  test('a removed config key is BLOCKED naming the key and its replacement, never ignored', () => {
+    const cases = [
+      ['codex_fast_worker_model', 'worker_target'],
+      ['codex_worker_effort', 'worker_target'],
+      ['codex_fast_worker_timeout_secs', 'codex_worker_timeout_secs'],
+    ];
+    for (const [key, replacement] of cases) {
+      const writes = [];
+      const result = buildContext(dispatchInput({
+        config: { worker_target: 'codex-cli/canonical-codex-model:high', codex_worker_timeout_secs: 90, [key]: 'removed-value' },
+      }), { writeFile: (...args) => writes.push(args) });
+      assert.strictEqual(result.status, 'BLOCKED', key);
+      assert.ok(result.reason.includes(key), `${key}: ${result.reason}`);
+      assert.ok(result.reason.includes(replacement), `${key}: ${result.reason}`);
+      assert.strictEqual(writes.length, 0, key);
+    }
   });
 
   test('attested failure classification is optional, canonical, and carried to transport', () => {
@@ -258,7 +325,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
       dispatching_agent: 'codex',
       execution_provider: 'agy',
       requested_role: 'agy-worker',
-      config: { agy_worker_model: 'canonical-agy-model', agy_worker_timeout_secs: 90 },
+      config: { worker_target: 'agy/canonical-agy-model', agy_worker_timeout_secs: 90 },
     }));
 
     assert.strictEqual(result.status, 'READY');
@@ -332,8 +399,8 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
       requested_model: 'canonical-codex-model',
       requested_effort: 'high',
       timeout_secs: 90,
-      model_source: 'codex_worker_model',
-      effort_source: 'codex_worker_effort',
+      model_source: 'worker_target',
+      effort_source: 'worker_target',
       timeout_source: 'codex_worker_timeout_secs',
     });
     assert.strictEqual(Object.prototype.hasOwnProperty.call(result.legacyReport, 'authority'), false);
@@ -344,7 +411,7 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
     const result = buildContext(dispatchInput({
       execution_provider: 'agy',
       requested_role: 'agy-worker',
-      config: { agy_worker_model: 'canonical-agy-model', agy_worker_timeout_secs: 90 },
+      config: { worker_target: 'agy/canonical-agy-model', agy_worker_timeout_secs: 90 },
     }));
 
     assert.strictEqual(result.status, 'READY');
@@ -380,6 +447,14 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
       fs.mkdirSync(scripts, { recursive: true });
       fs.copyFileSync(sourceBuilder, path.join(scripts, 'build-cli-dispatch-context.js'));
       fs.copyFileSync(sourceResolver, path.join(scripts, 'cli-role-resolver.js'));
+      // The resolver's transitive require closure, laid out as in a generated package.
+      for (const file of [
+        'scripts/lib/dispatch-capability-evidence.js', 'scripts/lib/dispatch-config.js', 'scripts/lib/dispatch-contract.js',
+        'scripts/lib/dispatch-engine.js', 'manifests/provider-model-catalog.json',
+      ]) {
+        fs.mkdirSync(path.dirname(path.join(projectionRoot, file)), { recursive: true });
+        fs.copyFileSync(path.join(ROOT, file), path.join(projectionRoot, file));
+      }
       const modulePath = path.join(scripts, 'build-cli-dispatch-context.js');
       const probe = spawnSync(process.execPath, ['-e', `
         const { buildContext } = require(${JSON.stringify(modulePath)});

@@ -21,7 +21,10 @@ tests, manifests, route rules, generated projections, or unrelated dirty WIP.
 
 Use `$doc-maintain codemap` for codemap generation. Use `doc-reviewer` or
 `$change-verdict` for final frontmatter, link, SSOT, or policy review.
-Use `docs-lookup` for external library/framework research. The command-level
+Use `docs-lookup` for external library/framework research. Use `docs-writer`
+for assigned authoring or revision from supplied sources (for example a QA
+manual corrected from recorded results) when no structural change made the
+docs stale. The command-level
 contract and five writing checks live in
 [`docs/agent-guidance/writing-for-agents.md`](../docs/agent-guidance/writing-for-agents.md)
 and [`commands/update-docs.md`](../commands/update-docs.md); do not duplicate

@@ -704,7 +704,7 @@ test('plans can derive the ownership binding from an inventory without changing 
   const fs = require('node:fs');
   const os = require('node:os');
   const path = require('node:path');
-  const { generateClaudeSkillRoots, compileClaudeProjection } = require('../scripts/lib/distribution-inventory');
+  const { generateClaudeSkillRoots, compileClaudeProjection } = require('../scripts/lib/claude-projection-adapter');
   const { materializeDistribution } = require('../scripts/lib/distribution-compiler');
   const { materializeAgentPluginPackage } = require('../scripts/lib/agent-plugin-package');
   const { materializeNativePackage } = require('../scripts/lib/codex-native-package');

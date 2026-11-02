@@ -1,11 +1,15 @@
 'use strict';
 
 const {
+  AGENT_PROVIDER,
   CAPABILITY_STATUSES,
   EFFORTS,
+  LEGACY_CURSOR_SPELLINGS,
+  agentForAlias,
   createDispatchRequest,
   createExecutionTarget,
   createProviderModelCatalog,
+  vendorFor,
 } = require('./dispatch-contract');
 const { authorizeCapability, createCapabilityEvidence } = require('./dispatch-capability-evidence');
 
@@ -17,6 +21,11 @@ const FAILURE_CLASSES = Object.freeze({
   TASK_OR_SEMANTIC_FAILURE: 'TASK_OR_SEMANTIC_FAILURE',
   TIMEOUT_OR_INTERRUPTION: 'TIMEOUT_OR_INTERRUPTION',
 });
+
+const BACKEND_UNAVAILABLE_FAILURES = new Set([
+  FAILURE_CLASSES.CLI_UNAVAILABLE,
+  FAILURE_CLASSES.AUTHENTICATION_OR_MODEL_UNAVAILABLE,
+]);
 
 const AVAILABILITY_FAILURES = new Set([
   FAILURE_CLASSES.CLI_UNAVAILABLE,
@@ -32,36 +41,14 @@ const FALLBACK_ACTIONS = Object.freeze({
 
 const unique = (items) => [...new Set(items)];
 
-const TARGET_AGENT_ALIASES = Object.freeze({
-  claude: 'claude-code',
-  'claude-code': 'claude-code',
-  codex: 'codex-cli',
-  'codex-cli': 'codex-cli',
-  agy: 'agy',
-  cursor: 'cursor',
-  native: 'cursor', // compatibility spelling; config parser records its deprecation
-  'cursor-native': 'cursor', // compatibility spelling; config parser records its deprecation
-});
-const PROVIDER_ALIASES = Object.freeze({
-  'claude-code': 'anthropic',
-  'codex-cli': 'openai',
-  agy: 'google',
-  'cursor-native': 'cursor',
-});
-const AGENT_PROVIDERS = Object.freeze({
-  'claude-code': 'anthropic',
-  'codex-cli': 'openai',
-  agy: 'google',
-  cursor: 'cursor',
-});
-const LEGACY_CURSOR_SPELLINGS = new Set(['native', 'cursor-native']);
+const LEGACY_CURSOR_SPELLING_SET = new Set(LEGACY_CURSOR_SPELLINGS);
 const LEGACY_CURSOR_DIAGNOSTIC = 'legacy provider/route target spelling translated at input boundary';
 function canonicalAgent(value) {
-  return value === undefined || value === null ? undefined : TARGET_AGENT_ALIASES[value] || value;
+  return value === undefined || value === null ? undefined : agentForAlias(value) || value;
 }
 
 function canonicalProvider(value) {
-  return value === undefined || value === null ? undefined : PROVIDER_ALIASES[value] || value;
+  return value === undefined || value === null ? undefined : vendorFor(value);
 }
 
 function routeAgentMatches(routeAgent, targetAgent) {
@@ -285,11 +272,11 @@ function evaluateCapabilityCandidate(request, candidate, evidence) {
 
 function preferenceLegacyDiagnostic(candidate) {
   if (typeof candidate === 'string') {
-    return LEGACY_CURSOR_SPELLINGS.has(candidate.split(/[/:]/)[0]) ? LEGACY_CURSOR_DIAGNOSTIC : null;
+    return LEGACY_CURSOR_SPELLING_SET.has(candidate.split(/[/:]/)[0]) ? LEGACY_CURSOR_DIAGNOSTIC : null;
   }
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
   const agent = candidate.target_agent || candidate.targetAgent;
-  return LEGACY_CURSOR_SPELLINGS.has(agent) || LEGACY_CURSOR_SPELLINGS.has(candidate.provider)
+  return LEGACY_CURSOR_SPELLING_SET.has(agent) || LEGACY_CURSOR_SPELLING_SET.has(candidate.provider)
     ? LEGACY_CURSOR_DIAGNOSTIC
     : null;
 }
@@ -299,7 +286,7 @@ function normalizePreference(candidate) {
     const match = candidate.match(/^([^/]+)(?:\/([^:]+))?(?::([^:]+))?$/);
     if (!match) throw new TypeError('preferenceOrder entries must be Agent/model[:effort] targets');
     const targetAgent = canonicalAgent(match[1]);
-    const provider = canonicalProvider(AGENT_PROVIDERS[targetAgent]);
+    const provider = canonicalProvider(AGENT_PROVIDER[targetAgent]);
     if (!targetAgent) throw new TypeError('preferenceOrder entries must identify a supported Target Agent');
     return { target_agent: targetAgent, ...(provider ? { provider } : {}), ...(match[2] ? { model_id: match[2] } : {}), ...(match[3] ? { effort: match[3] } : {}) };
   }
@@ -315,14 +302,14 @@ function normalizePreference(candidate) {
   if (candidate.target_agent === undefined && candidate.targetAgent === undefined && candidate.provider === undefined) throw new TypeError('preferenceOrder target requires a Target Agent or Provider');
   if (candidate.effort !== undefined && !EFFORTS.includes(candidate.effort)) throw new TypeError('preferenceOrder target effort must be canonical');
   const rawAgent = candidate.target_agent || candidate.targetAgent;
-  const legacyCursor = LEGACY_CURSOR_SPELLINGS.has(rawAgent) || LEGACY_CURSOR_SPELLINGS.has(candidate.provider);
+  const legacyCursor = LEGACY_CURSOR_SPELLING_SET.has(rawAgent) || LEGACY_CURSOR_SPELLING_SET.has(candidate.provider);
   let targetAgent = rawAgent ? canonicalAgent(rawAgent) : undefined;
-  let provider = candidate.provider && !LEGACY_CURSOR_SPELLINGS.has(candidate.provider)
+  let provider = candidate.provider && !LEGACY_CURSOR_SPELLING_SET.has(candidate.provider)
     ? canonicalProvider(candidate.provider)
     : undefined;
   if (legacyCursor) {
     targetAgent = targetAgent || 'cursor';
-    if (provider === undefined) provider = AGENT_PROVIDERS[targetAgent] || 'cursor';
+    if (provider === undefined) provider = AGENT_PROVIDER[targetAgent] || 'cursor';
   }
   return {
     ...(targetAgent ? { target_agent: targetAgent } : {}),
@@ -471,6 +458,16 @@ function initialFallbackHistory(resolution) {
   }];
 }
 
+function targetIdentity(target) {
+  if (!target) return null;
+  const targetAgent = target.target_agent || target.targetAgent || target.agent;
+  const provider = target.provider;
+  const modelId = target.model_id || target.model;
+  const route = target.route || '';
+  const transport = target.transport || '';
+  return targetAgent && provider && modelId ? `${targetAgent}/${provider}/${modelId}/${route}/${transport}` : null;
+}
+
 function decideRecoveryCandidate({ request, resolution, failureClass, sideEffects, catalog, candidate_request, reconciliation, recovery_action }) {
   const blocked = (reason, status = 'BLOCKED') => Object.freeze({ status, request, target: null,
     failure_class: failureClass, side_effects: sideEffects, action: 'stop',
@@ -510,10 +507,27 @@ function decideRecoveryCandidate({ request, resolution, failureClass, sideEffect
     if (!AVAILABILITY_FAILURES.has(failureClass) || sideEffects !== 'none'
         || recovery_action !== 'substitute') return blocked('Provider substitution requires confirmed no side effects', 'RECONCILIATION_REQUIRED');
     if (request.strict_target) return blocked('strict target prevents substitution');
+    if (request.fallback.cross_provider !== true && candidate.target.provider !== request.host_profile.native_provider) {
+      return blocked('Provider substitution requires cross-provider opt-in');
+    }
+    const seen = new Set([...(request.fallback.attempted_backends || []), ...(request.fallback.unavailable_backends || []),
+      targetIdentity(resolution && resolution.target), targetIdentity(resolution && resolution.requested_target), targetIdentity(request.target)]);
+    const candidateIdentity = targetIdentity(candidate.target);
+    const routeless = candidateIdentity && !candidate.target.route && !candidate.target.transport;
+    const revisited = candidateIdentity && [...seen].some((identity) => identity === candidateIdentity
+      || (routeless && identity && identity.startsWith(candidateIdentity.slice(0, -1))));
+    if (revisited) return blocked('recovery candidate was already attempted');
   }
   const next = resolveTarget(candidate, { catalog });
   if (next.status !== 'RESOLVED') return blocked('recovery candidate is unavailable');
-  return Object.freeze({ status: 'FALLBACK', action: recovery_action, request, next_request: candidate,
+  const failedIdentity = targetIdentity(original) || targetIdentity(resolution && resolution.requested_target);
+  const withFailed = (list) => (failedIdentity ? [...new Set([...(list || []), failedIdentity])] : (list || []));
+  const chained = createDispatchRequest({ ...candidate, fallback: { ...request.fallback,
+    retry_budget: request.fallback.retry_budget - 1,
+    attempted_backends: withFailed(request.fallback.attempted_backends),
+    unavailable_backends: BACKEND_UNAVAILABLE_FAILURES.has(failureClass)
+      ? withFailed(request.fallback.unavailable_backends) : (request.fallback.unavailable_backends || []) } });
+  return Object.freeze({ status: 'FALLBACK', action: recovery_action, request, next_request: chained,
     target: next.target, resolution: next, failure_class: failureClass, side_effects: sideEffects,
     reconciliation: reconciliation || null, retry_budget_remaining: request.fallback.retry_budget - 1 });
 }
@@ -562,7 +576,10 @@ function decideFallback({ request, resolution, failureClass, sideEffects = 'unkn
     });
   }
 
-  if (!AVAILABILITY_FAILURES.has(failureClass) || !fallbackAllowed || retryBudget === 0) {
+  const crossProvider = normalizedRequest.fallback.cross_provider === true;
+  const quotaFailure = failureClass === FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT;
+  const fallbackEligibleClass = AVAILABILITY_FAILURES.has(failureClass) || (quotaFailure && crossProvider);
+  if (!fallbackEligibleClass || !fallbackAllowed || retryBudget === 0) {
     return Object.freeze({
       status: 'BLOCKED',
       request: normalizedRequest,
@@ -585,20 +602,28 @@ function decideFallback({ request, resolution, failureClass, sideEffects = 'unkn
   const roleDefault = normalizedRequest.host_profile.role_defaults
     && normalizedRequest.host_profile.role_defaults[normalizedRequest.role];
   const fallbackTargets = [roleDefault || nativeTarget, ...declaredFallbacks];
-  const targetIdentity = (target) => {
-    if (!target) return null;
-    const targetAgent = target.target_agent || target.targetAgent || target.agent;
-    const provider = target.provider;
-    const modelId = target.model_id || target.model;
-    const route = target.route || '';
-    const transport = target.transport || '';
-    return targetAgent && provider && modelId ? `${targetAgent}/${provider}/${modelId}/${route}/${transport}` : null;
-  };
-  const attemptedIdentity = targetIdentity(resolution && resolution.target);
+  const backendKey = targetIdentity;
+  const failedTargets = [resolution && resolution.target, resolution && resolution.requested_target, normalizedRequest.target];
+  const failedKey = backendKey(resolution && resolution.target) || backendKey(resolution && resolution.requested_target);
+  const attemptedKeys = new Set([
+    ...(normalizedRequest.fallback.attempted_backends || []),
+    ...(normalizedRequest.fallback.unavailable_backends || []),
+    ...((resolution && Array.isArray(resolution.fallback_history)) ? resolution.fallback_history.map(backendKey) : []),
+    ...failedTargets.map(backendKey),
+  ].filter(Boolean));
+  const poolOf = (target) => normalizedRequest.host_profile.quota_pools[target && target.provider];
+  const failedPool = poolOf(resolution && (resolution.target || resolution.requested_target));
   const uniqueFallbackTargets = fallbackTargets.filter((candidate, index, values) => {
     const identity = targetIdentity(candidate);
-    return identity !== attemptedIdentity && values.findIndex((other) => targetIdentity(other) === identity) === index;
+    if (attemptedKeys.has(backendKey(candidate))) return false;
+    if (!crossProvider && candidate.provider !== normalizedRequest.host_profile.native_provider) return false;
+    if (quotaFailure && (!poolOf(candidate) || poolOf(candidate) === failedPool)) return false;
+    return values.findIndex((other) => targetIdentity(other) === identity) === index;
   });
+  const nextAttempted = [...attemptedKeys];
+  const nextUnavailable = BACKEND_UNAVAILABLE_FAILURES.has(failureClass) && failedKey
+    ? [...new Set([...(normalizedRequest.fallback.unavailable_backends || []), failedKey])]
+    : (normalizedRequest.fallback.unavailable_backends || []);
   let fallback = null;
   let fallbackRequest = null;
   for (const candidate of uniqueFallbackTargets) {
@@ -607,7 +632,12 @@ function decideFallback({ request, resolution, failureClass, sideEffects = 'unkn
       ...normalizedRequest,
       target: candidateTarget,
       effort: candidate.effort,
-      fallback: { ...normalizedRequest.fallback, retry_budget: retryBudget - 1 },
+      fallback: {
+        ...normalizedRequest.fallback,
+        retry_budget: retryBudget - 1,
+        attempted_backends: nextAttempted,
+        unavailable_backends: nextUnavailable,
+      },
     });
     const candidateResolution = resolveTarget(fallbackRequest, { catalog });
     if (candidateResolution.status === 'RESOLVED') { fallback = candidateResolution; break; }
@@ -629,7 +659,8 @@ function decideFallback({ request, resolution, failureClass, sideEffects = 'unkn
 
   return Object.freeze({
     status: 'FALLBACK',
-    request: normalizedRequest,
+    request: fallbackRequest,
+    resolution: fallback,
     target: fallback.target,
     capability: fallback.capability,
     failure_class: failureClass,

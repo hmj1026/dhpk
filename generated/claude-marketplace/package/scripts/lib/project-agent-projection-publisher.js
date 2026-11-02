@@ -5,11 +5,17 @@
 // through ProjectionArtifactStore, then reconciles receipt-owned paths into an
 // external consumer project without replacing foreign content.
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { parseFrontmatter } = require('./agent-plugin-package');
+const {
+  TREE_FINGERPRINT_ALGORITHM,
+  fileSetFingerprintTerminated,
+  resolveFingerprintAlgorithm,
+  sha256Hex,
+  treeFingerprint,
+} = require('./content-fingerprint');
 const {
   compileProjectAgentProjection,
   materializeDistribution,
@@ -18,7 +24,7 @@ const {
   createDistributionPlan,
   fingerprint,
 } = require('./distribution-projection-contract');
-const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { ProjectionArtifactStore, safeRelative, safeLinkTarget, inside } = require('./projection-artifact-store');
 const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
@@ -50,7 +56,10 @@ const PROJECT_ROLLBACK_SCHEMA = 'dhpk.project-agent-projection-rollback.v2';
 const LEGACY_PROJECT_ROLLBACK_SCHEMA = 'dhpk.project-agent-projection-rollback.v1';
 const PROJECT_TRANSACTION_SCHEMA = 'dhpk.project-agent-projection-transaction.v2';
 const LEGACY_PROJECT_TRANSACTION_SCHEMA = 'dhpk.project-agent-projection-transaction.v1';
-const GENERATOR_VERSION = '2.0.0';
+const GENERATOR_VERSION = '2.1.0';
+// The previous generator's receipts stay readable for the transition minor
+// (OpenSpec unify-tree-fingerprint-algorithm, design D3/D6).
+const ACCEPTED_GENERATOR_VERSIONS = Object.freeze(['2.0.0', GENERATOR_VERSION]);
 const LEGACY_MANIFEST_NAME = '.dhpk-projection.json';
 const CLAUDE_ARTIFACT_ROOT = '.dhpk-claude-sibling';
 const CLAUDE_MANAGED_ROOT_NAME = 'claude-skills';
@@ -72,10 +81,6 @@ function clone(value) {
 
 function stableStringify(value) {
   return JSON.stringify(clone(value));
-}
-
-function digest(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
 }
 
 function fail(code, message, details = {}) {
@@ -103,18 +108,14 @@ function lstatOrNull(filePath) {
   }
 }
 
+// Path-safety predicates are shared with the build-time artifact store; this
+// module keeps its own error codes and messages around them.
 function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (relative && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+  return inside(path.resolve(parent), path.resolve(candidate));
 }
 
 function assertSafeRelative(relative, label) {
-  if (typeof relative !== 'string' || relative.length === 0 || relative.includes('\0')
-    || relative.includes('\\') || path.posix.isAbsolute(relative) || /^[A-Za-z]:/.test(relative)) {
-    throw fail('UNSAFE_PATH', `${label} must be a normalized relative path`, { paths: [relative] });
-  }
-  const parts = relative.split('/');
-  if (parts.includes('.') || parts.includes('..') || parts.includes('')) {
+  if (!safeRelative(relative)) {
     throw fail('UNSAFE_PATH', `${label} must be a normalized relative path`, { paths: [relative] });
   }
   return relative;
@@ -160,12 +161,7 @@ function pathIn(root, relative, label = 'projection path') {
 }
 
 function assertSafeLinkTarget(target, label) {
-  if (typeof target !== 'string' || target.length === 0 || target.includes('\0')
-    || target.includes('\\') || path.posix.isAbsolute(target) || /^[A-Za-z]:/.test(target)) {
-    throw fail('UNSAFE_PATH', `${label} must be a normalized relative symlink target`, { paths: [target] });
-  }
-  const parts = target.split('/');
-  if (parts.some((part) => part === '' || part === '.') || path.posix.normalize(target) !== target) {
+  if (!safeLinkTarget(target)) {
     throw fail('UNSAFE_PATH', `${label} must be a normalized relative symlink target`, { paths: [target] });
   }
   return target;
@@ -361,20 +357,28 @@ function sourceManifest(sourceDirectory, dependencies = []) {
     })),
   ], `skill '${path.basename(sourceDirectory)}'`);
   const manifest = [];
-  const hash = crypto.createHash('sha256');
+  const hashed = [];
   for (const file of files) {
     const content = readPhysicalFile(file.absolute, `canonical source file '${file.relative}'`);
-    const fileDigest = digest(content);
+    const fileDigest = sha256Hex(content);
     manifest.push({ path: file.relative, digest: fileDigest });
-    hash.update(file.relative);
-    hash.update('\0');
-    hash.update(content);
-    hash.update('\0');
+    hashed.push({ path: file.relative, content });
     if (SECRET_PATTERNS.some((pattern) => pattern.test(content.toString('utf8')))) {
       throw fail('SECRET_DETECTED', `possible secret in canonical source: ${file.relative}`, { paths: [file.relative] });
     }
   }
-  return { files, sourceFiles: manifest, sourceFingerprint: hash.digest('hex') };
+  return {
+    files,
+    sourceFiles: manifest,
+    sourceFingerprint: treeFingerprint(hashed.map((file) => ({ ...file, type: 'file' }))),
+    legacySourceFingerprint: fileSetFingerprintTerminated(hashed),
+  };
+}
+
+// The recipe a receipt's source fingerprints were written with; an unknown
+// value is rejected by validateReceipt before any comparison reaches here.
+function receiptSourceFingerprintFor(receipt, current, legacyCurrent) {
+  return resolveFingerprintAlgorithm(receipt, 'fingerprint_algorithm') === TREE_FINGERPRINT_ALGORITHM ? current : legacyCurrent;
 }
 
 function inventoryEntries(inventory) {
@@ -540,6 +544,7 @@ function buildArtifactInputs({
   const records = [];
   const receiptEntries = [];
   const sourceFingerprints = {};
+  const legacySourceFingerprints = {};
   const usedDestinations = new Set();
   const usedPrefixes = new Set();
   const hasPortableDirectoryOutput = providers.directory.hosts.length > 0;
@@ -567,7 +572,7 @@ function buildArtifactInputs({
       destination: stagedDestination,
       owner: plan.projectionOwner && plan.projectionOwner.owner || 'dhpk.project-agent-projection',
       transform: transform || { id: 'project-agent-generated', version: GENERATOR_VERSION },
-      expectedFingerprint: digest(content),
+      expectedFingerprint: sha256Hex(content),
       mode,
       symlinkPolicy: 'forbid',
       ...(sourceFingerprint ? { sourceFingerprint } : {}),
@@ -601,6 +606,7 @@ function buildArtifactInputs({
       throw fail('INVALID_SKILL_FRONTMATTER', `canonical skill '${name}' has invalid frontmatter`, { stableIds: [planEntry.stableId] });
     }
     sourceFingerprints[`skill:${planEntry.stableId}`] = manifest.sourceFingerprint;
+    legacySourceFingerprints[`skill:${planEntry.stableId}`] = manifest.legacySourceFingerprint;
     const metadata = planEntryMetadata(planEntry);
     if (metadata.provenance && typeof metadata.provenance === 'object' && !Array.isArray(metadata.provenance)) {
       metadata.provenance = {
@@ -720,6 +726,7 @@ function buildArtifactInputs({
   const manifestValue = {
     schema: 'dhpk.agents-skills-projection.v1',
     generatorVersion: GENERATOR_VERSION,
+    fingerprint_algorithm: TREE_FINGERPRINT_ALGORITHM,
     selectionSurface: 'project-agent-projection',
     inventoryRevision: plan.inventoryRevision || null,
     selectedIds: (plan.selectedStableIds || []).slice().sort(),
@@ -804,6 +811,7 @@ function buildArtifactInputs({
     records,
     receiptEntries,
     sourceFingerprints,
+    legacySourceFingerprints,
     generatedFingerprints: Object.fromEntries(records
       .filter((record) => record.publicationRoot === 'managed')
       .map((record) => [record.relative, record.value.expectedFingerprint])),
@@ -826,11 +834,11 @@ function receiptPayload(receipt) {
 
 function sealReceipt(receipt) {
   const payload = receiptPayload(receipt);
-  return { ...payload, receiptFingerprint: digest(stableStringify(payload)) };
+  return { ...payload, receiptFingerprint: sha256Hex(stableStringify(payload)) };
 }
 
 function receiptFileDigest(receipt) {
-  return digest(`${stableStringify(receipt)}\n`);
+  return sha256Hex(`${stableStringify(receipt)}\n`);
 }
 
 function readJsonFile(filePath, label) {
@@ -849,7 +857,10 @@ function validateReceipt(receipt, roots, bindingOptions = {}) {
     throw fail('INVALID_RECEIPT', `project projection receipt must use ${PROJECT_RECEIPT_SCHEMA}, ${PREVIOUS_PROJECT_RECEIPT_SCHEMA}, or ${LEGACY_PROJECT_RECEIPT_SCHEMA}`);
   }
   const typedReceipt = receipt.schema === PROJECT_RECEIPT_SCHEMA || receipt.schema === PREVIOUS_PROJECT_RECEIPT_SCHEMA;
-  if (receipt.generatorVersion !== GENERATOR_VERSION) throw fail('INVALID_RECEIPT', `project projection receipt must use generator ${GENERATOR_VERSION}`);
+  if (!ACCEPTED_GENERATOR_VERSIONS.includes(receipt.generatorVersion)) throw fail('INVALID_RECEIPT', `project projection receipt must use generator ${GENERATOR_VERSION}`);
+  try { resolveFingerprintAlgorithm(receipt, 'fingerprint_algorithm'); } catch (error) {
+    throw fail('INVALID_RECEIPT', `project projection receipt ${error.message}`);
+  }
   if (receipt.scope !== 'project' || receipt.managedRoot !== roots.config.managed_root || receipt.receiptPath !== roots.config.receipt) {
     throw fail('INVALID_RECEIPT', 'project projection receipt has an invalid ownership root');
   }
@@ -857,7 +868,7 @@ function validateReceipt(receipt, roots, bindingOptions = {}) {
     throw fail('INVALID_RECEIPT', 'project projection receipt has an invalid projection owner');
   }
   if (!DIGEST_PATTERN.test(receipt.receiptFingerprint || '')
-    || digest(stableStringify(receiptPayload(receipt))) !== receipt.receiptFingerprint) {
+    || sha256Hex(stableStringify(receiptPayload(receipt))) !== receipt.receiptFingerprint) {
     throw fail('INVALID_RECEIPT', 'project projection receipt fingerprint is invalid');
   }
   const legacyUnbound = receipt.legacyUnbound === true;
@@ -1068,7 +1079,7 @@ function adoptLegacyManifest(roots) {
   if (!Array.isArray(manifest.managedPaths) || !manifest.generatedFingerprints || typeof manifest.generatedFingerprints !== 'object') {
     throw fail('LEGACY_UNBOUND', 'legacy project projection manifest cannot establish ownership');
   }
-  const legacyManifestDigest = digest(fs.readFileSync(legacyPath));
+  const legacyManifestDigest = sha256Hex(fs.readFileSync(legacyPath));
   const managedPaths = [...new Set([...manifest.managedPaths, LEGACY_MANIFEST_NAME])].sort();
   const generatedFingerprints = {
     ...manifest.generatedFingerprints,
@@ -1079,9 +1090,13 @@ function adoptLegacyManifest(roots) {
     const target = pathIn(roots.managedRoot, relative, 'legacy managed path');
     const stat = lstatOrNull(target);
     if (!stat || stat.isSymbolicLink() || !stat.isFile() || !DIGEST_PATTERN.test(generatedFingerprints[relative] || '')
-      || digest(fs.readFileSync(target)) !== generatedFingerprints[relative]) {
+      || sha256Hex(fs.readFileSync(target)) !== generatedFingerprints[relative]) {
       throw fail('LEGACY_UNBOUND', `legacy managed path cannot prove ownership: ${relative}`, { paths: [relative] });
     }
+  }
+  let manifestAlgorithm;
+  try { manifestAlgorithm = resolveFingerprintAlgorithm(manifest, 'fingerprint_algorithm'); } catch (error) {
+    throw fail('LEGACY_UNBOUND', `legacy project projection manifest ${error.message}`);
   }
   const entries = Array.isArray(manifest.entries)
     ? manifest.entries.map((entry) => ({
@@ -1097,6 +1112,7 @@ function adoptLegacyManifest(roots) {
   const adopted = sealReceipt({
     schema: LEGACY_PROJECT_RECEIPT_SCHEMA,
     generatorVersion: GENERATOR_VERSION,
+    ...(manifestAlgorithm === TREE_FINGERPRINT_ALGORITHM ? { fingerprint_algorithm: manifestAlgorithm } : {}),
     scope: 'project',
     managedRoot: roots.config.managed_root,
     receiptPath: roots.config.receipt,
@@ -1150,7 +1166,7 @@ function validateManagedFiles(roots, receipt, { requireBindings = true } = {}) {
     if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
       throw fail('MANAGED_CONTENT_MISSING', `receipt-owned ${managed.label} file is missing or unsafe: ${relative}; expected SHA-256: ${managed.fingerprints[relative]}; restore a physical backup matching the current receipt fingerprints before retrying; --repair and --rollback do not restore missing current-receipt content; see docs/platform-installation.md#recover-receipt-owned-shared-skills`, { paths: [relative] });
     }
-    const actual = digest(fs.readFileSync(target));
+    const actual = sha256Hex(fs.readFileSync(target));
     if (actual !== managed.fingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `receipt-owned ${managed.label} file was modified or fingerprint drifted: ${relative}; expected SHA-256: ${managed.fingerprints[relative]}; preserve the modified content and obtain a physical backup matching the current receipt fingerprints; see docs/platform-installation.md#recover-receipt-owned-shared-skills`, { paths: [relative] });
     if (receipt.schema === PROJECT_RECEIPT_SCHEMA
       && managed.label === 'managed'
@@ -1213,11 +1229,13 @@ function approvedRenameIds(previous, inventory, plan) {
   return approved;
 }
 
-function sourceDrift(previous, currentSourceFingerprints, allowCanonicalChanges, approvedRenames = new Set()) {
+function sourceDrift(previous, inputs, allowCanonicalChanges, approvedRenames = new Set()) {
   if (allowCanonicalChanges) return;
   for (const entry of previous.entries || []) {
     if (approvedRenames.has(entry.stableId)) continue;
-    if (currentSourceFingerprints[`skill:${entry.stableId}`] && currentSourceFingerprints[`skill:${entry.stableId}`] !== entry.sourceFingerprint) {
+    const key = `skill:${entry.stableId}`;
+    const current = receiptSourceFingerprintFor(previous, inputs.sourceFingerprints[key], inputs.legacySourceFingerprints[key]);
+    if (current && current !== entry.sourceFingerprint) {
       throw fail('SOURCE_DRIFT', `canonical source changed for receipt-owned entry '${entry.name}'; explicit update authority is required`, { stableIds: [entry.stableId] });
     }
   }
@@ -1349,7 +1367,7 @@ function recoverProjectProjectionTransaction(roots) {
     const stat = lstatOrNull(target);
     if (!stat) return;
     if (stat.isSymbolicLink() || !stat.isFile()) throw fail('RECOVERY_CONFLICT', `interrupted publication target is unsafe: ${relative}`, { paths: [relative] });
-    if (expectedDigest && digest(fs.readFileSync(target)) !== expectedDigest) {
+    if (expectedDigest && sha256Hex(fs.readFileSync(target)) !== expectedDigest) {
       throw fail('RECOVERY_CONFLICT', `interrupted publication target changed outside the transaction: ${relative}`, { paths: [relative] });
     }
     fs.rmSync(target, { force: true });
@@ -1680,7 +1698,7 @@ function publishManagedCandidate({
       fs.copyFileSync(source, target);
       const sourceStat = lstatOrNull(source);
       if (sourceStat && sourceStat.isFile()) fs.chmodSync(target, sourceStat.mode & 0o7777);
-      if (digest(fs.readFileSync(target)) !== candidateFingerprints[relative]) throw fail('PUBLISH_FINGERPRINT_DRIFT', `published file fingerprint drifted: ${relative}`, { paths: [relative] });
+      if (sha256Hex(fs.readFileSync(target)) !== candidateFingerprints[relative]) throw fail('PUBLISH_FINGERPRINT_DRIFT', `published file fingerprint drifted: ${relative}`, { paths: [relative] });
     }
     for (const relative of claudeCandidateFiles.slice().sort()) {
       const source = pathIn(candidateRoot, `${CLAUDE_ARTIFACT_ROOT}/${relative}`, 'Claude candidate source');
@@ -1692,7 +1710,7 @@ function publishManagedCandidate({
       fs.copyFileSync(source, target);
       const sourceStat = lstatOrNull(source);
       if (sourceStat && sourceStat.isFile()) fs.chmodSync(target, sourceStat.mode & 0o7777);
-      if (digest(fs.readFileSync(target)) !== claudeCandidateFingerprints[relative]) {
+      if (sha256Hex(fs.readFileSync(target)) !== claudeCandidateFingerprints[relative]) {
         throw fail('PUBLISH_FINGERPRINT_DRIFT', `published Claude file fingerprint drifted: ${relative}`, { paths: [relative] });
       }
     }
@@ -1792,6 +1810,7 @@ function receiptForArtifact({ roots, plan, staged, declaredSelection = false }) 
   return sealReceipt({
     schema: PROJECT_RECEIPT_SCHEMA,
     generatorVersion: GENERATOR_VERSION,
+    fingerprint_algorithm: TREE_FINGERPRINT_ALGORITHM,
     scope: 'project',
     managedRoot: roots.config.managed_root,
     receiptPath: roots.config.receipt,
@@ -1862,7 +1881,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
   try {
     if (previous) {
       const approvedRenames = approvedRenameIds(previous, options.inventory, plan);
-      sourceDrift(previous, staged.inputs.sourceFingerprints, Boolean(options.allowCanonicalChanges || options.update), approvedRenames);
+      sourceDrift(previous, staged.inputs, Boolean(options.allowCanonicalChanges || options.update), approvedRenames);
     }
     const receipt = receiptForArtifact({
       roots,
@@ -2004,7 +2023,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         const directPath = pathIn(roots.managedRoot, `${entry.name}.md`, 'AGY direct-file path');
         const directoryStat = lstatOrNull(directoryPath);
         const directStat = lstatOrNull(directPath);
-        if (directoryStat && directStat && digest(fs.readFileSync(directoryPath)) !== digest(fs.readFileSync(directPath))) {
+        if (directoryStat && directStat && sha256Hex(fs.readFileSync(directoryPath)) !== sha256Hex(fs.readFileSync(directPath))) {
           errors.push(`provider-shaped outputs do not share the same skill body: ${entry.name}`);
         }
       }
@@ -2032,7 +2051,8 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         for (const dependency of dependencies) {
           assertPhysicalAncestors(dependency.absolute, `standalone dependency '${dependency.source}'`, roots.sourceRoot);
         }
-        const current = sourceManifest(sourceDirectory, dependencies).sourceFingerprint;
+        const currentManifest = sourceManifest(sourceDirectory, dependencies);
+        const current = receiptSourceFingerprintFor(receipt, currentManifest.sourceFingerprint, currentManifest.legacySourceFingerprint);
         if (current !== entry.sourceFingerprint) errors.push(`source fingerprint drifted: ${entry.name}`);
       }
     }
@@ -2120,14 +2140,14 @@ function snapshotReceipt(roots, receipt) {
   for (const relative of snapshotReceipt.managedPaths) {
     const source = pathIn(managedSnapshotRoot, relative, 'rollback snapshot file');
     const stat = lstatOrNull(source);
-    if (!stat || stat.isSymbolicLink() || !stat.isFile() || digest(fs.readFileSync(source)) !== snapshotReceipt.generatedFingerprints[relative]) {
+    if (!stat || stat.isSymbolicLink() || !stat.isFile() || sha256Hex(fs.readFileSync(source)) !== snapshotReceipt.generatedFingerprints[relative]) {
       throw fail('INVALID_ROLLBACK', `rollback snapshot is incomplete or drifted: ${relative}`, { paths: [relative] });
     }
   }
   for (const relative of snapshotReceipt.claudeManagedPaths || []) {
     const source = pathIn(claudeSnapshotRoot, relative, 'Claude rollback snapshot file');
     const stat = lstatOrNull(source);
-    if (!stat || stat.isSymbolicLink() || !stat.isFile() || digest(fs.readFileSync(source)) !== snapshotReceipt.claudeGeneratedFingerprints[relative]) {
+    if (!stat || stat.isSymbolicLink() || !stat.isFile() || sha256Hex(fs.readFileSync(source)) !== snapshotReceipt.claudeGeneratedFingerprints[relative]) {
       throw fail('INVALID_ROLLBACK', `Claude rollback snapshot is incomplete or drifted: ${relative}`, { paths: [relative] });
     }
   }

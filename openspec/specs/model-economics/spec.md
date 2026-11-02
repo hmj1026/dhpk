@@ -33,28 +33,26 @@ quality-first exception, while the global default remains `gpt-6-luna` at
 
 ### Requirement: Worker-scoped effort and evidence-gather configuration
 
-`.claude-plugin/plugin.json` SHALL expose three `userConfig` keys (the two effort keys default to current behavior; `evidence_gather` defaults `on` to activate the gather-first lever, with `off` restoring prior behavior):
+`.claude-plugin/plugin.json` SHALL expose the `evidence_gather` `userConfig` key (default `on` to activate the gather-first lever, with `off` restoring prior behavior). Worker and reasoner effort SHALL be carried by the effort segment of the canonical `worker_target` and `reasoner_target` settings (`agent/model[:effort]`), not by separate effort keys; the removed `deep_reasoner_effort` and `fast_worker_effort` keys SHALL NOT drive dispatch.
 
-- `deep_reasoner_effort` — default `high`; applied on the `Agent` call's `effort` param for every `deep-reasoner` dispatch.
-- `fast_worker_effort` — default `medium`; applied on the `Agent` call's `effort` param for every `fast-worker` dispatch.
 - `evidence_gather` — default `on`; when `off`, the evidence-gather-before-reasoning lever is disabled.
 
-These SHALL reuse the existing configured-role mechanism: the value is passed on the `Agent` call, agent frontmatter is never edited, an invalid value warns once per session and falls back to the frontmatter default (never failing the dispatch), and the effective values are announced at session start only when they differ from the shipped defaults. No `reviewer_model` or reviewer-effort key is added — reviewers keep the sonnet floor and the review gate is unchanged.
+The target effort SHALL be passed on the `Agent` call's `effort` param, agent frontmatter is never edited, an invalid value is reported `BLOCKED` for that field only and is never applied, and the effective values are announced at session start only when they differ from the shipped defaults. No reviewer-effort key is added; reviewers keep the sonnet floor and the review gate is unchanged.
 
 #### Scenario: Effort override is applied per dispatch without editing frontmatter
 
-- **WHEN** `fast_worker_effort=low` is configured and a `fast-worker` dispatch occurs
+- **WHEN** `worker_target` is configured with effort `low` and a `fast-worker` dispatch occurs
 - **THEN** the orchestrator passes `effort=low` on that `Agent` call and the agent's frontmatter file is left unmodified
 
 #### Scenario: All-defaults path stays silent
 
-- **WHEN** none of the three keys differs from its shipped default
+- **WHEN** no worker, reasoner, or evidence-gather setting differs from its shipped default
 - **THEN** session start emits no additional announcement for them (token discipline preserved)
 
 #### Scenario: Invalid effort value falls back, never fails
 
-- **WHEN** an effort key holds a value the running Claude Code does not support
-- **THEN** the dispatch warns once per session and falls back to the agent frontmatter's effort, and the dispatch still runs
+- **WHEN** a `worker_target` or `reasoner_target` holds a value the Dispatch Engine cannot parse or the running Claude Code does not support
+- **THEN** the affected field is reported `BLOCKED` with a diagnostic naming the key, the value is not applied, and other valid fields still resolve
 
 ### Requirement: harness-budget reports tier economics
 

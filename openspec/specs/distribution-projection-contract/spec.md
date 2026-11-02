@@ -63,7 +63,7 @@ A `DistributionPlan` SHALL carry its schema/compiler version, input and inventor
 
 ### Requirement: Materialization is isolated behind ProjectionArtifactStore
 
-The distribution layer SHALL expose `materializeDistribution(plan, adapter, artifactStore) -> DistributionArtifact`. `ProjectionArtifactStore` SHALL be the only projection-pipeline port permitted to create directories, write files, create permitted links, stage outputs, replace generated roots, or calculate post-write filesystem observations. The materializer MUST follow the plan exactly, MUST NOT perform inventory selection, consumer verification, or active-root replacement, and MUST return a complete staged candidate for a separate activation gate to evaluate.
+The distribution layer SHALL expose `materializeDistribution(plan, adapter, artifactStore) -> DistributionArtifact`. `ProjectionArtifactStore` SHALL be the only projection-pipeline port permitted to create directories, write files, create permitted links, stage outputs, replace generated roots, or calculate post-write filesystem observations for managed projection trees that dhpk generates into its own checkout. Install-time writes into a consumer project remain owned by the Projection Receipt lifecycle owner and are outside this port. The materializer MUST follow the plan exactly, MUST NOT perform inventory selection, consumer verification, or active-root replacement, and MUST return a complete staged candidate for a separate activation gate to evaluate. The Agent Plugin, Codex native, Cursor plugin, Cursor sync, AGY, and Claude marketplace package build-time surfaces SHALL publish only through this port.
 
 #### Scenario: Plan materializes successfully
 
@@ -85,9 +85,14 @@ The distribution layer SHALL expose `materializeDistribution(plan, adapter, arti
 - **WHEN** a staged artifact has not yet received `PASS` evidence for every inventory-declared required runtime surface
 - **THEN** the separate activation gate leaves the prior active root and receipt unchanged and reports the missing or non-pass surface rows
 
+#### Scenario: Build-time generator has no private writer
+
+- **WHEN** the AGY, cursor-sync, or Claude marketplace package generator produces its tree
+- **THEN** every directory, file, and link in that tree is created by the artifact store session and the generator holds no private stage, backup, or rename code
+
 ### Requirement: Symlink behavior is explicit and fail-closed
 
-Every projection SHALL declare a symlink policy in inventory-owned projection rules. The default policy SHALL be `forbid`. The closed policy vocabulary SHALL be `forbid`, `contained-relative`, and `declared-source-relative`. A `contained-relative` link MUST resolve within the declared artifact ownership root. A `declared-source-relative` link MUST be owned by the destination root and resolve within the canonical source root bound to the plan; this mode exists for the retained `codex-sync` checkout-to-project compatibility route. Every permitted link MUST be relative, MUST have a stable source/output identity, and MUST be represented in both `DistributionPlan` and `DistributionArtifact`; absolute links, escaping targets, ambient links discovered during traversal, and undeclared dereferencing MUST be rejected after the current absolute-link behavior is characterized.
+Every projection SHALL declare a symlink policy in inventory-owned projection rules. The default policy SHALL be `forbid`. The closed policy vocabulary SHALL be `forbid`, `contained-relative`, and `declared-source-relative`. A `contained-relative` link MUST resolve within the declared artifact ownership root. A `declared-source-relative` link MUST be owned by the destination root, MUST resolve its target relative to the link's own directory at its final published location, and MUST land within the canonical source root bound to the plan; this mode is used by the `codex-sync` and `cursor-sync` checkout-to-project routes. Every permitted link MUST be relative, MUST have a stable source/output identity, and MUST be represented in both `DistributionPlan` and `DistributionArtifact`; absolute links, escaping targets, ambient links discovered during traversal, and undeclared dereferencing MUST be rejected after the current absolute-link behavior is characterized.
 
 #### Scenario: Projection contains an undeclared symlink
 
@@ -103,6 +108,21 @@ Every projection SHALL declare a symlink policy in inventory-owned projection ru
 
 - **WHEN** a declared or encountered link resolves outside its artifact ownership root
 - **THEN** the projection fails closed regardless of whether the target exists
+
+#### Scenario: Source-relative link resolves from its own directory
+
+- **WHEN** a `declared-source-relative` link at `cursor/skills/<name>` has target `../../skills/<name>` and the plan-bound source root is the repository root
+- **THEN** the store accepts the link because the target resolved from the link's directory lands inside the source root
+
+#### Scenario: Stage root and publish root differ in depth
+
+- **WHEN** a `declared-source-relative` link is staged at a different directory depth than its final publish location
+- **THEN** the store judges the link by its final location, so a target valid there is accepted and one that escapes the source root from there is rejected
+
+#### Scenario: Source-relative link leaves the source root
+
+- **WHEN** a `declared-source-relative` link's target resolved from the link's own directory lands outside the plan-bound source root
+- **THEN** the store rejects the link with a link-escape failure and publishes nothing
 
 ### Requirement: Verification returns stage-bound evidence
 
@@ -232,3 +252,135 @@ The compiler SHALL reject retired stable IDs, retired version-specific aliases, 
 
 - **WHEN** a generated manifest, package, or staged artifact contains a retired stable ID, old path, symlink, or discovery entry
 - **THEN** projection validation fails before publication and reports the surface, path, and retired identity
+
+### Requirement: Replacing an existing generated root requires proven ownership
+
+`ProjectionArtifactStore` SHALL refuse to replace an existing publish root that this surface did not produce. Before activation the store MUST require that an existing root is a physical directory and passes the ownership verification supplied for the surface; a missing root passes. A refused replacement MUST leave the existing tree byte-unchanged and report a structured ownership failure. A surface MAY supply a stricter verification than the store default, and the store MUST NOT interpret Host receipt schemas itself.
+
+#### Scenario: Foreign directory occupies the publish root
+
+- **WHEN** the publish root exists and holds content without a matching owner receipt
+- **THEN** activation fails with an ownership failure and the foreign tree is unchanged
+
+#### Scenario: Symlink occupies the publish root
+
+- **WHEN** the publish root is a symlink or a regular file
+- **THEN** activation fails with an ownership failure and nothing is replaced
+
+#### Scenario: Owned root is replaced
+
+- **WHEN** the publish root holds a tree whose ownership verification passes
+- **THEN** activation replaces it atomically with the staged tree
+
+#### Scenario: Non-generated siblings of an owned subdirectory survive
+
+- **WHEN** a surface publishes owned subdirectories under a directory that also holds tracked non-generated files (such as `cursor/AGENTS.md` and `cursor/guidance.md`)
+- **THEN** only the owned subdirectories are replaced and the sibling files are unchanged
+
+#### Scenario: First publish has no existing root
+
+- **WHEN** the publish root does not exist
+- **THEN** activation publishes the staged tree without an ownership failure
+
+### Requirement: Activation outcome is not reversed by cleanup
+
+Once the staged tree has been renamed into the publish root, the store SHALL report the publish as successful. Removal of the previous-tree backup MUST be a separate best-effort step; its failure MUST NOT roll back, mask, or undo the published tree and MUST surface as a warning in the activation result. Rollback applies only when the stage rename itself fails.
+
+#### Scenario: Backup cleanup throws after a successful rename
+
+- **WHEN** removing the backup fails after the stage was renamed into the publish root
+- **THEN** the publish root holds the new tree, activation returns success with a cleanup warning, and no rollback occurs
+
+#### Scenario: Stage rename fails
+
+- **WHEN** renaming the stage into the publish root fails
+- **THEN** the previous tree is restored to the publish root and activation fails
+
+### Requirement: Staging leftovers from killed processes are cleaned
+
+`ProjectionArtifactStore.begin` SHALL remove `.projection-stage-*` and `.projection-backup-*` directories in the store root that were left by processes that no longer exist, and MUST NOT remove the current session's directories or a directory belonging to a live process.
+
+#### Scenario: Killed build left a stage directory
+
+- **WHEN** `begin` runs and the store root contains a stale stage directory from a dead process
+- **THEN** that directory is removed before the new stage is created
+
+#### Scenario: Concurrent live stage is preserved
+
+- **WHEN** the store root contains a stage or backup directory owned by a live process
+- **THEN** `begin` leaves it untouched
+
+### Requirement: Path-safety predicates have one implementation
+
+The store and the Projection Receipt publisher SHALL use one shared implementation of the relative-path, link-target, and containment predicates. The shared predicates MUST reject at least everything either prior implementation rejected: empty values, NUL bytes, backslashes, absolute paths, any drive prefix, `.`, `..`, and empty segments, and non-normalized link targets. The publisher MUST keep its existing error codes and messages.
+
+#### Scenario: Bare drive prefix is rejected
+
+- **WHEN** a destination or link target begins with a drive prefix such as `C:` with no separator
+- **THEN** both the store and the publisher reject it
+
+#### Scenario: Non-normalized link target is rejected
+
+- **WHEN** a link target contains `.` or empty segments or differs from its normalized form
+- **THEN** both the store and the publisher reject it
+
+#### Scenario: Existing planned paths remain valid
+
+- **WHEN** the current plans of the Agent Plugin, Codex native, Cursor plugin, and Claude profile surfaces are checked against the shared predicates
+- **THEN** none of their destinations or link targets is newly rejected
+
+### Requirement: Store fingerprints are order-independent
+
+The `artifactFingerprint` computed by the store SHALL be independent of emission order, provided no persisted value embeds the prior order-dependent digest; if one does, the store SHALL keep emission order and this requirement does not apply to that digest.
+
+#### Scenario: Same outputs in different order
+
+- **WHEN** two sessions write the same outputs and links in different orders
+- **THEN** both report the same `artifactFingerprint`
+
+### Requirement: Migrated build-time outputs are byte-identical
+
+Moving AGY, cursor-sync, or the Claude marketplace package behind the store SHALL NOT change any generated byte, file mode, link target, or fingerprint. Receipt files (`fingerprints.json`, `provenance.json`) SHALL remain rendered by the Host Adapter through the platform-provenance module as planned outputs using fingerprints the store computed at stage time; the store SHALL NOT know Host receipt schemas.
+
+#### Scenario: Generator check is unchanged
+
+- **WHEN** the migrated generator runs with `--check` against the committed output
+- **THEN** it reports no difference and the published fingerprints equal the pre-migration values
+
+#### Scenario: Output regenerated outside the checkout
+
+- **WHEN** the surface is regenerated into a directory outside the checkout from the same inputs
+- **THEN** the tree is byte-identical to the pre-migration tree
+
+### Requirement: Local skills sync publishes through the store
+
+The in-checkout branch of `materializeAgentsSkillsProjection` SHALL publish `.agents/skills` through `ProjectionArtifactStore`; `writeAtomicJson` and its private journal, stage, and backup SHALL NOT exist. Replacing an existing `.agents/skills` SHALL require its `.dhpk-projection.json` receipt to account for every file in the tree; an unmanaged file SHALL refuse the replace. `npm run sync:local-skills` SHALL keep its command-line contract and byte-identical output, including the receipt.
+
+#### Scenario: Local sync runs through the store
+
+- **WHEN** `npm run sync:local-skills` runs in a repository
+- **THEN** `.agents/skills` and its receipt are byte-identical to the previous implementation's output and no private journal or backup is created
+
+#### Scenario: Unmanaged content blocks the replace
+
+- **WHEN** `.agents/skills` contains a file its receipt does not list
+- **THEN** the sync is refused and the tree is unchanged
+
+#### Scenario: Legacy writers are gone
+
+- **WHEN** `scripts/lib/agents-skills-package.js` is searched for its own write path
+- **THEN** it contains no journal, backup, or atomic-JSON writer of its own
+
+### Requirement: Every Host Adapter exposes compile, materialize, and verify
+
+Each Host Adapter (Agent Plugin, Codex native, Codex sync, Cursor plugin, Cursor sync, AGY, Claude) SHALL expose `compile`, `materialize`, and `verify`, with `render` and `validate` consumed by `materializeDistribution`. The Claude compile, skill-root generation, and verify operations SHALL live in a Claude Host Adapter module outside `scripts/lib/distribution-inventory.js`, with unchanged behavior for existing callers.
+
+#### Scenario: Adapter lacks an operation
+
+- **WHEN** an adapter contract test loads each registered Host Adapter
+- **THEN** each exposes all three operations as functions
+
+#### Scenario: Claude operations moved without behavior change
+
+- **WHEN** the Claude generators and validators run after the move
+- **THEN** their outputs, diagnostics, and exit codes equal those recorded before the move

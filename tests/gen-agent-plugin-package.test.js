@@ -771,10 +771,11 @@ test('default Agent Plugin generation publishes the canonical owner catalog', ()
       'scripts/cli-dispatch/dispatch-runtime/launch-cli-dispatch.js',
       'scripts/cli-dispatch/transport/prepare-cli-request.py',
       'scripts/fast-worker-selector.js',
-      'scripts/lib/native-dispatch-policy.js',
+      'scripts/lib/dispatch-config.js',
       'scripts/lib/dispatch-contract.js',
       'scripts/lib/dispatch-engine.js',
       'scripts/lib/dispatch-capability-evidence.js',
+      'manifests/host-profiles.json',
       'manifests/provider-model-catalog.json',
     ]) assert.ok(fs.existsSync(path.join(out, relative)), `Agent Plugin includes ${relative}`);
     assert.ok(!fs.existsSync(path.join(out, 'skills/flow-drive/scripts')));
@@ -984,6 +985,19 @@ test('explicit Agent Plugin profile selection stays separate from the default ca
       assert.strictEqual(report.structural, 'PASS');
       assert.strictEqual(report.provenance, 'FAIL');
       assert.ok(report.errors.some((error) => /provenance\.json is missing/.test(error)));
+    } finally { fs.rmSync(packageRoot, { recursive: true, force: true }); }
+  });
+
+  test('Agent Plugin validator still fails when provenance.json is unreadable (fingerprint recipe falls back to legacy)', () => {
+    const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-unreadable-'));
+    try {
+      fs.cpSync(path.join(ROOT, 'plugins', 'dhpk-agent'), packageRoot, { recursive: true });
+      fs.writeFileSync(path.join(packageRoot, 'provenance.json'), '{ not json');
+      const result = spawnSync(process.execPath, [
+        path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'), packageRoot,
+      ], { encoding: 'utf8' });
+      assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+      assert.strictEqual(JSON.parse(result.stdout).provenance, 'FAIL');
     } finally { fs.rmSync(packageRoot, { recursive: true, force: true }); }
   });
 }

@@ -21,8 +21,8 @@ const {
   validateDistributionInventory,
   validateSupportingAssets,
   reconcileDistribution,
-  verifyClaudeProjection,
 } = require('../lib/distribution-inventory');
+const { verifyClaudeProjection } = require('../lib/claude-projection-adapter');
 const { validateProfileDefinitions } = require('../lib/capability-bundle-selection');
 
 const ROOT = path.join(__dirname, '..', '..');

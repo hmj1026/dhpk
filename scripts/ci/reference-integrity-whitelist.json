@@ -5,5 +5,27 @@
       "target": "@rules/testing.md",
       "reason": "convention illustration: consumer pairs testing.md + testing-project.md in its own .claude/rules/"
     }
+  ],
+  "dhpk_refs": [
+    {
+      "file": "README.md",
+      "target": "/dhpk:do",
+      "reason": "intentional mention of a removed legacy command in the legacy-interface notice"
+    },
+    {
+      "file": "README.md",
+      "target": "/dhpk:codex-security",
+      "reason": "intentional mention of a removed legacy command in the legacy-interface notice"
+    },
+    {
+      "file": "README.zh-TW.md",
+      "target": "/dhpk:do",
+      "reason": "intentional mention of a removed legacy command in the legacy-interface notice"
+    },
+    {
+      "file": "README.zh-TW.md",
+      "target": "/dhpk:codex-security",
+      "reason": "intentional mention of a removed legacy command in the legacy-interface notice"
+    }
   ]
 }

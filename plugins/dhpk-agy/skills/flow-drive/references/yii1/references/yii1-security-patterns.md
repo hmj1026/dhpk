@@ -1,6 +1,6 @@
 # Yii 1.1 安全模式參考表
 
-此文件為 `dhpk-yii1-security-audit` skill 的快速查閱表。
+此文件為 `yii1` skill 的快速查閱表。
 收錄 Yii 1.1（PHP 5.6）中常見的安全 vs 不安全模式對照。
 
 API 均經 Context7 查閱 `<framework-source>/` 原始碼確認。

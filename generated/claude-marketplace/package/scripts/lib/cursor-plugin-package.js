@@ -20,6 +20,17 @@ const {
   resolveInventoryRevision,
   skillProjectionMetadata,
 } = require('./distribution-projection-contract');
+const {
+  TREE_FINGERPRINT_ALGORITHM,
+  collectDirectoryEntries,
+  inventoryDigestInsertionOrder,
+  merkleFingerprint,
+  normalizeFingerprintAlgorithm,
+  resolveFingerprintAlgorithm,
+  sha256Hex,
+  treeFingerprint,
+  treeNodeFingerprint,
+} = require('./content-fingerprint');
 const { selectPortableSkills } = require('./agent-plugin-package');
 const {
   serializePortableSkillMetadata,
@@ -33,6 +44,7 @@ const {
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
+const { RULE_ACTIVATION_MAP, canonicalRulePath } = require('./rule-activation-map');
 const { collectStandalonePackageAssets, collectNativeAgentTrapAssets } = require('./standalone-package-assets');
 const { cursorNativeAgentClosureErrors } = require('./native-agent-support');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
@@ -54,7 +66,7 @@ const {
 } = require('./cursor-harness-adapt');
 const { CURSOR_SESSION_ALLOWLIST, cloneCursorSessionFiles } = require('./cursor-session-home');
 
-const GENERATOR_VERSION = '1.0.0';
+const GENERATOR_VERSION = '1.1.0';
 const DEFAULT_CURSOR_PROBE_TIMEOUT_MS = 30_000;
 const DEFAULT_CURSOR_PROBE_MAX_OUTPUT_BYTES = 256 * 1024;
 const MAX_CURSOR_PROBE_TIMEOUT_MS = 5 * 60 * 1000;
@@ -425,11 +437,17 @@ function adaptNativeDocument(content, kind, basename, sourceFile = null, canonic
   const parsed = parseFrontmatter(content);
   const fallbackName = basename.replace(/\.(?:md|mdc|markdown|txt)$/i, '').toLowerCase().replace(/[^a-z0-9.-]+/g, '-');
   const name = parsed.fields.name || fallbackName;
-  const description = parsed.fields.description || firstHeading(parsed.body, `${kind} component ${name}`);
+  let rulePolicy = null;
+  if (kind === 'rules') {
+    const rulePath = canonicalRulePath(basename);
+    rulePolicy = RULE_ACTIVATION_MAP[rulePath];
+    if (!rulePolicy) throw new Error(`Cursor rule has no entry in the rule activation map: ${rulePath}`);
+  }
+  const description = rulePolicy ? rulePolicy.description : parsed.fields.description || firstHeading(parsed.body, `${kind} component ${name}`);
   if (!name || !description || !NAME_PATTERN.test(name)) return { ok: false, reason: 'requires Cursor-safe name and description' };
   const fields = { name, description };
   if (kind === 'rules') {
-    fields.alwaysApply = parsed.fields.alwaysApply === true || String(parsed.fields.alwaysApply).toLowerCase() === 'true';
+    fields.alwaysApply = rulePolicy.alwaysOn;
     if (parsed.fields.globs) fields.globs = parsed.fields.globs;
   }
   if (kind === 'agents') {
@@ -444,14 +462,6 @@ function adaptNativeDocument(content, kind, basename, sourceFile = null, canonic
     return { ok: false, reason: 'retains unsupported Claude plugin-root interpolation' };
   }
   return { ok: true, content: renderFrontmatter(fields, body), transform: `cursor-${kind}-frontmatter` };
-}
-
-function stableInventoryDigest(inventory) {
-  const source = { ...(inventory || {}) };
-  delete source.profile_policy;
-  delete source.standalone_dependencies;
-  delete source.project_agent_projection;
-  return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
 }
 
 function listComponentFiles(directory, extensions) {
@@ -625,51 +635,24 @@ function writeMarketplace(outDir, name, version) {
   return marketplace;
 }
 
+// options.algorithm: 'legacy' (default, the Merkle that records empty
+// directories) or TREE_FINGERPRINT_ALGORITHM. No package tree holds an empty
+// directory, so both recipes give the same digest for every generated package.
 function fingerprintPath(target, options = {}) {
+  const algorithm = normalizeFingerprintAlgorithm(options.algorithm);
   const stat = lstatOrNull(target);
   if (!stat) return '';
   if (stat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${target}`);
   const budget = createTraversalBudget(options);
-  const hashNode = (current, depth) => {
-    const currentStat = lstatOrNull(current);
-    if (!currentStat) return '';
-    if (currentStat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${current}`);
-    if (currentStat.isDirectory()) {
-      const realDirectory = budget.enterDirectory(current, depth);
-      try {
-        const nodeDigest = crypto.createHash('sha256');
-        nodeDigest.update('directory\0');
-        for (const entry of readDirectoryEntries(current, { budget, sort: true })) {
-          const name = entry.name;
-          if (name === '__pycache__' || name.endsWith('.pyc')) continue;
-          nodeDigest.update(name);
-          nodeDigest.update('\0');
-          nodeDigest.update(hashNode(path.join(current, name), depth + 1));
-          nodeDigest.update('\0');
-        }
-        return nodeDigest.digest('hex');
-      } finally {
-        budget.leaveDirectory(realDirectory);
-      }
-    }
-    if (currentStat.isFile()) {
-      const nodeDigest = crypto.createHash('sha256');
-      nodeDigest.update('file\0');
-      nodeDigest.update(budget.readFile(current, currentStat));
-      return nodeDigest.digest('hex');
-    }
-    throw new Error(`cannot fingerprint special entry: ${current}`);
-  };
-  if (stat.isDirectory()) {
-    return hashNode(target, 0);
-  }
   if (stat.isFile()) {
-    const fileDigest = crypto.createHash('sha256');
-    fileDigest.update('file\0');
-    fileDigest.update(budget.readFile(target, stat));
-    return fileDigest.digest('hex');
+    const file = [{ path: 'node', type: 'file', content: budget.readFile(target, stat) }];
+    return algorithm === TREE_FINGERPRINT_ALGORITHM ? treeNodeFingerprint(file, 'node') : merkleFingerprint(file, 'node');
   }
-  throw new Error(`cannot fingerprint special entry: ${target}`);
+  if (!stat.isDirectory()) throw new Error(`cannot fingerprint special entry: ${target}`);
+  const walked = collectDirectoryEntries(target, { budget, skipBytecode: true, symlinks: 'refuse' });
+  if (algorithm === TREE_FINGERPRINT_ALGORITHM) return treeFingerprint(walked.filter((entry) => entry.type === 'file'));
+  const entries = walked.map((entry) => ({ ...entry, path: `node/${entry.path}` }));
+  return merkleFingerprint([{ path: 'node', type: 'directory' }, ...entries], 'node');
 }
 
 function fingerprintDir(directory, options = {}) {
@@ -753,7 +736,7 @@ function collectAdaptedCursorDocuments(sourceDir, destinationDir, kind, transfor
 
 function collectAdaptedCursorHooks(root, transformations, traversalBudget) {
   const sourcePath = path.join(root, 'hooks', 'hooks.json');
-  const adapted = { hooks: {} };
+  const adapted = { version: 1, hooks: {} };
   const files = [];
   if (fs.existsSync(sourcePath)) {
     let source;
@@ -804,21 +787,20 @@ function collectAdaptedCursorHooks(root, transformations, traversalBudget) {
 }
 
 function cursorVirtualFingerprint(files, prefix) {
-  const normalized = prefix ? `${prefix.replace(/\/$/, '')}/` : '';
-  const exact = files.find((file) => file.destination === prefix);
-  if (exact) return crypto.createHash('sha256').update('file\0').update(exact.content).digest('hex');
-  const names = new Set();
-  for (const file of files) {
-    if (!file.destination.startsWith(normalized)) continue;
-    const remainder = file.destination.slice(normalized.length);
-    if (remainder) names.add(remainder.split('/')[0]);
-  }
-  if (names.size === 0) return '';
-  const hash = crypto.createHash('sha256').update('directory\0');
-  for (const name of [...names].sort()) {
-    hash.update(name).update('\0').update(cursorVirtualFingerprint(files, prefix ? `${prefix}/${name}` : name)).update('\0');
-  }
-  return hash.digest('hex');
+  return treeNodeFingerprint(
+    files.map((file) => ({ path: file.destination, type: 'file', content: file.content })),
+    prefix,
+  );
+}
+
+// Recipe named by the package's provenance.json marker; absent provenance or
+// unreadable JSON (reported elsewhere) is the legacy recipe.
+function packageFingerprintAlgorithm(packageRoot) {
+  const provenancePath = path.join(packageRoot, 'provenance.json');
+  if (!fs.existsSync(provenancePath)) return { algorithm: resolveFingerprintAlgorithm(null) };
+  let provenance;
+  try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (_) { return { algorithm: resolveFingerprintAlgorithm(null) }; }
+  try { return { algorithm: resolveFingerprintAlgorithm(provenance) }; } catch (error) { return { algorithm: null, error: error.message }; }
 }
 
 function cursorReadmeContents() {
@@ -1033,9 +1015,10 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     sourceCommit,
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
-    inventoryDigest: stableInventoryDigest(inventory),
+    inventoryDigest: inventoryDigestInsertionOrder(inventory),
     inventoryRevision,
     generatorVersion,
+    fingerprintAlgorithm: TREE_FINGERPRINT_ALGORITHM,
     selectedSkillIds: [...selectedIds].sort(),
     selectedSkillNames: [...selectedNames].sort(),
     runtimeSupportStableIds: runtimeSupportSkillIds(inventory, 'cursor-plugin').slice().sort(),
@@ -1067,7 +1050,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     fingerprints,
     ...(installationSelectedIds.length > 0 ? { installation: createInstallationReceiptIdentity({
       surface: 'cursor-plugin', scope: 'project', sourceVersion: version,
-      inventoryDigest: stableInventoryDigest(inventory),
+      inventoryDigest: inventoryDigestInsertionOrder(inventory),
       profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
       selectedStableIds: profileSelection && profileSelection.selectedStableIds || installationSelectedIds,
       supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -1161,7 +1144,7 @@ function compileCursorPackage({
       // staged physical output.
       expectedFingerprint: file.destination === 'provenance.json'
         ? null
-        : crypto.createHash('sha256').update(file.content).digest('hex'),
+        : sha256Hex(file.content),
       mode: file.mode,
       symlinkPolicy: 'forbid',
       ...(file.skillId ? {
@@ -1180,7 +1163,7 @@ function compileCursorPackage({
         || (selectionMode !== 'legacy' && (!projection.selection || !projection.selection.selectionPolicy)),
       surface: 'cursor-plugin',
       compilerVersion: `cursor-${generatorVersion}`,
-      inventoryFingerprint: stableInventoryDigest(inventory),
+      inventoryFingerprint: inventoryDigestInsertionOrder(inventory),
       inventoryRevision,
       ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
       // Plan identity is a contract identity, not a host-specific temp path.
@@ -1284,6 +1267,7 @@ function materializeCursorPackage(options = {}) {
     root: parent,
     sourceRoot: resolvedRoot,
     publishRoot: resolvedOut,
+    ownership: { owner: SURFACE_OWNERS['cursor-plugin'] },
   });
   const artifact = materializeDistribution(projection.plan, projection.adapter, artifactStore);
   if (!artifact.ok) throw new Error(`generated Cursor Plugin failed validation: ${artifact.error.message}`);
@@ -1326,7 +1310,9 @@ function verifyCursorPackage(input = {}, maybeOptions = {}) {
     else if (typeof provenance.inventoryDigest === 'string' && provenance.inventoryDigest.length > 0) planFingerprint = provenance.inventoryDigest;
   } catch (_) { /* structural errors retain the legacy report; evidence stays FAIL */ }
   try {
-    artifactFingerprint = fingerprintDir(resolvedPackageRoot);
+    const recipe = packageFingerprintAlgorithm(resolvedPackageRoot);
+    if (recipe.error) throw new Error(recipe.error);
+    artifactFingerprint = fingerprintDir(resolvedPackageRoot, { algorithm: recipe.algorithm });
   } catch (error) {
     const diagnostic = `Cursor package fingerprint failed: ${error.message}`;
     structural.errors.push(diagnostic);
@@ -1538,6 +1524,9 @@ function validateHooks(packageRoot, hookRoots, errors) {
       errors.push(`${path.relative(packageRoot, hooksPath).split(path.sep).join('/')} is invalid JSON: ${error.message}`);
       continue;
     }
+    if (config && typeof config === 'object' && !(Number.isInteger(config.version) && config.version > 0)) {
+      errors.push(`${path.relative(packageRoot, hooksPath).split(path.sep).join('/')} must declare a positive-integer version`);
+    }
     if (!config || typeof config !== 'object' || !config.hooks || typeof config.hooks !== 'object' || Array.isArray(config.hooks)) {
       errors.push('Cursor hooks config must contain a hooks object');
       continue;
@@ -1634,10 +1623,32 @@ function validateCursorPackage(input = {}) {
     errors.push('Cursor mcpServers/mcp.json is rejected until a closed transport schema validator is available');
   }
   validateMarketplace(root, errors);
-  if (fs.existsSync(path.join(root, 'fingerprints.json'))) {
+  const recipe = packageFingerprintAlgorithm(root);
+  if (recipe.error) errors.push(`provenance.json: ${recipe.error}`);
+  if (recipe.algorithm && fs.existsSync(path.join(root, 'fingerprints.json'))) {
     try {
       const fingerprints = JSON.parse(readFileBounded(path.join(root, 'fingerprints.json')).toString('utf8'));
-      for (const key of Object.keys(fingerprints || {})) if (!isSafeRelativePath(key)) errors.push(`fingerprint path escapes package root: '${key}'`);
+      // The Agent Plugin overlay validated here carries its own fingerprint
+      // format: a `surface` string plus a nested `skills` object. Every other
+      // shape is Cursor format: path -> Merkle digest pairs recomputed from
+      // the package, so an added non-digest key cannot switch the check off.
+      const skills = fingerprints && fingerprints.skills;
+      const agentOverlay = Boolean(fingerprints) && typeof fingerprints.surface === 'string'
+        && Boolean(skills) && typeof skills === 'object' && !Array.isArray(skills);
+      for (const [key, expected] of Object.entries(fingerprints || {})) {
+        if (!isSafeRelativePath(key)) {
+          errors.push(`fingerprint path escapes package root: '${key}'`);
+          continue;
+        }
+        if (agentOverlay) continue;
+        if (typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected)) {
+          errors.push(`fingerprints.json entry '${key}' is not a SHA-256 hex digest`);
+          continue;
+        }
+        let actual;
+        try { actual = fingerprintPath(path.join(root, key), { algorithm: recipe.algorithm }); } catch (error) { actual = `unreadable: ${error.message}`; }
+        if (actual !== expected) errors.push(`fingerprints.json entry '${key}' does not match package content`);
+      }
     } catch (error) { errors.push(`fingerprints.json is invalid JSON: ${error.message}`); }
   }
   const provenancePath = path.join(root, 'provenance.json');
@@ -1669,7 +1680,7 @@ function validateCursorPackage(input = {}) {
         } catch (error) {
           errors.push(`Cursor runtime support inventory is invalid: ${error.message}`);
         }
-        if (provenance.inventoryDigest !== stableInventoryDigest(inventory)) {
+        if (provenance.inventoryDigest !== inventoryDigestInsertionOrder(inventory)) {
           errors.push('Cursor provenance inventoryDigest does not match the validation inventory');
         } else if (JSON.stringify(declaredRuntimeSupportIds) !== JSON.stringify(expectedRuntimeSupportIds)) {
           errors.push('Cursor provenance runtime support IDs do not match the validation inventory');

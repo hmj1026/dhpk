@@ -56,18 +56,26 @@ symlinks SHALL fail closed.
 
 ### Requirement: Agent frontmatter is adapted without changing canonical sources
 
-The AGY adapter SHALL accept `tools:` as either a YAML/JSON array or a
-comma-separated scalar and SHALL emit one deterministic array. It SHALL map
-`Read` to `view_file`, `Write` to `write_to_file`, `Edit` to
-`replace_file_content`, `Bash` to `run_command`, `Grep` to `grep_search`,
-`Glob` to `list_dir`, `WebSearch` to `search_web`, `WebFetch` to
-`read_url_content`, `Agent` and `Skill` to `invoke_subagent`, and normalize
-`mcp__server__tool` to `mcp_server_tool`. The adapter SHALL map models as
-`opus → pro`, `sonnet → pro`, `fable → flash`, `haiku → flash_lite`, preserve
-valid AGY enum values, and use `inherit` when no model is declared.
-The adapter SHALL accept native `view_file` in tool frontmatter and SHALL
-reject `read_file` there as unsupported, reporting the agent path. Adaptation
-SHALL preserve Markdown body bytes, including literal `read_file` references.
+The AGY adapter SHALL accept `tools:` as either a YAML/JSON array or a comma-separated scalar, and SHALL emit one deterministic array.
+
+It SHALL map tools as follows:
+- `Read` to `view_file`
+- `Write` to `write_to_file`
+- `Edit` to `replace_file_content`
+- `Bash` to `run_command`
+- `Grep` to `grep_search`
+- `Glob` to `list_dir`
+- `WebSearch` to `search_web`
+- `WebFetch` to `read_url_content`
+- `Agent` and `Skill` to `invoke_subagent`
+
+A `mcp__server__tool` entry SHALL be normalized to `mcp_server_tool` only when the generated package declares `server` in its own MCP configuration. Otherwise the adapter SHALL drop the tool from the generated frontmatter and SHALL list it in the adapter result as a dropped tool with its agent path. The reason is that AGY fails to construct a subagent whose declared tool is not in the host registry.
+
+The adapter SHALL map models as `opus → pro`, `sonnet → pro`, `fable → flash`, and `haiku → flash_lite`. It SHALL preserve valid AGY enum values, and SHALL use `inherit` when no model is declared.
+
+The adapter SHALL accept native `view_file` in tool frontmatter. It SHALL reject `read_file` there as unsupported, reporting the agent path.
+
+Adaptation SHALL preserve Markdown body bytes, including literal `read_file` references.
 
 #### Scenario: Claude-style frontmatter is adapted
 
@@ -105,6 +113,20 @@ SHALL preserve Markdown body bytes, including literal `read_file` references.
   compatibility matrix has no alias
 - **THEN** adaptation fails with the agent path and model value rather than
   silently selecting a fallback
+
+#### Scenario: MCP tool without a packaged server is dropped
+
+- **WHEN** an agent declares `tools: Read, Grep, mcp__gitnexus__impact` and
+  the generated package declares no `gitnexus` MCP server
+- **THEN** the generated tools are `[view_file, grep_search]`, the adapter
+  result lists `mcp__gitnexus__impact` as dropped with the agent path, and
+  the Markdown body remains byte-identical
+
+#### Scenario: MCP tool with a packaged server is kept
+
+- **WHEN** an agent declares `mcp__context7__query_docs` and the generated
+  package declares a `context7` MCP server
+- **THEN** the generated tools include `mcp_context7_query_docs`
 
 ### Requirement: Unsupported Claude metadata is removed with an audit result
 

@@ -1,6 +1,6 @@
 ---
 name: dhpk-project-conventions
-description: "dhpk Project Convention"
+description: "dhpk repository branch, changelog, and delivery conventions"
 alwaysApply: false
 ---
 # dhpk Project Convention

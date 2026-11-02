@@ -78,12 +78,12 @@
         "destination": "references/execution-bundle/scripts/lib/dispatch-capability-evidence.js"
       },
       {
-        "source": "scripts/lib/dispatch-engine.js",
-        "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
+        "source": "scripts/lib/dispatch-config.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-config.js"
       },
       {
-        "source": "scripts/lib/native-dispatch-policy.js",
-        "destination": "references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+        "source": "scripts/lib/dispatch-engine.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
       },
       {
         "source": "scripts/lib/partial-writer-handoff.js",

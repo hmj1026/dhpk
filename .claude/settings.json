@@ -4,5 +4,19 @@
       "Bash(codex exec:*)",
       "Bash(bash skills/dhpk-codex-bridge/scripts/run-codex.sh:*)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-shared-git-stash.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }

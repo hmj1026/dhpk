@@ -345,7 +345,7 @@ test('check still detects changed payloads and non-cache extras', () => {
     fs.writeFileSync(path.join(fixture.out, 'scripts/extra.js'), 'extra payload\n');
     assert.strictEqual(GENERATOR.check(fixture).ok, false, 'unmanaged non-cache file must fail');
     fs.unlinkSync(path.join(fixture.out, 'scripts/extra.js'));
-    fs.mkdirSync(path.join(fixture.out, 'skills/empty-extra'));
+    fs.mkdirSync(path.join(fixture.out, 'scripts/empty-extra'));
     assert.strictEqual(GENERATOR.check(fixture).ok, false, 'unmanaged empty directory must still fail');
   } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
 });
@@ -440,6 +440,74 @@ test('artifact-only Claude package requires a checkout for Codex and Cursor sync
     fs.rmSync(isolatedParent, { recursive: true, force: true });
     fs.rmSync(project, { recursive: true, force: true });
   }
+});
+
+function scratchSiblings(directory) {
+  return fs.readdirSync(directory).filter((name) => /^\.(projection-|dhpk-claude-marketplace-)/.test(name));
+}
+
+test('materialize publishes executable bytes as 0755, data as 0644, and leaves no scratch behind', () => {
+  const fixture = transientPackageFixture();
+  try {
+    fs.writeFileSync(path.join(fixture.root, 'scripts/run.sh'), '#!/bin/sh\n');
+    fs.chmodSync(path.join(fixture.root, 'scripts/run.sh'), 0o755);
+    fs.chmodSync(path.join(fixture.root, 'scripts/keep.js'), 0o600);
+    GENERATOR.materialize(fixture);
+    assert.strictEqual(fs.statSync(path.join(fixture.out, 'scripts/run.sh')).mode & 0o7777, 0o755);
+    assert.strictEqual(fs.statSync(path.join(fixture.out, 'scripts/keep.js')).mode & 0o7777, 0o644);
+    assert.deepStrictEqual(scratchSiblings(fixture.temp), []);
+    assert.strictEqual(GENERATOR.check(fixture).ok, true);
+    assert.deepStrictEqual(scratchSiblings(fixture.temp), []);
+  } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
+});
+
+test('materialize refuses to replace a non-empty directory it does not own and leaves it intact', () => {
+  const fixture = transientPackageFixture();
+  try {
+    fs.mkdirSync(fixture.out);
+    fs.writeFileSync(path.join(fixture.out, 'precious.txt'), 'not generated\n');
+    assert.throws(() => GENERATOR.materialize(fixture), /refusing to replace/);
+    assert.strictEqual(fs.readFileSync(path.join(fixture.out, 'precious.txt'), 'utf8'), 'not generated\n');
+    assert.deepStrictEqual(scratchSiblings(fixture.temp), []);
+  } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
+});
+
+test('a failed regeneration keeps the previously published package in place', () => {
+  const fixture = transientPackageFixture();
+  try {
+    GENERATOR.materialize(fixture);
+    const before = GENERATOR.fingerprint(fixture.out);
+    fs.rmSync(path.join(fixture.root, 'templates'), { recursive: true });
+    assert.throws(() => GENERATOR.materialize(fixture), /source is missing: templates/);
+    assert.strictEqual(GENERATOR.fingerprint(fixture.out), before);
+    assert.deepStrictEqual(scratchSiblings(fixture.temp), []);
+  } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
+});
+
+test('regenerating over a published package is idempotent and replaces stale files', () => {
+  const fixture = transientPackageFixture();
+  try {
+    const first = GENERATOR.materialize(fixture);
+    fs.writeFileSync(path.join(fixture.out, 'scripts/stale.js'), 'stale\n');
+    const second = GENERATOR.materialize(fixture);
+    assert.strictEqual(second.fingerprint, first.fingerprint);
+    assert.strictEqual(fs.existsSync(path.join(fixture.out, 'scripts/stale.js')), false);
+  } finally { fs.rmSync(fixture.temp, { recursive: true, force: true }); }
+});
+
+test('real-source package carries a parseable provenance.json receipt with matching digests', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-provenance-'));
+  try {
+    const out = path.join(temp, 'package');
+    GENERATOR.materialize({ out });
+    const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
+    assert.strictEqual(provenance.schema, 'dhpk.claude-marketplace-catalog.v1');
+    assert.ok(provenance.files.length > 0);
+    assert.strictEqual(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'),
+      `${JSON.stringify(provenance, null, 2)}\n`);
+    assert.strictEqual(fs.statSync(path.join(out, 'provenance.json')).mode & 0o7777, 0o644);
+    assert.strictEqual(GENERATOR.check({ out }).ok, true);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
 
 run('gen-claude-marketplace-package');

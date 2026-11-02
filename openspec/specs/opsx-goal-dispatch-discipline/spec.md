@@ -51,17 +51,17 @@ The goal string SHALL forbid `sleep`-based polling for background work, directin
 
 ### Requirement: Goal roster routes mechanical work through the fast-worker backend selector
 
-The goal template's dispatch roster SHALL route batched mechanical work to the fast-worker tier resolved by the `fast_worker_backend` selector (`claude` / `codex` / `agy` / `auto` with `fast_worker_backend_order` and `fast_worker_fallback`), instead of naming only the in-process `dhpk:fast-worker`. The emitted goal string SHALL state the resolved backend and fallback order explicitly so an unattended session dispatches without re-deriving the selection.
+The goal template's dispatch roster SHALL route batched mechanical work to the fast-worker tier resolved by the Host `worker` Role Default or the `worker_target` setting through the Dispatch Engine (`node scripts/fast-worker-selector.js`), instead of naming only the in-process `dhpk:fast-worker`. The emitted goal string SHALL state the resolved Target Agent and fallback policy explicitly so an unattended session dispatches without re-deriving the selection. The removed `fast_worker_backend`, `fast_worker_backend_order`, and `fast_worker_fallback` keys SHALL NOT drive the roster.
 
 #### Scenario: Session configured for codex backend
 
-- **WHEN** the effective backend resolution is `codex` (via flag or userConfig) and an applicable mechanical batch is dispatched in an unattended goal session
-- **THEN** the batch is dispatched to `dhpk:codex-worker` per the backend clause carried in the goal string
+- **WHEN** the effective `worker` target resolves to `codex-cli` (via flag or `worker_target`) and an applicable mechanical batch is dispatched in an unattended goal session
+- **THEN** the batch is dispatched to `dhpk:codex-worker` per the Target Agent clause carried in the goal string
 
 #### Scenario: No CLI available under auto
 
-- **WHEN** the resolution is `auto` and neither the codex nor the agy CLI is available
-- **THEN** mechanical batches route to the in-process `dhpk:fast-worker` and the worker report states the selected backend
+- **WHEN** neither the codex nor the agy CLI is available to the Dispatch Engine for the Host `worker` Role Default
+- **THEN** mechanical batches route to the in-process `dhpk:fast-worker` when the Engine resolves it, and the worker report states the selected Target Agent
 
 ### Requirement: Post-review fix batches use applicable ownership and coupling
 

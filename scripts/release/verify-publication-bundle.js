@@ -4,6 +4,7 @@
 // Standalone publication consumer verifier. This file intentionally imports
 // only Node built-ins so a later write-enabled job can download and execute
 // this verifier alongside the bundle without checking out the repository.
+// Its digest helpers are pinned to scripts/lib/content-fingerprint.js by tests/content-fingerprint-adoption-release.test.js.
 
 const fs = require('node:fs');
 const path = require('node:path');

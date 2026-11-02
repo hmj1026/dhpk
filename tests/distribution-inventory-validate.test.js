@@ -12,7 +12,6 @@ const {
   REQUIRED_SURFACES,
   validateCapabilityProfilePolicy,
   computeScopedCounts,
-  generateClaudeSkillRoots,
   validateProjectionContract,
   validateRequiredSurfacePlan,
   validateDistributionInventory,
@@ -26,8 +25,6 @@ const {
   validatePortableFrontmatterContract,
   preserveProjectionContract,
   LIFECYCLES,
-  compileClaudeProjection,
-  verifyClaudeProjection,
   validateSkillRoutingFamilies,
   resolveSkillRoutingAlias,
   resolveSkillRoutingReference,
@@ -36,6 +33,7 @@ const {
   formatSkillIdentityDiagnostic,
   validateRenamedSkillNames,
 } = require('../scripts/lib/distribution-inventory');
+const { generateClaudeSkillRoots, compileClaudeProjection, verifyClaudeProjection } = require('../scripts/lib/claude-projection-adapter');
 const {
   INTERNAL_RUNTIME_SURFACES,
   runtimeSupportSkillIds,

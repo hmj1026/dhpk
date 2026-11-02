@@ -14,10 +14,10 @@ const {
   classifyCanonicalInventory,
   LIFECYCLES,
   refreshSupportingDigests,
-  compileClaudeProjection,
   preserveProjectionContract,
   writeInventoryAtomically,
 } = require('../scripts/lib/distribution-inventory');
+const { compileClaudeProjection } = require('../scripts/lib/claude-projection-adapter');
 const generator = require('../scripts/ci/gen-distribution-inventory');
 
 const ROOT = path.join(__dirname, '..');

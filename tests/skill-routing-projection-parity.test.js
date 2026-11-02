@@ -813,11 +813,11 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
   const { spawnSync } = require('node:child_process');
   const { test, assert } = require('./_lib/tinytest');
   const {
-    generateClaudeSkillRoots,
     resolveSkillRoutingAlias,
     resolveSkillRoutingReference,
     validateSkillRoutingFamilies,
   } = require('../scripts/lib/distribution-inventory');
+  const { generateClaudeSkillRoots } = require('../scripts/lib/claude-projection-adapter');
 
   const ROOT = path.join(__dirname, '..');
   const INVENTORY_FILE = path.join(ROOT, 'manifests', 'distribution-inventory.json');

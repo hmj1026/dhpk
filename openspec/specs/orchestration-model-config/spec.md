@@ -9,13 +9,18 @@ TBD - created by archiving change dhpk-orchestration-workers. Update Purpose aft
 ### Requirement: userConfig keys for role models and the dispatch switch
 
 The configuration contract SHALL support Host-aware Provider/Model/Effort
-resolution for `planner`, `reasoner`, `worker`, and `reviewer`. Canonical
-configuration MAY select a Provider-scoped Model and normalized Effort per Role;
-the current Host profile and Capability Matrix SHALL determine whether the
-selection is available. Existing Claude role keys and
-`orchestration_dispatch` remain compatibility inputs during migration, with
-project configuration taking precedence over global configuration and shipped
-defaults.
+resolution for `planner`, `reasoner`, `worker`, and `reviewer` through the
+canonical `planner_target`, `reasoner_target`, `worker_target`, and
+`reviewer_target` keys. Canonical configuration MAY select a Provider-scoped
+Model and normalized Effort per Role; the current Host profile and Capability
+Matrix SHALL determine whether the selection is available. Project
+configuration takes precedence over global configuration and shipped defaults.
+The legacy role keys (`fast_worker_*`, `deep_reasoner_*`, `planner_model`,
+`planner_effort`, `reviewer_model`, `architect_*`, `codex_*_model`,
+`codex_*_effort`, `agy_*_model`, `fast_worker_backend*`,
+`fast_worker_fallback`) SHALL NOT be translated or applied; they are removed
+inputs (see the removed-key requirement below). `orchestration_dispatch`
+remains the dispatch switch.
 
 #### Scenario: Project-level Provider-scoped override wins
 
@@ -106,21 +111,23 @@ fallback success.
 ### Requirement: userConfig keys for CLI-backed fast-worker models
 
 The manifest and generic config loader SHALL expose canonical Host-aware
-Provider/Model/Effort and timeout settings for supported worker Roles. Legacy
-keys such as `codex_fast_worker_*`, `codex_deep_reasoner_*`, `codex_bridge_*`,
-and `agy_fast_worker_model` MAY be read as aliases for one release; canonical
-keys take precedence and diagnostics identify legacy use. The configuration
-contract SHALL not assume that a CLI-backed target is always external or that
-Claude is always native. Timeout budgets SHALL be enforced by the attested
-portable transport runner, which reports the effective deadline and never
-delegates containment to a shell timeout backstop.
+Provider/Model/Effort and timeout settings for supported worker Roles through
+one configuration reader owned by the dispatch configuration module. The CLI
+role resolver SHALL obtain a Role's model, effort, and timeout from that reader
+and SHALL NOT read configuration keys itself. The configuration contract SHALL
+not assume that a CLI-backed target is always external or that Claude is always
+native. Timeout budgets SHALL be enforced by the attested portable transport
+runner, which reports the effective deadline and never delegates containment to
+a shell timeout backstop. Legacy aliases `codex_fast_worker_*`,
+`codex_deep_reasoner_*`, `codex_bridge_*`, and `agy_fast_worker_model` SHALL NOT
+be read.
 
 #### Scenario: Canonical target key wins
 
-- **WHEN** a canonical Codex target and a legacy Codex worker key are both
-  configured
+- **WHEN** a canonical Codex target is configured and a removed legacy Codex
+  worker key is also present
 - **THEN** the canonical target supplies the effective Provider/Model/Effort
-  and the legacy source is reported as deprecated
+  and the removed key is reported as blocked, not applied
 
 #### Scenario: Shared timeout remains stable
 
@@ -133,6 +140,12 @@ delegates containment to a shell timeout backstop.
 - **WHEN** a target contains an unknown Provider, Model, or Effort
 - **THEN** configuration reports the invalid value and prevents an unauthorized
   dispatch or applies the permitted Host-native fallback
+
+#### Scenario: Role resolver and dispatch configuration agree
+
+- **WHEN** `codex_worker_model` and `worker_target` are read for the same Role
+  through the CLI role resolver and through the dispatch configuration module
+- **THEN** both return the same value and source, because the resolver delegates
 
 ### Requirement: CLI-backed worker model defaults are lockstep across all declaration sites
 
@@ -159,3 +172,37 @@ The enumeration above SHALL be read as covering both shipped files and governing
 
 - **WHEN** a project or global config overrides the worker model after the default changes
 - **THEN** the override still wins over the new shipped default with unchanged layering semantics
+
+### Requirement: Removed dispatch configuration keys produce an explicit BLOCKED diagnostic
+
+The dispatch configuration SHALL treat each removed legacy key found in any
+layer (project, global, environment) as an error to surface, never as a value
+to apply and never as silently ignored. For each such key the SessionStart
+dispatch report SHALL contain a `BLOCKED` entry naming the layer, the key, and
+its replacement. The Role affected by a removed key SHALL resolve from its
+canonical key or the Host Role Default. The release notes SHALL carry the
+old-key to replacement mapping.
+
+#### Scenario: Removed key is BLOCKED
+
+- **WHEN** a project configuration sets `fast_worker_backend=codex`
+- **THEN** the SessionStart report line includes a blocked token naming
+  `project.fast_worker_backend` and replacement `worker_target`, and the
+  `worker` Role resolves to the Host Role Default
+
+#### Scenario: Canonical key is not displaced by a removed key
+
+- **WHEN** `worker_target` and `codex_worker_model` are both set
+- **THEN** `worker_target` is the effective target and the removed key is still
+  reported as blocked
+
+#### Scenario: Clean configuration is unchanged
+
+- **WHEN** no removed key is present in any layer
+- **THEN** the SessionStart report contains no blocked token
+
+#### Scenario: Report stays within its budget
+
+- **WHEN** many removed keys are present
+- **THEN** the report line stays within its documented length limit and the
+  full list is available in the full-output file

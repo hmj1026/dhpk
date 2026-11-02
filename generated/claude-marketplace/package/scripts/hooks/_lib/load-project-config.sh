@@ -57,15 +57,11 @@ opts = (
 if not isinstance(opts, dict):
     sys.exit(0)
 # Known userConfig keys (mirrors .claude-plugin/plugin.json userConfig, e.g.
-# hook_profile, modules, review_agents, deep_reasoner_model, fast_worker_model,
-# deep_reasoner_effort, fast_worker_effort, orchestration_dispatch,
-# cross_provider, fast_worker_backend, fast_worker_backend_order,
-# fast_worker_fallback,
-# codex_fast_worker_model, codex_fast_worker_effort, agy_fast_worker_model,
-# codex_deep_reasoner_model, codex_deep_reasoner_effort,
-# codex_timeout_secs, codex_fast_worker_timeout_secs,
-# codex_deep_reasoner_timeout_secs, codex_bridge_timeout_secs,
-# architect_model, architect_effort).
+# hook_profile, modules, review_agents, orchestration_dispatch, cross_provider,
+# worker_target, reasoner_target, planner_target, reviewer_target,
+# preference_order, fallback_allow, codex_timeout_secs,
+# codex_worker_timeout_secs, codex_reasoner_timeout_secs,
+# codex_reviewer_timeout_secs).
 # Unknown keys are still exported so plugin.json
 # additions Just Work without requiring a loader update.
 for key, val in opts.items():

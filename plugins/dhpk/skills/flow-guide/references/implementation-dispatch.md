@@ -76,6 +76,8 @@ replay context.
 
 **`general-purpose` is prohibited for implementation while `orchestration_dispatch=on`.** It carries no dhpk policy context, inherits the main-session model regardless of task cost, and has no defined input/output contract — use `deep-reasoner` / `fast-worker` / inline per the dispatch table instead.
 
+`general-purpose` is also not a substitute when a typed role fits the work: live manual QA execution goes to `qa-executor`, assigned documentation authoring to `docs-writer`, and read-only exploration to Explore or an equivalent read-only explorer role (Codex `explorer`).
+
 ## Orchestration identity and evidence presentation
 
 Orchestration owns worker/reviewer selection, dispatch, handoff, lifecycle, retry, and evidence presentation. A worker or reviewer owns the work and its artifact; it does not own dispatch identity. Keep the dispatch table in `rules/execution-policy.md`; this section defines the contract around that table without duplicating its roster.
@@ -108,7 +110,7 @@ shared `retry_budget`. Every fallback consumes one unit, switching providers
 does not reset it, and unavailable candidates are not probed again. The
 handoff retains the original role, assigned scope, read/write authority,
 model/effort contract, and reviewer contract. The pure decision seam is
-`${POLICY_BUNDLE_ROOT}/scripts/lib/native-dispatch-policy.js`; it is not a coordinator. Partial
+`decideFallback` in `${POLICY_BUNDLE_ROOT}/scripts/lib/dispatch-engine.js`; it is not a coordinator. Partial
 writer reconciliation is isolated in
 `${POLICY_BUNDLE_ROOT}/scripts/lib/partial-writer-handoff.js`.
 

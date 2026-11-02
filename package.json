@@ -1,6 +1,6 @@
 {
   "name": "dhpk",
-  "version": "0.68.3",
+  "version": "0.69.0",
   "private": true,
   "description": "Reusable Claude Code harness with role-based agents, routed commands, advisory reviewer dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
   "license": "MIT",
@@ -63,6 +63,7 @@
     "gen:manifest": "node scripts/ci/gen-claude-manifest.js",
     "gen:marketplace": "node scripts/ci/gen-claude-marketplace-package.js",
     "gen:codex-agents": "node scripts/gen-codex-agents.js",
+    "gen:fixpoint": "node scripts/ci/gen-fixpoint.js",
     "gen:all": "npm run catalog:write && npm run gen:manifest && npm run gen:marketplace && npm run gen:codex-agents"
   }
 }

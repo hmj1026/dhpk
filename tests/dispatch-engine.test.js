@@ -6,7 +6,7 @@ const {
   decideFallback,
   resolveTarget,
 } = require('../scripts/lib/dispatch-engine');
-const { SCHEMAS, createDispatchReceipt } = require('../scripts/lib/dispatch-contract');
+const { SCHEMAS, createDispatchReceipt, createDispatchRequest } = require('../scripts/lib/dispatch-contract');
 const catalog = require('../manifests/provider-model-catalog.json');
 const profiles = require('../manifests/host-profiles.json');
 
@@ -462,6 +462,7 @@ test('unavailable explicit target may use contextual native fallback before side
   };
   const initial = resolveTarget(request(unavailable, {
     target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', route: 'native', transport: 'native-runtime' },
+    fallback: { allow: true, retry_budget: 1, cross_provider: true },
   }), { catalog });
   const result = decideFallback({
     request: initial.request,
@@ -501,7 +502,7 @@ test('fallback does not retry the same resolved target identity', () => {
     },
   };
   const result = decideFallback({
-    request: request(hostProfile, { role: 'worker', authority: 'workspace-write' }),
+    request: request(hostProfile, { role: 'worker', authority: 'workspace-write', fallback: { allow: true, retry_budget: 1, cross_provider: true } }),
     resolution: {
       status: 'UNAVAILABLE',
       reason: 'Cursor native runtime unavailable',
@@ -570,96 +571,251 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   assert.strictEqual(result.target.native, true);
 });
 
-// Source suite: dispatch.test.js
-{
-  const { test, assert } = require('./_lib/tinytest');
-  const { dispatch } = require('../scripts/lib/dispatch');
-  const { createAdapterRegistry } = require('../scripts/lib/provider-adapter');
-  const { SCHEMAS } = require('../scripts/lib/dispatch-contract');
+test('the fallback contract exposes the six canonical failure classes', () => {
+  assert.deepStrictEqual(Object.values(FAILURE_CLASSES), [
+    'CLI_UNAVAILABLE',
+    'AUTHENTICATION_OR_MODEL_UNAVAILABLE',
+    'QUOTA_OR_RATE_LIMIT',
+    'SAFETY_OR_USER_DENIAL',
+    'TASK_OR_SEMANTIC_FAILURE',
+    'TIMEOUT_OR_INTERRUPTION',
+  ]);
+});
 
-  const catalog = require('../manifests/provider-model-catalog.json');
-  const profile = {
-    schema: SCHEMAS.HOST_PROFILE, version: 'cursor-dispatch.v2', host: 'cursor', native_target_agent: 'cursor', native_provider: 'cursor', native_model: 'composer-2.5', native_transport: 'native-runtime',
-    allowed_providers: ['cursor', 'openai'],
-    access: {
-      cursor: { status: 'AVAILABLE', evidence: 'Cursor native fixture' },
-      openai: { status: 'AVAILABLE', evidence: 'Codex fixture' },
-    },
-    quota_pools: { cursor: 'native', openai: 'codex' }, concurrency_limits: { native: 1, codex: 1 }, observed_at: '2026-09-11T00:00:00.000Z',
-  };
-
-  function request(overrides = {}) {
-    const input = {
-      schema: SCHEMAS.REQUEST, host_profile: profile, task_id: 'dispatch-task', attempt_id: 'dispatch-attempt', role: 'reasoner', authority: 'read-only',
-      task: { description_digest: 'a'.repeat(64) }, scope: { workdir: '/workspace', assigned_files: [], prompt_evidence: { path: '/workspace/prompt', dev: 1, ino: 2, sha256: 'b'.repeat(64) } },
-      effort: 'high', fallback: { allow: true, retry_budget: 1 }, parallelism: { dependencies: [], max_concurrency: 1 }, ...overrides,
-    };
-    if (input.target && Object.prototype.hasOwnProperty.call(input.target, 'route')) {
-      const { route, ...target } = input.target;
-      input.target = target;
-    }
-    return input;
+test('failure classes that are not availability failures never switch Provider and keep the budget', () => {
+  const target = { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', route: 'native', transport: 'native-runtime' };
+  for (const [failureClass, status, action] of [
+    [FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT, 'BLOCKED', 'stop'],
+    [FAILURE_CLASSES.SAFETY_OR_USER_DENIAL, 'BLOCKED', 'stop'],
+    [FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE, 'BLOCKED', 'repair'],
+    [FAILURE_CLASSES.TIMEOUT_OR_INTERRUPTION, 'RECONCILIATION_REQUIRED', undefined],
+  ]) {
+    const result = decideFallback({
+      request: request(cursorProfile, { target, fallback: { allow: true, retry_budget: 3 } }),
+      resolution: { status: 'UNAVAILABLE', reason: 'failed', target, fallback_eligible: true },
+      failureClass,
+      sideEffects: 'none',
+      catalog,
+    });
+    assert.strictEqual(result.status, status, failureClass);
+    assert.strictEqual(result.action, action, failureClass);
+    assert.strictEqual(result.retry_budget_remaining, 3, failureClass);
   }
+});
 
-  test('dispatch resolves Cursor to Codex Sol5.6 and returns the shared receipt', async () => {
-    const registry = createAdapterRegistry({ executors: {
-      openai: (target) => ({ status: 'SUCCEEDED', verification: 'PASSED', side_effects: 'none', receipt_id: `receipt-${target.identity}` }),
-    } });
-    const result = await dispatch(request({ target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', route: 'native', transport: 'native-runtime' } }), { catalog, registry, fallback: false });
-    assert.strictEqual(result.status, 'SUCCEEDED');
-    assert.strictEqual(result.receipt.schema, SCHEMAS.RECEIPT);
-    assert.strictEqual(result.receipt.host, 'cursor');
-    assert.strictEqual(result.receipt.resolved_target.identity, 'codex-cli/gpt-5.6-sol-high');
-    assert.strictEqual(result.receipt.requested_role, 'reasoner');
-    assert.strictEqual(result.receipt.verification, 'PASSED');
+test('an exhausted retry budget blocks fallback even for an availability failure', () => {
+  const target = { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', route: 'native', transport: 'native-runtime' };
+  const result = decideFallback({
+    request: request(cursorProfile, { target, fallback: { allow: true, retry_budget: 0 } }),
+    resolution: { status: 'UNAVAILABLE', reason: 'missing executable: codex', target, fallback_eligible: true },
+    failureClass: FAILURE_CLASSES.CLI_UNAVAILABLE,
+    sideEffects: 'none',
+    catalog,
   });
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.strictEqual(result.action, 'stop');
+  assert.strictEqual(result.retry_budget_remaining, 0);
+});
 
-  test('dispatch falls back from unavailable Codex to Cursor native only before side effects', async () => {
-    const unavailable = {
-      ...profile,
-      access: { ...profile.access, openai: { status: 'UNAVAILABLE', evidence: 'missing executable: codex' } },
-    };
-    const registry = createAdapterRegistry({ executors: {
-      cursor: (target) => ({ status: 'SUCCEEDED', verification: 'PASSED', receipt_id: `receipt-${target.identity}` }),
-    } });
-    const result = await dispatch(request({ host_profile: unavailable, role: 'worker', authority: 'workspace-write', effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }), { catalog, registry });
-    assert.strictEqual(result.status, 'SUCCEEDED');
-    assert.strictEqual(result.fallback.status, 'FALLBACK');
-    assert.strictEqual(result.receipt.resolved_target.identity, 'cursor/composer-2.5');
-    assert.strictEqual(result.fallback.fallback_history[0].provider, 'openai');
+const cursorWorkerHost = (quotaPools) => ({
+  ...cursorProfile,
+  ...(quotaPools ? { quota_pools: quotaPools } : {}),
+  access: { ...cursorProfile.access, google: { status: 'AVAILABLE', evidence: 'native AGY fallback fixture' } },
+});
+const cursorTarget = {
+  target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5',
+  effort: 'medium', route: 'native', transport: 'native-runtime', identity: 'cursor/composer-2.5',
+};
+const workerRequest = (hostProfile, fallback) => request(hostProfile, { role: 'worker', authority: 'workspace-write', fallback });
+const failedResolution = (target) => ({ status: 'UNAVAILABLE', reason: 'failed', target, fallback_eligible: true });
+const hop = (req, target, failureClass) => decideFallback({
+  request: req, resolution: failedResolution(target), failureClass, sideEffects: 'none', catalog,
+});
+
+test('a chained fallback never revisits a target that already failed', () => {
+  const first = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 3, cross_provider: true }), cursorTarget, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(first.status, 'FALLBACK');
+  assert.strictEqual(first.target.identity, 'agy/gemini-3.7-flash-high');
+  const second = hop(first.request, first.target, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(second.status, 'BLOCKED');
+  assert.strictEqual(second.action, 'stop');
+});
+
+test('the attempted list carried on the request excludes a target even without a resolution history', () => {
+  const req = workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 3, attempted_backends: ['cursor/cursor/composer-2.5/native/native-runtime'] });
+  const result = hop(req, { ...cursorTarget, target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high' }, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(result.status, 'BLOCKED');
+});
+
+test('the retry budget decrements across chained calls and blocks at zero', () => {
+  const first = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1, cross_provider: true }), cursorTarget, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(first.status, 'FALLBACK');
+  assert.strictEqual(first.request.fallback.retry_budget, 0);
+  assert.strictEqual(first.retry_budget_remaining, 0);
+  const second = hop(first.request, first.target, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(second.status, 'BLOCKED');
+  assert.strictEqual(second.reason, 'fallback retry budget is exhausted');
+  assert.strictEqual(second.retry_budget_remaining, 0);
+});
+
+test('quota exhaustion with cross-provider opt-in selects a different quota pool', () => {
+  const result = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1, cross_provider: true }),
+    cursorTarget, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT);
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.target.identity, 'agy/gemini-3.7-flash-high');
+  assert.strictEqual(result.request.fallback.retry_budget, 0);
+});
+
+test('quota exhaustion without cross-provider opt-in stops', () => {
+  const result = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1 }),
+    cursorTarget, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT);
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.strictEqual(result.action, 'stop');
+  assert.strictEqual(result.retry_budget_remaining, 1);
+});
+
+test('quota exhaustion with opt-in blocks when every candidate shares the exhausted pool', () => {
+  const sharedPool = { ...cursorProfile.quota_pools, google: cursorProfile.quota_pools.cursor };
+  const result = hop(workerRequest(cursorWorkerHost(sharedPool), { allow: true, retry_budget: 1, cross_provider: true }),
+    cursorTarget, FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT);
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.strictEqual(result.action, 'stop');
+  assert.match(result.reason, /no declared fallback target is available/);
+});
+
+test('CLI unavailability without cross-provider opt-in refuses a declared cross-provider fallback', () => {
+  const result = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 2 }), cursorTarget, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.strictEqual(result.action, 'stop');
+  assert.strictEqual(result.retry_budget_remaining, 2);
+});
+
+test('authentication failure with cross-provider opt-in may use the declared cross-provider fallback', () => {
+  const result = hop(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 2, cross_provider: true }),
+    cursorTarget, FAILURE_CLASSES.AUTHENTICATION_OR_MODEL_UNAVAILABLE);
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.target.identity, 'agy/gemini-3.7-flash-high');
+});
+
+test('CLI unavailability without opt-in still falls back to the Host-native target', () => {
+  const unavailable = { ...cursorWorkerHost() };
+  const target = { target_agent: 'codex-cli', provider: 'cursor', model_id: 'composer-2.5', effort: 'medium', route: 'headless-cli', transport: 'local-cli' };
+  const result = hop(workerRequest(unavailable, { allow: true, retry_budget: 2 }), target, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.target.identity, 'cursor/composer-2.5');
+});
+
+test('recovery next_request carries the decremented shared budget, not the caller-supplied one', () => {
+  const initialRequest = request(codexProfile, {
+    role: 'worker', authority: 'workspace-write', strict_target: true, effort: 'max',
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-6-luna' },
+    fallback: { allow: true, retry_budget: 3 },
   });
+  const resolution = resolveTarget(initialRequest, { catalog });
+  assert.strictEqual(resolution.status, 'RESOLVED');
+  const normalized = resolution.request;
+  const reconciliation = { status: 'PASSED', task_id: normalized.task_id, attempt_id: normalized.attempt_id,
+    scope_contained: true, wip_preserved: true, diff_verified: true, out_of_scope: [] };
+  const result = decideFallback({ request: normalized, resolution, catalog,
+    failureClass: FAILURE_CLASSES.TASK_OR_SEMANTIC_FAILURE, sideEffects: 'observed', reconciliation, recovery_action: 'repair',
+    candidate_request: { ...normalized, fallback: { allow: true, retry_budget: 9 } } });
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.retry_budget_remaining, 2);
+  assert.strictEqual(result.next_request.fallback.retry_budget, 2);
+});
 
-  test('dispatch returns a blocked receipt when capability evidence is NOT_RUN', async () => {
-    const notRun = { ...profile, access: { ...profile.access, openai: { status: 'NOT_RUN', evidence: 'probe not run' } } };
-    const registry = createAdapterRegistry({ executors: { openai: () => ({ status: 'SUCCEEDED' }) } });
-    const result = await dispatch(request({ host_profile: notRun, target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', route: 'native', transport: 'native-runtime' } }), { catalog, registry, fallback: false });
-    assert.strictEqual(result.status, 'BLOCKED');
-    assert.strictEqual(result.receipt.status, 'BLOCKED');
-    assert.strictEqual(result.receipt.failure_class, 'CAPABILITY_PROBE_NOT_RUN');
-    assert.strictEqual(result.receipt.resolved_target.identity, 'codex-cli/gpt-5.6-sol-high');
-  });
+const agyCandidateTarget = { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high' };
+const substitute = (fallback, candidateOverrides = {}, failureClass = FAILURE_CLASSES.CLI_UNAVAILABLE) => {
+  const base = workerRequest(cursorWorkerHost(), fallback);
+  return decideFallback({ request: base, resolution: failedResolution(cursorTarget), failureClass, sideEffects: 'none', catalog,
+    recovery_action: 'substitute', candidate_request: { ...base, target: agyCandidateTarget, effort: 'high', ...candidateOverrides } });
+};
 
-  test('dispatch does not reinterpret an unsupported target as an unavailable CLI', async () => {
-    const registry = createAdapterRegistry({ executors: {
-      cursor: () => ({ status: 'SUCCEEDED' }),
-      google: () => ({ status: 'SUCCEEDED' }),
-    } });
-    const result = await dispatch(request({
-      target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'unknown-model', route: 'headless-cli', transport: 'local-cli' },
-    }), { catalog, registry });
+test('provider substitution requires cross-provider opt-in for a non-native Provider', () => {
+  const blocked = substitute({ allow: true, retry_budget: 2 });
+  assert.strictEqual(blocked.status, 'BLOCKED');
+  assert.strictEqual(blocked.reason, 'Provider substitution requires cross-provider opt-in');
+  assert.strictEqual(substitute({ allow: true, retry_budget: 2, cross_provider: true }).status, 'FALLBACK');
+});
 
-    assert.strictEqual(result.status, 'BLOCKED');
-    assert.strictEqual(result.fallback, undefined);
-    assert.strictEqual(result.resolution.status, 'UNAVAILABLE');
-    assert.strictEqual(result.resolution.fallback_eligible, false);
-    assert.strictEqual(result.receipt.failure_class, 'CAPABILITY_UNAVAILABLE');
-  });
-}
+test('provider substitution rejects a candidate already attempted or unavailable', () => {
+  const id = 'agy/google/gemini-3.7-flash-high';
+  for (const list of ['attempted_backends', 'unavailable_backends']) {
+    const result = substitute({ allow: true, retry_budget: 2, cross_provider: true, [list]: [`${id}//`] });
+    assert.strictEqual(result.status, 'BLOCKED', list);
+    assert.strictEqual(result.reason, 'recovery candidate was already attempted', list);
+  }
+});
+
+test('provider substitution rejects the failed target as its own candidate', () => {
+  const result = substitute({ allow: true, retry_budget: 2, cross_provider: true },
+    { target: { target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5' } });
+  assert.strictEqual(result.status, 'BLOCKED');
+  assert.strictEqual(result.reason, 'recovery candidate was already attempted');
+});
+
+test('provider substitution records the failed identity so a later fallback excludes it', () => {
+  const result = substitute({ allow: true, retry_budget: 2, cross_provider: true });
+  assert.strictEqual(result.status, 'FALLBACK');
+  const failed = 'cursor/cursor/composer-2.5/native/native-runtime';
+  assert.deepStrictEqual(result.next_request.fallback.attempted_backends, [failed]);
+  assert.deepStrictEqual(result.next_request.fallback.unavailable_backends, [failed]);
+});
+
+test('fallback attempted and unavailable lists are bounded', () => {
+  const many = Array.from({ length: 65 }, (_, index) => `b${index}`);
+  for (const key of ['attempted_backends', 'unavailable_backends']) {
+    assert.throws(() => createDispatchRequest(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1, [key]: many })), new RegExp(key));
+    assert.doesNotThrow(() => createDispatchRequest(workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 1, [key]: many.slice(0, 64) })));
+  }
+});
+
+test('an alternate Route of the same Model is not excluded by a failed Route', () => {
+  const req = workerRequest(cursorWorkerHost(), { allow: true, retry_budget: 2 });
+  const result = hop(req, { ...cursorTarget, route: 'headless-cli', transport: 'local-cli' }, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.request.fallback.attempted_backends[0], 'cursor/cursor/composer-2.5/headless-cli/local-cli');
+});
+
+// Independent oracle: the design D5 mapping table plus the keys the code already
+// diagnosed (codex_deep_reasoner_*, architect_*, reviewer_effort).
+const EXPECTED_REMOVED_KEYS = {
+  fast_worker_backend: 'worker_target',
+  fast_worker_backend_order: 'preference_order',
+  fast_worker_fallback: 'fallback_allow',
+  fast_worker_model: 'worker_target',
+  fast_worker_effort: 'worker_target',
+  deep_reasoner_model: 'reasoner_target',
+  deep_reasoner_effort: 'reasoner_target',
+  planner_model: 'planner_target',
+  planner_effort: 'planner_target',
+  reviewer_model: 'reviewer_target',
+  reviewer_effort: 'reviewer_target',
+  codex_worker_model: 'worker_target',
+  codex_fast_worker_model: 'worker_target',
+  codex_worker_effort: 'worker_target',
+  codex_fast_worker_effort: 'worker_target',
+  agy_worker_model: 'worker_target',
+  agy_fast_worker_model: 'worker_target',
+  codex_reasoner_model: 'reasoner_target',
+  codex_reasoner_effort: 'reasoner_target',
+  codex_deep_reasoner_model: 'reasoner_target',
+  codex_deep_reasoner_effort: 'reasoner_target',
+  codex_reviewer_model: 'reviewer_target',
+  codex_reviewer_effort: 'reviewer_target',
+  codex_fast_worker_timeout_secs: 'codex_worker_timeout_secs',
+  codex_deep_reasoner_timeout_secs: 'codex_reasoner_timeout_secs',
+  codex_bridge_timeout_secs: 'codex_reviewer_timeout_secs',
+  architect_model: 'reasoner_target',
+  architect_effort: 'reasoner_target',
+};
+
 
 // Source suite: dispatch-config.test.js
 {
   const { test, assert } = require('./_lib/tinytest');
-  const { applyDispatchConfig, createDispatchConfigReport, diagnoseDispatchConfig, resolveDispatchConfig } = require('../scripts/lib/dispatch-config');
+  const dispatchConfigModule = require('../scripts/lib/dispatch-config');
+  const { applyDispatchConfig, createDispatchConfigReport, diagnoseDispatchConfig, resolveDispatchConfig, resolveRoleConfig } = dispatchConfigModule;
   const catalog = require('../manifests/provider-model-catalog.json');
   const profiles = require('../manifests/host-profiles.json');
 
@@ -673,11 +829,124 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.deepStrictEqual(result.legacy_sources, []);
   });
 
-  test('legacy backend/model values remain bounded compatibility inputs', () => {
-    const result = resolveDispatchConfig({ project: { fast_worker_backend: 'codex', codex_fast_worker_model: 'gpt-5.6-luna' }, global: {} });
-    assert.strictEqual(result.worker_target.provider, 'codex-cli');
-    assert.strictEqual(result.worker_target.model_id, 'gpt-5.6-luna');
-    assert.ok(result.legacy_sources.some((entry) => entry.field === 'worker_target'));
+  test('REMOVED_KEYS is the frozen key-to-replacement table and the translation tables are gone', () => {
+    assert.ok(Object.isFrozen(dispatchConfigModule.REMOVED_KEYS));
+    assert.deepStrictEqual({ ...dispatchConfigModule.REMOVED_KEYS }, EXPECTED_REMOVED_KEYS);
+    for (const name of ['LEGACY_KEYS', 'LEGACY_EFFORT_KEYS', 'LEGACY_KEY_AGENTS', 'translateLegacyTarget']) {
+      assert.strictEqual(dispatchConfigModule[name], undefined, `${name} must not be exported`);
+    }
+  });
+
+  test('docs/configuration.md and the zh-TW page list exactly REMOVED_KEYS with the same replacements', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const tableAfter = (file, heading) => {
+      const lines = fs.readFileSync(path.join(__dirname, '..', file), 'utf8').split('\n');
+      const start = lines.findIndex((line) => line.trim() === heading);
+      assert.ok(start >= 0, `${file} lacks heading ${heading}`);
+      const rows = {};
+      for (const line of lines.slice(start + 1)) {
+        if (/^## /.test(line)) break;
+        const match = /^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|/.exec(line);
+        if (match) rows[match[1]] = match[2];
+      }
+      return rows;
+    };
+    const expected = { ...dispatchConfigModule.REMOVED_KEYS };
+    assert.deepStrictEqual(tableAfter('docs/configuration.md', '## Removed in 0.69.0'), expected);
+    assert.deepStrictEqual(tableAfter('docs/configuration.zh-TW.md', '## 0.69.0 移除的設定'), expected);
+  });
+
+  test('every removed key in project, global, and environment yields a BLOCKED diagnostic and is never applied', () => {
+    for (const [key, replacement] of Object.entries(EXPECTED_REMOVED_KEYS)) {
+      for (const layer of ['project', 'global', 'environment']) {
+        const result = resolveDispatchConfig({ [layer]: { [key]: 'codex' } });
+        assert.deepStrictEqual(result.diagnostics, [{
+          field: key,
+          status: 'BLOCKED',
+          layer,
+          key,
+          replacement,
+          source: `${layer}.${key}`,
+          reason: `removed in 0.69.0; use ${replacement}`,
+        }], `${layer}.${key}`);
+        for (const role of ['worker', 'reasoner', 'planner', 'reviewer']) {
+          assert.strictEqual(result[`${role}_target`], null, `${layer}.${key} applied to ${role}`);
+          assert.strictEqual(result.source[`${role}_target`], 'default');
+        }
+        assert.deepStrictEqual(result.preference_order, []);
+        assert.strictEqual(result.fallback_allow, true);
+        assert.strictEqual(result.source.preference_order, 'default');
+        assert.strictEqual(result.source.fallback_allow, 'default');
+        assert.deepStrictEqual(result.legacy_sources, []);
+      }
+    }
+  });
+
+  test('a removed key with an empty value is still reported, not silently ignored', () => {
+    const result = resolveDispatchConfig({ project: { fast_worker_model: '' } });
+    assert.strictEqual(result.diagnostics.length, 1);
+    assert.strictEqual(result.diagnostics[0].source, 'project.fast_worker_model');
+  });
+
+  test('a removed key does not displace the canonical key and is still reported', () => {
+    const result = resolveDispatchConfig({
+      project: { worker_target: 'codex-cli/gpt-5.6-sol-high:high', codex_worker_model: 'gpt-6-luna' },
+    });
+    assert.deepStrictEqual(result.worker_target, { target_agent: 'codex-cli', model_id: 'gpt-5.6-sol-high', effort: 'high' });
+    assert.strictEqual(result.source.worker_target, 'project.worker_target');
+    assert.deepStrictEqual(result.diagnostics.map((entry) => entry.source), ['project.codex_worker_model']);
+  });
+
+  test('a clean configuration produces no removed-key diagnostic', () => {
+    const result = resolveDispatchConfig({
+      project: { worker_target: 'codex-cli/gpt-5.6-sol-high:high', codex_worker_timeout_secs: 90 },
+      global: { fallback_allow: false, preference_order: 'codex-cli/gpt-5.6-sol-high' },
+    });
+    assert.deepStrictEqual(result.diagnostics, []);
+  });
+
+  test('role config comes from the canonical target and the surviving timeout key only', () => {
+    const config = {
+      worker_target: 'codex-cli/gpt-6-luna:xhigh',
+      codex_worker_timeout_secs: '90',
+      codex_worker_model: 'removed-model',
+      codex_fast_worker_effort: 'removed-effort',
+      codex_fast_worker_timeout_secs: '1',
+    };
+    assert.deepStrictEqual(resolveRoleConfig({ role: 'codex-worker', config }), {
+      model: { value: 'gpt-6-luna', source: 'worker_target' },
+      effort: { value: 'xhigh', source: 'worker_target' },
+      timeout_secs: { value: '90', source: 'codex_worker_timeout_secs' },
+    });
+    const empty = resolveRoleConfig({ role: 'codex-reasoner', config: { codex_reasoner_model: 'removed', codex_deep_reasoner_timeout_secs: '5' } });
+    assert.deepStrictEqual(empty, {
+      model: { value: undefined, source: undefined },
+      effort: { value: undefined, source: undefined },
+      timeout_secs: { value: undefined, source: undefined },
+    });
+  });
+
+  test('role config ignores a canonical target for a different Target Agent and blocks unknown roles', () => {
+    const mismatch = resolveRoleConfig({ role: 'agy-worker', config: { worker_target: 'codex-cli/gpt-6-luna:xhigh' } });
+    assert.strictEqual(mismatch.model.value, undefined);
+    assert.strictEqual(mismatch.effort.value, undefined);
+    const agy = resolveRoleConfig({ role: 'agy-worker', config: { worker_target: 'agy/gemini-3.8-flash-high' } });
+    assert.deepStrictEqual(agy.model, { value: 'gemini-3.8-flash-high', source: 'worker_target' });
+    assert.strictEqual(resolveRoleConfig({ role: 'no-such-role', config: {} }).status, 'BLOCKED');
+    assert.strictEqual(resolveRoleConfig({ role: 'codex-worker', config: { worker_target: 'bare-model' } }).status, 'BLOCKED');
+  });
+
+  test('a CLI Role Agent never applies a role target that names a different Target Agent', () => {
+    for (const [role, key] of [['codex-reviewer', 'reviewer_target'], ['codex-reasoner', 'reasoner_target'], ['codex-worker', 'worker_target']]) {
+      const other = resolveRoleConfig({ role, config: { [key]: 'claude-code/opus5:medium' } });
+      assert.strictEqual(other.model.value, undefined, role);
+      assert.strictEqual(other.effort.value, undefined, role);
+      const own = resolveRoleConfig({ role, config: { [key]: 'codex-cli/gpt-6-luna:xhigh' } });
+      assert.deepStrictEqual(own.model, { value: 'gpt-6-luna', source: key }, role);
+    }
+    const canonical = resolveRoleConfig({ role: 'reviewer', config: { reviewer_target: 'claude-code/opus5:medium' } });
+    assert.deepStrictEqual(canonical.model, { value: 'opus5', source: 'reviewer_target' });
   });
 
   test('invalid canonical values block only the invalid field and retain orchestration kill switch semantics', () => {
@@ -839,87 +1108,26 @@ test('Codex Host native fallback is derived from its Host profile', () => {
 
   const claude = profiles.profiles.find((profile) => profile.host === 'claude-code');
 
-  test('published Claude aliases resolve to Catalog IDs with a Host route', () => {
-    const reasoner = resolveDispatchConfig({
-      project: { deep_reasoner_model: 'opus' },
-      global: { deep_reasoner_effort: 'low' },
-    });
-    assert.strictEqual(reasoner.reasoner_target.target_agent, 'claude-code');
-    assert.strictEqual(reasoner.reasoner_target.model_id, 'opus5');
-    assert.ok(!Object.prototype.hasOwnProperty.call(reasoner.reasoner_target, 'effort'));
-    assert.ok(!reasoner.diagnostics.some((entry) => entry.field === 'reasoner_target'));
-    const reasonerRoute = diagnoseDispatchConfig({
-      config: reasoner, catalog, hostProfile: claude, role: 'reasoner', authority: 'read-only', effort: 'high',
-    });
-    assert.strictEqual(reasonerRoute.catalog_support, 'SUPPORTED');
-
-    const worker = resolveDispatchConfig({
-      project: { fast_worker_model: 'sonnet', fast_worker_effort: 'medium' },
-    });
-    assert.strictEqual(worker.worker_target.target_agent, 'claude-code');
-    assert.strictEqual(worker.worker_target.model_id, 'sonnet5');
-    assert.strictEqual(worker.worker_target.effort, 'medium');
-    const workerRoute = diagnoseDispatchConfig({
-      config: worker, catalog, hostProfile: claude, role: 'worker', authority: 'workspace-write', effort: 'medium',
-    });
-    assert.strictEqual(workerRoute.catalog_support, 'SUPPORTED');
-  });
-
-  test('published Codex model+effort resolves through the Catalog/Host route', () => {
-    const config = resolveDispatchConfig({
-      project: { codex_worker_model: 'gpt-6-luna', codex_worker_effort: 'xhigh' },
-    });
-    assert.strictEqual(config.worker_target.target_agent, 'codex-cli');
-    assert.strictEqual(config.worker_target.model_id, 'gpt-6-luna');
-    assert.strictEqual(config.worker_target.effort, 'xhigh');
-    const result = diagnoseDispatchConfig({
-      config, catalog, hostProfile: claude, role: 'worker', authority: 'workspace-write', effort: 'xhigh',
-    });
-    assert.strictEqual(result.catalog_support, 'SUPPORTED');
-  });
-
-  test('AGY display names normalize to Catalog model IDs before Host routing', () => {
-    const config = resolveDispatchConfig({
-      project: { agy_worker_model: 'Gemini 3.8 Flash (High)' },
-    });
-    assert.strictEqual(config.worker_target.target_agent, 'agy');
-    assert.strictEqual(config.worker_target.model_id, 'gemini-3.8-flash-high');
-    const result = diagnoseDispatchConfig({
-      config, catalog, hostProfile: claude, role: 'worker', authority: 'workspace-write', effort: 'high',
-    });
-    assert.strictEqual(result.catalog_support, 'SUPPORTED');
-  });
-
-  test('unsupported legacy combinations stay explicit after a successful parse', () => {
-    const config = resolveDispatchConfig({ project: { codex_reasoner_model: 'gpt-6-luna' } });
-    assert.strictEqual(config.reasoner_target.model_id, 'gpt-6-luna');
-    assert.ok(!config.diagnostics.some((entry) => entry.field === 'reasoner_target' && entry.status === 'BLOCKED'));
-    const result = diagnoseDispatchConfig({
-      config, catalog, hostProfile: claude, role: 'reasoner', authority: 'read-only', effort: 'high',
-    });
-    assert.strictEqual(result.catalog_support, 'UNSUPPORTED');
-    assert.match(String(result.reason || ''), /unsupported|catalog|migrat/i);
-  });
-
-  test('architect keys are no-effect and do not change reasoner_target', () => {
+  test('architect keys are BLOCKED removed keys and do not change reasoner_target', () => {
     const config = resolveDispatchConfig({
       project: { architect_model: 'fable', architect_effort: 'low' },
     });
     assert.strictEqual(config.reasoner_target, null);
-    assert.ok(config.diagnostics.some((entry) => (
-      /architect/i.test(entry.field)
-      && /unsupported|no-effect/i.test(entry.status)
-      && /unaffected|no-effect|no dispatch effect/i.test(entry.reason)
-    )));
+    assert.deepStrictEqual(config.diagnostics.map((entry) => [entry.status, entry.source, entry.replacement]), [
+      ['BLOCKED', 'project.architect_model', 'reasoner_target'],
+      ['BLOCKED', 'project.architect_effort', 'reasoner_target'],
+    ]);
   });
 
-  test('retired codex_deep_reasoner keys remain fail-closed', () => {
+  test('retired codex_deep_reasoner keys are BLOCKED removed keys naming reasoner_target', () => {
     const config = resolveDispatchConfig({
       project: { codex_deep_reasoner_model: 'gpt-6.1-sol', codex_deep_reasoner_effort: 'high' },
     });
     assert.strictEqual(config.reasoner_target, null);
-    assert.ok(config.diagnostics.some((entry) => entry.field === 'reasoner_target' && entry.status === 'BLOCKED' && /codex_deep_reasoner_model/.test(entry.reason)));
-    assert.ok(config.diagnostics.some((entry) => entry.field === 'reasoner_target' && entry.status === 'BLOCKED' && /codex_deep_reasoner_effort/.test(entry.reason)));
+    for (const key of ['codex_deep_reasoner_model', 'codex_deep_reasoner_effort']) {
+      assert.ok(config.diagnostics.some((entry) => entry.status === 'BLOCKED' && entry.field === key
+        && entry.source === `project.${key}` && /removed in 0\.69\.0; use reasoner_target/.test(entry.reason)));
+    }
   });
 
   test('canonical reasoner_target still wins over a published Claude alias', () => {
@@ -1047,72 +1255,50 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     }
   });
 
-  test('project and global legacy model settings keep resolver precedence and sources', () => {
+  test('removed keys in project, global, and environment are BLOCKED in the report and never applied', () => {
     const roots = isolatedRoots();
     try {
-      writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), {
-        fast_worker_model: 'sonnet',
-      });
-      const projectOnly = readReport({}, roots);
-      const projectResolved = resolveDispatchConfig({ project: { fast_worker_model: 'sonnet' } });
-      assert.strictEqual(projectOnly.sources.worker_target, 'project.fast_worker_model');
-      assert.strictEqual(projectOnly.sources.worker_target, projectResolved.source.worker_target);
-      assert.deepStrictEqual(projectOnly.targets.worker, projectResolved.worker_target);
-      assert.ok(projectOnly.legacy_sources.some((entry) => entry.source === 'project.fast_worker_model'));
-      assert.strictEqual(projectOnly.roles.worker.effective_target.target_agent, 'claude-code');
-      assert.strictEqual(projectOnly.roles.worker.effective_target.model_id, 'sonnet5');
-      assert.strictEqual(projectOnly.roles.worker.effective_target.provider, 'anthropic');
-      assert.strictEqual(projectOnly.roles.worker.status.runtime, 'NOT_RUN');
-      assert.strictEqual(projectOnly.host.status, 'unresolved');
-      assert.strictEqual(projectOnly.host.id, null);
-      assert.strictEqual(projectOnly.covered_inputs.project, true);
-      assert.strictEqual(projectOnly.covered_inputs.scope === 'environment-only', false);
-
-      roots.cleanup();
-      const globalRoots = isolatedRoots();
-      writePluginOptions(globalRoots.globalSettingsPath, { fast_worker_model: 'sonnet' });
-      const globalOnly = readReport({}, globalRoots);
-      assert.strictEqual(globalOnly.sources.worker_target, 'global.fast_worker_model');
-      assert.ok(globalOnly.legacy_sources.some((entry) => entry.source === 'global.fast_worker_model'));
-      assert.strictEqual(globalOnly.roles.worker.effective_target.model_id, 'sonnet5');
-      assert.strictEqual(globalOnly.covered_inputs.global, true);
-      assert.strictEqual(globalOnly.covered_inputs.project, false);
-      globalRoots.cleanup();
-
-      const layered = isolatedRoots();
-      writePluginOptions(path.join(layered.projectRoot, '.claude', 'settings.local.json'), {
-        worker_target: 'codex-cli/sol5.6:high',
-        fast_worker_model: 'sonnet',
-      });
-      writePluginOptions(layered.globalSettingsPath, { fast_worker_model: 'sonnet' });
-      const precedence = readReport({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet' }, layered);
-      const expected = resolveDispatchConfig({
-        project: { worker_target: 'codex-cli/sol5.6:high', fast_worker_model: 'sonnet' },
-        global: { fast_worker_model: 'sonnet' },
-        environment: { fast_worker_model: 'sonnet' },
-      });
-      assert.strictEqual(precedence.sources.worker_target, 'project.worker_target');
-      assert.strictEqual(precedence.sources.worker_target, expected.source.worker_target);
-      assert.deepStrictEqual(precedence.targets.worker, expected.worker_target);
-      assert.ok(!precedence.legacy_sources.some((entry) => entry.field === 'worker_target'));
-      assert.deepStrictEqual(precedence.covered_inputs.layers, ['project', 'global', 'environment']);
-      assert.strictEqual(precedence.covered_inputs.project, true);
-      assert.strictEqual(precedence.covered_inputs.global, true);
-      assert.strictEqual(precedence.covered_inputs.environment, true);
-      assert.strictEqual(precedence.covered_inputs.complete, true);
-      assert.notStrictEqual(precedence.covered_inputs.scope, 'environment-only');
-      layered.cleanup();
+      writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), { fast_worker_model: 'sonnet' });
+      writePluginOptions(roots.globalSettingsPath, { codex_worker_model: 'gpt-6-luna' });
+      const report = readReport({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'codex' }, roots);
+      assert.deepStrictEqual(
+        report.diagnostics.map((entry) => [entry.status, entry.source, entry.replacement]).sort(),
+        [
+          ['BLOCKED', 'environment.fast_worker_backend', 'worker_target'],
+          ['BLOCKED', 'global.codex_worker_model', 'worker_target'],
+          ['BLOCKED', 'project.fast_worker_model', 'worker_target'],
+        ],
+      );
+      assert.strictEqual(report.sources.worker_target, 'default');
+      assert.strictEqual(report.targets.worker, null);
+      assert.deepStrictEqual(report.legacy_sources, []);
+      assert.strictEqual(report.roles.worker.configured_target, 'auto');
+      assert.deepStrictEqual(report.covered_inputs.layers, ['project', 'global', 'environment']);
     } finally {
       roots.cleanup();
     }
   });
 
-  test('environment legacy keys are not dropped, and a project overlay is not relabeled as environment', () => {
+  test('a canonical key keeps its source while a removed key in a lower layer is still BLOCKED', () => {
+    const roots = isolatedRoots();
+    try {
+      writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), { worker_target: 'codex-cli/sol5.6:high' });
+      writePluginOptions(roots.globalSettingsPath, { fast_worker_model: 'sonnet' });
+      const report = readReport({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet' }, roots);
+      assert.strictEqual(report.sources.worker_target, 'project.worker_target');
+      assert.deepStrictEqual(report.targets.worker, { target_agent: 'codex-cli', model_id: 'sol5.6', effort: 'high' });
+      assert.deepStrictEqual(report.diagnostics.map((entry) => entry.source).sort(),
+        ['environment.fast_worker_model', 'global.fast_worker_model']);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('environment removed keys are reported, and a project overlay is not relabeled as environment', () => {
     const roots = isolatedRoots();
     try {
       const report = readReport({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet' }, roots);
-      assert.strictEqual(report.sources.worker_target, 'environment.fast_worker_model');
-      assert.ok(report.legacy_sources.some((entry) => entry.source === 'environment.fast_worker_model'));
+      assert.deepStrictEqual(report.diagnostics.map((entry) => entry.source), ['environment.fast_worker_model']);
 
       writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), {
         fast_worker_model: 'sonnet',
@@ -1121,18 +1307,28 @@ test('Codex Host native fallback is derived from its Host profile', () => {
         CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL: 'sonnet',
         DHPK_PROJECT_OPTION_FAST_WORKER_MODEL: 'sonnet',
       }, roots);
-      assert.strictEqual(overlaid.sources.worker_target, 'project.fast_worker_model');
-      assert.ok(!overlaid.legacy_sources.some((entry) => entry.source === 'environment.fast_worker_model'));
+      assert.deepStrictEqual(overlaid.diagnostics.map((entry) => entry.source), ['project.fast_worker_model']);
     } finally {
       roots.cleanup();
     }
   });
 
-  test('invalid legacy config blocks only that role and still reports retired keys', () => {
+  test('an empty-valued removed key in project settings still triggers a report', () => {
+    const roots = isolatedRoots();
+    try {
+      writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), { fast_worker_fallback: 'true' });
+      const report = readReport({}, roots);
+      assert.deepStrictEqual(report.diagnostics.map((entry) => entry.source), ['project.fast_worker_fallback']);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('removed keys block only themselves; invalid canonical values still block their role', () => {
     const roots = isolatedRoots();
     try {
       writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), {
-        fast_worker_model: 'not-a-real-model',
+        worker_target: 'bare-model',
         reviewer_model: 'sonnet',
         codex_deep_reasoner_model: 'gpt-5.6-sol-high',
         architect_model: 'opus',
@@ -1140,13 +1336,13 @@ test('Codex Host native fallback is derived from its Host profile', () => {
       const report = readReport({}, roots);
       assert.ok(report.diagnostics.some((entry) => entry.field === 'worker_target' && entry.status === 'BLOCKED'));
       assert.strictEqual(report.roles.worker.configured_target, null);
-      assert.strictEqual(report.sources.reviewer_target, 'project.reviewer_model');
-      assert.strictEqual(report.roles.reviewer.effective_target.model_id, 'sonnet5');
-      assert.ok(report.diagnostics.some((entry) => entry.field === 'reasoner_target' && entry.status === 'BLOCKED' && /retired config/.test(entry.reason)));
-      assert.ok(report.diagnostics.some((entry) => entry.field === 'architect_model' && entry.status === 'UNSUPPORTED'));
+      for (const key of ['reviewer_model', 'codex_deep_reasoner_model', 'architect_model']) {
+        assert.ok(report.diagnostics.some((entry) => entry.field === key && entry.status === 'BLOCKED'), key);
+      }
+      assert.strictEqual(report.sources.reviewer_target, 'default');
+      assert.strictEqual(report.roles.reviewer.configured_target, 'auto');
       assert.strictEqual(report.status.runtime, 'NOT_RUN');
       assert.strictEqual(report.host.status, 'unresolved');
-      assert.notStrictEqual(report.host.id, 'claude-code');
     } finally {
       roots.cleanup();
     }
@@ -1155,9 +1351,9 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   test('a missing settings file is absent, and an unreadable higher layer is not a complete result', () => {
     const missing = isolatedRoots();
     try {
-      writePluginOptions(missing.globalSettingsPath, { fast_worker_model: 'sonnet' });
+      writePluginOptions(missing.globalSettingsPath, { worker_target: 'codex-cli/sol5.6:high' });
       const absent = readReport({}, missing);
-      assert.strictEqual(absent.sources.worker_target, 'global.fast_worker_model');
+      assert.strictEqual(absent.sources.worker_target, 'global.worker_target');
       assert.strictEqual(absent.covered_inputs.project, false);
       assert.strictEqual(absent.covered_inputs.global, true);
       assert.strictEqual(absent.covered_inputs.complete, false);
@@ -1172,9 +1368,9 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     try {
       fs.mkdirSync(path.join(invalid.projectRoot, '.claude'), { recursive: true });
       fs.writeFileSync(path.join(invalid.projectRoot, '.claude', 'settings.local.json'), '{');
-      writePluginOptions(invalid.globalSettingsPath, { fast_worker_model: 'sonnet' });
+      writePluginOptions(invalid.globalSettingsPath, { worker_target: 'codex-cli/sol5.6:high' });
       const report = readReport({ CLAUDE_PLUGIN_OPTION_REVIEWER_TARGET: 'codex-cli/sol5.6:high' }, invalid);
-      assert.strictEqual(report.sources.worker_target, 'global.fast_worker_model');
+      assert.strictEqual(report.sources.worker_target, 'global.worker_target');
       assert.strictEqual(report.sources.reviewer_target, 'environment.reviewer_target');
       assert.strictEqual(report.covered_inputs.project, false);
       assert.strictEqual(report.covered_inputs.complete, false);
@@ -1218,6 +1414,34 @@ test('Codex Host native fallback is derived from its Host profile', () => {
       assert.ok(body.includes('dispatch=off'), body);
       assert.ok(body.includes('fallback=deny'), body);
       assert.ok(body.includes('worker='), body);
+      assert.ok(body.includes('blocked='), body);
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format with every removed key stays within 300 chars and the full file lists them all', () => {
+    const roots = isolatedRoots();
+    try {
+      const environment = {};
+      for (const key of Object.keys(EXPECTED_REMOVED_KEYS)) environment[`CLAUDE_PLUGIN_OPTION_${key.toUpperCase()}`] = 'x';
+      const fullOut = path.join(roots.projectRoot, 'removed.json');
+      const body = readSummary(environment, { ...roots, fullOut });
+      assert.ok(`${SUMMARY_PREFIX}${body}`.length <= 300, `${SUMMARY_PREFIX}${body}`.length);
+      assert.ok(body.includes(`blocked=${Object.keys(EXPECTED_REMOVED_KEYS).length}`), body);
+      assert.ok(!body.includes('{'), body);
+      const full = JSON.parse(fs.readFileSync(fullOut, 'utf8'));
+      assert.deepStrictEqual(full.diagnostics.map((entry) => entry.key).sort(), Object.keys(EXPECTED_REMOVED_KEYS).sort());
+    } finally {
+      roots.cleanup();
+    }
+  });
+
+  test('summary format with a clean configuration has no blocked token', () => {
+    const roots = isolatedRoots();
+    try {
+      const body = readSummary({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high' }, roots);
+      assert.ok(!body.includes('blocked='), body);
     } finally {
       roots.cleanup();
     }
@@ -1234,14 +1458,15 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     }
   });
 
-  test('summary format lists a lone legacy effort key by layer even without a target', () => {
+  test('summary format lists a lone removed key by layer with its replacement', () => {
     const roots = isolatedRoots();
     try {
       const envBody = readSummary({ CLAUDE_PLUGIN_OPTION_FAST_WORKER_EFFORT: 'high' }, roots);
-      assert.ok(envBody.includes('legacy=environment.fast_worker_effort=high'), envBody);
+      assert.ok(envBody.includes('blocked=environment.fast_worker_effort->worker_target'), envBody);
+      assert.ok(!envBody.includes('legacy='), envBody);
       writePluginOptions(path.join(roots.projectRoot, '.claude', 'settings.local.json'), { fast_worker_effort: 'high' });
       const projectBody = readSummary({}, roots);
-      assert.ok(projectBody.includes('legacy=project.fast_worker_effort=high'), projectBody);
+      assert.ok(projectBody.includes('blocked=project.fast_worker_effort->worker_target'), projectBody);
     } finally {
       roots.cleanup();
     }
@@ -1352,7 +1577,7 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     const roots = isolatedRoots();
     try {
       const fullOut = path.join(roots.projectRoot, 'diag.json');
-      const captured = captureStdout(() => main({ CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL: 'opus' }, { ...roots, format: 'summary', fullOut }));
+      const captured = captureStdout(() => main({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'bare-model' }, { ...roots, format: 'summary', fullOut }));
       assert.strictEqual(JSON.parse(captured.output).schema, 'dhpk.dispatch.config-report.v1');
       assert.strictEqual(JSON.parse(fs.readFileSync(fullOut, 'utf8')).schema, 'dhpk.dispatch.config-report.v1');
     } finally {
@@ -1363,7 +1588,7 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   test('summary format falls back to full JSON when diagnostics are present', () => {
     const roots = isolatedRoots();
     try {
-      const captured = captureStdout(() => main({ CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL: 'opus' }, { ...roots, format: 'summary' }));
+      const captured = captureStdout(() => main({ CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'bare-model' }, { ...roots, format: 'summary' }));
       const parsed = JSON.parse(captured.output);
       assert.strictEqual(parsed.schema, 'dhpk.dispatch.config-report.v1');
       assert.ok(parsed.diagnostics.length > 0);
@@ -1643,67 +1868,6 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   });
 }
 
-// Source suite: dispatch-platform-validation.test.js
-{
-  const { test, assert } = require('./_lib/tinytest');
-  const {
-    VALIDATION_SCHEMA,
-    validateDispatchPlatformEvidence,
-    validateDispatchSurfaceSet,
-  } = require('../scripts/lib/dispatch-platform-validation');
-  const catalog = require('../manifests/provider-model-catalog.json');
-  const profile = require('../manifests/host-profiles.json').profiles.find((entry) => entry.host === 'cursor');
-
-  const target = { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', effort: 'high', route: 'native', transport: 'native-runtime' };
-
-  test('platform evidence separates catalog support, Host access, and runtime probe status', () => {
-    const evidence = validateDispatchPlatformEvidence({ hostProfile: profile, catalog, target });
-    assert.strictEqual(evidence.schema, 'dhpk.dispatch.platform-validation.v1');
-    assert.strictEqual(evidence.status.catalog_support, 'SUPPORTED');
-    assert.strictEqual(evidence.status.host_access, 'NOT_RUN');
-    assert.strictEqual(evidence.status.runtime, 'NOT_RUN');
-    assert.strictEqual(evidence.status.terminal, 'NOT_RUN');
-  });
-
-  test('runtime and verification evidence are recorded without turning a receipt into capability proof', () => {
-    const evidence = validateDispatchPlatformEvidence({
-      hostProfile: { ...profile, access: { ...profile.access, openai: { status: 'AVAILABLE', evidence: 'bounded probe' } } },
-      catalog,
-      target,
-      probe: { status: 'AVAILABLE', evidence: 'executable and auth fixture' },
-      receipt: { receipt_id: 'receipt-platform-1', status: 'SUCCEEDED', verification: 'PASSED' },
-    });
-    assert.strictEqual(evidence.status.host_access, 'AVAILABLE');
-    assert.strictEqual(evidence.status.runtime, 'AVAILABLE');
-    assert.strictEqual(evidence.status.terminal, 'SUCCEEDED');
-    assert.strictEqual(evidence.status.verification, 'PASSED');
-  });
-
-  test('successful receipt leaves Host access and runtime unproved without a probe', () => {
-    const evidence = validateDispatchPlatformEvidence({
-      hostProfile: profile,
-      catalog,
-      target,
-      receipt: { receipt_id: 'receipt-platform-2', status: 'SUCCEEDED', verification: 'PASSED' },
-    });
-    assert.strictEqual(evidence.status.host_access, 'NOT_RUN');
-    assert.strictEqual(evidence.status.runtime, 'NOT_RUN');
-    assert.strictEqual(evidence.status.terminal, 'SUCCEEDED');
-    assert.strictEqual(evidence.status.verification, 'PASSED');
-    assert.strictEqual(evidence.evidence.probe, 'runtime probe not run');
-  });
-
-  test('surface validation marks missing catalog support incomplete', () => {
-    const result = validateDispatchSurfaceSet([{
-      hostProfile: profile,
-      catalog,
-      target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'missing-model', effort: 'high', route: 'headless-cli', transport: 'local-cli' },
-    }]);
-    assert.strictEqual(result.verdict, 'INCOMPLETE');
-    assert.strictEqual(result.surfaces[0].status.catalog_support, 'UNSUPPORTED');
-  });
-}
-
 // Source suite: dispatch-projection.test.js
 {
   const { test, assert } = require('./_lib/tinytest');
@@ -1762,170 +1926,6 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   });
 }
 
-// Source suite: dispatch-scheduler.test.js
-{
-  const { test, assert } = require('./_lib/tinytest');
-  const { createSchedule, executeSchedule } = require('../scripts/lib/dispatch-scheduler');
-  const { dispatch } = require('../scripts/lib/dispatch');
-  const { createAdapterRegistry } = require('../scripts/lib/provider-adapter');
-  const { SCHEMAS } = require('../scripts/lib/dispatch-contract');
-
-  const catalog = require('../manifests/provider-model-catalog.json');
-  const baseProfile = {
-    schema: SCHEMAS.HOST_PROFILE, version: 'cursor-scheduler.v2', host: 'cursor', native_target_agent: 'cursor', native_provider: 'cursor', native_model: 'composer-2.5', native_transport: 'native-runtime',
-    allowed_providers: ['cursor', 'anthropic', 'openai', 'google'],
-    access: {
-      cursor: { status: 'AVAILABLE', evidence: 'native scheduler fixture' },
-      anthropic: { status: 'AVAILABLE', evidence: 'claude scheduler fixture' },
-      openai: { status: 'AVAILABLE', evidence: 'codex scheduler fixture' },
-      google: { status: 'AVAILABLE', evidence: 'agy scheduler fixture' },
-    },
-    quota_pools: { cursor: 'native', anthropic: 'claude', openai: 'codex', google: 'agy' },
-    concurrency_limits: { native: 1, claude: 1, codex: 1, agy: 1 },
-    observed_at: '2026-09-11T00:00:00.000Z',
-  };
-
-  function request(id, files, overrides = {}) {
-    const input = {
-      schema: SCHEMAS.REQUEST, host_profile: baseProfile, task_id: id, attempt_id: `${id}-attempt`,
-      role: 'worker', authority: 'workspace-write', task: { description_digest: 'a'.repeat(64) },
-      scope: { workdir: '/workspace', assigned_files: files, prompt_evidence: { path: `/workspace/${id}.prompt`, dev: 1, ino: id.length, sha256: 'b'.repeat(64) } },
-      effort: 'medium', fallback: { allow: false, retry_budget: 0 }, parallelism: { dependencies: [], max_concurrency: 3 },
-      ...overrides,
-    };
-    if (input.target && Object.prototype.hasOwnProperty.call(input.target, 'route')) {
-      const { route, ...target } = input.target;
-      input.target = target;
-    }
-    return input;
-  }
-
-  test('scheduler admits independent mixed-provider workers in one wave', () => {
-    const plan = createSchedule([
-      request('claude-task', ['src/claude.js'], { effort: 'medium', target: { target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5', route: 'native', transport: 'native-runtime' } }),
-      request('codex-task', ['src/codex.js'], { effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
-      request('agy-task', ['src/agy.js'], { effort: 'high', target: { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high', route: 'native', transport: 'native-runtime' } }),
-    ], { catalog });
-
-    assert.strictEqual(plan.status, 'READY');
-    assert.strictEqual(plan.waves.length, 1);
-    assert.deepStrictEqual(plan.waves[0].map((entry) => entry.target.provider), ['cursor', 'openai', 'google']);
-  });
-
-  test('scheduler separates conflicting assigned scopes without blaming Provider identity', () => {
-    const plan = createSchedule([
-      request('first', ['src/shared.js'], { effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
-      request('second', ['src/shared.js'], { effort: 'high', target: { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high', route: 'native', transport: 'native-runtime' } }),
-    ], { catalog });
-
-    assert.strictEqual(plan.status, 'READY');
-    assert.strictEqual(plan.waves.length, 2);
-    assert.strictEqual(plan.waves[0][0].target.provider, 'openai');
-    assert.strictEqual(plan.waves[1][0].target.provider, 'google');
-    assert.ok(plan.diagnostics.some((item) => item.reason === 'assigned scope conflict'));
-  });
-
-  test('scheduler enforces a shared Provider quota pool', () => {
-    const profile = { ...baseProfile, quota_pools: { ...baseProfile.quota_pools, openai: 'shared' }, concurrency_limits: { ...baseProfile.concurrency_limits, shared: 1 } };
-    const plan = createSchedule([
-      request('codex-one', ['src/one.js'], { host_profile: profile, effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
-      request('codex-two', ['src/two.js'], { host_profile: profile, effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
-    ], { catalog });
-
-    assert.strictEqual(plan.waves.length, 2);
-    assert.ok(plan.diagnostics.some((item) => item.reason === 'Provider quota limit'));
-  });
-
-  test('scheduler plans unavailable external work onto the current Host-native fallback', async () => {
-    const unavailable = {
-      ...baseProfile,
-      access: { ...baseProfile.access, openai: { status: 'UNAVAILABLE', evidence: 'missing Codex CLI' } },
-    };
-    const input = request('fallback-task', ['src/fallback.js'], {
-      host_profile: unavailable,
-      effort: 'high',
-      target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' },
-      fallback: { allow: true, retry_budget: 1 },
-    });
-    const plan = createSchedule([input], { catalog });
-    assert.strictEqual(plan.status, 'READY');
-    assert.strictEqual(plan.waves[0][0].target.identity, 'cursor/composer-2.5');
-    assert.strictEqual(plan.waves[0][0].fallback.status, 'FALLBACK');
-
-    const registry = createAdapterRegistry({ executors: {
-      cursor: (target) => ({ status: 'SUCCEEDED', verification: 'PASSED', receipt_id: `receipt-${target.identity}` }),
-    } });
-    const result = await executeSchedule([input], { catalog, registry, dispatch, fallback: true });
-    assert.strictEqual(result.results[0].status, 'SUCCEEDED');
-    assert.strictEqual(result.results[0].receipt.resolved_target.identity, 'cursor/composer-2.5');
-  });
-
-  test('scheduler honors dependencies before admitting a wave', () => {
-    const plan = createSchedule([
-      request('base', ['src/base.js']),
-      request('dependent', ['src/dependent.js'], { parallelism: { dependencies: ['base'], max_concurrency: 3 } }),
-    ], { catalog });
-    assert.strictEqual(plan.waves.length, 2);
-    assert.strictEqual(plan.waves[1][0].request.task_id, 'dependent');
-  });
-
-  test('execution scheduler reports timeout and cancellation without fallback substitution', async () => {
-    const controller = new AbortController();
-    const timeoutResult = await executeSchedule([request('timeout', ['src/timeout.js'])], {
-      catalog, timeoutMs: 10, dispatch: () => new Promise(() => {}),
-    });
-    assert.strictEqual(timeoutResult.results[0].status, 'TIMEOUT');
-    assert.strictEqual(timeoutResult.results[0].fallback, undefined);
-
-    controller.abort();
-    let dispatchCalls = 0;
-    const cancelled = await executeSchedule([request('cancelled', ['src/cancelled.js'])], {
-      catalog,
-      signal: controller.signal,
-      dispatch: async () => {
-        dispatchCalls += 1;
-        return { status: 'SUCCEEDED' };
-      },
-    });
-    assert.strictEqual(cancelled.results[0].status, 'CANCELLED');
-    assert.strictEqual(dispatchCalls, 0, 'pre-aborted work must not invoke dispatch');
-  });
-
-  test('execution scheduler preserves launch identity and distinguishes crash from unknown lifecycle state', async () => {
-    const crash = await executeSchedule([request('crash', ['src/crash.js'])], {
-      catalog,
-      dispatch: async () => { throw new Error('adapter process crashed'); },
-    });
-    assert.strictEqual(crash.results[0].status, 'CRASHED');
-    assert.deepStrictEqual(crash.results[0].launch_identity, {
-      task_id: 'crash',
-      attempt_id: 'crash-attempt',
-      target: 'cursor/composer-2.5',
-    });
-
-    const unknown = await executeSchedule([request('unknown', ['src/unknown.js'])], {
-      catalog,
-      dispatch: async () => ({ status: 'UNKNOWN' }),
-    });
-    assert.strictEqual(unknown.results[0].status, 'UNKNOWN');
-    assert.strictEqual(unknown.results[0].fallback, undefined);
-  });
-
-  test('failed lifecycle outcomes block dependent work instead of dispatching a duplicate task', async () => {
-    const calls = [];
-    const dependent = request('dependent-failure', ['src/dependent.js'], { parallelism: { dependencies: ['root-failure'], max_concurrency: 3 } });
-    const result = await executeSchedule([request('root-failure', ['src/root.js']), dependent], {
-      catalog,
-      dispatch: async (entry) => {
-        calls.push(entry.task_id);
-        return { status: 'FAILED' };
-      },
-    });
-    assert.deepStrictEqual(calls, ['root-failure']);
-    assert.strictEqual(result.results.find((entry) => entry.task_id === 'dependent-failure').status, 'BLOCKED');
-  });
-}
-
 // Source suite: issue-534-p1-dispatch-contract.test.js
 {
   const { test, assert } = require('./_lib/tinytest');
@@ -1938,8 +1938,6 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     createProviderModelCatalog,
     translateLegacyRequest,
   } = require('../scripts/lib/dispatch-contract');
-  const { buildInvocation } = require('../scripts/lib/provider-cli-adapters');
-  const { validateDispatchPlatformEvidence } = require('../scripts/lib/dispatch-platform-validation');
 
   const timestamp = '2026-09-16T00:00:00.000Z';
 
@@ -2113,47 +2111,12 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.strictEqual(translated.request.target, undefined);
     assert.match(translated.compatibility.diagnostic, /explicit target/i);
   });
-
-  test('all four adapters expose explicit argv contracts and Claude reads prompt from stdin', () => {
-    const request = { authority: 'read-only', scope: { workdir: '/workspace' } };
-    const claude = buildInvocation({ target_agent: 'claude-code', provider: 'anthropic', model_id: 'sonnet-5', model: 'sonnet-5', effort: 'high', route: 'headless-cli', transport: 'local-cli' }, request);
-    assert.deepStrictEqual(claude.argv, ['--print', '--model', 'sonnet-5', '--effort', 'high', '--output-format', 'json']);
-    assert.strictEqual(claude.stdin_mode, 'prompt');
-    assert.ok(!claude.argv.includes('--prompt-file'));
-
-    const codex = buildInvocation({ target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna', model: 'gpt-5.6-luna', effort: 'high', route: 'headless-cli', transport: 'local-cli' }, request);
-    assert.strictEqual(codex.executable, 'codex');
-    assert.deepStrictEqual(codex.argv, [
-      'exec', '--skip-git-repo-check', '--sandbox', 'read-only',
-      '-c', 'approval_policy=never', '--cd', '/workspace',
-      '-m', 'gpt-5.6-luna', '-c', 'model_reasoning_effort=high',
-      '--output-last-message', '{transport_output}', '-',
-    ]);
-    assert.strictEqual(codex.stdin_mode, 'prompt');
-    assert.strictEqual(codex.output, 'transport-file');
-
-    const agy = buildInvocation(
-      { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.8-flash-high', model: 'gemini-3.8-flash-high', effort: 'high', route: 'headless-cli', transport: 'local-cli' },
-      { ...request, authority: 'workspace-write' },
-      { catalog },
-    );
-    assert.strictEqual(agy.executable, 'agy');
-    assert.deepStrictEqual(agy.argv, [
-      '--dangerously-skip-permissions', '--mode', 'accept-edits', '--add-dir', '/workspace',
-      '--model', 'Gemini 3.8 Flash (High)', '--print-timeout', '300s', '-p', '{prompt}',
-    ]);
-    assert.strictEqual(agy.stdin_mode, 'agy-confirmation');
-    assert.strictEqual(agy.output, 'none');
-    const cursor = buildInvocation({ target_agent: 'cursor', provider: 'xai', model_id: 'cursor-grok-4.6-high', model: 'cursor-grok-4.6-high', effort: 'high', route: 'native', transport: 'native-runtime' }, request);
-    assert.deepStrictEqual(cursor.argv, []);
-  });
 }
 
 // Source suite: issue-534-p1-failure-matrix.test.js
 {
   const { test, assert } = require('./_lib/tinytest');
   const { resolveTarget, decideFallback, FAILURE_CLASSES } = require('../scripts/lib/dispatch-engine');
-  const { createSchedule } = require('../scripts/lib/dispatch-scheduler');
   const { createAdapterRegistry } = require('../scripts/lib/provider-adapter');
   const { createDispatchRequest, SCHEMAS } = require('../scripts/lib/dispatch-contract');
   const catalog = require('../manifests/provider-model-catalog.json');
@@ -2276,7 +2239,7 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.strictEqual(fallback.target.identity, 'cursor/composer-2.5');
   });
 
-  test('partial writes, missing tools, timeout, and scope collisions stay on their safety paths', () => {
+  test('partial writes, missing tools, and timeout stay on their safety paths', () => {
     const reconciliation = decideFallback({
       request: request(),
       resolution: { status: 'UNAVAILABLE', reason: 'writer started', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } },
@@ -2290,12 +2253,6 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     const blocked = adapter.execute({ target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', effort: 'high', route: 'native', transport: 'native-runtime' }, createDispatchRequest(request()));
     assert.strictEqual(blocked.status, 'BLOCKED');
     assert.strictEqual(blocked.failure_class, 'ADAPTER_NOT_CONFIGURED');
-
-    const collision = createSchedule([
-      request({ task_id: 'matrix-a', attempt_id: 'matrix-a-attempt' }),
-      request({ task_id: 'matrix-b', attempt_id: 'matrix-b-attempt' }),
-    ], { catalog });
-    assert.ok(collision.diagnostics.some((entry) => entry.reason === 'assigned scope conflict'));
   });
 }
 
@@ -2411,8 +2368,6 @@ test('T7 canonical executable evidence cannot override explicit Host refusal', (
 
 test('T7 native null and exposed selector preserve unknown observations through adapters', () => {
   const { createExecutionTarget } = require('../scripts/lib/dispatch-contract');
-  const { buildInvocation } = require('../scripts/lib/provider-cli-adapters');
-  const { validateDispatchPlatformEvidence } = require('../scripts/lib/dispatch-platform-validation');
   const { createExecutionAdapter } = require('../scripts/lib/provider-adapter');
   for (const model of [null, 'host-default-alias']) {
     const input = request(codexProfile, { target: { target_agent: 'codex-cli', provider: 'openai', model_id: model }, effort: undefined,
@@ -2424,11 +2379,9 @@ test('T7 native null and exposed selector preserve unknown observations through 
     assert.strictEqual(resolved.capability.observed_model, null); assert.strictEqual(resolved.capability.observed_effort, null);
     const normalized = createExecutionTarget({ ...resolved.target, allow_unknown_model: true, allow_unknown_effort: true });
     assert.strictEqual(normalized.model_id, model);
-    assert.deepStrictEqual(buildInvocation(resolved.target, resolved.request).argv, []);
     const adapter = createExecutionAdapter({ provider: 'openai', execute: () => ({ status: 'SUCCEEDED', verification: 'PASSED' }) });
     const receipt = adapter.execute(resolved.target, resolved.request).receipt;
     assert.strictEqual(receipt.resolved_target.model_id, model);
-    assert.strictEqual(validateDispatchPlatformEvidence({ hostProfile: codexProfile, catalog, target: resolved.target }).status.catalog_support, 'UNSUPPORTED');
   }
   assert.strictEqual(createExecutionTarget({ target_agent: 'codex-cli', provider: 'openai', effort: 'high', transport: 'local-cli' }).model_id, 'unknown');
   assert.throws(() => createExecutionTarget({ target_agent: 'codex-cli', provider: 'openai', model_id: null, effort: 'high',
@@ -2437,9 +2390,6 @@ test('T7 native null and exposed selector preserve unknown observations through 
 
 
 test('T7 explicit nullable foreign and transport-conflicting targets stay blocked', () => {
-  const { buildInvocation } = require('../scripts/lib/provider-cli-adapters');
-  assert.throws(() => buildInvocation({ target_agent: 'codex-cli', provider: 'openai', model_id: null,
-    effort: 'high', route: 'headless-cli', transport: 'local-cli' }, request(codexProfile)));
   for (const target of [
     { target_agent: 'codex-cli', provider: 'openai', model_id: null, transport: 'local-cli' },
     { target_agent: 'claude-code', provider: 'anthropic', model_id: null },
@@ -2471,5 +2421,151 @@ test('T7 explicit null Model cannot fall back to a static default without curren
   const result = resolveTarget(request(codexProfile, { target: { target_agent: 'codex-cli', provider: 'openai', model_id: null } }), { catalog });
   assert.strictEqual(result.status, 'BLOCKED');
 });
+
+// Source suite: role-default-resolution-contract (tasks 5.3, 5.3a, 5.4, 5.5)
+{
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const contract = require('../scripts/lib/dispatch-contract');
+  const { test, assert } = require('./_lib/tinytest');
+  const ROOT = path.join(__dirname, '..');
+  const CLI_ROLE_AGENTS = ['codex-worker', 'codex-reasoner', 'codex-reviewer', 'agy-worker'];
+  const RETIRED = [
+    ['codex-fast-worker', 'codex-worker'],
+    ['codex-deep-reasoner', 'codex-reasoner'],
+    ['agy-fast-worker', 'agy-worker'],
+  ];
+
+  test('CLI Role Agents are absent from ROLE_ALIASES and the catalog role_aliases', () => {
+    for (const name of CLI_ROLE_AGENTS) {
+      assert.ok(!Object.prototype.hasOwnProperty.call(contract.ROLE_ALIASES, name), `ROLE_ALIASES.${name}`);
+      assert.ok(!Object.prototype.hasOwnProperty.call(catalog.role_aliases, name), `catalog.role_aliases.${name}`);
+    }
+  });
+
+  test('LEGACY_ROLE_ALIASES is removed from the contract', () => {
+    assert.strictEqual(contract.LEGACY_ROLE_ALIASES, undefined);
+    assert.ok(!fs.readFileSync(path.join(ROOT, 'scripts/lib/dispatch-contract.js'), 'utf8').includes('LEGACY_ROLE_ALIASES'));
+  });
+
+  test('CLI Role Agent names still translate through a legacy request with canonical Role and authority only', () => {
+    for (const [name, role, authority] of [['codex-worker', 'worker', 'workspace-write'], ['codex-reasoner', 'reasoner', 'read-only'], ['agy-worker', 'worker', 'workspace-write']]) {
+      const translated = contract.translateLegacyRequest({
+        schema: 'dhpk.cli.request.v1', host_profile: codexProfile, task_id: 'cli-role-1', attempt_id: 'cli-role-a1',
+        requested_role: name, mode: authority, effort: 'high',
+        task: { description_digest: 'a'.repeat(64) }, scope: request(codexProfile).scope,
+      });
+      assert.strictEqual(translated.request.role, role, name);
+      assert.strictEqual(translated.compatibility.canonical_role, role, name);
+      assert.strictEqual(translated.compatibility.provider_constraint, null, name);
+    }
+  });
+
+  test('retired role names stay BLOCKED with the successor at the catalog and legacy request paths', () => {
+    for (const [retired, successor] of RETIRED) {
+      assert.deepStrictEqual(contract.RETIRED_ROLES[retired], successor);
+      assert.throws(() => contract.translateLegacyRequest({ schema: 'dhpk.cli.request.v1', requested_role: retired }),
+        new RegExp(`retired role ${retired}.*use ${successor}.*0\\.66\\.1`));
+      assert.throws(() => contract.createProviderModelCatalog({ ...catalog, role_aliases: { [retired]: { role: 'worker', authority: 'workspace-write' } } }),
+        new RegExp(`retired role ${retired}.*use ${successor}.*0\\.66\\.1`));
+    }
+  });
+
+  test('retired role names are BLOCKED by the CLI role resolver and the selector', () => {
+    const { resolveRole } = require('../scripts/cli-dispatch/dispatch-runtime/cli-role-resolver');
+    const selector = require('../scripts/fast-worker-selector');
+    for (const [retired, successor] of RETIRED) {
+      const resolved = resolveRole({ requestedRole: retired, mode: retired.startsWith('codex-deep') ? 'read-only' : 'workspace-write' });
+      assert.strictEqual(resolved.status, 'BLOCKED');
+      assert.ok(resolved.reason.includes(successor));
+      for (const result of [selector.select({ backend: retired }), selector.run(['--backend', retired], {})]) {
+        assert.strictEqual(result.status, 'BLOCKED', retired);
+        assert.ok(result.reason.includes(successor), result.reason);
+        assert.ok(result.reason.includes('0.66.1'), result.reason);
+      }
+    }
+  });
+
+  test('the two alias tables are exported frozen from the contract with the specified entries', () => {
+    assert.ok(Object.isFrozen(contract.TARGET_AGENT_ALIASES));
+    assert.deepStrictEqual({ ...contract.TARGET_AGENT_ALIASES }, {
+      claude: 'claude-code', 'claude-code': 'claude-code', codex: 'codex-cli', 'codex-cli': 'codex-cli', agy: 'agy', cursor: 'cursor',
+    });
+    assert.ok(Object.isFrozen(contract.AGENT_PROVIDER));
+    assert.deepStrictEqual({ ...contract.AGENT_PROVIDER }, {
+      'claude-code': 'anthropic', 'codex-cli': 'openai', agy: 'google', cursor: 'cursor',
+    });
+  });
+
+  test('no module defines its own alias, vendor, or role-alias table', () => {
+    const forbidden = [
+      'PROVIDER_ALIASES', 'ADAPTER_PROVIDER_ALIASES', 'AGENT_PROVIDERS', 'LEGACY_VENDOR_MAP',
+      'TARGET_AGENT_PROVIDERS', 'LEGACY_ROLE_ALIASES',
+    ];
+    const literals = [/'claude-code'\s*:\s*'anthropic'/, /'codex-cli'\s*:\s*'openai'/, /\bagy\s*:\s*'google'/, /\bcodex\s*:\s*'codex-cli'/, /\bclaude\s*:\s*'claude-code'/];
+    const files = ['scripts/lib/dispatch-engine.js', 'scripts/lib/provider-adapter.js', 'scripts/lib/dispatch-config.js',
+      'scripts/cli-dispatch/dispatch-runtime/cli-role-resolver.js', 'scripts/fast-worker-selector.js'];
+    for (const file of files) {
+      const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+      for (const name of forbidden) assert.ok(!source.includes(name), `${file} defines ${name}`);
+      for (const pattern of literals) assert.ok(!pattern.test(source), `${file} repeats the alias/vendor table ${pattern}`);
+    }
+    const contractSource = fs.readFileSync(path.join(ROOT, 'scripts/lib/dispatch-contract.js'), 'utf8');
+    for (const name of forbidden) assert.ok(!contractSource.includes(name), `dispatch-contract.js defines ${name}`);
+    assert.strictEqual((contractSource.match(/'codex-cli'\s*:\s*'openai'/g) || []).length, 1, 'one vendor table in the contract');
+  });
+
+  const ROLE_DEFAULT_PINS = {
+    cursor: {
+      planner: { target_agent: 'claude-code', provider: 'anthropic', model_id: 'claude-opus-5-5-high', effort: 'high' },
+      reasoner: { target_agent: 'claude-code', provider: 'anthropic', model_id: 'claude-opus-5-5-high', effort: 'high' },
+      worker: { target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5', effort: 'medium' },
+      reviewer: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', effort: 'high' },
+    },
+    agy: {
+      planner: { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.1-pro-high', effort: 'high' },
+      reasoner: { target_agent: 'agy', provider: 'anthropic', model_id: 'claude-opus-4-6-thinking', effort: 'high' },
+      worker: { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.8-flash-high', effort: 'high' },
+      reviewer: { target_agent: 'agy', provider: 'anthropic', model_id: 'claude-opus-4-6-thinking', effort: 'high' },
+    },
+  };
+
+  // A mixed default names its target but stays NOT_RUN until session-bound capability evidence exists.
+  const ROLE_DEFAULT_STATUS = {
+    cursor: { planner: 'NOT_RUN', reasoner: 'NOT_RUN', worker: 'RESOLVED', reviewer: 'NOT_RUN' },
+    agy: { planner: 'RESOLVED', reasoner: 'NOT_RUN', worker: 'RESOLVED', reviewer: 'NOT_RUN' },
+  };
+
+  test('cursor and agy mixed Role Defaults are pinned in the Host profiles', () => {
+    for (const [host, roles] of Object.entries(ROLE_DEFAULT_PINS)) {
+      const profile = profiles.profiles.find((entry) => entry.host === host);
+      for (const [role, pin] of Object.entries(roles)) {
+        const actual = profile.role_defaults[role];
+        assert.deepStrictEqual({
+          target_agent: actual.target_agent, provider: actual.provider, model_id: actual.model_id, effort: actual.effort,
+        }, pin, `${host}.${role}`);
+        assert.strictEqual(actual.route, 'native', `${host}.${role}.route`);
+        assert.strictEqual(actual.transport, 'native-runtime', `${host}.${role}.transport`);
+      }
+    }
+  });
+
+  test('cursor and agy resolve their pinned Role Default per Role without an explicit target', () => {
+    for (const [host, roles] of Object.entries(ROLE_DEFAULT_PINS)) {
+      const profile = profiles.profiles.find((entry) => entry.host === host);
+      for (const [role, pin] of Object.entries(roles)) {
+        const result = resolveTarget(request(profile, {
+          role, authority: role === 'worker' ? 'workspace-write' : 'read-only', effort: pin.effort,
+        }), { catalog });
+        assert.strictEqual(result.status, ROLE_DEFAULT_STATUS[host][role], `${host}.${role}: ${result.reason}`);
+        assert.deepStrictEqual({
+          target_agent: result.target.target_agent, provider: result.target.provider,
+          model_id: result.target.model_id, effort: result.target.effort,
+        }, pin, `${host}.${role}`);
+      }
+    }
+  });
+}
+
 
 run('dispatch-engine');

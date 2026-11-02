@@ -1,0 +1,36 @@
+{
+  "installed_at": "2026-11-02T00:00:00Z",
+  "managed_entries": {
+    "agents": {
+      "sample.toml": {
+        "destination": "agents/sample.toml",
+        "destination_fingerprint": "c13a3ee7209ba40de6d8fb26391cfb25d81d41d58891684e0c52230a40dd9b20",
+        "fingerprint": "c13a3ee7209ba40de6d8fb26391cfb25d81d41d58891684e0c52230a40dd9b20",
+        "mode": "copy",
+        "ownership_marker": "copy:agents/sample.toml",
+        "source": "agents/sample.toml",
+        "source_fingerprint": "c13a3ee7209ba40de6d8fb26391cfb25d81d41d58891684e0c52230a40dd9b20"
+      }
+    },
+    "skills": {
+      "sample-skill": {
+        "destination": "skills/sample-skill",
+        "destination_fingerprint": "2a95463b69c90af7cf646b87fc430b65087d814384dcf4c033642e6dc8349a53",
+        "fingerprint": "2a95463b69c90af7cf646b87fc430b65087d814384dcf4c033642e6dc8349a53",
+        "mode": "copy",
+        "ownership_marker": "copy:skills/sample-skill",
+        "source": "skills/sample-skill",
+        "source_fingerprint": "2a95463b69c90af7cf646b87fc430b65087d814384dcf4c033642e6dc8349a53"
+      }
+    },
+    "supporting_assets": {}
+  },
+  "mode": "copy",
+  "orphaned_entries": {},
+  "plugin_version": "0.68.3",
+  "schema_version": 3,
+  "source_fingerprint": "87023779707db878ffe5bedc3893091bafc5e83cdb8fdf3aa74cb3d3a429b484",
+  "state": "current",
+  "transaction_final": true,
+  "transaction_id": "20261102T000000Z-1"
+}

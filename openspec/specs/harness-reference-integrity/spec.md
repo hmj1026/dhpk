@@ -86,3 +86,31 @@ The reference-integrity check SHALL run as part of the repository's standard tes
 
 - **WHEN** a pull request adds a skill referencing a non-existent rule file and CI runs the test suite
 - **THEN** the suite fails with the reference-integrity finding
+
+### Requirement: Bare skill invocations and skill paths resolve
+
+The reference-integrity guard SHALL also check the bare form of a `dhpk:<name>` token, not only the slash form. A token in a code span, or preceded by whitespace, `(`, or the start of a line, SHALL resolve under the same rule as the slash form. A `:`-namespaced token SHALL be skipped.
+
+The guard SHALL also check `skills/<name>/` paths, whether bare or `${CLAUDE_PLUGIN_ROOT}`-anchored. When `<name>` is a single kebab-case segment, `skills/<name>/` SHALL be an existing skill directory. The following SHALL be excluded:
+- consumer or host install paths
+- package projection paths
+- placeholders and globs
+
+The check SHALL cover the files the guard already scans, plus `agent-traps/` and the root README files. It SHALL exclude historical records: the changelog, evidence logs, design records, and OpenSpec content.
+
+#### Scenario: Stale bare invocation fails
+
+- **WHEN** a scanned file contains `dhpk:dhpk-yii1-security-audit` and no such
+  skill or command exists
+- **THEN** the guard reports the file, line, and unresolved name, and exits non-zero
+
+#### Scenario: Stale skill path fails
+
+- **WHEN** an agent trap references `skills/dhpk-php-runtime-router/references/x.md`
+  and `skills/dhpk-php-runtime-router/` does not exist
+- **THEN** the guard reports the file, line, and missing skill directory
+
+#### Scenario: Consumer install path is ignored
+
+- **WHEN** a scanned file mentions `.agents/skills/<name>/` or `skills/*/`
+- **THEN** the guard does not report it

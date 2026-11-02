@@ -42,6 +42,14 @@ const {
 } = require('../lib/release-evidence');
 const { fingerprint: fingerprintStructuredValue } = require('../lib/distribution-projection-contract');
 const { fingerprintDir } = require('../lib/codex-native-package');
+const {
+  TREE_FINGERPRINT_ALGORITHM,
+  inventoryDigestInsertionOrder,
+  normalizeFingerprintAlgorithm,
+  resolveFingerprintAlgorithm,
+  sha256Hex,
+  treeFingerprint,
+} = require('../lib/content-fingerprint');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
 const { redactSensitiveText } = require('../lib/redaction');
@@ -311,9 +319,17 @@ function resolveCanonicalPath(current, { allowedRoots = [], canonicalRoots = nul
   return resolved;
 }
 
+// options.algorithm: LEGACY_FINGERPRINT_ALGORITHM (default, the gate's own
+// nested `dir\0` recipe) or TREE_FINGERPRINT_ALGORITHM. Receipt-compare callers
+// read the choice from the receipt with receiptFingerprintAlgorithm; identity
+// digests keep the default. Both recipes follow links inside the approved roots
+// and keep bytecode: the walk is policy, the digest is the recipe.
 function fingerprintPath(target, options = {}) {
+  const algorithm = normalizeFingerprintAlgorithm(options.algorithm);
   const normalizedOptions = normalizeFingerprintOptions(options);
   const budget = createTraversalBudget(normalizedOptions);
+  const fileDigest = (canonical, stat) => crypto.createHash('sha256')
+    .update('file\0').update(budget.readFile(canonical, stat)).digest('hex');
   const hashNode = (current, depth) => {
     const canonical = resolveCanonicalPath(current, normalizedOptions);
     const stat = fs.lstatSync(canonical);
@@ -334,16 +350,45 @@ function fingerprintPath(target, options = {}) {
       }
       return nodeDigest.digest('hex');
     }
-    nodeDigest.update('file\0');
-    nodeDigest.update(budget.readFile(canonical, stat));
-    return nodeDigest.digest('hex');
+    return fileDigest(canonical, stat);
+  };
+  const collectFiles = (current, relative, depth, files) => {
+    const canonical = resolveCanonicalPath(current, normalizedOptions);
+    const stat = fs.lstatSync(canonical);
+    if (!stat.isDirectory()) {
+      files.push({ path: relative, type: 'file', content: budget.readFile(canonical, stat) });
+      return;
+    }
+    const realDirectory = budget.enterDirectory(canonical, depth);
+    try {
+      for (const entry of readDirectoryEntries(canonical, { budget, sort: true })) {
+        collectFiles(path.join(canonical, entry.name), relative ? `${relative}/${entry.name}` : entry.name, depth + 1, files);
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  const hashTree = (current) => {
+    const canonical = resolveCanonicalPath(current, normalizedOptions);
+    const stat = fs.lstatSync(canonical);
+    if (!stat.isDirectory()) return fileDigest(canonical, stat);
+    const files = [];
+    collectFiles(canonical, '', 0, files);
+    return treeFingerprint(files);
   };
   try {
-    return hashNode(target, 0);
+    return algorithm === TREE_FINGERPRINT_ALGORITHM ? hashTree(target) : hashNode(target, 0);
   } catch (error) {
     if (error && error.code === 'ENOENT') return '';
     throw error;
   }
+}
+
+// Recipe named by a receipt's `fingerprint_algorithm` (absent means legacy).
+// Throws, naming the field and value, for any other value so the gate fails
+// closed instead of trying both recipes.
+function receiptFingerprintAlgorithm(receipt) {
+  return resolveFingerprintAlgorithm(receipt, 'fingerprint_algorithm');
 }
 
 function fingerprintProjectSkill(target, options = {}) {
@@ -352,10 +397,11 @@ function fingerprintProjectSkill(target, options = {}) {
   return fingerprintDir(canonical, normalizedOptions);
 }
 
-function fingerprintOptions(fingerprintFn, allowedRoots) {
-  return fingerprintFn === fingerprintPath || fingerprintFn === fingerprintProjectSkill
-    ? { allowedRoots }
-    : {};
+function fingerprintOptions(fingerprintFn, allowedRoots, algorithm = undefined) {
+  if (fingerprintFn === fingerprintPath || fingerprintFn === fingerprintProjectSkill) {
+    return { allowedRoots, algorithm };
+  }
+  return fingerprintFn === fingerprintDir ? { algorithm } : {};
 }
 
 function relativeEvidencePath(root, target, label) {
@@ -399,6 +445,9 @@ function discoverCodexSurface({
   fingerprintFnByKind = {},
   ownershipFingerprintFn = null,
   allowedRoots = [],
+  contentAlgorithm = undefined,
+  ownershipAlgorithm = undefined,
+  algorithmError = null,
 }) {
   return ['skills', 'agents'].flatMap((kind) => {
     const kindRoot = path.join(surfaceRoot, kind);
@@ -426,8 +475,15 @@ function discoverCodexSurface({
       let ownershipFingerprint = '';
       let expectedFingerprint = null;
       let fingerprintError = null;
+      const receiptEntry = managed && managed[id];
+      // An entry the installer could not rewrite keeps its legacy value inside
+      // a tree-merkle-v1 receipt and says so; it is proven with that recipe.
+      const entryOwnershipAlgorithm = receiptEntry && receiptEntry.fingerprint_algorithm === 'legacy'
+        ? 'legacy'
+        : ownershipAlgorithm;
       try {
-        fingerprint = contentFingerprintFn(target, fingerprintOptions(contentFingerprintFn, allowedRoots));
+        if (algorithmError) throw new Error(algorithmError);
+        fingerprint = contentFingerprintFn(target, fingerprintOptions(contentFingerprintFn, allowedRoots, contentAlgorithm));
         if (!fingerprint) {
           const redactedError = redactEvidence(
             redactEvidence('fingerprint validation failed: empty or missing target', root),
@@ -438,11 +494,11 @@ function discoverCodexSurface({
             : 'fingerprint validation failed';
         } else {
           expectedFingerprint = expectedFingerprints
-            ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots))
+            ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots, contentAlgorithm))
             : null;
-          ownershipFingerprint = ownershipFn === contentFingerprintFn
+          ownershipFingerprint = ownershipFn === contentFingerprintFn && entryOwnershipAlgorithm === contentAlgorithm
             ? fingerprint
-            : ownershipFn(target, fingerprintOptions(ownershipFn, allowedRoots));
+            : ownershipFn(target, fingerprintOptions(ownershipFn, allowedRoots, entryOwnershipAlgorithm));
         }
       } catch (error) {
         const errorText = error && typeof error.message === 'string' && error.message
@@ -453,7 +509,6 @@ function discoverCodexSurface({
           ? redactedError
           : 'fingerprint validation failed';
       }
-      const receiptEntry = managed && managed[id];
       const owned = manifest
         ? Boolean(receiptEntry && receiptEntry.destination_fingerprint === ownershipFingerprint)
         : Boolean(provenance && provenance.valid && expectedFingerprints && expectedFingerprints[id] === expectedFingerprint);
@@ -550,12 +605,32 @@ function summarizeCodexDiscovery(discovery) {
   };
 }
 
+// A package without the marker is legacy; an unknown marker is a failed
+// fingerprint check (not a crash) that names the field and value.
+function resolveAlgorithmOrError(resolve) {
+  try {
+    return { algorithm: resolve(), error: null };
+  } catch (error) {
+    return { algorithm: undefined, error: error.message };
+  }
+}
+
+function readNativePackageAlgorithm(nativeRoot) {
+  let provenance = null;
+  try {
+    provenance = JSON.parse(readFileBounded(path.join(nativeRoot, 'provenance.json')).toString('utf8'));
+  } catch (_) { return { algorithm: undefined, error: null }; }
+  return resolveAlgorithmOrError(() => resolveFingerprintAlgorithm(provenance));
+}
+
 function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(root, 'plugins', 'dhpk') }) {
   const manifestPath = path.join(project, '.codex', '.dhpk-installed.json');
   let manifest = null;
   if (fs.existsSync(manifestPath)) {
     try { manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8')); } catch (_) { manifest = null; }
   }
+  const nativeAlgorithm = readNativePackageAlgorithm(nativeRoot);
+  const receiptAlgorithm = resolveAlgorithmOrError(() => receiptFingerprintAlgorithm(manifest));
   const projectEntries = discoverCodexSurface({
     root,
     surfaceRoot: path.join(project, '.codex'),
@@ -565,6 +640,11 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
     allowedRoots: [project, root],
     fingerprintFnByKind: { skills: fingerprintProjectSkill },
     ownershipFingerprintFn: fingerprintPath,
+    // The project skill is compared with the native package skill, so its
+    // content value follows the package marker; ownership follows the receipt.
+    contentAlgorithm: nativeAlgorithm.algorithm,
+    ownershipAlgorithm: receiptAlgorithm.algorithm,
+    algorithmError: receiptAlgorithm.error || nativeAlgorithm.error,
   });
   let nativeVersion = version;
   const nativeManifestPath = path.join(nativeRoot, '.codex-plugin', 'plugin.json');
@@ -646,7 +726,7 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
         && JSON.stringify(selectedNativeNames) === JSON.stringify(expectedNativeNames)
         && JSON.stringify(Object.keys(nativeFingerprints).sort()) === JSON.stringify(expectedNativeNames);
       const expectedInventoryDigest = inventory
-        ? crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex')
+        ? sha256Hex(JSON.stringify(inventory))
         : null;
       // Pre-profile packages deliberately bind the legacy inventory contract,
       // which excludes profile policy, standalone dependencies, and the
@@ -654,15 +734,7 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
       // package carries no selection identity; profile-aware packages use the
       // same source digest and are checked against their selected/emitted IDs
       // above.
-      const legacyInventory = inventory ? { ...inventory } : null;
-      if (legacyInventory) {
-        delete legacyInventory.profile_policy;
-        delete legacyInventory.standalone_dependencies;
-        delete legacyInventory.project_agent_projection;
-      }
-      const legacyInventoryDigest = legacyInventory
-        ? crypto.createHash('sha256').update(JSON.stringify(legacyInventory)).digest('hex')
-        : null;
+      const legacyInventoryDigest = inventory ? inventoryDigestInsertionOrder(inventory) : null;
       const inventoryMatches = Boolean(
         (expectedInventoryDigest && provenance.inventoryDigest === expectedInventoryDigest)
         || (legacyInventoryDigest && provenance.inventoryDigest === legacyInventoryDigest),
@@ -689,6 +761,9 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
     expectedFingerprints: nativeFingerprints,
     fingerprintFn: fingerprintDir,
     expectedFingerprintFn: fingerprintDir,
+    contentAlgorithm: nativeAlgorithm.algorithm,
+    ownershipAlgorithm: nativeAlgorithm.algorithm,
+    algorithmError: nativeAlgorithm.error,
   });
   const nonInvokableSkillNames = inventory && Array.isArray(inventory.skills)
     ? inventory.skills.filter((skill) => skill.invokable === false).map((skill) => skill.name || skill.id).sort()
@@ -951,21 +1026,21 @@ function validateCodexAgentMaterialization(project, manifest) {
   return errors;
 }
 
-function receiptBoundedFileFingerprint(target, boundary) {
+function receiptBoundedFileFingerprint(target, boundary, algorithm = undefined) {
   if (hasSymlinkedAncestor(target, boundary)) return '';
   let stat;
   try { stat = fs.lstatSync(target); } catch (_) { return ''; }
   if (stat.isSymbolicLink() || !stat.isFile() || !insideRealRoot(target, boundary)) return '';
   try {
     readFileBounded(target);
-    return fingerprintPath(target, { allowedRoots: [boundary] });
+    return fingerprintPath(target, { allowedRoots: [boundary], algorithm });
   } catch (_) {
     return '';
   }
 }
 
-function receiptBoundedResourceFingerprint(target, boundary, expectedSource, sourceBoundary, mode) {
-  if (mode === 'copy') return receiptBoundedFileFingerprint(target, boundary);
+function receiptBoundedResourceFingerprint(target, boundary, expectedSource, sourceBoundary, mode, algorithm = undefined) {
+  if (mode === 'copy') return receiptBoundedFileFingerprint(target, boundary, algorithm);
   if (mode !== 'symlink' || hasSymlinkedAncestor(path.dirname(target), boundary)
     || !insideRealRoot(path.dirname(target), boundary)) return '';
   let targetStat;
@@ -982,21 +1057,32 @@ function receiptBoundedResourceFingerprint(target, boundary, expectedSource, sou
   if (realTarget !== realSource || !insideRealRoot(realSource, sourceBoundary)) return '';
   try {
     readFileBounded(realTarget);
-    return fingerprintPath(realTarget, { allowedRoots: [sourceBoundary] });
+    return fingerprintPath(realTarget, { allowedRoots: [sourceBoundary], algorithm });
   } catch (_) {
     return '';
   }
 }
 
 function observeCodexRoleMaterialization(project, root, receipt, role) {
+  const receiptAlgorithm = resolveAlgorithmOrError(() => receiptFingerprintAlgorithm(receipt));
+  if (receiptAlgorithm.error) {
+    return {
+      status: 'FAIL',
+      adapterRoute: 'codex-role-materialization',
+      reason: `Codex receipt fingerprint check failed: ${receiptAlgorithm.error}`,
+      role: { path: `agents/${role}.toml` },
+      resources: [],
+    };
+  }
+  const algorithm = receiptAlgorithm.algorithm;
   const relativeRole = `agents/${role}.toml`;
   const sourceRole = path.join(root, 'codex', 'agents', `${role}.toml`);
   const installedRole = path.join(project, '.codex', ...relativeRole.split('/'));
   const roleEntry = receipt && receipt.managed_entries && receipt.managed_entries.agents
     ? receipt.managed_entries.agents[`${role}.toml`]
     : null;
-  const sourceFingerprint = receiptBoundedFileFingerprint(sourceRole, root);
-  const destinationFingerprint = receiptBoundedFileFingerprint(installedRole, project);
+  const sourceFingerprint = receiptBoundedFileFingerprint(sourceRole, root, algorithm);
+  const destinationFingerprint = receiptBoundedFileFingerprint(installedRole, project, algorithm);
   const roleEvidence = {
     path: relativeRole,
     ...(sourceFingerprint ? { sourceFingerprint } : {}),
@@ -1054,9 +1140,9 @@ function observeCodexRoleMaterialization(project, root, receipt, role) {
       && !relativeSource.includes('\\');
     const sourcePath = safeSource ? path.join(root, ...relativeSource.split('/')) : '';
     const destinationPath = path.join(project, '.codex', ...resourceRelative.split('/'));
-    const resourceSourceFingerprint = safeSource ? receiptBoundedFileFingerprint(sourcePath, root) : '';
+    const resourceSourceFingerprint = safeSource ? receiptBoundedFileFingerprint(sourcePath, root, algorithm) : '';
     const resourceDestinationFingerprint = safeSource
-      ? receiptBoundedResourceFingerprint(destinationPath, project, sourcePath, root, entry && entry.mode)
+      ? receiptBoundedResourceFingerprint(destinationPath, project, sourcePath, root, entry && entry.mode, algorithm)
       : '';
     const valid = Boolean(entry
       && entry.destination === resourceRelative
@@ -1131,7 +1217,7 @@ function readConsumerRoleSourceText(root, relativePath) {
   return readFileBounded(canonical).toString('utf8');
 }
 
-function verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed }) {
+function verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed, algorithm = undefined }) {
   const destination = asset && asset.destination;
   if (!safeConsumerRepoPath(destination)
     || !asset || !safeConsumerRepoPath(asset.source)
@@ -1143,13 +1229,14 @@ function verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed }
   }
   const sourcePath = path.join(root, ...asset.source.split('/'));
   const destinationPath = path.join(project, '.codex', ...destination.split('/'));
-  const sourceFingerprint = receiptBoundedFileFingerprint(sourcePath, root);
+  const sourceFingerprint = receiptBoundedFileFingerprint(sourcePath, root, algorithm);
   const destinationFingerprint = receiptBoundedResourceFingerprint(
     destinationPath,
     project,
     sourcePath,
     root,
     installed.mode,
+    algorithm,
   );
   if (!sourceFingerprint || !destinationFingerprint
     || !/^[a-f0-9]{64}$/.test(installed.source_fingerprint || '')
@@ -1291,7 +1378,7 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
       const asset = inventory.supporting_assets.find((entry) => entry && entry.destination === destination);
       const installed = installedAssets[destination];
       if (!asset) throw new Error(`Codex role resource is absent from the current inventory: ${destination}`);
-      const verified = verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed });
+      const verified = verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed, algorithm: receiptFingerprintAlgorithm(receipt) });
       referencesByDestination.set(destination, verified);
     }
     const declaredDynamicFamilies = selectedCodexRoleDynamicFamilies(root, role, [...referencesByDestination.values()]);
@@ -1306,7 +1393,7 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
       }
       for (const asset of familyAssets) {
         const installed = installedAssets[asset.destination];
-        const verified = verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed });
+        const verified = verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed, algorithm: receiptFingerprintAlgorithm(receipt) });
         referencesByDestination.set(asset.destination, verified);
       }
     }

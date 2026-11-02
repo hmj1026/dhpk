@@ -14,8 +14,8 @@ const {
   refreshSupportingDigests,
   serializeInventory,
   writeInventoryAtomically,
-  compileClaudeProjection,
 } = require('../lib/distribution-inventory');
+const { compileClaudeProjection } = require('../lib/claude-projection-adapter');
 const { classifyWritePolicy } = require('../lib/distribution-inventory-regeneration');
 const { compileDirectoryInventory, inventoryDrift } = require('../lib/skill-distribution-compile');
 

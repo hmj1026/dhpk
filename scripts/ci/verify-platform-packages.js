@@ -7,7 +7,6 @@
 // real client is explicitly invoked.
 
 const fs = require('node:fs');
-const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -41,6 +40,7 @@ const {
   resolveGeneratedFromTree,
   assertCleanSourceCheckout,
 } = require('../lib/platform-provenance');
+const { sha256Hex } = require('../lib/content-fingerprint');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
@@ -273,10 +273,6 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, profiles, module
   };
 }
 
-function sha256(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
 function stripFrontmatter(content) {
   const match = String(content).match(/^---\r?\n[\s\S]*?\r?\n---\r?\n/);
   return match ? String(content).slice(match[0].length) : String(content);
@@ -312,10 +308,10 @@ function verifySupportingAssetParity(root, inventory, errors) {
       continue;
     }
     checked += 1;
-    if (sha256(fs.readFileSync(canonical)) !== asset.canonical_digest) {
+    if (sha256Hex(fs.readFileSync(canonical)) !== asset.canonical_digest) {
       errors.push(`supporting asset canonical digest is stale: ${asset.id || asset.source}`);
     }
-    if (sha256(fs.readFileSync(projection)) !== asset.projection_digest) {
+    if (sha256Hex(fs.readFileSync(projection)) !== asset.projection_digest) {
       errors.push(`supporting asset projection digest is stale: ${asset.id || asset.source}`);
     }
   }
@@ -351,7 +347,7 @@ function verifySharedSkillParity(root, inventory, errors, selectedSurfaces = SUR
     }
     const targetContent = fs.readFileSync(target);
     if (!targetContent.equals(canonicalContent)) errors.push(`${surface} fallback reference drifted from the canonical skill`);
-    checked.push({ surface, source: path.relative(root, target), canonicalSource: reference, digest: sha256(targetContent) });
+    checked.push({ surface, source: path.relative(root, target), canonicalSource: reference, digest: sha256Hex(targetContent) });
   }
   return checked;
 }
@@ -389,10 +385,11 @@ function verifyPolicyParity(root, inventory, selectedSurfaces = SURFACES) {
       continue;
     }
     const file = path.join(root, relative);
-    const content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+    const projectionBytes = fs.existsSync(file) ? fs.readFileSync(file) : Buffer.alloc(0);
+    const content = projectionBytes.toString('utf8');
     if (!content) errors.push(`${platform} policy projection is missing: ${relative}`);
-    const canonicalDigest = sha256(canonical);
-    const projectionDigest = sha256(content);
+    const canonicalDigest = sha256Hex(canonical);
+    const projectionDigest = sha256Hex(projectionBytes);
     if (platform === 'codex') {
       if (paths.codexEntry.canonical_digest !== canonicalDigest) errors.push('Codex policy canonical digest is stale');
       if (paths.codexEntry.projection_digest !== projectionDigest) errors.push('Codex policy projection digest is stale');

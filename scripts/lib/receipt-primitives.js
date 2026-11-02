@@ -14,6 +14,12 @@ const {
 } = require('./receipt-json-primitives');
 const { LIMITS: STORE_BUDGET_LIMITS, assertLeaseRecordBytes } = require('./receipt-store-budget');
 const { writePhysicalImmutable } = require('./physical-file');
+const {
+  sha256Hex,
+  canonicalJson,
+  directoryEntriesFingerprint,
+  collectDirectoryEntries,
+} = require('./content-fingerprint');
 
 const SHA256 = /^[a-f0-9]{64}$/i;
 const COMMIT = /^[a-f0-9]{40}$/i;
@@ -34,22 +40,7 @@ const ROLLBACK_FIELDS = Object.freeze([
   'owner',
 ]);
 
-function sha256(value) {
-  const input = Buffer.isBuffer(value) || ArrayBuffer.isView(value) ? value : String(value);
-  return crypto.createHash('sha256').update(input).digest('hex');
-}
-
-function canonicalize(value) {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]));
-  }
-  return value;
-}
-
-function canonicalJson(value) {
-  return JSON.stringify(canonicalize(value));
-}
+const sha256 = sha256Hex;
 
 function isFingerprint(value) {
   return typeof value === 'string' && FINGERPRINT.test(value);
@@ -98,34 +89,7 @@ function fingerprintForBytes(file) {
 }
 
 function fingerprintDirectory(directory) {
-  const root = path.resolve(directory);
-  const entries = [];
-  const visit = (current, relative) => {
-    const names = fs.readdirSync(current).sort();
-    for (const name of names) {
-      const absolute = path.join(current, name);
-      const childRelative = relative ? path.join(relative, name) : name;
-      const stat = fs.lstatSync(absolute);
-      if (stat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink '${childRelative}'`);
-      if (stat.isDirectory()) {
-        entries.push({ path: childRelative.split(path.sep).join('/'), type: 'directory' });
-        visit(absolute, childRelative);
-      } else if (stat.isFile()) {
-        entries.push({
-          path: childRelative.split(path.sep).join('/'),
-          type: 'file',
-          fingerprint: fingerprintForBytes(absolute),
-          mode: stat.mode & 0o777,
-        });
-      } else {
-        throw new Error(`cannot fingerprint special entry '${childRelative}'`);
-      }
-    }
-  };
-  const stat = fs.lstatSync(root);
-  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`fingerprint root '${directory}' is not a physical directory`);
-  visit(root, '');
-  return `sha256:${sha256(canonicalJson(entries))}`;
+  return directoryEntriesFingerprint(collectDirectoryEntries(directory));
 }
 
 function revalidateBytes(reference, expectedFingerprint = null) {

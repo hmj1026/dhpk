@@ -28,11 +28,13 @@ const RUNTIME_METADATA = Object.freeze({
   'e2e-runner': { model: 'gpt-6.1-sol', effort: 'medium' },
   'ui-verifier': { model: 'gpt-6.1-terra', effort: 'medium' },
   'docs-writer': { model: 'gpt-6.1-terra', effort: 'medium' },
+  'qa-executor': { model: 'gpt-6-luna', effort: 'medium' },
   'scoped-worker': { model: 'gpt-6.1-terra', effort: 'medium' },
 });
 
 // Each Codex role names its canonical source explicitly. Existing shared roles
-// continue to read from agents/; Codex-only roles stay in codex/agent-sources/.
+// continue to read from agents/ (including docs-writer and qa-executor);
+// Codex-only roles stay in codex/agent-sources/.
 // The 4 hand-maintained Codex roles (bug-investigator, explorer, monitor, worker)
 // are intentionally absent and are never read or overwritten.
 const AGENTS = [
@@ -47,8 +49,9 @@ const AGENTS = [
   { name: 'frontend-reviewer', source: 'agents/frontend-reviewer.md' },
   { name: 'migration-reviewer', source: 'agents/migration-reviewer.md' },
   { name: 'e2e-runner', source: 'agents/e2e-runner.md' },
+  { name: 'qa-executor', source: 'agents/qa-executor.md' },
+  { name: 'docs-writer', source: 'agents/docs-writer.md' },
   { name: 'ui-verifier', source: 'codex/agent-sources/ui-verifier.md' },
-  { name: 'docs-writer', source: 'codex/agent-sources/docs-writer.md' },
   { name: 'scoped-worker', source: 'codex/agent-sources/scoped-worker.md' },
 ];
 
@@ -353,9 +356,22 @@ function adaptCodexBody(agentName, body) {
       'dispatch the direct Codex `explorer` role. If `explorer` is unavailable, return `VERDICT: RECONSULT` with the missing capability.',
     );
   }
+  if (agentName === 'qa-executor') {
+    // Shared source names Claude's Skill tool; Codex roles need the installed skill's host-supported loading path.
+    // The discovery description names Claude-only neighbors in plain text, which
+    // the backtick-scoped neighbor fence does not scan; map them to Codex terms.
+    adapted = adapted
+      .replace(
+        'Load the browser skill the parent names with the Skill tool.',
+        'Load the browser skill the parent names using the host-supported skill-loading mechanism.',
+      )
+      .replaceAll('(ui-ux-verifier)', '(ui-verifier)')
+      .replaceAll('a single-scenario runtime probe (smoke-tester)', 'a single-scenario runtime probe (no Codex role; probe directly)');
+  }
   if (agentName === 'e2e-runner') {
     adapted = adapted
       .replaceAll('`smoke-tester`', 'perform the live probe directly (no Codex role)')
+      .replaceAll('smoke-tester is a read-only live probe', 'a read-only live probe has no Codex role (probe directly)')
       .replaceAll('`ui-ux-verifier`', 'a manual page-vs-spec UI audit fallback')
       .replaceAll('**ui-ux-verifier**', '**manual page-vs-spec UI audit fallback**')
       .replaceAll('ui-ux-verifier', 'manual page-vs-spec UI audit fallback')
@@ -374,7 +390,8 @@ function adaptCodexBody(agentName, body) {
   }
   if (agentName === 'security-reviewer') {
     adapted = adapted
-      .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)');
+      .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)')
+      .replaceAll('silent-failure-hunter', 'deep-reasoner (Codex fallback)');
   }
   if (agentName === 'doc-reviewer') {
     adapted = adapted
@@ -510,6 +527,35 @@ function buildToml(agent, frontmatter, body) {
   };
 }
 
+function readDhpkRoleRoster(roleMap) {
+  const agentsDir = path.join(ROOT, 'agents');
+  const fromAgents = fs.existsSync(agentsDir)
+    ? fs.readdirSync(agentsDir)
+        .filter((f) => f.endsWith('.md') && f !== 'INDEX.md')
+        .map((f) => f.slice(0, -3))
+    : [];
+  const fromMap = Object.keys((roleMap && roleMap.roles) || {});
+  return sortedNames([...fromAgents, ...fromMap]);
+}
+
+// Whole-token match where '-' belongs to the name, so `ui-verifier` never
+// matches inside `ui-ux-verifier`. Applies with or without backticks.
+function collectDescriptionRoleErrors(planned, roster, packageNames) {
+  const errors = [];
+  for (const { agent, built } of planned) {
+    for (const role of roster) {
+      if (packageNames.has(role)) continue;
+      const escaped = role.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(`(?<![A-Za-z0-9-])${escaped}(?![A-Za-z0-9-])`).test(built.description)) {
+        errors.push(
+          `Generated Codex role '${agent.name}' description names dhpk role '${role}', which is not a Codex package role; adapt it in adaptCodexBody (${agent.source})`,
+        );
+      }
+    }
+  }
+  return errors;
+}
+
 function generate(outDir) {
   const ownership = readOwnershipManifest(outDir);
   assertNoStaleToml(outDir, ownership);
@@ -534,7 +580,11 @@ function generate(outDir) {
   // Validate the complete adapted batch before publishing any TOML.  Direct
   // targets therefore resolve independently of the order in which files are
   // eventually written.
-  const neighborErrors = [];
+  const neighborErrors = collectDescriptionRoleErrors(
+    planned,
+    readDhpkRoleRoster(roleMap),
+    ownership.packageNames,
+  );
   for (const { agent, built } of planned) {
     neighborErrors.push(...collectCodexRoleNeighborErrors({
       sourceRole: agent.name,

@@ -7,7 +7,11 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
+const {
+  canonicalJsonSha256Prefixed,
+  collectDirectoryEntries,
+  packageContentAndModeFingerprints,
+} = require('./content-fingerprint');
 const { execFileSync } = require('node:child_process');
 const {
   SURFACE_OWNERS,
@@ -32,20 +36,6 @@ const PACKAGE_ROOTS = Object.freeze({
   'agy-plugin': 'plugins/dhpk-agy',
 });
 
-function canonical(value) {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
-}
-
-function digest(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function digestJson(value) {
-  return `sha256:${digest(JSON.stringify(canonical(value)))}`;
-}
-
 function git(root, args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 }
@@ -64,39 +54,9 @@ function assertSafePackageRoot(root) {
 
 function packageFingerprints(root) {
   assertSafePackageRoot(root);
-  const content = crypto.createHash('sha256');
-  const modes = crypto.createHash('sha256');
-  const walk = (directory, relative) => {
-    const entries = fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
-    for (const entry of entries) {
-      if (entry.name === '__pycache__' || entry.name.endsWith('.pyc')) continue;
-      const absolute = path.join(directory, entry.name);
-      const rel = path.posix.join(relative, entry.name);
-      const stat = fs.lstatSync(absolute);
-      if (stat.isSymbolicLink()) throw new Error(`package contains a symlink: ${rel}`);
-      if (stat.isDirectory()) {
-        walk(absolute, rel);
-        continue;
-      }
-      if (!stat.isFile()) throw new Error(`package contains a special entry: ${rel}`);
-      const bytes = fs.readFileSync(absolute);
-      content.update(rel);
-      content.update('\0');
-      content.update(bytes);
-      modes.update(rel);
-      modes.update('\0');
-      modes.update(String(stat.mode & 0o7777));
-      modes.update('\0');
-    }
-  };
-  walk(root, '');
-  const contentFingerprint = `sha256:${content.digest('hex')}`;
-  const modeFingerprint = `sha256:${modes.digest('hex')}`;
-  return {
-    contentFingerprint,
-    modeFingerprint,
-    artifactFingerprint: digestJson({ contentFingerprint, modeFingerprint }),
-  };
+  return packageContentAndModeFingerprints(
+    collectDirectoryEntries(root, { order: 'locale', skipBytecode: true }),
+  );
 }
 
 function normalizedProvenance(provenance) {
@@ -175,7 +135,7 @@ function buildReleaseArtifactManifest({
       adapter: adapterIdentity(provenance, surface),
       fingerprints,
     };
-    return { ...entry, bindingFingerprint: digestJson(entry) };
+    return { ...entry, bindingFingerprint: canonicalJsonSha256Prefixed(entry) };
   });
   const manifest = {
     schema: SCHEMA,
@@ -188,7 +148,7 @@ function buildReleaseArtifactManifest({
   };
   return {
     ...manifest,
-    manifestFingerprint: digestJson(manifest),
+    manifestFingerprint: canonicalJsonSha256Prefixed(manifest),
   };
 }
 
@@ -251,7 +211,7 @@ function validateReleaseArtifactManifest(manifest, {
         adapter: adapterIdentity(provenance, entry.surface),
         fingerprints: packageFingerprints(packageRoot),
       };
-      const currentBinding = digestJson(current);
+      const currentBinding = canonicalJsonSha256Prefixed(current);
       if (currentBinding !== entry.bindingFingerprint) errors.push(`${entry.surface} artifact identity or bytes/modes drifted after package verification`);
       if (JSON.stringify(current) !== JSON.stringify({
         surface: entry.surface,
@@ -273,7 +233,7 @@ function validateReleaseArtifactManifest(manifest, {
   }
   if (seen.size !== PACKAGE_SURFACES.length) errors.push('manifest is missing one or more canonical package surfaces');
   const { manifestFingerprint, ...withoutFingerprint } = manifest;
-  if (manifestFingerprint !== digestJson(withoutFingerprint)) errors.push('manifest fingerprint is malformed or stale');
+  if (manifestFingerprint !== canonicalJsonSha256Prefixed(withoutFingerprint)) errors.push('manifest fingerprint is malformed or stale');
   return { ok: errors.length === 0, errors, manifest };
 }
 

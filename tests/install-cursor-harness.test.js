@@ -272,11 +272,13 @@ function hashCopiedFile(file) {
   return digest.digest('hex');
 }
 
+// tree-merkle-v1 for a tree without empty subdirectories (the recipe the
+// installer writes next to `fingerprint_algorithm` in its receipt).
 function hashCopiedPath(target) {
   const stat = fs.lstatSync(target);
   if (stat.isFile()) return hashCopiedFile(target);
   const digest = crypto.createHash('sha256');
-  digest.update('dir\0');
+  digest.update('directory\0');
   for (const name of fs.readdirSync(target).sort()) {
     digest.update(name);
     digest.update('\0');
