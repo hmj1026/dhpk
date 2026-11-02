@@ -1,6 +1,6 @@
 ---
 name: python-build-resolver
-description: 'Python build-error resolution specialist. Use PROACTIVELY when a Python toolchain command fails — `ruff check` / `ruff format`, `mypy` / `pyright`, `pytest` (incl. pytest-asyncio scope errors), or env / install steps (`uv sync`, `pip install`, `poetry install`). Diagnoses the root cause from the error, applies the smallest fix that preserves intent, and re-runs the failing command to verify. Stops and escalates after 3 failed attempts or when the fix needs an architectural redesign. Pairs with the python / fastapi / pytest modules; hands a green run to code-reviewer.'
+description: 'Use PROACTIVELY when a Python toolchain command fails (ruff, mypy or pyright, pytest, uv, pip, or poetry install). Applies the smallest intent-preserving fix and re-runs the command. Stops after 3 failed attempts or when a redesign is needed; hands a green run to `code-reviewer`.'
 tools: Read, Write, Edit, Bash, Grep, Glob, mcp__gitnexus__impact
 model: sonnet
 effort: medium

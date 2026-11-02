@@ -1,6 +1,6 @@
 ---
 name: migration-reviewer
-description: Database migration safety specialist. Reviews schema-migration files for up/down symmetry, idempotency, FK / index naming collision across multi-tenant deploy footprints, large-ALTER strategy on high-volume tables, engine/charset explicitness, and rollback executability. Recommended for migration paths. Companion to (not replacement for) `database-reviewer` — db-reviewer covers SQL correctness; this agent covers migration-specific concerns (reversibility, multi-deploy collisions, online DDL safety). Loads stack-specific migration traps on demand.
+description: 'Reviews schema-migration files for reversibility, idempotency, multi-deploy name collisions, and online DDL safety. Recommended for migration paths; complements, does not replace, `database-reviewer`, which covers SQL correctness.'
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium

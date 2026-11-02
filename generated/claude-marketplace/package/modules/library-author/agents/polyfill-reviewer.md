@@ -1,6 +1,6 @@
 ---
 name: polyfill-reviewer
-description: 'Reviewer for multi-major-version polyfill code. Recommended after editing any .php file containing a runtime version guard (`version_compare`, `class_exists`, `interface_exists`, `method_exists`, `InstalledVersions::satisfies`, `PHP_VERSION_ID`). Audits whether each guard branch has a matrix cell that enters it AND a test that proves it. Companion to (not replacement for) the manual-invoke `library-author polyfill-audit` skill and the diff-scope `version-matrix-impact-reviewer` agent. Asymmetric polyfill edits are the most common source of multi-major regression in this codebase.'
+description: 'Recommended after editing a .php file with a runtime version guard (`version_compare`, `class_exists`, `PHP_VERSION_ID`, and similar). Checks that each guard branch has a matrix cell that enters it and a test that proves it. Pairs with the `library-author polyfill-audit` skill; diff-scope matrix impact belongs to `version-matrix-impact-reviewer`.'
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium

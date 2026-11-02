@@ -1,6 +1,6 @@
 ---
 name: codex-worker
-description: "CLI-backed mechanical implementer — the codex variant of `fast-worker`. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec when the shared selector chooses the Codex CLI backend (default `gpt-6-luna` @ `xhigh`) instead of the in-process sonnet worker. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Accepts the same task spec (target files + exact change intent + verification command), shells the edits out to `codex exec` in workspace-write, then independently runs verification and derives the edited-file list from the working tree. Escalates on ambiguous specs; stops after 3 failed verification attempts; BLOCKED (never simulated) when the CLI is missing or the model is rejected."
+description: "Codex CLI variant of `fast-worker` for mechanical edits from an exact spec (target files, change intent, verification command). Use when the shared selector picks the Codex CLI backend; plain `fast-worker` stays the default. Runs verification itself; BLOCKED, never simulated, when the CLI or model is unavailable."
 model: "cursor-grok-4.6-high"
 readonly: false
 ---
