@@ -194,7 +194,7 @@ A shared fixture of golden vectors SHALL be checked in and consumed by both the 
 
 ### Requirement: Persisted tree fingerprints name their algorithm
 
-Each package surface SHALL record `fingerprintAlgorithm` in `provenance.json`, and each receipt that stores a tree fingerprint SHALL record `fingerprint_algorithm`, with value `tree-merkle-v1` for the new recipe. `fingerprints.json` SHALL keep its flat name-to-digest shape. Introducing the marker to `.dhpk-projection.json` SHALL bump `GENERATOR_VERSION`, and `.dhpk-installed.json` SHALL carry the marker beside `generatorVersion` under `receiptFingerprint`. The baseline persists nothing checked in and SHALL migrate with no transition. An absent field SHALL mean the legacy per-surface recipe. An agents-skills write that carries legacy entries SHALL remain a legacy receipt (no marker) during the transition.
+Each package surface SHALL record `fingerprintAlgorithm` in `provenance.json`, and each receipt that stores a tree fingerprint SHALL record `fingerprint_algorithm`, with value `tree-merkle-v1`. `fingerprints.json` SHALL keep its flat name-to-digest shape. `.dhpk-installed.json` SHALL carry the marker beside `generatorVersion` under `receiptFingerprint`. The baseline persists nothing checked in. An absent field or an unrecognized value SHALL fail closed as stated by "Persisted records without a recognized marker fail closed". No record SHALL be written without the marker.
 
 #### Scenario: Packages and receipts name the algorithm
 
@@ -206,20 +206,6 @@ Each package surface SHALL record `fingerprintAlgorithm` in `provenance.json`, a
 - **WHEN** a verifier reads a package or receipt whose algorithm field holds an unrecognized value
 - **THEN** verification fails and names the field and the value
 
-### Requirement: Verifiers accept the legacy recipe for one transition minor
-
-For the release that introduces `tree-merkle-v1` and no longer (the transition minor), every verifier SHALL choose the recipe from the algorithm field: the legacy recipe of that surface when the field is absent, the new recipe when it names `tree-merkle-v1`. A verifier SHALL NOT accept either recipe for a record that names one. Removal of the legacy recipes SHALL be a separate later change.
-
-#### Scenario: Legacy value verifies during the transition
-
-- **WHEN** a receipt without `fingerprint_algorithm` holds a value computed by the legacy recipe and the tree is unchanged
-- **THEN** the verifier reports a match
-
-#### Scenario: A record cannot satisfy the wrong recipe
-
-- **WHEN** a record names `tree-merkle-v1` but holds a legacy-recipe value
-- **THEN** the verifier reports a mismatch
-
 ### Requirement: Retained sites keep their recipes with a recorded reason
 
 The `receipt-primitives` directory fingerprint (which includes modes, deliberately retained), the release artifact manifest content and mode fingerprints, the `prepare-release` rollback digest, and the Claude marketplace generator comparison SHALL keep their current recipes and values. The change record SHALL state per site why it is not migrated.
@@ -229,11 +215,49 @@ The `receipt-primitives` directory fingerprint (which includes modes, deliberate
 - **WHEN** the characterization tests for these four sites run on the pre-change commit and again on the post-change commit
 - **THEN** each returns the same value for the same fixture on both commits
 
-### Requirement: Regeneration changes only fingerprint values, generator versions, and the algorithm field
+### Requirement: Legacy tree recipes do not exist
 
-Regenerating `plugins/dhpk`, `plugins/dhpk-agent`, `plugins/dhpk-agy`, and `plugins/dhpk-cursor` outside the checkout from the changed source SHALL differ from the pre-change packages only in `fingerprints.json` values, the added `fingerprintAlgorithm` field, and the bumped `generatorVersion` values (with transform versions that embed them), after normalizing commit and tree identity fields. The generators `codex-native-package`, `agent-plugin-package`, `cursor-plugin-package`, `agents-skills-package`, and `project-agent-projection-publisher` SHALL bump their `GENERATOR_VERSION`, and the exact-version read gates for `.dhpk-projection.json` and `.dhpk-installed.json` SHALL accept the previous and the new version during the transition minor.
+The repository SHALL contain exactly one persisted directory-tree recipe, `tree-merkle-v1`. `scripts/lib/content-fingerprint.js` SHALL NOT export a flat file-set recipe (`fileSetFingerprintCodeUnit`, `fileSetFingerprintLocale`, `fileSetFingerprintTerminated`) or the legacy Merkle recipe (`merkleFingerprint`). The installer's embedded Python block SHALL NOT contain the legacy `hash_path`, `hash_fd_entry`, or `hash_fd_directory` recipes, and its `fingerprint_*` dispatchers SHALL NOT branch on a legacy algorithm. No verifier SHALL accept a value computed by a removed recipe. Tests that used a removed recipe as an oracle SHALL assert pinned literal digests captured before the removal.
 
-#### Scenario: Regeneration changes only fingerprint values, generator versions, and the algorithm field
+#### Scenario: Removed recipes are gone
+
+- **WHEN** the exports of `scripts/lib/content-fingerprint.js` and the function names of the installer's Python block are listed
+- **THEN** none of the removed names appears
+
+#### Scenario: Pinned digests replace oracles
+
+- **WHEN** the fingerprint tests run
+- **THEN** each former oracle comparison asserts a literal digest, and a test fails if that digest changes
+
+### Requirement: Persisted records without a recognized marker fail closed
+
+Every verifier of a persisted tree fingerprint SHALL fail closed when the record that carries it lacks its algorithm field or holds a value other than `tree-merkle-v1`. The record kinds are: `provenance.json` `fingerprintAlgorithm` of the Codex native, Agent, and Cursor packages (a missing `provenance.json` is a missing marker); `fingerprint_algorithm` of an installer receipt and its transaction journal; the agents-skills receipt; and the project projection receipt and manifest. The diagnostic SHALL name the field and the observed value (or its absence) and SHALL state the 0.70.0 version boundary: this release accepts only records written by 0.69.x or later, and the two remediation paths are to upgrade through 0.69.x and run one install or update, or to uninstall and reinstall. A verifier SHALL NOT try another recipe. The agents-skills receipt precondition in `agents-skills-compatibility` is the only marker-less record that is read, and installer `--uninstall` over a marker-less receipt releases every entry instead of blocking (`codex-install-materialization`).
+
+#### Scenario: Package without provenance fails
+
+- **WHEN** a package verifier runs on a package whose `provenance.json` is absent or has no `fingerprintAlgorithm`
+- **THEN** verification fails, names the field, and states both remediation paths
+
+#### Scenario: Marker-less installer receipt fails
+
+- **WHEN** the installer runs an install, update, or plan over a receipt without `fingerprint_algorithm` that is not an agents-skills receipt
+- **THEN** it exits blocked with the version-boundary diagnostic and changes nothing
+
+#### Scenario: Marker-less transaction journal fails
+
+- **WHEN** the installer finds a transaction journal without `fingerprint_algorithm`
+- **THEN** it exits blocked with the version-boundary diagnostic and does not recover or roll back by guess
+
+#### Scenario: Old generator version fails
+
+- **WHEN** the agents-skills generator reads a receipt with version `1.0.0`, or the publisher reads a receipt with version `2.0.0`
+- **THEN** it fails with the version-boundary diagnostic
+
+### Requirement: Regeneration after legacy removal changes no package byte
+
+Regenerating `plugins/dhpk`, `plugins/dhpk-agent`, `plugins/dhpk-agy`, and `plugins/dhpk-cursor` outside the checkout from the changed source SHALL produce packages byte-identical to the 0.69.0 packages after normalizing commit and tree identity fields. The package generators `codex-native-package`, `agent-plugin-package`, `cursor-plugin-package`, and `agy-plugin-package` SHALL NOT change `GENERATOR_VERSION`, because legacy removal changes no package output. The `agents-skills-package` and `project-agent-projection-publisher` generators SHALL keep their `GENERATOR_VERSION` and SHALL accept only that version in their read gates.
+
+#### Scenario: Regeneration changes no package byte
 
 - **WHEN** the pre-change and post-change regenerations are diffed with commit and tree identity normalized
-- **THEN** the only differences are changed `fingerprints.json` digests for the Codex and Agent packages (none for Cursor and none for AGY, which has per-file sha256 only and is not bumped; only its provenance commit ids differ), the added `fingerprintAlgorithm` field in Codex, Agent and Cursor, and the bumped `generatorVersion` values
+- **THEN** no file differs
