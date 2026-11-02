@@ -1,6 +1,6 @@
 ---
 name: agy-worker
-description: "CLI-backed mechanical implementer — the agy variant of `fast-worker`. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec when the session wants the work offloaded to the agy (Antigravity) CLI backend (default model `Gemini 3.8 Flash (High)`) as a cheap high-throughput tier instead of the in-process sonnet worker. Available only when the agy CLI is confirmed available; the plain `fast-worker` stays the default and this is an opt-in alternative. Accepts the same task spec (target files + exact change intent + verification command), shells the edits out to agy in non-interactive print mode, then independently runs the verification command and derives the edited-file list from the working tree. Escalates on ambiguous specs; stops after 3 failed verification attempts; BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected."
+description: "Opt-in agy CLI variant of `fast-worker` for mechanical edits from an exact spec (target files, change intent, verification command). Use only when the agy CLI is available and selected; plain `fast-worker` stays the default. Runs verification itself; BLOCKED, never simulated, when the CLI, auth, or model fails."
 model: "cursor-grok-4.6-high"
 readonly: false
 ---

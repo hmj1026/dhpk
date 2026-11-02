@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.70.2 — 2026-11-02 — Shorten stack-specific and CLI agent descriptions
+
+- **perf(agents)** — Nine stack-specific and CLI-backed agent descriptions are shorter, so every request carries about 3.4k fewer characters of agent listing.
+
 ## 0.70.1 — 2026-11-02 — Record subagent effort level string in SubagentStop dispatch log
 
 - **fix(hooks)** — The SubagentStop dispatch log records the effort level string (for example `high`) instead of the serialized `{"level": ...}` hook-input object.
