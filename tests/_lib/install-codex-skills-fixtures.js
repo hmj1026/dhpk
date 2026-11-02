@@ -82,7 +82,10 @@ function copyDistributionInventory(plugin) {
   );
 }
 
-function completeTreeFingerprint(target) {
+// Legacy recipe written by installers before tree-merkle-v1 (no
+// fingerprint_algorithm in the receipt): `dir\0` prefix, code-point name order,
+// empty directories counted.
+function legacyCompleteTreeFingerprint(target) {
   const hashNode = (current) => {
     const stat = fs.lstatSync(current);
     if (stat.isSymbolicLink()) return hashNode(fs.realpathSync(current));
@@ -102,6 +105,30 @@ function completeTreeFingerprint(target) {
     return digest.digest('hex');
   };
   return hashNode(target);
+}
+
+// Oracle for `tree-merkle-v1` over the complete view (bytecode kept, links
+// followed, empty directories dropped), written independently of the library
+// function and of the installer: UTF-16 name order, `directory\0` prefix.
+function completeTreeFingerprint(target) {
+  const hashNode = (current, isRoot) => {
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) return hashNode(fs.realpathSync(current), isRoot);
+    if (!stat.isDirectory()) {
+      return crypto.createHash('sha256').update('file\0').update(fs.readFileSync(current)).digest('hex');
+    }
+    const children = fs.readdirSync(current)
+      .sort()
+      .map((name) => [name, hashNode(path.join(current, name), false)])
+      .filter(([, childDigest]) => childDigest !== null);
+    if (children.length === 0 && !isRoot) return null;
+    const digest = crypto.createHash('sha256').update('directory\0');
+    for (const [name, childDigest] of children) {
+      digest.update(name).update('\0').update(childDigest).update('\0');
+    }
+    return digest.digest('hex');
+  };
+  return hashNode(target, true);
 }
 
 function descriptorPseudoPathBlocker() {
@@ -368,6 +395,7 @@ module.exports = {
   projectRoot,
   copyDistributionInventory,
   completeTreeFingerprint,
+  legacyCompleteTreeFingerprint,
   descriptorPseudoPathBlocker,
   materializationFailureShim,
   parentReplacementGate,

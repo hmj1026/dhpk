@@ -117,7 +117,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       'artifactFingerprint', 'declaredSelection', 'selectedIds', 'emittedIds',
       'selectedIdentities', 'emittedIdentities', 'dependencyClosure', 'hostBindings',
       'bindings', 'bindingPaths', 'entries', 'managedPaths', 'generatedFingerprints',
-      'sourceFingerprints', 'rollback',
+      'sourceFingerprints', 'rollback', 'fingerprint_algorithm',
     ];
     const v2 = Object.fromEntries(fields
       .filter((field) => Object.prototype.hasOwnProperty.call(receipt, field))

@@ -14,7 +14,14 @@ const {
 } = require('./agent-plugin-package');
 const { resolveInventoryRevision } = require('./distribution-projection-contract');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
-const { sha256Hex, fileSetFingerprintTerminated } = require('./content-fingerprint');
+const {
+  LEGACY_FINGERPRINT_ALGORITHM,
+  TREE_FINGERPRINT_ALGORITHM,
+  fileSetFingerprintTerminated,
+  resolveFingerprintAlgorithm,
+  sha256Hex,
+  treeFingerprint: sharedTreeFingerprint,
+} = require('./content-fingerprint');
 const { resolveStandaloneSkillDependencies } = require('./standalone-skill-dependencies');
 const { planRetiredAgentSkills } = require('./agents-skills-retirement');
 const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
@@ -33,7 +40,10 @@ const {
 } = require('./project-agent-projection-publisher');
 
 const SCHEMA = 'dhpk.agents-skills-projection.v1';
-const GENERATOR_VERSION = '1.0.0';
+const GENERATOR_VERSION = '1.1.0';
+// The previous generator's receipts stay readable for the transition minor
+// (OpenSpec unify-tree-fingerprint-algorithm, design D3/D6).
+const ACCEPTED_GENERATOR_VERSIONS = Object.freeze(['1.0.0', GENERATOR_VERSION]);
 const RECEIPT_NAME = '.dhpk-projection.json';
 const SAFE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
@@ -186,11 +196,14 @@ function logicalSkillFiles(root, skill, inventory = {}) {
   return mergeLogicalFiles(sourceFiles, dependencies, `skill '${skill.name}'`);
 }
 
-function treeFingerprint(files, budget) {
-  return fileSetFingerprintTerminated(files.map((file) => ({
+// algorithm: the recipe of the receipt being written or compared against.
+function treeFingerprint(files, budget, algorithm = TREE_FINGERPRINT_ALGORITHM) {
+  const contents = files.map((file) => ({
     path: file.relative,
+    type: 'file',
     content: readPhysicalFile(file.absolute, budget, `canonical skill file: ${file.relative}`),
-  })));
+  }));
+  return algorithm === TREE_FINGERPRINT_ALGORITHM ? sharedTreeFingerprint(contents) : fileSetFingerprintTerminated(contents);
 }
 
 function readSkillFiles(files, budget) {
@@ -265,8 +278,12 @@ function readReceipt(outDir, selected = null, sourceRoot = null, availableEntrie
   if (stat.isSymbolicLink() || !stat.isFile()) throw new Error(`projection receipt is not a regular file: ${receiptPath}`);
   let receipt;
   try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch (error) { throw new Error(`projection receipt is invalid JSON: ${error.message}`); }
-  if (!receipt || receipt.schema !== SCHEMA || receipt.generatorVersion !== GENERATOR_VERSION) {
+  if (!receipt || receipt.schema !== SCHEMA || !ACCEPTED_GENERATOR_VERSIONS.includes(receipt.generatorVersion)) {
     throw new Error(`projection receipt must use ${SCHEMA} generator ${GENERATOR_VERSION}`);
+  }
+  let fingerprintAlgorithm;
+  try { fingerprintAlgorithm = resolveFingerprintAlgorithm(receipt, 'fingerprint_algorithm'); } catch (error) {
+    throw new Error(`projection receipt ${error.message}`);
   }
   if (!Array.isArray(receipt.managedPaths) || !receipt.generatedFingerprints || typeof receipt.generatedFingerprints !== 'object') {
     throw new Error('projection receipt is missing managed paths or generated fingerprints');
@@ -289,6 +306,7 @@ function readReceipt(outDir, selected = null, sourceRoot = null, availableEntrie
   const expected = selected ? receiptGeneratedPaths(receipt, trustedEntries) : null;
   return {
     ...receipt,
+    fingerprintAlgorithm,
     managedPaths,
     trustedEntries,
     trustedManagedPaths: expected ? managedPaths.filter((relative) => expected.has(relative)) : managedPaths,
@@ -574,9 +592,11 @@ function materializeAgentsSkillsProjection(options = {}) {
   const selected = selectedSkills(sourceRoot, inventory);
   const outputs = [];
   const entries = [];
+  const legacySourceFingerprints = new Map();
   for (const skill of selected) {
     const sourceFiles = logicalSkillFiles(sourceRoot, skill, inventory);
     const sourceFingerprint = treeFingerprint(sourceFiles, createTraversalBudget());
+    legacySourceFingerprints.set(skill.name, treeFingerprint(sourceFiles, createTraversalBudget(), LEGACY_FINGERPRINT_ALGORITHM));
     const copied = readSkillFiles(sourceFiles, createTraversalBudget());
     if (!copied.some((file) => file.path === 'SKILL.md')) throw new Error(`generated Cursor skill is missing SKILL.md: ${skill.name}`);
     const sourceContent = readPhysicalFile(skill.sourceFile, createTraversalBudget(), `canonical skill ${skill.name}/SKILL.md`);
@@ -612,7 +632,8 @@ function materializeAgentsSkillsProjection(options = {}) {
   const renamedIds = new Set(renamed.map((migration) => migration.entry.id));
   const renamedPaths = new Set(renamed.flatMap((migration) => migration.paths));
   const retired = planRetiredAgentSkills({ inventory, previous, selected, outputRoot,
-    safeName, assertSafeRelative, pathInOutput, lstatOrNull, digest: sha256Hex, treeFingerprint });
+    safeName, assertSafeRelative, pathInOutput, lstatOrNull, digest: sha256Hex,
+    treeFingerprint: (files, budget) => treeFingerprint(files, budget, previous ? previous.fingerprintAlgorithm : TREE_FINGERPRINT_ALGORITHM) });
   const carriedEntries = previous
     ? previous.entries.filter((entry) => !currentNames.has(entry.name) && !renamedIds.has(entry.id) && !retired.ids.has(entry.id))
     : [];
@@ -626,13 +647,21 @@ function materializeAgentsSkillsProjection(options = {}) {
   const carriedFingerprints = previous
     ? Object.fromEntries(carriedPaths.map((relative) => [relative, previous.generatedFingerprints[relative]]))
     : {};
+  // One algorithm per receipt: entries carried over from a legacy receipt keep
+  // legacy values that cannot be recomputed without their source, so such a
+  // receipt stays legacy (no marker) until a write carries no legacy entry.
+  const legacyReceipt = Boolean(previous) && previous.fingerprintAlgorithm === LEGACY_FINGERPRINT_ALGORITHM && carriedEntries.length > 0;
+  const writtenEntries = legacyReceipt
+    ? entries.map((entry) => ({ ...entry, sourceFingerprint: legacySourceFingerprints.get(entry.name) }))
+    : entries;
   const receipt = {
     schema: SCHEMA,
     generatorVersion: GENERATOR_VERSION,
+    ...(legacyReceipt ? {} : { fingerprint_algorithm: TREE_FINGERPRINT_ALGORITHM }),
     selectionSurface: 'agent-plugin',
     inventoryRevision: resolveInventoryRevision(inventory),
     selectedIds: selected.map((skill) => skill.id).sort(),
-    entries: [...entries, ...carriedEntries].sort((left, right) => left.name.localeCompare(right.name)),
+    entries: [...writtenEntries, ...carriedEntries].sort((left, right) => left.name.localeCompare(right.name)),
     managedPaths: [...currentPaths, ...carriedPaths].sort(),
     generatedFingerprints: {
       ...Object.fromEntries(outputs.map((file) => [file.path, file.digest])),
@@ -707,7 +736,7 @@ function validateAgentsSkillsProjection(options = {}) {
         continue;
       }
       const sourceFiles = logicalSkillFiles(path.resolve(root), skill, inventory);
-      const sourceFingerprint = treeFingerprint(sourceFiles, createTraversalBudget());
+      const sourceFingerprint = treeFingerprint(sourceFiles, createTraversalBudget(), receipt.fingerprintAlgorithm);
       if (entry.sourceFingerprint !== sourceFingerprint) errors.push(`source fingerprint drifted: ${skill.name}`);
       const source = readPhysicalFile(skill.sourceFile, createTraversalBudget(), `canonical skill ${skill.name}/SKILL.md`).toString('utf8');
       const parsed = parseFrontmatter(source);

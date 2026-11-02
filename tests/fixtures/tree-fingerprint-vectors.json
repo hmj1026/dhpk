@@ -1,0 +1,363 @@
+{
+  "algorithm": "tree-merkle-v1",
+  "vectors": [
+    {
+      "name": "empty-root",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [],
+      "digest": "4b66bf93b3932a9539880b2421e35019af9daf84363a0246280ffcac173b2678"
+    },
+    {
+      "name": "nested",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "top.txt",
+          "type": "file",
+          "base64": "dG9w"
+        },
+        {
+          "path": "a/x.txt",
+          "type": "file",
+          "base64": "eA=="
+        },
+        {
+          "path": "a/b/c.txt",
+          "type": "file",
+          "base64": "ZGVlcA=="
+        }
+      ],
+      "digest": "a2ced6e74f6c85355f88590f53178818da7ad9d43c2461d4298f59a64f6b041c"
+    },
+    {
+      "name": "prefix-collision-file-beside-directory",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "a.md",
+          "type": "file",
+          "base64": "ZmlsZQ=="
+        },
+        {
+          "path": "a/b",
+          "type": "file",
+          "base64": "aW5uZXI="
+        }
+      ],
+      "digest": "84c15dec63ab4bb42b930dc461db44ff70cb9bcdbeaf40c6c7c04e3e1790333c"
+    },
+    {
+      "name": "prefix-collision-swapped",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "a",
+          "type": "file",
+          "base64": "ZmlsZQ=="
+        },
+        {
+          "path": "a.md/b",
+          "type": "file",
+          "base64": "aW5uZXI="
+        }
+      ],
+      "digest": "0f172f5552cf8c5f7e295eca252e92fe4d07abda0d1cd53e66cc61b3f25578dd"
+    },
+    {
+      "name": "supplementary-sorts-before-private-use-and-replacement",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "𐀀.txt",
+          "type": "file",
+          "base64": "YXN0cmFs"
+        },
+        {
+          "path": "�.txt",
+          "type": "file",
+          "base64": "cmVwbGFjZW1lbnQ="
+        },
+        {
+          "path": ".txt",
+          "type": "file",
+          "base64": "cHJpdmF0ZQ=="
+        }
+      ],
+      "digest": "f7e17c55fa9311ffafe571e252cb2fb8b0d4211f1a99f953014885345b731787"
+    },
+    {
+      "name": "supplementary-directory-beside-bmp-file",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "😀/x",
+          "type": "file",
+          "base64": "ZW1vamk="
+        },
+        {
+          "path": "～",
+          "type": "file",
+          "base64": "ZnVsbHdpZHRo"
+        }
+      ],
+      "digest": "1b5e88ae511a5577f905e07ba86e8798e5505b5a1a3117f0c06a26aafd4e4b62"
+    },
+    {
+      "name": "unicode-and-special-character-names",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "é.txt",
+          "type": "file",
+          "base64": "YWNjZW50"
+        },
+        {
+          "path": "a b.txt",
+          "type": "file",
+          "base64": "c3BhY2U="
+        },
+        {
+          "path": "it's \"q\".md",
+          "type": "file",
+          "base64": "cXVvdGU="
+        }
+      ],
+      "digest": "688dd0c24788cb52c95fe46076bd3d553a59559b46381df14889b030253864b5"
+    },
+    {
+      "name": "empty-file-and-binary-bytes",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "empty.bin",
+          "type": "file",
+          "base64": ""
+        },
+        {
+          "path": "all-bytes.bin",
+          "type": "file",
+          "base64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/w=="
+        },
+        {
+          "path": "nul.bin",
+          "type": "file",
+          "base64": "AAD/AA=="
+        }
+      ],
+      "digest": "52cd1a975a7211ac7069058ec8b1d73c8cadbc0dc2f3cbdeb27e3eaca99c86cf"
+    },
+    {
+      "name": "empty-directory-does-not-contribute",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "empty",
+          "type": "directory"
+        },
+        {
+          "path": "x",
+          "type": "file",
+          "base64": "eA=="
+        }
+      ],
+      "digest": "adec98836f3cd234668158bdf85b3a5637cd3e2be23ae236e8af024e0629fcbf"
+    },
+    {
+      "name": "nested-only-empty-directories-do-not-contribute",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "e/f",
+          "type": "directory"
+        },
+        {
+          "path": "x",
+          "type": "file",
+          "base64": "eA=="
+        }
+      ],
+      "digest": "adec98836f3cd234668158bdf85b3a5637cd3e2be23ae236e8af024e0629fcbf"
+    },
+    {
+      "name": "bytecode-skipped",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "a.py",
+          "type": "file",
+          "base64": "Y29kZQ=="
+        },
+        {
+          "path": "__pycache__/a.pyc",
+          "type": "file",
+          "base64": "cHlj"
+        },
+        {
+          "path": "b.pyc",
+          "type": "file",
+          "base64": "cHljMg=="
+        }
+      ],
+      "digest": "913147f1a6d61c3cd8b3cbc39963607520a1daa5faebf951181a489d9b7f599c"
+    },
+    {
+      "name": "bytecode-kept-by-the-complete-view",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": false
+      },
+      "entries": [
+        {
+          "path": "a.py",
+          "type": "file",
+          "base64": "Y29kZQ=="
+        },
+        {
+          "path": "__pycache__/a.pyc",
+          "type": "file",
+          "base64": "cHlj"
+        },
+        {
+          "path": "b.pyc",
+          "type": "file",
+          "base64": "cHljMg=="
+        }
+      ],
+      "digest": "9dc18ffec9db9f5974008f4dc118922dff72e0222912cf58d7c82fa2e37843e6"
+    },
+    {
+      "name": "only-bytecode-directory-skipped",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "__pycache__/x.pyc",
+          "type": "file",
+          "base64": "cHlj"
+        },
+        {
+          "path": "y",
+          "type": "file",
+          "base64": "eQ=="
+        }
+      ],
+      "digest": "1bc8fb569e71d3d3a2b5907f0a218ab46d34dfe028dfdc9f8f1e09c8d3b87698"
+    },
+    {
+      "name": "link-node",
+      "policy": {
+        "links": "record",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "l",
+          "type": "link",
+          "target": "../../skills/flow-guide"
+        },
+        {
+          "path": "f",
+          "type": "file",
+          "base64": "eA=="
+        }
+      ],
+      "digest": "2fc9dfe52e0b25b9cd7a7f3772652f3df3df104bafbd571777300689bbb72d8f"
+    },
+    {
+      "name": "link-beside-file-with-same-target-text",
+      "policy": {
+        "links": "record",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "a",
+          "type": "link",
+          "target": "target"
+        },
+        {
+          "path": "b",
+          "type": "file",
+          "base64": "dGFyZ2V0"
+        }
+      ],
+      "digest": "468aee9f7003b75e692b71bd3662135e3a4d75ff6c8e4649b1f5d266c7b3f8cb"
+    },
+    {
+      "name": "nested-link-and-supplementary-target",
+      "policy": {
+        "links": "record",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "sub/deep/l",
+          "type": "link",
+          "target": "../𐀀/t"
+        },
+        {
+          "path": "sub/f",
+          "type": "file",
+          "base64": "Zg=="
+        }
+      ],
+      "digest": "d91ef4a53560346ee488d5520459f082ebd898ae1a1f008eba9a42cbc37ab1b7"
+    },
+    {
+      "name": "link-refused-by-the-default-walk",
+      "policy": {
+        "links": "refuse",
+        "skipBytecode": true
+      },
+      "entries": [
+        {
+          "path": "sub/f",
+          "type": "file",
+          "base64": "Zg=="
+        },
+        {
+          "path": "sub/l",
+          "type": "link",
+          "target": "x"
+        }
+      ],
+      "expectError": "cannot fingerprint symlink 'sub/l'",
+      "digest": null
+    }
+  ]
+}

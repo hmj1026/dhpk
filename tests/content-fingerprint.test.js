@@ -177,21 +177,29 @@ test('supporting-asset canonical and projection digests are digests of the file 
 
 test('Codex native fingerprints.json entries are reproduced from the package on disk', () => {
   const recorded = readJson('plugins/dhpk/fingerprints.json');
+  const algorithm = fingerprint.resolveFingerprintAlgorithm(readJson('plugins/dhpk/provenance.json'));
   const names = Object.keys(recorded);
   assert.ok(names.length > 0);
   for (const name of names) {
     const entries = fingerprint.collectDirectoryEntries(path.join(ROOT, 'plugins', 'dhpk', 'skills', name), { skipBytecode: true });
-    assert.strictEqual(fingerprint.fileSetFingerprintCodeUnit(filesOnly(entries)), recorded[name], `codex skill ${name}`);
+    const actual = algorithm === 'tree-merkle-v1'
+      ? fingerprint.treeFingerprint(filesOnly(entries))
+      : fingerprint.fileSetFingerprintCodeUnit(filesOnly(entries));
+    assert.strictEqual(actual, recorded[name], `codex skill ${name}`);
   }
 });
 
 test('Agent plugin fingerprints.json entries are reproduced from the package on disk', () => {
   const recorded = readJson('plugins/dhpk-agent/fingerprints.json').skills;
+  const algorithm = fingerprint.resolveFingerprintAlgorithm(readJson('plugins/dhpk-agent/provenance.json'));
   const names = Object.keys(recorded);
   assert.ok(names.length > 0);
   for (const name of names) {
     const entries = fingerprint.collectDirectoryEntries(path.join(ROOT, 'plugins', 'dhpk-agent', 'skills', name), { order: 'locale', skipBytecode: true });
-    assert.strictEqual(fingerprint.fileSetFingerprintLocale(filesOnly(entries)), recorded[name], `agent skill ${name}`);
+    const actual = algorithm === 'tree-merkle-v1'
+      ? fingerprint.treeFingerprint(filesOnly(entries))
+      : fingerprint.fileSetFingerprintLocale(filesOnly(entries));
+    assert.strictEqual(actual, recorded[name], `agent skill ${name}`);
   }
 });
 

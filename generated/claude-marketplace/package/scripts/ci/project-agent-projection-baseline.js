@@ -6,11 +6,11 @@
 // surface decisions so the compiler-owned project plan can be compared with
 // the pre-migration behavior later.
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { collectDirectoryEntries, treeFingerprint } = require('../lib/content-fingerprint');
 const { redactSensitiveText } = require('../lib/redaction');
 const {
   fingerprint,
@@ -195,25 +195,10 @@ function sourceTreeFingerprint(root, entry) {
   } catch (_error) {
     return null;
   }
-  const files = [];
-  const walk = (directory, relative) => {
-    for (const child of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
-      const absolute = path.join(directory, child.name);
-      const childRelative = relative ? `${relative}/${child.name}` : child.name;
-      if (child.isSymbolicLink()) continue;
-      if (child.isDirectory()) walk(absolute, childRelative);
-      else if (child.isFile()) files.push({ relative: childRelative, content: fs.readFileSync(absolute) });
-    }
-  };
-  walk(sourceRoot, '');
-  const hash = crypto.createHash('sha256');
-  for (const file of files) {
-    hash.update(file.relative);
-    hash.update('\0');
-    hash.update(file.content);
-    hash.update('\0');
-  }
-  return hash.digest('hex');
+  // Directly migrated to the shared recipe (nothing checked in persists this
+  // value, so there is no marker or transition). Symlinks are refused.
+  return treeFingerprint(collectDirectoryEntries(sourceRoot, { skipBytecode: true, symlinks: 'refuse' })
+    .filter((entry) => entry.type === 'file'));
 }
 
 function sourceRows(root, selected) {

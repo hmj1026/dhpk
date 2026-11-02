@@ -144,6 +144,24 @@ test('Cursor validator rejects .md rules and leftover plugin-root interpolation'
       fs.rmSync(temporaryRoot, { recursive: true, force: true });
     }
   });
+
+  test('Cursor package validator still fails when provenance.json is unreadable (fingerprint recipe falls back to legacy)', () => {
+    const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'validate-cursor-unreadable-'));
+    const packageRoot = path.join(temporaryRoot, 'plugins', 'dhpk-cursor');
+    fs.cpSync(path.join(ROOT, 'plugins', 'dhpk-cursor'), packageRoot, { recursive: true });
+    try {
+      fs.writeFileSync(path.join(packageRoot, 'provenance.json'), '{ not json');
+      const result = spawnSync(process.execPath, [
+        path.join(ROOT, 'scripts', 'ci', 'validate-cursor-plugin-package.js'),
+        '--package-root', packageRoot,
+        '--repo-root', ROOT,
+      ], { encoding: 'utf8' });
+      assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+      assert.strictEqual(JSON.parse(result.stdout).provenance, 'FAIL');
+    } finally {
+      fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
 }
 
 
