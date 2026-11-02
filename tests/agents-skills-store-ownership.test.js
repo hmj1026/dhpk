@@ -16,9 +16,12 @@ const INVENTORY = Object.freeze({
   surface_membership: { 'agent-plugin': ['sample'] },
 });
 
-// Observed from the pre-change in-checkout writer for the fixture below.
+// Observed from the in-checkout writer for the fixture below. Only the receipt row
+// moved with the tree-merkle-v1 change: re-expressing it with generator 1.0.0, no
+// fingerprint_algorithm and the legacy sourceFingerprint reproduces the pre-change
+// digest e86fbf71...0acddc714 exactly.
 const GOLDEN = Object.freeze([
-  ['.dhpk-projection.json', '644', 'e86fbf713aac909193c1a0ba346e8f420dc092ce00d94fd14950bad0acddc714'],
+  ['.dhpk-projection.json', '644', '252e1c2cee5a1244fb5cb416cfd74f16dc56de4727bee8cc323dacad14f56511'],
   ['dhpk-sample.md', '644', 'd2a4acb7b734746e69c41ddd52d0ada32ca4141459b933903255a30a4d9568b1'],
   ['dhpk-sample/SKILL.md', '644', 'e3468725b8222a9c841d9b9de8c5013b36da94b2f74fabd101d3978b37004e2b'],
   ['dhpk-sample/references/guide.md', '644', 'bc553ffe57e544498b12a9865dbf3abc2004c474e349c52c378eaa402287424b'],

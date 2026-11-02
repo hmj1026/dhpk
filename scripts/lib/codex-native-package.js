@@ -15,9 +15,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {
+  TREE_FINGERPRINT_ALGORITHM,
   collectDirectoryEntries,
   fileSetFingerprintCodeUnit,
   inventoryDigestInsertionOrder,
+  normalizeFingerprintAlgorithm,
+  resolveFingerprintAlgorithm,
+  treeFingerprint,
 } = require('./content-fingerprint');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
 const {
@@ -53,7 +57,7 @@ const CODEX_NATIVE_PROFILE_ID = 'codex-native';
 // logic) changes in a way that could produce a different package from the
 // same inventory + canonical sources. Independent of the dhpk release
 // version recorded as provenance.sourceVersion.
-const GENERATOR_VERSION = '2.3.0';
+const GENERATOR_VERSION = '2.4.0';
 
 function lstatOrNull(candidate) {
   try {
@@ -431,11 +435,12 @@ function nativeSourceFiles(sourceDir, relative = '', options = {}) {
   }
 }
 
-// Flat code-unit ordering matches the legacy fingerprintDir byte-for-byte;
-// localeCompare would reorder the same source tree and create false drift.
+// Writers always emit `tree-merkle-v1` (design D3); the legacy flat code-unit
+// recipe survives only in fingerprintDir for packages without the marker.
 function nativeSkillFingerprint(files) {
-  return fileSetFingerprintCodeUnit(files.map((file) => ({
+  return treeFingerprint(files.map((file) => ({
     path: file.destination.split(path.sep).join('/'),
+    type: 'file',
     content: file.content,
   })));
 }
@@ -670,6 +675,7 @@ function compileNativePackage({
     inventoryDigest,
     inventoryRevision,
     generatorVersion,
+    fingerprintAlgorithm: TREE_FINGERPRINT_ALGORITHM,
     selectedSkillIds,
     selectedSkillNames,
     materializedSkillIds,
@@ -1241,7 +1247,7 @@ function verifyNativePackage({
   }
   let artifactFingerprint = 'codex-native-unobserved';
   try {
-    artifactFingerprint = fingerprintDir(resolvedPackageRoot);
+    artifactFingerprint = fingerprintDir(resolvedPackageRoot, { algorithm: resolveFingerprintAlgorithm(provenance) });
   } catch (error) {
     const diagnostic = `native package fingerprint failed: ${error.message}`;
     errors.push(diagnostic);
@@ -1293,13 +1299,18 @@ function verifyNativePackage({
   };
 }
 
+// options.algorithm: LEGACY_FINGERPRINT_ALGORITHM (default, flat code-unit
+// recipe) or TREE_FINGERPRINT_ALGORITHM. Callers read the choice from the
+// package's `fingerprintAlgorithm` marker with resolveFingerprintAlgorithm.
 function fingerprintDir(dir, options = {}) {
+  const algorithm = normalizeFingerprintAlgorithm(options.algorithm);
   const budget = createTraversalBudget(options);
   if (path.resolve(dir) !== fs.realpathSync(dir)) {
     throw new Error(`cannot fingerprint symlinked root or ancestor: ${dir}`);
   }
-  const entries = collectDirectoryEntries(dir, { budget, skipBytecode: true });
-  return fileSetFingerprintCodeUnit(entries.filter((entry) => entry.type === 'file'));
+  const entries = collectDirectoryEntries(dir, { budget, skipBytecode: true, symlinks: 'refuse' })
+    .filter((entry) => entry.type === 'file');
+  return algorithm === TREE_FINGERPRINT_ALGORITHM ? treeFingerprint(entries) : fileSetFingerprintCodeUnit(entries);
 }
 
 module.exports = {

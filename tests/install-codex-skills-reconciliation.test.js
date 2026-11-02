@@ -120,6 +120,7 @@ function recoveryJournal(project, receipt, pid, run, { mutations = [], adoptions
     phase: 'active',
     started: true,
     plugin_version: receipt.plugin_version,
+    fingerprint_algorithm: 'tree-merkle-v1',
     source_fingerprint: receipt.source_fingerprint,
     receipt_snapshot_present: true,
     receipt_snapshot: receipt,
