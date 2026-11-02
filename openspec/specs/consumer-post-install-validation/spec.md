@@ -440,31 +440,41 @@ unsupported native AGY obligations remain required and `BLOCKED`.
 - **WHEN** a requirements declaration makes native AGY execution required but no fixed native adapter is supported
 - **THEN** the requirement remains `BLOCKED`, no native call occurs, and installation evidence cannot satisfy it
 
-### Requirement: Consumer gate verifies receipt fingerprints by the recorded algorithm
+### Requirement: Consumer gate verifies receipt fingerprints only by tree-merkle-v1
 
-The consumer gate SHALL compare each receipt `destination_fingerprint` with a value computed by the recipe named in the receipt's `fingerprint_algorithm`: the legacy consumer-gate recipe when the field is absent, `tree-merkle-v1` when it names that value. It SHALL keep its approved-root symlink resolution and complete (bytecode-keeping) view as walk policy, and SHALL report a mismatch or an unknown algorithm as a failed fingerprint check naming the entry.
+The consumer gate SHALL compare each receipt `destination_fingerprint` with a value computed by `tree-merkle-v1`, the only algorithm a receipt may name. It SHALL keep its approved-root symlink resolution and complete (bytecode-keeping) view as walk policy. It SHALL report a receipt or native package whose algorithm field is absent or unrecognized as a failed fingerprint check that names the field and value and the 0.70.0 version boundary. It SHALL NOT verify an entry with a legacy recipe; an entry that carries the entry-level marker `fingerprint_algorithm: legacy` SHALL be reported as a failed fingerprint check for that entry. Digests of single files used for consumer identity records SHALL keep their current value.
 
 #### Scenario: New receipt verifies
 
 - **WHEN** the gate inspects an installation whose receipt names `tree-merkle-v1` and whose destinations are unchanged
 - **THEN** every entry fingerprint matches and the result is PASS
 
-#### Scenario: Legacy receipt verifies during the transition
+#### Scenario: Marker-less receipt fails
 
-- **WHEN** the gate inspects an installation written by the previous installer, with no `fingerprint_algorithm`
-- **THEN** every entry fingerprint matches under the legacy recipe and the result is PASS
+- **WHEN** the gate inspects a receipt with no `fingerprint_algorithm`
+- **THEN** the result is a failed fingerprint check naming the field and the version boundary
 
-#### Scenario: Edited destination fails under either algorithm
+#### Scenario: Native package without provenance fails
+
+- **WHEN** the gate inspects a native package whose `provenance.json` is missing or has no `fingerprintAlgorithm`
+- **THEN** the result is a failed fingerprint check naming the field
+
+#### Scenario: Edited destination fails
 
 - **WHEN** a managed destination file is edited after install
 - **THEN** the gate reports a fingerprint mismatch for that entry
 
-#### Scenario: Unproven legacy entry in a new receipt uses its own recipe
+#### Scenario: Entry-level legacy marker fails
 
-- **WHEN** a receipt names `tree-merkle-v1` but one entry carries `fingerprint_algorithm: legacy` and its destination is unchanged
-- **THEN** the gate verifies that entry with the legacy recipe and the others with `tree-merkle-v1`, and the result is PASS
+- **WHEN** a `tree-merkle-v1` receipt holds an entry with `fingerprint_algorithm: legacy`
+- **THEN** the gate reports a failed fingerprint check for that entry
 
 #### Scenario: Unknown algorithm fails
 
 - **WHEN** the receipt names an unrecognized algorithm
 - **THEN** the gate result is a failed fingerprint check naming the field and value
+
+#### Scenario: Identity digests keep their value
+
+- **WHEN** the gate fingerprints a single file for a consumer identity record
+- **THEN** the digest equals the value produced before this change

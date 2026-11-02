@@ -100,3 +100,22 @@ compatibility projection.
 
 - **WHEN** the OpenAI portable marketplace package passes structural validation
 - **THEN** the `.agents/skills` projection remains governed by its own shared portable selection and receipt, and the marketplace result does not claim Cursor or AGY discovery/runtime verification
+
+### Requirement: Carried legacy entries become Released Entries
+
+When the agents-skills generator updates a receipt that carries entries it cannot recompute with `tree-merkle-v1` (entries kept in a receipt written by 0.69.x: generator version `1.1.0`, no `fingerprint_algorithm`, legacy values), it SHALL remove each such entry from the receipt, leave its files in place, and list it in the command output as a Released Entry. It SHALL then write the whole receipt with `fingerprint_algorithm: "tree-merkle-v1"` and `tree-merkle-v1` values for every remaining entry. A carried legacy entry SHALL NOT make the update that releases it fail; afterwards its files are unowned and later materializations apply the existing ownership rules to them. This precondition (generator version `1.1.0`, no marker) is the only marker-less agents-skills receipt the generator reads. A marker-less receipt with any other generator version SHALL fail closed with the version-boundary diagnostic of `content-fingerprint-ownership`.
+
+#### Scenario: Carried legacy entry is released
+
+- **WHEN** an update runs against a `1.1.0` receipt without `fingerprint_algorithm` that carries an entry whose skill is no longer selected
+- **THEN** the entry is absent from the written receipt, its managed files are still on disk, the output lists the entry as released, and the written receipt carries `fingerprint_algorithm: "tree-merkle-v1"`
+
+#### Scenario: Receipt with no carried entries rewrites normally
+
+- **WHEN** an update runs against a `1.1.0` receipt without `fingerprint_algorithm` and no entry is carried
+- **THEN** no entry is released and the written receipt carries `tree-merkle-v1` values for every entry
+
+#### Scenario: Old generator version fails closed
+
+- **WHEN** an update reads a receipt with generator version `1.0.0`
+- **THEN** it fails with the version-boundary diagnostic and writes nothing

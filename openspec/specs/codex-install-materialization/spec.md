@@ -194,29 +194,49 @@ The shared project-local installer SHALL resolve a managed entry beneath an alre
 - **WHEN** the host provides a descriptor-backed filesystem path that safely supports child traversal
 - **THEN** copy, symlink, update, adoption, backup, rollback, and uninstall flows retain their existing observable results and ownership protections, including copy-mode source-link dereferencing and ignored Python-bytecode filtering
 
-### Requirement: Install receipts record the fingerprint algorithm and upgrade safely
+### Requirement: Install receipts record only tree-merkle-v1 and release unprovable entries
 
-The Codex installer SHALL write `fingerprint_algorithm: "tree-merkle-v1"` in every receipt and transaction journal it creates and SHALL compute every source and destination fingerprint with that recipe (an unproven legacy entry excepted, as below). When it reads a record without the field it SHALL prove ownership with the legacy recipe, and on the next update or migration it SHALL rewrite every entry of the receipt with the new recipe, except an entry not yet proven owned, which keeps an entry-level `fingerprint_algorithm: legacy` marker (ownership, removal and the consumer gate use that entry's recipe) until a later run proves it. A read-only plan or check SHALL NOT rewrite a receipt. A record naming an unknown algorithm SHALL block with a structured diagnostic and no mutation.
+The Codex installer SHALL write `fingerprint_algorithm: "tree-merkle-v1"` in every receipt and transaction journal it creates and SHALL compute every source and destination fingerprint with that recipe. It SHALL write no entry-level `fingerprint_algorithm` marker. It SHALL read only records that carry `fingerprint_algorithm: "tree-merkle-v1"`; a receipt or transaction journal without the field, or naming another value, SHALL block with a structured diagnostic that names the field, states the 0.70.0 version boundary and both remediation paths (upgrade through 0.69.x and run one install or update, or uninstall and reinstall), and mutates nothing. A copy-mode or orphaned receipt entry that carries the entry-level marker `fingerprint_algorithm: legacy` (written by 0.69.x for an entry it could not prove owned), or a symlink-mode entry with that marker whose link target does not match its recorded `destination_target`, SHALL become a Released Entry: it is removed from the receipt, its files stay in place, and the installer output lists it. A copy-mode entry without the legacy marker whose destination no longer matches its `tree-merkle-v1` fingerprint is a modified collision, not a Released Entry. A symlink-mode entry, including one that carries the legacy marker, whose link target matches is proven by its recorded link target; it is kept and rewritten with `fingerprint_algorithm: "tree-merkle-v1"`. Releasing an entry SHALL NOT block the install or update that releases it; afterwards its path is unowned and later runs apply the existing collision rules to it (a fresh plan and `--adopt` bring it back under management). The receipt SHALL be written with `tree-merkle-v1` values for every remaining entry. A read-only plan or check SHALL NOT rewrite a receipt; it SHALL report the entries an update would release. `--uninstall` over a receipt without the marker (or naming another value) SHALL NOT block and SHALL NOT delete any destination file: it removes the receipt, lists every entry as a Released Entry, and exits successfully, so the documented "uninstall and reinstall" remediation is reachable. A Released Entry's record SHALL also be removed from `orphaned_entries`.
 
-#### Scenario: Unproven legacy entry keeps an entry-level marker
+#### Scenario: Unproven legacy entry is released
 
-- **WHEN** a legacy receipt entry cannot be proven owned during an upgrade that writes a `tree-merkle-v1` receipt
-- **THEN** that entry keeps its legacy value with entry-level `fingerprint_algorithm: legacy`, ownership and removal checks use the entry's recipe, and the next run that proves it rewrites the entry and drops the marker
+- **WHEN** an update reads a receipt whose entry carries `fingerprint_algorithm: legacy`
+- **THEN** the entry is absent from the written receipt, its destination files are untouched, the output lists the entry as released, and the written receipt carries `fingerprint_algorithm: "tree-merkle-v1"` with no entry-level marker
 
-#### Scenario: Legacy receipt proves ownership then upgrades
+#### Scenario: Legacy-marked symlink entry is kept
 
-- **WHEN** an update runs against a receipt without `fingerprint_algorithm` whose managed destinations are unchanged
-- **THEN** no destination is reported as edited, and the written receipt carries `fingerprint_algorithm: "tree-merkle-v1"` with new-recipe values for every entry
+- **WHEN** an update reads a symlink-mode entry with `fingerprint_algorithm: legacy` whose link target matches the recorded `destination_target`
+- **THEN** the entry stays in the written receipt without the entry-level marker, is not listed as released, and the receipt carries `fingerprint_algorithm: "tree-merkle-v1"`
+
+#### Scenario: Plan reports without rewriting
+
+- **WHEN** a read-only plan runs against a receipt with an entry-level `legacy` marker
+- **THEN** the plan lists the entry as one that an update would release, and the receipt file is unchanged
+
+#### Scenario: Marker-less receipt blocks
+
+- **WHEN** an install, update, or plan runs against a receipt without `fingerprint_algorithm`
+- **THEN** the installer exits blocked with the version-boundary diagnostic and mutates nothing
+
+#### Scenario: Uninstall over a marker-less receipt releases everything
+
+- **WHEN** `--uninstall` runs against a receipt without `fingerprint_algorithm`
+- **THEN** no destination file is deleted, the receipt is removed, the output lists every entry as released, and the command exits successfully
+
+#### Scenario: Legacy-marked symlink with a mismatched target is released
+
+- **WHEN** an update reads a symlink-mode entry with `fingerprint_algorithm: legacy` whose link target differs from `destination_target`
+- **THEN** the entry is absent from the written receipt and from `orphaned_entries`, the link is untouched, and the output lists it as released
+
+#### Scenario: Marker-less journal blocks
+
+- **WHEN** the installer finds a transaction journal without `fingerprint_algorithm`
+- **THEN** it exits blocked with the version-boundary diagnostic and mutates nothing
 
 #### Scenario: A real edit is still detected
 
-- **WHEN** a managed destination was edited after a legacy receipt was written
-- **THEN** the update classifies it as a modified collision exactly as before the change
-
-#### Scenario: In-flight legacy journal recovers
-
-- **WHEN** a transaction journal written by the previous installer is recovered by the new installer
-- **THEN** recovery compares fingerprints with the legacy recipe and completes or rolls back without reporting a spurious mismatch
+- **WHEN** a managed destination was edited after a `tree-merkle-v1` receipt was written
+- **THEN** the update classifies it as a modified collision
 
 #### Scenario: Unknown algorithm blocks
 
