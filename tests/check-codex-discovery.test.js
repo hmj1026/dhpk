@@ -89,6 +89,7 @@ function nativePublicationFixture({ marker = 'valid', profile = false, removeSel
   fs.writeFileSync(path.join(nativeRoot, 'fingerprints.json'), `${JSON.stringify(fingerprints)}\n`);
 
   const provenance = {
+    fingerprintAlgorithm: 'tree-merkle-v1',
     sourceCommit: 'a'.repeat(40),
     sourceVersion: '1.2.3',
     inventoryDigest: crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex'),
@@ -222,6 +223,7 @@ test('check-codex-discovery blocks duplicate runtime providers while preserving 
     fs.cpSync(path.join(native, 'skills', skillName), destination, { recursive: true, dereference: true });
     fs.writeFileSync(path.join(project, '.codex', '.dhpk-installed.json'), `${JSON.stringify({
       schema_version: 3,
+      fingerprint_algorithm: 'tree-merkle-v1',
       plugin_version: version,
       managed_entries: {
         skills: {
@@ -267,6 +269,7 @@ test('source-tree native artifact without an enabled Codex plugin passes', () =>
     fs.cpSync(path.join(native, 'skills', skillName), destination, { recursive: true, dereference: true });
     fs.writeFileSync(path.join(project, '.codex', '.dhpk-installed.json'), `${JSON.stringify({
       schema_version: 3,
+      fingerprint_algorithm: 'tree-merkle-v1',
       plugin_version: version,
       managed_entries: {
         skills: {
@@ -305,6 +308,7 @@ test('disabled native Codex plugin passes', () => {
     fs.cpSync(path.join(native, 'skills', skillName), destination, { recursive: true, dereference: true });
     fs.writeFileSync(path.join(project, '.codex', '.dhpk-installed.json'), `${JSON.stringify({
       schema_version: 3,
+      fingerprint_algorithm: 'tree-merkle-v1',
       plugin_version: version,
       managed_entries: {
         skills: {
@@ -344,6 +348,7 @@ test('indeterminate Codex activation warns without blocking', () => {
     fs.cpSync(path.join(native, 'skills', skillName), destination, { recursive: true, dereference: true });
     fs.writeFileSync(path.join(project, '.codex', '.dhpk-installed.json'), `${JSON.stringify({
       schema_version: 3,
+      fingerprint_algorithm: 'tree-merkle-v1',
       plugin_version: version,
       managed_entries: {
         skills: {
@@ -380,6 +385,7 @@ test('--native-activation override selects the runtime judgment without a CLI pr
     fs.cpSync(path.join(native, 'skills', skillName), destination, { recursive: true, dereference: true });
     fs.writeFileSync(path.join(project, '.codex', '.dhpk-installed.json'), `${JSON.stringify({
       schema_version: 3,
+      fingerprint_algorithm: 'tree-merkle-v1',
       plugin_version: version,
       managed_entries: {
         skills: {

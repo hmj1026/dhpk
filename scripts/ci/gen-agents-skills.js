@@ -93,6 +93,11 @@ try {
       repair: args.repair,
     });
     console.log(`gen-agents-skills: wrote ${result.selectedIds.length} selected skills and ${result.managedPaths.length} managed files`);
+    const released = result.released || [];
+    if (released.length > 0) {
+      const names = released.map((entry) => entry.name).join(', ');
+      console.log(`gen-agents-skills: released ${released.length} ${released.length === 1 ? 'entry' : 'entries'} (files kept on disk): ${names}`);
+    }
   } else {
     const operation = args.action === 'uninstall' ? uninstallAgentsSkillsProjection : rollbackAgentsSkillsProjection;
     const result = operation({ projectRoot, outDir: outDir || undefined, inventory: inventory || undefined });

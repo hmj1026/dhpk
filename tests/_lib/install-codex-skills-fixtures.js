@@ -82,29 +82,36 @@ function copyDistributionInventory(plugin) {
   );
 }
 
-// Legacy recipe written by installers before tree-merkle-v1 (no
-// fingerprint_algorithm in the receipt): `dir\0` prefix, code-point name order,
-// empty directories counted.
-function legacyCompleteTreeFingerprint(target) {
-  const hashNode = (current) => {
+// Literal digests of the removed pre-tree-merkle-v1 installer recipe (`dir\0`
+// prefix, code-point name order). Captured on 2026-11-02 from the then-current
+// fixture helper over tests/fixtures/tree-fingerprint/installer/destination
+// before the recipe was deleted; the recipe no longer exists, so these are the
+// only legacy oracle. `skillSource` is the unedited sample-skill tree (it equals
+// the skill digests in legacy-receipt.json); `skillAfterNotesEdit` is the same
+// tree after the line "edited" is appended to references/notes.md.
+const LEGACY_RECIPE_DIGESTS = Object.freeze({
+  skillSource: '2a95463b69c90af7cf646b87fc430b65087d814384dcf4c033642e6dc8349a53',
+  skillAfterNotesEdit: '4370a3a314d8e0f3174d5e5a43fc66b286e8360b1235772a8821baafed90cde0',
+});
+
+// Recipe-free change detector for before/after comparisons: every entry's
+// relative path, kind, and bytes (or link text), sorted. Unlike a tree digest it
+// also notices an empty directory appearing or disappearing.
+function snapshotTree(target) {
+  const lines = [];
+  const visit = (current, relative) => {
     const stat = fs.lstatSync(current);
-    if (stat.isSymbolicLink()) return hashNode(fs.realpathSync(current));
-    const digest = crypto.createHash('sha256');
-    if (stat.isDirectory()) {
-      digest.update('dir\0');
-      for (const name of fs.readdirSync(current).sort()) {
-        digest.update(name);
-        digest.update('\0');
-        digest.update(hashNode(path.join(current, name)));
-        digest.update('\0');
-      }
-      return digest.digest('hex');
+    if (stat.isSymbolicLink()) {
+      lines.push(`link:${relative}:${fs.readlinkSync(current)}`);
+    } else if (stat.isDirectory()) {
+      lines.push(`dir:${relative}`);
+      for (const name of fs.readdirSync(current).sort()) visit(path.join(current, name), `${relative}/${name}`);
+    } else {
+      lines.push(`file:${relative}:${fs.readFileSync(current).toString('base64')}`);
     }
-    digest.update('file\0');
-    digest.update(fs.readFileSync(current));
-    return digest.digest('hex');
   };
-  return hashNode(target);
+  visit(target, '.');
+  return lines.join('\n');
 }
 
 // Oracle for `tree-merkle-v1` over the complete view (bytecode kept, links
@@ -395,7 +402,8 @@ module.exports = {
   projectRoot,
   copyDistributionInventory,
   completeTreeFingerprint,
-  legacyCompleteTreeFingerprint,
+  LEGACY_RECIPE_DIGESTS,
+  snapshotTree,
   descriptorPseudoPathBlocker,
   materializationFailureShim,
   parentReplacementGate,

@@ -1,9 +1,9 @@
 'use strict';
 
-// The consumer gate verifies a receipt by the recipe the receipt names
-// (OpenSpec unify-tree-fingerprint-algorithm, consumer-post-install-validation
-// delta). Receipts here are written by the real installer in a temp project, or
-// are the frozen receipt of the previous installer.
+// The consumer gate verifies a receipt only by tree-merkle-v1 (OpenSpec
+// remove-legacy-tree-fingerprints, consumer-post-install-validation delta).
+// Receipts here are written by the real installer in a temp project; the frozen
+// previous-installer receipt serves as the marker-less fixture.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -52,7 +52,7 @@ function installedProject() {
   return { project, plugin, receiptPath: path.join(project, '.codex', '.dhpk-installed.json') };
 }
 
-// A project the previous installer left behind: no fingerprint_algorithm.
+// A project a pre-0.69 installer left behind: no fingerprint_algorithm.
 function legacyProject() {
   const project = projectRoot();
   const codex = path.join(project, '.codex');
@@ -82,20 +82,20 @@ test('a receipt naming tree-merkle-v1 verifies every unchanged entry', () => {
   }
 });
 
-test('a legacy receipt without fingerprint_algorithm verifies during the transition', () => {
+test('an edited destination fails ownership under the tree recipe', () => {
+  const prepared = installedProject();
+  editSkill(prepared.project);
+  assert.strictEqual(skillOf(projectEntries(prepared)).owned, false);
+});
+
+test('a marker-less receipt is a failed fingerprint check naming the field and the 0.70.0 boundary', () => {
   const legacy = legacyProject();
   assert.ok(!('fingerprint_algorithm' in readJson(legacy.receiptPath)));
   const entries = projectEntries(legacy);
   assert.ok(skillOf(entries));
-  for (const entry of entries) assert.strictEqual(entry.owned, true, `${entry.kind}/${entry.id}`);
-});
-
-test('an edited destination fails ownership under the tree recipe and under the legacy recipe', () => {
-  for (const [label, make] of [['tree-merkle-v1', installedProject], ['legacy', legacyProject]]) {
-    const prepared = make();
-    editSkill(prepared.project);
-    const entries = projectEntries(prepared);
-    assert.strictEqual(skillOf(entries).owned, false, label);
+  for (const entry of entries) {
+    assert.match(entry.fingerprintError, /fingerprint_algorithm.*absent.*0\.70\.0/, `${entry.kind}/${entry.id}`);
+    assert.strictEqual(entry.owned, false, `${entry.kind}/${entry.id}`);
   }
 });
 
@@ -112,19 +112,54 @@ test('an unknown algorithm in the receipt is a failed fingerprint check naming t
   }
 });
 
-test('a legacy-marked entry kept by the installer is proven with the legacy recipe once the edit is reverted', () => {
-  const prepared = legacyProject();
-  const notes = path.join(prepared.project, '.codex', 'skills', 'sample-skill', 'references', 'notes.md');
-  const original = fs.readFileSync(notes, 'utf8');
-  editSkill(prepared.project);
-  const blocked = runInstaller(prepared.project, ['--copy', '--update', '--force'], prepared.plugin);
-  assert.strictEqual(blocked.status, 1, `${blocked.stdout}\n${blocked.stderr}`);
+test('an entry-level legacy marker in a tree-merkle-v1 receipt fails that entry', () => {
+  const prepared = installedProject();
   const receipt = readJson(prepared.receiptPath);
-  assert.strictEqual(receipt.fingerprint_algorithm, 'tree-merkle-v1');
-  assert.strictEqual(receipt.managed_entries.skills['sample-skill'].fingerprint_algorithm, 'legacy');
-  assert.strictEqual(skillOf(projectEntries(prepared)).owned, false, 'the edited skill is not owned');
-  fs.writeFileSync(notes, original);
-  assert.strictEqual(skillOf(projectEntries(prepared)).owned, true, 'the restored skill matches its legacy value');
+  receipt.managed_entries.skills['sample-skill'].fingerprint_algorithm = 'legacy';
+  writeJson(prepared.receiptPath, receipt);
+  const entries = projectEntries(prepared);
+  const skill = skillOf(entries);
+  assert.match(skill.fingerprintError, /fingerprint_algorithm.*"legacy"/);
+  assert.strictEqual(skill.owned, false);
+});
+
+function nativePackage(provenance) {
+  const nativeRoot = tempDir('native');
+  fs.cpSync(path.join(FIXTURE, 'destination', 'skills'), path.join(nativeRoot, 'skills'), { recursive: true });
+  if (provenance) writeJson(path.join(nativeRoot, 'provenance.json'), provenance);
+  return nativeRoot;
+}
+
+function nativeEntries(nativeRoot) {
+  const plugin = minimalPlugin();
+  const project = projectRoot();
+  return discoverCodexSurfaces({ root: plugin, project, version: '0.0.0', nativeRoot }).native;
+}
+
+test('a native package without provenance.json is a failed fingerprint check naming the field', () => {
+  const entries = nativeEntries(nativePackage(null));
+  assert.ok(entries.length > 0);
+  for (const entry of entries) assert.match(entry.fingerprintError, /fingerprintAlgorithm.*absent.*0\.70\.0/);
+});
+
+test('a native package whose provenance lacks fingerprintAlgorithm fails naming the field', () => {
+  const entries = nativeEntries(nativePackage({ packageVersion: '0.0.0' }));
+  assert.ok(entries.length > 0);
+  for (const entry of entries) assert.match(entry.fingerprintError, /fingerprintAlgorithm.*absent/);
+});
+
+test('a native package naming an unknown fingerprintAlgorithm fails naming field and value', () => {
+  const entries = nativeEntries(nativePackage({ fingerprintAlgorithm: 'tree-merkle-v9' }));
+  assert.ok(entries.length > 0);
+  for (const entry of entries) assert.match(entry.fingerprintError, /fingerprintAlgorithm.*tree-merkle-v9/);
+});
+
+test('a project without any receipt is not a fingerprint failure', () => {
+  const project = projectRoot();
+  fs.cpSync(path.join(FIXTURE, 'destination'), path.join(project, '.codex'), { recursive: true });
+  const entries = projectEntries({ project, plugin: minimalPlugin() });
+  assert.ok(entries.length > 0);
+  for (const entry of entries) assert.strictEqual(entry.fingerprintError, undefined);
 });
 
 test('an installer-written symlink-mode receipt verifies through the role and resource contract', () => {
@@ -139,19 +174,37 @@ test('an installer-written symlink-mode receipt verifies through the role and re
   assert.strictEqual(entry.destination_fingerprint, entry.source_fingerprint);
 });
 
-test('fingerprintPath and fingerprintDir agree per algorithm and differ across algorithms', () => {
+test('fingerprintPath defaults to the tree recipe and agrees with fingerprintDir and fingerprintProjectSkill', () => {
   const dir = tempDir('tree');
   fs.mkdirSync(path.join(dir, 'a', 'empty'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'a', 'x.md'), 'x');
   fs.writeFileSync(path.join(dir, 'b.md'), 'b');
   const options = { allowedRoots: [dir] };
-  for (const algorithm of ['legacy', 'tree-merkle-v1']) {
-    assert.strictEqual(fingerprintProjectSkill(dir, { ...options, algorithm }), fingerprintDir(dir, { algorithm }), algorithm);
+  const viaDefault = fingerprintPath(dir, options);
+  assert.strictEqual(fingerprintPath(dir, { ...options, algorithm: 'tree-merkle-v1' }), viaDefault);
+  assert.strictEqual(fingerprintProjectSkill(dir, options), viaDefault);
+  assert.strictEqual(fingerprintDir(dir), viaDefault);
+});
+
+test('fingerprintPath rejects a legacy or unknown algorithm with the version-boundary diagnostic', () => {
+  const dir = tempDir('reject');
+  fs.writeFileSync(path.join(dir, 'b.md'), 'b');
+  for (const algorithm of ['legacy', 'nope']) {
+    assert.throws(
+      () => fingerprintPath(dir, { allowedRoots: [dir], algorithm }),
+      new RegExp(`'algorithm'.*"${algorithm}".*0\\.70\\.0`),
+      algorithm,
+    );
   }
-  const legacyPath = fingerprintPath(dir, options);
-  assert.strictEqual(fingerprintPath(dir, { ...options, algorithm: 'legacy' }), legacyPath, 'default stays legacy');
-  assert.notStrictEqual(fingerprintPath(dir, { ...options, algorithm: 'tree-merkle-v1' }), legacyPath);
-  assert.throws(() => fingerprintPath(dir, { ...options, algorithm: 'nope' }), /unknown fingerprint algorithm/);
+});
+
+test('a single-file identity digest keeps sha256("file\\0" + bytes), the tree-merkle-v1 leaf', () => {
+  const dir = tempDir('identity');
+  const file = path.join(dir, 'hello.txt');
+  fs.writeFileSync(file, 'hello\n');
+  // Pinned literal: printf 'file\0hello\n' | sha256sum, captured before hashNode was removed.
+  const pinned = 'e9eccd80570fc6ff6c0f1a32492ca695b0cef8cd1937cd12bee7db8db5e81052';
+  assert.strictEqual(fingerprintPath(file, { allowedRoots: [dir] }), pinned);
 });
 
 run('consumer-gate-fingerprint-algorithm');

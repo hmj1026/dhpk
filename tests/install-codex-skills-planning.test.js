@@ -601,6 +601,7 @@ test('--plan blocks on an interrupted transaction without recovering or mutating
     const run = '20990101T000000Z-999999999';
     const journalPath = path.join(codexRoot, `.dhpk-transaction-${run}.json`);
     const journal = {
+      fingerprint_algorithm: 'tree-merkle-v1',
       run,
       pid: 2147483647,
       relative: `.dhpk-transaction-${run}.json`,

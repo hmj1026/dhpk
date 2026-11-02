@@ -72,6 +72,10 @@ _Avoid_: Projection manifest, install log
 A receipt-owned record that one Host discovers one skill in the Shared Project Projection, either directly or through a per-skill link in its native directory. A Host Binding owns no content.
 _Avoid_: Directory symlink, native copy
 
+**Released Entry**:
+A former receipt entry whose ownership the receipt gave up because ownership could no longer be proven; its files stay in place and no receipt manages them any more.
+_Avoid_: Orphan, retired skill, deleted entry
+
 ## Skill Distribution
 
 **Public Plugin**:

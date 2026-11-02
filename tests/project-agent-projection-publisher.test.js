@@ -331,6 +331,78 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
+  // remove-legacy-tree-fingerprints task 6: a receipt or manifest without the
+  // tree-merkle-v1 marker is outside the 0.70.0 version boundary.
+  function boundaryFixture() {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-boundary-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-boundary-project-'));
+    write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+    const options = { sourceRoot, projectRoot, inventory: projectInventory() };
+    publisher.materializeRelocatableAgentsSkillsProjection(options);
+    return { sourceRoot, projectRoot, options, receiptPath: path.join(projectRoot, '.agents/.dhpk-installed.json') };
+  }
+
+  function rewriteReceipt(receiptPath, mutate) {
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    mutate(receipt);
+    delete receipt.receiptFingerprint;
+    receipt.receiptFingerprint = fingerprint(receipt);
+    write(receiptPath, `${JSON.stringify(receipt)}\n`);
+  }
+
+  test('a 2.0.0 receipt, a marker-less receipt, and an unknown marker fail closed with the version-boundary diagnostic', () => {
+    const { versionBoundaryMessage } = require('../scripts/lib/content-fingerprint');
+    const cases = [
+      ['2.0.0 receipt', (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; }, undefined],
+      ['marker-less current-version receipt', (receipt) => { delete receipt.fingerprint_algorithm; }, undefined],
+      ['unknown marker', (receipt) => { receipt.fingerprint_algorithm = 'legacy'; }, 'legacy'],
+    ];
+    for (const [label, mutate, observed] of cases) {
+      const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
+      try {
+        rewriteReceipt(receiptPath, mutate);
+        const before = fs.readFileSync(receiptPath, 'utf8');
+        const expected = versionBoundaryMessage('fingerprint_algorithm', observed);
+        assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection(options), (error) => error.message.includes(expected), label);
+        const checked = publisher.validateRelocatableAgentsSkillsProjection(options);
+        assert.strictEqual(checked.ok, false, label);
+        assert.ok(checked.errors.some((message) => message.includes(expected)), `${label}: ${checked.errors.join('; ')}`);
+        assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), before, `${label}: nothing written`);
+      } finally {
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test('a marker-less legacy manifest is not adopted and the diagnostic names the version boundary', () => {
+    const { materializeAgentsSkillsProjection } = require('../scripts/lib/agents-skills-package');
+    const { versionBoundaryMessage } = require('../scripts/lib/content-fingerprint');
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-legacy-manifest-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-legacy-manifest-project-'));
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+      const legacyInventory = { ...projectInventory(), skills: [{ ...projectInventory().skills[0], surfaces: ['agent-plugin'] }], surface_membership: { 'agent-plugin': ['sample'] } };
+      const oldRoot = path.join(sourceRoot, '.agents', 'skills');
+      materializeAgentsSkillsProjection({ root: sourceRoot, inventory: legacyInventory, outDir: oldRoot });
+      fs.mkdirSync(path.join(projectRoot, '.agents'), { recursive: true });
+      fs.cpSync(oldRoot, path.join(projectRoot, '.agents', 'skills'), { recursive: true });
+      const manifestPath = path.join(projectRoot, '.agents', 'skills', '.dhpk-projection.json');
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      delete manifest.fingerprint_algorithm;
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+      const options = { sourceRoot, projectRoot, inventory: projectInventory(), adopt: true, allowCanonicalChanges: true };
+      assert.throws(
+        () => publisher.materializeRelocatableAgentsSkillsProjection(options),
+        (error) => error.message.includes(versionBoundaryMessage('fingerprint_algorithm', undefined)),
+      );
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), false);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('v1 emitted identity requires a normalized canonical skill source proof', () => {
     const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-proof-source-'));

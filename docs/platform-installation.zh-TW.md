@@ -352,15 +352,25 @@ collision 時以非零狀態結束，避免把 partial receipt 誤認為 current
 Receipt 與每個 transaction journal 也會記錄 `fingerprint_algorithm`
 （`tree-merkle-v1`）：這是與產生的 package fingerprint 共用的單一 directory-tree
 recipe，為逐層 Merkle digest，空目錄、檔案 mode 與 root path 都不納入計算。
-舊版 installer 寫的 receipt 或 journal 沒有此欄位，於一個 transition minor
-內視為 legacy recipe。這段期間 legacy record 的 ownership 以 legacy recipe
-證明，所以未變更的 projection 不會被誤報為已編輯，真正的編輯仍是 collision。
-下一次 `--update` 或 `--migrate` 會以 `tree-merkle-v1` 重寫每個 entry（尚未證明為己有的 entry 除外，其保留 entry 層級的 `legacy` 標記，直到後續執行證明 ownership）；唯讀
-`--plan` 或檢查絕不重寫 receipt。若 record 指名其他 algorithm，installer 會以
-指名該欄位的診斷訊息 block，且不做任何變更。請勿在此 transition 期間降版
-installer：舊版 installer 無法驗證 `tree-merkle-v1` receipt。從舊版 installer
-產生的 plan 複製而來的 `--adopt` 帶的是 legacy fingerprint，會以
-`adoption preflight changed` 失敗；請重新 plan。
+
+0.70.0 只接受由 0.69.x 或更新版本寫入的 receipt、journal 與 package。沒有
+`fingerprint_algorithm` 的 record 會 fail closed，並以指名該欄位的診斷訊息 block，
+且不做任何變更；record 指名其他 algorithm 時亦同。復原方式有兩種：先升級經過
+0.69.x 並執行一次 install 或 update（會以 `tree-merkle-v1` 重寫 receipt），或
+uninstall 後重新 install。對沒有 marker 的 receipt 執行 `--uninstall` 不會刪除任何
+檔案：它只移除 receipt，並將所有 entry 列為 Released Entry，可在重新 install 前
+自行刪除。請勿跨此界線降版 installer：舊版 installer 無法驗證
+`tree-merkle-v1` receipt。從較早 installer 產生的 plan 複製而來的 `--adopt`
+會以 `adoption preflight changed` 失敗；請重新 plan。
+
+當 update 或 migration 無法證明某個 receipt entry 的 ownership 時，會將該 entry
+釋放（Released Entry，見 `GLOSSARY.md`）：entry 從 receipt 移除，其檔案原地保留且不被更動，輸出
+會列出該 entry。釋放不會阻擋該次執行，且 receipt 會以 `tree-merkle-v1` 重寫。
+之後該路徑不再有歸屬：若後續執行仍提供該 skill，會回報 collision 並保留檔案；
+請重新 `--plan` 再 `--adopt` 以重新納管。link target 與紀錄相符的 symlink-mode
+entry 會保留；link target 不符者會被釋放。在 `tree-merkle-v1` install 後手動修改的
+destination 屬於 modified collision，不會被釋放。
+唯讀 `--plan` 或檢查絕不重寫 receipt。
 
 若 projection stale 或有 unowned collision，先執行唯讀 plan：
 

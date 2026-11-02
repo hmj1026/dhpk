@@ -11,8 +11,7 @@ const path = require('node:path');
 const { parseFrontmatter } = require('./agent-plugin-package');
 const {
   TREE_FINGERPRINT_ALGORITHM,
-  fileSetFingerprintTerminated,
-  resolveFingerprintAlgorithm,
+  requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
 } = require('./content-fingerprint');
@@ -57,9 +56,9 @@ const LEGACY_PROJECT_ROLLBACK_SCHEMA = 'dhpk.project-agent-projection-rollback.v
 const PROJECT_TRANSACTION_SCHEMA = 'dhpk.project-agent-projection-transaction.v2';
 const LEGACY_PROJECT_TRANSACTION_SCHEMA = 'dhpk.project-agent-projection-transaction.v1';
 const GENERATOR_VERSION = '2.1.0';
-// The previous generator's receipts stay readable for the transition minor
-// (OpenSpec unify-tree-fingerprint-algorithm, design D3/D6).
-const ACCEPTED_GENERATOR_VERSIONS = Object.freeze(['2.0.0', GENERATOR_VERSION]);
+// Only the current generator's receipts are read (OpenSpec
+// remove-legacy-tree-fingerprints, design D3/Q17).
+const ACCEPTED_GENERATOR_VERSIONS = Object.freeze([GENERATOR_VERSION]);
 const LEGACY_MANIFEST_NAME = '.dhpk-projection.json';
 const CLAUDE_ARTIFACT_ROOT = '.dhpk-claude-sibling';
 const CLAUDE_MANAGED_ROOT_NAME = 'claude-skills';
@@ -371,14 +370,7 @@ function sourceManifest(sourceDirectory, dependencies = []) {
     files,
     sourceFiles: manifest,
     sourceFingerprint: treeFingerprint(hashed.map((file) => ({ ...file, type: 'file' }))),
-    legacySourceFingerprint: fileSetFingerprintTerminated(hashed),
   };
-}
-
-// The recipe a receipt's source fingerprints were written with; an unknown
-// value is rejected by validateReceipt before any comparison reaches here.
-function receiptSourceFingerprintFor(receipt, current, legacyCurrent) {
-  return resolveFingerprintAlgorithm(receipt, 'fingerprint_algorithm') === TREE_FINGERPRINT_ALGORITHM ? current : legacyCurrent;
 }
 
 function inventoryEntries(inventory) {
@@ -544,7 +536,6 @@ function buildArtifactInputs({
   const records = [];
   const receiptEntries = [];
   const sourceFingerprints = {};
-  const legacySourceFingerprints = {};
   const usedDestinations = new Set();
   const usedPrefixes = new Set();
   const hasPortableDirectoryOutput = providers.directory.hosts.length > 0;
@@ -606,7 +597,6 @@ function buildArtifactInputs({
       throw fail('INVALID_SKILL_FRONTMATTER', `canonical skill '${name}' has invalid frontmatter`, { stableIds: [planEntry.stableId] });
     }
     sourceFingerprints[`skill:${planEntry.stableId}`] = manifest.sourceFingerprint;
-    legacySourceFingerprints[`skill:${planEntry.stableId}`] = manifest.legacySourceFingerprint;
     const metadata = planEntryMetadata(planEntry);
     if (metadata.provenance && typeof metadata.provenance === 'object' && !Array.isArray(metadata.provenance)) {
       metadata.provenance = {
@@ -811,7 +801,6 @@ function buildArtifactInputs({
     records,
     receiptEntries,
     sourceFingerprints,
-    legacySourceFingerprints,
     generatedFingerprints: Object.fromEntries(records
       .filter((record) => record.publicationRoot === 'managed')
       .map((record) => [record.relative, record.value.expectedFingerprint])),
@@ -857,10 +846,12 @@ function validateReceipt(receipt, roots, bindingOptions = {}) {
     throw fail('INVALID_RECEIPT', `project projection receipt must use ${PROJECT_RECEIPT_SCHEMA}, ${PREVIOUS_PROJECT_RECEIPT_SCHEMA}, or ${LEGACY_PROJECT_RECEIPT_SCHEMA}`);
   }
   const typedReceipt = receipt.schema === PROJECT_RECEIPT_SCHEMA || receipt.schema === PREVIOUS_PROJECT_RECEIPT_SCHEMA;
-  if (!ACCEPTED_GENERATOR_VERSIONS.includes(receipt.generatorVersion)) throw fail('INVALID_RECEIPT', `project projection receipt must use generator ${GENERATOR_VERSION}`);
-  try { resolveFingerprintAlgorithm(receipt, 'fingerprint_algorithm'); } catch (error) {
+  // The marker gate runs before the version check so a 2.0.0 receipt (written
+  // without the marker) gets the version-boundary diagnostic.
+  try { requireTreeMerkle(receipt.fingerprint_algorithm, 'fingerprint_algorithm'); } catch (error) {
     throw fail('INVALID_RECEIPT', `project projection receipt ${error.message}`);
   }
+  if (!ACCEPTED_GENERATOR_VERSIONS.includes(receipt.generatorVersion)) throw fail('INVALID_RECEIPT', `project projection receipt must use generator ${GENERATOR_VERSION}`);
   if (receipt.scope !== 'project' || receipt.managedRoot !== roots.config.managed_root || receipt.receiptPath !== roots.config.receipt) {
     throw fail('INVALID_RECEIPT', 'project projection receipt has an invalid ownership root');
   }
@@ -1094,8 +1085,7 @@ function adoptLegacyManifest(roots) {
       throw fail('LEGACY_UNBOUND', `legacy managed path cannot prove ownership: ${relative}`, { paths: [relative] });
     }
   }
-  let manifestAlgorithm;
-  try { manifestAlgorithm = resolveFingerprintAlgorithm(manifest, 'fingerprint_algorithm'); } catch (error) {
+  try { requireTreeMerkle(manifest.fingerprint_algorithm, 'fingerprint_algorithm'); } catch (error) {
     throw fail('LEGACY_UNBOUND', `legacy project projection manifest ${error.message}`);
   }
   const entries = Array.isArray(manifest.entries)
@@ -1112,7 +1102,7 @@ function adoptLegacyManifest(roots) {
   const adopted = sealReceipt({
     schema: LEGACY_PROJECT_RECEIPT_SCHEMA,
     generatorVersion: GENERATOR_VERSION,
-    ...(manifestAlgorithm === TREE_FINGERPRINT_ALGORITHM ? { fingerprint_algorithm: manifestAlgorithm } : {}),
+    fingerprint_algorithm: TREE_FINGERPRINT_ALGORITHM,
     scope: 'project',
     managedRoot: roots.config.managed_root,
     receiptPath: roots.config.receipt,
@@ -1234,7 +1224,7 @@ function sourceDrift(previous, inputs, allowCanonicalChanges, approvedRenames = 
   for (const entry of previous.entries || []) {
     if (approvedRenames.has(entry.stableId)) continue;
     const key = `skill:${entry.stableId}`;
-    const current = receiptSourceFingerprintFor(previous, inputs.sourceFingerprints[key], inputs.legacySourceFingerprints[key]);
+    const current = inputs.sourceFingerprints[key];
     if (current && current !== entry.sourceFingerprint) {
       throw fail('SOURCE_DRIFT', `canonical source changed for receipt-owned entry '${entry.name}'; explicit update authority is required`, { stableIds: [entry.stableId] });
     }
@@ -2052,7 +2042,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
           assertPhysicalAncestors(dependency.absolute, `standalone dependency '${dependency.source}'`, roots.sourceRoot);
         }
         const currentManifest = sourceManifest(sourceDirectory, dependencies);
-        const current = receiptSourceFingerprintFor(receipt, currentManifest.sourceFingerprint, currentManifest.legacySourceFingerprint);
+        const current = currentManifest.sourceFingerprint;
         if (current !== entry.sourceFingerprint) errors.push(`source fingerprint drifted: ${entry.name}`);
       }
     }
