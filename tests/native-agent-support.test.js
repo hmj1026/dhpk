@@ -66,6 +66,8 @@ function writeCursorPackage(root, { planner, worker, withFiles }) {
     owner: { name: 'test' },
     plugins: [{ name: 'dhpk-cursor', source: '.' }],
   }));
+  // A hand-built package must name its fingerprint recipe (remove-legacy-tree-fingerprints).
+  fs.writeFileSync(path.join(root, 'provenance.json'), JSON.stringify({ fingerprintAlgorithm: 'tree-merkle-v1' }));
   fs.writeFileSync(path.join(root, 'rules', 'execution-policy.mdc'), '---\nname: execution-policy\ndescription: policy\nalwaysApply: false\n---\n# policy\n');
   fs.writeFileSync(path.join(root, 'rules', 'tool-routing.mdc'), '---\nname: tool-routing\ndescription: routing\nalwaysApply: false\n---\n# routing\n');
   fs.writeFileSync(path.join(root, 'agents', 'planner.md'), planner);

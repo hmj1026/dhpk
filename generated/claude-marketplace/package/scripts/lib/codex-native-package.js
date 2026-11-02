@@ -17,10 +17,8 @@ const crypto = require('node:crypto');
 const {
   TREE_FINGERPRINT_ALGORITHM,
   collectDirectoryEntries,
-  fileSetFingerprintCodeUnit,
   inventoryDigestInsertionOrder,
-  normalizeFingerprintAlgorithm,
-  resolveFingerprintAlgorithm,
+  requireTreeMerkle,
   treeFingerprint,
 } = require('./content-fingerprint');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
@@ -435,8 +433,8 @@ function nativeSourceFiles(sourceDir, relative = '', options = {}) {
   }
 }
 
-// Writers always emit `tree-merkle-v1` (design D3); the legacy flat code-unit
-// recipe survives only in fingerprintDir for packages without the marker.
+// Writers always emit `tree-merkle-v1` (design D3); verifiers require the
+// package's `fingerprintAlgorithm` marker and fail closed without it.
 function nativeSkillFingerprint(files) {
   return treeFingerprint(files.map((file) => ({
     path: file.destination.split(path.sep).join('/'),
@@ -1247,7 +1245,7 @@ function verifyNativePackage({
   }
   let artifactFingerprint = 'codex-native-unobserved';
   try {
-    artifactFingerprint = fingerprintDir(resolvedPackageRoot, { algorithm: resolveFingerprintAlgorithm(provenance) });
+    artifactFingerprint = fingerprintDir(resolvedPackageRoot, { algorithm: requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm') });
   } catch (error) {
     const diagnostic = `native package fingerprint failed: ${error.message}`;
     errors.push(diagnostic);
@@ -1299,18 +1297,19 @@ function verifyNativePackage({
   };
 }
 
-// options.algorithm: LEGACY_FINGERPRINT_ALGORITHM (default, flat code-unit
-// recipe) or TREE_FINGERPRINT_ALGORITHM. Callers read the choice from the
-// package's `fingerprintAlgorithm` marker with resolveFingerprintAlgorithm.
+// options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
+// the only recipe; any other value throws the version-boundary diagnostic.
+// Verifiers pass the package's `fingerprintAlgorithm` marker through
+// requireTreeMerkle first, so a missing marker never reaches this default.
 function fingerprintDir(dir, options = {}) {
-  const algorithm = normalizeFingerprintAlgorithm(options.algorithm);
+  requireTreeMerkle(options.algorithm === undefined ? TREE_FINGERPRINT_ALGORITHM : options.algorithm, 'fingerprintAlgorithm');
   const budget = createTraversalBudget(options);
   if (path.resolve(dir) !== fs.realpathSync(dir)) {
     throw new Error(`cannot fingerprint symlinked root or ancestor: ${dir}`);
   }
   const entries = collectDirectoryEntries(dir, { budget, skipBytecode: true, symlinks: 'refuse' })
     .filter((entry) => entry.type === 'file');
-  return algorithm === TREE_FINGERPRINT_ALGORITHM ? treeFingerprint(entries) : fileSetFingerprintCodeUnit(entries);
+  return treeFingerprint(entries);
 }
 
 module.exports = {

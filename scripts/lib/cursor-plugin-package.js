@@ -24,9 +24,7 @@ const {
   TREE_FINGERPRINT_ALGORITHM,
   collectDirectoryEntries,
   inventoryDigestInsertionOrder,
-  merkleFingerprint,
-  normalizeFingerprintAlgorithm,
-  resolveFingerprintAlgorithm,
+  requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
   treeNodeFingerprint,
@@ -635,24 +633,21 @@ function writeMarketplace(outDir, name, version) {
   return marketplace;
 }
 
-// options.algorithm: 'legacy' (default, the Merkle that records empty
-// directories) or TREE_FINGERPRINT_ALGORITHM. No package tree holds an empty
-// directory, so both recipes give the same digest for every generated package.
+// options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
+// the only recipe; any other value throws the version-boundary diagnostic.
 function fingerprintPath(target, options = {}) {
-  const algorithm = normalizeFingerprintAlgorithm(options.algorithm);
+  requireTreeMerkle(options.algorithm === undefined ? TREE_FINGERPRINT_ALGORITHM : options.algorithm, 'fingerprintAlgorithm');
   const stat = lstatOrNull(target);
   if (!stat) return '';
   if (stat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${target}`);
   const budget = createTraversalBudget(options);
   if (stat.isFile()) {
     const file = [{ path: 'node', type: 'file', content: budget.readFile(target, stat) }];
-    return algorithm === TREE_FINGERPRINT_ALGORITHM ? treeNodeFingerprint(file, 'node') : merkleFingerprint(file, 'node');
+    return treeNodeFingerprint(file, 'node');
   }
   if (!stat.isDirectory()) throw new Error(`cannot fingerprint special entry: ${target}`);
   const walked = collectDirectoryEntries(target, { budget, skipBytecode: true, symlinks: 'refuse' });
-  if (algorithm === TREE_FINGERPRINT_ALGORITHM) return treeFingerprint(walked.filter((entry) => entry.type === 'file'));
-  const entries = walked.map((entry) => ({ ...entry, path: `node/${entry.path}` }));
-  return merkleFingerprint([{ path: 'node', type: 'directory' }, ...entries], 'node');
+  return treeFingerprint(walked.filter((entry) => entry.type === 'file'));
 }
 
 function fingerprintDir(directory, options = {}) {
@@ -793,14 +788,20 @@ function cursorVirtualFingerprint(files, prefix) {
   );
 }
 
-// Recipe named by the package's provenance.json marker; absent provenance or
-// unreadable JSON (reported elsewhere) is the legacy recipe.
+// Recipe named by the package's provenance.json marker; absent provenance or a
+// missing marker fails closed with the version-boundary diagnostic, and
+// unparseable JSON fails closed as unreadable.
 function packageFingerprintAlgorithm(packageRoot) {
   const provenancePath = path.join(packageRoot, 'provenance.json');
-  if (!fs.existsSync(provenancePath)) return { algorithm: resolveFingerprintAlgorithm(null) };
-  let provenance;
-  try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (_) { return { algorithm: resolveFingerprintAlgorithm(null) }; }
-  try { return { algorithm: resolveFingerprintAlgorithm(provenance) }; } catch (error) { return { algorithm: null, error: error.message }; }
+  let provenance = null;
+  if (fs.existsSync(provenancePath)) {
+    try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (error) {
+      return { algorithm: null, error: `provenance.json is unreadable: ${error.message}` };
+    }
+  }
+  try {
+    return { algorithm: requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm') };
+  } catch (error) { return { algorithm: null, error: error.message }; }
 }
 
 function cursorReadmeContents() {

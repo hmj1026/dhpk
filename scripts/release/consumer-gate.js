@@ -43,10 +43,8 @@ const {
 const { fingerprint: fingerprintStructuredValue } = require('../lib/distribution-projection-contract');
 const { fingerprintDir } = require('../lib/codex-native-package');
 const {
-  TREE_FINGERPRINT_ALGORITHM,
   inventoryDigestInsertionOrder,
-  normalizeFingerprintAlgorithm,
-  resolveFingerprintAlgorithm,
+  requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
 } = require('../lib/content-fingerprint');
@@ -319,39 +317,18 @@ function resolveCanonicalPath(current, { allowedRoots = [], canonicalRoots = nul
   return resolved;
 }
 
-// options.algorithm: LEGACY_FINGERPRINT_ALGORITHM (default, the gate's own
-// nested `dir\0` recipe) or TREE_FINGERPRINT_ALGORITHM. Receipt-compare callers
-// read the choice from the receipt with receiptFingerprintAlgorithm; identity
-// digests keep the default. Both recipes follow links inside the approved roots
-// and keep bytecode: the walk is policy, the digest is the recipe.
+// Digest of a file, or of a directory by tree-merkle-v1, the only recipe. The
+// walk is policy: it follows links inside the approved roots and keeps
+// bytecode. options.algorithm may only be omitted or name tree-merkle-v1; any
+// other value throws the version-boundary diagnostic. A single file digests to
+// sha256("file\0" + bytes), which is the tree-merkle-v1 leaf, so identity
+// digests keep their value.
 function fingerprintPath(target, options = {}) {
-  const algorithm = normalizeFingerprintAlgorithm(options.algorithm);
+  if (options.algorithm !== undefined) requireTreeMerkle(options.algorithm, 'algorithm');
   const normalizedOptions = normalizeFingerprintOptions(options);
   const budget = createTraversalBudget(normalizedOptions);
   const fileDigest = (canonical, stat) => crypto.createHash('sha256')
     .update('file\0').update(budget.readFile(canonical, stat)).digest('hex');
-  const hashNode = (current, depth) => {
-    const canonical = resolveCanonicalPath(current, normalizedOptions);
-    const stat = fs.lstatSync(canonical);
-    const nodeDigest = crypto.createHash('sha256');
-    if (stat.isDirectory()) {
-      const realDirectory = budget.enterDirectory(canonical, depth);
-      try {
-        nodeDigest.update('dir\0');
-        for (const entry of readDirectoryEntries(canonical, { budget, sort: true })) {
-          const name = entry.name;
-          nodeDigest.update(name);
-          nodeDigest.update('\0');
-          nodeDigest.update(hashNode(path.join(canonical, name), depth + 1));
-          nodeDigest.update('\0');
-        }
-      } finally {
-        budget.leaveDirectory(realDirectory);
-      }
-      return nodeDigest.digest('hex');
-    }
-    return fileDigest(canonical, stat);
-  };
   const collectFiles = (current, relative, depth, files) => {
     const canonical = resolveCanonicalPath(current, normalizedOptions);
     const stat = fs.lstatSync(canonical);
@@ -377,18 +354,19 @@ function fingerprintPath(target, options = {}) {
     return treeFingerprint(files);
   };
   try {
-    return algorithm === TREE_FINGERPRINT_ALGORITHM ? hashTree(target) : hashNode(target, 0);
+    return hashTree(target);
   } catch (error) {
     if (error && error.code === 'ENOENT') return '';
     throw error;
   }
 }
 
-// Recipe named by a receipt's `fingerprint_algorithm` (absent means legacy).
-// Throws, naming the field and value, for any other value so the gate fails
-// closed instead of trying both recipes.
+// Recipe named by a receipt's `fingerprint_algorithm`: tree-merkle-v1 or a
+// throw. An absent or unrecognized value fails closed with the version-boundary
+// diagnostic naming the field and value.
 function receiptFingerprintAlgorithm(receipt) {
-  return resolveFingerprintAlgorithm(receipt, 'fingerprint_algorithm');
+  const value = receipt !== null && typeof receipt === 'object' ? receipt.fingerprint_algorithm : undefined;
+  return requireTreeMerkle(value, 'fingerprint_algorithm');
 }
 
 function fingerprintProjectSkill(target, options = {}) {
@@ -397,11 +375,10 @@ function fingerprintProjectSkill(target, options = {}) {
   return fingerprintDir(canonical, normalizedOptions);
 }
 
-function fingerprintOptions(fingerprintFn, allowedRoots, algorithm = undefined) {
-  if (fingerprintFn === fingerprintPath || fingerprintFn === fingerprintProjectSkill) {
-    return { allowedRoots, algorithm };
-  }
-  return fingerprintFn === fingerprintDir ? { algorithm } : {};
+function fingerprintOptions(fingerprintFn, allowedRoots) {
+  return fingerprintFn === fingerprintPath || fingerprintFn === fingerprintProjectSkill
+    ? { allowedRoots }
+    : {};
 }
 
 function relativeEvidencePath(root, target, label) {
@@ -445,8 +422,6 @@ function discoverCodexSurface({
   fingerprintFnByKind = {},
   ownershipFingerprintFn = null,
   allowedRoots = [],
-  contentAlgorithm = undefined,
-  ownershipAlgorithm = undefined,
   algorithmError = null,
 }) {
   return ['skills', 'agents'].flatMap((kind) => {
@@ -476,14 +451,14 @@ function discoverCodexSurface({
       let expectedFingerprint = null;
       let fingerprintError = null;
       const receiptEntry = managed && managed[id];
-      // An entry the installer could not rewrite keeps its legacy value inside
-      // a tree-merkle-v1 receipt and says so; it is proven with that recipe.
-      const entryOwnershipAlgorithm = receiptEntry && receiptEntry.fingerprint_algorithm === 'legacy'
-        ? 'legacy'
-        : ownershipAlgorithm;
       try {
         if (algorithmError) throw new Error(algorithmError);
-        fingerprint = contentFingerprintFn(target, fingerprintOptions(contentFingerprintFn, allowedRoots, contentAlgorithm));
+        // An entry-level marker may only name tree-merkle-v1; a legacy entry is
+        // never verified.
+        if (receiptEntry && Object.prototype.hasOwnProperty.call(receiptEntry, 'fingerprint_algorithm')) {
+          requireTreeMerkle(receiptEntry.fingerprint_algorithm, `managed_entries.${kind}.${id}.fingerprint_algorithm`);
+        }
+        fingerprint = contentFingerprintFn(target, fingerprintOptions(contentFingerprintFn, allowedRoots));
         if (!fingerprint) {
           const redactedError = redactEvidence(
             redactEvidence('fingerprint validation failed: empty or missing target', root),
@@ -494,11 +469,11 @@ function discoverCodexSurface({
             : 'fingerprint validation failed';
         } else {
           expectedFingerprint = expectedFingerprints
-            ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots, contentAlgorithm))
+            ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots))
             : null;
-          ownershipFingerprint = ownershipFn === contentFingerprintFn && entryOwnershipAlgorithm === contentAlgorithm
+          ownershipFingerprint = ownershipFn === contentFingerprintFn
             ? fingerprint
-            : ownershipFn(target, fingerprintOptions(ownershipFn, allowedRoots, entryOwnershipAlgorithm));
+            : ownershipFn(target, fingerprintOptions(ownershipFn, allowedRoots));
         }
       } catch (error) {
         const errorText = error && typeof error.message === 'string' && error.message
@@ -605,8 +580,8 @@ function summarizeCodexDiscovery(discovery) {
   };
 }
 
-// A package without the marker is legacy; an unknown marker is a failed
-// fingerprint check (not a crash) that names the field and value.
+// An absent or unknown marker is a failed fingerprint check (not a crash) that
+// names the field and value.
 function resolveAlgorithmOrError(resolve) {
   try {
     return { algorithm: resolve(), error: null };
@@ -619,8 +594,9 @@ function readNativePackageAlgorithm(nativeRoot) {
   let provenance = null;
   try {
     provenance = JSON.parse(readFileBounded(path.join(nativeRoot, 'provenance.json')).toString('utf8'));
-  } catch (_) { return { algorithm: undefined, error: null }; }
-  return resolveAlgorithmOrError(() => resolveFingerprintAlgorithm(provenance));
+  } catch (_) { /* missing or unreadable provenance carries no marker */ }
+  const value = provenance !== null && typeof provenance === 'object' ? provenance.fingerprintAlgorithm : undefined;
+  return resolveAlgorithmOrError(() => requireTreeMerkle(value, 'fingerprintAlgorithm'));
 }
 
 function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(root, 'plugins', 'dhpk') }) {
@@ -630,7 +606,10 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
     try { manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8')); } catch (_) { manifest = null; }
   }
   const nativeAlgorithm = readNativePackageAlgorithm(nativeRoot);
-  const receiptAlgorithm = resolveAlgorithmOrError(() => receiptFingerprintAlgorithm(manifest));
+  // A project with no receipt has nothing to verify by marker.
+  const receiptAlgorithm = manifest
+    ? resolveAlgorithmOrError(() => receiptFingerprintAlgorithm(manifest))
+    : { algorithm: undefined, error: null };
   const projectEntries = discoverCodexSurface({
     root,
     surfaceRoot: path.join(project, '.codex'),
@@ -640,11 +619,7 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
     allowedRoots: [project, root],
     fingerprintFnByKind: { skills: fingerprintProjectSkill },
     ownershipFingerprintFn: fingerprintPath,
-    // The project skill is compared with the native package skill, so its
-    // content value follows the package marker; ownership follows the receipt.
-    contentAlgorithm: nativeAlgorithm.algorithm,
-    ownershipAlgorithm: receiptAlgorithm.algorithm,
-    algorithmError: receiptAlgorithm.error || nativeAlgorithm.error,
+    algorithmError: receiptAlgorithm.error,
   });
   let nativeVersion = version;
   const nativeManifestPath = path.join(nativeRoot, '.codex-plugin', 'plugin.json');
@@ -761,8 +736,6 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
     expectedFingerprints: nativeFingerprints,
     fingerprintFn: fingerprintDir,
     expectedFingerprintFn: fingerprintDir,
-    contentAlgorithm: nativeAlgorithm.algorithm,
-    ownershipAlgorithm: nativeAlgorithm.algorithm,
     algorithmError: nativeAlgorithm.error,
   });
   const nonInvokableSkillNames = inventory && Array.isArray(inventory.skills)

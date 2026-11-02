@@ -50,6 +50,41 @@ test('gen-agents-skills CLI materializes a project-local compatibility tree', ()
   }
 });
 
+test('gen-agents-skills CLI lists each Released Entry when it rewrites a marker-less 1.1.0 receipt', () => {
+  const outDir = fs.mkdtempSync(path.join(ROOT, '.agents-skills-cli-released-'));
+  const run = () => spawnSync(process.execPath, [GENERATOR, '--repo-root', ROOT, '--out-dir', outDir], { cwd: ROOT, encoding: 'utf8' });
+  try {
+    assert.strictEqual(run().status, 0);
+    const receiptPath = path.join(outDir, '.dhpk-projection.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const digest = 'b'.repeat(64);
+    fs.mkdirSync(path.join(outDir, 'zz-old'));
+    fs.writeFileSync(path.join(outDir, 'zz-old', 'SKILL.md'), 'old\n');
+    fs.writeFileSync(path.join(outDir, 'zz-old.md'), 'shim\n');
+    const sha = (text) => require('node:crypto').createHash('sha256').update(text).digest('hex');
+    delete receipt.fingerprint_algorithm;
+    receipt.entries = receipt.entries.map((entry) => ({ ...entry, sourceFingerprint: digest }));
+    receipt.entries.push({
+      id: 'zz-old', name: 'zz-old', source: 'skills/zz-old', sourceFingerprint: digest,
+      sourceFiles: [{ path: 'SKILL.md', digest: sha('old\n') }], cursorPath: 'zz-old/SKILL.md', agyPath: 'zz-old.md',
+    });
+    receipt.managedPaths = [...receipt.managedPaths, 'zz-old.md', 'zz-old/SKILL.md'].sort();
+    receipt.generatedFingerprints['zz-old.md'] = sha('shim\n');
+    receipt.generatedFingerprints['zz-old/SKILL.md'] = sha('old\n');
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`);
+
+    const result = run();
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.match(result.stdout, /released 1 entry \(files kept on disk\): zz-old/);
+    const rewritten = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(rewritten.fingerprint_algorithm, 'tree-merkle-v1');
+    assert.ok(!rewritten.entries.some((entry) => entry.name === 'zz-old'));
+    assert.ok(fs.existsSync(path.join(outDir, 'zz-old', 'SKILL.md')));
+  } finally {
+    fs.rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
 test('gen-agents-skills CLI can materialize outside the canonical source checkout', () => {
   const projectRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-agents-skills-cli-project-'));
   try {

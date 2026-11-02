@@ -11,6 +11,7 @@ const {
   rollbackAgentsSkillsProjection,
   uninstallAgentsSkillsProjection,
 } = require('../scripts/lib/agents-skills-package');
+const { versionBoundaryMessage } = require('../scripts/lib/content-fingerprint');
 
 function tmpDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -315,6 +316,125 @@ test('legacy receipts migrate their source manifests before enforcing update aut
       allowCanonicalChanges: true,
     });
     assert.match(fs.readFileSync(path.join(outDir, 'dhpk-sample', 'SKILL.md'), 'utf8'), /# Migrated sample/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// remove-legacy-tree-fingerprints task 5: the one marker-less receipt the
+// generator reads is a 1.1.0 receipt written by 0.69.x. Its carried entries
+// cannot be recomputed with tree-merkle-v1, so they become Released Entries.
+// ---------------------------------------------------------------------------
+
+const LEGACY_DIGEST = 'a'.repeat(64);
+
+function twoSkillInventory({ deselectOther = false } = {}) {
+  const inventory = fixtureInventory();
+  inventory.skills.push({ id: 'other', name: 'dhpk-other', path: 'skills/dhpk-other', lifecycle: deselectOther ? 'deprecated' : 'promoted', surfaces: deselectOther ? [] : ['agent-plugin'] });
+  inventory.surface_membership = { 'agent-plugin': deselectOther ? ['sample'] : ['sample', 'other'] };
+  return inventory;
+}
+
+function makeTwoSkillFixture() {
+  const root = makeFixture();
+  write(path.join(root, 'skills', 'dhpk-other', 'SKILL.md'), [
+    '---', 'name: dhpk-other', "description: 'Another portable skill.'", '---', '# Other skill', '',
+  ].join('\n'));
+  return root;
+}
+
+// Rewrites the receipt as 0.69.x wrote it when it carried legacy entries.
+function downgradeReceipt(outDir, { generatorVersion = '1.1.0', keepMarker = false } = {}) {
+  const receiptPath = path.join(outDir, '.dhpk-projection.json');
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  if (!keepMarker) delete receipt.fingerprint_algorithm;
+  receipt.generatorVersion = generatorVersion;
+  receipt.entries = receipt.entries.map((entry) => ({ ...entry, sourceFingerprint: LEGACY_DIGEST }));
+  fs.writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`);
+  return receiptPath;
+}
+
+test('a 1.1.0 marker-less receipt with a carried entry releases it and rewrites a tree-merkle-v1 receipt', () => {
+  const root = makeTwoSkillFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory(), outDir });
+    const receiptPath = downgradeReceipt(outDir);
+    const result = materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory({ deselectOther: true }), outDir });
+    assert.deepStrictEqual(result.released.map((entry) => entry.name), ['dhpk-other']);
+    assert.strictEqual(result.released[0].id, 'other');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(receipt.fingerprint_algorithm, 'tree-merkle-v1');
+    assert.strictEqual(receipt.generatorVersion, '1.1.0');
+    assert.deepStrictEqual(receipt.entries.map((entry) => entry.name), ['dhpk-sample']);
+    assert.notStrictEqual(receipt.entries[0].sourceFingerprint, LEGACY_DIGEST);
+    assert.ok(receipt.managedPaths.every((relative) => !relative.startsWith('dhpk-other')), receipt.managedPaths.join(','));
+    assert.ok(Object.keys(receipt.generatedFingerprints).every((relative) => !relative.startsWith('dhpk-other')));
+    assert.ok(fs.existsSync(path.join(outDir, 'dhpk-other', 'SKILL.md')), 'released files stay on disk');
+    assert.ok(fs.existsSync(path.join(outDir, 'dhpk-other.md')), 'released shim stays on disk');
+    const checked = validateAgentsSkillsProjection({ root, inventory: twoSkillInventory({ deselectOther: true }), outDir });
+        assert.ok(!checked.errors.some((error) => /fingerprint algorithm/.test(error)), checked.errors.join('; '));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a 1.1.0 marker-less receipt with no carried entry rewrites normally and releases nothing', () => {
+  const root = makeFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    const receiptPath = downgradeReceipt(outDir);
+    const result = materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    assert.deepStrictEqual(result.released, []);
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(receipt.fingerprint_algorithm, 'tree-merkle-v1');
+    assert.deepStrictEqual(receipt.entries.map((entry) => entry.name), ['dhpk-sample']);
+    assert.notStrictEqual(receipt.entries[0].sourceFingerprint, LEGACY_DIGEST);
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir }).ok, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a marker-less receipt other than 1.1.0 fails closed with the version-boundary diagnostic and writes nothing', () => {
+  for (const generatorVersion of ['1.0.0', '1.2.0', '9.9.9']) {
+    const root = makeTwoSkillFixture();
+    const outDir = path.join(root, '.agents', 'skills');
+    try {
+      materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory(), outDir });
+      const receiptPath = downgradeReceipt(outDir, { generatorVersion });
+      const before = fs.readFileSync(receiptPath, 'utf8');
+      assert.throws(
+        () => materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory({ deselectOther: true }), outDir }),
+        (error) => error.message.includes(versionBoundaryMessage('fingerprint_algorithm', undefined)),
+        generatorVersion,
+      );
+      assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), before, `${generatorVersion} receipt untouched`);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('a receipt naming an unknown algorithm fails closed, and validation never reads a marker-less receipt', () => {
+  const root = makeFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    const receiptPath = path.join(outDir, '.dhpk-projection.json');
+    const original = fs.readFileSync(receiptPath, 'utf8');
+    const named = JSON.parse(original);
+    fs.writeFileSync(receiptPath, `${JSON.stringify({ ...named, fingerprint_algorithm: 'legacy' })}\n`);
+    assert.throws(
+      () => materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir }),
+      (error) => error.message.includes(versionBoundaryMessage('fingerprint_algorithm', 'legacy')),
+    );
+    downgradeReceipt(outDir);
+    const checked = validateAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    assert.strictEqual(checked.ok, false);
+    assert.ok(checked.errors.some((error) => error.includes(versionBoundaryMessage('fingerprint_algorithm', undefined))), checked.errors.join('; '));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

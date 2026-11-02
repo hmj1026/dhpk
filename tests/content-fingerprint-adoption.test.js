@@ -55,31 +55,40 @@ test('old writer and old verifier disagreed on the prefix-colliding tree', () =>
   assert.notStrictEqual(OLD_WRITER.agent, OLD_VERIFIER.agent);
 });
 
-test('Codex fingerprintDir now returns the old writer value on the prefix-colliding tree', () => {
+// tree-merkle-v1 digest of the adversarial tree (OpenSpec
+// remove-legacy-tree-fingerprints): every surface verifier now computes it.
+const TREE_ROOT = '84ffd53938ed50bf6c1b6665f92cbf9feb93dba1e10da374a32531eba7cd2122';
+const { treeFingerprint } = require('../scripts/lib/content-fingerprint');
+
+test('Codex fingerprintDir returns the tree-merkle-v1 value on the prefix-colliding tree, not an old recipe value', () => {
   const dir = buildAdversarialTree();
   try {
-    assert.strictEqual(codexFingerprintDir(dir), OLD_WRITER.codex);
+    assert.strictEqual(codexFingerprintDir(dir), TREE_ROOT);
+    assert.notStrictEqual(codexFingerprintDir(dir), OLD_WRITER.codex);
     assert.notStrictEqual(codexFingerprintDir(dir), OLD_VERIFIER.codex);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('Agent fingerprintDir now returns the old writer value on the prefix-colliding tree', () => {
+test('Agent fingerprintDir returns the tree-merkle-v1 value on the prefix-colliding tree, not an old recipe value', () => {
   const dir = buildAdversarialTree();
   try {
-    assert.strictEqual(agentFingerprintDir(dir), OLD_WRITER.agent);
+    assert.strictEqual(agentFingerprintDir(dir), TREE_ROOT);
+    assert.notStrictEqual(agentFingerprintDir(dir), OLD_WRITER.agent);
     assert.notStrictEqual(agentFingerprintDir(dir), OLD_VERIFIER.agent);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('Cursor fingerprintPath keeps the old disk Merkle values, including an empty directory', () => {
+test('Cursor fingerprintPath returns the tree-merkle-v1 value; an empty directory equals the empty tree and a missing path is empty', () => {
   const dir = buildAdversarialTree();
   try {
-    assert.strictEqual(cursorFingerprintPath(dir), OLD_CURSOR.root);
-    assert.strictEqual(cursorFingerprintPath(path.join(dir, 'empty')), OLD_CURSOR.emptyDirectory);
+    assert.strictEqual(cursorFingerprintPath(dir), TREE_ROOT);
+    assert.notStrictEqual(cursorFingerprintPath(dir), OLD_CURSOR.root);
+    assert.strictEqual(cursorFingerprintPath(path.join(dir, 'empty')), treeFingerprint([]));
+    assert.strictEqual(cursorFingerprintPath(path.join(dir, 'empty')), OLD_CURSOR.emptyDirectory, 'the empty tree digest is unchanged');
     assert.strictEqual(cursorFingerprintPath(path.join(dir, 'missing')), '');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
