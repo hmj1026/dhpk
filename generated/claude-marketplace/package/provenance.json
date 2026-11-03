@@ -2469,7 +2469,7 @@
       "sourcePath": "skills/harness-setup/SKILL.md",
       "destination": "skills/harness-setup/SKILL.md",
       "kind": "entry",
-      "sha256": "45b75c9d574a49736cf694859466fa9f8eea5a7ac3b302065eee9509bf11e8a4"
+      "sha256": "e30c7f5522e4947239d47bba74eb42799fc6ba6ad646228fafbdaf2f2fc3dd0c"
     },
     {
       "skillId": "harness-setup",
@@ -2661,7 +2661,7 @@
       "sourcePath": "skills/opsx-apply-resume/SKILL.md",
       "destination": "skills/opsx-apply-resume/SKILL.md",
       "kind": "entry",
-      "sha256": "48c1ba758b2c3b99563280848947606e61141ce8afeb6c097f9cedf48d2d8a68"
+      "sha256": "47ce7b1dfec077780e679c4d241227ace6b19c3a90a8b6729b5627b5a32fdbbc"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2685,7 +2685,7 @@
       "sourcePath": "skills/opsx-apply-resume/evals/evals.json",
       "destination": "skills/opsx-apply-resume/evals/evals.json",
       "kind": "entry",
-      "sha256": "450f6c414853d8df1afefe918a7e9bce7a3619d063de6d65117e3e30af0cacaf"
+      "sha256": "d92fad7e92c8d43d3ebe835114a55265f0a3beae199b2abf84ac4d67f05ba0ce"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2709,7 +2709,7 @@
       "sourcePath": "skills/opsx-apply-resume/references/resume.md",
       "destination": "skills/opsx-apply-resume/references/resume.md",
       "kind": "entry",
-      "sha256": "dd5edb243cb29161962bea1dcf451e2fa7d7a0c3cc5029f16312a479e8f1e054"
+      "sha256": "09ae790792343fbff96ba5031e7570cd233b7bc9a49891cf034b6c1b5968ca29"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2717,7 +2717,7 @@
       "sourcePath": "skills/opsx-apply-resume/references/save.md",
       "destination": "skills/opsx-apply-resume/references/save.md",
       "kind": "entry",
-      "sha256": "3aceee3681cf1748b3f377fb3847f163352ec14eb03ee3e9d9de3b2f06eb048a"
+      "sha256": "5d4aaa02b7e859e14491437bdc7e1e8c5fc8dd345ae2cfbcc49e9e5dc94f4f45"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2725,7 +2725,7 @@
       "sourcePath": "skills/opsx-apply-resume/scripts/detect-phase.sh",
       "destination": "skills/opsx-apply-resume/scripts/detect-phase.sh",
       "kind": "entry",
-      "sha256": "35c7e8e3f452859082e6db8337255eecc8dd286f16a8fc5c42ace7159ebf7013"
+      "sha256": "5f6b5c6a0d3e5ca94e5fb78c34378fa7223479bc3429dbfcf4bb3a4fa8dd219f"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2757,7 +2757,7 @@
       "sourcePath": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
       "destination": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
       "kind": "entry",
-      "sha256": "2dbb1bc0e443ce3c085010623f305413e9ac86dc2b003234f61fc601b69e2a88"
+      "sha256": "c677f05074532e2ce962d57d38df9159e31557d2ad0392f3a524d343d6292db9"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -2821,7 +2821,7 @@
       "sourcePath": "skills/proposal-analyze/SKILL.md",
       "destination": "skills/proposal-analyze/SKILL.md",
       "kind": "entry",
-      "sha256": "927eb123b1533b3c4571c17c615c61ca45d74e6d2b8beeb64fa583711f72c202"
+      "sha256": "9a7aa2417348bd120d59e255d3581eb5e08acd23ac5913325a06a924cc5bfa13"
     },
     {
       "skillId": "proposal-analyze",
@@ -2845,7 +2845,7 @@
       "sourcePath": "skills/issue-analyze/SKILL.md",
       "destination": "skills/proposal-analyze/references/issue-analyze/SKILL.md",
       "kind": "branch",
-      "sha256": "36bbcee29bd4efd2d52e833226d4d6326c78ef9187333f16498bcf72b8a36087"
+      "sha256": "be88cf4452bcaf5f9cfbbdb386d87297e1d29af835c313a4d77cd765fc620555"
     },
     {
       "skillId": "issue-analyze",
