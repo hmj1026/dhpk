@@ -23,20 +23,17 @@ verification and edited-file accounting.
 
 ## When NOT
 
-- In-process default → `fast-worker`
-- Codex CLI backend → `codex-worker`
-- This file is only the agy CLI backend of the same mechanical role — not a duplicate role.
-- Unknown root cause or an ambiguous spec → escalate (do not become `deep-reasoner`). Stop **without invoking the CLI backend**.
+- Unknown root cause or an ambiguous spec → escalate to the dispatcher before invoking the CLI backend; root-cause analysis belongs to `deep-reasoner`.
 
 ## Shared mechanical contract
 
-Follow `agents/fast-worker.md` for the shared mechanical contract (task spec, parallel marker, escalation, surgical edits, edited-file list, 3-attempt stop). Do not paste that contract here.
+Follow `agents/fast-worker.md` for the shared mechanical contract (task spec, parallel marker, escalation, surgical edits, edited-file list, 3-attempt stop).
 
 The dispatcher resolves the model and deadline, then records those exact values
 with the maximum role authority, write scope, restricted runtime entries and
-prompt evidence in a `0600` immutable context. This worker must not fill in a
-missing value, change a bound value, or inherit an ambient runtime; a missing or
-mismatched context is `BLOCKED`. There is no separate effort dial — agy bakes
+prompt evidence in a `0600` immutable context. Use those bound values as given; a
+missing or mismatched context is `BLOCKED`, because a filled-in or ambient value
+would break the dispatcher's evidence. There is no separate effort dial — agy bakes
 the thinking level into the attested model name.
 
 ## Backend availability (check first — never simulate)
@@ -47,12 +44,9 @@ test -n "${DHPK_CLI_TRANSPORT_CONTEXT:-}" || { echo "missing attested AGY contex
 
 On a missing CLI, an authentication failure, or a rejected model name, return
 `RESULT: BLOCKED` naming the exact failure (quote the CLI error verbatim for a model
-rejection — do not retry with a guessed model). The dispatcher may then apply the
-shared native-first fallback for `CLI_UNAVAILABLE` or
-`AUTHENTICATION_OR_MODEL_UNAVAILABLE` only after confirming no provider side effect;
-cross-provider candidates require explicit opt-in. Quota/rate-limit, safety/user denial,
-task/semantic, and timeout/interruption failures stay on their existing policy paths.
-**Never** approximate the backend or fall back to editing the files yourself.
+rejection — do not retry with a guessed model). Fallback is the dispatcher's decision
+(`.cursor/dhpk/policies/execution-policy.md`). Editing the files yourself would
+bypass the selected backend, so return `BLOCKED` instead.
 
 ## Execute via the agy wrapper
 
@@ -114,16 +108,10 @@ After the CLI completes:
 **The 3-attempt bound counts this agent's dispatch-and-independently-verify cycles, not
 agy's internal iteration.** When the composed prompt tells agy to run the verification
 command and iterate on failures itself (per step 1 above), one dispatch that goes through
-several such internal iterations still counts as one attempt. This carve-out is deliberate
-to `agy-worker` and is **not** applied to `codex-worker` — there is no equivalent
-OpenAI-side recommendation to iterate against a self-run verification command inside a
-single `codex exec` call.
+several such internal iterations still counts as one attempt.
 
-**Fixed-string matching for special-character greps.** When a verification grep searches
-for a string containing shell-special or multibyte/CJK characters (`$`, `§`, fullwidth
-punctuation), use fixed-string matching (`grep -F` / `grep -Fc`), never a BRE/ERE — under
-some locales a BRE `$` next to a multibyte character silently matches zero times. Re-check
-a zero-match result with `grep -F` before reporting a failure.
+For verification greps on `$`, `§`, CJK, or other non-ASCII text, follow the
+fixed-string rule in `.cursor/dhpk/agent-traps/_common/build-resolver-skeleton.md`.
 
 ## Edited-file list (mandatory — derived from the working tree)
 
@@ -171,6 +159,5 @@ On `BLOCKED`, name the exact backend failure and confirm no file edits were made
 
 ## Closing — Artifact Output
 
-**No artifact** — reports inline to its dispatcher; its deliverable is the applied diff
-plus the report above, not a persisted `.claude/artifacts/` file. The CLI's edits are
-real working-tree changes and should be reviewed; the orchestrator dispatches reviewers from the returned edited-file list.
+**No artifact** — the applied diff plus the report above is the deliverable;
+write nothing under `.claude/artifacts/`.

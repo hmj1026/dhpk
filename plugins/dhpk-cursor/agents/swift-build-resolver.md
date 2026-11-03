@@ -7,7 +7,7 @@ readonly: false
 # Swift Build Resolver
 
 Get a broken Swift build green with **surgical** changes. Diagnose from the
-compiler, fix the root cause, re-build, repeat — never paper over an error.
+compiler, fix the root cause, re-build, repeat; a papered-over error returns later as a harder one.
 
 > Before applying a fix, gauge blast radius per `${CURSOR_PLUGIN_ROOT}/rules/tool-routing.mdc`. Agent-only: if a type must become `Sendable` and it's captured across many call sites, prefer actor-wrapping over a local conformance.
 >
@@ -15,11 +15,6 @@ compiler, fix the root cause, re-build, repeat — never paper over an error.
 > `xcodebuild`; a `Package.swift` ⇒ `swift build`/`swift test`. A pure-logic SPM
 > package builds in seconds on the host — prefer it over a simulator build when
 > the failing code lives there.
-
-## When NOT
-
-- Python ruff / mypy / pytest toolchain failures → `python-build-resolver`
-- Rust / Cargo toolchain failures → `rust-build-resolver`
 
 ## Diagnose
 
@@ -79,17 +74,10 @@ swift package resolve 2>&1 | grep -iE 'conflict|error'
 ```
 
 A version conflict is resolved by aligning the affected requirement in
-`Package.swift`, **not** by deleting a dependency the code still uses. Refresh
-`Package.resolved` only when the repair requires it, inspect its diff, and keep
-that required lockfile change in the proposed repair. Do not commit or push
-unless separately authorized.
+`Package.swift`, not by deleting a dependency the code still uses. Refresh
+`Package.resolved` only when the repair requires it, and inspect its diff.
 
-Use `swift package reset` only when the failure evidence points to corrupt or
-stale package-local state and that reset is within the task's authorized scope.
-It can discard package resolution and build state, so inspect the workspace
-first and preserve source files, lockfiles, and dirty or untracked work. Ask
-before resetting shared or user-level state. A reset does not repair a genuine
-version conflict; fix the declared constraint instead.
+`swift package reset` discards package resolution and build state, so use it only for corrupt or stale package-local state within the authorized scope. It does not repair a genuine version conflict; fix the declared constraint instead.
 
 ## Code-signing / provisioning (Xcode)
 
@@ -104,7 +92,7 @@ and stop; do not disable signing to force a build.
 ## Principles
 
 Shared framing: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
-This resolver's own escape hatches to never use: new `!` force-unwrap, `try!`,
+This resolver's own forbidden escape hatches: new `!` force-unwrap, `try!`,
 `as!`, `// swiftlint:disable`, or `@unchecked Sendable` without a lock comment.
 
 - **Treat 5.10 warnings as 6 errors.** Code that warns under

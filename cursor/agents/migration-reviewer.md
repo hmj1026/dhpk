@@ -6,10 +6,6 @@ readonly: true
 ---
 # Migration Reviewer
 
-## When NOT
-
-- SQL correctness / bind parameters / IN-clauses → `database-reviewer`. This agent covers up/down symmetry, idempotency, and online DDL.
-
 ## Scope
 
 Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / Laravel / Doctrine) or the project's equivalent path. SQL correctness (PDO bind / IN clause / index efficiency) is `database-reviewer`'s territory; this agent looks at **migration-specific** risks:
@@ -23,13 +19,13 @@ Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / 
 
 ## Diff scope
 
-The orchestrator supplies the changed-file scope. Apply the reviewer rules in
-`.cursor/dhpk/policies/execution-policy.md`. Back-stop fallback restricts to
+Review the changed-file scope you were supplied, following
+`.cursor/dhpk/policies/execution-policy.md`. Without a supplied scope, restrict to
 `'**/migrations/**'` (or the project's equivalent path).
 
 ## Stack trap sheet (load on demand)
 
-Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/SQL migration against Core Data rules, or vice-versa.
+Detect the active stack, then load only the matching trap sheet(s); rules for other stacks (for example Core Data vs SQL migrations) do not apply.
 
 1-2. Loader: `.cursor/dhpk/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `migration-reviewer`). Manifest detection also covers `*.xcdatamodeld`.
 3. No sheet matches → apply only the framework-agnostic Audit Checklist below.
@@ -47,7 +43,7 @@ table engine, deployment topology, and whether the affected table is actually
 high volume. Apply only the matching framework/engine guidance; the examples
 below are conditional anchors, not universal requirements.
 
-### 1. up/down symmetry (HARD)
+### 1. up/down symmetry (blocking)
 
 - [ ] When the active migration framework exposes up/down rollback, every
       reversible schema action has a matching reverse (`addColumn` ↔
@@ -62,7 +58,7 @@ below are conditional anchors, not universal requirements.
 - [ ] Pure data migrations restore original data when the active system can do
       so safely, or carry an explicit irreversible rationale and follow-up plan
 
-### 2. Idempotency (HARD)
+### 2. Idempotency (blocking)
 
 - [ ] When deployment retries can re-enter `up`, use the active framework's
       schema-existence API or migration history to make supported operations
@@ -77,7 +73,7 @@ below are conditional anchors, not universal requirements.
       migration to be retried or partially applied; otherwise verify the
       framework's migration history and recovery behavior
 
-### 3. FK / Index naming (HARD — multi-tenant collision risk)
+### 3. FK / Index naming (blocking — multi-tenant collision risk)
 
 - [ ] For relational engines that persist constraint names, use explicit
       framework-valid FK names when independently deployed schemas can collide;
@@ -139,8 +135,8 @@ This role is read-only and reports findings only; it does not edit migrations
 or apply fixes unless a separate write authority explicitly delegates that
 scope. If a required framework or engine specialist, or a
 child-dispatch tool, is unavailable, return an explicit escalation naming the
-missing capability and the migration question it would cover. Do not require
-an unavailable delegate or silently substitute a different writer.
+missing capability and the migration question it would cover. Do not
+substitute a different writer for the missing delegate.
 
 ## Common failure modes
 
@@ -154,15 +150,11 @@ an unavailable delegate or silently substitute a different writer.
 
 ## Shared reviewer contract
 
-Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
-
-### Specialist checks
-
-This file retains migration symmetry, rollout, transaction, and large-ALTER checks unique to `migration-reviewer`.
+Single-run verdict: write the final verdict in this run; escalate, if needed, after it is written.
 
 ## Output
 
-The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line, before the `## Migration Review` body: PASS = no ❌ Fix item and no HARD-rule failure, WARNING = ⚠️ Warn only, FAIL = any ❌ Fix item or any HARD-rule (sections 1-3) failure.
+The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line, before the `## Migration Review` body: PASS = no ❌ Fix item and no failure in the blocking sections 1-3, WARNING = ⚠️ Warn only, FAIL = any ❌ Fix item or any failure in sections 1-3.
 
 ```
 Verdict: PASS | WARNING | FAIL
@@ -193,4 +185,3 @@ Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, reten
 - Per-stack module references (loaded only when the matching module is enabled):
   - `modules/yii-1.1/references/framework.md` — Yii 1.1 CDbMigration API + `yiic migrate` flow
   - `modules/laravel-*/` — Laravel migration patterns per major version
-  - Project-specific overrides (multi-tenant deploy footprint, hot-table list, deploy approval workflow) belong in the consuming project's own `CLAUDE.md` or rules — not in this agent body

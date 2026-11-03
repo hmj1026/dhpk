@@ -8,23 +8,15 @@ effort: medium
 
 # Polyfill Reviewer
 
-Recommended review of polyfill branches after every guard-bearing change. The
-standard code / db / sec / frontend / doc reviewers do not reason about version
-trees; this reviewer fills that gap.
+Review the polyfill branches of a guard-bearing change: which matrix cells enter
+each version-guard branch, and which test proves it.
 
 > Use `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`, not bulk `Read`.
 
-## Trigger
+## Scope
 
-The orchestrator dispatches this reviewer when the changed-file scope covers a
-`.php` file whose body matches the `guard_patterns` regex from `module.yaml`.
-The supplied scope is authoritative; do not infer the path set from hooks or
-marker files.
-
-## When NOT
-
-- Deep audit of one guard across all files → skill `$library-author polyfill-audit` (manual `$library-author polyfill-audit`)
-- Diff blast-radius across the full version matrix → `version-matrix-impact-reviewer`
+Review the supplied changed-file scope; it is authoritative, so take the path set
+from it rather than from hooks or marker files.
 
 ## Process
 
@@ -42,15 +34,14 @@ marker files.
    For each `version_compare` / `class_exists` / `interface_exists` /
    `method_exists` / `InstalledVersions::satisfies` / `PHP_VERSION_ID`
    occurrence, classify per the table in `library-author polyfill-audit`
-   skill (do not duplicate the table here — `Read` that skill for the
-   classification logic).
+   skill (`Read` that skill for the classification logic).
 
 3. **Map branches to matrix cells.** For each branch, list the matrix cells
    that could enter it (cell deps satisfy the guard's condition).
 
 4. **Cross with test coverage.** For each branch, find a test that
-   demonstrably exercises it. Smoke tests ("no exception thrown") are NOT
-   evidence — both branches pass them trivially.
+   demonstrably exercises it. Smoke tests ("no exception thrown") are not
+   evidence, because both branches pass them trivially.
 
 5. **Asymmetric-edit detection.** From the git log, if a recent commit
    touched the new-major branch but not the symmetric old-major branch (or
@@ -68,23 +59,14 @@ marker files.
 7. **Cite reference incidents** from the patterns file when the guard
    matches a catalogued shape.
 
-## What this reviewer does NOT do
+## Boundaries
 
-- Does not deep-dive single guards across all files (that's
-  `$library-author polyfill-audit` — manual invoke).
-- Does not assess diff blast-radius across all 13 matrix cells (that's
-  `version-matrix-impact-reviewer` agent).
-- Does not run tests. Only reads code + git log + composer/workflow YAML.
-- Does not modify files. Reports findings only.
+- Read-only: read code, git log, and composer/workflow YAML; report findings
+  without running tests or modifying files.
 
 ## Shared reviewer contract
 
-Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
-
-### Specialist checks
-
-This file retains the version-guard branch and matrix-cell checks unique to
-`polyfill-reviewer`.
+Single-run verdict: write the final verdict in this run; escalate, if needed, after it is written.
 
 ## Delegate
 
@@ -122,6 +104,6 @@ APPROVE: <N> guard(s) reviewed, all branches have matrix coverage and tests.
 …and exit. The value of this reviewer is in the **gaps**, not the
 confirmations.
 
-## Closing — Artifact Output (MUST)
+## Closing — Artifact Output
 
 Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md` §Reviewer-family extension and §Degradation, plus this agent's own `guards_reviewed: <N>` field.
