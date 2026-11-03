@@ -663,11 +663,15 @@ function buildOutput(inputs, root) {
     ? contentDigest(root, files, inputs.worktreePatch, inputs.indexExtra)
     : null;
   const currentDiff = diffIdentity(files, inputs.diffStatRaw, digest);
-  const gates = evaluateGates(inputs.reviewState, files, {
+  const gateContext = {
     head: inputs.head,
     diffIdentity: currentDiff,
     diffReadable: currentDiff !== null,
-  });
+  };
+  const gates = evaluateGates(inputs.reviewState, files, gateContext);
+  const boundReviewState = gateApplicability(inputs.reviewState, files, gateContext) === 'applicable'
+    ? inputs.reviewState
+    : null;
   const changedPaths = files.map(f => f.file);
   const featureCtx = resolveFeatureContext(root, inputs.branch, changedPaths);
   const allFindings = runHeuristics(inputs, files, gates, root, featureCtx);
@@ -685,7 +689,7 @@ function buildOutput(inputs, root) {
   }
 
   const phase = detectPhase(gates, allFindings, inputs.reviewState, files);
-  const next_actions = buildNextActions(allFindings, phase, featureCtx, inputs.reviewState);
+  const next_actions = buildNextActions(allFindings, phase, featureCtx, boundReviewState);
   const backlog = phase === 'feature_complete' ? buildBacklogContext(root) : null;
 
   return {
