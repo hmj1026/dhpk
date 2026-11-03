@@ -1,6 +1,6 @@
 ---
 name: change-verdict
-description: 'Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts and dependency audits are read-only; explicit dependency remediation delegates only the bounded fix to an available authorized writer, followed by independent security review. Not for arbitrary source repair, gate clearing, or architecture-only design. Output: evidence-backed findings, actual review status, and separate remediation/security results.'
+description: 'Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts are read-only; explicit dependency fixes go to an authorized writer. Not for source repair or architecture-only design. Output: evidence-backed findings and review status.'
 allowed-tools: 'Bash(git diff:*), Bash(git status:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git show:*), Bash(git log:*), Bash(git ls-files:*), Bash(git hash-object:*), Bash(gh pr view:*), Bash(node ${CLAUDE_SKILL_DIR}/scripts/risk-analyze.js:*), Bash(bash ${CLAUDE_SKILL_DIR}/scripts/check-unrelated-changes.sh:*), Read, Grep, Glob, Agent'
 metadata:
   dhpk-capability-id: dhpk.skill.change-verdict

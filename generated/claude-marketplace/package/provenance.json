@@ -29,7 +29,7 @@
       "sourcePath": "skills/change-verdict/SKILL.md",
       "destination": "skills/change-verdict/SKILL.md",
       "kind": "entry",
-      "sha256": "edef45fab7c856ad53e75a9293970a0b0b74351d5a6d0a3fe20552e6704cd006"
+      "sha256": "5106f3cc077d9c03c53b6a362b567d00c2b3d69dea396252925ec5f50d5cea69"
     },
     {
       "skillId": "change-verdict",
@@ -317,7 +317,7 @@
       "sourcePath": "skills/code-trace/SKILL.md",
       "destination": "skills/code-trace/SKILL.md",
       "kind": "entry",
-      "sha256": "c8858bd4d42cce5ea359953de883268e3eab52cb193cf28b1c3daacacfe2530f"
+      "sha256": "b58562eb4ad052d3275092e7499caff53871e151dc2fccfd4af678451c19b3b0"
     },
     {
       "skillId": "code-trace",
@@ -2965,7 +2965,7 @@
       "sourcePath": "skills/deploy-list/SKILL.md",
       "destination": "skills/release-creator/references/deploy-list/SKILL.md",
       "kind": "branch",
-      "sha256": "3cd9190b260c240f7af42cf731174a37d9f4699f8849ec36f8420aa202e00cd4"
+      "sha256": "4457dff32e2d82fca1459ab1c19035d17d9164c37b7aefa4e7ba21001cdfaa81"
     },
     {
       "skillId": "deploy-list",
@@ -3341,7 +3341,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "1e7f70f56b33430baa125c219bd1556b32ae460642b5359f60b8d616fa93de07"
+      "sha256": "58db62f4f6d88dbc34f82c5d5e58b80e845d15b83cf3eadfada33d8ab9ab3a22"
     },
     {
       "skillId": "tdd",
@@ -3485,7 +3485,7 @@
       "sourcePath": "skills/ui-ux-verify/SKILL.md",
       "destination": "skills/ui-ux-verify/SKILL.md",
       "kind": "entry",
-      "sha256": "e9725e96365f66e3238a36cf7bbb31f394dd8af33cbc84c5469786074b9cbc56"
+      "sha256": "ec092f78587fd32779644ecae0086f14338b0e17ae89c35dbfff0799d1c3d89c"
     },
     {
       "skillId": "ui-ux-verify",

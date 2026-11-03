@@ -1,6 +1,6 @@
 ---
 name: change-verdict
-description: "Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts and dependency audits are read-only; explicit dependency remediation delegates only the bounded fix to an available authorized writer, followed by independent security review. Not for arbitrary source repair, gate clearing, or architecture-only design. Output: evidence-backed findings, actual review status, and separate remediation/security results."
+description: "Review code, PRs, security, tests, documents, change risk, pending changes, or dependency vulnerabilities. Verdicts are read-only; explicit dependency fixes go to an authorized writer. Not for source repair or architecture-only design. Output: evidence-backed findings and review status."
 metadata:
   dhpk-capability-id: "dhpk.skill.change-verdict"
   dhpk-invocation-class: "implicit-eligible"
