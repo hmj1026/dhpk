@@ -88,7 +88,7 @@ below are conditional anchors, not universal requirements.
 
 ### 4. Large ALTER strategy (HIGH — production downtime risk)
 
-For high-volume tables (declared per project via the `hot_tables` userConfig key or CLAUDE.md; the names below are POS-system examples only):
+For high-volume tables (declared per project via the `hot_tables` userConfig key or CLAUDE.md):
 
 - [ ] For a declared high-volume relational table, estimate affected rows with
       the engine-appropriate count/metadata method; `SELECT COUNT(*) FROM
@@ -110,7 +110,7 @@ For high-volume tables (declared per project via the `hot_tables` userConfig key
 
 ### 6. Multi-environment rollout risk (MEDIUM)
 
-- [ ] Migration does not hardcode tenant-specific config (no fixed `$this->dbConnection` table prefix)
+- [ ] Migration does not hardcode tenant-specific config (no fixed tenant table prefix)
 - [ ] Migration does not reference application code (domain model classes) — it should depend only on the framework's migration API
 - [ ] No required PHP extension or external service not guaranteed on every deploy target
 
@@ -127,7 +127,7 @@ For high-volume tables (declared per project via the `hot_tables` userConfig key
 - [ ] When rollback is part of the active delivery contract, the framework's
       rollback command or equivalent can execute it; do not require a `safeDown`
       method or a rollback command from a different framework
-- [ ] If genuinely IRREVERSIBLE (rare, only when necessary) — PHPDoc states the reason, and a follow-up "compensating migration" is planned
+- [ ] If genuinely IRREVERSIBLE (rare, only when necessary) — a migration comment or docblock states the reason, and a follow-up "compensating migration" is planned
 
 ## Child-dispatch boundary
 
@@ -146,7 +146,7 @@ substitute a different writer for the missing delegate.
 | FK collision on production deploy | Framework auto-naming + cross-deploy name conflict | Explicit `addForeignKey($name, ...)` naming |
 | Schema dirty after `down` | up/down asymmetry | Complete the `dropColumn` / `dropIndex` chain |
 | Production ALTER times out | Full-table rebuild on hot table | Switch to `pt-online-schema-change` / batched approach / online DDL where the engine supports it |
-| `safeDown` throws | IRREVERSIBLE without annotation | Add PHPDoc explaining + plan compensating migration |
+| `safeDown` throws | IRREVERSIBLE without annotation | Add a comment or docblock explaining + plan compensating migration |
 
 ## Shared reviewer contract
 

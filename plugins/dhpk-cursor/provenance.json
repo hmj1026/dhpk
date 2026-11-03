@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.70.3",
-  "sourceCommit": "c6a376acc962f097a2d02c4339e55aedfa535052",
-  "generatedFromCommit": "c6a376acc962f097a2d02c4339e55aedfa535052",
-  "generatedFromTree": "0d0219dc47bb149ac1ab7d58a4829619017ce46d",
-  "inventoryDigest": "01514d187af72c409efc7bf01a651f211c07a2b608b63cb7d6a4868387e235a1",
-  "inventoryRevision": "sha256:b1495705af01eca9373551033b84af1afb3beaa057bafdde1669e406f89e4a71",
+  "sourceCommit": "b0bbcc99fd6375ee8f4060c2fbddf0948b08b89b",
+  "generatedFromCommit": "b0bbcc99fd6375ee8f4060c2fbddf0948b08b89b",
+  "generatedFromTree": "1bb5546522149c1828308dca40aa54f4bfcddde3",
+  "inventoryDigest": "e54294af3892f93bb4e6259cfb283f7dd239b6ed69d11f5997edcc83512dca8a",
+  "inventoryRevision": "sha256:2f6142b82b74b8cf9938e68c9bf74af10ffa76147574fde2eb90718a9253e9ec",
   "generatorVersion": "1.1.0",
   "fingerprintAlgorithm": "tree-merkle-v1",
   "selectedSkillIds": [],
@@ -1444,7 +1444,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "581b96fc9d67d25339510a14dc6839620a3d285e"
+        "originalGitBlobDigest": "18e25efcf945c0351dfa32374823fe7b08491efa"
       },
       {
         "ownerId": "flow-guide",
@@ -5617,14 +5617,14 @@
   ],
   "fingerprints": {
     "rules": "197462de40e4d25cce2672383fd47aa66d85fae884173d118ffa0f0054358f13",
-    "agents": "978b51337454516d148e06363f1ded1b55f3569a302fa65ff060482fea85f7aa",
+    "agents": "321d69b3ddb77d1d39dab943562315fefa07fc364dfc25bbb60659332d877f69",
     "commands": "12d3391961e0d575937b4e1209e532a8e9784e5bf00ff3da8aa182b8236bbc36",
     "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
     "agent-traps": "2647dda564556f068acf9c5c9a8f91a4c2634c05beb88b4528632896e697e701"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "cfa2e4b3d050cfcf5bbbd817dd598eead44774d0e35482ffaa20789b530d0be1",
+    "planId": "8570bb0f62ed21311445b9bad4d257afc7fe85d8267789124ca9e0f5be9e102a",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5668,10 +5668,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "cfa2e4b3d050cfcf5bbbd817dd598eead44774d0e35482ffaa20789b530d0be1",
-      "inventory": "01514d187af72c409efc7bf01a651f211c07a2b608b63cb7d6a4868387e235a1"
+      "plan": "8570bb0f62ed21311445b9bad4d257afc7fe85d8267789124ca9e0f5be9e102a",
+      "inventory": "e54294af3892f93bb4e6259cfb283f7dd239b6ed69d11f5997edcc83512dca8a"
     },
-    "rollbackIdentity": "62de06f6d251fe667cb73f6ee5066482a639e1d707e1322ba78b6be6be76fa32"
+    "rollbackIdentity": "9942d12e0b3533a1335d9499003c07f8dd4221038cf999080c7f590968dd5a59"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6686,5 +6686,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "28b8ef525a14526899a3311cea03ce1eeb42a6ace06b656d0eb659414f77e843"
+  "planFingerprint": "9b5fc70e072099f91b93cf98dcaf3e26e7f13b76e1f670eb61250ec6fda5e086"
 }

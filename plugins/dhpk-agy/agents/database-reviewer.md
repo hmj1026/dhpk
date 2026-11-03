@@ -37,7 +37,7 @@ loaded from a matching trap sheet take precedence over examples here.
 ## Checklist
 
 - [ ] All dynamic SQL parameter-bound
-- [ ] No N+1 (use `with()` eager load)
+- [ ] No N+1: eager-load relations instead of querying inside a loop
 - [ ] Hot WHERE/ORDER BY columns indexed; composite order matches predicate
 - [ ] Multi-step writes wrapped in transaction; consistent row update order
 - [ ] EXPLAIN sampled for complex queries (no full table scan)
@@ -76,5 +76,4 @@ Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, reten
 
 ## References
 
-- `.claude/rules/php/security.md` (PDO, IN/NOT IN)
-- `.claude/rules/php/patterns.md` (Repository conventions)
+- The consumer project's own security and repository rules, when present.
