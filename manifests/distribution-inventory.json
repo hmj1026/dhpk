@@ -415,7 +415,7 @@
       "id": "codex-supporting-agent-traps-migration-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/migration-reviewer/yii.md",
       "canonical_source": "agent-traps/migration-reviewer/yii.md",
-      "canonical_digest": "ced6dc650a658629d96f1fe0107bd4e065a50677ddede6ba8ef4d93586eb7234",
+      "canonical_digest": "82dbbeb242a170a0ce00a05ea92a268e20d3379400dfa804e3bbd31d93043c5d",
       "projection_digest": "de238b7f257df607f93da2a0d4a542a7632a2c7bab056d9d035a1487408685b5",
       "destination": "dhpk/agent-traps/migration-reviewer/yii.md"
     },

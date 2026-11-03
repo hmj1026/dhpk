@@ -24,7 +24,7 @@ Compare live render vs OpenSpec spec. Audit-only.
 2. **URL validation** (required before any browser command, since the URL reaches a shell):
    - HTTPS, with a host and route permitted by the consumer's configured target policy (task input or project rules)
    - No shell metachars: `;` `|` `&` `$` `` ` `` `(` `)` `<` `>` `\n` `\r` whitespace
-   - Invalid, or no policy to check against → `BLOCKED`; do not run playwright-cli
+   - Invalid or underivable URL → stop and report the URL problem; do not run playwright-cli
 3. **Capture** — `playwright-cli open "<url>"` (quote the URL) → `snapshot`. Read latest `.playwright-cli/page-*.yml`. Fail 3× → stop (Anti-Loop).
 4. **Compare** — Content (text, money/date format), Structure (column order, hierarchy), Behavior (click target, sort, pagination, validation). Sort: follow the project's collation, not ASCII order. Money: follow the project's rounding convention from the task input or project rules.
 5. **Grade** — CRITICAL (data correctness, authz, wrong customer data) / HIGH (column order, flow break, missing required-field validation) / MEDIUM (button copy, format) / LOW (typo, full/half-width).
