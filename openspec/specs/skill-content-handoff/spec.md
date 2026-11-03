@@ -1,6 +1,7 @@
 # skill-content-handoff Specification
 
 ## Purpose
+
 Define an opt-in, data-only `.scratch/<slug>/` convention that lets one skill's
 report reach a later skill or session without creating a skill dependency,
 gate, or routing input.
