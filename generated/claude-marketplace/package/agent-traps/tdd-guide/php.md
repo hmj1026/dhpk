@@ -12,11 +12,11 @@ Code templates: `skills/php/references/agent-extracts/tdd-code-templates.md`. PH
 | mixing `createMock()` with `getMockBuilder()->setMethods(null)` | pick one: `createMock` stubs all to null; the latter executes real methods | PHPUnit 8+ projects that already have typed asserts (this sheet's 5.7 rows do not apply) |
 | `assertEquals` for ints | `assertSame` — avoid loose equality | — |
 | `assertEquals` without delta for float | `assertEquals($exp, $act, '', $delta)` | — |
-| `strcmp()` for MySQL `utf8_unicode_ci` ordering | `strcasecmp()` | — |
+| `strcmp()` for MySQL case-insensitive (`_ci`) collation ordering | `strcasecmp()` | — |
 | `queryRow()` empty-result asserted as `null` | DAO `queryRow()` returns `false` on no row; AR `findByPk()` returns `null` (DAO ≠ AR) | — |
 | `Yii::app()->request->getPost('x')` treated as empty string when missing | returns `null` if missing | — |
 | `save()` asserted true without collecting errors | `save()` returns `false` on validation failure — collect `getErrors()` in test | — |
-| money `+` / `*` / float in tests | `bcadd`/`bcmul`; rounding via custom bcround (`memory/bcmath-rounding-trap.md`) | non-money integer counts |
+| money `+` / `*` / float in tests | `bcadd`/`bcmul`; rounding via the project's rounding helper | non-money integer counts |
 | CJK length via `strlen` | `mb_strlen` | — |
 
 ## Run

@@ -40,7 +40,7 @@ Detect the active stack, then load only the matching trap sheet(s); perf rules f
 
 - [ ] EXPLAIN reviewed: no `type=ALL` on tables with >10k rows
 - [ ] WHERE/ORDER BY columns indexed; composite index column order matches query predicate
-- [ ] No N+1: AR relations loaded with `with()`, not accessed inside a loop
+- [ ] No N+1: relations are eager-loaded, not accessed inside a loop
 - [ ] `LIMIT` applied before expensive sorting (filter first, sort after)
 - [ ] No unbounded `findAll()` on high-volume tables without a row cap
 - [ ] Pagination uses `LIMIT/OFFSET` (acceptable) or cursor (preferred for deep pages)
