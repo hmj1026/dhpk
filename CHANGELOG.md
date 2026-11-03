@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.70.4 — 2026-11-03 — Make subagents consumer-neutral and slim role prose
+
+- **refactor(agents)** — Shipped subagents and trap sheets drop one consumer's hostnames, private notes, and rule paths; refactor-cleaner now leaves commits to the orchestrator, and CLI-backed roles scope their frontmatter model to the outer agent (#1203).
+- **refactor(agents)** — Subagent bodies drop dispatcher-only policy, caller routing, and emphatic phrasing so each role carries only what it acts on (#1201).
+
 ## 0.70.3 — 2026-11-03 — Add opt-in .scratch content handoff, bind flow-guide last_skill to current change, and shorten workflow skill descriptions
 
 - **feat(skills)** — `issue-analyze` and `proposal-analyze` can save their report to `.scratch/<slug>/` on request, and `opsx-apply-resume` uses one Host-neutral `.scratch/<change-id>/apply-resume.md` handoff with legacy path fallback.
