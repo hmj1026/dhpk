@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.70.2",
-  "sourceCommit": "e2b9c5d12923785e019464aae8d0de0875c7abe7",
-  "generatedFromCommit": "e2b9c5d12923785e019464aae8d0de0875c7abe7",
-  "generatedFromTree": "b6cc84f69777e70c7c649e02eb9d74ecd46c3b22",
+  "sourceCommit": "ab9cb1a76ea09517c4895d4fcdc78e9be557382b",
+  "generatedFromCommit": "ab9cb1a76ea09517c4895d4fcdc78e9be557382b",
+  "generatedFromTree": "b01e7c3aa428bfc68a6c48aa2efc7d0ef55d06f2",
   "inventoryDigest": "9652df64536c38a1848336f5c9bcc223b64af479be2cac956ff5c2d2477780dd",
   "inventoryRevision": "sha256:2a4162add824afcaf2074bf416ce706ed7ba0a42fdb062575a09e65f118986d8",
   "generatorVersion": "1.1.0",
@@ -82,7 +82,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "1d7084bc9366bda9248210400816377e9deaffc5"
+        "originalGitBlobDigest": "2a95f8cdaca571128a859502c30064557b06ffbf"
       },
       {
         "ownerId": "change-verdict",
@@ -298,7 +298,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "2bd03134dd3f93d2ad691846b93fb9adbcd64e6f"
+        "originalGitBlobDigest": "0e1d86d20b92cf0582291232233ee027b4397a9c"
       },
       {
         "ownerId": "code-trace",
@@ -1804,7 +1804,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/analyze.js",
         "destination": "skills/flow-guide/scripts/analyze.js",
-        "originalGitBlobDigest": "76ca06e243d7250fe42851b05c4243347dfa82eb"
+        "originalGitBlobDigest": "34dbad3a951b54e5bee41c798befff92c56ea9a1"
       },
       {
         "ownerId": "flow-guide",
@@ -2056,7 +2056,7 @@
         "ownerId": "release-creator",
         "source": "skills/deploy-list/SKILL.md",
         "destination": "skills/release-creator/references/deploy-list/SKILL.md",
-        "originalGitBlobDigest": "b45073770d0b64456f56021b40975a89895fa5f2"
+        "originalGitBlobDigest": "fdf818ebb4f7bc2b84556de732701bf2b74fad6f"
       },
       {
         "ownerId": "release-creator",
@@ -2338,7 +2338,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "e69faa423f2a9cf693c403e547e7a1b2737835a0"
+        "originalGitBlobDigest": "2c09ecced7ca50931010fe1e12ea6216d7bee844"
       },
       {
         "ownerId": "tdd",
@@ -2446,7 +2446,7 @@
         "ownerId": "ui-ux-verify",
         "source": "skills/ui-ux-verify/SKILL.md",
         "destination": "skills/ui-ux-verify/SKILL.md",
-        "originalGitBlobDigest": "d1076e4fae2ead2880592e4ea15603b636d0413f"
+        "originalGitBlobDigest": "36811ded6cdbe53959d10905fa7dbb17c648ba32"
       },
       {
         "ownerId": "ui-ux-verify",
@@ -5618,7 +5618,7 @@
   "fingerprints": {
     "rules": "7671b07772e022d9dd654decad5a801efbd508a9cedc40f4845886dbf20922fe",
     "agents": "31b2bfc8f31241c661695292ef44dbdad1e8f10df0cd4f28f0935f0866025721",
-    "commands": "12d3391961e0d575937b4e1209e532a8e9784e5bf00ff3da8aa182b8236bbc36",
+    "commands": "9104c6ec54a2cc1a77357ce279e096d2de2b86876a2137388a2a1e9d65b44314",
     "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
     "agent-traps": "b3467f22a69b647b6f101dd314e79e427c118f6c569f0401d0e7026ea541cffd"
   },
@@ -6686,5 +6686,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "f87b701173fb0d56c2558210a55550e186684ee48ceb486156074960a99f4f4b"
+  "planFingerprint": "7a6fb777bc3650c29b12f1f39c1c5b8cd5736b208969061f3f48bf7e3ddbb912"
 }
