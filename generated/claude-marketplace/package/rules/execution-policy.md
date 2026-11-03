@@ -118,7 +118,9 @@ or `discovery`; it does not select the planner's critique, blind-sketch,
 dual-plan, warm-review, or
 cold-review work mode. The caller validates its own option grammar; the orchestrator chooses scope and
 does not calculate risk with a runtime engine. An enabled handoff with no mode
-uses `auto`; a disabled plan has no consult scope.
+uses `auto`; a disabled plan has no consult scope. Resuming the planner for
+warm review keeps its pinned high effort; when warm review must run at medium,
+dispatch it with an explicit verified profile.
 
 For `auto`, the orchestrator selects **bounded** only when all three conditions hold:
 the consult question and intended outcome are clear; the named sources are
@@ -454,7 +456,9 @@ line entry to that request; it keeps no backend table of its own:
 1. It detects the current Host (`DHPK_HOST` override, otherwise exactly one of
    the Host signals) and loads that Host's profile. An undetectable or ambiguous
    Host reports `BLOCKED` with the signals checked and exits non-zero; it never
-   defaults to Claude Code.
+   defaults to Claude Code. When a Host launched from another Host's terminal
+   inherits its signal (for example `CLAUDECODE=1`), set `DHPK_HOST=<host>` and
+   rerun the selector.
 2. Executable presence for `codex` or `agy` on `PATH` is capability evidence for
    an explicit target of that Target Agent. It never selects a target.
 3. The Dispatch Engine returns the Target Agent, Model, Effort, and Route

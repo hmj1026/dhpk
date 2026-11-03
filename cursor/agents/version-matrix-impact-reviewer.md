@@ -158,7 +158,8 @@ Don't produce a per-cell table when one row would do.
 
 ## Boundaries
 
-- Per-file guard coverage belongs to the `library-author polyfill-audit` skill (`polyfill-reviewer`); this agent covers the diff's blast radius across matrix cells.
+- Per-file guard branch coverage belongs to the `polyfill-reviewer` agent and the `library-author polyfill-audit` skill; this agent covers the diff's blast radius across matrix cells.
+- `composer.json` hygiene belongs to `composer-package-hygiene`; general quality and security review still run separately.
 - Recommend the test command; the user runs it.
 
 ## Closing — Artifact Output
