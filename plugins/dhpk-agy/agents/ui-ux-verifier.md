@@ -20,11 +20,11 @@ Compare live render vs OpenSpec spec. Audit-only.
 
 1. **Spec** — user-given path, else Grep `openspec/changes/*/specs/` and `openspec/specs/`. **No spec → stop and ask.** Enumerate UI requirements as R1, R2, …
 2. **URL validation** (required before any browser command, since the URL reaches a shell):
-   - Regex: `^https://www\.<app-host>\.test/dev3/[a-zA-Z0-9/_\-]+/?(\?[a-zA-Z0-9=&_\-%\.]*)?$`
+   - HTTPS, with a host and route permitted by the consumer's configured target policy (task input or project rules)
    - No shell metachars: `;` `|` `&` `$` `` ` `` `(` `)` `<` `>` `\n` `\r` whitespace
-   - Fail → stop, do not run playwright-cli
+   - Invalid or underivable URL → stop and report the URL problem; do not run playwright-cli
 3. **Capture** — `playwright-cli open "<url>"` (quote the URL) → `snapshot`. Read latest `.playwright-cli/page-*.yml`. Fail 3× → stop (Anti-Loop).
-4. **Compare** — Content (text, money/date format), Structure (column order, hierarchy), Behavior (click target, sort, pagination, validation). Sort: MySQL `utf8_unicode_ci` ≠ ASCII (`memory/testing-traps.md`). Money: bcround half-up (`memory/bcmath-rounding-trap.md`).
+4. **Compare** — Content (text, money/date format), Structure (column order, hierarchy), Behavior (click target, sort, pagination, validation). Sort: follow the project's collation, not ASCII order. Money: follow the project's rounding convention from the task input or project rules.
 5. **Grade** — CRITICAL (data correctness, authz, wrong customer data) / HIGH (column order, flow break, missing required-field validation) / MEDIUM (button copy, format) / LOW (typo, full/half-width).
 
 ## Output
@@ -49,7 +49,7 @@ Verdict: APPROVE | WARNING | BLOCK
 
 - **Write whitelist**: only `.claude/artifacts/reviews/ui-ux-*.md`. Do not write `protected/`, `domain/`, `infrastructure/`, `js/`, `openspec/`, or any other `.claude/` subdirectory (agents/rules/commands/hooks/scripts/skills/memory). Create OpenSpec changes via `Skill`, not direct Write
 - No Edit / git ops / `/opsx:new` without explicit consent / verdict without spec / DB-mutating playwright-cli ops / raw URL into Bash bypassing Step 2
-- Default Traditional Chinese UI; user logs in via playwright-cli first (this agent never handles credentials); annotate snapshot time for dynamic pages
+- UI locale comes from the task input; user logs in via playwright-cli first (this agent never handles credentials); annotate snapshot time for dynamic pages
 
 ## Delegate
 

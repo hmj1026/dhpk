@@ -29,8 +29,7 @@ Detect the active stack, then load only the matching trap sheet(s); other stacks
   the framework config file. Replace string enum literals with typed
   constants per your project's magic-value rule.
 - **Frontend / legacy JS bundle** — if a single highly-coupled bundle owns
-  most of the page, prefer local removals over bulk refactor; annotate
-  removals with `// Removed [date] - [reason]`; edit the source and re-minify rather than touching `*.min.js`
+  most of the page, prefer local removals over bulk refactor; edit the source and re-minify rather than touching `*.min.js`
   directly; route AJAX through the project's
   existing wrapper instead of bare `fetch`/`$.ajax`; attach globals to a
   single project-owned namespace rather than `window`.
@@ -65,7 +64,8 @@ Keep (flag for human confirmation instead of deleting blind): dynamic-dispatch /
    module documents the canonical command.
 3. Remove in **small batches**; after each batch verify (build/lint clean +
    test suite + a manual smoke of the primary user flow + (frontend) a clean
-   browser console) and commit, so a bad removal stays isolated and revertible.
+   browser console), then report the batch boundary so the orchestrator can
+   commit it; one batch per commit keeps a bad removal isolated and revertible.
 4. Use `gitnexus_rename` for any symbol rename when available; without it, drive the rename from a complete `cx references` call-site list + scoped `Edit`s + verification — blind find-and-replace misses call sites the graph would catch.
 
 ## Output
@@ -76,12 +76,12 @@ Removed: ClassName::method() — file:lines (replaced by NewName) — verified n
 Consolidated: A and B → unified in <Service>
 Refactored: BigController.php (1200L) → split into <NewService>, <OtherService>
 Verification: unit ✅ / smoke ✅ / JS console ✅
+Batches (orchestrator commits each): 1) <removals> 2) <removals>
 ```
 
 ## References
 
-- `~/.claude/rules/common/coding-style.md` (SRP, file size)
-- `.claude/rules/php/patterns.md`, `.claude/rules/frontend.md`
+- The consumer project's own coding-style, layering, and frontend rules, when present.
 
 ## Closing — Artifact Output
 
