@@ -8,18 +8,11 @@ readonly: true
 
 ## Scope
 
-The orchestrator supplies the changed-file scope. Apply the reviewer rules in
-`.cursor/dhpk/policies/execution-policy.md`; a semantic back-stop may
-dispatch this reviewer for a Repository method even when no path trigger matched.
-
-## When NOT
-
-- Migration reversibility / online DDL / up-down symmetry → `migration-reviewer`
-- Overall load or latency attribution, such as which work dominates end-to-end time or capacity → `performance-analyzer`
+Review the changed-file scope you were supplied, following `.cursor/dhpk/policies/execution-policy.md`.
 
 ## Stack trap sheet (load on demand)
 
-Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never check a relational SQL change against Core Data rules, or vice-versa.
+Detect the active stack, then load only the matching trap sheet(s); rules for other stacks (for example Core Data vs relational SQL) do not apply.
 
 1-2. Loader: `.cursor/dhpk/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `database-reviewer`). Manifest detection also covers `*.xcdatamodeld` and `pyproject.toml`'s `sqlalchemy`/`alembic` deps.
 3. **Engine overlay** (independent of framework): if a Postgres driver is present — `pg` / `postgres` / `@supabase/*` in `package.json`, `psycopg` / `asyncpg` / `sqlalchemy[postgresql]` in `pyproject.toml`, `*/pgsql*` in `composer.json`, or a `supabase/` dir — also Read `database-reviewer/postgres.md` for RLS / index / keyset-pagination traps.
@@ -41,7 +34,7 @@ loaded from a matching trap sheet take precedence over examples here.
 ## Checklist
 
 - [ ] All dynamic SQL parameter-bound
-- [ ] No N+1 (use `with()` eager load)
+- [ ] No N+1: eager-load relations instead of querying inside a loop
 - [ ] Hot WHERE/ORDER BY columns indexed; composite order matches predicate
 - [ ] Multi-step writes wrapped in transaction; consistent row update order
 - [ ] EXPLAIN sampled for complex queries (no full table scan)
@@ -49,21 +42,17 @@ loaded from a matching trap sheet take precedence over examples here.
 ## Boundary with migration review
 
 Schema-change reversibility, idempotency, naming collisions, online DDL, engine
-compatibility, and rollback execution belong to `migration-reviewer`. Keep this
-role on SQL correctness, data-access behavior, transactions, and query plans;
-do not duplicate the migration checklist. This role reports findings only; it
-does not edit queries or schemas or apply fixes unless a separate write
-authority explicitly delegates that scope. If no migration reviewer or
-child-dispatch tool is available, return an explicit escalation naming that
-missing capability and leave migration-specific evidence unresolved.
+compatibility, and rollback execution belong to `migration-reviewer`; latency
+attribution belongs to `performance-analyzer`. Stay on SQL correctness,
+data-access behavior, transactions, and query plans. This role reports findings
+only; it does not edit queries or schemas unless a separate write authority
+explicitly delegates that scope. If no migration reviewer or child-dispatch tool
+is available, escalate naming the missing capability and leave migration-specific
+evidence unresolved.
 
 ## Shared reviewer contract
 
-Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
-
-### Specialist checks
-
-This file retains SQL, repository, and migration checks unique to `database-reviewer`.
+Single-run verdict: write the final verdict in this run; escalate, if needed, after it is written.
 
 ## Output
 
@@ -84,5 +73,4 @@ Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, reten
 
 ## References
 
-- `.claude/rules/php/security.md` (PDO, IN/NOT IN)
-- `.claude/rules/php/patterns.md` (Repository conventions)
+- The consumer project's own security and repository rules, when present.

@@ -52,7 +52,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:f1130ddc2a1650af1948248217b7472876df747d030093aaff0df152271cdd94",
+      "sha256": "sha256:20dee256a882833bc3448b327300c848d5e580d7a53af7d275fb5770a25c7634",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {

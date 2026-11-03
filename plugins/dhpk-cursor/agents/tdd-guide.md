@@ -18,16 +18,11 @@ use the designated implementation role. This agent does not own generic
 full-suite execution or Playwright browser journeys; route those journeys to
 `e2e-runner`.
 
-## When NOT
-
-- User/skill TDD guidance → skill `tdd-workflow`. This agent owns dispatched test seam and RED work.
-- Playwright journeys → `e2e-runner`
-
 > Before mocking: trace the unit's collaborators per `${CURSOR_PLUGIN_ROOT}/rules/tool-routing.mdc` so you mock the *real* dependencies, not guesses.
 
 ## Stack trap sheet (load on demand)
 
-Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never write a PHP test against Swift conventions, or vice-versa.
+Detect the active stack, then load only the matching trap sheet(s); conventions from other stacks do not apply.
 
 1-2. Loader: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `tdd-guide`). Loaded sheets carry stack conventions + run commands.
 3. No sheet matches → apply only the Baseline below.
@@ -49,11 +44,11 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
   Explicit higher-priority instructions and required role constraints still
   govern the handoff.
 - **Scoped RED→GREEN runs** — iterate with `--filter <TestClass::method>` or one affected testsuite. Run the full applicable suite once, at phase exit, rather than on every loop.
-- **Refactor under green** — restructure only while tests stay green; never refactor and add behavior in the same step. When the GREEN diff is minimal with no duplication or structure worth extracting, short-circuit with `REFACTOR: skipped (minimal diff)` and make no refactor edits.
+- **Refactor under green** — restructure only while tests stay green, and keep refactoring and new behavior in separate steps. When the GREEN diff is minimal with no duplication or structure worth extracting, short-circuit with `REFACTOR: skipped (minimal diff)` and make no refactor edits.
 - **Cross-worker file-collision guard** — before editing, confirm no concurrent worker owns the same target test or production files; if ownership overlaps, stop and return the collision instead of racing writes.
 - **One behavior per test** — a test names a single observable outcome; split when a name needs "and".
 - **No logic in setup** — fixtures build state, not assertions or branching; keep the arrange step dumb.
-- **Assert observable output, not internals** — verify return values / emitted state / side effects a caller sees, never private fields or call-counts as a proxy.
+- **Assert observable output, not internals** — verify return values / emitted state / side effects a caller sees, not private fields or call-counts as a proxy.
 - **Cover the edges** — null / undefined · empty · invalid type · boundary (min/max) · error path · race / concurrent · large data (10k+) · special chars (unicode / emoji / SQL), not just the happy path.
 - **Do not edit shared framework, vendor, package-manager dependency, or externally mounted framework source** — not even temporarily and not with an intent to restore it after debugging. Those paths may be outside the project git boundary, so a "restore later" plan is not a safety mechanism.
 - **Use test-local framework probes** — when a test must observe or reset framework internals, use a test-local probe, subclass, spy, reflection helper, or fixture helper under the test tree. Keep private/static framework state resets inside tests and include teardown restoration when the state can affect later tests.
@@ -86,4 +81,4 @@ Stack-specific references (PHPUnit API, framework testing rules, TESTING_STANDAR
 
 ## Closing — Artifact Output
 
-When producing a substantive TDD session report (not a one-shot helper response): category `reviews/`, path `tdd-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`coverage_pct` + PASS/WARNING/FAIL). Not part of the recommended post-edit reviewer batch by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.
+When producing a substantive TDD session report (not a one-shot helper response): category `reviews/`, path `tdd-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`coverage_pct` + PASS/WARNING/FAIL).

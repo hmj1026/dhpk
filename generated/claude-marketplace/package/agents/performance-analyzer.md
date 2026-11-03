@@ -12,17 +12,13 @@ effort: medium
 
 ## Scope
 
-Audit query performance in the Repository (data-access) layer. `database-reviewer` owns correctness (bind parameters, IN/NOT IN, schema, transactions). This agent owns performance (latency, index usage, query count, N+1). Framework-agnostic — the relational perf checks apply to any data-access path. When a **frontend** (any JS / TS / Vue / React project) or **native** (`swift`) stack is detected, also audit client/runtime performance via the matching trap sheet (`frontend.md` / `swift.md`) — bundle size, render / re-render cost, memory leaks, Web Vitals, allocation hot paths.
-
-## When NOT
-
-- Bind params / schema / transactions (correctness, not latency) → `database-reviewer`
+Audit query performance in the Repository (data-access) layer. Leave correctness (bind parameters, IN/NOT IN, schema, transactions) to `database-reviewer`. This agent owns performance (latency, index usage, query count, N+1). Framework-agnostic — the relational perf checks apply to any data-access path. When a **frontend** (any JS / TS / Vue / React project) or **native** (`swift`) stack is detected, also audit client/runtime performance via the matching trap sheet (`frontend.md` / `swift.md`) — bundle size, render / re-render cost, memory leaks, Web Vitals, allocation hot paths.
 
 ## Stack trap sheet (load on demand)
 
-Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/MySQL change against another stack's perf rules, or vice-versa.
+Detect the active stack, then load only the matching trap sheet(s); perf rules for other stacks do not apply.
 
-1. **Shared detection**: follow `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `performance-analyzer`). Do not paste its detection order here.
+1. **Shared detection**: follow `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `performance-analyzer`).
 2. **Exceptions (keep inline)**:
    - Extra: root `pyproject.toml` `sqlalchemy` / `alembic` remain this agent's performance-specific detail.
    - Map module ids to the trap-sheet stack id before lookup: `js` / `vue-2` / React / Next → `frontend`; `swiftui` / `ios-platform` → `swift`. (Perf sheets are named `frontend.md` / `swift.md`.)
@@ -48,7 +44,7 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 
 - [ ] EXPLAIN reviewed: no `type=ALL` on tables with >10k rows
 - [ ] WHERE/ORDER BY columns indexed; composite index column order matches query predicate
-- [ ] No N+1: AR relations loaded with `with()`, not accessed inside a loop
+- [ ] No N+1: relations are eager-loaded, not accessed inside a loop
 - [ ] `LIMIT` applied before expensive sorting (filter first, sort after)
 - [ ] No unbounded `findAll()` on high-volume tables without a row cap
 - [ ] Pagination uses `LIMIT/OFFSET` (acceptable) or cursor (preferred for deep pages)
@@ -66,7 +62,7 @@ Suggestion: ...
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Not part of the recommended post-edit reviewer batch by default; this is a back-stop-only agent selected by the orchestrator for matching performance risk.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`.
 
 ## References
 

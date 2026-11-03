@@ -22,10 +22,6 @@ locally before pushing?"**
 > Running the full matrix in CI is fine; running it locally for every
 > change is wasteful. This agent finds the minimum-correct subset.
 
-## When NOT
-
-- Per-file guard coverage → `polyfill-reviewer`. This agent is the diff blast radius across matrix cells.
-
 ---
 
 ## Detect stack (run once at start)
@@ -152,8 +148,8 @@ Don't produce a per-cell table when one row would do.
 - **Testbench coupling (Laravel packages)**: `orchestra/testbench`'s
   version determines the Laravel version under test. Pinning Laravel
   alone without pinning testbench can resolve to a testbench that
-  expects a different Laravel — invalid cell. Always recommend both
-  versions in the suggested local run.
+  expects a different Laravel — invalid cell. Recommend both
+  versions in the suggested local run so the cell stays valid.
 - **PHPUnit attribute syntax break**: editing a test file in `tests/`
   with PHPUnit 10 attributes (`#[Test]`) will silently fail to register
   on PHPUnit 9 (which uses doc-comment annotations). If the executed
@@ -161,15 +157,12 @@ Don't produce a per-cell table when one row would do.
 
 ---
 
-## What this agent does NOT do
+## Boundaries
 
-- Replace `code-reviewer` — quality / security review still runs separately
-- Replace the `library-author polyfill-audit` skill — that audits a single
-  file's branch coverage in depth; this agent looks at a diff's blast
-  radius across many files
-- Audit `composer.json` itself — that's `composer-package-hygiene`'s job
-- Run the suggested tests — only **recommends** the command; the user runs it
+- Per-file guard branch coverage belongs to the `polyfill-reviewer` agent and the `library-author polyfill-audit` skill; this agent covers the diff's blast radius across matrix cells.
+- `composer.json` hygiene belongs to `composer-package-hygiene`; general quality and security review still run separately.
+- Recommend the test command; the user runs it.
 
 ## Closing — Artifact Output
 
-Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `version-matrix-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). Not part of the recommended post-edit reviewer batch by default; invoke this role as the orchestrator's version-matrix back-stop. Done when the risk table names every executed matrix cell the diff can break and the suggested local run is a runnable command.
+Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `version-matrix-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). Done when the risk table names every executed matrix cell the diff can break and the suggested local run is a runnable command.

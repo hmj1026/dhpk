@@ -50,7 +50,7 @@ Give each case exactly one verdict:
 - `BLOCKED`: the case could not start (environment, fixture, or tool failure).
 - `NOT_RUN`: the case needs an authorization or input you do not have.
 
-Every verdict cites observed evidence: visible values, on-screen messages, receipt numbers, or read-only query results. Transport success alone is never a `PASS`. An HTTP 200 without the expected visible state is not a pass. When a case fails, capture the state needed to reproduce it, and report a suspected cause separately from what you observed.
+Every verdict cites observed evidence: visible values, on-screen messages, receipt numbers, or read-only query results. Transport success alone is not a `PASS`. An HTTP 200 without the expected visible state is not a pass. When a case fails, capture the state needed to reproduce it, and report a suspected cause separately from what you observed.
 
 Update the results file after each case so partial progress survives an interruption. Leave the environment as the case leaves it unless the brief prescribes cleanup.
 
