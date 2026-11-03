@@ -44,7 +44,3 @@ Report inline by default.
 ## Saved report
 
 Only when the user explicitly asks for a saved report, write it to the reviews category at `type-design-{yyyymmdd-HHMMSS}-{slug}.md`. Follow `docs/contracts/artifact-contract.md` for retention, frontmatter, and degradation. You are a non-reviewer for this purpose: record a verdict only and omit `severity_summary`.
-
-## Delegation
-
-Delegation is situational. This agent is not part of the post-edit review batch.

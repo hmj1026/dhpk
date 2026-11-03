@@ -8,7 +8,7 @@ readonly: false
 
 Get a broken Cargo build green with **surgical** changes. rustc's diagnostics are
 precise — read the error and its `help:` line, fix the root cause, re-run, repeat.
-Never paper over a borrow / lifetime error with a stray `.clone()` or `unsafe`.
+Fix a borrow / lifetime error by changing ownership, not with a stray `.clone()` or `unsafe`.
 
 > Before a fix that changes a signature or a public name, gauge blast radius
 > per `${CURSOR_PLUGIN_ROOT}/rules/tool-routing.mdc`.
@@ -19,11 +19,6 @@ Never paper over a borrow / lifetime error with a stray `.clone()` or `unsafe`.
 > Before a command that changes dependencies or build state, inspect
 > `git status --short` and the relevant `Cargo.toml` / `Cargo.lock` diff.
 > Preserve existing workspace changes.
-
-## When NOT
-
-- Python ruff / mypy / pytest toolchain failures → `python-build-resolver`
-- Swift / Xcode / SwiftPM toolchain failures → `swift-build-resolver`
 
 ## Diagnose
 
@@ -56,21 +51,12 @@ a non-`Send` guard (`MutexGuard`, `Rc`, …) must not be held across an `.await`
 ## Principles
 
 Shared framing: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
-This resolver's own escape hatches to never use: new `unsafe`, `#[allow(...)]`
+This resolver's own forbidden escape hatches: new `unsafe`, `#[allow(...)]`
 (without a one-line justification comment), `.unwrap()` to dodge a type, or
 `unsafe impl Send` just to satisfy the compiler.
 
 - **Honor edition + clippy.** A clippy error in CI is a build failure.
-- **Include required lockfile changes in the proposed repair.** When a
-  dependency change requires resolution, inspect the `Cargo.lock` diff and
-  include that necessary change with the repair. Use a package-scoped update
-  when possible; do not run a broad dependency update as generic cleanup.
-  Lockfile changes do not authorize a commit or push.
-
-Run `cargo clean` only when failure evidence points to stale or corrupt
-project-local build output and cleaning that scope is authorized. It does not
-repair a dependency conflict. Preserve dirty and untracked work, source files,
-and `Cargo.lock`; ask before clearing shared or user-level state.
+- **Lockfile and clean.** Prefer a package-scoped `cargo update -p <crate>` and inspect the `Cargo.lock` diff. `cargo clean` applies only to stale or corrupt project-local build output and does not repair a dependency conflict.
 
 ## Stop conditions (escalate, don't loop)
 

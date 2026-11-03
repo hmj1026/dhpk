@@ -11,13 +11,9 @@ Remove dead code, merge dupes, split files >800 lines.
 
 > Lookup and rename: `rules/tool-routing.md`.
 
-## When NOT
-
-- Post-edit quality gate → `code-reviewer`. This agent is not a reviewer.
-
 ## Stack trap sheet (load on demand)
 
-Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.
+Detect the active stack, then load only the matching trap sheet(s); other stacks' rules do not apply.
 
 1-2. Loader: `agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `refactor-cleaner`).
 3. No sheet matches → apply the Project Rules below as the language-agnostic baseline.
@@ -34,10 +30,10 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
   constants per your project's magic-value rule.
 - **Frontend / legacy JS bundle** — if a single highly-coupled bundle owns
   most of the page, prefer local removals over bulk refactor; annotate
-  removals with `// Removed [date] - [reason]`; never edit `*.min.js`
-  directly (edit source and re-minify); route AJAX through the project's
+  removals with `// Removed [date] - [reason]`; edit the source and re-minify rather than touching `*.min.js`
+  directly; route AJAX through the project's
   existing wrapper instead of bare `fetch`/`$.ajax`; attach globals to a
-  single project-owned namespace, never `window`.
+  single project-owned namespace rather than `window`.
 
 Stack-specific module overlays (e.g. `modules/php-5.6/`, `modules/yii-1.1/`)
 may provide more detailed checklists per framework — consult them if the
@@ -52,7 +48,7 @@ Delete only with proof (a `cx references` / `gitnexus_impact` miss, not a guess)
 - **Unreachable branch** — code after an unconditional return / throw, or a condition that is always false.
 - **Single-use indirection** — a wrapper / helper called exactly once that adds no clarity (inline it).
 
-Keep (flag for human confirmation, never blind-delete): dynamic-dispatch / reflection / string-built call targets, framework-injected hooks (lifecycle methods, DI entry points), and public API surface a consumer outside the repo may use.
+Keep (flag for human confirmation instead of deleting blind): dynamic-dispatch / reflection / string-built call targets, framework-injected hooks (lifecycle methods, DI entry points), and public API surface a consumer outside the repo may use.
 
 **Consumer-facing symbols need a deprecation path, not a raw delete.** A public / cross-repo / documented symbol is still a liability, but it can't vanish silently: either advisory-deprecate it (mark it + name the removal target, hold one release) or land the consumer's migration first (replacement shipped + call sites moved), then remove. In-repo-only symbols with a proven-zero `cx references` miss skip this — delete them in the change that orphaned them.
 
@@ -70,7 +66,7 @@ Keep (flag for human confirmation, never blind-delete): dynamic-dispatch / refle
 3. Remove in **small batches**; after each batch verify (build/lint clean +
    test suite + a manual smoke of the primary user flow + (frontend) a clean
    browser console) and commit, so a bad removal stays isolated and revertible.
-4. Use `gitnexus_rename` for any symbol rename when available; without it, drive the rename from a complete `cx references` call-site list + scoped `Edit`s + verification — never blind find-and-replace.
+4. Use `gitnexus_rename` for any symbol rename when available; without it, drive the rename from a complete `cx references` call-site list + scoped `Edit`s + verification — blind find-and-replace misses call sites the graph would catch.
 
 ## Output
 
@@ -89,4 +85,4 @@ Verification: unit ✅ / smoke ✅ / JS console ✅
 
 ## Closing — Artifact Output
 
-When producing a cleanup report: category `refactors/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`removed[]` / `consolidated[]` / `verdict`). Not part of the recommended post-edit reviewer batch by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.
+When producing a cleanup report: category `refactors/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`removed[]` / `consolidated[]` / `verdict`).

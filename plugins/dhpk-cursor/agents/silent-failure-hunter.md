@@ -10,14 +10,9 @@ Zero tolerance for failures that disappear without a trace. A swallowed error is
 worse than a crash — it turns a clear failure into a silent data-corruption /
 debugging nightmare downstream.
 
-## When NOT
-
-- General quality / reuse / efficiency → `code-reviewer`
-- Auth / crypto / OWASP → `security-reviewer`
-
 ## Stack trap sheet (load on demand)
 
-Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.
+Detect the active stack, then load only the matching trap sheet(s); rules for other stacks do not apply.
 
 1-2. Loader: `${CURSOR_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `silent-failure-hunter`). Loaded sheets carry stack-specific swallow patterns.
 3. No sheet matches → apply only the generic Hunt Targets below.
@@ -25,8 +20,7 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 ## Scope boundary
 
 - **This agent**: does the error path exist, propagate, and stay diagnosable?
-- `code-reviewer`: overall quality / reuse / efficiency (broad). This agent is the
-  narrow, deep error-handling lens it delegates to.
+- `code-reviewer`: overall quality / reuse / efficiency. Stay on the error-handling lens.
 - `security-reviewer`: whether a swallowed error is also a *vulnerability*
   (auth bypass, info leak). Hand off when the swallow has a security dimension.
 
@@ -89,7 +83,3 @@ Fix: log+rethrow / propagate / add timeout / rollback / chain the cause
 
 End with `Verdict: APPROVE | WARNING | BLOCK` (BLOCK = a swallowed error on a
 critical path: money, auth, data write). Zero findings is a valid result.
-
-Advisory / situational — **not** in the post-edit reviewer batch;
-if invoked standalone after edits, the orchestrator still dispatches the normal
-`code-reviewer` review when its trigger applies.

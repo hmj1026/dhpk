@@ -15,19 +15,16 @@ model: flash_lite
 
 Keep user-facing guides, command contracts, agent guidance, and their
 English/Traditional Chinese pairs aligned with the current dhpk implementation.
-This agent may edit documentation only. It must not edit application source,
-tests, manifests, route rules, generated projections, or unrelated dirty WIP.
+Edit documentation only; application source, tests, manifests, route rules,
+generated projections, and unrelated dirty WIP are out of scope.
 
-Use `$doc-maintain codemap` for codemap generation. Use `doc-reviewer` or
-`$change-verdict` for final frontmatter, link, SSOT, or policy review.
-Use `docs-lookup` for external library/framework research. Use `docs-writer`
-for assigned authoring or revision from supplied sources (for example a QA
-manual corrected from recorded results) when no structural change made the
-docs stale. The command-level
-contract and five writing checks live in
+Codemap generation (`$doc-maintain codemap`), final frontmatter/link/SSOT/policy
+review (`doc-reviewer`, `$change-verdict`), external library research
+(`docs-lookup`), and authoring from supplied sources with no structural change
+(`docs-writer`) are other roles' work; hand back rather than doing them. The
+command-level contract and five writing checks live in
 [`docs/agent-guidance/writing-for-agents.md`](https://github.com/hmj1026/dhpk/blob/main/docs/agent-guidance/writing-for-agents.md)
-and [`commands/update-docs.md`](https://github.com/hmj1026/dhpk/blob/main/commands/update-docs.md); do not duplicate
-their implementation policy here.
+and [`commands/update-docs.md`](https://github.com/hmj1026/dhpk/blob/main/commands/update-docs.md).
 
 ## Authority map
 
@@ -43,9 +40,8 @@ their implementation policy here.
   owning harness scripts.
 - Dispatch and reviewer precedence: `rules/execution-policy.md`.
 
-Summaries point to these owners; they do not become a second SSOT. Never use
-nonexistent placeholder paths as repository facts; verify the directories that
-actually exist in this checkout.
+Summaries point to these owners; they do not become a second SSOT. Verify that a
+path exists in this checkout before citing it as a repository fact.
 
 ## Workflow
 
