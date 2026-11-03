@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.70.2",
-  "sourceCommit": "2de0bbc0091600a834e68e5eeae3d135ab954a3f",
-  "generatedFromCommit": "2de0bbc0091600a834e68e5eeae3d135ab954a3f",
-  "generatedFromTree": "f5778f98d20b51a60ae87bad18cf50413f12034d",
+  "sourceCommit": "8acdc57ff207903126d4277b32590a57d3b7643b",
+  "generatedFromCommit": "8acdc57ff207903126d4277b32590a57d3b7643b",
+  "generatedFromTree": "dd7ef80973eb87dffa0b4a73281d079922ce31fd",
   "inventoryDigest": "9652df64536c38a1848336f5c9bcc223b64af479be2cac956ff5c2d2477780dd",
   "inventoryRevision": "sha256:2a4162add824afcaf2074bf416ce706ed7ba0a42fdb062575a09e65f118986d8",
   "generatorVersion": "2.4.0",
@@ -2058,7 +2058,7 @@
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/SKILL.md",
         "destination": "skills/opsx-apply-resume/SKILL.md",
-        "originalGitBlobDigest": "e66d72a8e0ede8d0e7961bb3281666513b7f3883"
+        "originalGitBlobDigest": "a1042f3e5892293feadea8dd5e2d79be1bd4212c"
       },
       {
         "ownerId": "opsx-apply-resume",
@@ -2076,7 +2076,7 @@
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/evals/evals.json",
         "destination": "skills/opsx-apply-resume/evals/evals.json",
-        "originalGitBlobDigest": "06fff98ee705083984a86cae7d32f7b1ca7891b4"
+        "originalGitBlobDigest": "5fcfdab4d09d30597ebe57d0d61f04524502536d"
       },
       {
         "ownerId": "opsx-apply-resume",
@@ -2094,19 +2094,19 @@
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/references/resume.md",
         "destination": "skills/opsx-apply-resume/references/resume.md",
-        "originalGitBlobDigest": "5799e1296bfa1e75b1d254b4864a02ec17bf552b"
+        "originalGitBlobDigest": "e8657acba740cf3d25c74db02e42abb4e9b4ac13"
       },
       {
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/references/save.md",
         "destination": "skills/opsx-apply-resume/references/save.md",
-        "originalGitBlobDigest": "6272137f143e6543548191fa5679ce7a45228acc"
+        "originalGitBlobDigest": "a47265164eeffcb617f2899a5204e5b3a2342d6c"
       },
       {
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/scripts/detect-phase.sh",
         "destination": "skills/opsx-apply-resume/scripts/detect-phase.sh",
-        "originalGitBlobDigest": "c4c59f76955977ced29e011211a432362222b7bc"
+        "originalGitBlobDigest": "dbc21930bbc3f25adaece31edca43a6f4709a60f"
       },
       {
         "ownerId": "opsx-apply-resume",
@@ -2130,7 +2130,7 @@
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
         "destination": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
-        "originalGitBlobDigest": "5e15fc13bc46c11b95cb3ddea153fd7544adb296"
+        "originalGitBlobDigest": "3354e27199912986e5c1f214fde1fbb7e3c713cc"
       },
       {
         "ownerId": "opsx-apply-resume",
@@ -2178,7 +2178,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/proposal-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/SKILL.md",
-        "originalGitBlobDigest": "d88239cde172e9fcd876b7efab6a1b050e5eb1fe"
+        "originalGitBlobDigest": "2bdc45c8c39a47406fca579fab72cc1f5a2ba8ea"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2196,7 +2196,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/issue-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/references/issue-analyze/SKILL.md",
-        "originalGitBlobDigest": "837efb4f2cde048296f30af2d6db3b7be9d7d7d3"
+        "originalGitBlobDigest": "8a87a9eb95377ec1a04ad8afd17cbe8fcd4562d3"
       },
       {
         "ownerId": "proposal-analyze",
@@ -5678,9 +5678,9 @@
     "git-smart-commit": "9279cd262a75639559d49229592ce7f13492d3a4c187b9f31522ba5f96e7dc76",
     "git-worktree": "ca92194954739679923d809fc5b0484c589f3da8caaced73b964ea62d6df8c28",
     "library-author": "7cbc852e03a358d9f22ba7fa250a83cf90cad0223c4f2ae5df9e8d3d5c9842dd",
-    "opsx-apply-resume": "b91bce3ab650f1f022c00023d2d246b1b2b2a94453865b6832adaadacb75b764",
+    "opsx-apply-resume": "1fd6ca81433cf237d6099c0a1b5ed776a3643825a3c4c7918126b90ecc68e29e",
     "precommit": "47f9d5d6a8f7448cae6ec9865bfc7983349d6242724a666cd5775dc2e158d850",
-    "proposal-analyze": "8dcc9674a2af1b1da42a6e9f11e89b06f2f5b2b6a82c40e12cb3a2892f608e40",
+    "proposal-analyze": "b2d81e27e4a98fb339f00502d5c2adbb1a31c2ef8507779810041a2fe19d4cc3",
     "release-creator": "8cf0c690d9ba19d54f69730afef0345da170bac02e6b3d5ad9a9eedd8801703a",
     "repo-verify": "05eedd0c74bf29d2a63efd227a1b836f9d7a014fc0237d4141233cbbdcbaa286",
     "tdd-workflow": "d92062cb165f828b280380bc5c3cd26305fee12d09f8288e151cdec0d84f35ce",

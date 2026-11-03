@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.70.2",
-  "sourceCommit": "2de0bbc0091600a834e68e5eeae3d135ab954a3f",
-  "generatedFromCommit": "2de0bbc0091600a834e68e5eeae3d135ab954a3f",
-  "generatedFromTree": "f5778f98d20b51a60ae87bad18cf50413f12034d",
+  "sourceCommit": "8acdc57ff207903126d4277b32590a57d3b7643b",
+  "generatedFromCommit": "8acdc57ff207903126d4277b32590a57d3b7643b",
+  "generatedFromTree": "dd7ef80973eb87dffa0b4a73281d079922ce31fd",
   "inventoryDigest": "9652df64536c38a1848336f5c9bcc223b64af479be2cac956ff5c2d2477780dd",
   "inventoryRevision": "sha256:2a4162add824afcaf2074bf416ce706ed7ba0a42fdb062575a09e65f118986d8",
   "generatorVersion": "1.1.0",
@@ -1948,7 +1948,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/proposal-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/SKILL.md",
-        "originalGitBlobDigest": "d88239cde172e9fcd876b7efab6a1b050e5eb1fe"
+        "originalGitBlobDigest": "2bdc45c8c39a47406fca579fab72cc1f5a2ba8ea"
       },
       {
         "ownerId": "proposal-analyze",
@@ -1966,7 +1966,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/issue-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/references/issue-analyze/SKILL.md",
-        "originalGitBlobDigest": "837efb4f2cde048296f30af2d6db3b7be9d7d7d3"
+        "originalGitBlobDigest": "8a87a9eb95377ec1a04ad8afd17cbe8fcd4562d3"
       },
       {
         "ownerId": "proposal-analyze",

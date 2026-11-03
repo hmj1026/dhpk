@@ -18,9 +18,8 @@ Use the package-local `"$SKILL_DIR/scripts/"` helpers:
 - `"$SKILL_DIR/scripts/write-handoff.sh"` — atomically writes the complete handoff payload from
   stdin to one explicit path; it requires the `python3` capability.
 
-The Host adapter resolves `HANDOFF_PATH` as
-`.claude/artifacts/apply-resume/latest.md` for Claude or
-`.dhpk/artifacts/apply-resume/latest.md` for Codex. Pass that path explicitly
+Resolve `HANDOFF_PATH` as `.scratch/<change-id>/apply-resume.md` on every Host, using the `change-id` selected in step 5 (Identify the change); resolve the path before the first helper call and stop `BLOCKED` when no change can be selected.
+Pass that path explicitly
 as the helper's trailing handoff-path argument (for example,
 `"$SKILL_DIR/scripts/detect-phase.sh" "$HANDOFF_PATH"` or
 `"$SKILL_DIR/scripts/set-handoff-state.sh" consuming "$HANDOFF_PATH"`); never
