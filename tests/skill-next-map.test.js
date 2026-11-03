@@ -90,13 +90,27 @@ test('an isolated analyzer consumes declarations and keeps explicit-only handoff
     assert.strictEqual(gateAction.skill, 'change-verdict');
     assert.strictEqual(gateAction.mode, 'code');
     assert.strictEqual(gateAction.handoff.execution, 'not-started');
+    fs.appendFileSync(path.join(root, '.git', 'info', 'exclude'), '.claude_review_state.json\n');
+    for (const args of [['add', '-A'], ['commit', '-qm', 'fixture skills']]) {
+      assert.strictEqual(spawnSync('git', args, { cwd: root }).status, 0);
+    }
+    const fixtureHead = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim();
+    assert.match(fixtureHead, /^[0-9a-f]{7,}$/);
+    const analyzeJson = () => JSON.parse(spawnSync('node', [path.join(guide, 'scripts', 'analyze.js'), '--json'], { cwd: root, encoding: 'utf8' }).stdout);
+    for (const unbound of [
+      { head: 'f'.repeat(40), last_skill: { name: 'tdd-workflow', state: 'PASS' } },
+      { last_skill: { name: 'tdd-workflow', state: 'PASS' } },
+    ]) {
+      fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify(unbound));
+      assert.strictEqual(analyzeJson().next_actions.find(item => item.id === 'declared-next'), undefined);
+    }
     for (const [lastSkill, expected, disposition] of [
       [{ name: 'tdd-workflow', state: 'PASS' }, 'repo-verify', 'advice'],
       [{ name: 'tdd-workflow', state: 'PARTIAL' }, 'tdd-workflow', 'advice'],
       [{ name: 'doc-maintain', mode: 'update', state: 'PASS' }, 'git-smart-commit', 'explicit-required'],
       [{ name: 'doc-maintain', mode: 'codemap', state: 'PASS' }, null, 'advice'],
     ]) {
-      fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify({ last_skill: lastSkill }));
+      fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify({ head: fixtureHead, last_skill: lastSkill }));
       const result = spawnSync('node', [path.join(guide, 'scripts', 'analyze.js'), '--json'], { cwd: root, encoding: 'utf8' });
       const report = JSON.parse(result.stdout);
       assert.strictEqual(report.version, 2);
@@ -107,7 +121,7 @@ test('an isolated analyzer consumes declarations and keeps explicit-only handoff
       assert.strictEqual(action.handoff.execution, 'not-started');
       assert.strictEqual(action.handoff.disposition, disposition);
     }
-    fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify({ last_skill: { name: 'tdd-workflow', state: 'PASS' } }));
+    fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify({ head: fixtureHead, last_skill: { name: 'tdd-workflow', state: 'PASS' } }));
     for (const [script, args, host, command] of [
       ['analyze.js', [], 'claude-code', '/dhpk:repo-verify'],
       ['action-runner.js', ['next', '--host', 'codex-cli'], 'codex-cli', '$repo-verify'],
