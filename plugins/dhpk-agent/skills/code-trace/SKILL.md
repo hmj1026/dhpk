@@ -1,6 +1,6 @@
 ---
 name: code-trace
-description: "Trace unfamiliar code, diagnose a reproducible failure, investigate history, or select one code-navigation tool. Use when evidence must follow symbols, callers, data flow, regressions, or tool choice. Not for implementing a confirmed fix, reviewing a proposed diff, or plain-text/document search. Output: an evidence-backed trace, root-cause state, history report, or executable tool route."
+description: "Trace unfamiliar code, diagnose a reproducible failure, investigate history, or pick a code-navigation tool, following symbols, callers, data flow, or regressions. Not for implementing a fix, reviewing a diff, or plain-text search. Output: an evidence-backed trace or root cause."
 metadata:
   dhpk-capability-id: "dhpk.skill.code-trace"
   dhpk-invocation-class: "implicit-eligible"
