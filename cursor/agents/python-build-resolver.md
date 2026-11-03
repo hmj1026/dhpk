@@ -7,7 +7,7 @@ readonly: false
 # Python Build Resolver
 
 Get a failing Python toolchain command green with **surgical** changes. Read the
-error, fix the root cause, re-run, repeat — never silence a check to make it pass.
+error, fix the root cause, re-run, repeat; a silenced check hides the real failure.
 
 > Before a fix that changes a signature or a public name, gauge blast radius
 > per `.cursor/rules/tool-routing.mdc`.
@@ -18,11 +18,6 @@ error, fix the root cause, re-run, repeat — never silence a check to make it p
 > Before a command that changes the environment or lockfile, inspect
 > `git status --short` and the relevant `pyproject.toml`, `uv.lock`, or
 > `poetry.lock` diff. Preserve existing workspace changes.
-
-## When NOT
-
-- Rust / Cargo toolchain failures → `rust-build-resolver`
-- Swift / Xcode / SwiftPM toolchain failures → `swift-build-resolver`
 
 ## Diagnose
 
@@ -57,20 +52,10 @@ module references when those modules are active.
 ## Principles
 
 Shared framing: `.cursor/dhpk/agent-traps/_common/build-resolver-skeleton.md`.
-This resolver's own escape hatches to never use: blanket `# noqa`, `# type: ignore`,
+This resolver's forbidden escape hatches: blanket `# noqa`, `# type: ignore`,
 `--no-verify`, or deleting an assertion just to go green.
 
-- **Include required lockfile changes in the proposed repair.** When a
-  dependency-constraint change or a verified stale lockfile requires
-  regeneration, update only the affected dependency set, inspect the resulting
-  `uv.lock` or `poetry.lock` diff, and re-run the failing command. Do not
-  regenerate or broadly upgrade dependencies as a generic repair. Lockfile
-  changes do not authorize a commit or push.
-
-Recreate an environment or clear package caches only when the observed failure
-points to corruption and the affected paths and scope are known and authorized.
-Preserve dirty and untracked files, lockfiles, and source. Ask before removing
-shared or user-level state; report the exact cleanup scope when it is required.
+Lockfile files here are `uv.lock` / `poetry.lock`; the skeleton's lockfile and cleanup rules apply to them.
 
 ## Stop conditions (escalate, don't loop)
 

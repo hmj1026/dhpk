@@ -22,4 +22,4 @@ Verify one rendered page against one supplied UI specification. Work as a read-o
 
 ## Completion
 
-Return the checked page and specification, observations, interaction outcomes, verdict, and evidence gaps inline. Never infer a successful save or a product defect from a transport response alone.
+Return the checked page and specification, observations, interaction outcomes, verdict, and evidence gaps inline. Base any claim of a successful save or a product defect on page-visible evidence; a transport response alone does not establish either.

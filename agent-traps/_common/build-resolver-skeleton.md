@@ -24,6 +24,15 @@ Per the Anti-Loop Protocol, **stop after 3 failed attempts on the same error** a
 
 On stop, output: the attempt log (what was tried + each error), ≥2 alternative paths with trade-offs, and a recommendation.
 
+## Verification greps
+
+When a verification grep targets `$` (as in `${CLAUDE_PLUGIN_ROOT}`), `§`,
+fullwidth punctuation, or other non-ASCII text, use fixed-string matching
+(`grep -F`). Under some locales (for example `zh_TW.UTF-8`) a BRE `$` next to
+a multibyte character silently matches zero times even when the string is
+present. Re-check any unexpected zero-match result with `grep -F` before
+reporting it as a failure.
+
 ## Handoff
 
 After a green run, hand the diff to `code-reviewer` (and `security-reviewer` if the change touched auth/crypto/privacy/file paths) — this agent fixes the build; it does not self-approve the change.

@@ -439,7 +439,7 @@
       "id": "codex-supporting-agent-traps-_common-build-resolver-skeleton-md",
       "source": "codex/supporting/agent-traps/_common/build-resolver-skeleton.md",
       "canonical_source": "agent-traps/_common/build-resolver-skeleton.md",
-      "canonical_digest": "6dba9375b0fe8834f9086b423e5e6f812e83c29ed2800aed85550d24907868e5",
+      "canonical_digest": "bd9e3cf0e81d522ae4ac9d0b2880cc5eac2a162de536deb572015a2c8145c8e5",
       "projection_digest": "21b71a73d06407fb8a561b885a07d318630f0a44c93b91ac1b90ac0ddabd4041",
       "destination": "dhpk/agent-traps/_common/build-resolver-skeleton.md"
     },
