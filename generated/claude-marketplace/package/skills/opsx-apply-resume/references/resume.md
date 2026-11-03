@@ -8,10 +8,16 @@ commit or compact note, is authoritative.
 
 Resolve `HANDOFF_PATH` before reading state:
 
-| Host | Handoff |
+| Order | Handoff |
 | --- | --- |
-| Claude | `.claude/artifacts/apply-resume/latest.md` |
-| Codex | `.dhpk/artifacts/apply-resume/latest.md` |
+| 1 | `.scratch/<change-id>/apply-resume.md` (all Hosts) |
+| 2 legacy | `.claude/artifacts/apply-resume/latest.md` |
+| 3 legacy | `.dhpk/artifacts/apply-resume/latest.md` |
+
+Use the first file that exists. Without a change ID, select the single
+`.scratch/*/apply-resume.md` in `saved` or `consuming` state (archived
+`consumed-*.md` files are ignored); when none exists, try the two legacy files,
+else ask.
 
 `$SKILL_DIR` denotes the physical directory containing the selected `SKILL.md`;
 it is path notation, not an ambient environment variable or repository-root
@@ -67,8 +73,9 @@ Codex may continue in the current turn or start a new turn, with no required
    `consuming` state without starting a new transition, and stop with one
    resume command.
 7. **Archive only after success.** After successful completion, set `consumed`
-   and move `latest.md` to a timestamped `consumed-*.md` beside it. Never
-   delete the handoff. If apply did not complete, keep `latest.md` in
+   and move the resolved handoff to a timestamped `consumed-*.md` in the same
+   directory. Never
+   delete the handoff. If apply did not complete, keep the handoff in
    `consuming` state.
 8. **Choose the next route.** Re-read live tasks. Remaining tasks recommend
    another apply (and a future handoff when context grows); all tasks done with
@@ -87,7 +94,7 @@ availability/result, archive path when successful, and exactly one next action.
 - [ ] Legacy `Remaining Tasks` and existing model-suggestion values remain
       readable; the suggestion is advisory and does not trigger a model change.
 - [ ] External continuation used only the canonical available skill.
-- [ ] `consumed-*` exists only after success; failed apply retains recoverable
-      `latest.md`.
+- [ ] `consumed-*` exists only after success; failed apply retains the recoverable
+      handoff.
 - [ ] Live worktree status, uncommitted files, and provider limitations remain
       visible.

@@ -588,4 +588,45 @@ test('write-handoff reports an unavailable Python capability without a shell fal
   });
 }
 
+// Host-neutral scratch path (add-skill-content-handoff REQ-7): the helpers keep
+// their explicit-path contract, so the new path and the legacy path both work.
+const SET_STATE_HELPER = path.join(ROOT, 'skills', 'opsx-apply-resume', 'scripts', 'set-handoff-state.sh');
+
+test('helpers accept an explicit .scratch/<change-id>/apply-resume.md path', () => {
+  const tmp = mkTmp();
+  try {
+    const rel = path.join('.scratch', 'c1', 'apply-resume.md');
+    const written = runWrite(tmp, rel, 'state: saved\nsaved_at: 2020-01-01T00:00:00Z\n');
+    assert.strictEqual(written.status, 0, `${written.stdout}\n${written.stderr}`);
+    assert.ok(fs.existsSync(path.join(tmp, rel)), 'handoff is written at the scratch path');
+    const detected = runDetect(tmp, rel);
+    assert.strictEqual(detected.status, 0, detected.stderr);
+    assert.strictEqual(detected.stdout.trim(), 'resume');
+    const set = spawnSync('bash', [SET_STATE_HELPER, 'consuming', rel], { cwd: tmp, encoding: 'utf8', timeout: 10_000 });
+    assert.strictEqual(set.status, 0, `${set.stdout}\n${set.stderr}`);
+    assert.match(fs.readFileSync(path.join(tmp, rel), 'utf8'), /^state: consuming$/m);
+    assert.strictEqual(runDetect(tmp, rel).stdout.trim(), 'consuming');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('detect-phase still reads an explicit legacy apply-resume path', () => {
+  const tmp = mkTmp();
+  try {
+    for (const legacy of [
+      path.join('.claude', 'artifacts', 'apply-resume', 'latest.md'),
+      path.join('.dhpk', 'artifacts', 'apply-resume', 'latest.md'),
+    ]) {
+      fs.mkdirSync(path.dirname(path.join(tmp, legacy)), { recursive: true });
+      fs.writeFileSync(path.join(tmp, legacy), 'state: consuming\nsaved_at: 2020-01-01T00:00:00Z\n');
+      const detected = runDetect(tmp, legacy);
+      assert.strictEqual(detected.status, 0, detected.stderr);
+      assert.strictEqual(detected.stdout.trim(), 'consuming', legacy);
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 run('write-handoff');

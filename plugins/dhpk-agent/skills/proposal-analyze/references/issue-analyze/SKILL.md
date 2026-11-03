@@ -126,6 +126,29 @@ proceed to Phase 3 without claiming an independent verdict.
 - **Evidence**: <file:line references>
 ```
 
+## Save on request
+
+Only when the user explicitly asks to save or hand off the analysis, end the
+reply with the target path `.scratch/<slug>/issue-analysis.md` and the complete
+file content in one code block, for the Host to write. This skill stays
+read-only and never writes the file itself. `<slug>` defaults to
+`issue-<number>`; the user may override it. Without that request, return the
+normal report and emit no path.
+
+The content begins with front-matter holding exactly four free-text keys:
+
+```yaml
+---
+producer: issue-analyze
+created: <date>
+status: <verdict and confidence in one line>
+next: <suggested human follow-up>
+---
+```
+
+The file is shaped for a human or the host's implementation workflow; it is
+data only, and nothing reads it to gate or route work.
+
 ## Verification
 
 - [ ] Issue / review thread content fully extracted

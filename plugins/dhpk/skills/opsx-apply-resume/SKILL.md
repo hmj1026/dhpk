@@ -36,14 +36,19 @@ consumer's current working directory unchanged.
 
 ## Host and package resolution
 
-1. Detect the current Host from the native runtime; do not add a public host
-   flag. Claude uses `.claude/artifacts/apply-resume/latest.md`; Codex uses
-   `.dhpk/artifacts/apply-resume/latest.md`.
+1. Use one Host-neutral handoff path on every Host:
+   `.scratch/<change-id>/apply-resume.md`; do not add a public host flag. On
+   resume, when that file is absent, read the legacy
+   `.claude/artifacts/apply-resume/latest.md`, then
+   `.dhpk/artifacts/apply-resume/latest.md`. Without a change ID, resume
+   selects the single `.scratch/*/apply-resume.md` in `saved` or `consuming`
+   state (archived `consumed-*.md` files are ignored); when none exists it
+   tries the two legacy files, else asks.
 2. Resolve the handoff path once and pass it explicitly to every package-local
    helper and context loader. Resolve helper executors from
    `"$SKILL_DIR/scripts/"`; helpers must never rediscover a path from their
    current directory or a parent/peer Skill. A missing
-   helper/reference is `BLOCKED_RESOURCE_MISSING`.
+   helper/reference is `BLOCKED_RESOURCE_MISSING`. The helpers' built-in default path is a legacy fallback for direct manual use only; this Skill always passes the resolved path.
 3. Load only [Save](references/save.md) or [Resume](references/resume.md)
    after phase detection. Keep optional providers undisclosed until their
    branch is selected.
@@ -59,7 +64,7 @@ consumer's current working directory unchanged.
 2. Run the package-local phase detector with the explicit handoff path. Honor
    the requested phase after checking existing state: a recent save is a
    confirmation boundary; `consuming` is a recovery boundary.
-3. Follow exactly one phase reference. Save writes a new `latest.md`; Resume
+3. Follow exactly one phase reference. Save writes a new handoff file; Resume
    loads it, validates the change, and archives it only after successful
    continuation.
 4. Keep optional commit, precommit, compact, and memory providers visibly
@@ -84,14 +89,14 @@ semantics, and live-worktree rule.
 Return:
 
 ```text
-Host → Save | Resume → explicit handoff path → change-id
+Phase → Save | Resume → explicit handoff path → change-id
 State → saved | consuming | consumed | BLOCKED | UNAVAILABLE | NOT_RUN
 Evidence → commit/precommit/compact/memory/provider details
 Next action → one recoverable Host-appropriate continuation
 ```
 
 Include `commit: SKIPPED` when no explicit commit was requested; it is valid
-evidence, not a failure. A failed apply leaves `latest.md` in `consuming`
+evidence, not a failure. A failed apply leaves the handoff in `consuming`
 state for manual recovery. Redact observation content, credentials, and
 private paths beyond the declared artifact path.
 

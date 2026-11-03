@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.70.2",
-  "sourceCommit": "2de0bbc0091600a834e68e5eeae3d135ab954a3f",
-  "generatedFromCommit": "2de0bbc0091600a834e68e5eeae3d135ab954a3f",
-  "generatedFromTree": "f5778f98d20b51a60ae87bad18cf50413f12034d",
+  "sourceCommit": "8acdc57ff207903126d4277b32590a57d3b7643b",
+  "generatedFromCommit": "8acdc57ff207903126d4277b32590a57d3b7643b",
+  "generatedFromTree": "dd7ef80973eb87dffa0b4a73281d079922ce31fd",
   "inventoryDigest": "fb4b679e40146d5f8d3e38843b1f47dbd723a4587c4c905e1e18cd0e91f1018e",
   "inventoryRevision": "sha256:2a4162add824afcaf2074bf416ce706ed7ba0a42fdb062575a09e65f118986d8",
   "generatorVersion": "1.1.0",
@@ -1993,7 +1993,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/proposal-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/SKILL.md",
-        "originalGitBlobDigest": "d88239cde172e9fcd876b7efab6a1b050e5eb1fe"
+        "originalGitBlobDigest": "2bdc45c8c39a47406fca579fab72cc1f5a2ba8ea"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2011,7 +2011,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/issue-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/references/issue-analyze/SKILL.md",
-        "originalGitBlobDigest": "837efb4f2cde048296f30af2d6db3b7be9d7d7d3"
+        "originalGitBlobDigest": "8a87a9eb95377ec1a04ad8afd17cbe8fcd4562d3"
       },
       {
         "ownerId": "proposal-analyze",
@@ -5313,7 +5313,7 @@
     "git-smart-commit": "951b6a8f04d7787ff0c698490895ce38bcc6169c74a7bea3f28c989af50fca10",
     "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
     "precommit": "3605c5ae6ada993a6f3ef977015e86a72e0caf18df18d1566da3af80a183999f",
-    "proposal-analyze": "92d51490dacf9dd74dfb887cc87264a6b6cbb8ab9834233f9ea65791d55ea8b1",
+    "proposal-analyze": "7cbc5c6b5d5faed62e67ddb7e1f3f921c1b8faa8123ae8f36c661837f7aa4d00",
     "release-creator": "44302bc409fea90b914c28086e206369f2f8df3c2259b0799c1b2c95acd20561",
     "repo-verify": "36bde8ed8013a80dbc11b520a27e4011aa28d8a67b564f925d5ede5c50f9a3b5",
     "tdd-workflow": "78832c7effebac7325cc44c91c706de885aad4f21cb96f3db183a9312a6bb150",

@@ -87,6 +87,9 @@ conflicts, receipt or settings evidence, and the command/exit result. Redact
 keys, tokens, and credentials. Never claim that an installation happened when
 only a plan or structural receipt was observed.
 
+In the report, remind adopters who use skill handoff saves to add `.scratch/` to
+their `.gitignore`; do not edit that file.
+
 ## Verification
 
 - [ ] Host was detected without a new public host flag.
