@@ -3,10 +3,10 @@
   "surface": "codex-native",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
-  "sourceVersion": "0.70.2",
-  "sourceCommit": "110609355e8a8f4dbb935f190cf4925170fc7a5f",
-  "generatedFromCommit": "110609355e8a8f4dbb935f190cf4925170fc7a5f",
-  "generatedFromTree": "1f8b00683deaed61703dd68d6dbc282d9aaf3666",
+  "sourceVersion": "0.70.3",
+  "sourceCommit": "0966fc0322f9f53c3bd8045e110297ca4ea23180",
+  "generatedFromCommit": "0966fc0322f9f53c3bd8045e110297ca4ea23180",
+  "generatedFromTree": "d49a820b3f491208d6cf7cda5025e05e51512a82",
   "inventoryDigest": "9652df64536c38a1848336f5c9bcc223b64af479be2cac956ff5c2d2477780dd",
   "inventoryRevision": "sha256:2a4162add824afcaf2074bf416ce706ed7ba0a42fdb062575a09e65f118986d8",
   "generatorVersion": "2.4.0",
@@ -156,7 +156,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/SKILL.md",
         "destination": "skills/change-verdict/SKILL.md",
-        "originalGitBlobDigest": "2a95f8cdaca571128a859502c30064557b06ffbf"
+        "originalGitBlobDigest": "1d7084bc9366bda9248210400816377e9deaffc5"
       },
       {
         "ownerId": "change-verdict",
@@ -372,7 +372,7 @@
         "ownerId": "code-trace",
         "source": "skills/code-trace/SKILL.md",
         "destination": "skills/code-trace/SKILL.md",
-        "originalGitBlobDigest": "0e1d86d20b92cf0582291232233ee027b4397a9c"
+        "originalGitBlobDigest": "2bd03134dd3f93d2ad691846b93fb9adbcd64e6f"
       },
       {
         "ownerId": "code-trace",
@@ -1878,7 +1878,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/analyze.js",
         "destination": "skills/flow-guide/scripts/analyze.js",
-        "originalGitBlobDigest": "76ca06e243d7250fe42851b05c4243347dfa82eb"
+        "originalGitBlobDigest": "34dbad3a951b54e5bee41c798befff92c56ea9a1"
       },
       {
         "ownerId": "flow-guide",
@@ -2058,7 +2058,7 @@
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/SKILL.md",
         "destination": "skills/opsx-apply-resume/SKILL.md",
-        "originalGitBlobDigest": "e66d72a8e0ede8d0e7961bb3281666513b7f3883"
+        "originalGitBlobDigest": "a1042f3e5892293feadea8dd5e2d79be1bd4212c"
       },
       {
         "ownerId": "opsx-apply-resume",
@@ -2076,7 +2076,7 @@
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/evals/evals.json",
         "destination": "skills/opsx-apply-resume/evals/evals.json",
-        "originalGitBlobDigest": "06fff98ee705083984a86cae7d32f7b1ca7891b4"
+        "originalGitBlobDigest": "5fcfdab4d09d30597ebe57d0d61f04524502536d"
       },
       {
         "ownerId": "opsx-apply-resume",
@@ -2094,19 +2094,19 @@
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/references/resume.md",
         "destination": "skills/opsx-apply-resume/references/resume.md",
-        "originalGitBlobDigest": "5799e1296bfa1e75b1d254b4864a02ec17bf552b"
+        "originalGitBlobDigest": "e8657acba740cf3d25c74db02e42abb4e9b4ac13"
       },
       {
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/references/save.md",
         "destination": "skills/opsx-apply-resume/references/save.md",
-        "originalGitBlobDigest": "6272137f143e6543548191fa5679ce7a45228acc"
+        "originalGitBlobDigest": "a47265164eeffcb617f2899a5204e5b3a2342d6c"
       },
       {
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/scripts/detect-phase.sh",
         "destination": "skills/opsx-apply-resume/scripts/detect-phase.sh",
-        "originalGitBlobDigest": "c4c59f76955977ced29e011211a432362222b7bc"
+        "originalGitBlobDigest": "dbc21930bbc3f25adaece31edca43a6f4709a60f"
       },
       {
         "ownerId": "opsx-apply-resume",
@@ -2130,7 +2130,7 @@
         "ownerId": "opsx-apply-resume",
         "source": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
         "destination": "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
-        "originalGitBlobDigest": "5e15fc13bc46c11b95cb3ddea153fd7544adb296"
+        "originalGitBlobDigest": "3354e27199912986e5c1f214fde1fbb7e3c713cc"
       },
       {
         "ownerId": "opsx-apply-resume",
@@ -2178,7 +2178,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/proposal-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/SKILL.md",
-        "originalGitBlobDigest": "d88239cde172e9fcd876b7efab6a1b050e5eb1fe"
+        "originalGitBlobDigest": "2bdc45c8c39a47406fca579fab72cc1f5a2ba8ea"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2196,7 +2196,7 @@
         "ownerId": "proposal-analyze",
         "source": "skills/issue-analyze/SKILL.md",
         "destination": "skills/proposal-analyze/references/issue-analyze/SKILL.md",
-        "originalGitBlobDigest": "837efb4f2cde048296f30af2d6db3b7be9d7d7d3"
+        "originalGitBlobDigest": "8a87a9eb95377ec1a04ad8afd17cbe8fcd4562d3"
       },
       {
         "ownerId": "proposal-analyze",
@@ -2286,7 +2286,7 @@
         "ownerId": "release-creator",
         "source": "skills/deploy-list/SKILL.md",
         "destination": "skills/release-creator/references/deploy-list/SKILL.md",
-        "originalGitBlobDigest": "fdf818ebb4f7bc2b84556de732701bf2b74fad6f"
+        "originalGitBlobDigest": "b45073770d0b64456f56021b40975a89895fa5f2"
       },
       {
         "ownerId": "release-creator",
@@ -2568,7 +2568,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "2c09ecced7ca50931010fe1e12ea6216d7bee844"
+        "originalGitBlobDigest": "e69faa423f2a9cf693c403e547e7a1b2737835a0"
       },
       {
         "ownerId": "tdd",
@@ -2676,7 +2676,7 @@
         "ownerId": "ui-ux-verify",
         "source": "skills/ui-ux-verify/SKILL.md",
         "destination": "skills/ui-ux-verify/SKILL.md",
-        "originalGitBlobDigest": "36811ded6cdbe53959d10905fa7dbb17c648ba32"
+        "originalGitBlobDigest": "d1076e4fae2ead2880592e4ea15603b636d0413f"
       },
       {
         "ownerId": "ui-ux-verify",
@@ -5669,26 +5669,26 @@
     ]
   },
   "fingerprints": {
-    "change-verdict": "cb28b12ad4c819e84625fae8f3284d11a8c0bdf630f3ca79a20b2ab0c3bb9501",
-    "code-trace": "9d2c3116cc676e60c3bd2e7d3a57e6bc124c5f5c6079973f613155e2dfd1b675",
+    "change-verdict": "2c78fc987e4dbc21adc21cdae5257bf2bf0a4d2bbc32c0f55ec49d66b4f89482",
+    "code-trace": "6f1547f578991c95c3dc53d34a2c1bf37254462fc82d48e7d36a59e0056d3c48",
     "create-pr": "e8d155d01c115e97ed80051dee8be1b9eadb47c863ca1183e792884693c0aee7",
     "doc-maintain": "9bc045d9d8b3089a032495598db1788a1ac88869b7a28faf3b2d6ed6bac611f5",
     "flow-drive": "ce6d792b676419e20bb1bf827fc94eda502969468c53f57be0cef067193423d0",
-    "flow-guide": "33fe99193e862e933244b1ddff0fc9c979cc9331bcd85b8d3177fdafa1db6025",
+    "flow-guide": "f483a1a4abd0447f2ddd1148f4580e76f6188cb2b48e400bf341b6e344b6c165",
     "git-smart-commit": "9279cd262a75639559d49229592ce7f13492d3a4c187b9f31522ba5f96e7dc76",
     "git-worktree": "ca92194954739679923d809fc5b0484c589f3da8caaced73b964ea62d6df8c28",
     "library-author": "7cbc852e03a358d9f22ba7fa250a83cf90cad0223c4f2ae5df9e8d3d5c9842dd",
-    "opsx-apply-resume": "b91bce3ab650f1f022c00023d2d246b1b2b2a94453865b6832adaadacb75b764",
+    "opsx-apply-resume": "1fd6ca81433cf237d6099c0a1b5ed776a3643825a3c4c7918126b90ecc68e29e",
     "precommit": "47f9d5d6a8f7448cae6ec9865bfc7983349d6242724a666cd5775dc2e158d850",
-    "proposal-analyze": "8dcc9674a2af1b1da42a6e9f11e89b06f2f5b2b6a82c40e12cb3a2892f608e40",
-    "release-creator": "849b66f5df3d01b6c34468644aea70cdb212a7e451b454e5f3410e5b35096743",
+    "proposal-analyze": "b2d81e27e4a98fb339f00502d5c2adbb1a31c2ef8507779810041a2fe19d4cc3",
+    "release-creator": "8cf0c690d9ba19d54f69730afef0345da170bac02e6b3d5ad9a9eedd8801703a",
     "repo-verify": "05eedd0c74bf29d2a63efd227a1b836f9d7a014fc0237d4141233cbbdcbaa286",
-    "tdd-workflow": "9fe04d26f06e4436bcbae2b8e8466f8669e66d36915117a5e246ce80ecc7ff42",
-    "ui-ux-verify": "907f50e3a96cfea14ebbbd41c67877fa5b114e7e66db9a3cd4ba7969a43afe2a"
+    "tdd-workflow": "d92062cb165f828b280380bc5c3cd26305fee12d09f8288e151cdec0d84f35ce",
+    "ui-ux-verify": "db4d2f75501fe5fe76cf3a07ca657c61e61491820557b21c40b91fc823e627b0"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "806b4d4db615baa61f07f2ede908a5c0ef9c28421fe28f97b999aeaec9e5298f",
+    "planId": "6cffff00e31dc6526b2c42a0f8227b9ff3ad640e27b3065efc3d69ef602bca53",
     "scope": "project",
     "profileId": "codex-native",
     "selectedStableIds": [
@@ -5736,10 +5736,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "806b4d4db615baa61f07f2ede908a5c0ef9c28421fe28f97b999aeaec9e5298f",
+      "plan": "6cffff00e31dc6526b2c42a0f8227b9ff3ad640e27b3065efc3d69ef602bca53",
       "inventory": "9652df64536c38a1848336f5c9bcc223b64af479be2cac956ff5c2d2477780dd"
     },
-    "rollbackIdentity": "3af23c64b5380af6c0f49632dcbf854fa6d7930974f9c0f698ca579199b10a6f"
+    "rollbackIdentity": "63546c254d295bfe3694c2c121568283feb84323164c42348f8ea131deb00f31"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

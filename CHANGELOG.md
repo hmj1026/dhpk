@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.70.3 — 2026-11-03 — Add opt-in .scratch content handoff, bind flow-guide last_skill to current change, and shorten workflow skill descriptions
+
+- **feat(skills)** — `issue-analyze` and `proposal-analyze` can save their report to `.scratch/<slug>/` on request, and `opsx-apply-resume` uses one Host-neutral `.scratch/<change-id>/apply-resume.md` handoff with legacy path fallback.
+- **fix(flow-guide)** — Flow Guide `next` now ignores a stale `.claude_review_state.json` `last_skill` receipt whose head or diff no longer matches the current change.
+- **perf(skills)** — Shorten five always-listed workflow skill descriptions (deploy-list, change-verdict, tdd-workflow, ui-ux-verify, code-trace) to cut resident context.
+
 ## 0.70.2 — 2026-11-02 — Shorten stack-specific and CLI agent descriptions
 
 - **perf(agents)** — Nine stack-specific and CLI-backed agent descriptions are shorter, so every request carries about 3.4k fewer characters of agent listing.

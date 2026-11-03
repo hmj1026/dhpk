@@ -4,7 +4,7 @@
 # Usage: bash scripts/detect-phase.sh [handoff-file]
 # Outputs one token: save | resume | consuming | warn-recent
 #
-# save        → no latest.md, or state is corrupt/overwriting → run Save Phase
+# save        → no latest.md, or state is corrupt/overwriting → run Save Phase (legacy default; the Skill passes an explicit path)
 # resume      → state: saved, age >= 60s → run Resume Phase
 # warn-recent → state: saved, age < 60s  → warn user (likely just saved)
 # consuming   → state: consuming (opsx:apply started but did not finish)

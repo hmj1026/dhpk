@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# set-handoff-state.sh — atomically update the state field in latest.md frontmatter
+# set-handoff-state.sh — atomically update the state field in latest.md frontmatter (legacy default; the Skill passes an explicit path)
 #
 # Usage: bash scripts/set-handoff-state.sh <new-state> [handoff-file]
 # Valid states: saved | consuming | consumed

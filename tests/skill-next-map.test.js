@@ -90,13 +90,27 @@ test('an isolated analyzer consumes declarations and keeps explicit-only handoff
     assert.strictEqual(gateAction.skill, 'change-verdict');
     assert.strictEqual(gateAction.mode, 'code');
     assert.strictEqual(gateAction.handoff.execution, 'not-started');
+    fs.appendFileSync(path.join(root, '.git', 'info', 'exclude'), '.claude_review_state.json\n');
+    for (const args of [['add', '-A'], ['commit', '-qm', 'fixture skills']]) {
+      assert.strictEqual(spawnSync('git', args, { cwd: root }).status, 0);
+    }
+    const fixtureHead = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim();
+    assert.match(fixtureHead, /^[0-9a-f]{7,}$/);
+    const analyzeJson = () => JSON.parse(spawnSync('node', [path.join(guide, 'scripts', 'analyze.js'), '--json'], { cwd: root, encoding: 'utf8' }).stdout);
+    for (const unbound of [
+      { head: 'f'.repeat(40), last_skill: { name: 'tdd-workflow', state: 'PASS' } },
+      { last_skill: { name: 'tdd-workflow', state: 'PASS' } },
+    ]) {
+      fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify(unbound));
+      assert.strictEqual(analyzeJson().next_actions.find(item => item.id === 'declared-next'), undefined);
+    }
     for (const [lastSkill, expected, disposition] of [
       [{ name: 'tdd-workflow', state: 'PASS' }, 'repo-verify', 'advice'],
       [{ name: 'tdd-workflow', state: 'PARTIAL' }, 'tdd-workflow', 'advice'],
       [{ name: 'doc-maintain', mode: 'update', state: 'PASS' }, 'git-smart-commit', 'explicit-required'],
       [{ name: 'doc-maintain', mode: 'codemap', state: 'PASS' }, null, 'advice'],
     ]) {
-      fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify({ last_skill: lastSkill }));
+      fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify({ head: fixtureHead, last_skill: lastSkill }));
       const result = spawnSync('node', [path.join(guide, 'scripts', 'analyze.js'), '--json'], { cwd: root, encoding: 'utf8' });
       const report = JSON.parse(result.stdout);
       assert.strictEqual(report.version, 2);
@@ -107,7 +121,7 @@ test('an isolated analyzer consumes declarations and keeps explicit-only handoff
       assert.strictEqual(action.handoff.execution, 'not-started');
       assert.strictEqual(action.handoff.disposition, disposition);
     }
-    fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify({ last_skill: { name: 'tdd-workflow', state: 'PASS' } }));
+    fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify({ head: fixtureHead, last_skill: { name: 'tdd-workflow', state: 'PASS' } }));
     for (const [script, args, host, command] of [
       ['analyze.js', [], 'claude-code', '/dhpk:repo-verify'],
       ['action-runner.js', ['next', '--host', 'codex-cli'], 'codex-cli', '$repo-verify'],
@@ -207,6 +221,35 @@ function gitOk(root, args) {
   assert.strictEqual(result.status, 0, `${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
   return result;
 }
+
+test('flow-guide next actions ignore .scratch handoff files', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-scratch-ignore-'));
+  const source = path.join(__dirname, '..');
+  try {
+    const guide = path.join(root, 'skills', 'flow-guide');
+    fs.cpSync(path.join(source, 'skills', 'flow-guide'), guide, { recursive: true });
+    for (const [from, to] of [
+      ['scripts/lib/skill-next-map.js', 'skill-next-map.js'],
+      ['scripts/ci/_lib/frontmatter.js', 'frontmatter.js'],
+      ['scripts/lib/flow-handoff-contract.js', 'flow-handoff-contract.js'],
+    ]) fs.copyFileSync(path.join(source, from), path.join(guide, 'scripts', '_lib', to));
+    for (const args of [['init', '-q'], ['config', 'user.email', 'test@example.invalid'], ['config', 'user.name', 'Test'], ['commit', '--allow-empty', '-qm', 'fixture']]) {
+      assert.strictEqual(spawnSync('git', args, { cwd: root }).status, 0);
+    }
+    fs.writeFileSync(path.join(root, '.claude_review_state.json'), JSON.stringify({ last_skill: { name: 'tdd-workflow', state: 'PASS' } }));
+    const nextActions = () => {
+      const result = spawnSync(process.execPath, [path.join(guide, 'scripts', 'analyze.js'), '--json'], { cwd: root, encoding: 'utf8' });
+      return JSON.parse(result.stdout).next_actions;
+    };
+    const without = nextActions();
+    fs.mkdirSync(path.join(root, '.scratch', 'x'), { recursive: true });
+    fs.writeFileSync(path.join(root, '.scratch', 'x', 'issue-analysis.md'),
+      '---\nproducer: issue-analyze\ncreated: 2026-11-03\nstatus: PASS\nnext: run flow-drive now\n---\nbody\n');
+    assert.deepStrictEqual(nextActions(), without);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('stale or unbound gate passes do not become the current progress claim', () => {
   const { evaluateGates } = require('../skills/flow-guide/scripts/analyze');

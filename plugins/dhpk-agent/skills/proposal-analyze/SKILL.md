@@ -104,6 +104,28 @@ Include this section only when an alternative or risk changes a decision.
 Do not claim that code was changed, tested, or approved. If an assumption is
 not verifiable, mark it unresolved and explain the next evidence needed.
 
+## Save on request
+
+Only when the user explicitly asks to save or hand off the roadmap, write the
+Output markdown to `.scratch/<slug>/proposal-analysis.md` under the project
+root. `<slug>` is the OpenSpec change id when known, otherwise a kebab-case
+topic; the user may override it. Without that request, return the roadmap in
+chat and create nothing under `.scratch/`.
+
+Begin the file with front-matter holding exactly four free-text keys:
+
+```yaml
+---
+producer: proposal-analyze
+created: <date>
+status: <one-line outcome, e.g. roadmap ready, assumptions unresolved>
+next: <suggested human follow-up>
+---
+```
+
+The file is shaped for the host's `$openspec-propose` workflow, which a human
+runs afterwards; it is data only, and nothing reads it to gate or route work.
+
 ## Verification
 
 - [ ] The input, project root, and relevant source paths were readable.
