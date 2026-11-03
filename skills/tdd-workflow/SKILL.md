@@ -1,6 +1,6 @@
 ---
 name: tdd-workflow
-description: 'Use for test-first feature or bug implementation, regression tests, test-generation scaffolds, and choosing public test seams or boundary mocks. Guides framework-agnostic RED-GREEN-REFACTOR on the current Host and Model. Not for Playwright journeys, post-hoc coverage audits, or documentation/formatting/rename-only work. Output: scoped tests or implementation with RED/GREEN evidence and honest verification status.'
+description: 'Use for test-first feature or bug implementation, regression tests, and choosing public test seams or boundary mocks (RED-GREEN-REFACTOR). Not for Playwright journeys, coverage audits, or docs/format/rename-only work. Output: scoped tests or code with RED/GREEN evidence.'
 metadata:
   dhpk-capability-id: dhpk.skill.tdd
   dhpk-name-style: portable-skill
