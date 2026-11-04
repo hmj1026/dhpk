@@ -18,7 +18,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const python = fs.realpathSync(spawnSync('which', ['python3'], { encoding: 'utf8' }).stdout.trim());
 const helper = path.resolve(__dirname, '../scripts/hooks/credential-extract.py');
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'credential-extract-'));
+const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'credential-extract-')));
 const fixture = path.join(root, '.env');
 process.on('exit', () => fs.rmSync(root, { recursive: true, force: true }));
 

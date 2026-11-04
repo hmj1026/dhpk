@@ -19,8 +19,8 @@ const legacyManifest = JSON.parse(fs.readFileSync(LEGACY_MANIFEST_PATH, 'utf8'))
 const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PATH, 'utf8'));
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
 
-const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 50;
-const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = 'bd6638b952f6aa736d3f6d874daf49a8136c51a79b14a6db46b81ee5f9400ff6';
+const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 51;
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = 'd9c59745093211ac496dd01ad60e34144791bfef823c48b68075e25068ac2c17';
 const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
   'cross_provider',
   'worker_target',
@@ -113,11 +113,11 @@ function digest(value) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
 }
 
-test('legacy userConfig fixture contains exactly 59 options and preserves the legacy contract', () => {
+test('legacy userConfig fixture contains exactly 60 options and preserves the legacy contract', () => {
   assert.strictEqual(contractFixture.source, 'manifests/claude-user-config-legacy.json');
-  assert.strictEqual(contractFixture.count, 59);
-  assert.strictEqual(contractFixture.entries.length, 59);
-  assert.strictEqual(Object.keys(legacyManifest.userConfig || {}).length, 59);
+  assert.strictEqual(contractFixture.count, 60);
+  assert.strictEqual(contractFixture.entries.length, 60);
+  assert.strictEqual(Object.keys(legacyManifest.userConfig || {}).length, 60);
   assert.deepStrictEqual(contractEntries(), contractFixture.entries);
   for (const [key, entry] of Object.entries(legacyManifest.userConfig)) {
     assert.strictEqual(typeof entry.description, 'string', `${key} description`);
@@ -125,7 +125,7 @@ test('legacy userConfig fixture contains exactly 59 options and preserves the le
   }
 });
 
-test('active userConfig preserves the canonical 50-key contract and metadata coverage', () => {
+test('active userConfig preserves the canonical 51-key contract and metadata coverage', () => {
   const activeEntries = contractEntries(activeManifest);
   const legacyKeys = Object.keys(legacyManifest.userConfig || {});
   const activeKeys = Object.keys(activeManifest.userConfig || {});
@@ -180,7 +180,7 @@ test('compact metadata source validates purpose, trigger, boundary, pointer, and
   assert.strictEqual(result.ok, true, resultText(result));
   const value = valueOf(result);
   assert.strictEqual(value.category, 'claude-user-config');
-  assert.strictEqual(value.entries.length, 59);
+  assert.strictEqual(value.entries.length, 60);
   assert.ok(value.entries.every((entry) => entry.purpose && entry.trigger && entry.boundary && entry.pointer));
 });
 
