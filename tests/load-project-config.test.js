@@ -56,6 +56,72 @@ test('array option is joined with commas', () => {
   assert.strictEqual(res.stdout.trim(), 'php,laravel');
 });
 
+test('credential path arrays round-trip without losing commas, quotes or spaces', () => {
+  const root = tmpRoot();
+  const paths = ['private folder/a,b', 'quote"file', "it's secret"];
+  writeSettings(root, 'settings.local.json', { credential_read_paths: paths });
+  const res = sh(root, 'printf "%s\\n%s" "$CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS" "$DHPK_PROJECT_OPTION_CREDENTIAL_READ_PATHS"',
+    { CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: '["global"]' });
+  assert.strictEqual(res.status, 0, res.stderr);
+  const [merged, project] = res.stdout.split('\n');
+  assert.deepStrictEqual(JSON.parse(merged), paths);
+  assert.deepStrictEqual(JSON.parse(project), paths);
+});
+
+test('credential path JSON string and global fallback retain their exact values', () => {
+  const root = tmpRoot();
+  const value = '[ "space path", "a,b", "a\\\"b" ]';
+  writeSettings(root, 'settings.local.json', { credential_read_paths: value });
+  const project = sh(root, 'printf "%s" "$CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS"',
+    { CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: '["global"]' });
+  assert.strictEqual(project.stdout, value);
+  const fallback = sh(tmpRoot(), 'printf "%s" "$CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS"',
+    { CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: '["global"]' });
+  assert.strictEqual(fallback.stdout, '["global"]');
+});
+
+test('failed settings parser marks credential policy invalid without failing sourcing', () => {
+  const root = tmpRoot();
+  const bin = tmpRoot();
+  writeSettings(root, 'settings.local.json', {});
+  fs.symlinkSync('/bin/bash', path.join(bin, 'bash'));
+  fs.writeFileSync(path.join(bin, 'python3'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  const res = sh(root, 'printf "%s" "${DHPK_CREDENTIAL_CONFIG_ERROR:-0}"', { PATH: bin });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout, '1');
+});
+
+test('invalid credential policy values remain visible to the validator', () => {
+  for (const value of [null, 42, { path: 'secret' }]) {
+    const root = tmpRoot();
+    writeSettings(root, 'settings.local.json', { credential_read_paths: value });
+    const res = sh(root, 'printf "%s|%s" "${DHPK_CREDENTIAL_CONFIG_ERROR:-0}" "${CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS-unset}"',
+      { CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: '[]' });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(res.stdout.startsWith('1|') || res.stdout.endsWith(`|${JSON.stringify(value)}`), res.stdout);
+  }
+});
+
+test('malformed project settings and nonobject ancestry mark credential configuration invalid', () => {
+  for (const contents of ['{broken', '[]', '{"pluginConfigs":null}', '{"pluginConfigs":{"dhpk@dhpk":null}}', '{"pluginConfigs":{"dhpk@dhpk":{"options":[]}}}']) {
+    const root = tmpRoot();
+    fs.mkdirSync(path.join(root, '.claude'));
+    fs.writeFileSync(path.join(root, '.claude', 'settings.local.json'), contents);
+    const res = sh(root, 'printf "%s" "${DHPK_CREDENTIAL_CONFIG_ERROR:-0}"');
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, '1', contents);
+  }
+});
+
+test('unreadable selected settings do not fall back to the less specific file', () => {
+  const root = tmpRoot();
+  writeSettings(root, 'settings.json', { credential_read_paths: ['fallback'] });
+  fs.symlinkSync('missing.json', path.join(root, '.claude', 'settings.local.json'));
+  const res = sh(root, 'printf "%s|%s" "${DHPK_CREDENTIAL_CONFIG_ERROR:-0}" "$CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS"');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout, '1|[]');
+});
+
 test('boolean option is converted to lowercase true/false string', () => {
   const root = tmpRoot();
   writeSettings(root, 'settings.local.json', { learning_db_enabled: true });

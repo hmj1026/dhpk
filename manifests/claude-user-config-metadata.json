@@ -3,6 +3,7 @@
   "generatorVersion": "1",
   "pointerRoot": "docs",
   "entries": [
+    {"key":"credential_read_paths","purpose":"Add protected credential read paths.","trigger":"when extending the Bash credential gate","boundary":"does not replace default protected paths","pointer":"docs/configuration.md"},
     {"key":"hook_profile","purpose":"Select hook output verbosity.","trigger":"when changing hook diagnostics","boundary":"does not alter hook decisions","pointer":"docs/configuration.md"},
     {"key":"review_agents","purpose":"Choose reviewer agent names.","trigger":"when routing review slots","boundary":"does not change review policy","pointer":"docs/configuration.md"},
     {"key":"orchestration_dispatch","purpose":"Control implementation dispatch.","trigger":"when enabling or disabling orchestration","boundary":"does not bypass verification","pointer":"docs/configuration.md"},

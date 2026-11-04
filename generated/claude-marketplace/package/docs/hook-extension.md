@@ -20,6 +20,81 @@ them; optional events are not registered by default and are not silently active.
 Docker, inspect install health, inject prompt hints, or emit orchestration
 advice.
 
+## Credential read protection
+
+The Claude `PreToolUse(Bash)` dispatcher inspects calls that reach it, including
+subagent calls reaching the same gate. It does not cover other Hosts, Read or
+MCP tools, or shell commands outside this integration. Python 3 is required;
+when it is missing the Bash gate returns exit 2.
+
+By default the gate protects `.env`, `.env.*`, `my.cnf`, `debian.cnf`,
+`*.pem`, `id_rsa*`, and `credentials*` basenames. The exact basenames
+`.env.example`, `.env.sample`, `.env.dist`, and `.env.template` are exempt
+only from the default `.env` rule; suffix variants are not exempt, and a
+custom rule can protect a template. The `.pem` and `id_rsa*` rules intentionally
+include public-looking files.
+
+Set `credential_read_paths` to a JSON array of strings in the plugin string
+option, or a native array in project settings. It adds to the defaults; invalid
+policy blocks the gate. For example, preserve spaces in JSON strings:
+
+```json
+{"pluginConfigs":{"dhpk@dhpk":{"options":{"credential_read_paths":["private keys/*", "custom.secret"]}}}}
+```
+
+A pattern without `/` matches a basename at any depth; a relative pattern with
+`/` matches a complete path-component suffix; an absolute pattern matches the
+full normalized path. `*` and `?` do not cross `/`. Literal `.` and `..`,
+repeated separators, and shell quoting are normalized lexically without opening
+the target. The same rules apply to supported literal SSH operands without
+resolving remote paths against the local filesystem.
+
+The bounded parser covers `cat`, `less`, `head`, `tail`, `sed`, `awk`, `grep`,
+and `rg`, including options, multiple targets, input redirects, pipelines,
+command separators, and literal SSH commands. Each target is assessed: an
+allowed template or metadata command never exempts a protected sibling.
+Plain `ls` and `stat` and ordinary reads remain allowed. Recursive content
+search is blocked if its roots can include protected paths unless explicit
+exclusions prove all such paths excluded. Only global exact basename excludes
+for the effective final component, or `*`, can provide that proof; ignore and
+reinclude rules and preprocessors cannot. For a local `rg` regular non-symlink
+file, the gate can use `lstat`; this check has a time-of-check/time-of-use
+limit. Identifiable protected reads with syntax the gate cannot safely classify
+are blocked. Submitted shell text is not executed or expanded for inspection.
+
+### Controlled extraction
+
+For a local protected file containing only a supported MySQL PDO DSN, the gate
+recognizes exactly one simple invocation, using the absolute Python executable
+used by the hook and the absolute installed helper path:
+
+```text
+/absolute/path/to/python3 -I -S /absolute/installed/plugin/scripts/hooks/credential-extract.py --file /absolute/path/to/file --fields host,dbname
+```
+
+`--fields` accepts only `host`, `dbname`, or `host,dbname`. No environment
+prefix, wrapper, composition, redirection, or extra output flag is allowed. The
+gate checks that the installed helper is a regular non-symlink file with its
+pinned digest. The file must be a whole MySQL PDO DSN with unique `host` and
+`dbname`, and optional validated `port` and `charset`; unsupported or ambiguous
+input produces no extracted output. The helper emits JSON containing only the
+requested keys. The file must be a regular file of at most 1024 bytes; its
+absolute path may contain no symlink, empty, `.` or `..` component. The ASCII
+DSN may end in one LF. Semicolon-separated fields can appear in any order,
+without extra fields or a trailing semicolon. `host` matches
+`[A-Za-z0-9][A-Za-z0-9._-]{0,252}`, `dbname` matches `[A-Za-z0-9_]{1,64}`,
+`charset` matches `[A-Za-z0-9_]{1,32}`, and `port` is 1–65535 without a
+leading zero. PHP configuration and SSH extraction are unsupported in v1;
+the helper does not execute PHP or source the file. On a block, use controlled
+local extraction where supported or ask the user for non-secret information.
+Diagnostics do not echo commands, configuration values, or file content.
+
+This lexical guard is not complete data-loss prevention: dynamic paths, aliases,
+symlink targets, encoded commands, arbitrary interpreters, and script bodies are
+not proven covered. Concurrent changes by the same UID and trust in the installed
+files are outside its boundary. Test with fake fixtures; a local hook test does
+not prove actual Claude parent or subagent activation.
+
 ## Bash outer ceiling
 
 The Bash `PreToolUse` command declares `timeout: 2100` and `onFailure: "block"`.

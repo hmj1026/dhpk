@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.70.4",
+  "version": "0.70.5",
   "description": "Reusable Claude Code harness with role-based agents, routed commands, advisory reviewer dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
   "author": {
     "name": "hmj1026",
@@ -62,6 +62,12 @@
     "./modules/js/commands/"
   ],
   "userConfig": {
+    "credential_read_paths": {
+      "type": "string",
+      "title": "Additional credential read paths",
+      "description": "JSON array of declarative path patterns added to the default credential read protection. Project settings may also use a native array. Invalid policies block the Bash gate.",
+      "default": "[]"
+    },
     "hook_profile": {
       "type": "string",
       "title": "Hook profile",

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.70.5 — 2026-11-04 — Block credential reads in Claude Bash gate with controlled extraction
+
+- **feat(hooks)** — Block identifiable credential reads in the Claude Bash gate and support controlled local extraction.
+
 ## 0.70.4 — 2026-11-03 — Make subagents consumer-neutral and slim role prose
 
 - **refactor(agents)** — Shipped subagents and trap sheets drop one consumer's hostnames, private notes, and rule paths; refactor-cleaner now leaves commits to the orchestrator, and CLI-backed roles scope their frontmatter model to the outer agent (#1203).

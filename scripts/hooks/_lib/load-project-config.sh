@@ -35,27 +35,29 @@ fi
 
 # Prefer settings.local.json (gitignored, per-developer) over settings.json.
 _dhpk_settings=""
-if [ -f "$ROOT/.claude/settings.local.json" ]; then
+if [ -e "$ROOT/.claude/settings.local.json" ] || [ -L "$ROOT/.claude/settings.local.json" ]; then
     _dhpk_settings="$ROOT/.claude/settings.local.json"
-elif [ -f "$ROOT/.claude/settings.json" ]; then
+elif [ -e "$ROOT/.claude/settings.json" ] || [ -L "$ROOT/.claude/settings.json" ]; then
     _dhpk_settings="$ROOT/.claude/settings.json"
 fi
 
+# 憑證讀取政策不能因設定損壞而靜默失效；旗標只交給安全閘判斷，
+# 其他 advisory hook 仍可繼續載入並沿用原有預設行為。
 if [ -n "$_dhpk_settings" ] && command -v python3 >/dev/null 2>&1; then
-    _dhpk_exports="$(python3 - "$_dhpk_settings" <<'PY' 2>/dev/null
+    if _dhpk_exports="$(python3 - "$_dhpk_settings" <<'PY' 2>/dev/null
 import json, shlex, sys
 try:
     with open(sys.argv[1]) as f:
         cfg = json.load(f)
 except Exception:
-    sys.exit(0)
-opts = (
-    cfg.get("pluginConfigs", {})
-       .get("dhpk@dhpk", {})
-       .get("options", {})
-)
-if not isinstance(opts, dict):
-    sys.exit(0)
+    sys.exit(1)
+for part in ("pluginConfigs", "dhpk@dhpk", "options"):
+    if not isinstance(cfg, dict):
+        sys.exit(1)
+    cfg = cfg.get(part, {})
+if not isinstance(cfg, dict):
+    sys.exit(1)
+opts = cfg
 # Known userConfig keys (mirrors .claude-plugin/plugin.json userConfig, e.g.
 # hook_profile, modules, review_agents, orchestration_dispatch, cross_provider,
 # worker_target, reasoner_target, planner_target, reviewer_target,
@@ -67,7 +69,11 @@ if not isinstance(opts, dict):
 for key, val in opts.items():
     if not isinstance(key, str) or not key.replace("_", "").isalnum():
         continue
-    if isinstance(val, list):
+    # 路徑可能含逗號或引號，舊有 CSV 轉換會損壞規則；保留 JSON
+    # 結構，連無效類型也傳給驗證器，避免錯誤值退回安全預設。
+    if key == "credential_read_paths" and not isinstance(val, str):
+        val = json.dumps(val, ensure_ascii=True, separators=(',', ':'))
+    elif isinstance(val, list):
         val = ",".join(str(v) for v in val)
     elif isinstance(val, bool):
         val = "true" if val else "false"
@@ -82,13 +88,22 @@ for key, val in opts.items():
     project_env = "DHPK_PROJECT_OPTION_" + key.upper()
     print(f"export {project_env}={quoted}")
 PY
-    )"
-    if [ -n "$_dhpk_exports" ]; then
-        eval "$_dhpk_exports"
+    )"; then
+        if [ -n "$_dhpk_exports" ]; then
+            eval "$_dhpk_exports"
+        fi
+    else
+        export DHPK_CREDENTIAL_CONFIG_ERROR=1
     fi
     unset _dhpk_exports
+elif [ -n "$_dhpk_settings" ]; then
+    export DHPK_CREDENTIAL_CONFIG_ERROR=1
 fi
 unset _dhpk_settings
+
+if [ "${CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS+x}" != x ]; then
+    export CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS='[]'
+fi
 
 # One-shot env override for the hook profile (highest precedence). Lets a
 # single session switch verbosity (DHPK_HOOK_PROFILE=minimal claude ...)

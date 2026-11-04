@@ -45,7 +45,7 @@ result; do not infer a runtime `PASS` from a package check.
 
 | Route | Client/version assumption | OS and shell assumption | Required tooling | Evidence gate |
 |---|---|---|---|---|
-| Claude Code | Marketplace/plugin support; minimum version not established | Client-supported OS and POSIX shell | `bash`, Claude Code | Run the installer and observe the selected package in a fresh session |
+| Claude Code | Marketplace/plugin support; minimum version not established | Client-supported OS and POSIX shell | `bash`, `python3`, Claude Code | Run the installer and observe the selected package in a fresh session |
 | Codex project-local sync | Codex project-local loader; schema-v3 receipt; minimum Codex CLI 0.159.0 (roles use `gpt-6.1-terra`, which requires 0.159.0+; probed on 0.166.0, 2026-11-01) | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.codex/.dhpk-installed.json`, and run the listed metadata/test commands |
 | Codex legacy/native | Codex CLI with marketplace/plugin commands; run `codex --version`; minimum Codex CLI 0.159.0 (roles use `gpt-6.1-terra`, which requires 0.159.0+; probed on 0.166.0, 2026-11-01) | Linux, macOS, or WSL shell for the documented route; use a disposable isolated `CODEX_HOME` | `codex`, marketplace access, `git` | Execute the marketplace route and record CLI output; absent CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | OpenAI Public Plugin Directory | Codex or ChatGPT Work with the public plugin manager; minimum client version not established | Product-supported client or web surface | Published DHPK listing and account access | `NOT_PUBLISHED` until the approved listing is visible; record client version and fresh-session discovery separately |
@@ -55,6 +55,10 @@ result; do not infer a runtime `PASS` from a package check.
 | Cursor project-local sync | Cursor project-local loader; schema-v3 receipt; minimum Cursor version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.cursor/.dhpk-installed.json`, and run the listed installer test; do not treat a missing live Cursor client as a runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, a logged-in Cursor session, and verified bubblewrap on Linux; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI/sandbox is `UNAVAILABLE`/`BLOCKED`, and discovery must be recorded separately; API-key-only auth is not accepted |
 | AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available; AGY 1.2.2 has been observed loading the canonical path | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` without an applicable explicitly requested native probely used |
+
+The Claude Bash gate requires `python3`; if it is unavailable, the gate blocks with
+exit 2. See [credential read protection](./hook-extension.md#credential-read-protection)
+for its scope and controlled extraction.
 
 ## Status vocabulary
 
@@ -258,7 +262,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.70.4 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.70.5 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1094,7 +1098,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.70.4 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.70.5 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

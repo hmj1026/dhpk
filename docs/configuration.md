@@ -124,6 +124,7 @@ for the selection rule.
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
+| `credential_read_paths` | string | `[]` | JSON array of path-pattern strings | Adds paths to the default Claude Bash credential-read policy. Project settings also accept a native array; invalid values block the gate. See [matching and extraction](./hook-extension.md#credential-read-protection). |
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Verbosity of active deterministic hook output. Retired Stop reminders are not default-wired. |
 | `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by advisory reviewer dispatch, in role order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
 | `codex_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-worker`. It wins over the shared value in the same scope; project values win over global values. |
