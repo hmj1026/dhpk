@@ -27,7 +27,7 @@ const blocked = [
   'python3 credential-extract.py --file .env --fields host',
 ];
 const allowed = [
-  "echo 'cat .env'", "echo '$(cat .env)'", 'ls .env', 'stat .env', 'cat ordinary', 'cat .env.example', 'cat .env.sample',
+  "echo 'cat .env'", "echo '$(cat .env)'", 'echo literal#hash', "echo '# literal'", 'ls .env', 'stat .env', 'cat ordinary', 'cat .env.example', 'cat .env.sample',
   'cat .env.dist', 'cat .env.template', 'grep needle ordinary',
   'grep --reg=x ordinary', 'sed --expr=p ordinary', 'grep -nex ordinary',
   'grep -r --exclude="*" needle .', 'rg --glob "!*" needle .',
@@ -112,6 +112,12 @@ const regressions = {
   'ambiguous long option': 'grep --ex=.env needle ordinary',
   'malformed active substitution': 'echo "$(cat .env"',
   'nested command substitution': 'echo "$(echo $(cat .env))"',
+  'outer comment quote poisoning': `#'\necho "$(cat .env)"`,
+  'inner comment parenthesis poisoning': `echo "$( # )\ncat .env)"`,
+  'inner backtick comment poisoning': 'echo `# `\ncat .env`',
+  'escaped space preserves word boundary': 'echo \\ #$(cat .env)',
+  'inner escaped space preserves word boundary': 'echo "$(echo \\ #$(cat .env))"',
+
 
 };
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {

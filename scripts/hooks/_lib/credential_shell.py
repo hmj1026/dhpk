@@ -81,10 +81,21 @@ def substitutions(text):
     """Extract active literal command substitutions with balanced parentheses."""
     result = []
     quote = None
+    word_started = False
     i = 0
     while i < len(text):
         ch = text[i]
+        # 註解只在未加引號的字詞起點生效；忽略註解內容，避免引號污染後續掃描。
+        if quote is None and ch == '#' and not word_started:
+            while i < len(text) and text[i] != '\n':
+                i += 1
+            continue
+        if quote is None and (ch.isspace() or ch in ';|&<>()'):
+            word_started = False
+        else:
+            word_started = True
         if ch == "\\" and quote != "'":
+
             if i + 1 >= len(text):
                 raise ValueError('unfinished escape')
             if quote != '"' or text[i + 1] in '$`"\\\n':
@@ -99,8 +110,18 @@ def substitutions(text):
             j = start
             depth = 1
             inner_quote = None
+            inner_word = False
             while j < len(text) and depth:
                 c = text[j]
+                # 註解內的括號不是 shell 語法，不能提早結束命令替換。
+                if inner_quote is None and c == '#' and not inner_word:
+                    while j < len(text) and text[j] != '\n':
+                        j += 1
+                    continue
+                if inner_quote is None and (c.isspace() or c in ';|&<>()'):
+                    inner_word = False
+                else:
+                    inner_word = True
                 if c == "\\" and inner_quote != "'":
                     if j + 1 >= len(text):
                         raise ValueError('unfinished substitution escape')
@@ -124,9 +145,25 @@ def substitutions(text):
         if quote != "'" and ch == '`':
             start = i + 1
             j = start
-            while j < len(text) and text[j] != '`':
-                if text[j] == "\\":
-                    j += 1
+            inner_quote = None
+            inner_word = False
+            while j < len(text):
+                c = text[j]
+                if inner_quote is None and c == '#' and not inner_word:
+                    while j < len(text) and text[j] != '\n':
+                        j += 1
+                    continue
+                if c == '`' and inner_quote is None:
+                    break
+                if inner_quote is None and (c.isspace() or c in ';|&<>()'):
+                    inner_word = False
+                else:
+                    inner_word = True
+                if c == "\\" and inner_quote != "'":
+                    j += 2
+                    continue
+                if c in "'\"" and (inner_quote is None or inner_quote == c):
+                    inner_quote = None if inner_quote else c
                 j += 1
             if j >= len(text):
                 raise ValueError('unfinished substitution')
