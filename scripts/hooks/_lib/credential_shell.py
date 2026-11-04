@@ -85,6 +85,10 @@ def substitutions(text):
     i = 0
     while i < len(text):
         ch = text[i]
+        # 反斜線換行在 shell 詞法中消失，不應改變原有字詞起點狀態。
+        if ch == "\\" and quote != "'" and i + 1 < len(text) and text[i + 1] == '\n':
+            i += 2
+            continue
         # 註解只在未加引號的字詞起點生效；忽略註解內容，避免引號污染後續掃描。
         if quote is None and ch == '#' and not word_started:
             while i < len(text) and text[i] != '\n':
@@ -113,6 +117,9 @@ def substitutions(text):
             inner_word = False
             while j < len(text) and depth:
                 c = text[j]
+                if c == "\\" and inner_quote != "'" and j + 1 < len(text) and text[j + 1] == '\n':
+                    j += 2
+                    continue
                 # 註解內的括號不是 shell 語法，不能提早結束命令替換。
                 if inner_quote is None and c == '#' and not inner_word:
                     while j < len(text) and text[j] != '\n':
@@ -149,6 +156,9 @@ def substitutions(text):
             inner_word = False
             while j < len(text):
                 c = text[j]
+                if c == "\\" and inner_quote != "'" and j + 1 < len(text) and text[j + 1] == '\n':
+                    j += 2
+                    continue
                 if inner_quote is None and c == '#' and not inner_word:
                     while j < len(text) and text[j] != '\n':
                         j += 1

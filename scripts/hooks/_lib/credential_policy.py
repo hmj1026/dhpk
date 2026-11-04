@@ -27,28 +27,34 @@ def validate_patterns(value):
     return value
 
 
+def normalize_path(path):
+    # normpath 保留雙前導斜線；政策要求重複分隔符合併後再比對本機與遠端字面路徑。
+    return posixpath.normpath(re.sub('/+', '/', path))
+
+
 def match_path(path, pattern, cwd=None):
-    path = posixpath.normpath(path)
+    path = normalize_path(path)
+    pattern = normalize_path(pattern)
     if pattern.startswith('/'):
         if not path.startswith('/'):
             if cwd is None:
                 return True
-            path = posixpath.normpath(posixpath.join(cwd, path))
+            path = normalize_path(posixpath.join(cwd, path))
         candidate = path
     elif '/' not in pattern:
         candidate = posixpath.basename(path)
     else:
         path_parts = path.strip('/').split('/')
-        pattern_parts = posixpath.normpath(pattern).strip('/').split('/')
+        pattern_parts = pattern.strip('/').split('/')
         if len(path_parts) < len(pattern_parts):
             return False
         candidate = '/'.join(path_parts[-len(pattern_parts):])
-    expression = ''.join('[^/]*' if c == '*' else '[^/]' if c == '?' else re.escape(c) for c in posixpath.normpath(pattern))
+    expression = ''.join('[^/]*' if c == '*' else '[^/]' if c == '?' else re.escape(c) for c in pattern)
     return re.fullmatch(expression, candidate) is not None
 
 
 def protected(path, patterns, cwd):
-    name = posixpath.basename(posixpath.normpath(path))
+    name = posixpath.basename(normalize_path(path))
     if name not in TEMPLATES and any(match_path(path, p, cwd) for p in DEFAULTS):
         return True
     return any(match_path(path, p, cwd) for p in patterns)

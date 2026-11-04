@@ -113,6 +113,8 @@ const regressions = {
   'malformed active substitution': 'echo "$(cat .env"',
   'nested command substitution': 'echo "$(echo $(cat .env))"',
   'outer comment quote poisoning': `#'\necho "$(cat .env)"`,
+  'continuation before outer comment': `\\\n#'\necho "$(cat .env)"`,
+  'continuation before inner comment': `echo "$( \\\n# )\ncat .env)"`,
   'inner comment parenthesis poisoning': `echo "$( # )\ncat .env)"`,
   'inner backtick comment poisoning': 'echo `# `\ncat .env`',
   'escaped space preserves word boundary': 'echo \\ #$(cat .env)',
@@ -191,5 +193,21 @@ test('extractor identity rejects altered and symlinked helper in both entrypoint
     }
   } finally { fs.rmSync(temp, {recursive: true, force: true}); }
 });
+
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  test(`${hook} normalizes repeated leading separators in both policy and operands`, () => {
+    for (const [pattern, command] of [
+      ['/srv/private.key', 'cat //srv/private.key'],
+      ['/srv/private.key', 'ssh example "cat //srv/private.key"'],
+      ['//srv/private.key', 'cat /srv/private.key'],
+      ['//srv/private.key', 'ssh example "cat /srv/private.key"'],
+    ]) {
+      const result = runHook(hook, {payload: {tool_input: {command}}, env: {
+        CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: JSON.stringify([pattern]),
+      }});
+      assert.strictEqual(result.status, 2, `${pattern}: ${command}: ${result.stderr}`);
+    }
+  });
+}
 
 run('credential-read-policy');
