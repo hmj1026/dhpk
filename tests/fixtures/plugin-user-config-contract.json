@@ -1,8 +1,15 @@
 {
   "schema": "dhpk.plugin-user-config-contract.fixture.v1",
   "source": "manifests/claude-user-config-legacy.json",
-  "count": 59,
+  "count": 60,
   "entries": [
+    {
+      "key": "credential_read_paths",
+      "type": "string",
+      "multiple": false,
+      "title": "Additional credential read paths",
+      "default": "[]"
+    },
     {
       "key": "hook_profile",
       "type": "string",

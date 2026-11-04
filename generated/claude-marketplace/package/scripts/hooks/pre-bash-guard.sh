@@ -22,6 +22,19 @@ set -o pipefail
 . "$(dirname "$0")/_lib/command-inspect.sh"
 
 PAYLOAD="$(dhpk_read_payload)"
+# 原有空命令捷徑會略過原始輸入與設定驗證；先執行憑證讀取檢查，避免無效輸入讓保護失效。
+if [ "${DHPK_PROJECT_CONFIG_LOADED:-0}" != 1 ]; then
+    . "$(dirname "$0")/_lib/load-project-config.sh"
+fi
+_credential_guard="$(dirname "$0")/_lib/credential-read.py"
+if ! command -v python3 >/dev/null 2>&1 || [ ! -f "$_credential_guard" ]; then
+    echo "[bash-guard] blocked: credential inspection unavailable; use controlled extraction or provide non-secret information." >&2
+    exit 2
+fi
+if ! printf '%s' "$PAYLOAD" | python3 -B "$_credential_guard" 2>/dev/null; then
+    echo "[bash-guard] blocked: credential read or inspection failure; use controlled extraction or provide non-secret information." >&2
+    exit 2
+fi
 CMD="$(extract_tool_input command "$PAYLOAD")"
 [ -z "$CMD" ] && exit 0
 

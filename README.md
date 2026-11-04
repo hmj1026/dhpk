@@ -22,7 +22,7 @@ If you are not sure which skill or command to start with, use the **[Skill & Sla
 |------|--------|-----|
 | `bash` | Required | All hook and helper scripts |
 | `git` | Required | Artifact path resolution; `git rev-parse --show-toplevel` |
-| `python3` | Required IF you enable `modules` | Parses `module.yaml` for opt-in module activation and routing |
+| `python3` | Required for the Claude Bash gate | Inspects credential reads and parses `module.yaml` for opt-in module activation and routing |
 | `jq` | Optional (python3 fallback exists) | Faster JSON payload extraction |
 | `docker` | Optional | Used only by an explicitly registered Docker workflow with `userConfig.docker_containers` |
 | Codex CLI binary | Optional | Required only for CLI-backed roles/reviews, `codex exec` second opinions, or `install-codex-skills.sh` when Codex should load the synced content |
@@ -31,7 +31,7 @@ If you are not sure which skill or command to start with, use the **[Skill & Sla
 | `gitnexus` MCP server | Optional | Use MCP or `.gitnexus/run.cjs` directly for impact, query, context, and detect-changes. The six wrapper skills are retired. Missing or unresolved graph evidence stays unresolved and needs source confirmation under project rules. |
 | `claude-mem` | Optional | Cross-session memory search (`mem-search`). Referenced by `rules/tool-routing.md` for past-decision lookups. Missing → skip. |
 
-Missing optional tools degrade gracefully (the script no-ops or skips a feature). Missing required tools surface as a single-line `[hook-name] WARN: …` to stderr when an active hook needs them so you can act on them.
+Missing optional tools degrade gracefully (the script no-ops or skips a feature). The Claude Bash gate blocks with exit 2 when `python3` is unavailable. See [credential read protection](./docs/hook-extension.md#credential-read-protection) for its scope and limits.
 
 External code-navigation tools (`cx`, `gitnexus`, `claude-mem`) are **not bundled** by dhpk. Each consuming project decides whether to install them. The shipped rules and agents are written to degrade gracefully via [`rules/tool-routing.md`](./rules/tool-routing.md).
 
@@ -169,7 +169,7 @@ for the full inspect → route → implement → review → verify → handoff f
 
 ## userConfig
 
-74 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
+75 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ```bash
 claude plugin install dhpk@dhpk \
