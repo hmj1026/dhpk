@@ -8,7 +8,8 @@ import re
 import stat
 import sys
 
-from credential_shell import tokenize
+from credential_shell import tokenize, substitutions
+from credential_options import classify
 
 TEMPLATES = {'.env.example', '.env.sample', '.env.dist', '.env.template'}
 DEFAULTS = ['.env', '.env.*', 'my.cnf', 'debian.cnf', '*.pem', 'id_rsa*', 'credentials*']
@@ -83,7 +84,7 @@ def read_blocked(tokens, patterns, cwd):
             target = tokens[i + 1]
             if target.glob or protected(target.value, patterns, cwd):
                 return True
-    if any(posixpath.basename(t.value) == 'credential-extract.py' for t in words):
+    if any(posixpath.basename(t.value).endswith('credential-extract.py') for t in words):
         return True
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
     index = next((i for i, name in enumerate(names) if name in READERS or name == 'ssh'), None)
@@ -93,157 +94,11 @@ def read_blocked(tokens, patterns, cwd):
     if name == 'ssh':
         return ssh_blocked(words[index + 1:], patterns)
     args = words[index + 1:]
-    recursive = name == 'rg'
-    exclusions = []
-    invalid_proof = False
-    positional = []
-    pattern_seen = name not in ('grep', 'rg', 'sed', 'awk')
-    options = True
-    i = 0
-    while i < len(args):
-        token = args[i]
-        arg = token.value
-        if options and arg == '--':
-            options = False
-            i += 1
-            continue
-        if options and arg.startswith('-') and arg != '-':
-            # rg 的 -g 可黏接重新納入規則，不得當作其他短旗標叢集。
-            if name == 'rg' and arg.startswith('-g') and len(arg) > 2:
-                invalid_proof = True
-                i += 1
-                continue
-            # 短旗標叢集可帶 inline 腳本；先消耗其參數，避免將敏感目標誤認為腳本。
-            if (name in ('grep', 'rg', 'sed', 'awk') and arg.startswith('-')
-                    and not arg.startswith('--') and len(arg) > 2 and 'e' in arg[1:]
-                    and ('f' not in arg[1:] or arg.index('e') < arg.index('f'))):
-                before, suffix = arg[1:].split('e', 1)
-                if name == 'grep' and any(c in before for c in 'rR'):
-                    recursive = True
-                if not suffix:
-                    i += 1
-                    if i >= len(args):
-                        return True
-                pattern_seen = True
-                i += 1
-                continue
-            if name == 'grep' and (arg in ('-d', '--directories') or arg.startswith('--directories=')):
-                if '=' in arg:
-                    val = arg.split('=', 1)[1]
-                else:
-                    i += 1
-                    if i >= len(args):
-                        return True
-                    val = args[i].value
-                recursive |= val.startswith('recurs')
-                i += 1
-                continue
-            if name == 'grep' and arg.startswith('-d') and len(arg) > 2:
-                recursive |= arg[2:].startswith('recurs')
-                i += 1
-                continue
-            # 包含與重新納入規則會推翻全域排除的證明。
-            if arg.startswith('--include') or (name == 'rg' and (arg.startswith('--iglob') or (arg.startswith('-g') and len(arg) > 2))):
-                invalid_proof = True
-            option_name, separator, option_value = arg.partition('=')
-            known_long = ('--file', '--regexp', '--expression', '--exclude', '--glob',
-                          '--iglob', '--include', '--ignore-file', '--files-from',
-                          '--directories', '--recursive', '--dereference-recursive',
-                          '--no-ignore', '--no-ignore-vcs', '--hidden', '--pre',
-                          '--pre-glob', '--max-count', '--context', '--exclude-dir',
-                          '--type', '--encoding', '--sort', '--sortr', '--lines', '--bytes')
-            # 無法辨識的選項可能藏有檔案參數；可辨識的敏感目標不得因此略過。
-            if arg.startswith('--') and not any(option_name == option or option.startswith(option_name) for option in known_long):
-                if (separator and (token.glob or protected(option_value, patterns, cwd))) or (not separator and i + 1 < len(args) and (args[i + 1].glob or protected(args[i + 1].value, patterns, cwd))):
-                    return True
-            if separator and ('--file'.startswith(option_name) or option_name.startswith('--file')):
-                if token.glob or protected(option_value, patterns, cwd):
-                    return True
-                pattern_seen = True
-                i += 1
-                continue
-            if name in ('grep', 'rg', 'sed', 'awk') and arg.startswith('--') and '--file'.startswith(arg) and arg != '--':
-                i += 1
-                if i >= len(args) or args[i].glob or protected(args[i].value, patterns, cwd):
-                    return True
-                pattern_seen = True
-                i += 1
-                continue
-            if arg in ('--exclude-from', '--ignore-file', '--files-from'):
-                invalid_proof = True
-                i += 1
-                if i >= len(args) or args[i].glob or protected(args[i].value, patterns, cwd):
-                    return True
-                i += 1
-                continue
-            if arg.startswith(('--exclude-from=', '--ignore-file=', '--files-from=')):
-                invalid_proof = True
-                if token.glob or protected(arg.split('=', 1)[1], patterns, cwd):
-                    return True
-                i += 1
-                continue
-            if (name in ('grep', 'rg', 'sed', 'awk') and arg.startswith('-')
-                    and not arg.startswith('--') and len(arg) > 2 and 'f' in arg[1:]):
-                if name == 'grep' and any(c in arg.split('f', 1)[0][1:] for c in 'rR'):
-                    recursive = True
-                suffix = arg.split('f', 1)[1]
-                if suffix:
-                    if token.glob or protected(suffix, patterns, cwd):
-                        return True
-                else:
-                    i += 1
-                    if i >= len(args) or args[i].glob or protected(args[i].value, patterns, cwd):
-                        return True
-                pattern_seen = True
-                i += 1
-                continue
-            if arg in ('-r', '-R', '--recursive', '--dereference-recursive') or (name == 'grep' and arg.startswith('-') and not arg.startswith('--') and any(c in arg[1:] for c in 'rR')):
-                recursive = True
-            if arg in ('--no-ignore', '--no-ignore-vcs', '--hidden', '-.', '--pre', '--pre-glob') or arg.startswith(('--pre=', '--pre-glob=', '--ignore-file')):
-                invalid_proof = True
-            if arg.startswith('--exclude=') and name == 'grep':
-                exclusions.append(arg.split('=', 1)[1])
-            elif arg.startswith('--glob=') and name == 'rg':
-                val = arg.split('=', 1)[1]
-                exclusions.append(val[1:]) if val.startswith('!') else None
-                invalid_proof |= not val.startswith('!')
-            elif arg in ('--exclude', '--glob', '-g') and i + 1 < len(args):
-                i += 1
-                val = args[i].value
-                if name == 'grep' and arg == '--exclude':
-                    exclusions.append(val)
-                elif name == 'rg' and val.startswith('!'):
-                    exclusions.append(val[1:])
-                else:
-                    invalid_proof = True
-            elif arg in ('-f', '--file', '--regexp', '-e', '--expression'):
-                i += 1
-                if i >= len(args):
-                    return True
-                if arg in ('-f', '--file') and (args[i].glob or protected(args[i].value, patterns, cwd)):
-                    return True
-                pattern_seen = True
-            elif arg.startswith('--file='):
-                if token.glob or protected(arg.split('=', 1)[1], patterns, cwd):
-                    return True
-                pattern_seen = True
-            elif arg.startswith('-f') and len(arg) > 2:
-                if protected(arg[2:], patterns, cwd):
-                    return True
-                pattern_seen = True
-            elif arg.startswith(('-e', '--regexp=', '--expression=')):
-                pattern_seen = True
-            elif (name in ('head', 'tail') and arg in ('-n', '-c', '--lines', '--bytes')) or (name in ('grep', 'rg') and arg in ('-m', '--max-count', '-A', '-B', '-C', '--context', '--include', '--exclude-dir', '--type', '-t', '-T', '--encoding', '--sort', '--sortr')):
-                i += 1
-                if i >= len(args):
-                    return True
-            i += 1
-            continue
-        if not pattern_seen:
-            pattern_seen = True
-        else:
-            positional.append(token)
-        i += 1
+    # 舊版逐字猜測叢集與縮寫會錯認參數；依各 reader 的選項與參數表解析，未知語法直接拒絕。
+    classified = classify(name, args, lambda value: protected(value, patterns, cwd))
+    if classified is None:
+        return True
+    positional, recursive, exclusions, invalid_proof = classified
     for token in positional:
         if token.glob or protected(token.value, patterns, cwd):
             return True
@@ -282,23 +137,13 @@ def ssh_blocked(args, patterns):
     return analyze(' '.join(t.value for t in args[i:]), patterns, None, True)
 
 
-def analyze(command, patterns, cwd, remote=False):
-    # 引號內的命令替換仍會執行讀取；分析明文子命令而非展開或執行它。
-    for match in re.finditer(r'\$\(([^()]*)\)|`([^`]*)`', command, re.DOTALL):
-        # 單引號與跳脫字元內只是文字；只有實際可能展開的替換需要檢查。
-        quote = None
-        escaped = False
-        for char in command[:match.start()]:
-            if escaped:
-                escaped = False
-            elif char == '\\' and quote != "'":
-                escaped = True
-            elif char in ("'", '"') and (quote is None or quote == char):
-                quote = None if quote else char
-        if quote != "'" and not escaped and analyze(match.group(1) if match.group(1) is not None else match.group(2), patterns, cwd, remote):
+def analyze(command, patterns, cwd, remote=False, nested=False):
+    # 使用平衡掃描保留引號及巢狀括號，避免命令替換包住可辨識讀取時漏判。
+    for body in substitutions(command):
+        if analyze(body, patterns, cwd, remote, True):
             return True
     tokens = tokenize(command)
-    if safe_extraction(tokens, remote):
+    if not nested and safe_extraction(tokens, remote):
         return False
     segment = []
     uncertain_cwd = cwd

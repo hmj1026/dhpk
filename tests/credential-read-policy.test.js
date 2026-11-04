@@ -29,6 +29,7 @@ const blocked = [
 const allowed = [
   "echo 'cat .env'", "echo '$(cat .env)'", 'ls .env', 'stat .env', 'cat ordinary', 'cat .env.example', 'cat .env.sample',
   'cat .env.dist', 'cat .env.template', 'grep needle ordinary',
+  'grep --reg=x ordinary', 'sed --expr=p ordinary', 'grep -nex ordinary',
   'grep -r --exclude="*" needle .', 'rg --glob "!*" needle .',
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
@@ -75,7 +76,8 @@ test('only the exact pinned extractor invocation is permitted', () => {
   for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
     assert.strictEqual(runHook(hook, {payload: {tool_input: {command: exact}}}).status, 0);
     for (const command of [
-      `${exact}; cat .env`, `${exact} | cat`, `VAR=x ${exact}`, `${exact} > output`,
+      exact.replace(helper, `"${helper.replace('credential-extract.py', '\\credential-extract.py')}"`),
+      `echo \"$(${exact})\"`, `${exact}; cat .env`, `${exact} | cat`, `VAR=x ${exact}`, `${exact} > output`,
       `${exact} --extra`, exact.replace('host,dbname', 'host,password'),
       `ssh example '${exact}'`,
     ]) {
@@ -97,6 +99,20 @@ const regressions = {
   'rg case insensitive reinclusion': 'rg --glob "!*" --iglob .env needle .',
   'abbreviated file option': 'grep --fi=.env needle ordinary',
   'unknown option file target': 'grep --mystery=.env needle ordinary',
+  'grep abbreviated expression': 'grep --reg=x .env',
+  'sed abbreviated expression': 'sed --expr=p .env',
+  'grep abbreviated directories': 'grep --dir=recurse needle .',
+  'grep abbreviated recursion': 'grep --recurs needle .',
+  'grep clustered directories': 'grep -nd recurse needle .',
+  'grep abbreviated inclusion': 'grep -r --exclude="*" --incl=.env needle .',
+  'nested parentheses': 'echo "$( (cat .env) )"',
+  'quoted parentheses in substitution': `echo "$(cat .env | sed 's/(x)//')"`,
+  'awk source': `awk --source='{print}' .env`,
+  'ssh abbreviated expression': 'ssh example "grep --reg=x .env"',
+  'ambiguous long option': 'grep --ex=.env needle ordinary',
+  'malformed active substitution': 'echo "$(cat .env"',
+  'nested command substitution': 'echo "$(echo $(cat .env))"',
+
 };
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   for (const [description, command] of Object.entries(regressions)) {
@@ -135,6 +151,13 @@ test('missing runtime or analyzer fails closed through both hook entrypoints', (
         const missingAnalyzer = runHook(hookPath, options);
         assert.strictEqual(missingAnalyzer.status, 2, `${hook}: ${missingAnalyzer.stderr}`);
       } finally { fs.renameSync(`${analyzer}.off`, analyzer); }
+      const modulePath = path.join(hooks, '_lib/credential_options.py');
+      fs.renameSync(modulePath, `${modulePath}.off`);
+      try {
+        const missingModule = runHook(hookPath, options);
+        assert.strictEqual(missingModule.status, 2, `${hook}: ${missingModule.stderr}`);
+        assert.doesNotMatch(missingModule.stderr, /Traceback|ModuleNotFoundError/);
+      } finally { fs.renameSync(`${modulePath}.off`, modulePath); }
     }
   } finally { fs.rmSync(temp, {recursive: true, force: true}); }
 });
