@@ -78,7 +78,13 @@ gate checks that the installed helper is a regular non-symlink file with its
 pinned digest. The file must be a whole MySQL PDO DSN with unique `host` and
 `dbname`, and optional validated `port` and `charset`; unsupported or ambiguous
 input produces no extracted output. The helper emits JSON containing only the
-requested keys. PHP configuration and SSH extraction are unsupported in v1;
+requested keys. The file must be a regular file of at most 1024 bytes; its
+absolute path may contain no symlink, empty, `.` or `..` component. The ASCII
+DSN may end in one LF. Semicolon-separated fields can appear in any order,
+without extra fields or a trailing semicolon. `host` matches
+`[A-Za-z0-9][A-Za-z0-9._-]{0,252}`, `dbname` matches `[A-Za-z0-9_]{1,64}`,
+`charset` matches `[A-Za-z0-9_]{1,32}`, and `port` is 1–65535 without a
+leading zero. PHP configuration and SSH extraction are unsupported in v1;
 the helper does not execute PHP or source the file. On a block, use controlled
 local extraction where supported or ask the user for non-secret information.
 Diagnostics do not echo commands, configuration values, or file content.

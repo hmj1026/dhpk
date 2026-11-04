@@ -56,8 +56,10 @@ def tokenize(text):
             i += 1
             if i >= len(text):
                 raise ValueError('unfinished escape')
-            value.append(text[i])
-            started = True
+            # Shell 的反斜線換行會先移除；保留換行會把敏感檔名切開而漏判。
+            if text[i] != '\n':
+                value.append(text[i])
+                started = True
             i += 1
             continue
         if ch in '$`' and quoted != "'":

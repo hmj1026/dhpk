@@ -4,6 +4,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { runHook, ROOT } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
@@ -26,7 +27,7 @@ const blocked = [
   'python3 credential-extract.py --file .env --fields host',
 ];
 const allowed = [
-  'ls .env', 'stat .env', 'cat ordinary', 'cat .env.example', 'cat .env.sample',
+  "echo 'cat .env'", "echo '$(cat .env)'", 'ls .env', 'stat .env', 'cat ordinary', 'cat .env.example', 'cat .env.sample',
   'cat .env.dist', 'cat .env.template', 'grep needle ordinary',
   'grep -r --exclude="*" needle .', 'rg --glob "!*" needle .',
 ];
@@ -81,6 +82,85 @@ test('only the exact pinned extractor invocation is permitted', () => {
       assert.strictEqual(runHook(hook, {payload: {tool_input: {command}}}).status, 2, command);
     }
   }
+});
+
+const regressions = {
+  'clustered sed expression': 'sed -nep .env',
+  'clustered grep expression': 'grep -nex .env',
+  'command substitution': 'echo "$(cat .env)"',
+  'backtick substitution': 'echo `cat .env`',
+  'escaped newline in path': 'cat .en\\\nv',
+  'escaped newline before path': 'cat \\\n.env',
+  'grep recursive include': 'grep -r --exclude="*" --include=".env" needle .',
+  'grep directories recurse': 'grep -d recurse needle .',
+  'rg glob reinclusion': 'rg --glob "!*" -g.env needle .',
+  'rg case insensitive reinclusion': 'rg --glob "!*" --iglob .env needle .',
+  'abbreviated file option': 'grep --fi=.env needle ordinary',
+  'unknown option file target': 'grep --mystery=.env needle ordinary',
+};
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  for (const [description, command] of Object.entries(regressions)) {
+    test(`${hook} blocks ${description}`, () => {
+      assert.strictEqual(runHook(hook, {payload: {tool_input: {command}}}).status, 2);
+    });
+  }
+  test(`${hook} rejects scoped exclusion as global basename proof`, () => {
+    const command = 'grep -r --exclude=.env --exclude=.env.* --exclude=my.cnf --exclude=debian.cnf --exclude=*.pem --exclude=id_rsa* --exclude=credentials* --exclude=config/private.key needle .';
+    assert.strictEqual(runHook(hook, {payload: {tool_input: {command}}, env: {CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: '["config/private.key"]'}}).status, 2);
+  });
+  test(`${hook} rejects config error before empty-command shortcut`, () => {
+    assert.strictEqual(runHook(hook, {payload: {tool_input: {command: ''}}, env: {DHPK_CREDENTIAL_CONFIG_ERROR: '1'}}).status, 2);
+  });
+}
+
+test('missing runtime or analyzer fails closed through both hook entrypoints', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-credential-runtime-'));
+  try {
+    const hooks = path.join(temp, 'scripts/hooks');
+    fs.cpSync(path.join(ROOT, 'scripts/hooks'), hooks, {recursive: true});
+    const bin = path.join(temp, 'bin');
+    fs.mkdirSync(bin);
+    for (const name of ['bash', 'dirname', 'cat']) {
+      const executable = execFileSync('which', [name], {encoding: 'utf8'}).trim();
+      fs.symlinkSync(executable, path.join(bin, name));
+    }
+    for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+      const options = {payload: {tool_input: {command: ''}}, pluginRoot: temp, projectDir: temp};
+      const hookPath = path.join(hooks, hook);
+      const missingPython = runHook(hookPath, {...options, env: {PATH: bin}});
+      assert.strictEqual(missingPython.status, 2, `${hook}: ${missingPython.stderr}`);
+      const analyzer = path.join(hooks, '_lib/credential-read.py');
+      fs.renameSync(analyzer, `${analyzer}.off`);
+      try {
+        const missingAnalyzer = runHook(hookPath, options);
+        assert.strictEqual(missingAnalyzer.status, 2, `${hook}: ${missingAnalyzer.stderr}`);
+      } finally { fs.renameSync(`${analyzer}.off`, analyzer); }
+    }
+  } finally { fs.rmSync(temp, {recursive: true, force: true}); }
+});
+
+test('extractor identity rejects altered and symlinked helper in both entrypoints', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-credential-identity-'));
+  try {
+    const hooks = path.join(temp, 'scripts/hooks');
+    fs.cpSync(path.join(ROOT, 'scripts/hooks'), hooks, {recursive: true});
+    const helper = path.join(hooks, 'credential-extract.py');
+    const original = fs.readFileSync(helper);
+    const python = fs.realpathSync(execFileSync('python3', ['-c', 'import sys; print(sys.executable)'], {encoding: 'utf8'}).trim());
+    const command = `${python} -I -S ${helper} --file /tmp/.env --fields host`;
+    for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+      const options = {payload: {tool_input: {command}}, pluginRoot: temp, projectDir: temp};
+      const hookPath = path.join(hooks, hook);
+      assert.strictEqual(runHook(hookPath, options).status, 0);
+      fs.appendFileSync(helper, '\n# modified\n');
+      assert.strictEqual(runHook(hookPath, options).status, 2);
+      fs.unlinkSync(helper);
+      fs.symlinkSync(path.join(ROOT, 'scripts/hooks/credential-extract.py'), helper);
+      assert.strictEqual(runHook(hookPath, options).status, 2);
+      fs.unlinkSync(helper);
+      fs.writeFileSync(helper, original);
+    }
+  } finally { fs.rmSync(temp, {recursive: true, force: true}); }
 });
 
 run('credential-read-policy');
