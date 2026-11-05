@@ -62,6 +62,14 @@ file, the gate can use `lstat`; this check has a time-of-check/time-of-use
 limit. Identifiable protected reads with syntax the gate cannot safely classify
 are blocked. Submitted shell text is not executed or expanded for inspection.
 
+For supported complete heredocs, quoted delimiter bodies are data and unquoted
+bodies are checked for active command substitutions. Ambiguous delimiters,
+multiple heredocs on one line, and continued body lines fail closed. Commands
+and protected write targets around the heredoc remain subject to their gates.
+For recursive searches, use `rg --glob '!pattern'` or `grep --exclude='pattern'`
+for every default and custom protected pattern, or target explicit
+non-protected files. Grep/Read tools are alternatives only if available.
+
 ### Controlled extraction
 
 For a local protected file containing only a supported MySQL PDO DSN, the gate

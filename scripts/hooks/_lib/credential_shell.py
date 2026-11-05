@@ -1,6 +1,7 @@
 """Bounded shell lexer: words retain whether wildcard characters were unquoted."""
 
 from dataclasses import dataclass
+import re
 
 
 @dataclass
@@ -77,7 +78,7 @@ def tokenize(text):
     return tokens
 
 
-def substitutions(text):
+def substitutions(text, heredoc=False):
     """Extract active literal command substitutions with balanced parentheses."""
     result = []
     quote = None
@@ -90,7 +91,7 @@ def substitutions(text):
             i += 2
             continue
         # 註解只在未加引號的字詞起點生效；忽略註解內容，避免引號污染後續掃描。
-        if quote is None and ch == '#' and not word_started:
+        if not heredoc and quote is None and ch == '#' and not word_started:
             while i < len(text) and text[i] != '\n':
                 i += 1
             continue
@@ -102,10 +103,11 @@ def substitutions(text):
 
             if i + 1 >= len(text):
                 raise ValueError('unfinished escape')
-            if quote != '"' or text[i + 1] in '$`"\\\n':
+            if (heredoc and text[i + 1] in '$`\\\n') or (not heredoc and (quote != '"' or text[i + 1] in '$`"\\\n')):
                 i += 2
                 continue
-        if ch in "'\"" and (quote is None or quote == ch):
+        # heredoc 未引用的內文引號是一般資料，不能讓它隱藏仍會執行的替換。
+        if not heredoc and ch in "'\"" and (quote is None or quote == ch):
             quote = None if quote else ch
             i += 1
             continue
@@ -156,6 +158,8 @@ def substitutions(text):
             inner_word = False
             while j < len(text):
                 c = text[j]
+                if heredoc and c in "'\"":
+                    raise ValueError('ambiguous heredoc backtick')
                 if c == "\\" and inner_quote != "'" and j + 1 < len(text) and text[j + 1] == '\n':
                     j += 2
                     continue
@@ -182,3 +186,81 @@ def substitutions(text):
             continue
         i += 1
     return result
+
+
+def heredocs(text):
+    """Return shell text with complete simple heredoc bodies removed and active expansions."""
+    # splitlines 會把 CR 與 Unicode 分隔符當成換行，可能把註解誤判為 heredoc；shell 只以 LF 分行。
+    pieces = text.split('\n')
+    lines = [piece + '\n' for piece in pieces[:-1]]
+    if pieces[-1]:
+        lines.append(pieces[-1])
+    output = []
+    active = []
+    i = 0
+    quote = None
+    while i < len(lines):
+        line = lines[i]
+        op = None
+        j = 0
+        while j < len(line):
+            ch = line[j]
+            if ch == '\\' and quote != "'":
+                j += 2
+                continue
+            if ch in "'\"" and (quote is None or quote == ch):
+                quote = None if quote else ch
+            # shell 運算子後也是新字詞起點；註解內的 << 不能遮住後續命令。
+            elif quote is None and ch == '#' and (j == 0 or line[j - 1].isspace() or line[j - 1] in ';&|<>()'):
+                break
+            elif quote is None and line.startswith('<<', j):
+                if line.startswith('<<<', j):
+                    return text, []
+                if op is not None:
+                    raise ValueError('ambiguous heredoc')
+                op = j
+                j += 1
+            j += 1
+        output.append(line)
+        i += 1
+        if op is None:
+            continue
+        # 引號可以跨越實體行；未閉合時不能判定 heredoc 從哪一行開始。
+        if quote is not None:
+            raise ValueError('ambiguous heredoc declaration quote')
+        if line.endswith('\\\n'):
+            raise ValueError('ambiguous heredoc declaration continuation')
+        # shell 本身可能執行標準輸入；保留內文，避免將實際指令誤認為惰性資料。
+        # 先做 shell 引號移除，否則 'bash' 或 ba''sh 可繞過原始字串比對。
+        header_tokens = tokenize(''.join(output))
+        # 管線的接收端可能出現在 heredoc 結束之後，未解析完成前不得隱藏內文。
+        header_end = header_tokens[:-1] if header_tokens and header_tokens[-1].operator and header_tokens[-1].value == ';' and line.endswith('\n') else header_tokens
+        if header_end and header_end[-1].operator and header_end[-1].value in ('|', '|&', '&&', '||'):
+            raise ValueError('ambiguous heredoc pipeline')
+        if any(not token.operator and token.value.rsplit('/', 1)[-1] in
+               ('sh', 'bash', 'dash', 'zsh', 'ksh', 'source', 'eval', '.')
+               for token in header_tokens):
+            return text, []
+        # 僅遮罩能完整證明 delimiter 與結尾的格式；不明形式保留原文交由既有保守檢查。
+        match = re.match(r'<<(-?)[ \t]*((?:[A-Za-z0-9_]+|\x27[A-Za-z0-9_]*\x27|"[A-Za-z0-9_]*"|\\[A-Za-z0-9_])+)(?=[ \t;|&<>\n]|$)', line[op:])
+        if not match:
+            raise ValueError('unsupported heredoc delimiter')
+        word = match.group(2)
+        delimiter = word.replace("'", '').replace('"', '').replace('\\', '')
+        body = []
+        while i < len(lines):
+            candidate = lines[i].rstrip('\n')
+            if match.group(1):
+                candidate = candidate.lstrip('\t')
+            if candidate == delimiter:
+                i += 1
+                break
+            body.append(lines[i])
+            if lines[i].endswith('\\\n'):
+                raise ValueError('ambiguous heredoc continuation')
+            i += 1
+        else:
+            raise ValueError('unterminated heredoc')
+        if "'" not in word and '"' not in word and '\\' not in word:
+            active.extend(substitutions(''.join(body), heredoc=True))
+    return ''.join(output), active

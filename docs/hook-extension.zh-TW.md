@@ -50,6 +50,12 @@ component 的全域精確 basename exclusion 或 `*` 可作此證明；ignore、
 檢查與使用之間的時間差。可辨識的受保護讀取若語法無法安全分類則阻擋；檢查時
 不執行或展開提交的 shell 文字。
 
+支援且完整的 heredoc 若 delimiter 有引用，內文視為資料；未引用時檢查有效的命令
+替換。含歧義的 delimiter、同一行多個 heredoc 與內文續行會採保守阻擋；heredoc
+前後命令及受保護的寫入目標仍受原有 gate 檢查。遞迴搜尋可使用
+`rg --glob '!pattern'` 或 `grep --exclude='pattern'` 排除所有預設與自訂保護規則，
+或指定明確的非保護檔案；Grep/Read 工具僅在可用時作為替代方案。
+
 ### 受控擷取
 
 本機受保護檔案若只包含支援的 MySQL PDO DSN，gate 只辨識一個簡單呼叫，使用

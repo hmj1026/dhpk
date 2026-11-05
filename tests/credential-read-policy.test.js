@@ -40,6 +40,74 @@ const allowed = [
   "sed -i 's/\\r//' script.sh",
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  test(`${hook} treats quoted heredoc content as data`, () => {
+    const command = "cat > out.txt <<'EOF'\n$(cat .env)\nEOF\n";
+    const result = runHook(hook, {payload: {tool_input: {command}}});
+    assert.strictEqual(result.status, 0, result.stderr);
+  });
+  for (const command of [
+      "printf '%s' '\n<<EOF\n'\ncat .env\nprintf '\nEOF\n'\n",
+      "printf '%s\\n' '\n<<EOF; '\ncat .env\nEOF\n",
+      "'bash' <<'EOF'\ncat .env\nEOF\n",
+      "ba''sh <<'EOF'\ncat .env\nEOF\n",
+      "true;# <<'EOF'\ncat .env\nEOF\n",
+      "bash \\\n<<'EOF'\ncat .env\nEOF\n",
+      "b\\ash <<'EOF'\ncat .env\nEOF\n",
+      "cat <<'EOF' |\ncat .env\nEOF\nbash\n",
+      "true # comment\u2028<<'EOF'\ncat .env\nEOF\n",
+      "true # comment\r<<'EOF'\ncat .env\nEOF\n",
+    ]) {
+    test(`${hook} blocks multiline or quoted interpreter bypass: ${JSON.stringify(command)}`, () => {
+      const result = runHook(hook, {payload: {tool_input: {command}}});
+      assert.strictEqual(result.status, 2, `${command}: ${result.stderr}`);
+    });
+  }
+  test(`${hook} handles fixed strings and heredoc boundaries`, () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-heredoc-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'ordinary.js'), 'ordinary');
+      const check = (command, status, reason) => {
+        const result = runHook(hook, {cwd: dir, payload: {tool_input: {command}}});
+        assert.strictEqual(result.status, status, `${command}: ${result.stderr}`);
+        if (reason) assert.match(result.stderr, reason);
+      };
+      for (const option of ['-F', '--fixed-strings']) check(`rg ${option} needle ordinary.js`, 0);
+      check('rg -n -F needle .', 2, /recursive read/);
+      for (const delimiter of ["'EOF'", '"EOF"', "E'O'F", "''EOF", 'E\\OF']) {
+        check(`cat > out.txt <<${delimiter}\nrg -l needle dir\n$(cat .env)\nEOF\n`, 0);
+      }
+      check('cat > out.txt <<EOF\n$(cat .env)\nEOF\n', 2, /protected path/);
+      check('cat > out.txt <<EOF\n`cat .env`\nEOF\n', 2, /protected path/);
+      check("cat > out.txt <<EOF\n'$(cat .env)'\nEOF\n", 2, /protected path/);
+      check('cat > out.txt <<EOF\n# $(cat .env)\nEOF\n', 2, /protected path/);
+      check('cat > out.txt <<EOF\n\\\\$(cat .env)\nEOF\n', 2, /protected path/);
+      check('cat > out.txt <<EOF\n$(printf "%s" "$(cat .env)")\nEOF\n', 2, /protected path/);
+      check('cat > out.txt <<EOF\n\\$(cat .env)\nEOF\n', 0);
+      check('cat > out.txt <<EOF\nrg needle dir\nEOF\n', 0);
+      check("cat > out.txt <<'EOF'\ndata\nEOF\ncat .env", 2, /protected path/);
+      check("cat > out.txt <<'EOF'; cat .env\ndata\nEOF", 2, /protected path/);
+      check("cat .env; cat > out.txt <<'EOF'\ndata\nEOF", 2, /protected path/);
+      check("cat > .env <<'EOF'\ndata\nEOF", 2);
+      check("cat > out.txt <<'EOF'\ncat .env", 2);
+      check("cat > out.txt <<'EOF'\n$(cat .env)\nEOF\r\n", 2);
+      check("cat > out.txt <<'EOF'\ndata\u2028$(cat .env)\nEOF\n", 0);
+      check("bash <<'EOF'\ncat .env\nEOF", 2);
+      check("cat <<'EOF' | bash\ncat .env\nEOF", 2);
+      check("source /dev/stdin <<'EOF'\ncat .env\nEOF", 2);
+    } finally { fs.rmSync(dir, {recursive: true, force: true}); }
+  });
+  test(`${hook} offers reader-specific recovery without assuming tools`, () => {
+    for (const [command, example] of [['rg needle .', /--glob/], ['grep -r needle .', /--exclude/], ['rg -Z needle .', /--glob/]]) {
+      const result = runHook(hook, {payload: {tool_input: {command}}, env: {CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: '["secret.conf"]'}});
+      assert.strictEqual(result.status, 2, result.stderr);
+      assert.match(result.stderr, example);
+      assert.match(result.stderr, /custom|consumer/i);
+      assert.doesNotMatch(result.stderr, /git grep|python/i);
+      assert.match(result.stderr, /if available/i);
+    }
+  });
+}
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   test(`${hook} protects target-scoped reads`, () => {
     for (const command of blocked) {
       const result = runHook(hook, { payload: { tool_input: { command } } });

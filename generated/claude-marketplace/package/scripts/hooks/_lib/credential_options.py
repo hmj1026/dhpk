@@ -42,6 +42,8 @@ def schemas(name):
         long.update({'--recursive': RECURSE, '--dereference-recursive': RECURSE,
                      '--directories': (True, 'directories')})
     if name == 'rg':
+        # 舊表遺漏 rg 的固定字串短選項，導致合法檔案查詢被誤擋；它不改變遞迴政策。
+        short['F'] = NEUTRAL
         short.update({'g': (True, 'glob'), 't': (True, 'invalid'), 'T': (True, 'invalid'), '.': (False, 'invalid')})
         long.update({'--glob': (True, 'glob'), '--iglob': (True, 'invalid'),
                      '--ignore-file': (True, 'file_invalid'), '--files-from': (True, 'file_invalid'),
