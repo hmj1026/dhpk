@@ -25,12 +25,19 @@ const blocked = [
   'ssh -p 22 example "cat .env"', 'ssh example cat .env',
   'cat *.pem', 'cat .env.example; cat credentials.json',
   'python3 credential-extract.py --file .env --fields host',
+  'head -5 .env', 'tail -20 my.cnf', "sed -i 's/a/b/' .env",
+  // rg -E 是 --encoding（帶值）；若當成 grep 的 -E，pattern 會被誤認成檔案而跳過遞迴檢查。
+  'rg -E utf8 package.json', 'rg -E . ordinary', 'rg -E utf8 -e x ordinary', 'grep -E "a|b" .env', 'grep -F needle credentials.json',
 ];
 const allowed = [
   "echo 'cat .env'", "echo '$(cat .env)'", 'echo literal#hash', "echo '# literal'", 'ls .env', 'stat .env', 'cat ordinary', 'cat .env.example', 'cat .env.sample',
   'cat .env.dist', 'cat .env.template', 'grep needle ordinary',
   'grep --reg=x ordinary', 'sed --expr=p ordinary', 'grep -nex ordinary',
   'grep -r --exclude="*" needle .', 'rg --glob "!*" needle .',
+  // 數字簡寫與常見 grep 旗標不是讀取保護檔，舊版因語法表缺項而誤擋。
+  'git tag | head -15', 'git log --oneline | tail -5', 'head -40 ordinary',
+  'grep -E "a|b" ordinary', 'grep -F needle ordinary', 'grep -P "x+" ordinary', 'grep -h needle ordinary',
+  "sed -i 's/\\r//' script.sh",
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   test(`${hook} protects target-scoped reads`, () => {
@@ -44,6 +51,15 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
       const result = runHook(hook, { payload: { tool_input: { command } } });
       assert.strictEqual(result.status, 0, `${command}: ${result.stderr}`);
     }
+  });
+  test(`${hook} names the block reason`, () => {
+    const syntax = runHook(hook, { payload: { tool_input: { command: 'grep -Z needle ordinary' } } });
+    assert.strictEqual(syntax.status, 2, syntax.stderr);
+    assert.match(syntax.stderr, /unsupported reader syntax/);
+    const recursive = runHook(hook, { payload: { tool_input: { command: 'grep -rn needle .' } } });
+    assert.match(recursive.stderr, /recursive read/);
+    const direct = runHook(hook, { payload: { tool_input: { command: 'cat .env' } } });
+    assert.match(direct.stderr, /protected path/);
   });
   test(`${hook} enforces additive custom policy and malformed inputs`, () => {
     for (const command of ['cat secret.conf', 'cat a/config/private.key', 'cat .env.example']) {

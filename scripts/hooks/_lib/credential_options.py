@@ -21,7 +21,7 @@ def schemas(name):
         short.update({'e': EXPR, 'f': FILE})
         long.update({'--file': FILE})
     if name == 'sed':
-        short.update({'n': NEUTRAL, 'E': NEUTRAL, 'r': NEUTRAL, 's': NEUTRAL, 'z': NEUTRAL})
+        short.update({'n': NEUTRAL, 'E': NEUTRAL, 'r': NEUTRAL, 's': NEUTRAL, 'z': NEUTRAL, 'i': NEUTRAL})
         long.update({'--expression': EXPR, '--quiet': NEUTRAL, '--silent': NEUTRAL, '--regexp-extended': NEUTRAL})
     if name == 'awk':
         short.update({'F': VALUE, 'v': VALUE})
@@ -36,6 +36,8 @@ def schemas(name):
                      '--exclude': (True, 'exclude'), '--exclude-from': (True, 'file_invalid'),
                      '--include': (True, 'invalid'), '--exclude-dir': (True, 'invalid')})
     if name == 'grep':
+        # 只限 grep：rg 的 -E 是帶值的 --encoding、-h 是 --help，語意不同，誤設 neutral 會讓參數錯位。
+        short.update({c: NEUTRAL for c in 'hEFP'})
         short.update({'r': RECURSE, 'R': RECURSE, 'd': (True, 'directories')})
         long.update({'--recursive': RECURSE, '--dereference-recursive': RECURSE,
                      '--directories': (True, 'directories')})
@@ -85,6 +87,9 @@ def classify(name, args, is_protected):
                 return None
             else:
                 effects.append((effect, '', token))
+        elif options and name in ('head', 'tail') and arg[1:].isdigit() and arg.startswith('-'):
+            # `head -15` 是 `head -n 15` 的傳統簡寫，只決定行數，不指定讀取目標。
+            effects.append(('neutral', '', token))
         elif options and arg.startswith('-') and arg != '-':
             j = 1
             while j < len(arg):
