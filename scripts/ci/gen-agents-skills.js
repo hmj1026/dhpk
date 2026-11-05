@@ -93,6 +93,7 @@ try {
       repair: args.repair,
     });
     console.log(`gen-agents-skills: wrote ${result.selectedIds.length} selected skills and ${result.managedPaths.length} managed files`);
+    if (result.backupPath) console.log(`gen-agents-skills: adoption backup ${result.backupPath}`);
     const released = result.released || [];
     if (released.length > 0) {
       const names = released.map((entry) => entry.name).join(', ');

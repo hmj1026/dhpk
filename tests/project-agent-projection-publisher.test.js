@@ -444,6 +444,23 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
+  test('adoption CLI reports the backup containing the original selected file', () => {
+    const { sourceRoot, projectRoot, receiptPath } = boundaryFixture();
+    try {
+      rewriteReceipt(receiptPath, (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; });
+      write(path.join(sourceRoot, 'manifests/distribution-inventory.json'), JSON.stringify(projectInventory()));
+      write(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'), 'original local content\n');
+      const result = childProcess.spawnSync(process.execPath, [path.join(__dirname, '../scripts/ci/gen-agents-skills.js'), '--source-root', sourceRoot, '--project-root', projectRoot, '--adopt'], { encoding: 'utf8' });
+      assert.strictEqual(result.status, 0, result.stderr);
+      const match = result.stdout.match(/^gen-agents-skills: adoption backup (.+)$/m);
+      assert.ok(match, result.stdout);
+      assert.strictEqual(fs.readFileSync(path.join(match[1], 'managed/dhpk-sample/SKILL.md'), 'utf8'), 'original local content\n');
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('interrupted adoption restores old files before publishing and preserves ambiguous candidates', () => {
     for (const failAfterCopy of [false, true]) {
       const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
