@@ -350,6 +350,214 @@ const { test, run, assert } = require('./_lib/tinytest');
     write(receiptPath, `${JSON.stringify(receipt)}\n`);
   }
 
+  test('uninstall releases a marker-less 2.0.0 receipt without removing payload or bindings', () => {
+    const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
+    try {
+      rewriteReceipt(receiptPath, (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; });
+      const payloadPath = path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md');
+      const payload = fs.readFileSync(payloadPath);
+      const linkPath = path.join(projectRoot, '.cursor/skills/dhpk-sample');
+      const link = fs.readlinkSync(linkPath);
+      const removed = publisher.uninstallAgentsSkillsProjection(options);
+      assert.strictEqual(removed.ok, true, JSON.stringify(removed));
+      assert.strictEqual(fs.existsSync(receiptPath), false);
+      assert.deepStrictEqual(fs.readFileSync(payloadPath), payload);
+      assert.strictEqual(fs.readlinkSync(linkPath), link);
+      assert.ok(removed.preservedPaths.includes('.agents/skills/dhpk-sample/SKILL.md'));
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('legacy uninstall rejects tampered receipt and unknown marker without changing bytes', () => {
+    for (const mutate of [
+      (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; receipt.managedPaths.push('../escape'); },
+      (receipt) => { receipt.fingerprint_algorithm = 'legacy'; receipt.generatorVersion = '2.0.0'; },
+      (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.1'; },
+    ]) {
+      const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
+      try {
+        rewriteReceipt(receiptPath, mutate);
+        const before = fs.readFileSync(receiptPath);
+        assert.strictEqual(publisher.uninstallAgentsSkillsProjection(options).ok, false);
+        assert.deepStrictEqual(fs.readFileSync(receiptPath), before);
+      } finally {
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test('uninstall releases validated marker-less v1 and v2 receipts', () => {
+    for (const version of [1, 2]) {
+      const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
+      try {
+        const current = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+        const receipt = version === 1 ? asLegacyV1Receipt(current, projectRoot) : asV2Receipt(current);
+        delete receipt.fingerprint_algorithm;
+        receipt.generatorVersion = '2.0.0';
+        delete receipt.receiptFingerprint;
+        receipt.receiptFingerprint = fingerprint(receipt);
+        write(receiptPath, JSON.stringify(receipt));
+        const removed = publisher.uninstallAgentsSkillsProjection(options);
+        assert.strictEqual(removed.ok, true, JSON.stringify(removed));
+        assert.ok(fs.existsSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md')));
+      } finally {
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test('uninstall CLI reports released legacy paths', () => {
+    const { sourceRoot, projectRoot, receiptPath } = boundaryFixture();
+    try {
+      rewriteReceipt(receiptPath, (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; });
+      write(path.join(sourceRoot, 'manifests/distribution-inventory.json'), JSON.stringify(projectInventory()));
+      const result = childProcess.spawnSync(process.execPath, [path.join(__dirname, '../scripts/ci/gen-agents-skills.js'), '--source-root', sourceRoot, '--project-root', projectRoot, '--uninstall'], { encoding: 'utf8' });
+      assert.strictEqual(result.status, 0, result.stderr);
+      assert.match(result.stdout, /released .*\.agents\/skills\/dhpk-sample\/SKILL\.md/);
+      assert.ok(fs.existsSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md')));
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('explicit adoption replaces selected legacy paths and retains unselected content and backup', () => {
+    const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
+    try {
+      rewriteReceipt(receiptPath, (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; });
+      const oldPath = path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md');
+      write(oldPath, 'locally edited legacy payload\n');
+      const foreignPath = path.join(projectRoot, '.agents/skills/unselected/SKILL.md');
+      write(foreignPath, 'keep this\n');
+      const adopted = publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true });
+      assert.strictEqual(adopted.receipt.generatorVersion, '2.1.0');
+      assert.match(fs.readFileSync(oldPath, 'utf8'), /Fixture/);
+      assert.strictEqual(fs.readFileSync(foreignPath, 'utf8'), 'keep this\n');
+      assert.strictEqual(fs.readFileSync(path.join(adopted.backupPath, 'managed/dhpk-sample/SKILL.md'), 'utf8'), 'locally edited legacy payload\n');
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('interrupted adoption restores old files before publishing and preserves ambiguous candidates', () => {
+    for (const failAfterCopy of [false, true]) {
+      const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
+      const originalCopy = fs.copyFileSync;
+      try {
+        rewriteReceipt(receiptPath, (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; });
+        const before = fs.readFileSync(receiptPath);
+        const payloadPath = path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md');
+        write(payloadPath, 'edited before adoption\n');
+        let copies = 0;
+        fs.copyFileSync = (...args) => {
+          if (String(args[1]).startsWith(path.join(projectRoot, '.agents', 'skills'))) {
+            copies += 1;
+            if (copies === (failAfterCopy ? 2 : 1)) throw new Error('injected publish failure');
+          }
+          return originalCopy(...args);
+        };
+        assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true }), /injected publish failure/);
+        fs.copyFileSync = originalCopy;
+        if (failAfterCopy) {
+          assert.ok(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.transaction.json')));
+          assert.ok(fs.readdirSync(path.join(projectRoot, '.agents')).some((name) => name.startsWith('.dhpk-projection-backup-')));
+        } else {
+          assert.deepStrictEqual(fs.readFileSync(receiptPath), before);
+          assert.strictEqual(fs.readFileSync(payloadPath, 'utf8'), 'edited before adoption\n');
+        }
+      } finally {
+        fs.copyFileSync = originalCopy;
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test('adoption receipt publication failure preserves the backup and recovery journal', () => {
+    const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
+    const originalRename = fs.renameSync;
+    try {
+      rewriteReceipt(receiptPath, (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; });
+      const before = fs.readFileSync(receiptPath);
+      fs.renameSync = (from, to) => {
+        if (to === receiptPath && String(from).includes('.tmp-')) throw new Error('injected receipt failure');
+        return originalRename(from, to);
+      };
+      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true }), /injected receipt failure/);
+      fs.renameSync = originalRename;
+      const backupName = fs.readdirSync(path.join(projectRoot, '.agents')).find((name) => name.startsWith('.dhpk-projection-backup-'));
+      assert.ok(backupName);
+      assert.deepStrictEqual(fs.readFileSync(path.join(projectRoot, '.agents', backupName, 'receipt.json')), before);
+      assert.ok(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.transaction.json')));
+      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true }), /recovery conflict|reconciliation/i);
+    } finally {
+      fs.renameSync = originalRename;
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('adopting one Host preserves and reports other Host links and Claude sibling', () => {
+    const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
+    try {
+      rewriteReceipt(receiptPath, (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; });
+      const claudeLink = path.join(projectRoot, '.claude/skills/dhpk-sample');
+      const codexLink = path.join(projectRoot, '.codex/skills/dhpk-sample');
+      const claudeTarget = fs.readlinkSync(claudeLink);
+      const codexTarget = fs.readlinkSync(codexLink);
+      const sibling = path.join(projectRoot, '.agents/claude-skills/dhpk-sample/SKILL.md');
+      const siblingBytes = fs.readFileSync(sibling);
+      const result = publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true, requestedHosts: ['cursor'] });
+      assert.strictEqual(fs.readlinkSync(claudeLink), claudeTarget);
+      assert.strictEqual(fs.readlinkSync(codexLink), codexTarget);
+      assert.deepStrictEqual(fs.readFileSync(sibling), siblingBytes);
+      assert.ok(result.released.some((entry) => entry.name === '.claude/skills/dhpk-sample'));
+      assert.ok(result.released.some((entry) => entry.name === '.codex/skills/dhpk-sample'));
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('adoption recovery can resume after an interrupted restore', () => {
+    const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
+    const originalRename = fs.renameSync;
+    const originalCopy = fs.copyFileSync;
+    try {
+      rewriteReceipt(receiptPath, (receipt) => { delete receipt.fingerprint_algorithm; receipt.generatorVersion = '2.0.0'; });
+      const before = fs.readFileSync(receiptPath);
+      const payloadPath = path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md');
+      write(payloadPath, 'preserve during restore\n');
+      let restores = 0;
+      fs.copyFileSync = (from, to, ...rest) => {
+        if (String(to).startsWith(path.join(projectRoot, '.agents/skills'))) throw new Error('injected publish failure');
+        return originalCopy(from, to, ...rest);
+      };
+      fs.renameSync = (from, to) => {
+        if (String(from).includes('.dhpk-projection-backup-') && ++restores === 2) throw new Error('injected restore failure');
+        return originalRename(from, to);
+      };
+      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true }), /injected publish failure/);
+      fs.copyFileSync = originalCopy;
+      fs.renameSync = originalRename;
+      assert.ok(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.transaction.json')));
+      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection(options), /fingerprint algorithm/);
+      assert.deepStrictEqual(fs.readFileSync(receiptPath), before);
+      assert.strictEqual(fs.readFileSync(payloadPath, 'utf8'), 'preserve during restore\n');
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.transaction.json')), false);
+    } finally {
+      fs.copyFileSync = originalCopy;
+      fs.renameSync = originalRename;
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('a 2.0.0 receipt, a marker-less receipt, and an unknown marker fail closed with the version-boundary diagnostic', () => {
     const { versionBoundaryMessage } = require('../scripts/lib/content-fingerprint');
     const cases = [
@@ -375,9 +583,8 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
-  test('a marker-less legacy manifest is not adopted and the diagnostic names the version boundary', () => {
+  test('an explicit adoption accepts the known marker-less standalone manifest and keeps a backup', () => {
     const { materializeAgentsSkillsProjection } = require('../scripts/lib/agents-skills-package');
-    const { versionBoundaryMessage } = require('../scripts/lib/content-fingerprint');
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-legacy-manifest-source-'));
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-legacy-manifest-project-'));
     try {
@@ -392,14 +599,45 @@ const { test, run, assert } = require('./_lib/tinytest');
       delete manifest.fingerprint_algorithm;
       fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
       const options = { sourceRoot, projectRoot, inventory: projectInventory(), adopt: true, allowCanonicalChanges: true };
-      assert.throws(
-        () => publisher.materializeRelocatableAgentsSkillsProjection(options),
-        (error) => error.message.includes(versionBoundaryMessage('fingerprint_algorithm', undefined)),
-      );
-      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), false);
+      const adopted = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(adopted.receipt.generatorVersion, '2.1.0');
+      assert.ok(fs.existsSync(path.join(adopted.backupPath, 'managed/.dhpk-projection.json')));
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
     } finally {
       fs.rmSync(sourceRoot, { recursive: true, force: true });
       fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('standalone adoption rejects unknown versions, markers, and unbound paths without changes', () => {
+    const { materializeAgentsSkillsProjection } = require('../scripts/lib/agents-skills-package');
+    for (const mutate of [
+      (manifest) => { manifest.generatorVersion = '1.0.0'; delete manifest.fingerprint_algorithm; },
+      (manifest) => { manifest.fingerprint_algorithm = 'unknown'; },
+      (manifest) => { delete manifest.fingerprint_algorithm; manifest.managedPaths.push('../escape'); manifest.generatedFingerprints['../escape'] = 'a'.repeat(64); },
+      (manifest) => { delete manifest.fingerprint_algorithm; manifest.managedPaths.push('foreign/file'); manifest.generatedFingerprints['foreign/file'] = 'a'.repeat(64); },
+    ]) {
+      const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-invalid-legacy-source-'));
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-invalid-legacy-project-'));
+      try {
+        write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
+        const inventory = { ...projectInventory(), skills: [{ ...projectInventory().skills[0], surfaces: ['agent-plugin'] }], surface_membership: { 'agent-plugin': ['sample'] } };
+        const oldRoot = path.join(sourceRoot, '.agents/skills');
+        materializeAgentsSkillsProjection({ root: sourceRoot, inventory, outDir: oldRoot });
+        fs.mkdirSync(path.join(projectRoot, '.agents'), { recursive: true });
+        fs.cpSync(oldRoot, path.join(projectRoot, '.agents/skills'), { recursive: true });
+        const manifestPath = path.join(projectRoot, '.agents/skills/.dhpk-projection.json');
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        mutate(manifest);
+        write(manifestPath, JSON.stringify(manifest));
+        const before = fs.readFileSync(manifestPath);
+        assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ sourceRoot, projectRoot, inventory: projectInventory(), adopt: true }));
+        assert.deepStrictEqual(fs.readFileSync(manifestPath), before);
+        assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.json')), false);
+      } finally {
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
     }
   });
 
