@@ -61,7 +61,7 @@ Record console and page-error baselines before testing and subsequent observatio
 
 If the tool cannot reliably perform the prescribed interaction or observe its outcome, report `BLOCKED` with the `tool-limitation` reason category, the evidence and affected case. Record an attempted or proposed safe alternative under existing authorization, and whether it verifies the original acceptance goal. A direct URL does not prove a menu interaction, and an HTTP call does not replace a required UI step.
 
-When a state-changing or non-idempotent action has an unknown outcome, do not replay it. Use only authorized read-only observation to reconcile it. If unresolved, stop with `BLOCKED` and record the unknown outcome.
+When a state-changing action has an unknown outcome, do not replay it; repeating it could cause the side effect again, such as submitting an order twice. Use only authorized read-only observation to reconcile it. If unresolved, stop with `BLOCKED` and record the unknown outcome.
 
 Update the results file after each case so partial progress survives an interruption. Leave the environment as the case leaves it unless the brief prescribes cleanup.
 
