@@ -12,6 +12,11 @@ const MACOS_INSTALLER_FILES = Object.freeze([
   { file: 'tests/cli-dispatch-launcher.test.js' },
   { file: 'tests/run-bounded-node-test.test.js' },
   { file: 'tests/install-cursor-harness.test.js' },
+  // 原 fixture 在大小寫不敏感檔案系統會碰撞，macOS 必須實際執行其指紋測試。
+  { file: 'tests/content-fingerprint.test.js' },
+  { file: 'tests/content-fingerprint-characterization.test.js' },
+  { file: 'tests/content-fingerprint-tree-merkle.test.js' },
+  { file: 'tests/receipt-primitives.test.js' },
 ]);
 
 function runMacosInstallerSubset({

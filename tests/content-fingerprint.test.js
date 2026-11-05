@@ -13,6 +13,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const fingerprint = require('../scripts/lib/content-fingerprint');
 
 const ROOT = path.resolve(__dirname, '..');
+// 原 fixture 的 B.txt 與 b.txt 在大小寫不敏感檔案系統衝突，磁碟路徑改為獨立名稱。
 const ADVERSARIAL = path.join(__dirname, 'fixtures', 'content-fingerprint', 'adversarial');
 
 function readJson(relative) {
@@ -33,7 +34,7 @@ function buildAdversarialTree() {
   fs.mkdirSync(path.join(dir, '__pycache__'));
   fs.writeFileSync(path.join(dir, '__pycache__', 'x.pyc'), 'pyc');
   fs.writeFileSync(path.join(dir, 'skip.pyc'), 'pyc2');
-  for (const file of ['a.txt', 'a/inner.txt', 'B.txt', 'b.txt', 'sub/Z.txt', 'sub/a.txt', 'sub/binary.bin']) {
+  for (const file of ['a.txt', 'a/inner.txt', 'upper-B.txt', 'b.txt', 'sub/Z.txt', 'sub/a.txt', 'sub/binary.bin']) {
     fs.chmodSync(path.join(dir, file), 0o644);
   }
   fs.chmodSync(path.join(dir, 'b.txt'), 0o755);
@@ -223,16 +224,16 @@ test('AGY fingerprints.json file entries are SHA-256 digests of the file bytes',
 // Synthetic and adversarial trees
 // ---------------------------------------------------------------------------
 
-// Values recorded from the pre-consolidation implementations on the tree built
-// by buildAdversarialTree(). The WRITER values are what the shared functions
-// must reproduce (design D3). The VERIFIER values are recorded as data: the old
+// Legacy writer and verifier values describe the original case-distinct tree.
+// The portable Merkle, package, and receipt values are independently calculated.
+// The VERIFIER values are recorded as data: the old
 // disk walkers sort per directory, so they disagree with the writers when a
 // file name and a directory name collide on a prefix (a.txt beside a/).
 const ADVERSARIAL_WRITER = Object.freeze({
   codeUnit: 'bccb2fd5c913a88ec051b2742f7f923a21c17d091cdf15e38af6a5c7229b406f',
   locale: '5210043f319dc84e262ddee0a77724c368655b6c2601abd5b2246d5bc89a2c62',
   terminatedCodeUnitOrder: 'dff9ebb5c84a93fdc945861a921f607ab6b9888c71d883611a0ec73800f785c2',
-  merkleFilesOnlyRoot: '84ffd53938ed50bf6c1b6665f92cbf9feb93dba1e10da374a32531eba7cd2122',
+  merkleFilesOnlyRoot: '7cd0eb904f97b8f1fb8739c89f8a769b1e5cc23c7eb53270d7aca42b451aa283',
   merkleSub: 'a92dd0a8df68924d910d7e498dc50cb49d431009322633a066543d1da83bb37c',
 });
 
@@ -244,12 +245,12 @@ const ADVERSARIAL_LEGACY_VERIFIER = Object.freeze({
 });
 
 const ADVERSARIAL_PACKAGE = Object.freeze({
-  contentFingerprint: 'sha256:923bb5c74d70436ee00b69e799cca24a94023420f3818b69561b81feadbd3867',
-  modeFingerprint: 'sha256:b31c98683390e97e4079921cd89cc1ec2c7757aef576a21c7098891cdb94cc2f',
-  artifactFingerprint: 'sha256:33834a3adf417353e49dbb518ff93816708afc9da2093b8b782a6efe6bf316ae',
+  contentFingerprint: 'sha256:fa5267abd7d72ef804f848bc854eb94a73d60a50dc6dce97937f335601e6820c',
+  modeFingerprint: 'sha256:ef5ef43837565656b9eb8bf031152a7d669329e0b13789128df1507db8f99f39',
+  artifactFingerprint: 'sha256:b68f1089cb962f49001bdd90897c39ab54fd12f67198588baa67d217092bcb3c',
 });
 
-const ADVERSARIAL_RECEIPT_DIRECTORY = 'sha256:580d562a776f02e67392cf5848dbb18a8294409cf0b7e0dea77519132fff113f';
+const ADVERSARIAL_RECEIPT_DIRECTORY = 'sha256:c998499fbdd7157a0996c1abad90ebac4f258174cc02f0f25237a74dfdaaa7db';
 
 test('collector skips bytecode, keeps empty directories, and lists directories before their contents', () => {
   const dir = buildAdversarialTree();
@@ -257,7 +258,6 @@ test('collector skips bytecode, keeps empty directories, and lists directories b
     const entries = fingerprint.collectDirectoryEntries(dir, { skipBytecode: true });
     const listed = entries.map((entry) => `${entry.type}:${entry.path}`);
     assert.deepStrictEqual(listed, [
-      'file:B.txt',
       'directory:a',
       'file:a/inner.txt',
       'file:a.txt',
@@ -267,6 +267,7 @@ test('collector skips bytecode, keeps empty directories, and lists directories b
       'file:sub/Z.txt',
       'file:sub/a.txt',
       'file:sub/binary.bin',
+      'file:upper-B.txt',
     ]);
     const withBytecode = fingerprint.collectDirectoryEntries(dir, { skipBytecode: false }).map((entry) => entry.path);
     assert.ok(withBytecode.includes('skip.pyc'));
@@ -281,7 +282,7 @@ test('collector honours locale ordering per directory', () => {
   try {
     const paths = fingerprint.collectDirectoryEntries(dir, { order: 'locale', skipBytecode: true })
       .filter((entry) => !entry.path.includes('/')).map((entry) => entry.path);
-    assert.deepStrictEqual(paths, ['a', 'a.txt', 'b.txt', 'B.txt', 'empty', 'sub']);
+    assert.deepStrictEqual(paths, ['a', 'a.txt', 'b.txt', 'empty', 'sub', 'upper-B.txt']);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -393,6 +394,39 @@ test('the module depends only on Node built-ins and bounded-filesystem', () => {
   const source = fs.readFileSync(path.join(ROOT, 'scripts', 'lib', 'content-fingerprint.js'), 'utf8');
   const required = [...source.matchAll(/require\('([^']+)'\)/g)].map((match) => match[1]).sort();
   assert.deepStrictEqual(required, ['./bounded-filesystem', 'node:crypto', 'node:fs', 'node:path']);
+});
+
+// 原始大小寫同名路徑只能在記憶體共存；保留舊向量以防排序與雜湊回歸。
+test('original case-distinct in-memory tree retains its recorded fingerprints', () => {
+  const dir = buildAdversarialTree();
+  try {
+    const entries = fingerprint.collectDirectoryEntries(dir).map((entry) => (
+      entry.path === 'upper-B.txt' ? { ...entry, path: 'B.txt' } : entry
+    ));
+    const byPath = new Map(entries.map((entry) => [entry.path, entry]));
+    const codeUnitOrder = ['B.txt', '__pycache__', '__pycache__/x.pyc', 'a', 'a/inner.txt', 'a.txt', 'b.txt', 'empty', 'skip.pyc', 'sub', 'sub/Z.txt', 'sub/a.txt', 'sub/binary.bin'];
+    const localeFiles = ['a/inner.txt', 'a.txt', 'b.txt', 'B.txt', 'sub/a.txt', 'sub/binary.bin', 'sub/Z.txt'];
+    const complete = codeUnitOrder.map((name) => byPath.get(name));
+    const source = localeFiles.map((name) => byPath.get(name));
+    assert.strictEqual(fingerprint.treeFingerprint(source), '84ffd53938ed50bf6c1b6665f92cbf9feb93dba1e10da374a32531eba7cd2122');
+    assert.strictEqual(fingerprint.treeFingerprint(complete), 'a81026d753add0b0096322e11412efde9b8257e6a3cbb5186462d8afacee3fa7');
+    assert.strictEqual(fingerprint.directoryEntriesFingerprint(complete), 'sha256:580d562a776f02e67392cf5848dbb18a8294409cf0b7e0dea77519132fff113f');
+    // 這兩個舊配方依路徑與內容建立紀錄，無須在磁碟建立大小寫同名檔案。
+    const crypto = require('node:crypto');
+    const record = (entry) => entry.type === 'directory' ? `D:${entry.path}\n`
+      : `F:${entry.path}:${crypto.createHash('sha256').update(entry.content).digest('hex')}\n`;
+    const localeOrder = ['__pycache__', '__pycache__/x.pyc', 'a', 'a/inner.txt', 'a.txt', 'b.txt', 'B.txt', 'empty', 'skip.pyc', 'sub', 'sub/a.txt', 'sub/binary.bin', 'sub/Z.txt'];
+    const digestRecords = (names) => crypto.createHash('sha256').update(names.map((name) => record(byPath.get(name))).join('')).digest('hex');
+    assert.strictEqual(digestRecords(localeOrder), '082c1b81f402a9162e67dc4d42165c8f7514b04e72ee5e041faa8f5b5178232c');
+    assert.strictEqual(digestRecords(localeOrder.filter((name) => !name.startsWith('__pycache__') && name !== 'skip.pyc')), 'fe4ae3943f5ff730191cb595c5d83c68a78db0094dd4c7196de21a579f177db1');
+    assert.deepStrictEqual(fingerprint.packageContentAndModeFingerprints(source), {
+      contentFingerprint: 'sha256:923bb5c74d70436ee00b69e799cca24a94023420f3818b69561b81feadbd3867',
+      modeFingerprint: 'sha256:b31c98683390e97e4079921cd89cc1ec2c7757aef576a21c7098891cdb94cc2f',
+      artifactFingerprint: 'sha256:33834a3adf417353e49dbb518ff93816708afc9da2093b8b782a6efe6bf316ae',
+    });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 run('content-fingerprint');
