@@ -1399,13 +1399,20 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
-  function untrackedClaudeHostFixture(linkTarget) {
+  // agy uses a direct file and has no Host Binding link.
+  const BINDING_HOST_TARGETS = {
+    claude: '../../.agents/claude-skills/dhpk-sample',
+    codex: '../../.agents/skills/dhpk-sample',
+    cursor: '../../.agents/skills/dhpk-sample',
+  };
+
+  function untrackedClaudeHostFixture(linkTarget, hostId = 'claude') {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-untracked-host-source-'));
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-untracked-host-project-'));
     write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n');
     const options = { sourceRoot, projectRoot, inventory: projectInventory() };
-    publisher.materializeRelocatableAgentsSkillsProjection({ ...options, requestedHosts: ['agy', 'codex', 'cursor'] });
-    const claudeLink = path.join(projectRoot, '.claude/skills/dhpk-sample');
+    publisher.materializeRelocatableAgentsSkillsProjection({ ...options, requestedHosts: ALL_HOSTS.filter((host) => host !== hostId) });
+    const claudeLink = path.join(projectRoot, `.${hostId}/skills/dhpk-sample`);
     fs.mkdirSync(path.dirname(claudeLink), { recursive: true });
     if (linkTarget !== null) fs.symlinkSync(linkTarget, claudeLink, 'dir');
     return { sourceRoot, projectRoot, options: { ...options, requestedHosts: ALL_HOSTS }, claudeLink, receiptPath: path.join(projectRoot, '.agents/.dhpk-installed.json') };
@@ -1428,6 +1435,58 @@ const { test, run, assert } = require('./_lib/tinytest');
           fs.rmSync(projectRoot, { recursive: true, force: true });
         }
       }
+    }
+  });
+
+  test('testHostBindingAdoption_untrackedCodexOrCursorSymlinkWithAdopt_isReplacedAndRecorded', () => {
+    for (const hostId of ['codex', 'cursor']) {
+      for (const linkTarget of [BINDING_HOST_TARGETS[hostId], '../../.agents/skills/missing-skill']) {
+        const { sourceRoot, projectRoot, options, claudeLink: hostLink } = untrackedClaudeHostFixture(linkTarget, hostId);
+        try {
+          const result = publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true, update: true });
+          const binding = (result.receipt.bindingPaths[hostId] || []).find((entry) => entry.path === `.${hostId}/skills/dhpk-sample`);
+          assert.ok(binding, `${hostId}: ${JSON.stringify(result.receipt.bindingPaths)}`);
+          assert.strictEqual(binding.target, BINDING_HOST_TARGETS[hostId]);
+          assert.strictEqual(fs.readlinkSync(hostLink), binding.target);
+          assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+        } finally {
+          fs.rmSync(sourceRoot, { recursive: true, force: true });
+          fs.rmSync(projectRoot, { recursive: true, force: true });
+        }
+      }
+    }
+  });
+
+  test('testHostBindingAdoption_rollbackAfterAdoption_restoresOriginalSymlink', () => {
+    const linkTarget = '../../.agents/skills/dhpk-sample';
+    const { sourceRoot, projectRoot, options, claudeLink, receiptPath } = untrackedClaudeHostFixture(linkTarget);
+    try {
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true, update: true });
+      assert.strictEqual(fs.readlinkSync(claudeLink), BINDING_HOST_TARGETS.claude);
+      const rolledBack = publisher.rollbackAgentsSkillsProjection(options);
+      assert.strictEqual(rolledBack.ok, true, JSON.stringify(rolledBack));
+      assert.strictEqual(fs.readlinkSync(claudeLink), linkTarget);
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      assert.strictEqual((receipt.bindingPaths.claude || []).length, 0);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testAdoptLegacyManifest_generator200ForeignBindingSymlink_failsCollisionWithoutChanges', () => {
+    const { sourceRoot, projectRoot, options, receiptPath } = receiptlessManifestFixture(asGenerator200Manifest);
+    try {
+      const codexLink = path.join(projectRoot, '.codex/skills/dhpk-sample');
+      fs.rmSync(codexLink);
+      fs.mkdirSync(path.join(projectRoot, 'vendor/skill'), { recursive: true });
+      fs.symlinkSync('../../vendor/skill', codexLink, 'dir');
+      throwsCode(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true, update: true }), 'GENERATED_PATH_COLLISION');
+      assert.strictEqual(fs.readlinkSync(codexLink), '../../vendor/skill');
+      assert.strictEqual(fs.existsSync(receiptPath), false);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
     }
   });
 

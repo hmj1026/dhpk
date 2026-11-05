@@ -1028,6 +1028,9 @@ function validateReceipt(receipt, roots, bindingOptions = {}) {
       || !DIGEST_PATTERN.test(receipt.rollback.fingerprint || '')) {
       throw fail('INVALID_RECEIPT', 'project projection receipt rollback metadata is invalid');
     }
+    if (receipt.rollback.adoptedBindingPaths !== undefined) {
+      normalizeBindingPaths(receipt.rollback.adoptedBindingPaths, roots, 'project projection rollback adopted binding paths', { allowClaudeRoot: true });
+    }
   }
   return receipt;
 }
@@ -1617,7 +1620,7 @@ function receiptWithoutFingerprint(receipt) {
   return next;
 }
 
-function createRollbackStage(roots, previous, receiptSchema) {
+function createRollbackStage(roots, previous, receiptSchema, adoptedBindingPaths = {}) {
   if (!previous) return null;
   const stage = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-rollback-stage-'));
   try {
@@ -1669,6 +1672,7 @@ function createRollbackStage(roots, previous, receiptSchema) {
         receipt: 'receipt.json',
         files: 'files',
         fingerprint: snapshotFingerprint,
+        ...(flattenBindingPaths(adoptedBindingPaths).length > 0 ? { adoptedBindingPaths: clone(adoptedBindingPaths) } : {}),
       },
     };
   } catch (error) {
@@ -1723,6 +1727,17 @@ function checkBindingCollisions(roots, previous, candidateBindingPaths, adoptedB
   return { oldBindings, oldByPath };
 }
 
+// 只有 PATH_ESCAPE / UNSAFE_PATH 代表連結指向管理根外；其他錯誤照常拋出。
+function isAdoptableBindingLink(roots, binding) {
+  try {
+    bindingTargetIn(roots, binding, 'adoption binding', { allowClaudeRoot: true });
+    return true;
+  } catch (error) {
+    if (['PATH_ESCAPE', 'UNSAFE_PATH'].includes(error.projectionCode)) return false;
+    throw error;
+  }
+}
+
 function mergeBindingPaths(base, extra) {
   const merged = Object.fromEntries(Object.entries(base || {}).map(([hostId, entries]) => [hostId, entries.slice()]));
   for (const binding of flattenBindingPaths(extra)) {
@@ -1743,11 +1758,7 @@ function observeUnmanagedBindings(roots, previousBindingPaths, candidateBindingP
     const stat = lstatOrNull(destination);
     if (!stat || !stat.isSymbolicLink()) continue;
     const observed = { path: binding.path, target: fs.readlinkSync(destination) };
-    try {
-      bindingTargetIn(roots, { ...observed, hostId: binding.hostId }, 'adoption binding', { allowClaudeRoot: true });
-    } catch {
-      continue;
-    }
+    if (!isAdoptableBindingLink(roots, { ...observed, hostId: binding.hostId })) continue;
     (adopted[binding.hostId] ||= []).push(observed);
   }
   return adopted;
@@ -1771,7 +1782,9 @@ function observeAdoption(roots, candidateFiles, claudeCandidateFiles, candidateB
     if (!stat) continue;
     if (!stat.isSymbolicLink()) throw fail('GENERATED_PATH_COLLISION', `adoption binding is not a symlink: ${binding.path}`, { paths: [binding.path] });
     const observed = { path: binding.path, target: fs.readlinkSync(destination) };
-    bindingTargetIn(roots, { ...observed, hostId: binding.hostId }, 'adoption binding', { allowClaudeRoot: true });
+    if (!isAdoptableBindingLink(roots, { ...observed, hostId: binding.hostId })) {
+      throw fail('GENERATED_PATH_COLLISION', `adoption binding points outside the managed roots: ${binding.path}`, { paths: [binding.path] });
+    }
     (bindingPaths[binding.hostId] ||= []).push(observed);
   }
   return { schema: PROJECT_RECEIPT_SCHEMA, managedPaths: Object.keys(generatedFingerprints), generatedFingerprints, claudeManagedPaths: Object.keys(claudeGeneratedFingerprints), claudeGeneratedFingerprints, bindingPaths };
@@ -1830,7 +1843,7 @@ function publishManagedCandidate({
   }) : {};
   checkBindingCollisions(roots, previous, candidateBindingPaths, adoptedBindingPaths);
   const backup = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-backup-'));
-  const rollback = createRollbackStage(roots, previous && createRollback ? previous : null, nextReceipt && nextReceipt.schema);
+  const rollback = createRollbackStage(roots, previous && createRollback ? previous : null, nextReceipt && nextReceipt.schema, adoptedBindingPaths);
   const rollbackRoot = path.join(roots.agentsRoot, '.dhpk-projection-rollback');
   const oldRollback = !adoption && previous && lstatOrNull(rollbackRoot);
   const receipt = nextReceipt ? sealReceipt({
@@ -2448,6 +2461,17 @@ function snapshotReceipt(roots, receipt) {
   return { receipt: snapshotReceipt, filesRoot: managedSnapshotRoot, claudeFilesRoot: claudeSnapshotRoot };
 }
 
+// rollback 回到納管前的狀態：被 --adopt/--repair 接管的連結恢復為未納管的原連結。
+function restoreAdoptedBindings(roots, adoptedBindingPaths) {
+  for (const binding of flattenBindingPaths(normalizeBindingPaths(adoptedBindingPaths, roots, 'rollback adopted binding paths', { allowClaudeRoot: true }))) {
+    const destination = bindingDestinationIn(roots, binding.path, 'rollback adopted binding');
+    if (lstatOrNull(destination)) continue;
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    assertPhysicalAncestors(path.dirname(destination), 'rollback adopted binding parent', roots.projectRoot);
+    fs.symlinkSync(binding.target, destination, 'dir');
+  }
+}
+
 function rollbackAgentsSkillsProjection(options = {}) {
   try {
     const roots = operationRoots(options);
@@ -2489,6 +2513,7 @@ function rollbackAgentsSkillsProjection(options = {}) {
         claudeCandidateFingerprints: snapshot.receipt.claudeGeneratedFingerprints || {},
         nextReceipt: snapshot.receipt,
       });
+      restoreAdoptedBindings(roots, current.rollback.adoptedBindingPaths || {});
       return { ok: true, state: 'ROLLED_BACK', receipt: published.receipt, removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
     } finally {
       cleanupDirectory(candidateStage, 'project projection rollback candidate');
