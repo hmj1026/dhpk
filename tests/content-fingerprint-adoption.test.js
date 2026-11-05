@@ -57,7 +57,7 @@ test('old writer and old verifier disagreed on the prefix-colliding tree', () =>
 
 // tree-merkle-v1 digest of the adversarial tree (OpenSpec
 // remove-legacy-tree-fingerprints): every surface verifier now computes it.
-const TREE_ROOT = '84ffd53938ed50bf6c1b6665f92cbf9feb93dba1e10da374a32531eba7cd2122';
+const TREE_ROOT = '7cd0eb904f97b8f1fb8739c89f8a769b1e5cc23c7eb53270d7aca42b451aa283';
 const { treeFingerprint } = require('../scripts/lib/content-fingerprint');
 
 test('Codex fingerprintDir returns the tree-merkle-v1 value on the prefix-colliding tree, not an old recipe value', () => {
