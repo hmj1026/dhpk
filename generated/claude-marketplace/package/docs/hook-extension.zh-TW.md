@@ -44,9 +44,13 @@ path-component 後綴；絕對 pattern 比對正規化後的完整路徑。`*` �
 包含選項、多個目標、輸入 redirection、pipeline、命令分隔符與 literal SSH
 命令。每個目標獨立判斷；允許的 template 或 metadata 命令不會豁免同一命令中
 其他受保護讀取。單純 `ls`、`stat` 與一般讀取仍允許。遞迴內容搜尋若可能涵蓋
-受保護路徑，除非明確 exclusion 能證明全部排除，否則阻擋。只有針對有效最終
+受保護路徑時，每項規則須有明確 exclusion，或經有界本機掃描證明所有根目錄
+皆無符合的受保護路徑。只有針對有效最終
 component 的全域精確 basename exclusion 或 `*` 可作此證明；ignore、reinclude
-及 preprocessor 不能。本機 `rg` 的一般非 symlink 檔案可用 `lstat` 判斷，但有
+不能證明排除。掃描計算所有項目，不模擬 ignore 規則；錯誤、超過 20,000 項或
+300 ms 時阻擋。遠端命令與未知工作目錄仍須完整排除。掃描檢查連結與目標，
+不跟隨內部目錄連結時略過，會跟隨時阻擋。掃描後新增檔案的時間差風險已接受。
+本機 `rg` 的一般非 symlink 檔案可用 `lstat` 判斷，但有
 檢查與使用之間的時間差。可辨識的受保護讀取若語法無法安全分類則阻擋；檢查時
 不執行或展開提交的 shell 文字。
 
