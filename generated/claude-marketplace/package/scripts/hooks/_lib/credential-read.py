@@ -30,7 +30,9 @@ def main():
         if reason:
             raise ValueError(reason)
     except (ValueError, TypeError, OSError, RecursionError) as error:
-        print('[bash-guard] blocked: %s; %s' % (error, HINTS.get(str(error), DEFAULT_HINT)), file=sys.stderr)
+        # 掃描原因會附加命中資訊；仍沿用遞迴讀取的恢復指引。
+        hint = HINTS[RECURSIVE] if str(error).startswith(RECURSIVE) else HINTS.get(str(error), DEFAULT_HINT)
+        print('[bash-guard] blocked: %s; %s' % (error, hint), file=sys.stderr)
         return 2
     return 0
 

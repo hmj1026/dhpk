@@ -4,12 +4,14 @@ import fnmatch
 import hashlib
 import os
 import posixpath
+from pathlib import Path
 import re
 import stat
 import sys
 
 from credential_shell import tokenize, substitutions, heredocs
 from credential_options import classify
+from credential_scan import scan_roots
 
 TEMPLATES = {'.env.example', '.env.sample', '.env.dist', '.env.template'}
 DEFAULTS = ['.env', '.env.*', 'my.cnf', 'debian.cnf', '*.pem', 'id_rsa*', 'credentials*']
@@ -53,11 +55,32 @@ def match_path(path, pattern, cwd=None):
     return re.fullmatch(expression, candidate) is not None
 
 
-def protected(path, patterns, cwd):
+def matching_patterns(path, patterns, cwd):
     name = posixpath.basename(normalize_path(path))
-    if name not in TEMPLATES and any(match_path(path, p, cwd) for p in DEFAULTS):
+    # 共用同一政策比對結果，避免掃描診斷與既有 template 豁免產生分歧。
+    defaults = [] if name in TEMPLATES else DEFAULTS
+    return {p for p in defaults + patterns if match_path(path, p, cwd)}
+
+
+def protected(path, patterns, cwd):
+    return bool(matching_patterns(path, patterns, cwd))
+
+
+def unsafe_auxiliary(path, token, patterns, cwd):
+    """Reject auxiliary inputs whose actual target cannot be proved safe."""
+    if token.dynamic or token.glob or cwd is None or protected(path, patterns, cwd):
         return True
-    return any(match_path(path, p, cwd) for p in patterns)
+    try:
+        # 連結後的 .. 必須由檔案系統解析；正規化僅供字面政策比對。
+        physical = os.path.join(cwd, path)
+        logical = os.path.abspath(physical)
+        resolved = str(Path(physical).resolve(strict=True))
+        info = os.stat(resolved)
+        return (protected(logical, patterns, cwd) or protected(resolved, patterns, cwd)
+                or not stat.S_ISREG(info.st_mode) or not info.st_mode & 0o444
+                or not os.access(resolved, os.R_OK))
+    except (OSError, RuntimeError, ValueError):
+        return True
 
 
 def safe_extraction(tokens, remote):
@@ -107,16 +130,16 @@ def read_blocked(tokens, patterns, cwd):
         return ssh_blocked(words[index + 1:], patterns)
     args = words[index + 1:]
     # 舊版逐字猜測叢集與縮寫會錯認參數；依各 reader 的選項與參數表解析，未知語法直接拒絕。
-    classified = classify(name, args, lambda value: protected(value, patterns, cwd))
+    classified = classify(name, args, lambda value, token: unsafe_auxiliary(value, token, patterns, cwd))
     if classified is None:
         return UNSUPPORTED
-    positional, recursive, exclusions, invalid_proof = classified
+    positional, recursive, exclusions, invalid_proof, follow = classified
     for token in positional:
         if token.glob or protected(token.value, patterns, cwd):
             return PROTECTED
     if recursive:
         # rg only escapes recursive scope for explicit, known regular local files.
-        if name == 'rg' and positional and cwd is not None:
+        if name == 'rg' and positional and cwd is not None and index == 0 and not any(t.dynamic for t in positional):
             try:
                 if all(stat.S_ISREG(os.lstat(os.path.join(cwd, t.value)).st_mode) for t in positional):
                     return False
@@ -124,8 +147,21 @@ def read_blocked(tokens, patterns, cwd):
                 pass
         effective = DEFAULTS + patterns
         # 排除帶斜線時可能只作用於單一目錄，不能證明覆蓋任意深度的自訂規則。
-        if invalid_proof or not all(any('/' not in ex and (ex == '*' or ex == posixpath.basename(p)) for ex in exclusions) for p in effective):
-            return RECURSIVE
+        covered = {p for p in effective if any('/' not in ex and (ex == '*' or ex == posixpath.basename(p)) for ex in exclusions)}
+        if invalid_proof or len(covered) != len(set(effective)):
+            # 包裝器、動態根路徑或未知 cwd 可能指向其他檔案系統，不能用本機掃描推論。
+            if cwd is None or index != 0 or any(t.dynamic for t in positional):
+                return RECURSIVE
+            unresolved = set(effective) if invalid_proof else set(effective) - covered
+            roots = [os.path.join(cwd, t.value) for t in positional] if positional else [cwd]
+            failure, hits, paths = scan_roots(roots, lambda path: matching_patterns(path, patterns, cwd), unresolved, follow)
+            if failure or hits:
+                details = [failure] if failure else []
+                if hits:
+                    details.append('patterns ' + ', '.join(ascii(p) for p in sorted(hits)))
+                if paths:
+                    details.append('paths ' + ', '.join(ascii(p) for p in paths))
+                return RECURSIVE + ': ' + '; '.join(details)
     return False
 
 
@@ -153,6 +189,22 @@ def ssh_blocked(args, patterns):
 def analyze(command, patterns, cwd, remote=False, nested=False):
     # 原本把 heredoc 資料誤當指令；只遮罩完整辨識的內文並保留可執行替換。
     command, expansions = heredocs(command)
+    tokens = tokenize(command)
+    # 原始字串會漏掉引號或跳脫後的 cd，也會誤判 heredoc 資料；先以正規化 token 判斷範圍。
+    command_head = True
+    for token in tokens:
+        if token.operator:
+            if token.value in (';', '&&', '||', '|', '|&', '(', ')', ';;'):
+                command_head = True
+            continue
+        name = posixpath.basename(token.value)
+        if name == 'cd' or (command_head and (token.dynamic or name in ('pushd', 'popd', 'source', 'eval', '.'))):
+            cwd = None
+        if command_head and (name in ('command', 'builtin') or re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', token.value)):
+            continue
+        command_head = False
+    if remote:
+        cwd = None
     for body in expansions:
         reason = analyze(body, patterns, cwd, remote, True)
         if reason:
@@ -162,7 +214,6 @@ def analyze(command, patterns, cwd, remote=False, nested=False):
         reason = analyze(body, patterns, cwd, remote, True)
         if reason:
             return reason
-    tokens = tokenize(command)
     if not nested and safe_extraction(tokens, remote):
         return False
     segment = []

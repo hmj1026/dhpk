@@ -66,6 +66,7 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-heredoc-'));
     try {
       fs.writeFileSync(path.join(dir, 'ordinary.js'), 'ordinary');
+      fs.writeFileSync(path.join(dir, '.env'), 'synthetic');
       const check = (command, status, reason) => {
         const result = runHook(hook, {cwd: dir, payload: {tool_input: {command}}});
         assert.strictEqual(result.status, status, `${command}: ${result.stderr}`);
@@ -243,13 +244,15 @@ test('missing runtime or analyzer fails closed through both hook entrypoints', (
         const missingAnalyzer = runHook(hookPath, options);
         assert.strictEqual(missingAnalyzer.status, 2, `${hook}: ${missingAnalyzer.stderr}`);
       } finally { fs.renameSync(`${analyzer}.off`, analyzer); }
-      const modulePath = path.join(hooks, '_lib/credential_options.py');
+      for (const moduleName of ['credential_options.py', 'credential_scan.py']) {
+      const modulePath = path.join(hooks, '_lib', moduleName);
       fs.renameSync(modulePath, `${modulePath}.off`);
       try {
         const missingModule = runHook(hookPath, options);
         assert.strictEqual(missingModule.status, 2, `${hook}: ${missingModule.stderr}`);
         assert.doesNotMatch(missingModule.stderr, /Traceback|ModuleNotFoundError/);
       } finally { fs.renameSync(`${modulePath}.off`, modulePath); }
+      }
     }
   } finally { fs.rmSync(temp, {recursive: true, force: true}); }
 });
@@ -291,6 +294,166 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
       }});
       assert.strictEqual(result.status, 2, `${pattern}: ${command}: ${result.stderr}`);
     }
+  });
+}
+
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  test(`${hook} resolves dot-dot after symlinks for recursive roots and auxiliary files`, () => {
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-symlink-dotdot-'));
+    const dir = path.join(parent, 'clean');
+    const outside = path.join(parent, 'outside');
+    fs.mkdirSync(dir);
+    fs.mkdirSync(outside);
+    fs.mkdirSync(path.join(outside, 'child'));
+    fs.mkdirSync(path.join(outside, 'secrets'));
+    fs.mkdirSync(path.join(outside, 'safe-dir'));
+    fs.mkdirSync(path.join(dir, 'secrets'));
+    fs.mkdirSync(path.join(dir, 'safe-dir'));
+    fs.writeFileSync(path.join(outside, 'secrets', '.env'), 'synthetic');
+    fs.writeFileSync(path.join(outside, '.env'), 'synthetic');
+    fs.writeFileSync(path.join(dir, 'alias'), 'synthetic');
+    fs.writeFileSync(path.join(dir, 'safe'), 'synthetic');
+    fs.writeFileSync(path.join(outside, 'safe'), 'synthetic');
+    fs.writeFileSync(path.join(dir, 'ordinary.js'), 'synthetic');
+    fs.symlinkSync(path.join(outside, 'child'), path.join(dir, 'link'));
+    fs.symlinkSync(path.join(outside, '.env'), path.join(outside, 'alias'));
+    const invoke = (command) => runHook(hook, {cwd: dir, payload: {tool_input: {command}}});
+    try {
+      const failures = [];
+      for (const [command, status] of [
+        ['rg foo link/../secrets', 2],
+        ['rg --ignore-file link/../alias foo ordinary.js', 2],
+        ['rg foo link/../safe-dir', 0],
+        ['rg --ignore-file link/../safe foo ordinary.js', 0],
+      ]) {
+        const result = invoke(command);
+        if (result.status !== status) failures.push(`${command}: ${result.status}, expected ${status}: ${result.stderr}`);
+      }
+      assert.deepStrictEqual(failures, []);
+    } finally { fs.rmSync(parent, {recursive: true, force: true}); }
+  });
+  test(`${hook} validates nested cwd and auxiliary file aliases`, () => {
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-proof-boundary-'));
+    const dir = path.join(parent, 'clean');
+    const other = path.join(parent, 'other');
+    fs.mkdirSync(dir);
+    fs.mkdirSync(other);
+    fs.writeFileSync(path.join(other, '.env'), 'synthetic');
+    fs.writeFileSync(path.join(dir, 'ordinary.js'), 'synthetic');
+    const invoke = (command) => runHook(hook, {cwd: dir, payload: {tool_input: {command}}});
+    try {
+      const failures = [];
+      for (const command of ["c''d ../other; echo \"$(rg foo .)\"", 'c\\d ../other; echo "$(rg foo .)"',
+        'command cd ../other; echo "$(rg foo .)"', 'pushd ../other; echo "$(rg foo .)"',
+        'source ordinary.js; echo "$(rg foo .)"', '$CMD ../other; echo "$(rg foo .)"']) {
+        const result = invoke(command);
+        if (result.status !== 2) failures.push(command);
+      }
+      fs.symlinkSync(path.join(other, '.env'), path.join(dir, 'alias'));
+      for (const command of ['rg --ignore-file alias foo ordinary.js', 'grep --exclude-from alias foo ordinary.js',
+        'grep -f alias ordinary.js', 'rg --ignore-file "$VAR" foo ordinary.js',
+        "rg --glob '!*' --ignore-file alias foo .", 'grep -f missing ordinary.js']) {
+        const result = invoke(command);
+        if (result.status !== 2) failures.push(command);
+      }
+      fs.unlinkSync(path.join(dir, 'alias'));
+      assert.strictEqual(invoke('grep -f ordinary.js ordinary.js').status, 0);
+      assert.strictEqual(invoke('rg --ignore-file ordinary.js foo .').status, 0);
+      fs.symlinkSync('loop', path.join(dir, 'loop'));
+      assert.strictEqual(invoke('grep -f loop ordinary.js').status, 2);
+      fs.unlinkSync(path.join(dir, 'loop'));
+      const result = invoke("cat <<'EOF'\ncd elsewhere\nEOF\nrg foo .");
+      if (result.status !== 0) failures.push('inert heredoc cd');
+      assert.deepStrictEqual(failures, []);
+    } finally { fs.rmSync(parent, {recursive: true, force: true}); }
+  });
+  test(`${hook} proves absence across local recursive roots`, () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-absence-'));
+    const invoke = (command, env = {}) => runHook(hook, { cwd: dir, payload: { tool_input: { command } }, env });
+    try {
+      fs.writeFileSync(path.join(dir, '.env.example'), 'synthetic');
+      fs.writeFileSync(path.join(dir, 'ordinary.js'), 'synthetic');
+      for (const command of ['rg -l foo .', 'rg --no-ignore-parent foo .', 'grep -rn --include=*.js foo .']) {
+        const result = invoke(command);
+        assert.strictEqual(result.status, 0, result.stderr);
+      }
+      const customTemplate = invoke('rg foo .', {CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: '[".env.example"]'});
+      assert.strictEqual(customTemplate.status, 2, customTemplate.stderr);
+      for (const command of ['cd . && rg foo .', 'echo $(cd .; rg foo .)', 'rg -L foo .', 'rg foo "$ROOT"', 'env rg foo .', 'ssh example "rg foo ."']) {
+        const result = invoke(command);
+        assert.strictEqual(result.status, 2, `${command}: ${result.stderr}`);
+      }
+      for (const command of ['rg --pre tool foo ordinary.js', 'rg --files-from list foo ordinary.js', 'rg -L foo ordinary.js', "rg -L --glob '!*' foo ."]) {
+        const result = invoke(command);
+        assert.strictEqual(result.status, 2, `${command}: ${result.stderr}`);
+      }
+      fs.writeFileSync(path.join(dir, '.env'), 'synthetic');
+      let result = invoke('rg foo .');
+      assert.strictEqual(result.status, 2, result.stderr);
+      assert.match(result.stderr, /\.env/);
+      result = invoke("rg --glob '!.env' foo .");
+      assert.strictEqual(result.status, 0, result.stderr);
+      for (const command of ['ssh example "rg foo ."', 'env rg foo .', 'rg --pre x foo .', 'rg --files-from x foo .']) {
+        result = invoke(command);
+        assert.strictEqual(result.status, 2, `${command}: ${result.stderr}`);
+      }
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+  test(`${hook} reports up to three paths and scans clean symlink roots`, () => {
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-proof-diagnostics-'));
+    const dir = path.join(parent, 'root');
+    const target = path.join(parent, 'clean-target');
+    fs.mkdirSync(dir);
+    fs.mkdirSync(target);
+    fs.symlinkSync(target, path.join(dir, 'root-link'));
+    const invoke = (command) => runHook(hook, {cwd: dir, payload: {tool_input: {command}}});
+    try {
+      assert.strictEqual(invoke('rg foo root-link').status, 0);
+      for (const name of ['.env', '.env.prod', 'my.cnf', 'test.pem']) fs.writeFileSync(path.join(dir, name), 'synthetic');
+      const result = invoke('rg foo .');
+      assert.strictEqual(result.status, 2, result.stderr);
+      const detail = result.stderr.split('paths ')[1].split(';')[0];
+      assert.strictEqual((detail.match(/dhpk-proof-diagnostics-/g) || []).length, 3, result.stderr);
+      assert.match(result.stderr, /patterns .*\.env/);
+      assert.match(result.stderr, /patterns .*my\.cnf/);
+      assert.match(result.stderr, /patterns .*\*\.pem/);
+    } finally { fs.rmSync(parent, {recursive: true, force: true}); }
+  });
+  test(`${hook} fails closed on unsafe roots and directory links`, () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-absence-links-'));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-absence-target-'));
+    const invoke = (command, env = {}) => runHook(hook, { cwd: dir, payload: { tool_input: { command } }, env });
+    try {
+      for (const command of ['rg foo missing', 'cd . && rg foo .', 'ssh example "rg foo ."', 'env rg foo .']) {
+        assert.strictEqual(invoke(command).status, 2, command);
+      }
+      fs.mkdirSync(path.join(outside, 'sub'));
+      fs.writeFileSync(path.join(outside, '.env'), 'synthetic');
+      fs.symlinkSync(outside, path.join(dir, 'root-link'));
+      assert.strictEqual(invoke('rg foo root-link').status, 2);
+      fs.unlinkSync(path.join(dir, 'root-link'));
+      fs.mkdirSync(path.join(dir, 'unreadable'), 0o000);
+      assert.strictEqual(invoke('rg foo .').status, 2);
+      assert.strictEqual(invoke('rg foo unreadable').status, 2);
+      fs.chmodSync(path.join(dir, 'unreadable'), 0o700);
+      fs.rmdirSync(path.join(dir, 'unreadable'));
+      fs.symlinkSync(path.join(outside, '.env'), path.join(dir, 'alias'));
+      let result = invoke("rg --glob '!.env' foo .");
+      assert.strictEqual(result.status, 2, result.stderr);
+      fs.unlinkSync(path.join(dir, 'alias'));
+      fs.symlinkSync(path.join(outside, 'sub'), path.join(dir, 'link'));
+      assert.strictEqual(invoke('grep -r foo .').status, 0);
+      assert.strictEqual(invoke('grep -R foo .').status, 2);
+      fs.writeFileSync(path.join(dir, 'custom.secret'), 'synthetic');
+      result = invoke('rg foo .', {CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: '["custom.secret"]'});
+      assert.strictEqual(result.status, 2, result.stderr);
+      assert.match(result.stderr, /custom\.secret/);
+      fs.unlinkSync(path.join(dir, 'custom.secret'));
+      fs.mkdirSync(path.join(dir, 'one'));
+      fs.mkdirSync(path.join(dir, 'two'));
+      fs.writeFileSync(path.join(dir, 'two', '.env'), 'synthetic');
+      assert.strictEqual(invoke('rg foo one two').status, 2);
+    } finally { fs.rmSync(dir, {recursive: true, force: true}); fs.rmSync(outside, {recursive: true, force: true}); }
   });
 }
 
