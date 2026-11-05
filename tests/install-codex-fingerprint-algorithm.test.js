@@ -181,6 +181,7 @@ test('--uninstall over a receipt without fingerprint_algorithm leaves no unfinis
   const journalNames = () => fs.readdirSync(codex).filter((name) => /^\.dhpk-transaction-\d{8}T\d{6}Z-\d+\.json$/.test(name));
   const before = journalNames();
   editReceipt(receiptPath, (receipt) => { delete receipt[FIELD]; });
+  const receiptDigest = completeTreeFingerprint(receiptPath);
   const result = runInstaller(project, ['--uninstall', '--force'], plugin);
   assert.strictEqual(result.status, 0, output(result));
   const added = journalNames().filter((name) => !before.includes(name));
@@ -188,6 +189,13 @@ test('--uninstall over a receipt without fingerprint_algorithm leaves no unfinis
   for (const name of journalNames()) {
     assert.strictEqual(readJson(path.join(codex, name)).phase, 'committed', `${name} is not left active or pending`);
   }
+  const releasedJournal = readJson(path.join(codex, added[0]));
+  assert.strictEqual(releasedJournal.source_fingerprint, receiptDigest);
+  assert.strictEqual(releasedJournal.source_kind, 'receipt_release');
+  const plan = runInstaller(project, ['--copy', '--plan', '--json', '--force'], plugin);
+  assert.notStrictEqual(plan.status, 2, output(plan));
+  const reinstall = runInstaller(project, ['--copy', '--force'], plugin);
+  assert.notStrictEqual(reinstall.status, 2, output(reinstall));
 });
 
 test('--uninstall over a receipt naming another algorithm releases every entry and deletes no file', () => {
@@ -236,6 +244,53 @@ function projectWithJournal(edit) {
   writeJson(journalPath, journal);
   return { project, codex, plugin, journalPath };
 }
+
+test('terminal historical journals do not block a plan or install', () => {
+  for (const phase of ['committed', 'rolled_back']) {
+    const { project, plugin, journalPath } = projectWithJournal((journal) => {
+      journal.phase = phase;
+      delete journal[FIELD];
+    });
+    const before = fs.readFileSync(journalPath, 'utf8');
+    const plan = runInstaller(project, ['--copy', '--plan', '--json', '--force'], plugin);
+    assert.notStrictEqual(plan.status, 2, output(plan));
+    const installed = runInstaller(project, ['--copy', '--force'], plugin);
+    assert.notStrictEqual(installed.status, 2, output(installed));
+    assert.strictEqual(fs.readFileSync(journalPath, 'utf8'), before);
+  }
+});
+
+test('previous empty-source receipt release journals are accepted only with their bound evidence', () => {
+  for (const valid of [true, false]) {
+    const { project, plugin, journalPath } = projectWithJournal((journal) => {
+      journal.phase = 'committed';
+      journal[FIELD] = ALGORITHM;
+      journal.source_fingerprint = '';
+      journal.receipt_snapshot_present = true;
+      journal.receipt_snapshot = { managed_entries: {} };
+      journal.receipt_archive = `.dhpk-backups/${journal.run}/receipt.json`;
+      journal.prunes = [];
+      journal.mutations = [];
+      journal.adoptions = [];
+      if (!valid) journal.receipt_archive = '.dhpk-backups/other/receipt.json';
+    });
+    const before = fs.readFileSync(journalPath, 'utf8');
+    const plan = runInstaller(project, ['--copy', '--plan', '--json', '--force'], plugin);
+    if (valid) assert.notStrictEqual(plan.status, 2, output(plan));
+    else assert.strictEqual(plan.status, 2, output(plan));
+    assert.strictEqual(fs.readFileSync(journalPath, 'utf8'), before);
+  }
+});
+
+test('terminal journal with an invalid identity remains blocked', () => {
+  const { project, plugin } = projectWithJournal((journal) => {
+    journal.phase = 'committed';
+    journal.run = 'wrong';
+    delete journal[FIELD];
+  });
+  assert.strictEqual(runInstaller(project, ['--copy', '--plan', '--json', '--force'], plugin).status, 2);
+  assert.strictEqual(runInstaller(project, ['--copy', '--force'], plugin).status, 2);
+});
 
 test('a transaction journal without fingerprint_algorithm blocks recovery, the install and the plan', () => {
   const { project, codex, plugin, journalPath } = projectWithJournal((journal) => { delete journal[FIELD]; });

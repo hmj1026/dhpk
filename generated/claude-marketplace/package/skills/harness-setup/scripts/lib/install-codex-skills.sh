@@ -1472,7 +1472,7 @@ def restore_receipt_snapshot():
     return errors
 
 
-def begin_transaction(plugin_version, source_fingerprint, receipt_snapshot=None, receipt_snapshot_present=False):
+def begin_transaction(plugin_version, source_fingerprint, receipt_snapshot=None, receipt_snapshot_present=False, source_kind=None):
     """Start a durable transaction after all read-only preflight has passed."""
     global TRANSACTION_JOURNAL
     TRANSACTION_JOURNAL = {
@@ -1490,6 +1490,8 @@ def begin_transaction(plugin_version, source_fingerprint, receipt_snapshot=None,
             else None
         ),
     }
+    if source_kind is not None:
+        TRANSACTION_JOURNAL['source_kind'] = source_kind
     persist_transaction_journal()
 
 
@@ -1517,6 +1519,11 @@ def archive_receipt_for_uninstall():
         if isinstance(TRANSACTION_JOURNAL, dict):
             TRANSACTION_JOURNAL['receipt_archive'] = backup_relative
             persist_transaction_journal()
+        # 舊收據解除持有時須重新確認實際檔案，避免預檢後替換而封存錯誤內容。
+        if (isinstance(TRANSACTION_JOURNAL, dict)
+                and TRANSACTION_JOURNAL.get('source_kind') == 'receipt_release'
+                and fingerprint_fd_entry(root_fd, receipt_name) != TRANSACTION_JOURNAL.get('source_fingerprint')):
+            raise ValueError('uninstall receipt changed before quarantine')
         os.rename(receipt_name, backup_name, src_dir_fd=root_fd, dst_dir_fd=backup_fd)
         moved = True
         if FAIL_UNINSTALL_RECEIPT_FSYNC_FOR_TEST:
@@ -1702,6 +1709,43 @@ def finalize_recovered_receipt(receipt):
     return errors
 
 
+def classify_journal_envelope(journal, journal_name, run):
+    """驗證終態紀錄的路徑與交易綁定，避免把損壞紀錄當作歷史資料略過。"""
+    if (not isinstance(journal, dict) or journal.get('relative') != journal_name
+            or journal.get('run') != run or type(journal.get('pid')) is not int
+            or journal['pid'] <= 0 or journal.get('started') is not True
+            or not isinstance(journal.get('plugin_version'), str)):
+        raise ValueError(f'transaction journal {run} identity is malformed; manual recovery required')
+    present = journal.get('receipt_snapshot_present')
+    snapshot = journal.get('receipt_snapshot')
+    if (type(present) is not bool or (present and not isinstance(snapshot, dict))
+            or (not present and snapshot is not None)):
+        raise ValueError(f'transaction journal {run} receipt snapshot is malformed; manual recovery required')
+    if ('receipt_archive' in journal
+            and journal['receipt_archive'] != f'{BACKUP_DIR}/{run}/receipt.json'):
+        raise ValueError(f'transaction journal {run} receipt archive is not transaction-bound; manual recovery required')
+    # 終態不重播清單，但已存在的欄位必須仍是合法清單，避免掩蓋損壞。
+    if any(key in journal and not isinstance(journal[key], list)
+           for key in ('prunes', 'mutations', 'adoptions')):
+        raise ValueError(f'transaction journal {run} rollback lists are malformed; manual recovery required')
+    phase = journal.get('phase')
+    if phase not in ('active', 'committed', 'rolled_back'):
+        raise ValueError(f'transaction journal {run} has unsupported phase {phase!r}; manual recovery required')
+    source = journal.get('source_fingerprint')
+    # 舊版解除收據寫入空值；只接受可完整識別且已完成的該次交易。
+    old_release = (phase == 'committed' and source == ''
+                   and journal.get('fingerprint_algorithm') == TREE_FINGERPRINT_ALGORITHM
+                   and present and not receipt_has_tree_marker(snapshot)
+                   and journal.get('receipt_archive') == f'{BACKUP_DIR}/{run}/receipt.json'
+                   and all(journal.get(key) == [] for key in ('prunes', 'mutations', 'adoptions')))
+    if not old_release and (not isinstance(source, str) or not re.fullmatch(r'[0-9a-fA-F]{64}', source)):
+        raise ValueError(f'transaction journal {run} source fingerprint is malformed; manual recovery required')
+    # 已完成的舊交易無需解讀其指紋，但明確標示未知演算法仍須拒絕。
+    if phase == 'active' or 'fingerprint_algorithm' in journal:
+        record_fingerprint_algorithm(journal)
+    return phase
+
+
 def check_transaction_journal_markers():
     """Read-only gate: every readable journal must name tree-merkle-v1.
 
@@ -1720,12 +1764,12 @@ def check_transaction_journal_markers():
         for journal_name in journal_names:
             if not re.fullmatch(r'\.dhpk-transaction-\d{8}T\d{6}Z-\d+\.json', journal_name):
                 continue
+            match = re.fullmatch(r'\.dhpk-transaction-(\d{8}T\d{6}Z-\d+)\.json', journal_name)
             try:
                 journal = _read_relative_json(root_fd, journal_name)
-            except (FileNotFoundError, OSError, ValueError, json.JSONDecodeError):
-                continue
-            if isinstance(journal, dict):
-                record_fingerprint_algorithm(journal)
+                classify_journal_envelope(journal, journal_name, match.group(1))
+            except (FileNotFoundError, OSError, json.JSONDecodeError) as error:
+                raise ValueError(f'transaction journal {journal_name} is unreadable: {error}')
     finally:
         os.close(root_fd)
 
@@ -1760,31 +1804,7 @@ def recover_stale_transactions():
         except (FileNotFoundError, OSError, ValueError, json.JSONDecodeError) as error:
             print(f'[install-codex-skills] ERROR: transaction journal {run} cannot be read; manual recovery required: {error}', file=sys.stderr)
             raise ValueError(f'transaction journal {run} is unreadable')
-        if not isinstance(journal, dict):
-            raise ValueError(f'transaction journal {run} is malformed; manual recovery required')
-        if (journal.get('relative') != journal_relative
-                or journal.get('run') != run
-                or not isinstance(journal.get('pid'), int)
-                or journal.get('pid') <= 0
-                or journal.get('started') is not True
-                or not isinstance(journal.get('plugin_version'), str)
-                or not re.fullmatch(r'[0-9a-fA-F]{64}', journal.get('source_fingerprint', ''))):
-            raise ValueError(f'transaction journal {run} identity is malformed; manual recovery required')
-        if 'receipt_snapshot_present' not in journal or not isinstance(journal.get('receipt_snapshot_present'), bool):
-            raise ValueError(f'transaction journal {run} receipt snapshot marker is malformed; manual recovery required')
-        if journal.get('receipt_snapshot_present') and not isinstance(journal.get('receipt_snapshot'), dict):
-            raise ValueError(f'transaction journal {run} receipt snapshot is malformed; manual recovery required')
-        if (not journal.get('receipt_snapshot_present')
-                and journal.get('receipt_snapshot') is not None):
-            raise ValueError(f'transaction journal {run} has an unexpected receipt snapshot; manual recovery required')
-        if 'receipt_archive' in journal:
-            if journal.get('receipt_archive') != f'{BACKUP_DIR}/{run}/receipt.json':
-                raise ValueError(f'transaction journal {run} receipt archive is not transaction-bound; manual recovery required')
-        phase = journal.get('phase')
-        if phase == 'rollback_incomplete':
-            raise ValueError(f'interrupted transaction {run} previously reported incomplete rollback; manual recovery required')
-        if phase not in ('active', 'committed', 'rolled_back'):
-            raise ValueError(f'transaction journal {run} has unsupported phase {phase!r}; manual recovery required')
+        phase = classify_journal_envelope(journal, journal_relative, run)
         if phase != 'active':
             continue
         if _pid_is_alive(journal.get('pid')):
@@ -1956,38 +1976,11 @@ def inspect_stale_transactions_for_plan():
         except (FileNotFoundError, OSError, ValueError, json.JSONDecodeError) as error:
             blocked.append(f'{journal_name}: unreadable ({error})')
             continue
-        if not isinstance(journal, dict):
-            blocked.append(f'{journal_name}: malformed')
-            continue
-        if (journal.get('relative') != journal_name
-                or journal.get('run') != run
-                or not isinstance(journal.get('pid'), int)
-                or journal.get('pid') <= 0
-                or journal.get('started') is not True
-                or not isinstance(journal.get('plugin_version'), str)
-                or not re.fullmatch(r'[0-9a-fA-F]{64}', journal.get('source_fingerprint', ''))):
-            blocked.append(f'{journal_name}: journal path is not self-bound')
-            continue
-        if 'receipt_snapshot_present' not in journal or not isinstance(journal.get('receipt_snapshot_present'), bool):
-            blocked.append(f'{journal_name}: receipt snapshot marker is malformed')
-            continue
-        if journal.get('receipt_snapshot_present') and not isinstance(journal.get('receipt_snapshot'), dict):
-            blocked.append(f'{journal_name}: receipt snapshot is malformed')
-            continue
-        if (not journal.get('receipt_snapshot_present')
-                and journal.get('receipt_snapshot') is not None):
-            blocked.append(f'{journal_name}: receipt snapshot is unexpectedly present')
-            continue
-        if ('receipt_archive' in journal
-                and journal.get('receipt_archive') != f'{BACKUP_DIR}/{run}/receipt.json'):
-            blocked.append(f'{journal_name}: receipt archive is not transaction-bound')
-            continue
         try:
-            record_fingerprint_algorithm(journal)
+            phase = classify_journal_envelope(journal, journal_name, run)
         except ValueError as error:
             blocked.append(f'{journal_name}: {error}')
             continue
-        phase = journal.get('phase')
         if phase == 'active':
             blocked.append(f'{journal_name}: interrupted transaction requires recovery')
         elif phase not in ('committed', 'rolled_back'):
@@ -3657,7 +3650,16 @@ def release_unmarked_receipt_for_uninstall(receipt, plugin_version):
     orphaned_records = receipt.get('orphaned_entries')
     released.extend(orphaned_records if isinstance(orphaned_records, dict) else [])
     try:
-        begin_transaction(plugin_version, '', receipt_snapshot=receipt, receipt_snapshot_present=True)
+        # 舊版以空字串記錄來源造成後續復原失敗；綁定實際收據的 tree-merkle 指紋。
+        root_fd = open_relative_directory('', create=False)
+        try:
+            receipt_fingerprint = fingerprint_fd_entry(root_fd, os.path.basename(MANIFEST))
+            if _read_relative_json(root_fd, os.path.basename(MANIFEST)) != receipt:
+                raise ValueError('uninstall receipt changed before transaction')
+        finally:
+            os.close(root_fd)
+        begin_transaction(plugin_version, receipt_fingerprint, receipt_snapshot=receipt,
+                          receipt_snapshot_present=True, source_kind='receipt_release')
         archive_receipt_for_uninstall()
         finish_transaction('committed')
         clear_pending_transactions()
