@@ -54,13 +54,26 @@ and `rg`, including options, multiple targets, input redirects, pipelines,
 command separators, and literal SSH commands. Each target is assessed: an
 allowed template or metadata command never exempts a protected sibling.
 Plain `ls` and `stat` and ordinary reads remain allowed. Recursive content
-search is blocked if its roots can include protected paths unless explicit
-exclusions prove all such paths excluded. Only global exact basename excludes
+search is permitted when each protected pattern is excluded or a bounded local
+scan finds no matching protected path in any root. Only global exact basename excludes
 for the effective final component, or `*`, can provide that proof; ignore and
-reinclude rules and preprocessors cannot. For a local `rg` regular non-symlink
+reinclude rules cannot prove exclusion. The scan counts all entries without
+modeling ignore rules and blocks on errors, 20,000 entries, or 300 ms; remote
+commands and unknown working directories retain strict exclusion requirements.
+It checks symlink paths and targets, skips internal directory links unless the
+reader follows them, and blocks followed directory links. A path created after
+the scan remains an accepted time-of-check/time-of-use risk. For a local `rg` regular non-symlink
 file, the gate can use `lstat`; this check has a time-of-check/time-of-use
 limit. Identifiable protected reads with syntax the gate cannot safely classify
 are blocked. Submitted shell text is not executed or expanded for inspection.
+
+For supported complete heredocs, quoted delimiter bodies are data and unquoted
+bodies are checked for active command substitutions. Ambiguous delimiters,
+multiple heredocs on one line, and continued body lines fail closed. Commands
+and protected write targets around the heredoc remain subject to their gates.
+For recursive searches, use `rg --glob '!pattern'` or `grep --exclude='pattern'`
+for every default and custom protected pattern, or target explicit
+non-protected files. Grep/Read tools are alternatives only if available.
 
 ### Controlled extraction
 

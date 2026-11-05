@@ -49,10 +49,18 @@ Give each case exactly one verdict:
 
 - `PASS`: every expected outcome was observed.
 - `FAIL`: an expected outcome was contradicted by an observed value.
-- `BLOCKED`: the case could not start (environment, fixture, or tool failure).
+- `BLOCKED`: execution cannot proceed or its outcome cannot be determined (environment, fixture, or tool failure), including after the case started.
 - `NOT_RUN`: the case needs an authorization or input you do not have.
 
 Every verdict cites observed evidence: visible values, on-screen messages, receipt numbers, or read-only query results. Transport success alone is not a `PASS`. An HTTP 200 without the expected visible state is not a pass. When a case fails, capture the state needed to reproduce it, and report a suspected cause separately from what you observed.
+
+For each executed case, record the prerequisites, intended control or field, action-attempt evidence, and relevant observed outcome against the expectation. Before a product `FAIL`, confirm that the prerequisites were completed, the intended control or field was used, and the prescribed action was reliably attempted. Complete safe prerequisites prescribed by the case within the existing authorization. Record case-appropriate attempt evidence and compare the relevant observable with the expected outcome; a network request is not required for every action. Missing expected effect alone does not establish a tool failure: a reliably attempted click on the correct enabled button with prerequisites met can expose a product defect. Without reliable attempt evidence, investigate the observed evidence before attribution; do not report product `FAIL` on that basis.
+
+Record console and page-error baselines before testing and subsequent observations separately, with page and action context where available. A known-noise list or matching baseline signature informs attribution, but neither proves a new failure nor exempts a currently relevant error. Tie any error used for `FAIL` to the expected behavior with reliable evidence; state ambiguous attribution explicitly.
+
+If the tool cannot reliably perform the prescribed interaction or observe its outcome, report `BLOCKED` with the `tool-limitation` reason category, the evidence and affected case. Record an attempted or proposed safe alternative under existing authorization, and whether it verifies the original acceptance goal. A direct URL does not prove a menu interaction, and an HTTP call does not replace a required UI step.
+
+When a state-changing action has an unknown outcome, do not replay it; repeating it could cause the side effect again, such as submitting an order twice. Use only authorized read-only observation to reconcile it. If unresolved, stop with `BLOCKED` and record the unknown outcome.
 
 Update the results file after each case so partial progress survives an interruption. Leave the environment as the case leaves it unless the brief prescribes cleanup.
 
@@ -62,6 +70,7 @@ Return a compact report:
 
 - **Summary:** counts of `PASS`, `FAIL`, `BLOCKED`, and `NOT_RUN`, plus the results-file path.
 - **Failures:** case id, the expected outcome, the observed value, and the reproduction state.
+- **Tool limitations:** affected case, evidence, and attempted or proposed alternative, including whether it verifies the original acceptance goal; or `none`.
 - **Requests:** each authorization or input the parent must supply, stated exactly.
 - **Residue:** live state the run left behind, or `none`.
 

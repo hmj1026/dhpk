@@ -10,6 +10,21 @@
 const { test, run, assert } = require('./_lib/tinytest');
 const { runHook: runHookRaw } = require('./_lib/hookharness');
 
+test('recursive scan blocks a tree exceeding its shared budget', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-scan-budget-'));
+  try {
+    for (let i = 0; i < 20001; i++) fs.writeFileSync(path.join(dir, `item-${i}`), '');
+    for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+      const res = runHookRaw(hook, {cwd: dir, payload: {tool_input: {command: 'rg foo .'}}});
+      assert.strictEqual(res.status, 2, res.stderr);
+      assert.match(res.stderr, /(?:entry|time) limit/);
+    }
+  } finally { fs.rmSync(dir, {recursive: true, force: true}); }
+});
+
 function runHook(command, env = {}) {
   return runHookRaw('pre-bash-guard.sh', {
     payload: { tool_input: { command } },

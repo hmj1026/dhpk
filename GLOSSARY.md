@@ -165,3 +165,17 @@ _Avoid_: Consumer runtime requirement, Node support matrix
 **Published Pending**:
 A release state in which the immutable GitHub Release exists but required runtime evidence is not yet complete. Pending evidence remains visible without treating publication itself as failed.
 _Avoid_: Release failure, complete release
+
+## Credential Guard
+
+**Protected Path**:
+A path that the effective credential read policy, the default patterns plus the consumer's custom patterns minus template files, forbids an agent command to read.
+_Avoid_: Credential file, secret file, sensitive path
+
+**Exclusion Proof**:
+Evidence, stated in the command itself, that a recursive read excludes every effective credential pattern.
+_Avoid_: Safe search, exclusion list
+
+**Absence Proof**:
+Evidence, from a bounded scan at check time, that a recursive read's search root contains no Protected Path. It is a point-in-time observation, not a guarantee for the moment the command runs.
+_Avoid_: Safe directory, clean directory, credential-free directory

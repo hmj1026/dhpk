@@ -16,6 +16,10 @@ test('Darwin installer subset lists existing files and private-tmp env for insta
     'tests/cli-dispatch-launcher.test.js',
     'tests/run-bounded-node-test.test.js',
     'tests/install-cursor-harness.test.js',
+    'tests/content-fingerprint.test.js',
+    'tests/content-fingerprint-characterization.test.js',
+    'tests/content-fingerprint-tree-merkle.test.js',
+    'tests/receipt-primitives.test.js',
   ]);
   for (const entry of MACOS_INSTALLER_FILES) {
     assert.ok(fs.existsSync(path.join(ROOT, entry.file)), entry.file);

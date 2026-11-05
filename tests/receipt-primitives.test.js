@@ -685,6 +685,7 @@ test('canonicalJson pins deep key sorting, array order, null, and dropped undefi
   assert.strictEqual(primitives.canonicalJson('x'), '"x"');
 });
 
+// 原 fixture 的大小寫同名檔案無法跨平台共存，改用不衝突的磁碟名稱。
 function receiptFingerprintFixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'receipt-fingerprint-'));
   fs.cpSync(path.join(__dirname, 'fixtures', 'content-fingerprint', 'adversarial'), dir, { recursive: true });
@@ -692,7 +693,7 @@ function receiptFingerprintFixture() {
   fs.mkdirSync(path.join(dir, '__pycache__'));
   fs.writeFileSync(path.join(dir, '__pycache__', 'x.pyc'), 'pyc');
   fs.writeFileSync(path.join(dir, 'skip.pyc'), 'pyc2');
-  for (const file of ['a.txt', 'a/inner.txt', 'B.txt', 'b.txt', 'sub/Z.txt', 'sub/a.txt', 'sub/binary.bin']) {
+  for (const file of ['a.txt', 'a/inner.txt', 'upper-B.txt', 'b.txt', 'sub/Z.txt', 'sub/a.txt', 'sub/binary.bin']) {
     fs.chmodSync(path.join(dir, file), 0o644);
   }
   fs.chmodSync(path.join(dir, 'b.txt'), 0o755);
@@ -703,7 +704,7 @@ test('fingerprintDirectory pins the recorded value, recording modes, empty direc
   const dir = receiptFingerprintFixture();
   try {
     const before = primitives.fingerprintDirectory(dir);
-    assert.strictEqual(before, 'sha256:580d562a776f02e67392cf5848dbb18a8294409cf0b7e0dea77519132fff113f');
+    assert.strictEqual(before, 'sha256:c998499fbdd7157a0996c1abad90ebac4f258174cc02f0f25237a74dfdaaa7db');
     fs.chmodSync(path.join(dir, 'b.txt'), 0o644);
     assert.notStrictEqual(primitives.fingerprintDirectory(dir), before, 'file mode must be part of the fingerprint');
     fs.chmodSync(path.join(dir, 'b.txt'), 0o755);
@@ -736,7 +737,7 @@ test('fingerprintDirectory refuses symlink entries, file roots, and symlinked ro
 test('revalidateBytes compares a directory reference against fingerprintDirectory', () => {
   const dir = receiptFingerprintFixture();
   try {
-    const expected = 'sha256:580d562a776f02e67392cf5848dbb18a8294409cf0b7e0dea77519132fff113f';
+    const expected = 'sha256:c998499fbdd7157a0996c1abad90ebac4f258174cc02f0f25237a74dfdaaa7db';
     assert.strictEqual(primitives.revalidateBytes({ kind: 'directory', path: dir, fingerprint: expected }).ok, true);
     assert.strictEqual(primitives.revalidateBytes({ kind: 'directory', path: dir, fingerprint: `sha256:${'0'.repeat(64)}` }).ok, false);
   } finally {
