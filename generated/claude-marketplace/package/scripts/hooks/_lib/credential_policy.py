@@ -77,6 +77,12 @@ def safe_extraction(tokens, remote):
         return False
 
 
+# 回傳非空的阻擋原因（truthy）或 False，讓 hook 能告訴 agent 該怎麼改寫指令。
+PROTECTED = 'protected path'
+UNSUPPORTED = 'unsupported reader syntax'
+RECURSIVE = 'recursive read without credential exclusions'
+
+
 def read_blocked(tokens, patterns, cwd):
     if not tokens:
         return False
@@ -89,9 +95,9 @@ def read_blocked(tokens, patterns, cwd):
         if token.operator and token.value in ('<', '<>'):
             target = tokens[i + 1]
             if target.glob or protected(target.value, patterns, cwd):
-                return True
+                return PROTECTED
     if any(posixpath.basename(t.value).endswith('credential-extract.py') for t in words):
-        return True
+        return PROTECTED
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
     index = next((i for i, name in enumerate(names) if name in READERS or name == 'ssh'), None)
     if index is None:
@@ -103,11 +109,11 @@ def read_blocked(tokens, patterns, cwd):
     # 舊版逐字猜測叢集與縮寫會錯認參數；依各 reader 的選項與參數表解析，未知語法直接拒絕。
     classified = classify(name, args, lambda value: protected(value, patterns, cwd))
     if classified is None:
-        return True
+        return UNSUPPORTED
     positional, recursive, exclusions, invalid_proof = classified
     for token in positional:
         if token.glob or protected(token.value, patterns, cwd):
-            return True
+            return PROTECTED
     if recursive:
         # rg only escapes recursive scope for explicit, known regular local files.
         if name == 'rg' and positional and cwd is not None:
@@ -118,7 +124,8 @@ def read_blocked(tokens, patterns, cwd):
                 pass
         effective = DEFAULTS + patterns
         # 排除帶斜線時可能只作用於單一目錄，不能證明覆蓋任意深度的自訂規則。
-        return invalid_proof or not all(any('/' not in ex and (ex == '*' or ex == posixpath.basename(p)) for ex in exclusions) for p in effective)
+        if invalid_proof or not all(any('/' not in ex and (ex == '*' or ex == posixpath.basename(p)) for ex in exclusions) for p in effective):
+            return RECURSIVE
     return False
 
 
@@ -139,15 +146,16 @@ def ssh_blocked(args, patterns):
     if i >= len(args):
         return False
     if any(t.dynamic or t.glob for t in args[i:]):
-        return True
+        return UNSUPPORTED
     return analyze(' '.join(t.value for t in args[i:]), patterns, None, True)
 
 
 def analyze(command, patterns, cwd, remote=False, nested=False):
     # 使用平衡掃描保留引號及巢狀括號，避免命令替換包住可辨識讀取時漏判。
     for body in substitutions(command):
-        if analyze(body, patterns, cwd, remote, True):
-            return True
+        reason = analyze(body, patterns, cwd, remote, True)
+        if reason:
+            return reason
     tokens = tokenize(command)
     if not nested and safe_extraction(tokens, remote):
         return False
@@ -155,8 +163,9 @@ def analyze(command, patterns, cwd, remote=False, nested=False):
     uncertain_cwd = cwd
     for token in tokens + [type('End', (), {'operator': True, 'value': ';'})()]:
         if token.operator and token.value in (';', '&&', '||', '|', '|&', '(', ')', ';;'):
-            if read_blocked(segment, patterns, uncertain_cwd):
-                return True
+            reason = read_blocked(segment, patterns, uncertain_cwd)
+            if reason:
+                return reason
             if any(not t.operator and posixpath.basename(t.value) == 'cd' for t in segment):
                 uncertain_cwd = None
             segment = []
