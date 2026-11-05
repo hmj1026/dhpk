@@ -31,8 +31,14 @@ if ! command -v python3 >/dev/null 2>&1 || [ ! -f "$_credential_guard" ]; then
     echo "[bash-guard] blocked: credential inspection unavailable; use controlled extraction or provide non-secret information." >&2
     exit 2
 fi
-if ! printf '%s' "$PAYLOAD" | python3 -B "$_credential_guard" 2>/dev/null; then
-    echo "[bash-guard] blocked: credential read or inspection failure; use controlled extraction or provide non-secret information." >&2
+# 保留 Python 端的阻擋原因；只有它沒說明時才補通用訊息。
+_credential_reason="$(printf '%s' "$PAYLOAD" | python3 -B "$_credential_guard" 2>&1 >/dev/null)"
+_credential_status=$?
+if [ "$_credential_status" -ne 0 ]; then
+    case "$_credential_reason" in
+        "[bash-guard] blocked: "*) printf '%s\n' "$_credential_reason" >&2 ;;
+        *) echo "[bash-guard] blocked: credential read or inspection failure; use controlled extraction or provide non-secret information." >&2 ;;
+    esac
     exit 2
 fi
 CMD="$(extract_tool_input command "$PAYLOAD")"

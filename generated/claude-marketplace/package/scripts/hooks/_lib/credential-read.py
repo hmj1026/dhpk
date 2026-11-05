@@ -4,7 +4,14 @@ import json
 import os
 import sys
 
-from credential_policy import analyze, validate_patterns
+from credential_policy import PROTECTED, RECURSIVE, UNSUPPORTED, analyze, validate_patterns
+
+DEFAULT_HINT = 'use controlled extraction or provide non-secret information.'
+HINTS = {
+    PROTECTED: DEFAULT_HINT,
+    UNSUPPORTED: 'rewrite with options the guard recognizes, or use the Grep/Read tool.',
+    RECURSIVE: 'pass --exclude for every credential pattern, or use the Grep tool.',
+}
 
 
 def main():
@@ -18,10 +25,11 @@ def main():
         if os.environ.get('DHPK_CREDENTIAL_CONFIG_ERROR') == '1':
             raise ValueError('policy')
         patterns = validate_patterns(json.loads(os.environ.get('CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS', '[]')))
-        if analyze(command, patterns, os.getcwd()):
-            raise ValueError('protected read')
-    except (ValueError, TypeError, OSError, RecursionError):
-        print('[bash-guard] blocked: credential read or invalid inspection policy; use controlled extraction or provide non-secret information.', file=sys.stderr)
+        reason = analyze(command, patterns, os.getcwd())
+        if reason:
+            raise ValueError(reason)
+    except (ValueError, TypeError, OSError, RecursionError) as error:
+        print('[bash-guard] blocked: %s; %s' % (error, HINTS.get(str(error), DEFAULT_HINT)), file=sys.stderr)
         return 2
     return 0
 
