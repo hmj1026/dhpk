@@ -9,8 +9,9 @@ from credential_policy import PROTECTED, RECURSIVE, UNSUPPORTED, analyze, valida
 DEFAULT_HINT = 'use controlled extraction or provide non-secret information.'
 HINTS = {
     PROTECTED: DEFAULT_HINT,
-    UNSUPPORTED: 'rewrite with options the guard recognizes, or use the Grep/Read tool.',
-    RECURSIVE: 'pass --exclude for every credential pattern, or use the Grep tool.',
+    # 避免假設 Host 一定提供 Grep/Read，並區分兩個搜尋工具的排除語法。
+    UNSUPPORTED: 'rewrite with supported options and explicit non-protected files; for recursive rg use --glob "!pattern", for grep use --exclude="pattern" for every default and custom credential pattern; Grep/Read may be used if available.',
+    RECURSIVE: 'exclude every default and custom credential pattern: for rg use --glob "!pattern", for grep use --exclude="pattern"; or target explicit non-protected files. Grep/Read may be used if available.',
 }
 
 

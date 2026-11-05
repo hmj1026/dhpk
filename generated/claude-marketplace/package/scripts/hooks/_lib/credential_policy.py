@@ -8,7 +8,7 @@ import re
 import stat
 import sys
 
-from credential_shell import tokenize, substitutions
+from credential_shell import tokenize, substitutions, heredocs
 from credential_options import classify
 
 TEMPLATES = {'.env.example', '.env.sample', '.env.dist', '.env.template'}
@@ -151,6 +151,12 @@ def ssh_blocked(args, patterns):
 
 
 def analyze(command, patterns, cwd, remote=False, nested=False):
+    # 原本把 heredoc 資料誤當指令；只遮罩完整辨識的內文並保留可執行替換。
+    command, expansions = heredocs(command)
+    for body in expansions:
+        reason = analyze(body, patterns, cwd, remote, True)
+        if reason:
+            return reason
     # 使用平衡掃描保留引號及巢狀括號，避免命令替換包住可辨識讀取時漏判。
     for body in substitutions(command):
         reason = analyze(body, patterns, cwd, remote, True)
