@@ -23,9 +23,8 @@ const VECTORS = Object.freeze({
   astral: '0fffe9e38f37e154e8ee92e788568242a6e2ab1d1a96f425248590e75aae0245',
   link: '2fc9dfe52e0b25b9cd7a7f3772652f3df3df104bafbd571777300689bbb72d8f',
   linkSameText: '468aee9f7003b75e692b71bd3662135e3a4d75ff6c8e4649b1f5d266c7b3f8cb',
-  // Existing writer value for the adversarial fixture files only (empty
-  // directory and bytecode excluded); the legacy merkleFingerprint produced it.
-  adversarialFiles: '84ffd53938ed50bf6c1b6665f92cbf9feb93dba1e10da374a32531eba7cd2122',
+  // Portable fixture value, independently calculated from the tree-merkle-v1 recipe.
+  adversarialFiles: '7cd0eb904f97b8f1fb8739c89f8a769b1e5cc23c7eb53270d7aca42b451aa283',
 });
 
 const file = (entryPath, content) => ({ path: entryPath, type: 'file', content: Buffer.from(content) });
@@ -202,6 +201,13 @@ test('a name that is not valid Unicode is refused', () => {
 test('a path with an empty segment or a NUL is refused', () => {
   assert.throws(() => fingerprint.treeFingerprint([file('a//b', 'x')]), /invalid tree path/);
   assert.throws(() => fingerprint.treeFingerprint([file('a\0b', 'x')]), /invalid tree path/);
+});
+
+test('tracked adversarial fixture paths are portable across case-insensitive filesystems', () => {
+  const { execFileSync } = require('node:child_process');
+  const paths = execFileSync('git', ['ls-files', '-z', '--', 'tests/fixtures/content-fingerprint/adversarial'], { cwd: path.resolve(__dirname, '..') }).toString().split('\0').filter(Boolean);
+  const folded = paths.map((filePath) => filePath.toLowerCase());
+  assert.strictEqual(new Set(folded).size, folded.length, 'case-folded tracked fixture paths collide');
 });
 
 run('content-fingerprint-tree-merkle');
