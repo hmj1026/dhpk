@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 0.70.6 — 2026-11-05 — Credential guard improvements and absence proofs, QA verdict attribution, and installer/projection lifecycle fixes
+
+- **feat(qa-executor)** — Strengthen QA verdict attribution with action evidence, error baselines, tool-limitation reporting, and safe handling of unknown outcomes.
+- **feat(hooks)** — Allow bounded local recursive searches when protected paths are excluded or absent, while failing closed on unsafe scans.
+- **fix(hooks)** — Recognize `rg -F`, distinguish heredoc data from active substitutions, and provide reader-specific credential guard recovery guidance.
+- **fix(installer)** — Preserve completed historical journals and allow uninstalling older receipts without blocking subsequent installs.
+- **fix(projection)** — Allow explicit adoption or safe release of supported legacy project projection receipts while preserving unverified files.
+- **fix(hooks)** — Recognize common grep flags, head/tail line-count shorthand and sed -i during credential inspection, and report specific denial reasons.
+
 ## 0.70.5 — 2026-11-04 — Block credential reads in Claude Bash gate with controlled extraction
 
 - **feat(hooks)** — Block identifiable credential reads in the Claude Bash gate and support controlled local extraction.
