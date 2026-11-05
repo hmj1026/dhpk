@@ -6,6 +6,7 @@
 // external consumer project without replacing foreign content.
 
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { parseFrontmatter } = require('./agent-plugin-package');
@@ -848,15 +849,26 @@ function validateReceipt(receipt, roots, bindingOptions = {}) {
   const typedReceipt = receipt.schema === PROJECT_RECEIPT_SCHEMA || receipt.schema === PREVIOUS_PROJECT_RECEIPT_SCHEMA;
   // The marker gate runs before the version check so a 2.0.0 receipt (written
   // without the marker) gets the version-boundary diagnostic.
-  try { requireTreeMerkle(receipt.fingerprint_algorithm, 'fingerprint_algorithm'); } catch (error) {
-    throw fail('INVALID_RECEIPT', `project projection receipt ${error.message}`);
+  // 舊版雜湊配方已移除；僅解除安裝可讀取完整驗證的舊收據，不能以其宣稱刪除內容。
+  const releaseLegacy = bindingOptions.releaseLegacy === true
+    && !Object.prototype.hasOwnProperty.call(receipt, 'fingerprint_algorithm')
+    && receipt.generatorVersion === '2.0.0';
+  if (!releaseLegacy) {
+    try { requireTreeMerkle(receipt.fingerprint_algorithm, 'fingerprint_algorithm'); } catch (error) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${error.message}`);
+    }
+    if (!ACCEPTED_GENERATOR_VERSIONS.includes(receipt.generatorVersion)) throw fail('INVALID_RECEIPT', `project projection receipt must use generator ${GENERATOR_VERSION}`);
   }
-  if (!ACCEPTED_GENERATOR_VERSIONS.includes(receipt.generatorVersion)) throw fail('INVALID_RECEIPT', `project projection receipt must use generator ${GENERATOR_VERSION}`);
   if (receipt.scope !== 'project' || receipt.managedRoot !== roots.config.managed_root || receipt.receiptPath !== roots.config.receipt) {
     throw fail('INVALID_RECEIPT', 'project projection receipt has an invalid ownership root');
   }
   if (!receipt.projectionOwner || receipt.projectionOwner.owner !== roots.config.owner) {
     throw fail('INVALID_RECEIPT', 'project projection receipt has an invalid projection owner');
+  }
+  if (releaseLegacy && (receipt.projectionOwner.scope !== roots.config.scope
+    || receipt.projectionOwner.managedRoot !== roots.config.managed_root
+    || receipt.projectionOwner.receipt !== roots.config.receipt)) {
+    throw fail('INVALID_RECEIPT', 'legacy project projection receipt has an invalid projection ownership boundary');
   }
   if (!DIGEST_PATTERN.test(receipt.receiptFingerprint || '')
     || sha256Hex(stableStringify(receiptPayload(receipt))) !== receipt.receiptFingerprint) {
@@ -1067,6 +1079,43 @@ function inferLegacyBindingPaths(roots, entries) {
 function adoptLegacyManifest(roots) {
   const legacyPath = legacyManifestPath(roots);
   const manifest = readJsonFile(legacyPath, 'legacy project projection manifest');
+  if (!manifest || manifest.schema !== 'dhpk.agents-skills-projection.v1' || manifest.generatorVersion !== '1.1.0') throw fail('LEGACY_UNBOUND', 'legacy project projection manifest has an unsupported schema or generator');
+  if (manifest && manifest.schema === 'dhpk.agents-skills-projection.v1'
+    && manifest.generatorVersion === '1.1.0' && !Object.prototype.hasOwnProperty.call(manifest, 'fingerprint_algorithm')) {
+    // 舊版 standalone 不具 receipt seal；限制每個路徑必須由其 entry 對應，且不以舊雜湊宣稱所有權。
+    if ((manifest.selectionSurface !== undefined && manifest.selectionSurface !== 'agent-plugin')
+      || !Array.isArray(manifest.selectedIds) || manifest.selectedIds.some((id) => typeof id !== 'string' || !id)
+      || new Set(manifest.selectedIds).size !== manifest.selectedIds.length || !Array.isArray(manifest.entries)
+      || !Array.isArray(manifest.managedPaths) || new Set(manifest.managedPaths).size !== manifest.managedPaths.length
+      || !manifest.generatedFingerprints || typeof manifest.generatedFingerprints !== 'object' || Array.isArray(manifest.generatedFingerprints)) throw fail('LEGACY_UNBOUND', 'legacy manifest shape is invalid');
+    const ids = new Set();
+    const names = new Set();
+    const allowed = new Set();
+    for (const entry of manifest.entries) {
+      if (!entry || typeof entry.id !== 'string' || !entry.id || ids.has(entry.id) || names.has(entry.name)
+        || typeof entry.name !== 'string' || !SAFE_NAME.test(entry.name) || entry.source !== `skills/${entry.name}`
+        || entry.cursorPath !== `${entry.name}/SKILL.md` || entry.agyPath !== `${entry.name}.md`
+        || !DIGEST_PATTERN.test(entry.sourceFingerprint || '')) throw fail('LEGACY_UNBOUND', 'legacy manifest entry is invalid');
+      ids.add(entry.id); names.add(entry.name);
+      allowed.add(entry.agyPath); allowed.add(entry.cursorPath);
+      if (entry.sourceFiles !== undefined) {
+        if (!Array.isArray(entry.sourceFiles)) throw fail('LEGACY_UNBOUND', 'legacy manifest source files are invalid');
+        const seen = new Set();
+        for (const file of entry.sourceFiles) {
+          if (!file || typeof file.path !== 'string' || seen.has(file.path) || !DIGEST_PATTERN.test(file.digest || '')) throw fail('LEGACY_UNBOUND', 'legacy manifest source file is invalid');
+          assertSafeRelative(file.path, 'legacy manifest source path'); seen.add(file.path); allowed.add(`${entry.name}/${file.path}`);
+        }
+      }
+    }
+    if (Object.keys(manifest.generatedFingerprints).length !== manifest.managedPaths.length) throw fail('LEGACY_UNBOUND', 'legacy manifest fingerprints are invalid');
+    for (const relative of manifest.managedPaths) {
+      assertSafeRelative(relative, 'legacy manifest path');
+      if (!allowed.has(relative) || !DIGEST_PATTERN.test(manifest.generatedFingerprints[relative] || '')) throw fail('LEGACY_UNBOUND', `legacy manifest path is invalid: ${relative}`);
+    }
+    const observed = readPhysicalFile(legacyPath, 'legacy manifest');
+    if (stableStringify(JSON.parse(observed)) !== stableStringify(manifest)) throw fail('MANAGED_CONTENT_CHANGED', 'legacy manifest changed during validation');
+    return { legacyUnmarkedManifest: true, manifestDigest: sha256Hex(observed), managedPaths: manifest.managedPaths };
+  }
   if (!Array.isArray(manifest.managedPaths) || !manifest.generatedFingerprints || typeof manifest.generatedFingerprints !== 'object') {
     throw fail('LEGACY_UNBOUND', 'legacy project projection manifest cannot establish ownership');
   }
@@ -1346,6 +1395,7 @@ function recoverProjectProjectionTransaction(roots) {
   if (journalStat.isSymbolicLink() || !journalStat.isFile()) throw fail('UNSAFE_TRANSACTION', 'project projection transaction journal is not a regular file');
   const transaction = readJsonFile(journalPath, 'project projection transaction journal');
   const paths = validateTransaction(roots, transaction);
+  if (transaction.adoption === true) return recoverAdoptionTransaction(roots, journalPath, transaction, paths);
   if (transaction.phase === 'published') {
     cleanupDirectory(paths.backup, 'project projection transaction backup');
     cleanupDirectory(paths.stage, 'project projection transaction stage');
@@ -1434,6 +1484,64 @@ function recoverProjectProjectionTransaction(roots) {
   }
   removeEmptyDirectories(roots.managedRoot);
   removeEmptyDirectories(roots.claudeManagedRoot);
+  cleanupDirectory(paths.backup, 'project projection transaction backup');
+  cleanupDirectory(paths.stage, 'project projection transaction stage');
+  fs.rmSync(journalPath, { force: true });
+  return { recovered: true, phase: transaction.phase };
+}
+
+// 採用中斷時先完整比對所有現場與備份，避免未搬移的舊檔被誤認成候選檔刪除。
+function recoverAdoptionTransaction(roots, journalPath, transaction, paths) {
+  if (transaction.phase === 'published') {
+    cleanupDirectory(paths.stage, 'project projection transaction stage');
+    fs.rmSync(journalPath, { force: true });
+    return { recovered: true, phase: 'published', backupPath: paths.backup };
+  }
+  const actions = [];
+  const digest = (target, link) => {
+    const stat = lstatOrNull(target);
+    if (!stat) return null;
+    if (link) return stat.isSymbolicLink() ? fs.readlinkSync(target) : false;
+    return !stat.isSymbolicLink() && stat.isFile() ? sha256Hex(fs.readFileSync(target)) : false;
+  };
+  const plan = (live, backup, oldValue, newValue, link = false) => {
+    assertPhysicalAncestors(path.dirname(live), 'adoption recovery destination', roots.projectRoot);
+    assertPhysicalAncestors(path.dirname(backup), 'adoption recovery backup', roots.agentsRoot);
+    const now = digest(live, link);
+    const saved = digest(backup, link);
+    if (saved !== null) {
+      // 相同內容不證明由本次交易建立；無建立身分時保留現場並要求人工核對。
+      if (saved !== oldValue || now !== null) throw fail('RECOVERY_CONFLICT', `adoption recovery conflict: ${live}`);
+      actions.push({ live, backup, now, saved, link, restore: true });
+    } else if (oldValue !== null) {
+      if (now !== oldValue) throw fail('RECOVERY_CONFLICT', `adoption source changed: ${live}`);
+    } else if (now !== null) {
+      throw fail('RECOVERY_CONFLICT', `adoption candidate requires reconciliation: ${live}`);
+    }
+  };
+  for (const [root, oldPaths, newPaths, oldMap, newMap, folder] of [
+    [roots.managedRoot, transaction.oldPaths, transaction.newPaths, transaction.oldFingerprints, transaction.newFingerprints, 'managed'],
+    [roots.claudeManagedRoot, paths.oldClaudePaths, paths.newClaudePaths, transaction.oldClaudeFingerprints, paths.newClaudeFingerprints, 'claude-managed'],
+  ]) {
+    if (!oldMap || Object.keys(oldMap).length !== oldPaths.length || oldPaths.some((p) => !DIGEST_PATTERN.test(oldMap[p] || '') || !newPaths.includes(p))) throw fail('UNSAFE_TRANSACTION', 'invalid adoption observations');
+    for (const relative of newPaths) plan(pathIn(root, relative), path.join(paths.backup, folder, relative), oldMap[relative] || null, newMap[relative]);
+  }
+  const oldBindings = new Map(flattenBindingPaths(paths.oldBindingPaths).map((item) => [item.path, item.target]));
+  const newBindings = flattenBindingPaths(paths.newBindingPaths);
+  if ([...oldBindings.keys()].some((key) => !newBindings.some((item) => item.path === key))) throw fail('UNSAFE_TRANSACTION', 'invalid adoption binding observations');
+  for (const binding of newBindings) plan(bindingDestinationIn(roots, binding.path), path.join(paths.backup, 'bindings', binding.path), oldBindings.get(binding.path) || null, binding.target, true);
+  if (transaction.oldReceiptDigest !== null && !DIGEST_PATTERN.test(transaction.oldReceiptDigest || '')) throw fail('UNSAFE_TRANSACTION', 'invalid adoption receipt observation');
+  plan(roots.receiptPath, path.join(paths.backup, 'receipt.json'), transaction.oldReceiptDigest, transaction.newReceiptDigest);
+  for (const action of actions) {
+    assertPhysicalAncestors(path.dirname(action.live), 'adoption recovery destination', roots.projectRoot);
+    assertPhysicalAncestors(path.dirname(action.backup), 'adoption recovery backup', roots.agentsRoot);
+    if (digest(action.live, action.link) !== action.now || digest(action.backup, action.link) !== action.saved) throw fail('RECOVERY_CONFLICT', `adoption changed during recovery: ${action.live}`);
+    if (action.now !== null) fs.unlinkSync(action.live);
+    if (action.restore) {
+      fs.mkdirSync(path.dirname(action.live), { recursive: true });
+      fs.renameSync(action.backup, action.live);
+    }
+  }
   cleanupDirectory(paths.backup, 'project projection transaction backup');
   cleanupDirectory(paths.stage, 'project projection transaction stage');
   fs.rmSync(journalPath, { force: true });
@@ -1552,6 +1660,30 @@ function checkBindingCollisions(roots, previous, candidateBindingPaths) {
   return { oldBindings, oldByPath };
 }
 
+// 採用只依本次現場觀察備份與候選輸出重疊的項目，舊雜湊不能證明刪除權限。
+function observeAdoption(roots, candidateFiles, claudeCandidateFiles, candidateBindings) {
+  const observeFiles = (root, files) => Object.fromEntries(files.flatMap((relative) => {
+    const target = pathIn(root, relative, 'adoption candidate');
+    const stat = lstatOrNull(target);
+    if (!stat) return [];
+    if (!stat.isFile() || stat.isSymbolicLink()) throw fail('GENERATED_PATH_COLLISION', `adoption path is not a regular file: ${relative}`, { paths: [relative] });
+    return [[relative, sha256Hex(fs.readFileSync(target))]];
+  }));
+  const generatedFingerprints = observeFiles(roots.managedRoot, candidateFiles);
+  const claudeGeneratedFingerprints = observeFiles(roots.claudeManagedRoot, claudeCandidateFiles);
+  const bindingPaths = {};
+  for (const binding of flattenBindingPaths(candidateBindings)) {
+    const destination = bindingDestinationIn(roots, binding.path, 'adoption binding');
+    const stat = lstatOrNull(destination);
+    if (!stat) continue;
+    if (!stat.isSymbolicLink()) throw fail('GENERATED_PATH_COLLISION', `adoption binding is not a symlink: ${binding.path}`, { paths: [binding.path] });
+    const observed = { path: binding.path, target: fs.readlinkSync(destination) };
+    bindingTargetIn(roots, { ...observed, hostId: binding.hostId }, 'adoption binding', { allowClaudeRoot: true });
+    (bindingPaths[binding.hostId] ||= []).push(observed);
+  }
+  return { schema: PROJECT_RECEIPT_SCHEMA, managedPaths: Object.keys(generatedFingerprints), generatedFingerprints, claudeManagedPaths: Object.keys(claudeGeneratedFingerprints), claudeGeneratedFingerprints, bindingPaths };
+}
+
 function removeBindingCandidate(roots, binding, code = 'RECOVERY_CONFLICT', { allowClaudeRoot = false } = {}) {
   const resolved = bindingTargetIn(roots, binding, `transaction ${binding.hostId || 'Host'} binding`, { allowClaudeRoot });
   const stat = lstatOrNull(resolved.destination);
@@ -1589,6 +1721,8 @@ function publishManagedCandidate({
   claudeCandidateFingerprints = {},
   nextReceipt,
   createRollback = true,
+  adoption = false,
+  oldReceiptDigest = null,
 }) {
   checkCollisions(roots, previous, candidateFiles);
   checkCollisions(roots, previous, claudeCandidateFiles, 'claude');
@@ -1602,7 +1736,7 @@ function publishManagedCandidate({
   const backup = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-backup-'));
   const rollback = createRollbackStage(roots, previous && createRollback ? previous : null, nextReceipt && nextReceipt.schema);
   const rollbackRoot = path.join(roots.agentsRoot, '.dhpk-projection-rollback');
-  const oldRollback = previous && lstatOrNull(rollbackRoot);
+  const oldRollback = !adoption && previous && lstatOrNull(rollbackRoot);
   const receipt = nextReceipt ? sealReceipt({
     ...receiptWithoutFingerprint(nextReceipt),
     rollback: rollback ? rollback.metadata : null,
@@ -1628,6 +1762,7 @@ function publishManagedCandidate({
     oldRollbackPresent: Boolean(oldRollback),
     oldRollbackMoved: false,
     newRollbackInstalled: false,
+    ...(adoption ? { adoption: true, oldFingerprints: previous.generatedFingerprints, oldClaudeFingerprints: previous.claudeGeneratedFingerprints, oldReceiptDigest } : {}),
   };
   const journalPath = transactionPath(roots);
   if (lstatOrNull(journalPath)) {
@@ -1650,26 +1785,39 @@ function publishManagedCandidate({
       for (const relative of previous.managedPaths.slice().sort()) {
         const source = pathIn(roots.managedRoot, relative, 'transaction backup source');
         const target = path.join(backup, 'managed', relative);
+        if (adoption && sha256Hex(readPhysicalFile(source, 'adoption source')) !== previous.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption source changed: ${relative}`);
         fs.mkdirSync(path.dirname(target), { recursive: true });
         assertPhysicalAncestors(target, 'transaction backup target', backup);
         fs.renameSync(source, target);
+        if (adoption && sha256Hex(readPhysicalFile(target, 'adoption backup')) !== previous.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption backup changed: ${relative}`);
       }
       for (const relative of (previous.claudeManagedPaths || []).slice().sort()) {
         const source = pathIn(roots.claudeManagedRoot, relative, 'transaction Claude backup source');
         const target = path.join(backup, 'claude-managed', relative);
+        if (adoption && sha256Hex(readPhysicalFile(source, 'adoption Claude source')) !== previous.claudeGeneratedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption Claude source changed: ${relative}`);
         fs.mkdirSync(path.dirname(target), { recursive: true });
         assertPhysicalAncestors(target, 'transaction Claude backup target', backup);
         fs.renameSync(source, target);
+        if (adoption && sha256Hex(readPhysicalFile(target, 'adoption Claude backup')) !== previous.claudeGeneratedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption Claude backup changed: ${relative}`);
       }
-      if (lstatOrNull(roots.receiptPath)) fs.renameSync(roots.receiptPath, path.join(backup, 'receipt.json'));
+      if (lstatOrNull(roots.receiptPath)) {
+        if (adoption && sha256Hex(readPhysicalFile(roots.receiptPath, 'adoption receipt')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
+        fs.renameSync(roots.receiptPath, path.join(backup, 'receipt.json'));
+        if (adoption && sha256Hex(readPhysicalFile(path.join(backup, 'receipt.json'), 'adoption receipt backup')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
+      } else if (adoption && oldReceiptDigest !== null) throw fail('RECEIPT_CHANGED', 'receipt disappeared during adoption');
     }
     for (const binding of flattenBindingPaths(previousBindingPaths)) {
       const source = bindingDestinationIn(roots, binding.path, 'transaction binding backup source');
-      if (!lstatOrNull(source)) continue;
+      if (!lstatOrNull(source)) {
+        if (adoption) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding disappeared: ${binding.path}`);
+        continue;
+      }
+      if (adoption && (!lstatOrNull(source).isSymbolicLink() || fs.readlinkSync(source) !== binding.target)) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding changed: ${binding.path}`);
       const target = path.join(backup, 'bindings', binding.path);
       fs.mkdirSync(path.dirname(target), { recursive: true });
       assertPhysicalAncestors(target, 'transaction binding backup target', backup);
       fs.renameSync(source, target);
+      if (adoption && (!lstatOrNull(target).isSymbolicLink() || fs.readlinkSync(target) !== binding.target)) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding backup changed: ${binding.path}`);
     }
     if (oldRollback) {
       fs.renameSync(rollbackRoot, path.join(backup, 'rollback'));
@@ -1715,7 +1863,7 @@ function publishManagedCandidate({
     journal.phase = 'published';
     writeAtomicJson(journalPath, journal, roots.projectRoot);
     published = true;
-    cleanupDirectory(backup, 'project projection transaction backup');
+    if (!adoption) cleanupDirectory(backup, 'project projection transaction backup');
     fs.rmSync(journalPath, { force: true });
     return {
       receipt,
@@ -1723,6 +1871,7 @@ function publishManagedCandidate({
       managedPaths: candidateFiles.slice().sort(),
       claudeManagedPaths: claudeCandidateFiles.slice().sort(),
       bindingPaths: candidateBindingPaths,
+      ...(adoption ? { backupPath: backup } : {}),
     };
   } catch (error) {
     if (!published) {
@@ -1837,18 +1986,31 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
   const sourceRoot = options.sourceRoot || options.root;
   if (!sourceRoot || !options.inventory) throw fail('INVALID_INPUT', 'sourceRoot and inventory are required');
   const roots = resolveRoots({ sourceRoot, projectRoot: options.projectRoot, outDir: options.outDir, inventory: options.inventory });
-  readLifecycleProjectionReceipt(roots);
+  const lifecycleOptions = { allowLegacyClaudeDiscovery: true, releaseLegacy: options.adopt === true };
+  readProjectionReceipt(roots, lifecycleOptions);
   ensureDirectory(roots.projectRoot, 'project root', roots.projectRoot);
   ensureDirectory(roots.agentsRoot, 'project agents root', roots.projectRoot);
   recoverProjectProjectionTransaction(roots);
-  let previous = readLifecycleProjectionReceipt(roots);
+  let previous = readProjectionReceipt(roots, lifecycleOptions);
+  let legacyAdoption = Boolean(previous && previous.generatorVersion === '2.0.0' && !Object.prototype.hasOwnProperty.call(previous, 'fingerprint_algorithm'));
+  let oldReceiptDigest = null;
+  if (legacyAdoption) {
+    const observed = readPhysicalFile(roots.receiptPath, 'adoption receipt');
+    const checked = validateReceipt(JSON.parse(observed), roots, lifecycleOptions);
+    if (checked.receiptFingerprint !== previous.receiptFingerprint) throw fail('RECEIPT_CHANGED', 'receipt changed before adoption');
+    oldReceiptDigest = sha256Hex(observed);
+  }
   if (!previous && lstatOrNull(legacyManifestPath(roots))) {
     if (!(options.adopt || options.repair || options.allowLegacyAdoption)) {
       throw fail('LEGACY_UNBOUND', 'legacy project projection is present without the lifecycle receipt; explicit adopt or repair is required');
     }
     previous = adoptLegacyManifest(roots);
+    if (previous.legacyUnmarkedManifest) {
+      if (options.adopt !== true) throw fail('LEGACY_UNBOUND', 'marker-less legacy projection requires explicit adopt');
+      legacyAdoption = true;
+    }
   }
-  if (previous) validateManagedFiles(roots, previous, { requireBindings: false });
+  if (previous && !legacyAdoption) validateManagedFiles(roots, previous, { requireBindings: false });
   const plan = compilePlan({
     inventory: options.inventory,
     plan: options.plan,
@@ -1869,7 +2031,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
     preserveBindingPaths: options.preserveBindingPaths || null,
   });
   try {
-    if (previous) {
+    if (previous && !legacyAdoption) {
       const approvedRenames = approvedRenameIds(previous, options.inventory, plan);
       sourceDrift(previous, staged.inputs, Boolean(options.allowCanonicalChanges || options.update), approvedRenames);
     }
@@ -1879,15 +2041,26 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       staged,
       declaredSelection: options.declaredSelection === true,
     });
+    // 舊收據僅供身分驗證；實際可替換項目以本次候選交集重新觀察。
+    const publishPrevious = legacyAdoption ? observeAdoption(roots, Object.keys(staged.inputs.generatedFingerprints), Object.keys(staged.inputs.claudeGeneratedFingerprints), receipt.bindingPaths || {}) : previous;
+    if (previous && previous.legacyUnmarkedManifest && publishPrevious.generatedFingerprints[LEGACY_MANIFEST_NAME] !== previous.manifestDigest) throw fail('MANAGED_CONTENT_CHANGED', 'legacy manifest changed before adoption');
+    const released = legacyAdoption ? [
+      ...previous.managedPaths.filter((entry) => !receipt.managedPaths.includes(entry)).map((entry) => `${roots.config.managed_root}/${entry}`),
+      ...(previous.claudeManagedPaths || []).filter((entry) => !receipt.claudeManagedPaths.includes(entry)).map((entry) => `${roots.claudeManagedRootRelative}/${entry}`),
+      ...flattenBindingPaths(previous.bindingPaths || {}).filter((entry) => !flattenBindingPaths(receipt.bindingPaths || {}).some((candidate) => candidate.path === entry.path)).map((entry) => entry.path),
+    ].map((name) => ({ name })) : [];
     const published = publishManagedCandidate({
       roots,
-      previous,
+      previous: publishPrevious,
       candidateRoot: staged.candidateRoot,
       candidateFiles: Object.keys(staged.inputs.generatedFingerprints),
       candidateFingerprints: staged.inputs.generatedFingerprints,
       claudeCandidateFiles: Object.keys(staged.inputs.claudeGeneratedFingerprints),
       claudeCandidateFingerprints: staged.inputs.claudeGeneratedFingerprints,
       nextReceipt: receipt,
+      createRollback: !legacyAdoption,
+      adoption: legacyAdoption,
+      oldReceiptDigest,
     });
     return {
       outputRoot: roots.managedRoot,
@@ -1899,6 +2072,8 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       receipt: published.receipt,
       plan,
       artifact: staged.artifact,
+      ...(legacyAdoption ? { released } : {}),
+      ...(legacyAdoption ? { backupPath: published.backupPath } : {}),
       state: previous ? 'UPDATED' : 'INSTALLED',
     };
   } finally {
@@ -2081,14 +2256,32 @@ function operationRoots(options = {}) {
 function uninstallAgentsSkillsProjection(options = {}) {
   try {
     const roots = operationRoots(options);
-    readLifecycleProjectionReceipt(roots);
+    // 先驗證原始收據，再隔離並比對原始位元組，避免以過期所有權刪除使用者內容。
+    readProjectionReceipt(roots, { allowLegacyClaudeDiscovery: true, releaseLegacy: true });
     ensureDirectory(roots.projectRoot, 'project root', roots.projectRoot);
     ensureDirectory(roots.agentsRoot, 'project agents root', roots.projectRoot);
     recoverProjectProjectionTransaction(roots);
-    const receipt = readLifecycleProjectionReceipt(roots);
+    const receipt = readProjectionReceipt(roots, { allowLegacyClaudeDiscovery: true, releaseLegacy: true });
     if (!receipt) {
       if (lstatOrNull(legacyManifestPath(roots))) throw fail('LEGACY_UNBOUND', 'legacy project projection has no lifecycle receipt and cannot be removed automatically');
       return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
+    }
+    if (receipt.generatorVersion === '2.0.0' && !Object.prototype.hasOwnProperty.call(receipt, 'fingerprint_algorithm')) {
+      const observed = fs.readFileSync(roots.receiptPath);
+      const observedReceipt = validateReceipt(JSON.parse(observed), roots, { allowLegacyClaudeDiscovery: true, releaseLegacy: true });
+      if (observedReceipt.receiptFingerprint !== receipt.receiptFingerprint) {
+        throw fail('RECEIPT_CHANGED', 'project projection receipt changed before release');
+      }
+      const quarantine = path.join(roots.agentsRoot, `.dhpk-released-receipt-${crypto.randomBytes(12).toString('hex')}`);
+      fs.renameSync(roots.receiptPath, quarantine);
+      const quarantined = lstatOrNull(quarantine);
+      if (!quarantined || quarantined.isSymbolicLink() || !quarantined.isFile() || !fs.readFileSync(quarantine).equals(observed)) {
+        if (!lstatOrNull(roots.receiptPath)) fs.renameSync(quarantine, roots.receiptPath);
+        throw fail('RECEIPT_CHANGED', 'project projection receipt changed during release');
+      }
+      fs.unlinkSync(quarantine);
+      const preservedPaths = [...receipt.managedPaths.map((entry) => `${roots.config.managed_root}/${entry}`), ...(receipt.claudeManagedPaths || []).map((entry) => `${roots.claudeManagedRootRelative}/${entry}`), ...flattenBindingPaths(receipt.bindingPaths || {}).map((entry) => entry.path)];
+      return { ok: true, state: 'REMOVED', removedPaths: [], preservedPaths, released: preservedPaths.map((entry) => ({ name: entry })), projectRoot: roots.projectRoot };
     }
     validateManagedFiles(roots, receipt);
     const published = publishManagedCandidate({

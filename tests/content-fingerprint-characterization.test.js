@@ -30,19 +30,20 @@ const publisher = require('../scripts/lib/project-agent-projection-publisher');
 const { collectDirectoryEntries, treeFingerprint, resolveFingerprintAlgorithm } = require('../scripts/lib/content-fingerprint');
 
 const ROOT = path.resolve(__dirname, '..');
+// 原 fixture 的 B.txt 與 b.txt 在大小寫不敏感檔案系統衝突，磁碟路徑改為獨立名稱。
 const ADVERSARIAL = path.join(__dirname, 'fixtures', 'content-fingerprint', 'adversarial');
 const INSTALLER_FIXTURE = path.join(__dirname, 'fixtures', 'tree-fingerprint', 'installer');
 
-// Values recorded on the pre-change tree for buildAdversarialTree().
+// Portable disk-tree vectors were independently calculated from the documented recipes.
 const GOLDEN = Object.freeze({
-  receiptDirectory: 'sha256:580d562a776f02e67392cf5848dbb18a8294409cf0b7e0dea77519132fff113f',
+  receiptDirectory: 'sha256:c998499fbdd7157a0996c1abad90ebac4f258174cc02f0f25237a74dfdaaa7db',
   // tree-merkle-v1 over the complete view (bytecode kept, empty directory dropped),
-  // captured from treeFingerprint on 2026-11-02.
-  treeCompleteView: 'a81026d753add0b0096322e11412efde9b8257e6a3cbb5186462d8afacee3fa7',
+  // independently calculated for the portable fixture.
+  treeCompleteView: '2c0abd25ce032fe1989e0061318a6b1250e108300518a83201736feacf6434e7',
   // tree-merkle-v1 over the source view (bytecode skipped).
-  treeSourceView: '84ffd53938ed50bf6c1b6665f92cbf9feb93dba1e10da374a32531eba7cd2122',
-  marketplace: 'fe4ae3943f5ff730191cb595c5d83c68a78db0094dd4c7196de21a579f177db1',
-  rollbackDirectory: 'directory:082c1b81f402a9162e67dc4d42165c8f7514b04e72ee5e041faa8f5b5178232c',
+  treeSourceView: '7cd0eb904f97b8f1fb8739c89f8a769b1e5cc23c7eb53270d7aca42b451aa283',
+  marketplace: '1c88b0645052c224f376c1e49e304899fda0f385b707faf8146f8c82f006645b',
+  rollbackDirectory: 'directory:c022808b888f5a8d362a6bf8f8227480c8634ea95321edadf26c2642b7d49d22',
   rollbackFile: 'file:debd29241d0ff114ef5f5914063fa74abb97a77573e2e1c320eac1691f26445a',
   baselineSource: 'b24d5b99ad7e9cc2a57d4b1d7d04396f767d12a3d8a70b517f63e91643809a4c',
 });
@@ -67,7 +68,7 @@ function buildAdversarialTree() {
   fs.mkdirSync(path.join(dir, '__pycache__'));
   fs.writeFileSync(path.join(dir, '__pycache__', 'x.pyc'), 'pyc');
   fs.writeFileSync(path.join(dir, 'skip.pyc'), 'pyc2');
-  for (const file of ['a.txt', 'a/inner.txt', 'B.txt', 'b.txt', 'sub/Z.txt', 'sub/a.txt', 'sub/binary.bin']) {
+  for (const file of ['a.txt', 'a/inner.txt', 'upper-B.txt', 'b.txt', 'sub/Z.txt', 'sub/a.txt', 'sub/binary.bin']) {
     fs.chmodSync(path.join(dir, file), 0o644);
   }
   fs.chmodSync(path.join(dir, 'b.txt'), 0o755);
@@ -280,7 +281,7 @@ test('row 11: baseline sourceTreeFingerprint migrated directly to tree-merkle-v1
   try {
     fs.cpSync(ADVERSARIAL, path.join(root, 'skill'), { recursive: true });
     const value = sourceTreeFingerprint(root, { path: 'skill' });
-    const files = ['a/inner.txt', 'a.txt', 'b.txt', 'B.txt', 'sub/a.txt', 'sub/binary.bin', 'sub/Z.txt'];
+    const files = ['a/inner.txt', 'a.txt', 'b.txt', 'upper-B.txt', 'sub/a.txt', 'sub/binary.bin', 'sub/Z.txt'];
     assert.strictEqual(value, treeFingerprint(files.map((file) => ({ path: file, type: 'file', content: fs.readFileSync(path.join(ADVERSARIAL, file)) }))));
     fs.symlinkSync('a.txt', path.join(root, 'skill', 'link.txt'));
     assert.throws(() => sourceTreeFingerprint(root, { path: 'skill' }), /cannot fingerprint symlink 'link\.txt'/);
@@ -293,7 +294,7 @@ test('row 11: baseline sourceTreeFingerprint migrated directly to tree-merkle-v1
 test('row 11: baseline skips bytecode and ignores empty directories on the adversarial tree', () => {
   const sourceTreeFingerprint = loadPrivateFunction('scripts/ci/project-agent-projection-baseline.js', 'sourceTreeFingerprint', BASELINE_SCOPE);
   withTree((dir) => {
-    const files = ['a/inner.txt', 'a.txt', 'b.txt', 'B.txt', 'sub/a.txt', 'sub/binary.bin', 'sub/Z.txt'];
+    const files = ['a/inner.txt', 'a.txt', 'b.txt', 'upper-B.txt', 'sub/a.txt', 'sub/binary.bin', 'sub/Z.txt'];
     const expected = treeFingerprint(files.map((file) => ({ path: file, type: 'file', content: fs.readFileSync(path.join(ADVERSARIAL, file)) })));
     assert.strictEqual(sourceTreeFingerprint(path.dirname(dir), { path: path.basename(dir) }), expected);
   });
@@ -302,9 +303,9 @@ test('row 11: baseline skips bytecode and ignores empty directories on the adver
 test('row 12 STAYS: release packageFingerprints keeps content plus mode and the adversarial artifact value', () => {
   withTree((dir) => {
     const result = packageFingerprints(dir);
-    assert.strictEqual(result.artifactFingerprint, 'sha256:33834a3adf417353e49dbb518ff93816708afc9da2093b8b782a6efe6bf316ae');
-    assert.strictEqual(result.contentFingerprint, 'sha256:923bb5c74d70436ee00b69e799cca24a94023420f3818b69561b81feadbd3867');
-    assert.strictEqual(result.modeFingerprint, 'sha256:b31c98683390e97e4079921cd89cc1ec2c7757aef576a21c7098891cdb94cc2f');
+    assert.strictEqual(result.artifactFingerprint, 'sha256:b68f1089cb962f49001bdd90897c39ab54fd12f67198588baa67d217092bcb3c');
+    assert.strictEqual(result.contentFingerprint, 'sha256:fa5267abd7d72ef804f848bc854eb94a73d60a50dc6dce97937f335601e6820c');
+    assert.strictEqual(result.modeFingerprint, 'sha256:ef5ef43837565656b9eb8bf031152a7d669329e0b13789128df1507db8f99f39');
   });
 });
 

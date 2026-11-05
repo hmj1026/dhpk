@@ -1093,4 +1093,24 @@ test('unowned Cursor native skill copies stay put and are reported as unowned', 
   }
 });
 
+test('Cursor wrapper accepts a bound historical terminal journal in plan and install', () => {
+  const project = projectRoot();
+  const plugin = fakePlugin();
+  const root = path.join(project, '.cursor');
+  fs.mkdirSync(root);
+  const runId = '20261102T000000Z-4194302';
+  const name = `.dhpk-transaction-${runId}.json`;
+  const journal = {
+    relative: name, run: runId, pid: 4194301, started: true,
+    phase: 'committed', plugin_version: '0.68.3', source_fingerprint: 'a'.repeat(64),
+    receipt_snapshot_present: false, receipt_snapshot: null,
+  };
+  write(path.join(root, name), JSON.stringify(journal));
+  const plan = runInstaller(project, ['--copy', '--plan', '--json', '--force'], plugin);
+  assert.notStrictEqual(plan.status, 2, `${plan.stdout}\n${plan.stderr}`);
+  const installed = runInstaller(project, ['--copy', '--force'], plugin);
+  assert.notStrictEqual(installed.status, 2, `${installed.stdout}\n${installed.stderr}`);
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(root, name), 'utf8')), journal);
+});
+
 run('install-cursor-harness');
