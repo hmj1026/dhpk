@@ -93,6 +93,7 @@ try {
       repair: args.repair,
     });
     console.log(`gen-agents-skills: wrote ${result.selectedIds.length} selected skills and ${result.managedPaths.length} managed files`);
+    if (result.backupPath) console.log(`gen-agents-skills: adoption backup ${result.backupPath}`);
     const released = result.released || [];
     if (released.length > 0) {
       const names = released.map((entry) => entry.name).join(', ');
@@ -103,6 +104,10 @@ try {
     const result = operation({ projectRoot, outDir: outDir || undefined, inventory: inventory || undefined });
     if (!result.ok) fail(result.error && result.error.message ? result.error.message : `${args.action} failed`);
     console.log(`gen-agents-skills: ${args.action} ${result.state || 'completed'}`);
+    // 舊版收據的所有權已無法證明，列出保留項目讓使用者能自行處理。
+    if (result.released && result.released.length > 0) {
+      console.log(`gen-agents-skills: released ${result.released.length} entries (files kept on disk): ${result.released.map((entry) => entry.name).join(', ')}`);
+    }
   }
 } catch (error) {
   fail(error.message);
