@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.70.7 — 2026-11-06 — Adopt generator 2.x project manifests and DH managed Host binding symlinks
+
+- **fix(projection)** — Let `gen-agents-skills --adopt` adopt receipt-less generator 2.x project manifests by fingerprint, and let `--adopt` or `--repair` replace unrecorded Host binding symlinks that point into dhpk managed roots.
+
 ## 0.70.6 — 2026-11-05 — Credential guard improvements and absence proofs, QA verdict attribution, and installer/projection lifecycle fixes
 
 - **feat(qa-executor)** — Strengthen QA verdict attribution with action evidence, error baselines, tool-limitation reporting, and safe handling of unknown outcomes.
