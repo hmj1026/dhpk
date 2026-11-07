@@ -68,6 +68,10 @@ _Avoid_: Legacy projection, private copy
 The record that is the sole lifecycle owner of the Shared Project Projection's content and its Host Bindings.
 _Avoid_: Projection manifest, install log
 
+**Projection Journal**:
+The single record of an in-progress Projection install, update, uninstall, or rollback. Recovery reads only it to decide whether to finish or undo the change. It owns no content; the Projection Receipt does.
+_Avoid_: Transaction log, install journal, second journal
+
 **Host Binding**:
 A receipt-owned record that one Host discovers one skill in the Shared Project Projection, either directly or through a per-skill link in its native directory. A Host Binding owns no content.
 _Avoid_: Directory symlink, native copy
