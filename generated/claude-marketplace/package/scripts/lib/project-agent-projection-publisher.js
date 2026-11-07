@@ -1379,6 +1379,22 @@ function removeEmptyDirectories(root) {
   walk(root);
 }
 
+// An installer that coordinates its own journal holds the publication open
+// under its transaction id; only that id (or explicit recovery) resolves it.
+function normalizeHold(hold, code = 'INVALID_HOLD') {
+  if (!hold || typeof hold !== 'object' || Array.isArray(hold)
+    || typeof hold.transactionId !== 'string' || !/^[A-Za-z0-9._-]{1,128}$/.test(hold.transactionId)
+    || typeof hold.host !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(hold.host)
+    || Object.keys(hold).some((key) => !['transactionId', 'host'].includes(key))) {
+    throw fail(code, 'project projection hold must name a transactionId and host');
+  }
+  return { transactionId: hold.transactionId, host: hold.host };
+}
+
+function heldError(hold) {
+  return fail('TRANSACTION_HELD', `project projection transaction ${hold.transactionId} is held by the ${hold.host} installer; rerun that installer to finish or undo it, or run dhpk-install --recover`, { transactionId: hold.transactionId, host: hold.host });
+}
+
 function transactionPath(roots) {
   return path.join(roots.agentsRoot, '.dhpk-installed.transaction.json');
 }
@@ -1439,6 +1455,10 @@ function validateTransaction(roots, transaction) {
   if (transaction.liveBackedUp !== undefined && typeof transaction.liveBackedUp !== 'boolean') {
     throw fail('UNSAFE_TRANSACTION', 'project projection transaction backup checkpoint is invalid');
   }
+  if (transaction.hold !== undefined) normalizeHold(transaction.hold, 'UNSAFE_TRANSACTION');
+  if (transaction.holdReady !== undefined && (transaction.hold === undefined || typeof transaction.holdReady !== 'boolean')) {
+    throw fail('UNSAFE_TRANSACTION', 'project projection transaction hold state is invalid');
+  }
   if (transaction.receiptName !== path.basename(roots.receiptPath) || transaction.managedName !== path.basename(roots.managedRoot)
     || (supportsClaudeRoot && transaction.claudeManagedName !== path.basename(roots.claudeManagedRoot))) {
     throw fail('UNSAFE_TRANSACTION', 'project projection transaction identity does not match the target');
@@ -1472,13 +1492,20 @@ function validateTransaction(roots, transaction) {
   };
 }
 
-function recoverProjectProjectionTransaction(roots) {
+function readTransactionJournal(roots) {
   const journalPath = transactionPath(roots);
   const journalStat = lstatOrNull(journalPath);
-  if (!journalStat) return { recovered: false };
+  if (!journalStat) return null;
   if (journalStat.isSymbolicLink() || !journalStat.isFile()) throw fail('UNSAFE_TRANSACTION', 'project projection transaction journal is not a regular file');
-  const transaction = readJsonFile(journalPath, 'project projection transaction journal');
+  return readJsonFile(journalPath, 'project projection transaction journal');
+}
+
+function recoverProjectProjectionTransaction(roots, { resolveHeld = null } = {}) {
+  const journalPath = transactionPath(roots);
+  const transaction = readTransactionJournal(roots);
+  if (!transaction) return { recovered: false };
   const paths = validateTransaction(roots, transaction);
+  if (transaction.hold && transaction.phase !== 'published' && transaction.hold.transactionId !== resolveHeld) throw heldError(transaction.hold);
   // `prepared` precedes every live mutation: only the journaled transient
   // directories can exist, and the live projection is still the previous one.
   if (transaction.phase === 'prepared') {
@@ -1884,7 +1911,9 @@ function publishManagedCandidate({
   oldReceiptDigest = null,
   adoptedBindingPaths = {},
   restoredBindingPaths = {},
+  hold = null,
 }) {
+  const heldBy = hold ? normalizeHold(hold) : null;
   checkCollisions(roots, previous, candidateFiles);
   checkCollisions(roots, previous, claudeCandidateFiles, 'claude');
   const receiptBindingPaths = previous ? normalizeBindingPaths(previous.bindingPaths || {}, roots, 'previous project projection binding paths', {
@@ -1942,6 +1971,7 @@ function publishManagedCandidate({
     oldRollbackMoved: false,
     newRollbackInstalled: false,
     liveBackedUp: false,
+    ...(heldBy ? { hold: heldBy, holdReady: false } : {}),
     ...(adoption ? { adoption: true, oldFingerprints: previous.generatedFingerprints, oldClaudeFingerprints: previous.claudeGeneratedFingerprints, oldReceiptDigest } : {}),
   };
   writeAtomicJson(journalPath, journal, roots.projectRoot);
@@ -2032,6 +2062,21 @@ function publishManagedCandidate({
     }
     if (receipt) writeAtomicJson(roots.receiptPath, receipt, roots.projectRoot);
     else if (lstatOrNull(roots.receiptPath)) fs.rmSync(roots.receiptPath, { force: true });
+    if (heldBy) {
+      // Every effect is in place; the holder decides between commit and abort.
+      journal.holdReady = true;
+      writeAtomicJson(journalPath, journal, roots.projectRoot);
+      published = true;
+      return {
+        receipt,
+        published: false,
+        held: true,
+        managedPaths: candidateFiles.slice().sort(),
+        claudeManagedPaths: claudeCandidateFiles.slice().sort(),
+        bindingPaths: candidateBindingPaths,
+        ...(adoption ? { backupPath: backup } : {}),
+      };
+    }
     journal.phase = 'published';
     writeAtomicJson(journalPath, journal, roots.projectRoot);
     published = true;
@@ -2048,7 +2093,7 @@ function publishManagedCandidate({
   } catch (error) {
     if (!published) {
       try {
-        recoverProjectProjectionTransaction(roots);
+        recoverProjectProjectionTransaction(roots, { resolveHeld: heldBy && heldBy.transactionId });
       } catch (recoveryError) {
         error.message = `${error.message}; transaction recovery failed: ${recoveryError.message}`;
       }
@@ -2238,8 +2283,10 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       adoption: legacyAdoption,
       oldReceiptDigest,
       adoptedBindingPaths,
+      hold: options.hold || null,
     });
     return {
+      held: Boolean(published.held),
       outputRoot: roots.managedRoot,
       projectRoot: roots.projectRoot,
       receiptPath: roots.receiptPath,
@@ -2441,7 +2488,7 @@ function uninstallAgentsSkillsProjection(options = {}) {
     const receipt = readProjectionReceipt(roots, { allowLegacyClaudeDiscovery: true, releaseLegacy: true });
     if (!receipt) {
       if (lstatOrNull(legacyManifestPath(roots))) throw fail('LEGACY_UNBOUND', 'legacy project projection has no lifecycle receipt and cannot be removed automatically');
-      return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
+      return { ok: true, state: 'ABSENT', held: false, removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
     }
     if (receipt.generatorVersion === '2.0.0' && !Object.prototype.hasOwnProperty.call(receipt, 'fingerprint_algorithm')) {
       const observed = fs.readFileSync(roots.receiptPath);
@@ -2469,8 +2516,9 @@ function uninstallAgentsSkillsProjection(options = {}) {
       candidateFingerprints: {},
       nextReceipt: null,
       createRollback: false,
+      hold: options.hold || null,
     });
-    return { ok: true, state: 'REMOVED', removedPaths: receipt.managedPaths, preservedPaths: [], projectRoot: roots.projectRoot, published };
+    return { ok: true, state: 'REMOVED', held: Boolean(published.held), removedPaths: receipt.managedPaths, preservedPaths: [], projectRoot: roots.projectRoot, published };
   } catch (error) {
     return {
       ok: false,
@@ -2582,6 +2630,65 @@ function rollbackAgentsSkillsProjection(options = {}) {
   }
 }
 
+function resolveHeldProjection(options, action) {
+  try {
+    const roots = operationRoots(options);
+    const transactionId = normalizeHold({ transactionId: options.transactionId, host: 'resolver' }).transactionId;
+    const transaction = readTransactionJournal(roots);
+    if (!transaction) return { ok: true, state: 'ABSENT', transactionId, projectRoot: roots.projectRoot };
+    const paths = validateTransaction(roots, transaction);
+    if (!transaction.hold || transaction.hold.transactionId !== transactionId) {
+      throw fail('TRANSACTION_MISMATCH', `project projection transaction journal is not held by ${transactionId}`);
+    }
+    if (action === 'abort' || transaction.phase === 'published') {
+      const recovered = recoverProjectProjectionTransaction(roots, { resolveHeld: transactionId });
+      return { ok: true, state: recovered.phase === 'published' ? 'COMMITTED' : 'ABORTED', transactionId, projectRoot: roots.projectRoot };
+    }
+    if (transaction.phase !== 'publishing' || transaction.holdReady !== true) {
+      throw fail('TRANSACTION_INCOMPLETE', `project projection transaction ${transactionId} did not finish publishing and can only be aborted`);
+    }
+    const journalPath = transactionPath(roots);
+    transaction.phase = 'published';
+    writeAtomicJson(journalPath, transaction, roots.projectRoot);
+    if (transaction.adoption !== true) cleanupDirectory(paths.backup, 'project projection transaction backup');
+    cleanupDirectory(paths.rollbackStage, 'project projection rollback stage');
+    cleanupDirectory(paths.stage, 'project projection transaction stage');
+    fs.rmSync(journalPath, { force: true });
+    return {
+      ok: true,
+      state: 'COMMITTED',
+      transactionId,
+      projectRoot: roots.projectRoot,
+      ...(transaction.adoption === true ? { backupPath: paths.backup } : {}),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      state: 'BLOCKED',
+      code: error.projectionCode || 'TRANSACTION_RESOLVE_FAILED',
+      error: { code: error.projectionCode || 'TRANSACTION_RESOLVE_FAILED', message: error.message },
+    };
+  }
+}
+
+// Read-only view of a held publication for explicit recovery.
+function heldProjection(options = {}) {
+  const roots = operationRoots(options);
+  const transaction = readTransactionJournal(roots);
+  if (!transaction) return null;
+  validateTransaction(roots, transaction);
+  if (!transaction.hold) return null;
+  return { ...transaction.hold, phase: transaction.phase, holdReady: transaction.holdReady === true };
+}
+
+function commitHeldProjection(options = {}) {
+  return resolveHeldProjection(options, 'commit');
+}
+
+function abortHeldProjection(options = {}) {
+  return resolveHeldProjection(options, 'abort');
+}
+
 module.exports = {
   PROJECT_RECEIPT_SCHEMA,
   PROJECT_ROLLBACK_SCHEMA,
@@ -2592,6 +2699,9 @@ module.exports = {
   uninstallAgentsSkillsProjection,
   removeAgentsSkillsProjection: uninstallAgentsSkillsProjection,
   rollbackAgentsSkillsProjection,
+  commitHeldProjection,
+  abortHeldProjection,
+  heldProjection,
   recoverAgentsSkillsProjection: (options = {}) => recoverProjectProjectionTransaction(operationRoots(options)),
   readProjectProjectionReceipt,
 };
