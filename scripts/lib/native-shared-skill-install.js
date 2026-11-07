@@ -74,6 +74,7 @@ function installNativeSharedSkills({
   consumerEvidence = null,
   consumerEvidencePath = null,
   env = process.env,
+  hold = null,
 } = {}) {
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
@@ -144,6 +145,7 @@ function installNativeSharedSkills({
     hostSelections,
     preserveHostBindings,
     preserveBindingPaths,
+    hold,
   });
 }
 
@@ -211,6 +213,7 @@ function uninstallNativeSharedSkills({
   projectRoot,
   inventory,
   host = 'cursor',
+  hold = null,
 } = {}) {
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
@@ -219,7 +222,7 @@ function uninstallNativeSharedSkills({
   const previous = readPreviousReceipt(projectRoot);
   if (!previous) {
     if (receiptMissing(projectRoot)) {
-      return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot };
+      return { ok: true, state: 'ABSENT', held: false, removedPaths: [], preservedPaths: [], projectRoot };
     }
     // A present receipt that this lenient reader cannot use is not absence.
     // The strict projection uninstaller reports INVALID_RECEIPT and keeps files.
@@ -227,6 +230,7 @@ function uninstallNativeSharedSkills({
       sourceRoot,
       projectRoot,
       inventory: inventory || readInventory(sourceRoot),
+      hold,
     });
   }
   const previousBindings = previous.hostBindings && typeof previous.hostBindings === 'object'
@@ -240,6 +244,7 @@ function uninstallNativeSharedSkills({
       sourceRoot,
       projectRoot,
       inventory: resolvedInventory,
+      hold,
     }));
   }
   const profileId = previous.profileId || 'portable-core';
@@ -284,6 +289,7 @@ function uninstallNativeSharedSkills({
       sourceRoot,
       projectRoot,
       inventory: resolvedInventory,
+      hold,
     }));
   }
   const published = materializeRelocatableAgentsSkillsProjection({
@@ -298,6 +304,7 @@ function uninstallNativeSharedSkills({
     hostSelections,
     preserveHostBindings,
     preserveBindingPaths,
+    hold,
   });
   return { ok: true, ...published };
 }

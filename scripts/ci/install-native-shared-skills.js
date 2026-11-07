@@ -3,6 +3,7 @@
 
 const path = require('node:path');
 const { installNativeSharedSkills, uninstallNativeSharedSkills } = require('../lib/native-shared-skill-install');
+const { commitHeldProjection, abortHeldProjection } = require('../lib/project-agent-projection-publisher');
 const { classifyHostBinding } = require('../lib/cursor-consumer-evidence');
 
 function parseArgs(argv) {
@@ -16,10 +17,12 @@ function parseArgs(argv) {
     update: false,
     json: false,
     consumerEvidencePath: null,
+    hold: null,
+    transactionId: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === 'install' || arg === 'update' || arg === 'classify' || arg === 'uninstall') args.action = arg;
+    if (['install', 'update', 'classify', 'uninstall', 'commit', 'abort'].includes(arg)) args.action = arg;
     else if (arg === '--source' || arg === '--source-root') args.sourceRoot = argv[++index];
     else if (arg === '--project-root') args.projectRoot = argv[++index];
     else if (arg === '--host') args.host = argv[++index];
@@ -28,6 +31,8 @@ function parseArgs(argv) {
     else if (arg === '--update') args.update = true;
     else if (arg === '--json') args.json = true;
     else if (arg === '--consumer-evidence') args.consumerEvidencePath = argv[++index];
+    else if (arg === '--hold') args.hold = argv[++index];
+    else if (arg === '--transaction') args.transactionId = argv[++index];
     else throw new Error(`unknown argument: ${arg}`);
   }
   if (args.action === 'update') args.update = true;
@@ -49,6 +54,24 @@ try {
     else console.log(`${args.host} bindingShape=${classification.bindingShape} reason=${classification.reason}`);
     process.exit(0);
   }
+  if (args.action === 'commit' || args.action === 'abort') {
+    if (!args.projectRoot || !args.transactionId) {
+      fail(`usage: install-native-shared-skills.js ${args.action} --project-root <dir> --transaction <id> [--json]`);
+    }
+    const resolve = args.action === 'commit' ? commitHeldProjection : abortHeldProjection;
+    const result = resolve({ projectRoot: path.resolve(args.projectRoot), transactionId: args.transactionId });
+    if (args.json) {
+      console.log(JSON.stringify({ ok: result.ok, state: result.state, code: result.code || null, transactionId: args.transactionId }));
+    } else if (result.ok) {
+      console.log(`install-native-shared-skills: ${args.action} ${args.transactionId}: ${result.state}`);
+    }
+    if (!result.ok) {
+      if (!args.json) console.error(`FAIL [install-native-shared-skills]: ${result.error ? result.error.message : result.state}`);
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+  const hold = args.hold ? { transactionId: args.hold, host: args.host } : null;
   if (args.action === 'uninstall') {
     if (!args.sourceRoot || !args.projectRoot) {
       fail('usage: install-native-shared-skills.js uninstall --source <plugin> --project-root <dir> --host cursor|codex [--json]');
@@ -57,6 +80,7 @@ try {
       sourceRoot: path.resolve(args.sourceRoot),
       projectRoot: path.resolve(args.projectRoot),
       host: args.host,
+      hold,
     });
     if (result && result.ok === false) {
       if (args.json) {
@@ -78,6 +102,7 @@ try {
         ok: result.ok !== false,
         host: args.host,
         state: result.state || 'UPDATED',
+        held: result.held === true,
         selectedIds: result.selectedIds || (result.receipt && result.receipt.selectedIds) || [],
       }));
     } else {
@@ -96,6 +121,7 @@ try {
     declaredSelection: args.declaredSelection,
     update: args.update,
     consumerEvidencePath: args.consumerEvidencePath,
+    hold,
   });
   const hostBinding = result.receipt
     && result.receipt.hostBindings
@@ -107,6 +133,7 @@ try {
       host: args.host,
       selectedIds: result.selectedIds,
       emittedIds: result.emittedIds,
+      held: result.held === true,
       bindingShape: bindingShape || null,
       reason: (hostBinding && hostBinding.bindingReason) || null,
     }));

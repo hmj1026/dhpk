@@ -1338,6 +1338,46 @@ const crypto = require('node:crypto');
     }
   });
 
+  test('CLI holds an install for a transaction and resolves it only with that transaction', () => {
+    const sourceRoot = fixture();
+    const projectRoot = tmpDir('dhpk-install-native-held-');
+    const installArgs = (extra) => ['install', '--source', sourceRoot, '--project-root', projectRoot, '--host', 'codex', '--selected-id', 'sample', '--declared-selection', '--json', ...extra];
+    const journal = path.join(projectRoot, '.agents', '.dhpk-installed.transaction.json');
+    const nativeSkill = path.join(projectRoot, '.codex', 'skills', 'dhpk-sample');
+    try {
+      const held = invoke(installArgs(['--hold', 'run-1']));
+      assert.strictEqual(held.status, 0, `${held.stdout}\n${held.stderr}`);
+      assert.strictEqual(JSON.parse(held.stdout).held, true);
+      assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+      assert.deepStrictEqual(JSON.parse(fs.readFileSync(journal, 'utf8')).hold, { transactionId: 'run-1', host: 'codex' });
+
+      const blocked = invoke(installArgs([]));
+      assert.notStrictEqual(blocked.status, 0);
+      assert.match(blocked.stderr, /held by the codex installer/);
+
+      const mismatch = invoke(['commit', '--project-root', projectRoot, '--transaction', 'run-2', '--json']);
+      assert.strictEqual(mismatch.status, 1);
+      assert.strictEqual(JSON.parse(mismatch.stdout).code, 'TRANSACTION_MISMATCH');
+
+      const aborted = invoke(['abort', '--project-root', projectRoot, '--transaction', 'run-1', '--json']);
+      assert.strictEqual(aborted.status, 0, `${aborted.stdout}\n${aborted.stderr}`);
+      assert.strictEqual(JSON.parse(aborted.stdout).state, 'ABORTED');
+      assert.strictEqual(fs.existsSync(journal), false);
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), false);
+      assert.throws(() => fs.lstatSync(nativeSkill));
+
+      assert.strictEqual(invoke(installArgs(['--hold', 'run-3'])).status, 0);
+      const committed = invoke(['commit', '--project-root', projectRoot, '--transaction', 'run-3', '--json']);
+      assert.strictEqual(JSON.parse(committed.stdout).state, 'COMMITTED');
+      const absent = invoke(['commit', '--project-root', projectRoot, '--transaction', 'run-3', '--json']);
+      assert.strictEqual(JSON.parse(absent.stdout).state, 'ABSENT');
+      assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('CLI uninstalls one Host and keeps the remaining Host bindings', () => {
     const sourceRoot = fixture();
     const projectRoot = tmpDir('dhpk-install-native-uninstall-');
