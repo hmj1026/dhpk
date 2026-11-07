@@ -315,13 +315,14 @@ function uninstallNativeSharedSkills({
 // Explicit recovery (ADR-0033): a held publication belongs to its installer
 // while that installer's journal is active; once the journal is gone or
 // terminal, the publication never reached its commit point and is aborted.
-function installerJournalActive(projectRoot, hold) {
+function installerJournalState(projectRoot, hold) {
   const journalPath = path.join(projectRoot, `.${hold.host}`, `.dhpk-transaction-${hold.transactionId}.json`);
   try {
-    return JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase === 'active';
+    return { journalPath, state: JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase === 'active' ? 'active' : 'terminal' };
   } catch (error) {
+    if (error && error.code === 'ENOENT') return { journalPath, state: 'absent' };
     // An unreadable journal is not proof that the installer is done.
-    return !(error && error.code === 'ENOENT');
+    return { journalPath, state: 'unreadable', error: error.message };
   }
 }
 
@@ -330,12 +331,21 @@ function recoverSharedProjection({ projectRoot } = {}) {
   try {
     const held = heldProjection({ projectRoot });
     if (held && held.phase !== 'published') {
-      if (installerJournalActive(projectRoot, held)) {
+      const installer = installerJournalState(projectRoot, held);
+      if (installer.state === 'active') {
         return {
           ok: false,
           state: 'BLOCKED',
           code: 'INSTALLER_ACTIVE',
           message: `project projection transaction ${held.transactionId} belongs to the ${held.host} installer, whose journal is still active; rerun that installer to finish or undo it`,
+        };
+      }
+      if (installer.state === 'unreadable') {
+        return {
+          ok: false,
+          state: 'BLOCKED',
+          code: 'INSTALLER_JOURNAL_UNREADABLE',
+          message: `cannot tell whether the ${held.host} installer finished transaction ${held.transactionId}: ${installer.journalPath} is unreadable (${installer.error}); inspect that file before recovering`,
         };
       }
       const aborted = abortHeldProjection({ projectRoot, transactionId: held.transactionId });

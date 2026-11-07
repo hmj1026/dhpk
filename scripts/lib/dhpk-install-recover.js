@@ -45,19 +45,21 @@ function incompleteInstallerJournals(projectRoot, installerRoot) {
     for (const name of names.sort()) {
       const match = JOURNAL_NAME.exec(name);
       if (!match) continue;
+      const journalPath = path.join(directory, name);
       let phase;
+      let error = null;
       try {
-        phase = JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8')).phase;
-      } catch (error) {
+        phase = JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase;
+      } catch (readError) {
         phase = 'unreadable';
+        error = readError.message;
       }
-      if (phase !== 'rollback_incomplete' && phase !== 'unreadable') continue;
-      found.push({
-        host: hostRoot,
-        run: match[1],
-        phase,
-        command: `bash ${path.join(installerRoot, script)} --recover`,
-      });
+      if (phase === 'rollback_incomplete') {
+        found.push({ host: hostRoot, run: match[1], phase, command: `bash ${path.join(installerRoot, script)} --recover` });
+      } else if (phase === 'unreadable') {
+        // The installer cannot replay a journal it cannot read; say so instead of suggesting it.
+        found.push({ host: hostRoot, run: match[1], phase, journalPath, error, action: 'inspect or restore this journal by hand; the installer cannot replay it' });
+      }
     }
   }
   return found;
@@ -79,9 +81,10 @@ function formatRecoverReport(report) {
   const shared = report.sharedProjection;
   lines.push(shared.ok ? `shared projection: ${shared.state}` : `shared projection: BLOCKED (${shared.code}): ${shared.message}`);
   for (const journal of report.installerJournals) {
-    lines.push(`${journal.host} transaction ${journal.run} is ${journal.phase}; run: ${journal.command}`);
+    if (journal.command) lines.push(`${journal.host} transaction ${journal.run} is ${journal.phase}; run: ${journal.command}`);
+    else lines.push(`${journal.host} transaction ${journal.run} is ${journal.phase} (${journal.journalPath}: ${journal.error}); ${journal.action}`);
   }
-  if (report.ok) lines.push('nothing left to recover');
+  if (report.ok) lines.push('no incomplete rollback or orphaned shared projection remains; an interrupted installer run is reconciled by its next normal run');
   return `${lines.join('\n')}\n`;
 }
 

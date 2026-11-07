@@ -72,7 +72,13 @@ try {
     const resolve = args.action === 'commit' ? commitHeldProjection : abortHeldProjection;
     const result = resolve({ projectRoot: path.resolve(args.projectRoot), transactionId: args.transactionId });
     if (args.json) {
-      console.log(JSON.stringify({ ok: result.ok, state: result.state, code: result.code || null, transactionId: args.transactionId }));
+      console.log(JSON.stringify({
+        ok: result.ok,
+        state: result.state,
+        code: result.code || null,
+        message: (result.error && result.error.message) || null,
+        transactionId: args.transactionId,
+      }));
     } else if (result.ok) {
       console.log(`install-native-shared-skills: ${args.action} ${args.transactionId}: ${result.state}`);
     }

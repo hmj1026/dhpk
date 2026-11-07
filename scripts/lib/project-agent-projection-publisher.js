@@ -2640,9 +2640,13 @@ function resolveHeldProjection(options, action) {
     if (!transaction.hold || transaction.hold.transactionId !== transactionId) {
       throw fail('TRANSACTION_MISMATCH', `project projection transaction journal is not held by ${transactionId}`);
     }
-    if (action === 'abort' || transaction.phase === 'published') {
+    if (action === 'abort') {
       const recovered = recoverProjectProjectionTransaction(roots, { resolveHeld: transactionId });
       return { ok: true, state: recovered.phase === 'published' ? 'COMMITTED' : 'ABORTED', transactionId, projectRoot: roots.projectRoot };
+    }
+    if (transaction.phase === 'published') {
+      recoverProjectProjectionTransaction(roots, { resolveHeld: transactionId });
+      return { ok: true, state: 'COMMITTED', transactionId, projectRoot: roots.projectRoot };
     }
     if (transaction.phase !== 'publishing' || transaction.holdReady !== true) {
       throw fail('TRANSACTION_INCOMPLETE', `project projection transaction ${transactionId} did not finish publishing and can only be aborted`);

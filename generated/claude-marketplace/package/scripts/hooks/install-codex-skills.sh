@@ -1311,6 +1311,8 @@ def finish_open_transaction(errors=None):
     if shared_projection_committing():
         return
     phase = 'rollback_incomplete' if errors else 'rolled_back'
+    if errors:
+        TRANSACTION_JOURNAL['rollback_errors'] = [str(error) for error in errors]
     try:
         finish_transaction(phase)
     except (OSError, ValueError):
@@ -1739,8 +1741,10 @@ def incomplete_rollback_message(journal, run):
             if isinstance(item, dict) and isinstance(item.get('relative'), str):
                 remaining.append(f'{DEST_REL}/{item["relative"]}')
     paths = ', '.join(sorted(set(remaining))) or 'none recorded'
-    return (f'transaction {run} did not finish rolling back; remaining paths: {paths}; '
-            f'backups: {DEST_REL}/{BACKUP_DIR}/{run}; fix the reported cause, then rerun this installer with --recover')
+    causes = [str(item) for item in journal.get('rollback_errors') or [] if isinstance(item, str)]
+    cause = f'; rollback errors: {"; ".join(causes)}' if causes else ''
+    return (f'transaction {run} did not finish rolling back; paths recorded in its journal: {paths}; '
+            f'backups: {DEST_REL}/{BACKUP_DIR}/{run}{cause}; fix the cause, then rerun this installer with --recover')
 
 
 def classify_journal_envelope(journal, journal_name, run):
@@ -1820,9 +1824,13 @@ def roll_forward_installer_transaction(run, shared, committed_receipt):
     """Finish a transaction that reached its commit point before it was interrupted."""
     global BACKUP_RUN
     try:
-        run_shared_projection_resolution('commit', shared['transaction'])
+        # ABSENT: committed before the interruption; only commit removes a held journal
+        # while its installer journal is active.
+        state = run_shared_projection_resolution('commit', shared['transaction'])
     except ValueError as error:
         return [str(error)]
+    if state not in ('COMMITTED', 'ABSENT'):
+        return [f'the publisher reported {state} for a transaction past its commit point']
     if shared.get('finalize', 'receipt') == 'archive':
         if not lexists(MANIFEST):
             return []
@@ -1840,7 +1848,8 @@ def roll_forward_installer_transaction(run, shared, committed_receipt):
         return []
     if not (isinstance(committed_receipt, dict) and committed_receipt.get('transaction_id') == run
             and committed_receipt.get('transaction_final') is False):
-        return ['the partial receipt written before the commit point is missing']
+        return [f'the partial receipt {DEST_REL}/{os.path.basename(MANIFEST)} written before the commit point is missing or unreadable; '
+                f'backups are in {DEST_REL}/{BACKUP_DIR}/{run}']
     return finalize_recovered_receipt(committed_receipt)
 
 
@@ -2013,7 +2022,9 @@ def recover_stale_transactions():
                 'published': published,
                 'phase': phase,
             })
-        if receipt_proves_pending_adoptions(committed_receipt):
+        # A partial receipt proves a commit only when no shared projection decision is
+        # pending; a held publication was just aborted, so this run must roll back.
+        if not shared and receipt_proves_pending_adoptions(committed_receipt):
             errors = cleanup_pending_adoptions()
             if not errors:
                 errors.extend(finalize_recovered_receipt(committed_receipt))
@@ -3199,7 +3210,9 @@ def run_shared_projection_resolution(action, transaction):
     except (TypeError, ValueError):
         payload = None
     if result.returncode != 0 or not isinstance(payload, dict) or payload.get('ok') is not True:
-        detail = (payload or {}).get('code') if isinstance(payload, dict) else None
+        detail = None
+        if isinstance(payload, dict):
+            detail = ': '.join(str(part) for part in (payload.get('code'), payload.get('message')) if part)
         detail = detail or (result.stderr or result.stdout or '').strip()
         raise ValueError(f'shared projection {action} for transaction {transaction} failed: {detail}')
     return payload.get('state')
@@ -3212,8 +3225,16 @@ def commit_shared_projection(finalize):
         return
     record['phase'] = 'committing'
     record['finalize'] = finalize
-    persist_transaction_journal()
-    run_shared_projection_resolution('commit', record['transaction'])
+    try:
+        persist_transaction_journal()
+    except Exception:
+        # Not durable: the commit point was not reached, so a rollback is still correct.
+        record['phase'] = 'held'
+        record.pop('finalize', None)
+        raise
+    state = run_shared_projection_resolution('commit', record['transaction'])
+    if state != 'COMMITTED':
+        raise ValueError(f'shared projection transaction {record["transaction"]} was not committed (publisher reported {state}); rerun the installer to finish this transaction')
     test_kill_point('after-shared-commit')
 
 
@@ -3224,6 +3245,10 @@ def abort_shared_projection():
     try:
         run_shared_projection_resolution('abort', record['transaction'])
     except ValueError as error:
+        # Still `requested`: the publisher refused before holding anything for this run,
+        # e.g. another Host holds the projection (TRANSACTION_HELD). Nothing to undo.
+        if record.get('phase') == 'requested' and 'TRANSACTION_MISMATCH' in str(error):
+            return []
         return [str(error)]
     return []
 
@@ -4876,15 +4901,20 @@ def save_receipt_with_prune_rollback(plugin_version, fingerprint, entries, orpha
         if transaction_final and record and record.get('phase') == 'held':
             # Durable partial receipt first, so recovery can roll forward after the commit.
             TRANSACTION_RECEIPT_FINAL = False
-            save_receipt(
-                plugin_version,
-                fingerprint,
-                entries,
-                orphaned,
-                counts,
-                legacy_pending=legacy_pending,
-                state=state,
-            )
+            try:
+                save_receipt(
+                    plugin_version,
+                    fingerprint,
+                    entries,
+                    orphaned,
+                    counts,
+                    legacy_pending=legacy_pending,
+                    state=state,
+                )
+            except ReceiptCommitError as error:
+                # Before the commit point a durable partial receipt commits nothing.
+                raise ValueError(f'partial receipt before the shared projection commit failed: {error}') from error
+            test_kill_point('before-shared-commit')
             commit_shared_projection('receipt')
             TRANSACTION_RECEIPT_FINAL = True
         receipt = save_receipt(

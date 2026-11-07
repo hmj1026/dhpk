@@ -1022,6 +1022,46 @@ test('uninstall killed after the held shared projection restores both sides on t
   }
 });
 
+test('installer killed after its partial receipt but before the commit intent rolls back both sides', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const before = liveState(scratch);
+    const killed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_KILL_AT: 'before-shared-commit' });
+    assert.ok(wasKilled(killed), outputOf(killed));
+    const receipt = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(receipt.transaction_final, false, 'the kill must land after the partial receipt');
+    const rerun = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_FAIL_AFTER_SHARED_PROJECTION: '1' });
+    assert.doesNotMatch(outputOf(rerun), /RECOVERY_CONFLICT|held by/);
+    assert.strictEqual(liveState(scratch), before);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('a Host that meets another Host\'s held projection rolls back cleanly and succeeds once it is released', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const cursorFirst = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(cursorFirst.status, 0, outputOf(cursorFirst));
+    const killed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_KILL_AT: 'after-shared-projection' });
+    assert.ok(wasKilled(killed), outputOf(killed));
+    const journalsBefore = fs.readdirSync(path.join(scratch, '.cursor'));
+    const blocked = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.notStrictEqual(blocked.status, 0, outputOf(blocked));
+    assert.match(outputOf(blocked), /held by the codex installer/);
+    const latest = latestTransactionJournal(path.join(scratch, '.cursor'), journalsBefore);
+    assert.strictEqual(latest.journal.phase, 'rolled_back', JSON.stringify(latest.journal.rollback_errors || []));
+    const codex = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(codex.status, 0, outputOf(codex));
+    const cursor = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(cursor.status, 0, outputOf(cursor));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
 // --- Explicit recovery (REQ-6) ---
 
 // Turns the last committed installer journal into an incomplete rollback that

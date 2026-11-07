@@ -13,6 +13,7 @@
 #                                              passes through excluded[] for unmet skill deps)
 #   install-cursor-harness.sh --adopt <path>@<destination-fingerprint>@<source-fingerprint> explicitly adopt one reported collision
 #   install-cursor-harness.sh --uninstall       remove unchanged owned entries
+#   install-cursor-harness.sh --recover         finish an interrupted or incomplete transaction, then stop
 #   install-cursor-harness.sh --force          bypass project-root heuristic
 #
 # Native Cursor hooks.json mapping is out of v1. This installer never writes

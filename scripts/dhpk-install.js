@@ -14,14 +14,21 @@ const plugin = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'plu
 const argv = process.argv.slice(2);
 if (argv.includes('--recover')) {
   const { parseRecoverArgs, recoverProject, formatRecoverReport } = require('./lib/dhpk-install-recover');
+  let options;
   try {
-    const options = parseRecoverArgs(argv);
+    options = parseRecoverArgs(argv);
+  } catch (error) {
+    process.stderr.write(`dhpk-install: ${error.message}\n`);
+    process.exitCode = 64;
+    return;
+  }
+  try {
     const report = recoverProject({ projectRoot: options.projectRoot, installerRoot: root });
     process.stdout.write(options.json ? `${JSON.stringify(report, null, 2)}\n` : formatRecoverReport(report));
     process.exitCode = report.ok ? 0 : 2;
   } catch (error) {
-    process.stderr.write(`dhpk-install: ${error.message}\n`);
-    process.exitCode = 64;
+    process.stderr.write(`dhpk-install: --recover failed: ${error.message}\n`);
+    process.exitCode = 2;
   }
   return;
 }
