@@ -2671,6 +2671,16 @@ function resolveHeldProjection(options, action) {
   }
 }
 
+// Read-only view of a held publication for explicit recovery.
+function heldProjection(options = {}) {
+  const roots = operationRoots(options);
+  const transaction = readTransactionJournal(roots);
+  if (!transaction) return null;
+  validateTransaction(roots, transaction);
+  if (!transaction.hold) return null;
+  return { ...transaction.hold, phase: transaction.phase, holdReady: transaction.holdReady === true };
+}
+
 function commitHeldProjection(options = {}) {
   return resolveHeldProjection(options, 'commit');
 }
@@ -2691,6 +2701,7 @@ module.exports = {
   rollbackAgentsSkillsProjection,
   commitHeldProjection,
   abortHeldProjection,
+  heldProjection,
   recoverAgentsSkillsProjection: (options = {}) => recoverProjectProjectionTransaction(operationRoots(options)),
   readProjectProjectionReceipt,
 };

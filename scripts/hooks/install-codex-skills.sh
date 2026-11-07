@@ -11,6 +11,7 @@
 #   install-codex-skills.sh --adopt <path>@<destination-fingerprint>@<source-fingerprint> explicitly adopt one reported collision
 #   install-codex-skills.sh --skill <stable-id> repeat an additive stable-ID overlay
 #   install-codex-skills.sh --uninstall       remove unchanged owned entries
+#   install-codex-skills.sh --recover         finish an interrupted or incomplete transaction, then stop
 #   install-codex-skills.sh --force          bypass project-root heuristic
 #
 # The receipt is schema-versioned and records every managed skill, agent, and
@@ -30,6 +31,7 @@ FORCE=0
 MIGRATE=0
 UNINSTALL=0
 PLAN=0
+RECOVER=0
 JSON_OUTPUT=0
 ADOPT_PATHS=""
 SKILL_IDS=""
@@ -44,6 +46,7 @@ while [ "$#" -gt 0 ]; do
         --migrate) MIGRATE=1 ;;
         --uninstall) UNINSTALL=1 ;;
         --plan) PLAN=1 ;;
+        --recover) RECOVER=1 ;;
         --json) JSON_OUTPUT=1 ;;
         --skill)
             shift
@@ -133,6 +136,7 @@ export DHPK_UPDATE="$UPDATE"
 export DHPK_MIGRATE="$MIGRATE"
 export DHPK_UNINSTALL="$UNINSTALL"
 export DHPK_PLAN="$PLAN"
+export DHPK_RECOVER="$RECOVER"
 export DHPK_JSON_OUTPUT="$JSON_OUTPUT"
 export DHPK_ADOPT_PATHS="$ADOPT_PATHS"
 export DHPK_SKILL_IDS="$SKILL_IDS"
@@ -180,6 +184,7 @@ UPDATE = os.environ.get('DHPK_UPDATE') == '1'
 MIGRATE = os.environ.get('DHPK_MIGRATE') == '1'
 UNINSTALL = os.environ.get('DHPK_UNINSTALL') == '1'
 PLAN = os.environ.get('DHPK_PLAN') == '1'
+RECOVER = os.environ.get('DHPK_RECOVER') == '1'
 JSON_OUTPUT = os.environ.get('DHPK_JSON_OUTPUT') == '1'
 ADOPT_PATHS = [path for path in os.environ.get('DHPK_ADOPT_PATHS', '').splitlines() if path]
 REQUESTED_SKILL_IDS = [value for value in os.environ.get('DHPK_SKILL_IDS', '').splitlines() if value]
@@ -1726,6 +1731,18 @@ def finalize_recovered_receipt(receipt):
     return errors
 
 
+def incomplete_rollback_message(journal, run):
+    """Name what an incomplete rollback still owes and how to finish it."""
+    remaining = []
+    for key in ('prunes', 'mutations', 'adoptions'):
+        for item in journal.get(key) or []:
+            if isinstance(item, dict) and isinstance(item.get('relative'), str):
+                remaining.append(f'{DEST_REL}/{item["relative"]}')
+    paths = ', '.join(sorted(set(remaining))) or 'none recorded'
+    return (f'transaction {run} did not finish rolling back; remaining paths: {paths}; '
+            f'backups: {DEST_REL}/{BACKUP_DIR}/{run}; fix the reported cause, then rerun this installer with --recover')
+
+
 def classify_journal_envelope(journal, journal_name, run):
     """驗證終態紀錄的路徑與交易綁定，避免把損壞紀錄當作歷史資料略過。"""
     if (not isinstance(journal, dict) or journal.get('relative') != journal_name
@@ -1752,7 +1769,9 @@ def classify_journal_envelope(journal, journal_name, run):
             or shared.get('finalize', 'receipt') not in ('receipt', 'archive')):
         raise ValueError(f'transaction journal {run} shared projection record is malformed; manual recovery required')
     phase = journal.get('phase')
-    if phase not in ('active', 'committed', 'rolled_back'):
+    if phase == 'rollback_incomplete' and not RECOVER:
+        raise ValueError(incomplete_rollback_message(journal, run))
+    if phase not in ('active', 'committed', 'rolled_back', 'rollback_incomplete'):
         raise ValueError(f'transaction journal {run} has unsupported phase {phase!r}; manual recovery required')
     source = journal.get('source_fingerprint')
     # 舊版解除收據寫入空值；只接受可完整識別且已完成的該次交易。
@@ -1856,9 +1875,9 @@ def recover_stale_transactions():
             print(f'[install-codex-skills] ERROR: transaction journal {run} cannot be read; manual recovery required: {error}', file=sys.stderr)
             raise ValueError(f'transaction journal {run} is unreadable')
         phase = classify_journal_envelope(journal, journal_relative, run)
-        if phase != 'active':
+        if phase != 'active' and not (RECOVER and phase == 'rollback_incomplete'):
             continue
-        if _pid_is_alive(journal.get('pid')):
+        if phase == 'active' and _pid_is_alive(journal.get('pid')):
             print(f'[install-codex-skills] ERROR: active transaction {run} is owned by a live process; refusing concurrent reconciliation', file=sys.stderr)
             raise ValueError(f'active transaction {run} is still running')
 
@@ -1883,7 +1902,7 @@ def recover_stale_transactions():
             if abort_errors:
                 print(f'[install-codex-skills] ERROR: transaction {run} cannot undo its shared projection step: ' + '; '.join(abort_errors), file=sys.stderr)
                 raise ValueError(f'transaction {run} shared projection abort failed; manual recovery required')
-        if (isinstance(committed_receipt, dict)
+        if (phase == 'active' and isinstance(committed_receipt, dict)
                 and committed_receipt.get('transaction_id') == run
                 and committed_receipt.get('transaction_final') is True
                 and committed_receipt.get('plugin_version') == journal.get('plugin_version')
@@ -5125,6 +5144,9 @@ try:
 except (OSError, ValueError) as error:
     print(f'[install-codex-skills] ERROR: transaction recovery failed: {error}', file=sys.stderr)
     sys.exit(2)
+if RECOVER:
+    print('[install-codex-skills] recovery complete; no interrupted or incomplete transaction remains')
+    sys.exit(0)
 
 plugin_version = read_plugin_version()
 try:

@@ -10,6 +10,9 @@ const { compileProjectAgentProjection } = require('./project-agent-projection-pl
 const {
   materializeRelocatableAgentsSkillsProjection,
   uninstallAgentsSkillsProjection,
+  abortHeldProjection,
+  heldProjection,
+  recoverAgentsSkillsProjection,
 } = require('./project-agent-projection-publisher');
 const { classifyHostBinding } = require('./cursor-consumer-evidence');
 const { boundStableIds, uniqueSorted } = require('./project-agent-host-binding-policy');
@@ -309,7 +312,45 @@ function uninstallNativeSharedSkills({
   return { ok: true, ...published };
 }
 
+// Explicit recovery (ADR-0033): a held publication belongs to its installer
+// while that installer's journal is active; once the journal is gone or
+// terminal, the publication never reached its commit point and is aborted.
+function installerJournalActive(projectRoot, hold) {
+  const journalPath = path.join(projectRoot, `.${hold.host}`, `.dhpk-transaction-${hold.transactionId}.json`);
+  try {
+    return JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase === 'active';
+  } catch (error) {
+    // An unreadable journal is not proof that the installer is done.
+    return !(error && error.code === 'ENOENT');
+  }
+}
+
+function recoverSharedProjection({ projectRoot } = {}) {
+  if (!projectRoot) throw new Error('projectRoot is required');
+  try {
+    const held = heldProjection({ projectRoot });
+    if (held && held.phase !== 'published') {
+      if (installerJournalActive(projectRoot, held)) {
+        return {
+          ok: false,
+          state: 'BLOCKED',
+          code: 'INSTALLER_ACTIVE',
+          message: `project projection transaction ${held.transactionId} belongs to the ${held.host} installer, whose journal is still active; rerun that installer to finish or undo it`,
+        };
+      }
+      const aborted = abortHeldProjection({ projectRoot, transactionId: held.transactionId });
+      return aborted.ok ? aborted : { ...aborted, message: aborted.error && aborted.error.message };
+    }
+    const recovered = recoverAgentsSkillsProjection({ projectRoot });
+    return { ok: true, state: recovered.recovered ? 'RECOVERED' : 'ABSENT' };
+  } catch (error) {
+    const code = error.projectionCode || 'RECOVERY_FAILED';
+    return { ok: false, state: 'BLOCKED', code, message: error.message };
+  }
+}
+
 module.exports = {
+  recoverSharedProjection,
   NATIVE_SHARED_SKILL_HOSTS,
   installNativeSharedSkills,
   uninstallNativeSharedSkills,

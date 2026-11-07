@@ -2,7 +2,7 @@
 'use strict';
 
 const path = require('node:path');
-const { installNativeSharedSkills, uninstallNativeSharedSkills } = require('../lib/native-shared-skill-install');
+const { installNativeSharedSkills, uninstallNativeSharedSkills, recoverSharedProjection } = require('../lib/native-shared-skill-install');
 const { commitHeldProjection, abortHeldProjection } = require('../lib/project-agent-projection-publisher');
 const { classifyHostBinding } = require('../lib/cursor-consumer-evidence');
 
@@ -22,7 +22,7 @@ function parseArgs(argv) {
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (['install', 'update', 'classify', 'uninstall', 'commit', 'abort'].includes(arg)) args.action = arg;
+    if (['install', 'update', 'classify', 'uninstall', 'commit', 'abort', 'recover'].includes(arg)) args.action = arg;
     else if (arg === '--source' || arg === '--source-root') args.sourceRoot = argv[++index];
     else if (arg === '--project-root') args.projectRoot = argv[++index];
     else if (arg === '--host') args.host = argv[++index];
@@ -52,6 +52,17 @@ try {
     });
     if (args.json) console.log(JSON.stringify(classification));
     else console.log(`${args.host} bindingShape=${classification.bindingShape} reason=${classification.reason}`);
+    process.exit(0);
+  }
+  if (args.action === 'recover') {
+    if (!args.projectRoot) fail('usage: install-native-shared-skills.js recover --project-root <dir> [--json]');
+    const result = recoverSharedProjection({ projectRoot: path.resolve(args.projectRoot) });
+    if (args.json) console.log(JSON.stringify({ ok: result.ok, state: result.state, code: result.code || null, message: result.message || null }));
+    else if (result.ok) console.log(`install-native-shared-skills: recover: ${result.state}`);
+    if (!result.ok) {
+      if (!args.json) console.error(`FAIL [install-native-shared-skills]: ${result.message || result.state}`);
+      process.exit(1);
+    }
     process.exit(0);
   }
   if (args.action === 'commit' || args.action === 'abort') {
