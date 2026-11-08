@@ -120,6 +120,19 @@ test('a custom ownership verifier replaces the default owner check', () => {
   }
 });
 
+test('an injected artifact store is used instead of building one', () => {
+  const { projection } = fakeHost();
+  const begun = [];
+  const store = { begin: (planned) => { begun.push(planned); throw new Error('recording store stops here'); } };
+  assert.throws(() => pipeline.publishHostPackage(SURFACE, projection, { publishRoot: '/nonexistent/should-not-be-touched', artifactStore: store }), /recording store stops here/);
+  assert.strictEqual(begun.length, 1);
+});
+
+test('an unknown surface is refused by both entry points', () => {
+  assert.throws(() => pipeline.hostPackageAdapter({ surface: 'nope', version: '1', renderOutputs: () => [] }), /unknown Host package surface: nope/);
+  assert.throws(() => pipeline.publishHostPackage('nope', fakeHost().projection, {}), /unknown Host package surface: nope/);
+});
+
 test('skill entry fields keep their order and are omitted for non-skill files', () => {
   assert.deepStrictEqual(pipeline.skillEntryFields({ destination: 'x' }), {});
   const fields = pipeline.skillEntryFields({ skillId: 's', publicName: 'p', invocationClass: 'i', lifecycle: 'l', usageSchema: 'u', usage: {}, usageFingerprint: 'f', provenance: {}, other: 1 });

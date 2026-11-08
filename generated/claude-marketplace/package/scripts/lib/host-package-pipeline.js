@@ -22,6 +22,10 @@ const SKILL_ENTRY_FIELDS = Object.freeze([
   'provenance',
 ]);
 
+function assertHostSurface(surface) {
+  if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, surface)) throw new Error(`unknown Host package surface: ${surface}`);
+}
+
 // Skill identity carried by a planned file into its plan entry, in the order
 // every generator has always written it.
 function skillEntryFields(file) {
@@ -33,7 +37,7 @@ function skillEntryFields(file) {
 // (AGY) late-binds outputs such as the receipt from the fingerprints the store
 // observed; `validateStage` checks the staged tree and throws to refuse it.
 function hostPackageAdapter({ surface, version, renderOutputs, metadata, renderDerived, validateStage }) {
-  if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, surface)) throw new Error(`unknown Host package surface: ${surface}`);
+  assertHostSurface(surface);
   return {
     identity: { id: surface, version },
     render: () => ({
@@ -62,7 +66,7 @@ function publishHostPackage(surface, projection, {
   verify = null,
   failurePrefix = null,
 } = {}) {
-  if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, surface)) throw new Error(`unknown Host package surface: ${surface}`);
+  assertHostSurface(surface);
   const store = artifactStore || new ProjectionArtifactStore({
     root,
     sourceRoot,
