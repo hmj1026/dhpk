@@ -1000,6 +1000,24 @@ test('installer killed after the publisher commit rolls forward on the next run'
   }
 });
 
+test('a failure after the publisher commit rolls nothing back and the next run rolls forward', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const failed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_FAIL_AFTER_SHARED_COMMIT: '1' });
+    assert.notStrictEqual(failed.status, 0, outputOf(failed));
+    assert.match(outputOf(failed), /already committed; rerun the installer/);
+    assert.strictEqual(activeTransactionJournals(path.join(scratch, '.codex')).length, 1, 'the installer journal must stay active');
+    assert.match(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md'), 'utf8'), /Codex only v2/, 'nothing may be rolled back');
+    const rerun = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(rerun.status, 0, outputOf(rerun));
+    assert.match(rerun.stdout, /already up-to-date/);
+    assert.deepStrictEqual(activeTransactionJournals(path.join(scratch, '.codex')), []);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
 test('uninstall killed after the held shared projection restores both sides on the next run', () => {
   const scratch = projectRoot();
   const plugin = fakePlugin();

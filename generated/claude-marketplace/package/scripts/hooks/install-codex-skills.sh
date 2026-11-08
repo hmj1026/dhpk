@@ -194,6 +194,7 @@ FAIL_RECEIPT_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_RECEIPT') == '1'
 FAIL_UNINSTALL_RECEIPT_FSYNC_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC') == '1'
 FAIL_SHARED_PROJECTION_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_SHARED_PROJECTION') == '1'
 FAIL_AFTER_SHARED_PROJECTION_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_AFTER_SHARED_PROJECTION') == '1'
+FAIL_AFTER_SHARED_COMMIT_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_AFTER_SHARED_COMMIT') == '1'
 KILL_AT_FOR_TEST = os.environ.get('DHPK_TEST_KILL_AT') or ''
 
 
@@ -3236,6 +3237,8 @@ def commit_shared_projection(finalize):
     if state != 'COMMITTED':
         raise ValueError(f'shared projection transaction {record["transaction"]} was not committed (publisher reported {state}); rerun the installer to finish this transaction')
     test_kill_point('after-shared-commit')
+    if FAIL_AFTER_SHARED_COMMIT_FOR_TEST:
+        raise ValueError('test-injected failure after the shared projection commit')
 
 
 def abort_shared_projection():
