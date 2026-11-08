@@ -619,27 +619,6 @@ function buildManifest({ name, version, variables, componentDirs, hasHooks }) {
   return manifest;
 }
 
-function writeMarketplace(outDir, name, version) {
-  const marketplace = {
-    name: 'dhpk',
-    owner: { name: 'hmj1026' },
-    metadata: {
-      description: 'Local Cursor Plugin marketplace fixture for dhpk.',
-      version,
-      pluginRoot: '.',
-    },
-    plugins: [{
-      name,
-      source: '.',
-      description: 'dhpk Cursor Plugin projection',
-      version,
-      license: 'MIT',
-    }],
-  };
-  fs.writeFileSync(path.join(outDir, '.cursor-plugin', 'marketplace.json'), `${JSON.stringify(marketplace, null, 2)}\n`);
-  return marketplace;
-}
-
 // options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
 // the only recipe; any other value throws the version-boundary diagnostic.
 function fingerprintPath(target, options = {}) {
