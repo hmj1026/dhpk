@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { PACKAGE_SCHEMA, validateAgyPluginPackage } = require('./agy-plugin-package');
-const { validateSurfaceReceipt } = require('./platform-provenance');
+const { readPackageProvenance, serializePackageReceipt } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const {
   loadAgyPathContract,
@@ -184,11 +184,10 @@ function readReceipt(root) {
   const receiptStat = lstatOrNull(receiptPath);
   if (!receiptStat) return null;
   if (receiptStat.isSymbolicLink() || !receiptStat.isFile()) throw new Error('AGY target receipt is not a regular file');
-  let receipt;
-  try { receipt = JSON.parse(readFileBounded(receiptPath).toString('utf8')); } catch (error) { throw new Error(`AGY target receipt is invalid JSON: ${error.message}`); }
-  const checked = validateSurfaceReceipt({ ...receipt, schema: 'dhpk.platform-provenance.v1' }, SURFACE);
-  if (!checked.ok || receipt.schema !== 'dhpk.agy-plugin.v1') throw new Error(`AGY target receipt is not owned by dhpk: ${checked.errors.join('; ')}`);
-  return receipt;
+  // The installed Package Receipt is this installer's ownership record.
+  const checked = readPackageProvenance(root, { surface: SURFACE });
+  if (!checked.ok) throw new Error(`AGY target receipt is not owned by dhpk: ${checked.errors.join('; ')}`);
+  return checked.provenance;
 }
 
 function readJsonFile(root, relative, label) {
@@ -424,11 +423,10 @@ function metadataMatches(root, relative, receipt, budget = null) {
   const content = budget
     ? budget.readFile(target, stat, `AGY metadata path: ${relative}`)
     : readFileBounded(target);
-  if (relative === 'provenance.json') {
-    return content.toString('utf8') === `${JSON.stringify(receipt)}\n`;
-  }
+  const expected = serializePackageReceipt(SURFACE, { provenance: receipt, fingerprints: receipt.fingerprints || {} });
+  if (relative === 'provenance.json') return content.toString('utf8') === expected.provenance;
   if (relative !== 'fingerprints.json') return false;
-  return content.toString('utf8') === `${JSON.stringify({ files: receipt.fingerprints || {}, schema: PACKAGE_SCHEMA })}\n`;
+  return content.toString('utf8') === expected.fingerprints;
 }
 
 function inspectReceiptOwnership(root, receipt) {

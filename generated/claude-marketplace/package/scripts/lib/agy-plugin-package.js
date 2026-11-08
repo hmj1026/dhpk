@@ -15,11 +15,14 @@ const {
   createInstallationReceiptIdentity,
   resolveGeneratedFromTree,
   validateSurfaceReceipt,
+  packageInventoryDigest,
+  readPackageReceipt,
+  serializePackageReceipt,
+  verifyPackageReceipt,
 } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const {
   canonicalJson: stableStringify,
-  inventoryDigestKeySorted,
   sha256Hex,
 } = require('./content-fingerprint');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
@@ -366,7 +369,7 @@ function assertOwnedOutputRoot(outDir) {
   if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
     throw new Error('refusing to replace AGY output with invalid provenance');
   }
-  if (readFileBounded(provenancePath).toString('utf8') !== `${stableStringify(provenance)}\n`) {
+  if (readFileBounded(provenancePath).toString('utf8') !== serializePackageReceipt(SURFACE, { provenance, fingerprints: provenance.fingerprints || {} }).provenance) {
     throw new Error('refusing to replace changed AGY provenance');
   }
   const checked = validateSurfaceReceipt({ ...provenance, schema: 'dhpk.platform-provenance.v1' }, SURFACE);
@@ -390,7 +393,7 @@ function assertOwnedOutputRoot(outDir) {
   const fingerprintPayload = readJson(fingerprintsPath, 'existing AGY fingerprints');
   if (!fingerprintPayload || typeof fingerprintPayload !== 'object' || fingerprintPayload.schema !== PACKAGE_SCHEMA
     || stableStringify(fingerprintPayload.files || {}) !== stableStringify(fingerprints)
-    || readFileBounded(fingerprintsPath).toString('utf8') !== `${stableStringify(fingerprintPayload)}\n`) {
+    || readFileBounded(fingerprintsPath).toString('utf8') !== serializePackageReceipt(SURFACE, { provenance, fingerprints }).fingerprints) {
     throw new Error('refusing to replace AGY output with changed fingerprints');
   }
   return true;
@@ -564,12 +567,12 @@ function compileAgyPluginPackage({
       sourceVersion,
       sourceCommit,
       generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
-      inventoryDigest: inventoryDigestKeySorted(inventory),
+      inventoryDigest: packageInventoryDigest(SURFACE, inventory),
       fingerprints,
       ...(publication || {}),
       installation: createInstallationReceiptIdentity({
         surface: SURFACE, scope: 'user', sourceVersion,
-        inventoryDigest: inventoryDigestKeySorted(inventory),
+        inventoryDigest: packageInventoryDigest(SURFACE, inventory),
         profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
         selectedStableIds: profileSelection && profileSelection.selectedStableIds || selected.selection.selectedStableIds,
         supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -649,7 +652,7 @@ function compileAgyPluginPackage({
     internalCharacterization: true,
     surface: SURFACE,
     compilerVersion: `agy-plugin-${generatorVersion}`,
-    inventoryFingerprint: inventoryDigestKeySorted(inventory),
+    inventoryFingerprint: packageInventoryDigest(SURFACE, inventory),
     inventoryRevision,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: destination,
@@ -676,10 +679,11 @@ function compileAgyPluginPackage({
     renderDerived: (_plan, { session }) => {
       state.fingerprints = Object.fromEntries(files.map((file) => [file, session.fingerprintOf(file)]));
       state.receipt = buildReceipt(state.fingerprints);
+      const receiptText = serializePackageReceipt(SURFACE, { provenance: state.receipt, fingerprints: state.fingerprints });
       return {
         outputs: [
-          { stableId: `${SURFACE}:fingerprints.json`, destination: 'fingerprints.json', mode: 0o644, content: jsonText({ schema: PACKAGE_SCHEMA, files: state.fingerprints }) },
-          { stableId: `${SURFACE}:provenance.json`, destination: 'provenance.json', mode: 0o644, content: jsonText(state.receipt) },
+          { stableId: `${SURFACE}:fingerprints.json`, destination: 'fingerprints.json', mode: 0o644, content: receiptText.fingerprints },
+          { stableId: `${SURFACE}:provenance.json`, destination: 'provenance.json', mode: 0o644, content: receiptText.provenance },
         ],
       };
     },
@@ -848,28 +852,14 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     if (!files.some((relative) => relative.startsWith(rootPrefix))) errors.push(`selected AGY runtime scripts are missing: ${rootPrefix}`);
   }
 
-  let fingerprints = null;
-  try { fingerprints = readJson(path.join(root, 'fingerprints.json'), 'fingerprints.json'); } catch (error) { errors.push(error.message); }
-  if (!fingerprints || fingerprints.schema !== PACKAGE_SCHEMA || !fingerprints.files || typeof fingerprints.files !== 'object') {
-    errors.push(`fingerprints.json must use ${PACKAGE_SCHEMA}`);
-  } else {
-    const actualFiles = fingerprintFiles(root, files);
-    if (stableStringify(actualFiles) !== stableStringify(fingerprints.files)) errors.push('AGY package fingerprints do not match output files');
-    for (const [relative, value] of Object.entries(fingerprints.files)) {
-      if (!SHA256.test(value)) errors.push(`AGY fingerprint is not SHA-256: ${relative}`);
-    }
+  const receipt = readPackageReceipt(root, { surface: SURFACE, allowPreview });
+  errors.push(...receipt.errors);
+  if (receipt.fingerprints) {
+    const drift = verifyPackageReceipt(receipt, fingerprintFiles(root, files));
+    if (drift.length > 0) errors.push('AGY package fingerprints do not match output files', ...drift);
   }
-
-  let provenance = null;
-  try { provenance = readJson(path.join(root, 'provenance.json'), 'provenance.json'); } catch (error) { errors.push(error.message); }
+  const provenance = receipt.provenance && typeof receipt.provenance === 'object' ? receipt.provenance : null;
   if (provenance) {
-    const checked = validateSurfaceReceipt({ ...provenance, schema: 'dhpk.platform-provenance.v1' }, SURFACE, { allowPreview });
-    errors.push(...checked.errors);
-    if (provenance.schema !== PACKAGE_SCHEMA) errors.push(`provenance schema must be ${PACKAGE_SCHEMA}`);
-    if (provenance.packageRoot !== 'plugins/dhpk-agy') errors.push('provenance packageRoot is not owner-scoped');
-    if (!fingerprints || stableStringify(provenance.fingerprints || {}) !== stableStringify(fingerprints.files || {})) {
-      errors.push('provenance fingerprints do not match fingerprints.json');
-    }
     if (selected && stableStringify(provenance.selectedIds || {}) !== stableStringify({
       agents: selected.agents,
       rules: selected.rules,
