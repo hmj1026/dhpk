@@ -25,6 +25,7 @@ const {
   fingerprint,
 } = require('./distribution-projection-contract');
 const { ProjectionArtifactStore, safeRelative, safeLinkTarget, inside } = require('./projection-artifact-store');
+const { containsSecret } = require('./secret-patterns');
 const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
@@ -67,11 +68,6 @@ const CLAUDE_ARTIFACT_ROOT = '.dhpk-claude-sibling';
 const CLAUDE_MANAGED_ROOT_NAME = 'claude-skills';
 const SAFE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
-const SECRET_PATTERNS = [
-  /\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{20,}\b/i,
-  /\bsk-[A-Za-z0-9_-]{20,}\b/i,
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?(?!\$\{)[A-Za-z0-9._~+\/-]{16,}/i,
-];
 
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
@@ -365,7 +361,7 @@ function sourceManifest(sourceDirectory, dependencies = []) {
     const fileDigest = sha256Hex(content);
     manifest.push({ path: file.relative, digest: fileDigest });
     hashed.push({ path: file.relative, content });
-    if (SECRET_PATTERNS.some((pattern) => pattern.test(content.toString('utf8')))) {
+    if (containsSecret(content.toString('utf8'))) {
       throw fail('SECRET_DETECTED', `possible secret in canonical source: ${file.relative}`, { paths: [file.relative] });
     }
   }
@@ -695,7 +691,7 @@ function buildArtifactInputs({
     if (!isInside(sourceRoot, source)) throw fail('UNSAFE_SOURCE', `supporting asset escapes source root: ${dependency.source}`, { paths: [dependency.source] });
     assertPhysicalAncestors(source, `supporting asset '${dependency.id}'`, sourceRoot);
     const content = readPhysicalFile(source, `supporting asset '${dependency.id}'`);
-    if (SECRET_PATTERNS.some((pattern) => pattern.test(content.toString('utf8')))) {
+    if (containsSecret(content.toString('utf8'))) {
       throw fail('SECRET_DETECTED', `possible secret in supporting asset: ${dependency.source}`, { paths: [dependency.source] });
     }
     addRecord({
@@ -2386,7 +2382,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         else {
           const target = pathIn(roots.managedRoot, required, 'generated projection path');
           const content = fs.readFileSync(target, 'utf8');
-          if (SECRET_PATTERNS.some((pattern) => pattern.test(content))) errors.push(`possible secret in generated projection: ${required}`);
+          if (containsSecret(content)) errors.push(`possible secret in generated projection: ${required}`);
           if (!required.includes('/') && content.includes(`skills/${entry.name}/SKILL.md`)) {
             errors.push(`AGY direct-file entry contains a source-checkout pointer: ${required}`);
           }
@@ -2405,7 +2401,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         }
         const target = pathIn(roots.claudeManagedRoot, required, 'Claude generated projection path');
         const content = fs.readFileSync(target, 'utf8');
-        if (SECRET_PATTERNS.some((pattern) => pattern.test(content))) errors.push(`possible secret in Claude projection: ${required}`);
+        if (containsSecret(content)) errors.push(`possible secret in Claude projection: ${required}`);
       }
       if (providers && providers.directory.hosts.some((hostId) => hostId !== 'claude') && providers.directFile.hosts.length > 0) {
         const directoryPath = pathIn(roots.managedRoot, `${entry.name}/SKILL.md`, 'directory skill path');

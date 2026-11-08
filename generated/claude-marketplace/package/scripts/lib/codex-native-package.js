@@ -46,6 +46,7 @@ const {
   lstatOrNull,
   assertPhysicalAncestors,
   physicalPackageRootError,
+  isInside,
 } = require('./bounded-filesystem');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
@@ -72,11 +73,6 @@ function realpathOrNull(candidate) {
     if (error && error.code === 'ENOENT') return null;
     throw error;
   }
-}
-
-function isInside(parent, candidate) {
-  const rel = path.relative(parent, candidate);
-  return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..');
 }
 
 function assertPhysicalDirectory(directory, label) {

@@ -35,6 +35,7 @@ const {
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { compileDistribution } = require('./distribution-compiler');
 const { hostPackageAdapter, publishHostPackage } = require('./host-package-pipeline');
+const { containsSecret } = require('./secret-patterns');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { NATIVE_AGENT_TRAP_FILES, collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, agyNativeAgentClosureErrors } = require('./native-agent-support');
@@ -61,12 +62,6 @@ const SAFE_RELATIVE = /^[^\\]+(?:\/[^\\]+)*$/;
 const PACKAGE_FILES = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
 const COMPONENT_ROOTS = new Set(['agents', 'manifests', 'rules', 'scripts', 'skills']);
 const OPTIONAL_FILES = new Set(['mcp_config.json', 'hooks.json']);
-const SECRET_PATTERNS = [
-  /\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{20,}\b/i,
-  /\bsk-[A-Za-z0-9_-]{20,}\b/i,
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?(?!\$\{)[A-Za-z0-9._~+\/-]{16,}/i,
-  /\b(?:https?|postgres(?:ql)?|mysql|mariadb|redis|mongodb(?:\+srv)?):\/\/[^\s/@:]+:[^\s/@]+@/i,
-];
 const AGY_SKILL_REFERENCE_REWRITES = Object.freeze([
   Object.freeze({
     source: '@skills/harness-setup/references/harness-directory-contract.md',
@@ -338,10 +333,6 @@ function fingerprintFiles(packageRoot, files) {
     const target = path.join(packageRoot, relative);
     return [relative, sha256Hex(budget.readFile(target, fs.statSync(target)))];
   }));
-}
-
-function containsSecret(content) {
-  return SECRET_PATTERNS.some((pattern) => pattern.test(String(content)));
 }
 
 function jsonText(value) {

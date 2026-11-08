@@ -1822,6 +1822,20 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
+  test('testSecretScan_urlEmbeddedCredentialInCanonicalSkill_blocksPublication', () => {
+    const { sourceRoot, projectRoot, options } = heldFixture();
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\nConnect with postgres://admin:hunter2@db.internal/app\n');
+      assert.throws(
+        () => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true }),
+        (error) => error.projectionCode === 'SECRET_DETECTED',
+      );
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('testHostBindingAdoption_publishFailure_restoresAdoptedSymlinkAndReceipt', () => {
     const linkTarget = '../../.agents/skills/dhpk-sample';
     const { sourceRoot, projectRoot, options, claudeLink, receiptPath } = untrackedClaudeHostFixture(linkTarget);
