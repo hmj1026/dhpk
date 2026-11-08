@@ -187,7 +187,68 @@ function listFilesNamedRecursively(directory, name, options = {}) {
   return files;
 }
 
+// Path guards shared by the Host package generators. Only copies that were
+// identical across generators live here; drifted variants stay local (#1248).
+
+function lstatOrNull(candidate) {
+  try {
+    return fs.lstatSync(candidate);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function isInside(parent, candidate) {
+  const rel = path.relative(path.resolve(parent), path.resolve(candidate));
+  return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel));
+}
+
+function assertPhysicalAncestors(directory, label) {
+  let current = path.resolve(directory);
+  while (true) {
+    const stat = lstatOrNull(current);
+    if (stat && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
+    const parent = path.dirname(current);
+    if (parent === current) return;
+    current = parent;
+  }
+}
+
+function ensurePhysicalDirectory(directory, label) {
+  assertPhysicalAncestors(directory, label);
+  const stat = lstatOrNull(directory);
+  if (!stat) {
+    fs.mkdirSync(directory, { recursive: true });
+    return;
+  }
+  if (stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
+  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
+  if (fs.realpathSync(directory) !== path.resolve(directory)) {
+    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
+  }
+}
+
+function physicalPackageRootError(directory, label) {
+  try {
+    assertPhysicalAncestors(directory, label);
+    const stat = lstatOrNull(directory);
+    if (!stat || !stat.isDirectory()) return `${label} must be a physical directory: ${directory}`;
+    if (fs.realpathSync(directory) !== path.resolve(directory)) {
+      return `${label} realpath escapes its lexical root: ${directory}`;
+    }
+    return null;
+  } catch (error) {
+    return error.message;
+  }
+}
+
 module.exports = {
+  lstatOrNull,
+  isInside,
+  assertPhysicalAncestors,
+  ensurePhysicalDirectory,
+  physicalPackageRootError,
   DEFAULT_TRAVERSAL_LIMITS,
   createTraversalBudget,
   readFileBounded,

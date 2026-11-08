@@ -21,14 +21,20 @@ const {
   serializePackageReceipt,
   verifyPackageReceipt,
 } = require('./platform-provenance');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  lstatOrNull,
+  isInside,
+} = require('./bounded-filesystem');
 const {
   canonicalJson: stableStringify,
   sha256Hex,
 } = require('./content-fingerprint');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
-const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
-const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { compileDistribution } = require('./distribution-compiler');
+const { hostPackageAdapter, publishHostPackage } = require('./host-package-pipeline');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { NATIVE_AGENT_TRAP_FILES, collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, agyNativeAgentClosureErrors } = require('./native-agent-support');
@@ -88,20 +94,6 @@ const AGY_RULE_TRIGGER_MAP = Object.freeze(Object.fromEntries(
       description: entry.description,
     })]),
 ));
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
 
 function assertSafeRelative(relative, label = 'path') {
   if (typeof relative !== 'string' || relative.length === 0 || relative.includes('\0')) {
@@ -664,18 +656,15 @@ function compileAgyPluginPackage({
 
   // Receipt values exist only once the store has staged the data files.
   const state = { fingerprints: null, receipt: null };
-  const adapter = {
-    identity: { id: SURFACE, version: generatorVersion },
-    render: () => ({
-      adapter: { id: SURFACE, version: generatorVersion },
-      outputs: files.map((file) => ({
-        stableId: `${SURFACE}:${file}`,
-        destination: file,
-        content: emission.get(file).content,
-        mode: emission.get(file).mode,
-      })),
-      links: [],
-    }),
+  const adapter = hostPackageAdapter({
+    surface: SURFACE,
+    version: generatorVersion,
+    renderOutputs: () => files.map((file) => ({
+      stableId: `${SURFACE}:${file}`,
+      destination: file,
+      content: emission.get(file).content,
+      mode: emission.get(file).mode,
+    })),
     renderDerived: (_plan, { session }) => {
       state.fingerprints = Object.fromEntries(files.map((file) => [file, session.fingerprintOf(file)]));
       state.receipt = buildReceipt(state.fingerprints);
@@ -687,8 +676,8 @@ function compileAgyPluginPackage({
         ],
       };
     },
-    validate: (_rendered, { session }) => {
-      const checked = validateAgyPluginPackage(session.stageRoot, {
+    validateStage: (stageRoot) => {
+      const checked = validateAgyPluginPackage(stageRoot, {
         expectedVersion: version,
         inventory,
         profileSelection,
@@ -697,20 +686,18 @@ function compileAgyPluginPackage({
       });
       if (!checked.ok) throw new Error(`generated AGY package failed validation: ${checked.errors.join('; ')}`);
     },
-  };
+  });
   return { plan: planned.value, adapter, state, manifest, selected, files, destination, sourceRoot, parent };
 }
 
 function materializeAgyPluginPackage(options = {}) {
   const projection = compileAgyPluginPackage(options);
-  const store = new ProjectionArtifactStore({
+  publishHostPackage(SURFACE, projection, {
     root: projection.parent,
     sourceRoot: projection.sourceRoot,
     publishRoot: projection.destination,
-    ownership: { owner: SURFACE_OWNERS[SURFACE], verify: verifyAgyOwnership },
+    verify: verifyAgyOwnership,
   });
-  const artifact = materializeDistribution(projection.plan, projection.adapter, store);
-  if (!artifact.ok) throw new Error(artifact.error.message);
   const { manifest, selected, files, destination, state } = projection;
   return { packageRoot: destination, manifest, selected, files, fingerprints: state.fingerprints, receipt: state.receipt };
 }

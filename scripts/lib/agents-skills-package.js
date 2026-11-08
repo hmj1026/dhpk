@@ -13,7 +13,12 @@ const {
   selectPortableSkills,
 } = require('./agent-plugin-package');
 const { resolveInventoryRevision } = require('./distribution-projection-contract');
-const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readDirectoryEntries,
+  lstatOrNull,
+  isInside,
+} = require('./bounded-filesystem');
 const {
   TREE_FINGERPRINT_ALGORITHM,
   requireTreeMerkle,
@@ -64,20 +69,6 @@ function stableClone(value) {
 
 function stableStringify(value) {
   return JSON.stringify(stableClone(value));
-}
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
 }
 
 function assertPhysicalAncestors(candidate, label, boundary = null) {
