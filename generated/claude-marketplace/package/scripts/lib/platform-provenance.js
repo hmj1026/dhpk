@@ -6,8 +6,16 @@
 // another surface.
 
 const crypto = require('node:crypto');
+const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const {
+  canonicalJson,
+  inventoryDigestInsertionOrder,
+  inventoryDigestKeySorted,
+  requireTreeMerkle,
+} = require('./content-fingerprint');
+const { readFileBounded } = require('./bounded-filesystem');
 
 const RECEIPT_SCHEMA = 'dhpk.platform-provenance.v1';
 const SURFACE_OWNERS = Object.freeze({
@@ -422,7 +430,205 @@ function assertRollbackOwnership(receipt, targetSurface) {
   return true;
 }
 
+// --- Package Receipt -------------------------------------------------------
+// provenance.json + fingerprints.json shipped inside a generated Host package.
+// This table is the only place that decides a surface's inventory-digest
+// ordering, serialization, and fingerprints.json shape; orderings and shapes
+// stay per surface (openspec/specs/content-fingerprint-ownership).
+
+const PACKAGE_RECEIPT_FILES = Object.freeze({ provenance: 'provenance.json', fingerprints: 'fingerprints.json' });
+
+const PACKAGE_RECEIPT_SURFACES = Object.freeze({
+  'agent-plugin': Object.freeze({ inventoryOrder: 'key-sorted', serialization: 'insertion', fingerprintsShape: 'skills', requiresFingerprintAlgorithm: true }),
+  'cursor-plugin': Object.freeze({ inventoryOrder: 'insertion', serialization: 'insertion', fingerprintsShape: 'flat', requiresFingerprintAlgorithm: true }),
+  'codex-native': Object.freeze({ inventoryOrder: 'insertion', serialization: 'insertion', fingerprintsShape: 'flat', requiresFingerprintAlgorithm: true }),
+  'agy-plugin': Object.freeze({
+    inventoryOrder: 'key-sorted',
+    serialization: 'canonical',
+    fingerprintsShape: 'files',
+    requiresFingerprintAlgorithm: false,
+    schema: 'dhpk.agy-plugin.v1',
+    packageRoot: 'plugins/dhpk-agy',
+  }),
+});
+
+function packageReceiptSurface(surface) {
+  const config = PACKAGE_RECEIPT_SURFACES[surface];
+  if (!config) throw new Error(`unknown Package Receipt surface: ${surface}`);
+  return config;
+}
+
+function packageInventoryDigest(surface, inventory) {
+  return packageReceiptSurface(surface).inventoryOrder === 'key-sorted'
+    ? inventoryDigestKeySorted(inventory)
+    : inventoryDigestInsertionOrder(inventory);
+}
+
+function serializeReceiptJson(config, value) {
+  return config.serialization === 'canonical' ? `${canonicalJson(value)}\n` : `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function fingerprintsDocument(surface, config, fingerprints, generatorVersion) {
+  if (config.fingerprintsShape === 'skills') return { generatorVersion, surface, skills: fingerprints };
+  if (config.fingerprintsShape === 'files') return { schema: config.schema, files: fingerprints };
+  return fingerprints;
+}
+
+// Returns the exact file text; callers hand it to the artifact store, which is
+// the only writer of package trees (ADR-0009).
+function serializePackageReceipt(surface, { provenance, fingerprints, generatorVersion } = {}) {
+  const config = packageReceiptSurface(surface);
+  const version = generatorVersion === undefined && provenance ? provenance.generatorVersion : generatorVersion;
+  return {
+    provenance: serializeReceiptJson(config, provenance),
+    fingerprints: serializeReceiptJson(config, fingerprintsDocument(surface, config, fingerprints, version)),
+  };
+}
+
+function fingerprintMapErrors(map, label) {
+  if (!map || typeof map !== 'object' || Array.isArray(map)) return [`${label} must be an object`];
+  return Object.entries(map)
+    .filter(([name, value]) => !name || typeof value !== 'string' || !SHA256.test(value))
+    .map(([name]) => `${label} entry '${name}' is not a SHA-256 digest`);
+}
+
+function readReceiptFile(packageRoot, name, errors) {
+  let text;
+  try {
+    text = readFileBounded(path.join(packageRoot, name)).toString('utf8');
+  } catch (error) {
+    errors.push(`${name} is unreadable: ${error.message}`);
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    errors.push(`${name} is not valid JSON: ${error.message}`);
+    return null;
+  }
+}
+
+function sameFingerprintMap(left, right) {
+  return canonicalJson(left || {}) === canonicalJson(right || {});
+}
+
+function checkPackageProvenance(surface, provenance, { allowPreview = false, requirePackageRoot = true } = {}) {
+  const config = packageReceiptSurface(surface);
+  if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
+    return { objectShaped: false, fingerprintAlgorithm: null, errors: ['provenance.json must be an object'] };
+  }
+  const errors = [];
+  let fingerprintAlgorithm = null;
+  const shared = config.schema ? { ...provenance, schema: RECEIPT_SCHEMA } : provenance;
+  if (config.schema && provenance.schema !== config.schema) errors.push(`provenance schema must be ${config.schema}`);
+  errors.push(...validateSurfaceReceipt(shared, surface, { allowPreview }).errors);
+  if (requirePackageRoot && config.packageRoot && provenance.packageRoot !== config.packageRoot) errors.push('provenance packageRoot is not owner-scoped');
+  if (config.requiresFingerprintAlgorithm) {
+    try {
+      fingerprintAlgorithm = requireTreeMerkle(provenance.fingerprintAlgorithm, 'fingerprintAlgorithm');
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+  return { objectShaped: true, fingerprintAlgorithm, errors };
+}
+
+// Ownership is proven by provenance.json alone; fingerprints.json is metadata
+// the owner checks separately (an installed AGY copy with damaged metadata is
+// still owned, only changed). Installed copies have always been accepted
+// without the packageRoot check, so callers can keep that.
+function readPackageProvenance(packageRoot, { surface, allowPreview = false, requirePackageRoot = true } = {}) {
+  const errors = [];
+  const provenance = readReceiptFile(packageRoot, PACKAGE_RECEIPT_FILES.provenance, errors);
+  if (provenance !== null) errors.push(...checkPackageProvenance(surface, provenance, { allowPreview, requirePackageRoot }).errors);
+  return { ok: errors.length === 0, surface, provenance, errors };
+}
+
+// Reads and validates both receipt files for one surface. Required fields fail
+// closed; unknown fields are ignored. `fingerprints` is the normalized
+// path -> digest map whatever the surface's file shape.
+function readPackageReceipt(packageRoot, { surface, allowPreview = false } = {}) {
+  const config = packageReceiptSurface(surface);
+  const errors = [];
+  const provenance = readReceiptFile(packageRoot, PACKAGE_RECEIPT_FILES.provenance, errors);
+  const document = readReceiptFile(packageRoot, PACKAGE_RECEIPT_FILES.fingerprints, errors);
+  let fingerprints = null;
+  if (document !== null) {
+    if (!document || typeof document !== 'object' || Array.isArray(document)) {
+      errors.push('fingerprints.json must be an object');
+    } else if (config.fingerprintsShape === 'skills') {
+      if (document.surface !== surface) errors.push(`fingerprints.json surface must be ${surface}`);
+      if (typeof document.generatorVersion !== 'string' || !document.generatorVersion) errors.push('fingerprints.json generatorVersion must be a non-empty string');
+      fingerprints = document.skills;
+    } else if (config.fingerprintsShape === 'files') {
+      if (document.schema !== config.schema) errors.push(`fingerprints.json must use ${config.schema}`);
+      fingerprints = document.files;
+    } else {
+      fingerprints = document;
+    }
+    if (document && typeof document === 'object') errors.push(...fingerprintMapErrors(fingerprints, 'fingerprints.json'));
+  }
+  let fingerprintAlgorithm = null;
+  if (provenance !== null) {
+    const checked = checkPackageProvenance(surface, provenance, { allowPreview });
+    errors.push(...checked.errors);
+    fingerprintAlgorithm = checked.fingerprintAlgorithm;
+    if (checked.objectShaped && fingerprints && !sameFingerprintMap(provenance.fingerprints, fingerprints)) {
+      errors.push('provenance fingerprints do not match fingerprints.json');
+    }
+  }
+  return {
+    ok: errors.length === 0,
+    surface,
+    provenance,
+    fingerprints: fingerprints && typeof fingerprints === 'object' && !Array.isArray(fingerprints) ? fingerprints : null,
+    fingerprintsDocument: document,
+    fingerprintAlgorithm,
+    errors,
+  };
+}
+
+// Compares the receipt's recorded fingerprints with fingerprints the caller
+// observed in the package; both directions are checked.
+function verifyPackageReceipt(receipt, observedFingerprints) {
+  const recorded = (receipt && receipt.fingerprints) || {};
+  const observed = observedFingerprints || {};
+  const errors = [];
+  for (const name of Object.keys(recorded).sort()) {
+    if (!Object.prototype.hasOwnProperty.call(observed, name)) errors.push(`receipt-owned entry is missing from the package: ${name}`);
+    else if (observed[name] !== recorded[name]) errors.push(`receipt fingerprint does not match package content: ${name}`);
+  }
+  for (const name of Object.keys(observed).sort()) {
+    if (!Object.prototype.hasOwnProperty.call(recorded, name)) errors.push(`package entry is not in the receipt: ${name}`);
+  }
+  return errors;
+}
+
+// Recipe named by the package's provenance.json marker. A package without
+// provenance or without the marker fails closed with the version-boundary
+// diagnostic; unparseable provenance fails closed as unreadable.
+function packageFingerprintAlgorithm(packageRoot) {
+  const provenancePath = path.join(packageRoot, PACKAGE_RECEIPT_FILES.provenance);
+  let provenance = null;
+  if (fs.existsSync(provenancePath)) {
+    try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (error) {
+      return { algorithm: null, error: `provenance.json is unreadable: ${error.message}` };
+    }
+  }
+  try {
+    return { algorithm: requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm') };
+  } catch (error) { return { algorithm: null, error: error.message }; }
+}
+
 module.exports = {
+  PACKAGE_RECEIPT_FILES,
+  PACKAGE_RECEIPT_SURFACES,
+  packageInventoryDigest,
+  serializePackageReceipt,
+  readPackageReceipt,
+  readPackageProvenance,
+  verifyPackageReceipt,
+  packageFingerprintAlgorithm,
   RECEIPT_SCHEMA,
   SURFACE_OWNERS,
   digest,

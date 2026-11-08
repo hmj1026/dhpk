@@ -41,9 +41,9 @@ const {
   matchConsumerCheckEvidence,
 } = require('../lib/release-evidence');
 const { fingerprint: fingerprintStructuredValue } = require('../lib/distribution-projection-contract');
+const { packageInventoryDigest } = require('../lib/platform-provenance');
 const { fingerprintDir } = require('../lib/codex-native-package');
 const {
-  inventoryDigestInsertionOrder,
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
@@ -709,7 +709,7 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
       // package carries no selection identity; profile-aware packages use the
       // same source digest and are checked against their selected/emitted IDs
       // above.
-      const legacyInventoryDigest = inventory ? inventoryDigestInsertionOrder(inventory) : null;
+      const legacyInventoryDigest = inventory ? packageInventoryDigest('codex-native', inventory) : null;
       const inventoryMatches = Boolean(
         (expectedInventoryDigest && provenance.inventoryDigest === expectedInventoryDigest)
         || (legacyInventoryDigest && provenance.inventoryDigest === legacyInventoryDigest),
