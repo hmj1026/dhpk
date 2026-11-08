@@ -43,10 +43,9 @@ const {
 } = require('./portable-skill-metadata');
 const {
   compileDistribution,
-  materializeDistribution,
   verifyDistribution,
 } = require('./distribution-compiler');
-const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { hostPackageAdapter, publishHostPackage, skillEntryFields } = require('./host-package-pipeline');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { RULE_ACTIVATION_MAP, canonicalRulePath } = require('./rule-activation-map');
@@ -1071,16 +1070,7 @@ function compileCursorPackage({
         : sha256Hex(file.content),
       mode: file.mode,
       symlinkPolicy: 'forbid',
-      ...(file.skillId ? {
-        skillId: file.skillId,
-        publicName: file.publicName,
-        invocationClass: file.invocationClass,
-        lifecycle: file.lifecycle,
-        usageSchema: file.usageSchema,
-        usage: file.usage,
-        usageFingerprint: file.usageFingerprint,
-        provenance: file.provenance,
-      } : {}),
+      ...skillEntryFields(file),
   }));
   const compiled = compileDistribution({
       internalCharacterization: Boolean(projection.provenance.marketplacePublication)
@@ -1121,7 +1111,7 @@ function compileCursorPackage({
   projection.provenance.planFingerprint = compiled.value.planFingerprint;
   const provenanceOutput = projection.files.find((file) => file.destination === 'provenance.json');
   if (provenanceOutput) {
-    const nextContent = Buffer.from(`${JSON.stringify(projection.provenance, null, 2)}\n`);
+    const nextContent = Buffer.from(serializePackageReceipt('cursor-plugin', { provenance: projection.provenance, fingerprints: projection.fingerprints }).provenance);
     if (nextContent.byteLength > provenanceOutput.content.byteLength) {
       // The initial receipt was budgeted during projection. Charge only the
       // additional bytes introduced by the compiler-bound plan fingerprint.
@@ -1129,36 +1119,31 @@ function compileCursorPackage({
     }
     provenanceOutput.content = nextContent;
   }
-  const adapter = {
-      identity: { id: 'cursor-plugin', version: generatorVersion },
-      render: () => ({
-        adapter: { id: 'cursor-plugin', version: generatorVersion },
-        outputs: projection.files.slice().sort((left, right) => left.destination.localeCompare(right.destination)).map((file) => ({
-          ...file,
-          stableId: `cursor:${file.destination}`,
-        })),
-        links: [],
-        metadata: {
-          manifest: projection.manifest,
-          marketplace: projection.marketplace,
-          skillIds: projection.selectedSkillIds,
-          skillNames: projection.selectedSkillNames,
-          skippedSkills: projection.skippedSkills,
-          fingerprints: projection.fingerprints,
-          provenance: projection.provenance,
-        },
-      }),
-      validate: (rendered, context) => {
-        if (!context || !context.session || !context.session.stageRoot) return rendered;
-        const validation = validateCursorPackage({
-          packageRoot: context.session.stageRoot,
-          expectedManifestName: rendered.metadata.manifest.name,
-          inventory,
-        });
-        if (!validation.ok) throw new Error(`generated Cursor Plugin failed validation: ${validation.errors.join('; ')}`);
-        return rendered;
-      },
-  };
+  const adapter = hostPackageAdapter({
+    surface: 'cursor-plugin',
+    version: generatorVersion,
+    renderOutputs: () => projection.files.slice().sort((left, right) => left.destination.localeCompare(right.destination)).map((file) => ({
+      ...file,
+      stableId: `cursor:${file.destination}`,
+    })),
+    metadata: {
+      manifest: projection.manifest,
+      marketplace: projection.marketplace,
+      skillIds: projection.selectedSkillIds,
+      skillNames: projection.selectedSkillNames,
+      skippedSkills: projection.skippedSkills,
+      fingerprints: projection.fingerprints,
+      provenance: projection.provenance,
+    },
+    validateStage: (stageRoot, rendered) => {
+      const validation = validateCursorPackage({
+        packageRoot: stageRoot,
+        expectedManifestName: rendered.metadata.manifest.name,
+        inventory,
+      });
+      if (!validation.ok) throw new Error(`generated Cursor Plugin failed validation: ${validation.errors.join('; ')}`);
+    },
+  });
   return {
     plan: compiled.value,
     adapter,
@@ -1187,15 +1172,14 @@ function materializeCursorPackage(options = {}) {
   const parent = path.dirname(resolvedOut);
   ensurePhysicalDirectory(parent, 'Cursor staging parent');
   const projection = options.compiledProjection || compileCursorPackage({ ...options, root: resolvedRoot, outDir: resolvedOut });
-  const artifactStore = options.artifactStore || new ProjectionArtifactStore({
+  const published = publishHostPackage('cursor-plugin', projection, {
     root: parent,
     sourceRoot: resolvedRoot,
     publishRoot: resolvedOut,
-    ownership: { owner: SURFACE_OWNERS['cursor-plugin'] },
+    artifactStore: options.artifactStore,
+    failurePrefix: 'generated Cursor Plugin failed validation',
   });
-  const artifact = materializeDistribution(projection.plan, projection.adapter, artifactStore);
-  if (!artifact.ok) throw new Error(`generated Cursor Plugin failed validation: ${artifact.error.message}`);
-  const metadata = artifact.value.metadata || {};
+  const metadata = published.metadata || {};
   return {
     manifest: metadata.manifest || projection.manifest,
     marketplace: metadata.marketplace || projection.marketplace,
@@ -1205,7 +1189,7 @@ function materializeCursorPackage(options = {}) {
     skippedSkills: metadata.skippedSkills || projection.skippedSkills,
     fingerprints: metadata.fingerprints || projection.fingerprints,
     provenance: metadata.provenance || projection.provenance,
-    artifact: artifact.value,
+    artifact: published,
   };
 }
 
