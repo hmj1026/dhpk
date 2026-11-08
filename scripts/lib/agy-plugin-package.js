@@ -15,11 +15,12 @@ const {
   createInstallationReceiptIdentity,
   resolveGeneratedFromTree,
   validateSurfaceReceipt,
+  packageInventoryDigest,
+  serializePackageReceipt,
 } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const {
   canonicalJson: stableStringify,
-  inventoryDigestKeySorted,
   sha256Hex,
 } = require('./content-fingerprint');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
@@ -564,12 +565,12 @@ function compileAgyPluginPackage({
       sourceVersion,
       sourceCommit,
       generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
-      inventoryDigest: inventoryDigestKeySorted(inventory),
+      inventoryDigest: packageInventoryDigest(SURFACE, inventory),
       fingerprints,
       ...(publication || {}),
       installation: createInstallationReceiptIdentity({
         surface: SURFACE, scope: 'user', sourceVersion,
-        inventoryDigest: inventoryDigestKeySorted(inventory),
+        inventoryDigest: packageInventoryDigest(SURFACE, inventory),
         profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
         selectedStableIds: profileSelection && profileSelection.selectedStableIds || selected.selection.selectedStableIds,
         supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -649,7 +650,7 @@ function compileAgyPluginPackage({
     internalCharacterization: true,
     surface: SURFACE,
     compilerVersion: `agy-plugin-${generatorVersion}`,
-    inventoryFingerprint: inventoryDigestKeySorted(inventory),
+    inventoryFingerprint: packageInventoryDigest(SURFACE, inventory),
     inventoryRevision,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: destination,
@@ -676,10 +677,11 @@ function compileAgyPluginPackage({
     renderDerived: (_plan, { session }) => {
       state.fingerprints = Object.fromEntries(files.map((file) => [file, session.fingerprintOf(file)]));
       state.receipt = buildReceipt(state.fingerprints);
+      const receiptText = serializePackageReceipt(SURFACE, { provenance: state.receipt, fingerprints: state.fingerprints });
       return {
         outputs: [
-          { stableId: `${SURFACE}:fingerprints.json`, destination: 'fingerprints.json', mode: 0o644, content: jsonText({ schema: PACKAGE_SCHEMA, files: state.fingerprints }) },
-          { stableId: `${SURFACE}:provenance.json`, destination: 'provenance.json', mode: 0o644, content: jsonText(state.receipt) },
+          { stableId: `${SURFACE}:fingerprints.json`, destination: 'fingerprints.json', mode: 0o644, content: receiptText.fingerprints },
+          { stableId: `${SURFACE}:provenance.json`, destination: 'provenance.json', mode: 0o644, content: receiptText.provenance },
         ],
       };
     },
