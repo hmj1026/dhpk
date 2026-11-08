@@ -22,6 +22,7 @@ const {
   resolveGeneratedFromTree,
   createInstallationReceiptIdentity,
   packageInventoryDigest,
+  packageFingerprintAlgorithm,
   serializePackageReceipt,
 } = require('./platform-provenance');
 const {
@@ -690,21 +691,6 @@ function fingerprintDir(directory, options = {}) {
   return treeFingerprint(entries);
 }
 
-// Recipe named by the package's provenance.json marker. A package without
-// provenance or without the marker fails closed with the version-boundary
-// diagnostic; unparseable provenance fails closed as unreadable.
-function packageFingerprintAlgorithm(packageRoot) {
-  const provenancePath = path.join(packageRoot, 'provenance.json');
-  let provenance = null;
-  if (fs.existsSync(provenancePath)) {
-    try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (error) {
-      return { algorithm: null, error: `provenance.json is unreadable: ${error.message}` };
-    }
-  }
-  try {
-    return { algorithm: requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm') };
-  } catch (error) { return { algorithm: null, error: error.message }; }
-}
 
 function readManifestMetadata(root, manifestMetadata) {
   if (manifestMetadata && typeof manifestMetadata === 'object') return manifestMetadata;
