@@ -512,6 +512,37 @@ function sameFingerprintMap(left, right) {
   return canonicalJson(left || {}) === canonicalJson(right || {});
 }
 
+function checkPackageProvenance(surface, provenance, { allowPreview = false } = {}) {
+  const config = packageReceiptSurface(surface);
+  if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
+    return { objectShaped: false, fingerprintAlgorithm: null, errors: ['provenance.json must be an object'] };
+  }
+  const errors = [];
+  let fingerprintAlgorithm = null;
+  const shared = config.schema ? { ...provenance, schema: RECEIPT_SCHEMA } : provenance;
+  if (config.schema && provenance.schema !== config.schema) errors.push(`provenance schema must be ${config.schema}`);
+  errors.push(...validateSurfaceReceipt(shared, surface, { allowPreview }).errors);
+  if (config.packageRoot && provenance.packageRoot !== config.packageRoot) errors.push('provenance packageRoot is not owner-scoped');
+  if (config.requiresFingerprintAlgorithm) {
+    try {
+      fingerprintAlgorithm = requireTreeMerkle(provenance.fingerprintAlgorithm, 'fingerprintAlgorithm');
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+  return { objectShaped: true, fingerprintAlgorithm, errors };
+}
+
+// Ownership is proven by provenance.json alone; fingerprints.json is metadata
+// the owner checks separately (an installed AGY copy with damaged metadata is
+// still owned, only changed).
+function readPackageProvenance(packageRoot, { surface, allowPreview = false } = {}) {
+  const errors = [];
+  const provenance = readReceiptFile(packageRoot, PACKAGE_RECEIPT_FILES.provenance, errors);
+  if (provenance !== null) errors.push(...checkPackageProvenance(surface, provenance, { allowPreview }).errors);
+  return { ok: errors.length === 0, surface, provenance, errors };
+}
+
 // Reads and validates both receipt files for one surface. Required fields fail
 // closed; unknown fields are ignored. `fingerprints` is the normalized
 // path -> digest map whatever the surface's file shape.
@@ -538,23 +569,11 @@ function readPackageReceipt(packageRoot, { surface, allowPreview = false } = {})
   }
   let fingerprintAlgorithm = null;
   if (provenance !== null) {
-    if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
-      errors.push('provenance.json must be an object');
-    } else {
-      const shared = config.schema ? { ...provenance, schema: RECEIPT_SCHEMA } : provenance;
-      if (config.schema && provenance.schema !== config.schema) errors.push(`provenance schema must be ${config.schema}`);
-      errors.push(...validateSurfaceReceipt(shared, surface, { allowPreview }).errors);
-      if (config.packageRoot && provenance.packageRoot !== config.packageRoot) errors.push('provenance packageRoot is not owner-scoped');
-      if (config.requiresFingerprintAlgorithm) {
-        try {
-          fingerprintAlgorithm = requireTreeMerkle(provenance.fingerprintAlgorithm, 'fingerprintAlgorithm');
-        } catch (error) {
-          errors.push(error.message);
-        }
-      }
-      if (fingerprints && !sameFingerprintMap(provenance.fingerprints, fingerprints)) {
-        errors.push('provenance fingerprints do not match fingerprints.json');
-      }
+    const checked = checkPackageProvenance(surface, provenance, { allowPreview });
+    errors.push(...checked.errors);
+    fingerprintAlgorithm = checked.fingerprintAlgorithm;
+    if (checked.objectShaped && fingerprints && !sameFingerprintMap(provenance.fingerprints, fingerprints)) {
+      errors.push('provenance fingerprints do not match fingerprints.json');
     }
   }
   return {
@@ -606,6 +625,7 @@ module.exports = {
   packageInventoryDigest,
   serializePackageReceipt,
   readPackageReceipt,
+  readPackageProvenance,
   verifyPackageReceipt,
   packageFingerprintAlgorithm,
   RECEIPT_SCHEMA,

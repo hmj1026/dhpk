@@ -85,6 +85,19 @@ for (const pkg of PACKAGES) {
     }
   });
 
+  test(`${pkg.surface}: ownership is proven by provenance.json alone`, () => {
+    const dir = copyReceipt(pkg);
+    try {
+      fs.rmSync(path.join(dir, 'fingerprints.json'));
+      assert.strictEqual(receipts.readPackageReceipt(dir, { surface: pkg.surface }).ok, false);
+      const owned = receipts.readPackageProvenance(dir, { surface: pkg.surface });
+      assert.deepStrictEqual(owned.errors, []);
+      assert.strictEqual(owned.provenance.surface, pkg.surface);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test(`${pkg.surface}: a receipt for another surface is rejected`, () => {
     const other = PACKAGES.find((candidate) => candidate.surface !== pkg.surface);
     const receipt = receipts.readPackageReceipt(path.join(ROOT, pkg.root), { surface: other.surface });
