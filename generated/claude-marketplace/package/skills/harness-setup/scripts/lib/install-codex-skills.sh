@@ -11,6 +11,7 @@
 #   install-codex-skills.sh --adopt <path>@<destination-fingerprint>@<source-fingerprint> explicitly adopt one reported collision
 #   install-codex-skills.sh --skill <stable-id> repeat an additive stable-ID overlay
 #   install-codex-skills.sh --uninstall       remove unchanged owned entries
+#   install-codex-skills.sh --recover         finish an interrupted or incomplete transaction, then stop
 #   install-codex-skills.sh --force          bypass project-root heuristic
 #
 # The receipt is schema-versioned and records every managed skill, agent, and
@@ -30,6 +31,7 @@ FORCE=0
 MIGRATE=0
 UNINSTALL=0
 PLAN=0
+RECOVER=0
 JSON_OUTPUT=0
 ADOPT_PATHS=""
 SKILL_IDS=""
@@ -44,6 +46,7 @@ while [ "$#" -gt 0 ]; do
         --migrate) MIGRATE=1 ;;
         --uninstall) UNINSTALL=1 ;;
         --plan) PLAN=1 ;;
+        --recover) RECOVER=1 ;;
         --json) JSON_OUTPUT=1 ;;
         --skill)
             shift
@@ -133,6 +136,7 @@ export DHPK_UPDATE="$UPDATE"
 export DHPK_MIGRATE="$MIGRATE"
 export DHPK_UNINSTALL="$UNINSTALL"
 export DHPK_PLAN="$PLAN"
+export DHPK_RECOVER="$RECOVER"
 export DHPK_JSON_OUTPUT="$JSON_OUTPUT"
 export DHPK_ADOPT_PATHS="$ADOPT_PATHS"
 export DHPK_SKILL_IDS="$SKILL_IDS"
@@ -180,6 +184,7 @@ UPDATE = os.environ.get('DHPK_UPDATE') == '1'
 MIGRATE = os.environ.get('DHPK_MIGRATE') == '1'
 UNINSTALL = os.environ.get('DHPK_UNINSTALL') == '1'
 PLAN = os.environ.get('DHPK_PLAN') == '1'
+RECOVER = os.environ.get('DHPK_RECOVER') == '1'
 JSON_OUTPUT = os.environ.get('DHPK_JSON_OUTPUT') == '1'
 ADOPT_PATHS = [path for path in os.environ.get('DHPK_ADOPT_PATHS', '').splitlines() if path]
 REQUESTED_SKILL_IDS = [value for value in os.environ.get('DHPK_SKILL_IDS', '').splitlines() if value]
@@ -188,6 +193,14 @@ REQUESTED_SKILL_IDS = [value for value in os.environ.get('DHPK_SKILL_IDS', '').s
 FAIL_RECEIPT_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_RECEIPT') == '1'
 FAIL_UNINSTALL_RECEIPT_FSYNC_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC') == '1'
 FAIL_SHARED_PROJECTION_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_SHARED_PROJECTION') == '1'
+FAIL_AFTER_SHARED_PROJECTION_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_AFTER_SHARED_PROJECTION') == '1'
+KILL_AT_FOR_TEST = os.environ.get('DHPK_TEST_KILL_AT') or ''
+
+
+def test_kill_point(name):
+    """Test-only crash injection: die without running any cleanup."""
+    if KILL_AT_FOR_TEST == name:
+        os.kill(os.getpid(), signal.SIGKILL)
 ABORT_ADOPTION_PHASE_FOR_TEST = os.environ.get('DHPK_TEST_ABORT_ADOPTION_PHASE')
 SCHEMA_VERSION = 3
 BACKUP_DIR = '.dhpk-backups'
@@ -1276,7 +1289,12 @@ def restore_pending_prunes():
 
 def rollback_pending():
     """Attempt every pending rollback and report failures instead of hiding them."""
-    errors = restore_pending_adoptions()
+    if shared_projection_committing():
+        # Past the commit point nothing is rolled back; the next run rolls forward.
+        return []
+    # The publisher owns links at paths this installer restores, so undo it first.
+    errors = abort_shared_projection()
+    errors.extend(restore_pending_adoptions())
     errors.extend(restore_pending_mutations())
     errors.extend(restore_pending_prunes())
     errors.extend(restore_receipt_archive())
@@ -1290,7 +1308,11 @@ def finish_open_transaction(errors=None):
     """Record terminal journal phase after a started Host transaction rolls back."""
     if not isinstance(TRANSACTION_JOURNAL, dict) or not TRANSACTION_JOURNAL.get('started'):
         return
+    if shared_projection_committing():
+        return
     phase = 'rollback_incomplete' if errors else 'rolled_back'
+    if errors:
+        TRANSACTION_JOURNAL['rollback_errors'] = [str(error) for error in errors]
     try:
         finish_transaction(phase)
     except (OSError, ValueError):
@@ -1302,6 +1324,8 @@ def fail_open_transaction(error):
     errors = rollback_pending()
     finish_open_transaction(errors)
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+    if shared_projection_committing():
+        print('[install-codex-skills] ERROR: the shared projection already committed; rerun the installer to finish this transaction', file=sys.stderr)
     sys.exit(2)
 
 
@@ -1709,6 +1733,20 @@ def finalize_recovered_receipt(receipt):
     return errors
 
 
+def incomplete_rollback_message(journal, run):
+    """Name what an incomplete rollback still owes and how to finish it."""
+    remaining = []
+    for key in ('prunes', 'mutations', 'adoptions'):
+        for item in journal.get(key) or []:
+            if isinstance(item, dict) and isinstance(item.get('relative'), str):
+                remaining.append(f'{DEST_REL}/{item["relative"]}')
+    paths = ', '.join(sorted(set(remaining))) or 'none recorded'
+    causes = [str(item) for item in journal.get('rollback_errors') or [] if isinstance(item, str)]
+    cause = f'; rollback errors: {"; ".join(causes)}' if causes else ''
+    return (f'transaction {run} did not finish rolling back; paths recorded in its journal: {paths}; '
+            f'backups: {DEST_REL}/{BACKUP_DIR}/{run}{cause}; fix the cause, then rerun this installer with --recover')
+
+
 def classify_journal_envelope(journal, journal_name, run):
     """驗證終態紀錄的路徑與交易綁定，避免把損壞紀錄當作歷史資料略過。"""
     if (not isinstance(journal, dict) or journal.get('relative') != journal_name
@@ -1728,8 +1766,16 @@ def classify_journal_envelope(journal, journal_name, run):
     if any(key in journal and not isinstance(journal[key], list)
            for key in ('prunes', 'mutations', 'adoptions')):
         raise ValueError(f'transaction journal {run} rollback lists are malformed; manual recovery required')
+    shared = journal.get('shared_projection')
+    if shared is not None and (not isinstance(shared, dict) or shared.get('transaction') != run
+            or shared.get('phase') not in SHARED_PROJECTION_PHASES
+            or not isinstance(shared.get('host'), str)
+            or shared.get('finalize', 'receipt') not in ('receipt', 'archive')):
+        raise ValueError(f'transaction journal {run} shared projection record is malformed; manual recovery required')
     phase = journal.get('phase')
-    if phase not in ('active', 'committed', 'rolled_back'):
+    if phase == 'rollback_incomplete' and not RECOVER:
+        raise ValueError(incomplete_rollback_message(journal, run))
+    if phase not in ('active', 'committed', 'rolled_back', 'rollback_incomplete'):
         raise ValueError(f'transaction journal {run} has unsupported phase {phase!r}; manual recovery required')
     source = journal.get('source_fingerprint')
     # 舊版解除收據寫入空值；只接受可完整識別且已完成的該次交易。
@@ -1774,6 +1820,39 @@ def check_transaction_journal_markers():
         os.close(root_fd)
 
 
+def roll_forward_installer_transaction(run, shared, committed_receipt):
+    """Finish a transaction that reached its commit point before it was interrupted."""
+    global BACKUP_RUN
+    try:
+        # ABSENT: committed before the interruption; only commit removes a held journal
+        # while its installer journal is active.
+        state = run_shared_projection_resolution('commit', shared['transaction'])
+    except ValueError as error:
+        return [str(error)]
+    if state not in ('COMMITTED', 'ABSENT'):
+        return [f'the publisher reported {state} for a transaction past its commit point']
+    if shared.get('finalize', 'receipt') == 'archive':
+        if not lexists(MANIFEST):
+            return []
+        current_run = BACKUP_RUN
+        BACKUP_RUN = run
+        try:
+            archive_receipt_for_uninstall()
+        except (OSError, ValueError) as error:
+            return [f'uninstall receipt archive failed: {error}']
+        finally:
+            BACKUP_RUN = current_run
+        return []
+    if (isinstance(committed_receipt, dict) and committed_receipt.get('transaction_id') == run
+            and committed_receipt.get('transaction_final') is True):
+        return []
+    if not (isinstance(committed_receipt, dict) and committed_receipt.get('transaction_id') == run
+            and committed_receipt.get('transaction_final') is False):
+        return [f'the partial receipt {DEST_REL}/{os.path.basename(MANIFEST)} written before the commit point is missing or unreadable; '
+                f'backups are in {DEST_REL}/{BACKUP_DIR}/{run}']
+    return finalize_recovered_receipt(committed_receipt)
+
+
 def recover_stale_transactions():
     """Recover interrupted transactions before reading the current receipt."""
     global TRANSACTION_JOURNAL
@@ -1805,9 +1884,9 @@ def recover_stale_transactions():
             print(f'[install-codex-skills] ERROR: transaction journal {run} cannot be read; manual recovery required: {error}', file=sys.stderr)
             raise ValueError(f'transaction journal {run} is unreadable')
         phase = classify_journal_envelope(journal, journal_relative, run)
-        if phase != 'active':
+        if phase != 'active' and not (RECOVER and phase == 'rollback_incomplete'):
             continue
-        if _pid_is_alive(journal.get('pid')):
+        if phase == 'active' and _pid_is_alive(journal.get('pid')):
             print(f'[install-codex-skills] ERROR: active transaction {run} is owned by a live process; refusing concurrent reconciliation', file=sys.stderr)
             raise ValueError(f'active transaction {run} is still running')
 
@@ -1817,7 +1896,22 @@ def recover_stale_transactions():
             committed_receipt = read_manifest_document()
         except (FileNotFoundError, OSError, ValueError, json.JSONDecodeError):
             committed_receipt = None
-        if (isinstance(committed_receipt, dict)
+        shared = shared_projection_record()
+        if shared and shared.get('phase') == 'committing':
+            roll_forward_errors = roll_forward_installer_transaction(run, shared, committed_receipt)
+            if roll_forward_errors:
+                print(f'[install-codex-skills] ERROR: transaction {run} passed its commit point but could not be finished: ' + '; '.join(roll_forward_errors), file=sys.stderr)
+                raise ValueError(f'transaction {run} roll-forward failed; manual recovery required')
+            clear_pending_transactions()
+            finish_transaction('committed')
+            TRANSACTION_JOURNAL = None
+            continue
+        if shared:
+            abort_errors = abort_shared_projection()
+            if abort_errors:
+                print(f'[install-codex-skills] ERROR: transaction {run} cannot undo its shared projection step: ' + '; '.join(abort_errors), file=sys.stderr)
+                raise ValueError(f'transaction {run} shared projection abort failed; manual recovery required')
+        if (phase == 'active' and isinstance(committed_receipt, dict)
                 and committed_receipt.get('transaction_id') == run
                 and committed_receipt.get('transaction_final') is True
                 and committed_receipt.get('plugin_version') == journal.get('plugin_version')
@@ -1928,7 +2022,9 @@ def recover_stale_transactions():
                 'published': published,
                 'phase': phase,
             })
-        if receipt_proves_pending_adoptions(committed_receipt):
+        # A partial receipt proves a commit only when no shared projection decision is
+        # pending; a held publication was just aborted, so this run must roll back.
+        if not shared and receipt_proves_pending_adoptions(committed_receipt):
             errors = cleanup_pending_adoptions()
             if not errors:
                 errors.extend(finalize_recovered_receipt(committed_receipt))
@@ -3042,6 +3138,121 @@ def classify_cursor_host_bindings():
     return classify_host_bindings()
 
 
+# Projection Journal (ADR-0033): while this installer runs a transaction, the
+# shared projection publication is held under the same run id. The installer
+# journal records it, and one commit point decides both sides.
+SHARED_PROJECTION_PHASES = ('requested', 'held', 'committing')
+
+
+def shared_projection_record():
+    record = TRANSACTION_JOURNAL.get('shared_projection') if isinstance(TRANSACTION_JOURNAL, dict) else None
+    return record if isinstance(record, dict) else None
+
+
+def shared_projection_committing():
+    record = shared_projection_record()
+    return bool(record and record.get('phase') == 'committing')
+
+
+def shared_projection_hold_id():
+    if not isinstance(TRANSACTION_JOURNAL, dict) or not TRANSACTION_JOURNAL.get('started'):
+        return None
+    run = TRANSACTION_JOURNAL.get('run')
+    return run if isinstance(run, str) and run else None
+
+
+def request_shared_projection_hold(host):
+    hold_id = shared_projection_hold_id()
+    if hold_id:
+        TRANSACTION_JOURNAL['shared_projection'] = {'transaction': hold_id, 'host': host, 'phase': 'requested'}
+        persist_transaction_journal()
+    return hold_id
+
+
+def record_shared_projection_result(hold_id, stdout):
+    """Record whether the publisher kept a held transaction for this run."""
+    if not hold_id:
+        return
+    try:
+        payload = json.loads(stdout)
+    except (TypeError, ValueError):
+        payload = None
+    if not isinstance(payload, dict):
+        raise ValueError(f'{SURFACE_LABEL} shared projection returned no transaction report')
+    if payload.get('held') is True:
+        TRANSACTION_JOURNAL['shared_projection']['phase'] = 'held'
+    else:
+        TRANSACTION_JOURNAL.pop('shared_projection', None)
+    persist_transaction_journal()
+    test_kill_point('after-shared-projection')
+    if FAIL_AFTER_SHARED_PROJECTION_FOR_TEST:
+        raise ValueError('test-injected failure after the shared projection step')
+
+
+def run_shared_projection_resolution(action, transaction):
+    """Commit or abort a held publisher transaction; ABSENT is a valid outcome."""
+    cli = native_shared_skill_cli()
+    node = shutil.which('node')
+    if not node or not os.path.isfile(cli):
+        raise ValueError(f'shared projection {action} for transaction {transaction} requires node and {cli}')
+    try:
+        result = subprocess.run(
+            [node, cli, action, '--project-root', PROJECT_ROOT, '--transaction', transaction, '--json'],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(f'shared projection {action} for transaction {transaction} failed: {exc}') from exc
+    try:
+        payload = json.loads(result.stdout)
+    except (TypeError, ValueError):
+        payload = None
+    if result.returncode != 0 or not isinstance(payload, dict) or payload.get('ok') is not True:
+        detail = None
+        if isinstance(payload, dict):
+            detail = ': '.join(str(part) for part in (payload.get('code'), payload.get('message')) if part)
+        detail = detail or (result.stderr or result.stdout or '').strip()
+        raise ValueError(f'shared projection {action} for transaction {transaction} failed: {detail}')
+    return payload.get('state')
+
+
+def commit_shared_projection(finalize):
+    """The single commit point: after this, recovery only rolls forward."""
+    record = shared_projection_record()
+    if not record or record.get('phase') != 'held':
+        return
+    record['phase'] = 'committing'
+    record['finalize'] = finalize
+    try:
+        persist_transaction_journal()
+    except Exception:
+        # Not durable: the commit point was not reached, so a rollback is still correct.
+        record['phase'] = 'held'
+        record.pop('finalize', None)
+        raise
+    state = run_shared_projection_resolution('commit', record['transaction'])
+    if state != 'COMMITTED':
+        raise ValueError(f'shared projection transaction {record["transaction"]} was not committed (publisher reported {state}); rerun the installer to finish this transaction')
+    test_kill_point('after-shared-commit')
+
+
+def abort_shared_projection():
+    record = shared_projection_record()
+    if not record or record.get('phase') not in ('requested', 'held'):
+        return []
+    try:
+        run_shared_projection_resolution('abort', record['transaction'])
+    except ValueError as error:
+        # Still `requested`: the publisher refused before holding anything for this run,
+        # e.g. another Host holds the projection (TRANSACTION_HELD). Nothing to undo.
+        if record.get('phase') == 'requested' and 'TRANSACTION_MISMATCH' in str(error):
+            return []
+        return [str(error)]
+    return []
+
+
 def install_shared_projection(selected=None):
     if FAIL_SHARED_PROJECTION_FOR_TEST:
         raise ValueError('test-injected shared projection failure')
@@ -3072,6 +3283,9 @@ def install_shared_projection(selected=None):
     evidence = os.environ.get(evidence_key) if evidence_key else None
     if evidence:
         command.extend(['--consumer-evidence', evidence])
+    hold_id = request_shared_projection_hold(host)
+    if hold_id:
+        command.extend(['--hold', hold_id, '--json'])
     try:
         result = subprocess.run(
             command,
@@ -3085,6 +3299,7 @@ def install_shared_projection(selected=None):
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or '').strip()
         raise ValueError(detail or f'{SURFACE_LABEL} shared projection install failed')
+    record_shared_projection_result(hold_id, result.stdout)
 
 
 def declared_skill_public_names():
@@ -3350,6 +3565,9 @@ def uninstall_shared_projection():
         '--project-root', PROJECT_ROOT,
         '--host', host,
     ]
+    hold_id = request_shared_projection_hold(host)
+    if hold_id:
+        command.extend(['--hold', hold_id, '--json'])
     try:
         result = subprocess.run(
             command,
@@ -3363,6 +3581,7 @@ def uninstall_shared_projection():
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or '').strip()
         raise ValueError(detail or f'{SURFACE_LABEL} shared projection uninstall failed')
+    record_shared_projection_result(hold_id, result.stdout)
 
 
 def inventory_retirement_metadata(active_metadata=None):
@@ -4678,6 +4897,26 @@ def save_receipt_with_prune_rollback(plugin_version, fingerprint, entries, orpha
     prior_transaction_final = TRANSACTION_RECEIPT_FINAL
     TRANSACTION_RECEIPT_FINAL = transaction_final
     try:
+        record = shared_projection_record()
+        if transaction_final and record and record.get('phase') == 'held':
+            # Durable partial receipt first, so recovery can roll forward after the commit.
+            TRANSACTION_RECEIPT_FINAL = False
+            try:
+                save_receipt(
+                    plugin_version,
+                    fingerprint,
+                    entries,
+                    orphaned,
+                    counts,
+                    legacy_pending=legacy_pending,
+                    state=state,
+                )
+            except ReceiptCommitError as error:
+                # Before the commit point a durable partial receipt commits nothing.
+                raise ValueError(f'partial receipt before the shared projection commit failed: {error}') from error
+            test_kill_point('before-shared-commit')
+            commit_shared_projection('receipt')
+            TRANSACTION_RECEIPT_FINAL = True
         receipt = save_receipt(
             plugin_version,
             fingerprint,
@@ -4935,6 +5174,9 @@ try:
 except (OSError, ValueError) as error:
     print(f'[install-codex-skills] ERROR: transaction recovery failed: {error}', file=sys.stderr)
     sys.exit(2)
+if RECOVER:
+    print('[install-codex-skills] recovery complete; no interrupted or incomplete transaction remains')
+    sys.exit(0)
 
 plugin_version = read_plugin_version()
 try:
@@ -5070,6 +5312,7 @@ if UNINSTALL:
         fail_open_transaction(error)
     if not any(entries[kind] for kind in MANAGED_KINDS) and not orphaned:
         try:
+            commit_shared_projection('archive')
             archive_receipt_for_uninstall()
             finish_transaction('committed')
             clear_pending_transactions()
@@ -5141,6 +5384,7 @@ if UNINSTALL:
                 record_path('retired', relative)
                 record_ownership(relative, 'missing')
         if not orphaned and not any(remaining[kind] for kind in remaining):
+            commit_shared_projection('archive')
             archive_receipt_for_uninstall()
             finish_transaction('committed')
             clear_pending_transactions()

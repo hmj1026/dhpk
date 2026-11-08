@@ -694,6 +694,26 @@ project guidance). Cursor agents/rules remain `.cursor/agents/` and
 plugin package. Keep those platform-native projections generated from the
 canonical `agents/` and `rules/` trees.
 
+### Interrupted installs and explicit recovery
+
+A Codex or Cursor install, update, or uninstall is one transaction across the
+native installer and the shared projection ([ADR-0033](adr/0033-one-projection-journal-owns-install-crash-order.md)).
+The installer holds the shared projection step under its own run id and commits
+both at one point; the next run finishes or undoes an interrupted transaction
+automatically.
+
+- `TRANSACTION_HELD` means another installer run still holds the shared
+  projection. Rerun that Host's installer (named in the message) to let it
+  finish or undo its transaction.
+- `did not finish rolling back` lists the remaining paths and the backup
+  directory. Fix the reported cause, then run the same installer with
+  `--recover`. It replays the rollback and stops without installing.
+- `dhpk-install --recover [--project-root DIR] [--json]` resolves a held
+  shared projection whose installer journal is gone (it never reached its
+  commit point, so it is undone), refuses while that installer journal is
+  still active, and lists every incomplete installer rollback with the command
+  that finishes it. It exits `2` while anything remains.
+
 ### Recover receipt-owned shared skills
 
 Use this procedure when a previously managed directory under
@@ -706,8 +726,9 @@ alone does not restore receipt integrity.
    target, and any available backups outside managed and discovery trees.
    Record the current receipt's SHA-256 before proceeding. If
    `.agents/.dhpk-installed.transaction.json` exists, stop manual recovery:
-   resolve the interrupted transaction first through the installer; if that
-   fails, retain its diagnostics and backups for maintainer assistance.
+   resolve the interrupted transaction first through the installer or
+   `dhpk-install --recover`; if that fails, retain its diagnostics and backups
+   for maintainer assistance.
 2. Find a physical backup of the affected skill from the installation described
    by the **current** receipt, such as the original directory saved before
    replacement. A rollback directory contains a previous version and is only
