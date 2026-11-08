@@ -68,6 +68,10 @@ _Avoid_: Legacy projection, private copy
 The record that is the sole lifecycle owner of the Shared Project Projection's content and its Host Bindings.
 _Avoid_: Projection manifest, install log
 
+**Package Receipt**:
+The source and ownership record shipped inside a generated Host package: which sources produced it and which files it owns. AGY uses the installed copy of it as its install-time ownership record.
+_Avoid_: Provenance file, Projection Receipt (that one belongs to the Shared Project Projection)
+
 **Projection Journal**:
 The single record of an in-progress Projection install, update, uninstall, or rollback. Recovery reads only it to decide whether to finish or undo the change. It owns no content; the Projection Receipt does.
 _Avoid_: Transaction log, install journal, second journal
