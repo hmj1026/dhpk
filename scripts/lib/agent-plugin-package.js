@@ -16,7 +16,14 @@ const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
 } = require('./portable-skill-metadata');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
+const {
+  RECEIPT_SCHEMA,
+  SURFACE_OWNERS,
+  resolveGeneratedFromTree,
+  createInstallationReceiptIdentity,
+  packageInventoryDigest,
+  serializePackageReceipt,
+} = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -32,7 +39,6 @@ const {
   canonicalJson: stableStringify,
   TREE_FINGERPRINT_ALGORITHM,
   collectDirectoryEntries,
-  inventoryDigestKeySorted,
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
@@ -1193,7 +1199,7 @@ function buildAgentPluginProjection(options = {}) {
     sourceCommit,
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
-    inventoryDigest: inventoryDigestKeySorted(inventory),
+    inventoryDigest: packageInventoryDigest('agent-plugin', inventory),
     inventoryRevision,
     generatorVersion,
     fingerprintAlgorithm: TREE_FINGERPRINT_ALGORITHM,
@@ -1224,7 +1230,7 @@ function buildAgentPluginProjection(options = {}) {
     fingerprints,
     ...(selectedSkillIds.length > 0 ? { installation: createInstallationReceiptIdentity({
       surface: 'agent-plugin', scope: 'project', sourceVersion: version,
-      inventoryDigest: inventoryDigestKeySorted(inventory),
+      inventoryDigest: packageInventoryDigest('agent-plugin', inventory),
       profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
       selectedStableIds: profileSelection && profileSelection.selectedStableIds || selectedSkillIds,
       supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -1255,8 +1261,9 @@ function buildAgentPluginProjection(options = {}) {
       unavailableCapabilities: profileSelection.unavailableCapabilities || [],
     } : {}),
   };
-  files.push(outputRecord('manifest:provenance', 'provenance.json', `${JSON.stringify(provenance, null, 2)}\n`));
-  files.push(outputRecord('manifest:fingerprints', 'fingerprints.json', `${JSON.stringify({ generatorVersion, surface: 'agent-plugin', skills: fingerprints }, null, 2)}\n`));
+  const receiptText = serializePackageReceipt('agent-plugin', { provenance, fingerprints, generatorVersion });
+  files.push(outputRecord('manifest:provenance', 'provenance.json', receiptText.provenance));
+  files.push(outputRecord('manifest:fingerprints', 'fingerprints.json', receiptText.fingerprints));
   for (const [destination, content] of Object.entries(packageReadmeContents())) files.push(outputRecord(`manifest:${destination}`, destination, content));
 
   const entries = files.map((file) => ({
@@ -1282,7 +1289,7 @@ function buildAgentPluginProjection(options = {}) {
     internalCharacterization: Boolean(hostPublication) || (selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy)),
     surface: 'agent-plugin',
     compilerVersion: `agent-plugin-${generatorVersion}`,
-    inventoryFingerprint: inventoryDigestKeySorted(inventory),
+    inventoryFingerprint: packageInventoryDigest('agent-plugin', inventory),
     inventoryRevision,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: resolvedOut,
