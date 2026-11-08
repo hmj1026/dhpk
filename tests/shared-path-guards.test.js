@@ -48,6 +48,20 @@ test('assertPhysicalDirectory never creates, and refuses files and symlinked dir
   }
 });
 
+test('directory guards refuse a symlinked ancestor and a non-directory leaf', () => {
+  const root = tmp();
+  try {
+    fs.mkdirSync(path.join(root, 'real/child'), { recursive: true });
+    fs.symlinkSync('real', path.join(root, 'via'));
+    assert.throws(() => assertPhysicalDirectory(path.join(root, 'via/child'), 'probe'), /refusing symlinked probe ancestor/);
+    assert.throws(() => ensurePhysicalDirectory(path.join(root, 'via/child/new'), 'probe'), /refusing symlinked probe ancestor/);
+    fs.writeFileSync(path.join(root, 'plain'), 'x');
+    assert.throws(() => ensurePhysicalDirectory(path.join(root, 'plain'), 'probe'), /probe must be a directory/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('fingerprintPath fingerprints files and directory trees and refuses symlinks', () => {
   const root = tmp();
   try {

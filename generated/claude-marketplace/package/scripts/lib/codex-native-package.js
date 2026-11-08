@@ -100,11 +100,6 @@ function resolveCodexNativeProfileSelection({ root, inventory, profiles, moduleC
   return bound.value;
 }
 
-// Walks packageRoot and reports any symlink found (a native package must be
-// 100% physical files — a symlink survives only as long as its target and the
-// source checkout that contains it both remain present, which a clean
-// marketplace cache install does not guarantee; see issue #88).
-
 function listNativeSkillMarkdownFiles(skillsRoot, options = {}) {
   if (lstatOrNull(skillsRoot) && lstatOrNull(skillsRoot).isDirectory() && !lstatOrNull(skillsRoot).isSymbolicLink()) {
     return listFilesNamedRecursively(skillsRoot, 'SKILL.md', { ...options, localeSort: false });
@@ -145,6 +140,9 @@ function validateNativeCandidate({ manifestSkillsField, packageRoot }) {
       if (realPackageRoot && realSkillsRoot && !isInside(realPackageRoot, realSkillsRoot)) {
         errors.push(`native candidate skills realpath escapes the package root: '${realSkillsRoot}' is not inside '${realPackageRoot}'`);
       }
+      // A native package must be 100% physical files: a symlink survives only
+      // while its target and source checkout remain, which a clean marketplace
+      // cache install does not guarantee (issue #88).
       for (const link of findSymlinks(skillsRoot)) {
         const rel = path.relative(packageRoot, link);
         errors.push(`symlink-dependent entry in native candidate: '${rel}' is a symlink; a clean marketplace cache install does not preserve it (issue #88)`);

@@ -30,10 +30,7 @@ const {
 } = require('./distribution-projection-contract');
 const {
   TREE_FINGERPRINT_ALGORITHM,
-  collectDirectoryEntries,
-  requireTreeMerkle,
   sha256Hex,
-  treeFingerprint,
   treeNodeFingerprint,
   fingerprintPath,
   fingerprintPath: fingerprintDir,
@@ -529,8 +526,6 @@ function buildManifest({ name, version, variables, componentDirs, hasHooks }) {
   return manifest;
 }
 
-// options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
-// the only recipe; any other value throws the version-boundary diagnostic.
 
 function collectCursorPhysicalTree(source, destination = '', { sourceRoot, filter = () => true, budget = null, depth = 0 } = {}) {
   const traversalBudget = budget || createTraversalBudget();

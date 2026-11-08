@@ -45,8 +45,6 @@ const {
 const {
   canonicalJson: stableStringify,
   TREE_FINGERPRINT_ALGORITHM,
-  collectDirectoryEntries,
-  requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
   fingerprintPath: fingerprintDir,
@@ -604,9 +602,6 @@ function selectPortableSkills(inventory, surface = 'agent-plugin', selectedStabl
   }).sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
 }
 
-// options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
-// the only recipe; any other value throws the version-boundary diagnostic.
-// Verifiers read the package marker with packageFingerprintAlgorithm first.
 
 function readManifestMetadata(root, manifestMetadata) {
   if (manifestMetadata && typeof manifestMetadata === 'object') return manifestMetadata;
