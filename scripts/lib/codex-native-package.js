@@ -17,11 +17,17 @@ const crypto = require('node:crypto');
 const {
   TREE_FINGERPRINT_ALGORITHM,
   collectDirectoryEntries,
-  inventoryDigestInsertionOrder,
   requireTreeMerkle,
   treeFingerprint,
 } = require('./content-fingerprint');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
+const {
+  RECEIPT_SCHEMA,
+  SURFACE_OWNERS,
+  resolveGeneratedFromTree,
+  createInstallationReceiptIdentity,
+  packageInventoryDigest,
+  serializePackageReceipt,
+} = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -659,7 +665,7 @@ function compileNativePackage({
   // projection metadata are bound separately through selectionFingerprint, so
   // adding either policy must not invalidate the legacy compatibility package
   // byte identity.
-  const inventoryDigest = inventoryDigestInsertionOrder(inventory);
+  const inventoryDigest = packageInventoryDigest('codex-native', inventory);
   const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
   const provenance = {
     schema: RECEIPT_SCHEMA,
@@ -735,8 +741,9 @@ function compileNativePackage({
       unavailableCapabilities: profileSelection.unavailableCapabilities || [],
     } : {}),
   };
-  const fingerprintsContent = `${JSON.stringify(fingerprints, null, 2)}\n`;
-  const provenanceContent = `${JSON.stringify(provenance, null, 2)}\n`;
+  const receiptText = serializePackageReceipt('codex-native', { provenance, fingerprints });
+  const fingerprintsContent = receiptText.fingerprints;
+  const provenanceContent = receiptText.provenance;
   traversalBudget.accountBytes(Buffer.byteLength(fingerprintsContent), 'fingerprints.json');
   traversalBudget.accountBytes(Buffer.byteLength(provenanceContent), 'provenance.json');
   files.push(nativeOutputRecord('manifest:fingerprints', 'generated/fingerprints.json', 'fingerprints.json', fingerprintsContent, undefined, 0o644));
