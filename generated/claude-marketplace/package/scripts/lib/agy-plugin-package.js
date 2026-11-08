@@ -27,6 +27,8 @@ const {
   readDirectoryEntries,
   lstatOrNull,
   isInside,
+  assertPhysicalDirectory,
+  ensurePhysicalDirectory,
 } = require('./bounded-filesystem');
 const {
   canonicalJson: stableStringify,
@@ -36,6 +38,7 @@ const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { compileDistribution } = require('./distribution-compiler');
 const { hostPackageAdapter, publishHostPackage } = require('./host-package-pipeline');
 const { containsSecret } = require('./secret-patterns');
+const { sanitizeMarkdownLinks } = require('./markdown-link-sanitizer');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { NATIVE_AGENT_TRAP_FILES, collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { NATIVE_AGENT_SUPPORT_FILES, rewriteAgyNativeAgentBody, agyNativeAgentClosureErrors } = require('./native-agent-support');
@@ -55,7 +58,6 @@ const {
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
 const PACKAGE_SCHEMA = PACKAGE_RECEIPT_SURFACES[SURFACE].schema;
-const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const COMMIT = /^[a-f0-9]{40}$/i;
 const SAFE_RELATIVE = /^[^\\]+(?:\/[^\\]+)*$/;
@@ -102,28 +104,6 @@ function assertSafeRelative(relative, label = 'path') {
     throw new Error(`${label} escapes its root: ${relative}`);
   }
   return relative;
-}
-
-function assertPhysicalDirectory(directory, label) {
-  const resolved = path.resolve(directory);
-  let current = resolved;
-  while (true) {
-    const stat = lstatOrNull(current);
-    if (stat && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-  const stat = lstatOrNull(resolved);
-  if (stat && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${resolved}`);
-  if (stat && !stat.isDirectory()) throw new Error(`${label} must be a directory: ${resolved}`);
-  return resolved;
-}
-
-function ensureDirectory(directory, label) {
-  const resolved = assertPhysicalDirectory(directory, label);
-  if (!lstatOrNull(resolved)) fs.mkdirSync(resolved, { recursive: true });
-  return resolved;
 }
 
 function sortedEntries(directory, budget = createTraversalBudget()) {
@@ -191,20 +171,6 @@ function serializeAgySkillMarkdown(content, label) {
   const result = serializePortableSkillMetadata(content);
   if (!result.ok) throw new Error(`${label} has invalid metadata: ${result.errors.join('; ')}`);
   return result.output;
-}
-
-function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
-  return String(content).replace(/(\[[^\]]*\])\(([^)]+)\)/g, (whole, label, rawTarget) => {
-    const target = rawTarget.trim();
-    if (!target || target.startsWith('#') || /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/)/.test(target)) return whole;
-    const pathPart = target.split('#', 1)[0].trim();
-    if (!pathPart) return whole;
-    const resolved = path.resolve(path.dirname(sourceFile), pathPart);
-    if (!isInside(canonicalRoot, resolved) || !fs.existsSync(resolved)) return label;
-    const relative = path.relative(canonicalRoot, resolved).split(path.sep).join('/');
-    const fragment = target.includes('#') ? `#${target.split('#').slice(1).join('#')}` : '';
-    return `${label}(${CANONICAL_REPOSITORY_URL}${relative}${fragment})`;
-  });
 }
 
 function adaptAgySkillContent(content, selectedSkillIds) {
@@ -434,7 +400,7 @@ function compileAgyPluginPackage({
     ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
     : undefined;
   const destination = path.resolve(outDir);
-  const parent = ensureDirectory(path.dirname(destination), 'AGY output parent');
+  const parent = ensurePhysicalDirectory(path.dirname(destination), 'AGY output parent');
   if (!isInside(parent, destination)) throw new Error(`AGY output escapes its parent: ${destination}`);
 
   const emission = createEmission();

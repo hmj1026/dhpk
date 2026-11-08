@@ -40,6 +40,7 @@ const {
   assertPhysicalAncestors,
   ensurePhysicalDirectory,
   physicalPackageRootError,
+  findSymlinks,
 } = require('./bounded-filesystem');
 const {
   canonicalJson: stableStringify,
@@ -48,6 +49,7 @@ const {
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
+  fingerprintPath: fingerprintDir,
 } = require('./content-fingerprint');
 const { compileDistribution, verifyDistribution } = require('./distribution-compiler');
 const { hostPackageAdapter, publishHostPackage, skillEntryFields } = require('./host-package-pipeline');
@@ -102,38 +104,6 @@ function safeMcpPlaceholder(value) {
 
 function containsMcpCredential(value) {
   return typeof value === 'string' && MCP_SECRET_PATTERNS.some((pattern) => pattern.test(value));
-}
-
-function confinedChild(parent, name, label = 'package child') {
-  if (typeof name !== 'string' || name.length === 0 || name.includes('/') || name.includes('\\')) {
-    throw new Error(`${label} must be a single path component: ${name}`);
-  }
-  const candidate = path.resolve(parent, name);
-  if (path.dirname(candidate) !== path.resolve(parent)) throw new Error(`${label} escapes its parent: ${name}`);
-  return candidate;
-}
-
-function findSymlinks(directory, options = {}) {
-  const budget = createTraversalBudget(options);
-  const walk = (current, depth) => {
-    const found = [];
-    const stat = lstatOrNull(current);
-    if (!stat) return found;
-    if (stat.isSymbolicLink()) return [current];
-    if (!stat.isDirectory()) return found;
-    const realDirectory = budget.enterDirectory(current, depth);
-    try {
-      for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: true })) {
-        const child = path.join(current, entry.name);
-        if (entry.isSymbolicLink()) found.push(child);
-        else if (entry.isDirectory()) found.push(...walk(child, depth + 1));
-      }
-      return found;
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  return walk(directory, 0);
 }
 
 function listNestedSkillMarkdownFiles(directory, options = {}) {
@@ -233,6 +203,8 @@ function loadPublishedSourcePaths(root, sourceCommit) {
   return published;
 }
 
+// Deliberately differs from the shared Cursor/AGY sanitizer (#1248): links bind
+// to files tracked in the provenance source, not to whatever exists on disk.
 function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot, options = {}) {
   const { publishedSourcePaths = null, sourceScope = null } = options;
   return String(content).replace(/(\[[^\]]*\])\(([^)]+)\)/g, (whole, label, rawTarget) => {
@@ -635,13 +607,6 @@ function selectPortableSkills(inventory, surface = 'agent-plugin', selectedStabl
 // options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
 // the only recipe; any other value throws the version-boundary diagnostic.
 // Verifiers read the package marker with packageFingerprintAlgorithm first.
-function fingerprintDir(directory, options = {}) {
-  requireTreeMerkle(options.algorithm === undefined ? TREE_FINGERPRINT_ALGORITHM : options.algorithm, 'fingerprintAlgorithm');
-  const budget = createTraversalBudget(options);
-  const entries = collectDirectoryEntries(directory, { budget, order: 'locale', skipBytecode: true, symlinks: 'refuse' })
-    .filter((entry) => entry.type === 'file');
-  return treeFingerprint(entries);
-}
 
 function readManifestMetadata(root, manifestMetadata) {
   if (manifestMetadata && typeof manifestMetadata === 'object') return manifestMetadata;

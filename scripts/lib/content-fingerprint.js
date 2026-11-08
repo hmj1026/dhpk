@@ -318,7 +318,25 @@ function collectDirectoryEntries(directory, options = {}) {
   return entries;
 }
 
+// Fingerprint of one file or one directory tree under tree-merkle-v1. Walk
+// order does not matter: tree digests re-sort children by code unit.
+function fingerprintPath(target, options = {}) {
+  requireTreeMerkle(options.algorithm === undefined ? TREE_FINGERPRINT_ALGORITHM : options.algorithm, 'fingerprintAlgorithm');
+  let stat;
+  try { stat = fs.lstatSync(target); } catch (error) { if (error && error.code === 'ENOENT') return ''; throw error; }
+  if (stat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${target}`);
+  const budget = createTraversalBudget(options);
+  if (stat.isFile()) {
+    const file = [{ path: 'node', type: 'file', content: budget.readFile(target, stat) }];
+    return treeNodeFingerprint(file, 'node');
+  }
+  if (!stat.isDirectory()) throw new Error(`cannot fingerprint special entry: ${target}`);
+  const walked = collectDirectoryEntries(target, { budget, skipBytecode: true, symlinks: 'refuse' });
+  return treeFingerprint(walked.filter((entry) => entry.type === 'file'));
+}
+
 module.exports = {
+  fingerprintPath,
   sha256Hex,
   canonicalJson,
   canonicalJsonSha256Prefixed,

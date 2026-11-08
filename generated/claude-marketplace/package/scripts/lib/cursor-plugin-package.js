@@ -35,6 +35,8 @@ const {
   sha256Hex,
   treeFingerprint,
   treeNodeFingerprint,
+  fingerprintPath,
+  fingerprintPath: fingerprintDir,
 } = require('./content-fingerprint');
 const { selectPortableSkills } = require('./agent-plugin-package');
 const {
@@ -46,6 +48,7 @@ const {
   verifyDistribution,
 } = require('./distribution-compiler');
 const { hostPackageAdapter, publishHostPackage, skillEntryFields } = require('./host-package-pipeline');
+const { sanitizeMarkdownLinks } = require('./markdown-link-sanitizer');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { RULE_ACTIVATION_MAP, canonicalRulePath } = require('./rule-activation-map');
@@ -63,6 +66,7 @@ const {
   assertPhysicalAncestors,
   ensurePhysicalDirectory,
   physicalPackageRootError,
+  findSymlinks,
 } = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
@@ -133,7 +137,6 @@ const CURSOR_PROBE_ENV_KEYS = Object.freeze([
   'HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA',
   'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME',
 ]);
-const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
 const CURSOR_MANIFEST_FIELDS = new Set([
   '$schema',
   'name',
@@ -242,29 +245,6 @@ function assertPhysicalPackageRoot(directory, label = 'package') {
   return resolved;
 }
 
-function findSymlinks(directory, options = {}) {
-  const budget = createTraversalBudget(options);
-  const walk = (current, depth) => {
-    const found = [];
-    const stat = lstatOrNull(current);
-    if (!stat) return found;
-    if (stat.isSymbolicLink()) return [current];
-    if (!stat.isDirectory()) return found;
-    const realDirectory = budget.enterDirectory(current, depth);
-    try {
-      for (const entry of readDirectoryEntries(current, { budget })) {
-        const child = path.join(current, entry.name);
-        if (entry.isSymbolicLink()) found.push(child);
-        else if (entry.isDirectory()) found.push(...walk(child, depth + 1));
-      }
-      return found;
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  return walk(directory, 0);
-}
-
 function stripLeadingDotSlash(value) {
   return String(value).replace(/^\.\//, '');
 }
@@ -297,13 +277,6 @@ function assertProjectionDestination(root, outDir, label) {
   assertPhysicalAncestors(path.dirname(resolvedOut), `${label} output`);
   const existing = lstatOrNull(resolvedOut);
   if (existing && existing.isSymbolicLink()) throw new Error(`${label} output must not be a symlink: ${resolvedOut}`);
-}
-
-function confinedChild(parent, name) {
-  if (!isSafeRelativePath(name)) throw new Error(`Cursor output path is unsafe: ${name}`);
-  const child = path.resolve(parent, stripLeadingDotSlash(name));
-  if (path.dirname(child) !== path.resolve(parent)) throw new Error(`Cursor output path escapes its parent: ${name}`);
-  return child;
 }
 
 function parseScalar(value) {
@@ -373,20 +346,6 @@ function adaptSkill(content, publicName) {
   const body = rewriteCursorHarnessBody(parsed.body);
   if (retainsClaudePluginRoot(body)) return { ok: false, reason: 'retains unsupported Claude plugin-root interpolation' };
   return { ok: true, content: renderFrontmatter({ name, description }, body), transform: 'agent-skills-frontmatter' };
-}
-
-function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
-  return String(content).replace(/(\[[^\]]*\])\(([^)]+)\)/g, (whole, label, rawTarget) => {
-    const target = rawTarget.trim();
-    if (!target || target.startsWith('#') || /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/)/.test(target)) return whole;
-    const pathPart = target.split('#', 1)[0].trim();
-    if (!pathPart) return whole;
-    const resolved = path.resolve(path.dirname(sourceFile), pathPart);
-    if (!isInside(canonicalRoot, resolved) || !fs.existsSync(resolved)) return label;
-    const relative = path.relative(canonicalRoot, resolved).split(path.sep).join('/');
-    const fragment = target.includes('#') ? `#${target.split('#').slice(1).join('#')}` : '';
-    return `${label}(${CANONICAL_REPOSITORY_URL}${relative}${fragment})`;
-  });
 }
 
 function adaptNativeDocument(content, kind, basename, sourceFile = null, canonicalRoot = null, locator = 'project-sync') {
@@ -572,24 +531,6 @@ function buildManifest({ name, version, variables, componentDirs, hasHooks }) {
 
 // options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
 // the only recipe; any other value throws the version-boundary diagnostic.
-function fingerprintPath(target, options = {}) {
-  requireTreeMerkle(options.algorithm === undefined ? TREE_FINGERPRINT_ALGORITHM : options.algorithm, 'fingerprintAlgorithm');
-  const stat = lstatOrNull(target);
-  if (!stat) return '';
-  if (stat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${target}`);
-  const budget = createTraversalBudget(options);
-  if (stat.isFile()) {
-    const file = [{ path: 'node', type: 'file', content: budget.readFile(target, stat) }];
-    return treeNodeFingerprint(file, 'node');
-  }
-  if (!stat.isDirectory()) throw new Error(`cannot fingerprint special entry: ${target}`);
-  const walked = collectDirectoryEntries(target, { budget, skipBytecode: true, symlinks: 'refuse' });
-  return treeFingerprint(walked.filter((entry) => entry.type === 'file'));
-}
-
-function fingerprintDir(directory, options = {}) {
-  return fingerprintPath(directory, options);
-}
 
 function collectCursorPhysicalTree(source, destination = '', { sourceRoot, filter = () => true, budget = null, depth = 0 } = {}) {
   const traversalBudget = budget || createTraversalBudget();
