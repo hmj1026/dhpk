@@ -3,7 +3,7 @@
 const path = require('node:path');
 
 function safeRelative(value, label) {
-  if (typeof value !== 'string' || value.length === 0 || value.includes('\\') || path.posix.isAbsolute(value)) {
+  if (typeof value !== 'string' || value.length === 0 || value.includes('\\') || path.posix.isAbsolute(value) || /^[A-Za-z]:/.test(value)) {
     throw new Error(`${label} must be a safe relative path`);
   }
   const normalized = path.posix.normalize(value);

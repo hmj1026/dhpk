@@ -47,6 +47,8 @@ const {
   assertPhysicalAncestors,
   physicalPackageRootError,
   isInside,
+  findSymlinks,
+  assertPhysicalDirectory,
 } = require('./bounded-filesystem');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
@@ -75,16 +77,6 @@ function realpathOrNull(candidate) {
   }
 }
 
-function assertPhysicalDirectory(directory, label) {
-  assertPhysicalAncestors(directory, label);
-  const stat = lstatOrNull(directory);
-  if (!stat) return;
-  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
-  if (fs.realpathSync(directory) !== path.resolve(directory)) {
-    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
-  }
-}
-
 function resolveCodexNativeProfileSelection({ root, inventory, profiles, moduleCatalog } = {}) {
   if (!root || !inventory) throw new Error('Codex native profile resolution requires root and inventory');
   const resolvedProfiles = profiles || JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'install-profiles.json'), 'utf8'));
@@ -106,30 +98,6 @@ function resolveCodexNativeProfileSelection({ root, inventory, profiles, moduleC
   const bound = bindSurfaceSelection({ selection: resolved.value, surface: 'codex-native', supportedStableIds });
   if (!bound.ok) throw new Error(`Codex native profile selection cannot be bound: ${bound.error.message}`);
   return bound.value;
-}
-
-// Walks packageRoot and reports any symlink found (a native package must be
-// 100% physical files — a symlink survives only as long as its target and the
-// source checkout that contains it both remain present, which a clean
-// marketplace cache install does not guarantee; see issue #88).
-function findSymlinks(dir, options = {}) {
-  const budget = createTraversalBudget(options);
-  const walk = (directory, depth) => {
-    const found = [];
-    if (!fs.existsSync(directory)) return found;
-    const realDirectory = budget.enterDirectory(directory, depth);
-    try {
-      for (const entry of readDirectoryEntries(directory, { budget })) {
-        const fp = path.join(directory, entry.name);
-        if (entry.isSymbolicLink()) found.push(fp);
-        else if (entry.isDirectory()) found.push(...walk(fp, depth + 1));
-      }
-      return found;
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  return walk(dir, 0);
 }
 
 function listNativeSkillMarkdownFiles(skillsRoot, options = {}) {
@@ -172,6 +140,9 @@ function validateNativeCandidate({ manifestSkillsField, packageRoot }) {
       if (realPackageRoot && realSkillsRoot && !isInside(realPackageRoot, realSkillsRoot)) {
         errors.push(`native candidate skills realpath escapes the package root: '${realSkillsRoot}' is not inside '${realPackageRoot}'`);
       }
+      // A native package must be 100% physical files: a symlink survives only
+      // while its target and source checkout remain, which a clean marketplace
+      // cache install does not guarantee (issue #88).
       for (const link of findSymlinks(skillsRoot)) {
         const rel = path.relative(packageRoot, link);
         errors.push(`symlink-dependent entry in native candidate: '${rel}' is a symlink; a clean marketplace cache install does not preserve it (issue #88)`);
@@ -1255,6 +1226,8 @@ function verifyNativePackage({
 // the only recipe; any other value throws the version-boundary diagnostic.
 // Verifiers pass the package's `fingerprintAlgorithm` marker through
 // requireTreeMerkle first, so a missing marker never reaches this default.
+// Deliberately stricter than the shared fingerprintPath (#1248): the Codex
+// package root and its ancestors must not be symlinked.
 function fingerprintDir(dir, options = {}) {
   requireTreeMerkle(options.algorithm === undefined ? TREE_FINGERPRINT_ALGORITHM : options.algorithm, 'fingerprintAlgorithm');
   const budget = createTraversalBudget(options);

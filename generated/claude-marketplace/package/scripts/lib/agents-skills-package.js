@@ -67,6 +67,8 @@ function stableStringify(value) {
   return JSON.stringify(stableClone(value));
 }
 
+// Deliberately bounded (#1248): the walk stops at `boundary` so a checkout under
+// a symlinked parent (for example /var on macOS) still works.
 function assertPhysicalAncestors(candidate, label, boundary = null) {
   let current = path.resolve(candidate);
   const stop = boundary ? path.resolve(boundary) : null;

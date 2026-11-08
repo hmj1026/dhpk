@@ -220,13 +220,50 @@ function ensurePhysicalDirectory(directory, label) {
   const stat = lstatOrNull(directory);
   if (!stat) {
     fs.mkdirSync(directory, { recursive: true });
-    return;
+    return path.resolve(directory);
   }
   if (stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
   if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
   if (fs.realpathSync(directory) !== path.resolve(directory)) {
     throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
   }
+  return path.resolve(directory);
+}
+
+// Like ensurePhysicalDirectory but never creates: a missing directory passes.
+function assertPhysicalDirectory(directory, label) {
+  assertPhysicalAncestors(directory, label);
+  const stat = lstatOrNull(directory);
+  if (!stat) return path.resolve(directory);
+  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
+  if (fs.realpathSync(directory) !== path.resolve(directory)) {
+    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
+  }
+  return path.resolve(directory);
+}
+
+// Every symlink at or below `directory`, the root itself included.
+function findSymlinks(directory, options = {}) {
+  const budget = createTraversalBudget(options);
+  const walk = (current, depth) => {
+    const found = [];
+    const stat = lstatOrNull(current);
+    if (!stat) return found;
+    if (stat.isSymbolicLink()) return [current];
+    if (!stat.isDirectory()) return found;
+    const realDirectory = budget.enterDirectory(current, depth);
+    try {
+      for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: true })) {
+        const child = path.join(current, entry.name);
+        if (entry.isSymbolicLink()) found.push(child);
+        else if (entry.isDirectory()) found.push(...walk(child, depth + 1));
+      }
+      return found;
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  return walk(directory, 0);
 }
 
 function physicalPackageRootError(directory, label) {
@@ -248,6 +285,8 @@ module.exports = {
   isInside,
   assertPhysicalAncestors,
   ensurePhysicalDirectory,
+  assertPhysicalDirectory,
+  findSymlinks,
   physicalPackageRootError,
   DEFAULT_TRAVERSAL_LIMITS,
   createTraversalBudget,
