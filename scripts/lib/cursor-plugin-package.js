@@ -14,7 +14,14 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
+const {
+  RECEIPT_SCHEMA,
+  SURFACE_OWNERS,
+  resolveGeneratedFromTree,
+  createInstallationReceiptIdentity,
+  packageInventoryDigest,
+  serializePackageReceipt,
+} = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -23,7 +30,6 @@ const {
 const {
   TREE_FINGERPRINT_ALGORITHM,
   collectDirectoryEntries,
-  inventoryDigestInsertionOrder,
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
@@ -1016,7 +1022,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     sourceCommit,
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
-    inventoryDigest: inventoryDigestInsertionOrder(inventory),
+    inventoryDigest: packageInventoryDigest('cursor-plugin', inventory),
     inventoryRevision,
     generatorVersion,
     fingerprintAlgorithm: TREE_FINGERPRINT_ALGORITHM,
@@ -1051,7 +1057,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     fingerprints,
     ...(installationSelectedIds.length > 0 ? { installation: createInstallationReceiptIdentity({
       surface: 'cursor-plugin', scope: 'project', sourceVersion: version,
-      inventoryDigest: inventoryDigestInsertionOrder(inventory),
+      inventoryDigest: packageInventoryDigest('cursor-plugin', inventory),
       profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
       selectedStableIds: profileSelection && profileSelection.selectedStableIds || installationSelectedIds,
       supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -1083,8 +1089,9 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
       unavailableCapabilities: profileSelection.unavailableCapabilities || [],
     } : {}),
   };
-  const fingerprintsOutput = { source: 'generated/fingerprints.json', destination: 'fingerprints.json', content: Buffer.from(`${JSON.stringify(fingerprints, null, 2)}\n`), mode: 0o644 };
-  const provenanceOutput = { source: 'generated/provenance.json', destination: 'provenance.json', content: Buffer.from(`${JSON.stringify(provenance, null, 2)}\n`), mode: 0o644 };
+  const receiptText = serializePackageReceipt('cursor-plugin', { provenance, fingerprints });
+  const fingerprintsOutput = { source: 'generated/fingerprints.json', destination: 'fingerprints.json', content: Buffer.from(receiptText.fingerprints), mode: 0o644 };
+  const provenanceOutput = { source: 'generated/provenance.json', destination: 'provenance.json', content: Buffer.from(receiptText.provenance), mode: 0o644 };
   traversalBudget.accountBytes(fingerprintsOutput.content.byteLength, fingerprintsOutput.destination);
   traversalBudget.accountBytes(provenanceOutput.content.byteLength, provenanceOutput.destination);
   files.push(fingerprintsOutput);
@@ -1164,7 +1171,7 @@ function compileCursorPackage({
         || (selectionMode !== 'legacy' && (!projection.selection || !projection.selection.selectionPolicy)),
       surface: 'cursor-plugin',
       compilerVersion: `cursor-${generatorVersion}`,
-      inventoryFingerprint: inventoryDigestInsertionOrder(inventory),
+      inventoryFingerprint: packageInventoryDigest('cursor-plugin', inventory),
       inventoryRevision,
       ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
       // Plan identity is a contract identity, not a host-specific temp path.
@@ -1681,7 +1688,7 @@ function validateCursorPackage(input = {}) {
         } catch (error) {
           errors.push(`Cursor runtime support inventory is invalid: ${error.message}`);
         }
-        if (provenance.inventoryDigest !== inventoryDigestInsertionOrder(inventory)) {
+        if (provenance.inventoryDigest !== packageInventoryDigest('cursor-plugin', inventory)) {
           errors.push('Cursor provenance inventoryDigest does not match the validation inventory');
         } else if (JSON.stringify(declaredRuntimeSupportIds) !== JSON.stringify(expectedRuntimeSupportIds)) {
           errors.push('Cursor provenance runtime support IDs do not match the validation inventory');
