@@ -35,10 +35,9 @@ const {
 } = require('./distribution-projection-contract');
 const {
   compileDistribution,
-  materializeDistribution,
   verifyDistribution,
 } = require('./distribution-compiler');
-const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { hostPackageAdapter, publishHostPackage, skillEntryFields } = require('./host-package-pipeline');
 const {
   createTraversalBudget,
   readFileBounded,
@@ -733,16 +732,7 @@ function compileNativePackage({
     expectedFingerprint: crypto.createHash('sha256').update(file.content).digest('hex'),
     mode: file.mode,
     symlinkPolicy: 'forbid',
-    ...(file.skillId ? {
-      skillId: file.skillId,
-      publicName: file.publicName,
-      invocationClass: file.invocationClass,
-      lifecycle: file.lifecycle,
-      usageSchema: file.usageSchema,
-      usage: file.usage,
-      usageFingerprint: file.usageFingerprint,
-      provenance: file.provenance,
-    } : {}),
+    ...skillEntryFields(file),
   }));
   const compiled = compileDistribution({
     internalCharacterization: Boolean(hostPublication) || (selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy)),
@@ -792,26 +782,22 @@ function compileNativePackage({
     surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
-  const adapter = {
-    identity: { id: 'codex-native', version: generatorVersion },
-    render: () => ({
-      adapter: { id: 'codex-native', version: generatorVersion },
-      outputs: files.slice().sort((a, b) => a.destination.localeCompare(b.destination)),
-      links: [],
-      metadata: {
-        manifest,
-        manifestSkillsField: manifest.skills,
-        skillIds: selectedSkillIds,
-        skillNames: selectedSkillNames,
-        materializedSkillIds,
-        materializedSkillNames,
-        fingerprints,
-        provenance,
-        routingProjection,
-      },
-    }),
-    validate: (rendered, context) => {
-      if (!context || !context.session || !context.session.stageRoot) return rendered;
+  const adapter = hostPackageAdapter({
+    surface: 'codex-native',
+    version: generatorVersion,
+    renderOutputs: () => files.slice().sort((a, b) => a.destination.localeCompare(b.destination)),
+    metadata: {
+      manifest,
+      manifestSkillsField: manifest.skills,
+      skillIds: selectedSkillIds,
+      skillNames: selectedSkillNames,
+      materializedSkillIds,
+      materializedSkillNames,
+      fingerprints,
+      provenance,
+      routingProjection,
+    },
+    validateStage: (stageRoot, rendered) => {
       const expectedRouting = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
       const metadataParity = compareRoutingProjections({
         expected: expectedRouting,
@@ -834,8 +820,8 @@ function compileNativePackage({
       if (!artifactParity.ok) {
         throw new Error(`Codex routing projection artifact drift: ${artifactParity.diagnostics.join('; ')}`);
       }
-      const structural = validateNativeCandidate({ manifestSkillsField: rendered.metadata.manifestSkillsField, packageRoot: context.session.stageRoot });
-      const stagedSkillsRoot = path.join(context.session.stageRoot, 'skills');
+      const structural = validateNativeCandidate({ manifestSkillsField: rendered.metadata.manifestSkillsField, packageRoot: stageRoot });
+      const stagedSkillsRoot = path.join(stageRoot, 'skills');
       const stagedSkillsStat = lstatOrNull(stagedSkillsRoot);
       const membership = validateNativeMembership({
         candidateSkillNames: stagedSkillsStat && stagedSkillsStat.isDirectory() && !stagedSkillsStat.isSymbolicLink()
@@ -847,15 +833,14 @@ function compileNativePackage({
       });
       const identity = validateNativeSkillIdentity({
         manifestSkillsField: rendered.metadata.manifestSkillsField,
-        packageRoot: context.session.stageRoot,
+        packageRoot: stageRoot,
         inventory,
         publicationView: hostPublication,
       });
       const errors = [...structural.errors, ...membership.errors, ...identity.errors];
       if (errors.length > 0) throw new Error(`generated Codex native package failed validation: ${errors.join('; ')}`);
-      return rendered;
     },
-  };
+  });
   return {
     plan: compiled.value,
     adapter,
@@ -918,15 +903,14 @@ function materializeNativePackage({
     publication,
   });
   const parent = path.dirname(resolvedOut);
-  const store = artifactStore || new ProjectionArtifactStore({
+  const published = publishHostPackage('codex-native', projection, {
     root: parent,
     sourceRoot: resolvedRoot,
     publishRoot: resolvedOut,
-    ownership: { owner: SURFACE_OWNERS['codex-native'] },
+    artifactStore,
+    failurePrefix: 'generated Codex native package failed validation',
   });
-  const artifact = materializeDistribution(projection.plan, projection.adapter, store);
-  if (!artifact.ok) throw new Error(`generated Codex native package failed validation: ${artifact.error.message}`);
-  const metadata = artifact.value.metadata || {};
+  const metadata = published.metadata || {};
   return {
     manifestSkillsField: metadata.manifestSkillsField || './skills/',
     skillIds: metadata.materializedSkillIds || projection.materializedSkillIds || metadata.skillIds || projection.selectedSkillIds,
@@ -934,7 +918,7 @@ function materializeNativePackage({
     fingerprints: metadata.fingerprints || projection.fingerprints,
     provenance: metadata.provenance || projection.provenance,
     routingProjection: metadata.routingProjection || projection.routingProjection,
-    artifact: artifact.value,
+    artifact: published,
   };
 }
 
