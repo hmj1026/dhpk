@@ -28,7 +28,8 @@ const {
 const { resolveStandaloneSkillDependencies } = require('./standalone-skill-dependencies');
 const { planRetiredAgentSkills } = require('./agents-skills-retirement');
 const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
-const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { ProjectionArtifactStore, safeRelative } = require('./projection-artifact-store');
+const { containsSecret } = require('./secret-patterns');
 const {
   materializeRelocatableAgentsSkillsProjection,
   validateRelocatableAgentsSkillsProjection,
@@ -53,11 +54,6 @@ const UNMARKED_RECEIPT_GENERATOR_VERSION = '1.1.0';
 const RECEIPT_NAME = '.dhpk-projection.json';
 const SAFE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
-const SECRET_PATTERNS = [
-  /\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{20,}\b/i,
-  /\bsk-[A-Za-z0-9_-]{20,}\b/i,
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?(?!\$\{)[A-Za-z0-9._~+\/-]{16,}/i,
-];
 
 function stableClone(value) {
   if (Array.isArray(value)) return value.map(stableClone);
@@ -118,7 +114,9 @@ function assertSafeRelative(relative, label) {
     throw new Error(`${label} must be a non-empty relative path`);
   }
   const normalized = path.posix.normalize(relative);
-  if (normalized !== relative || normalized === '.' || normalized === '..' || normalized.startsWith('../') || path.posix.isAbsolute(relative)) {
+  // safeRelative also rejects backslashes and drive prefixes; receipt paths
+  // come back from the consumer's output tree and are not trusted (#1248).
+  if (normalized !== relative || normalized === '.' || normalized === '..' || normalized.startsWith('../') || path.posix.isAbsolute(relative) || !safeRelative(relative)) {
     throw new Error(`${label} escapes the projection root: ${relative}`);
   }
   return relative;
@@ -207,10 +205,6 @@ function readSkillFiles(files, budget) {
     output.push({ path: relative, digest: sha256Hex(content), content, mode: sourceStat ? sourceStat.mode & 0o7777 : 0o644 });
   }
   return output;
-}
-
-function containsSecret(content) {
-  return SECRET_PATTERNS.some((pattern) => pattern.test(String(content)));
 }
 
 function parseSelectedSkill(root, entry) {

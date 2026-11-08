@@ -110,6 +110,29 @@ function resealProjectReceipt(receipt) {
   receipt.receiptFingerprint = crypto.createHash('sha256').update(JSON.stringify(sort(payload))).digest('hex');
 }
 
+test('a receipt path with a drive prefix or backslash is rejected as unsafe', () => {
+  for (const unsafe of ['C:/outside', 'dhpk-sample\\..\\escape']) {
+    const root = makeFixture();
+    const outDir = path.join(root, '.agents', 'skills');
+    try {
+      materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+      const receiptPath = path.join(outDir, '.dhpk-projection.json');
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      const key = Array.isArray(receipt.managedPaths) ? 'managedPaths' : 'files';
+      assert.ok(Array.isArray(receipt[key]), Object.keys(receipt).join(','));
+      receipt[key] = [...receipt[key], unsafe];
+      // A well-formed fingerprint, so the check that rejects the entry is the path check.
+      if (receipt.generatedFingerprints) receipt.generatedFingerprints[unsafe] = 'a'.repeat(64);
+      fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+      const checked = validateAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+      assert.strictEqual(checked.ok, false);
+      assert.ok(checked.errors.some((error) => error.includes(`receipt path escapes the projection root: ${unsafe}`)), `${unsafe}: ${checked.errors.join('; ')}`);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test('materializes Cursor and AGY skill shapes from one canonical package', () => {
   const root = makeFixture();
   const outDir = path.join(root, '.agents', 'skills');
