@@ -691,7 +691,6 @@ function fingerprintDir(directory, options = {}) {
   return treeFingerprint(entries);
 }
 
-
 function readManifestMetadata(root, manifestMetadata) {
   if (manifestMetadata && typeof manifestMetadata === 'object') return manifestMetadata;
   const candidate = path.join(root, '.claude-plugin', 'plugin.json');

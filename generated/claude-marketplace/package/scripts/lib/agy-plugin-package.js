@@ -15,6 +15,7 @@ const {
   createInstallationReceiptIdentity,
   resolveGeneratedFromTree,
   validateSurfaceReceipt,
+  PACKAGE_RECEIPT_SURFACES,
   packageInventoryDigest,
   readPackageReceipt,
   serializePackageReceipt,
@@ -46,10 +47,9 @@ const {
 
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
-const PACKAGE_SCHEMA = 'dhpk.agy-plugin.v1';
+const PACKAGE_SCHEMA = PACKAGE_RECEIPT_SURFACES[SURFACE].schema;
 const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-const SHA256 = /^[a-f0-9]{64}$/i;
 const COMMIT = /^[a-f0-9]{40}$/i;
 const SAFE_RELATIVE = /^[^\\]+(?:\/[^\\]+)*$/;
 const PACKAGE_FILES = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
@@ -373,7 +373,7 @@ function assertOwnedOutputRoot(outDir) {
     throw new Error('refusing to replace changed AGY provenance');
   }
   const checked = validateSurfaceReceipt({ ...provenance, schema: 'dhpk.platform-provenance.v1' }, SURFACE);
-  if (!checked.ok || provenance.schema !== PACKAGE_SCHEMA || provenance.owner !== 'plugins/dhpk-agy' || provenance.packageRoot !== 'plugins/dhpk-agy') {
+  if (!checked.ok || provenance.schema !== PACKAGE_SCHEMA || provenance.owner !== 'plugins/dhpk-agy' || provenance.packageRoot !== PACKAGE_RECEIPT_SURFACES[SURFACE].packageRoot) {
     throw new Error(`refusing to replace foreign or invalid AGY output: ${checked.errors.join('; ')}`);
   }
   const files = outputFiles(outDir);

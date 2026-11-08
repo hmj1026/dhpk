@@ -795,7 +795,6 @@ function cursorVirtualFingerprint(files, prefix) {
   );
 }
 
-
 function cursorReadmeContents() {
   return {
     'README.md': [

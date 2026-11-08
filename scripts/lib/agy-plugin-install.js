@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { PACKAGE_SCHEMA, validateAgyPluginPackage } = require('./agy-plugin-package');
-const { readPackageProvenance, serializePackageReceipt } = require('./platform-provenance');
+const { readPackageProvenance } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const {
   loadAgyPathContract,
@@ -185,7 +185,7 @@ function readReceipt(root) {
   if (!receiptStat) return null;
   if (receiptStat.isSymbolicLink() || !receiptStat.isFile()) throw new Error('AGY target receipt is not a regular file');
   // The installed Package Receipt is this installer's ownership record.
-  const checked = readPackageProvenance(root, { surface: SURFACE });
+  const checked = readPackageProvenance(root, { surface: SURFACE, requirePackageRoot: false });
   if (!checked.ok) throw new Error(`AGY target receipt is not owned by dhpk: ${checked.errors.join('; ')}`);
   return checked.provenance;
 }
@@ -423,10 +423,11 @@ function metadataMatches(root, relative, receipt, budget = null) {
   const content = budget
     ? budget.readFile(target, stat, `AGY metadata path: ${relative}`)
     : readFileBounded(target);
-  const expected = serializePackageReceipt(SURFACE, { provenance: receipt, fingerprints: receipt.fingerprints || {} });
-  if (relative === 'provenance.json') return content.toString('utf8') === expected.provenance;
+  if (relative === 'provenance.json') {
+    return content.toString('utf8') === `${JSON.stringify(receipt)}\n`;
+  }
   if (relative !== 'fingerprints.json') return false;
-  return content.toString('utf8') === expected.fingerprints;
+  return content.toString('utf8') === `${JSON.stringify({ files: receipt.fingerprints || {}, schema: PACKAGE_SCHEMA })}\n`;
 }
 
 function inspectReceiptOwnership(root, receipt) {

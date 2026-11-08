@@ -512,7 +512,7 @@ function sameFingerprintMap(left, right) {
   return canonicalJson(left || {}) === canonicalJson(right || {});
 }
 
-function checkPackageProvenance(surface, provenance, { allowPreview = false } = {}) {
+function checkPackageProvenance(surface, provenance, { allowPreview = false, requirePackageRoot = true } = {}) {
   const config = packageReceiptSurface(surface);
   if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
     return { objectShaped: false, fingerprintAlgorithm: null, errors: ['provenance.json must be an object'] };
@@ -522,7 +522,7 @@ function checkPackageProvenance(surface, provenance, { allowPreview = false } = 
   const shared = config.schema ? { ...provenance, schema: RECEIPT_SCHEMA } : provenance;
   if (config.schema && provenance.schema !== config.schema) errors.push(`provenance schema must be ${config.schema}`);
   errors.push(...validateSurfaceReceipt(shared, surface, { allowPreview }).errors);
-  if (config.packageRoot && provenance.packageRoot !== config.packageRoot) errors.push('provenance packageRoot is not owner-scoped');
+  if (requirePackageRoot && config.packageRoot && provenance.packageRoot !== config.packageRoot) errors.push('provenance packageRoot is not owner-scoped');
   if (config.requiresFingerprintAlgorithm) {
     try {
       fingerprintAlgorithm = requireTreeMerkle(provenance.fingerprintAlgorithm, 'fingerprintAlgorithm');
@@ -535,11 +535,12 @@ function checkPackageProvenance(surface, provenance, { allowPreview = false } = 
 
 // Ownership is proven by provenance.json alone; fingerprints.json is metadata
 // the owner checks separately (an installed AGY copy with damaged metadata is
-// still owned, only changed).
-function readPackageProvenance(packageRoot, { surface, allowPreview = false } = {}) {
+// still owned, only changed). Installed copies have always been accepted
+// without the packageRoot check, so callers can keep that.
+function readPackageProvenance(packageRoot, { surface, allowPreview = false, requirePackageRoot = true } = {}) {
   const errors = [];
   const provenance = readReceiptFile(packageRoot, PACKAGE_RECEIPT_FILES.provenance, errors);
-  if (provenance !== null) errors.push(...checkPackageProvenance(surface, provenance, { allowPreview }).errors);
+  if (provenance !== null) errors.push(...checkPackageProvenance(surface, provenance, { allowPreview, requirePackageRoot }).errors);
   return { ok: errors.length === 0, surface, provenance, errors };
 }
 

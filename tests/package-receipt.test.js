@@ -51,6 +51,9 @@ for (const pkg of PACKAGES) {
     const expected = pkg.order === 'key-sorted' ? inventoryDigestKeySorted(inventory) : inventoryDigestInsertionOrder(inventory);
     assert.strictEqual(receipts.packageInventoryDigest(pkg.surface, inventory), expected);
     assert.notStrictEqual(inventoryDigestKeySorted(inventory), inventoryDigestInsertionOrder(inventory));
+    const tracked = JSON.parse(fs.readFileSync(path.join(ROOT, pkg.root, 'provenance.json'), 'utf8'));
+    const sourceInventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    assert.strictEqual(receipts.packageInventoryDigest(pkg.surface, sourceInventory), tracked.inventoryDigest);
   });
 
   test(`${pkg.surface}: a changed, missing, or extra fingerprint is reported`, () => {
@@ -104,6 +107,12 @@ for (const pkg of PACKAGES) {
     assert.strictEqual(receipt.ok, false);
   });
 }
+
+test('agent-plugin: fingerprints.json takes the generator version the caller passes', () => {
+  const text = receipts.serializePackageReceipt('agent-plugin', { provenance: { generatorVersion: '1.0.0' }, fingerprints: { a: '0'.repeat(64) }, generatorVersion: '9.9.9' });
+  assert.strictEqual(JSON.parse(text.fingerprints).generatorVersion, '9.9.9');
+  assert.deepStrictEqual(Object.keys(JSON.parse(text.fingerprints)), ['generatorVersion', 'surface', 'skills']);
+});
 
 for (const pkg of PACKAGES.filter((candidate) => candidate.surface !== 'agy-plugin')) {
   test(`${pkg.surface}: a missing fingerprint recipe marker fails with the version-boundary diagnostic`, () => {
