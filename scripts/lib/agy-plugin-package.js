@@ -21,7 +21,13 @@ const {
   serializePackageReceipt,
   verifyPackageReceipt,
 } = require('./platform-provenance');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  lstatOrNull,
+  isInside,
+} = require('./bounded-filesystem');
 const {
   canonicalJson: stableStringify,
   sha256Hex,
@@ -88,20 +94,6 @@ const AGY_RULE_TRIGGER_MAP = Object.freeze(Object.fromEntries(
       description: entry.description,
     })]),
 ));
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
 
 function assertSafeRelative(relative, label = 'path') {
   if (typeof relative !== 'string' || relative.length === 0 || relative.includes('\0')) {

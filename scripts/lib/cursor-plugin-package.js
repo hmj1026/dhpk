@@ -59,6 +59,11 @@ const {
   readFileBounded,
   readDirectoryEntries,
   listFilesNamedRecursively,
+  lstatOrNull,
+  isInside,
+  assertPhysicalAncestors,
+  ensurePhysicalDirectory,
+  physicalPackageRootError,
 } = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
@@ -192,59 +197,6 @@ const SAFE_COMMAND_PATH = /^(?:\.?\/?[A-Za-z0-9._-]+)(?:\/[A-Za-z0-9._-]+)*$/;
 const URL_CREDENTIAL_PATTERN = /\bhttps?:\/\/[^\s/@]+:[^\s/@]+@/i;
 const CONNECTION_SECRET_PATTERN = /\b(?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql|redis):\/\/[^\s/@]+:[^\s/@]+@/i;
 
-function lstatOrNull(candidate) {
-  try {
-    return fs.lstatSync(candidate);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
-
-function assertPhysicalAncestors(directory, label) {
-  let current = path.resolve(directory);
-  while (true) {
-    const stat = lstatOrNull(current);
-    if (stat && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
-    const parent = path.dirname(current);
-    if (parent === current) return;
-    current = parent;
-  }
-}
-
-function ensurePhysicalDirectory(directory, label) {
-  assertPhysicalAncestors(directory, label);
-  const stat = lstatOrNull(directory);
-  if (!stat) {
-    fs.mkdirSync(directory, { recursive: true });
-    return;
-  }
-  if (stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
-  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
-  if (fs.realpathSync(directory) !== path.resolve(directory)) {
-    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
-  }
-}
-
-function physicalPackageRootError(directory) {
-  try {
-    assertPhysicalAncestors(directory, 'Cursor package root');
-    const stat = lstatOrNull(directory);
-    if (!stat || !stat.isDirectory()) return `Cursor package root must be a physical directory: ${directory}`;
-    if (fs.realpathSync(directory) !== path.resolve(directory)) {
-      return `Cursor package root realpath escapes its lexical root: ${directory}`;
-    }
-    return null;
-  } catch (error) {
-    return error.message;
-  }
-}
-
 function boundedPhysicalPackageScan(directory, options = {}) {
   const budget = createTraversalBudget({
     maxEntries: options.maxEntries === undefined ? MAX_OPERATOR_STAGE_ENTRIES : options.maxEntries,
@@ -276,7 +228,7 @@ function boundedPhysicalPackageScan(directory, options = {}) {
 
 function assertPhysicalPackageRoot(directory, label = 'package') {
   const resolved = path.resolve(directory);
-  const error = physicalPackageRootError(resolved);
+  const error = physicalPackageRootError(resolved, 'Cursor package root');
   if (error) throw new Error(`${label} is not a physical package root: ${error}`);
   try {
     // Keep the physical staging scan separate from the package identity
@@ -1263,7 +1215,7 @@ function verifyCursorPackage(input = {}, maybeOptions = {}) {
   const stage = options.stage || 'structural';
   const observedAt = options.observedAt;
   const resolvedPackageRoot = packageRoot ? path.resolve(packageRoot) : '';
-  const packageRootError = packageRoot ? physicalPackageRootError(resolvedPackageRoot) : null;
+  const packageRootError = packageRoot ? physicalPackageRootError(resolvedPackageRoot, 'Cursor package root') : null;
   if (packageRootError) {
     const structural = { ok: false, errors: [packageRootError], skippedSkills: [] };
     return {
@@ -1559,7 +1511,7 @@ function validateCursorPackage(input = {}) {
   const skippedSkills = [];
   if (!packageRoot) return { ok: false, errors: ['Cursor packageRoot is required'], skippedSkills };
   const root = path.resolve(packageRoot);
-  const packageRootError = physicalPackageRootError(root);
+  const packageRootError = physicalPackageRootError(root, 'Cursor package root');
   if (packageRootError) return { ok: false, errors: [packageRootError], skippedSkills };
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return { ok: false, errors: [`Cursor package root does not exist: ${packageRoot}`], skippedSkills };
   for (const link of findSymlinks(root)) errors.push(`Cursor package contains symlink: ${path.relative(root, link).split(path.sep).join('/')}`);

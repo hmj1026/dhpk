@@ -35,6 +35,11 @@ const {
   readFileBounded,
   readDirectoryEntries,
   listFilesNamedRecursively,
+  lstatOrNull,
+  isInside,
+  assertPhysicalAncestors,
+  ensurePhysicalDirectory,
+  physicalPackageRootError,
 } = require('./bounded-filesystem');
 const {
   canonicalJson: stableStringify,
@@ -81,59 +86,6 @@ const MCP_SECRET_PATTERNS = [
   /\bsk-[A-Za-z0-9_-]{20,}\b/i,
 ];
 const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
-
-function lstatOrNull(candidate) {
-  try {
-    return fs.lstatSync(candidate);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-function isInside(parent, candidate) {
-  const rel = path.relative(path.resolve(parent), path.resolve(candidate));
-  return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel));
-}
-
-function assertPhysicalAncestors(directory, label) {
-  let current = path.resolve(directory);
-  while (true) {
-    const stat = lstatOrNull(current);
-    if (stat && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
-    const parent = path.dirname(current);
-    if (parent === current) return;
-    current = parent;
-  }
-}
-
-function ensurePhysicalDirectory(directory, label) {
-  assertPhysicalAncestors(directory, label);
-  const stat = lstatOrNull(directory);
-  if (!stat) {
-    fs.mkdirSync(directory, { recursive: true });
-    return;
-  }
-  if (stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
-  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
-  if (fs.realpathSync(directory) !== path.resolve(directory)) {
-    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
-  }
-}
-
-function physicalPackageRootError(directory) {
-  try {
-    assertPhysicalAncestors(directory, 'Agent Plugin package root');
-    const stat = lstatOrNull(directory);
-    if (!stat || !stat.isDirectory()) return `Agent Plugin package root must be a physical directory: ${directory}`;
-    if (fs.realpathSync(directory) !== path.resolve(directory)) {
-      return `Agent Plugin package root realpath escapes its lexical root: ${directory}`;
-    }
-    return null;
-  } catch (error) {
-    return error.message;
-  }
-}
 
 function safeRelative(value) {
   if (typeof value !== 'string' || value.length === 0 || value.includes('\0')) return false;
@@ -1363,7 +1315,7 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
   const warnings = [];
   const skills = { valid: [], invalid: [] };
   const mcp = { valid: [], invalid: [] };
-  const packageRootError = physicalPackageRootError(packageRoot);
+  const packageRootError = physicalPackageRootError(packageRoot, 'Agent Plugin package root');
   if (packageRootError) return { ok: false, errors: [packageRootError], warnings, skills, mcp };
   const rootStat = lstatOrNull(packageRoot);
   if (!rootStat || !rootStat.isDirectory()) return { ok: false, errors: [`package root is not a directory: ${packageRoot}`], warnings, skills, mcp };
@@ -1464,7 +1416,7 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
 function verifyAgentPluginPackage(input, maybeOptions = {}) {
   const structural = validateAgentPluginPackage(input, maybeOptions);
   const packageRoot = typeof input === 'string' ? path.resolve(input) : path.resolve(input.packageRoot);
-  const packageRootError = physicalPackageRootError(packageRoot);
+  const packageRootError = physicalPackageRootError(packageRoot, 'Agent Plugin package root');
   if (packageRootError) {
     if (!structural.errors.includes(packageRootError)) structural.errors.push(packageRootError);
     structural.ok = false;

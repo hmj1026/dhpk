@@ -44,6 +44,9 @@ const {
   readFileBounded,
   readDirectoryEntries,
   listFilesNamedRecursively,
+  lstatOrNull,
+  assertPhysicalAncestors,
+  physicalPackageRootError,
 } = require('./bounded-filesystem');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
@@ -63,15 +66,6 @@ const CODEX_NATIVE_PROFILE_ID = 'codex-native';
 // version recorded as provenance.sourceVersion.
 const GENERATOR_VERSION = '2.4.0';
 
-function lstatOrNull(candidate) {
-  try {
-    return fs.lstatSync(candidate);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
 function realpathOrNull(candidate) {
   try {
     return fs.realpathSync(candidate);
@@ -86,19 +80,6 @@ function isInside(parent, candidate) {
   return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..');
 }
 
-function assertPhysicalAncestors(directory, label) {
-  let current = path.resolve(directory);
-  while (true) {
-    const stat = lstatOrNull(current);
-    if (stat && stat.isSymbolicLink()) {
-      throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
-    }
-    const parent = path.dirname(current);
-    if (parent === current) return;
-    current = parent;
-  }
-}
-
 function assertPhysicalDirectory(directory, label) {
   assertPhysicalAncestors(directory, label);
   const stat = lstatOrNull(directory);
@@ -106,20 +87,6 @@ function assertPhysicalDirectory(directory, label) {
   if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
   if (fs.realpathSync(directory) !== path.resolve(directory)) {
     throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
-  }
-}
-
-function physicalPackageRootError(directory) {
-  try {
-    assertPhysicalAncestors(directory, 'native package root');
-    const stat = lstatOrNull(directory);
-    if (!stat || !stat.isDirectory()) return `native package root must be a physical directory: ${directory}`;
-    if (fs.realpathSync(directory) !== path.resolve(directory)) {
-      return `native package root realpath escapes its lexical root: ${directory}`;
-    }
-    return null;
-  } catch (error) {
-    return error.message;
   }
 }
 
@@ -1168,7 +1135,7 @@ function verifyNativePackage({
     return { ok: false, errors: ['package root is required'], evidence: { ok: false, error: { code: 'INVALID_INPUT' } } };
   }
   const resolvedPackageRoot = path.resolve(packageRoot);
-  const packageRootError = physicalPackageRootError(resolvedPackageRoot);
+  const packageRootError = physicalPackageRootError(resolvedPackageRoot, 'native package root');
   if (packageRootError) {
     return {
       ok: false,

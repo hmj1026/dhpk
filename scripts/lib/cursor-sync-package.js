@@ -14,7 +14,10 @@ const {
   retainsCodexSupportRoot,
   rewriteCursorSupportingAssetBody,
 } = require('./cursor-harness-adapt');
-const { readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  readDirectoryEntries,
+  isInside,
+} = require('./bounded-filesystem');
 const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { sha256Hex } = require('./content-fingerprint');
@@ -43,11 +46,6 @@ function listComponentFiles(directory, extensions) {
 
 function relativePosix(from, to) {
   return path.relative(from, to).split(path.sep).join('/');
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative));
 }
 
 function confinedChild(parent, name) {
