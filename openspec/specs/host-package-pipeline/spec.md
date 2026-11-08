@@ -8,7 +8,7 @@ Publish every generated Host package with a Package Receipt (agent, Cursor, Code
 
 ### Requirement: One pipeline publishes Host packages
 
-The agent, Cursor, Codex, and AGY package generators SHALL publish through one pipeline that owns adapter assembly (stage-root guard, render outputs, optional late-bound derived outputs), the artifact store (surface owner, store root, ownership verifier), and materialization. Each generator keeps its plan entries and compile options, which differ in ways that feed the plan fingerprint, and shares the skill entry field list through the pipeline.
+The agent, Cursor, Codex, and AGY package generators SHALL publish through one pipeline that owns adapter assembly (stage-root guard, render outputs, optional late-bound derived outputs), the artifact store (surface owner, store root, ownership verifier), and materialization. Each generator keeps its plan entries and compile options, which differ in ways that feed the plan fingerprint (the identity of the planned outputs). The agent, Cursor, and Codex generators share the skill entry field list through the pipeline; AGY's plan entries carry no skill fields. The Host validator runs against the staged package whenever the store provides a stage root.
 
 #### Scenario: A minimal Host publishes through the pipeline
 
@@ -22,7 +22,7 @@ The agent, Cursor, Codex, and AGY package generators SHALL publish through one p
 
 #### Scenario: Validation failure keeps the previous package
 
-- **WHEN** the Host validator rejects the staged package
+- **WHEN** the store stages the package and the Host validator rejects it
 - **THEN** materialization fails and the previously published package is unchanged
 
 #### Scenario: Foreign output is refused
