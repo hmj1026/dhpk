@@ -44,8 +44,12 @@ node scripts/maintainer/verification-run.js status --record /absolute/path/recor
 
 The run records durable logs and holds an exclusive claim. A duplicate running
 request attaches to the existing run; a passed run is reused. If the owner is
-unknown, retain that state and do not rerun automatically. Retry a failed run
-only explicitly with `--retry` and a new attempt. Keep only `recordPath` references in the task ledger; derive verification
+unknown, retain that state and do not rerun automatically. The run needs Linux
+process identity (`/proc` start time and `boot_id`): on another platform, or
+when `/proc` cannot be read, `start` launches nothing, exits 2, prints the
+reason, and records it as `unknownReason` (`unsupported-platform` or
+`identity-read-failed`). Retry a failed run only explicitly with `--retry` and
+a new attempt. Keep only `recordPath` references in the task ledger; derive verification
 state from the records rather than saving a second status copy:
 
 ```sh
