@@ -56,6 +56,9 @@ in the plugin development contract. Full and release routes retain complete
 validation, including four-surface generation when required and `npm run ci`
 on a clean generated-output commit. Reuse evidence under the kernel's snapshot
 rule and report local aggregate, focused checks, and Hosted CI separately.
+Name each reported check by a command that exists in `package.json` scripts or
+the authoritative plan, and record that command's own exit status, not a
+pipeline's.
 
 Open a Draft PR targeting `develop` when the merge stays with a human. When
 the user explicitly authorizes the merge, open a ready PR and follow the
