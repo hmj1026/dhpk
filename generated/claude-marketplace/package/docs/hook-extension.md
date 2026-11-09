@@ -73,7 +73,10 @@ multiple heredocs on one line, and continued body lines fail closed. Commands
 and protected write targets around the heredoc remain subject to their gates.
 For recursive searches, use `rg --glob '!pattern'` or `grep --exclude='pattern'`
 for every default and custom protected pattern, or target explicit
-non-protected files. Grep/Read tools are alternatives only if available.
+non-protected files. A wildcard or dynamic target blocks as an ambiguous read
+target; name the files literally, or search a directory with
+`git grep -n PATTERN -- <directory>`. Hints name only shell forms, never an
+agent tool that the session may not have.
 
 ### Git reads
 
