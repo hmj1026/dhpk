@@ -634,7 +634,7 @@ function renderSkillUsageCard(input) {
   return freezeDeep(card);
 }
 
-function resolveInventoryRevision(inventory, requested) {
+function explicitInventoryRevision(inventory, requested) {
   if (requested !== undefined && requested !== null && String(requested).trim() !== '') {
     return requested;
   }
@@ -647,6 +647,12 @@ function resolveInventoryRevision(inventory, requested) {
       }
     }
   }
+  return null;
+}
+
+function resolveInventoryRevision(inventory, requested) {
+  const explicit = explicitInventoryRevision(inventory, requested);
+  if (explicit !== null) return explicit;
   // Older inventories have no explicit revision. Legacy skill/package
   // artifacts bind to the skill inventory, while the project-agent policy is
   // a separate compiler-owned plan contract and must not invalidate those
@@ -654,6 +660,22 @@ function resolveInventoryRevision(inventory, requested) {
   const source = isRecord(inventory) ? { ...inventory } : inventory;
   if (isRecord(source)) delete source.project_agent_projection;
   return 'sha256:' + fingerprint(source);
+}
+
+// The usage catalog reads only skill entries (with their usage metadata) and
+// the rename and retirement aliases in its runtime index. Its fallback revision
+// binds to exactly those inputs, so an unrelated inventory edit does not churn
+// the catalog and its generated documentation (#1245). Other surfaces keep
+// resolveInventoryRevision.
+function usageInventoryRevision(inventory, requested) {
+  const explicit = explicitInventoryRevision(inventory, requested);
+  if (explicit !== null) return explicit;
+  const source = isRecord(inventory) ? inventory : {};
+  return 'sha256:' + fingerprint({
+    skills: source.skills === undefined ? null : source.skills,
+    renamed_skill_names: source.renamed_skill_names === undefined ? null : source.renamed_skill_names,
+    retired_skills: source.retired_skills === undefined ? null : source.retired_skills,
+  });
 }
 
 function isCodexInvokableSkill(skill) {
@@ -678,6 +700,8 @@ function addRuntimeAlias(aliases, alias, target, disposition) {
   aliases[alias] = { target, disposition };
 }
 
+// Reads inventory.skills, renamed_skill_names, and retired_skills. A new inventory
+// read here must also enter usageInventoryRevision, or the catalog revision goes stale.
 function compileRuntimeIndex(inventory, normalizedUsageById, publicIds = null) {
   const targets = {};
   const aliases = {};
@@ -857,7 +881,7 @@ function compileSkillUsageCatalog(input) {
 
   const catalog = {
     schema: CATALOG_SCHEMA,
-    sourceInventoryRevision: resolveInventoryRevision(inventory, values.inventoryRevision),
+    sourceInventoryRevision: usageInventoryRevision(inventory, values.inventoryRevision),
     entries,
     ...(publicationView ? { sourceSelectionDigest: publicationView.selectionDigest } : {}),
     runtimeIndex: compileRuntimeIndex(inventory, normalizedUsageById, publicIds),
@@ -972,6 +996,7 @@ module.exports = {
   renderSkillUsageCard,
   renderSkillUsageDocumentation,
   resolveInventoryRevision,
+  usageInventoryRevision,
   validateRuntimeIndex,
   serializeSkillUsageCatalog,
   stableStringify,

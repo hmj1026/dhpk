@@ -231,4 +231,53 @@ test('directory usage drift fails before catalog parity can pass', () => {
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+// #1245: without an explicit revision, the catalog binds only to the inputs the
+// usage grammar reads, so unrelated inventory edits do not churn generated docs.
+test('fallback catalog revision ignores inventory fields the usage grammar does not read', () => {
+  const api = usageApi();
+  const revision = (inventory) => api.compileSkillUsageCatalog({ inventory }).sourceInventoryRevision;
+  const base = revision(inventoryFixture());
+  assert.match(base, /^sha256:[a-f0-9]{64}$/);
+  const unrelated = inventoryFixture();
+  unrelated.schema = 'dhpk.distribution-inventory.v3';
+  unrelated.description = 'changed prose';
+  unrelated.supporting_assets = [{ path: 'scripts/lib/dispatch-engine.js' }];
+  unrelated.agent_roster = [{ name: 'fast-worker' }];
+  unrelated.project_agent_projection = { schema: 'x' };
+  assert.strictEqual(revision(unrelated), base, 'unrelated inventory fields must not change the revision');
+});
+
+test('fallback catalog revision changes with any skill entry, usage, or alias input', () => {
+  const api = usageApi();
+  const revision = (inventory) => api.compileSkillUsageCatalog({ inventory }).sourceInventoryRevision;
+  const base = revision(inventoryFixture());
+  const mutations = {
+    'usage summary': (inventory) => { inventory.skills[1].usage.summary = 'Inspect a different Alpha workflow and report'; },
+    'Codex-selected entry': (inventory) => { inventory.skills[1].path = 'skills/alpha-moved'; },
+    'non-Codex entry': (inventory) => { inventory.skills[2].surfaces = ['claude-core', 'cursor-plugin']; },
+    'renamed skill names': (inventory) => { inventory.renamed_skill_names = [{ from: 'old-alpha', to: 'alpha' }]; },
+    'retired skills': (inventory) => { inventory.retired_skills = [{ name: 'gone', replacements: [{ kind: 'skill', id: 'alpha' }] }]; },
+  };
+  for (const [label, mutate] of Object.entries(mutations)) {
+    const inventory = inventoryFixture();
+    mutate(inventory);
+    assert.notStrictEqual(revision(inventory), base, `${label} must change the revision`);
+  }
+});
+
+test('explicit catalog revisions keep their precedence over the fallback', () => {
+  const api = usageApi();
+  const compile = (inventory, inventoryRevision) => api.compileSkillUsageCatalog({ inventory, inventoryRevision })
+    .sourceInventoryRevision;
+  assert.strictEqual(compile(inventoryFixture(), 'requested-1'), 'requested-1');
+  for (const field of ['sourceInventoryRevision', 'inventoryRevision', 'revision', 'version']) {
+    const inventory = { ...inventoryFixture(), [field]: `field-${field}` };
+    assert.strictEqual(compile(inventory), `field-${field}`, field);
+    assert.strictEqual(compile(inventory, 'requested-2'), 'requested-2', `${field} with a requested revision`);
+  }
+  // Other surfaces keep the whole-inventory fingerprint.
+  const unrelated = { ...inventoryFixture(), description: 'changed prose' };
+  assert.notStrictEqual(api.resolveInventoryRevision(unrelated), api.resolveInventoryRevision(inventoryFixture()));
+});
+
 run('gen-skill-usage');
