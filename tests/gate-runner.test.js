@@ -50,6 +50,42 @@ test('every step runs even after an earlier one fails (full evidence, not fail-f
   }
 });
 
+test('a failing step keeps its full output as an artifact and cites it in the failure reason', () => {
+  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-gate-runner-logs-'));
+  try {
+    const script = [
+      "console.error('ERROR in flaky.test.js: first line that the tail would drop');",
+      "for (let i = 0; i < 10; i += 1) console.error('noise ' + i);",
+      'process.exit(3);',
+    ].join('\n');
+    const stage = runSteps([
+      { name: 'ok', cmd: 'node', args: ['-e', "console.log('fine')"] },
+      { name: 'tests', cmd: 'node', args: ['-e', script] },
+    ], { environment: 'test', logDir });
+    assert.strictEqual(stage.verdict, 'FAIL');
+    assert.strictEqual(stage.artifacts.length, 1, JSON.stringify(stage.artifacts));
+    const [artifact] = stage.artifacts;
+    assert.strictEqual(artifact.kind, 'step-output');
+    assert.strictEqual(artifact.step, 'tests');
+    assert.ok(artifact.path.startsWith(logDir), artifact.path);
+    assert.match(fs.readFileSync(artifact.path, 'utf8'), /ERROR in flaky\.test\.js/);
+    assert.strictEqual(stage.failureReasons.length, 1);
+    assert.match(stage.failureReasons[0], /^tests: exited 3 \(.*noise 9\)/);
+    assert.ok(stage.failureReasons[0].endsWith(`[full output: ${artifact.path}]`), stage.failureReasons[0]);
+  } finally {
+    fs.rmSync(logDir, { recursive: true, force: true });
+  }
+});
+
+test('a step that cannot be spawned names the spawn error in its failure reason', () => {
+  const stage = runSteps([
+    { name: 'missing', cmd: 'dhpk-gate-runner-command-that-does-not-exist' },
+  ], { environment: 'test' });
+  assert.strictEqual(stage.verdict, 'FAIL');
+  assert.deepStrictEqual(stage.commands.map((command) => command.exitCode), [127]);
+  assert.match(stage.failureReasons[0], /^missing: exited 127 .*ENOENT/);
+});
+
 test('passes an explicit environment to every step', () => {
   const stage = runSteps([
     {
