@@ -136,7 +136,8 @@ def judge(plan, patterns, cwd, wrapped):
             return found
     for token in plan.targets:
         if token.glob:
-            return verdict.ambiguous('target %s' % ascii(token.value), recovery and recovery.ambiguous)
+            return verdict.ambiguous('target %s' % ascii(token.value),
+                                     (recovery and recovery.ambiguous) or verdict.TARGET_SEARCH)
         if protected(token.value, patterns, cwd):
             return verdict.protected()
     if plan.listing is not None:
@@ -270,7 +271,8 @@ def remote_wrapper_verdict(args, patterns):
         return verdict.allow()
     unknown = next((t for t in args[i:] if t.dynamic or t.glob), None)
     if unknown is not None:
-        return verdict.ambiguous('remote operand %s' % ascii(unknown.value))
+        return verdict.ambiguous('remote operand %s' % ascii(unknown.value),
+                                 'name each remote operand as an explicit literal path or value without wildcards or shell expansions.')
     return analyze(' '.join(t.value for t in args[i:]), patterns, None, True)
 
 

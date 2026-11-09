@@ -145,9 +145,18 @@ with tempfile.TemporaryDirectory() as root:
     ]:
         hint = analyze(command, [], root).hint
         assert present in hint and absent not in hint, (command, hint)
-        assert 'custom' in hint and 'if available' in hint, (command, hint)
+        assert 'custom' in hint and 'if available' not in hint, (command, hint)
     hint = analyze('cat -Z ordinary', [], root).hint
-    assert '--glob' not in hint and '--exclude' not in hint and 'if available' in hint, hint
+    assert '--glob' not in hint and '--exclude' not in hint and 'if available' not in hint, hint
+    # Only a Reader's own target gets the search alternative; redirect and pattern-file inputs do not.
+    assert 'git grep -n PATTERN -- <directory>' in analyze('cat *.yml', [], root).hint
+    for command in ('cat < *.txt', 'grep -f "$X" needle ordinary'):
+        hint = analyze(command, [], root).hint
+        assert 'explicit literal path' in hint and 'git grep' not in hint, (command, hint)
+# #1260: hints name only shell forms; no Verdict assumes an agent tool exists.
+for built in (v.protected(), v.unsupported(None), v.unsupported('--exclude="pattern"'), v.ambiguous(),
+              v.recursive_unproven(None), v.recursive_unproven('--glob "!pattern"'), v.inspection_failure()):
+    assert 'Grep' not in built.hint and 'Read ' not in built.hint and 'if available' not in built.hint, built
 assert 'None' not in v.recursive_unproven(None).hint
 `);
 });

@@ -17,7 +17,8 @@ from credential_scan import MAX_ENTRIES
 from credential_shell import Token
 
 RECOVERY = Recovery(
-    ambiguous='name literal paths without wildcards, expansions, or pathspec magic; read a blob as <rev>:<path>.',
+    ambiguous='name literal paths without wildcards, expansions, or pathspec magic; for a search, pass the '
+              'directory itself (git grep -n PATTERN -- <directory>); read a blob as <rev>:<path>.',
     recursive='narrow the git pathspec to paths without protected files, add -n to limit history, '
               'or read an explicit non-protected <rev>:<path>.',
 )

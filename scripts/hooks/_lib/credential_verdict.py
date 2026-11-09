@@ -19,7 +19,11 @@ REASONS = {
 }
 
 DEFAULT_HINT = 'use controlled extraction or provide non-secret information.'
-TOOLS = 'Grep/Read may be used if available.'
+# Hints name only shell forms; an agent tool such as Grep or Read may not exist in the session (#1260).
+LITERAL_TARGETS = 'name each target as an explicit literal path without wildcards or shell expansions'
+DIRECTORY_SEARCH = 'to search a directory in a git repository, use git grep -n PATTERN -- <directory>'
+# For a Reader's read targets, where a search can replace the wildcard; input files keep LITERAL_TARGETS.
+TARGET_SEARCH = '%s; %s.' % (LITERAL_TARGETS, DIRECTORY_SEARCH)
 
 
 @dataclass(frozen=True)
@@ -59,19 +63,18 @@ def unsupported(syntax, detail=''):
     parts = ['rewrite with supported options and explicit non-protected files']
     if syntax:
         parts.append('for a recursive search, ' + _exclusion_clause(syntax))
-    return Verdict(UNSUPPORTED, detail, '; '.join(parts) + '. ' + TOOLS)
+    return Verdict(UNSUPPORTED, detail, '; '.join(parts) + '.')
 
 
 def ambiguous(detail='', recovery=None):
     """`recovery` is Reader-specific advice that replaces the default hint."""
-    return Verdict(AMBIGUOUS_TARGET, detail, recovery or
-                   'name each target as an explicit literal path without wildcards or shell expansions. ' + TOOLS)
+    return Verdict(AMBIGUOUS_TARGET, detail, recovery or LITERAL_TARGETS + '.')
 
 
 def recursive_unproven(syntax, detail='', recovery=None):
     """`recovery` is Reader-specific advice that replaces the default hint."""
     return Verdict(RECURSIVE_UNPROVEN, detail, recovery or
-                   '%s, or target explicit non-protected files. %s' % (_exclusion_clause(syntax), TOOLS))
+                   '%s, or target explicit non-protected files.' % _exclusion_clause(syntax))
 
 
 def inspection_failure(detail=''):

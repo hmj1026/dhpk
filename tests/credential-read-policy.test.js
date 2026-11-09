@@ -116,7 +116,16 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
       assert.match(result.stderr, example);
       assert.match(result.stderr, /custom|consumer/i);
       assert.doesNotMatch(result.stderr, /git grep|python/i);
-      assert.match(result.stderr, /if available/i);
+      assert.doesNotMatch(result.stderr, /Grep\/Read|if available/i);
+    }
+  });
+  test(`${hook} points wildcard targets to literal paths or a git grep directory search (#1260)`, () => {
+    for (const command of ['grep -n x scripts/lib/*.js', 'grep -n x .github/workflows/*.yml', 'git grep -n x -- scripts/lib/a*.js']) {
+      const result = runHook(hook, {payload: {tool_input: {command}}});
+      assert.strictEqual(result.status, 2, result.stderr);
+      assert.match(result.stderr, /ambiguous read target/);
+      assert.match(result.stderr, /git grep -n PATTERN -- <directory>/);
+      assert.doesNotMatch(result.stderr, /Grep\/Read|if available/i);
     }
   });
 }

@@ -58,7 +58,9 @@ component 的全域精確 basename exclusion 或 `*` 可作此證明；ignore、
 替換。含歧義的 delimiter、同一行多個 heredoc 與內文續行會採保守阻擋；heredoc
 前後命令及受保護的寫入目標仍受原有 gate 檢查。遞迴搜尋可使用
 `rg --glob '!pattern'` 或 `grep --exclude='pattern'` 排除所有預設與自訂保護規則，
-或指定明確的非保護檔案；Grep/Read 工具僅在可用時作為替代方案。
+或指定明確的非保護檔案。含萬用字元或動態值的目標會以 ambiguous read target 阻擋；
+請逐一列出檔案，或用 `git grep -n PATTERN -- <directory>` 搜尋目錄。提示只列出
+shell 寫法，不建議 session 可能沒有的 agent 工具。
 
 ### git 讀取
 
