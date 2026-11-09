@@ -1,11 +1,23 @@
 'use strict';
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { runHook, ROOT } = require('./_lib/hookharness');
+const { runHook: runHookAt, ROOT } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { execFileSync } = require('node:child_process');
+
+// A recursive read of the checkout passes once a bounded scan finishes and finds
+// no Protected Path, so outcomes must not depend on the checkout's size or the
+// machine's speed. By default the hook runs in a fixed directory that holds one.
+const FIXTURE_CWD = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-credential-cwd-')));
+fs.writeFileSync(path.join(FIXTURE_CWD, '.env'), 'synthetic');
+fs.writeFileSync(path.join(FIXTURE_CWD, 'ordinary'), 'synthetic');
+// Matches only the custom policy in the scoped-exclusion test, never a default pattern.
+fs.mkdirSync(path.join(FIXTURE_CWD, 'config'));
+fs.writeFileSync(path.join(FIXTURE_CWD, 'config', 'private.key'), 'synthetic');
+process.on('exit', () => fs.rmSync(FIXTURE_CWD, { recursive: true, force: true }));
+const runHook = (hook, options = {}) => runHookAt(hook, { cwd: FIXTURE_CWD, ...options });
 
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   test(`${hook} blocks reading .env`, () => {
@@ -163,6 +175,41 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
     assert.strictEqual(runHook(hook, { payload: {tool_input: {command: ''}}, env: {CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: 'invalid'} }).status, 2);
   });
 }
+
+test('git reads are judged through both hook entrypoints (#1262)', () => {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-git-reader-')));
+  const env = { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@e', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@e' };
+  const git = (...args) => execFileSync('git', args, { cwd: dir, env: { ...process.env, ...env }, stdio: 'pipe' });
+  try {
+    git('init', '-q');
+    fs.writeFileSync(path.join(dir, '.env'), 'synthetic');
+    fs.writeFileSync(path.join(dir, 'ordinary.js'), 'synthetic');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'init');
+    for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+      const invoke = (command) => runHook(hook, { cwd: dir, payload: { tool_input: { command } } });
+      for (const [command, reason] of [
+        ['git grep -n x', /recursive read without credential exclusions: patterns '\.env'/],
+        ['git grep -n x -- \'*\'', /ambiguous read target/],
+        ['git grep -n x -- \'*.env\'', /ambiguous read target/],
+        ['git show HEAD:.env', /protected path/],
+        ['git cat-file -p HEAD:.env', /protected path/],
+        ['git log -p -- .env', /protected path/],
+        ['git diff HEAD -- .env', /protected path/],
+        ['git show HEAD', /recursive read without credential exclusions/],
+      ]) {
+        const result = invoke(command);
+        assert.strictEqual(result.status, 2, `${hook} ${command}: ${result.stderr}`);
+        assert.match(result.stderr, reason, `${hook} ${command}`);
+        assert.doesNotMatch(result.stderr, /--glob|--exclude/, `${hook} ${command}`);
+      }
+      for (const command of ['git status', 'git diff --stat', 'git log --oneline', 'git grep -n x -- ordinary.js', 'git show HEAD:ordinary.js']) {
+        const result = invoke(command);
+        assert.strictEqual(result.status, 0, `${hook} ${command}: ${result.stderr}`);
+      }
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
 
 test('all supported readers reject every default credential family', () => {
   const readers = ['cat', 'less', 'head', 'tail', 'sed -n p', 'awk "{print}"', 'grep needle', 'rg needle'];

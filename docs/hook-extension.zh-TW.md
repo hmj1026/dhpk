@@ -60,6 +60,36 @@ component 的全域精確 basename exclusion 或 `*` 可作此證明；ignore、
 `rg --glob '!pattern'` 或 `grep --exclude='pattern'` 排除所有預設與自訂保護規則，
 或指定明確的非保護檔案；Grep/Read 工具僅在可用時作為替代方案。
 
+### git 讀取
+
+下列 git 用法也算 reader：
+
+- `git grep`、`show`、`cat-file -p`（或 `cat-file <type>`）、`diff`、`blame`、`stash show`；
+- 帶 `-p`、`--patch`、`-U`、`--cc` 或 `-L` 的 `log`、`whatchanged`、`reflog`、`stash list`、`diff-tree`、`diff-index`、`diff-files`。
+
+以下情況仍允許：
+
+- 只輸出名稱或統計的用法（`--stat`、`--name-only`、`--name-status`、`--numstat`、`-s`）；
+- 其他子指令，例如 `status`、`add`、`commit`。
+
+判定規則：
+
+- `<rev>:<path>`、`blame` 的檔案、`log -L` 的檔案，以及字面 pathspec，都當成讀取目標判定。`HEAD:path` 與 `:path` 以 repository 根目錄為基準；`HEAD:./path` 以工作目錄為基準。
+- 下列情況視為無法確定目標：pathspec 含 `*`、`?`、`[`；值是動態組出的；帶 exclude 以外的 magic；只給 blob id。blob 請改用 `<rev>:<path>` 讀取。
+- 指令沒有指名檔案時（`git diff`、`git show <commit>`、`git log -p`、`git grep x`），gate 會用相同的 revision、限制條件與 pathspec，執行一次只列名稱的 git 列舉，再逐一判定列出的路徑。
+  - git 讀取不接受 exclusion 證明。
+  - 列舉同樣受 300 ms 與 20,000 項上限約束；超過時請縮小 pathspec 或加上 `-n`。
+- 列舉一律帶 `--no-pager --no-ext-diff --no-textconv`、`core.fsmonitor=false`、`core.hooksPath=/dev/null`，並以空 tree 作為 `--attr-source`。列舉也會設定 `core.attributesFile=/dev/null`、`GIT_ATTR_NOSYSTEM=1` 與 `log.showSignature=false`，把每個已設定的 `filter.<driver>` 覆寫成空指令；diff 列舉另帶 `--ignore-submodules=all`，不會在 submodule 內啟動子 git。因此不會執行 repository 設定的外部 diff、textconv、clean／smudge filter、pager、fsmonitor、簽章驗證或 hook 程式。
+- 依賴列舉的判定需要 git 2.40 以上；較舊的 git 會讓列舉失敗並阻擋。git 2.44 之前，partial clone 在列舉時可能抓取缺少的物件。
+- copy 偵測（`-C`、`--find-copies`）與 `--submodule` 不支援。設定了 `diff.submodule=diff` 的 repository 會阻擋 work tree 與歷史的 diff。
+- `git -C <字面目錄>` 照 `cd` 的方式解析。git 讀取若帶有下列任一項會被阻擋：
+  - `--git-dir`、`--work-tree`、`--namespace`、`-c`、`--config-env`（`-c alias.*` 不論子指令一律阻擋）；
+  - `GIT_DIR=`、`GIT_WORK_TREE=`、`GIT_INDEX_FILE=` 等改變 repository 位置的前綴。
+
+  `GIT_PAGER=cat` 仍允許。
+
+不在 reader 清單內的指令不受檢查，例如 `python`、`node`、`xxd`、`base64`、`cp`，以及 git alias、`git archive`、`git format-patch`、`git bundle`、`git difftool`。git 代為執行的 reader 仍會判定，例如 `git bisect run cat .env` 或 `git submodule foreach cat .env`。
+
 ### 阻擋原因
 
 被阻擋的命令以 exit 2 結束，stderr 為一行
