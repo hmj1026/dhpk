@@ -1,11 +1,23 @@
 'use strict';
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { runHook, ROOT } = require('./_lib/hookharness');
+const { runHook: runHookAt, ROOT } = require('./_lib/hookharness');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { execFileSync } = require('node:child_process');
+
+// A recursive read of the checkout passes once a bounded scan finishes and finds
+// no Protected Path, so outcomes must not depend on the checkout's size or the
+// machine's speed. By default the hook runs in a fixed directory that holds one.
+const FIXTURE_CWD = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-credential-cwd-')));
+fs.writeFileSync(path.join(FIXTURE_CWD, '.env'), 'synthetic');
+fs.writeFileSync(path.join(FIXTURE_CWD, 'ordinary'), 'synthetic');
+// Matches only the custom policy in the scoped-exclusion test, never a default pattern.
+fs.mkdirSync(path.join(FIXTURE_CWD, 'config'));
+fs.writeFileSync(path.join(FIXTURE_CWD, 'config', 'private.key'), 'synthetic');
+process.on('exit', () => fs.rmSync(FIXTURE_CWD, { recursive: true, force: true }));
+const runHook = (hook, options = {}) => runHookAt(hook, { cwd: FIXTURE_CWD, ...options });
 
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   test(`${hook} blocks reading .env`, () => {
