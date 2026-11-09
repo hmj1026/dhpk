@@ -6,7 +6,7 @@ Define how the Claude Bash credential-read guard reaches and reports its
 decision: Reader adapters describe an invocation as a Read Plan, one policy
 judges it, and one Credential Verdict names the outcome, its reason, and the
 recovery hint. The terms are defined in `GLOSSARY.md` under Credential Guard;
-the Absence Proof bounds come from ADR 0032.
+the Absence Proof bounds come from ADR 0032, and git Readers from ADR 0034.
 
 ## Requirements
 
@@ -162,3 +162,125 @@ line. It SHALL NOT carry any other decision text.
 
 - **WHEN** a credential analyzer module is missing
 - **THEN** the hook exits 2 with the Bash fallback text and no Python traceback
+
+### Requirement: REQ-10 Content-reading git subcommands are Readers
+
+The guard SHALL judge `git grep`, `git show`, `git cat-file`, `git diff`,
+`git blame`, and `git stash show` as Readers. It SHALL also judge `git log`,
+`git whatchanged`, `git reflog`, `git stash list`, `git diff-tree`,
+`git diff-index`, and `git diff-files` as Readers when they have a patch or
+`-L` option. Output that prints only names or statistics, and every
+other git subcommand, SHALL stay allowed. An unknown option of a judged
+subcommand SHALL be `unsupported`.
+
+#### Scenario: Revision path read is protected
+
+- **WHEN** an agent runs `git show HEAD:.env`
+- **THEN** the guard blocks with reason `protected path`
+
+#### Scenario: Statistics output is not a read
+
+- **WHEN** an agent runs `git diff --stat` or `git log --name-only`
+- **THEN** the guard allows the command without running a listing
+
+#### Scenario: Other subcommands stay allowed
+
+- **WHEN** an agent runs `git status`, `git add .`, or `git commit -m x`
+- **THEN** the guard allows the command
+
+### Requirement: REQ-11 Git pathspecs and objects
+
+The guard SHALL judge `<rev>:<path>`, `blame` files, and `log -L` files as
+literal targets resolved against the repository root, or against the working
+directory for `rev:./path`. A pathspec or revision path containing a wildcard,
+non-exclude magic, or a dynamic value SHALL be `ambiguous_target`. A bare blob
+object SHALL be `ambiguous_target`. A tree object, and `cat-file -p` of a
+commit, tag, or tree, SHALL be allowed.
+
+#### Scenario: Wildcard pathspec
+
+- **WHEN** an agent runs `git grep -n x -- '*.env'`
+- **THEN** the guard blocks with reason `ambiguous read target`
+
+#### Scenario: Blob object
+
+- **WHEN** an agent runs `git cat-file -p <blob id>`
+- **THEN** the guard blocks with reason `ambiguous read target` and the hint suggests `<rev>:<path>`
+
+#### Scenario: Tree object
+
+- **WHEN** an agent runs `git cat-file -p <tree id>` or `git show HEAD:src`
+- **THEN** the guard allows the command
+
+### Requirement: REQ-12 A git listing is the Absence Proof
+
+The guard SHALL run one names-only git listing, when the command text does not
+determine the files a git read opens, with the same revisions, limits, and
+pathspecs, and SHALL judge every listed path with the credential policy. A listed
+Protected Path SHALL yield `recursive_unproven` with the matching patterns and
+paths as detail. Git reads SHALL NOT accept an Exclusion Proof.
+
+#### Scenario: Clean repository
+
+- **WHEN** a repository tracks no Protected Path and an agent runs `git diff`, `git diff --cached`, `git show HEAD`, `git log -p -3`, or `git grep -n x`
+- **THEN** the guard allows each command
+
+#### Scenario: Tracked custom protected file
+
+- **WHEN** a repository tracks `protected/config/db.php`, the policy protects `config/db.php`, and an agent runs `git grep -n password`
+- **THEN** the guard blocks with reason `recursive read without credential exclusions` naming `config/db.php`
+
+#### Scenario: Pathspec excludes the protected file
+
+- **WHEN** in that repository an agent runs `git grep -n x -- src`
+- **THEN** the guard allows the command
+
+### Requirement: REQ-13 Listings fail closed and run no external program
+
+A listing SHALL share one 300 ms deadline per command and SHALL stop at 20,000
+names. Exceeding either SHALL be `recursive_unproven` with a hint to add a
+pathspec or `-n`. A git error, an unknown revision, or a directory outside a
+repository SHALL be `inspection_failure`. A listing SHALL pass `--no-pager`,
+`--no-ext-diff`, `--no-textconv`, `core.fsmonitor=false`,
+`core.hooksPath=/dev/null`, and an empty-tree `--attr-source`. It SHALL NOT run
+an external diff, textconv, clean or smudge filter, pager, fsmonitor, or hook
+program configured in the repository.
+
+#### Scenario: Long history
+
+- **WHEN** a listing of `git log -p` exceeds 20,000 names
+- **THEN** the guard blocks with reason `recursive read without credential exclusions` and the hint mentions `-n`
+
+#### Scenario: Configured textconv driver
+
+- **WHEN** a repository configures a textconv or external diff driver that writes a marker file, and an agent runs `git diff` or `git show HEAD`
+- **THEN** the marker file is not created by the guard
+
+### Requirement: REQ-14 Repository relocation is unsupported
+
+`git -C <literal dir>` SHALL change the working directory for the judgment. The
+global options `--git-dir`, `--work-tree`, `--namespace`, `-c`, `--config-env`,
+and `--bare`, and a `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`,
+`GIT_OBJECT_DIRECTORY`, `GIT_CONFIG*`, or other relocating `GIT_*=` prefix before
+`git`, SHALL be `unsupported`.
+
+#### Scenario: Relocated repository
+
+- **WHEN** an agent runs `git --git-dir=/elsewhere/.git show HEAD` or `GIT_DIR=/elsewhere git diff`
+- **THEN** the guard blocks with reason `unsupported reader syntax`
+
+#### Scenario: Pager prefix is allowed
+
+- **WHEN** an agent runs `GIT_PAGER=cat git log --oneline`
+- **THEN** the guard allows the command
+
+### Requirement: REQ-15 Git hints recommend git-accepted narrowing
+
+The hint for a blocked git read SHALL recommend only narrowing a pathspec,
+adding `-n`, or reading an explicit `<rev>:<path>`. It SHALL NOT recommend
+`--glob` or `--exclude` syntax.
+
+#### Scenario: Git recursive hint
+
+- **WHEN** `git grep -n password` is blocked as a recursive read
+- **THEN** the hint mentions a pathspec and does not contain `--glob` or `--exclude`
