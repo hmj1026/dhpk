@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.70.7",
-  "sourceCommit": "0fafcf23cc1ce7ad111959bfa83cd36abf3990ce",
-  "generatedFromCommit": "0fafcf23cc1ce7ad111959bfa83cd36abf3990ce",
-  "generatedFromTree": "305ded4754cef46b4a44bc0ff0891d939efca1d1",
+  "sourceCommit": "d3677a73a37306d0146c3722b37d5d2bc2d96b8f",
+  "generatedFromCommit": "d3677a73a37306d0146c3722b37d5d2bc2d96b8f",
+  "generatedFromTree": "58bea07d2699e9eb2a2600d53568cf538f104c26",
   "inventoryDigest": "0248206f20e0222eefb6c49fe75a707ea817291c8a6d42ee5c5d22efb5aa1298",
   "inventoryRevision": "sha256:36895a2c331ea128ff2e616a9bf79bac3ea575628401cb3ec9c6f1ca76cb2a89",
   "generatorVersion": "2.4.0",
@@ -1518,7 +1518,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "848c2368919f8bd7b270a44d51b7272dbc710523"
+        "originalGitBlobDigest": "e0f925dfc067507550be4571e695e889ffd7a827"
       },
       {
         "ownerId": "flow-guide",
@@ -1866,7 +1866,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/skill-usage.js",
         "destination": "skills/flow-guide/scripts/_lib/skill-usage.js",
-        "originalGitBlobDigest": "c5435f89cb370b68a3759ce6a9bf2414252257a0"
+        "originalGitBlobDigest": "a84a194c1c4b143fd2b3c66684cb86ed7bc07b21"
       },
       {
         "ownerId": "flow-guide",
@@ -5674,7 +5674,7 @@
     "create-pr": "e8d155d01c115e97ed80051dee8be1b9eadb47c863ca1183e792884693c0aee7",
     "doc-maintain": "9bc045d9d8b3089a032495598db1788a1ac88869b7a28faf3b2d6ed6bac611f5",
     "flow-drive": "ce6d792b676419e20bb1bf827fc94eda502969468c53f57be0cef067193423d0",
-    "flow-guide": "3a30822aeb400069c8cd6a5a066926d4f34fabc32b54a08e5c81269f310ad7c8",
+    "flow-guide": "42dae27bd93f83ae9c8b0df1dbd44101069c683bc1f2d13c8ab0056adeec0020",
     "git-smart-commit": "9279cd262a75639559d49229592ce7f13492d3a4c187b9f31522ba5f96e7dc76",
     "git-worktree": "ca92194954739679923d809fc5b0484c589f3da8caaced73b964ea62d6df8c28",
     "library-author": "7cbc852e03a358d9f22ba7fa250a83cf90cad0223c4f2ae5df9e8d3d5c9842dd",

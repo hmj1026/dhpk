@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.70.7",
-  "sourceCommit": "0fafcf23cc1ce7ad111959bfa83cd36abf3990ce",
-  "generatedFromCommit": "0fafcf23cc1ce7ad111959bfa83cd36abf3990ce",
-  "generatedFromTree": "305ded4754cef46b4a44bc0ff0891d939efca1d1",
+  "sourceCommit": "d3677a73a37306d0146c3722b37d5d2bc2d96b8f",
+  "generatedFromCommit": "d3677a73a37306d0146c3722b37d5d2bc2d96b8f",
+  "generatedFromTree": "58bea07d2699e9eb2a2600d53568cf538f104c26",
   "inventoryDigest": "4293f907eb489908ad50d2ec5d49b02287bdd03f7e0b9b1956887d2aa251af39",
   "inventoryRevision": "sha256:36895a2c331ea128ff2e616a9bf79bac3ea575628401cb3ec9c6f1ca76cb2a89",
   "generatorVersion": "1.1.0",
@@ -1489,7 +1489,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "848c2368919f8bd7b270a44d51b7272dbc710523"
+        "originalGitBlobDigest": "e0f925dfc067507550be4571e695e889ffd7a827"
       },
       {
         "ownerId": "flow-guide",
@@ -1837,7 +1837,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/skill-usage.js",
         "destination": "skills/flow-guide/scripts/_lib/skill-usage.js",
-        "originalGitBlobDigest": "c5435f89cb370b68a3759ce6a9bf2414252257a0"
+        "originalGitBlobDigest": "a84a194c1c4b143fd2b3c66684cb86ed7bc07b21"
       },
       {
         "ownerId": "flow-guide",
@@ -5309,7 +5309,7 @@
     "create-pr": "8f92deca6a524fa35368da87ab1fd66a5e8b36546b0122173c530d01358cbbd5",
     "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
     "flow-drive": "18f65c3a8ed8055673c1b51338008057ec852d3794f00cfbd99c47b5c7515c0c",
-    "flow-guide": "f55f14d5ae2a27d772e82013cab0c16fe6f6c8f3890f2a325dbce75832944525",
+    "flow-guide": "b930e861712de17826f733455a2d2d37c73658c605edb3fd01b12401a59f5779",
     "git-smart-commit": "951b6a8f04d7787ff0c698490895ce38bcc6169c74a7bea3f28c989af50fca10",
     "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
     "precommit": "3605c5ae6ada993a6f3ef977015e86a72e0caf18df18d1566da3af80a183999f",

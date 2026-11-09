@@ -1845,7 +1845,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "828ef64be1502f89beaaf9762947ae914d808ff54efcb7ae97e56c0aabe8bd67"
+      "sha256": "78f12010044454089bb78f7c68ac8e8a28d117ad89c9e38e6e591af94f7f301e"
     },
     {
       "skillId": "flow-guide",
@@ -2309,7 +2309,7 @@
       "sourcePath": "skills/flow-guide/scripts/_lib/skill-usage.js",
       "destination": "skills/flow-guide/scripts/_lib/skill-usage.js",
       "kind": "entry",
-      "sha256": "1dda2cac0c6de2645e3c1d4ce039145670a24ca5d3785b8c2a2a7451aa4586b8"
+      "sha256": "e83d0131cda311fab7daf9a5eabad669e321424172d8b1e98492dae16ad4bd35"
     },
     {
       "skillId": "flow-guide",
