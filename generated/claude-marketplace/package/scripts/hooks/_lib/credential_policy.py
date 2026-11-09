@@ -10,7 +10,7 @@ import re
 import stat
 import sys
 
-from credential_shell import tokenize, substitutions, heredocs
+from credential_shell import lex
 from credential_options import ADAPTERS, READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES
 from credential_scan import MAX_SECONDS
@@ -277,14 +277,12 @@ def remote_wrapper_verdict(args, patterns):
 def analyze(command, patterns, cwd, remote=False, nested=False):
     """Return the Credential Verdict for one agent command."""
     try:
-        # 原本把 heredoc 資料誤當指令；只遮罩完整辨識的內文並保留可執行替換。
-        command, expansions = heredocs(command)
-        tokens = tokenize(command)
-        # 使用平衡掃描保留引號及巢狀括號，避免命令替換包住可辨識讀取時漏判。
-        bodies = list(expansions) + list(substitutions(command))
+        # 一次詞法分析取得字詞、命令替換與 heredoc 展開，三者共用同一個引號狀態機。
+        lexed = lex(command)
     except ValueError as error:
         # scanner 以固定字串拒絕有歧義的 shell 語法；這是語法不支援，不是檢查失敗。
         return verdict.unsupported(None, 'shell syntax: %s' % error)
+    tokens, bodies = lexed.tokens, lexed.bodies
     # 原始字串會漏掉引號或跳脫後的 cd，也會誤判 heredoc 資料；先以正規化 token 判斷範圍。
     command_head = True
     for token in tokens:
