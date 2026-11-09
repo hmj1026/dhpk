@@ -185,11 +185,11 @@ Evidence, stated in the command itself, that a recursive read excludes every eff
 _Avoid_: Safe search, exclusion list
 
 **Absence Proof**:
-Evidence, from a bounded scan at check time, that a recursive read's search root contains no Protected Path. It is a point-in-time observation, not a guarantee for the moment the command runs.
+Evidence, gathered within fixed bounds at check time, that none of the files a read would open is a Protected Path, whether from a scan of the read's search roots or from the repository's own listing of the files involved. It is a point-in-time observation, not a guarantee for the moment the command runs.
 _Avoid_: Safe directory, clean directory, credential-free directory
 
 **Reader**:
-A command the credential guard knows can open file contents, such as `cat`, `sed`, `grep`, or `rg`. Each Reader's arguments are understood only through that Reader's own option grammar.
+A command or subcommand the credential guard knows can open file contents, such as `cat`, `sed`, `grep`, `rg`, or `git show`. Each Reader's arguments are understood only through that Reader's own option grammar.
 _Avoid_: Read command, file tool
 
 **Read Plan**:
