@@ -199,6 +199,69 @@ test('merges per-step environment overrides without losing the gate environment'
     });
   });
 
+  test('records the step toolchain resolved from the gate PATH in the SOURCE stage', () => {
+    const bin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-source-gate-bin-')));
+    try {
+      writeExecutable(path.join(bin, 'python3'), '#!/bin/sh\necho "Python 3.9.6"\n');
+      withStepsFile([{ name: 'ok', cmd: process.execPath, args: ['-e', 'process.exit(0)'] }], (stepsFile) => {
+        const env = { ...process.env, PATH: [bin, process.env.PATH || ''].join(path.delimiter) };
+        const res = spawnSync(process.execPath, [CLI, '--version', '1.0.0', '--steps-file', stepsFile], { encoding: 'utf8', env });
+        assert.strictEqual(res.status, 0, res.stderr);
+        const stage = JSON.parse(res.stdout);
+        const python = stage.toolchain.commands.find((entry) => entry.command === 'python3');
+        assert.deepStrictEqual(python, { command: 'python3', path: path.join(bin, 'python3'), realPath: path.join(bin, 'python3'), version: 'Python 3.9.6' });
+        assert.deepStrictEqual(stage.toolchain.commands.map((entry) => entry.command), ['python3', 'node', 'bash']);
+      });
+    } finally {
+      fs.rmSync(bin, { recursive: true, force: true });
+    }
+  });
+
+  test('--only runs just the named step and needs no --version', () => {
+    withStepsFile([
+      { name: 'skipped', cmd: process.execPath, args: ['-e', 'process.exit(1)'] },
+      { name: 'chosen', cmd: process.execPath, args: ['-e', 'process.exit(0)'] },
+    ], (stepsFile) => {
+      const res = spawnSync(process.execPath, [CLI, '--only', 'chosen', '--steps-file', stepsFile], { encoding: 'utf8' });
+      assert.strictEqual(res.status, 0, res.stderr);
+      const stage = JSON.parse(res.stdout);
+      assert.deepStrictEqual(stage.commands, [{ cmd: `${process.execPath} -e process.exit(0)`, exitCode: 0 }]);
+      assert.strictEqual(stage.only, 'chosen', 'a partial run must say so in its evidence');
+    });
+  });
+
+  test('--only with no step name is a usage error, not a full gate run', () => {
+    withStepsFile([{ name: 'chosen', cmd: process.execPath, args: ['-e', 'process.exit(0)'] }], (stepsFile) => {
+      for (const argv of [['--version', '1.0.0', '--steps-file', stepsFile, '--only'], ['--only', '--version', '1.0.0', '--steps-file', stepsFile]]) {
+        const res = spawnSync(process.execPath, [CLI, ...argv], { encoding: 'utf8' });
+        assert.strictEqual(res.status, 2, argv.join(' '));
+        assert.match(res.stderr, /'--only' needs a step name/);
+        assert.strictEqual(res.stdout, '');
+      }
+    });
+  });
+
+  test('--only with an unknown step name exits 2 and names the known steps', () => {
+    withStepsFile([{ name: 'chosen', cmd: process.execPath, args: ['-e', 'process.exit(0)'] }], (stepsFile) => {
+      const res = spawnSync(process.execPath, [CLI, '--only', 'missing', '--steps-file', stepsFile], { encoding: 'utf8' });
+      assert.strictEqual(res.status, 2);
+      assert.match(res.stderr, /unknown step 'missing'.*chosen/);
+      assert.strictEqual(res.stdout, '');
+    });
+  });
+
+  test('--only release-parity without --version refuses instead of checking a placeholder', () => {
+    const res = spawnSync(process.execPath, [CLI, '--only', 'release-parity'], { encoding: 'utf8' });
+    assert.strictEqual(res.status, 2);
+    assert.match(res.stderr, /release-parity' needs --version/);
+    assert.strictEqual(res.stdout, '');
+  });
+
+  test('npm run test:gate runs only the gate repository-tests step', () => {
+    const scripts = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts;
+    assert.strictEqual(scripts['test:gate'], 'node scripts/release/source-gate.js --only repository-tests');
+  });
+
   test('inherits CI-owned strict cgroup policy for source-gate steps', () => {
     withStepsFile([{
       name: 'policy',

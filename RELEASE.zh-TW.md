@@ -176,6 +176,10 @@ Release gate 分三層：
    明確標記為 `local-portable` 的 Node heap + process-group wall-time fallback，並
    清除 bounded-runner 控制環境變數。這個本機 PASS 不宣稱完整 descendant memory
    containment，tag 觸發的 Linux Release workflow 仍是正式強隔離驗證。
+   SOURCE stage 會記錄 `toolchain`：step 從 gate PATH 解析到的 `python3`、
+   `node`、`bash` 與版本；同一個 gate 在不同 shell 結果不同時，先比對此欄位。
+   要以 gate 完全相同的條件（worker 數與平台 adapter）只重跑 repository tests，
+   使用 `npm run test:gate`。
 6. runner 會再確認 merged PR SHA、`main` HEAD 與雙親 merge topology，並在合併後
    的 `main` 驗證 SOURCE + PACKAGE（包含 provenance）；通過後才建立 annotated semver tag。
 7. Push tag，等待 release workflow 與 GitHub Release 完成。
