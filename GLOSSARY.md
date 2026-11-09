@@ -68,6 +68,14 @@ _Avoid_: Legacy projection, private copy
 The record that is the sole lifecycle owner of the Shared Project Projection's content and its Host Bindings.
 _Avoid_: Projection manifest, install log
 
+**Package Receipt**:
+The source and ownership record shipped inside a generated Host package: which sources produced it and which files it owns. AGY uses the installed copy of it as its install-time ownership record.
+_Avoid_: Provenance file, Projection Receipt (that one belongs to the Shared Project Projection)
+
+**Projection Journal**:
+The single record of an in-progress Projection install, update, uninstall, or rollback. Recovery reads only it to decide whether to finish or undo the change. It owns no content; the Projection Receipt does.
+_Avoid_: Transaction log, install journal, second journal
+
 **Host Binding**:
 A receipt-owned record that one Host discovers one skill in the Shared Project Projection, either directly or through a per-skill link in its native directory. A Host Binding owns no content.
 _Avoid_: Directory symlink, native copy
@@ -177,5 +185,21 @@ Evidence, stated in the command itself, that a recursive read excludes every eff
 _Avoid_: Safe search, exclusion list
 
 **Absence Proof**:
-Evidence, from a bounded scan at check time, that a recursive read's search root contains no Protected Path. It is a point-in-time observation, not a guarantee for the moment the command runs.
+Evidence, gathered within fixed bounds at check time, that none of the files a read would open is a Protected Path, whether from a scan of the read's search roots or from the repository's own listing of the files involved. It is a point-in-time observation, not a guarantee for the moment the command runs.
 _Avoid_: Safe directory, clean directory, credential-free directory
+
+**Reader**:
+A command or subcommand the credential guard knows can open file contents, such as `cat`, `sed`, `grep`, `rg`, or `git show`. Each Reader's arguments are understood only through that Reader's own option grammar.
+_Avoid_: Read command, file tool
+
+**Read Plan**:
+What a Reader invocation would open: its targets, auxiliary inputs, whether it recurses and follows links, and the exclusions it states. It describes the invocation and carries no judgment about whether the read is allowed.
+_Avoid_: Parsed args, classification
+
+**Remote Wrapper**:
+A command, such as `ssh`, that runs another command where the local working directory and filesystem do not apply. It is not a Reader; the command it carries is judged without local knowledge.
+_Avoid_: Remote reader
+
+**Credential Verdict**:
+The credential guard's single decision about one agent command: allowed, or blocked for one named reason with the recovery advice for that reason. A guard that cannot inspect the command reaches a blocked verdict, never an allowed one.
+_Avoid_: Block reason, guard result

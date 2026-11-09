@@ -11,6 +11,16 @@ const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'maintainer', 'verification-run.js');
 const RECORD_DIR = path.join('docs', 'evidence', 'verification-runs');
 
+// Launching a child needs Linux process identity (/proc start time + boot_id);
+// other platforms fail closed by design (#1257), so those cases are skipped there.
+const CHILD_SKIP = process.platform === 'linux' ? null
+  : `needs Linux process identity to launch a child (platform ${process.platform}; #1257)`;
+const skipped = [];
+function childTest(name, fn) {
+  if (CHILD_SKIP) skipped.push(name);
+  else test(name, fn);
+}
+
 function git(cwd, ...args) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 }
@@ -159,7 +169,7 @@ function counterRuns(fixture) {
   return fs.existsSync(fixture.counter) ? fs.readFileSync(fixture.counter, 'utf8').trim().split('\n').length : 0;
 }
 
-test('start records the command and git snapshot and persists both child output streams', async () => {
+childTest('start records the command and git snapshot and persists both child output streams', async () => {
   const fixture = makeFixture();
   try {
     const result = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -187,7 +197,7 @@ test('start records the command and git snapshot and persists both child output 
   } finally { cleanup(fixture); }
 });
 
-test('simultaneous starts for one claim launch one child and return the same record', async () => {
+childTest('simultaneous starts for one claim launch one child and return the same record', async () => {
   const fixture = makeFixture();
   try {
     const options = { args: commandArgs(fixture, { delay: 220 }) };
@@ -199,7 +209,7 @@ test('simultaneous starts for one claim launch one child and return the same rec
   } finally { cleanup(fixture); }
 });
 
-test('a completed claim is reused without launching the command again', async () => {
+childTest('a completed claim is reused without launching the command again', async () => {
   const fixture = makeFixture();
   try {
     const first = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -214,7 +224,7 @@ test('a completed claim is reused without launching the command again', async ()
   } finally { cleanup(fixture); }
 });
 
-test('arguments after the delimiter reach the child literally without shell evaluation', async () => {
+childTest('arguments after the delimiter reach the child literally without shell evaluation', async () => {
   const fixture = makeFixture();
   try {
     const payload = 'literal; $(touch SHOULD_NOT_EXIST) `echo nope`';
@@ -228,7 +238,7 @@ test('arguments after the delimiter reach the child literally without shell eval
   } finally { cleanup(fixture); }
 });
 
-test('a nonzero child exit is durable as failed with its exit code', async () => {
+childTest('a nonzero child exit is durable as failed with its exit code', async () => {
   const fixture = makeFixture();
   try {
     const result = runStart(fixture, { args: commandArgs(fixture, { delay: 20, exitCode: 7 }), expectSuccess: false });
@@ -239,7 +249,7 @@ test('a nonzero child exit is durable as failed with its exit code', async () =>
   } finally { cleanup(fixture); }
 });
 
-test('a changed repository head creates a distinct claim for the same key', async () => {
+childTest('a changed repository head creates a distinct claim for the same key', async () => {
   const fixture = makeFixture();
   try {
     const first = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -257,7 +267,7 @@ test('a changed repository head creates a distinct claim for the same key', asyn
   } finally { cleanup(fixture); }
 });
 
-test('a changed command creates a distinct claim for the same key and snapshot', async () => {
+childTest('a changed command creates a distinct claim for the same key and snapshot', async () => {
   const fixture = makeFixture();
   try {
     const first = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -272,7 +282,7 @@ test('a changed command creates a distinct claim for the same key and snapshot',
   } finally { cleanup(fixture); }
 });
 
-test('relevant environment changes create an independent claim', async () => {
+childTest('relevant environment changes create an independent claim', async () => {
   const fixture = makeFixture();
   try {
     const args = commandArgs(fixture, { delay: 20 });
@@ -286,7 +296,7 @@ test('relevant environment changes create an independent claim', async () => {
   } finally { cleanup(fixture); }
 });
 
-test('failed runs need explicit retry with a new attempt; unknown runs cannot be retried', async () => {
+childTest('failed runs need explicit retry with a new attempt; unknown runs cannot be retried', async () => {
   const fixture = makeFixture();
   try {
     const failed = runStart(fixture, { args: commandArgs(fixture, { delay: 20, exitCode: 5 }), expectSuccess: false });
@@ -322,7 +332,7 @@ test('missing and corrupt status records fail safely without creating files', ()
   } finally { cleanup(fixture); }
 });
 
-test('an unprovable running owner stays unknown and cannot be taken over', async () => {
+childTest('an unprovable running owner stays unknown and cannot be taken over', async () => {
   const fixture = makeFixture();
   try {
     const first = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -347,7 +357,7 @@ test('an unprovable running owner stays unknown and cannot be taken over', async
   } finally { cleanup(fixture); }
 });
 
-test('same-command retry needs a distinct attempt and preserves original evidence', async () => {
+childTest('same-command retry needs a distinct attempt and preserves original evidence', async () => {
   const fixture = makeFixture();
   try {
     const args = commandArgs(fixture, { delay: 20, exitCode: 6 });
@@ -376,7 +386,7 @@ test('same-command retry needs a distinct attempt and preserves original evidenc
   } finally { cleanup(fixture); }
 });
 
-test('different bytes with unchanged dirty flags create a distinct claim', () => {
+childTest('different bytes with unchanged dirty flags create a distinct claim', () => {
   const fixture = makeFixture();
   try {
     const file = path.join(fixture.repo, 'dirty.txt');
@@ -406,7 +416,7 @@ test('a symlinked evidence directory is rejected without writing through it', ()
   } finally { cleanup(fixture); }
 });
 
-test('signal termination and spawn failure return a nonzero wrapper exit', () => {
+childTest('signal termination and spawn failure return a nonzero wrapper exit', () => {
   const fixture = makeFixture();
   try {
     const signaled = runStart(fixture, {
@@ -422,7 +432,7 @@ test('signal termination and spawn failure return a nonzero wrapper exit', () =>
   } finally { cleanup(fixture); }
 });
 
-test('arbitrary environment changes invalidate reuse without persisting raw environment values', () => {
+childTest('arbitrary environment changes invalidate reuse without persisting raw environment values', () => {
   const fixture = makeFixture();
   try {
     const args = [process.execPath, '-e', 'process.exit(process.env.VERIFICATION_FIXTURE_SECRET === "private-first" ? 0 : 9)'];
@@ -443,7 +453,7 @@ test('arbitrary environment changes invalidate reuse without persisting raw envi
   } finally { cleanup(fixture); }
 });
 
-test('source drift during a successful command becomes unknown and cannot be reused as passed', async () => {
+childTest('source drift during a successful command becomes unknown and cannot be reused as passed', async () => {
   const fixture = makeFixture();
   try {
     const source = path.join(fixture.repo, 'source.txt');
@@ -474,7 +484,7 @@ test('source drift during a successful command becomes unknown and cannot be reu
   } finally { cleanup(fixture); }
 });
 
-test('overview resolves a passed record and ignores stale ledger status fields', () => {
+childTest('overview resolves a passed record and ignores stale ledger status fields', () => {
   const fixture = makeFixture();
   try {
     const run = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -498,7 +508,7 @@ test('overview resolves a passed record and ignores stale ledger status fields',
   } finally { cleanup(fixture); }
 });
 
-test('overview resolves relative record paths from the ledger and reads status changes without a ledger edit', async () => {
+childTest('overview resolves relative record paths from the ledger and reads status changes without a ledger edit', async () => {
   const fixture = makeFixture();
   try {
     const ledgerPath = path.join(fixture.tmp, 'ledger.json');
@@ -520,7 +530,7 @@ test('overview resolves relative record paths from the ledger and reads status c
   } finally { cleanup(fixture); }
 });
 
-test('overview returns the failed child exit code from its record', () => {
+childTest('overview returns the failed child exit code from its record', () => {
   const fixture = makeFixture();
   try {
     const failed = runStart(fixture, { args: commandArgs(fixture, { delay: 20, exitCode: 23 }), expectSuccess: false });
@@ -534,7 +544,7 @@ test('overview returns the failed child exit code from its record', () => {
   } finally { cleanup(fixture); }
 });
 
-test('overview falls back to exit code 1 when a failed record has no usable child exit code', () => {
+childTest('overview falls back to exit code 1 when a failed record has no usable child exit code', () => {
   const fixture = makeFixture();
   try {
     const failed = runStart(fixture, { args: commandArgs(fixture, { delay: 20, exitCode: 4 }), expectSuccess: false });
@@ -551,7 +561,7 @@ test('overview falls back to exit code 1 when a failed record has no usable chil
   } finally { cleanup(fixture); }
 });
 
-test('overview maps a dead running owner to unknown and exits 2', () => {
+childTest('overview maps a dead running owner to unknown and exits 2', () => {
   const fixture = makeFixture();
   try {
     const run = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -569,7 +579,7 @@ test('overview maps a dead running owner to unknown and exits 2', () => {
   } finally { cleanup(fixture); }
 });
 
-test('overview exits 2 when any referenced record is unknown', () => {
+childTest('overview exits 2 when any referenced record is unknown', () => {
   const fixture = makeFixture();
   try {
     const first = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -609,7 +619,7 @@ test('overview reports blocked for invalid ledgers and missing or corrupt record
   } finally { cleanup(fixture); }
 });
 
-test('overview rejects duplicate canonical record paths', () => {
+childTest('overview rejects duplicate canonical record paths', () => {
   const fixture = makeFixture();
   try {
     const run = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -697,7 +707,7 @@ else process.exit(92);
 });
 
 for (const [extraStatus, childExitCode, expectedExitCode] of [['failed', 23, 23], ['unknown', 0, 2]]) {
-  test(`overview includes additional top-level ${extraStatus} references`, () => {
+  childTest(`overview includes additional top-level ${extraStatus} references`, () => {
     const fixture = makeFixture();
     try {
       const passed = runStart(fixture, { args: commandArgs(fixture, { delay: 20 }) });
@@ -722,4 +732,62 @@ for (const [extraStatus, childExitCode, expectedExitCode] of [['failed', 23, 23]
   });
 }
 
+test('an unsupported platform refuses to launch the child and records why (#1257)', () => {
+  const fixture = makeFixture();
+  try {
+    // Pretend to be another non-Linux platform so the case also runs on Linux CI.
+    const preload = path.join(fixture.tmp, 'platform.js');
+    fs.writeFileSync(preload, "Object.defineProperty(process, 'platform', { value: 'freebsd' });\n");
+    const result = spawnSync(process.execPath, ['-r', preload, CLI, 'start', '--root', fixture.repo,
+      '--task', 'task-a', '--attempt', 'attempt-a', '--key', 'phpunit-fast', '--', ...commandArgs(fixture, { delay: 20 })], {
+      cwd: ROOT, encoding: 'utf8', timeout: 5000,
+    });
+    assert.strictEqual(result.status, 2, result.stderr || result.stdout);
+    assert.match(result.stderr, /^verification-run: process identity unavailable on freebsd; refusing to start /m);
+    const record = JSON.parse(fs.readFileSync(findRecordPath(fixture), 'utf8'));
+    assert.strictEqual(record.status, 'unknown');
+    assert.strictEqual(record.unknownReason, 'unsupported-platform');
+    assert.strictEqual(record.processStartIdentity, null);
+    assert.strictEqual(counterRuns(fixture), 0, 'the child must not be launched');
+    assert.ok(!fs.existsSync(path.join(path.dirname(findRecordPath(fixture)), 'output.log')));
+  } finally { cleanup(fixture); }
+});
+
+test('process identity results tell an unsupported platform from an unreadable /proc', () => {
+  const { processIdentityResult } = require(CLI);
+  const darwin = processIdentityResult(process.pid, { platform: 'darwin' });
+  assert.strictEqual(darwin.reason, 'unsupported-platform');
+  assert.match(darwin.detail, /darwin/);
+  const denied = processIdentityResult(process.pid, {
+    platform: 'linux', readFile: () => { throw Object.assign(new Error('denied'), { code: 'EACCES' }); },
+  });
+  assert.strictEqual(denied.reason, 'identity-read-failed');
+  assert.match(denied.detail, /\/proc.*EACCES/);
+  assert.notStrictEqual(denied.detail, darwin.detail);
+  assert.strictEqual(processIdentityResult(0, { platform: 'linux' }).reason, 'invalid-pid');
+  const zombie = processIdentityResult(42, { platform: 'linux', readFile: () => '42 (node) Z 1' });
+  assert.strictEqual(zombie.reason, 'process-exited');
+  const stat = `42 (no de) S ${Array.from({ length: 30 }, (_, i) => i + 2).join(' ')}`;
+  const live = processIdentityResult(42, {
+    platform: 'linux', readFile: (file) => (file.endsWith('boot_id') ? 'boot-1\n' : stat),
+  });
+  assert.deepStrictEqual(live, { identity: 'boot-1:20' });
+});
+
+test('records with and without unknownReason both stay readable', () => {
+  const { readRecord: read } = require(CLI);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-verification-record-'));
+  try {
+    const base = { schema: 'dhpk.verification-run.v1', ownerId: 'o', status: 'unknown', recordPath: '/r', attempt: 'a' };
+    for (const record of [base, { ...base, unknownReason: 'unsupported-platform' }]) {
+      const file = path.join(tmp, `${record.unknownReason || 'legacy'}.json`);
+      fs.writeFileSync(file, JSON.stringify(record));
+      assert.deepStrictEqual(read(file), record);
+    }
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+// tinytest has no skip state; list skipped cases with their reason so a local run shows what CI covers.
+for (const name of skipped) console.log(`  SKIP - ${name}: ${CHILD_SKIP}`);
+if (skipped.length) console.log(`maintainer-verification-run: ${skipped.length} skipped`);
 run('maintainer-verification-run');

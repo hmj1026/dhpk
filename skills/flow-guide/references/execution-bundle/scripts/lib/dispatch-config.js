@@ -5,6 +5,7 @@ const {
   AGENT_PROVIDER,
   createHostProfile,
   createProviderModelCatalog,
+  matchCatalogRoutes,
   PROVIDERS,
   SUPPORT_STATUSES,
   agentForAlias,
@@ -215,11 +216,9 @@ function diagnoseDispatchConfig({ config, catalog, hostProfile, role = 'worker',
   const provider = canonicalProvider(selected.provider) || AGENT_PROVIDER[canonicalAgent];
   const modelId = selected.model_id || selected.model;
   const selectedEffort = selected.effort || effort;
-  const catalogSupport = catalogData.routes.some((route) => route.host === profile.host
-    && route.provider === provider
-    && (!canonicalAgent || route.target_agent === canonicalAgent)
-    && (!modelId || route.model_id === modelId)
-    && route.roles.includes(role) && route.efforts.includes(selectedEffort) && route.authorities.includes(authority))
+  const catalogSupport = provider && matchCatalogRoutes(catalogData, {
+    host: profile.host, targetAgent: canonicalAgent, provider, modelId, role, effort: selectedEffort, authority,
+  }).length > 0
     ? SUPPORT_STATUSES[0] : SUPPORT_STATUSES[1];
   const hostAccess = profile && profile.access[provider] ? profile.access[provider].status : 'BLOCKED';
   let runtime = 'NOT_RUN';
@@ -313,13 +312,8 @@ function enrichExplicitTarget(selected, profile, catalogData, role) {
     ...(modelId ? { model_id: modelId } : {}),
     ...(effort ? { effort } : {}),
   };
-  if (profile && catalogData && Array.isArray(catalogData.routes)) {
-    const match = catalogData.routes.find((route) => route.host === profile.host
-      && route.provider === provider
-      && (!targetAgent || route.target_agent === targetAgent)
-      && (!modelId || route.model_id === modelId)
-      && route.roles.includes(role)
-      && (!effort || route.efforts.includes(effort)));
+  if (profile && provider && catalogData && Array.isArray(catalogData.routes)) {
+    const [match] = matchCatalogRoutes(catalogData, { host: profile.host, targetAgent, provider, modelId, role, effort });
     if (match && match.route) fields.route = match.route;
   }
   return publicTargetFields(fields);

@@ -659,6 +659,39 @@ test('cursor-sync compile yields one store plan per owned subdirectory with decl
   }
 });
 
+test('cursor-sync plan entries and skill provenance name the cursor-sync surface as owner (#1249)', () => {
+  const root = makeFixture();
+  const out = path.join(root, 'cursor');
+  const inventory = declaredInventory();
+  inventory.skills = inventory.skills.map((skill) => ({
+    ...skill,
+    invocation_class: 'implicit-eligible',
+    usage: {
+      display_name: 'Portable',
+      summary: 'Exercise the portable Cursor skill',
+      syntax: '$dhpk-portable',
+      input_kind: 'none',
+      inputs: [],
+      invocation_class: 'implicit-eligible',
+      effect_authority: 'read-only',
+      actions: [],
+      options: [],
+      examples: [{ prompt: '$dhpk-portable', summary: 'Run the portable skill' }],
+    },
+  }));
+  try {
+    const compiled = compileCursorSyncProjection({ inventory, root, outDir: out });
+    const owners = new Set(compiled.groups.flatMap((group) => group.plan.entries.map((entry) => entry.owner)));
+    assert.deepStrictEqual([...owners], ['cursor-sync']);
+    seedTrackedCursorFiles(out);
+    const result = materializeCursorSyncTree({ inventory, root, outDir: out });
+    assert.deepStrictEqual(Object.keys(result.provenance), ['portable']);
+    assert.strictEqual(result.provenance.portable.owner, 'cursor-sync');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('cursor-sync keeps tracked cursor/AGENTS.md and cursor/guidance.md across regeneration', () => {
   const root = makeFixture();
   const out = path.join(root, 'cursor');

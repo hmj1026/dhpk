@@ -880,4 +880,299 @@ test('shared projection failure after a Host transaction records rolled_back', (
   }
 });
 
+// --- Projection Journal: one commit point across installer and publisher (#1235, ADR-0033) ---
+
+const NODE_JOURNAL = path.join('.agents', '.dhpk-installed.transaction.json');
+
+// The installer's Python runs under bash, so a SIGKILL shows as bash exit 137.
+function wasKilled(result) {
+  return result.signal === 'SIGKILL' || result.status === 137;
+}
+
+function liveState(scratch) {
+  // Transient journals and backups are excluded; everything a user or Host reads is included.
+  const keep = (rel) => !/(^|\/)\.dhpk-transaction-|(^|\/)backups(\/|$)|\.dhpk-installed\.transaction\.json$|\.dhpk-projection-/.test(rel);
+  return ['.agents', '.codex'].map((dir) => snapshotTree(path.join(scratch, dir))
+    .split('\n').filter((line) => line && keep(`${dir}/${line}`)).map((line) => `${dir}/${line}`).join('\n')).join('\n');
+}
+
+// An installed project whose plugin content then changes, so --update makes
+// the publisher write new shared-projection content inside the installer run.
+function changedPluginScenario() {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  const first = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+  assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+  write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only v2'));
+  write(path.join(plugin, 'codex', 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only v2'));
+  return { scratch, plugin };
+}
+
+function killerPreload(dir) {
+  // Kills the installer (parent) and the publisher together while the publisher
+  // copies into the shared projection, i.e. the installer dies mid-publish.
+  const file = path.join(dir, 'kill-mid-publish.js');
+  write(file, `
+    const fs = require('node:fs');
+    const original = fs.copyFileSync;
+    fs.copyFileSync = (...args) => {
+      if (String(args[1]).includes('/.agents/skills/')) {
+        try { process.kill(process.ppid, 'SIGKILL'); } catch {}
+        process.kill(process.pid, 'SIGKILL');
+      }
+      return original(...args);
+    };
+  `);
+  return file;
+}
+
+test('native install failure after the held shared projection restores both sides', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const before = liveState(scratch);
+    const failed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_FAIL_AFTER_SHARED_PROJECTION: '1' });
+    assert.notStrictEqual(failed.status, 0, outputOf(failed));
+    assert.match(outputOf(failed), /test-injected failure after the shared projection step/);
+    assert.strictEqual(liveState(scratch), before);
+    assert.doesNotMatch(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md'), 'utf8'), /v2/);
+    assert.strictEqual(fs.existsSync(path.join(scratch, NODE_JOURNAL)), false);
+    assert.deepStrictEqual(activeTransactionJournals(path.join(scratch, '.codex')), []);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('installer killed after the held shared projection rolls back both sides on the next run', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const before = liveState(scratch);
+    const killed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_KILL_AT: 'after-shared-projection' });
+    assert.ok(wasKilled(killed), outputOf(killed));
+    const [active] = activeTransactionJournals(path.join(scratch, '.codex'));
+    assert.ok(active, 'expected the killed run to leave its installer journal active');
+    const held = JSON.parse(fs.readFileSync(path.join(scratch, NODE_JOURNAL), 'utf8')).hold;
+    assert.strictEqual(`.dhpk-transaction-${held.transactionId}.json`, active);
+    const plan = runCodexInstaller(scratch, ['--copy', '--update', '--force', '--plan', '--json'], plugin);
+    assert.doesNotMatch(outputOf(plan), /RECOVERY_CONFLICT/);
+    const rerun = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_FAIL_AFTER_SHARED_PROJECTION: '1' });
+    assert.doesNotMatch(outputOf(rerun), /RECOVERY_CONFLICT|held by/);
+    assert.strictEqual(liveState(scratch), before, 'recovery plus a failed rerun must leave the pre-update state');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('installer killed while the publisher is publishing recovers without RECOVERY_CONFLICT', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  const preloadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-preload-'));
+  try {
+    const killed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { NODE_OPTIONS: `--require ${killerPreload(preloadDir)}` });
+    assert.ok(wasKilled(killed), outputOf(killed));
+    const rerun = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(rerun.status, 0, outputOf(rerun));
+    assert.doesNotMatch(outputOf(rerun), /RECOVERY_CONFLICT/);
+    assert.match(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md'), 'utf8'), /Codex only v2/);
+    assert.strictEqual(fs.existsSync(path.join(scratch, NODE_JOURNAL)), false);
+    assert.deepStrictEqual(activeTransactionJournals(path.join(scratch, '.codex')), []);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+    fs.rmSync(preloadDir, { recursive: true, force: true });
+  }
+});
+
+test('installer killed after the publisher commit rolls forward on the next run', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const killed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_KILL_AT: 'after-shared-commit' });
+    assert.ok(wasKilled(killed), outputOf(killed));
+    assert.strictEqual(fs.existsSync(path.join(scratch, NODE_JOURNAL)), false, 'the publisher committed before the kill');
+    const rerun = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(rerun.status, 0, outputOf(rerun));
+    assert.match(rerun.stdout, /already up-to-date/, 'roll-forward must finalize the updated receipt');
+    assert.match(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md'), 'utf8'), /Codex only v2/);
+    assert.deepStrictEqual(activeTransactionJournals(path.join(scratch, '.codex')), []);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('a failure after the publisher commit rolls nothing back and the next run rolls forward', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const failed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_FAIL_AFTER_SHARED_COMMIT: '1' });
+    assert.notStrictEqual(failed.status, 0, outputOf(failed));
+    assert.match(outputOf(failed), /already committed; rerun the installer/);
+    assert.strictEqual(activeTransactionJournals(path.join(scratch, '.codex')).length, 1, 'the installer journal must stay active');
+    assert.match(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md'), 'utf8'), /Codex only v2/, 'nothing may be rolled back');
+    const rerun = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(rerun.status, 0, outputOf(rerun));
+    assert.match(rerun.stdout, /already up-to-date/);
+    assert.deepStrictEqual(activeTransactionJournals(path.join(scratch, '.codex')), []);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('uninstall killed after the held shared projection restores both sides on the next run', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, outputOf(first));
+    const before = liveState(scratch);
+    const killed = runCodexInstaller(scratch, ['--uninstall', '--force'], plugin, { DHPK_TEST_KILL_AT: 'after-shared-projection' });
+    assert.ok(wasKilled(killed), outputOf(killed));
+    const plan = runCodexInstaller(scratch, ['--copy', '--force', '--plan', '--json'], plugin);
+    assert.doesNotMatch(outputOf(plan), /RECOVERY_CONFLICT/);
+    const rerun = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(rerun.status, 0, outputOf(rerun));
+    // The rerun may rewrite the publisher receipt; every file and link it owns must be back.
+    const withoutReceipt = (state) => state.split('\n').filter((line) => !line.startsWith('.agents/.dhpk-installed.json:')).join('\n');
+    assert.strictEqual(withoutReceipt(liveState(scratch)), withoutReceipt(before));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('installer killed after its partial receipt but before the commit intent rolls back both sides', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const before = liveState(scratch);
+    const killed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_KILL_AT: 'before-shared-commit' });
+    assert.ok(wasKilled(killed), outputOf(killed));
+    const receipt = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(receipt.transaction_final, false, 'the kill must land after the partial receipt');
+    const rerun = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_FAIL_AFTER_SHARED_PROJECTION: '1' });
+    assert.doesNotMatch(outputOf(rerun), /RECOVERY_CONFLICT|held by/);
+    assert.strictEqual(liveState(scratch), before);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('a Host that meets another Host\'s held projection rolls back cleanly and succeeds once it is released', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const cursorFirst = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(cursorFirst.status, 0, outputOf(cursorFirst));
+    const killed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_KILL_AT: 'after-shared-projection' });
+    assert.ok(wasKilled(killed), outputOf(killed));
+    const journalsBefore = fs.readdirSync(path.join(scratch, '.cursor'));
+    const blocked = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.notStrictEqual(blocked.status, 0, outputOf(blocked));
+    assert.match(outputOf(blocked), /held by the codex installer/);
+    const latest = latestTransactionJournal(path.join(scratch, '.cursor'), journalsBefore);
+    assert.strictEqual(latest.journal.phase, 'rolled_back', JSON.stringify(latest.journal.rollback_errors || []));
+    const codex = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(codex.status, 0, outputOf(codex));
+    const cursor = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(cursor.status, 0, outputOf(cursor));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+// --- Explicit recovery (REQ-6) ---
+
+// Turns the last committed installer journal into an incomplete rollback that
+// still owes one restore: `.codex/agents/explorer.toml` from its backup.
+function incompleteRollbackScenario() {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  const first = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+  assert.strictEqual(first.status, 0, outputOf(first));
+  const hostRoot = path.join(scratch, '.codex');
+  const name = fs.readdirSync(hostRoot).filter((entry) => /^\.dhpk-transaction-.*\.json$/.test(entry)).sort().pop();
+  const journalPath = path.join(hostRoot, name);
+  const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
+  const relative = 'agents/explorer.toml';
+  const backup = `.dhpk-backups/${journal.run}/${relative}`;
+  const live = path.join(hostRoot, relative);
+  const bytes = fs.readFileSync(live);
+  write(path.join(hostRoot, backup), bytes);
+  fs.rmSync(live);
+  journal.phase = 'rollback_incomplete';
+  // A rollback never starts past the commit point, so no committing record remains.
+  delete journal.shared_projection;
+  journal.prunes = [{ relative, destination: relative, backup }];
+  journal.mutations = [];
+  journal.adoptions = [];
+  journal.receipt_snapshot_present = true;
+  journal.receipt_snapshot = JSON.parse(fs.readFileSync(path.join(hostRoot, '.dhpk-installed.json'), 'utf8'));
+  fs.writeFileSync(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
+  return { scratch, plugin, hostRoot, journalPath, live, bytes, backup };
+}
+
+test('an incomplete rollback blocks with its remaining paths and backup, and --recover finishes it', () => {
+  const { scratch, plugin, journalPath, live, bytes, backup } = incompleteRollbackScenario();
+  try {
+    const blocked = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.notStrictEqual(blocked.status, 0, outputOf(blocked));
+    assert.match(outputOf(blocked), /agents\/explorer\.toml/);
+    assert.ok(outputOf(blocked).includes(path.posix.dirname(path.posix.dirname(backup))), outputOf(blocked));
+    assert.match(outputOf(blocked), /--recover/);
+    const recovered = runCodexInstaller(scratch, ['--recover'], plugin);
+    assert.strictEqual(recovered.status, 0, outputOf(recovered));
+    assert.deepStrictEqual(fs.readFileSync(live), bytes);
+    assert.strictEqual(JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase, 'rolled_back');
+    const next = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(next.status, 0, outputOf(next));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+const SHARED_CLI = path.join(REPO, 'scripts', 'ci', 'install-native-shared-skills.js');
+const DHPK_INSTALL = path.join(REPO, 'scripts', 'dhpk-install.js');
+
+test('explicit recovery refuses a held publication while its installer journal is active, then aborts it once orphaned', () => {
+  const { scratch, plugin } = changedPluginScenario();
+  try {
+    const killed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { DHPK_TEST_KILL_AT: 'after-shared-projection' });
+    assert.ok(wasKilled(killed), outputOf(killed));
+    const [active] = activeTransactionJournals(path.join(scratch, '.codex'));
+    const refused = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
+    assert.strictEqual(refused.status, 2, outputOf(refused));
+    const report = JSON.parse(refused.stdout);
+    assert.strictEqual(report.sharedProjection.code, 'INSTALLER_ACTIVE');
+    assert.match(report.sharedProjection.message, /codex/);
+    assert.ok(fs.existsSync(path.join(scratch, NODE_JOURNAL)));
+    // The installer journal is lost: the publication is orphaned.
+    fs.rmSync(path.join(scratch, '.codex', active));
+    const aborted = spawnSync(process.execPath, [SHARED_CLI, 'recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
+    assert.strictEqual(aborted.status, 0, outputOf(aborted));
+    assert.strictEqual(JSON.parse(aborted.stdout).state, 'ABORTED');
+    assert.strictEqual(fs.existsSync(path.join(scratch, NODE_JOURNAL)), false);
+    assert.doesNotMatch(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md'), 'utf8'), /v2/);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('dhpk-install --recover lists incomplete installer rollbacks with the command that finishes them', () => {
+  const { scratch, plugin } = incompleteRollbackScenario();
+  try {
+    const result = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 2, outputOf(result));
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.sharedProjection.state, 'ABSENT');
+    assert.strictEqual(report.installerJournals.length, 1);
+    assert.strictEqual(report.installerJournals[0].host, '.codex');
+    assert.match(report.installerJournals[0].command, /--recover/);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
 run('install-codex-sync-shared');

@@ -14,7 +14,10 @@ const {
   retainsCodexSupportRoot,
   rewriteCursorSupportingAssetBody,
 } = require('./cursor-harness-adapt');
-const { readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  readDirectoryEntries,
+  isInside,
+} = require('./bounded-filesystem');
 const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { sha256Hex } = require('./content-fingerprint');
@@ -43,11 +46,6 @@ function listComponentFiles(directory, extensions) {
 
 function relativePosix(from, to) {
   return path.relative(from, to).split(path.sep).join('/');
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative));
 }
 
 function confinedChild(parent, name) {
@@ -251,7 +249,7 @@ function compileGroup(group, { inventory, outDir, inventoryRevision, ownershipFi
       stableId: SURFACE + ':' + group.name + '/' + file.destination,
       source: file.source,
       destination: file.destination,
-      owner: 'plugins/dhpk-agent',
+      owner: SURFACE,
       transform: { id: 'cursor-sync-render', version: GENERATOR_VERSION },
       expectedFingerprint: sha256Hex(file.content),
       symlinkPolicy: 'forbid',
@@ -260,7 +258,7 @@ function compileGroup(group, { inventory, outDir, inventoryRevision, ownershipFi
       stableId: SURFACE + ':' + group.name + '/' + link.destination,
       source: link.source,
       destination: link.destination,
-      owner: 'plugins/dhpk-agent',
+      owner: SURFACE,
       transform: { id: 'declared-source-relative-symlink', version: GENERATOR_VERSION },
       symlinkPolicy: 'declared-source-relative',
       symlinkTarget: link.target,
@@ -362,7 +360,7 @@ function materializeCursorSyncTree({ inventory, root, outDir }) {
   const { inventoryRevision, ownershipFingerprint } = compiled;
   const usageEntries = selectedSkills.filter((skill) => skill && skill.usage).map((skill) => {
     const metadata = skillProjectionMetadata(skill, {
-      owner: 'plugins/dhpk-agent',
+      owner: SURFACE,
       inventoryRevision,
       ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     });

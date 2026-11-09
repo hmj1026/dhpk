@@ -1,8 +1,46 @@
-"""Bounded reader options: unsupported or ambiguous syntax fails closed."""
+"""Reader adapters: each Reader's own option grammar turns its arguments into a Read Plan.
+
+Adapters only describe what an invocation would open; the credential policy
+decides whether that is allowed. Unknown or ambiguous syntax is reported as
+UnsupportedSyntax so the policy fails closed.
+"""
 
 from collections import namedtuple
+from dataclasses import dataclass
 
-Classification = namedtuple('Classification', 'positional recursive exclusions exclusion_invalid follow')
+READERS = ('cat', 'less', 'head', 'tail', 'sed', 'awk', 'grep', 'rg')
+# Only Readers that can recurse have exclusion syntax for an Exclusion Proof.
+EXCLUSION_SYNTAX = {'rg': '--glob "!pattern"', 'grep': '--exclude="pattern"'}
+
+AuxiliaryInput = namedtuple('AuxiliaryInput', 'value token')
+UnsupportedSyntax = namedtuple('UnsupportedSyntax', 'detail')
+
+
+@dataclass(frozen=True)
+class ReadPlan:
+    reader: str
+    targets: tuple
+    auxiliary_inputs: tuple
+    recursive: bool
+    follow: bool
+    exclusions: tuple
+    exclusion_proof_valid: bool
+    # A Reader whose files depend on repository state names them through a
+    # listing (ADR 0034); `resolve(cwd, deadline)` returns a ListingResult.
+    listing: object = None
+    # True when the Reader changed to a directory that cannot be known statically.
+    location_unknown: bool = False
+    # Reader-specific recovery text; None keeps the default hints.
+    recovery: object = None
+
+
+# failure: None, 'unknown', 'limit', or 'error'; detail explains a failure or ambiguity.
+ListingResult = namedtuple('ListingResult', 'failure detail ambiguous targets listed')
+Recovery = namedtuple('Recovery', 'ambiguous recursive')
+
+
+def exclusion_syntax(reader):
+    return EXCLUSION_SYNTAX.get(reader)
 
 # Each option maps to (takes_value, effect). Required values consume the rest
 # of a short cluster or the next word, just as the supported utilities do.
@@ -13,7 +51,7 @@ FILE = (True, 'file')
 RECURSE = (False, 'recursive')
 
 
-def schemas(name):
+def _grammar(name):
     short = {}
     long = {}
     if name in ('cat', 'less'):
@@ -66,90 +104,110 @@ def schemas(name):
     return short, long
 
 
-def classify(name, args, is_protected):
-    short, long = schemas(name)
-    recursive = name == 'rg'
-    follow = False
-    exclusions = []
-    invalid = False
-    positional = []
-    pattern_seen = name not in ('grep', 'rg', 'sed', 'awk')
-    options = True
-    i = 0
-    while i < len(args):
-        token = args[i]
-        arg = token.value
-        if options and arg == '--':
-            options = False
-            i += 1
-            continue
-        effects = []
-        if options and arg.startswith('--'):
-            key, sep, value = arg.partition('=')
-            choices = [key] if key in long else [k for k in long if k.startswith(key)]
-            if len(choices) != 1:
-                return None
-            arity, effect = long[choices[0]]
-            if arity:
-                if not sep:
-                    i += 1
-                    if i >= len(args):
-                        return None
-                    value = args[i].value
-                    token = args[i]
-                effects.append((effect, value, token))
-            elif sep:
-                return None
-            else:
-                effects.append((effect, '', token))
-        elif options and name in ('head', 'tail') and arg[1:].isdigit() and arg.startswith('-'):
-            # `head -15` 是 `head -n 15` 的傳統簡寫，只決定行數，不指定讀取目標。
-            effects.append(('neutral', '', token))
-        elif options and arg.startswith('-') and arg != '-':
-            j = 1
-            while j < len(arg):
-                if arg[j] not in short:
-                    return None
-                arity, effect = short[arg[j]]
+
+
+@dataclass(frozen=True)
+class ReaderAdapter:
+    name: str
+    short: dict
+    long: dict
+
+    @property
+    def exclusion_syntax(self):
+        return EXCLUSION_SYNTAX.get(self.name)
+
+    def plan(self, args):
+        """Return a ReadPlan for `args`, or UnsupportedSyntax naming the offending option."""
+        name = self.name
+        short, long = self.short, self.long
+        recursive = name == 'rg'
+        follow = False
+        exclusions = []
+        invalid = False
+        positional = []
+        auxiliary = []
+        pattern_seen = name not in ('grep', 'rg', 'sed', 'awk')
+        options = True
+        i = 0
+        while i < len(args):
+            token = args[i]
+            arg = token.value
+            if options and arg == '--':
+                options = False
+                i += 1
+                continue
+            effects = []
+            if options and arg.startswith('--'):
+                key, sep, value = arg.partition('=')
+                choices = [key] if key in long else [k for k in long if k.startswith(key)]
+                # 只回報選項名稱，不回報值，避免受保護路徑出現在訊息中。
+                if len(choices) != 1:
+                    return UnsupportedSyntax('%s option %s' % (name, ascii(key)))
+                arity, effect = long[choices[0]]
                 if arity:
-                    value = arg[j + 1:]
-                    if not value:
+                    if not sep:
                         i += 1
                         if i >= len(args):
-                            return None
+                            return UnsupportedSyntax('%s option %s needs a value' % (name, ascii(key)))
                         value = args[i].value
                         token = args[i]
-                    effects.append((effect, value, token))
-                    break
-                effects.append((effect, '', token))
-                j += 1
-        else:
-            if not pattern_seen:
-                pattern_seen = True
-            else:
-                positional.append(token)
-        for effect, value, value_token in effects:
-            # 這些選項能讀取掃描根目錄以外的內容，即使目標是一般檔案也不能放行。
-            if effect == 'unsafe':
-                return None
-            # 輔助檔也會被 reader 開啟；需要連同動態標記驗證，不能只看字面名稱。
-            if effect in ('file', 'file_invalid') and (value_token.glob or is_protected(value, value_token)):
-                return None
-            if effect in ('expression', 'file'):
-                pattern_seen = True
-            if effect == 'recursive' or (effect == 'directories' and value.startswith('recurs')):
-                recursive = True
-            if effect == 'follow':
-                recursive = True
-                follow = True
-            if effect in ('invalid', 'file_invalid'):
-                invalid = True
-            if effect == 'exclude':
-                exclusions.append(value)
-            if effect == 'glob':
-                if value.startswith('!'):
-                    exclusions.append(value[1:])
+                    effects.append((effect, value, token, key))
+                elif sep:
+                    return UnsupportedSyntax('%s option %s takes no value' % (name, ascii(key)))
                 else:
+                    effects.append((effect, '', token, key))
+            elif options and name in ('head', 'tail') and arg[1:].isdigit() and arg.startswith('-'):
+                # `head -15` 是 `head -n 15` 的傳統簡寫，只決定行數，不指定讀取目標。
+                effects.append(('neutral', '', token, arg))
+            elif options and arg.startswith('-') and arg != '-':
+                j = 1
+                while j < len(arg):
+                    flag = '-' + arg[j]
+                    if arg[j] not in short:
+                        return UnsupportedSyntax('%s option %s' % (name, ascii(flag)))
+                    arity, effect = short[arg[j]]
+                    if arity:
+                        value = arg[j + 1:]
+                        if not value:
+                            i += 1
+                            if i >= len(args):
+                                return UnsupportedSyntax('%s option %s needs a value' % (name, ascii(flag)))
+                            value = args[i].value
+                            token = args[i]
+                        effects.append((effect, value, token, flag))
+                        break
+                    effects.append((effect, '', token, flag))
+                    j += 1
+            else:
+                if not pattern_seen:
+                    pattern_seen = True
+                else:
+                    positional.append(token)
+            for effect, value, value_token, flag in effects:
+                # 這些選項能讀取掃描根目錄以外的內容，即使目標是一般檔案也不能放行。
+                if effect == 'unsafe':
+                    return UnsupportedSyntax('%s option %s reads outside its targets' % (name, ascii(flag)))
+                # 輔助檔也會被 reader 開啟；交由 policy 連同動態標記驗證。
+                if effect in ('file', 'file_invalid'):
+                    auxiliary.append(AuxiliaryInput(value, value_token))
+                if effect in ('expression', 'file'):
+                    pattern_seen = True
+                if effect == 'recursive' or (effect == 'directories' and value.startswith('recurs')):
+                    recursive = True
+                if effect == 'follow':
+                    recursive = True
+                    follow = True
+                if effect in ('invalid', 'file_invalid'):
                     invalid = True
-        i += 1
-    return Classification(tuple(positional), recursive, tuple(exclusions), invalid, follow)
+                if effect == 'exclude':
+                    exclusions.append(value)
+                if effect == 'glob':
+                    if value.startswith('!'):
+                        exclusions.append(value[1:])
+                    else:
+                        invalid = True
+            i += 1
+        return ReadPlan(name, tuple(positional), tuple(auxiliary), recursive, follow, tuple(exclusions), not invalid)
+
+
+ADAPTERS = {name: ReaderAdapter(name, *_grammar(name)) for name in READERS}

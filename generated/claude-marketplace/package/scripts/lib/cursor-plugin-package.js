@@ -14,7 +14,15 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
+const {
+  RECEIPT_SCHEMA,
+  SURFACE_OWNERS,
+  resolveGeneratedFromTree,
+  createInstallationReceiptIdentity,
+  packageInventoryDigest,
+  packageFingerprintAlgorithm,
+  serializePackageReceipt,
+} = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -22,12 +30,10 @@ const {
 } = require('./distribution-projection-contract');
 const {
   TREE_FINGERPRINT_ALGORITHM,
-  collectDirectoryEntries,
-  inventoryDigestInsertionOrder,
-  requireTreeMerkle,
   sha256Hex,
-  treeFingerprint,
   treeNodeFingerprint,
+  fingerprintPath,
+  fingerprintPath: fingerprintDir,
 } = require('./content-fingerprint');
 const { selectPortableSkills } = require('./agent-plugin-package');
 const {
@@ -36,10 +42,10 @@ const {
 } = require('./portable-skill-metadata');
 const {
   compileDistribution,
-  materializeDistribution,
   verifyDistribution,
 } = require('./distribution-compiler');
-const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { hostPackageAdapter, publishHostPackage, skillEntryFields } = require('./host-package-pipeline');
+const { sanitizeMarkdownLinks } = require('./markdown-link-sanitizer');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { RULE_ACTIVATION_MAP, canonicalRulePath } = require('./rule-activation-map');
@@ -52,6 +58,12 @@ const {
   readFileBounded,
   readDirectoryEntries,
   listFilesNamedRecursively,
+  lstatOrNull,
+  isInside,
+  assertPhysicalAncestors,
+  ensurePhysicalDirectory,
+  physicalPackageRootError,
+  findSymlinks,
 } = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
@@ -122,7 +134,6 @@ const CURSOR_PROBE_ENV_KEYS = Object.freeze([
   'HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA',
   'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME',
 ]);
-const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
 const CURSOR_MANIFEST_FIELDS = new Set([
   '$schema',
   'name',
@@ -185,59 +196,6 @@ const SAFE_COMMAND_PATH = /^(?:\.?\/?[A-Za-z0-9._-]+)(?:\/[A-Za-z0-9._-]+)*$/;
 const URL_CREDENTIAL_PATTERN = /\bhttps?:\/\/[^\s/@]+:[^\s/@]+@/i;
 const CONNECTION_SECRET_PATTERN = /\b(?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql|redis):\/\/[^\s/@]+:[^\s/@]+@/i;
 
-function lstatOrNull(candidate) {
-  try {
-    return fs.lstatSync(candidate);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
-
-function assertPhysicalAncestors(directory, label) {
-  let current = path.resolve(directory);
-  while (true) {
-    const stat = lstatOrNull(current);
-    if (stat && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
-    const parent = path.dirname(current);
-    if (parent === current) return;
-    current = parent;
-  }
-}
-
-function ensurePhysicalDirectory(directory, label) {
-  assertPhysicalAncestors(directory, label);
-  const stat = lstatOrNull(directory);
-  if (!stat) {
-    fs.mkdirSync(directory, { recursive: true });
-    return;
-  }
-  if (stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
-  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
-  if (fs.realpathSync(directory) !== path.resolve(directory)) {
-    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
-  }
-}
-
-function physicalPackageRootError(directory) {
-  try {
-    assertPhysicalAncestors(directory, 'Cursor package root');
-    const stat = lstatOrNull(directory);
-    if (!stat || !stat.isDirectory()) return `Cursor package root must be a physical directory: ${directory}`;
-    if (fs.realpathSync(directory) !== path.resolve(directory)) {
-      return `Cursor package root realpath escapes its lexical root: ${directory}`;
-    }
-    return null;
-  } catch (error) {
-    return error.message;
-  }
-}
-
 function boundedPhysicalPackageScan(directory, options = {}) {
   const budget = createTraversalBudget({
     maxEntries: options.maxEntries === undefined ? MAX_OPERATOR_STAGE_ENTRIES : options.maxEntries,
@@ -269,7 +227,7 @@ function boundedPhysicalPackageScan(directory, options = {}) {
 
 function assertPhysicalPackageRoot(directory, label = 'package') {
   const resolved = path.resolve(directory);
-  const error = physicalPackageRootError(resolved);
+  const error = physicalPackageRootError(resolved, 'Cursor package root');
   if (error) throw new Error(`${label} is not a physical package root: ${error}`);
   try {
     // Keep the physical staging scan separate from the package identity
@@ -282,29 +240,6 @@ function assertPhysicalPackageRoot(directory, label = 'package') {
     throw new Error(`${label} failed bounded physical scan: ${scanError.message}`);
   }
   return resolved;
-}
-
-function findSymlinks(directory, options = {}) {
-  const budget = createTraversalBudget(options);
-  const walk = (current, depth) => {
-    const found = [];
-    const stat = lstatOrNull(current);
-    if (!stat) return found;
-    if (stat.isSymbolicLink()) return [current];
-    if (!stat.isDirectory()) return found;
-    const realDirectory = budget.enterDirectory(current, depth);
-    try {
-      for (const entry of readDirectoryEntries(current, { budget })) {
-        const child = path.join(current, entry.name);
-        if (entry.isSymbolicLink()) found.push(child);
-        else if (entry.isDirectory()) found.push(...walk(child, depth + 1));
-      }
-      return found;
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  return walk(directory, 0);
 }
 
 function stripLeadingDotSlash(value) {
@@ -339,13 +274,6 @@ function assertProjectionDestination(root, outDir, label) {
   assertPhysicalAncestors(path.dirname(resolvedOut), `${label} output`);
   const existing = lstatOrNull(resolvedOut);
   if (existing && existing.isSymbolicLink()) throw new Error(`${label} output must not be a symlink: ${resolvedOut}`);
-}
-
-function confinedChild(parent, name) {
-  if (!isSafeRelativePath(name)) throw new Error(`Cursor output path is unsafe: ${name}`);
-  const child = path.resolve(parent, stripLeadingDotSlash(name));
-  if (path.dirname(child) !== path.resolve(parent)) throw new Error(`Cursor output path escapes its parent: ${name}`);
-  return child;
 }
 
 function parseScalar(value) {
@@ -415,20 +343,6 @@ function adaptSkill(content, publicName) {
   const body = rewriteCursorHarnessBody(parsed.body);
   if (retainsClaudePluginRoot(body)) return { ok: false, reason: 'retains unsupported Claude plugin-root interpolation' };
   return { ok: true, content: renderFrontmatter({ name, description }, body), transform: 'agent-skills-frontmatter' };
-}
-
-function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
-  return String(content).replace(/(\[[^\]]*\])\(([^)]+)\)/g, (whole, label, rawTarget) => {
-    const target = rawTarget.trim();
-    if (!target || target.startsWith('#') || /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/)/.test(target)) return whole;
-    const pathPart = target.split('#', 1)[0].trim();
-    if (!pathPart) return whole;
-    const resolved = path.resolve(path.dirname(sourceFile), pathPart);
-    if (!isInside(canonicalRoot, resolved) || !fs.existsSync(resolved)) return label;
-    const relative = path.relative(canonicalRoot, resolved).split(path.sep).join('/');
-    const fragment = target.includes('#') ? `#${target.split('#').slice(1).join('#')}` : '';
-    return `${label}(${CANONICAL_REPOSITORY_URL}${relative}${fragment})`;
-  });
 }
 
 function adaptNativeDocument(content, kind, basename, sourceFile = null, canonicalRoot = null, locator = 'project-sync') {
@@ -612,47 +526,6 @@ function buildManifest({ name, version, variables, componentDirs, hasHooks }) {
   return manifest;
 }
 
-function writeMarketplace(outDir, name, version) {
-  const marketplace = {
-    name: 'dhpk',
-    owner: { name: 'hmj1026' },
-    metadata: {
-      description: 'Local Cursor Plugin marketplace fixture for dhpk.',
-      version,
-      pluginRoot: '.',
-    },
-    plugins: [{
-      name,
-      source: '.',
-      description: 'dhpk Cursor Plugin projection',
-      version,
-      license: 'MIT',
-    }],
-  };
-  fs.writeFileSync(path.join(outDir, '.cursor-plugin', 'marketplace.json'), `${JSON.stringify(marketplace, null, 2)}\n`);
-  return marketplace;
-}
-
-// options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
-// the only recipe; any other value throws the version-boundary diagnostic.
-function fingerprintPath(target, options = {}) {
-  requireTreeMerkle(options.algorithm === undefined ? TREE_FINGERPRINT_ALGORITHM : options.algorithm, 'fingerprintAlgorithm');
-  const stat = lstatOrNull(target);
-  if (!stat) return '';
-  if (stat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${target}`);
-  const budget = createTraversalBudget(options);
-  if (stat.isFile()) {
-    const file = [{ path: 'node', type: 'file', content: budget.readFile(target, stat) }];
-    return treeNodeFingerprint(file, 'node');
-  }
-  if (!stat.isDirectory()) throw new Error(`cannot fingerprint special entry: ${target}`);
-  const walked = collectDirectoryEntries(target, { budget, skipBytecode: true, symlinks: 'refuse' });
-  return treeFingerprint(walked.filter((entry) => entry.type === 'file'));
-}
-
-function fingerprintDir(directory, options = {}) {
-  return fingerprintPath(directory, options);
-}
 
 function collectCursorPhysicalTree(source, destination = '', { sourceRoot, filter = () => true, budget = null, depth = 0 } = {}) {
   const traversalBudget = budget || createTraversalBudget();
@@ -786,22 +659,6 @@ function cursorVirtualFingerprint(files, prefix) {
     files.map((file) => ({ path: file.destination, type: 'file', content: file.content })),
     prefix,
   );
-}
-
-// Recipe named by the package's provenance.json marker; absent provenance or a
-// missing marker fails closed with the version-boundary diagnostic, and
-// unparseable JSON fails closed as unreadable.
-function packageFingerprintAlgorithm(packageRoot) {
-  const provenancePath = path.join(packageRoot, 'provenance.json');
-  let provenance = null;
-  if (fs.existsSync(provenancePath)) {
-    try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (error) {
-      return { algorithm: null, error: `provenance.json is unreadable: ${error.message}` };
-    }
-  }
-  try {
-    return { algorithm: requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm') };
-  } catch (error) { return { algorithm: null, error: error.message }; }
 }
 
 function cursorReadmeContents() {
@@ -1016,7 +873,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     sourceCommit,
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
-    inventoryDigest: inventoryDigestInsertionOrder(inventory),
+    inventoryDigest: packageInventoryDigest('cursor-plugin', inventory),
     inventoryRevision,
     generatorVersion,
     fingerprintAlgorithm: TREE_FINGERPRINT_ALGORITHM,
@@ -1051,7 +908,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     fingerprints,
     ...(installationSelectedIds.length > 0 ? { installation: createInstallationReceiptIdentity({
       surface: 'cursor-plugin', scope: 'project', sourceVersion: version,
-      inventoryDigest: inventoryDigestInsertionOrder(inventory),
+      inventoryDigest: packageInventoryDigest('cursor-plugin', inventory),
       profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
       selectedStableIds: profileSelection && profileSelection.selectedStableIds || installationSelectedIds,
       supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -1083,8 +940,9 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
       unavailableCapabilities: profileSelection.unavailableCapabilities || [],
     } : {}),
   };
-  const fingerprintsOutput = { source: 'generated/fingerprints.json', destination: 'fingerprints.json', content: Buffer.from(`${JSON.stringify(fingerprints, null, 2)}\n`), mode: 0o644 };
-  const provenanceOutput = { source: 'generated/provenance.json', destination: 'provenance.json', content: Buffer.from(`${JSON.stringify(provenance, null, 2)}\n`), mode: 0o644 };
+  const receiptText = serializePackageReceipt('cursor-plugin', { provenance, fingerprints });
+  const fingerprintsOutput = { source: 'generated/fingerprints.json', destination: 'fingerprints.json', content: Buffer.from(receiptText.fingerprints), mode: 0o644 };
+  const provenanceOutput = { source: 'generated/provenance.json', destination: 'provenance.json', content: Buffer.from(receiptText.provenance), mode: 0o644 };
   traversalBudget.accountBytes(fingerprintsOutput.content.byteLength, fingerprintsOutput.destination);
   traversalBudget.accountBytes(provenanceOutput.content.byteLength, provenanceOutput.destination);
   files.push(fingerprintsOutput);
@@ -1148,23 +1006,14 @@ function compileCursorPackage({
         : sha256Hex(file.content),
       mode: file.mode,
       symlinkPolicy: 'forbid',
-      ...(file.skillId ? {
-        skillId: file.skillId,
-        publicName: file.publicName,
-        invocationClass: file.invocationClass,
-        lifecycle: file.lifecycle,
-        usageSchema: file.usageSchema,
-        usage: file.usage,
-        usageFingerprint: file.usageFingerprint,
-        provenance: file.provenance,
-      } : {}),
+      ...skillEntryFields(file),
   }));
   const compiled = compileDistribution({
       internalCharacterization: Boolean(projection.provenance.marketplacePublication)
         || (selectionMode !== 'legacy' && (!projection.selection || !projection.selection.selectionPolicy)),
       surface: 'cursor-plugin',
       compilerVersion: `cursor-${generatorVersion}`,
-      inventoryFingerprint: inventoryDigestInsertionOrder(inventory),
+      inventoryFingerprint: packageInventoryDigest('cursor-plugin', inventory),
       inventoryRevision,
       ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
       // Plan identity is a contract identity, not a host-specific temp path.
@@ -1198,7 +1047,7 @@ function compileCursorPackage({
   projection.provenance.planFingerprint = compiled.value.planFingerprint;
   const provenanceOutput = projection.files.find((file) => file.destination === 'provenance.json');
   if (provenanceOutput) {
-    const nextContent = Buffer.from(`${JSON.stringify(projection.provenance, null, 2)}\n`);
+    const nextContent = Buffer.from(serializePackageReceipt('cursor-plugin', { provenance: projection.provenance, fingerprints: projection.fingerprints }).provenance);
     if (nextContent.byteLength > provenanceOutput.content.byteLength) {
       // The initial receipt was budgeted during projection. Charge only the
       // additional bytes introduced by the compiler-bound plan fingerprint.
@@ -1206,36 +1055,31 @@ function compileCursorPackage({
     }
     provenanceOutput.content = nextContent;
   }
-  const adapter = {
-      identity: { id: 'cursor-plugin', version: generatorVersion },
-      render: () => ({
-        adapter: { id: 'cursor-plugin', version: generatorVersion },
-        outputs: projection.files.slice().sort((left, right) => left.destination.localeCompare(right.destination)).map((file) => ({
-          ...file,
-          stableId: `cursor:${file.destination}`,
-        })),
-        links: [],
-        metadata: {
-          manifest: projection.manifest,
-          marketplace: projection.marketplace,
-          skillIds: projection.selectedSkillIds,
-          skillNames: projection.selectedSkillNames,
-          skippedSkills: projection.skippedSkills,
-          fingerprints: projection.fingerprints,
-          provenance: projection.provenance,
-        },
-      }),
-      validate: (rendered, context) => {
-        if (!context || !context.session || !context.session.stageRoot) return rendered;
-        const validation = validateCursorPackage({
-          packageRoot: context.session.stageRoot,
-          expectedManifestName: rendered.metadata.manifest.name,
-          inventory,
-        });
-        if (!validation.ok) throw new Error(`generated Cursor Plugin failed validation: ${validation.errors.join('; ')}`);
-        return rendered;
-      },
-  };
+  const adapter = hostPackageAdapter({
+    surface: 'cursor-plugin',
+    version: generatorVersion,
+    renderOutputs: () => projection.files.slice().sort((left, right) => left.destination.localeCompare(right.destination)).map((file) => ({
+      ...file,
+      stableId: `cursor:${file.destination}`,
+    })),
+    metadata: {
+      manifest: projection.manifest,
+      marketplace: projection.marketplace,
+      skillIds: projection.selectedSkillIds,
+      skillNames: projection.selectedSkillNames,
+      skippedSkills: projection.skippedSkills,
+      fingerprints: projection.fingerprints,
+      provenance: projection.provenance,
+    },
+    validateStage: (stageRoot, rendered) => {
+      const validation = validateCursorPackage({
+        packageRoot: stageRoot,
+        expectedManifestName: rendered.metadata.manifest.name,
+        inventory,
+      });
+      if (!validation.ok) throw new Error(`generated Cursor Plugin failed validation: ${validation.errors.join('; ')}`);
+    },
+  });
   return {
     plan: compiled.value,
     adapter,
@@ -1264,15 +1108,14 @@ function materializeCursorPackage(options = {}) {
   const parent = path.dirname(resolvedOut);
   ensurePhysicalDirectory(parent, 'Cursor staging parent');
   const projection = options.compiledProjection || compileCursorPackage({ ...options, root: resolvedRoot, outDir: resolvedOut });
-  const artifactStore = options.artifactStore || new ProjectionArtifactStore({
+  const published = publishHostPackage('cursor-plugin', projection, {
     root: parent,
     sourceRoot: resolvedRoot,
     publishRoot: resolvedOut,
-    ownership: { owner: SURFACE_OWNERS['cursor-plugin'] },
+    artifactStore: options.artifactStore,
+    failurePrefix: 'generated Cursor Plugin failed validation',
   });
-  const artifact = materializeDistribution(projection.plan, projection.adapter, artifactStore);
-  if (!artifact.ok) throw new Error(`generated Cursor Plugin failed validation: ${artifact.error.message}`);
-  const metadata = artifact.value.metadata || {};
+  const metadata = published.metadata || {};
   return {
     manifest: metadata.manifest || projection.manifest,
     marketplace: metadata.marketplace || projection.marketplace,
@@ -1282,7 +1125,7 @@ function materializeCursorPackage(options = {}) {
     skippedSkills: metadata.skippedSkills || projection.skippedSkills,
     fingerprints: metadata.fingerprints || projection.fingerprints,
     provenance: metadata.provenance || projection.provenance,
-    artifact: artifact.value,
+    artifact: published,
   };
 }
 
@@ -1292,7 +1135,7 @@ function verifyCursorPackage(input = {}, maybeOptions = {}) {
   const stage = options.stage || 'structural';
   const observedAt = options.observedAt;
   const resolvedPackageRoot = packageRoot ? path.resolve(packageRoot) : '';
-  const packageRootError = packageRoot ? physicalPackageRootError(resolvedPackageRoot) : null;
+  const packageRootError = packageRoot ? physicalPackageRootError(resolvedPackageRoot, 'Cursor package root') : null;
   if (packageRootError) {
     const structural = { ok: false, errors: [packageRootError], skippedSkills: [] };
     return {
@@ -1588,7 +1431,7 @@ function validateCursorPackage(input = {}) {
   const skippedSkills = [];
   if (!packageRoot) return { ok: false, errors: ['Cursor packageRoot is required'], skippedSkills };
   const root = path.resolve(packageRoot);
-  const packageRootError = physicalPackageRootError(root);
+  const packageRootError = physicalPackageRootError(root, 'Cursor package root');
   if (packageRootError) return { ok: false, errors: [packageRootError], skippedSkills };
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return { ok: false, errors: [`Cursor package root does not exist: ${packageRoot}`], skippedSkills };
   for (const link of findSymlinks(root)) errors.push(`Cursor package contains symlink: ${path.relative(root, link).split(path.sep).join('/')}`);
@@ -1681,7 +1524,7 @@ function validateCursorPackage(input = {}) {
         } catch (error) {
           errors.push(`Cursor runtime support inventory is invalid: ${error.message}`);
         }
-        if (provenance.inventoryDigest !== inventoryDigestInsertionOrder(inventory)) {
+        if (provenance.inventoryDigest !== packageInventoryDigest('cursor-plugin', inventory)) {
           errors.push('Cursor provenance inventoryDigest does not match the validation inventory');
         } else if (JSON.stringify(declaredRuntimeSupportIds) !== JSON.stringify(expectedRuntimeSupportIds)) {
           errors.push('Cursor provenance runtime support IDs do not match the validation inventory');

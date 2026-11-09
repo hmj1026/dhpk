@@ -131,14 +131,25 @@ function atomicJson(directory, name, value) {
   try { fs.fsyncSync(dirFd); } finally { fs.closeSync(dirFd); }
 }
 
-function processIdentity(pid) {
-  if (process.platform !== 'linux' || !Number.isInteger(pid) || pid <= 0) return null;
+// 程序身分只在 Linux 以 /proc 的起始時間加 boot_id 證明；其他平台的 ps 只精確到秒，
+// 無法防止 PID 重用（#1257），所以回傳原因而不是退而求其次的身分。
+function processIdentityResult(pid, { platform = process.platform, readFile = fs.readFileSync } = {}) {
+  if (platform !== 'linux') {
+    return { reason: 'unsupported-platform', detail: `process identity unavailable on ${platform}` };
+  }
+  if (!Number.isInteger(pid) || pid <= 0) return { reason: 'invalid-pid', detail: `invalid process id ${pid}` };
   try {
-    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const stat = readFile(`/proc/${pid}/stat`, 'utf8');
     const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
-    if (['Z', 'X'].includes(fields[0])) return null;
-    return `${fs.readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim()}:${fields[19]}`;
-  } catch (_) { return null; }
+    if (['Z', 'X'].includes(fields[0])) return { reason: 'process-exited', detail: `process ${pid} has exited` };
+    return { identity: `${readFile('/proc/sys/kernel/random/boot_id', 'utf8').trim()}:${fields[19]}` };
+  } catch (error) {
+    return { reason: 'identity-read-failed', detail: `cannot read process identity from /proc (${error.code || error.message})` };
+  }
+}
+
+function processIdentity(pid) {
+  return processIdentityResult(pid).identity ?? null;
 }
 
 function readRecord(location) {
@@ -178,16 +189,20 @@ async function existingRecord(io, recordPath) {
 }
 
 async function runCommand(options, io, recordPath, snap, environment, envDigest) {
+  const identity = processIdentityResult(process.pid);
   const record = {
     schema: SCHEMA, ownerId: crypto.randomUUID(), task: options.task, attempt: options.attempt,
     key: options.key, root: options.root, snapshot: snap, command: options.command, environment, envDigest,
-    pid: process.pid, processStartIdentity: processIdentity(process.pid),
+    pid: process.pid, processStartIdentity: identity.identity ?? null,
     recordPath, logPath: path.join(path.dirname(recordPath), 'output.log'),
     status: 'running', exitCode: null, startedAt: new Date().toISOString(),
   };
   // 無法驗證程序起始身分時只留下 unknown，不啟動無法安全重用的子程序。
   if (!record.processStartIdentity) {
     record.status = 'unknown';
+    record.unknownReason = identity.reason;
+    process.stderr.write(`verification-run: ${identity.detail}; refusing to start a command whose evidence `
+      + 'could not be safely reused\n');
     atomicJson(io, 'record.json', record);
     summary(record, false);
     return;
@@ -318,4 +333,4 @@ if (require.main === module) {
   }).finally(() => { for (const fd of directoryHandles) fs.closeSync(fd); });
 }
 
-module.exports = { readRecord };
+module.exports = { readRecord, processIdentityResult };

@@ -16,7 +16,15 @@ const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
 } = require('./portable-skill-metadata');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
+const {
+  RECEIPT_SCHEMA,
+  SURFACE_OWNERS,
+  resolveGeneratedFromTree,
+  createInstallationReceiptIdentity,
+  packageInventoryDigest,
+  packageFingerprintAlgorithm,
+  serializePackageReceipt,
+} = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -27,18 +35,22 @@ const {
   readFileBounded,
   readDirectoryEntries,
   listFilesNamedRecursively,
+  lstatOrNull,
+  isInside,
+  assertPhysicalAncestors,
+  ensurePhysicalDirectory,
+  physicalPackageRootError,
+  findSymlinks,
 } = require('./bounded-filesystem');
 const {
   canonicalJson: stableStringify,
   TREE_FINGERPRINT_ALGORITHM,
-  collectDirectoryEntries,
-  inventoryDigestKeySorted,
-  requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
+  fingerprintPath: fingerprintDir,
 } = require('./content-fingerprint');
-const { compileDistribution, materializeDistribution, verifyDistribution } = require('./distribution-compiler');
-const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { compileDistribution, verifyDistribution } = require('./distribution-compiler');
+const { hostPackageAdapter, publishHostPackage, skillEntryFields } = require('./host-package-pipeline');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
@@ -75,59 +87,6 @@ const MCP_SECRET_PATTERNS = [
 ];
 const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
 
-function lstatOrNull(candidate) {
-  try {
-    return fs.lstatSync(candidate);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-function isInside(parent, candidate) {
-  const rel = path.relative(path.resolve(parent), path.resolve(candidate));
-  return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel));
-}
-
-function assertPhysicalAncestors(directory, label) {
-  let current = path.resolve(directory);
-  while (true) {
-    const stat = lstatOrNull(current);
-    if (stat && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
-    const parent = path.dirname(current);
-    if (parent === current) return;
-    current = parent;
-  }
-}
-
-function ensurePhysicalDirectory(directory, label) {
-  assertPhysicalAncestors(directory, label);
-  const stat = lstatOrNull(directory);
-  if (!stat) {
-    fs.mkdirSync(directory, { recursive: true });
-    return;
-  }
-  if (stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
-  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
-  if (fs.realpathSync(directory) !== path.resolve(directory)) {
-    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
-  }
-}
-
-function physicalPackageRootError(directory) {
-  try {
-    assertPhysicalAncestors(directory, 'Agent Plugin package root');
-    const stat = lstatOrNull(directory);
-    if (!stat || !stat.isDirectory()) return `Agent Plugin package root must be a physical directory: ${directory}`;
-    if (fs.realpathSync(directory) !== path.resolve(directory)) {
-      return `Agent Plugin package root realpath escapes its lexical root: ${directory}`;
-    }
-    return null;
-  } catch (error) {
-    return error.message;
-  }
-}
-
 function safeRelative(value) {
   if (typeof value !== 'string' || value.length === 0 || value.includes('\0')) return false;
   if (value.includes('\\') || path.posix.isAbsolute(value) || /^[A-Za-z]:[\\/]/.test(value)) return false;
@@ -143,38 +102,6 @@ function safeMcpPlaceholder(value) {
 
 function containsMcpCredential(value) {
   return typeof value === 'string' && MCP_SECRET_PATTERNS.some((pattern) => pattern.test(value));
-}
-
-function confinedChild(parent, name, label = 'package child') {
-  if (typeof name !== 'string' || name.length === 0 || name.includes('/') || name.includes('\\')) {
-    throw new Error(`${label} must be a single path component: ${name}`);
-  }
-  const candidate = path.resolve(parent, name);
-  if (path.dirname(candidate) !== path.resolve(parent)) throw new Error(`${label} escapes its parent: ${name}`);
-  return candidate;
-}
-
-function findSymlinks(directory, options = {}) {
-  const budget = createTraversalBudget(options);
-  const walk = (current, depth) => {
-    const found = [];
-    const stat = lstatOrNull(current);
-    if (!stat) return found;
-    if (stat.isSymbolicLink()) return [current];
-    if (!stat.isDirectory()) return found;
-    const realDirectory = budget.enterDirectory(current, depth);
-    try {
-      for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: true })) {
-        const child = path.join(current, entry.name);
-        if (entry.isSymbolicLink()) found.push(child);
-        else if (entry.isDirectory()) found.push(...walk(child, depth + 1));
-      }
-      return found;
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  return walk(directory, 0);
 }
 
 function listNestedSkillMarkdownFiles(directory, options = {}) {
@@ -274,6 +201,8 @@ function loadPublishedSourcePaths(root, sourceCommit) {
   return published;
 }
 
+// Deliberately differs from the shared Cursor/AGY sanitizer (#1248): links bind
+// to files tracked in the provenance source, not to whatever exists on disk.
 function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot, options = {}) {
   const { publishedSourcePaths = null, sourceScope = null } = options;
   return String(content).replace(/(\[[^\]]*\])\(([^)]+)\)/g, (whole, label, rawTarget) => {
@@ -673,32 +602,6 @@ function selectPortableSkills(inventory, surface = 'agent-plugin', selectedStabl
   }).sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
 }
 
-// options.algorithm: TREE_FINGERPRINT_ALGORITHM (the default when omitted) is
-// the only recipe; any other value throws the version-boundary diagnostic.
-// Verifiers read the package marker with packageFingerprintAlgorithm first.
-function fingerprintDir(directory, options = {}) {
-  requireTreeMerkle(options.algorithm === undefined ? TREE_FINGERPRINT_ALGORITHM : options.algorithm, 'fingerprintAlgorithm');
-  const budget = createTraversalBudget(options);
-  const entries = collectDirectoryEntries(directory, { budget, order: 'locale', skipBytecode: true, symlinks: 'refuse' })
-    .filter((entry) => entry.type === 'file');
-  return treeFingerprint(entries);
-}
-
-// Recipe named by the package's provenance.json marker. A package without
-// provenance or without the marker fails closed with the version-boundary
-// diagnostic; unparseable provenance fails closed as unreadable.
-function packageFingerprintAlgorithm(packageRoot) {
-  const provenancePath = path.join(packageRoot, 'provenance.json');
-  let provenance = null;
-  if (fs.existsSync(provenancePath)) {
-    try { provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8')); } catch (error) {
-      return { algorithm: null, error: `provenance.json is unreadable: ${error.message}` };
-    }
-  }
-  try {
-    return { algorithm: requireTreeMerkle(provenance ? provenance.fingerprintAlgorithm : undefined, 'fingerprintAlgorithm') };
-  } catch (error) { return { algorithm: null, error: error.message }; }
-}
 
 function readManifestMetadata(root, manifestMetadata) {
   if (manifestMetadata && typeof manifestMetadata === 'object') return manifestMetadata;
@@ -1193,7 +1096,7 @@ function buildAgentPluginProjection(options = {}) {
     sourceCommit,
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
-    inventoryDigest: inventoryDigestKeySorted(inventory),
+    inventoryDigest: packageInventoryDigest('agent-plugin', inventory),
     inventoryRevision,
     generatorVersion,
     fingerprintAlgorithm: TREE_FINGERPRINT_ALGORITHM,
@@ -1224,7 +1127,7 @@ function buildAgentPluginProjection(options = {}) {
     fingerprints,
     ...(selectedSkillIds.length > 0 ? { installation: createInstallationReceiptIdentity({
       surface: 'agent-plugin', scope: 'project', sourceVersion: version,
-      inventoryDigest: inventoryDigestKeySorted(inventory),
+      inventoryDigest: packageInventoryDigest('agent-plugin', inventory),
       profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
       selectedStableIds: profileSelection && profileSelection.selectedStableIds || selectedSkillIds,
       supportClosure: profileSelection && profileSelection.dependencyClosure,
@@ -1255,34 +1158,26 @@ function buildAgentPluginProjection(options = {}) {
       unavailableCapabilities: profileSelection.unavailableCapabilities || [],
     } : {}),
   };
-  files.push(outputRecord('manifest:provenance', 'provenance.json', `${JSON.stringify(provenance, null, 2)}\n`));
-  files.push(outputRecord('manifest:fingerprints', 'fingerprints.json', `${JSON.stringify({ generatorVersion, surface: 'agent-plugin', skills: fingerprints }, null, 2)}\n`));
+  const receiptText = serializePackageReceipt('agent-plugin', { provenance, fingerprints, generatorVersion });
+  files.push(outputRecord('manifest:provenance', 'provenance.json', receiptText.provenance));
+  files.push(outputRecord('manifest:fingerprints', 'fingerprints.json', receiptText.fingerprints));
   for (const [destination, content] of Object.entries(packageReadmeContents())) files.push(outputRecord(`manifest:${destination}`, destination, content));
 
   const entries = files.map((file) => ({
     stableId: file.stableId,
     source: file.source,
     destination: file.destination,
-    owner: 'plugins/dhpk-agent',
+    owner: SURFACE_OWNERS['agent-plugin'],
     transform: file.transform,
     expectedFingerprint: sha256Hex(file.content),
     symlinkPolicy: 'forbid',
-    ...(file.skillId ? {
-      skillId: file.skillId,
-      publicName: file.publicName,
-      invocationClass: file.invocationClass,
-      lifecycle: file.lifecycle,
-      usageSchema: file.usageSchema,
-      usage: file.usage,
-      usageFingerprint: file.usageFingerprint,
-      provenance: file.provenance,
-    } : {}),
+    ...skillEntryFields(file),
   }));
   const compiled = compileDistribution({
     internalCharacterization: Boolean(hostPublication) || (selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy)),
     surface: 'agent-plugin',
     compilerVersion: `agent-plugin-${generatorVersion}`,
-    inventoryFingerprint: inventoryDigestKeySorted(inventory),
+    inventoryFingerprint: packageInventoryDigest('agent-plugin', inventory),
     inventoryRevision,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: resolvedOut,
@@ -1302,29 +1197,24 @@ function buildAgentPluginProjection(options = {}) {
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
 
-  const adapter = {
-    identity: { id: 'agent-plugin', version: generatorVersion },
-    render: () => ({
-      adapter: { id: 'agent-plugin', version: generatorVersion },
-      outputs: files.slice().sort((a, b) => a.destination.localeCompare(b.destination)),
-      links: [],
-      metadata: {
-        manifest,
-        skillIds: selectedSkillIds,
-        skillNames: selectedSkillNames,
-        fingerprints,
-        provenance,
-        skippedSkills: skipped,
-        mcp,
-      },
-    }),
-    validate: (rendered, context) => {
-      if (!context || !context.session || !context.session.stageRoot) return;
-      const validation = validateAgentPluginPackage(context.session.stageRoot, { allowlist });
-      if (!validation.ok) throw new Error(`generated Agent Plugin failed validation: ${validation.errors.join('; ')}`);
-      return rendered;
+  const adapter = hostPackageAdapter({
+    surface: 'agent-plugin',
+    version: generatorVersion,
+    renderOutputs: () => files.slice().sort((a, b) => a.destination.localeCompare(b.destination)),
+    metadata: {
+      manifest,
+      skillIds: selectedSkillIds,
+      skillNames: selectedSkillNames,
+      fingerprints,
+      provenance,
+      skippedSkills: skipped,
+      mcp,
     },
-  };
+    validateStage: (stageRoot) => {
+      const validation = validateAgentPluginPackage(stageRoot, { allowlist });
+      if (!validation.ok) throw new Error(`generated Agent Plugin failed validation: ${validation.errors.join('; ')}`);
+    },
+  });
   return { plan: compiled.value, adapter, selectedSkillIds, selectedSkillNames, fingerprints, provenance, skippedSkills: skipped, mcp };
 }
 
@@ -1342,15 +1232,14 @@ function materializeAgentPluginPackage(options = {}) {
   const parent = path.dirname(resolvedOut);
   ensurePhysicalDirectory(parent, 'Agent Plugin staging parent');
   const projection = options.compiledProjection || buildAgentPluginProjection({ ...options, root: resolvedRoot, outDir: resolvedOut });
-  const artifactStore = options.artifactStore || new ProjectionArtifactStore({
+  const published = publishHostPackage('agent-plugin', projection, {
     root: parent,
     sourceRoot: resolvedRoot,
     publishRoot: resolvedOut,
-    ownership: { owner: SURFACE_OWNERS['agent-plugin'] },
+    artifactStore: options.artifactStore,
+    failurePrefix: 'generated Agent Plugin failed validation',
   });
-  const artifact = materializeDistribution(projection.plan, projection.adapter, artifactStore);
-  if (!artifact.ok) throw new Error(`generated Agent Plugin failed validation: ${artifact.error.message}`);
-  const metadata = artifact.value.metadata || {};
+  const metadata = published.metadata || {};
   return {
     manifest: metadata.manifest || projection.adapter.manifest,
     manifestPath: path.join(resolvedOut, 'plugin.json'),
@@ -1360,7 +1249,7 @@ function materializeAgentPluginPackage(options = {}) {
     provenance: metadata.provenance || projection.provenance,
     skippedSkills: metadata.skippedSkills || projection.skippedSkills,
     mcp: metadata.mcp || projection.mcp,
-    artifact: artifact.value,
+    artifact: published,
   };
 }
 
@@ -1371,7 +1260,7 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
   const warnings = [];
   const skills = { valid: [], invalid: [] };
   const mcp = { valid: [], invalid: [] };
-  const packageRootError = physicalPackageRootError(packageRoot);
+  const packageRootError = physicalPackageRootError(packageRoot, 'Agent Plugin package root');
   if (packageRootError) return { ok: false, errors: [packageRootError], warnings, skills, mcp };
   const rootStat = lstatOrNull(packageRoot);
   if (!rootStat || !rootStat.isDirectory()) return { ok: false, errors: [`package root is not a directory: ${packageRoot}`], warnings, skills, mcp };
@@ -1472,7 +1361,7 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
 function verifyAgentPluginPackage(input, maybeOptions = {}) {
   const structural = validateAgentPluginPackage(input, maybeOptions);
   const packageRoot = typeof input === 'string' ? path.resolve(input) : path.resolve(input.packageRoot);
-  const packageRootError = physicalPackageRootError(packageRoot);
+  const packageRootError = physicalPackageRootError(packageRoot, 'Agent Plugin package root');
   if (packageRootError) {
     if (!structural.errors.includes(packageRootError)) structural.errors.push(packageRootError);
     structural.ok = false;

@@ -13,7 +13,12 @@ const {
   selectPortableSkills,
 } = require('./agent-plugin-package');
 const { resolveInventoryRevision } = require('./distribution-projection-contract');
-const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readDirectoryEntries,
+  lstatOrNull,
+  isInside,
+} = require('./bounded-filesystem');
 const {
   TREE_FINGERPRINT_ALGORITHM,
   requireTreeMerkle,
@@ -23,7 +28,8 @@ const {
 const { resolveStandaloneSkillDependencies } = require('./standalone-skill-dependencies');
 const { planRetiredAgentSkills } = require('./agents-skills-retirement');
 const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
-const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { ProjectionArtifactStore, safeRelative } = require('./projection-artifact-store');
+const { containsSecret } = require('./secret-patterns');
 const {
   materializeRelocatableAgentsSkillsProjection,
   validateRelocatableAgentsSkillsProjection,
@@ -37,6 +43,7 @@ const {
   PROJECT_TRANSACTION_SCHEMA,
 } = require('./project-agent-projection-publisher');
 
+const SURFACE = 'agents-skills';
 const SCHEMA = 'dhpk.agents-skills-projection.v1';
 const GENERATOR_VERSION = '1.1.0';
 // Only the current generator's receipts are read (OpenSpec
@@ -48,11 +55,6 @@ const UNMARKED_RECEIPT_GENERATOR_VERSION = '1.1.0';
 const RECEIPT_NAME = '.dhpk-projection.json';
 const SAFE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
-const SECRET_PATTERNS = [
-  /\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{20,}\b/i,
-  /\bsk-[A-Za-z0-9_-]{20,}\b/i,
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?(?!\$\{)[A-Za-z0-9._~+\/-]{16,}/i,
-];
 
 function stableClone(value) {
   if (Array.isArray(value)) return value.map(stableClone);
@@ -66,20 +68,8 @@ function stableStringify(value) {
   return JSON.stringify(stableClone(value));
 }
 
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
-
+// Deliberately bounded (#1248): the walk stops at `boundary` so a checkout under
+// a symlinked parent (for example /var on macOS) still works.
 function assertPhysicalAncestors(candidate, label, boundary = null) {
   let current = path.resolve(candidate);
   const stop = boundary ? path.resolve(boundary) : null;
@@ -127,7 +117,9 @@ function assertSafeRelative(relative, label) {
     throw new Error(`${label} must be a non-empty relative path`);
   }
   const normalized = path.posix.normalize(relative);
-  if (normalized !== relative || normalized === '.' || normalized === '..' || normalized.startsWith('../') || path.posix.isAbsolute(relative)) {
+  // safeRelative also rejects backslashes and drive prefixes; receipt paths
+  // come back from the consumer's output tree and are not trusted (#1248).
+  if (normalized !== relative || normalized === '.' || normalized === '..' || normalized.startsWith('../') || path.posix.isAbsolute(relative) || !safeRelative(relative)) {
     throw new Error(`${label} escapes the projection root: ${relative}`);
   }
   return relative;
@@ -216,10 +208,6 @@ function readSkillFiles(files, budget) {
     output.push({ path: relative, digest: sha256Hex(content), content, mode: sourceStat ? sourceStat.mode & 0o7777 : 0o644 });
   }
   return output;
-}
-
-function containsSecret(content) {
-  return SECRET_PATTERNS.some((pattern) => pattern.test(String(content)));
 }
 
 function parseSelectedSkill(root, entry) {
@@ -545,19 +533,24 @@ function agentsSkillsOwnership(ownedPaths) {
   };
 }
 
-function publishAgentsSkillsTree({ sourceRoot, outputRoot, inventory, outputs, ownedPaths }) {
-  const entries = outputs.map((output) => ({
-    stableId: `agents-skills:${output.path}`,
+// The projection owns its own plan entries; it is not the Agent Plugin package.
+function agentsSkillsPlanEntries(outputs) {
+  return outputs.map((output) => ({
+    stableId: `${SURFACE}:${output.path}`,
     source: output.source,
     destination: output.path,
-    owner: 'plugins/dhpk-agent',
+    owner: SURFACE,
     transform: { id: 'agents-skills-render', version: GENERATOR_VERSION },
     expectedFingerprint: sha256Hex(output.content),
     symlinkPolicy: 'forbid',
   }));
+}
+
+function publishAgentsSkillsTree({ sourceRoot, outputRoot, inventory, outputs, ownedPaths }) {
+  const entries = agentsSkillsPlanEntries(outputs);
   const compiled = compileDistribution({
     internalCharacterization: true,
-    surface: 'agents-skills',
+    surface: SURFACE,
     compilerVersion: `agents-skills-${GENERATOR_VERSION}`,
     inventoryRevision: resolveInventoryRevision(inventory),
     ownershipRoot: '.agents/skills',
@@ -780,6 +773,7 @@ module.exports = {
   SCHEMA,
   GENERATOR_VERSION,
   RECEIPT_NAME,
+  agentsSkillsPlanEntries,
   PROJECT_RECEIPT_SCHEMA,
   PROJECT_ROLLBACK_SCHEMA,
   PROJECT_TRANSACTION_SCHEMA,

@@ -25,6 +25,7 @@ const {
   fingerprint,
 } = require('./distribution-projection-contract');
 const { ProjectionArtifactStore, safeRelative, safeLinkTarget, inside } = require('./projection-artifact-store');
+const { containsSecret } = require('./secret-patterns');
 const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
@@ -67,11 +68,6 @@ const CLAUDE_ARTIFACT_ROOT = '.dhpk-claude-sibling';
 const CLAUDE_MANAGED_ROOT_NAME = 'claude-skills';
 const SAFE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
-const SECRET_PATTERNS = [
-  /\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{20,}\b/i,
-  /\bsk-[A-Za-z0-9_-]{20,}\b/i,
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?(?!\$\{)[A-Za-z0-9._~+\/-]{16,}/i,
-];
 
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
@@ -365,7 +361,7 @@ function sourceManifest(sourceDirectory, dependencies = []) {
     const fileDigest = sha256Hex(content);
     manifest.push({ path: file.relative, digest: fileDigest });
     hashed.push({ path: file.relative, content });
-    if (SECRET_PATTERNS.some((pattern) => pattern.test(content.toString('utf8')))) {
+    if (containsSecret(content.toString('utf8'))) {
       throw fail('SECRET_DETECTED', `possible secret in canonical source: ${file.relative}`, { paths: [file.relative] });
     }
   }
@@ -695,7 +691,7 @@ function buildArtifactInputs({
     if (!isInside(sourceRoot, source)) throw fail('UNSAFE_SOURCE', `supporting asset escapes source root: ${dependency.source}`, { paths: [dependency.source] });
     assertPhysicalAncestors(source, `supporting asset '${dependency.id}'`, sourceRoot);
     const content = readPhysicalFile(source, `supporting asset '${dependency.id}'`);
-    if (SECRET_PATTERNS.some((pattern) => pattern.test(content.toString('utf8')))) {
+    if (containsSecret(content.toString('utf8'))) {
       throw fail('SECRET_DETECTED', `possible secret in supporting asset: ${dependency.source}`, { paths: [dependency.source] });
     }
     addRecord({
@@ -1379,6 +1375,22 @@ function removeEmptyDirectories(root) {
   walk(root);
 }
 
+// An installer that coordinates its own journal holds the publication open
+// under its transaction id; only that id (or explicit recovery) resolves it.
+function normalizeHold(hold, code = 'INVALID_HOLD') {
+  if (!hold || typeof hold !== 'object' || Array.isArray(hold)
+    || typeof hold.transactionId !== 'string' || !/^[A-Za-z0-9._-]{1,128}$/.test(hold.transactionId)
+    || typeof hold.host !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(hold.host)
+    || Object.keys(hold).some((key) => !['transactionId', 'host'].includes(key))) {
+    throw fail(code, 'project projection hold must name a transactionId and host');
+  }
+  return { transactionId: hold.transactionId, host: hold.host };
+}
+
+function heldError(hold) {
+  return fail('TRANSACTION_HELD', `project projection transaction ${hold.transactionId} is held by the ${hold.host} installer; rerun that installer to finish or undo it, or run dhpk-install --recover`, { transactionId: hold.transactionId, host: hold.host });
+}
+
 function transactionPath(roots) {
   return path.join(roots.agentsRoot, '.dhpk-installed.transaction.json');
 }
@@ -1394,6 +1406,12 @@ function validateTransaction(roots, transaction) {
   if (typeof transaction.stageName !== 'string'
     || (transaction.stageName !== '.none' && !/^\.dhpk-projection-(?:artifact|rollback-candidate)-[a-z0-9-]+$/i.test(transaction.stageName))) {
     throw fail('UNSAFE_TRANSACTION', 'project projection transaction has an unsafe stageName');
+  }
+  // Journals written before the rollback stage was journaled omit the field.
+  const rollbackStageName = transaction.rollbackStageName === undefined ? '.none' : transaction.rollbackStageName;
+  if (typeof rollbackStageName !== 'string'
+    || (rollbackStageName !== '.none' && !/^\.dhpk-projection-rollback-stage-[a-z0-9-]+$/i.test(rollbackStageName))) {
+    throw fail('UNSAFE_TRANSACTION', 'project projection transaction has an unsafe rollbackStageName');
   }
   if (!['prepared', 'publishing', 'published'].includes(transaction.phase)) throw fail('UNSAFE_TRANSACTION', 'project projection transaction has an invalid phase');
   if (!Array.isArray(transaction.oldPaths) || !Array.isArray(transaction.newPaths)) throw fail('UNSAFE_TRANSACTION', 'project projection transaction paths are invalid');
@@ -1430,23 +1448,39 @@ function validateTransaction(roots, transaction) {
     || typeof transaction.newRollbackInstalled !== 'boolean') {
     throw fail('UNSAFE_TRANSACTION', 'project projection transaction rollback state is invalid');
   }
+  if (transaction.liveBackedUp !== undefined && typeof transaction.liveBackedUp !== 'boolean') {
+    throw fail('UNSAFE_TRANSACTION', 'project projection transaction backup checkpoint is invalid');
+  }
+  if (transaction.hold !== undefined) normalizeHold(transaction.hold, 'UNSAFE_TRANSACTION');
+  if (transaction.holdReady !== undefined && (transaction.hold === undefined || typeof transaction.holdReady !== 'boolean')) {
+    throw fail('UNSAFE_TRANSACTION', 'project projection transaction hold state is invalid');
+  }
   if (transaction.receiptName !== path.basename(roots.receiptPath) || transaction.managedName !== path.basename(roots.managedRoot)
     || (supportsClaudeRoot && transaction.claudeManagedName !== path.basename(roots.claudeManagedRoot))) {
     throw fail('UNSAFE_TRANSACTION', 'project projection transaction identity does not match the target');
   }
   let oldBindingPaths;
   let newBindingPaths;
+  let restoredBindingPaths;
   try {
     oldBindingPaths = normalizeBindingPaths(transaction.oldBindingPaths || {}, roots, 'transaction old binding paths', { allowClaudeRoot: supportsClaudeRoot });
     newBindingPaths = normalizeBindingPaths(transaction.newBindingPaths || {}, roots, 'transaction new binding paths', { allowClaudeRoot: supportsClaudeRoot });
+    restoredBindingPaths = normalizeBindingPaths(transaction.restoredBindingPaths || {}, roots, 'transaction restored binding paths', { allowClaudeRoot: true });
   } catch (error) {
     throw fail('UNSAFE_TRANSACTION', error.message, error.projectionDetails || {});
+  }
+  const newBindingSet = new Set(flattenBindingPaths(newBindingPaths).map((entry) => entry.path));
+  if (flattenBindingPaths(restoredBindingPaths).some((entry) => newBindingSet.has(entry.path))
+    || (transaction.adoption === true && flattenBindingPaths(restoredBindingPaths).length > 0)) {
+    throw fail('UNSAFE_TRANSACTION', 'project projection transaction restored binding paths are invalid');
   }
   return {
     backup: path.join(roots.agentsRoot, transaction.backupName),
     stage: path.join(roots.agentsRoot, transaction.stageName),
+    rollbackStage: path.join(roots.agentsRoot, rollbackStageName),
     oldBindingPaths,
     newBindingPaths,
+    restoredBindingPaths,
     oldClaudePaths,
     newClaudePaths,
     newClaudeFingerprints,
@@ -1454,13 +1488,30 @@ function validateTransaction(roots, transaction) {
   };
 }
 
-function recoverProjectProjectionTransaction(roots) {
+function readTransactionJournal(roots) {
   const journalPath = transactionPath(roots);
   const journalStat = lstatOrNull(journalPath);
-  if (!journalStat) return { recovered: false };
+  if (!journalStat) return null;
   if (journalStat.isSymbolicLink() || !journalStat.isFile()) throw fail('UNSAFE_TRANSACTION', 'project projection transaction journal is not a regular file');
-  const transaction = readJsonFile(journalPath, 'project projection transaction journal');
+  return readJsonFile(journalPath, 'project projection transaction journal');
+}
+
+function recoverProjectProjectionTransaction(roots, { resolveHeld = null } = {}) {
+  const journalPath = transactionPath(roots);
+  const transaction = readTransactionJournal(roots);
+  if (!transaction) return { recovered: false };
   const paths = validateTransaction(roots, transaction);
+  if (transaction.hold && transaction.phase !== 'published' && transaction.hold.transactionId !== resolveHeld) throw heldError(transaction.hold);
+  // `prepared` precedes every live mutation: only the journaled transient
+  // directories can exist, and the live projection is still the previous one.
+  if (transaction.phase === 'prepared') {
+    cleanupDirectory(paths.backup, 'project projection transaction backup');
+    cleanupDirectory(paths.rollbackStage, 'project projection rollback stage');
+    cleanupDirectory(paths.stage, 'project projection transaction stage');
+    fs.rmSync(journalPath, { force: true });
+    return { recovered: true, phase: 'prepared' };
+  }
+  cleanupDirectory(paths.rollbackStage, 'project projection rollback stage');
   if (transaction.adoption === true) return recoverAdoptionTransaction(roots, journalPath, transaction, paths);
   if (transaction.phase === 'published') {
     cleanupDirectory(paths.backup, 'project projection transaction backup');
@@ -1478,16 +1529,25 @@ function recoverProjectProjectionTransaction(roots) {
     }
     fs.rmSync(target, { force: true });
   };
-  for (const relative of transaction.newPaths) {
-    removeIfCandidate(pathIn(roots.managedRoot, relative, 'recovery target'), transaction.newFingerprints && transaction.newFingerprints[relative], relative);
+  // Candidates are installed only after every live entry has been moved into
+  // the backup. Before that checkpoint, a live entry is still the previous one
+  // even when it matches a candidate, so recovery only restores the backup.
+  // Journals written before the checkpoint existed keep the earlier behavior.
+  if (transaction.liveBackedUp !== false) {
+    for (const relative of transaction.newPaths) {
+      removeIfCandidate(pathIn(roots.managedRoot, relative, 'recovery target'), transaction.newFingerprints && transaction.newFingerprints[relative], relative);
+    }
+    for (const relative of paths.newClaudePaths) {
+      removeIfCandidate(pathIn(roots.claudeManagedRoot, relative, 'Claude recovery target'), paths.newClaudeFingerprints[relative], relative);
+    }
+    for (const binding of flattenBindingPaths(paths.newBindingPaths)) {
+      removeBindingCandidate(roots, binding, 'RECOVERY_CONFLICT', { allowClaudeRoot: paths.supportsClaudeRoot });
+    }
+    for (const binding of flattenBindingPaths(paths.restoredBindingPaths)) {
+      removeBindingCandidate(roots, binding, 'RECOVERY_CONFLICT', { allowClaudeRoot: true });
+    }
+    if (transaction.newReceiptDigest) removeIfCandidate(roots.receiptPath, transaction.newReceiptDigest, path.relative(roots.projectRoot, roots.receiptPath));
   }
-  for (const relative of paths.newClaudePaths) {
-    removeIfCandidate(pathIn(roots.claudeManagedRoot, relative, 'Claude recovery target'), paths.newClaudeFingerprints[relative], relative);
-  }
-  for (const binding of flattenBindingPaths(paths.newBindingPaths)) {
-    removeBindingCandidate(roots, binding, 'RECOVERY_CONFLICT', { allowClaudeRoot: paths.supportsClaudeRoot });
-  }
-  if (transaction.newReceiptDigest) removeIfCandidate(roots.receiptPath, transaction.newReceiptDigest, path.relative(roots.projectRoot, roots.receiptPath));
   const rollbackRoot = path.join(roots.agentsRoot, '.dhpk-projection-rollback');
   const rollbackIsNew = transaction.newRollback
     && (transaction.newRollbackInstalled || transaction.oldRollbackMoved || !transaction.oldRollbackPresent);
@@ -1620,64 +1680,80 @@ function receiptWithoutFingerprint(receipt) {
   return next;
 }
 
-function createRollbackStage(roots, previous, receiptSchema, adoptedBindingPaths = {}) {
+// The rollback metadata depends only on the previous receipt, so it is planned
+// before the journal is written; the snapshot files are copied afterwards.
+function planRollbackStage(stage, previous, receiptSchema, adoptedBindingPaths = {}) {
   if (!previous) return null;
-  const stage = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-rollback-stage-'));
-  try {
-    const filesRoot = path.join(stage, 'files');
-    fs.mkdirSync(filesRoot, { recursive: true });
-    const schemaForReceipt = receiptSchema || previous.schema;
-    const groupedLayout = schemaForReceipt === PROJECT_RECEIPT_SCHEMA;
-    const hasClaudeFiles = (previous.claudeManagedPaths || []).length > 0;
-    const groupedLegacyLayout = !groupedLayout && hasClaudeFiles;
-    const managedSnapshotRoot = groupedLayout || groupedLegacyLayout ? path.join(filesRoot, 'managed') : filesRoot;
-    for (const relative of previous.managedPaths) {
-      const source = pathIn(roots.managedRoot, relative, 'rollback source');
-      const target = path.join(managedSnapshotRoot, relative);
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.copyFileSync(source, target);
-    }
-    const claudeManagedPaths = previous.claudeManagedPaths || [];
-    const claudeFingerprints = previous.claudeGeneratedFingerprints || {};
-    for (const relative of claudeManagedPaths) {
-      const source = pathIn(roots.claudeManagedRoot, relative, 'rollback Claude source');
-      const target = path.join(filesRoot, 'claude-managed', relative);
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.copyFileSync(source, target);
-    }
-    writeAtomicJson(path.join(stage, 'receipt.json'), previous, roots.projectRoot);
-    const managedFiles = previous.managedPaths.map((relative) => ({
-      ...(groupedLayout || groupedLegacyLayout ? { root: 'managed' } : {}),
-      relative,
-      fingerprint: previous.generatedFingerprints[relative],
-    }));
-    const claudeFiles = claudeManagedPaths.map((relative) => ({
-      root: 'claude',
-      relative,
-      fingerprint: claudeFingerprints[relative],
-    }));
-    const snapshotFiles = groupedLayout || groupedLegacyLayout
-      ? [...managedFiles, ...claudeFiles].sort((left, right) => `${left.root}/${left.relative}`.localeCompare(`${right.root}/${right.relative}`))
-      : managedFiles.sort((left, right) => left.relative.localeCompare(right.relative));
-    const snapshotFingerprint = fingerprint({
-      receipt: previous,
-      files: snapshotFiles,
-    });
-    return {
-      stage,
-      metadata: {
-        schema: groupedLayout ? PROJECT_ROLLBACK_SCHEMA : LEGACY_PROJECT_ROLLBACK_SCHEMA,
-        ...(groupedLegacyLayout ? { layout: 'grouped' } : {}),
-        root: '.agents/.dhpk-projection-rollback',
-        receipt: 'receipt.json',
-        files: 'files',
-        fingerprint: snapshotFingerprint,
-        ...(flattenBindingPaths(adoptedBindingPaths).length > 0 ? { adoptedBindingPaths: clone(adoptedBindingPaths) } : {}),
-      },
-    };
-  } catch (error) {
-    cleanupDirectory(stage, 'failed project projection rollback stage');
-    throw error;
+  const schemaForReceipt = receiptSchema || previous.schema;
+  const groupedLayout = schemaForReceipt === PROJECT_RECEIPT_SCHEMA;
+  const hasClaudeFiles = (previous.claudeManagedPaths || []).length > 0;
+  const groupedLegacyLayout = !groupedLayout && hasClaudeFiles;
+  const claudeManagedPaths = previous.claudeManagedPaths || [];
+  const claudeFingerprints = previous.claudeGeneratedFingerprints || {};
+  const managedFiles = previous.managedPaths.map((relative) => ({
+    ...(groupedLayout || groupedLegacyLayout ? { root: 'managed' } : {}),
+    relative,
+    fingerprint: previous.generatedFingerprints[relative],
+  }));
+  const claudeFiles = claudeManagedPaths.map((relative) => ({
+    root: 'claude',
+    relative,
+    fingerprint: claudeFingerprints[relative],
+  }));
+  const snapshotFiles = groupedLayout || groupedLegacyLayout
+    ? [...managedFiles, ...claudeFiles].sort((left, right) => `${left.root}/${left.relative}`.localeCompare(`${right.root}/${right.relative}`))
+    : managedFiles.sort((left, right) => left.relative.localeCompare(right.relative));
+  return {
+    stage,
+    previous,
+    groupedManagedRoot: groupedLayout || groupedLegacyLayout,
+    metadata: {
+      schema: groupedLayout ? PROJECT_ROLLBACK_SCHEMA : LEGACY_PROJECT_ROLLBACK_SCHEMA,
+      ...(groupedLegacyLayout ? { layout: 'grouped' } : {}),
+      root: '.agents/.dhpk-projection-rollback',
+      receipt: 'receipt.json',
+      files: 'files',
+      fingerprint: fingerprint({ receipt: previous, files: snapshotFiles }),
+      ...(flattenBindingPaths(adoptedBindingPaths).length > 0 ? { adoptedBindingPaths: clone(adoptedBindingPaths) } : {}),
+    },
+  };
+}
+
+function writeRollbackStage(roots, rollback) {
+  const { stage, previous } = rollback;
+  fs.mkdirSync(stage);
+  const filesRoot = path.join(stage, 'files');
+  fs.mkdirSync(filesRoot, { recursive: true });
+  const managedSnapshotRoot = rollback.groupedManagedRoot ? path.join(filesRoot, 'managed') : filesRoot;
+  for (const relative of previous.managedPaths) {
+    const source = pathIn(roots.managedRoot, relative, 'rollback source');
+    const target = path.join(managedSnapshotRoot, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(source, target);
+  }
+  for (const relative of previous.claudeManagedPaths || []) {
+    const source = pathIn(roots.claudeManagedRoot, relative, 'rollback Claude source');
+    const target = path.join(filesRoot, 'claude-managed', relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(source, target);
+  }
+  writeAtomicJson(path.join(stage, 'receipt.json'), previous, roots.projectRoot);
+}
+
+function transactionToken() {
+  return `${process.pid.toString(36)}-${Date.now().toString(36)}-${crypto.randomBytes(4).toString('hex')}`;
+}
+
+// Bindings that a rollback hands back to their pre-adoption, unmanaged state.
+// They are journaled as new bindings so an interrupted rollback removes them,
+// but no receipt records them. Their target may legitimately be absent.
+function installRestoredBindings(roots, restoredBindingPaths) {
+  for (const binding of flattenBindingPaths(restoredBindingPaths)) {
+    const destination = bindingDestinationIn(roots, binding.path, 'rollback adopted binding');
+    if (lstatOrNull(destination)) throw fail('PUBLISH_COLLISION', `rollback adopted binding appeared during publication: ${binding.path}`, { paths: [binding.path] });
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    assertPhysicalAncestors(path.dirname(destination), 'rollback adopted binding parent', roots.projectRoot);
+    fs.symlinkSync(binding.target, destination, 'dir');
   }
 }
 
@@ -1830,7 +1906,10 @@ function publishManagedCandidate({
   adoption = false,
   oldReceiptDigest = null,
   adoptedBindingPaths = {},
+  restoredBindingPaths = {},
+  hold = null,
 }) {
+  const heldBy = hold ? normalizeHold(hold) : null;
   checkCollisions(roots, previous, candidateFiles);
   checkCollisions(roots, previous, claudeCandidateFiles, 'claude');
   const receiptBindingPaths = previous ? normalizeBindingPaths(previous.bindingPaths || {}, roots, 'previous project projection binding paths', {
@@ -1842,8 +1921,22 @@ function publishManagedCandidate({
     allowClaudeRoot: nextReceipt.schema === PROJECT_RECEIPT_SCHEMA,
   }) : {};
   checkBindingCollisions(roots, previous, candidateBindingPaths, adoptedBindingPaths);
-  const backup = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-backup-'));
-  const rollback = createRollbackStage(roots, previous && createRollback ? previous : null, nextReceipt && nextReceipt.schema, adoptedBindingPaths);
+  const candidateBindingSet = new Set(flattenBindingPaths(candidateBindingPaths).map((entry) => entry.path));
+  const restoredBindings = Object.fromEntries(Object.entries(normalizeBindingPaths(restoredBindingPaths, roots, 'rollback adopted binding paths', { allowClaudeRoot: true }))
+    .map(([hostId, entries]) => [hostId, entries.filter((entry) => !candidateBindingSet.has(entry.path))])
+    .filter(([, entries]) => entries.length > 0));
+  const journalPath = transactionPath(roots);
+  if (lstatOrNull(journalPath)) throw fail('TRANSACTION_EXISTS', 'project projection transaction journal already exists');
+  // Every transient directory is named in the journal before it is created,
+  // so recovery can remove it after a crash at any point.
+  const token = transactionToken();
+  const backup = path.join(roots.agentsRoot, `.dhpk-projection-backup-${token}`);
+  const rollback = planRollbackStage(
+    path.join(roots.agentsRoot, `.dhpk-projection-rollback-stage-${token}`),
+    previous && createRollback ? previous : null,
+    nextReceipt && nextReceipt.schema,
+    adoptedBindingPaths,
+  );
   const rollbackRoot = path.join(roots.agentsRoot, '.dhpk-projection-rollback');
   const oldRollback = !adoption && previous && lstatOrNull(rollbackRoot);
   const receipt = nextReceipt ? sealReceipt({
@@ -1857,6 +1950,7 @@ function publishManagedCandidate({
     claudeManagedName: path.basename(roots.claudeManagedRoot),
     receiptName: path.basename(roots.receiptPath),
     backupName: path.basename(backup),
+    rollbackStageName: rollback ? path.basename(rollback.stage) : '.none',
     stageName: candidateRoot ? path.basename(path.dirname(candidateRoot)) : '.none',
     oldPaths: previous ? previous.managedPaths.slice().sort() : [],
     newPaths: candidateFiles.slice().sort(),
@@ -1864,6 +1958,7 @@ function publishManagedCandidate({
     newClaudePaths: claudeCandidateFiles.slice().sort(),
     oldBindingPaths: previousBindingPaths,
     newBindingPaths: candidateBindingPaths,
+    ...(flattenBindingPaths(restoredBindings).length > 0 ? { restoredBindingPaths: restoredBindings } : {}),
     newFingerprints: { ...candidateFingerprints },
     newClaudeFingerprints: { ...claudeCandidateFingerprints },
     newReceiptDigest: receipt ? receiptFileDigest(receipt) : null,
@@ -1871,23 +1966,15 @@ function publishManagedCandidate({
     oldRollbackPresent: Boolean(oldRollback),
     oldRollbackMoved: false,
     newRollbackInstalled: false,
+    liveBackedUp: false,
+    ...(heldBy ? { hold: heldBy, holdReady: false } : {}),
     ...(adoption ? { adoption: true, oldFingerprints: previous.generatedFingerprints, oldClaudeFingerprints: previous.claudeGeneratedFingerprints, oldReceiptDigest } : {}),
   };
-  const journalPath = transactionPath(roots);
-  if (lstatOrNull(journalPath)) {
-    if (rollback) cleanupDirectory(rollback.stage, 'unused rollback stage');
-    cleanupDirectory(backup, 'unused transaction backup');
-    throw fail('TRANSACTION_EXISTS', 'project projection transaction journal already exists');
-  }
-  try {
-    writeAtomicJson(journalPath, journal, roots.projectRoot);
-  } catch (error) {
-    if (rollback) cleanupDirectory(rollback.stage, 'failed project projection rollback stage');
-    cleanupDirectory(backup, 'failed project projection transaction backup');
-    throw error;
-  }
+  writeAtomicJson(journalPath, journal, roots.projectRoot);
   let published = false;
   try {
+    fs.mkdirSync(backup);
+    if (rollback) writeRollbackStage(roots, rollback);
     journal.phase = 'publishing';
     writeAtomicJson(journalPath, journal, roots.projectRoot);
     if (previous) {
@@ -1931,8 +2018,9 @@ function publishManagedCandidate({
     if (oldRollback) {
       fs.renameSync(rollbackRoot, path.join(backup, 'rollback'));
       journal.oldRollbackMoved = true;
-      writeAtomicJson(journalPath, journal, roots.projectRoot);
     }
+    journal.liveBackedUp = true;
+    writeAtomicJson(journalPath, journal, roots.projectRoot);
     removeEmptyDirectories(roots.managedRoot);
     removeEmptyDirectories(roots.claudeManagedRoot);
     for (const relative of candidateFiles.slice().sort()) {
@@ -1962,6 +2050,7 @@ function publishManagedCandidate({
       }
     }
     installBindingPaths(roots, candidateBindingPaths, { allowClaudeRoot: Boolean(nextReceipt && nextReceipt.schema === PROJECT_RECEIPT_SCHEMA) });
+    installRestoredBindings(roots, restoredBindings);
     if (rollback) {
       fs.renameSync(rollback.stage, rollbackRoot);
       journal.newRollbackInstalled = true;
@@ -1969,6 +2058,21 @@ function publishManagedCandidate({
     }
     if (receipt) writeAtomicJson(roots.receiptPath, receipt, roots.projectRoot);
     else if (lstatOrNull(roots.receiptPath)) fs.rmSync(roots.receiptPath, { force: true });
+    if (heldBy) {
+      // Every effect is in place; the holder decides between commit and abort.
+      journal.holdReady = true;
+      writeAtomicJson(journalPath, journal, roots.projectRoot);
+      published = true;
+      return {
+        receipt,
+        published: false,
+        held: true,
+        managedPaths: candidateFiles.slice().sort(),
+        claudeManagedPaths: claudeCandidateFiles.slice().sort(),
+        bindingPaths: candidateBindingPaths,
+        ...(adoption ? { backupPath: backup } : {}),
+      };
+    }
     journal.phase = 'published';
     writeAtomicJson(journalPath, journal, roots.projectRoot);
     published = true;
@@ -1985,7 +2089,7 @@ function publishManagedCandidate({
   } catch (error) {
     if (!published) {
       try {
-        recoverProjectProjectionTransaction(roots);
+        recoverProjectProjectionTransaction(roots, { resolveHeld: heldBy && heldBy.transactionId });
       } catch (recoveryError) {
         error.message = `${error.message}; transaction recovery failed: ${recoveryError.message}`;
       }
@@ -2175,8 +2279,10 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       adoption: legacyAdoption,
       oldReceiptDigest,
       adoptedBindingPaths,
+      hold: options.hold || null,
     });
     return {
+      held: Boolean(published.held),
       outputRoot: roots.managedRoot,
       projectRoot: roots.projectRoot,
       receiptPath: roots.receiptPath,
@@ -2276,7 +2382,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         else {
           const target = pathIn(roots.managedRoot, required, 'generated projection path');
           const content = fs.readFileSync(target, 'utf8');
-          if (SECRET_PATTERNS.some((pattern) => pattern.test(content))) errors.push(`possible secret in generated projection: ${required}`);
+          if (containsSecret(content)) errors.push(`possible secret in generated projection: ${required}`);
           if (!required.includes('/') && content.includes(`skills/${entry.name}/SKILL.md`)) {
             errors.push(`AGY direct-file entry contains a source-checkout pointer: ${required}`);
           }
@@ -2295,7 +2401,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         }
         const target = pathIn(roots.claudeManagedRoot, required, 'Claude generated projection path');
         const content = fs.readFileSync(target, 'utf8');
-        if (SECRET_PATTERNS.some((pattern) => pattern.test(content))) errors.push(`possible secret in Claude projection: ${required}`);
+        if (containsSecret(content)) errors.push(`possible secret in Claude projection: ${required}`);
       }
       if (providers && providers.directory.hosts.some((hostId) => hostId !== 'claude') && providers.directFile.hosts.length > 0) {
         const directoryPath = pathIn(roots.managedRoot, `${entry.name}/SKILL.md`, 'directory skill path');
@@ -2378,7 +2484,7 @@ function uninstallAgentsSkillsProjection(options = {}) {
     const receipt = readProjectionReceipt(roots, { allowLegacyClaudeDiscovery: true, releaseLegacy: true });
     if (!receipt) {
       if (lstatOrNull(legacyManifestPath(roots))) throw fail('LEGACY_UNBOUND', 'legacy project projection has no lifecycle receipt and cannot be removed automatically');
-      return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
+      return { ok: true, state: 'ABSENT', held: false, removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
     }
     if (receipt.generatorVersion === '2.0.0' && !Object.prototype.hasOwnProperty.call(receipt, 'fingerprint_algorithm')) {
       const observed = fs.readFileSync(roots.receiptPath);
@@ -2406,8 +2512,9 @@ function uninstallAgentsSkillsProjection(options = {}) {
       candidateFingerprints: {},
       nextReceipt: null,
       createRollback: false,
+      hold: options.hold || null,
     });
-    return { ok: true, state: 'REMOVED', removedPaths: receipt.managedPaths, preservedPaths: [], projectRoot: roots.projectRoot, published };
+    return { ok: true, state: 'REMOVED', held: Boolean(published.held), removedPaths: receipt.managedPaths, preservedPaths: [], projectRoot: roots.projectRoot, published };
   } catch (error) {
     return {
       ok: false,
@@ -2461,17 +2568,6 @@ function snapshotReceipt(roots, receipt) {
   return { receipt: snapshotReceipt, filesRoot: managedSnapshotRoot, claudeFilesRoot: claudeSnapshotRoot };
 }
 
-// rollback 回到納管前的狀態：被 --adopt/--repair 接管的連結恢復為未納管的原連結。
-function restoreAdoptedBindings(roots, adoptedBindingPaths) {
-  for (const binding of flattenBindingPaths(normalizeBindingPaths(adoptedBindingPaths, roots, 'rollback adopted binding paths', { allowClaudeRoot: true }))) {
-    const destination = bindingDestinationIn(roots, binding.path, 'rollback adopted binding');
-    if (lstatOrNull(destination)) continue;
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    assertPhysicalAncestors(path.dirname(destination), 'rollback adopted binding parent', roots.projectRoot);
-    fs.symlinkSync(binding.target, destination, 'dir');
-  }
-}
-
 function rollbackAgentsSkillsProjection(options = {}) {
   try {
     const roots = operationRoots(options);
@@ -2512,8 +2608,9 @@ function rollbackAgentsSkillsProjection(options = {}) {
         claudeCandidateFiles,
         claudeCandidateFingerprints: snapshot.receipt.claudeGeneratedFingerprints || {},
         nextReceipt: snapshot.receipt,
+        // rollback 回到納管前的狀態：被 --adopt/--repair 接管的連結在同一交易內恢復為未納管的原連結。
+        restoredBindingPaths: current.rollback.adoptedBindingPaths || {},
       });
-      restoreAdoptedBindings(roots, current.rollback.adoptedBindingPaths || {});
       return { ok: true, state: 'ROLLED_BACK', receipt: published.receipt, removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
     } finally {
       cleanupDirectory(candidateStage, 'project projection rollback candidate');
@@ -2529,6 +2626,69 @@ function rollbackAgentsSkillsProjection(options = {}) {
   }
 }
 
+function resolveHeldProjection(options, action) {
+  try {
+    const roots = operationRoots(options);
+    const transactionId = normalizeHold({ transactionId: options.transactionId, host: 'resolver' }).transactionId;
+    const transaction = readTransactionJournal(roots);
+    if (!transaction) return { ok: true, state: 'ABSENT', transactionId, projectRoot: roots.projectRoot };
+    const paths = validateTransaction(roots, transaction);
+    if (!transaction.hold || transaction.hold.transactionId !== transactionId) {
+      throw fail('TRANSACTION_MISMATCH', `project projection transaction journal is not held by ${transactionId}`);
+    }
+    if (action === 'abort') {
+      const recovered = recoverProjectProjectionTransaction(roots, { resolveHeld: transactionId });
+      return { ok: true, state: recovered.phase === 'published' ? 'COMMITTED' : 'ABORTED', transactionId, projectRoot: roots.projectRoot };
+    }
+    if (transaction.phase === 'published') {
+      recoverProjectProjectionTransaction(roots, { resolveHeld: transactionId });
+      return { ok: true, state: 'COMMITTED', transactionId, projectRoot: roots.projectRoot };
+    }
+    if (transaction.phase !== 'publishing' || transaction.holdReady !== true) {
+      throw fail('TRANSACTION_INCOMPLETE', `project projection transaction ${transactionId} did not finish publishing and can only be aborted`);
+    }
+    const journalPath = transactionPath(roots);
+    transaction.phase = 'published';
+    writeAtomicJson(journalPath, transaction, roots.projectRoot);
+    if (transaction.adoption !== true) cleanupDirectory(paths.backup, 'project projection transaction backup');
+    cleanupDirectory(paths.rollbackStage, 'project projection rollback stage');
+    cleanupDirectory(paths.stage, 'project projection transaction stage');
+    fs.rmSync(journalPath, { force: true });
+    return {
+      ok: true,
+      state: 'COMMITTED',
+      transactionId,
+      projectRoot: roots.projectRoot,
+      ...(transaction.adoption === true ? { backupPath: paths.backup } : {}),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      state: 'BLOCKED',
+      code: error.projectionCode || 'TRANSACTION_RESOLVE_FAILED',
+      error: { code: error.projectionCode || 'TRANSACTION_RESOLVE_FAILED', message: error.message },
+    };
+  }
+}
+
+// Read-only view of a held publication for explicit recovery.
+function heldProjection(options = {}) {
+  const roots = operationRoots(options);
+  const transaction = readTransactionJournal(roots);
+  if (!transaction) return null;
+  validateTransaction(roots, transaction);
+  if (!transaction.hold) return null;
+  return { ...transaction.hold, phase: transaction.phase, holdReady: transaction.holdReady === true };
+}
+
+function commitHeldProjection(options = {}) {
+  return resolveHeldProjection(options, 'commit');
+}
+
+function abortHeldProjection(options = {}) {
+  return resolveHeldProjection(options, 'abort');
+}
+
 module.exports = {
   PROJECT_RECEIPT_SCHEMA,
   PROJECT_ROLLBACK_SCHEMA,
@@ -2539,6 +2699,9 @@ module.exports = {
   uninstallAgentsSkillsProjection,
   removeAgentsSkillsProjection: uninstallAgentsSkillsProjection,
   rollbackAgentsSkillsProjection,
+  commitHeldProjection,
+  abortHeldProjection,
+  heldProjection,
   recoverAgentsSkillsProjection: (options = {}) => recoverProjectProjectionTransaction(operationRoots(options)),
   readProjectProjectionReceipt,
 };

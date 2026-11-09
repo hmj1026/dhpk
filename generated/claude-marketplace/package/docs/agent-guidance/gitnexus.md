@@ -38,7 +38,10 @@ wording in the root GitNexus block stays in place.
   concatenated strings in table scans (`@ladybugdb/core` `0.18.3` out-of-place
   `CHECKPOINT` splits `>256 KiB` string columns into 64-row segments that
   `StringColumn::scanFiltered` skips at `offset % 2048 >= 64`), rebuild through
-  staging with `node .gitnexus/run.cjs analyze --force --skip-agents-md --skip-skills`.
+  staging with `node .gitnexus/run.cjs analyze --force --no-parse-cache --skip-agents-md --skip-skills`.
+  Observed on gitnexus 1.6.12 (2026-11-09): an incremental run that reused
+  cached parser output left whole files out of the graph. `.gitnexus/meta.json`
+  `fileHashes` listed them while no matching `File` node existed.
   After any index refresh, send one serial MCP request before issuing concurrent
   MCP queries so the server reopens the replaced database without racing
   in-flight connections.
@@ -52,6 +55,12 @@ wording in the root GitNexus block stays in place.
   Use a compatible runner and restart its session before rebuilding the index.
   Keep existing graph evidence and the failed refresh explicit until then;
   avoid deleting the index or changing global installations to hide the error.
+- **Source-present symbol returns not found:** follow the ordered checks in
+  [Bounded diagnosis](#source-present-symbol-returns-not-found).
+- **Repository selector:** query commands (`impact`, `context`, `cypher`,
+  `detect-changes`) take `--repo .`. Another indexed name in `gitnexus list`
+  can point at a sibling worktree's older index, so a hit through that name is
+  evidence about that checkout only.
 - **Ambiguous `impact` target:** a name shared by many symbols returns
   `risk: UNKNOWN` with a candidate list; narrow it with the file path or
   `target_uid` before treating the result as evidence.
@@ -83,6 +92,49 @@ other active users. Retry again only when new evidence changes the suspected
 cause; otherwise preserve the unresolved result and use CX and source inspection
 to account for the affected boundary. This limits retries; it does not waive the
 required impact attempt, HIGH/CRITICAL warnings, or unresolved-risk reporting.
+
+### Source-present symbol returns not found
+
+When `impact` or `context` returns `not found` for a symbol that `cx definition`
+or a source search shows exists, check these in order from the repository root.
+A runner fix in step 1 is new evidence that changes the suspected cause, so its
+retry is outside the budget above; the retry after step 2 is the one narrowed
+query that follows the justified refresh.
+
+1. **Compare the runner with the index before rebuilding.** `run.cjs` uses the
+   `gitnexus` found first on `PATH`, so a different shell can run another
+   version:
+
+   ```sh
+   node .gitnexus/run.cjs --version
+   node -p "require('./.gitnexus/meta.json').runnerIdentity.cliVersion"
+   which -a gitnexus
+   ```
+
+   If the versions differ, put the installation that matches `cliVersion`
+   first on `PATH`, restart the MCP session, and retry the same query. Do not
+   rebuild the index to fix a version mismatch; the **"Trying to read a
+   database file with a different version"** entry under [Recovery](#recovery)
+   covers the storage side.
+2. **With matching versions, spend the one justified refresh on a full
+   rebuild** without the parse cache, as the **Incremental scan corruption**
+   entry under [Recovery](#recovery) describes:
+
+   ```sh
+   node .gitnexus/run.cjs analyze --force --no-parse-cache --skip-agents-md --skip-skills
+   ```
+
+   Coordinate the rebuild if others share the index, send one serial request
+   after it, then retry the same query.
+3. **Keep `--repo .`.** Do not switch to another name from
+   `node .gitnexus/run.cjs list` to make the symbol appear: a name can point at
+   a sibling worktree's older index, so a hit describes that checkout, not this
+   one. Compare each name's `Path` with this checkout before reading any result.
+4. **Still not found:** record the result as `UNKNOWN`, account for the
+   affected boundary with CX and source inspection, and keep the raw result of
+   `node .gitnexus/run.cjs impact "<symbol>" --direction upstream --repo . --summary-only`
+   with the versions from step 1 under local `docs/evidence/`. Do not refresh
+   again unless new evidence changes the suspected cause.
 
 Keep freshness, missing symbols, malformed result data, resolver caps, output
 truncation, and MCP transport failures separate. Record the checkout/index

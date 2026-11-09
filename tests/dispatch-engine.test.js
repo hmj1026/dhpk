@@ -777,6 +777,138 @@ test('an alternate Route of the same Model is not excluded by a failed Route', (
   assert.strictEqual(result.request.fallback.attempted_backends[0], 'cursor/cursor/composer-2.5/headless-cli/local-cli');
 });
 
+// Fallback Policy guarantee table (#1244): every guarantee runs through both the
+// general path (no candidate_request) and the recovery path (candidate_request).
+const FAILED_CURSOR_ID = 'cursor/cursor/composer-2.5/native/native-runtime';
+const AGY_ID = 'agy/google/gemini-3.7-flash-high/native/native-runtime';
+const agyHistoryEntry = { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high', route: 'native', transport: 'native-runtime', status: 'UNAVAILABLE', reason: 'failed earlier' };
+const policyCase = ({ fallback = { allow: true, retry_budget: 2, cross_provider: true }, failureClass = FAILURE_CLASSES.CLI_UNAVAILABLE,
+  sideEffects = 'none', resolution = {}, hostProfile = cursorWorkerHost() } = {}) => ({
+  request: workerRequest(hostProfile, fallback),
+  resolution: { ...failedResolution(cursorTarget), ...resolution },
+  failureClass, sideEffects, catalog,
+});
+const generalPath = (input) => decideFallback(policyCase(input));
+const recoveryPath = ({ candidate = agyCandidateTarget, action = 'substitute', ...input } = {}) => {
+  const base = policyCase(input);
+  return decideFallback({ ...base, recovery_action: action,
+    candidate_request: { ...base.request, target: candidate, effort: 'high' } });
+};
+const nextFallbackOf = (result) => (result.next_request || result.request).fallback;
+const FALLBACK_POLICY_GUARANTEES = [
+  { guarantee: 'timeout or interruption requires reconciliation',
+    general: { input: { failureClass: FAILURE_CLASSES.TIMEOUT_OR_INTERRUPTION }, status: 'RECONCILIATION_REQUIRED' },
+    recovery: { input: { failureClass: FAILURE_CLASSES.TIMEOUT_OR_INTERRUPTION, action: 'resume',
+      candidate: { target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5' } }, status: 'RECONCILIATION_REQUIRED' } },
+  { guarantee: 'side effects other than none require reconciliation',
+    general: { input: { sideEffects: 'observed' }, status: 'RECONCILIATION_REQUIRED' },
+    recovery: { input: { sideEffects: 'observed' }, status: 'RECONCILIATION_REQUIRED' } },
+  { guarantee: 'fallback_eligible false blocks Provider fallback',
+    general: { input: { resolution: { fallback_eligible: false } }, status: 'BLOCKED', action: 'stop' },
+    recovery: { input: { resolution: { fallback_eligible: false } }, status: 'BLOCKED', action: 'stop' } },
+  { guarantee: 'safety or user denial is not an eligible failure class',
+    general: { input: { failureClass: FAILURE_CLASSES.SAFETY_OR_USER_DENIAL }, status: 'BLOCKED', action: 'stop' },
+    recovery: { input: { failureClass: FAILURE_CLASSES.SAFETY_OR_USER_DENIAL }, status: 'BLOCKED', action: 'stop' } },
+  { guarantee: 'quota failure without cross-provider opt-in stops',
+    general: { input: { failureClass: FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT, fallback: { allow: true, retry_budget: 2 } }, status: 'BLOCKED', action: 'stop' },
+    recovery: { input: { failureClass: FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT, fallback: { allow: true, retry_budget: 2 } }, status: 'BLOCKED', action: 'stop' } },
+  { guarantee: 'quota failure with opt-in: general path switches pool; recovery substitution stays availability-only',
+    general: { input: { failureClass: FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT }, status: 'FALLBACK' },
+    recovery: { input: { failureClass: FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT }, status: 'BLOCKED', action: 'stop' } },
+  { guarantee: 'allow false blocks fallback and keeps the budget',
+    general: { input: { fallback: { allow: false, retry_budget: 2, cross_provider: true } }, status: 'BLOCKED', budget: 2 },
+    recovery: { input: { fallback: { allow: false, retry_budget: 2, cross_provider: true } }, status: 'BLOCKED', budget: 2 } },
+  { guarantee: 'a zero retry budget blocks fallback',
+    general: { input: { fallback: { allow: true, retry_budget: 0, cross_provider: true } }, status: 'BLOCKED', budget: 0 },
+    recovery: { input: { fallback: { allow: true, retry_budget: 0, cross_provider: true } }, status: 'BLOCKED', budget: 0 } },
+  { guarantee: 'a target in attempted_backends is excluded',
+    general: { input: { fallback: { allow: true, retry_budget: 2, cross_provider: true, attempted_backends: [AGY_ID] } }, status: 'BLOCKED' },
+    recovery: { input: { fallback: { allow: true, retry_budget: 2, cross_provider: true, attempted_backends: [AGY_ID] } }, status: 'BLOCKED' } },
+  { guarantee: 'a target in unavailable_backends is excluded',
+    general: { input: { fallback: { allow: true, retry_budget: 2, cross_provider: true, unavailable_backends: [AGY_ID] } }, status: 'BLOCKED' },
+    recovery: { input: { fallback: { allow: true, retry_budget: 2, cross_provider: true, unavailable_backends: [AGY_ID] } }, status: 'BLOCKED' } },
+  { guarantee: 'a target in the resolution fallback_history is excluded',
+    general: { input: { resolution: { fallback_history: [agyHistoryEntry] } }, status: 'BLOCKED' },
+    recovery: { input: { resolution: { fallback_history: [agyHistoryEntry] } }, status: 'BLOCKED' } },
+  { guarantee: 'the failed target itself is excluded',
+    general: { input: { fallback: { allow: true, retry_budget: 2 } }, status: 'BLOCKED' },
+    recovery: { input: { candidate: { target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5' } }, status: 'BLOCKED' } },
+  { guarantee: 'a non-native Provider requires cross-provider opt-in',
+    general: { input: { fallback: { allow: true, retry_budget: 2 } }, status: 'BLOCKED' },
+    recovery: { input: { fallback: { allow: true, retry_budget: 2 } }, status: 'BLOCKED', reason: 'Provider substitution requires cross-provider opt-in' } },
+  { guarantee: 'quota failure never reuses the exhausted quota pool',
+    general: { input: { failureClass: FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT,
+      hostProfile: cursorWorkerHost({ ...cursorProfile.quota_pools, google: cursorProfile.quota_pools.cursor }) }, status: 'BLOCKED' },
+    recovery: { input: { failureClass: FAILURE_CLASSES.QUOTA_OR_RATE_LIMIT,
+      hostProfile: cursorWorkerHost({ ...cursorProfile.quota_pools, google: cursorProfile.quota_pools.cursor }) }, status: 'BLOCKED' } },
+  { guarantee: 'the next hop carries the decremented retry budget',
+    general: { input: {}, status: 'FALLBACK', budget: 1, nextBudget: 1 },
+    recovery: { input: {}, status: 'FALLBACK', budget: 1, nextBudget: 1 } },
+  { guarantee: 'the next hop attempted list is the union of tried identities',
+    general: { input: { fallback: { allow: true, retry_budget: 2, cross_provider: true, attempted_backends: ['x/x/a//'], unavailable_backends: ['y/y/b//'] } },
+      status: 'FALLBACK', attempted: ['x/x/a//', 'y/y/b//', FAILED_CURSOR_ID] },
+    recovery: { input: { fallback: { allow: true, retry_budget: 2, cross_provider: true, attempted_backends: ['x/x/a//'], unavailable_backends: ['y/y/b//'] } },
+      status: 'FALLBACK', attempted: ['x/x/a//', 'y/y/b//', FAILED_CURSOR_ID] } },
+  { guarantee: 'an availability failure records the failed target as unavailable',
+    general: { input: { failureClass: FAILURE_CLASSES.AUTHENTICATION_OR_MODEL_UNAVAILABLE }, status: 'FALLBACK', unavailable: [FAILED_CURSOR_ID] },
+    recovery: { input: { failureClass: FAILURE_CLASSES.AUTHENTICATION_OR_MODEL_UNAVAILABLE }, status: 'FALLBACK', unavailable: [FAILED_CURSOR_ID] } },
+];
+
+for (const row of FALLBACK_POLICY_GUARANTEES) {
+  for (const [pathName, runPath] of [['general', generalPath], ['recovery', recoveryPath]]) {
+    test(`Fallback Policy guarantee (${pathName}): ${row.guarantee}`, () => {
+      const expected = row[pathName];
+      const result = runPath(expected.input);
+      assert.strictEqual(result.status, expected.status, result.reason);
+      if (expected.action !== undefined) assert.strictEqual(result.action, expected.action);
+      if (expected.reason !== undefined) assert.strictEqual(result.reason, expected.reason);
+      if (expected.budget !== undefined) assert.strictEqual(result.retry_budget_remaining, expected.budget);
+      if (expected.nextBudget !== undefined) assert.strictEqual(nextFallbackOf(result).retry_budget, expected.nextBudget);
+      if (expected.attempted !== undefined) assert.deepStrictEqual(nextFallbackOf(result).attempted_backends, expected.attempted);
+      if (expected.unavailable !== undefined) assert.deepStrictEqual(nextFallbackOf(result).unavailable_backends, expected.unavailable);
+    });
+  }
+}
+
+test('the Host-native target is the first general fallback candidate when the Role has no default', () => {
+  const { worker, ...otherDefaults } = cursorProfile.role_defaults;
+  const hostProfile = { ...cursorWorkerHost(), role_defaults: otherDefaults };
+  const target = { target_agent: 'codex-cli', provider: 'cursor', model_id: 'composer-2.5', effort: 'medium', route: 'headless-cli', transport: 'local-cli' };
+  const result = hop(workerRequest(hostProfile, { allow: true, retry_budget: 2 }), target, FAILURE_CLASSES.CLI_UNAVAILABLE);
+  assert.strictEqual(result.status, 'FALLBACK');
+  assert.strictEqual(result.target.identity, 'cursor/composer-2.5');
+  assert.strictEqual(result.target.native, true);
+});
+
+test('the shared catalog route matcher agrees with the former inline dispatch-config predicate', () => {
+  const { createProviderModelCatalog, matchCatalogRoutes, agentForAlias } = require('../scripts/lib/dispatch-contract');
+  const catalogData = createProviderModelCatalog(catalog);
+  // Independent oracle: the predicate dispatch-config inlined before #1244.
+  const inline = ({ host, targetAgent, provider, modelId, role, effort, authority }) => catalogData.routes.filter((route) => route.host === host
+    && route.provider === provider
+    && (!targetAgent || route.target_agent === (agentForAlias(targetAgent) || targetAgent))
+    && (!modelId || route.model_id === modelId)
+    && route.roles.includes(role)
+    && (!effort || route.efforts.includes(effort))
+    && (!authority || route.authorities.includes(authority)));
+  let compared = 0;
+  for (const profile of profiles.profiles) {
+    for (const route of catalogData.routes.filter((entry) => entry.host === profile.host)) {
+      for (const role of ['planner', 'reasoner', 'worker', 'reviewer']) {
+        for (const criteria of [
+          { host: profile.host, targetAgent: route.target_agent, provider: route.provider, modelId: route.model_id, role, effort: 'high', authority: 'read-only' },
+          { host: profile.host, targetAgent: route.target_agent, provider: route.provider, role },
+          { host: profile.host, provider: route.provider, modelId: route.model_id, role, effort: 'medium' },
+        ]) {
+          assert.deepStrictEqual(matchCatalogRoutes(catalogData, criteria), inline(criteria), JSON.stringify(criteria));
+          compared += 1;
+        }
+      }
+    }
+  }
+  assert.ok(compared > 0);
+});
+
 // Independent oracle: the design D5 mapping table plus the keys the code already
 // diagnosed (codex_deep_reasoner_*, architect_*, reviewer_effort).
 const EXPECTED_REMOVED_KEYS = {

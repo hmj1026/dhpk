@@ -1524,6 +1524,318 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
+  // Runs one publisher call in a child process that is SIGKILLed when `trigger`
+  // matches an fs call, so no in-process catch or finally block can clean up.
+  function runUntilKilled(call, options, patch) {
+    const script = `
+      const fs = require('node:fs');
+      const publisher = require(${JSON.stringify(require.resolve('../scripts/lib/project-agent-projection-publisher'))});
+      const [call, options, patch] = JSON.parse(process.argv[1]);
+      const original = fs[patch.method];
+      fs[patch.method] = (...args) => {
+        if (String(args[patch.argument]).includes(patch.match)) process.kill(process.pid, 'SIGKILL');
+        return original(...args);
+      };
+      const result = publisher[call](options);
+      process.stdout.write(JSON.stringify(result && result.ok));
+    `;
+    return childProcess.spawnSync(process.execPath, ['-e', script, JSON.stringify([call, options, patch])], { encoding: 'utf8' });
+  }
+
+  function transientEntries(projectRoot) {
+    return fs.readdirSync(path.join(projectRoot, '.agents'))
+      .filter((name) => /^\.dhpk-(?:projection-backup|projection-rollback-stage|installed\.transaction)/.test(name));
+  }
+
+  test('testRollbackAdoptedBindingRestore_killedMidRestore_nextRollbackRestoresOriginalSymlink', () => {
+    const linkTarget = '../../.agents/skills/dhpk-sample';
+    const { sourceRoot, projectRoot, options, claudeLink, receiptPath } = untrackedClaudeHostFixture(linkTarget);
+    try {
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true, update: true });
+      const killed = runUntilKilled('rollbackAgentsSkillsProjection', options, { method: 'symlinkSync', argument: 1, match: '.claude/skills/dhpk-sample' });
+      assert.strictEqual(killed.signal, 'SIGKILL', killed.stderr);
+      const rolledBack = publisher.rollbackAgentsSkillsProjection(options);
+      assert.strictEqual(rolledBack.ok, true, JSON.stringify(rolledBack));
+      assert.strictEqual(fs.readlinkSync(claudeLink), linkTarget);
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      assert.strictEqual((receipt.bindingPaths.claude || []).length, 0);
+      assert.deepStrictEqual(transientEntries(projectRoot), []);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testRollbackAdoptedBindingRestore_killedBeforeAdoptedLinkBackup_recoveryKeepsLiveLink', () => {
+    // Same target: the adopted link already pointed at the candidate target.
+    // Different target: adoption replaced it, so the restore target differs.
+    for (const linkTarget of [BINDING_HOST_TARGETS.claude, '../../.agents/skills/dhpk-sample']) {
+      const { sourceRoot, projectRoot, options, claudeLink, receiptPath } = untrackedClaudeHostFixture(linkTarget);
+      try {
+        publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true, update: true });
+        const receiptBefore = fs.readFileSync(receiptPath);
+        const adoptedTarget = fs.readlinkSync(claudeLink);
+        const killed = runUntilKilled('rollbackAgentsSkillsProjection', options, { method: 'renameSync', argument: 0, match: '.claude/skills/dhpk-sample' });
+        assert.strictEqual(killed.signal, 'SIGKILL', killed.stderr);
+        assert.ok(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.transaction.json')), linkTarget);
+        const validation = publisher.validateRelocatableAgentsSkillsProjection(options);
+        assert.strictEqual(validation.ok, true, `${linkTarget}: ${JSON.stringify(validation)}`);
+        assert.strictEqual(fs.readlinkSync(claudeLink), adoptedTarget, linkTarget);
+        assert.deepStrictEqual(fs.readFileSync(receiptPath), receiptBefore, linkTarget);
+        const rolledBack = publisher.rollbackAgentsSkillsProjection(options);
+        assert.strictEqual(rolledBack.ok, true, `${linkTarget}: ${JSON.stringify(rolledBack)}`);
+        assert.strictEqual(fs.readlinkSync(claudeLink), linkTarget);
+        assert.deepStrictEqual(transientEntries(projectRoot), []);
+      } finally {
+        fs.rmSync(sourceRoot, { recursive: true, force: true });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test('testPublishBackup_killedMidBackupOfUnchangedContent_recoveryKeepsLiveFilesAndBindings', () => {
+    const { sourceRoot, projectRoot, options, receiptPath } = untrackedClaudeHostFixture(null);
+    try {
+      const receiptBefore = fs.readFileSync(receiptPath);
+      const skillPath = path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md');
+      const skillBefore = fs.readFileSync(skillPath);
+      // The first managed file is already in the backup; the unchanged SKILL.md
+      // and every Host binding are still live and equal to their candidates.
+      const killed = runUntilKilled('materializeRelocatableAgentsSkillsProjection', { ...options, update: true }, { method: 'renameSync', argument: 0, match: path.join('.agents', 'skills', 'dhpk-sample', 'SKILL.md') });
+      assert.strictEqual(killed.signal, 'SIGKILL', killed.stderr);
+      // Validation runs recovery against the receipt that was live before the kill.
+      const installedHosts = ALL_HOSTS.filter((host) => host !== 'claude');
+      const validation = publisher.validateRelocatableAgentsSkillsProjection({ ...options, requestedHosts: installedHosts });
+      assert.strictEqual(validation.ok, true, JSON.stringify(validation.errors));
+      assert.deepStrictEqual(fs.readFileSync(skillPath), skillBefore);
+      assert.deepStrictEqual(fs.readFileSync(receiptPath), receiptBefore);
+      for (const hostId of ['codex', 'cursor']) {
+        assert.strictEqual(fs.readlinkSync(path.join(projectRoot, `.${hostId}/skills/dhpk-sample`)), BINDING_HOST_TARGETS[hostId]);
+      }
+      assert.deepStrictEqual(transientEntries(projectRoot), []);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testRollbackAdoptedBindingRestore_unmanagedContentAtRestorePath_failsBeforeMutation', () => {
+    const linkTarget = '../../.agents/skills/dhpk-sample';
+    const { sourceRoot, projectRoot, options, claudeLink, receiptPath } = untrackedClaudeHostFixture(linkTarget);
+    try {
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true, update: true });
+      // Drop the binding from the receipt so the restore path is unmanaged, then occupy it.
+      rewriteReceipt(receiptPath, (receipt) => { receipt.bindingPaths.claude = []; });
+      fs.rmSync(claudeLink, { force: true });
+      write(claudeLink, 'user content\n');
+      const receiptBefore = fs.readFileSync(receiptPath);
+      const failed = publisher.rollbackAgentsSkillsProjection(options);
+      assert.strictEqual(failed.ok, false, JSON.stringify(failed));
+      assert.strictEqual(fs.readFileSync(claudeLink, 'utf8'), 'user content\n');
+      assert.deepStrictEqual(fs.readFileSync(receiptPath), receiptBefore);
+      assert.deepStrictEqual(transientEntries(projectRoot), []);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testRollbackAdoptedBindingRestore_restoreFails_rollbackLeavesPreviousStateIntact', () => {
+    const linkTarget = '../../.agents/skills/dhpk-sample';
+    const { sourceRoot, projectRoot, options, claudeLink, receiptPath } = untrackedClaudeHostFixture(linkTarget);
+    const originalSymlink = fs.symlinkSync;
+    try {
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true, update: true });
+      const receiptBefore = fs.readFileSync(receiptPath);
+      const adoptedTarget = fs.readlinkSync(claudeLink);
+      fs.symlinkSync = (target, destination, ...rest) => {
+        if (destination === claudeLink && target === linkTarget) throw new Error('injected restore failure');
+        return originalSymlink(target, destination, ...rest);
+      };
+      const failed = publisher.rollbackAgentsSkillsProjection(options);
+      fs.symlinkSync = originalSymlink;
+      assert.strictEqual(failed.ok, false, JSON.stringify(failed));
+      assert.deepStrictEqual(fs.readFileSync(receiptPath), receiptBefore);
+      assert.strictEqual(fs.readlinkSync(claudeLink), adoptedTarget);
+      assert.deepStrictEqual(transientEntries(projectRoot), []);
+    } finally {
+      fs.symlinkSync = originalSymlink;
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testPublishTransientStaging_killedBeforePublishing_nextRunRemovesBackupAndRollbackStage', () => {
+    const { sourceRoot, projectRoot, options } = untrackedClaudeHostFixture(null);
+    try {
+      const killed = runUntilKilled('materializeRelocatableAgentsSkillsProjection', { ...options, update: true }, { method: 'copyFileSync', argument: 1, match: '.dhpk-projection-rollback-stage-' });
+      assert.strictEqual(killed.signal, 'SIGKILL', killed.stderr);
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true });
+      assert.deepStrictEqual(transientEntries(projectRoot), []);
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  const JOURNAL = '.agents/.dhpk-installed.transaction.json';
+
+  function heldFixture() {
+    const fixture = untrackedClaudeHostFixture(null);
+    const installedHosts = ALL_HOSTS.filter((host) => host !== 'claude');
+    return { ...fixture, options: { ...fixture.options, requestedHosts: installedHosts } };
+  }
+
+  function snapshotFiles(projectRoot, relatives) {
+    return Object.fromEntries(relatives.map((relative) => {
+      const target = path.join(projectRoot, relative);
+      const stat = fs.lstatSync(target);
+      return [relative, stat.isSymbolicLink() ? `link:${fs.readlinkSync(target)}` : fs.readFileSync(target, 'utf8')];
+    }));
+  }
+
+  const HELD_PATHS = ['.agents/.dhpk-installed.json', '.agents/skills/dhpk-sample/SKILL.md', '.codex/skills/dhpk-sample', '.cursor/skills/dhpk-sample'];
+
+  test('testHeldProjection_install_leavesAttributedJournalUntilCommit', () => {
+    const { sourceRoot, projectRoot, options } = heldFixture();
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
+      const result = publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } });
+      assert.strictEqual(result.held, true);
+      const journal = JSON.parse(fs.readFileSync(path.join(projectRoot, JOURNAL), 'utf8'));
+      assert.deepStrictEqual(journal.hold, { transactionId: 'run-1', host: 'codex' });
+      assert.match(fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'), 'utf8'), /Skill v2/);
+      const committed = publisher.commitHeldProjection({ projectRoot, transactionId: 'run-1' });
+      assert.strictEqual(committed.ok, true, JSON.stringify(committed));
+      assert.strictEqual(committed.state, 'COMMITTED');
+      assert.deepStrictEqual(transientEntries(projectRoot), []);
+      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
+      assert.match(fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'), 'utf8'), /Skill v2/);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testHeldProjection_abort_restoresPreviousProjectionByteForByte', () => {
+    const { sourceRoot, projectRoot, options } = heldFixture();
+    try {
+      const before = snapshotFiles(projectRoot, HELD_PATHS);
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } });
+      const aborted = publisher.abortHeldProjection({ projectRoot, transactionId: 'run-1' });
+      assert.strictEqual(aborted.ok, true, JSON.stringify(aborted));
+      assert.strictEqual(aborted.state, 'ABORTED');
+      assert.deepStrictEqual(snapshotFiles(projectRoot, HELD_PATHS), before);
+      assert.deepStrictEqual(transientEntries(projectRoot), []);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testHeldProjection_otherEntries_failTransactionHeldWithoutChanges', () => {
+    const { sourceRoot, projectRoot, options } = heldFixture();
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } });
+      const held = snapshotFiles(projectRoot, [...HELD_PATHS, JOURNAL]);
+      assert.throws(
+        () => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true }),
+        (error) => error.projectionCode === 'TRANSACTION_HELD' && /codex/.test(error.message) && /run-1/.test(error.message),
+      );
+      for (const outcome of [publisher.uninstallAgentsSkillsProjection(options), publisher.rollbackAgentsSkillsProjection(options)]) {
+        assert.strictEqual(outcome.code, 'TRANSACTION_HELD', JSON.stringify(outcome));
+      }
+      const validation = publisher.validateRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(validation.ok, false);
+      assert.ok(validation.errors.some((error) => /held/.test(error)), JSON.stringify(validation.errors));
+      assert.deepStrictEqual(snapshotFiles(projectRoot, [...HELD_PATHS, JOURNAL]), held);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testHeldProjection_commitAndAbort_reportAbsentAndMismatch', () => {
+    const { sourceRoot, projectRoot, options } = heldFixture();
+    try {
+      for (const resolve of [publisher.commitHeldProjection, publisher.abortHeldProjection]) {
+        const absent = resolve({ projectRoot, transactionId: 'run-1' });
+        assert.strictEqual(absent.ok, true, JSON.stringify(absent));
+        assert.strictEqual(absent.state, 'ABSENT');
+      }
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } });
+      const journalBefore = fs.readFileSync(path.join(projectRoot, JOURNAL));
+      for (const resolve of [publisher.commitHeldProjection, publisher.abortHeldProjection]) {
+        const mismatch = resolve({ projectRoot, transactionId: 'run-2' });
+        assert.strictEqual(mismatch.ok, false);
+        assert.strictEqual(mismatch.code, 'TRANSACTION_MISMATCH');
+      }
+      assert.deepStrictEqual(fs.readFileSync(path.join(projectRoot, JOURNAL)), journalBefore);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testHeldProjection_killedMidPublish_staysHeldUntilAbortRestoresPrevious', () => {
+    const { sourceRoot, projectRoot, options } = heldFixture();
+    try {
+      const before = snapshotFiles(projectRoot, HELD_PATHS);
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
+      const killed = runUntilKilled('materializeRelocatableAgentsSkillsProjection', { ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } }, { method: 'copyFileSync', argument: 1, match: path.join('.agents', 'skills', 'dhpk-sample', 'SKILL.md') });
+      assert.strictEqual(killed.signal, 'SIGKILL', killed.stderr);
+      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true }), (error) => error.projectionCode === 'TRANSACTION_HELD');
+      const committed = publisher.commitHeldProjection({ projectRoot, transactionId: 'run-1' });
+      assert.strictEqual(committed.code, 'TRANSACTION_INCOMPLETE', JSON.stringify(committed));
+      const aborted = publisher.abortHeldProjection({ projectRoot, transactionId: 'run-1' });
+      assert.strictEqual(aborted.ok, true, JSON.stringify(aborted));
+      assert.deepStrictEqual(snapshotFiles(projectRoot, HELD_PATHS), before);
+      assert.deepStrictEqual(transientEntries(projectRoot), []);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testHeldProjection_uninstall_heldUntilCommitAndAbsentIsNotHeld', () => {
+    const { sourceRoot, projectRoot, options } = heldFixture();
+    try {
+      const before = snapshotFiles(projectRoot, HELD_PATHS);
+      const removed = publisher.uninstallAgentsSkillsProjection({ ...options, hold: { transactionId: 'run-1', host: 'codex' } });
+      assert.strictEqual(removed.ok, true, JSON.stringify(removed));
+      assert.strictEqual(removed.held, true);
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.json')), false);
+      assert.strictEqual(publisher.abortHeldProjection({ projectRoot, transactionId: 'run-1' }).state, 'ABORTED');
+      assert.deepStrictEqual(snapshotFiles(projectRoot, HELD_PATHS), before);
+      publisher.uninstallAgentsSkillsProjection({ ...options, hold: { transactionId: 'run-2', host: 'codex' } });
+      assert.strictEqual(publisher.commitHeldProjection({ projectRoot, transactionId: 'run-2' }).state, 'COMMITTED');
+      const absent = publisher.uninstallAgentsSkillsProjection({ ...options, hold: { transactionId: 'run-3', host: 'codex' } });
+      assert.strictEqual(absent.state, 'ABSENT');
+      assert.strictEqual(absent.held, false);
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, JOURNAL)), false);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('testSecretScan_urlEmbeddedCredentialInCanonicalSkill_blocksPublication', () => {
+    const { sourceRoot, projectRoot, options } = heldFixture();
+    try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\nConnect with postgres://admin:hunter2@db.internal/app\n');
+      assert.throws(
+        () => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true }),
+        (error) => error.projectionCode === 'SECRET_DETECTED',
+      );
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('testHostBindingAdoption_publishFailure_restoresAdoptedSymlinkAndReceipt', () => {
     const linkTarget = '../../.agents/skills/dhpk-sample';
     const { sourceRoot, projectRoot, options, claudeLink, receiptPath } = untrackedClaudeHostFixture(linkTarget);

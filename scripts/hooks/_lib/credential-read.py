@@ -4,37 +4,43 @@ import json
 import os
 import sys
 
-from credential_policy import PROTECTED, RECURSIVE, UNSUPPORTED, analyze, validate_patterns
-
-DEFAULT_HINT = 'use controlled extraction or provide non-secret information.'
-HINTS = {
-    PROTECTED: DEFAULT_HINT,
-    # 避免假設 Host 一定提供 Grep/Read，並區分兩個搜尋工具的排除語法。
-    UNSUPPORTED: 'rewrite with supported options and explicit non-protected files; for recursive rg use --glob "!pattern", for grep use --exclude="pattern" for every default and custom credential pattern; Grep/Read may be used if available.',
-    RECURSIVE: 'exclude every default and custom credential pattern: for rg use --glob "!pattern", for grep use --exclude="pattern"; or target explicit non-protected files. Grep/Read may be used if available.',
-}
+from credential_policy import analyze, validate_patterns
+import credential_verdict as verdict
 
 
-def main():
+FAILURES = (ValueError, TypeError, OSError, RecursionError)
+
+
+def decide():
+    # 每一步都要落在同一組例外內；深度巢狀的 JSON 會丟出 RecursionError。
     try:
         payload = json.load(sys.stdin)
         if not isinstance(payload, dict) or not isinstance(payload.get('tool_input'), dict):
-            raise ValueError('payload')
+            return verdict.inspection_failure('payload')
         command = payload['tool_input'].get('command')
         if not isinstance(command, str):
-            raise ValueError('payload')
+            return verdict.inspection_failure('payload')
+    except FAILURES:
+        return verdict.inspection_failure('payload')
+    try:
         if os.environ.get('DHPK_CREDENTIAL_CONFIG_ERROR') == '1':
-            raise ValueError('policy')
+            return verdict.inspection_failure('policy')
         patterns = validate_patterns(json.loads(os.environ.get('CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS', '[]')))
-        reason = analyze(command, patterns, os.getcwd())
-        if reason:
-            raise ValueError(reason)
-    except (ValueError, TypeError, OSError, RecursionError) as error:
-        # 掃描原因會附加命中資訊；仍沿用遞迴讀取的恢復指引。
-        hint = HINTS[RECURSIVE] if str(error).startswith(RECURSIVE) else HINTS.get(str(error), DEFAULT_HINT)
-        print('[bash-guard] blocked: %s; %s' % (error, hint), file=sys.stderr)
-        return 2
-    return 0
+    except FAILURES:
+        return verdict.inspection_failure('policy')
+    try:
+        return analyze(command, patterns, os.getcwd())
+    except FAILURES as error:
+        # 只回報例外類型；例外訊息可能含有路徑或指令內容。
+        return verdict.inspection_failure(type(error).__name__)
+
+
+def main():
+    result = decide()
+    if result.allowed:
+        return 0
+    print('[bash-guard] blocked: %s' % result.message(), file=sys.stderr)
+    return 2
 
 
 if __name__ == '__main__':

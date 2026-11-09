@@ -245,7 +245,7 @@ dependency 一律 fail closed。runtime-only support 只記錄為 support metada
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.70.7 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.70.8 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -634,6 +634,22 @@ project probe。Codex 的官方位置仍是
 plugin package 內。這些 platform-native projection 仍由 canonical `agents/` 與
 `rules/` 產生。
 
+### 中斷的安裝與明確復原
+
+Codex 或 Cursor 的 install、update、uninstall 是跨 native installer 與 shared
+projection 的同一個 transaction（[ADR-0033](adr/0033-one-projection-journal-owns-install-crash-order.md)）。
+installer 以自己的 run id hold 住 shared projection 步驟，並在單一提交點同時提交；
+下一次執行會自動完成或撤銷中斷的 transaction。
+
+- `TRANSACTION_HELD` 表示另一個 installer 執行仍 hold 住 shared projection。
+  重新執行訊息中指名的 Host installer，讓它完成或撤銷該 transaction。
+- `did not finish rolling back` 會列出剩餘路徑與備份目錄。排除回報的原因後，
+  以 `--recover` 執行同一個 installer；它重播 rollback 後即停止，不會安裝。
+- `dhpk-install --recover [--project-root DIR] [--json]` 會撤銷 installer journal
+  已不存在的 held shared projection（它尚未到達提交點）、在該 installer journal
+  仍為 active 時拒絕處理，並列出每個未完成的 installer rollback 及完成它的指令；
+  只要仍有待處理項目就以 `2` 結束。
+
 ### 復原 receipt-owned shared skills
 
 當 `.agents/skills/` 下原本受管理的 skill 目錄被換成 symlink，或 receipt-owned
@@ -645,7 +661,8 @@ receipt 完整性。英文版的 [復原程序](platform-installation.md#recover
    `.agents/.dhpk-installed.json`、衝突 symlink、其 target 與可用備份，存放於
    managed／discovery tree 之外，並記錄目前 receipt 的 SHA-256。
    若存在 `.agents/.dhpk-installed.transaction.json`，先停止人工復原，透過
-   installer 處理中斷的 transaction；失敗時保留診斷與備份，交由維護者協助。
+   installer 或 `dhpk-install --recover` 處理中斷的 transaction；失敗時保留診斷與
+   備份，交由維護者協助。
 2. 找到符合**目前 receipt** 所記錄安裝內容的實體 skill 備份，例如替換前保存的
    原始目錄。rollback 目錄是上一版內容，只能作為候選來源；目前 canonical source
    也可能與 generated output 不同。
@@ -976,7 +993,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.70.7 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.70.8 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
