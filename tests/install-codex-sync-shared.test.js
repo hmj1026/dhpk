@@ -10,10 +10,30 @@ const {
   runInstaller: runCodexInstaller,
   projectRoot,
   completeTreeFingerprint,
+  CODEX_STUB_BIN,
 } = require('./_lib/install-codex-skills-fixtures');
 
 const REPO = path.join(__dirname, '..');
 const CURSOR_HOOK = path.join(REPO, 'scripts', 'hooks', 'install-cursor-harness.sh');
+
+// Apple's Xcode python3 writes its own bytecode cache under
+// $HOME/Library/Caches/com.apple.python. Pin it on macOS so the isolated-HOME
+// assertion always meets that interpreter instead of whichever python3 the
+// caller's PATH happens to resolve. Without Command Line Tools the stub would
+// open an install dialog, so the pin is skipped there.
+const APPLE_PYTHON = '/usr/bin/python3';
+function applePythonShimDir() {
+  if (process.platform !== 'darwin' || !fs.existsSync(APPLE_PYTHON)) return null;
+  if (spawnSync('xcode-select', ['-p'], { encoding: 'utf8', timeout: 10000 }).status !== 0) return null;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-apple-python-'));
+  try {
+    fs.symlinkSync(APPLE_PYTHON, path.join(dir, 'python3'));
+  } catch (error) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    throw error;
+  }
+  return dir;
+}
 
 function write(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -221,8 +241,16 @@ for (const entrypoint of sharedSkillRecoveryEntrypoints) {
     const project = projectRoot();
     const plugin = fakePlugin();
     const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-legacy-installer-home-'));
-    const env = { HOME: isolatedHome };
+    let pythonShim = null;
     try {
+      pythonShim = applePythonShimDir();
+      const env = {
+        HOME: isolatedHome,
+        // The assertion is that the installers write nothing to HOME; the
+        // interpreter's own bytecode cache is not installer output.
+        PYTHONDONTWRITEBYTECODE: '1',
+        ...(pythonShim ? { PATH: `${CODEX_STUB_BIN}:${pythonShim}:${process.env.PATH || ''}` } : {}),
+      };
       write(path.join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '0.65.9' }));
       const inventoryPath = path.join(plugin, 'manifests', 'distribution-inventory.json');
       const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
@@ -292,6 +320,7 @@ for (const entrypoint of sharedSkillRecoveryEntrypoints) {
       fs.rmSync(project, { recursive: true, force: true });
       fs.rmSync(plugin, { recursive: true, force: true });
       fs.rmSync(isolatedHome, { recursive: true, force: true });
+      if (pythonShim) fs.rmSync(pythonShim, { recursive: true, force: true });
     }
   });
 
