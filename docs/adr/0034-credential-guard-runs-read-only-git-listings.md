@@ -19,8 +19,9 @@ path at all.
 ## Decision
 
 Content-reading git subcommands become Readers: `grep`, `show`, `cat-file`,
-`diff`, `log` and `whatchanged` with a patch or line-range option, `blame`, and
-`stash show -p`. Other subcommands, and output forms that print only names or
+`diff`, `blame`, and `stash show`. `log`, `whatchanged`, `reflog`, `stash list`,
+`diff-tree`, `diff-index`, and `diff-files` become Readers only with a patch or line-range
+option. Other subcommands, and output forms that print only names or
 counts (`--stat`, `--name-only`, `--name-status`, `--numstat`) without a patch,
 stay allowed.
 
@@ -29,8 +30,16 @@ read-only git listing with the same revisions, ranges, limits, and pathspecs,
 asking only for names: `diff --name-only`, `show --name-only --format=`,
 `log --name-only --format=`, `ls-files`, or `ls-tree -r --name-only`. A bare
 object id is typed with `cat-file -t` first; a blob without a path is
-ambiguous. Every listing passes `--no-pager --no-ext-diff --no-textconv`, so no
-configured external program runs. The listed names are judged by the existing
+ambiguous. Every listing passes `--no-pager --no-ext-diff --no-textconv`,
+`core.fsmonitor=false`, `core.hooksPath=/dev/null`, the empty tree as
+`--attr-source`, `core.attributesFile=/dev/null`, `GIT_ATTR_NOSYSTEM=1`, and
+`log.showSignature=false`. Every configured `filter.<driver>` is overridden
+with empty commands, which covers `.git/info/attributes`. Diff listings pass
+`--ignore-submodules=all` so no child git runs with a submodule's own
+configuration. No configured external diff, textconv, filter, pager, fsmonitor,
+signature, or hook program runs. Rename detection is off (`--no-renames`) so a
+renamed source appears under its old name, and copy detection and
+`--submodule` are unsupported. The listed names are judged by the existing
 policy function, and that listing is the read's Absence Proof.
 
 The listing fails closed:
@@ -53,12 +62,15 @@ The listing fails closed:
   in this repository (4,187 tracked files).
 - An unranged `git log -p` in a long history exceeds the cap and blocks; the
   full path history of this repository takes about 2 s to list.
-- Aliases, `archive`, `format-patch`, `bundle`, and other unlisted
-  subcommands remain unjudged. As with ADR 0032, the guard prevents accidental
+- Aliases, `archive`, `format-patch`, `bundle`, `difftool`, and other
+  unlisted subcommands remain unjudged. A Reader that git runs for the agent,
+  such as `git bisect run cat .env`, is still judged. As with ADR 0032, the guard prevents accidental
   agent reads, not an adversary, and the time-of-check/time-of-use gap is
   accepted.
 - The hook now executes `git`, so its behaviour depends on the installed git
   version and on the listing options above remaining side-effect free.
+  Listing-based reads need git 2.40 (`--attr-source`); before git 2.44,
+  `GIT_NO_LAZY_FETCH` is ignored and a partial clone may fetch missing objects.
 
 ## Alternatives considered
 

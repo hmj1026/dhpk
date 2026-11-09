@@ -164,6 +164,41 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   });
 }
 
+test('git reads are judged through both hook entrypoints (#1262)', () => {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-git-reader-')));
+  const env = { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@e', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@e' };
+  const git = (...args) => execFileSync('git', args, { cwd: dir, env: { ...process.env, ...env }, stdio: 'pipe' });
+  try {
+    git('init', '-q');
+    fs.writeFileSync(path.join(dir, '.env'), 'synthetic');
+    fs.writeFileSync(path.join(dir, 'ordinary.js'), 'synthetic');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'init');
+    for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+      const invoke = (command) => runHook(hook, { cwd: dir, payload: { tool_input: { command } } });
+      for (const [command, reason] of [
+        ['git grep -n x', /recursive read without credential exclusions: patterns '\.env'/],
+        ['git grep -n x -- \'*\'', /ambiguous read target/],
+        ['git grep -n x -- \'*.env\'', /ambiguous read target/],
+        ['git show HEAD:.env', /protected path/],
+        ['git cat-file -p HEAD:.env', /protected path/],
+        ['git log -p -- .env', /protected path/],
+        ['git diff HEAD -- .env', /protected path/],
+        ['git show HEAD', /recursive read without credential exclusions/],
+      ]) {
+        const result = invoke(command);
+        assert.strictEqual(result.status, 2, `${hook} ${command}: ${result.stderr}`);
+        assert.match(result.stderr, reason, `${hook} ${command}`);
+        assert.doesNotMatch(result.stderr, /--glob|--exclude/, `${hook} ${command}`);
+      }
+      for (const command of ['git status', 'git diff --stat', 'git log --oneline', 'git grep -n x -- ordinary.js', 'git show HEAD:ordinary.js']) {
+        const result = invoke(command);
+        assert.strictEqual(result.status, 0, `${hook} ${command}: ${result.stderr}`);
+      }
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('all supported readers reject every default credential family', () => {
   const readers = ['cat', 'less', 'head', 'tail', 'sed -n p', 'awk "{print}"', 'grep needle', 'rg needle'];
   for (const reader of readers) {

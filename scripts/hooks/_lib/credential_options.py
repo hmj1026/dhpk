@@ -25,6 +25,22 @@ class ReadPlan:
     follow: bool
     exclusions: tuple
     exclusion_proof_valid: bool
+    # A Reader whose files depend on repository state names them through a
+    # listing (ADR 0034); `resolve(cwd, deadline)` returns a ListingResult.
+    listing: object = None
+    # True when the Reader changed to a directory that cannot be known statically.
+    location_unknown: bool = False
+    # Reader-specific recovery text; None keeps the default hints.
+    recovery: object = None
+
+
+# failure: None, 'unknown', 'limit', or 'error'; detail explains a failure or ambiguity.
+ListingResult = namedtuple('ListingResult', 'failure detail ambiguous targets listed')
+Recovery = namedtuple('Recovery', 'ambiguous recursive')
+
+
+def exclusion_syntax(reader):
+    return EXCLUSION_SYNTAX.get(reader)
 
 # Each option maps to (takes_value, effect). Required values consume the rest
 # of a short cluster or the next word, just as the supported utilities do.

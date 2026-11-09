@@ -75,6 +75,51 @@ For recursive searches, use `rg --glob '!pattern'` or `grep --exclude='pattern'`
 for every default and custom protected pattern, or target explicit
 non-protected files. Grep/Read tools are alternatives only if available.
 
+### Git reads
+
+`git grep`, `show`, `cat-file -p` (or `cat-file <type>`), `diff`, `blame`, and
+`stash show` are readers too. So are `log`, `whatchanged`, `reflog`,
+`stash list`, `diff-tree`, `diff-index`, and `diff-files` when given `-p`, `--patch`, `-U`,
+`--cc`, or `-L`. Output that prints only names or statistics
+(`--stat`, `--name-only`, `--name-status`, `--numstat`, `-s`) and every other
+subcommand, such as `status`, `add`, and `commit`, stay allowed.
+
+- `<rev>:<path>`, `blame` files, `log -L` files, and literal pathspecs are judged
+  as targets. `HEAD:path` and `:path` are repository-root relative;
+  `HEAD:./path` is relative to the working directory.
+- A pathspec with `*`, `?`, `[`, a dynamic value, or magic other than exclude
+  is ambiguous. So is a bare blob id; read it as `<rev>:<path>`.
+- When the command does not name its files (`git diff`, `git show <commit>`,
+  `git log -p`, `git grep x`), the gate runs one names-only git listing with the
+  same revisions, limits, and pathspecs, and judges every listed path. Git reads
+  accept no exclusion proof. The listing shares the 300 ms and 20,000-entry
+  bounds; past them, narrow the pathspec or add `-n`.
+- Listings run with `--no-pager --no-ext-diff --no-textconv`,
+  `core.fsmonitor=false`, `core.hooksPath=/dev/null`, and the empty tree as
+  `--attr-source`. They also set `core.attributesFile=/dev/null` and
+  `GIT_ATTR_NOSYSTEM=1` and `log.showSignature=false`. They override every
+  configured `filter.<driver>` with empty commands, and diff listings pass
+  `--ignore-submodules=all` so no child git runs inside a submodule. As a result, no configured external diff, textconv,
+  clean/smudge filter, pager, fsmonitor, signature, or hook program runs.
+- Listing-based reads need git 2.40 or later. With an older git the listing
+  fails and the read blocks. Before git 2.44, a partial clone may fetch missing
+  objects during a listing.
+- Copy detection (`-C`, `--find-copies`) and `--submodule` are unsupported. A
+  repository with `diff.submodule=diff` blocks work-tree and history diffs.
+- `git -C <literal dir>` is resolved like `cd`. For a git read, these block:
+  - the options `--git-dir`, `--work-tree`, `--namespace`, `-c`, and
+    `--config-env` (a `-c alias.*` blocks any git command);
+  - relocating prefixes such as `GIT_DIR=`, `GIT_WORK_TREE=`, and
+    `GIT_INDEX_FILE=`.
+
+  `GIT_PAGER=cat` is allowed.
+
+Commands outside the reader list are not inspected. These include `python`,
+`node`, `xxd`, `base64`, and `cp`, as well as git aliases, `git archive`,
+`git format-patch`, `git bundle`, and `git difftool`. A reader that git runs
+on the agent's behalf is still judged, for example in `git bisect run cat .env`
+or `git submodule foreach cat .env`.
+
 ### Block reasons
 
 A blocked command exits 2 with one stderr line,

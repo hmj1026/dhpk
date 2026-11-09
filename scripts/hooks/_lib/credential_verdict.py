@@ -33,6 +33,8 @@ class Verdict:
         return self.kind == ALLOW
 
     def message(self):
+        if self.allowed:
+            return ALLOW
         reason = REASONS[self.kind]
         if self.detail:
             reason += ': ' + self.detail
@@ -60,13 +62,15 @@ def unsupported(syntax, detail=''):
     return Verdict(UNSUPPORTED, detail, '; '.join(parts) + '. ' + TOOLS)
 
 
-def ambiguous(detail=''):
-    return Verdict(AMBIGUOUS_TARGET, detail,
+def ambiguous(detail='', recovery=None):
+    """`recovery` is Reader-specific advice that replaces the default hint."""
+    return Verdict(AMBIGUOUS_TARGET, detail, recovery or
                    'name each target as an explicit literal path without wildcards or shell expansions. ' + TOOLS)
 
 
-def recursive_unproven(syntax, detail=''):
-    return Verdict(RECURSIVE_UNPROVEN, detail,
+def recursive_unproven(syntax, detail='', recovery=None):
+    """`recovery` is Reader-specific advice that replaces the default hint."""
+    return Verdict(RECURSIVE_UNPROVEN, detail, recovery or
                    '%s, or target explicit non-protected files. %s' % (_exclusion_clause(syntax), TOOLS))
 
 

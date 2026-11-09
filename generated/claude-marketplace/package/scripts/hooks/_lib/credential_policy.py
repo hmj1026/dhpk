@@ -1,6 +1,7 @@
 """Credential path and invocation policy, without reading target contents."""
 
 import fnmatch
+import functools
 import hashlib
 import os
 import posixpath
@@ -10,7 +11,10 @@ import stat
 import sys
 
 from credential_shell import tokenize, substitutions, heredocs
-from credential_options import ADAPTERS, READERS, ReadPlan
+from credential_options import ADAPTERS, READERS, ReadPlan, exclusion_syntax
+from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES
+from credential_scan import MAX_SECONDS
+import time
 from credential_scan import scan_roots
 import credential_verdict as verdict
 
@@ -29,6 +33,7 @@ def validate_patterns(value):
     return value
 
 
+@functools.lru_cache(maxsize=8192)
 def normalize_path(path):
     # normpath 保留雙前導斜線；政策要求重複分隔符合併後再比對本機與遠端字面路徑。
     return posixpath.normpath(re.sub('/+', '/', path))
@@ -51,8 +56,13 @@ def match_path(path, pattern, cwd=None):
         if len(path_parts) < len(pattern_parts):
             return False
         candidate = '/'.join(path_parts[-len(pattern_parts):])
-    expression = ''.join('[^/]*' if c == '*' else '[^/]' if c == '?' else re.escape(c) for c in pattern)
-    return re.fullmatch(expression, candidate) is not None
+    return _pattern_expression(pattern).fullmatch(candidate) is not None
+
+
+@functools.lru_cache(maxsize=256)
+def _pattern_expression(pattern):
+    # git 列舉可能有上千個路徑；同一規則只編譯一次。
+    return re.compile(''.join('[^/]*' if c == '*' else '[^/]' if c == '?' else re.escape(c) for c in pattern))
 
 
 def matching_patterns(path, patterns, cwd):
@@ -117,18 +127,25 @@ def judge(plan, patterns, cwd, wrapped):
     `wrapped` is True when the Reader is not the segment's first word (for
     example `env rg`), so its root may not be the local working directory.
     """
+    if plan.location_unknown:
+        cwd = None
+    recovery = plan.recovery
     for aux in plan.auxiliary_inputs:
         found = auxiliary_verdict(aux, patterns, cwd)
         if found is not None:
             return found
     for token in plan.targets:
         if token.glob:
-            return verdict.ambiguous('target %s' % ascii(token.value))
+            return verdict.ambiguous('target %s' % ascii(token.value), recovery and recovery.ambiguous)
         if protected(token.value, patterns, cwd):
             return verdict.protected()
+    if plan.listing is not None:
+        found = listing_verdict(plan, patterns, None if wrapped else cwd)
+        if found is not None:
+            return found
     if not plan.recursive:
         return verdict.allow()
-    syntax = ADAPTERS[plan.reader].exclusion_syntax
+    syntax = exclusion_syntax(plan.reader)
     # rg only escapes recursive scope for explicit, known regular local files.
     if plan.reader == 'rg' and plan.targets and cwd is not None and not wrapped and not any(t.dynamic for t in plan.targets):
         try:
@@ -143,7 +160,7 @@ def judge(plan, patterns, cwd, wrapped):
         return verdict.allow()
     # 包裝器、動態根路徑或未知 cwd 可能指向其他檔案系統，不能用本機掃描推論。
     if cwd is None or wrapped or any(t.dynamic for t in plan.targets):
-        return verdict.recursive_unproven(syntax)
+        return verdict.recursive_unproven(syntax, '', recovery and recovery.recursive)
     unresolved = set(effective) - covered if plan.exclusion_proof_valid else set(effective)
     roots = [os.path.join(cwd, t.value) for t in plan.targets] if plan.targets else [cwd]
     failure, hits, paths = scan_roots(roots, lambda path: matching_patterns(path, patterns, cwd), unresolved, plan.follow)
@@ -154,10 +171,49 @@ def judge(plan, patterns, cwd, wrapped):
         details.append('patterns ' + ', '.join(ascii(p) for p in sorted(hits)))
     if paths:
         details.append('paths ' + ', '.join(ascii(p) for p in paths))
-    return verdict.recursive_unproven(syntax, '; '.join(details))
+    return verdict.recursive_unproven(syntax, '; '.join(details), recovery and recovery.recursive)
 
 
-def segment_verdict(tokens, patterns, cwd):
+def _hit_details(hits, paths):
+    details = []
+    if hits:
+        details.append('patterns ' + ', '.join(ascii(p) for p in sorted(hits)))
+    if paths:
+        details.append('paths ' + ', '.join(ascii(p) for p in paths))
+    return details
+
+
+def listing_verdict(plan, patterns, cwd):
+    """Judge a Reader's listing (ADR 0034): literal targets, then every listed path.
+
+    None means the listing proves no Protected Path; the caller continues.
+    """
+    recovery = plan.recovery
+    result = plan.listing.resolve(cwd, time.monotonic() + MAX_SECONDS)
+    for path in result.targets:
+        if protected(path, patterns, cwd):
+            return verdict.protected()
+    if result.ambiguous:
+        return verdict.ambiguous(result.ambiguous, recovery and recovery.ambiguous)
+    if result.failure in ('unknown', 'limit'):
+        return verdict.recursive_unproven(None, result.detail, recovery and recovery.recursive)
+    if result.failure == 'unsupported':
+        return verdict.unsupported(None, result.detail)
+    if result.failure is not None:
+        return verdict.inspection_failure(result.detail)
+    hits, paths = set(), []
+    for path in result.listed:
+        found = matching_patterns(path, patterns, cwd)
+        if found:
+            hits.update(found)
+            if path not in paths and len(paths) < 3:
+                paths.append(path)
+    if hits:
+        return verdict.recursive_unproven(None, '; '.join(_hit_details(hits, paths)), recovery and recovery.recursive)
+    return None
+
+
+def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     """Judge one command segment between separators."""
     words = [t for t in tokens if not t.operator]
     if not words:
@@ -175,6 +231,15 @@ def segment_verdict(tokens, patterns, cwd):
         return verdict.protected()
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
     index = next((i for i, name in enumerate(names) if name in READERS or name == 'ssh'), None)
+    git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
+    if git_index is not None and (index is None or git_index < index):
+        plan = GIT_ADAPTER.plan(words[git_index + 1:], words[:git_index], git_relocated)
+        # 不是 git 讀取時仍要判定後面的 Reader：`git bisect run cat .env`、`git submodule foreach`
+        # 與 `sudo -u git cat .env` 都會執行後面的指令。
+        if plan is not None:
+            if not isinstance(plan, ReadPlan):
+                return verdict.unsupported(None, plan.detail)
+            return judge(plan, patterns, cwd, git_index != 0)
     if index is None:
         return verdict.allow()
     if names[index] == 'ssh':
@@ -241,11 +306,15 @@ def analyze(command, patterns, cwd, remote=False, nested=False):
             return found
     if not nested and safe_extraction(tokens, remote):
         return verdict.allow()
+    # 任何一段（例如先前的 `export GIT_DIR=…`）設定了搬移 repository 的 GIT_* 變數，
+    # 後面的 git 讀取就無法用本機列舉證明，比照 cd 的不確定規則。
+    git_relocated = any(not t.operator and (RELOCATING_VARIABLES.match(t.value) or RELOCATING_VARIABLES.match(t.value + '='))
+                        for t in tokens)
     segment = []
     uncertain_cwd = cwd
     for token in tokens + [type('End', (), {'operator': True, 'value': ';'})()]:
         if token.operator and token.value in SEPARATORS:
-            found = segment_verdict(segment, patterns, uncertain_cwd)
+            found = segment_verdict(segment, patterns, uncertain_cwd, git_relocated)
             if not found.allowed:
                 return found
             if any(not t.operator and posixpath.basename(t.value) == 'cd' for t in segment):
