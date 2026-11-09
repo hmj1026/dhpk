@@ -75,6 +75,22 @@ For recursive searches, use `rg --glob '!pattern'` or `grep --exclude='pattern'`
 for every default and custom protected pattern, or target explicit
 non-protected files. Grep/Read tools are alternatives only if available.
 
+### Block reasons
+
+A blocked command exits 2 with one stderr line,
+`[bash-guard] blocked: <reason>[: <detail>]; <hint>`. There are five reasons:
+
+| Reason | When |
+| --- | --- |
+| `protected path` | A target, input redirect, or auxiliary file (such as `grep -f`) is a protected path |
+| `ambiguous read target` | A target cannot be known statically: a glob, a dynamic value, or a glob or dynamic operand after `ssh` |
+| `unsupported reader syntax` | The reader's options cannot be parsed safely; the detail names the option only |
+| `recursive read without credential exclusions` | A recursive read lacks full exclusions and no local scan proves it holds no protected path |
+| `credential inspection failure` | The payload or policy is invalid, or the inspection itself failed |
+
+The hint names the exclusion syntax of the reader that was used only:
+`--glob "!pattern"` for `rg` and `--exclude="pattern"` for `grep`.
+
 ### Controlled extraction
 
 For a local protected file containing only a supported MySQL PDO DSN, the gate

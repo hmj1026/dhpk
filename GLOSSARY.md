@@ -187,3 +187,19 @@ _Avoid_: Safe search, exclusion list
 **Absence Proof**:
 Evidence, from a bounded scan at check time, that a recursive read's search root contains no Protected Path. It is a point-in-time observation, not a guarantee for the moment the command runs.
 _Avoid_: Safe directory, clean directory, credential-free directory
+
+**Reader**:
+A command the credential guard knows can open file contents, such as `cat`, `sed`, `grep`, or `rg`. Each Reader's arguments are understood only through that Reader's own option grammar.
+_Avoid_: Read command, file tool
+
+**Read Plan**:
+What a Reader invocation would open: its targets, auxiliary inputs, whether it recurses and follows links, and the exclusions it states. It describes the invocation and carries no judgment about whether the read is allowed.
+_Avoid_: Parsed args, classification
+
+**Remote Wrapper**:
+A command, such as `ssh`, that runs another command where the local working directory and filesystem do not apply. It is not a Reader; the command it carries is judged without local knowledge.
+_Avoid_: Remote reader
+
+**Credential Verdict**:
+The credential guard's single decision about one agent command: allowed, or blocked for one named reason with the recovery advice for that reason. A guard that cannot inspect the command reaches a blocked verdict, never an allowed one.
+_Avoid_: Block reason, guard result

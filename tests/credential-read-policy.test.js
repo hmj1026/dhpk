@@ -130,6 +130,26 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
     const direct = runHook(hook, { payload: { tool_input: { command: 'cat .env' } } });
     assert.match(direct.stderr, /protected path/);
   });
+  test(`${hook} reports ambiguous targets and inspection failures by name`, () => {
+    for (const command of ['cat *.pem', 'cat < *.txt', 'grep -f "$X" needle ordinary', 'ssh example cat "$FILE"']) {
+      const result = runHook(hook, { payload: { tool_input: { command } } });
+      assert.strictEqual(result.status, 2, `${command}: ${result.stderr}`);
+      assert.match(result.stderr, /^\[bash-guard\] blocked: ambiguous read target: /, command);
+      assert.doesNotMatch(result.stderr, /protected path|unsupported reader syntax/, command);
+      assert.match(result.stderr, /explicit literal path/, command);
+    }
+    for (const [payload, env] of [['not json', {}], [{ tool_input: { command: 'cat ordinary' } }, { CLAUDE_PLUGIN_OPTION_CREDENTIAL_READ_PATHS: 'invalid' }]]) {
+      const result = runHook(hook, { payload, env });
+      assert.strictEqual(result.status, 2, result.stderr);
+      assert.match(result.stderr, /^\[bash-guard\] blocked: credential inspection failure: (payload|policy); /);
+    }
+    const rg = runHook(hook, { payload: { tool_input: { command: 'rg needle .' } } });
+    assert.match(rg.stderr, /--glob/);
+    assert.doesNotMatch(rg.stderr, /--exclude/);
+    const grep = runHook(hook, { payload: { tool_input: { command: 'grep -r needle .' } } });
+    assert.match(grep.stderr, /--exclude/);
+    assert.doesNotMatch(grep.stderr, /--glob/);
+  });
   test(`${hook} enforces additive custom policy and malformed inputs`, () => {
     for (const command of ['cat secret.conf', 'cat a/config/private.key', 'cat .env.example']) {
       const result = runHook(hook, { payload: { tool_input: { command } }, env: {

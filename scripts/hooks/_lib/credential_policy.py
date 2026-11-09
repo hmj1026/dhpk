@@ -10,12 +10,12 @@ import stat
 import sys
 
 from credential_shell import tokenize, substitutions, heredocs
-from credential_options import classify
+from credential_options import ADAPTERS, READERS, ReadPlan
 from credential_scan import scan_roots
+import credential_verdict as verdict
 
 TEMPLATES = {'.env.example', '.env.sample', '.env.dist', '.env.template'}
 DEFAULTS = ['.env', '.env.*', 'my.cnf', 'debian.cnf', '*.pem', 'id_rsa*', 'credentials*']
-READERS = {'cat', 'less', 'head', 'tail', 'sed', 'awk', 'grep', 'rg'}
 # Pin the dedicated extractor; a matching filename alone cannot grant access.
 EXTRACTOR_SHA256 = 'd716d7ef383ee3c28e0680b077e3c203c213be026498045136a235be927339aa'
 
@@ -66,21 +66,29 @@ def protected(path, patterns, cwd):
     return bool(matching_patterns(path, patterns, cwd))
 
 
-def unsafe_auxiliary(path, token, patterns, cwd):
-    """Reject auxiliary inputs whose actual target cannot be proved safe."""
-    if token.dynamic or token.glob or cwd is None or protected(path, patterns, cwd):
-        return True
+def auxiliary_verdict(aux, patterns, cwd):
+    """Judge one auxiliary input; None when its actual target is proved safe."""
+    path, token = aux.value, aux.token
+    if token.dynamic or token.glob:
+        return verdict.ambiguous('auxiliary input %s' % ascii(token.value))
+    # 未知 cwd 時，絕對路徑規則會比對任何相對路徑；先回報無法驗證，避免誤稱受保護。
+    if cwd is None:
+        return verdict.unsupported(None, 'auxiliary input needs a known working directory')
+    if protected(path, patterns, cwd):
+        return verdict.protected()
     try:
         # 連結後的 .. 必須由檔案系統解析；正規化僅供字面政策比對。
         physical = os.path.join(cwd, path)
         logical = os.path.abspath(physical)
         resolved = str(Path(physical).resolve(strict=True))
         info = os.stat(resolved)
-        return (protected(logical, patterns, cwd) or protected(resolved, patterns, cwd)
-                or not stat.S_ISREG(info.st_mode) or not info.st_mode & 0o444
-                or not os.access(resolved, os.R_OK))
+        if protected(logical, patterns, cwd) or protected(resolved, patterns, cwd):
+            return verdict.protected()
+        if not stat.S_ISREG(info.st_mode) or not info.st_mode & 0o444 or not os.access(resolved, os.R_OK):
+            return verdict.unsupported(None, 'auxiliary input is not a readable regular file')
     except (OSError, RuntimeError, ValueError):
-        return True
+        return verdict.unsupported(None, 'auxiliary input cannot be resolved')
+    return None
 
 
 def safe_extraction(tokens, remote):
@@ -100,72 +108,86 @@ def safe_extraction(tokens, remote):
         return False
 
 
-# 回傳非空的阻擋原因（truthy）或 False，讓 hook 能告訴 agent 該怎麼改寫指令。
-PROTECTED = 'protected path'
-UNSUPPORTED = 'unsupported reader syntax'
-RECURSIVE = 'recursive read without credential exclusions'
+SEPARATORS = (';', '&&', '||', '|', '|&', '(', ')', ';;')
 
 
-def read_blocked(tokens, patterns, cwd):
-    if not tokens:
-        return False
+def judge(plan, patterns, cwd, wrapped):
+    """Judge one Read Plan: auxiliary inputs, then targets, then recursion.
+
+    `wrapped` is True when the Reader is not the segment's first word (for
+    example `env rg`), so its root may not be the local working directory.
+    """
+    for aux in plan.auxiliary_inputs:
+        found = auxiliary_verdict(aux, patterns, cwd)
+        if found is not None:
+            return found
+    for token in plan.targets:
+        if token.glob:
+            return verdict.ambiguous('target %s' % ascii(token.value))
+        if protected(token.value, patterns, cwd):
+            return verdict.protected()
+    if not plan.recursive:
+        return verdict.allow()
+    syntax = ADAPTERS[plan.reader].exclusion_syntax
+    # rg only escapes recursive scope for explicit, known regular local files.
+    if plan.reader == 'rg' and plan.targets and cwd is not None and not wrapped and not any(t.dynamic for t in plan.targets):
+        try:
+            if all(stat.S_ISREG(os.lstat(os.path.join(cwd, t.value)).st_mode) for t in plan.targets):
+                return verdict.allow()
+        except OSError:
+            pass
+    effective = DEFAULTS + patterns
+    # 排除帶斜線時可能只作用於單一目錄，不能證明覆蓋任意深度的自訂規則。
+    covered = {p for p in effective if any('/' not in ex and (ex == '*' or ex == posixpath.basename(p)) for ex in plan.exclusions)}
+    if plan.exclusion_proof_valid and len(covered) == len(set(effective)):
+        return verdict.allow()
+    # 包裝器、動態根路徑或未知 cwd 可能指向其他檔案系統，不能用本機掃描推論。
+    if cwd is None or wrapped or any(t.dynamic for t in plan.targets):
+        return verdict.recursive_unproven(syntax)
+    unresolved = set(effective) - covered if plan.exclusion_proof_valid else set(effective)
+    roots = [os.path.join(cwd, t.value) for t in plan.targets] if plan.targets else [cwd]
+    failure, hits, paths = scan_roots(roots, lambda path: matching_patterns(path, patterns, cwd), unresolved, plan.follow)
+    if not failure and not hits:
+        return verdict.allow()
+    details = [failure] if failure else []
+    if hits:
+        details.append('patterns ' + ', '.join(ascii(p) for p in sorted(hits)))
+    if paths:
+        details.append('paths ' + ', '.join(ascii(p) for p in paths))
+    return verdict.recursive_unproven(syntax, '; '.join(details))
+
+
+def segment_verdict(tokens, patterns, cwd):
+    """Judge one command segment between separators."""
     words = [t for t in tokens if not t.operator]
     if not words:
-        return False
+        return verdict.allow()
     names = [posixpath.basename(t.value) for t in words]
     # Redirects open the target before any command runs, including metadata commands.
     for i, token in enumerate(tokens[:-1]):
         if token.operator and token.value in ('<', '<>'):
             target = tokens[i + 1]
-            if target.glob or protected(target.value, patterns, cwd):
-                return PROTECTED
-    if any(posixpath.basename(t.value).endswith('credential-extract.py') for t in words):
-        return PROTECTED
+            if target.glob:
+                return verdict.ambiguous('input redirect %s' % ascii(target.value))
+            if protected(target.value, patterns, cwd):
+                return verdict.protected()
+    if any(name.endswith('credential-extract.py') for name in names):
+        return verdict.protected()
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
     index = next((i for i, name in enumerate(names) if name in READERS or name == 'ssh'), None)
     if index is None:
-        return False
-    name = names[index]
-    if name == 'ssh':
-        return ssh_blocked(words[index + 1:], patterns)
-    args = words[index + 1:]
-    # 舊版逐字猜測叢集與縮寫會錯認參數；依各 reader 的選項與參數表解析，未知語法直接拒絕。
-    classified = classify(name, args, lambda value, token: unsafe_auxiliary(value, token, patterns, cwd))
-    if classified is None:
-        return UNSUPPORTED
-    positional, recursive, exclusions, invalid_proof, follow = classified
-    for token in positional:
-        if token.glob or protected(token.value, patterns, cwd):
-            return PROTECTED
-    if recursive:
-        # rg only escapes recursive scope for explicit, known regular local files.
-        if name == 'rg' and positional and cwd is not None and index == 0 and not any(t.dynamic for t in positional):
-            try:
-                if all(stat.S_ISREG(os.lstat(os.path.join(cwd, t.value)).st_mode) for t in positional):
-                    return False
-            except OSError:
-                pass
-        effective = DEFAULTS + patterns
-        # 排除帶斜線時可能只作用於單一目錄，不能證明覆蓋任意深度的自訂規則。
-        covered = {p for p in effective if any('/' not in ex and (ex == '*' or ex == posixpath.basename(p)) for ex in exclusions)}
-        if invalid_proof or len(covered) != len(set(effective)):
-            # 包裝器、動態根路徑或未知 cwd 可能指向其他檔案系統，不能用本機掃描推論。
-            if cwd is None or index != 0 or any(t.dynamic for t in positional):
-                return RECURSIVE
-            unresolved = set(effective) if invalid_proof else set(effective) - covered
-            roots = [os.path.join(cwd, t.value) for t in positional] if positional else [cwd]
-            failure, hits, paths = scan_roots(roots, lambda path: matching_patterns(path, patterns, cwd), unresolved, follow)
-            if failure or hits:
-                details = [failure] if failure else []
-                if hits:
-                    details.append('patterns ' + ', '.join(ascii(p) for p in sorted(hits)))
-                if paths:
-                    details.append('paths ' + ', '.join(ascii(p) for p in paths))
-                return RECURSIVE + ': ' + '; '.join(details)
-    return False
+        return verdict.allow()
+    if names[index] == 'ssh':
+        return remote_wrapper_verdict(words[index + 1:], patterns)
+    adapter = ADAPTERS[names[index]]
+    plan = adapter.plan(words[index + 1:])
+    if not isinstance(plan, ReadPlan):
+        return verdict.unsupported(adapter.exclusion_syntax, plan.detail)
+    return judge(plan, patterns, cwd, index != 0)
 
 
-def ssh_blocked(args, patterns):
+def remote_wrapper_verdict(args, patterns):
+    """`ssh` is a Remote Wrapper: its command is judged with no local knowledge."""
     i = 0
     takes_value = set('BbcDEeFIiJLlmOopQRSWw')
     while i < len(args):
@@ -180,21 +202,29 @@ def ssh_blocked(args, patterns):
         i += 1
     i += 1  # host
     if i >= len(args):
-        return False
-    if any(t.dynamic or t.glob for t in args[i:]):
-        return UNSUPPORTED
+        return verdict.allow()
+    unknown = next((t for t in args[i:] if t.dynamic or t.glob), None)
+    if unknown is not None:
+        return verdict.ambiguous('remote operand %s' % ascii(unknown.value))
     return analyze(' '.join(t.value for t in args[i:]), patterns, None, True)
 
 
 def analyze(command, patterns, cwd, remote=False, nested=False):
-    # 原本把 heredoc 資料誤當指令；只遮罩完整辨識的內文並保留可執行替換。
-    command, expansions = heredocs(command)
-    tokens = tokenize(command)
+    """Return the Credential Verdict for one agent command."""
+    try:
+        # 原本把 heredoc 資料誤當指令；只遮罩完整辨識的內文並保留可執行替換。
+        command, expansions = heredocs(command)
+        tokens = tokenize(command)
+        # 使用平衡掃描保留引號及巢狀括號，避免命令替換包住可辨識讀取時漏判。
+        bodies = list(expansions) + list(substitutions(command))
+    except ValueError as error:
+        # scanner 以固定字串拒絕有歧義的 shell 語法；這是語法不支援，不是檢查失敗。
+        return verdict.unsupported(None, 'shell syntax: %s' % error)
     # 原始字串會漏掉引號或跳脫後的 cd，也會誤判 heredoc 資料；先以正規化 token 判斷範圍。
     command_head = True
     for token in tokens:
         if token.operator:
-            if token.value in (';', '&&', '||', '|', '|&', '(', ')', ';;'):
+            if token.value in SEPARATORS:
                 command_head = True
             continue
         name = posixpath.basename(token.value)
@@ -205,27 +235,22 @@ def analyze(command, patterns, cwd, remote=False, nested=False):
         command_head = False
     if remote:
         cwd = None
-    for body in expansions:
-        reason = analyze(body, patterns, cwd, remote, True)
-        if reason:
-            return reason
-    # 使用平衡掃描保留引號及巢狀括號，避免命令替換包住可辨識讀取時漏判。
-    for body in substitutions(command):
-        reason = analyze(body, patterns, cwd, remote, True)
-        if reason:
-            return reason
+    for body in bodies:
+        found = analyze(body, patterns, cwd, remote, True)
+        if not found.allowed:
+            return found
     if not nested and safe_extraction(tokens, remote):
-        return False
+        return verdict.allow()
     segment = []
     uncertain_cwd = cwd
     for token in tokens + [type('End', (), {'operator': True, 'value': ';'})()]:
-        if token.operator and token.value in (';', '&&', '||', '|', '|&', '(', ')', ';;'):
-            reason = read_blocked(segment, patterns, uncertain_cwd)
-            if reason:
-                return reason
+        if token.operator and token.value in SEPARATORS:
+            found = segment_verdict(segment, patterns, uncertain_cwd)
+            if not found.allowed:
+                return found
             if any(not t.operator and posixpath.basename(t.value) == 'cd' for t in segment):
                 uncertain_cwd = None
             segment = []
         else:
             segment.append(token)
-    return False
+    return verdict.allow()
