@@ -154,7 +154,8 @@ assert 'None' not in v.recursive_unproven(None).hint
 
 test('entrypoint maps every payload and policy failure to exit 2 without a traceback', () => {
   const entry = path.join(ROOT, 'scripts/hooks/_lib/credential-read.py');
-  const nested = '['.repeat(100000) + ']'.repeat(100000);
+  // Far past Python's recursion limit, yet under Linux's 128 KiB single-env-string limit.
+  const nested = '['.repeat(20000) + ']'.repeat(20000);
   for (const [input, env, detail] of [
     [`{"tool_input":{"command":${nested}}}`, {}, 'payload'],
     ['not json', {}, 'payload'],
@@ -164,6 +165,7 @@ test('entrypoint maps every payload and policy failure to exit 2 without a trace
     ['{"tool_input":{"command":""}}', { DHPK_CREDENTIAL_CONFIG_ERROR: '1' }, 'policy'],
   ]) {
     const result = spawnSync('python3', ['-B', entry], { input, env: { ...process.env, ...env }, encoding: 'utf8' });
+    assert.ifError(result.error);
     assert.strictEqual(result.status, 2, `${detail}: ${result.stderr.slice(0, 300)}`);
     assert.strictEqual(result.stderr, `[bash-guard] blocked: credential inspection failure: ${detail}; use controlled extraction or provide non-secret information.\n`);
   }
