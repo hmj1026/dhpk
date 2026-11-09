@@ -43,6 +43,7 @@ const {
   PROJECT_TRANSACTION_SCHEMA,
 } = require('./project-agent-projection-publisher');
 
+const SURFACE = 'agents-skills';
 const SCHEMA = 'dhpk.agents-skills-projection.v1';
 const GENERATOR_VERSION = '1.1.0';
 // Only the current generator's receipts are read (OpenSpec
@@ -532,19 +533,24 @@ function agentsSkillsOwnership(ownedPaths) {
   };
 }
 
-function publishAgentsSkillsTree({ sourceRoot, outputRoot, inventory, outputs, ownedPaths }) {
-  const entries = outputs.map((output) => ({
-    stableId: `agents-skills:${output.path}`,
+// The projection owns its own plan entries; it is not the Agent Plugin package.
+function agentsSkillsPlanEntries(outputs) {
+  return outputs.map((output) => ({
+    stableId: `${SURFACE}:${output.path}`,
     source: output.source,
     destination: output.path,
-    owner: 'plugins/dhpk-agent',
+    owner: SURFACE,
     transform: { id: 'agents-skills-render', version: GENERATOR_VERSION },
     expectedFingerprint: sha256Hex(output.content),
     symlinkPolicy: 'forbid',
   }));
+}
+
+function publishAgentsSkillsTree({ sourceRoot, outputRoot, inventory, outputs, ownedPaths }) {
+  const entries = agentsSkillsPlanEntries(outputs);
   const compiled = compileDistribution({
     internalCharacterization: true,
-    surface: 'agents-skills',
+    surface: SURFACE,
     compilerVersion: `agents-skills-${GENERATOR_VERSION}`,
     inventoryRevision: resolveInventoryRevision(inventory),
     ownershipRoot: '.agents/skills',
@@ -767,6 +773,7 @@ module.exports = {
   SCHEMA,
   GENERATOR_VERSION,
   RECEIPT_NAME,
+  agentsSkillsPlanEntries,
   PROJECT_RECEIPT_SCHEMA,
   PROJECT_ROLLBACK_SCHEMA,
   PROJECT_TRANSACTION_SCHEMA,

@@ -10,6 +10,7 @@ const {
   validateAgentsSkillsProjection,
   rollbackAgentsSkillsProjection,
   uninstallAgentsSkillsProjection,
+  agentsSkillsPlanEntries,
 } = require('../scripts/lib/agents-skills-package');
 const { versionBoundaryMessage } = require('../scripts/lib/content-fingerprint');
 
@@ -1010,6 +1011,17 @@ test('relocatable update keeps a durable rollback and uninstall removes only unc
     fs.rmSync(sourceRoot, { recursive: true, force: true });
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }
+});
+
+test('agents-skills plan entries name the agents-skills surface as owner (#1249)', () => {
+  const entries = agentsSkillsPlanEntries([
+    { path: 'dhpk-portable/SKILL.md', source: 'skills', content: Buffer.from('# Portable\n'), mode: 0o644 },
+  ]);
+  assert.strictEqual(entries.length, 1);
+  assert.strictEqual(entries[0].owner, 'agents-skills');
+  assert.strictEqual(entries[0].stableId, 'agents-skills:dhpk-portable/SKILL.md');
+  assert.strictEqual(entries[0].destination, 'dhpk-portable/SKILL.md');
+  assert.strictEqual(entries[0].symlinkPolicy, 'forbid');
 });
 
 run('agents-skills-compatibility');
