@@ -842,6 +842,25 @@ function translateLegacyRequest(input) {
   });
 }
 
+// One catalog route matcher shared by target resolution and config diagnostics.
+// A criterion that is undefined, null, or empty does not filter; Target Agent
+// aliases are compared in canonical form.
+function matchCatalogRoutes(catalog, criteria = {}) {
+  const routes = catalog && Array.isArray(catalog.routes) ? catalog.routes : [];
+  const given = (value) => value !== undefined && value !== null && value !== '';
+  const { host, targetAgent, provider, modelId, route, transport, role, effort, authority } = criteria;
+  const agent = given(targetAgent) ? agentForAlias(targetAgent) || targetAgent : null;
+  return routes.filter((entry) => (!given(host) || entry.host === host)
+    && (!agent || (agentForAlias(entry.target_agent) || entry.target_agent) === agent)
+    && (!given(provider) || entry.provider === provider)
+    && (!given(modelId) || entry.model_id === modelId)
+    && (!given(route) || entry.route === route)
+    && (!given(transport) || entry.transport === transport)
+    && (!given(role) || entry.roles.includes(role))
+    && (!given(effort) || entry.efforts.includes(effort))
+    && (!given(authority) || entry.authorities.includes(authority)));
+}
+
 module.exports = Object.freeze({
   AGENT_PROVIDER,
   AUTHORITIES,
@@ -874,6 +893,7 @@ module.exports = Object.freeze({
   agentForVendor,
   createProviderModelCatalog,
   legacyAgentKey,
+  matchCatalogRoutes,
   retirementGuidance,
   translateLegacyRequest,
   vendorFor,

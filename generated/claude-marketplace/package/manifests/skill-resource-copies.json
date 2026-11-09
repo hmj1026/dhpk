@@ -88,19 +88,19 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-config.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-config.js",
-      "sha256": "sha256:93a0e73d1a8254e3b466bfd2a1198184de3b33077b809ecff755c905966c952d",
+      "sha256": "sha256:0edc242249991018c32a6a35d4d5e5268cb09f92d6d517f28d6ddad9689d7649",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:d4332e5fd5e91552fa86b657b6aac108bbd0f4ada9884d70c4266ccbef75314c",
+      "sha256": "sha256:b4680ae9bc89a6840f292daf8006dc144463100d217e4c76f2029e994147c076",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-engine.js",
-      "sha256": "sha256:64d436c9e1e7bde4ea8a3d701de9769090b611ea3dd9bedc5dd41f5dcfe61474",
+      "sha256": "sha256:46439652a3fe8a44e9c40392f6ba25754a2265b29fd4a73ceb6f44fb80268002",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js": {
