@@ -230,7 +230,9 @@ platform-native paths; `.agents` is not their shared configuration root.
 
 Every non-test-only change must include either a
 `changelog.d/<category>.<slug>.md` fragment or a
-`changelog.d/<slug>.none` marker. Before handoff, run:
+`changelog.d/<slug>.none` marker. A fragment records a user-visible change;
+work no user can observe (internal refactors or tooling, metadata nothing
+persists or reads) takes the `.none` marker. Before handoff, run:
 
 ```bash
 node scripts/ci/validate-changelog-fragments.js \
