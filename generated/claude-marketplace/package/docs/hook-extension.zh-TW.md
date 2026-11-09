@@ -60,6 +60,22 @@ component 的全域精確 basename exclusion 或 `*` 可作此證明；ignore、
 `rg --glob '!pattern'` 或 `grep --exclude='pattern'` 排除所有預設與自訂保護規則，
 或指定明確的非保護檔案；Grep/Read 工具僅在可用時作為替代方案。
 
+### 阻擋原因
+
+被阻擋的命令以 exit 2 結束，stderr 為一行
+`[bash-guard] blocked: <原因>[: <細節>]; <修正指引>`。原因有五種：
+
+| 原因 | 何時出現 |
+| --- | --- |
+| `protected path` | 目標、輸入 redirect 或輔助檔（如 `grep -f`）是受保護路徑 |
+| `ambiguous read target` | 目標無法靜態確定：glob、動態值，或 `ssh` 後的 glob／動態值 |
+| `unsupported reader syntax` | reader 的選項無法安全解析；細節只列出選項名稱 |
+| `recursive read without credential exclusions` | 遞迴讀取沒有完整排除，且本機掃描無法證明不含受保護路徑 |
+| `credential inspection failure` | payload 或政策設定無效，或檢查本身出錯 |
+
+修正指引只列出實際使用的 reader 的排除語法：`rg` 為 `--glob "!pattern"`，
+`grep` 為 `--exclude="pattern"`。
+
 ### 受控擷取
 
 本機受保護檔案若只包含支援的 MySQL PDO DSN，gate 只辨識一個簡單呼叫，使用
