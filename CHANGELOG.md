@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## 0.70.8 — 2026-11-09 — Projection journal and installer crash recovery, credential guard git content reader protection, and shared dispatch fallback policy
+
+- **fix(hooks)** — The Bash credential guard now judges content-reading git commands (`git grep`, `show`, `cat-file`, `diff`, `blame`, `stash show -p`, and `log -p`): `<rev>:<path>` and literal pathspecs are checked as targets, and a bounded names-only git listing proves the other reads touch no protected path (#1262).
+- **fix(hooks)** — Bash credential guard block messages no longer suggest Grep/Read tools a session may not have; a wildcard read target now suggests listing files or `git grep -n PATTERN -- <directory>` (#1260).
+- **fix(installer)** — Make a Codex or Cursor install, update, or uninstall commit the shared projection and native assets at one point, so an interrupted run is finished or undone as a whole on the next run, and add `--recover` / `dhpk-install --recover` for incomplete rollbacks and orphaned shared-projection transactions (#1235).
+- **fix(projection)** — Make an interrupted project projection publish or rollback recover without losing unchanged files or Host binding links, restore adopted Host binding links on the next run, and remove transaction backups and rollback stages left by a crash (#1234).
+- **fix(packaging)** — Block URL-embedded credentials (for example `postgres://user:pass@host`) in canonical skill content for the shared project projection and agents-skills outputs, and reject receipt paths with backslashes or drive prefixes (#1248).
+- **fix(maintainer)** — `verification-run.js start` now explains why it refuses to launch a command without Linux process identity: it prints the platform or `/proc` failure and records `unknownReason`; behavior is unchanged (exit 2, no child) (#1257).
+- **refactor(hooks)** — The Bash credential guard now reports a glob or dynamic read target as `ambiguous read target` and an invalid payload or policy as `credential inspection failure`, and its recovery hint names only the exclusion syntax of the reader that was blocked (#1243).
+- **refactor(dispatch)** — Dispatch fallback and recovery substitution now share one Fallback Policy, so recovery also excludes targets in the resolution fallback history, refuses a substitute when the resolution is not fallback-eligible, and carries the full tried-target union in its next request; dispatch config diagnostics use the same catalog route matcher (#1244).
+
 ## 0.70.7 — 2026-11-06 — Adopt generator 2.x project manifests and DH managed Host binding symlinks
 
 - **fix(projection)** — Let `gen-agents-skills --adopt` adopt receipt-less generator 2.x project manifests by fingerprint, and let `--adopt` or `--repair` replace unrecorded Host binding symlinks that point into dhpk managed roots.
