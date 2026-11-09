@@ -38,7 +38,10 @@ wording in the root GitNexus block stays in place.
   concatenated strings in table scans (`@ladybugdb/core` `0.18.3` out-of-place
   `CHECKPOINT` splits `>256 KiB` string columns into 64-row segments that
   `StringColumn::scanFiltered` skips at `offset % 2048 >= 64`), rebuild through
-  staging with `node .gitnexus/run.cjs analyze --force --skip-agents-md --skip-skills`.
+  staging with `node .gitnexus/run.cjs analyze --force --no-parse-cache --skip-agents-md --skip-skills`.
+  Observed on gitnexus 1.6.12 (2026-11-09): an incremental run that reused
+  cached parser output left whole files out of the graph. `.gitnexus/meta.json`
+  `fileHashes` listed them while no matching `File` node existed.
   After any index refresh, send one serial MCP request before issuing concurrent
   MCP queries so the server reopens the replaced database without racing
   in-flight connections.
@@ -52,6 +55,10 @@ wording in the root GitNexus block stays in place.
   Use a compatible runner and restart its session before rebuilding the index.
   Keep existing graph evidence and the failed refresh explicit until then;
   avoid deleting the index or changing global installations to hide the error.
+- **Repository selector:** query commands (`impact`, `context`, `cypher`,
+  `detect-changes`) take `--repo .`. Another indexed name in `gitnexus list`
+  can point at a sibling worktree's older index, so a hit through that name is
+  evidence about that checkout only.
 - **Ambiguous `impact` target:** a name shared by many symbols returns
   `risk: UNKNOWN` with a candidate list; narrow it with the file path or
   `target_uid` before treating the result as evidence.
