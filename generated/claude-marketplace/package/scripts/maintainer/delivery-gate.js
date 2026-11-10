@@ -86,6 +86,13 @@ function pullFor(opts) {
   return api(`repos/${opts['--repo']}/pulls/${opts['--pr']}`);
 }
 
+// The develop ruleset is intentionally disabled (#1275, option D'): its
+// required check cannot be satisfied by the release workflow's sync-develop
+// push. Without live rules the gate enforces this project baseline itself:
+// the harness check from GitHub Actions must pass at head, and the head must
+// be current with develop (the ruleset's strict policy).
+const BASELINE_CHECKS = Object.freeze([{ name: 'Validate harness assets', app: 15368 }]);
+
 function requiredChecks(repo) {
   const protection = api(`repos/${repo}/branches/develop/protection`, { optional: true });
   requireGate(protection === null || (typeof protection === 'object' && !Array.isArray(protection)), 'invalid branch protection');
@@ -107,7 +114,9 @@ function requiredChecks(repo) {
     requireGate(Array.isArray(rule.parameters?.required_status_checks), 'invalid required rules');
     checks.push(...rule.parameters.required_status_checks.map((check) => ({ name: check.context, app: check.integration_id })));
   }
-  requireGate(classic !== null || modern.length > 0, 'missing branch protection and effective required rules');
+  if (classic === null && modern.length === 0) {
+    return { checks: BASELINE_CHECKS.map((check) => ({ ...check })), reviewRequired: false, baseline: true };
+  }
   requireGate(checks.length > 0 && checks.every((check) => nonempty(check.name) &&
     (check.app == null || (Number.isSafeInteger(check.app) && check.app >= -1))), 'missing or invalid required checks');
   // 其他規則存在不能掩蓋專案必要的 harness CI 遺漏。
@@ -159,6 +168,11 @@ function validate(opts) {
   requireGate(decision === 'APPROVED' || (!requirements.reviewRequired && (decision === '' || decision === null)),
     'live reviewDecision does not satisfy applicable review requirements');
   checkHosted(opts['--repo'], opts['--head'], requirements.checks);
+  if (requirements.baseline) {
+    const comparison = api(`repos/${opts['--repo']}/compare/develop...${opts['--head']}`);
+    requireGate(comparison && Number.isSafeInteger(comparison.behind_by), 'develop comparison unavailable');
+    requireGate(comparison.behind_by === 0, `PR head is ${comparison.behind_by} commit(s) behind develop; update the branch first`);
+  }
 }
 
 function main() {
