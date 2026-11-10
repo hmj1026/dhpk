@@ -185,7 +185,20 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   });
 }
 
-test('git reads are judged through both hook entrypoints (#1262)', () => {
+// #1290: the hooks run as subprocesses with the production 300 ms budget, which a
+// loaded runner can exhaust. Test mode (and only test mode) may raise it.
+const TEST_BUDGET_ENV = { DHPK_TEST_MODE: '1', DHPK_CREDENTIAL_TEST_MAX_SECONDS: '5' };
+
+// A `git` that stalls past the production budget before running the real one.
+function slowGitPath(delaySeconds) {
+  const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+  const bin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-slow-git-')));
+  fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh\nsleep ${delaySeconds}\nexec "${realGit}" "$@"\n`, { mode: 0o755 });
+  process.on('exit', () => fs.rmSync(bin, { recursive: true, force: true }));
+  return `${bin}${path.delimiter}${process.env.PATH}`;
+}
+
+function assertGitReadsJudged(hookEnv, label) {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-git-reader-')));
   const env = { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@e', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@e' };
   const git = (...args) => execFileSync('git', args, { cwd: dir, env: { ...process.env, ...env }, stdio: 'pipe' });
@@ -196,7 +209,7 @@ test('git reads are judged through both hook entrypoints (#1262)', () => {
     git('add', '-A');
     git('commit', '-q', '-m', 'init');
     for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
-      const invoke = (command) => runHook(hook, { cwd: dir, payload: { tool_input: { command } } });
+      const invoke = (command) => runHook(hook, { cwd: dir, env: hookEnv, timeout: 60000, payload: { tool_input: { command } } });
       for (const [command, reason] of [
         ['git grep -n x', /recursive read without credential exclusions: patterns '\.env'/],
         ['git grep -n x -- \'*\'', /ambiguous read target/],
@@ -208,14 +221,38 @@ test('git reads are judged through both hook entrypoints (#1262)', () => {
         ['git show HEAD', /recursive read without credential exclusions/],
       ]) {
         const result = invoke(command);
-        assert.strictEqual(result.status, 2, `${hook} ${command}: ${result.stderr}`);
-        assert.match(result.stderr, reason, `${hook} ${command}`);
+        assert.strictEqual(result.status, 2, `${label}${hook} ${command}: ${result.stderr}`);
+        assert.match(result.stderr, reason, `${label}${hook} ${command}`);
         assert.doesNotMatch(result.stderr, /--glob|--exclude/, `${hook} ${command}`);
       }
       for (const command of ['git status', 'git diff --stat', 'git log --oneline', 'git grep -n x -- ordinary.js', 'git show HEAD:ordinary.js']) {
         const result = invoke(command);
-        assert.strictEqual(result.status, 0, `${hook} ${command}: ${result.stderr}`);
+        assert.strictEqual(result.status, 0, `${label}${hook} ${command}: ${result.stderr}`);
       }
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('git reads are judged through both hook entrypoints (#1262)', () => {
+  assertGitReadsJudged(TEST_BUDGET_ENV, '');
+});
+
+// Only the listing case the issue reproduces: every hook git call sleeps, so the
+// full matrix would cost minutes and push this file toward its per-file timeout.
+test('git reads stay judged when git is slower than the production budget (#1290)', () => {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-slow-git-reader-')));
+  const env = { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@e', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@e' };
+  const git = (...args) => execFileSync('git', args, { cwd: dir, env: { ...process.env, ...env }, stdio: 'pipe' });
+  try {
+    git('init', '-q');
+    fs.writeFileSync(path.join(dir, '.env'), 'synthetic');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'init');
+    const hookEnv = { ...TEST_BUDGET_ENV, PATH: slowGitPath(0.35) };
+    for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+      const result = runHook(hook, { cwd: dir, env: hookEnv, timeout: 60000, payload: { tool_input: { command: 'git grep -n x' } } });
+      assert.strictEqual(result.status, 2, `slow git: ${hook}: ${result.stderr}`);
+      assert.match(result.stderr, /recursive read without credential exclusions: patterns '\.env'/, `slow git: ${hook}`);
     }
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

@@ -44,6 +44,8 @@ const TIMEOUT_HINTS = Object.freeze({
   // About 120s of consumer-gate children alone; 180s overran twice under the
   // four-way local portable publish gate for 0.72.0.
   'consumer-gate-cli.test.js': 300000,
+  // About 115s alone: every case spawns the real Bash hooks.
+  'credential-read-policy.test.js': 300000,
 });
 
 function findTests(dir) {

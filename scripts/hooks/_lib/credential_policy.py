@@ -13,7 +13,7 @@ import sys
 from credential_shell import lex
 from credential_options import ADAPTERS, READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES
-from credential_scan import MAX_SECONDS
+from credential_scan import MAX_SECONDS, budget_seconds
 import time
 from credential_scan import scan_roots
 import credential_verdict as verdict
@@ -190,7 +190,7 @@ def listing_verdict(plan, patterns, cwd):
     None means the listing proves no Protected Path; the caller continues.
     """
     recovery = plan.recovery
-    result = plan.listing.resolve(cwd, time.monotonic() + MAX_SECONDS)
+    result = plan.listing.resolve(cwd, time.monotonic() + budget_seconds(default=MAX_SECONDS))
     for path in result.targets:
         if protected(path, patterns, cwd):
             return verdict.protected()
