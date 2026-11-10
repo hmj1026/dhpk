@@ -87,12 +87,17 @@ test('standalone install selection is a separate normalized request boundary', (
 // js-projection-journal 3.7: Codex writes run the installer, and only into an
 // explicit project root.
 test('codex-sync writes require an explicit project root and change nothing without one', () => {
-  const result = invoke(['codex-sync', 'install', '--scope', 'project', '--json']);
-  assert.strictEqual(result.status, 2, result.stderr);
-  const output = json(result);
-  assert.strictEqual(output.lifecycle.verdict, 'BLOCKED');
-  assert.strictEqual(output.diagnostics[0].code, 'PROJECT_ROOT_REQUIRED');
-  assert.strictEqual(fs.existsSync(path.join(ROOT, '.codex', '.dhpk-installed.json')), false);
+  // Run from a fresh directory: a maintainer checkout may hold its own
+  // gitignored Codex install, so the repository root is not a clean baseline.
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-no-root-'));
+  try {
+    const result = invoke(['codex-sync', 'install', '--scope', 'project', '--json'], { cwd });
+    assert.strictEqual(result.status, 2, result.stderr);
+    const output = json(result);
+    assert.strictEqual(output.lifecycle.verdict, 'BLOCKED');
+    assert.strictEqual(output.diagnostics[0].code, 'PROJECT_ROOT_REQUIRED');
+    assert.deepStrictEqual(fs.readdirSync(cwd), [], 'a blocked write must not create project state');
+  } finally { fs.rmSync(cwd, { recursive: true, force: true }); }
 });
 
 test('dhpk-install performs a Codex install, update, and uninstall with the installer outcome', () => {
