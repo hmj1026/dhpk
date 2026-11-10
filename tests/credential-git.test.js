@@ -21,11 +21,15 @@ import credential_policy, credential_scan
 from credential_policy import analyze
 import credential_verdict as v
 
-# The production listing budget (300 ms) is a wall-clock bound; a stalled CI
-# runner can exceed it and turn an expected verdict into a time-limit refusal
-# (#1285). Verdict assertions use a generous budget; the fail-closed timeout
-# path has its own test.
+# The production budgets (300 ms for the git listing and for the worktree scan)
+# are wall-clock bounds; a stalled CI runner can exceed them and turn an
+# expected verdict into a time-limit refusal (#1285). Verdict assertions use a
+# generous budget; the fail-closed timeout path has its own test.
+# credential_policy imports its own copy of the listing budget, while
+# scan_roots reads credential_scan's, so both names are raised.
+PRODUCTION_SECONDS = (credential_policy.MAX_SECONDS, credential_scan.MAX_SECONDS)
 credential_policy.MAX_SECONDS = 60.0
+credential_scan.MAX_SECONDS = 60.0
 
 ENV = dict(os.environ, GIT_AUTHOR_NAME='t', GIT_AUTHOR_EMAIL='t@e', GIT_COMMITTER_NAME='t',
            GIT_COMMITTER_EMAIL='t@e', GIT_CONFIG_NOSYSTEM='1', HOME=tempfile.mkdtemp())
@@ -304,21 +308,34 @@ def stalled(*args, **kwargs):
     time.sleep(0.35)
     return real_git(*args, **kwargs)
 credential_git._git = stalled
+# --untracked and --no-index also walk the worktree through scan_roots, which
+# has its own budget; stall that walk too.
+real_scan = credential_policy.scan_roots
+def stalled_scan(*args, **kwargs):
+    def slow_scandir(path):
+        time.sleep(0.35)
+        return os.scandir(path)
+    return real_scan(*args, scandir=slow_scandir, **kwargs)
+credential_policy.scan_roots = stalled_scan
 slow = repo(base, 'slow', ['src/a.js', 'README.md'])
-check([('git grep --untracked -n x', v.ALLOW), ('git diff', v.ALLOW)], slow)
+check([('git grep --untracked -n x', v.ALLOW), ('git grep --no-index -n x src', v.ALLOW), ('git diff', v.ALLOW)], slow)
 `);
 });
 
 test('the production listing budget still fails closed when a listing exceeds it', () => {
   python(String.raw`
-import credential_policy, credential_scan
-credential_policy.MAX_SECONDS = 0.0005
+assert PRODUCTION_SECONDS == (0.300, 0.300), 'the production budgets must stay 300 ms: %r' % (PRODUCTION_SECONDS,)
 tight = repo(base, 'tight', ['src/a.js'])
 os.chdir(tight)
-result = analyze('git grep --untracked -n x', [], tight)
-assert result.kind == v.RECURSIVE_UNPROVEN, result.kind
-assert 'time limit' in result.message(), result.message()
-assert credential_scan.MAX_SECONDS == 0.300, 'the production budget must stay 300 ms'
+# Listing budget exhausted: git grep (tracked) is judged by the listing alone.
+credential_policy.MAX_SECONDS = 0.0005
+result = analyze('git grep -n x', [], tight)
+assert result.kind == v.RECURSIVE_UNPROVEN and 'time limit' in result.message(), (result.kind, result.message())
+# Scan budget exhausted: --no-index walks the worktree after a passing listing.
+credential_policy.MAX_SECONDS = 60.0
+credential_scan.MAX_SECONDS = 0.0
+result = analyze('git grep --no-index -n x src', [], tight)
+assert result.kind == v.RECURSIVE_UNPROVEN and 'time limit' in result.message(), (result.kind, result.message())
 `);
 });
 
