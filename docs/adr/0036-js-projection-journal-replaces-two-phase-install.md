@@ -26,7 +26,12 @@ publisher still describes progress with flags (`liveBackedUp`, `holdReady`,
   is removed.
 - One project-level install lock serializes every Host's install, replacing
   the per-Host Python locks; cross-Host contention no longer needs
-  `TRANSACTION_HELD`.
+  `TRANSACTION_HELD`. The lock is `.agents/.dhpk-install.lock`, created with
+  `O_EXCL` and recording pid, Host, and start time. A lock whose holder is
+  dead is stale. An ordinary run takes it over only when its pid equals the
+  pid of the Projection Journal it left, so rerunning the installer still
+  recovers a crash (projection-journal REQ-5). Any other stale lock blocks
+  until `--recover` removes it.
 - The responsibilities around the lifecycle move with it: the Codex native
   plugin provider check, inventory and profile selection, plan output,
   adoption, Released Entries, and legacy skill-name migration. The Released
@@ -49,7 +54,8 @@ publisher still describes progress with flags (`liveBackedUp`, `holdReady`,
   [ADR-0033](0033-one-projection-journal-owns-install-crash-order.md). Each
   window covers only the format written by the release before it: stage 1
   reads publisher v1/v2; stage 3 reads publisher v3 and the Python Host
-  journal.
+  journal. Stage 1 ships as dhpk 0.71.0, so from stage 3 a v1/v2 publisher
+  journal names the `--recover` of dhpk 0.71.0.
 - The port ships in five stages, each releasable on its own: (1) the publisher
   records effects as data, with staging inside the journal; (2) a JS
   Projection Journal core with in-process crash injection, adopted by the
@@ -77,4 +83,16 @@ reaching `published`.
 - Crash recovery is tested in-process by injecting a crash after step N.
 - From stage 5 the installer no longer needs `python3`, which also removes the
   interpreter variance behind #1278.
-- `dhpk-install` gains real Codex and Cursor write adapters.
+- `dhpk-install` gains real Codex and Cursor write adapters. Its write
+  actions require an explicit `--project-root`.
+- Residual risk: Node has no `openat`, so the JS port cannot hold a directory
+  descriptor across a path walk as the Python installer did. It checks every
+  ancestor with `lstat` during each path walk and rejects a symlinked one,
+  opens files with `O_NOFOLLOW`, and relies on the project lock. A process
+  that bypasses the lock can still swap a parent directory between a check
+  and a write (a TOCTOU window). The project directory is trusted to the
+  user, so the port accepts this window.
+- From stage 3 to stage 5, a packaged copy of `install-codex-skills.sh` (the
+  `harness-setup` Skill) keeps the embedded Python, because the JS
+  installer's module closure is not packaged beside it. Stage 5 packages the
+  JS installer once.

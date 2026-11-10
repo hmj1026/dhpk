@@ -99,10 +99,6 @@ if [ ! -d "$CODEX_SRC" ]; then
     echo "[$INSTALLER_NAME] From a dhpk checkout, run: bash /path/to/dhpk/scripts/hooks/${INSTALLER_NAME}.sh" >&2
     exit 2
 fi
-if ! command -v python3 >/dev/null 2>&1; then
-    echo "[$INSTALLER_NAME] ERROR: python3 is required for receipt reconciliation" >&2
-    exit 2
-fi
 if [ "$UNINSTALL" -ne 1 ] && [ "$PLAN" -ne 1 ] && ! command -v node >/dev/null 2>&1; then
     echo "[$INSTALLER_NAME] ERROR: node is required to materialize portable project skill metadata" >&2
     exit 2
@@ -141,13 +137,34 @@ export DHPK_JSON_OUTPUT="$JSON_OUTPUT"
 export DHPK_ADOPT_PATHS="$ADOPT_PATHS"
 export DHPK_SKILL_IDS="$SKILL_IDS"
 
-# js-projection-journal stage 3: the installer is being ported to JS
-# (scripts/lib/install-adapters/codex.js). DHPK_INSTALLER_ENGINE is an internal
+# js-projection-journal stage 3: Codex runs the JS adapter
+# (scripts/lib/install-adapters/codex.js) that sits beside this script in the
+# checkout layout. Cursor stays on the embedded Python until stage 4, and so
+# does a packaged copy of this script, which has no adapter beside it
+# (packaging is solved once in stage 5). DHPK_INSTALLER_ENGINE is an internal
 # switch for the parity harness (tests/_lib/installer-parity.js); it is not a
 # supported user option.
-case "${DHPK_INSTALLER_ENGINE:-python}" in
-    python) ;;
-    js) exec node "$DHPK_INSTALLER_ROOT/scripts/lib/install-adapters/codex-cli.js" ;;
+JS_ADAPTER="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)/lib/install-adapters/codex-cli.js"
+DEFAULT_ENGINE=python
+if [ "$DHPK_HARNESS_KIND" = "codex" ] && [ -f "$JS_ADAPTER" ]; then
+    DEFAULT_ENGINE=js
+fi
+case "${DHPK_INSTALLER_ENGINE:-$DEFAULT_ENGINE}" in
+    python)
+        if ! command -v python3 >/dev/null 2>&1; then
+            echo "[$INSTALLER_NAME] ERROR: python3 is required for receipt reconciliation" >&2
+            exit 2
+        fi ;;
+    js)
+        if [ ! -f "$JS_ADAPTER" ]; then
+            echo "[$INSTALLER_NAME] ERROR: the JS installer is not beside this script: $JS_ADAPTER" >&2
+            exit 2
+        fi
+        if ! command -v node >/dev/null 2>&1; then
+            echo "[$INSTALLER_NAME] ERROR: node is required for the Codex installer" >&2
+            exit 2
+        fi
+        exec node "$JS_ADAPTER" ;;
     *) echo "[$INSTALLER_NAME] ERROR: unknown DHPK_INSTALLER_ENGINE: $DHPK_INSTALLER_ENGINE" >&2; exit 2 ;;
 esac
 

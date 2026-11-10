@@ -307,6 +307,29 @@ test('testPreviousReleaseHeldTransaction_isRolledBackByTheJsInstaller', () => {
   }
 });
 
+// The shell entry point routes Codex to the JS installer, so no python3 is
+// needed on PATH (only the tools the shell itself calls, plus node).
+test('testShellEntryPoint_codexInstallsWithoutPython3OnPath', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-adapter-nopython-');
+  const bin = tempDir('dhpk-adapter-nopython-bin-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    for (const tool of ['bash', 'dirname', 'sed', 'node']) {
+      const found = spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
+      assert.ok(found, `${tool} must exist on the test host`);
+      fs.symlinkSync(tool === 'node' ? process.execPath : found, path.join(bin, tool));
+    }
+    const outcome = runShellInstaller(project, ['--copy', '--force'], plugin, { PATH: `${CODEX_STUB_BIN}:${bin}` });
+    assert.strictEqual(outcome.status, 0, `${outcome.stdout}\n${outcome.stderr}`);
+    assert.doesNotMatch(outcome.stderr, /python3/);
+    assert.ok(fs.existsSync(path.join(project, '.codex', '.dhpk-installed.json')));
+  } finally {
+    cleanup(plugin, project);
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
 // Task 3.6: a flag-based (v1/v2) publisher journal is older than the stage-1
 // release; the JS installer blocks without changing files and names 0.71.0.
 for (const schema of ['dhpk.project-agent-projection-transaction.v1', 'dhpk.project-agent-projection-transaction.v2']) {

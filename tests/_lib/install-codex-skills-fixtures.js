@@ -285,7 +285,7 @@ function firstNativeManagedSkill(scratch) {
   return names[0];
 }
 
-function collisionFixture() {
+function collisionFixture(envOverrides = {}) {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plan-plugin-')));
   // Keep only the collision target and sibling skills used by planning cases.
@@ -319,7 +319,7 @@ function collisionFixture() {
     skills: skillMetadata,
     supporting_assets: [],
   }, null, 2));
-  const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+  const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin, envOverrides);
   assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
   const collision = 'code-trace';
   const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
