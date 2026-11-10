@@ -43,7 +43,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Route | Client／版本假設 | OS 與 shell 假設 | 必要 tooling | Evidence gate |
 |---|---|---|---|---|
 | Claude Code | 支援 marketplace/plugin；最低版本尚未建立 | Client 支援的 OS 與 POSIX shell | `bash`、Claude Code | 執行 installer，並在 fresh session 觀察 selected package |
-| Codex project-local sync | Codex project-local loader；schema-v3 receipt；最低 Codex CLI 0.159.0（role 使用 `gpt-6.1-terra`，需 0.159.0+；2026-11-01 於 0.166.0 探測） | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`、Node.js（Codex installer 以 Node.js 執行） | 執行 installer、檢查 `.codex/.dhpk-installed.json`，並執行列出的 metadata/test 命令 |
+| Codex project-local sync | Codex project-local loader；schema-v3 receipt；最低 Codex CLI 0.159.0（role 使用 `gpt-6.1-terra`，需 0.159.0+；2026-11-01 於 0.166.0 探測） | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.codex/.dhpk-installed.json`，並執行列出的 metadata/test 命令 |
 | Codex legacy/native | 支援 marketplace/plugin 命令的 Codex CLI；執行 `codex --version`；最低 Codex CLI 0.159.0（role 使用 `gpt-6.1-terra`，需 0.159.0+；2026-11-01 於 0.166.0 探測） | Linux、macOS 或 WSL shell；使用 disposable isolated `CODEX_HOME` | `codex`、marketplace access、`git` | 執行 marketplace route 並記錄 CLI 輸出；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | OpenAI Public Plugin Directory | Codex 或 ChatGPT Work 的 public plugin manager；最低 client version 尚未建立 | 產品支援的 client 或 web surface | 已發布的 DHPK listing 與 account access | 公開 listing 核准並可見前維持 `NOT_PUBLISHED`；分別記錄 client version 與 fresh-session discovery |
 | Standard Agent Plugin | 實作 Agent Plugins 1.0.0 schema 的 consumer；最低 client version 尚未建立 | client 支援的 OS；package validation 從 POSIX shell 執行 | 已驗證的 Agent Plugin loader；Node.js 僅供結構驗證 | 執行兩個 package 命令，再記錄 client discovery evidence |
@@ -158,12 +158,11 @@ operation matrix；`ADAPTER` 代表既有、已 characterization 的 route，不
 generic CLI 取得寫入權。
 
 Plan 會將 closed projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS +
-CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。`codex-sync`
-的 write action（install、update、uninstall）會執行 Codex installer，且必須明確
-指定 `--project-root`；其他 write action 在任何 mutation 前都會回傳 `BLOCKED`
-與 stable `NOT_IMPLEMENTED` diagnostic。尤其是 Cursor project-local write
-仍應使用 `install-cursor-harness.sh`；`install-codex-skills.sh` 仍是受支援的
-Codex route。Generic route 會持續 fail-closed，直到未來變更明確
+CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。目前 write
+action 在任何 mutation 前都會回傳 `BLOCKED` 與 stable `NOT_IMPLEMENTED`
+diagnostic。尤其是 Codex project-local write 仍應使用既有
+`install-codex-skills.sh`，Cursor project-local write 應使用
+`install-cursor-harness.sh`。Generic route 會持續 fail-closed，直到未來變更明確
 移交 ArtifactStore write ownership；只有 adapter characterization 絕不會啟用 mutation。
 
 ### Cutover 計畫與 owned-path recovery

@@ -78,7 +78,6 @@ function installNativeSharedSkills({
   consumerEvidencePath = null,
   env = process.env,
   hold = null,
-  journal = null,
 } = {}) {
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
@@ -150,7 +149,6 @@ function installNativeSharedSkills({
     preserveHostBindings,
     preserveBindingPaths,
     hold,
-    journal,
   });
 }
 
@@ -219,7 +217,6 @@ function uninstallNativeSharedSkills({
   inventory,
   host = 'cursor',
   hold = null,
-  journal = null,
 } = {}) {
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
@@ -237,7 +234,6 @@ function uninstallNativeSharedSkills({
       projectRoot,
       inventory: inventory || readInventory(sourceRoot),
       hold,
-      journal,
     });
   }
   const previousBindings = previous.hostBindings && typeof previous.hostBindings === 'object'
@@ -252,7 +248,6 @@ function uninstallNativeSharedSkills({
       projectRoot,
       inventory: resolvedInventory,
       hold,
-      journal,
     }));
   }
   const profileId = previous.profileId || 'portable-core';
@@ -298,7 +293,6 @@ function uninstallNativeSharedSkills({
       projectRoot,
       inventory: resolvedInventory,
       hold,
-      journal,
     }));
   }
   const published = materializeRelocatableAgentsSkillsProjection({
@@ -314,7 +308,6 @@ function uninstallNativeSharedSkills({
     preserveHostBindings,
     preserveBindingPaths,
     hold,
-    journal,
   });
   return { ok: true, ...published };
 }
