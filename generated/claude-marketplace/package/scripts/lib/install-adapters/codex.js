@@ -2953,9 +2953,22 @@ function createInstaller(env, io) {
     }
   }
 
+  // A publisher transaction journal no Host journal owns (task 3.6): --recover
+  // hands it to the publisher, which finishes a v3 journal and blocks a held
+  // or older one, so "recovery complete" is never reported over it.
+  function recoverPublisherJournal() {
+    if (!RECOVER || !lexists(path.join(AGENTS_ROOT, '.dhpk-installed.transaction.json'))) return;
+    try {
+      installerModule('project-agent-projection-publisher.js').recoverAgentsSkillsProjection({ projectRoot: PROJECT_ROOT });
+    } catch (error) {
+      throw new ValueError(`shared projection transaction recovery failed: ${errorText(error)}`);
+    }
+  }
+
   recoverStaleTransactions = () => {
     checkTransactionJournalMarkers();
     legacyHostJournalRecovery();
+    recoverPublisherJournal();
     recoverProjectionJournal();
   };
 

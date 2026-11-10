@@ -307,4 +307,27 @@ test('testPreviousReleaseHeldTransaction_isRolledBackByTheJsInstaller', () => {
   }
 });
 
+// Task 3.6: a flag-based (v1/v2) publisher journal is older than the stage-1
+// release; the JS installer blocks without changing files and names 0.71.0.
+for (const schema of ['dhpk.project-agent-projection-transaction.v1', 'dhpk.project-agent-projection-transaction.v2']) {
+  test(`testFlagPublisherJournal_${schema.slice(-2)}_failsClosedNamingStageOneRelease`, () => {
+    const plugin = fakePlugin();
+    const project = tempDir('dhpk-adapter-flag-');
+    try {
+      fs.mkdirSync(path.join(project, '.git'));
+      assert.strictEqual(runIn(plugin, project).code, 0);
+      write(path.join(project, '.agents', '.dhpk-installed.transaction.json'), `${JSON.stringify({ schema, phase: 'publishing' })}\n`);
+      const before = snapshot(project, plugin);
+      for (const options of [{ update: true }, { recover: true }]) {
+        const outcome = runIn(plugin, project, options);
+        assert.notStrictEqual(outcome.code, 0, outcome.stdout);
+        assert.match(`${outcome.stdout}\n${outcome.stderr}`, /dhpk 0\.71\.0/);
+        assert.deepStrictEqual(snapshot(project, plugin), before);
+      }
+    } finally {
+      cleanup(plugin, project);
+    }
+  });
+}
+
 run('install-codex-adapter-journal');
