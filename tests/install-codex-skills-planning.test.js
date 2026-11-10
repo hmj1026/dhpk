@@ -699,20 +699,23 @@ test('explicit adoption backs up and receipt-owns only the selected collision', 
   }
 });
 
+const PYTHON_ENGINE = { DHPK_INSTALLER_ENGINE: 'python' };
+
+// Python-only mechanics (DHPK_TEST_ABORT_ADOPTION_PHASE fault hook, exit 73); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('adoption journal recovers a crash after quarantine before retrying the selected collision', () => {
-  const fixture = collisionFixture();
+  const fixture = collisionFixture(PYTHON_ENGINE);
   try {
-    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin, PYTHON_ENGINE);
     assert.notStrictEqual(plan.status, 0);
     const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
     const crashed = runInstaller(fixture.scratch, [
       '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
-    ], fixture.fakePlugin, { DHPK_TEST_ABORT_ADOPTION_PHASE: 'quarantine' });
+    ], fixture.fakePlugin, { ...PYTHON_ENGINE, DHPK_TEST_ABORT_ADOPTION_PHASE: 'quarantine' });
     assert.strictEqual(crashed.status, 73, `${crashed.stdout}\n${crashed.stderr}`);
     assert.ok(!fs.existsSync(fixture.target), 'crash point should leave the target quarantined for recovery');
     const retried = runInstaller(fixture.scratch, [
       '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
-    ], fixture.fakePlugin);
+    ], fixture.fakePlugin, PYTHON_ENGINE);
     assert.strictEqual(retried.status, 0, `${retried.stdout}\n${retried.stderr}`);
     const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
     assert.ok(receipt.managed_entries.skills[fixture.collision], 'retry should publish ownership after recovery');
@@ -723,19 +726,20 @@ test('adoption journal recovers a crash after quarantine before retrying the sel
   }
 });
 
+// Python-only mechanics (DHPK_TEST_ABORT_ADOPTION_PHASE fault hook, exit 73); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('adoption journal rolls back a crash after publication when the receipt still proves the old projection', () => {
-  const fixture = collisionFixture();
+  const fixture = collisionFixture(PYTHON_ENGINE);
   try {
-    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin, PYTHON_ENGINE);
     assert.notStrictEqual(plan.status, 0);
     const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
     const crashed = runInstaller(fixture.scratch, [
       '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
-    ], fixture.fakePlugin, { DHPK_TEST_ABORT_ADOPTION_PHASE: 'published' });
+    ], fixture.fakePlugin, { ...PYTHON_ENGINE, DHPK_TEST_ABORT_ADOPTION_PHASE: 'published' });
     assert.strictEqual(crashed.status, 73, `${crashed.stdout}\n${crashed.stderr}`);
     const retried = runInstaller(fixture.scratch, [
       '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
-    ], fixture.fakePlugin);
+    ], fixture.fakePlugin, PYTHON_ENGINE);
     assert.strictEqual(retried.status, 0, `${retried.stdout}\n${retried.stderr}`);
     const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
     assert.ok(receipt.managed_entries.skills[fixture.collision]);
@@ -746,22 +750,23 @@ test('adoption journal rolls back a crash after publication when the receipt sti
   }
 });
 
+// Python-only mechanics (DHPK_TEST_ABORT_ADOPTION_PHASE fault hook, exit 73); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('adoption recovery rolls forward a durable partial receipt after a receipt-persisted crash', () => {
-  const fixture = collisionFixture();
+  const fixture = collisionFixture(PYTHON_ENGINE);
   try {
-    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin, PYTHON_ENGINE);
     assert.notStrictEqual(plan.status, 0);
     const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
     const crashed = runInstaller(fixture.scratch, [
       '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
-    ], fixture.fakePlugin, { DHPK_TEST_ABORT_ADOPTION_PHASE: 'receipt_persisted' });
+    ], fixture.fakePlugin, { ...PYTHON_ENGINE, DHPK_TEST_ABORT_ADOPTION_PHASE: 'receipt_persisted' });
     assert.strictEqual(crashed.status, 73, `${crashed.stdout}\n${crashed.stderr}`);
     const partial = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
     assert.strictEqual(partial.transaction_final, false);
     assert.ok(partial.managed_entries.skills[fixture.collision]);
     const recovered = runInstaller(fixture.scratch, [
       '--copy', '--update', '--force',
-    ], fixture.fakePlugin);
+    ], fixture.fakePlugin, PYTHON_ENGINE);
     assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
     const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
     assert.strictEqual(receipt.transaction_final, true, 'recovery must finalize the proven partial receipt');

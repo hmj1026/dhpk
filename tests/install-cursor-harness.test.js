@@ -640,6 +640,28 @@ test('--uninstall removes unchanged owned entries and leaves unowned files and h
   }
 });
 
+// js-projection-journal stage 3: the Python installer cannot read a JS install
+// lock or Projection Journal, so it refuses to run beside one.
+test('a leftover JS Projection Journal or install lock blocks the Cursor installer without changes', () => {
+  for (const leftover of ['.dhpk-projection-journal.json', '.dhpk-install.lock']) {
+    const project = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-jsjournal-')));
+    const plugin = fakePlugin();
+    try {
+      fs.mkdirSync(path.join(project, '.git'));
+      write(path.join(project, '.agents', leftover), '{"pid":1,"host":"codex"}\n');
+      const before = snapshotTree(project);
+      const blocked = runInstaller(project, ['--copy'], plugin);
+      assert.strictEqual(blocked.status, 2, `${blocked.stdout}\n${blocked.stderr}`);
+      assert.match(blocked.stderr, /a JS install holds or left the project lock or Projection Journal/);
+      assert.deepStrictEqual(snapshotTree(project), before);
+      assert.strictEqual(fs.existsSync(path.join(project, '.cursor')), false);
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
+      fs.rmSync(plugin, { recursive: true, force: true });
+    }
+  }
+});
+
 test('project-root heuristic requires a project marker unless --force is passed', () => {
   const empty = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-empty-')));
   const plugin = fakePlugin();
