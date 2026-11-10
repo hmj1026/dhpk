@@ -1,6 +1,7 @@
 # One Projection Journal owns install crash order
 
-Status: accepted
+Status: accepted (the Transition paragraph is superseded by
+[ADR-0036](0036-js-projection-journal-replaces-two-phase-install.md))
 
 Issues: #1234 (publisher effects outside its journal), #1235 (two journals
 across the Python↔Node handoff).
