@@ -20,6 +20,9 @@ const {
   nativeManagedSkillNames,
 } = fixtures;
 
+const PYTHON_ENGINE = { DHPK_INSTALLER_ENGINE: 'python' };
+
+// Python-only mechanics (PYTHONPATH descriptor pseudo-path shim and cwd audit); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('copy and symlink installs do not require descriptor pseudo-path child traversal', () => {
   for (const args of [['--copy', '--force'], ['--force']]) {
     const scratch = projectRoot();
@@ -28,6 +31,7 @@ test('copy and symlink installs do not require descriptor pseudo-path child trav
     try {
       const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
       const result = runInstaller(scratch, args, ROOT, {
+        ...PYTHON_ENGINE,
         PYTHONPATH: pythonPath,
         DHPK_TEST_CWD_AUDIT_FILE: cwdAudit,
       });
@@ -45,6 +49,7 @@ test('copy and symlink installs do not require descriptor pseudo-path child trav
   }
 });
 
+// Python-only mechanics (PYTHONPATH parent-open race gate); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('parent-path replacement cannot redirect a pinned update into an external tree', () => {
   const scratch = projectRoot();
   const plugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-parent-gate-plugin-')));
@@ -60,7 +65,7 @@ test('parent-path replacement cannot redirect a pinned update into an external t
     );
     copyDistributionInventory(plugin);
 
-    const installed = runInstaller(scratch, ['--copy', '--force'], plugin);
+    const installed = runInstaller(scratch, ['--copy', '--force'], plugin, PYTHON_ENGINE);
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
     const changed = fs.readdirSync(path.join(plugin, 'codex', 'skills')).sort()[0];
     const changedSource = path.join(plugin, 'codex', 'skills', changed);
@@ -115,6 +120,7 @@ test('parent-path replacement cannot redirect a pinned update into an external t
 
     const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
     const result = runInstaller(scratch, ['--copy', '--update', '--force'], plugin, {
+      ...PYTHON_ENGINE,
       PYTHONPATH: pythonPath,
       DHPK_TEST_PARENT_OPEN_READY_FILE: ready,
       DHPK_TEST_PARENT_OPEN_RELEASE_FILE: release,
@@ -163,17 +169,18 @@ test('--uninstall removes only unchanged receipt-owned targets and retains orpha
   }
 });
 
+// Python-only mechanics (DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC fault hook); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('complete uninstall restores the receipt when its quarantine fsync fails', () => {
   const scratch = projectRoot();
   try {
-    const first = runInstaller(scratch, ['--copy', '--force']);
+    const first = runInstaller(scratch, ['--copy', '--force'], ROOT, PYTHON_ENGINE);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
     const failed = runInstaller(
       scratch,
       ['--uninstall', '--force'],
       ROOT,
-      { DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC: '1' },
+      { ...PYTHON_ENGINE, DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC: '1' },
     );
     assert.notStrictEqual(failed.status, 0, `${failed.stdout}\n${failed.stderr}`);
     assert.ok(fs.existsSync(receiptPath), 'failed uninstall must restore the live receipt');
@@ -183,7 +190,7 @@ test('complete uninstall restores the receipt when its quarantine fsync fails', 
       .find((candidate) => fs.existsSync(candidate));
     assert.ok(restoredTarget, 'failed uninstall must restore at least one managed target');
 
-    const recovered = runInstaller(scratch, ['--uninstall', '--force']);
+    const recovered = runInstaller(scratch, ['--uninstall', '--force'], ROOT, PYTHON_ENGINE);
     assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
     assert.ok(!fs.existsSync(receiptPath), 'recovered uninstall must remove the receipt');
   } finally {

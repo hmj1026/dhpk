@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.72.0 — 2026-11-10 — Codex installer moves to JS with one Projection Journal and a project lock
+
+- **feat(installer)** — The Codex installer (`install-codex-skills.sh`) now runs a JS installer that records the native `.codex/` projection and the shared `.agents/` projection in one Projection Journal (`.agents/.dhpk-projection-journal.json`) under one project lock (`.agents/.dhpk-install.lock`), and `dhpk-install` Codex write actions perform the install with an explicit `--project-root`; an interrupted transaction left by dhpk 0.71.0 is still recovered, but a v1 or v2 projection transaction journal now blocks until you run `--recover` with dhpk 0.71.0, the Cursor installer and the packaged `harness-setup` copy keep the previous installer for now, and before downgrading you must finish any in-flight install with `--recover` (#1239).
+
 ## 0.71.0 — 2026-11-10 — Projection publisher transaction v3 journal, release gate toolchain evidence and failure logs, and shared secret scanning
 
 - **feat(release)** — The SOURCE release gate now records the `python3`, `node`, and `bash` its steps resolve from the gate PATH as `toolchain` evidence, and `npm run test:gate` reruns the repository tests under the exact gate policy (#1280).

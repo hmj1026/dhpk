@@ -314,16 +314,21 @@ function interruptedFlagJournal(projectRoot, schema) {
 }
 
 for (const schema of ['dhpk.project-agent-projection-transaction.v1', 'dhpk.project-agent-projection-transaction.v2']) {
-  test(`testPreviousJournalFormat_${schema.slice(-2)}_recoveredThroughFlagPath`, () => {
+  // Stage 3 reads only v3; the stage-1 release (0.71.0) is the last one that
+  // recovers flag-based journals, so the remediation names it.
+  test(`testFlagJournalFormat_${schema.slice(-2)}_failsClosedNamingStageOneRelease`, () => {
     const context = SCENARIOS.uninstall.prepare();
     try {
-      const before = snapshot(context.projectRoot);
       interruptedFlagJournal(context.projectRoot, schema);
-      assert.notDeepStrictEqual(snapshot(context.projectRoot), before);
-      const recovered = publisher.recoverAgentsSkillsProjection({ projectRoot: context.projectRoot });
-      assert.strictEqual(recovered.recovered, true);
+      const before = snapshot(context.projectRoot);
+      const remediation = (error) => error.projectionCode === 'UNSAFE_TRANSACTION'
+        && error.message.includes(schema) && /dhpk 0\.71\.0/.test(error.message) && /--recover/.test(error.message);
+      assert.throws(() => publisher.recoverAgentsSkillsProjection({ projectRoot: context.projectRoot }), remediation);
+      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...context.options, update: true }), remediation);
+      assert.throws(() => publisher.heldProjection({ projectRoot: context.projectRoot }), remediation);
+      const uninstalled = publisher.uninstallAgentsSkillsProjection(context.options);
+      assert.strictEqual(uninstalled.code, 'UNSAFE_TRANSACTION');
       assert.deepStrictEqual(snapshot(context.projectRoot), before);
-      assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(context.options).ok, true);
     } finally {
       cleanup(context);
     }

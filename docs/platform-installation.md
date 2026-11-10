@@ -46,7 +46,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Route | Client/version assumption | OS and shell assumption | Required tooling | Evidence gate |
 |---|---|---|---|---|
 | Claude Code | Marketplace/plugin support; minimum version not established | Client-supported OS and POSIX shell | `bash`, `python3`, Claude Code | Run the installer and observe the selected package in a fresh session |
-| Codex project-local sync | Codex project-local loader; schema-v3 receipt; minimum Codex CLI 0.159.0 (roles use `gpt-6.1-terra`, which requires 0.159.0+; probed on 0.166.0, 2026-11-01) | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.codex/.dhpk-installed.json`, and run the listed metadata/test commands |
+| Codex project-local sync | Codex project-local loader; schema-v3 receipt; minimum Codex CLI 0.159.0 (roles use `gpt-6.1-terra`, which requires 0.159.0+; probed on 0.166.0, 2026-11-01) | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`, Node.js (the Codex installer runs on Node.js) | Run the installer, inspect `.codex/.dhpk-installed.json`, and run the listed metadata/test commands |
 | Codex legacy/native | Codex CLI with marketplace/plugin commands; run `codex --version`; minimum Codex CLI 0.159.0 (roles use `gpt-6.1-terra`, which requires 0.159.0+; probed on 0.166.0, 2026-11-01) | Linux, macOS, or WSL shell for the documented route; use a disposable isolated `CODEX_HOME` | `codex`, marketplace access, `git` | Execute the marketplace route and record CLI output; absent CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | OpenAI Public Plugin Directory | Codex or ChatGPT Work with the public plugin manager; minimum client version not established | Product-supported client or web surface | Published DHPK listing and account access | `NOT_PUBLISHED` until the approved listing is visible; record client version and fresh-session discovery separately |
 | Standard Agent Plugin | Agent Plugins 1.0.0 schema consumer; minimum client version not established | Client-supported OS; package validation is performed from a POSIX shell | A verified Agent Plugin loader; Node.js for structural validation | Run both package commands, then record client discovery evidence |
@@ -172,10 +172,11 @@ not permission for this generic CLI to write.
 The plan keeps the
 closed projection evidence vocabulary separate from lifecycle presentation.
 `INSTALL_PASS + CONSUMER_BLOCKED` is never a projection `PASS` and cannot
-promote a support tier. Write actions currently return `BLOCKED` with the
-stable `NOT_IMPLEMENTED` diagnostic before any mutation. In particular, retain
-the supported `install-codex-skills.sh` route for Codex project-local writes and
-`install-cursor-harness.sh` for Cursor project-local writes. The generic route
+promote a support tier. The `codex-sync` write actions (install, update, uninstall) run the Codex
+installer and require an explicit `--project-root`; every other write action
+returns `BLOCKED` with the stable `NOT_IMPLEMENTED` diagnostic before any
+mutation. In particular, retain `install-cursor-harness.sh` for Cursor
+project-local writes; `install-codex-skills.sh` remains a supported Codex route. The generic route
 stays fail-closed until a future change explicitly transfers ArtifactStore
 write ownership; adapter characterization alone never enables mutation.
 
@@ -262,7 +263,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.71.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.72.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -1119,7 +1120,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.71.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.72.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
