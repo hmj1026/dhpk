@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.71.0 — 2026-11-10 — Projection publisher transaction v3 journal, release gate toolchain evidence and failure logs, and shared secret scanning
+
+- **feat(release)** — The SOURCE release gate now records the `python3`, `node`, and `bash` its steps resolve from the gate PATH as `toolchain` evidence, and `npm run test:gate` reruns the repository tests under the exact gate policy (#1280).
+- **feat(projection)** — The project projection publisher now records every filesystem effect, including its staging, backup, and rollback directories, in its transaction journal before running it (transaction schema v3), so an interrupted publish, held publish, uninstall, rollback, or adoption is undone or finished exactly; v1 and v2 journals are still recovered, and before downgrading to an earlier release you must finish any in-flight transaction with `dhpk-install --recover` or the installer's `--recover`, because earlier releases cannot read v3 (#1240).
+- **fix(maintainer)** — The maintainer delivery gate now enforces the `Validate harness assets` check and an up-to-date base itself when the `develop` ruleset is disabled, so agent merges keep the same guarantees while release `sync-develop` can align `develop` (#1275).
+- **fix(release)** — Release gate failures now name the failed test files and keep each failed step's full output as a `step-output` artifact referenced from the failure reason (#1276).
+- **fix(packaging)** — The shared secret list now also blocks AWS access keys, Slack tokens, and private key headers, and the Cursor and Agent MCP scans extend that shared base instead of keeping separate copies, so they now also catch `github_pat_` tokens and MariaDB connection credentials (#1252).
+
 ## 0.70.8 — 2026-11-09 — Projection journal and installer crash recovery, credential guard git content reader protection, and shared dispatch fallback policy
 
 - **fix(hooks)** — The Bash credential guard now judges content-reading git commands (`git grep`, `show`, `cat-file`, `diff`, `blame`, `stash show -p`, and `log -p`): `<rev>:<path>` and literal pathspecs are checked as targets, and a bounded names-only git listing proves the other reads touch no protected path (#1262).

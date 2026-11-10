@@ -1,2 +1,0 @@
-scope: projection
-note: The project projection publisher now records every filesystem effect, including its staging, backup, and rollback directories, in its transaction journal before running it (transaction schema v3), so an interrupted publish, held publish, uninstall, rollback, or adoption is undone or finished exactly; v1 and v2 journals are still recovered, and before downgrading to an earlier release you must finish any in-flight transaction with `dhpk-install --recover` or the installer's `--recover`, because earlier releases cannot read v3 (#1240).
