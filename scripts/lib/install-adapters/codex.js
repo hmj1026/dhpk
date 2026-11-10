@@ -2732,7 +2732,1190 @@ function createInstaller(env, io) {
     throw new Error('reconciliation is not ported yet');
   };
 
-  //@@PART6@@
+
+  // ---------------------------------------------------------------------
+  // One Projection Journal per project (ADR-0036, tasks 3.4-3.5)
+  //
+  // Native Projection effects and Shared Project Projection effects are
+  // records in .agents/.dhpk-projection-journal.json; reaching `published` is
+  // the single commit point. One project lock serializes every Host.
+
+  const journalCore = installerModule('projection-journal.js');
+  const AGENTS_ROOT = path.join(PROJECT_ROOT, '.agents');
+  const JOURNAL_PATH = path.join(AGENTS_ROOT, '.dhpk-projection-journal.json');
+  const LOCK_PATH = path.join(AGENTS_ROOT, '.dhpk-install.lock');
+  const JOURNAL_SCHEMA = 'dhpk.projection-journal.v1';
+  const NATIVE_STAGE = `.dhpk-stage-${BACKUP_RUN}`;
+  const NATIVE_TOMBSTONES = `.dhpk-tombstones-${BACKUP_RUN}`;
+  let TX = null;
+  let LOCK_HELD = false;
+  let AGENTS_CREATED = false;
+
+  function codexRelative(relative) {
+    return relative ? `${DEST_REL}/${relative}` : DEST_REL;
+  }
+
+  function participant() {
+    return installerModule('project-agent-projection-publisher.js').projectionJournalParticipant(PROJECT_ROOT);
+  }
+
+  function ensureAgentsRoot() {
+    const stat = lstatOrNull(AGENTS_ROOT);
+    if (stat) {
+      if (stat.isSymbolicLink() || !stat.isDirectory()) throw new ValueError('project .agents is not a physical directory; refusing to take the install lock');
+      return;
+    }
+    fs.mkdirSync(AGENTS_ROOT);
+    AGENTS_CREATED = true;
+  }
+
+  function pidIsAlive(pid) {
+    if (!Number.isInteger(pid) || pid <= 0) return false;
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error) {
+      return errnoIs(error, 'EPERM');
+    }
+  }
+
+  function readLock() {
+    try {
+      const owner = JSON.parse(fs.readFileSync(LOCK_PATH, 'utf8'));
+      return isDict(owner) ? owner : {};
+    } catch (error) {
+      if (errnoIs(error, 'ENOENT')) return null;
+      return {};
+    }
+  }
+
+  function describeLock(owner) {
+    const host = isStr(owner.host) ? owner.host : 'unknown';
+    const pid = Number.isInteger(owner.pid) ? owner.pid : 'unknown';
+    const start = isStr(owner.start) ? owner.start : 'unknown';
+    return `.agents/.dhpk-install.lock (held by the ${host} installer, pid ${pid}, since ${start})`;
+  }
+
+  // The project install lock: O_EXCL, never stolen; a lock whose pid is gone
+  // is removed only by an explicit --recover.
+  acquireInstallLock = () => {
+    ensureCodexRootSafe();
+    ensureAgentsRoot();
+    const record = `${JSON.stringify({ pid: process.pid, host: HARNESS_KIND, start: new Date().toISOString() })}\n`;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let descriptor;
+      try {
+        descriptor = fs.openSync(LOCK_PATH, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | O_NOFOLLOW, 0o600);
+      } catch (error) {
+        if (!errnoIs(error, 'EEXIST')) throw error;
+        const owner = readLock();
+        if (owner === null) continue;
+        if (pidIsAlive(owner.pid)) throw new ValueError(`another installer is already reconciling this project: ${describeLock(owner)}`);
+        if (!RECOVER || attempt > 0) {
+          throw new ValueError(`stale install lock ${describeLock(owner)}: that process is no longer running; rerun this installer with --recover to remove it`);
+        }
+        print(`[install-codex-skills] removing stale install lock ${describeLock(owner)}`);
+        fs.rmSync(LOCK_PATH, { force: true });
+        continue;
+      }
+      try {
+        fs.writeSync(descriptor, record);
+        fs.fsyncSync(descriptor);
+      } finally {
+        fs.closeSync(descriptor);
+      }
+      LOCK_HELD = true;
+      return;
+    }
+    throw new ValueError(`cannot take the install lock ${LOCK_PATH}`);
+  };
+
+  releaseInstallLock = () => {
+    if (LOCK_HELD) {
+      const owner = readLock();
+      if (owner && owner.pid === process.pid) fs.rmSync(LOCK_PATH, { force: true });
+      LOCK_HELD = false;
+    }
+    if (AGENTS_CREATED) {
+      try {
+        if (fs.readdirSync(AGENTS_ROOT).length === 0) fs.rmdirSync(AGENTS_ROOT);
+      } catch (_) {
+        // .agents is in use or already gone
+      }
+      AGENTS_CREATED = false;
+    }
+  };
+
+  function nativeScope() {
+    const transient = [NATIVE_STAGE, NATIVE_TOMBSTONES].map((name) => path.join(CODEX_ROOT, name));
+    return {
+      transient,
+      isOwned: (absolute) => absolute !== CODEX_ROOT && (absolute === CODEX_ROOT || absolute.startsWith(CODEX_ROOT + path.sep)),
+    };
+  }
+
+  // The scope of a recorded journal: its own native header plus the
+  // publication it carries, if any.
+  function journalScope(document) {
+    const native = isDict(document.native) ? document.native : {};
+    const destRoot = path.join(PROJECT_ROOT, isStr(native.destRel) ? native.destRel : DEST_REL);
+    const transient = new Set();
+    for (const key of ['stage', 'tombstones', 'backups']) {
+      if (isStr(native[key]) && /^\.dhpk-(stage|tombstones)-\d{8}T\d{6}Z-\d+$|^\.dhpk-backups\/\d{8}T\d{6}Z-\d+$/.test(native[key])) transient.add(path.join(destRoot, ...native[key].split('/')));
+    }
+    let projectionScope = null;
+    if (document.projection !== undefined) projectionScope = participant().validateHeader(document.projection);
+    return {
+      transient: { has: (absolute) => transient.has(absolute) || Boolean(projectionScope && projectionScope.transient.has(absolute)) },
+      isOwned: (absolute) => (absolute !== destRoot && absolute.startsWith(destRoot + path.sep)) || Boolean(projectionScope && projectionScope.isOwned(absolute)),
+    };
+  }
+
+  function readProjectionJournal() {
+    const stat = lstatOrNull(JOURNAL_PATH);
+    if (!stat) return null;
+    if (stat.isSymbolicLink() || !stat.isFile()) throw new ValueError('Projection Journal .agents/.dhpk-projection-journal.json is not a regular file; manual recovery required');
+    let document;
+    try {
+      document = JSON.parse(fs.readFileSync(JOURNAL_PATH, 'utf8'));
+    } catch (error) {
+      throw new ValueError(`Projection Journal .agents/.dhpk-projection-journal.json is unreadable: ${errorText(error)}`);
+    }
+    if (!isDict(document) || document.schema !== JOURNAL_SCHEMA) {
+      throw new ValueError(`Projection Journal .agents/.dhpk-projection-journal.json has an unsupported schema (${isDict(document) ? pyStr(document.schema) : 'none'}); run the installer release that wrote it with --recover`);
+    }
+    return document;
+  }
+
+  function remainingPaths(document) {
+    const paths = new Set();
+    for (const record of document.effects || []) {
+      if (record.state === 'undone' || !isDict(record.inverse)) continue;
+      const args = record.inverse.args || {};
+      for (const value of [...(Array.isArray(args.paths) ? args.paths : []), args.from, args.to, args.path]) if (isStr(value)) paths.add(value);
+    }
+    return pySorted(paths).join(', ') || 'none recorded';
+  }
+
+  projectionJournalBlockers = () => {
+    let document;
+    try {
+      document = readProjectionJournal();
+    } catch (error) {
+      if (!isValueError(error)) throw error;
+      return [`.agents/.dhpk-projection-journal.json: ${errorText(error)}`];
+    }
+    if (!document) return [];
+    return [`.agents/.dhpk-projection-journal.json: interrupted ${pyStr(document.host)} transaction ${pyStr(document.run)} requires recovery`];
+  };
+
+  // Finish or undo the project's Projection Journal by its commit point. A
+  // rollback that cannot complete keeps blocking ordinary runs (REQ-6).
+  function recoverProjectionJournal() {
+    const document = readProjectionJournal();
+    if (!document) return;
+    if (document.phase === 'rolling-back' && pyTruthy(document.rollbackIncomplete) && !RECOVER) {
+      throw new ValueError(`transaction ${pyStr(document.run)} did not finish rolling back; paths recorded in its journal: ${remainingPaths(document)}; backups: ${DEST_REL}/${BACKUP_DIR}/${pyStr(document.run)}; fix the cause, then rerun this installer with --recover`);
+    }
+    journalCore.validateJournalRecords(document, { projectRoot: PROJECT_ROOT, scope: journalScope(document) });
+    const options = { projectRoot: PROJECT_ROOT, journalPath: JOURNAL_PATH, onRolledBack: () => participant().onRolledBack() };
+    try {
+      journalCore.recoverJournal(document, options);
+    } catch (error) {
+      if (journalCore.isSimulatedCrash(error)) throw error;
+      markRollbackIncomplete(document, error);
+      throw new ValueError(`interrupted transaction ${pyStr(document.run)} requires manual recovery: ${errorText(error)}`);
+    }
+  }
+
+  function markRollbackIncomplete(document, error) {
+    if (!lexists(JOURNAL_PATH) || document.phase === 'published') return;
+    try {
+      const current = JSON.parse(fs.readFileSync(JOURNAL_PATH, 'utf8'));
+      current.rollbackIncomplete = true;
+      current.rollback_errors = [errorText(error)];
+      new journalCore.ProjectionJournal({ projectRoot: PROJECT_ROOT, journalPath: JOURNAL_PATH, journal: current }).flush();
+    } catch (_) {
+      // the journal stays as it was; recovery reports it again
+    }
+  }
+
+  recoverStaleTransactions = () => {
+    checkTransactionJournalMarkers();
+    legacyHostJournalRecovery();
+    recoverProjectionJournal();
+  };
+
+  // Filled in by legacy-host-journal.js (task 3.6).
+  let legacyHostJournalRecovery = () => {
+    const listing = hostJournalNames();
+    if (!listing) return;
+    const [root, names] = listing;
+    for (const journalName of names) {
+      const match = HOST_JOURNAL_NAME.exec(journalName);
+      if (!match) continue;
+      const journal = readRelativeJson(root, journalName);
+      const phase = classifyJournalEnvelope(journal, journalName, match[1]);
+      if (phase === 'active' || (RECOVER && phase === 'rollback_incomplete')) {
+        throw new ValueError(`transaction journal ${match[1]} from an earlier release needs recovery by that release's installer --recover`);
+      }
+    }
+  };
+
+  function beginTransaction() {
+    TX = journalCore.ProjectionJournal.begin({
+      projectRoot: PROJECT_ROOT,
+      journalPath: JOURNAL_PATH,
+      afterStep: io.afterStep || null,
+      onRolledBack: () => participant().onRolledBack(),
+      journal: {
+        schema: JOURNAL_SCHEMA,
+        host: HARNESS_KIND,
+        run: BACKUP_RUN,
+        pid: process.pid,
+        phase: 'active',
+        native: { destRel: DEST_REL, stage: NATIVE_STAGE, tombstones: NATIVE_TOMBSTONES, backups: null },
+      },
+    });
+  }
+
+  function txRelative(absolute) {
+    return journalCore.effectRelative(PROJECT_ROOT, absolute);
+  }
+
+  // open_relative_directory(create=True) inside the transaction: missing
+  // components are recorded, then created with mode 0700.
+  function txDirectory(relative) {
+    const target = relative ? path.join(CODEX_ROOT, ...relative.split('/')) : CODEX_ROOT;
+    if (TX && !lexists(target)) journalCore.recordParents(TX, path.join(target, '.x'), PROJECT_ROOT, 0o700);
+    return openRelativeDirectory(relative, { create: true });
+  }
+
+  function txTransientDirectory(name) {
+    const target = path.join(CODEX_ROOT, name);
+    if (!lexists(target)) {
+      txDirectory('');
+      journalCore.recordTransientDirectory(TX, target);
+    }
+    return target;
+  }
+
+  function backupRunDirectory() {
+    const relative = `${BACKUP_DIR}/${BACKUP_RUN}`;
+    const target = path.join(CODEX_ROOT, BACKUP_DIR, BACKUP_RUN);
+    if (!lexists(target)) {
+      txDirectory(BACKUP_DIR);
+      TX.journal.native.backups = relative;
+      // Kept after the commit as receipt evidence; removed by a rollback.
+      journalCore.recordTransientDirectory(TX, target);
+      fs.chmodSync(target, 0o700 & ~process.umask());
+    }
+    return target;
+  }
+
+  // Detach an entry into the run's tombstones; it is deleted only after the
+  // commit point, so a rollback can put it back.
+  function detachEntry(parent, name) {
+    const tombstones = txTransientDirectory(NATIVE_TOMBSTONES);
+    const target = path.join(tombstones, uuidHex());
+    journalCore.recordRename(TX, path.join(parent, name), target);
+    return target;
+  }
+
+  // Remove one receipt-relative entry (detach now, delete after commit).
+  function removeRelativePath(relative, expectedFingerprint = null) {
+    safeDestination(relative);
+    const index = relative.lastIndexOf('/');
+    const parent = openRelativeDirectory(index < 0 ? '' : relative.slice(0, index));
+    const name = relative.slice(index + 1);
+    if (!fdEntryExists(parent, name)) return;
+    if (expectedFingerprint !== null && fingerprintFdEntry(parent, name) !== expectedFingerprint) throw new ValueError(`destination changed before removal: ${relative}`);
+    const detached = detachEntry(parent, name);
+    if (expectedFingerprint !== null && fingerprintFdEntry(path.dirname(detached), path.basename(detached)) !== expectedFingerprint) {
+      journalCore.recordRename(TX, detached, path.join(parent, name));
+      throw new ValueError(`destination changed during removal: ${relative}`);
+    }
+  }
+
+  // Copy a proven managed target into the run's rollback-addressable backups.
+  function backupDestination(relative, destination, reason) {
+    safeDestination(relative);
+    const index = relative.lastIndexOf('/');
+    const sourceParent = openRelativeDirectory(index < 0 ? '' : relative.slice(0, index));
+    const name = relative.slice(index + 1);
+    if (!fdEntryExists(sourceParent, name)) return null;
+    backupRunDirectory();
+    const backupRelative = `${BACKUP_DIR}/${BACKUP_RUN}/${relative}`;
+    const backupIndex = backupRelative.lastIndexOf('/');
+    const backupParent = openRelativeDirectory(backupRelative.slice(0, backupIndex), { create: true });
+    const backupName = backupRelative.slice(backupIndex + 1);
+    if (fdEntryExists(backupParent, backupName)) throw new ValueError(`rollback backup already exists: ${relative}`);
+    copyFdEntry(sourceParent, name, backupParent, backupName);
+    fsyncFdEntry(backupParent, backupName);
+    const originalFingerprint = fingerprintFdEntry(sourceParent, name);
+    const publicBackup = `${DEST_REL}/${backupRelative}`;
+    backupRecords.push({ path: publicBackup, original: relative, reason, fingerprint: originalFingerprint });
+    recordPath('backed_up', relative);
+    return publicBackup;
+  }
+
+  // Build the new projection in the run's stage, verify it, and publish it
+  // with one recorded rename; an existing destination is detached first.
+  function installDescriptorSafe(source, destination, replaceExisting = true) {
+    const relative = path.relative(CODEX_ROOT, destination).split(path.sep).join('/');
+    safeDestination(relative);
+    validateSourceTree(source, 'install source', [PLUGIN_ROOT, INSTALLER_ROOT]);
+    const sourceFp = sourceFingerprintFor(source, relative);
+    const index = relative.lastIndexOf('/');
+    const parentRelative = index < 0 ? '' : relative.slice(0, index);
+    const name = relative.slice(index + 1);
+    const stageRoot = txTransientDirectory(NATIVE_STAGE);
+    const stage = path.join(stageRoot, uuidHex());
+    fs.mkdirSync(stage, { mode: 0o700 });
+    if (effectiveMaterializationMode(relative) === 'symlink') fs.symlinkSync(source, path.join(stage, name), isDirFollow(source) ? 'dir' : 'file');
+    else copySourceIntoStage(source, name, stage, relative);
+    fsyncFdEntry(stage, name);
+    if (sourceFingerprintFor(source, relative) !== sourceFp) throw new ValueError(`install source changed during materialization: ${relative}; run a fresh update`);
+    const expectedProjection = fingerprintFdEntry(stage, name, false);
+    if (!verifyStagedMaterialization(source, relative, stage, name, sourceFp, expectedProjection)) throw new ValueError(`install materialization changed: ${relative}; run a fresh update`);
+    const parent = txDirectory(parentRelative);
+    if (fdEntryExists(parent, name)) {
+      if (!replaceExisting) throw new ValueError(`install destination already exists: ${relative}`);
+      detachEntry(parent, name);
+    }
+    journalCore.recordRename(TX, path.join(stage, name), path.join(parent, name));
+    let publishedMatches = false;
+    try {
+      publishedMatches = verifyStagedMaterialization(source, relative, parent, name, sourceFp, expectedProjection);
+    } catch (error) {
+      if (!isOSOrValueError(error)) throw error;
+    }
+    let sourceMatches = false;
+    try {
+      sourceMatches = sourceFingerprintFor(source, relative) === sourceFp;
+    } catch (error) {
+      if (!isOSOrValueError(error)) throw error;
+    }
+    if (!publishedMatches || !sourceMatches) throw new ValueError(`install ${publishedMatches ? 'source' : 'published materialization'} changed: ${relative}; run a fresh update`);
+  }
+
+  function install(source, destination) {
+    installDescriptorSafe(source, destination, true);
+  }
+
+  function installAtomic(source, destination) {
+    installDescriptorSafe(source, destination, false);
+  }
+
+  // Publish one adoption: back up and quarantine the original, stage and
+  // publish the replacement; the quarantine is deleted after the commit.
+  function adoptMaterialized(source, destination, relative, expectedSource, expectedDestination) {
+    const index = relative.lastIndexOf('/');
+    const parentRelative = index < 0 ? '' : relative.slice(0, index);
+    const name = relative.slice(index + 1);
+    const parent = openRelativeDirectory(parentRelative);
+    backupRunDirectory();
+    const backupRelative = `${BACKUP_DIR}/${BACKUP_RUN}/${relative}`;
+    const backupIndex = backupRelative.lastIndexOf('/');
+    const backupParent = openRelativeDirectory(backupRelative.slice(0, backupIndex), { create: true });
+    const backupName = backupRelative.slice(backupIndex + 1);
+    if (!fdEntryExists(parent, name)) throw new ValueError(`adoption target disappeared: ${relative}; run a fresh plan`);
+    if (fdEntryExists(backupParent, backupName)) throw new ValueError(`adoption backup already exists: ${relative}; retry with a fresh plan`);
+    copyFdEntry(parent, name, backupParent, backupName);
+    const actual = fingerprintFdEntry(backupParent, backupName);
+    if (actual !== expectedDestination) {
+      removeFdEntry(backupParent, backupName);
+      throw new ValueError(`adoption preflight changed: ${relative}; run a fresh plan`);
+    }
+    fsyncFdEntry(backupParent, backupName);
+    const publicBackup = `${DEST_REL}/${backupRelative}`;
+    backupRecords.push({ path: publicBackup, original: relative, reason: 'explicit-adoption', fingerprint: actual });
+    recordPath('backed_up', relative);
+    const quarantine = detachEntry(parent, name);
+    if (fingerprintFdEntry(path.dirname(quarantine), path.basename(quarantine)) !== expectedDestination) throw new ValueError(`adoption preflight changed: ${relative}; run a fresh plan`);
+    if (sourceFingerprintFor(source, relative) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
+    const stageRoot = txTransientDirectory(NATIVE_STAGE);
+    const stage = path.join(stageRoot, uuidHex());
+    fs.mkdirSync(stage, { mode: 0o700 });
+    if (effectiveMaterializationMode(relative) === 'symlink') fs.symlinkSync(source, path.join(stage, name), isDirFollow(source) ? 'dir' : 'file');
+    else copySourceIntoStage(source, name, stage, relative);
+    fsyncFdEntry(stage, name);
+    const expectedProjection = fingerprintFdEntry(stage, name, false);
+    if (!verifyStagedMaterialization(source, relative, stage, name, expectedSource, expectedProjection)) throw new ValueError(`adoption materialization changed: ${relative}; run a fresh plan`);
+    if (sourceFingerprintFor(source, relative) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
+    if (fdEntryExists(parent, name)) throw new ValueError(`adoption target reappeared: ${relative}; run a fresh plan`);
+    journalCore.recordRename(TX, path.join(stage, name), path.join(parent, name));
+    let publishedMatches = false;
+    try {
+      publishedMatches = verifyStagedMaterialization(source, relative, parent, name, expectedSource, expectedProjection);
+    } catch (error) {
+      if (!isOSOrValueError(error)) throw error;
+    }
+    let sourceMatches = false;
+    try {
+      sourceMatches = sourceFingerprintFor(source, relative) === expectedSource;
+    } catch (error) {
+      if (!isOSOrValueError(error)) throw error;
+    }
+    if (!publishedMatches || !sourceMatches) throw new ValueError(`adoption ${publishedMatches ? 'source' : 'published materialization'} changed: ${relative}; run a fresh plan`);
+    return publicBackup;
+  }
+
+  // Quarantine the receipt into the run's backups (kept as evidence).
+  function archiveReceiptForUninstall(expectedFingerprint = null) {
+    ensureManifestSafe();
+    const root = openRelativeDirectory('', { create: false });
+    const receiptName = path.basename(MANIFEST);
+    if (!fdEntryExists(root, receiptName)) return null;
+    backupRunDirectory();
+    const backupRelative = `${BACKUP_DIR}/${BACKUP_RUN}/receipt.json`;
+    if (lexists(path.join(CODEX_ROOT, ...backupRelative.split('/')))) throw new ValueError('uninstall receipt backup already exists; retry with a fresh transaction');
+    if (expectedFingerprint !== null && fingerprintFdEntry(root, receiptName) !== expectedFingerprint) throw new ValueError('uninstall receipt changed before quarantine');
+    journalCore.recordRename(TX, MANIFEST, path.join(CODEX_ROOT, ...backupRelative.split('/')));
+    const publicBackup = `${DEST_REL}/${backupRelative}`;
+    backupRecords.push({ path: publicBackup, original: `${DEST_REL}/.dhpk-installed.json`, reason: 'uninstall-receipt' });
+    return publicBackup;
+  }
+
+  // Write the receipt as a recorded effect; the previous one is detached first.
+  function saveReceipt(pluginVersion, fingerprint, entries, orphaned, counts, { legacyPending = false, state = null } = {}) {
+    ensureManifestSafe();
+    const receipt = receiptDocument(pluginVersion, fingerprint, entries, orphaned, counts, { legacyPending, state, transactionId: BACKUP_RUN, transactionFinal: true });
+    const text = receiptText(receipt);
+    const root = txDirectory('');
+    if (fdEntryExists(root, path.basename(MANIFEST))) detachEntry(root, path.basename(MANIFEST));
+    const relative = txRelative(MANIFEST);
+    const digest = sha256(Buffer.from(text, 'utf8'));
+    TX.effect('write-file', { path: relative, digest }, { kind: 'remove', args: { paths: [relative], mode: 'file', digest } }, () => {
+      const descriptor = fs.openSync(MANIFEST, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | O_NOFOLLOW, 0o600);
+      try {
+        fs.writeSync(descriptor, text);
+        fs.fsyncSync(descriptor);
+      } finally {
+        fs.closeSync(descriptor);
+      }
+    });
+    return receipt;
+  }
+
+  // The single commit point, then the cleanup that follows it.
+  function commitTransaction() {
+    const cleanups = [];
+    const native = [NATIVE_STAGE, NATIVE_TOMBSTONES].map((name) => path.join(CODEX_ROOT, name)).filter((target) => lexists(target)).map(txRelative);
+    if (native.length) cleanups.push({ kind: 'remove', args: { paths: native, mode: 'tree' } });
+    const projection = TX.journal.projection;
+    if (isDict(projection) && Array.isArray(projection.cleanups)) cleanups.push(...projection.cleanups);
+    TX.publish(cleanups);
+    TX.finish();
+    TX = null;
+  }
+
+  // Receipt publication plus commit; a failure before the commit rolls back.
+  function saveReceiptAndCommit(pluginVersion, fingerprint, entries, orphaned, counts, options = {}) {
+    try {
+      const receipt = saveReceipt(pluginVersion, fingerprint, entries, orphaned, counts, options);
+      commitTransaction();
+      return receipt;
+    } catch (error) {
+      if (journalCore.isSimulatedCrash(error)) throw error;
+      if (TX && !TX.committed) rollbackPending();
+      throw error;
+    }
+  }
+
+  function rollbackPending() {
+    if (!TX || TX.committed) return [];
+    const errors = [];
+    try {
+      TX.rollBack();
+    } catch (error) {
+      if (journalCore.isSimulatedCrash(error)) throw error;
+      errors.push(errorText(error));
+      markRollbackIncomplete(TX.journal, error);
+    }
+    TX = null;
+    if (errors.length) printErr(`[install-codex-skills] ERROR: rollback incomplete: ${errors.join('; ')}`);
+    return errors;
+  }
+
+  // Roll back the open transaction, report, then exit 2.
+  function failOpenTransaction(error) {
+    rollbackPending();
+    printErr(`[install-codex-skills] ERROR: ${error instanceof Error ? errorText(error) : String(error)}`);
+    exit(2);
+  }
+
+  // ---------------------------------------------------------------------
+  // Shared projection writes (in-process; recorded into the same journal)
+
+  function sharedFailure(error, fallback) {
+    const detail = error && error.message ? `FAIL [install-native-shared-skills]: ${error.message}` : '';
+    return new ValueError(detail || fallback);
+  }
+
+  function installSharedProjection(selected = null) {
+    const host = sharedProjectionHost();
+    if (!host) throw new ValueError('shared projection install requires a cursor or codex Host');
+    const ids = selected === null ? (SELECTION_EMITTED_IDS || []).slice() : selected.slice();
+    if (ids.length === 0) throw new ValueError(`${SURFACE_LABEL} native-link install has an empty declared skill set`);
+    const cli = nativeSharedSkillCli();
+    if (!isFileFollow(cli)) throw new ValueError(`${SURFACE_LABEL} native-link install requires ${cli}`);
+    const evidenceKey = consumerEvidenceEnvKey();
+    try {
+      installerModule('native-shared-skill-install.js').installNativeSharedSkills({
+        sourceRoot: PLUGIN_ROOT,
+        projectRoot: PROJECT_ROOT,
+        host,
+        selectedStableIds: ids,
+        declaredSelection: true,
+        update: UPDATE,
+        consumerEvidencePath: (evidenceKey && env[evidenceKey]) || null,
+        env,
+        journal: TX,
+      });
+    } catch (error) {
+      if (journalCore.isSimulatedCrash(error) || isExit(error)) throw error;
+      throw sharedFailure(error, `${SURFACE_LABEL} shared projection install failed`);
+    }
+  }
+
+  function maybeInstallSharedProjection(adopted = null) {
+    if (UNINSTALL || !sharedProjectionAvailable()) return;
+    if (relocatableProjectOverlapsSource()) {
+      noteSharedProjectionSkip('install');
+      return;
+    }
+    if (receiptOwnedNativeDeclaredDestsBlockSharedProjection()) return;
+    const selected = selectedSharedProjectionIds(adopted);
+    if (selected.length === 0) return;
+    installSharedProjection(selected);
+  }
+
+  function unlinkNativeLinks() {
+    const host = sharedProjectionHost();
+    if (!host) return;
+    ensureCodexRootSafe();
+    const receiptPath = path.join(PROJECT_ROOT, '.agents', '.dhpk-installed.json');
+    if (!isFileFollow(receiptPath)) return;
+    let projection;
+    try {
+      projection = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    } catch (_) {
+      return;
+    }
+    const bindingPaths = isDict(projection) && isDict(projection.bindingPaths) ? projection.bindingPaths : {};
+    const bindings = bindingPaths[host] || [];
+    if (!Array.isArray(bindings)) return;
+    const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+    const destPrefix = `${DEST_REL}/skills/`;
+    for (const entry of bindings) {
+      if (!isDict(entry)) continue;
+      const relative = entry.path;
+      const target = entry.target;
+      if (!isStr(relative) || !isStr(target)) continue;
+      const name = relative.split('/').pop();
+      if (relative !== `${destPrefix}${name}` || !skillName.test(name)) continue;
+      const expectedTarget = `../../.agents/skills/${name}`;
+      if (target !== expectedTarget) continue;
+      const destRel = `skills/${name}`;
+      try {
+        const destination = safeDestination(destRel);
+        if (!isLink(destination) || fs.readlinkSync(destination) !== expectedTarget) continue;
+        removeRelativePath(destRel);
+      } catch (error) {
+        if (!isOSOrValueError(error)) throw error;
+      }
+    }
+  }
+
+  function uninstallSharedProjection() {
+    if (relocatableProjectOverlapsSource() && sharedProjectionAvailable()) {
+      noteSharedProjectionSkip('uninstall');
+      unlinkNativeLinks();
+      return;
+    }
+    if (!sharedProjectionAvailable()) {
+      unlinkNativeLinks();
+      return;
+    }
+    const host = sharedProjectionHost();
+    if (!host) return;
+    const cli = nativeSharedSkillCli();
+    if (!isFileFollow(cli)) throw new ValueError(`${SURFACE_LABEL} shared projection uninstall requires ${cli}`);
+    let result;
+    try {
+      result = installerModule('native-shared-skill-install.js').uninstallNativeSharedSkills({ sourceRoot: PLUGIN_ROOT, projectRoot: PROJECT_ROOT, host, journal: TX });
+    } catch (error) {
+      if (journalCore.isSimulatedCrash(error) || isExit(error)) throw error;
+      throw sharedFailure(error, `${SURFACE_LABEL} shared projection uninstall failed`);
+    }
+    if (result && result.ok === false) {
+      const detail = result.error && result.error.message ? result.error.message : (result.state || 'uninstall blocked');
+      throw new ValueError(`FAIL [install-native-shared-skills]: ${detail}`);
+    }
+  }
+
+  // Remove adopted leftover native copies so Host Bindings can replace them.
+  function handoverAdoptedLegacyNativeSkills(adopted, counts) {
+    if (!pyTruthy(adopted)) return;
+    for (const item of classifyLegacyNativeDeclaredSkills()) {
+      if (item.handling !== 'keep-modified' || !Object.prototype.hasOwnProperty.call(adopted, item.path)) continue;
+      const relative = item.path;
+      const destination = targetFor(relative);
+      if (safeDestinationFingerprint(destination) !== item.destination_fingerprint || item.source_fingerprint !== adopted[relative]) {
+        throw new ValueError(`adoption preflight changed: ${relative}; run a fresh plan`);
+      }
+      const backup = backupDestination(relative, destination, 'adopt-legacy-native');
+      if (backup) counts.backed_up += 1;
+      removeRelativePath(relative, item.destination_fingerprint);
+      if (isDict(RUN_ENTRIES.skills)) delete RUN_ENTRIES.skills[item.name];
+      delete RUN_ORPHANED[relative];
+      counts.adopted += 1;
+      recordPath('adopted', relative);
+      recordOwnership(relative, 'dhpk-managed');
+    }
+  }
+
+
+  // ---------------------------------------------------------------------
+  // Reconciliation (lines 5285-5781 of the Python)
+
+  // Uninstall over a receipt this installer cannot interpret: release every
+  // entry, quarantine the receipt, touch no destination, exit 0.
+  releaseUnmarkedReceiptForUninstall = (receipt) => {
+    const released = [];
+    const managed = receipt.managed_entries;
+    for (const [kind, values] of Object.entries(isDict(managed) ? managed : {})) {
+      for (const [name, entry] of Object.entries(isDict(values) ? values : {})) {
+        const fallback = `${kind}/${name}`;
+        released.push(isDict(entry) ? (entry.destination || entry.source || fallback) : fallback);
+      }
+    }
+    const orphanedRecords = receipt.orphaned_entries;
+    if (isDict(orphanedRecords)) released.push(...Object.keys(orphanedRecords));
+    try {
+      const root = openRelativeDirectory('', { create: false });
+      const receiptFingerprint = fingerprintFdEntry(root, path.basename(MANIFEST));
+      if (pyJsonDumps(pyJsonLoads(fs.readFileSync(MANIFEST, 'utf8')), { sortKeys: true }) !== pyJsonDumps(receipt, { sortKeys: true })) {
+        throw new ValueError('uninstall receipt changed before transaction');
+      }
+      beginTransaction();
+      archiveReceiptForUninstall(receiptFingerprint);
+      commitTransaction();
+    } catch (error) {
+      if (!isOSOrValueError(error)) throw error;
+      failOpenTransaction(`uninstall receipt quarantine failed: ${errorText(error)}`);
+    }
+    for (const relative of pySorted(new Set(released))) print(`[install-codex-skills] released: ${relative} (removed from the receipt; its files stay in place)`);
+    print('[install-codex-skills] receipt removed; no destination file was deleted');
+    exit(0);
+  };
+
+  // Adopt receipt-owned legacy skill destinations under their public names;
+  // every unproven shape is kept as an orphan or conflict.
+  function migrateLegacySkillNames(run) {
+    const { entries, orphaned, counts, collisions, sources, skillMetadata: metadata } = run;
+    const legacyToPublic = {};
+    const ambiguous = new Set();
+    for (const [publicName, skill] of Object.entries(metadata)) {
+      for (const legacyName of skill.legacy_names || []) {
+        if (legacyName === publicName) continue;
+        const prior = legacyToPublic[legacyName];
+        if (prior && prior !== publicName) ambiguous.add(legacyName);
+        else legacyToPublic[legacyName] = publicName;
+      }
+    }
+    const receiptMatches = (legacyName) => {
+      const relative = `skills/${legacyName}`;
+      return Object.entries(entries.skills).filter(([key, value]) => key === legacyName || (isDict(value) && (value.destination === relative || value.source === relative)));
+    };
+    const conflict = (key, old, relative, reason) => {
+      const preserved = isDict(old) ? { ...old } : { destination: relative, source: relative };
+      preserved.orphaned = true;
+      entries.skills[key] = preserved;
+      orphaned[relative] = { ...preserved, reason };
+      if (!collisions.includes(relative)) collisions.push(relative);
+      counts.skipped_collision += 1;
+      counts.preserved += 1;
+      counts.orphaned += 1;
+      recordPath('collisions', relative);
+      recordPath('orphaned', relative);
+      recordOwnership(relative, 'unowned-collision');
+      print(`[install-codex-skills] legacy conflict preserved: ${relative} (${reason})`);
+    };
+    for (const legacyName of pySorted(Object.keys(legacyToPublic))) {
+      const publicName = legacyToPublic[legacyName];
+      const relative = `skills/${legacyName}`;
+      const matches = receiptMatches(legacyName);
+      if (matches.length === 0) {
+        let legacyDestination = null;
+        try {
+          legacyDestination = targetFor(relative);
+        } catch (error) {
+          if (!isValueError(error)) throw error;
+        }
+        if (legacyDestination !== null && lexists(legacyDestination)) {
+          if (!collisions.includes(relative)) collisions.push(relative);
+          counts.skipped_collision += 1;
+          counts.preserved += 1;
+          recordPath('collisions', relative);
+          recordOwnership(relative, 'unowned-collision');
+          print(`[install-codex-skills] legacy conflict preserved: ${relative} (destination is unowned or has no receipt ownership)`);
+        }
+        continue;
+      }
+      if (ambiguous.has(legacyName) || matches.length !== 1) {
+        for (const [key, old] of matches) conflict(key, old, relative, 'ambiguous legacy inventory mapping');
+        continue;
+      }
+      const [key, old] = matches[0];
+      try {
+        const oldDestination = receiptDestination('skills', key, old);
+        const newRelative = `skills/${publicName}`;
+        const newDestination = targetFor(newRelative);
+        const source = Object.prototype.hasOwnProperty.call(sources.skills, publicName) ? sources.skills[publicName][0] : null;
+        if (source === null || !lexists(source)) {
+          conflict(key, old, relative, 'current public skill source is missing');
+          continue;
+        }
+        if (!lexists(oldDestination)) {
+          conflict(key, old, relative, 'legacy destination is missing');
+          continue;
+        }
+        if (!isOwned(old, oldDestination)) {
+          conflict(key, old, relative, 'legacy destination is edited, unowned, or retargeted');
+          continue;
+        }
+        const currentEntry = entries.skills[publicName];
+        if (lexists(newDestination)) {
+          if (!(isDict(currentEntry) && isOwned(currentEntry, newDestination))) {
+            conflict(key, old, relative, `current public destination already exists: ${newRelative}`);
+            continue;
+          }
+          if (backupDestination(relative, oldDestination, 'legacy-migration')) counts.backed_up += 1;
+          removeRelativePath(relative, recordedCopyFingerprint(old));
+        } else {
+          if (backupDestination(relative, oldDestination, 'legacy-migration')) counts.backed_up += 1;
+          // Publish the new destination first; only then remove the legacy path.
+          installAtomic(source, newDestination);
+          removeRelativePath(relative, recordedCopyFingerprint(old));
+        }
+        if (key !== publicName) delete entries.skills[key];
+        entries.skills[publicName] = makeEntry(source, newRelative, newDestination, metadata[publicName]);
+        clearOrphaned(run, relative, newRelative);
+        counts.migrated += 1;
+        recordPath('migrated', relative);
+        recordPath('migrated', newRelative);
+        recordOwnership(newRelative, 'dhpk-managed');
+      } catch (error) {
+        if (!isValueError(error)) throw error;
+        conflict(key, old, relative, errorText(error));
+      }
+    }
+  }
+
+  function clearOrphaned(run, ...relatives) {
+    for (const relative of relatives) if (isStr(relative) && relative) delete run.orphaned[relative];
+  }
+
+  function entryRelative(kind, name, old) {
+    const relative = isDict(old) ? (old.destination || old.source) : `${kind}/${name}`;
+    return relative || `${kind}/${name}`;
+  }
+
+  // Protect a failure that the Python turned into fail_open_transaction.
+  function guarded(action, message = null) {
+    try {
+      return action();
+    } catch (error) {
+      rethrowExit(error);
+      if (journalCore.isSimulatedCrash(error)) throw error;
+      if (message === null && !isValueError(error)) throw error;
+      failOpenTransaction(message === null ? error : `${message}: ${errorText(error)}`);
+    }
+    return undefined;
+  }
+
+  function uninstallRun(run) {
+    const { entries, orphaned, counts, collisions, receipt, pluginVersion, fingerprint, legacyPending } = run;
+    guarded(() => {
+      ensureCodexRootSafe();
+      if (sharedProjectionHost()) uninstallSharedProjection();
+    });
+    if (!MANAGED_KINDS.some((kind) => Object.keys(entries[kind]).length) && Object.keys(orphaned).length === 0) {
+      guarded(() => {
+        archiveReceiptForUninstall();
+        commitTransaction();
+      }, 'uninstall receipt quarantine failed');
+      print('[install-codex-skills] no managed receipt entries to uninstall');
+      exit(0);
+    }
+    const remaining = Object.fromEntries(MANAGED_KINDS.map((kind) => [kind, {}]));
+    const managedRelatives = new Set();
+    guarded(() => {
+      for (const kind of MANAGED_KINDS) {
+        for (const [name, old] of Object.entries(entries[kind])) {
+          const relative = entryRelative(kind, name, old);
+          managedRelatives.add(relative);
+          let destination;
+          let missing;
+          try {
+            destination = receiptDestination(kind, name, old);
+            missing = receiptPathMissing(relative);
+          } catch (error) {
+            if (!isOSOrValueError(error)) throw error;
+            remaining[kind][name] = isDict(old) ? { ...old, orphaned: true } : { destination: relative, orphaned: true };
+            orphaned[relative] = { ...remaining[kind][name], reason: 'unsafe-receipt-path' };
+            counts.orphaned += 1;
+            print(`[install-codex-skills] orphaned preserved: ${relative} (${errorText(error)})`);
+            continue;
+          }
+          if (missing) {
+            clearOrphaned(run, relative);
+            counts.retired += 1;
+            recordPath('retired', relative);
+            recordOwnership(relative, 'missing');
+            continue;
+          }
+          if (isOwned(old, destination)) {
+            if (backupDestination(relative, destination, 'uninstall')) counts.backed_up += 1;
+            removeRelativePath(relative, recordedCopyFingerprint(old));
+            clearOrphaned(run, relative);
+            counts.pruned += 1;
+            counts.retired += 1;
+            recordPath('retired', relative);
+            recordOwnership(relative, 'dhpk-managed');
+          } else {
+            remaining[kind][name] = { ...old, orphaned: true };
+            orphaned[relative] = { ...old, reason: 'modified-before-uninstall' };
+            counts.orphaned += 1;
+            recordPath('orphaned', relative);
+            recordOwnership(relative, 'orphaned');
+          }
+        }
+      }
+      for (const [relative, old] of Object.entries({ ...orphaned })) {
+        if (managedRelatives.has(relative)) continue;
+        if (!isDict(old) || (old.destination || old.source) !== relative || ![undefined, null, relative].includes(old.source)) continue;
+        let missing;
+        try {
+          missing = receiptPathMissing(relative);
+        } catch (error) {
+          if (!isOSOrValueError(error)) throw error;
+          print(`[install-codex-skills] orphaned preserved: ${relative} (${errorText(error)})`);
+          continue;
+        }
+        if (missing) {
+          clearOrphaned(run, relative);
+          counts.retired += 1;
+          recordPath('retired', relative);
+          recordOwnership(relative, 'missing');
+        }
+      }
+      if (Object.keys(orphaned).length === 0 && !Object.values(remaining).some((values) => Object.keys(values).length)) {
+        archiveReceiptForUninstall();
+        commitTransaction();
+      } else {
+        const verifiedRetiredResidue = receiptHasRetiredProfile(receipt) && isOrphanOnlyProjection(remaining, orphaned);
+        saveReceiptAndCommit(pluginVersion, fingerprint, remaining, orphaned, counts, {
+          legacyPending: verifiedRetiredResidue ? false : legacyPending,
+          state: verifiedRetiredResidue ? 'partial' : null,
+        });
+      }
+    }, 'uninstall failed; removed entries restored where possible');
+    printSummary(counts, collisions, pySorted(Object.keys(orphaned)));
+    exit(0);
+  }
+
+  // `always`: the Python appended to collisions without a membership check.
+  function orphanCollision(run, relative, entry, ownership, { preserved = true, message = null, always = false } = {}) {
+    const { orphaned, counts, collisions } = run;
+    orphaned[relative] = entry;
+    counts.orphaned += 1;
+    if (preserved) counts.preserved += 1;
+    counts.skipped_collision += 1;
+    if (always || !collisions.includes(relative)) collisions.push(relative);
+    recordPath('collisions', relative);
+    recordPath('orphaned', relative);
+    recordOwnership(relative, ownership);
+    if (message) print(message);
+  }
+
+  // Reconcile entries removed from the source (explicit --update only).
+  function pruneRemovedSources(run) {
+    const { entries, orphaned, counts, collisions, sources, skillRetirements } = run;
+    for (const kind of MANAGED_KINDS) {
+      if (ADOPT_PATHS.length && !skipNativeSkillKind(kind)) continue;
+      for (const name of Object.keys(entries[kind])) {
+        if (Object.prototype.hasOwnProperty.call(sources[kind], name)) continue;
+        const old = entries[kind][name];
+        const relative = entryRelative(kind, name, old);
+        const retirement = retirementForEntry(skillRetirements, kind, name, old, relative);
+        let destination;
+        try {
+          destination = receiptDestination(kind, name, old);
+        } catch (error) {
+          if (!isValueError(error)) throw error;
+          entries[kind][name] = isDict(old) ? { ...old, orphaned: true } : { destination: relative, orphaned: true };
+          const orphanedEntry = { ...entries[kind][name], reason: 'unsafe-receipt-path' };
+          if (retirement) orphanedEntry.retirement = { ...retirement };
+          orphanCollision(run, relative, orphanedEntry, 'unsafe-receipt-path', { message: `[install-codex-skills] orphaned preserved: ${relative} (${errorText(error)})` });
+          continue;
+        }
+        if (!lexists(destination)) {
+          if (retirement) {
+            entries[kind][name] = { ...old, orphaned: true };
+            const orphanedEntry = { ...old, reason: 'retired-destination-missing', retirement: { ...retirement } };
+            orphanCollision(run, relative, orphanedEntry, 'missing');
+          } else {
+            delete entries[kind][name];
+            clearOrphaned(run, relative);
+          }
+        } else if (isOwned(old, destination)) {
+          if (backupDestination(relative, destination, 'retired-entry')) counts.backed_up += 1;
+          removeRelativePath(relative, recordedCopyFingerprint(old));
+          delete entries[kind][name];
+          counts.pruned += 1;
+          counts.retired += 1;
+          recordPath('retired', relative);
+          recordOwnership(relative, 'dhpk-managed');
+        } else {
+          entries[kind][name] = { ...old, orphaned: true };
+          let keepModifiedLegacy = skipNativeSkillKind(kind) && declaredSkillPublicNames().includes(name);
+          const orphanedEntry = { ...old, reason: keepModifiedLegacy ? 'keep-modified-legacy-native' : 'modified-removed-source' };
+          if (retirement) {
+            orphanedEntry.reason = 'retired-entry-modified-or-retargeted';
+            orphanedEntry.retirement = { ...retirement };
+            keepModifiedLegacy = false;
+          }
+          orphaned[relative] = orphanedEntry;
+          counts.orphaned += 1;
+          counts.preserved += 1;
+          recordPath('orphaned', relative);
+          if (keepModifiedLegacy) recordOwnership(relative, 'keep-modified');
+          else {
+            counts.skipped_collision += 1;
+            if (!collisions.includes(relative)) collisions.push(relative);
+            recordPath('collisions', relative);
+            recordOwnership(relative, retirement ? 'retired-orphaned' : 'orphaned');
+          }
+        }
+      }
+    }
+  }
+
+  // Preserve retired destinations present on disk without a receipt entry:
+  // the ledger is guidance, never a deletion authority.
+  function preserveUnownedRetirements(run) {
+    const { entries, skillRetirements } = run;
+    const represented = new Set();
+    for (const kind of MANAGED_KINDS) {
+      for (const [name, old] of Object.entries(entries[kind])) {
+        const relative = isDict(old) ? (old.destination || old.source) : '';
+        const retirement = retirementForEntry(skillRetirements, kind, name, old, relative);
+        if (retirement) represented.add(retirement.canonicalPath);
+      }
+    }
+    for (const retirement of uniqueRetirementRows(skillRetirements)) {
+      const relative = retirement.canonicalPath;
+      if (!isStr(relative) || represented.has(relative)) continue;
+      let destination;
+      try {
+        destination = targetFor(relative);
+      } catch (error) {
+        if (!isValueError(error)) throw error;
+        const entry = { destination: relative, source: relative, reason: 'unsafe-retirement-path', retirement: { ...retirement }, orphaned: true };
+        orphanCollision(run, relative, entry, 'unsafe-retirement-path', { always: true, message: `[install-codex-skills] orphaned preserved: ${relative} (${errorText(error)})` });
+        continue;
+      }
+      if (!lexists(destination)) continue;
+      const entry = {
+        destination: relative,
+        source: relative,
+        reason: 'retired-destination-unowned',
+        destination_fingerprint: safeDestinationFingerprint(destination),
+        retirement: { ...retirement },
+        orphaned: true,
+      };
+      orphanCollision(run, relative, entry, 'unowned-collision', { always: true });
+    }
+  }
+
+  // The per-source install loop (lines 5596-5747 of the Python).
+  function installSources(run) {
+    const { entries, counts, collisions, sources, skillMetadata, plan, adoptPaths, legacyPending } = run;
+    const metadataFor = (kind, name) => (kind === 'skills' ? skillMetadata[name] || null : null);
+    for (const kind of MANAGED_KINDS) {
+      for (const [name, [source, relative]] of Object.entries(sources[kind])) {
+        const destination = guarded(() => targetFor(relative));
+        const old = Object.prototype.hasOwnProperty.call(entries[kind], name) ? entries[kind][name] : null;
+        if (ADOPT_PATHS.length && !Object.prototype.hasOwnProperty.call(adoptPaths, relative)) {
+          // An explicit adoption authorizes only the reported paths.
+          if (!lexists(destination) || !isOwned(old, destination) || old.mode !== effectiveMaterializationMode(relative) || !exactSourceMatch(source, destination, relative, old)) {
+            recordPath('deferred', relative);
+            if (!collisions.includes(relative)) {
+              collisions.push(relative);
+              counts.skipped_collision += 1;
+              counts.preserved += 1;
+              recordPath('collisions', relative);
+              recordOwnership(relative, 'deferred-adoption');
+            }
+          }
+          continue;
+        }
+        if (lexists(destination)) {
+          const owned = isOwned(old, destination);
+          if (legacyPending && MIGRATE && matchesEffectiveMaterialization(relative, destination) && exactSourceMatch(source, destination, relative, old)) {
+            entries[kind][name] = makeEntry(source, relative, destination, metadataFor(kind, name));
+            counts.preserved += 1;
+            clearOrphaned(run, relative);
+            recordPath('migrated', relative);
+            recordOwnership(relative, 'dhpk-managed');
+            continue;
+          }
+          if (!owned) {
+            if (Object.prototype.hasOwnProperty.call(adoptPaths, relative)) {
+              const expected = (plan.collisions || []).find((item) => item.path === relative).destination_fingerprint;
+              const expectedSource = adoptPaths[relative];
+              if (safeDestinationFingerprint(destination) !== expected || sourceFingerprintFor(source, relative) !== expectedSource) {
+                failOpenTransaction(`adoption preflight changed: ${relative}; run a fresh plan`);
+              }
+              counts.backed_up += 1;
+              try {
+                adoptMaterialized(source, destination, relative, expectedSource, expected);
+              } catch (error) {
+                rethrowExit(error);
+                if (journalCore.isSimulatedCrash(error)) throw error;
+                if (!isOSOrValueError(error)) throw error;
+                failOpenTransaction(`adoption rolled back: ${errorText(error)}`);
+              }
+              entries[kind][name] = makeEntry(source, relative, destination, metadataFor(kind, name));
+              clearOrphaned(run, relative);
+              counts.adopted += 1;
+              recordPath('adopted', relative);
+              recordOwnership(relative, 'dhpk-managed');
+              continue;
+            }
+            collisions.push(relative);
+            counts.skipped_collision += 1;
+            counts.preserved += 1;
+            recordPath('collisions', relative);
+            recordOwnership(relative, 'unowned-collision');
+            continue;
+          }
+          if (pyTruthy(old.orphaned)) {
+            collisions.push(relative);
+            counts.skipped_collision += 1;
+            counts.preserved += 1;
+            recordPath('collisions', relative);
+            recordOwnership(relative, 'orphaned');
+            continue;
+          }
+          if (old.mode === effectiveMaterializationMode(relative) && exactSourceMatch(source, destination, relative, old)) {
+            entries[kind][name] = makeEntry(source, relative, destination, metadataFor(kind, name));
+            clearOrphaned(run, relative);
+            recordOwnership(relative, 'dhpk-managed');
+            continue;
+          }
+          if (backupDestination(relative, destination, 'updated-entry')) counts.backed_up += 1;
+          else throw new OSError(`cannot create rollback backup for managed destination: ${relative}`);
+          install(source, destination);
+          entries[kind][name] = makeEntry(source, relative, destination, metadataFor(kind, name));
+          clearOrphaned(run, relative);
+          counts.updated += 1;
+          recordPath('updated', relative);
+          recordOwnership(relative, 'dhpk-managed');
+        } else {
+          install(source, destination);
+          entries[kind][name] = makeEntry(source, relative, destination, metadataFor(kind, name));
+          clearOrphaned(run, relative);
+          counts.created += 1;
+          recordPath('created', relative);
+          recordOwnership(relative, 'dhpk-managed');
+        }
+      }
+    }
+  }
+
+  reconcile = (run) => {
+    const { classification, receipt, pluginVersion, fingerprint, legacy, releasedEntries, orphaned, counts, collisions, adoptPaths } = run;
+    if (classification.requires_structural_migration && !MIGRATE && UNINSTALL === false) {
+      printErr('[install-codex-skills] state=stale_receipt: explicit migration is required before changing this projection');
+      for (const reason of classification.reasons || []) printErr(`[install-codex-skills] stale evidence: ${reason}`);
+      printErr(`[install-codex-skills] ACTION REQUIRED: bash ${INSTALLER_SCRIPT} ${MODE === 'copy' ? '--copy ' : ''}--migrate --update --force`);
+      exit(2);
+    }
+    const priorReconciliation = isDict(receipt) ? receipt.reconciliation : {};
+    const hasPendingConflicts = Object.keys(orphaned).length > 0 || Boolean(isDict(priorReconciliation) && pyTruthy(priorReconciliation.skipped_collision));
+    if (!UPDATE && !MIGRATE && !UNINSTALL && !legacy && !releasedEntries.length && !hasPendingConflicts && receipt.plugin_version === pluginVersion && receipt.source_fingerprint === fingerprint) {
+      try {
+        maybeInstallSharedProjection(adoptPaths);
+      } catch (error) {
+        if (!isValueError(error)) throw error;
+        printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
+        exit(2);
+      }
+      print(`[install-codex-skills] already up-to-date for dhpk v${pluginVersion}`);
+      exit(0);
+    }
+    try {
+      beginTransaction();
+    } catch (error) {
+      if (!isOSOrValueError(error)) throw error;
+      printErr(`[install-codex-skills] ERROR: cannot start transaction journal: ${errorText(error)}`);
+      exit(2);
+    }
+    if (UNINSTALL) uninstallRun(run);
+    try {
+      ensureCodexRootSafe();
+    } catch (error) {
+      if (!isValueError(error)) throw error;
+      rollbackPending();
+      printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
+      exit(2);
+    }
+    try {
+      for (const kind of pySorted(new Set([...SOURCE_KINDS, 'skills', 'agents']))) txDirectory(kind);
+    } catch (error) {
+      if (!isOSOrValueError(error)) throw error;
+      rollbackPending();
+      printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
+      exit(2);
+    }
+    // Public-name migration runs before the update prune: an old receipt key
+    // stays protected when the inventory cannot prove ownership.
+    if ((UPDATE || MIGRATE) && !ADOPT_PATHS.length) migrateLegacySkillNames(run);
+    if (UPDATE) pruneRemovedSources(run);
+    if (UPDATE && !ADOPT_PATHS.length) preserveUnownedRetirements(run);
+    if (sharedProjectionAvailable() && !UNINSTALL) {
+      guarded(() => {
+        handoverAdoptedLegacyNativeSkills(adoptPaths, counts);
+        maybeInstallSharedProjection(adoptPaths);
+      });
+    }
+    try {
+      installSources(run);
+    } catch (error) {
+      rethrowExit(error);
+      if (journalCore.isSimulatedCrash(error)) throw error;
+      // The Python's excepthook rolled the transaction back, then crashed.
+      rollbackPending();
+      throw error;
+    }
+    let { legacyPending } = run;
+    if (legacyPending && MIGRATE && collisions.length === 0) legacyPending = false;
+    const reconciliationState = legacyPending ? 'stale' : ((collisions.length || Object.keys(orphaned).length || evidencePaths.deferred.length) ? 'partial' : 'current');
+    guarded(() => saveReceiptAndCommit(pluginVersion, fingerprint, run.entries, orphaned, counts, { legacyPending, state: reconciliationState }),
+      'reconciliation receipt update failed; retired entries restored where possible');
+    counts.collided = counts.skipped_collision || 0;
+    counts.backed_up = counts.backed_up || 0;
+    printSummary(counts, collisions, pySorted(Object.keys(orphaned)));
+    print(`[install-codex-skills] synced dhpk v${pluginVersion} ${SRC_REL}/ → project-local ${DEST_REL}/ (mode=${MODE})`);
+    if (UPDATE && collisions.length && !ADOPT_PATHS.length) {
+      printErr('[install-codex-skills] ACTION REQUIRED: review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>');
+      exit(1);
+    }
+  };
 
   // ---------------------------------------------------------------------
   // Entry point: lines 5114-5781 of the Python, in order.

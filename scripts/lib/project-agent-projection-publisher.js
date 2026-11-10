@@ -1457,10 +1457,91 @@ function beginTransaction(roots, fields, afterStep = null) {
   return transaction;
 }
 
-// Opens a staging transaction whose first record is the stage directory.
-function openStage(roots, kind, afterStep = null) {
+// A publication recorded into a caller's Projection Journal (ADR-0036): the
+// caller owns the commit point and the rollback. This view keeps the
+// publisher header in `journal.projection`, adds the publisher's cleanup
+// records to `projection.cleanups` for the caller to publish, and never
+// rolls back on its own: a failure leaves the whole journal to the caller.
+function externalTransaction(roots, journal) {
+  const document = journal.journal;
+  if (!document.projection || typeof document.projection !== 'object') {
+    document.projection = {
+      managedName: path.basename(roots.managedRoot),
+      claudeManagedName: path.basename(roots.claudeManagedRoot),
+      receiptName: path.basename(roots.receiptPath),
+      backupName: '.none',
+      rollbackStageName: '.none',
+      stageName: '.none',
+      cleanups: [],
+    };
+  }
+  const header = document.projection;
+  return {
+    roots,
+    external: true,
+    finished: false,
+    committed: false,
+    journal: header,
+    get projectRoot() {
+      return journal.projectRoot;
+    },
+    effect: (...args) => journal.effect(...args),
+    flush: () => journal.flush(),
+    setPhase(phase) {
+      header.phase = phase;
+      journal.flush();
+    },
+    hold() {
+      throw fail('INVALID_HOLD', 'a publication recorded into a caller journal cannot be held');
+    },
+    publish(cleanups) {
+      header.cleanups = [...(header.cleanups || []), ...cleanups];
+      journal.flush();
+      this.committed = true;
+    },
+    finish() {
+      this.finished = true;
+    },
+    rollBack() {
+      this.finished = true;
+      return header.phase;
+    },
+  };
+}
+
+// What a caller needs to validate and recover a journal that carries a
+// publication: the paths its records may touch and the post-rollback tidy-up.
+function projectionJournalParticipant(projectRoot) {
+  const roots = operationRoots({ projectRoot });
+  return {
+    roots,
+    validateHeader(header) {
+      validateEffectHeader(roots, header);
+      if (!Array.isArray(header.cleanups) || header.cleanups.some((cleanup) => !cleanup || cleanup.kind !== 'remove' || !cleanup.args || cleanup.args.mode !== 'tree')) {
+        throw fail('UNSAFE_TRANSACTION', 'project projection publication cleanups are invalid');
+      }
+      return effectScope(roots, header);
+    },
+    onRolledBack() {
+      removeEmptyDirectories(roots.managedRoot);
+      removeEmptyDirectories(roots.claudeManagedRoot);
+    },
+  };
+}
+
+// Opens a staging transaction whose first record is the stage directory. With
+// a caller journal, the stage is recorded there instead.
+function openStage(roots, kind, afterStep = null, journal = null) {
   const stageName = `.dhpk-projection-${kind}-${transactionToken()}`;
-  const transaction = beginTransaction(roots, { phase: 'staging', stageName }, afterStep);
+  let transaction;
+  if (journal) {
+    transaction = externalTransaction(roots, journal);
+    if (transaction.journal.stageName !== '.none') throw fail('TRANSACTION_EXISTS', 'the caller journal already records a project projection stage');
+    transaction.journal.phase = 'staging';
+    transaction.journal.stageName = stageName;
+  } else {
+    transaction = beginTransaction(roots, { phase: 'staging', stageName }, afterStep);
+  }
   const stage = path.join(roots.agentsRoot, stageName);
   try {
     recordTransientDirectory(transaction, stage);
@@ -1516,7 +1597,7 @@ function effectScope(roots, journal) {
   };
 }
 
-function validateEffectJournal(roots, journal) {
+function validateEffectHeader(roots, journal) {
   for (const [field, pattern] of Object.entries(TRANSIENT_NAME_PATTERNS)) {
     if (typeof journal[field] !== 'string' || (journal[field] !== '.none' && !pattern.test(journal[field]))) {
       throw fail('UNSAFE_TRANSACTION', `project projection transaction has an unsafe ${field}`);
@@ -1528,6 +1609,10 @@ function validateEffectJournal(roots, journal) {
   }
   if (journal.hold !== undefined) normalizeHold(journal.hold, 'UNSAFE_TRANSACTION');
   if (journal.adoption !== undefined && journal.adoption !== true) throw fail('UNSAFE_TRANSACTION', 'project projection transaction adoption flag is invalid');
+}
+
+function validateEffectJournal(roots, journal) {
+  validateEffectHeader(roots, journal);
   validateJournalRecords(journal, { projectRoot: roots.projectRoot, scope: effectScope(roots, journal) });
 }
 
@@ -2074,7 +2159,9 @@ function publishManagedCandidate({
   hold = null,
   transaction = null,
   afterStep = null,
+  journal = null,
 }) {
+  if (journal && hold) throw fail('INVALID_HOLD', 'a publication recorded into a caller journal cannot be held');
   const heldBy = hold ? normalizeHold(hold) : null;
   checkCollisions(roots, previous, candidateFiles);
   checkCollisions(roots, previous, claudeCandidateFiles, 'claude');
@@ -2116,7 +2203,7 @@ function publishManagedCandidate({
     ...(adoption ? { adoption: true } : {}),
   };
   // A staged candidate continues the transaction that recorded its stage.
-  const tx = transaction || beginTransaction(roots, fields, afterStep);
+  const tx = transaction || (journal ? externalTransaction(roots, journal) : beginTransaction(roots, fields, afterStep));
   Object.assign(tx.journal, fields);
   let published = false;
   try {
@@ -2239,9 +2326,10 @@ function stageArtifact({
   preserveHostBindings = null,
   preserveBindingPaths = null,
   afterStep = null,
+  journal = null,
 }) {
   // The stage is recorded in a staging transaction before it exists (REQ-7).
-  const { transaction, stage: artifactRoot } = openStage(roots, 'artifact', afterStep);
+  const { transaction, stage: artifactRoot } = openStage(roots, 'artifact', afterStep, journal);
   try {
     const publishedRoot = path.join(artifactRoot, 'published');
     const inputs = buildArtifactInputs({
@@ -2374,6 +2462,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
     preserveHostBindings: options.preserveHostBindings || null,
     preserveBindingPaths: options.preserveBindingPaths || null,
     afterStep: options.afterStep || null,
+    journal: options.journal || null,
   });
   let failure = null;
   try {
@@ -2653,6 +2742,7 @@ function uninstallAgentsSkillsProjection(options = {}) {
       createRollback: false,
       hold: options.hold || null,
       afterStep: options.afterStep || null,
+      journal: options.journal || null,
     });
     return { ok: true, state: 'REMOVED', held: Boolean(published.held), removedPaths: receipt.managedPaths, preservedPaths: [], projectRoot: roots.projectRoot, published };
   } catch (error) {
@@ -2873,6 +2963,7 @@ module.exports = {
   commitHeldProjection,
   abortHeldProjection,
   heldProjection,
+  projectionJournalParticipant,
   recoverAgentsSkillsProjection: (options = {}) => recoverProjectProjectionTransaction(operationRoots(options), { afterStep: options.afterStep || null }),
   readProjectProjectionReceipt,
   // Test seams for the effect journal; not part of the installer contract.

@@ -73,9 +73,9 @@ function fixture(setup = () => {}, { setupEngine = null } = {}) {
 }
 
 const SCENARIOS = [
-  { name: 'copy install', prepare: fixture(), args: ['--copy', '--force'] },
-  { name: 'symlink install', prepare: fixture(), args: ['--force'] },
-  { name: 'rerun is up to date', prepare: fixture(({ step }) => step(['--copy', '--force'])), args: ['--copy', '--force'] },
+  { name: 'copy install', prepare: fixture(), args: ['--copy', '--force'], js: true },
+  { name: 'symlink install', prepare: fixture(), args: ['--force'], js: true },
+  { name: 'rerun is up to date', prepare: fixture(({ step }) => step(['--copy', '--force'])), args: ['--copy', '--force'], js: true },
   {
     name: 'update after a source change',
     prepare: fixture(({ pluginRoot, step }) => {
@@ -83,8 +83,9 @@ const SCENARIOS = [
       fs.appendFileSync(path.join(pluginRoot, 'codex', 'skills', 'flow-guide', 'SKILL.md'), '\nChanged.\n');
     }),
     args: ['--copy', '--update', '--force'],
+    js: true,
   },
-  { name: 'uninstall', prepare: fixture(({ step }) => step(['--copy', '--force'])), args: ['--uninstall', '--force'] },
+  { name: 'uninstall', prepare: fixture(({ step }) => step(['--copy', '--force'])), args: ['--uninstall', '--force'], js: true },
   {
     name: 'plan json with drift',
     prepare: fixture(({ pluginRoot, step }) => {
@@ -136,8 +137,7 @@ const SCENARIOS = [
       fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
     }, { setupEngine: 'python' }),
     args: ['--uninstall', '--force'],
-    // Releasing an unmarked receipt is a write path (ported with task 3.3).
-    js: false,
+    js: true,
   },
   {
     name: 'unowned collision on update',
@@ -147,6 +147,7 @@ const SCENARIOS = [
       fs.writeFileSync(path.join(target, 'user-owned.txt'), 'keep me\n');
     }),
     args: ['--copy', '--update', '--force'],
+    js: true,
   },
   {
     name: 'full repository install',
@@ -155,6 +156,7 @@ const SCENARIOS = [
       return { project, pluginRoot: ROOT, engine, cleanup: () => fs.rmSync(project, { recursive: true, force: true }) };
     },
     args: ['--copy', '--force'],
+    js: true,
   },
 ];
 
