@@ -30,7 +30,7 @@ if (endpoint.includes('/pulls/${PR}')) {
     .map((line) => JSON.parse(line)).filter((call) => call[0] === 'api' && call[1].includes('/pulls/${PR}'));
   pullCount = all.length;
   const changed = scenario === 'head-changes-before-merge' && pullCount > 1;
-  const merged = scenario === 'merge-readback' && fs.existsSync(process.env.GH_MERGE_MARKER);
+  const merged = ['merge-readback', 'no-rules-merge'].includes(scenario) && fs.existsSync(process.env.GH_MERGE_MARKER);
   process.stdout.write(JSON.stringify({
     number: ${PR}, state: merged ? 'closed' : 'open', merged,
     draft: scenario === 'draft', base: { ref: 'develop' },
@@ -40,10 +40,13 @@ if (endpoint.includes('/pulls/${PR}')) {
     merge_commit_sha: merged ? head : null,
   }));
 } else if (endpoint.includes('/branches/develop/protection')) {
-  if (scenario === 'modern-rules' || scenario === 'protection-404') {
+  if (['modern-rules', 'modern-rules-other-check', 'protection-404', 'no-rules-behind', 'no-rules-failed-check',
+    'no-rules-merge', 'no-rules-bad-compare', 'rules-pull-request-only'].includes(scenario)) {
     process.stderr.write('gh: Not Found (HTTP 404)'); process.exit(1);
   }
-  process.stdout.write(JSON.stringify(scenario === 'missing-rules' ? {} : {
+  process.stdout.write(JSON.stringify(scenario === 'missing-rules' ? {} : scenario === 'reviews-only-protection' ? {
+    required_pull_request_reviews: { required_approving_review_count: 1 },
+  } : {
     required_status_checks: { contexts: ['Validate harness assets'], checks: [{ context: 'Validate harness assets', app_id: 15368 }] },
     required_pull_request_reviews: scenario === 'classic-review-required' ? { required_approving_review_count: 1 } : null,
   }));
@@ -52,7 +55,11 @@ if (endpoint.includes('/pulls/${PR}')) {
     type: 'required_status_checks', parameters: {
       required_status_checks: [{ context: 'Validate harness assets', integration_id: 15368 }],
     },
-  }] : scenario === 'modern-review-required' ? [{
+  }] : scenario === 'modern-rules-other-check' ? [{
+    type: 'required_status_checks', parameters: {
+      required_status_checks: [{ context: 'Some other check', integration_id: 15368 }],
+    },
+  }] : scenario === 'modern-review-required' || scenario === 'rules-pull-request-only' ? [{
     type: 'pull_request', parameters: { required_approving_review_count: 1 },
   }] : []));
 } else if (args[0] === 'pr' && args[1] === 'view') {
@@ -65,7 +72,7 @@ if (endpoint.includes('/pulls/${PR}')) {
   if (scenario === 'missing-check') process.stdout.write(JSON.stringify({ total_count: 0, check_runs: [] }));
   else {
     if (scenario === 'pending-check' || scenario === 'older-green-newer-pending') { status = 'in_progress'; conclusion = null; }
-    if (scenario === 'failed-check') conclusion = 'failure';
+    if (scenario === 'failed-check' || scenario === 'no-rules-failed-check') conclusion = 'failure';
     if (scenario === 'stale-check') runHead = '${'c'.repeat(40)}';
     if (scenario === 'wrong-app') appId = 99999;
     const currentRun = {
@@ -93,6 +100,9 @@ if (endpoint.includes('/pulls/${PR}')) {
   process.stdout.write(JSON.stringify({ state, statuses: state === 'success' ? [] : [{
     state, context: 'Validate harness assets',
   }] }));
+} else if (endpoint.includes('/compare/develop...')) {
+  process.stdout.write(JSON.stringify(scenario === 'no-rules-bad-compare' ? { ahead_by: 1 }
+    : { behind_by: scenario === 'no-rules-behind' ? 3 : 0, ahead_by: 1 }));
 } else if (args[0] === 'pr' && args[1] === 'merge') {
   fs.writeFileSync(process.env.GH_MERGE_MARKER, '1');
   process.env.GH_MERGE_CALLED = '1';
@@ -178,11 +188,64 @@ test('missing, pending, failed, stale, and wrong-app required checks block witho
   }
 });
 
-test('missing branch protection or required-check rules block closed', () => withFixture({ scenario: 'missing-rules' }, (fixture) => {
+test('without live develop rules the project baseline check and an up-to-date base still apply (#1275)', () => {
+  for (const scenario of ['missing-rules', 'protection-404']) {
+    withFixture({ scenario }, (fixture) => {
+      const result = runGate(fixture);
+      assert.strictEqual(result.status, 0, scenario + result.stderr + result.stdout);
+      const endpoints = calls(fixture).filter((args) => args[0] === 'api').map((args) => args[1]);
+      assert.ok(endpoints.some((endpoint) => endpoint.includes(`/compare/develop...${HEAD}`)), `${scenario} must verify the branch is current with develop`);
+      assert.ok(endpoints.some((endpoint) => endpoint.includes(`/commits/${HEAD}/check-runs`)), `${scenario} must still verify the baseline check`);
+    });
+  }
+});
+
+test('without live rules, a branch behind develop or a failing baseline check blocks', () => {
+  for (const [scenario, reason] of [['no-rules-behind', /behind develop/], ['no-rules-failed-check', /required check not successful/]]) {
+    withFixture({ scenario }, (fixture) => {
+      const result = runGate(fixture, ['--execute']);
+      assert.notStrictEqual(result.status, 0, scenario);
+      assert.match(`${result.stdout}${result.stderr}`, reason, scenario);
+      assert.ok(!fs.existsSync(fixture.mergeMarker), `${scenario} must not merge`);
+    });
+  }
+});
+
+test('live rules that omit the harness check still block closed', () => withFixture({ scenario: 'modern-rules-other-check' }, (fixture) => {
   const result = runGate(fixture);
   assert.notStrictEqual(result.status, 0);
-      assert.match(`${result.stdout}${result.stderr}`, /rule|protection|required/i);
+  assert.match(`${result.stdout}${result.stderr}`, /Validate harness assets rule missing/);
   assert.ok(!fs.existsSync(fixture.mergeMarker));
+}));
+
+test('any live rule, even without a status check, disables the baseline and blocks closed', () => {
+  for (const scenario of ['reviews-only-protection', 'rules-pull-request-only']) {
+    withFixture({ scenario }, (fixture) => {
+      const result = runGate(fixture, ['--execute']);
+      assert.notStrictEqual(result.status, 0, scenario);
+      assert.match(`${result.stdout}${result.stderr}`, /required|rule|protection/i, scenario);
+      const endpoints = calls(fixture).filter((args) => args[0] === 'api').map((args) => args[1]);
+      assert.ok(!endpoints.some((endpoint) => endpoint.includes('/compare/')), `${scenario} must not take the baseline path`);
+      assert.ok(!fs.existsSync(fixture.mergeMarker), scenario);
+    });
+  }
+});
+
+test('baseline execute rechecks the base before merging and merges the exact head', () => withFixture({ scenario: 'no-rules-merge' }, (fixture) => {
+  const result = runGate(fixture, ['--execute']);
+  assert.strictEqual(result.status, 0, result.stderr + result.stdout);
+  const all = calls(fixture);
+  const compares = all.filter((args) => args[0] === 'api' && args[1].includes(`/compare/develop...${HEAD}`));
+  assert.strictEqual(compares.length, 2, 'the pre-merge recheck must compare again');
+  const mergeIndex = all.findIndex((args) => args[0] === 'pr' && args[1] === 'merge');
+  assert.ok(mergeIndex > all.lastIndexOf(compares[1]), 'merge must follow the second compare');
+  assert.ok(all[mergeIndex].includes('--match-head-commit'));
+}));
+
+test('a malformed develop comparison blocks in baseline mode', () => withFixture({ scenario: 'no-rules-bad-compare' }, (fixture) => {
+  const result = runGate(fixture);
+  assert.notStrictEqual(result.status, 0);
+  assert.match(`${result.stdout}${result.stderr}`, /develop comparison unavailable/);
 }));
 
 test('local and review evidence need exact current heads and existing nonempty pointers', () => {
@@ -260,7 +323,7 @@ test('production check-run reruns, pagination, and effective modern rules are ac
 });
 
 test('draft, conflicting, unapproved, unavailable API, and unprotected PRs block', () => {
-  for (const scenario of ['draft', 'conflict', 'review-needed', 'gh-error', 'protection-404', 'classic-review-required', 'modern-review-required']) {
+  for (const scenario of ['draft', 'conflict', 'review-needed', 'gh-error', 'classic-review-required', 'modern-review-required']) {
     withFixture({ scenario }, (fixture) => {
       const result = runGate(fixture, ['--execute']);
       assert.notStrictEqual(result.status, 0, scenario);
