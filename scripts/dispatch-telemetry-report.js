@@ -22,6 +22,33 @@
 //   * --since is inclusive; a datetime --until is inclusive of that instant.
 //   * A dispatch is placed by the timestamp of its first transcript entry; an
 //     `Agent` call is placed by the timestamp of its tool_use entry.
+//   * --since later than or equal to the end of --until is a usage error (exit 64).
+//   * With --since set, transcript files whose mtime is older than --since are
+//     not opened: a file cannot contain entries newer than its last write.
+//
+// Skipped accounting (never silent): missingRoot, corruptJson (bad meta or JSONL
+// line), missingTranscript (meta without its jsonl), noAssistantTurn (transcript
+// with no assistant turn), missingParent (subagents without a parent session
+// jsonl), unreadable (any non-ENOENT read/readdir error), undated (entry or
+// Agent call without a usable timestamp while a window is set).
+//
+// Mismatch rules: a declared model matches when the actual id equals it or
+// contains it as a whole `-`/`:`/`.`/`_`/`@`-separated token (declared `opus`
+// matches `claude-opus-5-5`, not `claude-opusplus-1`). The effort comparison is
+// skipped when the actual effort is null (the log did not record one), so an
+// unrecorded effort is never a mismatch. Built-ins without frontmatter count as
+// "no declared tier".
+//
+// Trigger source: the most recent `Skill` tool_use, or a user record written by
+// the harness for a slash command, before the Agent call. A command record
+// counts only when its message content is a plain string that starts with
+// `<command-message>` or `<command-name>` (the harness's own invocation format)
+// and is not marked isMeta; `<command-name>` text embedded later in an ordinary
+// prompt or in tool results is ignored. A meta without a toolUseId, or whose
+// parent call is not found, has trigger `unknown`.
+//
+// Names taken from logs (agentType, model, effort, skill, command) must match
+// ^[A-Za-z0-9:_./@-]{1,80}$; anything else is reported as `other`.
 //
 // The report never prints prompt text, descriptions, or file contents: only
 // agent types, model ids, efforts, skill/command names, counts and tokens.
@@ -29,6 +56,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { StringDecoder } = require('node:string_decoder');
 
 // Single declared price table, USD per million tokens (input/output only; cache
 // token classes are reported in usage but excluded from the estimate). Models
@@ -59,6 +87,15 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const LOCAL_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/;
 const ABSOLUTE_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
 
+const SAFE_NAME = /^[A-Za-z0-9:_./@-]{1,80}$/;
+const CHUNK_BYTES = 64 * 1024;
+
+class UsageError extends Error {}
+
+function safeName(value) {
+  return typeof value === 'string' && SAFE_NAME.test(value) ? value : 'other';
+}
+
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -69,16 +106,16 @@ function parseBound(value, kind) {
   if (DATE_ONLY.test(text)) {
     const [y, m, d] = text.split('-').map(Number);
     const day = new Date(y, m - 1, d);
-    if (Number.isNaN(day.getTime()) || day.getMonth() !== m - 1) throw new Error(`invalid --${kind} value "${text}"`);
+    if (Number.isNaN(day.getTime()) || day.getMonth() !== m - 1) throw new UsageError(`invalid --${kind} value "${text}"`);
     if (kind === 'since') return day.getTime();
     return new Date(y, m - 1, d + 1).getTime(); // exclusive end: next local midnight
   }
   if (LOCAL_DATETIME.test(text) || ABSOLUTE_DATETIME.test(text)) {
     const ms = new Date(text).getTime();
-    if (Number.isNaN(ms)) throw new Error(`invalid --${kind} value "${text}"`);
+    if (Number.isNaN(ms)) throw new UsageError(`invalid --${kind} value "${text}"`);
     return kind === 'since' ? ms : ms + 1; // inclusive instant
   }
-  throw new Error(`invalid --${kind} value "${text}": use YYYY-MM-DD, local YYYY-MM-DDTHH:mm[:ss], or an ISO time with Z/offset`);
+  throw new UsageError(`invalid --${kind} value "${text}": use YYYY-MM-DD, local YYYY-MM-DDTHH:mm[:ss], or an ISO time with Z/offset`);
 }
 
 function readFrontmatter(file) {
@@ -125,30 +162,57 @@ function declaredFor(tiers, agentType) {
 }
 
 function modelMatches(declared, actual) {
-  const d = declared.toLowerCase();
+  const d = String(declared).toLowerCase();
   const a = String(actual).toLowerCase();
-  return a === d || a.includes(d);
+  if (a === d) return true;
+  return a.split(/[-:._@/]/).includes(d);
 }
 
-// Streaming writes the same message more than once; the last copy is final.
-function readJsonl(file, skipped) {
-  let text;
+// Reads a file in fixed-size chunks and calls onLine for every non-empty line,
+// so a large transcript is never held in memory. Returns null on success or the
+// fs error code (ENOENT, EACCES, ...) when the file could not be read.
+function forEachLine(file, onLine) {
+  let fd;
   try {
-    text = fs.readFileSync(file, 'utf8');
-  } catch {
-    return null;
+    fd = fs.openSync(file, 'r');
+  } catch (error) {
+    return (error && error.code) || 'EUNKNOWN';
   }
-  const records = [];
-  for (const line of text.split('\n')) {
-    if (line.trim() === '') continue;
-    try {
-      const parsed = JSON.parse(line);
-      if (isRecord(parsed)) records.push(parsed);
-    } catch {
-      skipped.corruptJson += 1;
+  try {
+    const buffer = Buffer.allocUnsafe(CHUNK_BYTES);
+    const decoder = new StringDecoder('utf8');
+    let pending = '';
+    for (;;) {
+      const bytes = fs.readSync(fd, buffer, 0, CHUNK_BYTES, null);
+      if (bytes === 0) break;
+      pending += decoder.write(buffer.subarray(0, bytes));
+      let newline = pending.indexOf('\n');
+      while (newline !== -1) {
+        const line = pending.slice(0, newline);
+        pending = pending.slice(newline + 1);
+        if (line.trim() !== '') onLine(line);
+        newline = pending.indexOf('\n');
+      }
     }
+    pending += decoder.end();
+    if (pending.trim() !== '') onLine(pending);
+    return null;
+  } catch (error) {
+    return (error && error.code) || 'EUNKNOWN';
+  } finally {
+    fs.closeSync(fd);
   }
-  return records;
+}
+
+function parseLine(line, skipped) {
+  try {
+    const parsed = JSON.parse(line);
+    if (isRecord(parsed)) return parsed;
+  } catch {
+    // fall through to the counted skip
+  }
+  skipped.corruptJson += 1;
+  return null;
 }
 
 function toolUses(record) {
@@ -157,43 +221,42 @@ function toolUses(record) {
   return content.filter((c) => isRecord(c) && c.type === 'tool_use');
 }
 
+// Only the harness's own slash-command record qualifies: plain-string content
+// that starts with <command-message> or <command-name>, not isMeta.
 function commandNameOf(record) {
-  if (record.type !== 'user' || !record.message) return null;
+  if (record.type !== 'user' || record.isMeta === true || !isRecord(record.message)) return null;
   const content = record.message.content;
-  const texts = typeof content === 'string'
-    ? [content]
-    : (Array.isArray(content) ? content.filter((c) => isRecord(c) && c.type === 'text').map((c) => c.text) : []);
-  for (const text of texts) {
-    const match = /<command-name>\s*([^<\s]+)\s*<\/command-name>/.exec(String(text));
-    if (match) return match[1];
-  }
-  return null;
+  if (typeof content !== 'string') return null;
+  if (!/^\s*<command-(?:message|name)>/.test(content)) return null;
+  const match = /<command-name>\s*([^<\s]+)\s*<\/command-name>/.exec(content);
+  return match ? match[1] : null;
 }
 
-// Parent transcript: every Agent call, plus the skill/command started most
-// recently before it (file order), keyed by tool_use id.
-function indexParent(records) {
+function scanParent(file, skipped) {
   const calls = new Map();
   let trigger = 'unknown';
-  for (const record of records) {
+  const error = forEachLine(file, (line) => {
+    const record = parseLine(line, skipped);
+    if (!record) return;
     const command = commandNameOf(record);
-    if (command) trigger = `command:${command.startsWith('/') ? command : `/${command}`}`;
+    if (command) {
+      const bare = command.startsWith('/') ? command.slice(1) : command;
+      trigger = `command:/${safeName(bare)}`;
+    }
     for (const use of toolUses(record)) {
       if (use.name === 'Skill' && isRecord(use.input) && typeof use.input.skill === 'string') {
-        trigger = `skill:${use.input.skill}`;
-      } else if (use.name === 'Agent' && isRecord(use.input)) {
+        trigger = `skill:${safeName(use.input.skill)}`;
+      } else if (use.name === 'Agent' && isRecord(use.input) && typeof use.id === 'string') {
         calls.set(use.id, {
-          id: use.id,
           ts: Date.parse(record.timestamp),
-          subagentType: use.input.subagent_type,
-          model: typeof use.input.model === 'string' && use.input.model ? use.input.model : null,
-          effort: typeof use.input.effort === 'string' && use.input.effort ? use.input.effort : null,
+          model: typeof use.input.model === 'string' && use.input.model ? safeName(use.input.model) : null,
+          effort: typeof use.input.effort === 'string' && use.input.effort ? safeName(use.input.effort) : null,
           trigger,
         });
       }
     }
-  }
-  return calls;
+  });
+  return { calls, error };
 }
 
 function priceUsage(model, turns) {
@@ -208,40 +271,39 @@ function priceUsage(model, turns) {
   return usd;
 }
 
-function summariseTranscript(records) {
+// Streaming writes the same message more than once; the last copy is final.
+function scanSubagent(file, skipped) {
   const byMessage = new Map();
-  const order = [];
-  let firstTs = null;
   const tools = new Set();
-  for (const record of records) {
+  let firstTs = null;
+  let sequence = 0;
+  const error = forEachLine(file, (line) => {
+    const record = parseLine(line, skipped);
+    if (!record) return;
     const ts = Date.parse(record.timestamp);
     if (!Number.isNaN(ts) && (firstTs === null || ts < firstTs)) firstTs = ts;
-    if (record.type !== 'assistant' || !isRecord(record.message)) continue;
-    for (const use of toolUses(record)) tools.add(use.name);
-    const key = record.message.id || `${order.length}`;
-    if (!byMessage.has(key)) order.push(key);
-    byMessage.set(key, record);
-  }
-  const turns = [];
-  let model = null;
-  let effort = null;
-  for (const key of order) {
-    const record = byMessage.get(key);
+    if (record.type !== 'assistant' || !isRecord(record.message)) return;
+    for (const use of toolUses(record)) if (typeof use.name === 'string') tools.add(use.name);
     const usage = isRecord(record.message.usage) ? record.message.usage : {};
     const input = Number(usage.input_tokens) || 0;
     const cacheRead = Number(usage.cache_read_input_tokens) || 0;
     const cacheCreate = Number(usage.cache_creation_input_tokens) || 0;
-    turns.push({
+    const key = typeof record.message.id === 'string' ? record.message.id : `#${sequence}`;
+    sequence += 1;
+    byMessage.set(key, {
+      model: typeof record.message.model === 'string' ? record.message.model : null,
+      effort: typeof record.effort === 'string' && record.effort ? record.effort : null,
       input,
       output: Number(usage.output_tokens) || 0,
       cacheRead,
       cacheCreate,
       promptTokens: input + cacheRead + cacheCreate,
     });
-    if (model === null && typeof record.message.model === 'string') model = record.message.model;
-    if (effort === null && typeof record.effort === 'string' && record.effort) effort = record.effort;
-  }
-  return { firstTs, tools, turns, model, effort };
+  });
+  const turns = [...byMessage.values()];
+  const model = (turns.find((t) => t.model !== null) || {}).model || null;
+  const effort = (turns.find((t) => t.effort !== null) || {}).effort || null;
+  return { error, firstTs, tools, turns, model, effort };
 }
 
 function bucketOf(tools) {
@@ -250,25 +312,39 @@ function bucketOf(tools) {
   return 'readOnly';
 }
 
-function listDirs(dir) {
-  try {
-    return fs.readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
-  } catch {
-    return [];
-  }
-}
-
 function buildReport(options = {}) {
   const root = options.root || path.join(os.homedir(), '.claude', 'projects');
   const agentsDir = options.agentsDir || path.join(__dirname, '..', 'agents');
   const since = parseBound(options.since, 'since');
   const until = parseBound(options.until, 'until');
+  if (since !== null && until !== null && since >= until) {
+    throw new UsageError(`--since "${options.since}" is later than --until "${options.until}"`);
+  }
+  const windowed = since !== null || until !== null;
   const inWindow = (ms) => {
-    if (since === null && until === null) return true;
+    if (!windowed) return true;
     if (ms === null || ms === undefined || Number.isNaN(ms)) return false;
     return (since === null || ms >= since) && (until === null || ms < until);
   };
-  const skipped = { missingRoot: 0, corruptJson: 0, missingTranscript: 0, undated: 0, total: 0 };
+  // A file last written before --since cannot hold an entry at or after it.
+  const staleFile = (file) => {
+    if (since === null) return false;
+    try {
+      return fs.statSync(file).mtimeMs < since;
+    } catch {
+      return false;
+    }
+  };
+  const skipped = {
+    missingRoot: 0,
+    corruptJson: 0,
+    missingTranscript: 0,
+    noAssistantTurn: 0,
+    missingParent: 0,
+    unreadable: 0,
+    undated: 0,
+    total: 0,
+  };
   const groups = new Map();
   const mismatches = [];
   const callOverrides = { total: 0, withModel: 0, withEffort: 0 };
@@ -282,22 +358,61 @@ function buildReport(options = {}) {
   let noDeclaredTier = 0;
   const tiers = loadDeclaredTiers(agentsDir);
 
-  if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
-    skipped.missingRoot = 1;
-  } else {
+  const readDir = (dir) => {
+    try {
+      return fs.readdirSync(dir, { withFileTypes: true });
+    } catch (error) {
+      return { error: error && error.code };
+    }
+  };
+
+  let rootStat = null;
+  try {
+    rootStat = fs.statSync(root);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') skipped.missingRoot = 1;
+    else skipped.unreadable += 1;
+  }
+  if (rootStat && !rootStat.isDirectory()) {
+    rootStat = null;
+    skipped.unreadable += 1;
+  }
+
+  if (rootStat) {
     const filter = options.project ? String(options.project) : '';
-    for (const project of listDirs(root).filter((p) => filter === '' || p.includes(filter))) {
+    const rootEntries = readDir(root);
+    if (!Array.isArray(rootEntries)) skipped.unreadable += 1;
+    const projects = (Array.isArray(rootEntries) ? rootEntries : [])
+      .filter((e) => e.isDirectory() && (filter === '' || e.name.includes(filter)))
+      .map((e) => e.name)
+      .sort();
+    for (const project of projects) {
       const projectDir = path.join(root, project);
+      const entries = readDir(projectDir);
+      if (!Array.isArray(entries)) {
+        skipped.unreadable += 1;
+        continue;
+      }
       const sessions = new Set();
-      for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
+      for (const entry of entries) {
         if (entry.isFile() && entry.name.endsWith('.jsonl')) sessions.add(entry.name.slice(0, -'.jsonl'.length));
         if (entry.isDirectory()) sessions.add(entry.name);
       }
       for (const session of [...sessions].sort()) {
         const parentFile = path.join(projectDir, `${session}.jsonl`);
-        const parentRecords = fs.existsSync(parentFile) ? readJsonl(parentFile, skipped) : null;
-        const calls = parentRecords ? indexParent(parentRecords) : new Map();
+        let calls = new Map();
+        let parentMissing = false;
+        if (!staleFile(parentFile)) {
+          const parsed = scanParent(parentFile, skipped);
+          if (parsed.error === 'ENOENT') parentMissing = true;
+          else if (parsed.error) skipped.unreadable += 1;
+          calls = parsed.calls;
+        }
         for (const call of calls.values()) {
+          if (windowed && Number.isNaN(call.ts)) {
+            skipped.undated += 1;
+            continue;
+          }
           if (!inWindow(call.ts)) continue;
           callOverrides.total += 1;
           if (call.model) callOverrides.withModel += 1;
@@ -305,45 +420,56 @@ function buildReport(options = {}) {
         }
 
         const subDir = path.join(projectDir, session, 'subagents');
-        let files = [];
-        try {
-          files = fs.readdirSync(subDir).filter((n) => n.endsWith('.meta.json')).sort();
-        } catch {
+        const subEntries = readDir(subDir);
+        if (!Array.isArray(subEntries)) {
+          if (subEntries.error !== 'ENOENT' && subEntries.error !== 'ENOTDIR') skipped.unreadable += 1;
           continue;
         }
+        const files = subEntries.filter((e) => e.name.endsWith('.meta.json')).map((e) => e.name).sort();
+        if (parentMissing && files.length > 0) skipped.missingParent += 1;
         for (const metaName of files) {
-          const agentId = metaName.slice('agent-'.length, -'.meta.json'.length);
+          const agentId = safeName(metaName.slice('agent-'.length, -'.meta.json'.length));
           let meta;
           try {
             meta = JSON.parse(fs.readFileSync(path.join(subDir, metaName), 'utf8'));
-            if (!isRecord(meta) || typeof meta.agentType !== 'string') throw new Error('invalid meta');
-          } catch {
-            skipped.corruptJson += 1;
+            if (!isRecord(meta) || typeof meta.agentType !== 'string') throw new SyntaxError('invalid meta');
+          } catch (error) {
+            if (error instanceof SyntaxError) skipped.corruptJson += 1;
+            else skipped.unreadable += 1;
             continue;
           }
-          const records = readJsonl(path.join(subDir, metaName.replace(/\.meta\.json$/, '.jsonl')), skipped);
-          if (records === null) {
+          const transcript = path.join(subDir, metaName.replace(/\.meta\.json$/, '.jsonl'));
+          if (staleFile(transcript)) continue;
+          const summary = scanSubagent(transcript, skipped);
+          if (summary.error === 'ENOENT') {
             skipped.missingTranscript += 1;
             continue;
           }
-          const summary = summariseTranscript(records);
+          if (summary.error) {
+            skipped.unreadable += 1;
+            continue;
+          }
           if (!inWindow(summary.firstTs)) {
-            if (summary.firstTs === null && (since !== null || until !== null)) skipped.undated += 1;
+            if (windowed && summary.firstTs === null) skipped.undated += 1;
             continue;
           }
           if (summary.model === null) {
-            skipped.missingTranscript += 1; // no assistant turn: actual model cannot be determined
+            skipped.noAssistantTurn += 1;
             continue;
           }
-          const call = calls.get(meta.toolUseId) || null;
-          const callModel = (typeof meta.model === 'string' && meta.model) || (call && call.model) || null;
+          const agentType = safeName(meta.agentType);
+          const model = safeName(summary.model);
+          const effort = summary.effort === null ? null : safeName(summary.effort);
+          const call = (typeof meta.toolUseId === 'string' && calls.get(meta.toolUseId)) || null;
+          const callModel = (typeof meta.model === 'string' && meta.model ? safeName(meta.model) : null)
+            || (call && call.model) || null;
           const callEffort = (call && call.effort) || null;
-          const key = `${meta.agentType}\u0000${summary.model}\u0000${summary.effort}`;
+          const key = `${agentType}\u0000${model}\u0000${effort}`;
           if (!groups.has(key)) {
             groups.set(key, {
-              agentType: meta.agentType,
-              model: summary.model,
-              effort: summary.effort,
+              agentType,
+              model,
+              effort,
               count: 0,
               usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
               turns: [],
@@ -359,42 +485,43 @@ function buildReport(options = {}) {
             group.turns.push(turn);
           }
 
-          const declared = declaredFor(tiers, meta.agentType);
+          const declared = declaredFor(tiers, agentType);
           if (!declared) {
             noDeclaredTier += 1;
           } else {
             const fields = [];
-            if (declared.model && !modelMatches(declared.model, summary.model)) fields.push('model');
-            if (declared.effort && summary.effort && declared.effort !== summary.effort) fields.push('effort');
+            if (declared.model && !modelMatches(declared.model, model)) fields.push('model');
+            if (declared.effort && effort && declared.effort !== effort) fields.push('effort');
             if (fields.length > 0) {
               mismatches.push({
-                agentType: meta.agentType,
+                agentType,
                 agentId,
                 fields,
                 declaredModel: declared.model,
                 declaredEffort: declared.effort,
-                actualModel: summary.model,
-                actualEffort: summary.effort,
+                actualModel: model,
+                actualEffort: effort,
                 callModel,
                 callEffort,
               });
             }
           }
 
-          if (meta.agentType === 'general-purpose') {
+          if (agentType === 'general-purpose') {
             const bucket = bucketOf(summary.tools);
             gp.total += 1;
             gp.buckets[bucket] += 1;
-            gp.byModel[summary.model] = (gp.byModel[summary.model] || 0) + 1;
+            gp.byModel[model] = (gp.byModel[model] || 0) + 1;
             const trigger = call ? call.trigger : 'unknown';
             gp.byTrigger[trigger] = (gp.byTrigger[trigger] || 0) + 1;
-            if (bucket === 'edits' && /haiku/i.test(summary.model)) gp.haikuEdits += 1;
+            if (bucket === 'edits' && /haiku/i.test(model)) gp.haikuEdits += 1;
           }
         }
       }
     }
   }
-  skipped.total = skipped.missingRoot + skipped.corruptJson + skipped.missingTranscript + skipped.undated;
+  skipped.total = skipped.missingRoot + skipped.corruptJson + skipped.missingTranscript
+    + skipped.noAssistantTurn + skipped.missingParent + skipped.unreadable + skipped.undated;
 
   const byAgent = [...groups.values()]
     .map(({ turns, ...group }) => {
@@ -450,7 +577,7 @@ function formatText(report) {
   lines.push(`  triggers: ${Object.entries(g.byTrigger).map(([k, v]) => `${k} x${v}`).join(', ') || '-'}`);
   lines.push('');
   const s = report.skipped;
-  lines.push(`skipped: ${s.total} (missing root ${s.missingRoot}, corrupt JSON ${s.corruptJson}, missing transcript ${s.missingTranscript}, undated ${s.undated})`);
+  lines.push(`skipped: ${s.total} (missing root ${s.missingRoot}, corrupt JSON ${s.corruptJson}, missing transcript ${s.missingTranscript}, no assistant turn ${s.noAssistantTurn}, missing parent ${s.missingParent}, unreadable ${s.unreadable}, undated ${s.undated})`);
   return `${lines.join('\n')}\n`;
 }
 
@@ -462,11 +589,11 @@ function parseArgs(argv) {
     if (arg === '--json') {
       options.json = true;
     } else if (Object.prototype.hasOwnProperty.call(valued, arg)) {
-      if (i + 1 >= argv.length) throw new Error(`${arg} requires a value`);
+      if (i + 1 >= argv.length) throw new UsageError(`${arg} requires a value`);
       options[valued[arg]] = argv[i + 1];
       i += 1;
     } else {
-      throw new Error(`unknown argument "${arg}"`);
+      throw new UsageError(`unknown argument "${arg}"`);
     }
   }
   return options;
@@ -482,12 +609,14 @@ function main(argv = process.argv.slice(2), io = {}) {
     report = buildReport(options);
   } catch (error) {
     stderr.write(`dispatch-telemetry-report: ${error.message}\n`);
-    return 2;
+    return error instanceof UsageError ? 64 : 1;
   }
   stdout.write(options.json ? `${JSON.stringify(report, null, 2)}\n` : formatText(report));
   return 0;
 }
 
-module.exports = Object.freeze({ PRICE_TABLE, buildReport, formatText, main, parseArgs, parseBound });
+module.exports = Object.freeze({
+  PRICE_TABLE, UsageError, buildReport, formatText, main, modelMatches, parseArgs, parseBound,
+});
 
 if (require.main === module) process.exitCode = main();

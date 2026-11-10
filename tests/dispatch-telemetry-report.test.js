@@ -11,7 +11,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'dispatch-telemetry-report.js');
-const { buildReport, PRICE_TABLE } = require(SCRIPT);
+const { buildReport, modelMatches, PRICE_TABLE } = require(SCRIPT);
 
 const PROMPT_SENTINEL = 'SENTINEL-PROMPT-BODY-DO-NOT-LEAK';
 const DESCRIPTION_SENTINEL = 'SENTINEL-DESCRIPTION-DO-NOT-LEAK';
@@ -50,7 +50,7 @@ function makeAgentsDir() {
 
 // One session with the given dispatches. Each dispatch:
 // { id, agentType, isBuiltIn, callModel, callEffort, records, trigger, toolUseId }
-function makeSession(root, { project = '-fake-project-a', session = 'session-0001', dispatches = [], parentExtra = [] }) {
+function makeSession(root, { project = '-fake-project-a', session = 'session-0001', dispatches = [], parentExtra = [], skipParent = false }) {
   const parent = [];
   for (const d of dispatches) {
     if (d.trigger) parent.push(d.trigger);
@@ -68,12 +68,12 @@ function makeSession(root, { project = '-fake-project-a', session = 'session-000
       agentType: d.agentType,
       isBuiltIn: Boolean(d.isBuiltIn),
       description: DESCRIPTION_SENTINEL,
-      toolUseId: `toolu-${d.id}`,
+      ...(d.noToolUseId ? {} : { toolUseId: `toolu-${d.id}` }),
       ...(d.callModel ? { model: d.callModel } : {}),
     }));
     if (!d.noTranscript) writeJsonl(path.join(subDir, `agent-${d.id}.jsonl`), d.records);
   }
-  writeJsonl(path.join(root, project, `${session}.jsonl`), [...parent, ...parentExtra]);
+  if (!skipParent) writeJsonl(path.join(root, project, `${session}.jsonl`), [...parent, ...parentExtra]);
 }
 
 function cli(args, env = {}) {
@@ -342,10 +342,191 @@ test('--json output is valid JSON with the documented shape and never leaks prom
   assert.match(text.stdout, /claude-opus-5-5@low/);
 });
 
-test('invalid CLI arguments exit 2 with a descriptive message', () => {
+test('invalid CLI arguments exit 64 with a descriptive message', () => {
   const r = cli(['--since', 'garbage']);
-  assert.strictEqual(r.status, 2);
+  assert.strictEqual(r.status, 64);
   assert.match(r.stderr, /since/);
+});
+
+test('streaming reader: lines larger than a read chunk with multibyte text are parsed intact', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  const big = assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-fable-5-1', effort: 'low' });
+  big.padding = '漢字🙂'.repeat(60000); // ~600 KB on one line, crosses many 64 KB chunks
+  makeSession(root, { dispatches: [{ id: 'big1', agentType: 'architect', records: [big] }] });
+  const report = buildReport({ root, agentsDir });
+  assert.strictEqual(findAgent(report, 'architect', 'claude-fable-5-1', 'low').count, 1);
+  assert.strictEqual(report.skipped.total, 0);
+});
+
+test('files whose mtime is older than --since are not opened', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  makeSession(root, {
+    dispatches: [
+      { id: 'm1', agentType: 'architect', records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-fable-5-1', effort: 'low' })] },
+      { id: 'm2', agentType: 'architect', records: [assistant({ ts: '2026-11-05T02:00:00Z', model: 'claude-fable-5-1', effort: 'low' })] },
+    ],
+  });
+  const old = new Date('2020-01-01T00:00:00Z');
+  fs.utimesSync(path.join(root, '-fake-project-a', 'session-0001', 'subagents', 'agent-m2.jsonl'), old, old);
+  const report = buildReport({ root, agentsDir, since: '2026-11-01' });
+  assert.strictEqual(findAgent(report, 'architect', 'claude-fable-5-1', 'low').count, 1);
+  assert.strictEqual(report.skipped.total, 0, 'mtime pruning is not a skip');
+  assert.strictEqual(findAgent(buildReport({ root, agentsDir }), 'architect', 'claude-fable-5-1', 'low').count, 2);
+});
+
+test('skipped is never silent: missingParent, unreadable, undated Agent calls, noAssistantTurn split from missingTranscript', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  makeSession(root, {
+    session: 'session-noparent',
+    skipParent: true,
+    dispatches: [{ id: 'np1', agentType: 'architect', records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-fable-5-1', effort: 'low' })] }],
+  });
+  makeSession(root, {
+    session: 'session-empty',
+    dispatches: [
+      { id: 'na1', agentType: 'architect', records: [{ type: 'user', timestamp: '2026-11-05T01:00:00Z', message: { role: 'user', content: 'x' } }] },
+      { id: 'mt1', agentType: 'architect', noTranscript: true, records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-fable-5-1', effort: 'low' })] },
+    ],
+    parentExtra: [{
+      type: 'assistant',
+      timestamp: 'not-a-time',
+      message: { id: 'pm-bad', content: [{ type: 'tool_use', id: 'toolu-bad', name: 'Agent', input: { subagent_type: 'architect' } }] },
+    }],
+  });
+  const noWindow = buildReport({ root, agentsDir });
+  assert.strictEqual(noWindow.skipped.missingParent, 1);
+  assert.strictEqual(noWindow.skipped.noAssistantTurn, 1);
+  assert.strictEqual(noWindow.skipped.missingTranscript, 1);
+  assert.strictEqual(noWindow.skipped.undated, 0);
+  assert.strictEqual(noWindow.callOverrides.total, 3, 'without a window the undated call is still an Agent call');
+  const windowed = buildReport({ root, agentsDir, since: '2026-11-01' });
+  assert.strictEqual(windowed.skipped.undated, 1);
+  assert.strictEqual(windowed.callOverrides.total, 2);
+  assert.strictEqual(windowed.skipped.total,
+    windowed.skipped.missingParent + windowed.skipped.noAssistantTurn + windowed.skipped.missingTranscript + windowed.skipped.undated);
+  assert.match(cli(['--root', root, '--agents-dir', agentsDir]).stdout, /missing parent 1/);
+});
+
+test('unreadable directories are counted, not treated as empty', () => {
+  if (typeof process.getuid === 'function' && process.getuid() === 0) return; // root ignores chmod
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  makeSession(root, {
+    dispatches: [{ id: 'u1', agentType: 'architect', records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-fable-5-1', effort: 'low' })] }],
+  });
+  const subDir = path.join(root, '-fake-project-a', 'session-0001', 'subagents');
+  fs.chmodSync(subDir, 0o000);
+  try {
+    const report = buildReport({ root, agentsDir });
+    assert.strictEqual(report.skipped.unreadable, 1);
+    assert.strictEqual(report.skipped.total, 1);
+  } finally {
+    fs.chmodSync(subDir, 0o755);
+  }
+});
+
+test('names from logs are sanitized; trigger commands only come from harness invocation records', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  const userText = (ts, content, extra = {}) => ({ type: 'user', timestamp: ts, message: { role: 'user', content }, ...extra });
+  const skill = (ts, name) => ({
+    type: 'assistant',
+    timestamp: ts,
+    message: { id: `sk-${ts}`, content: [{ type: 'tool_use', id: `sk-${ts}`, name: 'Skill', input: { skill: name } }] },
+  });
+  makeSession(root, {
+    session: 's-real',
+    dispatches: [
+      { id: 'r1', agentType: 'general-purpose', trigger: userText('2026-11-05T00:50:00Z', '<command-message>real</command-message>\n<command-name>/real-cmd</command-name>'),
+        records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-sonnet-5-5', effort: 'medium' })] },
+    ],
+  });
+  makeSession(root, {
+    session: 's-pasted',
+    dispatches: [
+      { id: 'r2', agentType: 'general-purpose', trigger: userText('2026-11-05T00:50:00Z', `please look at this <command-name>/pasted</command-name> ${PROMPT_SENTINEL}`),
+        records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-sonnet-5-5', effort: 'medium' })] },
+    ],
+  });
+  makeSession(root, {
+    session: 's-meta',
+    dispatches: [
+      { id: 'r3', agentType: 'general-purpose', trigger: userText('2026-11-05T00:50:00Z', '<command-name>/metaonly</command-name>', { isMeta: true }),
+        records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-sonnet-5-5', effort: 'medium' })] },
+    ],
+  });
+  makeSession(root, {
+    session: 's-badskill',
+    dispatches: [
+      { id: 'r4', agentType: 'general-purpose', trigger: skill('2026-11-05T00:50:00Z', 'bad skill name with spaces'),
+        records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-sonnet-5-5', effort: 'medium' })] },
+    ],
+  });
+  makeSession(root, {
+    session: 's-badnames',
+    dispatches: [
+      { id: 'r5', agentType: 'evil agent\nname', records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'model with space', effort: 'x'.repeat(200) })] },
+    ],
+  });
+  const report = buildReport({ root, agentsDir });
+  const triggers = report.generalPurpose.byTrigger;
+  assert.strictEqual(triggers['command:/real-cmd'], 1);
+  assert.strictEqual(triggers['skill:other'], 1);
+  assert.strictEqual(triggers.unknown, 2, 'pasted and isMeta command text are ignored');
+  assert.ok(!JSON.stringify(report).includes('pasted'));
+  assert.ok(!JSON.stringify(report).includes('metaonly'));
+  const entry = report.byAgent.find((e) => e.agentType === 'other');
+  assert.ok(entry, 'unsafe agentType bucketed as other');
+  assert.strictEqual(entry.model, 'other');
+  assert.strictEqual(entry.effort, 'other');
+  assert.strictEqual(entry.estimatedCost, 'unknown');
+  assert.ok(!JSON.stringify(report).includes('evil'));
+});
+
+test('a meta without toolUseId is counted and its trigger is unknown', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  makeSession(root, {
+    dispatches: [
+      { id: 'nt1', agentType: 'general-purpose', noToolUseId: true,
+        trigger: { type: 'assistant', timestamp: '2026-11-05T00:50:00Z', message: { id: 'sk', content: [{ type: 'tool_use', id: 'sk', name: 'Skill', input: { skill: 'fake-skill' } }] } },
+        records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-sonnet-5-5', effort: 'medium', tools: ['Read'] })] },
+    ],
+  });
+  const report = buildReport({ root, agentsDir });
+  assert.strictEqual(findAgent(report, 'general-purpose', 'claude-sonnet-5-5', 'medium').count, 1);
+  assert.strictEqual(report.generalPurpose.total, 1);
+  assert.deepStrictEqual(report.generalPurpose.byTrigger, { unknown: 1 });
+});
+
+test('--since later than --until is a usage error (exit 64)', () => {
+  const r = cli(['--since', '2026-11-05', '--until', '2026-11-04']);
+  assert.strictEqual(r.status, 64);
+  assert.match(r.stderr, /since/);
+  assert.strictEqual(cli(['--root', mkdtemp(), '--since', '2026-11-05', '--until', '2026-11-05']).status, 0);
+});
+
+test('modelMatches compares whole tokens of the alias family, not substrings', () => {
+  assert.strictEqual(modelMatches('opus', 'claude-opus-5-5'), true);
+  assert.strictEqual(modelMatches('opus', 'claude-opusplus-1'), false);
+  assert.strictEqual(modelMatches('opus', 'claude-fable-5-1'), false);
+  assert.strictEqual(modelMatches('claude-opus-5-5', 'claude-opus-5-5'), true);
+  assert.strictEqual(modelMatches('haiku', 'claude-3-haiku-20240307'), true);
+  assert.strictEqual(modelMatches('sonnet', 'claude-sonnet-5-5'), true);
+});
+
+test('effort mismatch is ignored when the actual effort is null', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  makeSession(root, {
+    dispatches: [{ id: 'ne1', agentType: 'architect', records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-fable-5-1', effort: undefined })] }],
+  });
+  const report = buildReport({ root, agentsDir });
+  assert.deepStrictEqual(report.mismatches, []);
+  assert.ok(findAgent(report, 'architect', 'claude-fable-5-1', null));
 });
 
 run('dispatch-telemetry-report');
