@@ -11,6 +11,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { SECRET_PATTERNS: SHARED_SECRET_PATTERNS } = require('./secret-patterns');
 const { extractMetadata } = require('../ci/_lib/frontmatter');
 const {
   serializePortableSkillMetadata,
@@ -78,13 +79,13 @@ const PLUGIN_NAME = /^(?=.{1,64}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/;
 const SUPPORTED_MCP_TRANSPORTS = new Set(['stdio', 'streamable-http', 'sse']);
 const SAFE_MCP_PLACEHOLDER = /^(?:\$\{PLUGIN_ROOT\}|\$\{PLUGIN_DATA\})(?:\/[^/\\]+)*$/;
 const SAFE_ENV_PLACEHOLDER = /^\$\{[A-Za-z_][A-Za-z0-9_]*\}$/;
-const MCP_SECRET_PATTERNS = [
+// The shared base (#1252) plus MCP-specific rules for connection settings:
+// authorization schemes and looser key=value assignments.
+const MCP_SECRET_PATTERNS = Object.freeze([
+  ...SHARED_SECRET_PATTERNS,
   /\b(?:bearer|basic)\s+[A-Za-z0-9._~+\/-]{8,}/i,
   /\b(?:api[_-]?key|token|secret|password|credential|authorization)\s*[:=]\s*["']?(?!\$\{)[^\s,"'}]{8,}/i,
-  /\b(?:https?|postgres(?:ql)?|mysql|mariadb|redis|mongodb(?:\+srv)?):\/\/[^\s/@:]+:[^\s/@]+@/i,
-  /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}\b/i,
-  /\bsk-[A-Za-z0-9_-]{20,}\b/i,
-];
+]);
 const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
 
 function safeRelative(value) {
@@ -1401,6 +1402,7 @@ function verifyAgentPluginPackage(input, maybeOptions = {}) {
 }
 
 module.exports = {
+  MCP_SECRET_PATTERNS,
   AGENT_PLUGIN_VERSION,
   AGENT_PLUGIN_SCHEMA,
   MCP_SCHEMA,
