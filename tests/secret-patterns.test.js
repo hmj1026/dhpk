@@ -43,9 +43,10 @@ test('the Cursor and Agent MCP scans extend the shared base with their own rules
   const { CURSOR_SECRET_PATTERNS } = require('../scripts/lib/cursor-plugin-package');
   const { MCP_SECRET_PATTERNS } = require('../scripts/lib/agent-plugin-package');
   for (const [label, list] of [['cursor', CURSOR_SECRET_PATTERNS], ['agent mcp', MCP_SECRET_PATTERNS]]) {
-    const sources = list.map((pattern) => pattern.source);
+    const rules = list.map((pattern) => `/${pattern.source}/${pattern.flags}`);
     for (const shared of SECRET_PATTERNS) {
-      assert.ok(sources.includes(shared.source), `${label} must include shared rule ${shared.source}`);
+      const rule = `/${shared.source}/${shared.flags}`;
+      assert.ok(rules.includes(rule), `${label} must include shared rule ${rule} with the same flags`);
     }
     assert.ok(list.length > SECRET_PATTERNS.length, `${label} keeps its MCP-specific rules`);
     // Formats the MCP lists used to miss before sharing the base.
