@@ -16,16 +16,45 @@ function physicalTempDir(prefix) {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
 }
 
-function copyRepositoryTree(destination) {
-  fs.cpSync(ROOT, destination, {
-    recursive: true,
-    dereference: false,
-    verbatimSymlinks: true,
-    filter(source) {
-      const relative = path.relative(ROOT, source);
-      return relative !== '.git' && !relative.startsWith(`.git${path.sep}`) && !relative.startsWith('.dhpk-');
-    },
+function listRepositoryFiles() {
+  const listed = spawnSync('git', ['-C', ROOT, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
   });
+  if (listed.status !== 0) throw new Error(`git ls-files failed: ${listed.stderr || listed.error}`);
+  return listed.stdout.split('\0').filter(Boolean);
+}
+
+// Copies a fixed file list rather than walking the live root: other test files
+// running in parallel create and delete repo-root scratch dirs
+// (`.agents-skills-*`), and a tree walk that lists one then lstat()s it after
+// deletion fails with ENOENT (#1284). An entry that vanishes between listing
+// and copying is such a scratch path, so it is skipped.
+function copyRepositoryTree(destination, { listFiles = listRepositoryFiles } = {}) {
+  for (const relative of listFiles()) {
+    if (relative.startsWith('.dhpk-')) continue;
+    const source = path.join(ROOT, relative);
+    const target = path.join(destination, relative);
+    let stat;
+    try {
+      stat = fs.lstatSync(source);
+    } catch (error) {
+      if (error.code === 'ENOENT') continue;
+      throw error;
+    }
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    try {
+      if (stat.isSymbolicLink()) {
+        fs.symlinkSync(fs.readlinkSync(source), target);
+      } else {
+        fs.copyFileSync(source, target);
+        fs.chmodSync(target, stat.mode & 0o7777);
+      }
+    } catch (error) {
+      if (error.code === 'ENOENT' && !fs.existsSync(source)) continue;
+      throw error;
+    }
+  }
 }
 
 function mkBinStub(dir, name, body) {
@@ -216,6 +245,21 @@ test('blocks unauthorized reuse when the selected Host version changes', () => {
     assert.strictEqual(nativeCalls(fixture.log).length, 1, 'a mismatch must not start an unauthorized replacement probe');
   } finally {
     fs.rmSync(fixture.directory, { recursive: true, force: true });
+  }
+});
+
+test('copyRepositoryTree copies a fixed file list and skips entries that vanished before copying', () => {
+  const destination = physicalTempDir('dhpk-consumer-reuse-copy-');
+  try {
+    copyRepositoryTree(destination, {
+      listFiles: () => ['package.json', 'scripts/hooks/install-codex-skills.sh', '.agents-skills-validate-gone/x', '.dhpk-local/state.json'],
+    });
+    assert.deepStrictEqual(fs.readdirSync(destination).sort(), ['package.json', 'scripts']);
+    assert.strictEqual(fs.readFileSync(path.join(destination, 'package.json'), 'utf8'), fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+    const hook = path.join(destination, 'scripts', 'hooks', 'install-codex-skills.sh');
+    assert.strictEqual(fs.statSync(hook).mode & 0o777, fs.statSync(path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh')).mode & 0o777, 'file modes must survive the copy');
+  } finally {
+    fs.rmSync(destination, { recursive: true, force: true });
   }
 });
 
