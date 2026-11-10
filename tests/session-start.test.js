@@ -1,8 +1,8 @@
 'use strict';
 
-// SessionStart has one deterministic responsibility: activate configured
-// modules. It must not create lifecycle artifacts or run health/orchestration
-// diagnostics.
+// SessionStart activates configured modules and prints a fixed, short dispatch
+// delta (#1297). It must not create lifecycle artifacts or run health or
+// orchestration diagnostics.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -12,6 +12,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const HOOK = path.join(ROOT, 'scripts', 'hooks', 'session-start.sh');
+const DELTA_PREFIX = '[dhpk dispatch] ';
 
 function runInScratch(modules) {
   const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ss-')));
@@ -42,13 +43,48 @@ test('bash -n syntax check passes', () => {
   assert.strictEqual(res.status, 0, `syntax error: ${res.stderr}`);
 });
 
-test('no configured modules is a silent no-op with no lifecycle artifacts', () => {
+test('no configured modules prints only the dispatch delta and creates no lifecycle artifacts', () => {
   const { scratch, res } = runInScratch('');
   try {
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.strictEqual(res.stdout, '', `unexpected SessionStart output: ${res.stdout}`);
+    const lines = res.stdout.split(/\r?\n/).filter(Boolean);
+    assert.ok(lines.length > 0 && lines.every((line) => line.startsWith(DELTA_PREFIX)),
+      `unexpected SessionStart output: ${res.stdout}`);
     assert.ok(!fs.existsSync(path.join(scratch, '.claude', 'artifacts')),
       'module activation must not create session snapshots or lifecycle artifacts');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('dispatch delta is 4-6 lines, points at the model-economics SSOT, and carries the dispatch rules', () => {
+  const { scratch, res } = runInScratch('');
+  try {
+    const delta = res.stdout.split(/\r?\n/).filter((line) => line.startsWith(DELTA_PREFIX));
+    assert.ok(delta.length >= 4 && delta.length <= 6, `delta has ${delta.length} lines`);
+    const text = delta.join('\n');
+    assert.ok(text.includes('rules/model-economics.md'), 'missing SSOT pointer');
+    assert.ok(text.includes('Explore') && text.includes('model: "haiku"') && text.includes('effort: "low"'), text);
+    assert.ok(/never haiku for file edits/.test(text), text);
+    for (const role of ['code-reviewer', 'fast-worker', 'docs-writer', 'qa-executor']) {
+      assert.ok(text.includes(role), `missing ${role}`);
+    }
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('delta is emitted with modules configured too, and the hook finishes inside its hooks.json timeout', () => {
+  const budgetMs = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks', 'hooks.json'), 'utf8'))
+    .hooks.SessionStart[0].hooks[0].timeout * 1000;
+  const started = Date.now();
+  const { scratch, res } = runInScratch('php-5.6');
+  const elapsed = Date.now() - started;
+  try {
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.match(res.stdout, /module enabled: php-5\.6/);
+    assert.strictEqual(res.stdout.split(/\r?\n/).filter((line) => line.startsWith(DELTA_PREFIX)).length >= 4, true);
+    assert.ok(elapsed < budgetMs, `hook took ${elapsed}ms, budget ${budgetMs}ms`);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

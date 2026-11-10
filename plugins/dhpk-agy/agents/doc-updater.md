@@ -6,7 +6,7 @@ description: >-
   documentation with evidence. Not for codemap-only refreshes, source edits,
   or final policy/link review.
 tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir"]
-model: flash_lite
+model: pro
 ---
 
 # Documentation Updater

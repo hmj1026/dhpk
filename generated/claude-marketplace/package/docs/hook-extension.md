@@ -13,12 +13,14 @@ them; optional events are not registered by default and are not silently active.
 |---|---|---|
 | `PreToolUse(Edit\|Write\|MultiEdit)` | `pre-edit-guard.sh` | protected-path and secret safety |
 | `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety plus Git branch-safety gates |
-| `SessionStart` | `session-start.sh` | validate and activate configured modules |
+| `SessionStart` | `session-start.sh` | validate and activate configured modules; print a fixed dispatch delta (at most 6 lines) |
 | `SubagentStop` | `subagent-stop-verify.sh` | clean up stopped fast-worker liveness state; append each subagent's model (last transcript assistant model) and effort (hook-input value, may be session-level) to `.claude/artifacts/sessions/subagent-dispatch.jsonl` with no output |
 
-`session-start.sh` activates modules only; it does not create snapshots, probe
-Docker, inspect install health, inject prompt hints, or emit orchestration
-advice.
+`session-start.sh` activates modules and prints one fixed dispatch delta: at
+most 6 static lines that state only the rules that differ from the defaults and
+link to `rules/model-economics.md`, without restating its tier table. It does not
+create snapshots, probe Docker, inspect install health, or emit any other
+orchestration advice.
 
 ## Credential read protection
 
