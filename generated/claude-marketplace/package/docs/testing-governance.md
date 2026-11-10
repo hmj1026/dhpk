@@ -126,6 +126,10 @@ starting point when local resources allow, and the runner default remains
 DHPK_TEST_JOBS=2 DHPK_TEST_PROGRESS=1 npm test
 ```
 
+To reproduce a release SOURCE gate result, run `npm run test:gate` instead:
+it applies the gate's own worker pool and platform adapter, so a local run
+and the gate share one policy.
+
 Runner owner fixtures exercise progress with both `DHPK_TEST_JOBS=1` and `2`
 in [verify-test-shards.test.js](../tests/verify-test-shards.test.js); do not
 repeat the full local suite solely to observe progress in both modes.

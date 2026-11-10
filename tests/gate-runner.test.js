@@ -50,6 +50,42 @@ test('every step runs even after an earlier one fails (full evidence, not fail-f
   }
 });
 
+test('a failing step keeps its full output as an artifact and cites it in the failure reason', () => {
+  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-gate-runner-logs-'));
+  try {
+    const script = [
+      "console.error('ERROR in flaky.test.js: first line that the tail would drop');",
+      "for (let i = 0; i < 10; i += 1) console.error('noise ' + i);",
+      'process.exit(3);',
+    ].join('\n');
+    const stage = runSteps([
+      { name: 'ok', cmd: 'node', args: ['-e', "console.log('fine')"] },
+      { name: 'tests', cmd: 'node', args: ['-e', script] },
+    ], { environment: 'test', logDir });
+    assert.strictEqual(stage.verdict, 'FAIL');
+    assert.strictEqual(stage.artifacts.length, 1, JSON.stringify(stage.artifacts));
+    const [artifact] = stage.artifacts;
+    assert.strictEqual(artifact.kind, 'step-output');
+    assert.strictEqual(artifact.step, 'tests');
+    assert.ok(artifact.path.startsWith(logDir), artifact.path);
+    assert.match(fs.readFileSync(artifact.path, 'utf8'), /ERROR in flaky\.test\.js/);
+    assert.strictEqual(stage.failureReasons.length, 1);
+    assert.match(stage.failureReasons[0], /^tests: exited 3 \(.*noise 9\)/);
+    assert.ok(stage.failureReasons[0].endsWith(`[full output: ${artifact.path}]`), stage.failureReasons[0]);
+  } finally {
+    fs.rmSync(logDir, { recursive: true, force: true });
+  }
+});
+
+test('a step that cannot be spawned names the spawn error in its failure reason', () => {
+  const stage = runSteps([
+    { name: 'missing', cmd: 'dhpk-gate-runner-command-that-does-not-exist' },
+  ], { environment: 'test' });
+  assert.strictEqual(stage.verdict, 'FAIL');
+  assert.deepStrictEqual(stage.commands.map((command) => command.exitCode), [127]);
+  assert.match(stage.failureReasons[0], /^missing: exited 127 .*ENOENT/);
+});
+
 test('passes an explicit environment to every step', () => {
   const stage = runSteps([
     {
@@ -161,6 +197,69 @@ test('merges per-step environment overrides without losing the gate environment'
       assert.deepStrictEqual(stage.commands, [{ cmd: `${process.execPath} -e process.exit(1)`, exitCode: 1 }]);
       assert.deepStrictEqual(stage.failureReasons, ['boom: exited 1']);
     });
+  });
+
+  test('records the step toolchain resolved from the gate PATH in the SOURCE stage', () => {
+    const bin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-source-gate-bin-')));
+    try {
+      writeExecutable(path.join(bin, 'python3'), '#!/bin/sh\necho "Python 3.9.6"\n');
+      withStepsFile([{ name: 'ok', cmd: process.execPath, args: ['-e', 'process.exit(0)'] }], (stepsFile) => {
+        const env = { ...process.env, PATH: [bin, process.env.PATH || ''].join(path.delimiter) };
+        const res = spawnSync(process.execPath, [CLI, '--version', '1.0.0', '--steps-file', stepsFile], { encoding: 'utf8', env });
+        assert.strictEqual(res.status, 0, res.stderr);
+        const stage = JSON.parse(res.stdout);
+        const python = stage.toolchain.commands.find((entry) => entry.command === 'python3');
+        assert.deepStrictEqual(python, { command: 'python3', path: path.join(bin, 'python3'), realPath: path.join(bin, 'python3'), version: 'Python 3.9.6' });
+        assert.deepStrictEqual(stage.toolchain.commands.map((entry) => entry.command), ['python3', 'node', 'bash']);
+      });
+    } finally {
+      fs.rmSync(bin, { recursive: true, force: true });
+    }
+  });
+
+  test('--only runs just the named step and needs no --version', () => {
+    withStepsFile([
+      { name: 'skipped', cmd: process.execPath, args: ['-e', 'process.exit(1)'] },
+      { name: 'chosen', cmd: process.execPath, args: ['-e', 'process.exit(0)'] },
+    ], (stepsFile) => {
+      const res = spawnSync(process.execPath, [CLI, '--only', 'chosen', '--steps-file', stepsFile], { encoding: 'utf8' });
+      assert.strictEqual(res.status, 0, res.stderr);
+      const stage = JSON.parse(res.stdout);
+      assert.deepStrictEqual(stage.commands, [{ cmd: `${process.execPath} -e process.exit(0)`, exitCode: 0 }]);
+      assert.strictEqual(stage.only, 'chosen', 'a partial run must say so in its evidence');
+    });
+  });
+
+  test('--only with no step name is a usage error, not a full gate run', () => {
+    withStepsFile([{ name: 'chosen', cmd: process.execPath, args: ['-e', 'process.exit(0)'] }], (stepsFile) => {
+      for (const argv of [['--version', '1.0.0', '--steps-file', stepsFile, '--only'], ['--only', '--version', '1.0.0', '--steps-file', stepsFile]]) {
+        const res = spawnSync(process.execPath, [CLI, ...argv], { encoding: 'utf8' });
+        assert.strictEqual(res.status, 2, argv.join(' '));
+        assert.match(res.stderr, /'--only' needs a step name/);
+        assert.strictEqual(res.stdout, '');
+      }
+    });
+  });
+
+  test('--only with an unknown step name exits 2 and names the known steps', () => {
+    withStepsFile([{ name: 'chosen', cmd: process.execPath, args: ['-e', 'process.exit(0)'] }], (stepsFile) => {
+      const res = spawnSync(process.execPath, [CLI, '--only', 'missing', '--steps-file', stepsFile], { encoding: 'utf8' });
+      assert.strictEqual(res.status, 2);
+      assert.match(res.stderr, /unknown step 'missing'.*chosen/);
+      assert.strictEqual(res.stdout, '');
+    });
+  });
+
+  test('--only release-parity without --version refuses instead of checking a placeholder', () => {
+    const res = spawnSync(process.execPath, [CLI, '--only', 'release-parity'], { encoding: 'utf8' });
+    assert.strictEqual(res.status, 2);
+    assert.match(res.stderr, /release-parity' needs --version/);
+    assert.strictEqual(res.stdout, '');
+  });
+
+  test('npm run test:gate runs only the gate repository-tests step', () => {
+    const scripts = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts;
+    assert.strictEqual(scripts['test:gate'], 'node scripts/release/source-gate.js --only repository-tests');
   });
 
   test('inherits CI-owned strict cgroup policy for source-gate steps', () => {

@@ -1,6 +1,7 @@
 # One Projection Journal owns install crash order
 
-Status: accepted
+Status: accepted (the Transition paragraph is superseded by
+[ADR-0036](0036-js-projection-journal-replaces-two-phase-install.md))
 
 Issues: #1234 (publisher effects outside its journal), #1235 (two journals
 across the Python↔Node handoff).
@@ -35,7 +36,8 @@ records nothing about the Node step. As a result:
 - The single commit point of an install is the Projection Journal reaching
   `published`. Before it, recovery rolls back; after it, recovery only rolls
   forward.
-- **Transition:** the Python installer stays the coordinator. The publisher's
+- **Transition** (superseded by
+  [ADR-0036](0036-js-projection-journal-replaces-two-phase-install.md)): the Python installer stays the coordinator. The publisher's
   CLI gains `prepare`, `commit`, and `abort`. Python records the Node
   transaction id, installs native assets, asks Node to commit, then writes its
   own receipt. Python recovery rolls forward when the recorded Node

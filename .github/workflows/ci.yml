@@ -64,10 +64,24 @@ jobs:
         if: needs.plan.outputs.mode != 'light'
 
       - name: Download complete CI plan
+        id: ci-plan
+        continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/dhpk-ci-plan
+
+      # CI evidence is bound to one run attempt (plan and shard timing names
+      # carry run_attempt; verify-test-shards rejects a mismatch), so
+      # "Re-run failed jobs" cannot reuse an earlier attempt's plan (#1286).
+      - name: Require the CI plan from this run attempt
+        if: steps.ci-plan.outcome == 'failure'
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          echo "::error::CI plan dhpk-ci-plan-${RUN_ID}-${RUN_ATTEMPT} is missing. CI evidence is bound to one run attempt, so re-running only failed jobs cannot reuse an earlier plan. Re-run all jobs: gh run rerun ${RUN_ID}"
+          exit 1
 
       - name: Validate workflow syntax
         if: needs.plan.outputs.mode == 'full'
@@ -205,10 +219,24 @@ jobs:
       - uses: ./.github/actions/setup-dhpk-test-env
 
       - name: Download complete CI plan
+        id: ci-plan
+        continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/dhpk-ci-plan
+
+      # CI evidence is bound to one run attempt (plan and shard timing names
+      # carry run_attempt; verify-test-shards rejects a mismatch), so
+      # "Re-run failed jobs" cannot reuse an earlier attempt's plan (#1286).
+      - name: Require the CI plan from this run attempt
+        if: steps.ci-plan.outcome == 'failure'
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          echo "::error::CI plan dhpk-ci-plan-${RUN_ID}-${RUN_ATTEMPT} is missing. CI evidence is bound to one run attempt, so re-running only failed jobs cannot reuse an earlier plan. Re-run all jobs: gh run rerun ${RUN_ID}"
+          exit 1
 
       - name: Run bounded repository test shard
         env:
@@ -266,10 +294,24 @@ jobs:
           node-version: '24'
 
       - name: Download complete CI plan
+        id: ci-plan
+        continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/dhpk-ci-plan
+
+      # CI evidence is bound to one run attempt (plan and shard timing names
+      # carry run_attempt; verify-test-shards rejects a mismatch), so
+      # "Re-run failed jobs" cannot reuse an earlier attempt's plan (#1286).
+      - name: Require the CI plan from this run attempt
+        if: steps.ci-plan.outcome == 'failure'
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          echo "::error::CI plan dhpk-ci-plan-${RUN_ID}-${RUN_ATTEMPT} is missing. CI evidence is bound to one run attempt, so re-running only failed jobs cannot reuse an earlier plan. Re-run all jobs: gh run rerun ${RUN_ID}"
+          exit 1
 
       - name: Verify plan-bound required jobs
         if: always()
@@ -350,6 +392,12 @@ jobs:
       # Darwin; the required fail-closed suite runs in the Ubuntu validate job.
       - name: macOS installer subset
         run: node tests/_lib/macos-installer-files.js
+
+      # Consumers with Command Line Tools run Apple's /usr/bin/python3, which
+      # writes its own cache under HOME (#1278); the runner PATH otherwise
+      # resolves another python3. Fails loudly if that interpreter is unusable.
+      - name: macOS installer subset under Apple system python3
+        run: node tests/_lib/macos-installer-files.js --apple-python
 
   # Release PRs only (base main): rehearse the paths that otherwise run for
   # the first time after the immutable tag exists (v0.60.0, v0.62.0, v0.62.1

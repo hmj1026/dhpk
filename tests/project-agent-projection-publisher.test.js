@@ -461,7 +461,10 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
-  test('interrupted adoption restores old files before publishing and preserves ambiguous candidates', () => {
+  // Effect records (transaction v3) prove which candidates this transaction
+  // created, so an interrupted adoption is undone completely instead of being
+  // left for manual reconciliation.
+  test('interrupted adoption restores old files whether or not a candidate was copied', () => {
     for (const failAfterCopy of [false, true]) {
       const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
       const originalCopy = fs.copyFileSync;
@@ -480,13 +483,10 @@ const { test, run, assert } = require('./_lib/tinytest');
         };
         assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true }), /injected publish failure/);
         fs.copyFileSync = originalCopy;
-        if (failAfterCopy) {
-          assert.ok(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.transaction.json')));
-          assert.ok(fs.readdirSync(path.join(projectRoot, '.agents')).some((name) => name.startsWith('.dhpk-projection-backup-')));
-        } else {
-          assert.deepStrictEqual(fs.readFileSync(receiptPath), before);
-          assert.strictEqual(fs.readFileSync(payloadPath, 'utf8'), 'edited before adoption\n');
-        }
+        assert.deepStrictEqual(fs.readFileSync(receiptPath), before, String(failAfterCopy));
+        assert.strictEqual(fs.readFileSync(payloadPath, 'utf8'), 'edited before adoption\n');
+        assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.transaction.json')), false);
+        assert.ok(!fs.readdirSync(path.join(projectRoot, '.agents')).some((name) => name.startsWith('.dhpk-projection-backup-')));
       } finally {
         fs.copyFileSync = originalCopy;
         fs.rmSync(sourceRoot, { recursive: true, force: true });
@@ -495,7 +495,7 @@ const { test, run, assert } = require('./_lib/tinytest');
     }
   });
 
-  test('adoption receipt publication failure preserves the backup and recovery journal', () => {
+  test('adoption receipt publication failure restores the previous receipt and payload', () => {
     const { sourceRoot, projectRoot, options, receiptPath } = boundaryFixture();
     const originalRename = fs.renameSync;
     try {
@@ -507,11 +507,11 @@ const { test, run, assert } = require('./_lib/tinytest');
       };
       assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true }), /injected receipt failure/);
       fs.renameSync = originalRename;
-      const backupName = fs.readdirSync(path.join(projectRoot, '.agents')).find((name) => name.startsWith('.dhpk-projection-backup-'));
-      assert.ok(backupName);
-      assert.deepStrictEqual(fs.readFileSync(path.join(projectRoot, '.agents', backupName, 'receipt.json')), before);
-      assert.ok(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.transaction.json')));
-      assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true }), /recovery conflict|reconciliation/i);
+      assert.deepStrictEqual(fs.readFileSync(receiptPath), before);
+      assert.ok(!fs.readdirSync(path.join(projectRoot, '.agents')).some((name) => name.startsWith('.dhpk-projection-backup-')));
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.transaction.json')), false);
+      const adopted = publisher.materializeRelocatableAgentsSkillsProjection({ ...options, adopt: true });
+      assert.ok(adopted.backupPath);
     } finally {
       fs.renameSync = originalRename;
       fs.rmSync(sourceRoot, { recursive: true, force: true });

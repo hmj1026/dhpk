@@ -299,6 +299,12 @@ scrubbed bounded-runner control variables; its evidence is labeled
 The tag-triggered Linux Release workflow remains the authoritative strong
 containment verification before a release is considered complete.
 
+The SOURCE stage records `toolchain`: the `python3`, `node`, and `bash` that
+the steps resolved from the gate PATH, with versions. Compare it first when
+the same gate passes in one shell and fails in another. To rerun only the
+repository tests under the gate's exact policy (worker pool and platform
+adapter), use `npm run test:gate`.
+
 Once the checks pass, publish the tag:
 
 ```bash

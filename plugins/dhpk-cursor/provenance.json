@@ -4,10 +4,10 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.70.8",
-  "sourceCommit": "edca8f6deb754b0010921b2972a91141d575698b",
-  "generatedFromCommit": "edca8f6deb754b0010921b2972a91141d575698b",
-  "generatedFromTree": "a49c4d348e33757189341312868a0bc5088e711f",
+  "sourceVersion": "0.71.0",
+  "sourceCommit": "75da3938c1d9d066b1eda97904c923c0103f07ee",
+  "generatedFromCommit": "75da3938c1d9d066b1eda97904c923c0103f07ee",
+  "generatedFromTree": "d81d3a06a7391690fcb686003ba3e42bda1644c4",
   "inventoryDigest": "0248206f20e0222eefb6c49fe75a707ea817291c8a6d42ee5c5d22efb5aa1298",
   "inventoryRevision": "sha256:36895a2c331ea128ff2e616a9bf79bac3ea575628401cb3ec9c6f1ca76cb2a89",
   "generatorVersion": "1.1.0",
@@ -5616,7 +5616,7 @@
     }
   ],
   "fingerprints": {
-    "rules": "2edff4e0240aa7a60956789cf7f865598e7c454f04f61fd8e26bb63645da41b6",
+    "rules": "79d0f96caf3723e0e09520b4ccd6c52ac9ba123b84e6bf00af8afb7f66bac8ae",
     "agents": "2d810080a35b712033bcac5322e8c5e06b82a0895cc394154478cf5f8e9e05db",
     "commands": "12d3391961e0d575937b4e1209e532a8e9784e5bf00ff3da8aa182b8236bbc36",
     "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
@@ -5624,7 +5624,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "66fd7bd2cc5b6b2536e1a13077fd83ce4d79c9361391d662b75d50e97d6a35af",
+    "planId": "4e4660e14ffb633c55cb7286c136d5a5cc7151ec178942faaaa8bbd8f90ae047",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5668,10 +5668,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "66fd7bd2cc5b6b2536e1a13077fd83ce4d79c9361391d662b75d50e97d6a35af",
+      "plan": "4e4660e14ffb633c55cb7286c136d5a5cc7151ec178942faaaa8bbd8f90ae047",
       "inventory": "0248206f20e0222eefb6c49fe75a707ea817291c8a6d42ee5c5d22efb5aa1298"
     },
-    "rollbackIdentity": "a6b950b61f49b7b313ecb73763d43c9230b19c3c0199aa654727c95ed82b9c94"
+    "rollbackIdentity": "bd2be59780b5a77110b171a5d6eff9adce59c5277184e90ef6d5d7cf3e48b344"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6686,5 +6686,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "1b261f130dfd421a7ea73b9fc1b126d613376f6c11b5640a4cb7bb913681d0fb"
+  "planFingerprint": "a5c8b5243d38f1faa99a27a898785be5d1f16e2607c238dbeac051458cc29799"
 }

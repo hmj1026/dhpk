@@ -397,6 +397,7 @@ function provenanceDriftPlanFixture(drift, pluginRoot = ROOT) {
 module.exports = {
   ROOT,
   HOOK,
+  CODEX_STUB_BIN,
   INSTALLER_CHILD_TIMEOUT_MS,
   runInstaller,
   projectRoot,

@@ -824,6 +824,44 @@ test('malformed shard timing JSON is rejected', () => {
     }
   });
 
+  test('the final FAIL summary names every failed file in sequential and parallel runs', () => {
+    const fixture = isolatedRunnerFixture({
+      'alpha.test.js': "console.log('alpha.test.js: 1/1 passed');\n",
+      'broken.test.js': "console.log('broken.test.js: 0/1 passed');\nprocess.exitCode = 1;\n",
+      'crashed.test.js': "throw new Error('boom');\n",
+    });
+    try {
+      for (const jobs of [1, 2]) {
+        const result = spawnSync(process.execPath, [fixture.runner, ...fixture.testFiles], {
+          cwd: fixture.root,
+          env: isolatedRunnerEnv({ DHPK_TEST_JOBS: String(jobs) }),
+          encoding: 'utf8',
+          timeout: 30000,
+        });
+        const output = result.stdout + '\n' + result.stderr;
+        assert.strictEqual(result.status, 1, output);
+        const lastLine = result.stderr.trim().split('\n').pop();
+        assert.match(lastLine, /^FAIL: 2\/3 test file\(s\) failed: /, `jobs=${jobs}: ${output}`);
+        assert.match(lastLine, /\bbroken\.test\.js\b/, `jobs=${jobs}: ${lastLine}`);
+        assert.match(lastLine, /\bcrashed\.test\.js\b/, `jobs=${jobs}: ${lastLine}`);
+        assert.doesNotMatch(lastLine, /\balpha\.test\.js\b/, `jobs=${jobs}: ${lastLine}`);
+      }
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  test('the FAIL summary bounds a long failed-file list and reports the remainder', () => {
+    const { formatFailSummary } = require('./run-all');
+    const names = Array.from({ length: 12 }, (_value, index) => `f${index}.test.js`);
+    assert.strictEqual(
+      formatFailSummary(12, 40, names),
+      'FAIL: 12/40 test file(s) failed: f0.test.js, f1.test.js, f2.test.js, f3.test.js, f4.test.js, '
+        + 'f5.test.js, f6.test.js, f7.test.js, f8.test.js, f9.test.js (+2 more)'
+    );
+    assert.strictEqual(formatFailSummary(1, 3, []), 'FAIL: 1/3 test file(s) failed');
+  });
+
   test('parallel completion progress waits for child results and failed workers remain failures', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-run-all-progress-held-'));
     const startedFile = path.join(root, 'slow-started');

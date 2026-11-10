@@ -285,8 +285,28 @@ function writeTestProgress(event, file, status, progress) {
   process.stderr.write(`[test-progress] completed ${name} status=${result} (completed ${progress.completed}/${progress.total})\n`);
 }
 
+const FAIL_SUMMARY_NAME_LIMIT = 10;
+
+// The FAIL line is the last line a gate keeps from a failed run, so it carries
+// the failed file names; a long list stays bounded with a remainder count.
+function formatFailSummary(failed, total, failedFiles) {
+  const base = `FAIL: ${failed}/${total} test file(s) failed`;
+  if (!failedFiles.length) return base;
+  const shown = failedFiles.slice(0, FAIL_SUMMARY_NAME_LIMIT);
+  // Count the remainder from `failed`: a worker's own summary may already be bounded.
+  const remainder = failed - shown.length;
+  return `${base}: ${shown.join(', ')}${remainder > 0 ? ` (+${remainder} more)` : ''}`;
+}
+
+function parseFailedFileNames(output) {
+  const match = output.match(/FAIL:\s+\d+\/\d+ test file\(s\) failed: (.+)$/m);
+  if (!match) return [];
+  return match[1].replace(/ \(\+\d+ more\)$/, '').split(', ').filter(Boolean);
+}
+
 async function runSequential(files, env, timeoutMs) {
   let failed = 0;
+  const failedFiles = [];
   const fileTimings = [];
   const startedAt = process.hrtime.bigint();
   const progressEnabled = env.DHPK_TEST_PROGRESS === '1';
@@ -310,6 +330,7 @@ async function runSequential(files, env, timeoutMs) {
     }
     if (timing.status !== 'PASS') {
       failed += 1;
+      failedFiles.push(relative);
       if (result.error) console.error(`ERROR in ${relative}: ${result.error.message}`);
       for (const error of validateAssertionSummary(timing.assertions, relative)) {
         console.error(`ASSERTION EVIDENCE: ${error}`);
@@ -318,6 +339,7 @@ async function runSequential(files, env, timeoutMs) {
   }
   return {
     failed,
+    failedFiles,
     total: files.length,
     durationMs: elapsedMilliseconds(startedAt),
     fileTimings,
@@ -401,7 +423,7 @@ function runWorker(files, workerIndex, workerCount, env, progress) {
 
 async function runParallel(files, jobs, env) {
   if (files.length === 0) {
-    return { failed: 0, total: 0, durationMs: 0, fileTimings: [], jobTimings: [] };
+    return { failed: 0, failedFiles: [], total: 0, durationMs: 0, fileTimings: [], jobTimings: [] };
   }
   const startedAt = process.hrtime.bigint();
   const workerCount = Math.min(jobs, files.length);
@@ -412,6 +434,7 @@ async function runParallel(files, jobs, env) {
   );
   let failed = 0;
   let total = 0;
+  const failedFiles = [];
   const fileTimings = [];
   const jobTimings = [];
   for (const result of results.sort((left, right) => left.workerIndex - right.workerIndex)) {
@@ -427,6 +450,10 @@ async function runParallel(files, jobs, env) {
     );
     failed += summary.failed;
     total += summary.total;
+    if (summary.failed > 0) {
+      const names = parseFailedFileNames(`${result.stdout}\n${result.stderr}`);
+      failedFiles.push(...(names.length ? names : [`worker ${result.workerIndex + 1} (no file summary)`]));
+    }
     const workerFiles = result.timing && Array.isArray(result.timing.file_timings)
       ? result.timing.file_timings
       : result.files.map((file) => ({
@@ -450,6 +477,7 @@ async function runParallel(files, jobs, env) {
   }
   return {
     failed,
+    failedFiles,
     total,
     durationMs: elapsedMilliseconds(startedAt),
     fileTimings,
@@ -554,7 +582,7 @@ async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
 
   console.log('\n========================================');
   if (result.failed > 0) {
-    console.error(`FAIL: ${result.failed}/${result.total} test file(s) failed`);
+    console.error(formatFailSummary(result.failed, result.total, result.failedFiles || []));
     return 1;
   }
   console.log(`PASS: ${result.total}/${result.total} test file(s) passed`);
@@ -576,4 +604,5 @@ module.exports = {
   fileTimeoutMs,
   createTimingReport,
   parseTimingPayload,
+  formatFailSummary,
 };
