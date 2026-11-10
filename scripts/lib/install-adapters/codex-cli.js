@@ -68,21 +68,32 @@ function runInstaller(env = process.env, io = {}) {
   };
   const installer = createInstaller(env, output);
   let crashed = false;
+  let code = 0;
   try {
     installer.main();
-    return 0;
   } catch (error) {
-    if (error instanceof InstallerExit) return error.code;
-    if (io.rethrow && io.rethrow(error)) {
+    if (error instanceof InstallerExit) code = error.code;
+    else if (io.rethrow && io.rethrow(error)) {
       // A simulated crash leaves the lock behind, as a killed process would.
       crashed = true;
       throw error;
+    } else {
+      output.stderr(`[${env.DHPK_INSTALLER_NAME || 'install-codex-skills'}] ERROR: unexpected failure: ${error && error.stack ? error.stack : error}\n`);
+      code = 1;
     }
-    output.stderr(`[${env.DHPK_INSTALLER_NAME || 'install-codex-skills'}] ERROR: unexpected failure: ${error && error.stack ? error.stack : error}\n`);
-    return 1;
   } finally {
-    if (!crashed) installer.close();
+    if (!crashed) {
+      try {
+        installer.close();
+      } catch (error) {
+        // Never silent, and never a different outcome: a failing run keeps its
+        // code; a run that would have succeeded now fails with 2.
+        output.stderr(`[${env.DHPK_INSTALLER_NAME || 'install-codex-skills'}] ERROR: could not release the install lock: ${error && error.message ? error.message : error}\n`);
+        if (code === 0) code = 2;
+      }
+    }
   }
+  return code;
 }
 
 // Captures the output of one in-process run.

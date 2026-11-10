@@ -120,6 +120,16 @@ const SCENARIOS = {
   },
 };
 
+// Journal steps are deterministic per scenario; a sweep that visits fewer
+// points than this has stopped covering a step (update this table with a step
+// the adapter adds or removes on purpose).
+const EXPECTED_POINTS = {
+  install: { crash: 38, failure: 20 },
+  update: { crash: 50, failure: 26 },
+  uninstall: { crash: 28, failure: 15 },
+  adoption: { crash: 50, failure: 26 },
+};
+
 function prepareTemplate(scenario) {
   const plugin = fakePlugin();
   const project = tempDir('dhpk-adapter-template-');
@@ -178,7 +188,7 @@ for (const [name, scenario] of Object.entries(SCENARIOS)) {
           }
         }
       }
-      assert.ok(crashes >= 10, `${name}: only ${crashes} crash points`);
+      assert.strictEqual(crashes, EXPECTED_POINTS[name].crash, `${name}: the sweep visited ${crashes} crash points`);
     } finally {
       cleanup(template.plugin, template.project);
     }
@@ -188,7 +198,7 @@ for (const [name, scenario] of Object.entries(SCENARIOS)) {
     const template = prepareTemplate(scenario);
     try {
       let failures = 0;
-      for (let target = 1; target < 400; target += 4) {
+      for (let target = 1; target < 400; target += 1) {
         const project = clone(template);
         const before = snapshot(project, template.plugin);
         try {
@@ -216,7 +226,7 @@ for (const [name, scenario] of Object.entries(SCENARIOS)) {
           cleanup(project);
         }
       }
-      assert.ok(failures >= 3, `${name}: only ${failures} failure points`);
+      assert.strictEqual(failures, EXPECTED_POINTS[name].failure, `${name}: the sweep visited ${failures} failure points`);
     } finally {
       cleanup(template.plugin, template.project);
     }
@@ -277,6 +287,181 @@ test('testDhpkInstallRecover_finishesACrashedJournal', () => {
     const report = JSON.parse(recovered.stdout);
     assert.strictEqual(report.projectionJournal.state, 'RECOVERED', recovered.stdout);
     assert.deepStrictEqual(snapshot(project, plugin), before);
+  } finally {
+    cleanup(plugin, project);
+  }
+});
+
+function crashAtStep(plugin, project, stepNumber = 6) {
+  try {
+    runIn(plugin, project, {}, { afterStep: (step) => { if (step === stepNumber) throw new SimulatedCrash(step); } });
+  } catch (error) {
+    if (!(error instanceof SimulatedCrash)) throw error;
+  }
+}
+
+function recoverCli(project) {
+  const result = spawnSync(process.execPath, [path.join(REPO, 'scripts', 'dhpk-install.js'), '--recover', '--project-root', project, '--json'], { encoding: 'utf8' });
+  return { status: result.status, stderr: result.stderr, report: result.stdout ? JSON.parse(result.stdout) : null, raw: result.stdout + result.stderr };
+}
+
+// A dangling symlink is "present" for recovery: it must reach the installer
+// (or block), never be reported ABSENT.
+for (const [label, relative] of [['journal', JOURNAL], ['lock', LOCK]]) {
+  test(`testDhpkInstallRecover_danglingSymlink${label}_isBlockedNotAbsent`, () => {
+    const project = tempDir('dhpk-adapter-dangling-');
+    try {
+      fs.mkdirSync(path.join(project, '.agents'));
+      fs.symlinkSync(path.join(project, 'nowhere'), path.join(project, relative));
+      const outcome = recoverCli(project);
+      assert.strictEqual(outcome.status, 2, outcome.raw);
+      assert.strictEqual(outcome.report.projectionJournal.state, 'BLOCKED', outcome.raw);
+      assert.ok(fs.lstatSync(path.join(project, relative)).isSymbolicLink(), 'the link must be left as found');
+    } finally {
+      cleanup(project);
+    }
+  });
+}
+
+test('testDhpkInstallRecover_unreadableHost_isBlockedHostUnknown', () => {
+  const project = tempDir('dhpk-adapter-hostunknown-');
+  try {
+    write(path.join(project, JOURNAL), 'not json');
+    const outcome = recoverCli(project);
+    assert.strictEqual(outcome.status, 2, outcome.raw);
+    assert.strictEqual(outcome.report.projectionJournal.state, 'BLOCKED');
+    assert.strictEqual(outcome.report.projectionJournal.code, 'HOST_UNKNOWN', outcome.raw);
+    assert.match(outcome.report.projectionJournal.message, /Host/);
+    assert.strictEqual(fs.readFileSync(path.join(project, JOURNAL), 'utf8'), 'not json');
+  } finally {
+    cleanup(project);
+  }
+});
+
+// A dead lock that is not the journal's own is never taken over silently;
+// --recover removes it and then finishes the journal.
+test('testInstallLock_deadLockOfAnotherPidBesideAJournal_blocksUntilRecover', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-adapter-otherpid-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    const before = snapshot(project, plugin);
+    crashAtStep(plugin, project);
+    markHolderDead(project);
+    const journalPid = JSON.parse(fs.readFileSync(path.join(project, JOURNAL), 'utf8')).pid;
+    let otherPid = deadPid();
+    while (otherPid === journalPid) otherPid = deadPid();
+    const lock = JSON.parse(fs.readFileSync(path.join(project, LOCK), 'utf8'));
+    lock.pid = otherPid;
+    fs.writeFileSync(path.join(project, LOCK), `${JSON.stringify(lock)}\n`);
+    const crashed = snapshot(project, plugin);
+    const blocked = runIn(plugin, project);
+    assert.strictEqual(blocked.code, 2, `${blocked.stdout}\n${blocked.stderr}`);
+    assert.match(blocked.stderr, /stale install lock .*rerun this installer with --recover/);
+    assert.deepStrictEqual(snapshot(project, plugin), crashed);
+    const recovered = runIn(plugin, project, { recover: true });
+    assert.strictEqual(recovered.code, 0, `${recovered.stdout}\n${recovered.stderr}`);
+    assert.deepStrictEqual(snapshot(project, plugin), before);
+  } finally {
+    cleanup(plugin, project);
+  }
+});
+
+// With the lock created atomically with its content, an empty or unreadable
+// lock is never ours mid-creation: it is held until --recover removes it.
+test('testInstallLock_unreadableLock_isHeldUntilRecover', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-adapter-unreadable-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    write(path.join(project, LOCK), '');
+    const before = snapshot(project, plugin);
+    const blocked = runIn(plugin, project);
+    assert.strictEqual(blocked.code, 2, `${blocked.stdout}\n${blocked.stderr}`);
+    assert.match(blocked.stderr, /unreadable install lock .*; rerun with --recover/);
+    assert.deepStrictEqual(snapshot(project, plugin), before);
+    const recovered = runIn(plugin, project, { recover: true });
+    assert.strictEqual(recovered.code, 0, `${recovered.stdout}\n${recovered.stderr}`);
+    assert.strictEqual(fs.existsSync(path.join(project, LOCK)), false);
+  } finally {
+    cleanup(plugin, project);
+  }
+});
+
+// Runs `body` with fs[name] wrapped so `before(args)` runs ahead of each call.
+function withFsHook(name, before, body) {
+  const original = fs[name];
+  fs[name] = function hooked(...args) {
+    before(...args);
+    return original.apply(this, args);
+  };
+  try {
+    return body();
+  } finally {
+    fs[name] = original;
+  }
+}
+
+// A lock swapped in between the staleness check and its removal belongs to a
+// live installer and must survive.
+for (const mode of ['journal-takeover', 'recover']) {
+  test(`testInstallLock_freshLockSwappedInDuringStaleRemoval_${mode}_isNotDestroyed`, () => {
+    const plugin = fakePlugin();
+    const project = tempDir('dhpk-adapter-swap-');
+    try {
+      fs.mkdirSync(path.join(project, '.git'));
+      if (mode === 'journal-takeover') {
+        crashAtStep(plugin, project);
+        markHolderDead(project);
+      } else {
+        write(path.join(project, LOCK), `${JSON.stringify({ pid: deadPid(), host: 'codex', start: '2026-11-10T00:00:00.000Z' })}\n`);
+      }
+      const lockFile = path.join(project, LOCK);
+      const fresh = `${JSON.stringify({ pid: process.pid, host: 'cursor', start: '2026-11-10T01:00:00.000Z' })}\n`;
+      const outcome = withFsHook('renameSync', (from) => { if (from === lockFile) fs.writeFileSync(from, fresh); }, () => runIn(plugin, project, mode === 'recover' ? { recover: true } : {}));
+      assert.strictEqual(outcome.code, 2, `${outcome.stdout}\n${outcome.stderr}`);
+      assert.match(outcome.stderr, /already reconciling this project/);
+      assert.strictEqual(fs.readFileSync(lockFile, 'utf8'), fresh);
+      assert.deepStrictEqual(fs.readdirSync(path.join(project, '.agents')).filter((name) => name.startsWith('.dhpk-install.lock')), ['.dhpk-install.lock']);
+    } finally {
+      cleanup(plugin, project);
+    }
+  });
+}
+
+// The lock appears at its path already complete: it is linked from a finished
+// temp file, which is gone afterwards.
+test('testInstallLock_isCreatedCompleteByLinkingATempFile', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-adapter-atomic-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    fs.mkdirSync(path.join(project, '.agents'));
+    const lockFile = path.join(project, LOCK);
+    const seen = [];
+    const outcome = withFsHook('linkSync', (from, to) => {
+      if (to !== lockFile) return;
+      const owner = JSON.parse(fs.readFileSync(from, 'utf8'));
+      seen.push({ pid: owner.pid, host: owner.host, destinationExists: fs.existsSync(to) });
+    }, () => runIn(plugin, project));
+    assert.strictEqual(outcome.code, 0, `${outcome.stdout}\n${outcome.stderr}`);
+    assert.deepStrictEqual(seen, [{ pid: process.pid, host: 'codex', destinationExists: false }]);
+    assert.deepStrictEqual(fs.readdirSync(path.join(project, '.agents')).filter((name) => name.includes('lock')), []);
+  } finally {
+    cleanup(plugin, project);
+  }
+});
+
+// A lock that cannot be released must not pass silently, nor change the outcome.
+test('testRunInstaller_lockReleaseFailure_isReportedAndKeepsTheOutcome', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-adapter-release-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    const lockFile = path.join(project, LOCK);
+    const outcome = withFsHook('rmSync', (target) => { if (target === lockFile) throw Object.assign(new Error('EACCES: simulated'), { code: 'EACCES' }); }, () => runIn(plugin, project));
+    assert.match(outcome.stderr, /\[install-codex-skills\] ERROR: could not release the install lock: .*simulated/);
+    assert.strictEqual(outcome.code, 2, 'a successful run whose lock stays behind must not exit 0');
   } finally {
     cleanup(plugin, project);
   }

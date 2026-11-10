@@ -81,16 +81,34 @@ function recoverProjectionJournal(projectRoot, installerRoot) {
       return null;
     }
   };
-  const journalPresent = fs.existsSync(journalPath);
-  const lockPresent = fs.existsSync(lockPath);
+  // lstat, not existsSync: a dangling symlink exists and must reach the installer.
+  const journalPresent = pathExists(journalPath);
+  const lockPresent = pathExists(lockPath);
   if (!journalPresent && !lockPresent) return { ok: true, state: 'ABSENT' };
-  const host = (journalPresent && readHost(journalPath)) || (lockPresent && readHost(lockPath)) || 'codex';
-  const { HOSTS, installerEnv, runCaptured } = require('./install-adapters/codex-cli');
-  if (!HOSTS[host]) return { ok: false, state: 'BLOCKED', code: 'UNKNOWN_HOST', message: `the Projection Journal names an unknown Host: ${host}` };
-  const outcome = runCaptured(installerEnv({ host, pluginRoot: installerRoot, installerRoot, projectRoot, recover: true }));
-  const output = `${outcome.stdout}${outcome.stderr}`.trim();
-  if (outcome.code === 0) return { ok: true, state: 'RECOVERED', host };
-  return { ok: false, state: 'BLOCKED', code: 'RECOVERY_FAILED', host, message: output };
+  const host = (journalPresent && readHost(journalPath)) || (lockPresent && readHost(lockPath)) || null;
+  if (!host) {
+    return { ok: false, state: 'BLOCKED', code: 'HOST_UNKNOWN', message: 'neither .agents/.dhpk-projection-journal.json nor .agents/.dhpk-install.lock names a readable Host; inspect or remove them by hand, then rerun the Codex installer' };
+  }
+  try {
+    const { HOSTS, installerEnv, runCaptured } = require('./install-adapters/codex-cli');
+    if (!HOSTS[host]) return { ok: false, state: 'BLOCKED', code: 'UNKNOWN_HOST', message: `the Projection Journal names an unknown Host: ${host}` };
+    const outcome = runCaptured(installerEnv({ host, pluginRoot: installerRoot, installerRoot, projectRoot, recover: true }));
+    const output = `${outcome.stdout}${outcome.stderr}`.trim();
+    if (outcome.code === 0) return { ok: true, state: 'RECOVERED', host };
+    return { ok: false, state: 'BLOCKED', code: 'RECOVERY_FAILED', host, message: output };
+  } catch (error) {
+    return { ok: false, state: 'BLOCKED', code: 'RECOVERY_FAILED', host, message: `the ${host} installer could not run: ${error && error.message ? error.message : error}` };
+  }
+}
+
+function pathExists(file) {
+  try {
+    fs.lstatSync(file);
+    return true;
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return false;
+    throw error;
+  }
 }
 
 function recoverProject({ projectRoot, installerRoot }) {

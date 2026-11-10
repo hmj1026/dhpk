@@ -49,7 +49,8 @@ function codexWrite(request) {
   }
   const projectRoot = path.resolve(request.projectRoot);
   if (request.mode === 'client-managed') return blocked('UNSUPPORTED_MODE', 'codex-sync supports --mode copy, symlink, or auto');
-  if (!request.yes && !looksLikeProjectRoot(projectRoot)) {
+  // The shell installer skips this heuristic for --uninstall; so does this path.
+  if (request.action !== 'uninstall' && !request.yes && !looksLikeProjectRoot(projectRoot)) {
     return blocked('NOT_A_PROJECT_ROOT', `'${projectRoot}' does not look like a project root`, ['Re-run with --yes to bypass this check.']);
   }
   const env = installerEnv({

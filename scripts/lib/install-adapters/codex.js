@@ -2796,51 +2796,124 @@ function createInstaller(env, io) {
     return `.agents/.dhpk-install.lock (held by the ${host} installer, pid ${pid}, since ${start})`;
   }
 
-  // The project install lock: O_EXCL, never stolen; a lock whose pid is gone
-  // is removed only by an explicit --recover.
+  // Raw lock text: null when absent, '' when unreadable (never ours mid-creation:
+  // the lock is created complete, by linking a finished temp file).
+  function readLockRaw() {
+    try {
+      return fs.readFileSync(LOCK_PATH, 'utf8');
+    } catch (error) {
+      if (errnoIs(error, 'ENOENT')) return null;
+      return '';
+    }
+  }
+
+  function parseLockOwner(raw) {
+    try {
+      const owner = JSON.parse(raw);
+      return isDict(owner) && Number.isInteger(owner.pid) ? owner : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Removes the lock judged stale (its text was `judgedRaw`) without a window
+  // in which a fresh lock could be deleted: move it aside, verify what moved,
+  // and put a different (fresh) lock back. Returns when the judged lock is gone.
+  function removeJudgedLock(judgedRaw) {
+    const stale = `${LOCK_PATH}.stale-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
+    try {
+      fs.renameSync(LOCK_PATH, stale);
+    } catch (error) {
+      if (errnoIs(error, 'ENOENT')) return;
+      throw error;
+    }
+    let moved = null;
+    try {
+      moved = fs.readFileSync(stale, 'utf8');
+    } catch (_) {
+      moved = null;
+    }
+    if (moved === judgedRaw) {
+      fs.unlinkSync(stale);
+      return;
+    }
+    // A different lock was swapped in after the check: it is live. Restore it.
+    try {
+      fs.linkSync(stale, LOCK_PATH);
+    } catch (error) {
+      if (errnoIs(error, 'EEXIST')) throw new ValueError(`install lock .agents/.dhpk-install.lock changed during removal and a new lock now exists; the lock that was moved aside is kept at ${stale}, the current one is ${LOCK_PATH}; inspect both before rerunning`);
+      throw error;
+    }
+    fs.unlinkSync(stale);
+    const owner = parseLockOwner(moved || '');
+    throw new ValueError(`another installer is already reconciling this project: ${owner ? describeLock(owner) : '.agents/.dhpk-install.lock (unreadable)'}`);
+  }
+
+  // The project install lock: created complete (temp file linked into place),
+  // never stolen; a lock whose pid is gone is removed only by an explicit
+  // --recover, or when it provably belongs to the journal being recovered.
   acquireInstallLock = () => {
     ensureCodexRootSafe();
     ensureAgentsRoot();
     // `agentsCreated`: whoever takes this lock over also removes an empty .agents.
     const record = () => `${JSON.stringify({ pid: process.pid, host: HARNESS_KIND, start: new Date().toISOString(), agentsCreated: AGENTS_CREATED })}\n`;
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      let descriptor;
+      const temp = `${LOCK_PATH}.tmp-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
+      let linked = false;
       try {
-        descriptor = fs.openSync(LOCK_PATH, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | O_NOFOLLOW, 0o600);
-      } catch (error) {
-        if (!errnoIs(error, 'EEXIST')) throw error;
-        const owner = readLock();
-        if (owner === null) continue;
-        if (pidIsAlive(owner.pid)) throw new ValueError(`another installer is already reconciling this project: ${describeLock(owner)}`);
-        // A dead holder's lock is taken over only when it provably belongs to
-        // the interrupted transaction this run is about to recover (REQ-5),
-        // or on an explicit --recover; never silently otherwise.
-        let journalPid = null;
+        const descriptor = fs.openSync(temp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | O_NOFOLLOW, 0o600);
         try {
-          const document = JSON.parse(fs.readFileSync(JOURNAL_PATH, 'utf8'));
-          journalPid = isDict(document) && Number.isInteger(document.pid) ? document.pid : null;
+          fs.writeSync(descriptor, record());
+          fs.fsyncSync(descriptor);
+        } finally {
+          fs.closeSync(descriptor);
+        }
+        try {
+          fs.linkSync(temp, LOCK_PATH);
+          linked = true;
+        } catch (error) {
+          if (!errnoIs(error, 'EEXIST')) throw error;
+        }
+      } finally {
+        try {
+          fs.unlinkSync(temp);
         } catch (_) {
-          journalPid = null;
+          // never created, or already gone
         }
-        const ownedByJournal = Number.isInteger(owner.pid) && owner.pid === journalPid;
-        if ((!RECOVER && !ownedByJournal) || attempt > 0) {
-          throw new ValueError(`stale install lock ${describeLock(owner)}: that process is no longer running; rerun this installer with --recover to remove it`);
-        }
-        print(ownedByJournal
-          ? `[install-codex-skills] taking over the install lock of interrupted transaction ${describeLock(owner)}`
-          : `[install-codex-skills] removing stale install lock ${describeLock(owner)}`);
-        if (owner.agentsCreated === true) AGENTS_CREATED = true;
-        fs.rmSync(LOCK_PATH, { force: true });
+      }
+      if (linked) {
+        LOCK_HELD = true;
+        return;
+      }
+      const raw = readLockRaw();
+      if (raw === null) continue;
+      const owner = parseLockOwner(raw);
+      if (owner === null) {
+        if (!RECOVER || attempt > 0) throw new ValueError('unreadable install lock .agents/.dhpk-install.lock (empty or not valid JSON); rerun with --recover to remove it');
+        print('[install-codex-skills] removing unreadable install lock .agents/.dhpk-install.lock');
+        removeJudgedLock(raw);
         continue;
       }
+      if (pidIsAlive(owner.pid)) throw new ValueError(`another installer is already reconciling this project: ${describeLock(owner)}`);
+      // A dead holder's lock is taken over only when it provably belongs to
+      // the interrupted transaction this run is about to recover (REQ-5),
+      // or on an explicit --recover; never silently otherwise.
+      let journalPid = null;
       try {
-        fs.writeSync(descriptor, record());
-        fs.fsyncSync(descriptor);
-      } finally {
-        fs.closeSync(descriptor);
+        const document = JSON.parse(fs.readFileSync(JOURNAL_PATH, 'utf8'));
+        journalPid = isDict(document) && Number.isInteger(document.pid) ? document.pid : null;
+      } catch (_) {
+        journalPid = null;
       }
-      LOCK_HELD = true;
-      return;
+      const ownedByJournal = owner.pid === journalPid;
+      if ((!RECOVER && !ownedByJournal) || attempt > 0) {
+        throw new ValueError(`stale install lock ${describeLock(owner)}: that process is no longer running; rerun this installer with --recover to remove it`);
+      }
+      print(ownedByJournal
+        ? `[install-codex-skills] taking over the install lock of interrupted transaction ${describeLock(owner)}`
+        : `[install-codex-skills] removing stale install lock ${describeLock(owner)}`);
+      removeJudgedLock(raw);
+      if (owner.agentsCreated === true) AGENTS_CREATED = true;
     }
     throw new ValueError(`cannot take the install lock ${LOCK_PATH}`);
   };
@@ -4673,7 +4746,6 @@ function createInstaller(env, io) {
     reconcile(run);
   }
 
-  //@@PART7@@
 
   // Releases the install lock; the Python did this in an atexit handler.
   function close() {

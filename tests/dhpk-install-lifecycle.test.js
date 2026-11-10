@@ -121,6 +121,21 @@ test('dhpk-install performs a Codex install, update, and uninstall with the inst
   }
 });
 
+// The shell installer skips the project-root heuristic for --uninstall, so the
+// in-process path must as well; install and update keep the guard.
+test('codex-sync uninstall skips the project-root heuristic that install keeps', () => {
+  const project = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-lifecycle-nomarker-')));
+  try {
+    const install = invoke(['codex-sync', 'install', '--project-root', project, '--mode', 'copy', '--json']);
+    assert.strictEqual(install.status, 2, install.stderr);
+    assert.strictEqual(json(install).diagnostics[0].code, 'NOT_A_PROJECT_ROOT');
+    const removed = invoke(['codex-sync', 'uninstall', '--project-root', project, '--json']);
+    assert.notStrictEqual(json(removed).diagnostics[0] && json(removed).diagnostics[0].code, 'NOT_A_PROJECT_ROOT', removed.stdout);
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
 test('plans expose the shared installation identity and recovery contract', () => {
   const result = invoke(['codex-sync', 'plan', '--scope', 'project', '--json']);
   assert.strictEqual(result.status, 0, result.stderr);

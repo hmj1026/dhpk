@@ -154,7 +154,13 @@ case "${DHPK_INSTALLER_ENGINE:-$DEFAULT_ENGINE}" in
         if ! command -v python3 >/dev/null 2>&1; then
             echo "[$INSTALLER_NAME] ERROR: python3 is required for receipt reconciliation" >&2
             exit 2
-        fi ;;
+        fi
+        for JS_STATE in "$PROJECT_ROOT/.agents/.dhpk-install.lock" "$PROJECT_ROOT/.agents/.dhpk-projection-journal.json"; do
+            if [ -e "$JS_STATE" ] || [ -L "$JS_STATE" ]; then
+                echo "[$INSTALLER_NAME] ERROR: a JS install holds or left the project lock or Projection Journal (.agents/.dhpk-install.lock / .agents/.dhpk-projection-journal.json); finish it with the Codex installer's --recover, then retry" >&2
+                exit 2
+            fi
+        done ;;
     js)
         if [ ! -f "$JS_ADAPTER" ]; then
             echo "[$INSTALLER_NAME] ERROR: the JS installer is not beside this script: $JS_ADAPTER" >&2
