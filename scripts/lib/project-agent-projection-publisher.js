@@ -55,7 +55,10 @@ const PREVIOUS_PROJECT_RECEIPT_SCHEMA = 'dhpk.project-agent-projection-receipt.v
 const LEGACY_PROJECT_RECEIPT_SCHEMA = 'dhpk.project-agent-projection-receipt.v1';
 const PROJECT_ROLLBACK_SCHEMA = 'dhpk.project-agent-projection-rollback.v2';
 const LEGACY_PROJECT_ROLLBACK_SCHEMA = 'dhpk.project-agent-projection-rollback.v1';
-const PROJECT_TRANSACTION_SCHEMA = 'dhpk.project-agent-projection-transaction.v2';
+const PROJECT_TRANSACTION_SCHEMA = 'dhpk.project-agent-projection-transaction.v3';
+// v1/v2 journals track progress with flags; they are recovered through the
+// flag-based path for one minor release (projection-journal REQ-9).
+const FLAG_PROJECT_TRANSACTION_SCHEMA = 'dhpk.project-agent-projection-transaction.v2';
 const LEGACY_PROJECT_TRANSACTION_SCHEMA = 'dhpk.project-agent-projection-transaction.v1';
 const GENERATOR_VERSION = '2.1.0';
 // Only the current generator's receipts are read (OpenSpec
@@ -1395,11 +1398,532 @@ function transactionPath(roots) {
   return path.join(roots.agentsRoot, '.dhpk-installed.transaction.json');
 }
 
-function validateTransaction(roots, transaction) {
-  if (!transaction || ![PROJECT_TRANSACTION_SCHEMA, LEGACY_PROJECT_TRANSACTION_SCHEMA].includes(transaction.schema)) {
-    throw fail('UNSAFE_TRANSACTION', 'project projection transaction has an unsupported schema');
+// ---------------------------------------------------------------------------
+// Effect journal (transaction schema v3, #1240).
+//
+// Every filesystem effect of a transaction is a record
+// `{ id, kind, args, inverse, state }`. A record is flushed as `planned`
+// before its effect runs and becomes `done` with the next flush, so only the
+// last record can be ambiguous after a crash. Before the commit point
+// (`published`) recovery applies the inverse of every record that may have
+// run, newest first; after it, recovery finishes the remaining cleanup
+// records. Inverses are idempotent, so an interrupted recovery can run again.
+// Writes inside a journaled transient directory (artifact or rollback-candidate
+// stage, backup, rollback stage) are covered by that directory's record.
+const EFFECT_KINDS = Object.freeze(['mkdir', 'rename', 'symlink', 'remove', 'write-file', 'copy-tree', 'chmod']);
+const EFFECT_REMOVE_MODES = Object.freeze(['tree', 'empty', 'file', 'link']);
+const EFFECT_STATES = Object.freeze(['planned', 'done', 'undone']);
+const EFFECT_PHASES = Object.freeze(['staging', 'prepared', 'publishing', 'held', 'published', 'rolling-back']);
+
+// Test-only sentinel for in-process crash injection: no catch or finally block
+// in the publisher reacts to it, so the journal is left as a SIGKILL leaves it.
+class SimulatedCrash extends Error {
+  constructor(step) {
+    super(`simulated crash after step ${step}`);
+    this.name = 'SimulatedCrash';
+    this.step = step;
   }
-  const supportsClaudeRoot = transaction.schema === PROJECT_TRANSACTION_SCHEMA;
+}
+
+function isSimulatedCrash(error) {
+  return error instanceof SimulatedCrash;
+}
+
+function effectRelative(roots, absolute) {
+  const relative = path.relative(roots.projectRoot, absolute).split(path.sep).join('/');
+  return assertSafeRelative(relative, 'transaction effect path');
+}
+
+// The leaf may be a Host Binding symlink; every ancestor must be physical.
+function effectAbsolute(roots, relative) {
+  try {
+    assertSafeRelative(relative, 'transaction effect path');
+    const candidate = path.resolve(roots.projectRoot, relative);
+    if (!isInside(roots.projectRoot, candidate) || candidate === roots.projectRoot) throw fail('PATH_ESCAPE', `transaction effect path escapes the project: ${relative}`, { paths: [relative] });
+    assertPhysicalAncestors(path.dirname(candidate), 'transaction effect path', roots.projectRoot);
+    return candidate;
+  } catch (error) {
+    throw fail('UNSAFE_TRANSACTION', error.message, error.projectionDetails || {});
+  }
+}
+
+function effectConflict(relative, message) {
+  return fail('RECOVERY_CONFLICT', `${message}: ${relative}`, { paths: [relative] });
+}
+
+function ensureEffectParent(roots, target) {
+  assertPhysicalAncestors(path.dirname(target), 'transaction effect parent', roots.projectRoot);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+}
+
+function fileDigestOrNull(target) {
+  const stat = lstatOrNull(target);
+  if (!stat) return null;
+  if (stat.isSymbolicLink() || !stat.isFile()) return false;
+  return sha256Hex(fs.readFileSync(target));
+}
+
+function removeEffect(roots, { paths, mode, digest = null, target = null }) {
+  for (const relative of paths) {
+    const absolute = effectAbsolute(roots, relative);
+    const stat = lstatOrNull(absolute);
+    if (!stat) continue;
+    if (mode === 'tree') {
+      if (stat.isSymbolicLink() || !stat.isDirectory()) throw fail('UNSAFE_TRANSACTION', `transaction directory is not a physical directory: ${relative}`, { paths: [relative] });
+      fs.rmSync(absolute, { recursive: true, force: true });
+    } else if (mode === 'empty') {
+      if (!stat.isSymbolicLink() && stat.isDirectory() && fs.readdirSync(absolute).length === 0) fs.rmdirSync(absolute);
+    } else if (mode === 'file') {
+      if (stat.isSymbolicLink() || !stat.isFile()) throw effectConflict(relative, 'interrupted publication target is unsafe');
+      if (digest && sha256Hex(fs.readFileSync(absolute)) !== digest) throw effectConflict(relative, 'interrupted publication target changed outside the transaction');
+      fs.rmSync(absolute, { force: true });
+    } else {
+      if (!stat.isSymbolicLink() || fs.readlinkSync(absolute) !== target) throw effectConflict(relative, 'transaction binding changed outside the transaction');
+      fs.rmSync(absolute, { force: true });
+    }
+  }
+}
+
+// Applies one effect from its data alone. Recovery uses it for inverses and for
+// the cleanup that finishes a published transaction; each branch is idempotent:
+// an effect whose result is already in place succeeds without change.
+// `forward` is the first run of a recorded effect: it must find the state the
+// record was planned against, so a path that appeared or vanished in between
+// is a conflict instead of an already-completed effect.
+function applyEffect(roots, { kind, args }, { forward = false } = {}) {
+  switch (kind) {
+    case 'mkdir':
+      for (const relative of args.paths) {
+        const absolute = effectAbsolute(roots, relative);
+        const stat = lstatOrNull(absolute);
+        if (stat) {
+          if (forward || stat.isSymbolicLink() || !stat.isDirectory()) throw effectConflict(relative, 'transaction directory path is occupied');
+          continue;
+        }
+        assertPhysicalAncestors(path.dirname(absolute), 'transaction directory parent', roots.projectRoot);
+        fs.mkdirSync(absolute);
+      }
+      return;
+    case 'remove':
+      removeEffect(roots, args);
+      return;
+    case 'rename': {
+      const from = effectAbsolute(roots, args.from);
+      const to = effectAbsolute(roots, args.to);
+      if (!lstatOrNull(from)) {
+        if (forward) throw fail('MANAGED_CONTENT_CHANGED', `transaction rename source disappeared: ${args.from}`, { paths: [args.from] });
+        return;
+      }
+      if (lstatOrNull(to)) throw effectConflict(args.to, 'transaction rename target is occupied');
+      if (args.linkOnly && !lstatOrNull(from).isSymbolicLink()) throw effectConflict(args.from, 'transaction may only move a Host Binding symlink here');
+      ensureEffectParent(roots, to);
+      fs.renameSync(from, to);
+      return;
+    }
+    case 'symlink': {
+      const absolute = effectAbsolute(roots, args.path);
+      const stat = lstatOrNull(absolute);
+      if (stat) {
+        if (stat.isSymbolicLink() && fs.readlinkSync(absolute) === args.target) return;
+        throw effectConflict(args.path, 'transaction binding path is occupied');
+      }
+      ensureEffectParent(roots, absolute);
+      fs.symlinkSync(args.target, absolute, 'dir');
+      return;
+    }
+    case 'chmod': {
+      const absolute = effectAbsolute(roots, args.path);
+      const stat = lstatOrNull(absolute);
+      if (!stat) return;
+      if (stat.isSymbolicLink() || !stat.isFile()) throw effectConflict(args.path, 'transaction mode target is unsafe');
+      fs.chmodSync(absolute, args.mode);
+      return;
+    }
+    case 'copy-tree': {
+      const from = effectAbsolute(roots, args.from);
+      const to = effectAbsolute(roots, args.to);
+      const existing = fileDigestOrNull(to);
+      if (existing !== null) {
+        if (existing === args.digest) return;
+        throw effectConflict(args.to, 'transaction copy target is occupied');
+      }
+      ensureEffectParent(roots, to);
+      fs.copyFileSync(from, to);
+      if (args.digest && fileDigestOrNull(to) !== args.digest) throw effectConflict(args.to, 'transaction copy drifted');
+      return;
+    }
+    case 'write-file': {
+      const absolute = effectAbsolute(roots, args.path);
+      const existing = fileDigestOrNull(absolute);
+      if (existing !== null && existing === args.digest) return;
+      if (typeof args.content !== 'string') throw fail('UNSAFE_TRANSACTION', `transaction write-file effect is not replayable: ${args.path}`, { paths: [args.path] });
+      if (existing !== null) throw effectConflict(args.path, 'transaction write target is occupied');
+      ensureEffectParent(roots, absolute);
+      fs.writeFileSync(absolute, args.content);
+      return;
+    }
+    default:
+      throw fail('UNSAFE_TRANSACTION', `unknown transaction effect kind: ${kind}`);
+  }
+}
+
+class EffectTransaction {
+  constructor(roots, journal, { afterStep = null } = {}) {
+    this.roots = roots;
+    this.journal = journal;
+    // Test-only crash hooks: `after` runs once a step's effect is done; `mid`
+    // runs between a record's flush and its effect (or, while rolling back,
+    // between an inverse and the flush that records it). A plain function is
+    // the `after` hook.
+    const hooks = typeof afterStep === 'function' ? { after: afterStep } : (afterStep || {});
+    this.afterStep = typeof hooks.after === 'function' ? hooks.after : null;
+    this.midStep = typeof hooks.mid === 'function' ? hooks.mid : null;
+    this.step = 0;
+    this.finished = false;
+    this.committed = false;
+    this.journalPath = transactionPath(roots);
+  }
+
+  static begin(roots, fields, options = {}) {
+    const journalPath = transactionPath(roots);
+    if (lstatOrNull(journalPath)) throw fail('TRANSACTION_EXISTS', 'project projection transaction journal already exists');
+    const transaction = new EffectTransaction(roots, {
+      schema: PROJECT_TRANSACTION_SCHEMA,
+      managedName: path.basename(roots.managedRoot),
+      claudeManagedName: path.basename(roots.claudeManagedRoot),
+      receiptName: path.basename(roots.receiptPath),
+      backupName: '.none',
+      rollbackStageName: '.none',
+      stageName: '.none',
+      ...fields,
+      effects: [],
+    }, options);
+    transaction.flush();
+    return transaction;
+  }
+
+  flush() {
+    writeAtomicJson(this.journalPath, this.journal, this.roots.projectRoot);
+  }
+
+  tick(record) {
+    this.step += 1;
+    if (this.afterStep) this.afterStep(this.step, record);
+  }
+
+  settleLast() {
+    const last = this.journal.effects[this.journal.effects.length - 1];
+    if (last && last.state === 'planned') last.state = 'done';
+  }
+
+  // Records the effect and its inverse, flushes the journal, then runs it.
+  effect(kind, args, inverse, perform = null) {
+    if (!EFFECT_KINDS.includes(kind) || (inverse && !EFFECT_KINDS.includes(inverse.kind))) throw fail('UNSAFE_TRANSACTION', `unknown transaction effect kind: ${kind}`);
+    this.settleLast();
+    const record = { id: this.journal.effects.length + 1, kind, args, inverse: inverse || null, state: 'planned' };
+    this.journal.effects.push(record);
+    this.flush();
+    if (this.midStep) this.midStep(this.step + 1, record);
+    if (perform) perform();
+    else applyEffect(this.roots, record, { forward: true });
+    this.tick(record);
+    return record;
+  }
+
+  setPhase(phase) {
+    this.settleLast();
+    this.journal.phase = phase;
+    this.flush();
+  }
+
+  hold() {
+    this.setPhase('held');
+    this.finished = true;
+  }
+
+  // The commit point: the phase and every cleanup record reach disk together.
+  // The in-memory journal changes only after the flush succeeds, so a failed
+  // flush still rolls back as `publishing`.
+  publish(cleanups) {
+    this.settleLast();
+    const effects = this.journal.effects.slice();
+    for (const cleanup of cleanups) effects.push({ id: effects.length + 1, ...cleanup, inverse: null, state: 'planned' });
+    const next = { ...this.journal, phase: 'published', effects };
+    writeAtomicJson(this.journalPath, next, this.roots.projectRoot);
+    this.journal = next;
+    this.committed = true;
+  }
+
+  // Runs every cleanup that has not completed, then retires the journal.
+  finish() {
+    for (const record of this.journal.effects) {
+      if (record.state === 'done') continue;
+      applyEffect(this.roots, record);
+      record.state = 'done';
+      this.tick(record);
+    }
+    this.close();
+  }
+
+  // Undoes every effect that may have run, newest first. Only the last record
+  // can still be `planned` while its effect already ran.
+  rollBack() {
+    // Past the commit point only roll-forward is allowed (REQ-4).
+    if (this.committed || this.journal.phase === 'published') throw fail('TRANSACTION_COMMITTED', 'project projection transaction is published and can only be finished, not rolled back');
+    // One attempt per process: a failed rollback leaves the journal for recovery.
+    this.finished = true;
+    if (this.journal.phase !== 'rolling-back') {
+      this.journal.rollingBackFrom = this.journal.phase;
+      this.journal.phase = 'rolling-back';
+      this.flush();
+    }
+    const effects = this.journal.effects;
+    for (let index = effects.length - 1; index >= 0; index -= 1) {
+      const record = effects[index];
+      if (record.state === 'undone' || (record.state === 'planned' && index !== effects.length - 1)) continue;
+      if (!record.inverse) throw fail('UNSAFE_TRANSACTION', `project projection transaction effect ${record.id} (${record.kind}) cannot be undone`);
+      // An interrupted copy may leave a partial file. Its target was absent
+      // when the record was planned, so the file is this transaction's even
+      // though its digest does not match yet.
+      const partialCopy = record.state === 'planned' && record.kind === 'copy-tree';
+      applyEffect(this.roots, partialCopy ? { ...record.inverse, args: { ...record.inverse.args, digest: null } } : record.inverse);
+      if (this.midStep) this.midStep(this.step + 1, record);
+      record.state = 'undone';
+      this.flush();
+      this.tick(record);
+    }
+    removeEmptyDirectories(this.roots.managedRoot);
+    removeEmptyDirectories(this.roots.claudeManagedRoot);
+    this.close();
+    return this.journal.rollingBackFrom;
+  }
+
+  close() {
+    fs.rmSync(this.journalPath, { force: true });
+    this.finished = true;
+  }
+}
+
+function effectInverseRemoveTree(relative) {
+  return { kind: 'remove', args: { paths: [relative], mode: 'tree' } };
+}
+
+// Records the creation of a transient directory before it exists.
+function recordTransientDirectory(transaction, directory) {
+  const relative = effectRelative(transaction.roots, directory);
+  transaction.effect('mkdir', { paths: [relative] }, effectInverseRemoveTree(relative));
+  return directory;
+}
+
+// Records the missing ancestors of `target` inside `boundary` (the boundary
+// itself included, never the project root) as one mkdir.
+function recordParents(transaction, target, boundary) {
+  const { projectRoot } = transaction.roots;
+  if (!isInside(boundary, target) || !isInside(projectRoot, boundary)) throw fail('PATH_ESCAPE', `transaction target escapes its root: ${target}`, { paths: [target] });
+  const missing = [];
+  let current = path.dirname(target);
+  while (current !== projectRoot && isInside(projectRoot, current) && !lstatOrNull(current)) {
+    missing.unshift(current);
+    current = path.dirname(current);
+  }
+  if (missing.length === 0) return;
+  const relatives = missing.map((directory) => effectRelative(transaction.roots, directory));
+  transaction.effect('mkdir', { paths: relatives }, { kind: 'remove', args: { paths: relatives.slice().reverse(), mode: 'empty' } });
+}
+
+function recordRename(transaction, source, target) {
+  const from = effectRelative(transaction.roots, source);
+  const to = effectRelative(transaction.roots, target);
+  transaction.effect('rename', { from, to }, { kind: 'rename', args: { from: to, to: from } });
+}
+
+// Empty directories that removeEmptyDirectories would delete, deepest first.
+function emptyDirectoriesBelow(root) {
+  const found = [];
+  const walk = (directory) => {
+    const stat = lstatOrNull(directory);
+    if (!stat || stat.isSymbolicLink() || !stat.isDirectory()) return true;
+    let empty = true;
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const child = path.join(directory, entry.name);
+      if (entry.isDirectory() && !entry.isSymbolicLink() && walk(child)) continue;
+      empty = false;
+    }
+    if (empty && directory !== root) found.push(directory);
+    return empty;
+  };
+  walk(root);
+  return found;
+}
+
+function recordRemoveEmptyDirectories(transaction, root) {
+  const directories = emptyDirectoriesBelow(root).map((directory) => effectRelative(transaction.roots, directory));
+  if (directories.length === 0) return;
+  transaction.effect('remove', { paths: directories, mode: 'empty' }, { kind: 'mkdir', args: { paths: directories.slice().reverse() } });
+}
+
+// Opens a staging transaction whose first record is the stage directory.
+function openStage(roots, kind, afterStep = null) {
+  const stageName = `.dhpk-projection-${kind}-${transactionToken()}`;
+  const transaction = EffectTransaction.begin(roots, { phase: 'staging', stageName }, { afterStep });
+  const stage = path.join(roots.agentsRoot, stageName);
+  try {
+    recordTransientDirectory(transaction, stage);
+  } catch (error) {
+    releaseStage(transaction, error);
+    throw error;
+  }
+  return { transaction, stage };
+}
+
+// Undoes a transaction that no publication took over. A finished or held
+// transaction is left alone; a simulated crash leaves the journal as it is.
+function releaseStage(transaction, error = null) {
+  if (!transaction || transaction.finished || transaction.committed || isSimulatedCrash(error)) return;
+  try {
+    transaction.rollBack();
+  } catch (cleanupError) {
+    if (!error || isSimulatedCrash(cleanupError)) throw cleanupError;
+    error.message = `${error.message}; transaction recovery failed: ${cleanupError.message}`;
+  }
+}
+
+function cleanupEffects(roots, journal) {
+  const trees = [journal.stageName, journal.rollbackStageName, journal.adoption === true ? '.none' : journal.backupName]
+    .filter((name) => name && name !== '.none')
+    .map((name) => effectRelative(roots, path.join(roots.agentsRoot, name)));
+  return trees.length > 0 ? [{ kind: 'remove', args: { paths: trees, mode: 'tree' } }] : [];
+}
+
+const TRANSIENT_NAME_PATTERNS = Object.freeze({
+  backupName: /^\.dhpk-projection-backup-[a-z0-9-]+$/i,
+  stageName: /^\.dhpk-projection-(?:artifact|rollback-candidate)-[a-z0-9-]+$/i,
+  rollbackStageName: /^\.dhpk-projection-rollback-stage-[a-z0-9-]+$/i,
+});
+
+// Recovery replays a journal it did not necessarily write (a project may ship
+// one), so each record may touch only what the publisher itself touches:
+// - `remove` tree: the transient directories named in the journal header;
+// - `remove` file, `copy-tree`, `chmod`, `rename`: the managed roots, the
+//   receipt, the rollback snapshot root, or those transient directories, and a
+//   rename that leaves them may move only a symlink (a Host Binding);
+// - `remove` link / empty and `mkdir`: anywhere in the project, because they
+//   only delete a symlink with the recorded target or an empty directory, or
+//   create an empty directory.
+function effectScope(roots, journal) {
+  const transient = ['backupName', 'stageName', 'rollbackStageName']
+    .map((field) => journal[field])
+    .filter((name) => typeof name === 'string' && name !== '.none')
+    .map((name) => path.join(roots.agentsRoot, name));
+  // Entries below a managed root, but never the root itself; the rollback
+  // snapshot root and the transient directories including themselves.
+  const managedRoots = [roots.managedRoot, roots.claudeManagedRoot];
+  const wholeRoots = [path.join(roots.agentsRoot, '.dhpk-projection-rollback'), ...transient];
+  return {
+    transient: new Set(transient),
+    isOwned: (absolute) => absolute === roots.receiptPath
+      || managedRoots.some((root) => absolute !== root && isInside(root, absolute))
+      || wholeRoots.some((root) => isInside(root, absolute)),
+  };
+}
+
+function validateEffectArgs(roots, effect, label, scope) {
+  if (!effect || typeof effect !== 'object' || !EFFECT_KINDS.includes(effect.kind) || !effect.args || typeof effect.args !== 'object') {
+    throw fail('UNSAFE_TRANSACTION', `project projection transaction ${label} is invalid`);
+  }
+  const { kind, args } = effect;
+  const unsafe = (reason) => fail('UNSAFE_TRANSACTION', `project projection transaction ${label} ${reason}`);
+  const absolute = (relative) => {
+    if (typeof relative !== 'string') throw unsafe('has an invalid path');
+    return effectAbsolute(roots, relative);
+  };
+  if (args.digest !== undefined && args.digest !== null && !DIGEST_PATTERN.test(args.digest)) throw unsafe('has an invalid digest');
+  if (args.content !== undefined) throw unsafe('carries file content');
+  if (['mkdir', 'remove'].includes(kind) && (!Array.isArray(args.paths) || args.paths.length === 0)) throw unsafe('has no paths');
+  switch (kind) {
+    case 'mkdir':
+      args.paths.forEach(absolute);
+      return;
+    case 'remove': {
+      if (!EFFECT_REMOVE_MODES.includes(args.mode)) throw unsafe('has an invalid remove mode');
+      const targets = args.paths.map(absolute);
+      if (args.mode === 'tree' && targets.some((target) => !scope.transient.has(target))) throw unsafe('removes a directory the transaction does not own');
+      if (args.mode === 'file' && (!args.digest || targets.length !== 1 || !scope.isOwned(targets[0]))) throw unsafe('removes a file the transaction does not own');
+      if (args.mode === 'link') {
+        if (targets.length !== 1) throw unsafe('removes more than one link');
+        assertSafeLinkTarget(args.target, `project projection transaction ${label} link target`);
+      }
+      return;
+    }
+    case 'rename': {
+      const from = absolute(args.from);
+      const to = absolute(args.to);
+      if (!scope.isOwned(from) && !scope.isOwned(to)) throw unsafe('renames paths the transaction does not own');
+      // A rename that leaves the owned paths is a Host Binding backup or
+      // restore; the executor then refuses to move anything but a symlink.
+      if (!scope.isOwned(from) || !scope.isOwned(to)) effect.args = { ...args, linkOnly: true };
+      return;
+    }
+    case 'copy-tree':
+    case 'chmod':
+    case 'write-file':
+    case 'symlink':
+      [args.from, args.to, args.path].filter((value) => value !== undefined).forEach((relative) => {
+        if (kind !== 'symlink' && !scope.isOwned(absolute(relative))) throw unsafe('touches a path the transaction does not own');
+        absolute(relative);
+      });
+      if (kind === 'symlink') assertSafeLinkTarget(args.target, `project projection transaction ${label} link target`);
+      if (['copy-tree', 'write-file'].includes(kind) && !args.digest) throw unsafe('has no digest');
+      return;
+    default:
+      throw unsafe('has an unknown kind');
+  }
+}
+
+function validateEffectJournal(roots, journal) {
+  if (!EFFECT_PHASES.includes(journal.phase)) throw fail('UNSAFE_TRANSACTION', 'project projection transaction has an invalid phase');
+  for (const [field, pattern] of Object.entries(TRANSIENT_NAME_PATTERNS)) {
+    if (typeof journal[field] !== 'string' || (journal[field] !== '.none' && !pattern.test(journal[field]))) {
+      throw fail('UNSAFE_TRANSACTION', `project projection transaction has an unsafe ${field}`);
+    }
+  }
+  if (journal.receiptName !== path.basename(roots.receiptPath) || journal.managedName !== path.basename(roots.managedRoot)
+    || journal.claudeManagedName !== path.basename(roots.claudeManagedRoot)) {
+    throw fail('UNSAFE_TRANSACTION', 'project projection transaction identity does not match the target');
+  }
+  if (journal.hold !== undefined) normalizeHold(journal.hold, 'UNSAFE_TRANSACTION');
+  if (journal.adoption !== undefined && journal.adoption !== true) throw fail('UNSAFE_TRANSACTION', 'project projection transaction adoption flag is invalid');
+  if (journal.phase === 'rolling-back' && !EFFECT_PHASES.includes(journal.rollingBackFrom)) throw fail('UNSAFE_TRANSACTION', 'project projection transaction rollback origin is invalid');
+  if (!Array.isArray(journal.effects)) throw fail('UNSAFE_TRANSACTION', 'project projection transaction effects are invalid');
+  const scope = effectScope(roots, journal);
+  journal.effects.forEach((record, index) => {
+    if (!record || record.id !== index + 1 || !EFFECT_STATES.includes(record.state)) throw fail('UNSAFE_TRANSACTION', `project projection transaction effect ${index + 1} is invalid`);
+    validateEffectArgs(roots, record, `effect ${record.id}`, scope);
+    if (record.inverse !== null) validateEffectArgs(roots, record.inverse, `effect ${record.id} inverse`, scope);
+    // After the commit point recovery only finishes cleanup of transient trees.
+    if (journal.phase === 'published' && record.state !== 'done' && !(record.kind === 'remove' && record.args.mode === 'tree')) {
+      throw fail('UNSAFE_TRANSACTION', `project projection transaction effect ${record.id} is not a cleanup and cannot be finished`);
+    }
+  });
+}
+
+function recoverEffectTransaction(roots, journal, { resolveHeld = null, afterStep = null } = {}) {
+  validateEffectJournal(roots, journal);
+  if (journal.hold && journal.phase !== 'published' && journal.hold.transactionId !== resolveHeld) throw heldError(journal.hold);
+  const transaction = new EffectTransaction(roots, journal, { afterStep });
+  if (journal.phase === 'published') {
+    transaction.finish();
+    return { recovered: true, phase: 'published', ...(journal.adoption === true ? { backupPath: path.join(roots.agentsRoot, journal.backupName) } : {}) };
+  }
+  const phase = transaction.rollBack();
+  return { recovered: true, phase };
+}
+
+function validateTransaction(roots, transaction) {
+  if (!transaction || ![FLAG_PROJECT_TRANSACTION_SCHEMA, LEGACY_PROJECT_TRANSACTION_SCHEMA].includes(transaction.schema)) {
+    throw unsupportedTransactionSchema(transaction);
+  }
+  const supportsClaudeRoot = transaction.schema === FLAG_PROJECT_TRANSACTION_SCHEMA;
   if (typeof transaction.backupName !== 'string' || !/^\.dhpk-projection-backup-[a-z0-9-]+$/i.test(transaction.backupName)) {
     throw fail('UNSAFE_TRANSACTION', 'project projection transaction has an unsafe backupName');
   }
@@ -1496,10 +2020,23 @@ function readTransactionJournal(roots) {
   return readJsonFile(journalPath, 'project projection transaction journal');
 }
 
-function recoverProjectProjectionTransaction(roots, { resolveHeld = null } = {}) {
+// A journal this release cannot read blocks without changing files and names
+// the way out: the release that wrote it can still recover it.
+function unsupportedTransactionSchema(transaction) {
+  const schema = transaction && typeof transaction.schema === 'string' ? transaction.schema : 'missing';
+  return fail('UNSAFE_TRANSACTION', `project projection transaction has an unsupported schema (${schema}); this release recovers ${PROJECT_TRANSACTION_SCHEMA}, ${FLAG_PROJECT_TRANSACTION_SCHEMA}, and ${LEGACY_PROJECT_TRANSACTION_SCHEMA}. Run \`dhpk-install --recover\` (or the installer's --recover) with the dhpk release that wrote it, then retry`, { schema });
+}
+
+function recoverProjectProjectionTransaction(roots, { resolveHeld = null, afterStep = null } = {}) {
   const journalPath = transactionPath(roots);
   const transaction = readTransactionJournal(roots);
   if (!transaction) return { recovered: false };
+  if (transaction.schema === PROJECT_TRANSACTION_SCHEMA) return recoverEffectTransaction(roots, transaction, { resolveHeld, afterStep });
+  return recoverFlagTransaction(roots, journalPath, transaction, { resolveHeld });
+}
+
+// Recovery for v1/v2 journals written before effects were recorded as data.
+function recoverFlagTransaction(roots, journalPath, transaction, { resolveHeld = null } = {}) {
   const paths = validateTransaction(roots, transaction);
   if (transaction.hold && transaction.phase !== 'published' && transaction.hold.transactionId !== resolveHeld) throw heldError(transaction.hold);
   // `prepared` precedes every live mutation: only the journaled transient
@@ -1719,9 +2256,10 @@ function planRollbackStage(stage, previous, receiptSchema, adoptedBindingPaths =
   };
 }
 
+// Fills a rollback stage that the transaction already recorded and created;
+// the stage record covers everything written here.
 function writeRollbackStage(roots, rollback) {
   const { stage, previous } = rollback;
-  fs.mkdirSync(stage);
   const filesRoot = path.join(stage, 'files');
   fs.mkdirSync(filesRoot, { recursive: true });
   const managedSnapshotRoot = rollback.groupedManagedRoot ? path.join(filesRoot, 'managed') : filesRoot;
@@ -1747,14 +2285,22 @@ function transactionToken() {
 // Bindings that a rollback hands back to their pre-adoption, unmanaged state.
 // They are journaled as new bindings so an interrupted rollback removes them,
 // but no receipt records them. Their target may legitimately be absent.
-function installRestoredBindings(roots, restoredBindingPaths) {
+function installRestoredBindings(transaction, restoredBindingPaths) {
+  const { roots } = transaction;
   for (const binding of flattenBindingPaths(restoredBindingPaths)) {
     const destination = bindingDestinationIn(roots, binding.path, 'rollback adopted binding');
     if (lstatOrNull(destination)) throw fail('PUBLISH_COLLISION', `rollback adopted binding appeared during publication: ${binding.path}`, { paths: [binding.path] });
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    assertPhysicalAncestors(path.dirname(destination), 'rollback adopted binding parent', roots.projectRoot);
-    fs.symlinkSync(binding.target, destination, 'dir');
+    recordSymlink(transaction, destination, binding.target, 'rollback adopted binding parent');
   }
+}
+
+// Records a Host Binding symlink and its parents before creating it.
+function recordSymlink(transaction, destination, target, label) {
+  const { roots } = transaction;
+  recordParents(transaction, destination, roots.projectRoot);
+  assertPhysicalAncestors(path.dirname(destination), label, roots.projectRoot);
+  const relative = effectRelative(roots, destination);
+  transaction.effect('symlink', { path: relative, target }, { kind: 'remove', args: { paths: [relative], mode: 'link', target } });
 }
 
 function checkCollisions(roots, previous, candidateFiles, rootId = 'managed') {
@@ -1876,7 +2422,8 @@ function removeBindingCandidate(roots, binding, code = 'RECOVERY_CONFLICT', { al
   fs.rmSync(resolved.destination, { force: true });
 }
 
-function installBindingPaths(roots, bindingPaths, { allowClaudeRoot = false } = {}) {
+function installBindingPaths(transaction, bindingPaths, { allowClaudeRoot = false } = {}) {
+  const { roots } = transaction;
   for (const binding of flattenBindingPaths(normalizeBindingPaths(bindingPaths || {}, roots, 'publish project projection binding paths', { allowClaudeRoot }))) {
     const resolved = bindingTargetIn(roots, binding, `publish ${binding.hostId} binding`, { allowClaudeRoot });
     const targetStat = lstatOrNull(resolved.resolvedTarget);
@@ -1884,9 +2431,7 @@ function installBindingPaths(roots, bindingPaths, { allowClaudeRoot = false } = 
       throw fail('PUBLISH_TARGET_MISSING', `Host binding target is missing or unsafe: ${binding.target}`, { paths: [binding.path, binding.target] });
     }
     if (lstatOrNull(resolved.destination)) throw fail('PUBLISH_COLLISION', `publish binding target appeared after collision check: ${binding.path}`, { paths: [binding.path] });
-    fs.mkdirSync(path.dirname(resolved.destination), { recursive: true });
-    assertPhysicalAncestors(path.dirname(resolved.destination), 'publish binding parent', roots.projectRoot);
-    fs.symlinkSync(binding.target, resolved.destination, 'dir');
+    recordSymlink(transaction, resolved.destination, binding.target, 'publish binding parent');
     if (fs.readlinkSync(resolved.destination) !== binding.target) {
       throw fail('PUBLISH_FINGERPRINT_DRIFT', `published Host binding target drifted: ${binding.path}`, { paths: [binding.path] });
     }
@@ -1908,6 +2453,8 @@ function publishManagedCandidate({
   adoptedBindingPaths = {},
   restoredBindingPaths = {},
   hold = null,
+  transaction = null,
+  afterStep = null,
 }) {
   const heldBy = hold ? normalizeHold(hold) : null;
   checkCollisions(roots, previous, candidateFiles);
@@ -1925,10 +2472,9 @@ function publishManagedCandidate({
   const restoredBindings = Object.fromEntries(Object.entries(normalizeBindingPaths(restoredBindingPaths, roots, 'rollback adopted binding paths', { allowClaudeRoot: true }))
     .map(([hostId, entries]) => [hostId, entries.filter((entry) => !candidateBindingSet.has(entry.path))])
     .filter(([, entries]) => entries.length > 0));
-  const journalPath = transactionPath(roots);
-  if (lstatOrNull(journalPath)) throw fail('TRANSACTION_EXISTS', 'project projection transaction journal already exists');
-  // Every transient directory is named in the journal before it is created,
-  // so recovery can remove it after a crash at any point.
+  if (candidateRoot && (!transaction || transaction.journal.stageName !== path.basename(path.dirname(candidateRoot)))) {
+    throw fail('UNSAFE_TRANSACTION', 'project projection candidate is not staged by the publishing transaction');
+  }
   const token = transactionToken();
   const backup = path.join(roots.agentsRoot, `.dhpk-projection-backup-${token}`);
   const rollback = planRollbackStage(
@@ -1943,65 +2489,51 @@ function publishManagedCandidate({
     ...receiptWithoutFingerprint(nextReceipt),
     rollback: rollback ? rollback.metadata : null,
   }) : null;
-  const journal = {
-    schema: PROJECT_TRANSACTION_SCHEMA,
+  const fields = {
     phase: 'prepared',
-    managedName: path.basename(roots.managedRoot),
-    claudeManagedName: path.basename(roots.claudeManagedRoot),
-    receiptName: path.basename(roots.receiptPath),
     backupName: path.basename(backup),
     rollbackStageName: rollback ? path.basename(rollback.stage) : '.none',
-    stageName: candidateRoot ? path.basename(path.dirname(candidateRoot)) : '.none',
-    oldPaths: previous ? previous.managedPaths.slice().sort() : [],
-    newPaths: candidateFiles.slice().sort(),
-    oldClaudePaths: previous ? (previous.claudeManagedPaths || []).slice().sort() : [],
-    newClaudePaths: claudeCandidateFiles.slice().sort(),
-    oldBindingPaths: previousBindingPaths,
-    newBindingPaths: candidateBindingPaths,
-    ...(flattenBindingPaths(restoredBindings).length > 0 ? { restoredBindingPaths: restoredBindings } : {}),
-    newFingerprints: { ...candidateFingerprints },
-    newClaudeFingerprints: { ...claudeCandidateFingerprints },
-    newReceiptDigest: receipt ? receiptFileDigest(receipt) : null,
-    newRollback: Boolean(rollback),
-    oldRollbackPresent: Boolean(oldRollback),
-    oldRollbackMoved: false,
-    newRollbackInstalled: false,
-    liveBackedUp: false,
-    ...(heldBy ? { hold: heldBy, holdReady: false } : {}),
-    ...(adoption ? { adoption: true, oldFingerprints: previous.generatedFingerprints, oldClaudeFingerprints: previous.claudeGeneratedFingerprints, oldReceiptDigest } : {}),
+    ...(heldBy ? { hold: heldBy } : {}),
+    ...(adoption ? { adoption: true } : {}),
   };
-  writeAtomicJson(journalPath, journal, roots.projectRoot);
+  // A staged candidate continues the transaction that recorded its stage.
+  const tx = transaction || EffectTransaction.begin(roots, fields, { afterStep });
+  Object.assign(tx.journal, fields);
   let published = false;
   try {
-    fs.mkdirSync(backup);
-    if (rollback) writeRollbackStage(roots, rollback);
-    journal.phase = 'publishing';
-    writeAtomicJson(journalPath, journal, roots.projectRoot);
+    // Every transient directory is recorded before it is created, so recovery
+    // can remove it after a crash at any point.
+    recordTransientDirectory(tx, backup);
+    if (rollback) {
+      recordTransientDirectory(tx, rollback.stage);
+      writeRollbackStage(roots, rollback);
+    }
+    tx.setPhase('publishing');
+    const backUp = (source, target, label) => {
+      assertPhysicalAncestors(path.dirname(target), label, backup);
+      recordRename(tx, source, target);
+    };
     if (previous) {
       for (const relative of previous.managedPaths.slice().sort()) {
         const source = pathIn(roots.managedRoot, relative, 'transaction backup source');
         const target = path.join(backup, 'managed', relative);
         if (adoption && sha256Hex(readPhysicalFile(source, 'adoption source')) !== previous.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption source changed: ${relative}`);
-        fs.mkdirSync(path.dirname(target), { recursive: true });
-        assertPhysicalAncestors(target, 'transaction backup target', backup);
-        fs.renameSync(source, target);
+        backUp(source, target, 'transaction backup target');
         if (adoption && sha256Hex(readPhysicalFile(target, 'adoption backup')) !== previous.generatedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption backup changed: ${relative}`);
       }
       for (const relative of (previous.claudeManagedPaths || []).slice().sort()) {
         const source = pathIn(roots.claudeManagedRoot, relative, 'transaction Claude backup source');
         const target = path.join(backup, 'claude-managed', relative);
         if (adoption && sha256Hex(readPhysicalFile(source, 'adoption Claude source')) !== previous.claudeGeneratedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption Claude source changed: ${relative}`);
-        fs.mkdirSync(path.dirname(target), { recursive: true });
-        assertPhysicalAncestors(target, 'transaction Claude backup target', backup);
-        fs.renameSync(source, target);
+        backUp(source, target, 'transaction Claude backup target');
         if (adoption && sha256Hex(readPhysicalFile(target, 'adoption Claude backup')) !== previous.claudeGeneratedFingerprints[relative]) throw fail('MANAGED_CONTENT_CHANGED', `adoption Claude backup changed: ${relative}`);
       }
-      if (lstatOrNull(roots.receiptPath)) {
-        if (adoption && sha256Hex(readPhysicalFile(roots.receiptPath, 'adoption receipt')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
-        fs.renameSync(roots.receiptPath, path.join(backup, 'receipt.json'));
-        if (adoption && sha256Hex(readPhysicalFile(path.join(backup, 'receipt.json'), 'adoption receipt backup')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
-      } else if (adoption && oldReceiptDigest !== null) throw fail('RECEIPT_CHANGED', 'receipt disappeared during adoption');
     }
+    if (lstatOrNull(roots.receiptPath)) {
+      if (adoption && sha256Hex(readPhysicalFile(roots.receiptPath, 'adoption receipt')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
+      backUp(roots.receiptPath, path.join(backup, 'receipt.json'), 'transaction receipt backup');
+      if (adoption && sha256Hex(readPhysicalFile(path.join(backup, 'receipt.json'), 'adoption receipt backup')) !== oldReceiptDigest) throw fail('RECEIPT_CHANGED', 'receipt changed during adoption');
+    } else if (adoption && oldReceiptDigest !== null) throw fail('RECEIPT_CHANGED', 'receipt disappeared during adoption');
     for (const binding of flattenBindingPaths(previousBindingPaths)) {
       const source = bindingDestinationIn(roots, binding.path, 'transaction binding backup source');
       if (!lstatOrNull(source)) {
@@ -2010,93 +2542,70 @@ function publishManagedCandidate({
       }
       if (adoption && (!lstatOrNull(source).isSymbolicLink() || fs.readlinkSync(source) !== binding.target)) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding changed: ${binding.path}`);
       const target = path.join(backup, 'bindings', binding.path);
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      assertPhysicalAncestors(target, 'transaction binding backup target', backup);
-      fs.renameSync(source, target);
+      backUp(source, target, 'transaction binding backup target');
       if (adoption && (!lstatOrNull(target).isSymbolicLink() || fs.readlinkSync(target) !== binding.target)) throw fail('MANAGED_CONTENT_CHANGED', `adoption binding backup changed: ${binding.path}`);
     }
-    if (oldRollback) {
-      fs.renameSync(rollbackRoot, path.join(backup, 'rollback'));
-      journal.oldRollbackMoved = true;
-    }
-    journal.liveBackedUp = true;
-    writeAtomicJson(journalPath, journal, roots.projectRoot);
-    removeEmptyDirectories(roots.managedRoot);
-    removeEmptyDirectories(roots.claudeManagedRoot);
-    for (const relative of candidateFiles.slice().sort()) {
-      const source = pathIn(candidateRoot, relative, 'candidate source');
-      const target = pathIn(roots.managedRoot, relative, 'publish target');
-      const existing = lstatOrNull(target);
-      if (existing) throw fail('PUBLISH_COLLISION', `publish target appeared after collision check: ${relative}`, { paths: [relative] });
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      assertPhysicalAncestors(target, 'publish target', roots.managedRoot);
-      fs.copyFileSync(source, target);
-      const sourceStat = lstatOrNull(source);
-      if (sourceStat && sourceStat.isFile()) fs.chmodSync(target, sourceStat.mode & 0o7777);
-      if (sha256Hex(fs.readFileSync(target)) !== candidateFingerprints[relative]) throw fail('PUBLISH_FINGERPRINT_DRIFT', `published file fingerprint drifted: ${relative}`, { paths: [relative] });
-    }
-    for (const relative of claudeCandidateFiles.slice().sort()) {
-      const source = pathIn(candidateRoot, `${CLAUDE_ARTIFACT_ROOT}/${relative}`, 'Claude candidate source');
-      const target = pathIn(roots.claudeManagedRoot, relative, 'Claude publish target');
-      const existing = lstatOrNull(target);
-      if (existing) throw fail('PUBLISH_COLLISION', `Claude publish target appeared after collision check: ${relative}`, { paths: [relative] });
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      assertPhysicalAncestors(target, 'Claude publish target', roots.claudeManagedRoot);
-      fs.copyFileSync(source, target);
-      const sourceStat = lstatOrNull(source);
-      if (sourceStat && sourceStat.isFile()) fs.chmodSync(target, sourceStat.mode & 0o7777);
-      if (sha256Hex(fs.readFileSync(target)) !== claudeCandidateFingerprints[relative]) {
-        throw fail('PUBLISH_FINGERPRINT_DRIFT', `published Claude file fingerprint drifted: ${relative}`, { paths: [relative] });
+    if (oldRollback) recordRename(tx, rollbackRoot, path.join(backup, 'rollback'));
+    recordRemoveEmptyDirectories(tx, roots.managedRoot);
+    recordRemoveEmptyDirectories(tx, roots.claudeManagedRoot);
+    const publishFiles = (files, sourcePrefix, targetRoot, fingerprints, label) => {
+      for (const relative of files.slice().sort()) {
+        const source = pathIn(candidateRoot, `${sourcePrefix}${relative}`, `${label} candidate source`);
+        const target = pathIn(targetRoot, relative, `${label} publish target`);
+        if (lstatOrNull(target)) throw fail('PUBLISH_COLLISION', `${label} publish target appeared after collision check: ${relative}`, { paths: [relative] });
+        recordParents(tx, target, targetRoot);
+        assertPhysicalAncestors(target, `${label} publish target`, targetRoot);
+        const to = effectRelative(roots, target);
+        tx.effect('copy-tree', { from: effectRelative(roots, source), to, digest: fingerprints[relative] }, { kind: 'remove', args: { paths: [to], mode: 'file', digest: fingerprints[relative] } }, () => {
+          fs.copyFileSync(source, target);
+        });
+        const sourceStat = lstatOrNull(source);
+        if (sourceStat && sourceStat.isFile()) {
+          const before = lstatOrNull(target).mode & 0o7777;
+          tx.effect('chmod', { path: to, mode: sourceStat.mode & 0o7777 }, { kind: 'chmod', args: { path: to, mode: before } });
+        }
+        if (sha256Hex(fs.readFileSync(target)) !== fingerprints[relative]) throw fail('PUBLISH_FINGERPRINT_DRIFT', `published ${label} file fingerprint drifted: ${relative}`, { paths: [relative] });
       }
+    };
+    publishFiles(candidateFiles, '', roots.managedRoot, candidateFingerprints, 'managed');
+    publishFiles(claudeCandidateFiles, `${CLAUDE_ARTIFACT_ROOT}/`, roots.claudeManagedRoot, claudeCandidateFingerprints, 'Claude');
+    installBindingPaths(tx, candidateBindingPaths, { allowClaudeRoot: Boolean(nextReceipt && nextReceipt.schema === PROJECT_RECEIPT_SCHEMA) });
+    installRestoredBindings(tx, restoredBindings);
+    if (rollback) recordRename(tx, rollback.stage, rollbackRoot);
+    if (receipt) {
+      const relative = effectRelative(roots, roots.receiptPath);
+      const digest = receiptFileDigest(receipt);
+      tx.effect('write-file', { path: relative, digest }, { kind: 'remove', args: { paths: [relative], mode: 'file', digest } }, () => {
+        writeAtomicJson(roots.receiptPath, receipt, roots.projectRoot);
+      });
     }
-    installBindingPaths(roots, candidateBindingPaths, { allowClaudeRoot: Boolean(nextReceipt && nextReceipt.schema === PROJECT_RECEIPT_SCHEMA) });
-    installRestoredBindings(roots, restoredBindings);
-    if (rollback) {
-      fs.renameSync(rollback.stage, rollbackRoot);
-      journal.newRollbackInstalled = true;
-      writeAtomicJson(journalPath, journal, roots.projectRoot);
-    }
-    if (receipt) writeAtomicJson(roots.receiptPath, receipt, roots.projectRoot);
-    else if (lstatOrNull(roots.receiptPath)) fs.rmSync(roots.receiptPath, { force: true });
-    if (heldBy) {
-      // Every effect is in place; the holder decides between commit and abort.
-      journal.holdReady = true;
-      writeAtomicJson(journalPath, journal, roots.projectRoot);
-      published = true;
-      return {
-        receipt,
-        published: false,
-        held: true,
-        managedPaths: candidateFiles.slice().sort(),
-        claudeManagedPaths: claudeCandidateFiles.slice().sort(),
-        bindingPaths: candidateBindingPaths,
-        ...(adoption ? { backupPath: backup } : {}),
-      };
-    }
-    journal.phase = 'published';
-    writeAtomicJson(journalPath, journal, roots.projectRoot);
-    published = true;
-    if (!adoption) cleanupDirectory(backup, 'project projection transaction backup');
-    fs.rmSync(journalPath, { force: true });
-    return {
+    const outcome = {
       receipt,
-      published: true,
       managedPaths: candidateFiles.slice().sort(),
       claudeManagedPaths: claudeCandidateFiles.slice().sort(),
       bindingPaths: candidateBindingPaths,
       ...(adoption ? { backupPath: backup } : {}),
     };
+    if (heldBy) {
+      // Every effect is in place; the holder decides between commit and abort.
+      tx.hold();
+      published = true;
+      return { ...outcome, published: false, held: true };
+    }
+    tx.publish(cleanupEffects(roots, tx.journal));
+    published = true;
+    tx.finish();
+    return { ...outcome, published: true };
   } catch (error) {
-    if (!published) {
+    if (!published && !isSimulatedCrash(error)) {
       try {
-        recoverProjectProjectionTransaction(roots, { resolveHeld: heldBy && heldBy.transactionId });
+        tx.rollBack();
       } catch (recoveryError) {
+        if (isSimulatedCrash(recoveryError)) throw recoveryError;
         error.message = `${error.message}; transaction recovery failed: ${recoveryError.message}`;
       }
     }
     throw error;
-  } finally {
-    if (rollback && lstatOrNull(rollback.stage)) cleanupDirectory(rollback.stage, 'project projection rollback stage');
   }
 }
 
@@ -2110,8 +2619,10 @@ function stageArtifact({
   hostSelections = null,
   preserveHostBindings = null,
   preserveBindingPaths = null,
+  afterStep = null,
 }) {
-  const artifactRoot = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-artifact-'));
+  // The stage is recorded in a staging transaction before it exists (REQ-7).
+  const { transaction, stage: artifactRoot } = openStage(roots, 'artifact', afterStep);
   try {
     const publishedRoot = path.join(artifactRoot, 'published');
     const inputs = buildArtifactInputs({
@@ -2150,9 +2661,10 @@ function stageArtifact({
       candidateRoot: publishedRoot,
       artifact: materialized.value,
       inputs,
+      transaction,
     };
   } catch (error) {
-    cleanupDirectory(artifactRoot, 'failed project projection artifact');
+    releaseStage(transaction, error);
     throw error;
   }
 }
@@ -2242,7 +2754,9 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
     hostSelections: options.hostSelections || null,
     preserveHostBindings: options.preserveHostBindings || null,
     preserveBindingPaths: options.preserveBindingPaths || null,
+    afterStep: options.afterStep || null,
   });
+  let failure = null;
   try {
     if (previous && !legacyAdoption) {
       const approvedRenames = approvedRenameIds(previous, options.inventory, plan);
@@ -2280,6 +2794,7 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       oldReceiptDigest,
       adoptedBindingPaths,
       hold: options.hold || null,
+      transaction: staged.transaction,
     });
     return {
       held: Boolean(published.held),
@@ -2296,8 +2811,13 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       ...(legacyAdoption ? { backupPath: published.backupPath } : {}),
       state: previous ? 'UPDATED' : 'INSTALLED',
     };
+  } catch (error) {
+    failure = error;
+    throw error;
   } finally {
-    cleanupDirectory(staged.artifactRoot, 'project projection artifact stage');
+    // The publication owns the stage once it starts; this only undoes a stage
+    // that no publication took over.
+    releaseStage(staged.transaction, failure);
   }
 }
 
@@ -2513,9 +3033,11 @@ function uninstallAgentsSkillsProjection(options = {}) {
       nextReceipt: null,
       createRollback: false,
       hold: options.hold || null,
+      afterStep: options.afterStep || null,
     });
     return { ok: true, state: 'REMOVED', held: Boolean(published.held), removedPaths: receipt.managedPaths, preservedPaths: [], projectRoot: roots.projectRoot, published };
   } catch (error) {
+    if (isSimulatedCrash(error)) throw error;
     return {
       ok: false,
       state: error.projectionCode === 'MANAGED_CONTENT_CHANGED' ? 'MODIFIED_MANAGED' : 'BLOCKED',
@@ -2582,23 +3104,25 @@ function rollbackAgentsSkillsProjection(options = {}) {
     const snapshot = snapshotReceipt(roots, current);
     const candidateFiles = snapshot.receipt.managedPaths.slice().sort();
     const candidateFingerprints = snapshot.receipt.generatedFingerprints;
-    const candidateStage = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-rollback-candidate-'));
-    const candidateRoot = path.join(candidateStage, 'published');
-    fs.mkdirSync(candidateRoot, { recursive: true });
-    for (const relative of candidateFiles) {
-      const source = pathIn(snapshot.filesRoot, relative, 'rollback candidate source');
-      const target = path.join(candidateRoot, relative);
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.copyFileSync(source, target);
-    }
-    const claudeCandidateFiles = (snapshot.receipt.claudeManagedPaths || []).slice().sort();
-    for (const relative of claudeCandidateFiles) {
-      const source = pathIn(snapshot.claudeFilesRoot, relative, 'Claude rollback candidate source');
-      const target = path.join(candidateRoot, CLAUDE_ARTIFACT_ROOT, relative);
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.copyFileSync(source, target);
-    }
+    const { transaction, stage: candidateStage } = openStage(roots, 'rollback-candidate', options.afterStep || null);
+    let failure = null;
     try {
+      // The candidate stage is recorded; copies into it are covered by that record.
+      const candidateRoot = path.join(candidateStage, 'published');
+      fs.mkdirSync(candidateRoot, { recursive: true });
+      for (const relative of candidateFiles) {
+        const source = pathIn(snapshot.filesRoot, relative, 'rollback candidate source');
+        const target = path.join(candidateRoot, relative);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.copyFileSync(source, target);
+      }
+      const claudeCandidateFiles = (snapshot.receipt.claudeManagedPaths || []).slice().sort();
+      for (const relative of claudeCandidateFiles) {
+        const source = pathIn(snapshot.claudeFilesRoot, relative, 'Claude rollback candidate source');
+        const target = path.join(candidateRoot, CLAUDE_ARTIFACT_ROOT, relative);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.copyFileSync(source, target);
+      }
       const published = publishManagedCandidate({
         roots,
         previous: current,
@@ -2610,12 +3134,17 @@ function rollbackAgentsSkillsProjection(options = {}) {
         nextReceipt: snapshot.receipt,
         // rollback 回到納管前的狀態：被 --adopt/--repair 接管的連結在同一交易內恢復為未納管的原連結。
         restoredBindingPaths: current.rollback.adoptedBindingPaths || {},
+        transaction,
       });
       return { ok: true, state: 'ROLLED_BACK', receipt: published.receipt, removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
+    } catch (error) {
+      failure = error;
+      throw error;
     } finally {
-      cleanupDirectory(candidateStage, 'project projection rollback candidate');
+      releaseStage(transaction, failure);
     }
   } catch (error) {
+    if (isSimulatedCrash(error)) throw error;
     return {
       ok: false,
       state: error.projectionCode === 'MANAGED_CONTENT_CHANGED' ? 'MODIFIED_MANAGED' : 'BLOCKED',
@@ -2626,14 +3155,28 @@ function rollbackAgentsSkillsProjection(options = {}) {
   }
 }
 
+// The validated hold of a journal in either format; v3 reports a held journal
+// as `publishing` with `holdReady`, the shape v1/v2 callers already read.
+function journalHold(roots, transaction) {
+  if (transaction.schema === PROJECT_TRANSACTION_SCHEMA) {
+    validateEffectJournal(roots, transaction);
+    if (!transaction.hold) return null;
+    const phase = ['held', 'rolling-back'].includes(transaction.phase) ? 'publishing' : transaction.phase;
+    return { ...transaction.hold, phase, holdReady: transaction.phase === 'held' };
+  }
+  validateTransaction(roots, transaction);
+  if (!transaction.hold) return null;
+  return { ...transaction.hold, phase: transaction.phase, holdReady: transaction.holdReady === true };
+}
+
 function resolveHeldProjection(options, action) {
   try {
     const roots = operationRoots(options);
     const transactionId = normalizeHold({ transactionId: options.transactionId, host: 'resolver' }).transactionId;
     const transaction = readTransactionJournal(roots);
     if (!transaction) return { ok: true, state: 'ABSENT', transactionId, projectRoot: roots.projectRoot };
-    const paths = validateTransaction(roots, transaction);
-    if (!transaction.hold || transaction.hold.transactionId !== transactionId) {
+    const hold = journalHold(roots, transaction);
+    if (!hold || hold.transactionId !== transactionId) {
       throw fail('TRANSACTION_MISMATCH', `project projection transaction journal is not held by ${transactionId}`);
     }
     if (action === 'abort') {
@@ -2644,22 +3187,32 @@ function resolveHeldProjection(options, action) {
       recoverProjectProjectionTransaction(roots, { resolveHeld: transactionId });
       return { ok: true, state: 'COMMITTED', transactionId, projectRoot: roots.projectRoot };
     }
-    if (transaction.phase !== 'publishing' || transaction.holdReady !== true) {
+    if (!hold.holdReady) {
       throw fail('TRANSACTION_INCOMPLETE', `project projection transaction ${transactionId} did not finish publishing and can only be aborted`);
     }
-    const journalPath = transactionPath(roots);
-    transaction.phase = 'published';
-    writeAtomicJson(journalPath, transaction, roots.projectRoot);
-    if (transaction.adoption !== true) cleanupDirectory(paths.backup, 'project projection transaction backup');
-    cleanupDirectory(paths.rollbackStage, 'project projection rollback stage');
-    cleanupDirectory(paths.stage, 'project projection transaction stage');
-    fs.rmSync(journalPath, { force: true });
+    let backupPath;
+    if (transaction.schema === PROJECT_TRANSACTION_SCHEMA) {
+      const effects = new EffectTransaction(roots, transaction);
+      effects.publish(cleanupEffects(roots, transaction));
+      effects.finish();
+      backupPath = path.join(roots.agentsRoot, transaction.backupName);
+    } else {
+      const paths = validateTransaction(roots, transaction);
+      const journalPath = transactionPath(roots);
+      transaction.phase = 'published';
+      writeAtomicJson(journalPath, transaction, roots.projectRoot);
+      if (transaction.adoption !== true) cleanupDirectory(paths.backup, 'project projection transaction backup');
+      cleanupDirectory(paths.rollbackStage, 'project projection rollback stage');
+      cleanupDirectory(paths.stage, 'project projection transaction stage');
+      fs.rmSync(journalPath, { force: true });
+      backupPath = paths.backup;
+    }
     return {
       ok: true,
       state: 'COMMITTED',
       transactionId,
       projectRoot: roots.projectRoot,
-      ...(transaction.adoption === true ? { backupPath: paths.backup } : {}),
+      ...(transaction.adoption === true ? { backupPath } : {}),
     };
   } catch (error) {
     return {
@@ -2676,9 +3229,8 @@ function heldProjection(options = {}) {
   const roots = operationRoots(options);
   const transaction = readTransactionJournal(roots);
   if (!transaction) return null;
-  validateTransaction(roots, transaction);
-  if (!transaction.hold) return null;
-  return { ...transaction.hold, phase: transaction.phase, holdReady: transaction.holdReady === true };
+  if (![PROJECT_TRANSACTION_SCHEMA, FLAG_PROJECT_TRANSACTION_SCHEMA, LEGACY_PROJECT_TRANSACTION_SCHEMA].includes(transaction.schema)) throw unsupportedTransactionSchema(transaction);
+  return journalHold(roots, transaction);
 }
 
 function commitHeldProjection(options = {}) {
@@ -2702,6 +3254,8 @@ module.exports = {
   commitHeldProjection,
   abortHeldProjection,
   heldProjection,
-  recoverAgentsSkillsProjection: (options = {}) => recoverProjectProjectionTransaction(operationRoots(options)),
+  recoverAgentsSkillsProjection: (options = {}) => recoverProjectProjectionTransaction(operationRoots(options), { afterStep: options.afterStep || null }),
   readProjectProjectionReceipt,
+  // Test seams for the effect journal; not part of the installer contract.
+  __testing: { SimulatedCrash, EFFECT_KINDS, applyEffect },
 };
