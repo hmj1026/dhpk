@@ -114,9 +114,13 @@ function requiredChecks(repo) {
     requireGate(Array.isArray(rule.parameters?.required_status_checks), 'invalid required rules');
     checks.push(...rule.parameters.required_status_checks.map((check) => ({ name: check.context, app: check.integration_id })));
   }
-  if (classic === null && modern.length === 0) {
+  // Only a develop with no live requirement at all takes the baseline; any
+  // live rule (reviews, pull_request, ...) keeps the strict live-rule path.
+  const protectionRequires = Boolean(protection && (protection.required_status_checks || protection.required_pull_request_reviews));
+  if (!protectionRequires && rules.length === 0) {
     return { checks: BASELINE_CHECKS.map((check) => ({ ...check })), reviewRequired: false, baseline: true };
   }
+  requireGate(classic !== null || modern.length > 0, 'missing branch protection and effective required rules');
   requireGate(checks.length > 0 && checks.every((check) => nonempty(check.name) &&
     (check.app == null || (Number.isSafeInteger(check.app) && check.app >= -1))), 'missing or invalid required checks');
   // 其他規則存在不能掩蓋專案必要的 harness CI 遺漏。

@@ -120,7 +120,9 @@ Live rules must include `Validate harness assets`. The `develop` ruleset is
 deliberately disabled so the release `sync-develop` push can land (#1275).
 With no live rules, the gate applies its baseline instead: `Validate harness
 assets` from GitHub Actions (App 15368) must pass at the exact head, and the
-head must not be behind `develop`. Monitor post-merge release CI only when the
+head must not be behind `develop`. The base check runs at the pre-merge
+recheck, not atomically with the merge; a `develop` that moves in between is an
+accepted residual risk. Any live rule disables the baseline. Monitor post-merge release CI only when the
 applicable workflow is triggered.
 
 ## Context loading
