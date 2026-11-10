@@ -14,6 +14,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { SECRET_PATTERNS: SHARED_SECRET_PATTERNS } = require('./secret-patterns');
 const {
   RECEIPT_SCHEMA,
   SURFACE_OWNERS,
@@ -180,16 +181,14 @@ const COMPONENT_EXTENSIONS = Object.freeze({
   agents: new Set(['.md', '.mdc', '.markdown']),
   commands: new Set(['.md', '.mdc', '.markdown', '.txt']),
 });
-const SECRET_PATTERNS = [
-  /-----BEGIN\s+(?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/i,
-  /\bAKIA[0-9A-Z]{16}\b/,
-  /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}\b/,
-  /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/,
-  /\bsk-[A-Za-z0-9_-]{20,}\b/,
+// The shared base (#1252) plus Cursor-specific rules for MCP settings and
+// quoted configuration values.
+const SECRET_PATTERNS = Object.freeze([
+  ...SHARED_SECRET_PATTERNS,
   /\bBearer\s+[A-Za-z0-9._~+/=-]{24,}\b/i,
   /\b(?:api[_-]?key|secret|password|token)\s*[:=]\s*["'][^"'\n$]{8,}["']/i,
   /["'](?:api[_-]?key|secret|password|token|authorization)["']\s*:\s*["'](?!\$\{)[^"'\n]{8,}["']/i,
-];
+]);
 const NAME_PATTERN = /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const SAFE_COMMAND_PATH = /^(?:\.?\/?[A-Za-z0-9._-]+)(?:\/[A-Za-z0-9._-]+)*$/;
@@ -2389,6 +2388,7 @@ function runCursorConsumerProbe(options = {}) {
 }
 
 module.exports = {
+  CURSOR_SECRET_PATTERNS: SECRET_PATTERNS,
   GENERATOR_VERSION,
   CURSOR_MANIFEST_FIELDS,
   CURSOR_HOOK_EVENTS,
