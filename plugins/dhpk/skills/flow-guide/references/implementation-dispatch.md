@@ -76,7 +76,7 @@ replay context.
 
 **`general-purpose` is prohibited for implementation while `orchestration_dispatch=on`.** It carries no dhpk policy context, inherits the main-session model regardless of task cost, and has no defined input/output contract — use `deep-reasoner` / `fast-worker` / inline per the dispatch table instead.
 
-`general-purpose` is also not a substitute when a typed role fits the work: live manual QA execution goes to `qa-executor`, assigned documentation authoring to `docs-writer`, and read-only exploration to Explore or an equivalent read-only explorer role (Codex `explorer`).
+`general-purpose` is also not a substitute when a typed role fits the work. When a skill only says "dispatch a sub-agent", reassign by work shape: review to `code-reviewer`, implementation to `fast-worker`, documentation authoring to `docs-writer`, live manual QA execution (DEV QA) to `qa-executor`, and search or read-only exploration to Explore (pass `model: "haiku"`, `effort: "low"`) or an equivalent read-only explorer role (Codex `explorer`). Review and judgment never go through Explore. Any remaining `general-purpose` dispatch must pass an explicit `model`, and never haiku for file edits; tier and escalation rules stay in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
 
 ## Orchestration identity and evidence presentation
 
