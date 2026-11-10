@@ -69,7 +69,7 @@ This index only lists the shipped roles above.
 
 | Agent | Model | When to invoke |
 |-------|-------|----------------|
-| [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (Fable is the highest per-token Claude tier, currently 5.2; up-only escalation for HIGH-risk designs) |
+| [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (Fable is the highest per-token Claude tier, currently 5.2, see rules/model-economics.md; up-only escalation for HIGH-risk designs) |
 | [planner](planner.md) | opus | Requested plan consultant for critique / blind-sketch / dual-plan and manual warm or cold review. Caller-provided scope is `auto\|bounded\|discovery`, distinct from work mode; bounded permits ≤4 named-source reads and 0 children, discovery ≤12 reads and ≤2 read-only children, and warm review ≤4 new reads. Pre-implementation verdicts remain `ENDORSE\|AMEND\|REPLACE`; review verdicts remain `SHIP\|FIX-THEN-SHIP\|RECONSULT`; actual reads, children, and blockers fit the existing 400-token VERDICT-first + `END` protocol. Neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries this verdict/critique contract or dual-role warm review. |
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
@@ -115,7 +115,7 @@ This index only lists the shipped roles above.
 - **opus**: deep-reasoner (may be raised to fable per dispatch for multi-question policy adjudication, see rules/model-economics.md), planner (low-frequency, high-impact, deep reasoning)
 - **sonnet**: reviewers, doc-updater (edits files), qa-executor (issues verdicts), tdd-guide, refactor, ui-ux, harness, docs-writer, fast-worker, codex-worker, agy-worker, codex-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
 - **haiku**: docs-lookup, doc-reviewer (high-frequency, templated, cost-first; read-only lookup and lint)
-- **fable**: architect, plus per-dispatch deep-reasoner raises for multi-question policy adjudication (see rules/model-economics.md) (Fable is the highest per-token Claude tier, currently 5.2; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
+- **fable**: architect, plus per-dispatch deep-reasoner raises for multi-question policy adjudication (see rules/model-economics.md) (Fable is the highest per-token Claude tier, currently 5.2, see rules/model-economics.md; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
 
 ## Partial outputs and agent continuation
 

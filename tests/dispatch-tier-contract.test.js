@@ -63,9 +63,14 @@ test('model-economics owns escalation order, low-first, Explore and general-purp
 test('general-purpose prohibition is extended in place in the flow-guide reference, once', () => {
   const ref = read('skills/flow-guide/references/implementation-dispatch.md');
   assert.match(ref, /code-reviewer/);
-  assert.match(ref, /explicit `model`/);
-  assert.match(ref, /never `?haiku`? for file edits/i);
   assert.strictEqual(ref.split('**`general-purpose` is prohibited').length - 1, 1);
+  // Role reassignment lives here; model/effort per built-in role stays in model-economics.
+  assert.match(ref, /rules\/model-economics\.md/);
+  assert.doesNotMatch(ref, /effort: "low"/);
+  assert.doesNotMatch(ref, /never `?haiku`? for file edits/i);
+  const economics = read('rules/model-economics.md');
+  assert.match(economics, /explicit `model`/);
+  assert.match(economics, /never haiku for file edits/i);
 });
 
 test('no document says the fable alias currently resolves to Fable 5.1', () => {
