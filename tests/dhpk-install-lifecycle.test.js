@@ -84,56 +84,13 @@ test('standalone install selection is a separate normalized request boundary', (
   );
 });
 
-// js-projection-journal 3.7: Codex writes run the installer, and only into an
-// explicit project root.
-test('codex-sync writes require an explicit project root and change nothing without one', () => {
+test('write actions remain explicitly blocked while legacy Codex sync is preserved', () => {
   const result = invoke(['codex-sync', 'install', '--scope', 'project', '--json']);
   assert.strictEqual(result.status, 2, result.stderr);
   const output = json(result);
   assert.strictEqual(output.lifecycle.verdict, 'BLOCKED');
-  assert.strictEqual(output.diagnostics[0].code, 'PROJECT_ROOT_REQUIRED');
-  assert.strictEqual(fs.existsSync(path.join(ROOT, '.codex', '.dhpk-installed.json')), false);
-});
-
-test('dhpk-install performs a Codex install, update, and uninstall with the installer outcome', () => {
-  const project = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-lifecycle-codex-')));
-  fs.mkdirSync(path.join(project, '.git'));
-  try {
-    const installed = invoke(['codex-sync', 'install', '--project-root', project, '--mode', 'copy', '--json']);
-    assert.strictEqual(installed.status, 0, installed.stderr);
-    const output = json(installed);
-    assert.strictEqual(output.lifecycle.verdict, 'INSTALL_PASS', JSON.stringify(output.installer));
-    assert.strictEqual(output.installer.exitCode, 0);
-    const receipt = JSON.parse(fs.readFileSync(path.join(project, '.codex', '.dhpk-installed.json'), 'utf8'));
-    assert.strictEqual(receipt.schema_version, 3);
-    assert.strictEqual(receipt.mode, 'copy');
-    assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-projection-journal.json')), false);
-    assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-install.lock')), false);
-    const updated = invoke(['codex-sync', 'update', '--project-root', project, '--mode', 'copy', '--json']);
-    assert.strictEqual(updated.status, 0, updated.stderr);
-    assert.strictEqual(json(updated).lifecycle.verdict, 'INSTALL_PASS');
-    const removed = invoke(['codex-sync', 'uninstall', '--project-root', project, '--json']);
-    assert.strictEqual(removed.status, 0, removed.stderr);
-    assert.strictEqual(json(removed).lifecycle.verdict, 'INSTALL_PASS');
-    assert.strictEqual(fs.existsSync(path.join(project, '.codex', '.dhpk-installed.json')), false);
-  } finally {
-    fs.rmSync(project, { recursive: true, force: true });
-  }
-});
-
-// The shell installer skips the project-root heuristic for --uninstall, so the
-// in-process path must as well; install and update keep the guard.
-test('codex-sync uninstall skips the project-root heuristic that install keeps', () => {
-  const project = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-lifecycle-nomarker-')));
-  try {
-    const install = invoke(['codex-sync', 'install', '--project-root', project, '--mode', 'copy', '--json']);
-    assert.strictEqual(install.status, 2, install.stderr);
-    assert.strictEqual(json(install).diagnostics[0].code, 'NOT_A_PROJECT_ROOT');
-    const removed = invoke(['codex-sync', 'uninstall', '--project-root', project, '--json']);
-    assert.notStrictEqual(json(removed).diagnostics[0] && json(removed).diagnostics[0].code, 'NOT_A_PROJECT_ROOT', removed.stdout);
-  } finally {
-    fs.rmSync(project, { recursive: true, force: true });
-  }
+  assert.strictEqual(output.diagnostics[0].code, 'NOT_IMPLEMENTED');
+  assert.match(output.remediation[0], /install-codex-skills\.sh/);
 });
 
 test('plans expose the shared installation identity and recovery contract', () => {

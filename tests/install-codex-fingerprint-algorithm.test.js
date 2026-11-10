@@ -53,13 +53,11 @@ const skillTarget = (codex) => path.join(codex, 'skills', 'sample-skill');
 // Managed content only: the project lock file is not part of the projection.
 const projectionOf = (codex) => ['agents', 'skills'].map((name) => snapshotTree(path.join(codex, name))).join('\n--\n');
 
-const PYTHON_ENGINE = { DHPK_INSTALLER_ENGINE: 'python' };
-
 // A project this installer installed: current receipt, copy mode.
-function installedProject({ extraArgs = ['--copy', '--force'], env = {} } = {}) {
+function installedProject({ extraArgs = ['--copy', '--force'] } = {}) {
   const project = projectRoot();
   const plugin = minimalPlugin();
-  const result = runInstaller(project, extraArgs, plugin, env);
+  const result = runInstaller(project, extraArgs, plugin);
   assert.strictEqual(result.status, 0, output(result));
   const codex = path.join(project, '.codex');
   return { project, codex, receiptPath: path.join(codex, '.dhpk-installed.json'), plugin };
@@ -121,9 +119,8 @@ test('a fresh install writes fingerprint_algorithm in the receipt and the oracle
   assert.notStrictEqual(skill.destination_fingerprint, LEGACY_RECIPE_DIGESTS.skillSource);
 });
 
-// Python-only mechanics (Python Host journal file .codex/.dhpk-transaction-<run>.json); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('a transaction journal written by the installer names the algorithm', () => {
-  const { codex } = installedProject({ env: PYTHON_ENGINE });
+  const { codex } = installedProject();
   const journals = fs.readdirSync(codex).filter((name) => /^\.dhpk-transaction-.*\.json$/.test(name));
   assert.ok(journals.length > 0, 'the installer keeps its committed journal');
   for (const name of journals) assert.strictEqual(readJson(path.join(codex, name))[FIELD], ALGORITHM);
@@ -167,27 +164,25 @@ test('--uninstall over a receipt without fingerprint_algorithm releases every en
   assertUninstallReleasesEverything('missing', (receipt) => { delete receipt[FIELD]; });
 });
 
-// Python-only mechanics (DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC fault hook); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('--uninstall over a receipt without fingerprint_algorithm rolls back when the receipt flush fails', () => {
-  const { project, codex, receiptPath, plugin } = installedProject({ env: PYTHON_ENGINE });
+  const { project, codex, receiptPath, plugin } = installedProject();
   editReceipt(receiptPath, (receipt) => { delete receipt[FIELD]; });
   const receiptBytes = fs.readFileSync(receiptPath);
   const projection = projectionOf(codex);
-  const result = runInstaller(project, ['--uninstall', '--force'], plugin, { ...PYTHON_ENGINE, DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC: '1' });
+  const result = runInstaller(project, ['--uninstall', '--force'], plugin, { DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC: '1' });
   assert.strictEqual(result.status, 2, output(result));
   assert.ok(fs.readFileSync(receiptPath).equals(receiptBytes), 'the original receipt is restored byte for byte');
   assert.strictEqual(projectionOf(codex), projection, 'no destination file is deleted');
   assert.doesNotMatch(result.stdout, /released:/);
 });
 
-// Python-only mechanics (Python Host journal file .codex/.dhpk-transaction-<run>.json); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('--uninstall over a receipt without fingerprint_algorithm leaves no unfinished transaction journal', () => {
-  const { project, codex, receiptPath, plugin } = installedProject({ env: PYTHON_ENGINE });
+  const { project, codex, receiptPath, plugin } = installedProject();
   const journalNames = () => fs.readdirSync(codex).filter((name) => /^\.dhpk-transaction-\d{8}T\d{6}Z-\d+\.json$/.test(name));
   const before = journalNames();
   editReceipt(receiptPath, (receipt) => { delete receipt[FIELD]; });
   const receiptDigest = completeTreeFingerprint(receiptPath);
-  const result = runInstaller(project, ['--uninstall', '--force'], plugin, PYTHON_ENGINE);
+  const result = runInstaller(project, ['--uninstall', '--force'], plugin);
   assert.strictEqual(result.status, 0, output(result));
   const added = journalNames().filter((name) => !before.includes(name));
   assert.strictEqual(added.length, 1, 'the uninstall journals exactly one transaction');

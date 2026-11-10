@@ -170,8 +170,7 @@ function applyEffect(projectRoot, { kind, args }, { forward = false } = {}) {
           continue;
         }
         assertPhysicalAncestors(path.dirname(absolute), 'transaction directory parent', projectRoot);
-        // `mode` is applied through the umask, as mkdir(2) does.
-        fs.mkdirSync(absolute, Number.isInteger(args.mode) ? { mode: args.mode } : undefined);
+        fs.mkdirSync(absolute);
       }
       return;
     case 'remove':
@@ -373,8 +372,8 @@ function recordTransientDirectory(journal, directory) {
 }
 
 // Records the missing ancestors of `target` inside `boundary` (the boundary
-// itself included, never the project root) as one mkdir, created with `mode`.
-function recordParents(journal, target, boundary, mode = null) {
+// itself included, never the project root) as one mkdir.
+function recordParents(journal, target, boundary) {
   const { projectRoot } = journal;
   if (!isInside(boundary, target) || !isInside(projectRoot, boundary)) throw fail('PATH_ESCAPE', `transaction target escapes its root: ${target}`, { paths: [target] });
   const missing = [];
@@ -385,7 +384,7 @@ function recordParents(journal, target, boundary, mode = null) {
   }
   if (missing.length === 0) return;
   const relatives = missing.map((directory) => effectRelative(projectRoot, directory));
-  journal.effect('mkdir', { paths: relatives, ...(Number.isInteger(mode) ? { mode } : {}) }, { kind: 'remove', args: { paths: relatives.slice().reverse(), mode: 'empty' } });
+  journal.effect('mkdir', { paths: relatives }, { kind: 'remove', args: { paths: relatives.slice().reverse(), mode: 'empty' } });
 }
 
 function recordRename(journal, source, target) {
@@ -444,7 +443,6 @@ function validateEffectArgs(projectRoot, effect, label, scope) {
     if (!safeLinkTarget(target)) throw unsafe('has an unsafe link target');
   };
   if (args.digest !== undefined && args.digest !== null && !DIGEST_PATTERN.test(args.digest)) throw unsafe('has an invalid digest');
-  if (args.mode !== undefined && kind !== 'remove' && (!Number.isInteger(args.mode) || args.mode < 0 || args.mode > 0o7777)) throw unsafe('has an invalid mode');
   if (args.content !== undefined) throw unsafe('carries file content');
   if (['mkdir', 'remove'].includes(kind) && (!Array.isArray(args.paths) || args.paths.length === 0)) throw unsafe('has no paths');
   switch (kind) {

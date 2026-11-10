@@ -40,8 +40,6 @@ const {
 // old receipt. Keep that projection in an isolated physical plugin fixture so
 // these tests exercise the oldName ledger without touching codex/ symlinks in
 // the repository checkout.
-const PYTHON_ENGINE = { DHPK_INSTALLER_ENGINE: 'python' };
-
 function tddRenamePlugin() {
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-tdd-rename-plugin-')));
   const currentName = 'tdd-workflow';
@@ -159,7 +157,6 @@ function removeInventoryAfterRecoveryCrash(plugin) {
   fs.rmSync(path.join(plugin, 'manifests', 'distribution-inventory.json'));
 }
 
-// Python-only mechanics (descriptor pseudo-path shim (PYTHONPATH sitecustomize)); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('copy and symlink installs do not require descriptor pseudo-path child traversal', () => {
   for (const args of [['--copy', '--force'], ['--force']]) {
     const scratch = projectRoot();
@@ -168,7 +165,6 @@ test('copy and symlink installs do not require descriptor pseudo-path child trav
     try {
       const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
       const result = runInstaller(scratch, args, ROOT, {
-        DHPK_INSTALLER_ENGINE: 'python',
         PYTHONPATH: pythonPath,
         DHPK_TEST_CWD_AUDIT_FILE: cwdAudit,
       });
@@ -186,7 +182,6 @@ test('copy and symlink installs do not require descriptor pseudo-path child trav
   }
 });
 
-// Python-only mechanics (cwd-audit materialization failure shim); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('copy failure restores the installer working directory before reporting failure', () => {
   const scratch = projectRoot();
   const shim = materializationFailureShim();
@@ -194,7 +189,6 @@ test('copy failure restores the installer working directory before reporting fai
   try {
     const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
     const result = runInstaller(scratch, ['--copy', '--force'], ROOT, {
-      DHPK_INSTALLER_ENGINE: 'python',
       PYTHONPATH: pythonPath,
       DHPK_TEST_CWD_AUDIT_FILE: cwdAudit,
     });
@@ -210,7 +204,6 @@ test('copy failure restores the installer working directory before reporting fai
   }
 });
 
-// Python-only mechanics (parentReplacementGate fd-open race shim); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('parent-path replacement cannot redirect a pinned update into an external tree', () => {
   const scratch = projectRoot();
   const plugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-parent-gate-plugin-')));
@@ -226,7 +219,7 @@ test('parent-path replacement cannot redirect a pinned update into an external t
     );
     copyDistributionInventory(plugin);
 
-    const installed = runInstaller(scratch, ['--copy', '--force'], plugin, PYTHON_ENGINE);
+    const installed = runInstaller(scratch, ['--copy', '--force'], plugin);
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
     const changed = fs.readdirSync(path.join(plugin, 'codex', 'skills')).sort()[0];
     const changedSource = path.join(plugin, 'codex', 'skills', changed);
@@ -281,7 +274,6 @@ test('parent-path replacement cannot redirect a pinned update into an external t
 
     const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
     const result = runInstaller(scratch, ['--copy', '--update', '--force'], plugin, {
-      DHPK_INSTALLER_ENGINE: 'python',
       PYTHONPATH: pythonPath,
       DHPK_TEST_PARENT_OPEN_READY_FILE: ready,
       DHPK_TEST_PARENT_OPEN_RELEASE_FILE: release,
@@ -741,14 +733,15 @@ for (const brokenSymlink of [false, true]) {
         assert.doesNotThrow(() => fs.lstatSync(retiredTarget), 'retired broken symlink must be restored');
         assert.ok(fs.lstatSync(retiredTarget).isSymbolicLink());
         assert.strictEqual(fs.readlinkSync(retiredTarget), brokenLinkTarget);
-        // The rollback finishes: no Projection Journal or Host journal is left in flight.
-        assert.ok(!fs.existsSync(path.join(scratch, '.agents', '.dhpk-projection-journal.json')), [
-          'retirement rollback must not leave an unfinished Projection Journal',
-          updated.stderr.split(scratch).join('<project>').split(fakePlugin).join('<plugin>').split(external).join('<external>').slice(-6000),
-        ].join('\n'));
         const newJournals = fs.readdirSync(path.join(scratch, '.codex')).filter((name) =>
           /^\.dhpk-transaction-.*\.json$/.test(name) && !journalsBefore.includes(name));
-        assert.deepStrictEqual(newJournals, [], 'the JS installer writes no Host journal');
+        assert.strictEqual(newJournals.length, 1, `failed update must record one terminal transaction: ${updated.stdout}\n${updated.stderr}`);
+        const journal = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', newJournals[0]), 'utf8'));
+        assert.strictEqual(journal.phase, 'rolled_back', [
+          'retirement rollback must finish with a terminal rolled_back journal',
+          updated.stderr.split(scratch).join('<project>').split(fakePlugin).join('<plugin>').split(external).join('<external>').slice(-6000),
+          JSON.stringify(Object.fromEntries(Object.entries(journal).filter(([key]) => /phase|error|rollback/i.test(key)))).slice(0, 2500),
+        ].join('\n'));
       } else {
         assert.ok(fs.existsSync(retiredTarget), 'retirement target must be restored after later preflight failure');
       }
@@ -769,7 +762,6 @@ for (const brokenSymlink of [false, true]) {
   });
 }
 
-// Python-only mechanics (DHPK_TEST_FAIL_RECEIPT fault hook); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('receipt failure rolls back ordinary updates and recovers the transaction journal', () => {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-receipt-rollback-plugin-')));
@@ -778,7 +770,7 @@ test('receipt failure rolls back ordinary updates and recovers the transaction j
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
-    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin, PYTHON_ENGINE);
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
 
     const changed = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort()[0];
@@ -800,14 +792,14 @@ test('receipt failure rolls back ordinary updates and recovers the transaction j
       scratch,
       ['--copy', '--update', '--force'],
       fakePlugin,
-      { ...PYTHON_ENGINE, DHPK_TEST_FAIL_RECEIPT: '1' },
+      { DHPK_TEST_FAIL_RECEIPT: '1' },
     );
     assert.notStrictEqual(failed.status, 0, `${failed.stdout}\n${failed.stderr}`);
     assert.match(`${failed.stdout}\n${failed.stderr}`, /receipt|rollback/i);
     assert.strictEqual(completeTreeFingerprint(target), targetBefore, 'failed receipt must restore the prior target');
     assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore, 'failed receipt must retain the prior manifest');
 
-    const recovered = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin, PYTHON_ENGINE);
+    const recovered = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
     assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
     assert.match(`${recovered.stdout}\n${recovered.stderr}`, /synced|reconcili/i);
   } finally {
@@ -817,7 +809,6 @@ test('receipt failure rolls back ordinary updates and recovers the transaction j
 });
 
 for (const crashAfterPublish of [false, true]) {
-  // Python-only mechanics (sitecustomize os.replace crash shim, exit 73, Python Host journal); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
   test(`mutation ${crashAfterPublish ? 'replace' : 'delete'} recovery preserves a relative symlink target`, () => {
     const scratch = projectRoot();
     const fakePlugin = reconciliationPlugin();
@@ -827,7 +818,7 @@ for (const crashAfterPublish of [false, true]) {
     const codexRoot = path.join(scratch, '.codex');
     const destination = path.join(codexRoot, relative);
     try {
-      const installed = runInstaller(scratch, ['--force'], fakePlugin, PYTHON_ENGINE);
+      const installed = runInstaller(scratch, ['--force'], fakePlugin);
       assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
 
       fs.writeFileSync(path.join(codexRoot, 'shared-target'), 'relative link target\n');
@@ -846,7 +837,6 @@ for (const crashAfterPublish of [false, true]) {
 
       const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
       const crashed = runInstaller(scratch, ['--update', '--force'], fakePlugin, {
-        ...PYTHON_ENGINE,
         PYTHONPATH: pythonPath,
         DHPK_TEST_CRASH_AFTER_PUBLISH: crashAfterPublish ? '1' : '0',
       });
@@ -867,7 +857,7 @@ for (const crashAfterPublish of [false, true]) {
       assert.strictEqual(interrupted.mutations[0].relative, relative);
       removeInventoryAfterRecoveryCrash(fakePlugin);
 
-      const recovered = runInstaller(scratch, ['--update', '--force'], fakePlugin, PYTHON_ENGINE);
+      const recovered = runInstaller(scratch, ['--update', '--force'], fakePlugin);
       assert.notStrictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
       assert.doesNotThrow(() => fs.lstatSync(destination),
         `journal recovery should restore the target before inventory validation: ${recovered.stderr}`);
