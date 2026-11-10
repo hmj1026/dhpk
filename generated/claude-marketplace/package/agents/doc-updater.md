@@ -6,7 +6,7 @@ description: >-
   documentation with evidence. Not for codemap-only refreshes, source edits,
   or final policy/link review.
 tools: Read, Write, Edit, Bash, Grep, Glob
-model: haiku
+model: sonnet
 effort: medium
 ---
 

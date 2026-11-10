@@ -69,12 +69,12 @@ This index only lists the shipped roles above.
 
 | Agent | Model | When to invoke |
 |-------|-------|----------------|
-| [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (Fable 5.1 is the highest per-token Claude tier; up-only escalation for HIGH-risk designs) |
+| [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (Fable is the highest per-token Claude tier, currently 5.2; up-only escalation for HIGH-risk designs) |
 | [planner](planner.md) | opus | Requested plan consultant for critique / blind-sketch / dual-plan and manual warm or cold review. Caller-provided scope is `auto\|bounded\|discovery`, distinct from work mode; bounded permits ≤4 named-source reads and 0 children, discovery ≤12 reads and ≤2 read-only children, and warm review ≤4 new reads. Pre-implementation verdicts remain `ENDORSE\|AMEND\|REPLACE`; review verdicts remain `SHIP\|FIX-THEN-SHIP\|RECONSULT`; actual reads, children, and blockers fit the existing 400-token VERDICT-first + `END` protocol. Neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries this verdict/critique contract or dual-role warm review. |
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
 | [performance-analyzer](performance-analyzer.md) | sonnet | N+1 queries, EXPLAIN, index/perf audits |
-| [doc-updater](doc-updater.md) | haiku | Doc / codemap updates after a structural change makes docs stale |
+| [doc-updater](doc-updater.md) | sonnet | Doc / codemap updates after a structural change makes docs stale |
 | [docs-writer](docs-writer.md) | sonnet | Write or revise assigned documentation (QA manuals, guides, docblock prose) from confirmed sources; reports sources and unresolved facts. Distinct from doc-updater (stale-doc refresh after a structural change) |
 | [docs-lookup](docs-lookup.md) | haiku | Library / framework / API doc lookup (Context7) |
 | [harness-reviser](harness-reviser.md) | sonnet | Scoped harness configuration review and fixes; retired governance scoring and scenario coverage are unavailable |
@@ -87,7 +87,7 @@ This index only lists the shipped roles above.
 | [type-design-analyzer](type-design-analyzer.md) | sonnet | Score a type's design on encapsulation / invariant expression / usefulness / enforcement ("make illegal states unrepresentable"). Read-only |
 | [e2e-runner](e2e-runner.md) | sonnet | Author / run / stabilize Playwright journeys, helpers, fixtures, and artifacts. Application-code failures return a fast-worker-ready fix-spec; after the fix, this agent re-runs the originating journey as acceptance. Distinct from ui-ux-verifier (page-vs-spec audit) |
 | [smoke-tester](smoke-tester.md) | sonnet | Read-only live-runtime probe: drives the real running system with one orchestrator-supplied concrete scenario and asserts on observed values (`Verdict:`-first-line contract). Distinct from e2e-runner (authors/runs Playwright specs, write-capable, web-scoped) and the feature-verify skill (main-context P0-P5, not a dispatchable isolated agent) |
-| [qa-executor](qa-executor.md) | haiku | Live manual QA executor: runs assigned QA-manual cases through a browser skill, writes one verdict per case with observed evidence into one assigned results file; live-data writes only inside an explicit authorized fixture scope. Distinct from smoke-tester (one scenario, no Skill tool), e2e-runner (authors specs), and ui-ux-verifier (page-vs-spec audit) |
+| [qa-executor](qa-executor.md) | sonnet | Live manual QA executor: runs assigned QA-manual cases through a browser skill, writes one verdict per case with observed evidence into one assigned results file; live-data writes only inside an explicit authorized fixture scope. Distinct from smoke-tester (one scenario, no Skill tool), e2e-runner (authors specs), and ui-ux-verifier (page-vs-spec audit) |
 
 > **How situational agents are reached** (none are unconditional post-edit roles). Trigger
 > ownership is the AI-judgment back-stop list in
@@ -113,9 +113,9 @@ This index only lists the shipped roles above.
 ## Models
 
 - **opus**: deep-reasoner (may be raised to fable per dispatch for multi-question policy adjudication, see rules/model-economics.md), planner (low-frequency, high-impact, deep reasoning)
-- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, docs-writer, fast-worker, codex-worker, agy-worker, codex-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
-- **haiku**: doc-updater, docs-lookup, doc-reviewer, qa-executor (high-frequency, templated, cost-first)
-- **fable**: architect, plus per-dispatch deep-reasoner raises for multi-question policy adjudication (see rules/model-economics.md) (Fable 5.1 is the highest per-token Claude tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
+- **sonnet**: reviewers, doc-updater (edits files), qa-executor (issues verdicts), tdd-guide, refactor, ui-ux, harness, docs-writer, fast-worker, codex-worker, agy-worker, codex-reasoner, codex-reviewer (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
+- **haiku**: docs-lookup, doc-reviewer (high-frequency, templated, cost-first; read-only lookup and lint)
+- **fable**: architect, plus per-dispatch deep-reasoner raises for multi-question policy adjudication (see rules/model-economics.md) (Fable is the highest per-token Claude tier, currently 5.2; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
 
 ## Partial outputs and agent continuation
 
