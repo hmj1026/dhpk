@@ -190,13 +190,14 @@ test('Skill-local ignored bytecode is never projected and never changes the fing
   }
 });
 
+// Python-only mechanics (PYTHONPATH sitecustomize os.replace shim); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
 test('installer rejects a staged Skill mutation after preverification and preserves accepted output and receipt', () => {
   const project = projectRoot();
   const plugin = makePlugin();
   const shim = stageMutationShim();
   const marker = path.join(shim, 'mutated');
   try {
-    const installed = runInstaller(project, ['--copy', '--force'], plugin);
+    const installed = runInstaller(project, ['--copy', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python' });
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
     const target = installedSkill(project);
     const receiptPath = path.join(project, '.codex', '.dhpk-installed.json');
@@ -206,6 +207,7 @@ test('installer rejects a staged Skill mutation after preverification and preser
     fs.appendFileSync(path.join(sourceSkill(plugin), LOCAL_SCRIPT), '\nsource update before staged verification\n');
     const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
     const rejected = runInstaller(project, ['--copy', '--update', '--force'], plugin, {
+      DHPK_INSTALLER_ENGINE: 'python',
       PYTHONPATH: pythonPath,
       DHPK_TEST_STAGE_MUTATION_MARKER: marker,
     });
