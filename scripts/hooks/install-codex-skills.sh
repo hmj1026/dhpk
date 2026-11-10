@@ -141,6 +141,16 @@ export DHPK_JSON_OUTPUT="$JSON_OUTPUT"
 export DHPK_ADOPT_PATHS="$ADOPT_PATHS"
 export DHPK_SKILL_IDS="$SKILL_IDS"
 
+# js-projection-journal stage 3: the installer is being ported to JS
+# (scripts/lib/install-adapters/codex.js). DHPK_INSTALLER_ENGINE is an internal
+# switch for the parity harness (tests/_lib/installer-parity.js); it is not a
+# supported user option.
+case "${DHPK_INSTALLER_ENGINE:-python}" in
+    python) ;;
+    js) exec node "$DHPK_INSTALLER_ROOT/scripts/lib/install-adapters/codex-cli.js" ;;
+    *) echo "[$INSTALLER_NAME] ERROR: unknown DHPK_INSTALLER_ENGINE: $DHPK_INSTALLER_ENGINE" >&2; exit 2 ;;
+esac
+
 python3 - <<'PY'
 import datetime
 import atexit
