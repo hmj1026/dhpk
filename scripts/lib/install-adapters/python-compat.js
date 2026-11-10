@@ -131,7 +131,7 @@ function pyRepr(value) {
 }
 
 // json.dumps(value, indent, sort_keys, ensure_ascii=True) byte-for-byte.
-function pyJsonDumps(value, { indent = null, sortKeys = false, ensureAscii = true } = {}) {
+function pyJsonDumps(value, { indent = null, sortKeys = false, ensureAscii = true, separators = null } = {}) {
   const encodeString = (text) => {
     let out = '"';
     for (let index = 0; index < text.length; index += 1) {
@@ -162,8 +162,8 @@ function pyJsonDumps(value, { indent = null, sortKeys = false, ensureAscii = tru
     if (typeof node === 'string') return encodeString(node);
     const pad = indent === null ? '' : `\n${' '.repeat(indent * (level + 1))}`;
     const close = indent === null ? '' : `\n${' '.repeat(indent * level)}`;
-    const itemSeparator = indent === null ? ', ' : ',';
-    const keySeparator = ': ';
+    const itemSeparator = separators ? separators[0] : (indent === null ? ', ' : ',');
+    const keySeparator = separators ? separators[1] : ': ';
     if (Array.isArray(node)) {
       if (node.length === 0) return '[]';
       return `[${node.map((item) => `${pad}${walk(item, level + 1)}`).join(itemSeparator)}${close}]`;

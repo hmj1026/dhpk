@@ -49,12 +49,14 @@ function fakePlugin() {
   return plugin;
 }
 
-function fixture(setup = () => {}) {
+// `setupEngine` pins the setup steps to one engine, so a step can be
+// compared under JS before the steps that prepare it are ported.
+function fixture(setup = () => {}, { setupEngine = null } = {}) {
   return (engine) => {
     const project = projectRoot();
     const pluginRoot = fakePlugin();
     const step = (args) => {
-      const result = runInstaller(project, args, pluginRoot, { DHPK_INSTALLER_ENGINE: engine });
+      const result = runInstaller(project, args, pluginRoot, { DHPK_INSTALLER_ENGINE: setupEngine || engine });
       assert.ok([0, 1].includes(result.status), `setup ${args.join(' ')} failed under ${engine}: ${result.stdout}\n${result.stderr}`);
       return result;
     };
@@ -88,8 +90,54 @@ const SCENARIOS = [
     prepare: fixture(({ pluginRoot, step }) => {
       step(['--copy', '--force']);
       fs.appendFileSync(path.join(pluginRoot, 'codex', 'skills', 'code-trace', 'SKILL.md'), '\nDrift.\n');
-    }),
+    }, { setupEngine: 'python' }),
     args: ['--plan', '--json', '--copy', '--force'],
+    js: true,
+  },
+  { name: 'plan json on an empty project', prepare: fixture(), args: ['--plan', '--json', '--force'], js: true },
+  {
+    name: 'plan text with a collision',
+    prepare: fixture(({ project }) => {
+      const target = path.join(project, '.codex', 'skills', 'code-trace');
+      fs.mkdirSync(target, { recursive: true });
+      fs.writeFileSync(path.join(target, 'user-owned.txt'), 'keep me\n');
+    }),
+    args: ['--plan', '--force'],
+    js: true,
+  },
+  {
+    name: 'plan json for the full repository',
+    prepare: (engine) => {
+      const project = projectRoot();
+      return { project, pluginRoot: ROOT, engine, cleanup: () => fs.rmSync(project, { recursive: true, force: true }) };
+    },
+    args: ['--plan', '--json', '--force'],
+    js: true,
+  },
+  {
+    name: 'version boundary blocks a receipt without the tree marker',
+    prepare: fixture(({ project, step }) => {
+      step(['--copy', '--force']);
+      const receiptPath = path.join(project, '.codex', '.dhpk-installed.json');
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      delete receipt.fingerprint_algorithm;
+      fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    }, { setupEngine: 'python' }),
+    args: ['--copy', '--update', '--force'],
+    js: true,
+  },
+  {
+    name: 'version boundary blocks an unknown algorithm before uninstall',
+    prepare: fixture(({ project, step }) => {
+      step(['--copy', '--force']);
+      const receiptPath = path.join(project, '.codex', '.dhpk-installed.json');
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      receipt.fingerprint_algorithm = 'sha1-tree';
+      fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    }, { setupEngine: 'python' }),
+    args: ['--uninstall', '--force'],
+    // Releasing an unmarked receipt is a write path (ported with task 3.3).
+    js: false,
   },
   {
     name: 'unowned collision on update',
