@@ -339,4 +339,27 @@ assert result.kind == v.RECURSIVE_UNPROVEN and 'time limit' in result.message(),
 `);
 });
 
+test('the test-only budget override cannot lower or loosen the production budget (#1290)', () => {
+  python(String.raw`
+budget = credential_scan.budget_seconds
+KEY = 'DHPK_CREDENTIAL_TEST_MAX_SECONDS'
+assert PRODUCTION_SECONDS == (0.300, 0.300)
+credential_scan.MAX_SECONDS = PRODUCTION_SECONDS[1]  # the prelude raised it for verdict tests
+assert budget({}) == 0.300
+assert budget({KEY: '5'}) == 0.300, 'override without DHPK_TEST_MODE'
+assert budget({'DHPK_TEST_MODE': '0', KEY: '5'}) == 0.300
+assert budget({'DHPK_TEST_MODE': 'true', KEY: '5'}) == 0.300
+assert budget({'DHPK_TEST_MODE': '1'}) == 0.300, 'mode without value'
+assert budget({'DHPK_TEST_MODE': '1', KEY: '5'}) == 5.0
+assert budget({'DHPK_TEST_MODE': '1', KEY: '0.01'}) == 0.300, 'never lowers below 300 ms'
+assert budget({'DHPK_TEST_MODE': '1', KEY: '-3'}) == 0.300
+assert budget({'DHPK_TEST_MODE': '1', KEY: '0.3'}) == 0.300
+assert budget({'DHPK_TEST_MODE': '1', KEY: '999'}) == 10.0, 'clamped to 10 s'
+for bad in ('nan', 'inf', '-inf', 'abc', '', ' ', '1e999x'):
+    assert budget({'DHPK_TEST_MODE': '1', KEY: bad}) == 0.300, bad
+# The same helper backs both consumers: the policy module's default stays 300 ms.
+assert budget({'DHPK_TEST_MODE': '1', KEY: 'nan'}, default=PRODUCTION_SECONDS[0]) == 0.300
+`);
+});
+
 run('credential-git');
