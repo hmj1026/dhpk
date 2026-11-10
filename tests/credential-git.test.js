@@ -17,8 +17,15 @@ function python(source) {
 
 const PRELUDE = String.raw`
 import os, subprocess, tempfile
+import credential_policy, credential_scan
 from credential_policy import analyze
 import credential_verdict as v
+
+# The production listing budget (300 ms) is a wall-clock bound; a stalled CI
+# runner can exceed it and turn an expected verdict into a time-limit refusal
+# (#1285). Verdict assertions use a generous budget; the fail-closed timeout
+# path has its own test.
+credential_policy.MAX_SECONDS = 60.0
 
 ENV = dict(os.environ, GIT_AUTHOR_NAME='t', GIT_AUTHOR_EMAIL='t@e', GIT_COMMITTER_NAME='t',
            GIT_COMMITTER_EMAIL='t@e', GIT_CONFIG_NOSYSTEM='1', HOME=tempfile.mkdtemp())
@@ -284,6 +291,34 @@ if os.path.exists(marker_sub):
     os.unlink(marker_sub)
 check([('git diff', v.ALLOW), ('git diff --ignore-submodules=none', v.ALLOW)], outer)
 assert not os.path.exists(marker_sub), 'guard ran a submodule clean filter'
+`);
+});
+
+test('verdicts do not depend on runner speed: a stalled git listing still allows a clean read', () => {
+  // #1285: a loaded CI runner once stalled the names-only listing past the
+  // production budget, turning an expected ALLOW into recursive_unproven.
+  python(String.raw`
+import credential_git, time
+real_git = credential_git._git
+def stalled(*args, **kwargs):
+    time.sleep(0.35)
+    return real_git(*args, **kwargs)
+credential_git._git = stalled
+slow = repo(base, 'slow', ['src/a.js', 'README.md'])
+check([('git grep --untracked -n x', v.ALLOW), ('git diff', v.ALLOW)], slow)
+`);
+});
+
+test('the production listing budget still fails closed when a listing exceeds it', () => {
+  python(String.raw`
+import credential_policy, credential_scan
+credential_policy.MAX_SECONDS = 0.0005
+tight = repo(base, 'tight', ['src/a.js'])
+os.chdir(tight)
+result = analyze('git grep --untracked -n x', [], tight)
+assert result.kind == v.RECURSIVE_UNPROVEN, result.kind
+assert 'time limit' in result.message(), result.message()
+assert credential_scan.MAX_SECONDS == 0.300, 'the production budget must stay 300 ms'
 `);
 });
 
