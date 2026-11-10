@@ -41,6 +41,9 @@ const TIMEOUT_HINTS = Object.freeze({
   'install-codex-skills-reconciliation.test.js': 300000,
   'macos-installer-darwin.test.js': 240000,
   'harness-facade-cli.test.js': 240000,
+  // About 120s of consumer-gate children alone; 180s overran twice under the
+  // four-way local portable publish gate for 0.72.0.
+  'consumer-gate-cli.test.js': 300000,
 });
 
 function findTests(dir) {
