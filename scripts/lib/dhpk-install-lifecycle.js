@@ -59,11 +59,12 @@ function parseRequest(argv) {
     else if (option === '--dry-run') request.dryRun = true;
     else if (option === '--yes') request.yes = true;
     else if (option === '--json') request.json = true;
-    else if (['--scope', '--mode', '--source', '--agent-profile', '--agent'].includes(option)) {
+    else if (['--scope', '--mode', '--source', '--agent-profile', '--agent', '--project-root'].includes(option)) {
       const value = rest[index + 1];
       if (!value || value.startsWith('--')) throw failure(`${option} requires a value`);
       index += 1;
-      if (option === '--scope') request.scope = value;
+      if (option === '--project-root') request.projectRoot = value;
+      else if (option === '--scope') request.scope = value;
       else if (option === '--mode') request.mode = value;
       else if (option === '--source') request.source = value;
       else if (option === '--agent-profile') request.agentProfile = value;

@@ -65,12 +65,60 @@ function incompleteInstallerJournals(projectRoot, installerRoot) {
   return found;
 }
 
+// js-projection-journal stage 3: one Projection Journal and one install lock
+// per project. Recovery runs the installer of the Host the journal (or the
+// lock) names with --recover, which removes a stale lock, finishes or undoes
+// the journal by its commit point, and recovers that Host's older journals.
+function recoverProjectionJournal(projectRoot, installerRoot) {
+  const agents = path.join(projectRoot, '.agents');
+  const journalPath = path.join(agents, '.dhpk-projection-journal.json');
+  const lockPath = path.join(agents, '.dhpk-install.lock');
+  const readHost = (file) => {
+    try {
+      const value = JSON.parse(fs.readFileSync(file, 'utf8'));
+      return value && typeof value.host === 'string' ? value.host : null;
+    } catch (_) {
+      return null;
+    }
+  };
+  // lstat, not existsSync: a dangling symlink exists and must reach the installer.
+  const journalPresent = pathExists(journalPath);
+  const lockPresent = pathExists(lockPath);
+  if (!journalPresent && !lockPresent) return { ok: true, state: 'ABSENT' };
+  const host = (journalPresent && readHost(journalPath)) || (lockPresent && readHost(lockPath)) || null;
+  if (!host) {
+    return { ok: false, state: 'BLOCKED', code: 'HOST_UNKNOWN', message: 'neither .agents/.dhpk-projection-journal.json nor .agents/.dhpk-install.lock names a readable Host; inspect or remove them by hand, then rerun the Codex installer' };
+  }
+  try {
+    const { HOSTS, installerEnv, runCaptured } = require('./install-adapters/codex-cli');
+    if (!HOSTS[host]) return { ok: false, state: 'BLOCKED', code: 'UNKNOWN_HOST', message: `the Projection Journal names an unknown Host: ${host}` };
+    const outcome = runCaptured(installerEnv({ host, pluginRoot: installerRoot, installerRoot, projectRoot, recover: true }));
+    const output = `${outcome.stdout}${outcome.stderr}`.trim();
+    if (outcome.code === 0) return { ok: true, state: 'RECOVERED', host };
+    return { ok: false, state: 'BLOCKED', code: 'RECOVERY_FAILED', host, message: output };
+  } catch (error) {
+    return { ok: false, state: 'BLOCKED', code: 'RECOVERY_FAILED', host, message: `the ${host} installer could not run: ${error && error.message ? error.message : error}` };
+  }
+}
+
+function pathExists(file) {
+  try {
+    fs.lstatSync(file);
+    return true;
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
 function recoverProject({ projectRoot, installerRoot }) {
+  const projectionJournal = recoverProjectionJournal(projectRoot, installerRoot);
   const sharedProjection = recoverSharedProjection({ projectRoot });
   const installerJournals = incompleteInstallerJournals(projectRoot, installerRoot);
   return {
-    ok: sharedProjection.ok && installerJournals.length === 0,
+    ok: projectionJournal.ok && sharedProjection.ok && installerJournals.length === 0,
     projectRoot,
+    projectionJournal,
     sharedProjection,
     installerJournals,
   };
@@ -78,6 +126,10 @@ function recoverProject({ projectRoot, installerRoot }) {
 
 function formatRecoverReport(report) {
   const lines = [];
+  const journal = report.projectionJournal;
+  if (journal && journal.state !== 'ABSENT') {
+    lines.push(journal.ok ? `projection journal: ${journal.state} (${journal.host})` : `projection journal: BLOCKED (${journal.code}): ${journal.message}`);
+  }
   const shared = report.sharedProjection;
   lines.push(shared.ok ? `shared projection: ${shared.state}` : `shared projection: BLOCKED (${shared.code}): ${shared.message}`);
   for (const journal of report.installerJournals) {
