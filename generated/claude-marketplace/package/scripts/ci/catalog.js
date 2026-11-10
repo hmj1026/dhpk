@@ -43,6 +43,7 @@ const SUITE_OWNER_REGISTRY = Object.freeze({
   'tests/maintainer-delivery-gate.test.js': 'scripts/maintainer/delivery-gate.js',
   'tests/maintainer-preflight.test.js': 'scripts/maintainer/delivery-preflight.js',
   'tests/maintainer-ci-watch.test.js': 'scripts/maintainer/ci-watch.js',
+  'tests/dispatch-telemetry-report.test.js': 'scripts/dispatch-telemetry-report.js',
 });
 
 function computeCounts() {
