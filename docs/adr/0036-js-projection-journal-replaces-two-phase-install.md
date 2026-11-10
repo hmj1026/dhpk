@@ -42,7 +42,7 @@ publisher still describes progress with flags (`liveBackedUp`, `holdReady`,
   changes.
 - An in-flight transaction in the journal format of the immediately
   previous minor release is recovered; an older format fails closed and tells
-  the user to run the `--recover` of the release that wrote it first. This
+  the user to run first the `--recover` of the last release that can read it. This
   follows the fail-closed boundary pattern of
   [ADR-0031](0031-release-unprovable-ownership-instead-of-failing.md) and the
   one-minor window of
