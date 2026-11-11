@@ -312,13 +312,23 @@
     "firstStderr": "",
     "stdoutJson": false
   },
-  "codex:reconciliation-incomplete": {
+  "codex:collision-preserved": {
     "argv": [
       "--copy"
     ],
     "setup": "collision",
     "status": 0,
     "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:update-reconciliation-incomplete": {
+    "argv": [
+      "--copy",
+      "--update"
+    ],
+    "setup": "edited-managed",
+    "status": 1,
+    "firstStderr": "[install-codex-skills] ACTION REQUIRED: review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>",
     "stdoutJson": false
   },
   "cursor:install-copy": {
@@ -634,13 +644,89 @@
     "firstStderr": "",
     "stdoutJson": false
   },
-  "cursor:reconciliation-incomplete": {
+  "cursor:collision-preserved": {
     "argv": [
       "--copy"
     ],
     "setup": "collision",
     "status": 0,
     "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:update-reconciliation-incomplete": {
+    "argv": [
+      "--copy",
+      "--update"
+    ],
+    "setup": "edited-managed",
+    "status": 1,
+    "firstStderr": "[install-cursor-harness] ACTION REQUIRED: review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>",
+    "stdoutJson": false
+  },
+  "codex-packaged:install-copy": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex-packaged:help-long": {
+    "argv": [
+      "--help"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex-packaged:unknown-flag": {
+    "argv": [
+      "--bogus"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] unknown arg: --bogus",
+    "stdoutJson": false
+  },
+  "codex-packaged:profile-retired": {
+    "argv": [
+      "--profile",
+      "x"
+    ],
+    "setup": "project",
+    "status": 64,
+    "firstStderr": "[install-codex-skills] --profile has been retired; fresh installs use the common collection",
+    "stdoutJson": false
+  },
+  "codex-packaged:plan-json": {
+    "argv": [
+      "--plan",
+      "--json"
+    ],
+    "setup": "project",
+    "status": 1,
+    "firstStderr": "",
+    "stdoutJson": true
+  },
+  "codex-packaged:update-reconciliation-incomplete": {
+    "argv": [
+      "--copy",
+      "--update"
+    ],
+    "setup": "edited-managed",
+    "status": 1,
+    "firstStderr": "[install-codex-skills] ACTION REQUIRED: review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>",
+    "stdoutJson": false
+  },
+  "codex-packaged:node-missing-install": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "nonode",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: node is required to materialize portable project skill metadata",
     "stdoutJson": false
   }
 }

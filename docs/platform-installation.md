@@ -699,9 +699,10 @@ canonical `agents/` and `rules/` trees.
 
 A Codex or Cursor install, update, or uninstall is one transaction across the
 native installer and the shared projection ([ADR-0033](adr/0033-one-projection-journal-owns-install-crash-order.md)).
-The installer holds the shared projection step under its own run id and commits
-both at one point; the next run finishes or undoes an interrupted transaction
-automatically.
+The installer records the native and shared projection steps in one Projection
+Journal (`.agents/.dhpk-projection-journal.json`) and commits both at a single
+point, when the journal reaches `published`; the next run finishes or undoes an
+interrupted transaction automatically.
 
 - One project lock serializes every Codex and Cursor run. While another run
   holds it, the installer exits `2` with `already reconciling this project:
@@ -716,7 +717,7 @@ automatically.
   or plugin cache (one generated `dhpk-installer.cjs` beside its shell entry), so
   it takes the same project lock and Projection Journal. No installer needs
   `python3`; Node.js is required. `TRANSACTION_HELD` is no longer produced, but
-  a held transaction left by 0.72 is still recovered by rerunning the installer
+  a held transaction left by 0.72 or 0.73 is still recovered by rerunning the installer
   or running it with `--recover`. Recover in-flight installs before downgrading.
 - `did not finish rolling back` lists the remaining paths and the backup
   directory. Fix the reported cause, then run the same installer with

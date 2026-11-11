@@ -311,6 +311,45 @@ test('testRunInstaller_lockReleaseFailure_isReportedAndKeepsTheOutcome', () => {
   }
 });
 
+// A staged copy changed between the moment its fingerprint was taken and the
+// moment it is verified (a racing writer inside the project) must stop the
+// install before the stage is published (codex.js "install materialization changed").
+test('testStagedMaterialization_mutatedAfterItsFingerprint_failsBeforePublishing', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-adapter-staged-mutation-');
+  const original = fs.openSync;
+  const opens = new Map();
+  let mutated = false;
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    // Opens of a staged file: fsync after the copy, the fingerprint, then the
+    // verification pass. Append to it just before the third.
+    fs.openSync = function hooked(target, ...rest) {
+      const file = String(target);
+      if (!mutated && /\.dhpk-stage-[^/]+\/[0-9a-f]{32}\/explorer\.toml$/.test(file)) {
+        const count = (opens.get(file) || 0) + 1;
+        opens.set(file, count);
+        if (count === 3) {
+          mutated = true;
+          fs.appendFileSync(file, '# changed after the fingerprint\n');
+        }
+      }
+      return original.call(this, target, ...rest);
+    };
+    const outcome = runIn(plugin, project);
+    fs.openSync = original;
+    assert.ok(mutated, 'the hook must have reached the verification pass');
+    assert.notStrictEqual(outcome.code, 0, outcome.stdout);
+    assert.match(outcome.stderr, /install materialization changed: agents\/explorer\.toml; run a fresh update/);
+    assert.strictEqual(fs.existsSync(path.join(project, '.codex', 'agents', 'explorer.toml')), false, 'nothing staged may be published');
+    assert.strictEqual(fs.existsSync(path.join(project, LOCK)), false, 'the lock is released');
+    assert.strictEqual(fs.existsSync(path.join(project, JOURNAL)), false, 'the journal is rolled back and retired');
+  } finally {
+    fs.openSync = original;
+    cleanup(plugin, project);
+  }
+});
+
 // Task 3.6: a Host journal the previous release's Python installer left in
 // flight, with its publication held, is undone by its own commit point. The
 // journal is a recording (tests/fixtures/legacy-journals/README.md): that
