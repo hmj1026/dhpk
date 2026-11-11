@@ -14,6 +14,7 @@ const { spawnSync } = require('node:child_process');
 const { SimulatedCrash } = require('../scripts/lib/projection-journal');
 const { fakePlugin, write, skillBody, REPO } = require('./_lib/shared-projection-plugin');
 const { CODEX_STUB_BIN, runInstaller: runShellInstaller } = require('./_lib/install-codex-skills-fixtures');
+const { loadLegacyFixture, restoreTree } = require('./_lib/legacy-journal-fixtures');
 
 const {
   JOURNAL,
@@ -311,27 +312,33 @@ test('testRunInstaller_lockReleaseFailure_isReportedAndKeepsTheOutcome', () => {
 });
 
 // Task 3.6: a Host journal the previous release's Python installer left in
-// flight, with its publication held, is undone by its own commit point.
+// flight, with its publication held, is undone by its own commit point. The
+// journal is a recording (tests/fixtures/legacy-journals/README.md): that
+// installer no longer exists to produce one.
+function restoreLegacyCodexProject(plugin, project, { withExpected = false } = {}) {
+  const recording = loadLegacyFixture('python-codex-host-journal');
+  restoreTree(recording.interrupted, project, { '@@PROJECT@@': project, '@@PLUGIN@@': plugin });
+  if (!withExpected) return { expected: null };
+  const expected = tempDir('dhpk-adapter-legacy-before-');
+  restoreTree(recording.before, expected, { '@@PROJECT@@': expected, '@@PLUGIN@@': plugin });
+  return { expected };
+}
+
 test('testPreviousReleaseHeldTransaction_isRolledBackByTheJsInstaller', () => {
   const plugin = fakePlugin();
   const project = tempDir('dhpk-adapter-legacy-');
+  let expected;
   try {
-    fs.mkdirSync(path.join(project, '.git'));
-    const first = runShellInstaller(project, ['--copy', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python' });
-    assert.strictEqual(first.status, 0, first.stderr);
-    const before = snapshot(project, plugin).filter((line) => !/\.dhpk-transaction-|\.dhpk-install\.lock/.test(line));
-    write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only v2'));
-    const killed = runShellInstaller(project, ['--copy', '--update', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python', DHPK_TEST_KILL_AT: 'after-shared-projection' });
-    assert.notStrictEqual(killed.status, 0);
-    assert.ok(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), 'the Python run must leave a held publication');
-    write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only'));
+    ({ expected } = restoreLegacyCodexProject(plugin, project, { withExpected: true }));
+    assert.ok(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), 'the recording must hold a publication');
     const recovered = runIn(plugin, project, { recover: true });
     assert.strictEqual(recovered.code, 0, `${recovered.stdout}\n${recovered.stderr}`);
     assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), false);
-    const state = snapshot(project, plugin).filter((line) => !/\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/.test(line));
-    assert.deepStrictEqual(state, before.filter((line) => !/\.dhpk-backups/.test(line)));
+    const volatile = /\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/;
+    const state = snapshot(project, plugin).filter((line) => !volatile.test(line));
+    assert.deepStrictEqual(state, snapshot(expected, plugin).filter((line) => !volatile.test(line)));
   } finally {
-    cleanup(plugin, project);
+    cleanup(plugin, project, ...(expected ? [expected] : []));
   }
 });
 
@@ -361,16 +368,13 @@ function requestedProjectionRecovery(publisherResult) {
   commitHeldProjection: () => (${JSON.stringify(publisherResult)}),
 };
 `);
-    assert.strictEqual(runShellInstaller(project, ['--copy', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python' }).status, 0);
-    write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only v2'));
-    const killed = runShellInstaller(project, ['--copy', '--update', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python', DHPK_TEST_KILL_AT: 'after-shared-projection' });
-    assert.notStrictEqual(killed.status, 0);
-    // The killed update's journal is the one whose shared projection is held.
+    restoreLegacyCodexProject(plugin, project);
+    // The recorded update's journal is the one whose shared projection is held.
     const journalFile = fs.readdirSync(path.join(project, '.codex'))
       .filter((name) => /^\.dhpk-transaction-.*\.json$/.test(name))
       .map((name) => path.join(project, '.codex', name))
       .find((file) => (JSON.parse(fs.readFileSync(file, 'utf8')).shared_projection || {}).phase === 'held');
-    assert.ok(journalFile, 'the killed Python run must leave a journal with a held shared projection');
+    assert.ok(journalFile, 'the recording must hold a shared projection in one Host journal');
     const journal = JSON.parse(fs.readFileSync(journalFile, 'utf8'));
     journal.shared_projection.phase = 'requested';
     fs.writeFileSync(journalFile, JSON.stringify(journal));

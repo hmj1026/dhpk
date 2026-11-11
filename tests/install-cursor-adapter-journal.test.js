@@ -15,6 +15,7 @@ const { spawnSync } = require('node:child_process');
 const { SimulatedCrash } = require('../scripts/lib/projection-journal');
 const { fakePlugin, write, skillBody, REPO } = require('./_lib/shared-projection-plugin');
 const { CODEX_STUB_BIN } = require('./_lib/install-codex-skills-fixtures');
+const { loadLegacyFixture, restoreTree } = require('./_lib/legacy-journal-fixtures');
 const {
   JOURNAL,
   LOCK,
@@ -242,19 +243,21 @@ test('testSameHostTakeover_cursorAfterCursor_staysQuiet', () => {
 });
 
 // The previous release's Python Cursor installer, killed after it published
-// the Shared Project Projection, leaves a held publication and a Host journal.
+// the Shared Project Projection, leaves a held publication and a Host journal
+// (a recording: tests/fixtures/legacy-journals/README.md).
 // The JS Cursor installer rolls it back to the state before that run.
 function legacyHeldTransaction({ extraLeftover = null } = {}) {
   const plugin = fakePlugin();
   const project = tempDir('dhpk-cursor-legacy-');
+  const recording = loadLegacyFixture('python-cursor-host-journal');
   fs.mkdirSync(path.join(project, '.git'));
-  const first = shell(project, ['--copy', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python' });
-  assert.strictEqual(first.status, 0, first.stderr);
-  const before = snapshot(project, plugin).filter((line) => !/\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/.test(line));
-  changeSources(plugin);
-  const killed = shell(project, ['--copy', '--update', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python', DHPK_TEST_KILL_AT: 'after-shared-projection' });
-  assert.notStrictEqual(killed.status, 0);
-  assert.ok(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), 'the Python run must leave a held publication');
+  restoreTree(recording.interrupted, project, { '@@PROJECT@@': project, '@@PLUGIN@@': plugin });
+  const expected = tempDir('dhpk-cursor-legacy-before-');
+  restoreTree(recording.before, expected, { '@@PROJECT@@': expected, '@@PLUGIN@@': plugin });
+  const volatile = /\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/;
+  const before = snapshot(expected, plugin).filter((line) => !volatile.test(line));
+  fs.rmSync(expected, { recursive: true, force: true });
+  assert.ok(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), 'the recording must hold a publication');
   if (extraLeftover) extraLeftover(project);
   return { plugin, project, before };
 }

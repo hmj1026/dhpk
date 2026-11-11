@@ -1,0 +1,150 @@
+{
+ "description": "uninstall held until commit",
+ "recordedBy": "publisher hold producer of dhpk 0.73.0 (hold: { transactionId: run-1, host: codex })",
+ "transactionId": "run-1",
+ "host": "codex",
+ "before": {
+  "": {
+   "dir": true,
+   "mode": 448
+  },
+  ".agents": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-installed.json": {
+   "mode": 384,
+   "text": "{\"artifactFingerprint\":\"94958a481e9566b936aebd4c17f0687b30c466c675335c9d35df1a3479247a64\",\"bindingPaths\":{\"codex\":[{\"path\":\".codex/skills/dhpk-sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"cursor\":[{\"path\":\".cursor/skills/dhpk-sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}]},\"bindings\":{\"agy\":{\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"agy\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-direct-file\",\"surface\":\"agy-plugin\",\"transform\":{\"id\":\"agy-project-direct-file\",\"version\":\"1\"}},\"codex\":{\"bindingShape\":\"native-link\",\"bindings\":[{\"name\":\"dhpk-sample\",\"path\":\".codex/skills/dhpk-sample\",\"shape\":\"native-link\",\"stableId\":\"sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"discovery\":{\"adapterId\":\"codex-project-discovery\",\"adapterVersion\":\"1.0.0\",\"destinationRoot\":\".codex/skills\",\"kind\":\"symlink\",\"paths\":[\".codex/skills/dhpk-sample\"],\"sourceRoot\":\".agents/skills\"},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"codex\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-directory\",\"surface\":\"codex-sync\",\"transform\":{\"id\":\"codex-project-skill\",\"version\":\"1\"}},\"cursor\":{\"bindingShape\":\"native-link\",\"bindings\":[{\"name\":\"dhpk-sample\",\"path\":\".cursor/skills/dhpk-sample\",\"shape\":\"native-link\",\"stableId\":\"sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"discovery\":{\"adapterId\":\"cursor-project-discovery\",\"adapterVersion\":\"1.0.0\",\"destinationRoot\":\".cursor/skills\",\"kind\":\"symlink\",\"paths\":[\".cursor/skills/dhpk-sample\"],\"sourceRoot\":\".agents/skills\"},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"cursor\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-directory\",\"surface\":\"cursor-plugin\",\"transform\":{\"id\":\"cursor-project-skill\",\"version\":\"1\"}}},\"capabilityEvidenceFingerprint\":\"82e650fe2f2bacb9ad2dc582b65946b1805cb832e05ef2f81bd3915d92e3084a\",\"claudeGeneratedFingerprints\":{},\"claudeManagedPaths\":[],\"claudeManagedRoot\":\".agents/claude-skills\",\"dependencyClosure\":{\"edges\":[],\"files\":[],\"identities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"rootIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"roots\":[\"sample\"],\"stableIds\":[\"sample\"],\"supportingAssetIds\":[]},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedIds\":[\"sample\"],\"entries\":[{\"claudeGeneratedPaths\":[],\"entityKind\":\"skill\",\"generatedPaths\":[\"dhpk-sample.md\",\"dhpk-sample/SKILL.md\"],\"name\":\"dhpk-sample\",\"source\":\"skills/dhpk-sample\",\"sourceFiles\":[{\"digest\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\",\"path\":\"SKILL.md\"}],\"sourceFingerprint\":\"5a9d6650e0254b527f43f7cc1e481c018c5922d11ee42cc36638d22c11711d84\",\"stableId\":\"sample\"}],\"fingerprint_algorithm\":\"tree-merkle-v1\",\"generatedFingerprints\":{\".dhpk-projection.json\":\"6fb7038bab30a0ce036059c97e9da5fc6fa645f954e80b7fe481798af5b4cda9\",\"dhpk-sample.md\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\",\"dhpk-sample/SKILL.md\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\"},\"generatorVersion\":\"2.1.0\",\"hostBindings\":{\"agy\":{\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"agy\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-direct-file\",\"surface\":\"agy-plugin\",\"transform\":{\"id\":\"agy-project-direct-file\",\"version\":\"1\"}},\"codex\":{\"bindingShape\":\"native-link\",\"bindings\":[{\"name\":\"dhpk-sample\",\"path\":\".codex/skills/dhpk-sample\",\"shape\":\"native-link\",\"stableId\":\"sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"discovery\":{\"adapterId\":\"codex-project-discovery\",\"adapterVersion\":\"1.0.0\",\"destinationRoot\":\".codex/skills\",\"kind\":\"symlink\",\"paths\":[\".codex/skills/dhpk-sample\"],\"sourceRoot\":\".agents/skills\"},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"codex\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-directory\",\"surface\":\"codex-sync\",\"transform\":{\"id\":\"codex-project-skill\",\"version\":\"1\"}},\"cursor\":{\"bindingShape\":\"native-link\",\"bindings\":[{\"name\":\"dhpk-sample\",\"path\":\".cursor/skills/dhpk-sample\",\"shape\":\"native-link\",\"stableId\":\"sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"discovery\":{\"adapterId\":\"cursor-project-discovery\",\"adapterVersion\":\"1.0.0\",\"destinationRoot\":\".cursor/skills\",\"kind\":\"symlink\",\"paths\":[\".cursor/skills/dhpk-sample\"],\"sourceRoot\":\".agents/skills\"},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"cursor\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-directory\",\"surface\":\"cursor-plugin\",\"transform\":{\"id\":\"cursor-project-skill\",\"version\":\"1\"}}},\"managedPaths\":[\".dhpk-projection.json\",\"dhpk-sample.md\",\"dhpk-sample/SKILL.md\"],\"managedRoot\":\".agents/skills\",\"planFingerprint\":\"e14f5d7e1b51684797de5dd4e859215593a996fe61971a9345d3d4e5447546d9\",\"profile\":{\"compatibilityMode\":\"portable-core\",\"emittedStableIds\":[\"skill:sample\"],\"profileId\":\"portable-core\",\"selectedStableIds\":[\"skill:sample\"],\"selectionFingerprint\":\"964a67c85cc87eb6990033a358850679794893f547ccc172ec214c78d7b578fb\",\"selectionPolicyVersion\":\"dhpk.project-agent-projection.v1\",\"version\":\"portable-core-v1\"},\"profileFingerprint\":\"8f06fd86c682ecdc973cec0f1c576643d4d4dbff10c2dfc472d59e2e84901010\",\"profileId\":\"portable-core\",\"projectionOwner\":{\"managedRoot\":\".agents/skills\",\"owner\":\"dhpk.project-agent-projection\",\"receipt\":\".agents/.dhpk-installed.json\",\"scope\":\"project\"},\"receiptFingerprint\":\"ad114894357b34b231f908346b95e8e7680e3ed2fdba9259bc651dbd8350d1c4\",\"receiptPath\":\".agents/.dhpk-installed.json\",\"rollback\":null,\"schema\":\"dhpk.project-agent-projection-receipt.v3\",\"scope\":\"project\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedIds\":[\"sample\"],\"selectionFingerprint\":\"964a67c85cc87eb6990033a358850679794893f547ccc172ec214c78d7b578fb\",\"sourceFingerprints\":{\"skill:sample\":\"5a9d6650e0254b527f43f7cc1e481c018c5922d11ee42cc36638d22c11711d84\"},\"surfaceSelectionFingerprint\":null}\n"
+  },
+  ".agents/skills": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/skills/.dhpk-projection.json": {
+   "mode": 420,
+   "text": "{\"claudeGeneratedFingerprints\":{},\"claudeManagedPaths\":[],\"claudeManagedRoot\":\".agents/claude-skills\",\"emittedIds\":[\"sample\"],\"entries\":[{\"claudeGeneratedPaths\":[],\"entityKind\":\"skill\",\"generatedPaths\":[\"dhpk-sample.md\",\"dhpk-sample/SKILL.md\"],\"name\":\"dhpk-sample\",\"source\":\"skills/dhpk-sample\",\"sourceFiles\":[{\"digest\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\",\"path\":\"SKILL.md\"}],\"sourceFingerprint\":\"5a9d6650e0254b527f43f7cc1e481c018c5922d11ee42cc36638d22c11711d84\",\"stableId\":\"sample\"}],\"fingerprint_algorithm\":\"tree-merkle-v1\",\"generatedFingerprints\":{\"dhpk-sample.md\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\",\"dhpk-sample/SKILL.md\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\"},\"generatorVersion\":\"2.1.0\",\"inventoryRevision\":null,\"managedPaths\":[\"dhpk-sample.md\",\"dhpk-sample/SKILL.md\"],\"schema\":\"dhpk.agents-skills-projection.v1\",\"selectedIds\":[\"sample\"],\"selectionSurface\":\"project-agent-projection\"}\n"
+  },
+  ".agents/skills/dhpk-sample": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/skills/dhpk-sample/SKILL.md": {
+   "mode": 420,
+   "text": "---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n"
+  },
+  ".agents/skills/dhpk-sample.md": {
+   "mode": 420,
+   "text": "---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n"
+  },
+  ".codex": {
+   "dir": true,
+   "mode": 493
+  },
+  ".codex/skills": {
+   "dir": true,
+   "mode": 493
+  },
+  ".codex/skills/dhpk-sample": {
+   "link": "../../.agents/skills/dhpk-sample"
+  },
+  ".cursor": {
+   "dir": true,
+   "mode": 493
+  },
+  ".cursor/skills": {
+   "dir": true,
+   "mode": 493
+  },
+  ".cursor/skills/dhpk-sample": {
+   "link": "../../.agents/skills/dhpk-sample"
+  }
+ },
+ "held": {
+  "": {
+   "dir": true,
+   "mode": 448
+  },
+  ".agents": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-installed.transaction.json": {
+   "mode": 384,
+   "text": "{\"backupName\":\".dhpk-projection-backup-cdl-mwbkwlmh-453b6b54\",\"claudeManagedName\":\"claude-skills\",\"effects\":[{\"args\":{\"paths\":[\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54\"]},\"id\":1,\"inverse\":{\"args\":{\"mode\":\"tree\",\"paths\":[\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54\"]},\"kind\":\"remove\"},\"kind\":\"mkdir\",\"state\":\"done\"},{\"args\":{\"from\":\".agents/skills/.dhpk-projection.json\",\"to\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/.dhpk-projection.json\"},\"id\":2,\"inverse\":{\"args\":{\"from\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/.dhpk-projection.json\",\"to\":\".agents/skills/.dhpk-projection.json\"},\"kind\":\"rename\"},\"kind\":\"rename\",\"state\":\"done\"},{\"args\":{\"from\":\".agents/skills/dhpk-sample.md\",\"to\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/dhpk-sample.md\"},\"id\":3,\"inverse\":{\"args\":{\"from\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/dhpk-sample.md\",\"to\":\".agents/skills/dhpk-sample.md\"},\"kind\":\"rename\"},\"kind\":\"rename\",\"state\":\"done\"},{\"args\":{\"from\":\".agents/skills/dhpk-sample/SKILL.md\",\"to\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/dhpk-sample/SKILL.md\"},\"id\":4,\"inverse\":{\"args\":{\"from\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/dhpk-sample/SKILL.md\",\"to\":\".agents/skills/dhpk-sample/SKILL.md\"},\"kind\":\"rename\"},\"kind\":\"rename\",\"state\":\"done\"},{\"args\":{\"from\":\".agents/.dhpk-installed.json\",\"to\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/receipt.json\"},\"id\":5,\"inverse\":{\"args\":{\"from\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/receipt.json\",\"to\":\".agents/.dhpk-installed.json\"},\"kind\":\"rename\"},\"kind\":\"rename\",\"state\":\"done\"},{\"args\":{\"from\":\".codex/skills/dhpk-sample\",\"to\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.codex/skills/dhpk-sample\"},\"id\":6,\"inverse\":{\"args\":{\"from\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.codex/skills/dhpk-sample\",\"to\":\".codex/skills/dhpk-sample\"},\"kind\":\"rename\"},\"kind\":\"rename\",\"state\":\"done\"},{\"args\":{\"from\":\".cursor/skills/dhpk-sample\",\"to\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.cursor/skills/dhpk-sample\"},\"id\":7,\"inverse\":{\"args\":{\"from\":\".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.cursor/skills/dhpk-sample\",\"to\":\".cursor/skills/dhpk-sample\"},\"kind\":\"rename\"},\"kind\":\"rename\",\"state\":\"done\"},{\"args\":{\"mode\":\"empty\",\"paths\":[\".agents/skills/dhpk-sample\"]},\"id\":8,\"inverse\":{\"args\":{\"paths\":[\".agents/skills/dhpk-sample\"]},\"kind\":\"mkdir\"},\"kind\":\"remove\",\"state\":\"done\"}],\"hold\":{\"host\":\"codex\",\"transactionId\":\"run-1\"},\"managedName\":\"skills\",\"phase\":\"held\",\"receiptName\":\".dhpk-installed.json\",\"rollbackStageName\":\".none\",\"schema\":\"dhpk.project-agent-projection-transaction.v3\",\"stageName\":\".none\"}\n"
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.codex": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.codex/skills": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.codex/skills/dhpk-sample": {
+   "link": "../../.agents/skills/dhpk-sample"
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.cursor": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.cursor/skills": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/bindings/.cursor/skills/dhpk-sample": {
+   "link": "../../.agents/skills/dhpk-sample"
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/.dhpk-projection.json": {
+   "mode": 420,
+   "text": "{\"claudeGeneratedFingerprints\":{},\"claudeManagedPaths\":[],\"claudeManagedRoot\":\".agents/claude-skills\",\"emittedIds\":[\"sample\"],\"entries\":[{\"claudeGeneratedPaths\":[],\"entityKind\":\"skill\",\"generatedPaths\":[\"dhpk-sample.md\",\"dhpk-sample/SKILL.md\"],\"name\":\"dhpk-sample\",\"source\":\"skills/dhpk-sample\",\"sourceFiles\":[{\"digest\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\",\"path\":\"SKILL.md\"}],\"sourceFingerprint\":\"5a9d6650e0254b527f43f7cc1e481c018c5922d11ee42cc36638d22c11711d84\",\"stableId\":\"sample\"}],\"fingerprint_algorithm\":\"tree-merkle-v1\",\"generatedFingerprints\":{\"dhpk-sample.md\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\",\"dhpk-sample/SKILL.md\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\"},\"generatorVersion\":\"2.1.0\",\"inventoryRevision\":null,\"managedPaths\":[\"dhpk-sample.md\",\"dhpk-sample/SKILL.md\"],\"schema\":\"dhpk.agents-skills-projection.v1\",\"selectedIds\":[\"sample\"],\"selectionSurface\":\"project-agent-projection\"}\n"
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/dhpk-sample": {
+   "dir": true,
+   "mode": 493
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/dhpk-sample/SKILL.md": {
+   "mode": 420,
+   "text": "---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n"
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/managed/dhpk-sample.md": {
+   "mode": 420,
+   "text": "---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n"
+  },
+  ".agents/.dhpk-projection-backup-cdl-mwbkwlmh-453b6b54/receipt.json": {
+   "mode": 384,
+   "text": "{\"artifactFingerprint\":\"94958a481e9566b936aebd4c17f0687b30c466c675335c9d35df1a3479247a64\",\"bindingPaths\":{\"codex\":[{\"path\":\".codex/skills/dhpk-sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"cursor\":[{\"path\":\".cursor/skills/dhpk-sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}]},\"bindings\":{\"agy\":{\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"agy\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-direct-file\",\"surface\":\"agy-plugin\",\"transform\":{\"id\":\"agy-project-direct-file\",\"version\":\"1\"}},\"codex\":{\"bindingShape\":\"native-link\",\"bindings\":[{\"name\":\"dhpk-sample\",\"path\":\".codex/skills/dhpk-sample\",\"shape\":\"native-link\",\"stableId\":\"sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"discovery\":{\"adapterId\":\"codex-project-discovery\",\"adapterVersion\":\"1.0.0\",\"destinationRoot\":\".codex/skills\",\"kind\":\"symlink\",\"paths\":[\".codex/skills/dhpk-sample\"],\"sourceRoot\":\".agents/skills\"},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"codex\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-directory\",\"surface\":\"codex-sync\",\"transform\":{\"id\":\"codex-project-skill\",\"version\":\"1\"}},\"cursor\":{\"bindingShape\":\"native-link\",\"bindings\":[{\"name\":\"dhpk-sample\",\"path\":\".cursor/skills/dhpk-sample\",\"shape\":\"native-link\",\"stableId\":\"sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"discovery\":{\"adapterId\":\"cursor-project-discovery\",\"adapterVersion\":\"1.0.0\",\"destinationRoot\":\".cursor/skills\",\"kind\":\"symlink\",\"paths\":[\".cursor/skills/dhpk-sample\"],\"sourceRoot\":\".agents/skills\"},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"cursor\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-directory\",\"surface\":\"cursor-plugin\",\"transform\":{\"id\":\"cursor-project-skill\",\"version\":\"1\"}}},\"capabilityEvidenceFingerprint\":\"82e650fe2f2bacb9ad2dc582b65946b1805cb832e05ef2f81bd3915d92e3084a\",\"claudeGeneratedFingerprints\":{},\"claudeManagedPaths\":[],\"claudeManagedRoot\":\".agents/claude-skills\",\"dependencyClosure\":{\"edges\":[],\"files\":[],\"identities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"rootIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"roots\":[\"sample\"],\"stableIds\":[\"sample\"],\"supportingAssetIds\":[]},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedIds\":[\"sample\"],\"entries\":[{\"claudeGeneratedPaths\":[],\"entityKind\":\"skill\",\"generatedPaths\":[\"dhpk-sample.md\",\"dhpk-sample/SKILL.md\"],\"name\":\"dhpk-sample\",\"source\":\"skills/dhpk-sample\",\"sourceFiles\":[{\"digest\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\",\"path\":\"SKILL.md\"}],\"sourceFingerprint\":\"5a9d6650e0254b527f43f7cc1e481c018c5922d11ee42cc36638d22c11711d84\",\"stableId\":\"sample\"}],\"fingerprint_algorithm\":\"tree-merkle-v1\",\"generatedFingerprints\":{\".dhpk-projection.json\":\"6fb7038bab30a0ce036059c97e9da5fc6fa645f954e80b7fe481798af5b4cda9\",\"dhpk-sample.md\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\",\"dhpk-sample/SKILL.md\":\"cb59a8bdb087c39747c9e55b10b7b789769cceaaaf8f1429eeb9a93de9f493c8\"},\"generatorVersion\":\"2.1.0\",\"hostBindings\":{\"agy\":{\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"agy\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-direct-file\",\"surface\":\"agy-plugin\",\"transform\":{\"id\":\"agy-project-direct-file\",\"version\":\"1\"}},\"codex\":{\"bindingShape\":\"native-link\",\"bindings\":[{\"name\":\"dhpk-sample\",\"path\":\".codex/skills/dhpk-sample\",\"shape\":\"native-link\",\"stableId\":\"sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"discovery\":{\"adapterId\":\"codex-project-discovery\",\"adapterVersion\":\"1.0.0\",\"destinationRoot\":\".codex/skills\",\"kind\":\"symlink\",\"paths\":[\".codex/skills/dhpk-sample\"],\"sourceRoot\":\".agents/skills\"},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"codex\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-directory\",\"surface\":\"codex-sync\",\"transform\":{\"id\":\"codex-project-skill\",\"version\":\"1\"}},\"cursor\":{\"bindingShape\":\"native-link\",\"bindings\":[{\"name\":\"dhpk-sample\",\"path\":\".cursor/skills/dhpk-sample\",\"shape\":\"native-link\",\"stableId\":\"sample\",\"target\":\"../../.agents/skills/dhpk-sample\"}],\"discovery\":{\"adapterId\":\"cursor-project-discovery\",\"adapterVersion\":\"1.0.0\",\"destinationRoot\":\".cursor/skills\",\"kind\":\"symlink\",\"paths\":[\".cursor/skills/dhpk-sample\"],\"sourceRoot\":\".agents/skills\"},\"emittedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"emittedStableIds\":[\"sample\"],\"evidenceSource\":\"entry_surfaces\",\"host\":\"cursor\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedStableIds\":[\"sample\"],\"shape\":\"project-skill-directory\",\"surface\":\"cursor-plugin\",\"transform\":{\"id\":\"cursor-project-skill\",\"version\":\"1\"}}},\"managedPaths\":[\".dhpk-projection.json\",\"dhpk-sample.md\",\"dhpk-sample/SKILL.md\"],\"managedRoot\":\".agents/skills\",\"planFingerprint\":\"e14f5d7e1b51684797de5dd4e859215593a996fe61971a9345d3d4e5447546d9\",\"profile\":{\"compatibilityMode\":\"portable-core\",\"emittedStableIds\":[\"skill:sample\"],\"profileId\":\"portable-core\",\"selectedStableIds\":[\"skill:sample\"],\"selectionFingerprint\":\"964a67c85cc87eb6990033a358850679794893f547ccc172ec214c78d7b578fb\",\"selectionPolicyVersion\":\"dhpk.project-agent-projection.v1\",\"version\":\"portable-core-v1\"},\"profileFingerprint\":\"8f06fd86c682ecdc973cec0f1c576643d4d4dbff10c2dfc472d59e2e84901010\",\"profileId\":\"portable-core\",\"projectionOwner\":{\"managedRoot\":\".agents/skills\",\"owner\":\"dhpk.project-agent-projection\",\"receipt\":\".agents/.dhpk-installed.json\",\"scope\":\"project\"},\"receiptFingerprint\":\"ad114894357b34b231f908346b95e8e7680e3ed2fdba9259bc651dbd8350d1c4\",\"receiptPath\":\".agents/.dhpk-installed.json\",\"rollback\":null,\"schema\":\"dhpk.project-agent-projection-receipt.v3\",\"scope\":\"project\",\"selectedIdentities\":[{\"entityKind\":\"skill\",\"stableId\":\"sample\"}],\"selectedIds\":[\"sample\"],\"selectionFingerprint\":\"964a67c85cc87eb6990033a358850679794893f547ccc172ec214c78d7b578fb\",\"sourceFingerprints\":{\"skill:sample\":\"5a9d6650e0254b527f43f7cc1e481c018c5922d11ee42cc36638d22c11711d84\"},\"surfaceSelectionFingerprint\":null}\n"
+  },
+  ".agents/skills": {
+   "dir": true,
+   "mode": 493
+  },
+  ".codex": {
+   "dir": true,
+   "mode": 493
+  },
+  ".codex/skills": {
+   "dir": true,
+   "mode": 493
+  },
+  ".cursor": {
+   "dir": true,
+   "mode": 493
+  },
+  ".cursor/skills": {
+   "dir": true,
+   "mode": 493
+  }
+ }
+}

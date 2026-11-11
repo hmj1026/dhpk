@@ -72,7 +72,7 @@ const OWNER_GROUPS = Object.freeze([
     name: 'installer',
     paths: [/^scripts\/install\//i, /^scripts\/install\.sh$/i, /^scripts\/dhpk-install\.js$/i, /^scripts\/hooks\/install-/i, /^scripts\/lib\/dhpk-install-lifecycle\.js$/i],
     behaviorPaths: [/^skills\/harness-setup\/SKILL\.md$/i],
-    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js', 'install-codex-skills.test.js', 'install-codex-skills-planning.test.js', 'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js', 'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js', 'install-codex-parity.test.js', 'install-codex-adapter-journal.test.js', 'install-cursor-parity.test.js', 'install-cursor-plan.test.js', 'install-cursor-adapter-journal.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js', 'macos-installer-files.test.js', 'native-shared-skill-install.test.js'],
+    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js', 'install-codex-skills.test.js', 'install-codex-skills-planning.test.js', 'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js', 'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js', 'install-codex-parity.test.js', 'install-codex-adapter-journal.test.js', 'install-cursor-parity.test.js', 'install-cursor-plan.test.js', 'install-cursor-adapter-journal.test.js', 'install-shell-entry-parity.test.js', 'legacy-journal-fixtures.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js', 'macos-installer-files.test.js', 'native-shared-skill-install.test.js'],
   },
   {
     name: 'skill-scripts',
