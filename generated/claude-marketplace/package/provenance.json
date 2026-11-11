@@ -2509,7 +2509,7 @@
       "sourcePath": "skills/harness-setup/references/codex-setup.md",
       "destination": "skills/harness-setup/references/codex-setup.md",
       "kind": "entry",
-      "sha256": "1ad6d44547949db8430a58336fc7d4c9a3b2fa9120656878d668c065e8b102da"
+      "sha256": "7d1e649ea2689a62a24221056531c083a30fe2f8490654eea2e24e8a18967176"
     },
     {
       "skillId": "harness-setup",
@@ -2533,7 +2533,15 @@
       "sourcePath": "skills/harness-setup/scripts/install-codex-project.sh",
       "destination": "skills/harness-setup/scripts/install-codex-project.sh",
       "kind": "entry",
-      "sha256": "a63808f3c8ed222f800bc670dd750c6a6539dac4a8578d8485fcc237ee0fbee1"
+      "sha256": "f5062a036df1b9eb65b970a7dde2666182c8a570c7eb66550d67519f42b4179f"
+    },
+    {
+      "skillId": "harness-setup",
+      "ownerId": "harness-setup",
+      "sourcePath": "scripts/lib/install-adapters/codex-cli.js",
+      "destination": "skills/harness-setup/scripts/lib/dhpk-installer.cjs",
+      "kind": "generated",
+      "sha256": "aff9c32dae359d9177dc83d54264b4d6d9b2bd493d46d2659e7b90c7271f24e5"
     },
     {
       "skillId": "harness-setup",
@@ -2549,7 +2557,7 @@
       "sourcePath": "scripts/hooks/install-codex-skills.sh",
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh",
       "kind": "packaging-resource",
-      "sha256": "21e2af25bde7693417e6b3d42f5aca2cce5fae65af4b150c64546803b6ada755"
+      "sha256": "42048f6c7a17a0d6d1bde24f3533f402137488ac6a75fa012cedd04714858806"
     },
     {
       "skillId": "harness-setup",

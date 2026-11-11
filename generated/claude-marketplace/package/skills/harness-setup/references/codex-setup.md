@@ -8,7 +8,9 @@ hooks, rules, settings, or prompts into a guessed Codex equivalent.
 The adapter requires an explicitly supplied dhpk distribution source artifact,
 not the Skill directory or an ambient checkout. The adapter itself is a
 physical Skill-local executable. A standalone package also contains a physical
-copy of the canonical projection writer in the Skill's script tree.
+copy of the shell entry and one generated JS bundle
+(`scripts/lib/dhpk-installer.cjs`) of the same installer a checkout runs, in the
+Skill's script tree. Node.js is required; python3 is not.
 
 In a checkout, the wrapper may use
 `$REPO/scripts/hooks/install-codex-skills.sh` only when its resolved Skill root

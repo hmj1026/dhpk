@@ -468,7 +468,10 @@ is silently dropped. The supported Codex delivery path remains
 `scripts/hooks/install-codex-skills.sh`, a separate project-local sync
 contract unaffected by this package (see its own tests in
 `tests/install-codex-skills.test.js` for copy/symlink/update/version-fingerprint
-coverage).
+coverage). The shell entries only parse options and exec the JS installer; a
+standalone `harness-setup` package carries that installer as one generated
+bundle, `scripts/lib/dhpk-installer.cjs` (`scripts/lib/installer-bundle.js`,
+checked by `npm run check:installer-bundle`).
 
 **Hardened distribution evidence.** The installer contract and terminology are
 defined in [basic operations](basic-operations.md#sync-codex-cli-content). A
@@ -480,6 +483,8 @@ verification set is:
 
 ```text
 node tests/install-codex-skills.test.js
+node tests/install-shell-entry-parity.test.js
+node tests/installer-bundle.test.js
 node tests/validate-openai-metadata.test.js
 node tests/consumer-gate-cli.test.js
 node scripts/ci/validate-openai-metadata.js --root .

@@ -77,7 +77,6 @@ function installNativeSharedSkills({
   consumerEvidence = null,
   consumerEvidencePath = null,
   env = process.env,
-  hold = null,
   journal = null,
 } = {}) {
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
@@ -149,7 +148,6 @@ function installNativeSharedSkills({
     hostSelections,
     preserveHostBindings,
     preserveBindingPaths,
-    hold,
     journal,
   });
 }
@@ -218,7 +216,6 @@ function uninstallNativeSharedSkills({
   projectRoot,
   inventory,
   host = 'cursor',
-  hold = null,
   journal = null,
 } = {}) {
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
@@ -228,7 +225,7 @@ function uninstallNativeSharedSkills({
   const previous = readPreviousReceipt(projectRoot);
   if (!previous) {
     if (receiptMissing(projectRoot)) {
-      return { ok: true, state: 'ABSENT', held: false, removedPaths: [], preservedPaths: [], projectRoot };
+      return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot };
     }
     // A present receipt that this lenient reader cannot use is not absence.
     // The strict projection uninstaller reports INVALID_RECEIPT and keeps files.
@@ -236,7 +233,6 @@ function uninstallNativeSharedSkills({
       sourceRoot,
       projectRoot,
       inventory: inventory || readInventory(sourceRoot),
-      hold,
       journal,
     });
   }
@@ -251,7 +247,6 @@ function uninstallNativeSharedSkills({
       sourceRoot,
       projectRoot,
       inventory: resolvedInventory,
-      hold,
       journal,
     }));
   }
@@ -297,7 +292,6 @@ function uninstallNativeSharedSkills({
       sourceRoot,
       projectRoot,
       inventory: resolvedInventory,
-      hold,
       journal,
     }));
   }
@@ -313,7 +307,6 @@ function uninstallNativeSharedSkills({
     hostSelections,
     preserveHostBindings,
     preserveBindingPaths,
-    hold,
     journal,
   });
   return { ok: true, ...published };
