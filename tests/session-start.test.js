@@ -69,6 +69,10 @@ test('dispatch delta is 4-6 lines, points at the model-economics SSOT, and carri
     for (const role of ['code-reviewer', 'fast-worker', 'docs-writer', 'qa-executor']) {
       assert.ok(text.includes(role), `missing ${role}`);
     }
+    // #1298: dispatch-time role decision, compact, with rule 7 and the 3rd-raise ask.
+    assert.ok(delta.some((line) => line.includes('structure decision') && line.includes('architect')
+      && line.includes('deep-reasoner') && line.includes('Role Default')
+      && line.includes('model-economics rule 7') && line.includes('3rd raise')), text);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

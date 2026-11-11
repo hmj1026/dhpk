@@ -29,6 +29,7 @@ cat <<'DELTA'
 [dhpk dispatch] Explore: always pass model: "haiku" and effort: "low" on the Agent call; never use Explore for review or judgment.
 [dhpk dispatch] A skill that only says "dispatch a sub-agent": review → code-reviewer, implementation → fast-worker, docs → docs-writer, DEV QA → qa-executor, search → Explore (haiku, low).
 [dhpk dispatch] Any other general-purpose dispatch must pass an explicit model, and never haiku for file edits.
+[dhpk dispatch] Before each dispatch: structure decision → architect, root cause during implementation → deep-reasoner; keep the Role Default unless the problem needs a raise (model-economics rule 7); ask the user before a 3rd raise in one session.
 [dhpk dispatch] Escalation and low-first rules: rules/model-economics.md (SSOT).
 DELTA
 
