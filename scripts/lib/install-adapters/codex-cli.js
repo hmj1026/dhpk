@@ -15,7 +15,9 @@ const HOSTS = Object.freeze({
   cursor: { srcRel: 'cursor', destRel: '.cursor', sourceKinds: 'skills,agents,rules,commands', installerName: 'install-cursor-harness' },
 });
 
-// The DHPK_* environment the shell entry builds from its options.
+// The DHPK_* environment the shell entry builds from its options. `pluginRoot`
+// and `installerRoot` name the artifact (data: manifests, codex/, cursor/,
+// skills/); the installer's own modules never come from either.
 function installerEnv({
   host = 'codex',
   pluginRoot,

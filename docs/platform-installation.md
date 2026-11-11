@@ -52,7 +52,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Standard Agent Plugin | Agent Plugins 1.0.0 schema consumer; minimum client version not established | Client-supported OS; package validation is performed from a POSIX shell | A verified Agent Plugin loader; Node.js for structural validation | Run both package commands, then record client discovery evidence |
 | Cursor standard Agent Plugin | Cursor desktop/plugin loader that accepts the portable package; record Cursor version; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor Customize → Plugins or its local loader; Node.js for validation only | Observe discovered skills/MCP after reload; no loader is `UNAVAILABLE` or `BLOCKED` |
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
-| Cursor project-local sync | Cursor project-local loader; schema-v3 receipt; minimum Cursor version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.cursor/.dhpk-installed.json`, and run the listed installer test; do not treat a missing live Cursor client as a runtime `PASS` |
+| Cursor project-local sync | Cursor project-local loader; schema-v3 receipt; minimum Cursor version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`, Node.js (the Cursor installer runs on Node.js) | Run the installer, inspect `.cursor/.dhpk-installed.json`, and run the listed installer test; do not treat a missing live Cursor client as a runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, a logged-in Cursor session, and verified bubblewrap on Linux; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI/sandbox is `UNAVAILABLE`/`BLOCKED`, and discovery must be recorded separately; API-key-only auth is not accepted |
 | AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available; AGY 1.2.2 has been observed loading the canonical path | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` without an applicable explicitly requested native probely used |
 
@@ -699,9 +699,10 @@ canonical `agents/` and `rules/` trees.
 
 A Codex or Cursor install, update, or uninstall is one transaction across the
 native installer and the shared projection ([ADR-0033](adr/0033-one-projection-journal-owns-install-crash-order.md)).
-The installer holds the shared projection step under its own run id and commits
-both at one point; the next run finishes or undoes an interrupted transaction
-automatically.
+The installer records the native and shared projection steps in one Projection
+Journal (`.agents/.dhpk-projection-journal.json`) and commits both at a single
+point, when the journal reaches `published`; the next run finishes or undoes an
+interrupted transaction automatically.
 
 - One project lock serializes every Codex and Cursor run. While another run
   holds it, the installer exits `2` with `already reconciling this project:
@@ -712,14 +713,12 @@ automatically.
   Host's interrupted transaction; it prints `recovered interrupted <host>
   transaction ...: rolled back|finished`, and after a rollback you rerun that
   Host's installer to apply it.
-- This applies to the installers in a checkout or plugin cache. The packaged
-  `harness-setup` copy still runs the embedded Python, takes no project lock,
-  and may still produce `TRANSACTION_HELD` (and, from an older release, a
-  transaction `--recover` of the checkout installer resolves) until stage 5.
-  If it refuses because of a JS lock or journal, recover with
-  `scripts/hooks/install-codex-skills.sh --recover` or
-  `scripts/hooks/install-cursor-harness.sh --recover` from a checkout or plugin
-  cache.
+- The packaged `harness-setup` copy runs the same JS installer as a checkout
+  or plugin cache (one generated `dhpk-installer.cjs` beside its shell entry), so
+  it takes the same project lock and Projection Journal. No installer needs
+  `python3`; Node.js is required. `TRANSACTION_HELD` is no longer produced, but
+  a held transaction left by 0.72 or 0.73 is still recovered by rerunning the installer
+  or running it with `--recover`. Recover in-flight installs before downgrading.
 - `did not finish rolling back` lists the remaining paths and the backup
   directory. Fix the reported cause, then run the same installer with
   `--recover`. It replays the rollback and stops without installing.

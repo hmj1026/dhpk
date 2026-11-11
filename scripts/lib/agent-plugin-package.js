@@ -58,6 +58,7 @@ const { collectStandalonePackageAssets } = require('./standalone-package-assets'
 const { NATIVE_AGENT_SUPPORT_FILES } = require('./native-agent-support');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
+const { parseFrontmatter, unquote } = require('./agent-frontmatter');
 
 const AGENT_PLUGIN_VERSION = '1.0.0';
 const AGENT_PLUGIN_SCHEMA = `https://agent-plugins.org/schemas/${AGENT_PLUGIN_VERSION}/plugin.schema.json`;
@@ -226,67 +227,6 @@ function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot, options = {})
     const fragment = target.includes('#') ? `#${target.split('#').slice(1).join('#')}` : '';
     return `${label}(${CANONICAL_REPOSITORY_URL}${relative}${fragment})`;
   });
-}
-
-function unquote(value) {
-  const trimmed = String(value == null ? '' : value).trim();
-  if (trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"') {
-    try { return JSON.parse(trimmed); } catch (_) { return trimmed.slice(1, -1); }
-  }
-  if (trimmed.length >= 2 && trimmed[0] === "'" && trimmed[trimmed.length - 1] === "'") {
-    return trimmed.slice(1, -1).replace(/''/g, "'");
-  }
-  return trimmed;
-}
-
-function parseFrontmatter(content) {
-  const clean = String(content).replace(/^\uFEFF/, '');
-  const match = clean.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
-  if (!match) return { present: false, values: {}, metadata: {}, unknown: [], duplicates: [], body: clean };
-
-  const lines = match[1].split(/\r?\n/);
-  const values = {};
-  const metadata = {};
-  const unknown = [];
-  const duplicates = [];
-  const seen = new Set();
-  let inMetadata = false;
-  let metadataIndent = null;
-  for (const line of lines) {
-    if (/^\s+/.test(line)) {
-      if (inMetadata) {
-        const nested = line.match(/^(\s+)([A-Za-z0-9_.-]+):\s*(.*)$/);
-        if (nested) {
-          if (metadataIndent === null) metadataIndent = nested[1].length;
-          if (nested[1].length === metadataIndent) metadata[nested[2]] = unquote(nested[3]);
-        }
-      }
-      continue;
-    }
-    const keyMatch = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (!keyMatch) continue;
-    const key = keyMatch[1];
-    const raw = keyMatch[2];
-    if (seen.has(key)) duplicates.push(key);
-    seen.add(key);
-    if (key === 'metadata' && raw.trim() === '') {
-      inMetadata = true;
-      metadataIndent = null;
-      values[key] = metadata;
-    } else {
-      inMetadata = false;
-      values[key] = unquote(raw);
-      if (key !== 'name' && key !== 'description' && key !== 'license' && key !== 'compatibility' && key !== 'metadata') unknown.push(key);
-    }
-  }
-  return {
-    present: true,
-    values,
-    metadata,
-    unknown,
-    duplicates,
-    body: clean.slice(match[0].length),
-  };
 }
 
 function yamlScalar(value) {

@@ -393,12 +393,6 @@ jobs:
       - name: macOS installer subset
         run: node tests/_lib/macos-installer-files.js
 
-      # Consumers with Command Line Tools run Apple's /usr/bin/python3, which
-      # writes its own cache under HOME (#1278); the runner PATH otherwise
-      # resolves another python3. Fails loudly if that interpreter is unusable.
-      - name: macOS installer subset under Apple system python3
-        run: node tests/_lib/macos-installer-files.js --apple-python
-
   # Release PRs only (base main): rehearse the paths that otherwise run for
   # the first time after the immutable tag exists (v0.60.0, v0.62.0, v0.62.1
   # and v0.63.0 all failed there). It reuses the tag job's own verification

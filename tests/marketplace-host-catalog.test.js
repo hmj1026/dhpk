@@ -3,6 +3,7 @@
 // Task 6.3 acceptance through retained generators. The real catalog selects
 // controlled physical skill trees; expected identities do not use its compiler.
 const fs = require('node:fs');
+const { writeInstallerEntry } = require('./_lib/installer-entry-fixture');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -53,6 +54,7 @@ function fixture() {
     path.join(ROOT, 'scripts/hooks/install-codex-skills.sh'),
     path.join(root, 'scripts/hooks/install-codex-skills.sh'),
   );
+  writeInstallerEntry(root);
   for (const relative of NATIVE_AGENT_SUPPORT_FILES) {
     const source = path.join(ROOT, relative);
     const destination = path.join(root, relative);

@@ -49,7 +49,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Standard Agent Plugin | 實作 Agent Plugins 1.0.0 schema 的 consumer；最低 client version 尚未建立 | client 支援的 OS；package validation 從 POSIX shell 執行 | 已驗證的 Agent Plugin loader；Node.js 僅供結構驗證 | 執行兩個 package 命令，再記錄 client discovery evidence |
 | Cursor standard Agent Plugin | 接受 portable package 的 Cursor desktop/plugin loader；記錄 Cursor version；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor Customize → Plugins 或 local loader；Node.js 僅供 validation | reload 後觀察 discovered skills/MCP；無 loader 為 `UNAVAILABLE` 或 `BLOCKED` |
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
-| Cursor project-local sync | Cursor project-local loader；schema-v3 receipt；最低 Cursor version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.cursor/.dhpk-installed.json`，並執行列出的 installer 測試；缺少 live Cursor client 不得視為 runtime `PASS` |
+| Cursor project-local sync | Cursor project-local loader；schema-v3 receipt；最低 Cursor version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`、Node.js（Cursor installer 以 Node.js 執行） | 執行 installer、檢查 `.cursor/.dhpk-installed.json`，並執行列出的 installer 測試；缺少 live Cursor client 不得視為 runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、已登入 Cursor session，以及 Linux 上已驗證的 bubblewrap；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI／sandbox 為 `UNAVAILABLE`／`BLOCKED`，discovery 另行記錄；只提供 API key 不接受 |
 | AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version`；已觀察 AGY 1.2.2 可從 canonical path 載入 | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list` 只列 import，隔離 HOME 的 `agy agents` 才是 native load；未執行適用且明確請求的 native probe 時，runtime 保持 `NOT_RUN` |
 
@@ -639,8 +639,9 @@ plugin package 內。這些 platform-native projection 仍由 canonical `agents/
 
 Codex 或 Cursor 的 install、update、uninstall 是跨 native installer 與 shared
 projection 的同一個 transaction（[ADR-0033](adr/0033-one-projection-journal-owns-install-crash-order.md)）。
-installer 以自己的 run id hold 住 shared projection 步驟，並在單一提交點同時提交；
-下一次執行會自動完成或撤銷中斷的 transaction。
+installer 把 native 與 shared projection 的步驟記錄在同一個 Projection Journal
+（`.agents/.dhpk-projection-journal.json`），並在單一提交點（journal 到達
+`published`）同時提交；下一次執行會自動完成或撤銷中斷的 transaction。
 
 - 一個 project lock 讓所有 Codex 與 Cursor 的執行序列化。另一個執行持有該鎖時，
   installer 以 `2` 結束並顯示 `already reconciling this project:
@@ -650,12 +651,11 @@ installer 以自己的 run id hold 住 shared projection 步驟，並在單一�
   撤銷或完成另一個 Host 中斷的 transaction；它會印出 `recovered interrupted
   <host> transaction ...: rolled back|finished`，撤銷後需重新執行該 Host 的
   installer 才會套用。
-- 以上適用於 checkout 或 plugin cache 中的 installer。打包的 `harness-setup`
-  副本在 stage 5 之前仍執行內嵌 Python、不取得 project lock，仍可能產生
-  `TRANSACTION_HELD`（以及舊版留下、需用 checkout installer `--recover` 處理的
-  transaction）。若它因 JS lock 或 journal 而拒絕，請從 checkout 或 plugin cache
-  執行 `scripts/hooks/install-codex-skills.sh --recover` 或
-  `scripts/hooks/install-cursor-harness.sh --recover`。
+- 打包的 `harness-setup` 副本與 checkout、plugin cache 執行同一個 JS installer
+  （shell 入口旁邊有一個產生的 `dhpk-installer.cjs`），因此取得相同的 project
+  lock 與 Projection Journal。兩個 installer 都不再需要 `python3`，但必須有
+  Node.js。`TRANSACTION_HELD` 不再產生；0.72 或 0.73 留下的 held transaction 仍可重新
+  執行 installer 或以 `--recover` 處理。降版前請先復原進行中的安裝。
 - `did not finish rolling back` 會列出剩餘路徑與備份目錄。排除回報的原因後，
   以 `--recover` 執行同一個 installer；它重播 rollback 後即停止，不會安裝。
 - `dhpk-install --recover [--project-root DIR] [--json]` 會撤銷 installer journal

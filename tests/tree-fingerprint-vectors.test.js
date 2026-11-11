@@ -1,8 +1,8 @@
 'use strict';
 
 // Node side of the cross-language vectors for `tree-merkle-v1`
-// (tests/fixtures/tree-fingerprint-vectors.json). The installer's Python block
-// is held to the same recorded digests by tests/install-codex-tree-fingerprint.test.js.
+// (tests/fixtures/tree-fingerprint-vectors.json). The Codex/Cursor installer
+// fingerprints through this library, so these digests are its contract too.
 
 const fs = require('node:fs');
 const { test, run, assert } = require('./_lib/tinytest');

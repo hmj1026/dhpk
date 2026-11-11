@@ -1378,9 +1378,9 @@ test('shard verification reloads the pull request classification before trusting
     'install-codex-skills.test.js', 'install-codex-skills-planning.test.js',
     'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js',
     'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js',
-    'install-codex-parity.test.js', 'install-codex-adapter-journal.test.js',
-    'install-cursor-parity.test.js', 'install-cursor-plan.test.js', 'install-cursor-adapter-journal.test.js',
-    'install-prompts.test.js', 'macos-installer-darwin.test.js',
+    'install-codex-adapter-journal.test.js',
+    'install-cursor-plan.test.js', 'install-cursor-adapter-journal.test.js',
+    'installer-bundle.test.js', 'install-code-data-root.test.js', 'install-shell-entry-parity.test.js', 'install-shell-entry-thin.test.js', 'legacy-journal-fixtures.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js',
     'macos-installer-files.test.js', 'native-shared-skill-install.test.js',
   ];
   const fixture = gitFixture((root) => {

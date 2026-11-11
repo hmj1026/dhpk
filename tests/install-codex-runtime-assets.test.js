@@ -69,44 +69,6 @@ function runRunner(target) {
   });
 }
 
-function stageMutationShim() {
-  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-stage-mutation-shim-')));
-  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
-    'import os',
-    '',
-    '_dhpk_original_replace = os.replace',
-    '_dhpk_mutated = False',
-    '',
-    'def _dhpk_replace(src, dst, *args, **kwargs):',
-    '    global _dhpk_mutated',
-    "    src_dir_fd = kwargs.get('src_dir_fd')",
-    "    marker = os.environ.get('DHPK_TEST_STAGE_MUTATION_MARKER')",
-    "    if not _dhpk_mutated and src_dir_fd is not None and isinstance(src, str):",
-    '        stage_fd = None',
-    '        asset_fd = None',
-    '        try:',
-    "            stage_fd = os.open(src, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0), dir_fd=src_dir_fd)",
-    "            asset_fd = os.open('scripts/fixture-runtime.js', os.O_WRONLY | os.O_APPEND, dir_fd=stage_fd)",
-    "            os.write(asset_fd, b'\\n# test staged mutation\\n')",
-    '            os.fsync(asset_fd)',
-    '            _dhpk_mutated = True',
-    '            if marker:',
-    "                with open(marker, 'w', encoding='utf-8') as handle: handle.write('mutated')",
-    '        except (FileNotFoundError, NotADirectoryError, OSError):',
-    '            pass',
-    '        finally:',
-    '            if asset_fd is not None:',
-    '                os.close(asset_fd)',
-    '            if stage_fd is not None:',
-    '                os.close(stage_fd)',
-    '    return _dhpk_original_replace(src, dst, *args, **kwargs)',
-    '',
-    'os.replace = _dhpk_replace',
-    '',
-  ].join('\n'));
-  return shim;
-}
-
 test('a stale descriptor cannot inject plugin-root files into an installed Skill', () => {
   for (const mode of [['--force'], ['--copy', '--force']]) {
     const project = projectRoot();
@@ -187,40 +149,6 @@ test('Skill-local ignored bytecode is never projected and never changes the fing
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
-  }
-});
-
-// Python-only mechanics (PYTHONPATH sitecustomize os.replace shim); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
-test('installer rejects a staged Skill mutation after preverification and preserves accepted output and receipt', () => {
-  const project = projectRoot();
-  const plugin = makePlugin();
-  const shim = stageMutationShim();
-  const marker = path.join(shim, 'mutated');
-  try {
-    const installed = runInstaller(project, ['--copy', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python' });
-    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
-    const target = installedSkill(project);
-    const receiptPath = path.join(project, '.codex', '.dhpk-installed.json');
-    const beforeProjection = completeTreeFingerprint(target);
-    const beforeReceipt = fs.readFileSync(receiptPath, 'utf8');
-
-    fs.appendFileSync(path.join(sourceSkill(plugin), LOCAL_SCRIPT), '\nsource update before staged verification\n');
-    const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
-    const rejected = runInstaller(project, ['--copy', '--update', '--force'], plugin, {
-      DHPK_INSTALLER_ENGINE: 'python',
-      PYTHONPATH: pythonPath,
-      DHPK_TEST_STAGE_MUTATION_MARKER: marker,
-    });
-    assert.ok(fs.existsSync(marker), 'fixture must mutate the selected stage before publication');
-    assert.notStrictEqual(rejected.status, 0, `${rejected.stdout}\n${rejected.stderr}`);
-    assert.strictEqual(completeTreeFingerprint(target), beforeProjection,
-      'a staged mutation must not replace the previously accepted projection');
-    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), beforeReceipt,
-      'a staged mutation must not publish a new receipt');
-  } finally {
-    fs.rmSync(project, { recursive: true, force: true });
-    fs.rmSync(plugin, { recursive: true, force: true });
-    fs.rmSync(shim, { recursive: true, force: true });
   }
 });
 

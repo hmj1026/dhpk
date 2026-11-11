@@ -1,0 +1,732 @@
+{
+  "codex:install-copy": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:install-symlink-force": {
+    "argv": [
+      "--force"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:update-without-receipt": {
+    "argv": [
+      "--copy",
+      "--update"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:migrate": {
+    "argv": [
+      "--migrate"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:uninstall-nothing-installed": {
+    "argv": [
+      "--uninstall"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: uninstall receipt quarantine failed: [Errno 2] No such file or directory: '<PROJECT>/.codex'",
+    "stdoutJson": false
+  },
+  "codex:recover-clean": {
+    "argv": [
+      "--recover"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:plan-json": {
+    "argv": [
+      "--plan",
+      "--json"
+    ],
+    "setup": "project",
+    "status": 1,
+    "firstStderr": "",
+    "stdoutJson": true
+  },
+  "codex:plan-without-json": {
+    "argv": [
+      "--plan"
+    ],
+    "setup": "project",
+    "status": 1,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:skill-flag-valid": {
+    "argv": [
+      "--copy",
+      "--skill",
+      "codex-only"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: skill selection requires distribution inventory and install profiles",
+    "stdoutJson": false
+  },
+  "codex:skill-equals-valid": {
+    "argv": [
+      "--copy",
+      "--skill=codex-only"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: skill selection requires distribution inventory and install profiles",
+    "stdoutJson": false
+  },
+  "codex:skill-unknown-id": {
+    "argv": [
+      "--copy",
+      "--skill",
+      "no-such-skill"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: skill selection requires distribution inventory and install profiles",
+    "stdoutJson": false
+  },
+  "codex:help-long": {
+    "argv": [
+      "--help"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:help-short": {
+    "argv": [
+      "-h"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:profile-retired": {
+    "argv": [
+      "--profile",
+      "x"
+    ],
+    "setup": "project",
+    "status": 64,
+    "firstStderr": "[install-codex-skills] --profile has been retired; fresh installs use the common collection",
+    "stdoutJson": false
+  },
+  "codex:profile-equals-retired": {
+    "argv": [
+      "--profile=x"
+    ],
+    "setup": "project",
+    "status": 64,
+    "firstStderr": "[install-codex-skills] --profile has been retired; fresh installs use the common collection",
+    "stdoutJson": false
+  },
+  "codex:unknown-flag": {
+    "argv": [
+      "--bogus"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] unknown arg: --bogus",
+    "stdoutJson": false
+  },
+  "codex:unknown-positional": {
+    "argv": [
+      "extra"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] unknown arg: extra",
+    "stdoutJson": false
+  },
+  "codex:skill-missing-value": {
+    "argv": [
+      "--skill"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] --skill requires a stable ID",
+    "stdoutJson": false
+  },
+  "codex:skill-value-is-a-flag": {
+    "argv": [
+      "--skill",
+      "--copy"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] --skill requires a stable ID",
+    "stdoutJson": false
+  },
+  "codex:skill-equals-empty": {
+    "argv": [
+      "--skill="
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] --skill requires a stable ID",
+    "stdoutJson": false
+  },
+  "codex:adopt-missing-value": {
+    "argv": [
+      "--adopt"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] --adopt requires a relative path",
+    "stdoutJson": false
+  },
+  "codex:adopt-with-malformed-token": {
+    "argv": [
+      "--copy",
+      "--adopt",
+      "nonsense"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: --adopt requires a schema-v3 receipt with a recorded projection mode",
+    "stdoutJson": false
+  },
+  "codex:plan-with-adopt": {
+    "argv": [
+      "--plan",
+      "--adopt",
+      "a@b@c"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: --plan cannot be combined with --adopt",
+    "stdoutJson": false
+  },
+  "codex:plan-with-adopt-equals": {
+    "argv": [
+      "--plan",
+      "--adopt=a@b@c"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: --plan cannot be combined with --adopt",
+    "stdoutJson": false
+  },
+  "codex:not-a-project-root": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "bare",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: '<PROJECT>' does not look like a project root.",
+    "stdoutJson": false
+  },
+  "codex:not-a-project-root-forced": {
+    "argv": [
+      "--copy",
+      "--force"
+    ],
+    "setup": "bare",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:not-a-project-root-uninstall": {
+    "argv": [
+      "--uninstall"
+    ],
+    "setup": "bare",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: uninstall receipt quarantine failed: [Errno 2] No such file or directory: '<PROJECT>/.codex'",
+    "stdoutJson": false
+  },
+  "codex:source-tree-missing": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "nosrc",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: plugin codex/ source not found",
+    "stdoutJson": false
+  },
+  "codex:source-tree-missing-help": {
+    "argv": [
+      "--help"
+    ],
+    "setup": "nosrc",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:node-missing-install": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "nonode",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: node is required to materialize portable project skill metadata",
+    "stdoutJson": false
+  },
+  "codex:node-missing-plan": {
+    "argv": [
+      "--plan",
+      "--json"
+    ],
+    "setup": "nonode",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: node is required for the installer",
+    "stdoutJson": false
+  },
+  "codex:node-missing-uninstall": {
+    "argv": [
+      "--uninstall"
+    ],
+    "setup": "nonode",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: node is required for the installer",
+    "stdoutJson": false
+  },
+  "codex:node-missing-help": {
+    "argv": [
+      "--help"
+    ],
+    "setup": "nonode",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:collision-preserved": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "collision",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex:update-reconciliation-incomplete": {
+    "argv": [
+      "--copy",
+      "--update"
+    ],
+    "setup": "edited-managed",
+    "status": 1,
+    "firstStderr": "[install-codex-skills] ACTION REQUIRED: review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>",
+    "stdoutJson": false
+  },
+  "cursor:install-copy": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:install-symlink-force": {
+    "argv": [
+      "--force"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:update-without-receipt": {
+    "argv": [
+      "--copy",
+      "--update"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:migrate": {
+    "argv": [
+      "--migrate"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:uninstall-nothing-installed": {
+    "argv": [
+      "--uninstall"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: uninstall receipt quarantine failed: [Errno 2] No such file or directory: '<PROJECT>/.cursor'",
+    "stdoutJson": false
+  },
+  "cursor:recover-clean": {
+    "argv": [
+      "--recover"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:plan-json": {
+    "argv": [
+      "--plan",
+      "--json"
+    ],
+    "setup": "project",
+    "status": 1,
+    "firstStderr": "",
+    "stdoutJson": true
+  },
+  "cursor:plan-without-json": {
+    "argv": [
+      "--plan"
+    ],
+    "setup": "project",
+    "status": 1,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:skill-flag-valid": {
+    "argv": [
+      "--copy",
+      "--skill",
+      "codex-only"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: skill selection requires distribution inventory and install profiles",
+    "stdoutJson": false
+  },
+  "cursor:skill-equals-valid": {
+    "argv": [
+      "--copy",
+      "--skill=codex-only"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: skill selection requires distribution inventory and install profiles",
+    "stdoutJson": false
+  },
+  "cursor:skill-unknown-id": {
+    "argv": [
+      "--copy",
+      "--skill",
+      "no-such-skill"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: skill selection requires distribution inventory and install profiles",
+    "stdoutJson": false
+  },
+  "cursor:help-long": {
+    "argv": [
+      "--help"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:help-short": {
+    "argv": [
+      "-h"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:profile-retired": {
+    "argv": [
+      "--profile",
+      "x"
+    ],
+    "setup": "project",
+    "status": 64,
+    "firstStderr": "[install-cursor-harness] --profile has been retired; fresh installs use the common collection",
+    "stdoutJson": false
+  },
+  "cursor:profile-equals-retired": {
+    "argv": [
+      "--profile=x"
+    ],
+    "setup": "project",
+    "status": 64,
+    "firstStderr": "[install-cursor-harness] --profile has been retired; fresh installs use the common collection",
+    "stdoutJson": false
+  },
+  "cursor:unknown-flag": {
+    "argv": [
+      "--bogus"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] unknown arg: --bogus",
+    "stdoutJson": false
+  },
+  "cursor:unknown-positional": {
+    "argv": [
+      "extra"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] unknown arg: extra",
+    "stdoutJson": false
+  },
+  "cursor:skill-missing-value": {
+    "argv": [
+      "--skill"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] --skill requires a stable ID",
+    "stdoutJson": false
+  },
+  "cursor:skill-value-is-a-flag": {
+    "argv": [
+      "--skill",
+      "--copy"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] --skill requires a stable ID",
+    "stdoutJson": false
+  },
+  "cursor:skill-equals-empty": {
+    "argv": [
+      "--skill="
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] --skill requires a stable ID",
+    "stdoutJson": false
+  },
+  "cursor:adopt-missing-value": {
+    "argv": [
+      "--adopt"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] --adopt requires a relative path",
+    "stdoutJson": false
+  },
+  "cursor:adopt-with-malformed-token": {
+    "argv": [
+      "--copy",
+      "--adopt",
+      "nonsense"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: --adopt requires a schema-v3 receipt with a recorded projection mode",
+    "stdoutJson": false
+  },
+  "cursor:plan-with-adopt": {
+    "argv": [
+      "--plan",
+      "--adopt",
+      "a@b@c"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: --plan cannot be combined with --adopt",
+    "stdoutJson": false
+  },
+  "cursor:plan-with-adopt-equals": {
+    "argv": [
+      "--plan",
+      "--adopt=a@b@c"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: --plan cannot be combined with --adopt",
+    "stdoutJson": false
+  },
+  "cursor:not-a-project-root": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "bare",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: '<PROJECT>' does not look like a project root.",
+    "stdoutJson": false
+  },
+  "cursor:not-a-project-root-forced": {
+    "argv": [
+      "--copy",
+      "--force"
+    ],
+    "setup": "bare",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:not-a-project-root-uninstall": {
+    "argv": [
+      "--uninstall"
+    ],
+    "setup": "bare",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: uninstall receipt quarantine failed: [Errno 2] No such file or directory: '<PROJECT>/.cursor'",
+    "stdoutJson": false
+  },
+  "cursor:source-tree-missing": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "nosrc",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: plugin cursor/ source not found",
+    "stdoutJson": false
+  },
+  "cursor:source-tree-missing-help": {
+    "argv": [
+      "--help"
+    ],
+    "setup": "nosrc",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:node-missing-install": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "nonode",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: node is required to materialize portable project skill metadata",
+    "stdoutJson": false
+  },
+  "cursor:node-missing-plan": {
+    "argv": [
+      "--plan",
+      "--json"
+    ],
+    "setup": "nonode",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: node is required for the installer",
+    "stdoutJson": false
+  },
+  "cursor:node-missing-uninstall": {
+    "argv": [
+      "--uninstall"
+    ],
+    "setup": "nonode",
+    "status": 2,
+    "firstStderr": "[install-cursor-harness] ERROR: node is required for the installer",
+    "stdoutJson": false
+  },
+  "cursor:node-missing-help": {
+    "argv": [
+      "--help"
+    ],
+    "setup": "nonode",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:collision-preserved": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "collision",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "cursor:update-reconciliation-incomplete": {
+    "argv": [
+      "--copy",
+      "--update"
+    ],
+    "setup": "edited-managed",
+    "status": 1,
+    "firstStderr": "[install-cursor-harness] ACTION REQUIRED: review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>",
+    "stdoutJson": false
+  },
+  "codex-packaged:install-copy": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex-packaged:help-long": {
+    "argv": [
+      "--help"
+    ],
+    "setup": "project",
+    "status": 0,
+    "firstStderr": "",
+    "stdoutJson": false
+  },
+  "codex-packaged:unknown-flag": {
+    "argv": [
+      "--bogus"
+    ],
+    "setup": "project",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] unknown arg: --bogus",
+    "stdoutJson": false
+  },
+  "codex-packaged:profile-retired": {
+    "argv": [
+      "--profile",
+      "x"
+    ],
+    "setup": "project",
+    "status": 64,
+    "firstStderr": "[install-codex-skills] --profile has been retired; fresh installs use the common collection",
+    "stdoutJson": false
+  },
+  "codex-packaged:plan-json": {
+    "argv": [
+      "--plan",
+      "--json"
+    ],
+    "setup": "project",
+    "status": 1,
+    "firstStderr": "",
+    "stdoutJson": true
+  },
+  "codex-packaged:update-reconciliation-incomplete": {
+    "argv": [
+      "--copy",
+      "--update"
+    ],
+    "setup": "edited-managed",
+    "status": 1,
+    "firstStderr": "[install-codex-skills] ACTION REQUIRED: review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>",
+    "stdoutJson": false
+  },
+  "codex-packaged:node-missing-install": {
+    "argv": [
+      "--copy"
+    ],
+    "setup": "nonode",
+    "status": 2,
+    "firstStderr": "[install-codex-skills] ERROR: node is required to materialize portable project skill metadata",
+    "stdoutJson": false
+  }
+}

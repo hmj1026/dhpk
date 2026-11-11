@@ -13,6 +13,7 @@ const os = require('node:os');
 const path = require('node:path');
 const publisher = require('../scripts/lib/project-agent-projection-publisher');
 const { fingerprint } = require('../scripts/lib/distribution-projection-contract');
+const { loadLegacyFixture, restoreTree } = require('./_lib/legacy-journal-fixtures');
 
 const JOURNAL = '.agents/.dhpk-installed.transaction.json';
 const SKILL = '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill\n';
@@ -353,22 +354,24 @@ test('testUnknownJournalFormat_failsClosedWithRemediation', () => {
   }
 });
 
-test('testHeldJournal_v3_reportsPublishingHoldReadyForCallers', () => {
-  const context = SCENARIOS.update.prepare();
+// The hold producer is removed (js-projection-journal stage 5); a 0.72/0.73
+// installer's held v3 journal is a recording (tests/fixtures/legacy-journals).
+test('testHeldJournal_v3_recordingReportsPublishingHoldReadyForCallers', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-held-journal-'));
   try {
-    const held = publisher.materializeRelocatableAgentsSkillsProjection({ ...context.options, update: true, hold: { transactionId: 'run-1', host: 'codex' } });
-    assert.strictEqual(held.held, true);
-    const journal = JSON.parse(fs.readFileSync(path.join(context.projectRoot, JOURNAL), 'utf8'));
+    const recording = loadLegacyFixture('held-v3-install');
+    restoreTree(recording.held, projectRoot, { '@@PROJECT@@': projectRoot, '@@SOURCE@@': path.join(projectRoot, '.no-source') });
+    const journal = JSON.parse(fs.readFileSync(path.join(projectRoot, JOURNAL), 'utf8'));
     assert.strictEqual(journal.schema, publisher.PROJECT_TRANSACTION_SCHEMA);
     assert.strictEqual(journal.phase, 'held');
     for (const flag of ['liveBackedUp', 'oldRollbackMoved', 'newRollbackInstalled', 'holdReady']) assert.strictEqual(journal[flag], undefined, flag);
     assert.ok(journal.effects.every((effect) => effect.state === 'done'));
-    assert.deepStrictEqual(publisher.heldProjection({ projectRoot: context.projectRoot }), { transactionId: 'run-1', host: 'codex', phase: 'publishing', holdReady: true });
-    assert.strictEqual(publisher.commitHeldProjection({ projectRoot: context.projectRoot, transactionId: 'run-1' }).state, 'COMMITTED');
-    assert.strictEqual(fs.existsSync(path.join(context.projectRoot, JOURNAL)), false);
-    assert.deepStrictEqual(fs.readdirSync(path.join(context.projectRoot, '.agents')).filter((name) => /^\.dhpk-projection-(?:artifact|backup|rollback-stage)-/.test(name)), []);
+    assert.deepStrictEqual(publisher.heldProjection({ projectRoot }), { transactionId: 'run-1', host: 'codex', phase: 'publishing', holdReady: true });
+    assert.strictEqual(publisher.commitHeldProjection({ projectRoot, transactionId: 'run-1' }).state, 'COMMITTED');
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, JOURNAL)), false);
+    assert.deepStrictEqual(fs.readdirSync(path.join(projectRoot, '.agents')).filter((name) => /^\.dhpk-projection-(?:artifact|backup|rollback-stage)-/.test(name)), []);
   } finally {
-    cleanup(context);
+    fs.rmSync(projectRoot, { recursive: true, force: true });
   }
 });
 

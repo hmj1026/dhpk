@@ -90,8 +90,16 @@ emit_result() {
 }
 
 require_installer() {
+    local bundle
     if [ ! -f "$INSTALLER" ] || [ -L "$INSTALLER" ] || path_has_symlink "$INSTALLER"; then
         printf '[%s] BLOCKED_RESOURCE_MISSING: approved Codex installer is missing or not physical\n' "$ADAPTER_NAME" >&2
+        emit_result BLOCKED BLOCKED_RESOURCE_MISSING null null codex-project
+        exit 1
+    fi
+    # The helper execs the JS bundle beside it; that file gets the same vetting.
+    bundle="$(dirname -- "$INSTALLER")/dhpk-installer.cjs"
+    if [ -L "$bundle" ] || { [ -e "$bundle" ] && { [ ! -f "$bundle" ] || path_has_symlink "$bundle"; }; }; then
+        printf '[%s] BLOCKED_RESOURCE_MISSING: the packaged JS installer is not a physical file\n' "$ADAPTER_NAME" >&2
         emit_result BLOCKED BLOCKED_RESOURCE_MISSING null null codex-project
         exit 1
     fi
@@ -156,7 +164,8 @@ fi
 
 operation="codex-project"
 for argument in "${FORWARDED[@]}"; do operation="$operation $argument"; done
-# Pin both root variables to artifact data while executing the approved installer.
+# The artifact is data: pin both root variables to it. The installer's code is
+# the approved helper's own (the bundle beside it, or the checkout's modules).
 CLAUDE_PLUGIN_ROOT="$SOURCE_ARTIFACT" DHPK_INSTALLER_ROOT="$SOURCE_ARTIFACT" \
     "$INSTALLER" "${FORWARDED[@]}"
 installer_status="$?"

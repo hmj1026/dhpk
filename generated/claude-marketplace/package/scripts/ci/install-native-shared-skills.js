@@ -17,7 +17,6 @@ function parseArgs(argv) {
     update: false,
     json: false,
     consumerEvidencePath: null,
-    hold: null,
     transactionId: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -31,7 +30,6 @@ function parseArgs(argv) {
     else if (arg === '--update') args.update = true;
     else if (arg === '--json') args.json = true;
     else if (arg === '--consumer-evidence') args.consumerEvidencePath = argv[++index];
-    else if (arg === '--hold') args.hold = argv[++index];
     else if (arg === '--transaction') args.transactionId = argv[++index];
     else throw new Error(`unknown argument: ${arg}`);
   }
@@ -88,7 +86,6 @@ try {
     }
     process.exit(0);
   }
-  const hold = args.hold ? { transactionId: args.hold, host: args.host } : null;
   if (args.action === 'uninstall') {
     if (!args.sourceRoot || !args.projectRoot) {
       fail('usage: install-native-shared-skills.js uninstall --source <plugin> --project-root <dir> --host cursor|codex [--json]');
@@ -97,7 +94,6 @@ try {
       sourceRoot: path.resolve(args.sourceRoot),
       projectRoot: path.resolve(args.projectRoot),
       host: args.host,
-      hold,
     });
     if (result && result.ok === false) {
       if (args.json) {
@@ -119,7 +115,6 @@ try {
         ok: result.ok !== false,
         host: args.host,
         state: result.state || 'UPDATED',
-        held: result.held === true,
         selectedIds: result.selectedIds || (result.receipt && result.receipt.selectedIds) || [],
       }));
     } else {
@@ -138,7 +133,6 @@ try {
     declaredSelection: args.declaredSelection,
     update: args.update,
     consumerEvidencePath: args.consumerEvidencePath,
-    hold,
   });
   const hostBinding = result.receipt
     && result.receipt.hostBindings
@@ -150,7 +144,6 @@ try {
       host: args.host,
       selectedIds: result.selectedIds,
       emittedIds: result.emittedIds,
-      held: result.held === true,
       bindingShape: bindingShape || null,
       reason: (hostBinding && hostBinding.bindingReason) || null,
     }));

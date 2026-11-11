@@ -297,11 +297,6 @@ class ProjectionJournal {
     this.flush();
   }
 
-  hold() {
-    this.setPhase('held');
-    this.finished = true;
-  }
-
   // The commit point: the phase and every cleanup record reach disk together.
   // The in-memory journal changes only after the flush succeeds, so a failed
   // flush still rolls back from the phase before it.
