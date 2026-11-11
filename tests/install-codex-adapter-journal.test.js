@@ -335,6 +335,65 @@ test('testPreviousReleaseHeldTransaction_isRolledBackByTheJsInstaller', () => {
   }
 });
 
+// Recovery of a previous release's Host journal whose shared projection was
+// only `requested` tolerates the publisher saying it holds nothing for that
+// transaction. The publisher's structured `code` decides this, never words in
+// its message.
+function requestedProjectionRecovery(publisherResult) {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-adapter-requested-');
+  const installerRoot = tempDir('dhpk-adapter-requested-root-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    // A test-local installer root: every script of the checkout, linked, except
+    // a publisher stub that answers the held-projection calls with `publisherResult`.
+    const scripts = path.join(installerRoot, 'scripts');
+    fs.mkdirSync(path.join(scripts, 'lib'), { recursive: true });
+    for (const name of fs.readdirSync(path.join(REPO, 'scripts'))) {
+      if (name !== 'lib') fs.symlinkSync(path.join(REPO, 'scripts', name), path.join(scripts, name));
+    }
+    for (const name of fs.readdirSync(path.join(REPO, 'scripts', 'lib'))) {
+      if (name !== 'project-agent-projection-publisher.js') fs.symlinkSync(path.join(REPO, 'scripts', 'lib', name), path.join(scripts, 'lib', name));
+    }
+    write(path.join(scripts, 'lib', 'project-agent-projection-publisher.js'), `module.exports = {
+  ...require(${JSON.stringify(path.join(REPO, 'scripts', 'lib', 'project-agent-projection-publisher.js'))}),
+  abortHeldProjection: () => (${JSON.stringify(publisherResult)}),
+  commitHeldProjection: () => (${JSON.stringify(publisherResult)}),
+};
+`);
+    assert.strictEqual(runShellInstaller(project, ['--copy', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python' }).status, 0);
+    write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only v2'));
+    const killed = runShellInstaller(project, ['--copy', '--update', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python', DHPK_TEST_KILL_AT: 'after-shared-projection' });
+    assert.notStrictEqual(killed.status, 0);
+    // The killed update's journal is the one whose shared projection is held.
+    const journalFile = fs.readdirSync(path.join(project, '.codex'))
+      .filter((name) => /^\.dhpk-transaction-.*\.json$/.test(name))
+      .map((name) => path.join(project, '.codex', name))
+      .find((file) => (JSON.parse(fs.readFileSync(file, 'utf8')).shared_projection || {}).phase === 'held');
+    assert.ok(journalFile, 'the killed Python run must leave a journal with a held shared projection');
+    const journal = JSON.parse(fs.readFileSync(journalFile, 'utf8'));
+    journal.shared_projection.phase = 'requested';
+    fs.writeFileSync(journalFile, JSON.stringify(journal));
+    return runIn(plugin, project, { recover: true, installerRoot });
+  } finally {
+    cleanup(plugin, project, installerRoot);
+  }
+}
+
+test('testPreviousReleaseRequestedProjection_publisherCodeTransactionMismatch_isTolerated', () => {
+  const outcome = requestedProjectionRecovery({ ok: false, state: 'BLOCKED', code: 'TRANSACTION_MISMATCH', error: { code: 'TRANSACTION_MISMATCH', message: 'not held by that transaction' } });
+  // The Host journal is undone; what remains is the publisher's own journal,
+  // which --recover then reports separately.
+  assert.doesNotMatch(outcome.stderr, /cannot undo its shared projection step/);
+  assert.doesNotMatch(outcome.stderr, /shared projection abort/);
+});
+
+test('testPreviousReleaseRequestedProjection_otherPublisherFailureMentioningTheWords_isStillReported', () => {
+  const outcome = requestedProjectionRecovery({ ok: false, state: 'BLOCKED', code: 'ROLLBACK_FAILED', error: { code: 'ROLLBACK_FAILED', message: 'the journal said TRANSACTION_MISMATCH but the rollback failed' } });
+  assert.notStrictEqual(outcome.code, 0, `${outcome.stdout}\n${outcome.stderr}`);
+  assert.match(`${outcome.stdout}\n${outcome.stderr}`, /cannot undo its shared projection step: shared projection abort for transaction .* failed: ROLLBACK_FAILED/);
+});
+
 // The shell entry point routes Codex to the JS installer, so no python3 is
 // needed on PATH (only the tools the shell itself calls, plus node).
 test('testShellEntryPoint_codexInstallsWithoutPython3OnPath', () => {

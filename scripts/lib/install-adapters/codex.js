@@ -3147,19 +3147,26 @@ function createInstaller(env, io) {
     return true;
   }
 
+  // The publisher's structured failure code travels with the error, so callers
+  // decide on the code and never on words in the message.
+  function withProjectionCode(error, code) {
+    if (typeof code === 'string' && code) error.projectionCode = code;
+    return error;
+  }
+
   function legacyResolution(action, transaction) {
     const publisher = installerModule('project-agent-projection-publisher.js');
     let result;
     try {
       result = (action === 'commit' ? publisher.commitHeldProjection : publisher.abortHeldProjection)({ projectRoot: PROJECT_ROOT, transactionId: transaction });
     } catch (error) {
-      throw new ValueError(`shared projection ${action} for transaction ${transaction} failed: ${errorText(error)}`);
+      throw withProjectionCode(new ValueError(`shared projection ${action} for transaction ${transaction} failed: ${errorText(error)}`), error && error.projectionCode);
     }
     if (!isDict(result) || result.ok !== true) {
       const code = isDict(result) ? result.code : null;
       const message = isDict(result) && isDict(result.error) ? result.error.message : null;
       const detail = [code, message].filter(Boolean).map(String).join(': ');
-      throw new ValueError(`shared projection ${action} for transaction ${transaction} failed: ${detail}`);
+      throw withProjectionCode(new ValueError(`shared projection ${action} for transaction ${transaction} failed: ${detail}`), code);
     }
     return result.state;
   }
@@ -3172,7 +3179,7 @@ function createInstaller(env, io) {
     } catch (error) {
       if (!isValueError(error)) throw error;
       // Still `requested`: the publisher refused before holding anything.
-      if (record.phase === 'requested' && errorText(error).includes('TRANSACTION_MISMATCH')) return [];
+      if (record.phase === 'requested' && error.projectionCode === 'TRANSACTION_MISMATCH') return [];
       return [errorText(error)];
     }
     return [];
