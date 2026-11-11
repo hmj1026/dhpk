@@ -4,6 +4,7 @@
 // Every id, timestamp, model and sentinel string below is fabricated; no real
 // session log, prompt, or project name is read or committed.
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -17,7 +18,7 @@ const PROMPT_SENTINEL = 'SENTINEL-PROMPT-BODY-DO-NOT-LEAK';
 const DESCRIPTION_SENTINEL = 'SENTINEL-DESCRIPTION-DO-NOT-LEAK';
 
 function mkdtemp() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-telemetry-'));
+  return makeTempDir('dhpk-telemetry-');
 }
 
 function writeJsonl(file, records) {

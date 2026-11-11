@@ -1,6 +1,10 @@
 'use strict';
 
 const fs = require('node:fs');
+const { makeTempDir, sweepOnExit } = require('./_lib/temp-dir');
+
+// The code under test creates these itself (issue #1322); see temp-dir.js.
+sweepOnExit(['dhpk-preview-output-']);
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
@@ -124,7 +128,7 @@ test('rejects every public profile selector before package generation can write 
     }
   }
 
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-profile-option-'));
+  const temporaryRoot = makeTempDir('dhpk-distribution-profile-option-');
   const output = path.join(temporaryRoot, 'package');
   try {
     const result = invoke(['agy-plugin', 'generate', '--output', output, '--profile', 'full', '--json']);
@@ -338,7 +342,7 @@ test('preview refuses an output path inside the source checkout', () => {
 });
 
 test('preview snapshot retains tracked files that match ignore rules', () => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-preview-tracked-ignored-')));
+  const root = fs.realpathSync(makeTempDir('dhpk-preview-tracked-ignored-'));
   try {
     fs.writeFileSync(path.join(root, '.gitignore'), 'tracked-ignored.txt\n');
     fs.writeFileSync(path.join(root, 'tracked-ignored.txt'), 'base bytes\n');
@@ -365,7 +369,7 @@ test('preview snapshot retains tracked files that match ignore rules', () => {
 });
 
 test('dirty tracked text preview snapshot matches the source worktree', () => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-preview-tracked-text-')));
+  const root = fs.realpathSync(makeTempDir('dhpk-preview-tracked-text-'));
   try {
     fs.writeFileSync(path.join(root, 'CONTEXT.md'), 'old\n');
     execFileSync('git', ['init', '-q'], { cwd: root });

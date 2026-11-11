@@ -5,6 +5,7 @@
 // size-based rotation in ldb_rotate_if_needed.
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -17,7 +18,7 @@ const jqCheck = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' })
 const hasJq = jqCheck.status === 0;
 
 function tmpProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ldb-'));
+  return makeTempDir('dhpk-ldb-');
 }
 
 function sh(root, cmd, extraEnv) {

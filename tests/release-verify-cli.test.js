@@ -7,6 +7,10 @@
 // fixture `bin/dhpk`, so no environment override can skip a real stage.
 
 const fs = require('node:fs');
+const { makeTempDir, sweepOnExit } = require('./_lib/temp-dir');
+
+// The code under test creates these itself (issue #1322); see temp-dir.js.
+sweepOnExit(['dhpk-release-rehearsal.']);
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
@@ -40,7 +44,7 @@ function git(cwd, ...args) {
 }
 
 function makeFixture({ preflightOutcome = 'PASS', preflightExit = 0 } = {}) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-verify-'));
+  const tmp = makeTempDir('dhpk-release-verify-');
   const repo = path.join(tmp, 'repo');
   const stubs = path.join(tmp, 'stubs');
   fs.mkdirSync(path.join(repo, 'scripts', 'release'), { recursive: true });

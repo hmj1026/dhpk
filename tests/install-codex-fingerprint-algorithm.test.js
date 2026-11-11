@@ -10,6 +10,7 @@
 // left behind.
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -23,7 +24,7 @@ const FIELD = 'fingerprint_algorithm';
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const writeJson = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
-const tempDir = (label) => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-fpalg-${label}-`)));
+const tempDir = (label) => fs.realpathSync(makeTempDir(`dhpk-fpalg-${label}-`));
 
 function minimalPlugin() {
   const plugin = tempDir('plugin');

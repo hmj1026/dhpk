@@ -7,6 +7,10 @@
 const { test, run, assert } = require('./_lib/tinytest');
 const { runSteps } = require('../scripts/lib/gate-runner');
 const fs = require('node:fs');
+const { makeTempDir, sweepOnExit } = require('./_lib/temp-dir');
+
+// The code under test creates these itself (issue #1322); see temp-dir.js.
+sweepOnExit(['dhpk-gate-']);
 const os = require('node:os');
 const path = require('node:path');
 
@@ -34,7 +38,7 @@ test('a failing step yields verdict FAIL and records the exit code', () => {
 });
 
 test('every step runs even after an earlier one fails (full evidence, not fail-fast)', () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-gate-runner-'));
+  const directory = makeTempDir('dhpk-gate-runner-');
   const marker = path.join(directory, 'second-step-ran');
   try {
     const stage = runSteps([
@@ -51,7 +55,7 @@ test('every step runs even after an earlier one fails (full evidence, not fail-f
 });
 
 test('a failing step keeps its full output as an artifact and cites it in the failure reason', () => {
-  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-gate-runner-logs-'));
+  const logDir = makeTempDir('dhpk-gate-runner-logs-');
   try {
     const script = [
       "console.error('ERROR in flaky.test.js: first line that the tail would drop');",
@@ -132,7 +136,7 @@ test('merges per-step environment overrides without losing the gate environment'
   const CLI = path.join(ROOT, 'scripts', 'release', 'source-gate.js');
 
   function withStepsFile(steps, callback) {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-source-gate-'));
+    const directory = makeTempDir('dhpk-source-gate-');
     try {
       const file = path.join(directory, 'steps.json');
       fs.writeFileSync(file, JSON.stringify(steps));
@@ -149,7 +153,7 @@ test('merges per-step environment overrides without losing the gate environment'
   }
 
   function mkLocalGateRepo() {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-source-gate-repo-'));
+    const root = makeTempDir('dhpk-source-gate-repo-');
     const probe = path.join(root, 'worker-pool.txt');
     const scripts = path.join(root, 'scripts');
     fs.mkdirSync(path.join(scripts, 'ci'), { recursive: true });
@@ -200,7 +204,7 @@ test('merges per-step environment overrides without losing the gate environment'
   });
 
   test('records the step toolchain resolved from the gate PATH in the SOURCE stage', () => {
-    const bin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-source-gate-bin-')));
+    const bin = fs.realpathSync(makeTempDir('dhpk-source-gate-bin-'));
     try {
       writeExecutable(path.join(bin, 'python3'), '#!/bin/sh\necho "Python 3.9.6"\n');
       withStepsFile([{ name: 'ok', cmd: process.execPath, args: ['-e', 'process.exit(0)'] }], (stepsFile) => {
@@ -370,7 +374,7 @@ test('merges per-step environment overrides without losing the gate environment'
   const CLI = path.join(ROOT, 'scripts', 'release', 'package-gate.js');
 
   function mkStepsFile(steps, callback) {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-package-gate-'));
+    const directory = makeTempDir('dhpk-package-gate-');
     try {
       const file = path.join(directory, 'steps.json');
       fs.writeFileSync(file, JSON.stringify(steps));
@@ -400,7 +404,7 @@ test('merges per-step environment overrides without losing the gate environment'
   });
 
   test('default package gate reports shared-copy drift before package checks', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-package-copy-gate-'));
+    const root = makeTempDir('dhpk-package-copy-gate-');
     try {
       fs.mkdirSync(path.join(root, 'scripts', 'ci'), { recursive: true });
       fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
@@ -449,7 +453,7 @@ test('merges per-step environment overrides without losing the gate environment'
     const roots = [];
     try {
       const files = stages.map((stage) => {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-publish-gate-'));
+        const root = makeTempDir('dhpk-publish-gate-');
         roots.push(root);
         const file = path.join(root, 'stage.json');
         fs.writeFileSync(file, JSON.stringify(stage));
@@ -470,7 +474,7 @@ test('merges per-step environment overrides without losing the gate environment'
   }
 
   function mkPublishRepo() {
-    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-publish-gate-repo-')));
+    const root = fs.realpathSync(makeTempDir('dhpk-publish-gate-repo-'));
     const releaseDir = path.join(root, 'scripts', 'release');
     fs.mkdirSync(releaseDir, { recursive: true });
     fs.writeFileSync(path.join(releaseDir, 'source-gate.js'), [

@@ -6,6 +6,7 @@
 // than let a release publish with empty notes.
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -15,7 +16,7 @@ const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'release', 'extract-notes.sh');
 
 function writeChangelog(content) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-extract-notes-'));
+  const dir = makeTempDir('dhpk-extract-notes-');
   const file = path.join(dir, 'CHANGELOG.md');
   fs.writeFileSync(file, content);
   return file;
