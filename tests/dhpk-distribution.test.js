@@ -3,7 +3,9 @@
 const fs = require('node:fs');
 const { makeTempDir, sweepOnExit } = require('./_lib/temp-dir');
 
-// The code under test creates these itself (issue #1322); see temp-dir.js.
+// A successful preview without --output intentionally leaves its reported
+// dhpk-preview-output-* directory for the caller (issue #1323); tests that only
+// remove `output` rely on this sweep for the parent. See temp-dir.js.
 sweepOnExit(['dhpk-preview-output-']);
 const os = require('node:os');
 const path = require('node:path');
@@ -166,6 +168,32 @@ test('new distribution previews use the common collection by default', () => {
     const receipt = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
     assert.strictEqual(receipt.profileId, 'common');
   } finally { fs.rmSync(output, { recursive: true, force: true }); }
+});
+
+test('a failed default-output preview removes its dhpk-preview-output directory (#1323)', () => {
+  // A TMPDIR inside the checkout makes the "output must be outside the source
+  // checkout" guard reject the preview after the default directory was created.
+  const privateTmp = fs.mkdtempSync(path.join(ROOT, '.dhpk-1323-tmp-'));
+  try {
+    const result = spawnSync('bash', [path.join(ROOT, 'bin', 'dhpk'), 'distribution', 'agent-plugin', 'preview', '--json'], {
+      cwd: ROOT, encoding: 'utf8', timeout: DISTRIBUTION_CHILD_TIMEOUT_MS, env: { ...process.env, TMPDIR: privateTmp },
+    });
+    assert.notStrictEqual(result.status, 0, result.stdout);
+    assert.deepStrictEqual(fs.readdirSync(privateTmp).filter((name) => name.startsWith('dhpk-preview-output-')), []);
+  } finally { fs.rmSync(privateTmp, { recursive: true, force: true }); }
+});
+
+test('a successful default-output preview reports its output path, which is kept for the caller (#1323)', () => {
+  const privateTmp = fs.realpathSync(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-1323-keep-')));
+  try {
+    const result = spawnSync('bash', [path.join(ROOT, 'bin', 'dhpk'), 'distribution', 'agent-plugin', 'preview', '--json'], {
+      cwd: ROOT, encoding: 'utf8', timeout: DISTRIBUTION_CHILD_TIMEOUT_MS, env: { ...process.env, TMPDIR: privateTmp },
+    });
+    assert.strictEqual(result.status, 0, result.stderr);
+    const output = report(result).output;
+    assert.ok(output.startsWith(path.join(privateTmp, 'dhpk-preview-output-')), output);
+    assert.ok(fs.existsSync(path.join(output, 'provenance.json')), 'the reported preview must exist for the caller');
+  } finally { fs.rmSync(privateTmp, { recursive: true, force: true }); }
 });
 
 test('Codex native previews use the exact named package selection by default', () => {

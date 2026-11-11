@@ -12,6 +12,11 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { VERDICTS } = require('./release-evidence');
 
+// Without an explicit logDir the first failing step creates a dhpk-gate-*
+// directory in TMPDIR. That is intentional evidence, not a leak: the path is
+// cited in the failure reason ("[full output: <dir>/NN-step.log]") and in the
+// `step-output` artifacts for the reader to open. Passing steps create nothing;
+// callers who want a fixed place pass `logDir`.
 function writeStepOutput(logDir, index, step, res) {
   const directory = logDir || fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-gate-'));
   fs.mkdirSync(directory, { recursive: true });

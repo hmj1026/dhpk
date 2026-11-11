@@ -9,7 +9,8 @@ const { runSteps } = require('../scripts/lib/gate-runner');
 const fs = require('node:fs');
 const { makeTempDir, sweepOnExit } = require('./_lib/temp-dir');
 
-// The code under test creates these itself (issue #1322); see temp-dir.js.
+// Default log dirs are intentional evidence (issue #1323); tests that let the
+// runner pick one rely on this sweep. See temp-dir.js.
 sweepOnExit(['dhpk-gate-']);
 const os = require('node:os');
 const path = require('node:path');
@@ -35,6 +36,25 @@ test('a failing step yields verdict FAIL and records the exit code', () => {
   assert.strictEqual(stage.verdict, 'FAIL');
   assert.deepStrictEqual(stage.commands.map((command) => command.exitCode), [0, 1]);
   assert.deepStrictEqual(stage.failureReasons, ['b: exited 1']);
+});
+
+test('the default log directory is created only on failure, in TMPDIR, and its path is cited (#1323)', () => {
+  const privateTmp = makeTempDir('dhpk-gate-runner-private-');
+  const previous = process.env.TMPDIR;
+  process.env.TMPDIR = privateTmp;
+  try {
+    const passing = runSteps([{ name: 'ok', cmd: 'node', args: ['-e', 'console.log("x")'] }], { environment: 'test' });
+    assert.strictEqual(passing.verdict, 'PASS');
+    assert.deepStrictEqual(fs.readdirSync(privateTmp), [], 'a passing gate must create no log directory');
+    const failing = runSteps([{ name: 'bad', cmd: 'node', args: ['-e', 'console.error("boom");process.exit(3)'] }], { environment: 'test' });
+    const [artifact] = failing.artifacts;
+    assert.strictEqual(path.dirname(path.dirname(artifact.path)), privateTmp);
+    assert.ok(path.basename(path.dirname(artifact.path)).startsWith('dhpk-gate-'));
+    assert.ok(failing.failureReasons[0].endsWith(`[full output: ${artifact.path}]`), failing.failureReasons[0]);
+    assert.ok(fs.readFileSync(artifact.path, 'utf8').includes('boom'));
+  } finally {
+    if (previous === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = previous;
+  }
 });
 
 test('every step runs even after an earlier one fails (full evidence, not fail-fast)', () => {
