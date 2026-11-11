@@ -156,7 +156,10 @@ case "${DHPK_INSTALLER_ENGINE:-$DEFAULT_ENGINE}" in
         fi
         for JS_STATE in "$PROJECT_ROOT/.agents/.dhpk-install.lock" "$PROJECT_ROOT/.agents/.dhpk-projection-journal.json"; do
             if [ -e "$JS_STATE" ] || [ -L "$JS_STATE" ]; then
-                echo "[$INSTALLER_NAME] ERROR: a JS install holds or left the project lock or Projection Journal (.agents/.dhpk-install.lock / .agents/.dhpk-projection-journal.json); finish it with this installer's --recover, then retry" >&2
+                echo "[$INSTALLER_NAME] ERROR: a JS install holds or left the project lock or Projection Journal (.agents/.dhpk-install.lock / .agents/.dhpk-projection-journal.json); finish it with --recover of scripts/hooks/install-codex-skills.sh or scripts/hooks/install-cursor-harness.sh from a dhpk checkout or plugin cache (they run the JS installer), then retry" >&2
+                if [ "$RECOVER" = "1" ]; then
+                    echo "[$INSTALLER_NAME] ERROR: this copy of the installer runs the Python engine and cannot recover a JS journal, even with --recover" >&2
+                fi
                 exit 2
             fi
         done ;;

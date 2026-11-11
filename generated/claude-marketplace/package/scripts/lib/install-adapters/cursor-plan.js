@@ -9,6 +9,12 @@
 // report and the two local Cursor package manifests. This is that step as a
 // pure function of the report and the environment; the adapter calls it before
 // printing a Cursor plan (codex.js printJsonReport).
+//
+// Two intentional deviations from the Python program, both on input it could
+// not handle: a cache plugin.json with invalid UTF-8 is read with replacement
+// characters (Python raised UnicodeDecodeError and lost the report), and one
+// holding NaN or Infinity is rejected by pyJsonLoads and so ignored (Python's
+// json.load accepted them). Neither occurs in a manifest Cursor writes.
 
 const fs = require('node:fs');
 const { isDict, pyJsonLoads, pySorted } = require('./python-compat');

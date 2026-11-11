@@ -2549,7 +2549,7 @@
       "sourcePath": "scripts/hooks/install-codex-skills.sh",
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh",
       "kind": "packaging-resource",
-      "sha256": "5bddf35f3a0cffcc28285beb899ebd145767a9609ce897993b5f4f8986d58011"
+      "sha256": "21e2af25bde7693417e6b3d42f5aca2cce5fae65af4b150c64546803b6ada755"
     },
     {
       "skillId": "harness-setup",
