@@ -1,2 +1,0 @@
-scope: installer
-note: Codex and Cursor project installers no longer need python3; the packaged harness-setup copy now runs the same JS installer, project lock and Projection Journal. Requirement change: Node.js is required for both installers. TRANSACTION_HELD is no longer produced; a transaction left by 0.72 or 0.73 is still recovered by rerunning the installer or --recover. Recover in-flight installs before downgrading. The installers' --help now prints the whole usage block instead of stopping at line 15.

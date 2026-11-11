@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.74.0 — 2026-11-11 — Codex and Cursor installers no longer need python3; one JS installer for every layout
+
+- **feat(installer)** — `dhpk-install cursor install|update|uninstall --project-root <dir>` now performs the Cursor project install through the same JS installer as `install-cursor-harness.sh`, instead of returning `NOT_IMPLEMENTED`.
+- **feat(installer)** — Codex and Cursor project installers no longer need python3; the packaged harness-setup copy now runs the same JS installer, project lock and Projection Journal. Requirement change: Node.js is required for both installers. TRANSACTION_HELD is no longer produced; a transaction left by 0.72 or 0.73 is still recovered by rerunning the installer or --recover. Recover in-flight installs before downgrading. The installers' --help now prints the whole usage block instead of stopping at line 15.
+
 ## 0.73.0 — 2026-11-11 — Cursor installer moves to JS; dispatch rules reach the orchestrator at session start
 
 - **feat(dispatch)** — SessionStart prints a fixed dispatch delta (Explore haiku/low, sub-agent role reassignment, general-purpose model), model-economics gains Fable 5.2 facts, escalation order and low-first, and doc-updater and qa-executor move to sonnet.
