@@ -2,10 +2,8 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
-const { makeTempDir, sweepOnExit } = require('./_lib/temp-dir');
+const { makeTempDir } = require('./_lib/temp-dir');
 
-// The code under test creates these itself (issue #1322); see temp-dir.js.
-sweepOnExit(['dhpk-agy-request.']);
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -247,6 +245,33 @@ test('provider failure and an empty structured report remain terminal FAILED rec
     const emptyResult = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], { contextPath: empty.contextPath });
     assert.strictEqual(emptyResult.status, 1, emptyResult.stderr);
     assert.strictEqual(JSON.parse(fs.readFileSync(empty.receiptPath, 'utf8')).status, 'FAILED');
+  });
+});
+
+test('the dispatch request file is removed from TMPDIR after success and after provider failure (#1323)', () => {
+  withStub((ctx) => {
+    const privateTmp = fs.mkdtempSync(path.join(ctx.dir, 'tmp-'));
+    const leftovers = () => fs.readdirSync(privateTmp);
+    const ok = writeContext(ctx);
+    const success = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], { contextPath: ok.contextPath, env: { TMPDIR: privateTmp } });
+    assert.strictEqual(success.status, 0, success.stderr);
+    assert.deepStrictEqual(leftovers(), [], 'request file leaked after success');
+    fs.writeFileSync(path.join(ctx.dir, 'agy-exit-code'), '7');
+    const bad = writeContext(ctx);
+    const failure = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], { contextPath: bad.contextPath, env: { TMPDIR: privateTmp } });
+    assert.strictEqual(failure.status, 7, failure.stderr);
+    assert.deepStrictEqual(leftovers(), [], 'request file leaked after failure');
+  });
+});
+
+test('the dispatch request file is removed when the runner blocks the request (#1323)', () => {
+  withStub((ctx) => {
+    const privateTmp = fs.mkdtempSync(path.join(ctx.dir, 'tmp-'));
+    const blocked = writeContext(ctx);
+    fs.writeFileSync(blocked.receiptPath, '{}');
+    const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], { contextPath: blocked.contextPath, env: { TMPDIR: privateTmp } });
+    assert.notStrictEqual(result.status, 0, result.stderr);
+    assert.deepStrictEqual(fs.readdirSync(privateTmp), [], 'request file leaked after BLOCKED');
   });
 });
 
