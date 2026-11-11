@@ -2,6 +2,10 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const { makeTempDir, sweepOnExit } = require('./_lib/temp-dir');
+
+// The code under test creates these itself (issue #1322); see temp-dir.js.
+sweepOnExit(['dhpk-agy-request.']);
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -42,7 +46,7 @@ function promptEvidence(promptFile) {
 }
 
 function withStub(fn) {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'run-agy-')));
+  const dir = fs.realpathSync(makeTempDir('run-agy-'));
   try {
     const binDir = path.join(dir, 'bin');
     fs.mkdirSync(binDir);
@@ -188,7 +192,7 @@ test('external bootstrap-python override never executes', () => {
 test('Python startup paths cannot execute before AGY context validation', () => {
   withStub((ctx) => {
     const { contextPath } = writeContext(ctx);
-    const poison = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-python-startup-'));
+    const poison = makeTempDir('dhpk-python-startup-');
     const marker = path.join(ctx.dir, 'python-startup-ran');
     try {
       fs.writeFileSync(path.join(poison, 'sitecustomize.py'), `open(${JSON.stringify(marker)}, 'w').write('ran')\n`);

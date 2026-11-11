@@ -6,6 +6,7 @@
 // previous-installer receipt serves as the marker-less fixture.
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -21,7 +22,7 @@ const { ROOT, runInstaller, projectRoot } = fixtures;
 const FIXTURE = path.join(__dirname, 'fixtures', 'tree-fingerprint', 'installer');
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const writeJson = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
-const tempDir = (label) => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-gatealg-${label}-`)));
+const tempDir = (label) => fs.realpathSync(makeTempDir(`dhpk-gatealg-${label}-`));
 
 function minimalPlugin() {
   const plugin = tempDir('plugin');

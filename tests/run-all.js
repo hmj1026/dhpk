@@ -8,12 +8,49 @@
 // the per-file timeout/process-group boundary that protects the legacy suite.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { runNodeTest } = require('../scripts/lib/bounded-child-process');
 const { validateAssertionSummary } = require('../scripts/lib/assertion-evidence');
 
 const TESTS_DIR = __dirname;
+
+// Leak detection for issue #1322, kept inline because tests copy this runner
+// into fixture trees that have no sibling _lib. The runner hands each test file
+// a private TMPDIR; whatever is still inside it after the file exits leaked.
+// fs.mkdtemp appends six random [A-Za-z0-9] characters.
+function leakPrefix(name) {
+  const match = /^(.*-)[A-Za-z0-9]{6}$/.exec(name);
+  return match ? match[1] : name;
+}
+
+// Created by the Node runtime itself (NODE_COMPILE_CACHE), not by a test.
+const RUNTIME_ENTRIES = new Set(['node-compile-cache']);
+
+function scanLeaks(root) {
+  let entries;
+  try {
+    entries = fs.readdirSync(root);
+  } catch (error) {
+    if (error.code === 'ENOENT') return {};
+    throw error;
+  }
+  const byPrefix = {};
+  for (const name of entries) {
+    if (RUNTIME_ENTRIES.has(name)) continue;
+    const prefix = leakPrefix(name);
+    byPrefix[prefix] = (byPrefix[prefix] || 0) + 1;
+  }
+  return byPrefix;
+}
+
+function formatLeakReport(file, leaks) {
+  const parts = Object.entries(leaks).map(([prefix, count]) => `${prefix} x${count}`);
+  if (parts.length === 0) return '';
+  return `TMPDIR LEAK in ${file}: ${parts.join(', ')}`;
+}
+
 const MAX_JOBS = 8;
 
 // A small, intentionally conservative size-derived weight keeps the largest
@@ -313,6 +350,25 @@ function parseFailedFileNames(output) {
   return match[1].replace(/ \(\+\d+ more\)$/, '').split(', ').filter(Boolean);
 }
 
+// Issue #1322: every test file runs with a private TMPDIR under one per-run
+// root, so a leaked directory is attributed to the file that made it (even when
+// workers run in parallel) and never accumulates in the shared temp root.
+// Without DHPK_TEST_TMP_ROOT (a bare call) the file runs in the ambient TMPDIR.
+function beginFileTmpdir(env, index) {
+  const root = env.DHPK_TEST_TMP_ROOT;
+  if (!root) return { env, dir: null };
+  const dir = path.join(root, `${process.pid}-${index}`);
+  fs.mkdirSync(dir, { recursive: true });
+  return { env: { ...env, TMPDIR: dir }, dir };
+}
+
+function endFileTmpdir(isolation) {
+  if (!isolation.dir) return {};
+  const leaks = scanLeaks(isolation.dir);
+  fs.rmSync(isolation.dir, { recursive: true, force: true });
+  return leaks;
+}
+
 async function runSequential(files, env, timeoutMs) {
   let failed = 0;
   const failedFiles = [];
@@ -320,6 +376,7 @@ async function runSequential(files, env, timeoutMs) {
   const startedAt = process.hrtime.bigint();
   const progressEnabled = env.DHPK_TEST_PROGRESS === '1';
   const progress = { completed: 0, total: files.length };
+  let tmpCounter = 0;
   for (const file of files) {
     const relative = path.relative(TESTS_DIR, file);
     console.log(`\n# ${relative}`);
@@ -328,10 +385,18 @@ async function runSequential(files, env, timeoutMs) {
       else writeTestProgress('start', file, undefined, progress);
     }
     const fileStartedAt = process.hrtime.bigint();
-    const result = runNodeTest(file, { env, timeoutMs: fileTimeoutMs(file, timeoutMs), captureOutput: true });
+    const isolation = beginFileTmpdir(env, tmpCounter++);
+    const result = runNodeTest(file, { env: isolation.env, timeoutMs: fileTimeoutMs(file, timeoutMs), captureOutput: true });
     if (result.stdout) process.stdout.write(result.stdout);
     if (result.stderr) process.stderr.write(result.stderr);
+    const leaks = endFileTmpdir(isolation);
+    const leakReport = formatLeakReport(relative, leaks);
+    if (leakReport) {
+      console.error(leakReport);
+      result.status = result.status || 1;
+    }
     const timing = createFileTiming(file, result, elapsedMilliseconds(fileStartedAt));
+    if (leakReport) timing.leaks = leaks;
     fileTimings.push(timing);
     if (progressEnabled) {
       if (typeof process.send === 'function') await sendWorkerProgress('complete', file, timing.status);
@@ -558,6 +623,21 @@ async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
   const options = parseOptions(argv, sourceEnv);
   const env = prepareEnv(sourceEnv);
   const timeoutMs = readTimeoutMs(env);
+  let ownedTmpRoot = null;
+  if (!env.DHPK_TEST_TMP_ROOT) {
+    ownedTmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-test-run-'));
+    env.DHPK_TEST_TMP_ROOT = ownedTmpRoot;
+    // An interrupted run must not strand the root either.
+    process.once('exit', () => fs.rmSync(ownedTmpRoot, { recursive: true, force: true }));
+  }
+  try {
+    return await runSelected(options, env, sourceEnv, timeoutMs);
+  } finally {
+    if (ownedTmpRoot) fs.rmSync(ownedTmpRoot, { recursive: true, force: true });
+  }
+}
+
+async function runSelected(options, env, sourceEnv, timeoutMs) {
   let files = options.files.length ? options.files.slice() : findTests(TESTS_DIR).sort();
 
   if (!options.files.length && options.shardCount > 1) {
@@ -614,4 +694,9 @@ module.exports = {
   createTimingReport,
   parseTimingPayload,
   formatFailSummary,
+  leakPrefix,
+  scanLeaks,
+  formatLeakReport,
+  beginFileTmpdir,
+  endFileTmpdir,
 };

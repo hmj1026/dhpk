@@ -2,6 +2,7 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -16,7 +17,7 @@ const SKILL_REF_RE = /skills\/([A-Za-z0-9._-]+)\//g;
 const ROOT_INSTALL_TIMEOUT_MS = 60_000;
 
 function projectRoot() {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-project-')));
+  const dir = fs.realpathSync(makeTempDir('dhpk-ich-project-'));
   fs.mkdirSync(path.join(dir, '.git'));
   return dir;
 }
@@ -57,7 +58,7 @@ function writeCursorEvidence(dir, record) {
 }
 
 function fakePlugin() {
-  const plugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-plugin-')));
+  const plugin = fs.realpathSync(makeTempDir('dhpk-ich-plugin-'));
   write(path.join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
   write(path.join(plugin, 'skills', 'dhpk-portable', 'SKILL.md'), '---\nname: dhpk-portable\ndescription: portable\n---\n# Portable\n');
   write(path.join(plugin, 'cursor', 'skills', 'dhpk-portable', 'SKILL.md'), '---\nname: dhpk-portable\ndescription: portable\n---\n# Portable\n');
@@ -312,7 +313,7 @@ test('bash -n syntax check passes', () => {
 });
 
 test('--help is a no-op and documents Codex-parity flags', () => {
-  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-help-')));
+  const scratch = fs.realpathSync(makeTempDir('dhpk-ich-help-'));
   try {
     const res = spawnSync('bash', [HOOK, '--help'], {
       cwd: scratch,
@@ -615,7 +616,7 @@ test('--uninstall removes unchanged owned entries and leaves unowned files and h
 });
 
 test('project-root heuristic requires a project marker unless --force is passed', () => {
-  const empty = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-empty-')));
+  const empty = fs.realpathSync(makeTempDir('dhpk-ich-empty-'));
   const plugin = fakePlugin();
   try {
     const blocked = runInstaller(empty, [], plugin);
@@ -623,7 +624,7 @@ test('project-root heuristic requires a project marker unless --force is passed'
     assert.match(`${blocked.stdout}\n${blocked.stderr}`, /does not look like a project root/);
     const forced = runInstaller(empty, ['--force'], plugin);
     assert.strictEqual(forced.status, 0, `${forced.stdout}\n${forced.stderr}`);
-    const marked = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-marked-')));
+    const marked = fs.realpathSync(makeTempDir('dhpk-ich-marked-'));
     try {
       fs.mkdirSync(path.join(marked, '.cursor'));
       const allowed = runInstaller(marked, ['--copy'], plugin);
@@ -640,7 +641,7 @@ test('project-root heuristic requires a project marker unless --force is passed'
 test('--plan --json warns when marketplace hash cache version drifts from local packages', () => {
   const scratch = projectRoot();
   const plugin = fakePlugin();
-  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-home-')));
+  const home = fs.realpathSync(makeTempDir('dhpk-ich-home-'));
   try {
     write(path.join(home, '.cursor', 'plugins', 'cache', 'dhpk', 'dhpk', 'deadbeefcafe', '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '0.38.2' }));
     write(path.join(home, '.cursor', 'plugins', 'local', 'dhpk-agent', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
@@ -663,7 +664,7 @@ test('--plan --json warns when marketplace hash cache version drifts from local 
 test('--plan --json does not warn when hash cache version matches local packages', () => {
   const scratch = projectRoot();
   const plugin = fakePlugin();
-  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-home-match-')));
+  const home = fs.realpathSync(makeTempDir('dhpk-ich-home-match-'));
   try {
     write(path.join(home, '.cursor', 'plugins', 'cache', 'dhpk', 'dhpk', 'cafebabe0001', '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
     write(path.join(home, '.cursor', 'plugins', 'local', 'dhpk-agent', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));

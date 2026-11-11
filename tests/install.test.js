@@ -8,6 +8,7 @@
 // that update exits 0. Interactive prompts below are scripted stdin.
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -22,7 +23,7 @@ const SCRIPT = path.join(ROOT, 'scripts', 'install.sh');
 // dhpk@dhpk. DHPK_TEST_CLAUDE_MODE=already-installed-message makes list empty
 // and `plugin install` exit 0 with Claude's already-installed notice.
 // DHPK_TEST_CLAUDE_UPDATE_RC is the exit status of a real plugin update.
-const STUB_BIN = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-stub-'));
+const STUB_BIN = makeTempDir('dhpk-install-stub-');
 fs.writeFileSync(path.join(STUB_BIN, 'claude'), [
   '#!/usr/bin/env bash',
   'if [[ -n "${DHPK_TEST_CLAUDE_LOG:-}" ]]; then',
@@ -70,7 +71,7 @@ process.on('exit', () => {
 });
 
 function makeNoJqBin(claudeLog) {
-  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-no-jq-bin-'));
+  const bin = makeTempDir('dhpk-install-no-jq-bin-');
   TEMP_FIXTURES.push(bin);
   // Keep only the commands the installer needs in PATH. In particular, do not
   // include /usr/bin, where jq is available on the development host.
@@ -88,7 +89,7 @@ function makeNoJqBin(claudeLog) {
 }
 
 function makeInstallerFixture(profiles) {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-fixture-'));
+  const parent = makeTempDir('dhpk-install-fixture-');
   TEMP_FIXTURES.push(parent);
   // The apostrophe is intentionally part of the plugin root, not merely a
   // profile value: this reproduces the original Python-source interpolation.
@@ -202,7 +203,7 @@ test('unknown flag exits 64 with a usage hint, no prompts reached', () => {
 
 test('retired public profile flags exit 64 before prompts or installation side effects', () => {
   for (const args of [['--profile'], ['--profile', 'minimal'], ['--profile=common']]) {
-    const probeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-retired-profile-'));
+    const probeRoot = makeTempDir('dhpk-install-retired-profile-');
     TEMP_FIXTURES.push(probeRoot);
     const claudeLog = path.join(probeRoot, 'claude-called.log');
     const res = runScript(args, '', { cwd: probeRoot, claudeLog });
@@ -220,7 +221,7 @@ test('--dry-run walks the full custom flow (scripted stdin) and stops before exe
   //   4. "Override default review agents?" -> blank (default n)
   //   5. Hook profile single-select        -> "1" (first listed profile)
   const stdin = ['', '', '', '', '1', ''].join('\n');
-  const probeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-dry-run-'));
+  const probeRoot = makeTempDir('dhpk-install-dry-run-');
   TEMP_FIXTURES.push(probeRoot);
   const claudeLog = path.join(probeRoot, 'claude-called.log');
   const res = runScript(['--dry-run'], stdin, { claudeLog });
@@ -242,7 +243,7 @@ test('--print is accepted as an alias for --dry-run', () => {
 });
 
 test('default custom flow installs the existing main Claude marketplace', () => {
-  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-profile-'));
+  const outputRoot = makeTempDir('dhpk-install-profile-');
   TEMP_FIXTURES.push(outputRoot);
   const claudeLog = path.join(outputRoot, 'claude-called.log');
   const stdin = ['', '', '', '', '1', 'y'].join('\n');
@@ -261,7 +262,7 @@ test('default custom flow installs the existing main Claude marketplace', () => 
 });
 
 test('default custom flow needs neither Node nor jq before invoking the main marketplace', () => {
-  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-no-node-'));
+  const outputRoot = makeTempDir('dhpk-install-no-node-');
   TEMP_FIXTURES.push(outputRoot);
   const claudeLog = path.join(outputRoot, 'claude-called.log');
   const res = runScript([], ['', '', '', '', '1', 'y'].join('\n'), {
@@ -350,7 +351,7 @@ test('no-jq missing module fails closed before preset prompts', () => {
 });
 
 test('--dry-run --non-interactive succeeds with closed stdin and the default hook profile', () => {
-  const claudeLog = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-ni-')), 'claude.log');
+  const claudeLog = path.join(makeTempDir('dhpk-install-ni-'), 'claude.log');
   const res = runScript(['--dry-run', '--non-interactive'], '', { claudeLog });
   assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
   assert.match(res.stdout, /hook_profile\s+: standard/);
@@ -387,7 +388,7 @@ test('--hook-profile with a missing, flag-like, or unknown value exits 64 before
 });
 
 test('--non-interactive without --dry-run or --yes refuses to install and never calls claude', () => {
-  const claudeLog = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-ni-')), 'claude.log');
+  const claudeLog = path.join(makeTempDir('dhpk-install-ni-'), 'claude.log');
   const res = runScript(['--non-interactive'], '', { claudeLog });
   assert.strictEqual(res.status, 64, `${res.stdout}\n${res.stderr}`);
   assert.match(res.stderr, /--yes/);
@@ -395,7 +396,7 @@ test('--non-interactive without --dry-run or --yes refuses to install and never 
 });
 
 test('--non-interactive --yes auto-confirms and installs the main marketplace', () => {
-  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-ni-profile-'));
+  const outputRoot = makeTempDir('dhpk-install-ni-profile-');
   TEMP_FIXTURES.push(outputRoot);
   const res = runScript(['--non-interactive', '--yes'], '', {
     env: { DHPK_CLAUDE_PROFILE_OUT: outputRoot },
@@ -414,7 +415,7 @@ test('--hook-profile in the interactive flow skips the hook-profile prompt and k
 });
 
 test('a fresh install runs plugin install and does not run plugin update', () => {
-  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-fresh-'));
+  const outputRoot = makeTempDir('dhpk-install-fresh-');
   TEMP_FIXTURES.push(outputRoot);
   const claudeLog = path.join(outputRoot, 'claude.log');
   const res = runScript(['--non-interactive', '--yes'], '', {
@@ -433,7 +434,7 @@ test('a fresh install runs plugin install and does not run plugin update', () =>
 });
 
 test('an already installed plugin is updated in the scope the install command would use', () => {
-  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-update-scope-'));
+  const outputRoot = makeTempDir('dhpk-install-update-scope-');
   TEMP_FIXTURES.push(outputRoot);
   const claudeLog = path.join(outputRoot, 'claude.log');
   const res = runScript(['--non-interactive', '--yes', '--hook-profile', 'strict'], '', {
@@ -460,7 +461,7 @@ test('an already installed plugin is updated in the scope the install command wo
 });
 
 test('plugin update receives install config only when update accepts --config', () => {
-  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-update-config-'));
+  const outputRoot = makeTempDir('dhpk-install-update-config-');
   TEMP_FIXTURES.push(outputRoot);
   const claudeLog = path.join(outputRoot, 'claude.log');
   const res = runScript(['--non-interactive', '--yes', '--hook-profile', 'strict'], '', {
@@ -482,7 +483,7 @@ test('plugin update receives install config only when update accepts --config', 
 });
 
 test('plugin update omits scope and -y when its help does not accept them', () => {
-  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-update-flags-'));
+  const outputRoot = makeTempDir('dhpk-install-update-flags-');
   TEMP_FIXTURES.push(outputRoot);
   const claudeLog = path.join(outputRoot, 'claude.log');
   const res = runScript(['--non-interactive', '--yes'], '', {
@@ -507,7 +508,7 @@ test('plugin update omits scope and -y when its help does not accept them', () =
 });
 
 test('an already-installed notice does not claim Installed when plugin update fails', () => {
-  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-update-fail-'));
+  const outputRoot = makeTempDir('dhpk-install-update-fail-');
   TEMP_FIXTURES.push(outputRoot);
   const claudeLog = path.join(outputRoot, 'claude.log');
   const res = runScript(['--non-interactive', '--yes'], '', {
