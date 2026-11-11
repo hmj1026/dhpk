@@ -990,19 +990,19 @@ test('installer killed after its partial receipt but before the commit intent ro
 test('a Host that meets another Host\'s held projection rolls back cleanly and succeeds once it is released', () => {
   const { scratch, plugin } = changedPluginScenario(PYTHON_ENGINE);
   try {
-    const cursorFirst = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    const cursorFirst = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin, PYTHON_ENGINE);
     assert.strictEqual(cursorFirst.status, 0, outputOf(cursorFirst));
     const killed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, { ...PYTHON_ENGINE, DHPK_TEST_KILL_AT: 'after-shared-projection' });
     assert.ok(wasKilled(killed), outputOf(killed));
     const journalsBefore = fs.readdirSync(path.join(scratch, '.cursor'));
-    const blocked = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    const blocked = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin, PYTHON_ENGINE);
     assert.notStrictEqual(blocked.status, 0, outputOf(blocked));
     assert.match(outputOf(blocked), /held by the codex installer/);
     const latest = latestTransactionJournal(path.join(scratch, '.cursor'), journalsBefore);
     assert.strictEqual(latest.journal.phase, 'rolled_back', JSON.stringify(latest.journal.rollback_errors || []));
     const codex = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, PYTHON_ENGINE);
     assert.strictEqual(codex.status, 0, outputOf(codex));
-    const cursor = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    const cursor = runCursorInstaller(scratch, ['--copy', '--update', '--force'], plugin, PYTHON_ENGINE);
     assert.strictEqual(cursor.status, 0, outputOf(cursor));
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
