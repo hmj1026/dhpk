@@ -33,9 +33,11 @@ if (argv.includes('--recover')) {
   return;
 }
 
-// js-projection-journal stage 3: Codex project-local writes run the JS
-// installer in-process, with the outcome the installer script would have.
-function codexWrite(request) {
+// Codex and Cursor project-local writes run the JS installer in-process, with
+// the outcome the installer script would have (install-lifecycle).
+const WRITE_HOSTS = Object.freeze({ 'codex-sync': 'codex', cursor: 'cursor' });
+
+function hostWrite(request, host) {
   const { installerEnv, runCaptured, looksLikeProjectRoot } = require('./lib/install-adapters/codex-cli');
   const blocked = (code, message, remediation = []) => ({
     request,
@@ -45,16 +47,16 @@ function codexWrite(request) {
     remediation,
   });
   if (!request.projectRoot) {
-    return blocked('PROJECT_ROOT_REQUIRED', `codex-sync ${request.action} writes into a project; pass --project-root <dir>`);
+    return blocked('PROJECT_ROOT_REQUIRED', `${request.surface} ${request.action} writes into a project; pass --project-root <dir>`);
   }
   const projectRoot = path.resolve(request.projectRoot);
-  if (request.mode === 'client-managed') return blocked('UNSUPPORTED_MODE', 'codex-sync supports --mode copy, symlink, or auto');
+  if (request.mode === 'client-managed') return blocked('UNSUPPORTED_MODE', `${request.surface} supports --mode copy, symlink, or auto`);
   // The shell installer skips this heuristic for --uninstall; so does this path.
   if (request.action !== 'uninstall' && !request.yes && !looksLikeProjectRoot(projectRoot)) {
     return blocked('NOT_A_PROJECT_ROOT', `'${projectRoot}' does not look like a project root`, ['Re-run with --yes to bypass this check.']);
   }
   const env = installerEnv({
-    host: 'codex',
+    host,
     pluginRoot: root,
     installerRoot: root,
     projectRoot,
@@ -72,15 +74,16 @@ function codexWrite(request) {
   if (outcome.code === 0) return { request, plan: null, lifecycle: { verdict: request.dryRun ? 'NOT_RUN' : 'INSTALL_PASS' }, diagnostics: [], remediation: [], installer };
   const actions = installer.stderr.filter((line) => /ACTION REQUIRED/.test(line));
   return {
-    ...blocked(outcome.code === 1 ? 'RECONCILIATION_INCOMPLETE' : 'INSTALL_FAILED', installer.stderr.find((line) => /ERROR|BLOCKED|state=/.test(line)) || `codex-sync ${request.action} exited ${outcome.code}`, actions),
+    ...blocked(outcome.code === 1 ? 'RECONCILIATION_INCOMPLETE' : 'INSTALL_FAILED', installer.stderr.find((line) => /ERROR|BLOCKED|state=/.test(line)) || `${request.surface} ${request.action} exited ${outcome.code}`, actions),
     installer,
   };
 }
 
 try {
   const request = parseRequest(argv);
-  if (request.surface === 'codex-sync' && ['install', 'update', 'uninstall'].includes(request.action)) {
-    const result = codexWrite(request);
+  const writeHost = WRITE_HOSTS[request.surface];
+  if (writeHost && request.scope === 'project' && ['install', 'update', 'uninstall'].includes(request.action)) {
+    const result = hostWrite(request, writeHost);
     if (request.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     else {
       if (result.installer) {
