@@ -703,9 +703,23 @@ The installer holds the shared projection step under its own run id and commits
 both at one point; the next run finishes or undoes an interrupted transaction
 automatically.
 
-- `TRANSACTION_HELD` means another installer run still holds the shared
-  projection. Rerun that Host's installer (named in the message) to let it
-  finish or undo its transaction.
+- One project lock serializes every Codex and Cursor run. While another run
+  holds it, the installer exits `2` with `already reconciling this project:
+  .agents/.dhpk-install.lock (held by the <host> installer, pid N, ...)` and
+  changes nothing; retry once that run ends. If that run died, rerun the
+  installer to take over and recover its transaction, or run it with
+  `--recover`. A run of one Host may therefore roll back or finish the other
+  Host's interrupted transaction; it prints `recovered interrupted <host>
+  transaction ...: rolled back|finished`, and after a rollback you rerun that
+  Host's installer to apply it.
+- This applies to the installers in a checkout or plugin cache. The packaged
+  `harness-setup` copy still runs the embedded Python, takes no project lock,
+  and may still produce `TRANSACTION_HELD` (and, from an older release, a
+  transaction `--recover` of the checkout installer resolves) until stage 5.
+  If it refuses because of a JS lock or journal, recover with
+  `scripts/hooks/install-codex-skills.sh --recover` or
+  `scripts/hooks/install-cursor-harness.sh --recover` from a checkout or plugin
+  cache.
 - `did not finish rolling back` lists the remaining paths and the backup
   directory. Fix the reported cause, then run the same installer with
   `--recover`. It replays the rollback and stops without installing.
