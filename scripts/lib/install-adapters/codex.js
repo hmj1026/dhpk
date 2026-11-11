@@ -3,10 +3,9 @@
 // Codex / Cursor project-local installer (js-projection-journal stage 3).
 //
 // A one-for-one port of the Python program that scripts/hooks/
-// install-codex-skills.sh embedded. Function names mirror the Python ones in
-// camelCase and keep its control flow, messages, file formats, and exit
-// codes, so tests/_lib/installer-parity.js can diff both on one fixture.
-// Python globals are closure state of one installer run.
+// install-codex-skills.sh embedded until js-projection-journal stage 5. Function
+// names mirror the Python ones in camelCase and keep its control flow, messages,
+// file formats, and exit codes. Python globals are closure state of one installer run.
 //
 // Differences from the Python, by design (ADR-0036):
 // - Node has no openat/dir_fd. Where the Python pinned a directory
