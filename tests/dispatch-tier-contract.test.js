@@ -98,7 +98,7 @@ test('execution-policy carries the dispatch-time decision and links to model-eco
   assert.ok(start > 0);
   const section = policy.slice(start);
   assert.match(section, /\*\*Dispatch-time decision/);
-  assert.match(section, /model-economics\.md#architect-vs-deep-reasoner/);
+  assert.match(section, /model-economics\.md` \(§Architect vs deep-reasoner\)/);
   assert.match(section, /rule 7/);
   assert.match(section, /3rd automatic raise|third automatic raise/i);
   assert.doesNotMatch(policy, /Architect vs deep-reasoner\n/);
@@ -110,14 +110,14 @@ test('the distinction is not duplicated in the implementation-dispatch reference
   assert.doesNotMatch(ref, /Projection Journal/);
   assert.doesNotMatch(ref, /^## Architect vs deep-reasoner$/m);
   assert.strictEqual(ref.split('**Dispatch-time decision').length - 1, 1);
-  assert.match(ref, /model-economics\.md#architect-vs-deep-reasoner/);
+  assert.match(ref, /model-economics\.md` \(§Architect vs deep-reasoner\)/);
 });
 
 test('flow-drive and flow-guide SKILL.md stay free of dispatch-time decision rules', () => {
   for (const rel of ['skills/flow-drive/SKILL.md', 'skills/flow-guide/SKILL.md']) {
     const text = read(rel);
     assert.doesNotMatch(text, /Dispatch-time decision/i, rel);
-    assert.doesNotMatch(text, /architect-vs-deep-reasoner/, rel);
+    assert.doesNotMatch(text, /Architect vs deep-reasoner/, rel);
     assert.doesNotMatch(text, /3rd automatic raise|third automatic raise/i, rel);
   }
 });
