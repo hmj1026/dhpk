@@ -41,6 +41,7 @@ openspec/specs/.*/
 openspec/specs/**/.*/
 
 # Test coverage & runner reports
+/.dhpk-test-scratch-*/
 coverage/
 .nyc_output/
 test-results/

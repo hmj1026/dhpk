@@ -291,7 +291,8 @@ test('explicitly empty optional fields fail only in strict mode', () => {
   }
 
 test('validate-agents-skills CLI reports structural PASS and runtime boundary', () => {
-  const outDir = fs.mkdtempSync(path.join(ROOT, '.agents-skills-validate-'));
+  const scratch = fs.mkdtempSync(path.join(ROOT, '.dhpk-test-scratch-agents-skills-validate-'));
+  const outDir = path.join(scratch, 'skills');
   try {
       const generated = spawnSync(process.execPath, [GENERATOR, '--repo-root', ROOT, '--out-dir', outDir], {
         cwd: ROOT,
@@ -324,7 +325,7 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
     assert.strictEqual(missingReceipt.status, 1, missingReceiptOutput);
     assert.match(missingReceiptOutput, /projection receipt is missing/);
 
-    fs.rmSync(outDir, { recursive: true, force: true });
+    fs.rmSync(scratch, { recursive: true, force: true });
     fs.mkdirSync(outDir, { recursive: true });
     const regenerated = spawnSync(process.execPath, [GENERATOR, '--repo-root', ROOT, '--out-dir', outDir], {
       cwd: ROOT,

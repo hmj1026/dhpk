@@ -40,4 +40,20 @@ test('External agent skill installs are ignored without hiding project surfaces'
     'accepted OpenSpec specs must remain trackable');
 });
 
+test('test scratch directories under the repo root are ignored and every ROOT mkdtemp uses that prefix', () => {
+  assert.strictEqual(checkIgnore('.dhpk-test-scratch-x/.projection-stage-1-abcdef/change-verdict.md').status, 0,
+    'projection stage files under test scratch must be ignored');
+  assert.strictEqual(checkIgnore('.dhpk-test-scratch-x/skills/flow-guide.md').status, 0,
+    'projected skill files under test scratch must be ignored');
+  const fs = require('node:fs');
+  for (const file of ['gen-agents-skills.test.js', 'validate-agents-behavior.test.js']) {
+    const text = fs.readFileSync(path.join(__dirname, file), 'utf8');
+    const prefixes = [...text.matchAll(/mkdtempSync\(path\.join\(ROOT,\s*'([^']*)'/g)].map((m) => m[1]);
+    assert.ok(prefixes.length > 0, `${file} must create ROOT scratch dirs`);
+    for (const prefix of prefixes) {
+      assert.ok(prefix.startsWith('.dhpk-test-scratch-'), `${file}: ${prefix} must use .dhpk-test-scratch- prefix`);
+    }
+  }
+});
+
 run('openspec-gitignore');

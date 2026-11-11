@@ -22,7 +22,8 @@ function expectedAgentPluginSkillIds() {
 }
 
 test('gen-agents-skills CLI materializes a project-local compatibility tree', () => {
-  const outDir = fs.mkdtempSync(path.join(ROOT, '.agents-skills-cli-'));
+  const scratch = fs.mkdtempSync(path.join(ROOT, '.dhpk-test-scratch-agents-skills-cli-'));
+  const outDir = path.join(scratch, 'skills');
   try {
     const result = spawnSync(process.execPath, [GENERATOR, '--repo-root', ROOT, '--out-dir', outDir], {
       cwd: ROOT,
@@ -46,12 +47,13 @@ test('gen-agents-skills CLI materializes a project-local compatibility tree', ()
     assert.match(fs.readFileSync(skillFile, 'utf8'), /^name: flow-guide$/m);
     assert.ok(fs.existsSync(path.join(outDir, 'flow-guide.md')));
   } finally {
-    fs.rmSync(outDir, { recursive: true, force: true });
+    fs.rmSync(scratch, { recursive: true, force: true });
   }
 });
 
 test('gen-agents-skills CLI lists each Released Entry when it rewrites a marker-less 1.1.0 receipt', () => {
-  const outDir = fs.mkdtempSync(path.join(ROOT, '.agents-skills-cli-released-'));
+  const scratch = fs.mkdtempSync(path.join(ROOT, '.dhpk-test-scratch-agents-skills-cli-released-'));
+  const outDir = path.join(scratch, 'skills');
   const run = () => spawnSync(process.execPath, [GENERATOR, '--repo-root', ROOT, '--out-dir', outDir], { cwd: ROOT, encoding: 'utf8' });
   try {
     assert.strictEqual(run().status, 0);
@@ -81,7 +83,7 @@ test('gen-agents-skills CLI lists each Released Entry when it rewrites a marker-
     assert.ok(!rewritten.entries.some((entry) => entry.name === 'zz-old'));
     assert.ok(fs.existsSync(path.join(outDir, 'zz-old', 'SKILL.md')));
   } finally {
-    fs.rmSync(outDir, { recursive: true, force: true });
+    fs.rmSync(scratch, { recursive: true, force: true });
   }
 });
 
@@ -356,7 +358,7 @@ test('gen-agents-skills CLI still exits nonzero for unknown options', () => {
 });
 
 test('validate-agents-skills CLI still exits nonzero for unknown options', () => {
-  const tempRoot = fs.mkdtempSync(path.join(ROOT, '.agents-skills-validator-unknown-'));
+  const tempRoot = fs.mkdtempSync(path.join(ROOT, '.dhpk-test-scratch-agents-skills-validator-unknown-'));
   const outDir = path.join(tempRoot, 'projection');
   try {
     const generated = invokeCli(GENERATOR, ['--repo-root', ROOT, '--out-dir', outDir], ROOT);
@@ -862,7 +864,7 @@ test('gen-agents-skills --update prunes 0.66.0 consolidated skills and validatio
   });
   // Canonical --update only plans retirements when the output stays inside the
   // source checkout. This scratch directory is not the developer .agents tree.
-  const scratch = fs.mkdtempSync(path.join(ROOT, '.agents-skills-0660-'));
+  const scratch = fs.mkdtempSync(path.join(ROOT, '.dhpk-test-scratch-agents-skills-0660-'));
   const outDir = path.join(scratch, 'skills');
   fs.cpSync(historicalOut, outDir, { recursive: true });
   try {
