@@ -15,12 +15,16 @@ const { createPreviewSourceSnapshot } = require('../scripts/lib/distribution-pre
 
 const ROOT = path.join(__dirname, '..');
 const SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin'];
+// A preview snapshots the checkout (git archive + untracked copy); under the
+// four-way local publish gate for 0.73.0 that overran 30s and the child was
+// killed (status null).
+const DISTRIBUTION_CHILD_TIMEOUT_MS = 120000;
 
 function invoke(args, cwd = ROOT) {
   return spawnSync('bash', [path.join(cwd, 'bin', 'dhpk'), 'distribution', ...args], {
     cwd,
     encoding: 'utf8',
-    timeout: 30000,
+    timeout: DISTRIBUTION_CHILD_TIMEOUT_MS,
   });
 }
 
@@ -243,7 +247,7 @@ test('rejects provenance-bound generation from a dirty source checkout before wr
     const result = spawnSync('bash', [path.join(worktreeRoot, 'bin', 'dhpk'), 'distribution', 'agent-plugin', 'generate', '--output', outDir, '--json'], {
       cwd: worktreeRoot,
       encoding: 'utf8',
-      timeout: 30000,
+      timeout: DISTRIBUTION_CHILD_TIMEOUT_MS,
     });
     assert.strictEqual(result.status, 1, result.stdout + result.stderr);
     assert.match(result.stderr, /source checkout must be clean/i);
@@ -416,7 +420,7 @@ test('validate and verify still run on a dirty checkout because they do not writ
       ], {
         cwd: worktreeRoot,
         encoding: 'utf8',
-        timeout: 30000,
+        timeout: DISTRIBUTION_CHILD_TIMEOUT_MS,
       });
       assert.strictEqual(result.status, 0, `${operation}: ${result.stderr}`);
       assert.strictEqual(JSON.parse(result.stdout).verdict, 'PASS', `${operation}: ${result.stdout}`);
