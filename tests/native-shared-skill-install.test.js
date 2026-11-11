@@ -1338,40 +1338,52 @@ const crypto = require('node:crypto');
     }
   });
 
-  test('CLI holds an install for a transaction and resolves it only with that transaction', () => {
-    const sourceRoot = fixture();
+  // The `--hold` producer is removed (js-projection-journal stage 5); commit and
+  // abort still resolve a transaction a 0.72/0.73 installer left held.
+  function heldProject(name) {
+    const { loadLegacyFixture, restoreTree } = require('./_lib/legacy-journal-fixtures');
     const projectRoot = tmpDir('dhpk-install-native-held-');
-    const installArgs = (extra) => ['install', '--source', sourceRoot, '--project-root', projectRoot, '--host', 'codex', '--selected-id', 'sample', '--declared-selection', '--json', ...extra];
-    const journal = path.join(projectRoot, '.agents', '.dhpk-installed.transaction.json');
-    const nativeSkill = path.join(projectRoot, '.codex', 'skills', 'dhpk-sample');
+    const recording = loadLegacyFixture(name);
+    restoreTree(recording.held, projectRoot, { '@@PROJECT@@': projectRoot, '@@SOURCE@@': path.join(projectRoot, '.no-source') });
+    return { projectRoot, recording };
+  }
+
+  test('CLI resolves a held transaction only with that transaction', () => {
+    const journalOf = (root) => path.join(root, '.agents', '.dhpk-installed.transaction.json');
+    const aborting = heldProject('held-v3-install');
+    const committing = heldProject('held-v3-install');
     try {
-      const held = invoke(installArgs(['--hold', 'run-1']));
-      assert.strictEqual(held.status, 0, `${held.stdout}\n${held.stderr}`);
-      assert.strictEqual(JSON.parse(held.stdout).held, true);
-      assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
-      assert.deepStrictEqual(JSON.parse(fs.readFileSync(journal, 'utf8')).hold, { transactionId: 'run-1', host: 'codex' });
-
-      const blocked = invoke(installArgs([]));
-      assert.notStrictEqual(blocked.status, 0);
-      assert.match(blocked.stderr, /held by the codex installer/);
-
-      const mismatch = invoke(['commit', '--project-root', projectRoot, '--transaction', 'run-2', '--json']);
+      const mismatch = invoke(['commit', '--project-root', aborting.projectRoot, '--transaction', 'run-2', '--json']);
       assert.strictEqual(mismatch.status, 1);
       assert.strictEqual(JSON.parse(mismatch.stdout).code, 'TRANSACTION_MISMATCH');
+      assert.ok(fs.existsSync(journalOf(aborting.projectRoot)));
 
-      const aborted = invoke(['abort', '--project-root', projectRoot, '--transaction', 'run-1', '--json']);
+      const aborted = invoke(['abort', '--project-root', aborting.projectRoot, '--transaction', 'run-1', '--json']);
       assert.strictEqual(aborted.status, 0, `${aborted.stdout}\n${aborted.stderr}`);
       assert.strictEqual(JSON.parse(aborted.stdout).state, 'ABORTED');
-      assert.strictEqual(fs.existsSync(journal), false);
-      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), false);
-      assert.throws(() => fs.lstatSync(nativeSkill));
+      assert.strictEqual(fs.existsSync(journalOf(aborting.projectRoot)), false);
+      // The previous projection is back: the recorded `before` receipt names the v1 skill.
+      assert.strictEqual(fs.readFileSync(path.join(aborting.projectRoot, '.agents', '.dhpk-installed.json'), 'utf8'), aborting.recording.before['.agents/.dhpk-installed.json'].text.split('@@PROJECT@@').join(aborting.projectRoot));
 
-      assert.strictEqual(invoke(installArgs(['--hold', 'run-3'])).status, 0);
-      const committed = invoke(['commit', '--project-root', projectRoot, '--transaction', 'run-3', '--json']);
+      const committed = invoke(['commit', '--project-root', committing.projectRoot, '--transaction', 'run-1', '--json']);
       assert.strictEqual(JSON.parse(committed.stdout).state, 'COMMITTED');
-      const absent = invoke(['commit', '--project-root', projectRoot, '--transaction', 'run-3', '--json']);
+      const absent = invoke(['commit', '--project-root', committing.projectRoot, '--transaction', 'run-1', '--json']);
       assert.strictEqual(JSON.parse(absent.stdout).state, 'ABSENT');
-      assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+      assert.ok(fs.lstatSync(path.join(committing.projectRoot, '.codex', 'skills', 'dhpk-sample')).isSymbolicLink());
+    } finally {
+      fs.rmSync(aborting.projectRoot, { recursive: true, force: true });
+      fs.rmSync(committing.projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('CLI no longer accepts --hold', () => {
+    const sourceRoot = fixture();
+    const projectRoot = tmpDir('dhpk-install-native-nohold-');
+    try {
+      const refused = invoke(['install', '--source', sourceRoot, '--project-root', projectRoot, '--host', 'codex', '--selected-id', 'sample', '--declared-selection', '--json', '--hold', 'run-1']);
+      assert.notStrictEqual(refused.status, 0, refused.stdout);
+      assert.match(refused.stderr, /--hold/);
+      assert.deepStrictEqual(fs.readdirSync(projectRoot), [], 'a refused run must not write');
     } finally {
       fs.rmSync(sourceRoot, { recursive: true, force: true });
       fs.rmSync(projectRoot, { recursive: true, force: true });

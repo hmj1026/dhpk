@@ -1697,12 +1697,34 @@ const { test, run, assert } = require('./_lib/tinytest');
 
   const HELD_PATHS = ['.agents/.dhpk-installed.json', '.agents/skills/dhpk-sample/SKILL.md', '.codex/skills/dhpk-sample', '.cursor/skills/dhpk-sample'];
 
-  test('testHeldProjection_install_leavesAttributedJournalUntilCommit', () => {
+  // The hold producer is gone (js-projection-journal stage 5), but a project can
+  // still carry a v3 journal that a 0.72/0.73 installer left held. These tests
+  // resolve recordings of those journals (tests/fixtures/legacy-journals/README.md)
+  // inside the sample project, so the resolver side keeps its guarantees.
+  const { loadLegacyFixture, restoreTree } = require('./_lib/legacy-journal-fixtures');
+
+  // The sample project and source as the recording found them (`before`), with
+  // the recorded held state (`held`) laid over the project. `before` is the
+  // project state an abort must restore, read back through HELD_PATHS.
+  function heldFromRecording(name) {
+    const recording = loadLegacyFixture(name);
     const { sourceRoot, projectRoot, options } = heldFixture();
+    const before = snapshotFiles(projectRoot, HELD_PATHS);
+    write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
+    for (const entry of fs.readdirSync(projectRoot)) fs.rmSync(path.join(projectRoot, entry), { recursive: true, force: true });
+    restoreTree(recording.held, projectRoot, { '@@PROJECT@@': projectRoot, '@@SOURCE@@': sourceRoot });
+    return { sourceRoot, projectRoot, options, before };
+  }
+
+  function cleanupHeld({ sourceRoot, projectRoot }) {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+
+  test('testHeldProjection_recordedInstall_isAttributedAndCommitsOnlyForItsTransaction', () => {
+    const held = heldFromRecording('held-v3-install');
+    const { projectRoot, options } = held;
     try {
-      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
-      const result = publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } });
-      assert.strictEqual(result.held, true);
       const journal = JSON.parse(fs.readFileSync(path.join(projectRoot, JOURNAL), 'utf8'));
       assert.deepStrictEqual(journal.hold, { transactionId: 'run-1', host: 'codex' });
       assert.match(fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'), 'utf8'), /Skill v2/);
@@ -1713,34 +1735,29 @@ const { test, run, assert } = require('./_lib/tinytest');
       assert.strictEqual(publisher.validateRelocatableAgentsSkillsProjection(options).ok, true);
       assert.match(fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'), 'utf8'), /Skill v2/);
     } finally {
-      fs.rmSync(sourceRoot, { recursive: true, force: true });
-      fs.rmSync(projectRoot, { recursive: true, force: true });
+      cleanupHeld(held);
     }
   });
 
-  test('testHeldProjection_abort_restoresPreviousProjectionByteForByte', () => {
-    const { sourceRoot, projectRoot, options } = heldFixture();
+  test('testHeldProjection_recordedInstall_abortRestoresPreviousProjectionByteForByte', () => {
+    const held = heldFromRecording('held-v3-install');
+    const { projectRoot, before } = held;
     try {
-      const before = snapshotFiles(projectRoot, HELD_PATHS);
-      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
-      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } });
       const aborted = publisher.abortHeldProjection({ projectRoot, transactionId: 'run-1' });
       assert.strictEqual(aborted.ok, true, JSON.stringify(aborted));
       assert.strictEqual(aborted.state, 'ABORTED');
       assert.deepStrictEqual(snapshotFiles(projectRoot, HELD_PATHS), before);
       assert.deepStrictEqual(transientEntries(projectRoot), []);
     } finally {
-      fs.rmSync(sourceRoot, { recursive: true, force: true });
-      fs.rmSync(projectRoot, { recursive: true, force: true });
+      cleanupHeld(held);
     }
   });
 
-  test('testHeldProjection_otherEntries_failTransactionHeldWithoutChanges', () => {
-    const { sourceRoot, projectRoot, options } = heldFixture();
+  test('testHeldProjection_recordedInstall_otherEntries_failTransactionHeldWithoutChanges', () => {
+    const held = heldFromRecording('held-v3-install');
+    const { projectRoot, options } = held;
     try {
-      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
-      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } });
-      const held = snapshotFiles(projectRoot, [...HELD_PATHS, JOURNAL]);
+      const snapshot = snapshotFiles(projectRoot, [...HELD_PATHS, JOURNAL]);
       assert.throws(
         () => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true }),
         (error) => error.projectionCode === 'TRANSACTION_HELD' && /codex/.test(error.message) && /run-1/.test(error.message),
@@ -1751,42 +1768,41 @@ const { test, run, assert } = require('./_lib/tinytest');
       const validation = publisher.validateRelocatableAgentsSkillsProjection(options);
       assert.strictEqual(validation.ok, false);
       assert.ok(validation.errors.some((error) => /held/.test(error)), JSON.stringify(validation.errors));
-      assert.deepStrictEqual(snapshotFiles(projectRoot, [...HELD_PATHS, JOURNAL]), held);
+      assert.deepStrictEqual(snapshotFiles(projectRoot, [...HELD_PATHS, JOURNAL]), snapshot);
     } finally {
-      fs.rmSync(sourceRoot, { recursive: true, force: true });
-      fs.rmSync(projectRoot, { recursive: true, force: true });
+      cleanupHeld(held);
     }
   });
 
   test('testHeldProjection_commitAndAbort_reportAbsentAndMismatch', () => {
-    const { sourceRoot, projectRoot, options } = heldFixture();
+    const { sourceRoot, projectRoot } = heldFixture();
     try {
       for (const resolve of [publisher.commitHeldProjection, publisher.abortHeldProjection]) {
         const absent = resolve({ projectRoot, transactionId: 'run-1' });
         assert.strictEqual(absent.ok, true, JSON.stringify(absent));
         assert.strictEqual(absent.state, 'ABSENT');
       }
-      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } });
-      const journalBefore = fs.readFileSync(path.join(projectRoot, JOURNAL));
+    } finally {
+      cleanupHeld({ sourceRoot, projectRoot });
+    }
+    const held = heldFromRecording('held-v3-install');
+    try {
+      const journalBefore = fs.readFileSync(path.join(held.projectRoot, JOURNAL));
       for (const resolve of [publisher.commitHeldProjection, publisher.abortHeldProjection]) {
-        const mismatch = resolve({ projectRoot, transactionId: 'run-2' });
+        const mismatch = resolve({ projectRoot: held.projectRoot, transactionId: 'run-2' });
         assert.strictEqual(mismatch.ok, false);
         assert.strictEqual(mismatch.code, 'TRANSACTION_MISMATCH');
       }
-      assert.deepStrictEqual(fs.readFileSync(path.join(projectRoot, JOURNAL)), journalBefore);
+      assert.deepStrictEqual(fs.readFileSync(path.join(held.projectRoot, JOURNAL)), journalBefore);
     } finally {
-      fs.rmSync(sourceRoot, { recursive: true, force: true });
-      fs.rmSync(projectRoot, { recursive: true, force: true });
+      cleanupHeld(held);
     }
   });
 
-  test('testHeldProjection_killedMidPublish_staysHeldUntilAbortRestoresPrevious', () => {
-    const { sourceRoot, projectRoot, options } = heldFixture();
+  test('testHeldProjection_recordedKilledMidPublish_staysHeldUntilAbortRestoresPrevious', () => {
+    const held = heldFromRecording('held-v3-install-killed');
+    const { projectRoot, options, before } = held;
     try {
-      const before = snapshotFiles(projectRoot, HELD_PATHS);
-      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
-      const killed = runUntilKilled('materializeRelocatableAgentsSkillsProjection', { ...options, update: true, hold: { transactionId: 'run-1', host: 'codex' } }, { method: 'copyFileSync', argument: 1, match: path.join('.agents', 'skills', 'dhpk-sample', 'SKILL.md') });
-      assert.strictEqual(killed.signal, 'SIGKILL', killed.stderr);
       assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true }), (error) => error.projectionCode === 'TRANSACTION_HELD');
       const committed = publisher.commitHeldProjection({ projectRoot, transactionId: 'run-1' });
       assert.strictEqual(committed.code, 'TRANSACTION_INCOMPLETE', JSON.stringify(committed));
@@ -1795,30 +1811,48 @@ const { test, run, assert } = require('./_lib/tinytest');
       assert.deepStrictEqual(snapshotFiles(projectRoot, HELD_PATHS), before);
       assert.deepStrictEqual(transientEntries(projectRoot), []);
     } finally {
-      fs.rmSync(sourceRoot, { recursive: true, force: true });
-      fs.rmSync(projectRoot, { recursive: true, force: true });
+      cleanupHeld(held);
     }
   });
 
-  test('testHeldProjection_uninstall_heldUntilCommitAndAbsentIsNotHeld', () => {
+  test('testHeldProjection_recordedUninstall_heldUntilCommitOrAbort', () => {
+    const aborting = heldFromRecording('held-v3-uninstall');
+    try {
+      assert.strictEqual(fs.existsSync(path.join(aborting.projectRoot, '.agents/.dhpk-installed.json')), false);
+      assert.strictEqual(publisher.abortHeldProjection({ projectRoot: aborting.projectRoot, transactionId: 'run-1' }).state, 'ABORTED');
+      assert.deepStrictEqual(snapshotFiles(aborting.projectRoot, HELD_PATHS), aborting.before);
+    } finally {
+      cleanupHeld(aborting);
+    }
+    const committing = heldFromRecording('held-v3-uninstall');
+    try {
+      assert.strictEqual(publisher.commitHeldProjection({ projectRoot: committing.projectRoot, transactionId: 'run-1' }).state, 'COMMITTED');
+      assert.strictEqual(fs.existsSync(path.join(committing.projectRoot, JOURNAL)), false);
+      assert.strictEqual(fs.existsSync(path.join(committing.projectRoot, '.agents/.dhpk-installed.json')), false);
+    } finally {
+      cleanupHeld(committing);
+    }
+  });
+
+  // The producer is removed: a caller that still asks for a held publication is
+  // refused before anything is written, never silently given an unheld one.
+  test('testHoldOption_isRefusedByInstallAndUninstallWithoutWriting', () => {
     const { sourceRoot, projectRoot, options } = heldFixture();
     try {
+      write(path.join(sourceRoot, 'skills/dhpk-sample/SKILL.md'), '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Skill v2\n');
       const before = snapshotFiles(projectRoot, HELD_PATHS);
-      const removed = publisher.uninstallAgentsSkillsProjection({ ...options, hold: { transactionId: 'run-1', host: 'codex' } });
-      assert.strictEqual(removed.ok, true, JSON.stringify(removed));
-      assert.strictEqual(removed.held, true);
-      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents/.dhpk-installed.json')), false);
-      assert.strictEqual(publisher.abortHeldProjection({ projectRoot, transactionId: 'run-1' }).state, 'ABORTED');
+      const hold = { transactionId: 'run-1', host: 'codex' };
+      assert.throws(
+        () => publisher.materializeRelocatableAgentsSkillsProjection({ ...options, update: true, hold }),
+        (error) => error.projectionCode === 'INVALID_HOLD' && /no longer produced/.test(error.message),
+      );
+      const removed = publisher.uninstallAgentsSkillsProjection({ ...options, hold });
+      assert.strictEqual(removed.ok, false);
+      assert.strictEqual(removed.code, 'INVALID_HOLD', JSON.stringify(removed));
       assert.deepStrictEqual(snapshotFiles(projectRoot, HELD_PATHS), before);
-      publisher.uninstallAgentsSkillsProjection({ ...options, hold: { transactionId: 'run-2', host: 'codex' } });
-      assert.strictEqual(publisher.commitHeldProjection({ projectRoot, transactionId: 'run-2' }).state, 'COMMITTED');
-      const absent = publisher.uninstallAgentsSkillsProjection({ ...options, hold: { transactionId: 'run-3', host: 'codex' } });
-      assert.strictEqual(absent.state, 'ABSENT');
-      assert.strictEqual(absent.held, false);
-      assert.strictEqual(fs.existsSync(path.join(projectRoot, JOURNAL)), false);
+      assert.deepStrictEqual(transientEntries(projectRoot), []);
     } finally {
-      fs.rmSync(sourceRoot, { recursive: true, force: true });
-      fs.rmSync(projectRoot, { recursive: true, force: true });
+      cleanupHeld({ sourceRoot, projectRoot });
     }
   });
 
