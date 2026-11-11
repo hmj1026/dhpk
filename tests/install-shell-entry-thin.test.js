@@ -94,6 +94,61 @@ test('testShell_codex_withoutAnyInstallerEntry_failsWithExit2', () => {
   }
 });
 
+// A symlinked bundle would let whatever it points at run as the installer.
+test('testShell_codex_refusesASymlinkedBundle', () => {
+  const root = tempDir('dhpk-thin-symlink-');
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-thin-symlink-project-');
+  const marker = path.join(root, 'marker');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    const lib = path.join(root, 'scripts', 'lib');
+    fs.mkdirSync(lib, { recursive: true });
+    fs.copyFileSync(SCRIPTS.codex, path.join(lib, 'install-codex-skills.sh'));
+    fs.writeFileSync(path.join(root, 'elsewhere.cjs'), `require("fs").writeFileSync(${JSON.stringify(marker)}, "ran");\n`);
+    fs.symlinkSync(path.join(root, 'elsewhere.cjs'), path.join(lib, 'dhpk-installer.cjs'));
+    const result = spawnSync('bash', [path.join(lib, 'install-codex-skills.sh'), '--copy', '--force'], {
+      cwd: project,
+      env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}`, CLAUDE_PLUGIN_ROOT: plugin },
+      encoding: 'utf8',
+    });
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.match(result.stderr, /packaged JS installer .* is a symlink/);
+    assert.strictEqual(fs.existsSync(marker), false);
+  } finally {
+    for (const directory of [root, plugin, project]) fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+// The Skill adapter vets the helper it runs; the bundle beside it gets the same vetting.
+test('testAdapter_refusesASymlinkedBundleBesideTheHelper', () => {
+  const skill = tempDir('dhpk-thin-adapter-');
+  const artifact = fakePlugin();
+  const project = tempDir('dhpk-thin-adapter-project-');
+  const marker = path.join(skill, 'marker');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    const scripts = path.join(skill, 'scripts');
+    fs.mkdirSync(path.join(scripts, 'lib'), { recursive: true });
+    fs.copyFileSync(path.join(__dirname, '..', 'skills', 'harness-setup', 'scripts', 'install-codex-project.sh'), path.join(scripts, 'install-codex-project.sh'));
+    fs.copyFileSync(SCRIPTS.codex, path.join(scripts, 'lib', 'install-codex-skills.sh'));
+    fs.chmodSync(path.join(scripts, 'lib', 'install-codex-skills.sh'), 0o755);
+    fs.writeFileSync(path.join(skill, 'elsewhere.cjs'), `require("fs").writeFileSync(${JSON.stringify(marker)}, "ran");\n`);
+    fs.symlinkSync(path.join(skill, 'elsewhere.cjs'), path.join(scripts, 'lib', 'dhpk-installer.cjs'));
+    const result = spawnSync('bash', [path.join(scripts, 'install-codex-project.sh'), '--source-artifact', artifact, '--copy', '--force'], {
+      cwd: project,
+      env: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH}` },
+      encoding: 'utf8',
+    });
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stderr, /BLOCKED_RESOURCE_MISSING/);
+    assert.strictEqual(fs.existsSync(marker), false);
+    assert.strictEqual(fs.existsSync(path.join(project, '.codex')), false);
+  } finally {
+    for (const directory of [skill, artifact, project]) fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('testShell_codex_runsTheGeneratedBundleAsTheInstaller', () => {
   const root = tempDir('dhpk-thin-real-bundle-');
   const plugin = fakePlugin();
