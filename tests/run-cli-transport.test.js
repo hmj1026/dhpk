@@ -494,11 +494,12 @@ test('provider report uses a bounded stream before the receipt is built', () => 
 out=""; previous=""
 for value in "$@"; do [ "$previous" = "--output-last-message" ] && out="$value"; previous="$value"; done
 if [ -p "$out" ]; then printf pipe > output-transport-kind.txt; else printf regular > output-transport-kind.txt; fi
-head -c 65536 /dev/zero | tr '\\0' x > "$out" || true
+i=0; while [ "$i" -lt 1024 ]; do printf %064d 0; i=$((i+1)); done > "$out" || true
 printf approved > allowed.txt
 `);
     const result = invoke(root, request);
-    assert.strictEqual(result.status, 0, result.stderr);
+    // The runner's FAILED branch writes no stderr; show the receipt instead.
+    assert.strictEqual(result.status, 0, result.stderr || (fs.existsSync(request.receipt_path) ? fs.readFileSync(request.receipt_path, 'utf8') : 'no receipt'));
     assert.strictEqual(fs.readFileSync(path.join(root, 'output-transport-kind.txt'), 'utf8'), 'pipe');
     assert.strictEqual(JSON.parse(fs.readFileSync(request.receipt_path, 'utf8')).status, 'SUCCEEDED');
   });
