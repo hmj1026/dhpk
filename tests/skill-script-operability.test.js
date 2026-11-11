@@ -276,6 +276,8 @@ for (const [key, row] of Object.entries(CLASSIFICATION)) {
         const helperStat = fs.lstatSync(helper);
         assert.ok(helperStat.isFile() && !helperStat.isSymbolicLink(), 'packaged helper must be a physical file');
         assert.ok((helperStat.mode & 0o111) !== 0, 'packaged helper must be executable');
+        const bundleStat = fs.lstatSync(path.join(packagedSkill, 'scripts', 'lib', 'dhpk-installer.cjs'));
+        assert.ok(bundleStat.isFile() && !bundleStat.isSymbolicLink(), 'packaged JS installer bundle must be a physical file');
         const result = spawnSync('bash', [path.join(packagedSkill, entry), ...(row.args || ['--help'])], {
           cwd: projectRoot,
           encoding: 'utf8',
@@ -304,5 +306,55 @@ for (const [key, row] of Object.entries(CLASSIFICATION)) {
     assert.strictEqual(evidence.hostStatus, 'NOT_RUN');
   });
 }
+
+// The packaged Skill carries the Codex project installer as shell options plus
+// one generated JS bundle. It needs node and nothing else a shell does not
+// bring: no python3, no scripts/lib/ beside it, no checkout.
+test('packaged harness-setup installs a Codex project with only bash, dirname, sed, find and node on PATH', () => {
+  const { fakePlugin } = require('./_lib/shared-projection-plugin');
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk packaged harness no-python '));
+  const artifact = fakePlugin();
+  try {
+    const packageRoot = path.join(sandbox, 'package');
+    const projectRoot = path.join(sandbox, 'consumer project');
+    const bin = path.join(sandbox, 'bin');
+    fs.mkdirSync(projectRoot);
+    fs.mkdirSync(path.join(projectRoot, '.git'));
+    fs.mkdirSync(bin);
+    MARKETPLACE_GENERATOR.materialize({ root: ROOT, out: packageRoot });
+    const adapter = path.join(packageRoot, 'skills', 'harness-setup', 'scripts', 'install-codex-project.sh');
+    for (const tool of ['bash', 'dirname', 'sed', 'find', 'node']) {
+      const found = tool === 'node' ? process.execPath : spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
+      assert.ok(found, `${tool} must exist on the test host`);
+      fs.symlinkSync(found, path.join(bin, tool));
+    }
+    const env = { PATH: bin, HOME: sandbox };
+    const options = { cwd: projectRoot, env, encoding: 'utf8', timeout: 60000 };
+
+    // A live lock held by another installer is refused by the project lock of the JS installer.
+    fs.mkdirSync(path.join(projectRoot, '.agents'));
+    const lock = path.join(projectRoot, '.agents', '.dhpk-install.lock');
+    fs.writeFileSync(lock, `${JSON.stringify({ pid: process.pid, host: 'cursor', start: '2026-11-10T00:00:00.000Z' })}\n`);
+    const held = spawnSync('bash', [adapter, '--source-artifact', artifact, '--copy'], options);
+    assert.notStrictEqual(held.status, 0, held.stdout);
+    assert.match(held.stderr, /already reconciling this project: \.agents\/\.dhpk-install\.lock \(held by the cursor installer/);
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, '.codex')), false, 'a refused run must not write');
+    fs.rmSync(lock);
+
+    const installed = spawnSync('bash', [adapter, '--source-artifact', artifact, '--copy'], options);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    assert.strictEqual(JSON.parse(installed.stdout.trim().split('\n').pop()).status, 'PASS');
+    assert.ok(fs.existsSync(path.join(projectRoot, '.codex', '.dhpk-installed.json')));
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), 'the Shared Project Projection is published');
+    // Projection Journal semantics: committed, so neither the journal nor the lock remain, and no Python Host journal was ever written.
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-projection-journal.json')), false);
+    assert.strictEqual(fs.existsSync(lock), false);
+    assert.deepStrictEqual(fs.readdirSync(path.join(projectRoot, '.codex')).filter((name) => name.startsWith('.dhpk-transaction-')), []);
+    assert.ok(!`${installed.stdout}${installed.stderr}`.includes(ROOT), 'must not leak the ambient checkout path');
+  } finally {
+    fs.rmSync(sandbox, { recursive: true, force: true });
+    fs.rmSync(artifact, { recursive: true, force: true });
+  }
+});
 
 run('skill-script-operability');

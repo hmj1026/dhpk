@@ -34,7 +34,7 @@ const INSTALLER_SUITES = [
   'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js',
   'install-codex-adapter-journal.test.js',
   'install-cursor-plan.test.js', 'install-cursor-adapter-journal.test.js',
-  'installer-bundle.test.js', 'install-code-data-root.test.js', 'install-shell-entry-parity.test.js', 'legacy-journal-fixtures.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js',
+  'installer-bundle.test.js', 'install-code-data-root.test.js', 'install-shell-entry-parity.test.js', 'install-shell-entry-thin.test.js', 'legacy-journal-fixtures.test.js', 'install-prompts.test.js', 'macos-installer-darwin.test.js',
   'macos-installer-files.test.js', 'native-shared-skill-install.test.js',
 ];
 const AVAILABLE_SUITES = [SMOKE_SUITE, ...RESOURCE_SUITES, 'utils.test.js'];
