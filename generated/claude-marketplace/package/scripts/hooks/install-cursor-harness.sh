@@ -18,6 +18,11 @@
 #
 # Native Cursor hooks.json mapping is out of v1. This installer never writes
 # .cursor/hooks.json. The receipt is schema-v3 at .cursor/.dhpk-installed.json.
+#
+# In a checkout this runs the JS installer (scripts/lib/install-adapters)
+# under the shared Projection Journal and project lock, hash-cache drift
+# warnings included. The Python post-processor below serves only the python
+# engine and a packaged copy without the adapter, until stage 5 retires them.
 
 set -euo pipefail
 
@@ -37,6 +42,10 @@ export DHPK_DEST_REL="${DHPK_DEST_REL:-.cursor}"
 export DHPK_SOURCE_KINDS="${DHPK_SOURCE_KINDS:-skills,agents,rules,commands}"
 export DHPK_INSTALLER_NAME="${DHPK_INSTALLER_NAME:-install-cursor-harness}"
 SHARED="$ROOT/scripts/hooks/install-codex-skills.sh"
+
+if [ "${DHPK_INSTALLER_ENGINE:-js}" = "js" ] && [ -f "$ROOT/scripts/lib/install-adapters/codex-cli.js" ]; then
+    exec bash "$SHARED" "$@"
+fi
 
 plan=0
 json=0
