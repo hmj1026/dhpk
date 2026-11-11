@@ -1376,6 +1376,27 @@ const crypto = require('node:crypto');
     }
   });
 
+  test('library entry points refuse a held publication request', () => {
+    const sourceRoot = fixture();
+    const projectRoot = tmpDir('dhpk-install-native-libhold-');
+    try {
+      const { installNativeSharedSkills, uninstallNativeSharedSkills } = require('../scripts/lib/native-shared-skill-install');
+      const hold = { transactionId: 'run-1', host: 'codex' };
+      assert.throws(
+        () => installNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex', selectedStableIds: ['sample'], declaredSelection: true, hold }),
+        (error) => error.projectionCode === 'INVALID_HOLD' && /no longer produced/.test(error.message),
+      );
+      assert.throws(
+        () => uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'codex', hold }),
+        (error) => error.projectionCode === 'INVALID_HOLD',
+      );
+      assert.deepStrictEqual(fs.readdirSync(projectRoot), [], 'a refused request must not write');
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('CLI no longer accepts --hold', () => {
     const sourceRoot = fixture();
     const projectRoot = tmpDir('dhpk-install-native-nohold-');

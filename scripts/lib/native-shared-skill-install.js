@@ -77,8 +77,10 @@ function installNativeSharedSkills({
   consumerEvidence = null,
   consumerEvidencePath = null,
   env = process.env,
+  hold = null,
   journal = null,
 } = {}) {
+  refuseHold(hold);
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
     throw new Error(`unsupported native shared-skill Host: ${host}`);
@@ -152,6 +154,15 @@ function installNativeSharedSkills({
   });
 }
 
+// A caller written for 0.72/0.73 may still ask for a held publication. It is refused
+// before anything is read or written, as the Publisher refuses it.
+function refuseHold(hold) {
+  if (hold === null || hold === undefined) return;
+  const error = new Error('a held project projection publication is no longer produced; the installer records into its Projection Journal instead');
+  error.projectionCode = 'INVALID_HOLD';
+  throw error;
+}
+
 function throwIfUninstallFailed(result) {
   if (result && result.ok === false) {
     const detail = result.error && result.error.message
@@ -216,8 +227,10 @@ function uninstallNativeSharedSkills({
   projectRoot,
   inventory,
   host = 'cursor',
+  hold = null,
   journal = null,
 } = {}) {
+  refuseHold(hold);
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
     throw new Error(`unsupported native shared-skill Host: ${host}`);
