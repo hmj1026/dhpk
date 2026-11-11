@@ -157,6 +157,42 @@ test('testBuild_ignoresRequireTextInCommentsAndStrings', () => {
   }
 });
 
+test('testBuild_closureLeavesOutThePackagingPipeline', () => {
+  const ids = collectClosure(REPO_ROOT, ENTRY).map((record) => record.id);
+  for (const packaging of ["agent-plugin-package", "marketplace-skill-content", "installer-bundle", "platform-provenance", "distribution-inventory"]) {
+    assert.ok(!ids.includes(`scripts/lib/${packaging}.js`), `${packaging} must not be part of the installer`);
+  }
+});
+
+// The installer runs one program of its own at most: the Codex provider probe
+// (codex.js) and the Python-compatible helpers it uses (python-compat.js).
+test('testBuild_onlyTheProviderProbeModulesImportChildProcess', () => {
+  const importers = collectClosure(REPO_ROOT, ENTRY)
+    .filter((record) => /require\(\s*['"](?:node:)?child_process['"]\s*\)/.test(record.source))
+    .map((record) => record.id);
+  assert.deepStrictEqual(importers, ['scripts/lib/install-adapters/codex.js', 'scripts/lib/install-adapters/python-compat.js']);
+});
+
+for (const [name, spec] of [['a sibling file', './sneaky'], ['a package', 'left-pad'], ['an absolute path', '/etc/hosts']]) {
+  test(`testBundle_runtimeFallback_refuses${name.replace(/\W+/g, '')}`, () => {
+    const root = miniRoot({ 'scripts/entry.js': "'use strict';\nrequire('node:fs');\nprocess.stdout.write('reached\\n');\n" });
+    const dir = tempDir('dhpk-bundle-fallback-');
+    try {
+      // Edit the built bundle after the fact: the build itself would refuse this.
+      const bundle = buildInstallerBundle({ root, entry: 'scripts/entry.js' }).replace("require('node:fs')", `require(${JSON.stringify(spec)})`);
+      fs.writeFileSync(path.join(dir, 'bundle.cjs'), bundle);
+      fs.writeFileSync(path.join(dir, 'sneaky.js'), "process.stdout.write('sneaky ran\\n');\n");
+      const result = spawnSync(process.execPath, [path.join(dir, 'bundle.cjs')], { cwd: dir, encoding: 'utf8' });
+      assert.notStrictEqual(result.status, 0);
+      assert.doesNotMatch(result.stdout, /sneaky ran|reached/);
+      assert.match(result.stderr, /neither bundled nor a Node built-in/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
+
 test('testGenerator_check_passesOnTheRepository', () => {
   const result = spawnSync(process.execPath, [path.join(REPO_ROOT, 'scripts', 'ci', 'gen-installer-bundle.js'), '--check'], { encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
