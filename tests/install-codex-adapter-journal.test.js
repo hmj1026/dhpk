@@ -374,7 +374,8 @@ function requestedProjectionRecovery(publisherResult) {
     const journal = JSON.parse(fs.readFileSync(journalFile, 'utf8'));
     journal.shared_projection.phase = 'requested';
     fs.writeFileSync(journalFile, JSON.stringify(journal));
-    return runIn(plugin, project, { recover: true, installerRoot });
+    const outcome = runIn(plugin, project, { recover: true, installerRoot });
+    return { ...outcome, hostJournalPhase: JSON.parse(fs.readFileSync(journalFile, 'utf8')).phase };
   } finally {
     cleanup(plugin, project, installerRoot);
   }
@@ -383,7 +384,9 @@ function requestedProjectionRecovery(publisherResult) {
 test('testPreviousReleaseRequestedProjection_publisherCodeTransactionMismatch_isTolerated', () => {
   const outcome = requestedProjectionRecovery({ ok: false, state: 'BLOCKED', code: 'TRANSACTION_MISMATCH', error: { code: 'TRANSACTION_MISMATCH', message: 'not held by that transaction' } });
   // The Host journal is undone; what remains is the publisher's own journal,
-  // which --recover then reports separately.
+  // which --recover then reports separately, so the run still exits 2.
+  assert.strictEqual(outcome.hostJournalPhase, 'rolled_back', `${outcome.stdout}\n${outcome.stderr}`);
+  assert.strictEqual(outcome.code, 2, `${outcome.stdout}\n${outcome.stderr}`);
   assert.doesNotMatch(outcome.stderr, /cannot undo its shared projection step/);
   assert.doesNotMatch(outcome.stderr, /shared projection abort/);
 });

@@ -708,9 +708,18 @@ automatically.
   .agents/.dhpk-install.lock (held by the <host> installer, pid N, ...)` and
   changes nothing; retry once that run ends. If that run died, rerun the
   installer to take over and recover its transaction, or run it with
-  `--recover`. A `TRANSACTION_HELD` message can now appear only for a
-  transaction an older release left behind (0.71 or 0.72); `--recover` resolves
-  it.
+  `--recover`. A run of one Host may therefore roll back or finish the other
+  Host's interrupted transaction; it prints `recovered interrupted <host>
+  transaction ...: rolled back|finished`, and after a rollback you rerun that
+  Host's installer to apply it.
+- This applies to the installers in a checkout or plugin cache. The packaged
+  `harness-setup` copy still runs the embedded Python, takes no project lock,
+  and may still produce `TRANSACTION_HELD` (and, from an older release, a
+  transaction `--recover` of the checkout installer resolves) until stage 5.
+  If it refuses because of a JS lock or journal, recover with
+  `scripts/hooks/install-codex-skills.sh --recover` or
+  `scripts/hooks/install-cursor-harness.sh --recover` from a checkout or plugin
+  cache.
 - `did not finish rolling back` lists the remaining paths and the backup
   directory. Fix the reported cause, then run the same installer with
   `--recover`. It replays the rollback and stops without installing.

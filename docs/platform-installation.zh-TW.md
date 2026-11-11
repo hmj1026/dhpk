@@ -646,9 +646,16 @@ installer 以自己的 run id hold 住 shared projection 步驟，並在單一�
   installer 以 `2` 結束並顯示 `already reconciling this project:
   .agents/.dhpk-install.lock (held by the <host> installer, pid N, ...)`，
   且不更動任何檔案；待該執行結束後再重試。若該執行已死亡，重新執行 installer
-  即會接手並復原其 transaction，或以 `--recover` 執行。`TRANSACTION_HELD`
-  訊息現在只可能來自較舊版本（0.71 或 0.72）留下的 transaction；以 `--recover`
-  即可處理。
+  即會接手並復原其 transaction，或以 `--recover` 執行。因此某個 Host 的執行可能
+  撤銷或完成另一個 Host 中斷的 transaction；它會印出 `recovered interrupted
+  <host> transaction ...: rolled back|finished`，撤銷後需重新執行該 Host 的
+  installer 才會套用。
+- 以上適用於 checkout 或 plugin cache 中的 installer。打包的 `harness-setup`
+  副本在 stage 5 之前仍執行內嵌 Python、不取得 project lock，仍可能產生
+  `TRANSACTION_HELD`（以及舊版留下、需用 checkout installer `--recover` 處理的
+  transaction）。若它因 JS lock 或 journal 而拒絕，請從 checkout 或 plugin cache
+  執行 `scripts/hooks/install-codex-skills.sh --recover` 或
+  `scripts/hooks/install-cursor-harness.sh --recover`。
 - `did not finish rolling back` 會列出剩餘路徑與備份目錄。排除回報的原因後，
   以 `--recover` 執行同一個 installer；它重播 rollback 後即停止，不會安裝。
 - `dhpk-install --recover [--project-root DIR] [--json]` 會撤銷 installer journal

@@ -652,8 +652,15 @@ test('a leftover JS Projection Journal or install lock blocks the Cursor install
       const blocked = runInstaller(project, ['--copy'], plugin, { DHPK_INSTALLER_ENGINE: 'python' });
       assert.strictEqual(blocked.status, 2, `${blocked.stdout}\n${blocked.stderr}`);
       assert.match(blocked.stderr, /a JS install holds or left the project lock or Projection Journal/);
+      assert.match(blocked.stderr, /install-cursor-harness\.sh from a dhpk checkout or plugin cache \(they run the JS installer\)/);
+      assert.doesNotMatch(blocked.stderr, /cannot recover a JS journal/);
       assert.deepStrictEqual(snapshotTree(project), before);
       assert.strictEqual(fs.existsSync(path.join(project, '.cursor')), false);
+      // --recover on this Python copy cannot help: it says so instead of sending the user in a loop.
+      const recover = runInstaller(project, ['--recover'], plugin, { DHPK_INSTALLER_ENGINE: 'python' });
+      assert.strictEqual(recover.status, 2, `${recover.stdout}\n${recover.stderr}`);
+      assert.match(recover.stderr, /this copy of the installer runs the Python engine and cannot recover a JS journal, even with --recover/);
+      assert.deepStrictEqual(snapshotTree(project), before);
     } finally {
       fs.rmSync(project, { recursive: true, force: true });
       fs.rmSync(plugin, { recursive: true, force: true });

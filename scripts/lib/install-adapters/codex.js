@@ -143,6 +143,7 @@ function createInstaller(env, io) {
   const SOURCE_KINDS = Object.freeze(String(env.DHPK_SOURCE_KINDS || 'skills,agents').split(',').map((kind) => kind.trim()).filter(Boolean));
   const MANAGED_KINDS = Object.freeze([...SOURCE_KINDS, 'supporting_assets']);
   const INSTALLER_NAME = env.DHPK_INSTALLER_NAME || 'install-codex-skills';
+  const HOSTS_INSTALLER = { codex: 'install-codex-skills', cursor: 'install-cursor-harness' };
   const INSTALLER_SCRIPT = `scripts/hooks/${INSTALLER_NAME}.sh`;
   const CODEX_SRC = path.join(PLUGIN_ROOT, SRC_REL);
   const CODEX_ROOT = path.join(PROJECT_ROOT, DEST_REL);
@@ -3013,12 +3014,19 @@ function createInstaller(env, io) {
         if (document.projection !== undefined) participant().onRolledBack();
       },
     };
+    const finishes = document.phase === 'published';
     try {
       journalCore.recoverJournal(document, options);
     } catch (error) {
       if (journalCore.isSimulatedCrash(error)) throw error;
       markRollbackIncomplete(document, error);
       throw new ValueError(`interrupted transaction ${pyStr(document.run)} requires manual recovery: ${errorText(error)}`);
+    }
+    // Hosts share one journal, so this run may have settled another Host's
+    // transaction. Say so; a same-Host recovery stays as quiet as before.
+    if (isStr(document.host) && document.host !== HARNESS_KIND) {
+      const installer = HOSTS_INSTALLER[document.host] || `the ${document.host} installer`;
+      print(`[install-codex-skills] recovered interrupted ${document.host} transaction ${pyStr(document.run)}: ${finishes ? `finished; its changes are in place` : `rolled back; re-run ${installer} to apply it`}`);
     }
   }
 

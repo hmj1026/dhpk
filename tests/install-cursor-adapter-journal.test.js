@@ -161,6 +161,7 @@ test('testCursorInstallLock_crashedCodexRun_blocksWhileAliveThenCursorTakesOverA
     const takeover = runIn(plugin, project);
     assert.strictEqual(takeover.code, 0, `${takeover.stdout}\n${takeover.stderr}`);
     assert.match(takeover.stdout, /taking over the install lock of interrupted transaction \.agents\/\.dhpk-install\.lock \(held by the codex installer, pid \d+/);
+    assert.match(takeover.stdout, /recovered interrupted codex transaction \S+: rolled back; re-run install-codex-skills to apply it/);
     assert.strictEqual(fs.existsSync(path.join(project, LOCK)), false);
     assert.strictEqual(fs.existsSync(path.join(project, JOURNAL)), false);
     assert.strictEqual(fs.existsSync(path.join(project, '.codex')), false, 'the rolled-back Codex install must leave nothing');
@@ -168,6 +169,75 @@ test('testCursorInstallLock_crashedCodexRun_blocksWhileAliveThenCursorTakesOverA
     assert.deepStrictEqual(snapshot(project, plugin), snapshot(reference, plugin));
   } finally {
     cleanup(plugin, project, reference);
+  }
+});
+
+// Crashes `runner` at the first step after which the journal has reached its
+// commit point (phase `published`), and returns the earliest such step.
+function crashAfterCommitPoint(runner, plugin, project) {
+  for (let step = 1; step < 400; step += 1) {
+    const dir = tempDir('dhpk-cursor-commit-probe-');
+    try {
+      fs.mkdirSync(path.join(dir, '.git'));
+      crash(runner, plugin, dir, step);
+      const journalFile = path.join(dir, JOURNAL);
+      if (!fs.existsSync(journalFile)) continue;
+      if (JSON.parse(fs.readFileSync(journalFile, 'utf8')).phase !== 'published') continue;
+      crash(runner, plugin, project, step);
+      return step;
+    } finally {
+      cleanup(dir);
+    }
+  }
+  throw new Error('no step reaches the commit point');
+}
+
+// Whichever Host takes over says what became of the other Host's transaction.
+test('testCrossHostTakeover_codexCrashedAfterTheCommitPoint_cursorFinishesItAndSaysSo', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-cursor-finish-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    crashAfterCommitPoint(runCodex, plugin, project);
+    markHolderDead(project);
+    const takeover = runIn(plugin, project);
+    assert.strictEqual(takeover.code, 0, `${takeover.stdout}\n${takeover.stderr}`);
+    assert.match(takeover.stdout, /recovered interrupted codex transaction \S+: finished; its changes are in place/);
+    assert.ok(fs.existsSync(path.join(project, '.codex', '.dhpk-installed.json')), 'the finished Codex install stays');
+    assert.ok(fs.existsSync(path.join(project, '.cursor', '.dhpk-installed.json')), 'and the Cursor install is added');
+  } finally {
+    cleanup(plugin, project);
+  }
+});
+
+test('testCrossHostTakeover_cursorCrashedBeforeTheCommitPoint_codexRollsItBackAndSaysSo', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-cursor-reverse-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    crash(runIn, plugin, project);
+    markHolderDead(project);
+    const takeover = runCodex(plugin, project);
+    assert.strictEqual(takeover.code, 0, `${takeover.stdout}\n${takeover.stderr}`);
+    assert.match(takeover.stdout, /recovered interrupted cursor transaction \S+: rolled back; re-run install-cursor-harness to apply it/);
+    assert.strictEqual(fs.existsSync(path.join(project, '.cursor')), false);
+  } finally {
+    cleanup(plugin, project);
+  }
+});
+
+test('testSameHostTakeover_cursorAfterCursor_staysQuiet', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-cursor-same-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    crash(runIn, plugin, project);
+    markHolderDead(project);
+    const takeover = runIn(plugin, project);
+    assert.strictEqual(takeover.code, 0, `${takeover.stdout}\n${takeover.stderr}`);
+    assert.doesNotMatch(takeover.stdout, /recovered interrupted/);
+  } finally {
+    cleanup(plugin, project);
   }
 });
 
