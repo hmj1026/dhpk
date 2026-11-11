@@ -236,7 +236,7 @@ writer spec. `DECISION_FOR_USER` is `HUMAN_REQUIRED`; `BLOCKED` stops.
 
 ## Dispatch-time role decision
 
-**Dispatch-time decision, operational steps.** The rule is in `rules/execution-policy.md` §Implementation dispatch; the architect vs deep-reasoner distinction and tiers are in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md#architect-vs-deep-reasoner`.
+**Dispatch-time decision, operational steps.** The rule is in `rules/execution-policy.md` §Implementation dispatch; the architect vs deep-reasoner distinction and tiers are in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md` (§Architect vs deep-reasoner).
 
 1. Name the question type, then the role, before writing the dispatch.
 2. Omit `model` and `effort` on the call; add one only when the problem needs a raise, and record the reason in the handoff.
