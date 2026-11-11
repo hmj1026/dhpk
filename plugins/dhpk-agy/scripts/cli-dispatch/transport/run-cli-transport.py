@@ -805,9 +805,20 @@ def read_private_request(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--request", required=True)
+    # The shell adapters exec this runner, so their EXIT trap never fires. With
+    # this flag the runner removes the (possibly prompt-bearing) request file as
+    # soon as it has been read, on every path including a rejected request.
+    parser.add_argument("--consume-request", action="store_true")
     args = parser.parse_args()
     try:
-        request = read_private_request(args.request)
+        try:
+            request = read_private_request(args.request)
+        finally:
+            if args.consume_request:
+                try:
+                    os.unlink(args.request)
+                except OSError:
+                    pass
     except Blocked as error:
         print("dhpk-cli-transport: BLOCKED: %s" % error, file=sys.stderr)
         return 64
