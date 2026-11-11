@@ -239,7 +239,7 @@ writer spec. `DECISION_FOR_USER` is `HUMAN_REQUIRED`; `BLOCKED` stops.
 **Dispatch-time decision, operational steps.** The rule is in `rules/execution-policy.md` §Implementation dispatch; the architect vs deep-reasoner distinction and tiers are in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md` (§Architect vs deep-reasoner).
 
 1. Name the question type, then the role, before writing the dispatch.
-2. Omit `model` and `effort` on the call; add one only when the problem needs a raise, and record the reason in the handoff.
+2. For a dhpk role with a Role Default in its frontmatter, omit `model` and `effort` on the call; add one only when the problem needs a raise, and record the reason in the handoff. Built-in roles (`Explore`, `general-purpose`) have no frontmatter, so pass the parameters their model-economics tier-map row requires.
 3. Count automatic raises for the session; before the 3rd, ask the user instead of raising.
 4. Do not re-consult a role for a decision it already returned; resume or sanity-check that result (next section).
 

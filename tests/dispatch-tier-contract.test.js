@@ -122,4 +122,16 @@ test('flow-drive and flow-guide SKILL.md stay free of dispatch-time decision rul
   }
 });
 
+test('dispatch-time decision texts carve out built-in roles from the no-parameter default', () => {
+  const policy = read('rules/execution-policy.md');
+  const policySentence = policy.slice(policy.indexOf('**Dispatch-time decision'));
+  assert.match(policySentence.split('\n')[0], /declares a Role Default in its frontmatter[^.]*no call parameters/);
+  assert.match(policySentence.split('\n')[0], /Built-in roles[^.]*`Explore`[^.]*`general-purpose`[^.]*tier-map row/);
+  const ref = read('skills/flow-guide/references/implementation-dispatch.md');
+  const step = ref.split('\n').find((line) => line.startsWith('2. ') && line.includes('omit `model` and `effort`'));
+  assert.ok(step, 'step 2 missing');
+  assert.match(step, /Role Default in its frontmatter/);
+  assert.match(step, /Built-in roles[^.]*frontmatter[^.]*tier-map row/);
+});
+
 run('dispatch-tier-contract');
