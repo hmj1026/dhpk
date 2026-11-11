@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { leakPrefix, scanLeaks, formatLeakReport } = require('./_lib/tmpdir-leaks');
+const { leakPrefix, scanLeaks, formatLeakReport } = require('./run-all');
 const { makeTempDir } = require('./_lib/temp-dir');
 
 function scratch() {
