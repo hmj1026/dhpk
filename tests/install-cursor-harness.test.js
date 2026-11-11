@@ -163,29 +163,6 @@ function dependencyFixturePlugin() {
   return plugin;
 }
 
-function descriptorPseudoPathBlocker() {
-  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-fd-path-shim-')));
-  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
-    'import os',
-    'import re',
-    '',
-    '_dhpk_original_isdir = os.path.isdir',
-    '',
-    'def _dhpk_isdir(candidate):',
-    '    try:',
-    '        rendered = os.fspath(candidate)',
-    '    except TypeError:',
-    '        return _dhpk_original_isdir(candidate)',
-    "    if isinstance(rendered, str) and re.fullmatch(r'/(?:proc/self/fd|dev/fd)/[0-9]+', rendered):",
-    '        return False',
-    '    return _dhpk_original_isdir(candidate)',
-    '',
-    'os.path.isdir = _dhpk_isdir',
-    '',
-  ].join('\n'));
-  return shim;
-}
-
 function runInstaller(project, args, pluginRoot, extraEnv, timeoutMs) {
   return spawnSync('bash', [HOOK, ...args], {
     cwd: project,
@@ -390,14 +367,12 @@ test('copy mode materializes native assets and delegates skills via native-link 
   }
 });
 
-test('copy and symlink installs do not require descriptor pseudo-path child traversal', () => {
+test('copy and symlink installs both project the Cursor skill through the shared native link', () => {
   for (const args of [['--copy', '--force'], ['--force']]) {
     const scratch = projectRoot();
     const plugin = fakePlugin();
-    const shim = descriptorPseudoPathBlocker();
     try {
-      const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
-      const result = runInstaller(scratch, args, plugin, { PYTHONPATH: pythonPath });
+      const result = runInstaller(scratch, args, plugin);
       assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
       const cursor = path.join(scratch, '.cursor');
       const receipt = JSON.parse(fs.readFileSync(path.join(cursor, '.dhpk-installed.json'), 'utf8'));
@@ -409,7 +384,6 @@ test('copy and symlink installs do not require descriptor pseudo-path child trav
     } finally {
       fs.rmSync(scratch, { recursive: true, force: true });
       fs.rmSync(plugin, { recursive: true, force: true });
-      fs.rmSync(shim, { recursive: true, force: true });
     }
   }
 });
@@ -637,34 +611,6 @@ test('--uninstall removes unchanged owned entries and leaves unowned files and h
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
-  }
-});
-
-// Python-only mechanics (the Python engine's refusal to run beside a JS install lock or Projection Journal); JS coverage: tests/install-cursor-adapter-journal.test.js. Retired with the embedded Python in stage 5.
-test('a leftover JS Projection Journal or install lock blocks the Cursor installer without changes', () => {
-  for (const leftover of ['.dhpk-projection-journal.json', '.dhpk-install.lock']) {
-    const project = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-jsjournal-')));
-    const plugin = fakePlugin();
-    try {
-      fs.mkdirSync(path.join(project, '.git'));
-      write(path.join(project, '.agents', leftover), '{"pid":1,"host":"codex"}\n');
-      const before = snapshotTree(project);
-      const blocked = runInstaller(project, ['--copy'], plugin, { DHPK_INSTALLER_ENGINE: 'python' });
-      assert.strictEqual(blocked.status, 2, `${blocked.stdout}\n${blocked.stderr}`);
-      assert.match(blocked.stderr, /a JS install holds or left the project lock or Projection Journal/);
-      assert.match(blocked.stderr, /install-cursor-harness\.sh from a dhpk checkout or plugin cache \(they run the JS installer\)/);
-      assert.doesNotMatch(blocked.stderr, /cannot recover a JS journal/);
-      assert.deepStrictEqual(snapshotTree(project), before);
-      assert.strictEqual(fs.existsSync(path.join(project, '.cursor')), false);
-      // --recover on this Python copy cannot help: it says so instead of sending the user in a loop.
-      const recover = runInstaller(project, ['--recover'], plugin, { DHPK_INSTALLER_ENGINE: 'python' });
-      assert.strictEqual(recover.status, 2, `${recover.stdout}\n${recover.stderr}`);
-      assert.match(recover.stderr, /this copy of the installer runs the Python engine and cannot recover a JS journal, even with --recover/);
-      assert.deepStrictEqual(snapshotTree(project), before);
-    } finally {
-      fs.rmSync(project, { recursive: true, force: true });
-      fs.rmSync(plugin, { recursive: true, force: true });
-    }
   }
 });
 

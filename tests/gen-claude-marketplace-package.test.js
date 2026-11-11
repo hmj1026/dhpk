@@ -14,6 +14,7 @@ const ROOT = path.join(__dirname, '..');
 const MARKETPLACE = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'marketplace.json'), 'utf8'));
 const ENTRY = MARKETPLACE.plugins.find((plugin) => plugin.name === 'dhpk');
 const GENERATOR = require('../scripts/ci/gen-claude-marketplace-package');
+const { buildInstallerBundle } = require('../scripts/lib/installer-bundle');
 const INSTALLER = path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh');
 const ADAPTER = path.join(ROOT, 'skills', 'harness-setup', 'scripts', 'install-codex-project.sh');
 
@@ -57,6 +58,11 @@ function makeHarnessPackageRoot(parent) {
   fs.mkdirSync(path.join(root, 'scripts', 'hooks'), { recursive: true });
   fs.copyFileSync(INSTALLER, path.join(root, 'scripts', 'hooks', 'install-codex-skills.sh'));
   fs.chmodSync(path.join(root, 'scripts', 'hooks', 'install-codex-skills.sh'), 0o755);
+  // The entry the packaged installer bundle is built from, with one helper module.
+  fs.mkdirSync(path.join(root, 'scripts', 'lib', 'install-adapters'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'scripts', 'lib', 'install-adapters', 'codex-cli.js'),
+    "'use strict';\nconst { greeting } = require('../fake-helper');\nprocess.stdout.write(greeting + '\\n');\n");
+  fs.writeFileSync(path.join(root, 'scripts', 'lib', 'fake-helper.js'), "'use strict';\nmodule.exports = { greeting: 'packaged installer ran' };\n");
   fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify({
     schema: 'dhpk.distribution-inventory.v2',
     surfaces: ['claude-core'],
@@ -198,6 +204,19 @@ test('Claude packaging supplies a physical Codex installer that survives standal
     assert.ok(record, 'the package resource must be recorded in provenance');
     assert.strictEqual(record.sourcePath, 'scripts/hooks/install-codex-skills.sh');
 
+    // The JS installer the helper execs travels as one generated file built
+    // from the entry module's closure; provenance names the entry as its source.
+    const bundle = path.join(out, 'skills', 'harness-setup', 'scripts', 'lib', 'dhpk-installer.cjs');
+    const bundleStat = fs.lstatSync(bundle);
+    assert.ok(bundleStat.isFile() && !bundleStat.isSymbolicLink(), 'the generated installer bundle must be a physical file');
+    assert.strictEqual(fs.readFileSync(bundle, 'utf8'), buildInstallerBundle({ root }));
+    const bundleRecord = provenance.files.find((file) => file.destination === 'skills/harness-setup/scripts/lib/dhpk-installer.cjs');
+    assert.ok(bundleRecord, 'the generated bundle must be recorded in provenance');
+    assert.strictEqual(bundleRecord.sourcePath, 'scripts/lib/install-adapters/codex-cli.js');
+    assert.strictEqual(bundleRecord.kind, 'generated');
+    const standalone = spawnSync(process.execPath, [bundle], { cwd: temp, encoding: 'utf8', timeout: 10000 });
+    assert.strictEqual(standalone.stdout, 'packaged installer ran\n', standalone.stderr);
+
     const relocated = path.join(temp, 'relocated skill');
     fs.cpSync(path.join(out, 'skills', 'harness-setup'), relocated, { recursive: true });
     fs.rmSync(root, { recursive: true, force: true });
@@ -225,6 +244,26 @@ test('Claude package drift check detects a changed package-only Codex installer'
     const result = GENERATOR.check({ root, out });
     assert.strictEqual(result.ok, false);
     assert.match(result.error, /out of date/i);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('Claude package drift check detects a changed installer bundle', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-bundle-drift-'));
+  const { root } = makeHarnessPackageRoot(temp);
+  const out = path.join(temp, 'package');
+  try {
+    GENERATOR.materialize({ root, out });
+    assert.strictEqual(GENERATOR.check({ root, out }).ok, true);
+    fs.appendFileSync(path.join(out, 'skills', 'harness-setup', 'scripts', 'lib', 'dhpk-installer.cjs'), '\n// manual drift\n');
+    const result = GENERATOR.check({ root, out });
+    assert.strictEqual(result.ok, false);
+    assert.match(result.error, /out of date/i);
+    // A change to a bundled module changes the package, so the package goes stale.
+    GENERATOR.materialize({ root, out: path.join(temp, 'package-2') });
+    fs.writeFileSync(path.join(root, 'scripts', 'lib', 'fake-helper.js'), "'use strict';\nmodule.exports = { greeting: 'changed' };\n");
+    assert.strictEqual(GENERATOR.check({ root, out: path.join(temp, 'package-2') }).ok, false);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

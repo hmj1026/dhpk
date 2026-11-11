@@ -80,6 +80,7 @@ function installNativeSharedSkills({
   hold = null,
   journal = null,
 } = {}) {
+  refuseHold(hold);
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
     throw new Error(`unsupported native shared-skill Host: ${host}`);
@@ -149,9 +150,17 @@ function installNativeSharedSkills({
     hostSelections,
     preserveHostBindings,
     preserveBindingPaths,
-    hold,
     journal,
   });
+}
+
+// A caller written for 0.72/0.73 may still ask for a held publication. It is refused
+// before anything is read or written, as the Publisher refuses it.
+function refuseHold(hold) {
+  if (hold === null || hold === undefined) return;
+  const error = new Error('a held project projection publication is no longer produced; the installer records into its Projection Journal instead');
+  error.projectionCode = 'INVALID_HOLD';
+  throw error;
 }
 
 function throwIfUninstallFailed(result) {
@@ -221,6 +230,7 @@ function uninstallNativeSharedSkills({
   hold = null,
   journal = null,
 } = {}) {
+  refuseHold(hold);
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
     throw new Error(`unsupported native shared-skill Host: ${host}`);
@@ -228,7 +238,7 @@ function uninstallNativeSharedSkills({
   const previous = readPreviousReceipt(projectRoot);
   if (!previous) {
     if (receiptMissing(projectRoot)) {
-      return { ok: true, state: 'ABSENT', held: false, removedPaths: [], preservedPaths: [], projectRoot };
+      return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot };
     }
     // A present receipt that this lenient reader cannot use is not absence.
     // The strict projection uninstaller reports INVALID_RECEIPT and keeps files.
@@ -236,7 +246,6 @@ function uninstallNativeSharedSkills({
       sourceRoot,
       projectRoot,
       inventory: inventory || readInventory(sourceRoot),
-      hold,
       journal,
     });
   }
@@ -251,7 +260,6 @@ function uninstallNativeSharedSkills({
       sourceRoot,
       projectRoot,
       inventory: resolvedInventory,
-      hold,
       journal,
     }));
   }
@@ -297,7 +305,6 @@ function uninstallNativeSharedSkills({
       sourceRoot,
       projectRoot,
       inventory: resolvedInventory,
-      hold,
       journal,
     }));
   }
@@ -313,7 +320,6 @@ function uninstallNativeSharedSkills({
     hostSelections,
     preserveHostBindings,
     preserveBindingPaths,
-    hold,
     journal,
   });
   return { ok: true, ...published };

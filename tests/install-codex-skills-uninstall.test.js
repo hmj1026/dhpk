@@ -7,7 +7,6 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const fixtures = require('./_lib/native-installer-lifecycle-fixture');
 
@@ -19,10 +18,6 @@ const {
   projectRoot,
   copyDistributionInventory,
   completeTreeFingerprint,
-  descriptorPseudoPathBlocker,
-  materializationFailureShim,
-  parentReplacementGate,
-  waitForFile,
   rewriteAgentAsHistoricalManagedSymlink,
   materializeFixtureSkill,
   firstNativeManagedSkill,
@@ -77,35 +72,6 @@ test('a normal install repopulates the project after uninstall', () => {
     assert.strictEqual(restored.status, 0, `${restored.stdout}\n${restored.stderr}`);
     assert.ok(fs.readdirSync(path.join(scratch, '.codex', 'skills')).length > 0);
     assert.doesNotMatch(restored.stdout, /already up-to-date/);
-  } finally {
-    fs.rmSync(scratch, { recursive: true, force: true });
-  }
-});
-
-// Python-only mechanics (DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC fault hook); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
-test('complete uninstall restores the receipt when its quarantine fsync fails', () => {
-  const scratch = projectRoot();
-  try {
-    const first = runInstaller(scratch, ['--copy', '--force'], ROOT, { DHPK_INSTALLER_ENGINE: 'python' });
-    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
-    const failed = runInstaller(
-      scratch,
-      ['--uninstall', '--force'],
-      ROOT,
-      { DHPK_INSTALLER_ENGINE: 'python', DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC: '1' },
-    );
-    assert.notStrictEqual(failed.status, 0, `${failed.stdout}\n${failed.stderr}`);
-    assert.ok(fs.existsSync(receiptPath), 'failed uninstall must restore the live receipt');
-    const managed = JSON.parse(fs.readFileSync(receiptPath, 'utf8')).managed_entries.skills;
-    const restoredTarget = Object.values(managed)
-      .map((entry) => path.join(scratch, '.codex', entry.destination))
-      .find((candidate) => fs.existsSync(candidate));
-    assert.ok(restoredTarget, 'failed uninstall must restore at least one managed target');
-
-    const recovered = runInstaller(scratch, ['--uninstall', '--force'], ROOT, { DHPK_INSTALLER_ENGINE: 'python' });
-    assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
-    assert.ok(!fs.existsSync(receiptPath), 'recovered uninstall must remove the receipt');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -508,24 +474,5 @@ for (const scenario of ['traversal', 'metadata-mismatch', 'malformed', 'dangling
     }
   });
 }
-
-// Python-only mechanics (DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC fault hook); JS coverage: tests/install-codex-adapter-journal.test.js. Retired with the embedded Python in stage 5.
-test('missing-only receipt quarantine failure restores evidence and allows retry', () => {
-  const scratch = projectRoot();
-  try {
-    const receiptPath = writeOrphanReceipt(scratch, {
-      'agents/missing.toml': { destination: 'agents/missing.toml', orphaned: true },
-    });
-    const before = fs.readFileSync(receiptPath, 'utf8');
-    const failed = runInstaller(scratch, ['--uninstall', '--force'], ROOT, { DHPK_INSTALLER_ENGINE: 'python', DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC: '1' });
-    assert.notStrictEqual(failed.status, 0, failed.stdout + failed.stderr);
-    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), before);
-    const retry = runInstaller(scratch, ['--uninstall', '--force'], ROOT, { DHPK_INSTALLER_ENGINE: 'python' });
-    assert.strictEqual(retry.status, 0, retry.stdout + retry.stderr);
-    assert.ok(!fs.existsSync(receiptPath));
-  } finally {
-    fs.rmSync(scratch, { recursive: true, force: true });
-  }
-});
 
 run('install-codex-skills-uninstall');

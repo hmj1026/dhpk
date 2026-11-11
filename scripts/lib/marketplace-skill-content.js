@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+const { buildInstallerBundle } = require('./installer-bundle');
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 512 * 1024 * 1024;
@@ -17,6 +18,17 @@ const PACKAGING_ONLY_SKILL_RESOURCES = Object.freeze([
     skillId: 'harness-setup',
     source: 'scripts/hooks/install-codex-skills.sh',
     destination: 'scripts/lib/install-codex-skills.sh',
+  },
+  // The JS installer the helper above execs. A packaged Skill has no scripts/lib/
+  // beside it, so the closure of the installer entry is embedded in one generated
+  // file (scripts/lib/installer-bundle.js); `source` names the entry it is built
+  // from and is what provenance records.
+  {
+    skillId: 'harness-setup',
+    kind: 'generated',
+    source: 'scripts/lib/install-adapters/codex-cli.js',
+    destination: 'scripts/lib/dhpk-installer.cjs',
+    generate: (root) => buildInstallerBundle({ root }),
   },
 ]);
 
@@ -427,7 +439,7 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
   let directoryEntryCount = 0;
   let directoryBudgetExceeded = false;
 
-  const addFile = ({ sourceRelative, destination, owner, skill, kind, sourcePath }) => {
+  const addFile = ({ sourceRelative, destination, owner, skill, kind, sourcePath, generatedBytes }) => {
     if (allowedSourcePaths && !allowedSourcePaths.has(sourceRelative)) {
       errors.push(`${sourceRelative} is not included in the source file allowlist`);
       return;
@@ -464,6 +476,8 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
       errors.push(`${skill.id} source is unreadable: ${sourceRelative}: ${error.message}`);
       return;
     }
+    // A generated file is built from the checked source, not read from it.
+    if (generatedBytes) bytes = generatedBytes;
     if (!decodeUtf8(bytes, sourceRelative, errors)) return;
     const safeDestination = normalizeRelative(destination, `${skill.id} destination`, errors);
     if (!safeDestination) return;
@@ -661,13 +675,23 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
       errors.push(`packaging-only resource owner is not in inventory: ${resource.skillId}`);
       continue;
     }
+    let generatedBytes;
+    if (resource.kind === 'generated') {
+      try {
+        generatedBytes = Buffer.from(resource.generate(physicalRoot), 'utf8');
+      } catch (error) {
+        errors.push(`${resource.skillId} generated resource ${resource.destination} could not be built: ${error.message}`);
+        continue;
+      }
+    }
     addFile({
       sourceRelative: resource.source,
       sourcePath: resource.source,
       destination: path.posix.join('skills', skill.name || skill.id, resource.destination),
       owner: skill,
       skill,
-      kind: 'packaging-resource',
+      kind: resource.kind === 'generated' ? 'generated' : 'packaging-resource',
+      generatedBytes,
     });
   }
 

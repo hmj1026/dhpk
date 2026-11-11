@@ -14,6 +14,7 @@ const { spawnSync } = require('node:child_process');
 const { SimulatedCrash } = require('../scripts/lib/projection-journal');
 const { fakePlugin, write, skillBody, REPO } = require('./_lib/shared-projection-plugin');
 const { CODEX_STUB_BIN, runInstaller: runShellInstaller } = require('./_lib/install-codex-skills-fixtures');
+const { loadLegacyFixture, restoreTree } = require('./_lib/legacy-journal-fixtures');
 
 const {
   JOURNAL,
@@ -310,28 +311,73 @@ test('testRunInstaller_lockReleaseFailure_isReportedAndKeepsTheOutcome', () => {
   }
 });
 
+// A staged copy changed between the moment its fingerprint was taken and the
+// moment it is verified (a racing writer inside the project) must stop the
+// install before the stage is published (codex.js "install materialization changed").
+test('testStagedMaterialization_mutatedAfterItsFingerprint_failsBeforePublishing', () => {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-adapter-staged-mutation-');
+  const original = fs.openSync;
+  const opens = new Map();
+  let mutated = false;
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    // Opens of a staged file: fsync after the copy, the fingerprint, then the
+    // verification pass. Append to it just before the third.
+    fs.openSync = function hooked(target, ...rest) {
+      const file = String(target);
+      if (!mutated && /\.dhpk-stage-[^/]+\/[0-9a-f]{32}\/explorer\.toml$/.test(file)) {
+        const count = (opens.get(file) || 0) + 1;
+        opens.set(file, count);
+        if (count === 3) {
+          mutated = true;
+          fs.appendFileSync(file, '# changed after the fingerprint\n');
+        }
+      }
+      return original.call(this, target, ...rest);
+    };
+    const outcome = runIn(plugin, project);
+    fs.openSync = original;
+    assert.ok(mutated, 'the hook must have reached the verification pass');
+    assert.notStrictEqual(outcome.code, 0, outcome.stdout);
+    assert.match(outcome.stderr, /install materialization changed: agents\/explorer\.toml; run a fresh update/);
+    assert.strictEqual(fs.existsSync(path.join(project, '.codex', 'agents', 'explorer.toml')), false, 'nothing staged may be published');
+    assert.strictEqual(fs.existsSync(path.join(project, LOCK)), false, 'the lock is released');
+    assert.strictEqual(fs.existsSync(path.join(project, JOURNAL)), false, 'the journal is rolled back and retired');
+  } finally {
+    fs.openSync = original;
+    cleanup(plugin, project);
+  }
+});
+
 // Task 3.6: a Host journal the previous release's Python installer left in
-// flight, with its publication held, is undone by its own commit point.
+// flight, with its publication held, is undone by its own commit point. The
+// journal is a recording (tests/fixtures/legacy-journals/README.md): that
+// installer no longer exists to produce one.
+function restoreLegacyCodexProject(plugin, project, { withExpected = false } = {}) {
+  const recording = loadLegacyFixture('python-codex-host-journal');
+  restoreTree(recording.interrupted, project, { '@@PROJECT@@': project, '@@PLUGIN@@': plugin });
+  if (!withExpected) return { expected: null };
+  const expected = tempDir('dhpk-adapter-legacy-before-');
+  restoreTree(recording.before, expected, { '@@PROJECT@@': expected, '@@PLUGIN@@': plugin });
+  return { expected };
+}
+
 test('testPreviousReleaseHeldTransaction_isRolledBackByTheJsInstaller', () => {
   const plugin = fakePlugin();
   const project = tempDir('dhpk-adapter-legacy-');
+  let expected;
   try {
-    fs.mkdirSync(path.join(project, '.git'));
-    const first = runShellInstaller(project, ['--copy', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python' });
-    assert.strictEqual(first.status, 0, first.stderr);
-    const before = snapshot(project, plugin).filter((line) => !/\.dhpk-transaction-|\.dhpk-install\.lock/.test(line));
-    write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only v2'));
-    const killed = runShellInstaller(project, ['--copy', '--update', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python', DHPK_TEST_KILL_AT: 'after-shared-projection' });
-    assert.notStrictEqual(killed.status, 0);
-    assert.ok(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), 'the Python run must leave a held publication');
-    write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only'));
+    ({ expected } = restoreLegacyCodexProject(plugin, project, { withExpected: true }));
+    assert.ok(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), 'the recording must hold a publication');
     const recovered = runIn(plugin, project, { recover: true });
     assert.strictEqual(recovered.code, 0, `${recovered.stdout}\n${recovered.stderr}`);
     assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), false);
-    const state = snapshot(project, plugin).filter((line) => !/\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/.test(line));
-    assert.deepStrictEqual(state, before.filter((line) => !/\.dhpk-backups/.test(line)));
+    const volatile = /\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/;
+    const state = snapshot(project, plugin).filter((line) => !volatile.test(line));
+    assert.deepStrictEqual(state, snapshot(expected, plugin).filter((line) => !volatile.test(line)));
   } finally {
-    cleanup(plugin, project);
+    cleanup(plugin, project, ...(expected ? [expected] : []));
   }
 });
 
@@ -342,42 +388,31 @@ test('testPreviousReleaseHeldTransaction_isRolledBackByTheJsInstaller', () => {
 function requestedProjectionRecovery(publisherResult) {
   const plugin = fakePlugin();
   const project = tempDir('dhpk-adapter-requested-');
-  const installerRoot = tempDir('dhpk-adapter-requested-root-');
+  // A test-local probe: the installer calls the Publisher through its module
+  // object, so answering the held-projection calls here stands in for a
+  // Publisher that reports `publisherResult` for them.
+  const publisher = require('../scripts/lib/project-agent-projection-publisher');
+  const original = { abort: publisher.abortHeldProjection, commit: publisher.commitHeldProjection };
   try {
     fs.mkdirSync(path.join(project, '.git'));
-    // A test-local installer root: every script of the checkout, linked, except
-    // a publisher stub that answers the held-projection calls with `publisherResult`.
-    const scripts = path.join(installerRoot, 'scripts');
-    fs.mkdirSync(path.join(scripts, 'lib'), { recursive: true });
-    for (const name of fs.readdirSync(path.join(REPO, 'scripts'))) {
-      if (name !== 'lib') fs.symlinkSync(path.join(REPO, 'scripts', name), path.join(scripts, name));
-    }
-    for (const name of fs.readdirSync(path.join(REPO, 'scripts', 'lib'))) {
-      if (name !== 'project-agent-projection-publisher.js') fs.symlinkSync(path.join(REPO, 'scripts', 'lib', name), path.join(scripts, 'lib', name));
-    }
-    write(path.join(scripts, 'lib', 'project-agent-projection-publisher.js'), `module.exports = {
-  ...require(${JSON.stringify(path.join(REPO, 'scripts', 'lib', 'project-agent-projection-publisher.js'))}),
-  abortHeldProjection: () => (${JSON.stringify(publisherResult)}),
-  commitHeldProjection: () => (${JSON.stringify(publisherResult)}),
-};
-`);
-    assert.strictEqual(runShellInstaller(project, ['--copy', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python' }).status, 0);
-    write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only v2'));
-    const killed = runShellInstaller(project, ['--copy', '--update', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python', DHPK_TEST_KILL_AT: 'after-shared-projection' });
-    assert.notStrictEqual(killed.status, 0);
-    // The killed update's journal is the one whose shared projection is held.
+    restoreLegacyCodexProject(plugin, project);
+    // The recorded update's journal is the one whose shared projection is held.
     const journalFile = fs.readdirSync(path.join(project, '.codex'))
       .filter((name) => /^\.dhpk-transaction-.*\.json$/.test(name))
       .map((name) => path.join(project, '.codex', name))
       .find((file) => (JSON.parse(fs.readFileSync(file, 'utf8')).shared_projection || {}).phase === 'held');
-    assert.ok(journalFile, 'the killed Python run must leave a journal with a held shared projection');
+    assert.ok(journalFile, 'the recording must hold a shared projection in one Host journal');
     const journal = JSON.parse(fs.readFileSync(journalFile, 'utf8'));
     journal.shared_projection.phase = 'requested';
     fs.writeFileSync(journalFile, JSON.stringify(journal));
-    const outcome = runIn(plugin, project, { recover: true, installerRoot });
+    publisher.abortHeldProjection = () => publisherResult;
+    publisher.commitHeldProjection = () => publisherResult;
+    const outcome = runIn(plugin, project, { recover: true });
     return { ...outcome, hostJournalPhase: JSON.parse(fs.readFileSync(journalFile, 'utf8')).phase };
   } finally {
-    cleanup(plugin, project, installerRoot);
+    publisher.abortHeldProjection = original.abort;
+    publisher.commitHeldProjection = original.commit;
+    cleanup(plugin, project);
   }
 }
 

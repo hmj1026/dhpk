@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn, spawnSync } = require('node:child_process');
+const { spawnSync } = require('node:child_process');
 const { assert } = require('./tinytest');
 
 const ROOT = path.join(__dirname, '..', '..');
@@ -136,96 +136,6 @@ function completeTreeFingerprint(target) {
     return digest.digest('hex');
   };
   return hashNode(target, true);
-}
-
-function descriptorPseudoPathBlocker() {
-  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-fd-path-shim-')));
-  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
-    'import atexit',
-    'import os',
-    'import re',
-    '',
-    '_dhpk_original_isdir = os.path.isdir',
-    '',
-    'def _dhpk_isdir(candidate):',
-    '    try:',
-    '        rendered = os.fspath(candidate)',
-    '    except TypeError:',
-    '        return _dhpk_original_isdir(candidate)',
-    "    if isinstance(rendered, str) and re.fullmatch(r'/(?:proc/self/fd|dev/fd)/[0-9]+', rendered):",
-    '        return False',
-    '    return _dhpk_original_isdir(candidate)',
-    '',
-    'os.path.isdir = _dhpk_isdir',
-    '',
-    "_dhpk_cwd_audit = os.environ.get('DHPK_TEST_CWD_AUDIT_FILE')",
-    'if _dhpk_cwd_audit:',
-    "    atexit.register(lambda: open(_dhpk_cwd_audit, 'w', encoding='utf-8').write(os.getcwd()))",
-    '',
-  ].join('\n'));
-  return shim;
-}
-
-function materializationFailureShim() {
-  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-copy-failure-shim-')));
-  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
-    'import atexit',
-    'import os',
-    'import shutil',
-    '',
-    "_dhpk_cwd_audit = os.environ['DHPK_TEST_CWD_AUDIT_FILE']",
-    "atexit.register(lambda: open(_dhpk_cwd_audit, 'w', encoding='utf-8').write(os.getcwd()))",
-    '',
-    'def _dhpk_fail_materialization(*args, **kwargs):',
-    "    raise OSError('controlled materialization failure')",
-    '',
-    'shutil.copy2 = _dhpk_fail_materialization',
-    'shutil.copytree = _dhpk_fail_materialization',
-    '',
-  ].join('\n'));
-  return shim;
-}
-
-function parentReplacementGate() {
-  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-parent-gate-shim-')));
-  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
-    'import os',
-    'import time',
-    '',
-    '_dhpk_original_open = os.open',
-    '_dhpk_gate_used = False',
-    '',
-    'def _dhpk_open(candidate, flags, *args, **kwargs):',
-    '    global _dhpk_gate_used',
-    '    descriptor = _dhpk_original_open(candidate, flags, *args, **kwargs)',
-    "    ready = os.environ.get('DHPK_TEST_PARENT_OPEN_READY_FILE')",
-    "    release = os.environ.get('DHPK_TEST_PARENT_OPEN_RELEASE_FILE')",
-    "    if (not _dhpk_gate_used and ready and release and isinstance(candidate, str)",
-    "            and candidate.startswith('.dhpk-adopt-') and kwargs.get('dir_fd') is not None):",
-    '        _dhpk_gate_used = True',
-    "        with open(ready, 'w', encoding='utf-8') as marker:",
-    "            marker.write('ready')",
-    '        deadline = time.monotonic() + 10',
-    '        while not os.path.exists(release):',
-    '            if time.monotonic() >= deadline:',
-    "                raise TimeoutError('parent replacement gate timed out')",
-    '            time.sleep(0.01)',
-    '    return descriptor',
-    '',
-    'os.open = _dhpk_open',
-    '',
-  ].join('\n'));
-  return shim;
-}
-
-function waitForFile(file, timeoutMs = 2000) {
-  const deadline = Date.now() + timeoutMs;
-  const signal = new Int32Array(new SharedArrayBuffer(4));
-  while (Date.now() < deadline) {
-    if (fs.existsSync(file)) return true;
-    Atomics.wait(signal, 0, 0, 20);
-  }
-  return fs.existsSync(file);
 }
 
 function rewriteAgentAsHistoricalManagedSymlink(scratch, agentName, targetOverride = null, sourceRoot = ROOT) {
@@ -405,10 +315,6 @@ module.exports = {
   completeTreeFingerprint,
   LEGACY_RECIPE_DIGESTS,
   snapshotTree,
-  descriptorPseudoPathBlocker,
-  materializationFailureShim,
-  parentReplacementGate,
-  waitForFile,
   rewriteAgentAsHistoricalManagedSymlink,
   materializeFixtureSkill,
   runtimeSupportSkillNames,

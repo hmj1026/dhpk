@@ -16,7 +16,7 @@ const { installerEnv, runCaptured } = require('../../scripts/lib/install-adapter
 const { SimulatedCrash } = require('../../scripts/lib/projection-journal');
 const { fakePlugin, REPO } = require('./shared-projection-plugin');
 const { CODEX_STUB_BIN } = require('./install-codex-skills-fixtures');
-const { normalizer } = require('./installer-parity');
+const { normalizer } = require('./run-normalizer');
 
 const JOURNAL = path.join('.agents', '.dhpk-projection-journal.json');
 const LOCK = path.join('.agents', '.dhpk-install.lock');

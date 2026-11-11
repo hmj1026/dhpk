@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
-const { parseFrontmatter } = require('./agent-plugin-package');
+const { parseFrontmatter } = require('./agent-frontmatter');
 const {
   TREE_FINGERPRINT_ALGORITHM,
   requireTreeMerkle,
@@ -1387,8 +1387,10 @@ function removeEmptyDirectories(root) {
   walk(root);
 }
 
-// An installer that coordinates its own journal holds the publication open
-// under its transaction id; only that id (or explicit recovery) resolves it.
+// A v3 journal written by a 0.72/0.73 installer may still carry a hold: the
+// publication was kept open under that installer's transaction id, and only
+// that id (or explicit recovery) resolves it. No release produces a hold any
+// more (js-projection-journal stage 5); this validates one when it is read.
 function normalizeHold(hold, code = 'INVALID_HOLD') {
   if (!hold || typeof hold !== 'object' || Array.isArray(hold)
     || typeof hold.transactionId !== 'string' || !/^[A-Za-z0-9._-]{1,128}$/.test(hold.transactionId)
@@ -1401,6 +1403,14 @@ function normalizeHold(hold, code = 'INVALID_HOLD') {
 
 function heldError(hold) {
   return fail('TRANSACTION_HELD', `project projection transaction ${hold.transactionId} is held by the ${hold.host} installer; rerun that installer to finish or undo it, or run dhpk-install --recover`, { transactionId: hold.transactionId, host: hold.host });
+}
+
+// A caller written for 0.72/0.73 may still ask for a held publication. It is
+// refused up front, so nothing is written and it never silently gets an unheld one.
+function refuseHold(options) {
+  if (options.hold !== undefined && options.hold !== null) {
+    throw fail('INVALID_HOLD', 'a held project projection publication is no longer produced; the installer records into its Projection Journal instead');
+  }
 }
 
 function transactionPath(roots) {
@@ -1486,9 +1496,6 @@ function externalTransaction(roots, journal) {
     setPhase(phase) {
       header.phase = phase;
       journal.flush();
-    },
-    hold() {
-      throw fail('INVALID_HOLD', 'a publication recorded into a caller journal cannot be held');
     },
     publish(cleanups) {
       header.cleanups = [...(header.cleanups || []), ...cleanups];
@@ -1880,13 +1887,10 @@ function publishManagedCandidate({
   oldReceiptDigest = null,
   adoptedBindingPaths = {},
   restoredBindingPaths = {},
-  hold = null,
   transaction = null,
   afterStep = null,
   journal = null,
 }) {
-  if (journal && hold) throw fail('INVALID_HOLD', 'a publication recorded into a caller journal cannot be held');
-  const heldBy = hold ? normalizeHold(hold) : null;
   checkCollisions(roots, previous, candidateFiles);
   checkCollisions(roots, previous, claudeCandidateFiles, 'claude');
   const receiptBindingPaths = previous ? normalizeBindingPaths(previous.bindingPaths || {}, roots, 'previous project projection binding paths', {
@@ -1923,7 +1927,6 @@ function publishManagedCandidate({
     phase: 'prepared',
     backupName: path.basename(backup),
     rollbackStageName: rollback ? path.basename(rollback.stage) : '.none',
-    ...(heldBy ? { hold: heldBy } : {}),
     ...(adoption ? { adoption: true } : {}),
   };
   // A staged candidate continues the transaction that recorded its stage.
@@ -2016,12 +2019,6 @@ function publishManagedCandidate({
       bindingPaths: candidateBindingPaths,
       ...(adoption ? { backupPath: backup } : {}),
     };
-    if (heldBy) {
-      // Every effect is in place; the holder decides between commit and abort.
-      tx.hold();
-      published = true;
-      return { ...outcome, published: false, held: true };
-    }
     tx.publish(cleanupEffects(roots, tx.journal));
     published = true;
     tx.finish();
@@ -2139,6 +2136,7 @@ function receiptForArtifact({ roots, plan, staged, declaredSelection = false }) 
 }
 
 function materializeRelocatableAgentsSkillsProjection(options = {}) {
+  refuseHold(options);
   const sourceRoot = options.sourceRoot || options.root;
   if (!sourceRoot || !options.inventory) throw fail('INVALID_INPUT', 'sourceRoot and inventory are required');
   const roots = resolveRoots({ sourceRoot, projectRoot: options.projectRoot, outDir: options.outDir, inventory: options.inventory });
@@ -2225,11 +2223,9 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
       adoption: legacyAdoption,
       oldReceiptDigest,
       adoptedBindingPaths,
-      hold: options.hold || null,
       transaction: staged.transaction,
     });
     return {
-      held: Boolean(published.held),
       outputRoot: roots.managedRoot,
       projectRoot: roots.projectRoot,
       receiptPath: roots.receiptPath,
@@ -2427,6 +2423,7 @@ function operationRoots(options = {}) {
 
 function uninstallAgentsSkillsProjection(options = {}) {
   try {
+    refuseHold(options);
     const roots = operationRoots(options);
     // 先驗證原始收據，再隔離並比對原始位元組，避免以過期所有權刪除使用者內容。
     readProjectionReceipt(roots, { allowLegacyClaudeDiscovery: true, releaseLegacy: true });
@@ -2436,7 +2433,7 @@ function uninstallAgentsSkillsProjection(options = {}) {
     const receipt = readProjectionReceipt(roots, { allowLegacyClaudeDiscovery: true, releaseLegacy: true });
     if (!receipt) {
       if (lstatOrNull(legacyManifestPath(roots))) throw fail('LEGACY_UNBOUND', 'legacy project projection has no lifecycle receipt and cannot be removed automatically');
-      return { ok: true, state: 'ABSENT', held: false, removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
+      return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot: roots.projectRoot };
     }
     if (receipt.generatorVersion === '2.0.0' && !Object.prototype.hasOwnProperty.call(receipt, 'fingerprint_algorithm')) {
       const observed = fs.readFileSync(roots.receiptPath);
@@ -2464,11 +2461,10 @@ function uninstallAgentsSkillsProjection(options = {}) {
       candidateFingerprints: {},
       nextReceipt: null,
       createRollback: false,
-      hold: options.hold || null,
       afterStep: options.afterStep || null,
       journal: options.journal || null,
     });
-    return { ok: true, state: 'REMOVED', held: Boolean(published.held), removedPaths: receipt.managedPaths, preservedPaths: [], projectRoot: roots.projectRoot, published };
+    return { ok: true, state: 'REMOVED', removedPaths: receipt.managedPaths, preservedPaths: [], projectRoot: roots.projectRoot, published };
   } catch (error) {
     if (isSimulatedCrash(error)) throw error;
     return {
