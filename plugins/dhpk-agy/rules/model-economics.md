@@ -29,6 +29,20 @@ SSOT for **which model tier each role runs on, and the cost rules that govern ti
 
 As checked 2026-10-05, the Anthropic API's `sonnet` alias resolves to Claude Sonnet 5.5 (`claude-sonnet-5-5`, released 2026-09-28, `$2/$10` per million input/output tokens) and defaults to `high` effort. Sonnet 5.5 recalibrates effort relative to Sonnet 5; for agentic coding and multistep tool use, Anthropic recommends starting at `medium` for well-specified work and `high` for harder or longer tasks. As checked 2026-10-31, the `haiku` alias resolves to Claude Haiku 5.5 (`claude-haiku-5-5`, `$0.10/$0.50` per million input/output tokens up to 100K-token prompts, `$0.50/$2.50` above), which supports effort with default `medium`; Anthropic recommends `medium` for most Haiku work and `xhigh` only for long-horizon tasks. Provider-neutral dispatch has no haiku route in `manifests/provider-model-catalog.json`, so a haiku effort travels on the native `Agent` call, not through the dispatch engine. Observed 2026-10-31: a user-level `modelSettings` effort for haiku applies to built-in agents (Explore, general-purpose) that declare no effort, so `xhigh` there makes every Explore run think at xhigh. The `opus` alias resolves to Opus 5.5 (`claude-opus-5-5`, `$4/$20`) with `medium` effort by default; it cannot disable thinking. As checked 2026-11-10 against the official model table, `fable` resolves to Fable 5.2 (`claude-fable-5-2`, `$8/$40` per million input/output tokens), the highest per-token Claude tier; Fable 5.1 (`$10/$50`) is the superseded predecessor. Alias resolution can differ by provider or explicit environment override. Set effort explicitly where a role depends on it (rule 4). Sources: [Sonnet 5.5 model overview](https://platform.claude.com/docs/en/models/sonnet-5-5/overview), [effort guidance](https://platform.claude.com/docs/en/build-with-claude/effort), [Claude model overview](https://platform.claude.com/docs/en/models/overview), and [Claude Code model configuration](https://code.claude.com/docs/en/model-config), and [Haiku 5.5 prompting guide](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5).
 
+## Architect vs deep-reasoner
+
+Both roles answer a question before a writer acts; they differ in when the question arises and what it asks. Tiers and Role Defaults stay in the tier map above; raising either one follows rule 7 below.
+
+| | `architect` | `deep-reasoner` |
+|---|---|---|
+| When | Before implementation | During implementation |
+| Question | How should the structure be designed | Why did it happen, and how to fix it |
+| Examples | Whether two Hosts share one lock, module boundaries, whether a new ADR is needed, an on-disk format migration (for example the Projection Journal) | A timeout root cause, a test number that does not match, algorithm design, multi-file debugging |
+| Output | A design decision and an implementation plan | A root cause with file:line evidence and next steps a `fast-worker` can follow |
+| Raise | A high-risk design may raise effort; a migration spanning several Hosts may go one effort level up | One dispatch may raise to `fable` only for multi-policy or multi-spec adjudication (see the tier map row); ordinary debugging stays on opus |
+
+A multi-stage migration (3 or more independently releasable stages) may be led by a Fable main session; this is a description of an option, not a prompt or an automatic suggestion.
+
 ## Codex projection map
 
 This section is the Codex-specific projection of the policy above. Codex custom

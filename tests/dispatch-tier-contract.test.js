@@ -79,4 +79,59 @@ test('no document says the fable alias currently resolves to Fable 5.1', () => {
   }
 });
 
+// #1298: the architect vs deep-reasoner distinction is owned by model-economics;
+// execution-policy carries only the dispatch-time decision and links to it.
+test('model-economics owns the architect vs deep-reasoner distinction and the Fable main-session note', () => {
+  const rule = read('rules/model-economics.md');
+  assert.match(rule, /^## Architect vs deep-reasoner$/m);
+  assert.match(rule, /before implementation/i);
+  assert.match(rule, /during implementation/i);
+  assert.match(rule, /root cause/i);
+  assert.match(rule, /Projection Journal/);
+  assert.match(rule, /3 or more independently releasable stages/);
+  assert.match(rule, /Fable main session/);
+});
+
+test('execution-policy carries the dispatch-time decision and links to model-economics without duplicating the distinction', () => {
+  const policy = read('rules/execution-policy.md');
+  const start = policy.indexOf('## Implementation dispatch');
+  assert.ok(start > 0);
+  const section = policy.slice(start);
+  assert.match(section, /\*\*Dispatch-time decision/);
+  assert.match(section, /model-economics\.md` \(§Architect vs deep-reasoner\)/);
+  assert.match(section, /rule 7/);
+  assert.match(section, /3rd automatic raise|third automatic raise/i);
+  assert.doesNotMatch(policy, /Architect vs deep-reasoner\n/);
+  assert.doesNotMatch(policy, /Projection Journal/);
+});
+
+test('the distinction is not duplicated in the implementation-dispatch reference', () => {
+  const ref = read('skills/flow-guide/references/implementation-dispatch.md');
+  assert.doesNotMatch(ref, /Projection Journal/);
+  assert.doesNotMatch(ref, /^## Architect vs deep-reasoner$/m);
+  assert.strictEqual(ref.split('**Dispatch-time decision').length - 1, 1);
+  assert.match(ref, /model-economics\.md` \(§Architect vs deep-reasoner\)/);
+});
+
+test('flow-drive and flow-guide SKILL.md stay free of dispatch-time decision rules', () => {
+  for (const rel of ['skills/flow-drive/SKILL.md', 'skills/flow-guide/SKILL.md']) {
+    const text = read(rel);
+    assert.doesNotMatch(text, /Dispatch-time decision/i, rel);
+    assert.doesNotMatch(text, /Architect vs deep-reasoner/, rel);
+    assert.doesNotMatch(text, /3rd automatic raise|third automatic raise/i, rel);
+  }
+});
+
+test('dispatch-time decision texts carve out built-in roles from the no-parameter default', () => {
+  const policy = read('rules/execution-policy.md');
+  const policySentence = policy.slice(policy.indexOf('**Dispatch-time decision'));
+  assert.match(policySentence.split('\n')[0], /declares a Role Default in its frontmatter[^.]*no call parameters/);
+  assert.match(policySentence.split('\n')[0], /Built-in roles[^.]*`Explore`[^.]*`general-purpose`[^.]*tier-map row/);
+  const ref = read('skills/flow-guide/references/implementation-dispatch.md');
+  const step = ref.split('\n').find((line) => line.startsWith('2. ') && line.includes('omit `model` and `effort`'));
+  assert.ok(step, 'step 2 missing');
+  assert.match(step, /Role Default in its frontmatter/);
+  assert.match(step, /Built-in roles[^.]*frontmatter[^.]*tier-map row/);
+});
+
 run('dispatch-tier-contract');
