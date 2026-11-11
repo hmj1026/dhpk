@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
-const { parseFrontmatter } = require('./agent-plugin-package');
+const { parseFrontmatter } = require('./agent-frontmatter');
 const {
   TREE_FINGERPRINT_ALGORITHM,
   requireTreeMerkle,

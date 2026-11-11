@@ -90,8 +90,16 @@ emit_result() {
 }
 
 require_installer() {
+    local bundle
     if [ ! -f "$INSTALLER" ] || [ -L "$INSTALLER" ] || path_has_symlink "$INSTALLER"; then
         printf '[%s] BLOCKED_RESOURCE_MISSING: approved Codex installer is missing or not physical\n' "$ADAPTER_NAME" >&2
+        emit_result BLOCKED BLOCKED_RESOURCE_MISSING null null codex-project
+        exit 1
+    fi
+    # The helper execs the JS bundle beside it; that file gets the same vetting.
+    bundle="$(dirname -- "$INSTALLER")/dhpk-installer.cjs"
+    if [ -L "$bundle" ] || { [ -e "$bundle" ] && { [ ! -f "$bundle" ] || path_has_symlink "$bundle"; }; }; then
+        printf '[%s] BLOCKED_RESOURCE_MISSING: the packaged JS installer is not a physical file\n' "$ADAPTER_NAME" >&2
         emit_result BLOCKED BLOCKED_RESOURCE_MISSING null null codex-project
         exit 1
     fi

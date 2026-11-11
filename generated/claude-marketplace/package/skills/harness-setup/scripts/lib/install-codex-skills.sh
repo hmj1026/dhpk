@@ -87,7 +87,8 @@ if [ "${DHPK_HARNESS_KIND:-codex}" = "codex" ] && ! command -v codex >/dev/null 
 fi
 
 # A packaged copy runs the bundle beside it; a checkout runs the adapter.
-if [ -f "$HERE/dhpk-installer.cjs" ]; then ENTRY="$HERE/dhpk-installer.cjs"
+if [ -L "$HERE/dhpk-installer.cjs" ]; then die "ERROR: the packaged JS installer $HERE/dhpk-installer.cjs is a symlink; refusing to run it"
+elif [ -f "$HERE/dhpk-installer.cjs" ]; then ENTRY="$HERE/dhpk-installer.cjs"
 elif [ -f "$HERE/../lib/install-adapters/codex-cli.js" ]; then ENTRY="$HERE/../lib/install-adapters/codex-cli.js"
 else die "ERROR: the JS installer is neither beside this script nor under scripts/lib/install-adapters"; fi
 if ! command -v node >/dev/null 2>&1; then die "ERROR: node is required for the installer"; fi

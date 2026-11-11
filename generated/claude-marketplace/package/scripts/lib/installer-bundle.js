@@ -115,6 +115,7 @@ function moduleEntry(record) {
 
 const SHIM = `
 const nodeRequire = require;
+const { isBuiltin } = nodeRequire('node:module');
 const cache = Object.create(null);
 // A module's __dirname names where its source sat in the repository; nothing
 // reads from it at run time. It is virtual so a bundle never points at a
@@ -130,7 +131,13 @@ function load(id) {
   if (factory === null) {
     module.exports = JSON.parse(json);
   } else {
-    const localRequire = (spec) => (Object.prototype.hasOwnProperty.call(deps, spec) ? load(deps[spec]) : nodeRequire(spec));
+    // Anything the build did not map must be a Node built-in; the shim never
+    // falls back to resolving a path or a package from the disk it runs on.
+    const localRequire = (spec) => {
+      if (Object.prototype.hasOwnProperty.call(deps, spec)) return load(deps[spec]);
+      if (typeof spec === 'string' && isBuiltin(spec)) return nodeRequire(spec);
+      throw new Error('installer bundle: ' + id + ' required ' + String(spec) + ', which is neither bundled nor a Node built-in');
+    };
     localRequire.main = mainModule;
     const virtualFile = VIRTUAL_ROOT + '/' + id;
     factory.call(module.exports, module.exports, localRequire, module, virtualFile, virtualFile.slice(0, virtualFile.lastIndexOf('/')));
