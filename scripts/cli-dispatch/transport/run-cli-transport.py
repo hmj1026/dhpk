@@ -785,7 +785,9 @@ def write_stdin(handle, payload):
         handle.close()
 
 
-def read_private_request(path):
+def read_private_request(path, opened=None):
+    # `opened`, when given, receives the (st_dev, st_ino) of the file actually
+    # opened, so a caller can later remove exactly that file and nothing else.
     try:
         before = os.lstat(path)
         if not stat.S_ISREG(before.st_mode) or stat.S_ISLNK(before.st_mode) or before.st_mode & 0o077 or before.st_uid != os.getuid():
@@ -795,6 +797,8 @@ def read_private_request(path):
             pinned = os.fstat(handle.fileno())
             if pinned.st_dev != before.st_dev or pinned.st_ino != before.st_ino:
                 raise Blocked("request file changed while opening")
+            if opened is not None:
+                opened.append((pinned.st_dev, pinned.st_ino))
             return json.loads(handle.read().decode("utf-8"))
     except Blocked:
         raise
@@ -802,12 +806,36 @@ def read_private_request(path):
         raise Blocked("request file is invalid: %s" % error)
 
 
+def consume_request_file(path, opened):
+    """Unlink `path` only if it is still the regular file that was opened."""
+    if not opened:
+        return
+    try:
+        current = os.lstat(path)
+        if not stat.S_ISREG(current.st_mode) or (current.st_dev, current.st_ino) != opened[0]:
+            return
+        os.unlink(path)
+    except FileNotFoundError:
+        return
+    except OSError as error:
+        print("dhpk-cli-transport: could not remove request file %s (errno %s)" % (path, error.errno), file=sys.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--request", required=True)
+    # The shell adapters exec this runner, so their EXIT trap never fires. With
+    # this flag the runner removes the (possibly prompt-bearing) request file as
+    # soon as it has been read, on every path including a rejected request.
+    parser.add_argument("--consume-request", action="store_true")
     args = parser.parse_args()
     try:
-        request = read_private_request(args.request)
+        opened = []
+        try:
+            request = read_private_request(args.request, opened)
+        finally:
+            if args.consume_request:
+                consume_request_file(args.request, opened)
     except Blocked as error:
         print("dhpk-cli-transport: BLOCKED: %s" % error, file=sys.stderr)
         return 64

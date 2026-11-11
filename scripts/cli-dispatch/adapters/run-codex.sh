@@ -68,4 +68,7 @@ PREPARE_ARGS=(--context "$DHPK_CLI_TRANSPORT_CONTEXT" --provider codex --mode "$
 if ! "$SYSTEM_PYTHON3" -I "$PREPARE" --bootstrap-python "$SYSTEM_PYTHON3" "${PREPARE_ARGS[@]}" > "$REQUEST_FILE"; then
   exit 65
 fi
-exec "$SYSTEM_PYTHON3" -I "$RUNNER" --request "$REQUEST_FILE"
+# exec discards the EXIT trap above, so the runner removes the request file
+# itself (--consume-request) right after reading it; exit codes and signals
+# reach the caller unchanged because no wrapper shell stays in between.
+exec "$SYSTEM_PYTHON3" -I "$RUNNER" --request "$REQUEST_FILE" --consume-request

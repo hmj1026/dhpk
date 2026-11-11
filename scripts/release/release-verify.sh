@@ -105,12 +105,18 @@ emit_output() {
 }
 
 current_stage=""
+# Scratch dir of the standalone-verify stage (dry-run). Only --out-dir holds
+# deliverables; this copy is removed on every exit path (success, failure,
+# INT/TERM) by the trap below. Same shell, so no exec can bypass it.
+consumer_dir=""
 stage() {
     [ -n "$current_stage" ] && echo "::endgroup::"
     current_stage="$1"
     echo "::group::release-verify [$mode] $1"
 }
-trap 'status=$?; if [ "$status" -ne 0 ] && [ -n "$current_stage" ]; then echo "::endgroup::"; echo "::error::release-verify [$mode] stage $current_stage failed" >&2; fi' EXIT
+trap 'status=$?; [ -z "$consumer_dir" ] || rm -rf "$consumer_dir"; if [ "$status" -ne 0 ] && [ -n "$current_stage" ]; then echo "::endgroup::"; echo "::error::release-verify [$mode] stage $current_stage failed" >&2; fi' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if [ "$mode" = "tag" ]; then
     stage provenance
@@ -214,7 +220,6 @@ if [ "$mode" = "dry-run" ]; then
         echo "release-verify: validated note bytes differ from the extracted notes" >&2
         exit 1
     fi
-    rm -rf "$consumer_dir"
 fi
 
 echo "::endgroup::"

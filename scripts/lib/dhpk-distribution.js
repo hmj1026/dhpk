@@ -363,6 +363,8 @@ function execute(argv, root) {
   if (!request.ok) return request;
   let snapshot = null;
   let previewOutput = null;
+  // The mkdtemp parent of a default preview output; ours to remove on failure.
+  let previewParent = null;
   try {
     if (request.surface === 'openai-submission') {
       return require('./openai-submission-command').executeOpenaiSubmission(request, root);
@@ -370,9 +372,17 @@ function execute(argv, root) {
     let effectiveRequest = request;
     if (request.operation === 'preview') {
       snapshot = createPreviewSourceSnapshot(root);
+      // Without --output the preview is an intentional deliverable: it is
+      // written under a fresh dhpk-preview-output-* directory in TMPDIR and its
+      // path is reported as `output` in the result, so the caller can inspect
+      // it and removes it themselves. It is cleaned up here only when the
+      // preview fails (nothing to inspect). Pass --output to choose the place.
+      if (!request.options.output) {
+        previewParent = fs.realpathSync(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-preview-output-')));
+      }
       const output = request.options.output
         ? path.resolve(request.options.output)
-        : path.join(fs.realpathSync(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-preview-output-'))), request.surface);
+        : path.join(previewParent, request.surface);
       const sourceReal = fs.realpathSync(root);
       let outputParent = path.dirname(output);
       while (!fs.existsSync(outputParent)) outputParent = path.dirname(outputParent);
@@ -430,11 +440,12 @@ function execute(argv, root) {
       },
     };
     if (snapshot) snapshot.cleanup();
-    if (snapshot && !result.ok && previewOutput) fs.rmSync(previewOutput, { recursive: true, force: true });
+    if (snapshot && !result.ok && previewOutput) fs.rmSync(previewParent || previewOutput, { recursive: true, force: true });
     return response;
   } catch (error) {
     if (snapshot) snapshot.cleanup();
-    if (previewOutput) fs.rmSync(previewOutput, { recursive: true, force: true });
+    if (previewParent) fs.rmSync(previewParent, { recursive: true, force: true });
+    else if (previewOutput) fs.rmSync(previewOutput, { recursive: true, force: true });
     return { ok: false, status: 1, error: error.message };
   }
 }

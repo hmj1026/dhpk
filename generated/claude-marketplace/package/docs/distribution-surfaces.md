@@ -497,3 +497,22 @@ The installer and consumer checks run against temporary projects (including
 shell-special paths); repository validators, the full suite, and OpenSpec
 checks run against the checkout. Durable release evidence keeps absolute
 private paths out.
+
+## Temporary files the tools leave on purpose (#1323)
+
+Product scripts clean up after themselves except where the file is evidence
+the user is told to read:
+
+- `bin/dhpk distribution <surface> preview` without `--output` writes the
+  preview under a fresh `dhpk-preview-output-*` directory in `TMPDIR` and
+  reports its path as `output`. A successful preview is kept for inspection and
+  is the caller's to delete; a failed preview removes the directory. Pass
+  `--output` to choose the location.
+- `scripts/release/source-gate.js` and `package-gate.js` (via
+  `scripts/lib/gate-runner.js`) write a failed step's full output to a
+  `dhpk-gate-*` directory in `TMPDIR` and cite it as
+  `[full output: <dir>/NN-step.log]` in the failure reason. Passing gates
+  create nothing.
+- The CLI dispatch request file and the `release-verify.sh` dry-run rehearsal
+  directory are never kept: the transport runner removes the request after
+  reading it, and `release-verify.sh` removes its scratch copy on every exit.
