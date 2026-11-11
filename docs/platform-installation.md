@@ -703,9 +703,14 @@ The installer holds the shared projection step under its own run id and commits
 both at one point; the next run finishes or undoes an interrupted transaction
 automatically.
 
-- `TRANSACTION_HELD` means another installer run still holds the shared
-  projection. Rerun that Host's installer (named in the message) to let it
-  finish or undo its transaction.
+- One project lock serializes every Codex and Cursor run. While another run
+  holds it, the installer exits `2` with `already reconciling this project:
+  .agents/.dhpk-install.lock (held by the <host> installer, pid N, ...)` and
+  changes nothing; retry once that run ends. If that run died, rerun the
+  installer to take over and recover its transaction, or run it with
+  `--recover`. A `TRANSACTION_HELD` message can now appear only for a
+  transaction an older release left behind (0.71 or 0.72); `--recover` resolves
+  it.
 - `did not finish rolling back` lists the remaining paths and the backup
   directory. Fix the reported cause, then run the same installer with
   `--recover`. It replays the rollback and stops without installing.

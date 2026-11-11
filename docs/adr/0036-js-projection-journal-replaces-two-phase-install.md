@@ -32,11 +32,9 @@ publisher still describes progress with flags (`liveBackedUp`, `holdReady`,
   pid of the Projection Journal it left, so rerunning the installer still
   recovers a crash. Any other stale lock blocks until `--recover` removes
   it. Takeover and removal rename the lock aside and check that it is the
-  lock judged stale, so they never destroy a fresh one. Until stage 4 the
-  Python Cursor installer does not take this lock. It refuses to start while
-  the lock or the Projection Journal exists, but a Cursor run that starts
-  first is not serialized against a Codex run that starts after it. This gap
-  closes when Cursor moves to the JS installer.
+  lock judged stale, so they never destroy a fresh one. The Cursor installer
+  takes the same lock as Codex, so a Cursor run and a Codex run on one project
+  never overlap in either order.
 - The responsibilities around the lifecycle move with it: the Codex native
   plugin provider check, inventory and profile selection, plan output,
   adoption, Released Entries, and legacy skill-name migration. The Released
