@@ -349,25 +349,13 @@ test('testPreviousReleaseHeldTransaction_isRolledBackByTheJsInstaller', () => {
 function requestedProjectionRecovery(publisherResult) {
   const plugin = fakePlugin();
   const project = tempDir('dhpk-adapter-requested-');
-  const installerRoot = tempDir('dhpk-adapter-requested-root-');
+  // A test-local probe: the installer calls the Publisher through its module
+  // object, so answering the held-projection calls here stands in for a
+  // Publisher that reports `publisherResult` for them.
+  const publisher = require('../scripts/lib/project-agent-projection-publisher');
+  const original = { abort: publisher.abortHeldProjection, commit: publisher.commitHeldProjection };
   try {
     fs.mkdirSync(path.join(project, '.git'));
-    // A test-local installer root: every script of the checkout, linked, except
-    // a publisher stub that answers the held-projection calls with `publisherResult`.
-    const scripts = path.join(installerRoot, 'scripts');
-    fs.mkdirSync(path.join(scripts, 'lib'), { recursive: true });
-    for (const name of fs.readdirSync(path.join(REPO, 'scripts'))) {
-      if (name !== 'lib') fs.symlinkSync(path.join(REPO, 'scripts', name), path.join(scripts, name));
-    }
-    for (const name of fs.readdirSync(path.join(REPO, 'scripts', 'lib'))) {
-      if (name !== 'project-agent-projection-publisher.js') fs.symlinkSync(path.join(REPO, 'scripts', 'lib', name), path.join(scripts, 'lib', name));
-    }
-    write(path.join(scripts, 'lib', 'project-agent-projection-publisher.js'), `module.exports = {
-  ...require(${JSON.stringify(path.join(REPO, 'scripts', 'lib', 'project-agent-projection-publisher.js'))}),
-  abortHeldProjection: () => (${JSON.stringify(publisherResult)}),
-  commitHeldProjection: () => (${JSON.stringify(publisherResult)}),
-};
-`);
     restoreLegacyCodexProject(plugin, project);
     // The recorded update's journal is the one whose shared projection is held.
     const journalFile = fs.readdirSync(path.join(project, '.codex'))
@@ -378,10 +366,14 @@ function requestedProjectionRecovery(publisherResult) {
     const journal = JSON.parse(fs.readFileSync(journalFile, 'utf8'));
     journal.shared_projection.phase = 'requested';
     fs.writeFileSync(journalFile, JSON.stringify(journal));
-    const outcome = runIn(plugin, project, { recover: true, installerRoot });
+    publisher.abortHeldProjection = () => publisherResult;
+    publisher.commitHeldProjection = () => publisherResult;
+    const outcome = runIn(plugin, project, { recover: true });
     return { ...outcome, hostJournalPhase: JSON.parse(fs.readFileSync(journalFile, 'utf8')).phase };
   } finally {
-    cleanup(plugin, project, installerRoot);
+    publisher.abortHeldProjection = original.abort;
+    publisher.commitHeldProjection = original.commit;
+    cleanup(plugin, project);
   }
 }
 

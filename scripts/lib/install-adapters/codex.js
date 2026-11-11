@@ -57,6 +57,17 @@ const {
 } = compat;
 const { addCursorCacheDriftWarnings } = require('./cursor-plan');
 
+// The installer's own code. These are static requires on purpose: they resolve
+// against this file, so a checkout runs the checkout's modules and the
+// generated bundle (scripts/lib/installer-bundle.js) can see every one of them.
+// None is ever looked up under the artifact being installed (DHPK_PLUGIN_ROOT /
+// DHPK_INSTALLER_ROOT), which is data and may be user supplied.
+const journalCore = require('../projection-journal');
+const publisherModule = require('../project-agent-projection-publisher');
+const nativeSharedSkillInstall = require('../native-shared-skill-install');
+const cursorConsumerEvidence = require('../cursor-consumer-evidence');
+const portableSkillMetadata = require('../portable-skill-metadata');
+
 const O_NOFOLLOW = fs.constants.O_NOFOLLOW || 0;
 const O_NONBLOCK = fs.constants.O_NONBLOCK || 0;
 const O_DIRECTORY = fs.constants.O_DIRECTORY || 0;
@@ -134,6 +145,8 @@ function which(name, env) {
 // checked to be a physical directory.
 function createInstaller(env, io) {
   const PLUGIN_ROOT = env.DHPK_PLUGIN_ROOT;
+  // Data only: a second tree the source symlinks of PLUGIN_ROOT may point into.
+  // Nothing is ever loaded or executed from it.
   const INSTALLER_ROOT = env.DHPK_INSTALLER_ROOT || PLUGIN_ROOT;
   const PROJECT_ROOT = env.DHPK_PROJECT_ROOT;
   const HARNESS_KIND = env.DHPK_HARNESS_KIND || 'codex';
@@ -1865,14 +1878,7 @@ function createInstaller(env, io) {
   // Serialize metadata in staged skill frontmatter without editing the source.
   function transformPortableSkillMetadata(directory, relative) {
     if (!relative.startsWith('skills/')) return;
-    const helper = path.join(PLUGIN_ROOT, 'scripts', 'lib', 'portable-skill-metadata.js');
-    if (!isFileFollow(helper)) throw new ValueError('portable project skill metadata requires node and scripts/lib/portable-skill-metadata.js');
-    let serialize;
-    try {
-      ({ serializePortableSkillMetadata: serialize } = require(helper));
-    } catch (error) {
-      throw new ValueError(`portable metadata transform could not start: ${errorText(error)}`);
-    }
+    const serialize = portableSkillMetadata.serializePortableSkillMetadata;
     for (const markdownPath of portableSkillMarkdownPaths(directory)) {
       const result = serialize(fs.readFileSync(markdownPath).toString('utf8'));
       if (!result || result.ok !== true || !isStr(result.output)) {
@@ -1941,25 +1947,15 @@ function createInstaller(env, io) {
 
   let PROVIDER_CHECK = { status: 'NOT_APPLICABLE' };
 
-  function installerModule(relative) {
-    return require(path.join(INSTALLER_ROOT, 'scripts', 'lib', relative));
-  }
-
-  function nativeSharedSkillCli() {
-    return path.join(INSTALLER_ROOT, 'scripts', 'ci', 'install-native-shared-skills.js');
-  }
-
   function classifyHostBindings() {
     const host = sharedProjectionHost() || 'cursor';
     const label = SURFACE_LABEL;
     const fallback = { bindingShape: 'native-link', reason: `${label} discovery consumer probe classifier is unavailable` };
-    if (!isFileFollow(nativeSharedSkillCli())) return fallback;
     const evidenceKey = consumerEvidenceEnvKey();
     const evidence = evidenceKey ? env[evidenceKey] : null;
     let payload;
     try {
-      const { classifyHostBinding } = installerModule('cursor-consumer-evidence.js');
-      payload = classifyHostBinding(host, { consumerEvidencePath: evidence || null });
+      payload = cursorConsumerEvidence.classifyHostBinding(host, { consumerEvidencePath: evidence || null });
     } catch (error) {
       rethrowExit(error);
       return { bindingShape: 'native-link', reason: `${label} discovery consumer probe classifier failed` };
@@ -2749,7 +2745,6 @@ function createInstaller(env, io) {
   // records in .agents/.dhpk-projection-journal.json; reaching `published` is
   // the single commit point. One project lock serializes every Host.
 
-  const journalCore = installerModule('projection-journal.js');
   const AGENTS_ROOT = path.join(PROJECT_ROOT, '.agents');
   const JOURNAL_PATH = path.join(AGENTS_ROOT, '.dhpk-projection-journal.json');
   const LOCK_PATH = path.join(AGENTS_ROOT, '.dhpk-install.lock');
@@ -2765,7 +2760,7 @@ function createInstaller(env, io) {
   }
 
   function participant() {
-    return installerModule('project-agent-projection-publisher.js').projectionJournalParticipant(PROJECT_ROOT);
+    return publisherModule.projectionJournalParticipant(PROJECT_ROOT);
   }
 
   function ensureAgentsRoot() {
@@ -3048,7 +3043,7 @@ function createInstaller(env, io) {
   function recoverPublisherJournal() {
     if (!RECOVER || !lexists(path.join(AGENTS_ROOT, '.dhpk-installed.transaction.json'))) return;
     try {
-      installerModule('project-agent-projection-publisher.js').recoverAgentsSkillsProjection({ projectRoot: PROJECT_ROOT });
+      publisherModule.recoverAgentsSkillsProjection({ projectRoot: PROJECT_ROOT });
     } catch (error) {
       throw new ValueError(`shared projection transaction recovery failed: ${errorText(error)}`);
     }
@@ -3163,7 +3158,7 @@ function createInstaller(env, io) {
   }
 
   function legacyResolution(action, transaction) {
-    const publisher = installerModule('project-agent-projection-publisher.js');
+    const publisher = publisherModule;
     let result;
     try {
       result = (action === 'commit' ? publisher.commitHeldProjection : publisher.abortHeldProjection)({ projectRoot: PROJECT_ROOT, transactionId: transaction });
@@ -3913,11 +3908,9 @@ function createInstaller(env, io) {
     if (!host) throw new ValueError('shared projection install requires a cursor or codex Host');
     const ids = selected === null ? (SELECTION_EMITTED_IDS || []).slice() : selected.slice();
     if (ids.length === 0) throw new ValueError(`${SURFACE_LABEL} native-link install has an empty declared skill set`);
-    const cli = nativeSharedSkillCli();
-    if (!isFileFollow(cli)) throw new ValueError(`${SURFACE_LABEL} native-link install requires ${cli}`);
     const evidenceKey = consumerEvidenceEnvKey();
     try {
-      installerModule('native-shared-skill-install.js').installNativeSharedSkills({
+      nativeSharedSkillInstall.installNativeSharedSkills({
         sourceRoot: PLUGIN_ROOT,
         projectRoot: PROJECT_ROOT,
         host,
@@ -3995,11 +3988,9 @@ function createInstaller(env, io) {
     }
     const host = sharedProjectionHost();
     if (!host) return;
-    const cli = nativeSharedSkillCli();
-    if (!isFileFollow(cli)) throw new ValueError(`${SURFACE_LABEL} shared projection uninstall requires ${cli}`);
     let result;
     try {
-      result = installerModule('native-shared-skill-install.js').uninstallNativeSharedSkills({ sourceRoot: PLUGIN_ROOT, projectRoot: PROJECT_ROOT, host, journal: TX });
+      result = nativeSharedSkillInstall.uninstallNativeSharedSkills({ sourceRoot: PLUGIN_ROOT, projectRoot: PROJECT_ROOT, host, journal: TX });
     } catch (error) {
       if (journalCore.isSimulatedCrash(error) || isExit(error)) throw error;
       throw sharedFailure(error, `${SURFACE_LABEL} shared projection uninstall failed`);
