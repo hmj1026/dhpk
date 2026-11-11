@@ -2,7 +2,7 @@
 name: qa-executor
 description: "Live manual QA executor. Runs assigned QA-manual cases against a running environment through a browser skill, records one verdict per case with observed evidence in one assigned results file, and returns defects and authorization requests to the parent. Use for manual QA batches, retests, and regression rounds on a live environment. Not for authoring Playwright specs (e2e-runner), auditing one page against a spec (ui-ux-verifier), a single-scenario runtime probe (smoke-tester), or fixing code."
 tools: ["view_file", "run_command", "grep_search", "list_dir", "invoke_subagent", "write_to_file"]
-model: flash_lite
+model: pro
 ---
 
 # QA Executor

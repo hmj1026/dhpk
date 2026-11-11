@@ -1813,7 +1813,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "20dee256a882833bc3448b327300c848d5e580d7a53af7d275fb5770a25c7634"
+      "sha256": "794745a9e3aca613428c04ca8d72e7f2a1623a2e0694107e323dac083e6a92bc"
     },
     {
       "skillId": "flow-guide",
@@ -1941,7 +1941,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "20dee256a882833bc3448b327300c848d5e580d7a53af7d275fb5770a25c7634"
+      "sha256": "794745a9e3aca613428c04ca8d72e7f2a1623a2e0694107e323dac083e6a92bc"
     },
     {
       "skillId": "flow-guide",
@@ -1949,7 +1949,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
       "kind": "entry",
-      "sha256": "931da6d0cb7ceb5064f5383f92c6c7968d708eab96677a7161d621cec7ec5465"
+      "sha256": "3ca6571757d103fb335d1b0f853f5ff7fa59d4743fca63e57932f0b2155eca2c"
     },
     {
       "skillId": "flow-guide",
@@ -2045,7 +2045,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "bdaea4260d86e4345caf49032b12bf8b44b51043e60cc6d89f53c7d6a2497cde"
+      "sha256": "1cfb5dcaccea3b08a5e3dfe8db3a5a0f73f2cbecef9a31ef761b8c239b9ee918"
     },
     {
       "skillId": "flow-guide",
@@ -2093,7 +2093,7 @@
       "sourcePath": "skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "bdaea4260d86e4345caf49032b12bf8b44b51043e60cc6d89f53c7d6a2497cde"
+      "sha256": "1cfb5dcaccea3b08a5e3dfe8db3a5a0f73f2cbecef9a31ef761b8c239b9ee918"
     },
     {
       "skillId": "flow-guide",
@@ -2549,7 +2549,7 @@
       "sourcePath": "scripts/hooks/install-codex-skills.sh",
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh",
       "kind": "packaging-resource",
-      "sha256": "1c0c1a68b568345eb36b61a722cd0dbbad0f9d4def7f645e9388de51c875b7e8"
+      "sha256": "21e2af25bde7693417e6b3d42f5aca2cce5fae65af4b150c64546803b6ada755"
     },
     {
       "skillId": "harness-setup",

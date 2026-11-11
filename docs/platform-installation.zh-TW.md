@@ -246,7 +246,7 @@ dependency 一律 fail closed。runtime-only support 只記錄為 support metada
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.72.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.73.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -642,8 +642,20 @@ projection 的同一個 transaction（[ADR-0033](adr/0033-one-projection-journal
 installer 以自己的 run id hold 住 shared projection 步驟，並在單一提交點同時提交；
 下一次執行會自動完成或撤銷中斷的 transaction。
 
-- `TRANSACTION_HELD` 表示另一個 installer 執行仍 hold 住 shared projection。
-  重新執行訊息中指名的 Host installer，讓它完成或撤銷該 transaction。
+- 一個 project lock 讓所有 Codex 與 Cursor 的執行序列化。另一個執行持有該鎖時，
+  installer 以 `2` 結束並顯示 `already reconciling this project:
+  .agents/.dhpk-install.lock (held by the <host> installer, pid N, ...)`，
+  且不更動任何檔案；待該執行結束後再重試。若該執行已死亡，重新執行 installer
+  即會接手並復原其 transaction，或以 `--recover` 執行。因此某個 Host 的執行可能
+  撤銷或完成另一個 Host 中斷的 transaction；它會印出 `recovered interrupted
+  <host> transaction ...: rolled back|finished`，撤銷後需重新執行該 Host 的
+  installer 才會套用。
+- 以上適用於 checkout 或 plugin cache 中的 installer。打包的 `harness-setup`
+  副本在 stage 5 之前仍執行內嵌 Python、不取得 project lock，仍可能產生
+  `TRANSACTION_HELD`（以及舊版留下、需用 checkout installer `--recover` 處理的
+  transaction）。若它因 JS lock 或 journal 而拒絕，請從 checkout 或 plugin cache
+  執行 `scripts/hooks/install-codex-skills.sh --recover` 或
+  `scripts/hooks/install-cursor-harness.sh --recover`。
 - `did not finish rolling back` 會列出剩餘路徑與備份目錄。排除回報的原因後，
   以 `--recover` 執行同一個 installer；它重播 rollback 後即停止，不會安裝。
 - `dhpk-install --recover [--project-root DIR] [--json]` 會撤銷 installer journal
@@ -994,7 +1006,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.72.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.73.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

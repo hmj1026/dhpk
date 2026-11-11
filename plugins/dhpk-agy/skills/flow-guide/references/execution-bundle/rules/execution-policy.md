@@ -220,6 +220,8 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 
 When implementation dispatch is enabled through `DHPK_ORCHESTRATION_DISPATCH=on`, the runtime edit-batch gate applies: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
 
+**Dispatch-time decision (before each subagent dispatch):** pick the role by question type: a structure decision goes to `architect`, a root cause or algorithm found during implementation to `deep-reasoner`, a spec-clear change to `fast-worker`; the distinction and tiers live in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md` (§Architect vs deep-reasoner). A dhpk role that declares a Role Default in its frontmatter is dispatched with no call parameters so that default applies; raise only when the problem warrants it, in the order of model-economics rule 7. Built-in roles (`Explore`, `general-purpose`) have no frontmatter and no Role Default, so they carry the parameters their model-economics tier-map row requires. Consult once per decision. Ask the user before the 3rd automatic raise in one session. Operational detail: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
+
 **Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Completion requires a terminal lifecycle result; a message or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`; this rule intentionally does not duplicate the dispatch table.
 
 **Partial Claude subagent continuation:** Claude Code marks turn-cap partial
@@ -605,9 +607,9 @@ The retired standalone bridge is not a reviewer dispatch target.
 ### Hook lifecycle classes
 
 Hooks are classified as a blocking safety gate, liveness cleanup,
-module activation only, or opt-in advisory. The default lifecycle registers
+module activation plus a fixed dispatch delta, or opt-in advisory. The default lifecycle registers
 only deterministic safety, fast-worker liveness cleanup, and module
-activation. Prompt routing, precompact/postcompact handoff, and heuristic
+activation with the fixed dispatch delta. Prompt routing, precompact/postcompact handoff, and heuristic
 quality work remain available only through explicit opt-in setup or run as
 optional events.
 
@@ -616,7 +618,7 @@ optional events.
 | `PreToolUse(Edit\|Write\|MultiEdit)` → `pre-edit-guard.sh` | blocking safety gate | enabled; reject protected-path and secret-unsafe edits |
 | `PreToolUse(Bash)` → `pre-bash-dispatch.sh` | blocking safety gate | enabled; preserve shell safety plus protected-branch checks |
 | `SubagentStop` → `subagent-stop-verify.sh` | liveness cleanup | enabled; clear a stopped fast-worker's active-liveness marker |
-| `SessionStart` → `session-start.sh` | module activation only | enabled; validate and activate configured modules |
+| `SessionStart` → `session-start.sh` | module activation and dispatch delta | enabled; validate and activate configured modules, and print the fixed 4-6 line dispatch delta (Explore model/effort, sub-agent role reassignment, general-purpose model) that points to `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`; static text, no config keys |
 | Prompt hints, precompact/postcompact handoff, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
 
 ### Review output gate

@@ -137,16 +137,15 @@ export DHPK_JSON_OUTPUT="$JSON_OUTPUT"
 export DHPK_ADOPT_PATHS="$ADOPT_PATHS"
 export DHPK_SKILL_IDS="$SKILL_IDS"
 
-# js-projection-journal stage 3: Codex runs the JS adapter
-# (scripts/lib/install-adapters/codex.js) that sits beside this script in the
-# checkout layout. Cursor stays on the embedded Python until stage 4, and so
-# does a packaged copy of this script, which has no adapter beside it
-# (packaging is solved once in stage 5). DHPK_INSTALLER_ENGINE is an internal
-# switch for the parity harness (tests/_lib/installer-parity.js); it is not a
-# supported user option.
+# js-projection-journal stages 3-4: Codex and Cursor run the JS adapter
+# (scripts/lib/install-adapters/codex-cli.js) that sits beside this script in
+# the checkout layout. A packaged copy of this script has no adapter beside it
+# and keeps the embedded Python (packaging is solved once in stage 5).
+# DHPK_INSTALLER_ENGINE is an internal switch for the parity harness
+# (tests/_lib/installer-parity.js); it is not a supported user option.
 JS_ADAPTER="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)/lib/install-adapters/codex-cli.js"
 DEFAULT_ENGINE=python
-if [ "$DHPK_HARNESS_KIND" = "codex" ] && [ -f "$JS_ADAPTER" ]; then
+if [ -f "$JS_ADAPTER" ]; then
     DEFAULT_ENGINE=js
 fi
 case "${DHPK_INSTALLER_ENGINE:-$DEFAULT_ENGINE}" in
@@ -157,7 +156,10 @@ case "${DHPK_INSTALLER_ENGINE:-$DEFAULT_ENGINE}" in
         fi
         for JS_STATE in "$PROJECT_ROOT/.agents/.dhpk-install.lock" "$PROJECT_ROOT/.agents/.dhpk-projection-journal.json"; do
             if [ -e "$JS_STATE" ] || [ -L "$JS_STATE" ]; then
-                echo "[$INSTALLER_NAME] ERROR: a JS install holds or left the project lock or Projection Journal (.agents/.dhpk-install.lock / .agents/.dhpk-projection-journal.json); finish it with the Codex installer's --recover, then retry" >&2
+                echo "[$INSTALLER_NAME] ERROR: a JS install holds or left the project lock or Projection Journal (.agents/.dhpk-install.lock / .agents/.dhpk-projection-journal.json); finish it with --recover of scripts/hooks/install-codex-skills.sh or scripts/hooks/install-cursor-harness.sh from a dhpk checkout or plugin cache (they run the JS installer), then retry" >&2
+                if [ "$RECOVER" = "1" ]; then
+                    echo "[$INSTALLER_NAME] ERROR: this copy of the installer runs the Python engine and cannot recover a JS journal, even with --recover" >&2
+                fi
                 exit 2
             fi
         done ;;
@@ -167,7 +169,7 @@ case "${DHPK_INSTALLER_ENGINE:-$DEFAULT_ENGINE}" in
             exit 2
         fi
         if ! command -v node >/dev/null 2>&1; then
-            echo "[$INSTALLER_NAME] ERROR: node is required for the Codex installer" >&2
+            echo "[$INSTALLER_NAME] ERROR: node is required for the installer" >&2
             exit 2
         fi
         exec node "$JS_ADAPTER" ;;

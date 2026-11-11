@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# session-start.sh — activate configured modules for subsequent dispatchers.
-# SessionStart deliberately owns no snapshots, health checks, prompt injection,
-# learning, Docker probes, or orchestration advice.
+# session-start.sh — activate configured modules for subsequent dispatchers and
+# print a fixed dispatch delta (#1297).
+# The delta is the always-read channel for the model/effort rules the main
+# session needs at dispatch time (built-in Explore, general-purpose, role
+# reassignment); the tier map and escalation rules stay in
+# rules/model-economics.md (SSOT). SessionStart still owns no snapshots, health
+# checks, prompt injection, learning, or Docker probes, and the delta is static
+# text: no config keys, no project inspection.
 
 set -o pipefail
 
@@ -18,6 +23,15 @@ if command -v node >/dev/null 2>&1; then
         echo "[session-start] dispatch config: $report"
     done
 fi
+
+# Fixed dispatch delta: 4-6 lines, differences only, plus the SSOT pointer.
+cat <<'DELTA'
+[dhpk dispatch] Explore: always pass model: "haiku" and effort: "low" on the Agent call; never use Explore for review or judgment.
+[dhpk dispatch] A skill that only says "dispatch a sub-agent": review → code-reviewer, implementation → fast-worker, docs → docs-writer, DEV QA → qa-executor, search → Explore (haiku, low).
+[dhpk dispatch] Any other general-purpose dispatch must pass an explicit model, and never haiku for file edits.
+[dhpk dispatch] Before each dispatch: structure decision → architect, root cause during implementation → deep-reasoner; keep the Role Default unless the problem needs a raise (model-economics rule 7); ask the user before a 3rd raise in one session.
+[dhpk dispatch] Escalation and low-first rules: rules/model-economics.md (SSOT).
+DELTA
 
 MODULES="$(dhpk_config_csv modules '')"
 ACTIVE_MODULES=""

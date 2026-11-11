@@ -32,6 +32,8 @@ const INSTALLER_SUITES = [
   'install-codex-skills.test.js', 'install-codex-skills-planning.test.js',
   'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js',
   'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js',
+  'install-codex-parity.test.js', 'install-codex-adapter-journal.test.js',
+  'install-cursor-parity.test.js', 'install-cursor-plan.test.js', 'install-cursor-adapter-journal.test.js',
   'install-prompts.test.js', 'macos-installer-darwin.test.js',
   'macos-installer-files.test.js', 'native-shared-skill-install.test.js',
 ];

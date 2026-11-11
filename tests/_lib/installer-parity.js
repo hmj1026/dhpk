@@ -70,14 +70,17 @@ function walk(root, normalize) {
 }
 
 // `prepare(engine)` builds a fresh fixture; setup steps it runs use the same
-// engine as the step under comparison.
+// engine as the step under comparison. A fixture may bring its own
+// `run(project, args, pluginRoot, env)` (default: the Codex shell entry) and
+// a `home` directory whose path is normalized like the project.
 function runEngine(engine, prepare, args, envOverrides = {}) {
   const fixture = prepare(engine);
   const normalize = normalizer([
     [fixture.project, '<PROJECT>'],
     [fixture.pluginRoot, '<PLUGIN>'],
+    fixture.home ? [fixture.home, '<HOME>'] : null,
   ]);
-  const result = runInstaller(fixture.project, args, fixture.pluginRoot, {
+  const result = (fixture.run || runInstaller)(fixture.project, args, fixture.pluginRoot, {
     ...(fixture.env || {}),
     ...envOverrides,
     DHPK_INSTALLER_ENGINE: engine,

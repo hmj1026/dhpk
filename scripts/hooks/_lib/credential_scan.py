@@ -1,5 +1,6 @@
 """Bounded metadata-only traversal for recursive credential absence proofs."""
 
+import math
 import os
 from pathlib import Path
 import stat
@@ -7,10 +8,32 @@ import time
 
 MAX_ENTRIES = 20000
 MAX_SECONDS = 0.300
+TEST_BUDGET_FLOOR = 0.300
+TEST_BUDGET_CEILING = 10.0
+
+
+def budget_seconds(env=os.environ, default=None):
+    """Time budget for one bounded scan or git listing.
+
+    Production is always `default` (MAX_SECONDS, 300 ms). A test harness running the
+    hook as a subprocess may raise it with DHPK_CREDENTIAL_TEST_MAX_SECONDS, but only
+    together with DHPK_TEST_MODE=1; the value is clamped to [0.300, 10.0] so it can
+    never shorten the budget, and anything unparsable or non-finite is ignored.
+    """
+    base = MAX_SECONDS if default is None else default
+    if env.get('DHPK_TEST_MODE') != '1':
+        return base
+    try:
+        value = float(env.get('DHPK_CREDENTIAL_TEST_MAX_SECONDS', ''))
+    except ValueError:
+        return base
+    if not math.isfinite(value):
+        return base
+    return min(max(value, TEST_BUDGET_FLOOR), TEST_BUDGET_CEILING)
 
 
 def scan_roots(roots, matching_patterns, unresolved, follow, clock=time.monotonic, scandir=os.scandir):
-    deadline = clock() + MAX_SECONDS
+    deadline = clock() + budget_seconds()
     count = 0
     hits = set()
     paths = []

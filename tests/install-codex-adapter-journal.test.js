@@ -9,81 +9,25 @@
 
 const { test, run, assert } = require('./_lib/tinytest');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { installerEnv, runCaptured } = require('../scripts/lib/install-adapters/codex-cli');
 const { SimulatedCrash } = require('../scripts/lib/projection-journal');
 const { fakePlugin, write, skillBody, REPO } = require('./_lib/shared-projection-plugin');
 const { CODEX_STUB_BIN, runInstaller: runShellInstaller } = require('./_lib/install-codex-skills-fixtures');
-const { normalizer } = require('./_lib/installer-parity');
 
-const JOURNAL = path.join('.agents', '.dhpk-projection-journal.json');
-const LOCK = path.join('.agents', '.dhpk-install.lock');
+const {
+  JOURNAL,
+  LOCK,
+  tempDir,
+  cleanup,
+  makeRunIn,
+  snapshot,
+  deadPid,
+  markHolderDead,
+  registerSweeps,
+} = require('./_lib/adapter-journal-sweep');
 
-function tempDir(prefix) {
-  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
-}
-
-function envFor(plugin, project, options = {}) {
-  return installerEnv({
-    host: 'codex',
-    pluginRoot: plugin,
-    installerRoot: REPO,
-    projectRoot: project,
-    mode: 'copy',
-    modeExplicit: true,
-    baseEnv: { ...process.env, PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}` },
-    ...options,
-  });
-}
-
-function runIn(plugin, project, options = {}, hooks = {}) {
-  return runCaptured(envFor(plugin, project, options), {
-    afterStep: hooks.afterStep || null,
-    rethrow: (error) => error instanceof SimulatedCrash,
-  });
-}
-
-// Every path under the project, with link targets and normalized file text.
-function snapshot(project, plugin) {
-  const normalize = normalizer([[project, '<PROJECT>'], [plugin, '<PLUGIN>']]);
-  const lines = [];
-  const visit = (current, relative) => {
-    const stat = fs.lstatSync(current);
-    const name = normalize(relative);
-    if (stat.isSymbolicLink()) lines.push(`link:${name}:${normalize(fs.readlinkSync(current))}`);
-    else if (stat.isDirectory()) {
-      lines.push(`dir:${name}:${(stat.mode & 0o777).toString(8)}`);
-      for (const child of fs.readdirSync(current).sort()) visit(path.join(current, child), `${relative}/${child}`);
-    } else lines.push(`file:${name}:${(stat.mode & 0o777).toString(8)}:${normalize(fs.readFileSync(current, 'utf8'))}`);
-  };
-  visit(project, '.');
-  return lines;
-}
-
-function deadPid() {
-  const child = spawnSync(process.execPath, ['-e', ''], { encoding: 'utf8' });
-  return child.pid;
-}
-
-// A crash leaves the lock and the journal of a process that no longer runs.
-function markHolderDead(project) {
-  const pid = deadPid();
-  for (const relative of [LOCK, JOURNAL]) {
-    const file = path.join(project, relative);
-    if (!fs.existsSync(file)) continue;
-    const value = JSON.parse(fs.readFileSync(file, 'utf8'));
-    value.pid = pid;
-    fs.writeFileSync(file, `${JSON.stringify(value)}\n`);
-  }
-}
-
-function clone(template) {
-  const project = tempDir('dhpk-adapter-project-');
-  fs.cpSync(template.project, project, { recursive: true, verbatimSymlinks: true });
-  return project;
-}
+const runIn = makeRunIn('codex');
 
 function adoptToken(plugin, project, relative) {
   const plan = runIn(plugin, project, { plan: true, json: true, update: true });
@@ -130,108 +74,7 @@ const EXPECTED_POINTS = {
   adoption: { crash: 50, failure: 26 },
 };
 
-function prepareTemplate(scenario) {
-  const plugin = fakePlugin();
-  const project = tempDir('dhpk-adapter-template-');
-  fs.mkdirSync(path.join(project, '.git'));
-  scenario.prepare(plugin, project);
-  return { plugin, project, options: scenario.options(plugin, project) };
-}
-
-function cleanup(...directories) {
-  for (const directory of directories) fs.rmSync(directory, { recursive: true, force: true });
-}
-
-for (const [name, scenario] of Object.entries(SCENARIOS)) {
-  test(`testAdapterCrashSweep_${name}_recoveryLeavesPreviousOrNewState`, () => {
-    const template = prepareTemplate(scenario);
-    try {
-      // Snapshots compare clones with clones: a copy does not keep directory modes.
-      const expected = clone(template);
-      const before = snapshot(expected, template.plugin);
-      const clean = runIn(template.plugin, expected, template.options);
-      const after = snapshot(expected, template.plugin);
-      cleanup(expected);
-      assert.ok([0, 1].includes(clean.code), `${clean.stdout}\n${clean.stderr}`);
-      let crashes = 0;
-      for (const when of ['after', 'mid']) {
-        for (let target = 1; target < 400; target += 1) {
-          const project = clone(template);
-          try {
-            let crashed = false;
-            try {
-              runIn(template.plugin, project, template.options, {
-                afterStep: { [when]: (step) => { if (step === target) { crashed = true; throw new SimulatedCrash(step); } } },
-              });
-            } catch (error) {
-              if (!(error instanceof SimulatedCrash)) throw error;
-            }
-            if (!crashed) break;
-            crashes += 1;
-            assert.ok(fs.existsSync(path.join(project, JOURNAL)), `${name}: crash ${when} step ${target} left no journal`);
-            markHolderDead(project);
-            if (target % 3 === 0) {
-              // REQ-5: the next ordinary run undoes or finishes the
-              // interrupted transaction and completes its own run.
-              const rerun = runIn(template.plugin, project, template.options);
-              assert.strictEqual(rerun.code, clean.code, `${name}: rerun after crash ${when} step ${target}\n${rerun.stdout}\n${rerun.stderr}`);
-              assert.deepStrictEqual(snapshot(project, template.plugin), after, `${name}: rerun after crash ${when} step ${target}`);
-            } else {
-              const recovered = runIn(template.plugin, project, { recover: true });
-              assert.strictEqual(recovered.code, 0, `${name}: recover after crash ${when} step ${target}\n${recovered.stdout}\n${recovered.stderr}`);
-              const state = snapshot(project, template.plugin);
-              const matches = JSON.stringify(state) === JSON.stringify(before) || JSON.stringify(state) === JSON.stringify(after);
-              assert.ok(matches, `${name}: crash ${when} step ${target} recovered to a mixed state`);
-            }
-          } finally {
-            cleanup(project);
-          }
-        }
-      }
-      assert.strictEqual(crashes, EXPECTED_POINTS[name].crash, `${name}: the sweep visited ${crashes} crash points`);
-    } finally {
-      cleanup(template.plugin, template.project);
-    }
-  });
-
-  test(`testAdapterFailureAtEachStep_${name}_restoresPreviousState`, () => {
-    const template = prepareTemplate(scenario);
-    try {
-      let failures = 0;
-      for (let target = 1; target < 400; target += 1) {
-        const project = clone(template);
-        const before = snapshot(project, template.plugin);
-        try {
-          let injected = false;
-          const outcome = runIn(template.plugin, project, template.options, {
-            afterStep: (step) => { if (step === target) { injected = true; throw new Error(`injected failure at step ${step}`); } },
-          });
-          if (!injected) break;
-          failures += 1;
-          assert.notStrictEqual(outcome.code, 0, `${name}: failure at step ${target} still exited 0`);
-          const journalFile = path.join(project, JOURNAL);
-          if (fs.existsSync(journalFile) && JSON.parse(fs.readFileSync(journalFile, 'utf8')).phase === 'published') {
-            // REQ-4: past the commit point nothing rolls back; recovery finishes it.
-            const expected = clone(template);
-            runIn(template.plugin, expected, template.options);
-            const after = snapshot(expected, template.plugin);
-            cleanup(expected);
-            const recovered = runIn(template.plugin, project, { recover: true });
-            assert.strictEqual(recovered.code, 0, recovered.stderr);
-            assert.deepStrictEqual(snapshot(project, template.plugin), after, `${name}: failure after the commit point at step ${target}`);
-          } else {
-            assert.deepStrictEqual(snapshot(project, template.plugin), before, `${name}: failure at step ${target}\n${outcome.stderr}`);
-          }
-        } finally {
-          cleanup(project);
-        }
-      }
-      assert.strictEqual(failures, EXPECTED_POINTS[name].failure, `${name}: the sweep visited ${failures} failure points`);
-    } finally {
-      cleanup(template.plugin, template.project);
-    }
-  });
-}
+registerSweeps({ runIn, scenarios: SCENARIOS, expectedPoints: EXPECTED_POINTS });
 
 test('testInstallLock_heldByAnotherHost_failsBeforeChangingFiles', () => {
   const plugin = fakePlugin();
@@ -490,6 +333,68 @@ test('testPreviousReleaseHeldTransaction_isRolledBackByTheJsInstaller', () => {
   } finally {
     cleanup(plugin, project);
   }
+});
+
+// Recovery of a previous release's Host journal whose shared projection was
+// only `requested` tolerates the publisher saying it holds nothing for that
+// transaction. The publisher's structured `code` decides this, never words in
+// its message.
+function requestedProjectionRecovery(publisherResult) {
+  const plugin = fakePlugin();
+  const project = tempDir('dhpk-adapter-requested-');
+  const installerRoot = tempDir('dhpk-adapter-requested-root-');
+  try {
+    fs.mkdirSync(path.join(project, '.git'));
+    // A test-local installer root: every script of the checkout, linked, except
+    // a publisher stub that answers the held-projection calls with `publisherResult`.
+    const scripts = path.join(installerRoot, 'scripts');
+    fs.mkdirSync(path.join(scripts, 'lib'), { recursive: true });
+    for (const name of fs.readdirSync(path.join(REPO, 'scripts'))) {
+      if (name !== 'lib') fs.symlinkSync(path.join(REPO, 'scripts', name), path.join(scripts, name));
+    }
+    for (const name of fs.readdirSync(path.join(REPO, 'scripts', 'lib'))) {
+      if (name !== 'project-agent-projection-publisher.js') fs.symlinkSync(path.join(REPO, 'scripts', 'lib', name), path.join(scripts, 'lib', name));
+    }
+    write(path.join(scripts, 'lib', 'project-agent-projection-publisher.js'), `module.exports = {
+  ...require(${JSON.stringify(path.join(REPO, 'scripts', 'lib', 'project-agent-projection-publisher.js'))}),
+  abortHeldProjection: () => (${JSON.stringify(publisherResult)}),
+  commitHeldProjection: () => (${JSON.stringify(publisherResult)}),
+};
+`);
+    assert.strictEqual(runShellInstaller(project, ['--copy', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python' }).status, 0);
+    write(path.join(plugin, 'skills', 'dhpk-codex-only', 'SKILL.md'), skillBody('dhpk-codex-only', 'Codex only v2'));
+    const killed = runShellInstaller(project, ['--copy', '--update', '--force'], plugin, { DHPK_INSTALLER_ENGINE: 'python', DHPK_TEST_KILL_AT: 'after-shared-projection' });
+    assert.notStrictEqual(killed.status, 0);
+    // The killed update's journal is the one whose shared projection is held.
+    const journalFile = fs.readdirSync(path.join(project, '.codex'))
+      .filter((name) => /^\.dhpk-transaction-.*\.json$/.test(name))
+      .map((name) => path.join(project, '.codex', name))
+      .find((file) => (JSON.parse(fs.readFileSync(file, 'utf8')).shared_projection || {}).phase === 'held');
+    assert.ok(journalFile, 'the killed Python run must leave a journal with a held shared projection');
+    const journal = JSON.parse(fs.readFileSync(journalFile, 'utf8'));
+    journal.shared_projection.phase = 'requested';
+    fs.writeFileSync(journalFile, JSON.stringify(journal));
+    const outcome = runIn(plugin, project, { recover: true, installerRoot });
+    return { ...outcome, hostJournalPhase: JSON.parse(fs.readFileSync(journalFile, 'utf8')).phase };
+  } finally {
+    cleanup(plugin, project, installerRoot);
+  }
+}
+
+test('testPreviousReleaseRequestedProjection_publisherCodeTransactionMismatch_isTolerated', () => {
+  const outcome = requestedProjectionRecovery({ ok: false, state: 'BLOCKED', code: 'TRANSACTION_MISMATCH', error: { code: 'TRANSACTION_MISMATCH', message: 'not held by that transaction' } });
+  // The Host journal is undone; what remains is the publisher's own journal,
+  // which --recover then reports separately, so the run still exits 2.
+  assert.strictEqual(outcome.hostJournalPhase, 'rolled_back', `${outcome.stdout}\n${outcome.stderr}`);
+  assert.strictEqual(outcome.code, 2, `${outcome.stdout}\n${outcome.stderr}`);
+  assert.doesNotMatch(outcome.stderr, /cannot undo its shared projection step/);
+  assert.doesNotMatch(outcome.stderr, /shared projection abort/);
+});
+
+test('testPreviousReleaseRequestedProjection_otherPublisherFailureMentioningTheWords_isStillReported', () => {
+  const outcome = requestedProjectionRecovery({ ok: false, state: 'BLOCKED', code: 'ROLLBACK_FAILED', error: { code: 'ROLLBACK_FAILED', message: 'the journal said TRANSACTION_MISMATCH but the rollback failed' } });
+  assert.notStrictEqual(outcome.code, 0, `${outcome.stdout}\n${outcome.stderr}`);
+  assert.match(`${outcome.stdout}\n${outcome.stderr}`, /cannot undo its shared projection step: shared projection abort for transaction .* failed: ROLLBACK_FAILED/);
 });
 
 // The shell entry point routes Codex to the JS installer, so no python3 is

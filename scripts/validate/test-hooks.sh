@@ -170,7 +170,7 @@ if grep -q 'review:code-reviewer' "$repo/_grad.txt" && ! grep -q 'db-reviewer' "
 
 # 8b/8c/8d and the former SessionStart learning-context consumer were removed
 # with Review Sentinel (#376/#377). learning-db.sh remains independently
-# covered above; SessionStart now only activates configured modules.
+# covered above; SessionStart now activates configured modules and prints the dispatch delta.
 
 echo ""
 echo "== 9. stop-advisory-dispatch.sh (Phase 2.2) =="
@@ -279,7 +279,7 @@ if [ "$RC" -eq 0 ] && grep -q '\[session-start\] module enabled: python — Pyth
 
 repo="$(make_repo)"
 run_hook "$repo" session-start.sh '{"source":"startup"}' CLAUDE_PLUGIN_OPTION_MODULES= CLAUDE_PLUGIN_OPTION_WORKER_TARGET= CLAUDE_PLUGIN_OPTION_REASONER_TARGET= CLAUDE_PLUGIN_OPTION_PLANNER_TARGET= CLAUDE_PLUGIN_OPTION_REVIEWER_TARGET= DHPK_DISPATCH_CONFIG_REPORT=0
-if [ "$RC" -eq 0 ] && [ ! -s "$STDOUT_F" ] && [ ! -s "$STDERR_F" ]; then ok "no configured modules → silent no-op"; else fail "unconfigured SessionStart was not silent (rc=$RC, $(cat "$STDOUT_F") $(cat "$STDERR_F"))"; fi
+if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ] && [ "$(grep -vc '^\[dhpk dispatch\] ' "$STDOUT_F")" -eq 0 ] && [ "$(wc -l < "$STDOUT_F")" -ge 4 ] && [ "$(wc -l < "$STDOUT_F")" -le 6 ]; then ok "no configured modules → only the dispatch delta (4-6 lines)"; else fail "unconfigured SessionStart emitted more than the dispatch delta (rc=$RC, $(cat "$STDOUT_F") $(cat "$STDERR_F"))"; fi
 
 for source in startup compact; do
     repo="$(make_repo)"

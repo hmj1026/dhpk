@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.73.0 — 2026-11-11 — Cursor installer moves to JS; dispatch rules reach the orchestrator at session start
+
+- **feat(dispatch)** — SessionStart prints a fixed dispatch delta (Explore haiku/low, sub-agent role reassignment, general-purpose model), model-economics gains Fable 5.2 facts, escalation order and low-first, and doc-updater and qa-executor move to sonnet.
+- **feat(dispatch-telemetry)** — Add the read-only dispatch-telemetry-report CLI that summarises actual subAgent model@effort, tokens, estimated cost, call overrides, frontmatter mismatches, and general-purpose usage from local session logs (#1296).
+- **feat(dispatch)** — Add a dispatch-time role decision (architect for structure, deep-reasoner for root cause, Role Default unless a raise is needed) to model-economics, execution-policy, and the SessionStart dispatch delta (#1298).
+- **feat(installer)** — Cursor installer now runs the JS installer under the same Projection Journal and project lock as Codex; the packaged harness-setup copy keeps the previous installer until a later release.
+
 ## 0.72.0 — 2026-11-10 — Codex installer moves to JS with one Projection Journal and a project lock
 
 - **feat(installer)** — The Codex installer (`install-codex-skills.sh`) now runs a JS installer that records the native `.codex/` projection and the shared `.agents/` projection in one Projection Journal (`.agents/.dhpk-projection-journal.json`) under one project lock (`.agents/.dhpk-install.lock`), and `dhpk-install` Codex write actions perform the install with an explicit `--project-root`; an interrupted transaction left by dhpk 0.71.0 is still recovered, but a v1 or v2 projection transaction journal now blocks until you run `--recover` with dhpk 0.71.0, the Cursor installer and the packaged `harness-setup` copy keep the previous installer for now, and before downgrading you must finish any in-flight install with `--recover` (#1239).
