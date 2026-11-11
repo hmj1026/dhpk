@@ -55,6 +55,7 @@ const {
   utcStamp,
   uuidHex,
 } = compat;
+const { addCursorCacheDriftWarnings } = require('./cursor-plan');
 
 const O_NOFOLLOW = fs.constants.O_NOFOLLOW || 0;
 const O_NONBLOCK = fs.constants.O_NONBLOCK || 0;
@@ -854,8 +855,15 @@ function createInstaller(env, io) {
     };
   }
 
+  // The `--json` report of a run. A Cursor plan also carries the marketplace
+  // hash-cache drift warnings the Python shell entry used to add afterwards.
+  function printJsonReport(report) {
+    const printed = HARNESS_KIND === 'cursor' && PLAN && JSON_OUTPUT ? addCursorCacheDriftWarnings(report, env) : report;
+    print(pyJsonDumps(printed, { indent: 2, sortKeys: true }));
+  }
+
   function printReceiptProfileUpdateBlock(blocked) {
-    if (JSON_OUTPUT) print(pyJsonDumps(blocked, { indent: 2, sortKeys: true }));
+    if (JSON_OUTPUT) printJsonReport(blocked);
     else {
       print('[install-codex-skills] BLOCKED: this receipt belongs to a retired or unsupported collection');
       print(`[install-codex-skills] ACTION REQUIRED: ${blocked.next_action}`);
@@ -2349,7 +2357,7 @@ function createInstaller(env, io) {
   }
 
   function printPlan(report) {
-    if (JSON_OUTPUT) print(pyJsonDumps(report, { indent: 2, sortKeys: true }));
+    if (JSON_OUTPUT) printJsonReport(report);
     else {
       print(`[install-codex-skills] plan: state=${report.state} receipt_state=${pyStr(report.receipt_state)}`);
       for (const item of report.excluded || []) {
@@ -4565,7 +4573,7 @@ function createInstaller(env, io) {
         receipt_state: 'blocked',
         next_action: `disable ${SURFACE_LABEL} plugin dhpk@dhpk, then re-run project-local sync`,
       };
-      if (JSON_OUTPUT) print(pyJsonDumps(blockedReport, { indent: 2, sortKeys: true }));
+      if (JSON_OUTPUT) printJsonReport(blockedReport);
       else {
         print(`[install-codex-skills] BLOCKED: native ${SURFACE_LABEL} plugin dhpk@dhpk is enabled`);
         print(`[install-codex-skills] ACTION REQUIRED: ${blockedReport.next_action}`);
@@ -4620,7 +4628,7 @@ function createInstaller(env, io) {
             next_action: 're-run without --plan so the interrupted transaction can be recovered under the project lock',
             blocking_recovery: planBlockers,
           };
-          if (JSON_OUTPUT) print(pyJsonDumps(blockedReport, { indent: 2, sortKeys: true }));
+          if (JSON_OUTPUT) printJsonReport(blockedReport);
           else {
             print(`[install-codex-skills] BLOCKED: ${planBlockers.join('; ')}`);
             print(`[install-codex-skills] ACTION REQUIRED: ${blockedReport.next_action}`);
