@@ -158,12 +158,12 @@ operation matrix；`ADAPTER` 代表既有、已 characterization 的 route，不
 generic CLI 取得寫入權。
 
 Plan 會將 closed projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS +
-CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。`codex-sync`
-的 write action（install、update、uninstall）會執行 Codex installer，且必須明確
+CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。project scope 的
+`codex-sync` 與 `cursor` write action（install、update、uninstall）會執行與
+`install-codex-skills.sh`、`install-cursor-harness.sh` 相同的 JS installer，且必須明確
 指定 `--project-root`；其他 write action 在任何 mutation 前都會回傳 `BLOCKED`
-與 stable `NOT_IMPLEMENTED` diagnostic。尤其是 Cursor project-local write
-仍應使用 `install-cursor-harness.sh`；`install-codex-skills.sh` 仍是受支援的
-Codex route。Generic route 會持續 fail-closed，直到未來變更明確
+與 stable `NOT_IMPLEMENTED` diagnostic。兩支 installer script 仍是受支援的
+route。Generic route 會持續 fail-closed，直到未來變更明確
 移交 ArtifactStore write ownership；只有 adapter characterization 絕不會啟用 mutation。
 
 ### Cutover 計畫與 owned-path recovery
@@ -946,8 +946,8 @@ node "$DHPK_ROOT/tests/install-cursor-harness.test.js"
 ```
 
 Rollback 使用 `--uninstall` 或還原已儲存的 `.cursor/` receipt。不要刪除整個
-`.cursor/` 目錄。`dhpk-install cursor` write 仍為 `NOT_IMPLEMENTED`；支援的
-write path 是此 bash installer。
+`.cursor/` 目錄。`dhpk-install cursor install|update|uninstall --project-root <dir>`
+執行的是與此 bash script 相同的 installer。
 
 ## AGY／Antigravity CLI plugin（Experimental）
 

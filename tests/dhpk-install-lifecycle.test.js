@@ -126,6 +126,47 @@ test('dhpk-install performs a Codex install, update, and uninstall with the inst
   }
 });
 
+// install-lifecycle: dhpk-install write actions perform the Cursor install too.
+test('dhpk-install performs a Cursor install, update, and uninstall with the installer outcome', () => {
+  const project = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-lifecycle-cursor-')));
+  fs.mkdirSync(path.join(project, '.git'));
+  try {
+    const installed = invoke(['cursor', 'install', '--project-root', project, '--mode', 'copy', '--json']);
+    assert.strictEqual(installed.status, 0, installed.stderr);
+    const output = json(installed);
+    assert.strictEqual(output.lifecycle.verdict, 'INSTALL_PASS', JSON.stringify(output.installer || output.diagnostics));
+    assert.strictEqual(output.installer.exitCode, 0);
+    const receipt = JSON.parse(fs.readFileSync(path.join(project, '.cursor', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(receipt.schema_version, 3);
+    assert.strictEqual(receipt.mode, 'copy');
+    assert.strictEqual(fs.existsSync(path.join(project, '.codex')), false, 'a Cursor install must not touch .codex');
+    assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-projection-journal.json')), false);
+    assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-install.lock')), false);
+    const updated = invoke(['cursor', 'update', '--project-root', project, '--mode', 'copy', '--json']);
+    assert.strictEqual(updated.status, 0, updated.stderr);
+    assert.strictEqual(json(updated).lifecycle.verdict, 'INSTALL_PASS');
+    const removed = invoke(['cursor', 'uninstall', '--project-root', project, '--json']);
+    assert.strictEqual(removed.status, 0, removed.stderr);
+    assert.strictEqual(json(removed).lifecycle.verdict, 'INSTALL_PASS');
+    assert.strictEqual(fs.existsSync(path.join(project, '.cursor', '.dhpk-installed.json')), false);
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('cursor writes require an explicit project root and change nothing without one', () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-cursor-no-root-'));
+  try {
+    const result = invoke(['cursor', 'install', '--scope', 'project', '--json'], { cwd });
+    assert.strictEqual(result.status, 2, result.stderr);
+    const output = json(result);
+    assert.strictEqual(output.lifecycle.verdict, 'BLOCKED');
+    assert.strictEqual(output.diagnostics[0].code, 'PROJECT_ROOT_REQUIRED');
+    assert.match(output.diagnostics[0].message, /^cursor install /);
+    assert.deepStrictEqual(fs.readdirSync(cwd), []);
+  } finally { fs.rmSync(cwd, { recursive: true, force: true }); }
+});
+
 // The shell installer skips the project-root heuristic for --uninstall, so the
 // in-process path must as well; install and update keep the guard.
 test('codex-sync uninstall skips the project-root heuristic that install keeps', () => {
@@ -173,15 +214,6 @@ test('every lifecycle surface declares operation capability while generic writes
     assert.strictEqual(result.status, 2, `${surface}: ${result.stderr}`);
     assert.strictEqual(json(result).lifecycle.verdict, 'BLOCKED');
   }
-});
-
-test('cursor write actions remain blocked and point at the project-local installer', () => {
-  const result = invoke(['cursor', 'install', '--scope', 'project', '--json']);
-  assert.strictEqual(result.status, 2, result.stderr);
-  const output = json(result);
-  assert.strictEqual(output.lifecycle.verdict, 'BLOCKED');
-  assert.strictEqual(output.diagnostics[0].code, 'NOT_IMPLEMENTED');
-  assert.match(output.remediation[0], /install-cursor-harness\.sh/);
 });
 
 test('non-Cursor plans select actual inventory entries and retain their IDs for status and verify', () => {

@@ -172,11 +172,11 @@ not permission for this generic CLI to write.
 The plan keeps the
 closed projection evidence vocabulary separate from lifecycle presentation.
 `INSTALL_PASS + CONSUMER_BLOCKED` is never a projection `PASS` and cannot
-promote a support tier. The `codex-sync` write actions (install, update, uninstall) run the Codex
-installer and require an explicit `--project-root`; every other write action
-returns `BLOCKED` with the stable `NOT_IMPLEMENTED` diagnostic before any
-mutation. In particular, retain `install-cursor-harness.sh` for Cursor
-project-local writes; `install-codex-skills.sh` remains a supported Codex route. The generic route
+promote a support tier. The project-scope `codex-sync` and `cursor` write actions (install, update,
+uninstall) run the same JS installer as `install-codex-skills.sh` and
+`install-cursor-harness.sh`, and require an explicit `--project-root`; every
+other write action returns `BLOCKED` with the stable `NOT_IMPLEMENTED`
+diagnostic before any mutation. Both installer scripts remain supported routes. The generic route
 stays fail-closed until a future change explicitly transfers ArtifactStore
 write ownership; adapter characterization alone never enables mutation.
 
@@ -1065,8 +1065,8 @@ node "$DHPK_ROOT/tests/install-cursor-harness.test.js"
 ```
 
 Rollback is `--uninstall` or restoration of a saved `.cursor/` receipt. Do not
-delete the whole `.cursor/` directory. `dhpk-install cursor` writes remain
-`NOT_IMPLEMENTED`; the supported write path is this bash installer.
+delete the whole `.cursor/` directory. `dhpk-install cursor install|update|uninstall
+--project-root <dir>` runs the same installer as this bash script.
 
 ## AGY / Antigravity CLI plugin (Experimental)
 
