@@ -89,22 +89,22 @@ test('makeTempDir returns a real directory with the requested prefix', () => {
   assert.ok(path.basename(dir).startsWith('dhpk-prefix-check-'));
 });
 
-test('sweepOnExit removes product-created dirs with the prefix but keeps older and unrelated ones', () => {
+test('sweepOnExit removes new dirs with the prefix regardless of timestamps, keeping pre-existing and unrelated ones', () => {
   const { spawnSync } = require('node:child_process');
   const root = scratch();
   try {
-    const old = path.join(root, 'dhpk-sweep-old111');
-    fs.mkdirSync(old);
-    const past = new Date(Date.now() - 3600 * 1000);
-    fs.utimesSync(old, past, past);
-    // birthtime cannot be back-dated portably, so the older dir is created by a
-    // sibling process that exits before the sweeping process starts.
+    fs.mkdirSync(path.join(root, 'dhpk-sweep-old111'));
+    // The new dir is back-dated to the epoch, as a filesystem without birthtime
+    // support (many Linux setups) would make it look; names must decide.
     const code = `
       const fs = require('node:fs'); const path = require('node:path');
       const { sweepOnExit } = require(${JSON.stringify(path.join(__dirname, '_lib', 'temp-dir'))});
       sweepOnExit(['dhpk-sweep-']);
-      fs.mkdirSync(path.join(process.env.TMPDIR, 'dhpk-sweep-new111'));
-      fs.mkdirSync(path.join(process.env.TMPDIR, 'other-new111'));`;
+      for (const name of ['dhpk-sweep-new111', 'other-new111']) {
+        const dir = path.join(process.env.TMPDIR, name);
+        fs.mkdirSync(dir);
+        fs.utimesSync(dir, 0, 0);
+      }`;
     const result = spawnSync(process.execPath, ['-e', code], { env: { ...process.env, TMPDIR: root }, encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stderr);
     assert.deepStrictEqual(fs.readdirSync(root).sort(), ['dhpk-sweep-old111', 'other-new111']);

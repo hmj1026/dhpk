@@ -10,6 +10,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
@@ -32,6 +33,17 @@ test('running the suite (throwaway repos only) exits successfully with a valid P
   assert.match(res.stdout, /^PASS: 全部通過（[1-9]\d* 個檢查）$/m, `no valid PASS summary found:\n${res.stdout}`);
   assert.ok(res.stdout.includes('=========================================='), 'missing section divider');
   assert.ok(/^== 1\. userpromptsubmit-skill-hint\.sh ==/m.test(res.stdout), 'missing expected first section header');
+});
+
+test('the suite leaves no throwaway repos in TMPDIR (#1322)', () => {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-vth-scratch-'));
+  try {
+    const res = spawnSync('bash', [SCRIPT], { encoding: 'utf8', timeout: 60000, env: { ...process.env, TMPDIR: scratch } });
+    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+    assert.deepStrictEqual(fs.readdirSync(scratch), []);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 run('validate-test-hooks');

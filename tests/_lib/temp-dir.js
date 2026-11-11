@@ -34,13 +34,20 @@ function removeTempDir(dir) {
 }
 
 // For directories made by the code under test (a script's default log dir, a
-// product mktemp) that the test cannot name. On exit, remove entries of the temp
-// root that match a prefix and were created after this module loaded, so an
-// older or concurrent run's directories are never touched.
-const loadedAtMs = Date.now();
+// product mktemp) that the test cannot name. The entries already present when
+// this is called are recorded; on exit, every entry that matches a prefix and
+// was not in that snapshot is removed. Names, not timestamps, decide: birthtime
+// is unsupported on many Linux filesystems and mtime/ctime can be back-dated.
 function sweepOnExit(prefixes) {
+  const root = os.tmpdir();
+  const isTarget = (name) => prefixes.some((prefix) => name.startsWith(prefix));
+  const existing = new Set();
+  try {
+    for (const name of fs.readdirSync(root)) if (isTarget(name)) existing.add(name);
+  } catch (_error) {
+    // An unreadable root has nothing to snapshot or sweep.
+  }
   process.on('exit', () => {
-    const root = os.tmpdir();
     let names;
     try {
       names = fs.readdirSync(root);
@@ -48,13 +55,8 @@ function sweepOnExit(prefixes) {
       return;
     }
     for (const name of names) {
-      if (!prefixes.some((prefix) => name.startsWith(prefix))) continue;
-      const full = path.join(root, name);
-      try {
-        if (fs.lstatSync(full).birthtimeMs >= loadedAtMs) fs.rmSync(full, { recursive: true, force: true });
-      } catch (_error) {
-        // Already gone or unreadable: nothing further to clean.
-      }
+      if (!isTarget(name) || existing.has(name)) continue;
+      fs.rmSync(path.join(root, name), { recursive: true, force: true });
     }
   });
 }
