@@ -234,6 +234,15 @@ return the exact canonical result and preserve its `## Conclusion`, file-and-lin
 evidence, and `## Next actions`; only `READY_FOR_DISPATCH` supplies a bounded
 writer spec. `DECISION_FOR_USER` is `HUMAN_REQUIRED`; `BLOCKED` stops.
 
+## Dispatch-time role decision
+
+**Dispatch-time decision, operational steps.** The rule is in `rules/execution-policy.md` §Implementation dispatch; the architect vs deep-reasoner distinction and tiers are in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md#architect-vs-deep-reasoner`.
+
+1. Name the question type, then the role, before writing the dispatch.
+2. Omit `model` and `effort` on the call; add one only when the problem needs a raise, and record the reason in the handoff.
+3. Count automatic raises for the session; before the 3rd, ask the user instead of raising.
+4. Do not re-consult a role for a decision it already returned; resume or sanity-check that result (next section).
+
 ## Sanity-check a `deep-reasoner` conclusion before `fast-worker` applies it
 
 Before dispatching `fast-worker` to apply a conclusion contract, confirm it carries file-and-line evidence and next-actions precise enough to serve as a task spec. Re-work a vague or evidence-free conclusion (return it to `deep-reasoner`, or resolve it inline) rather than dispatching it for application — a wrong confident conclusion otherwise costs a full 3-attempt apply-and-fail cycle.

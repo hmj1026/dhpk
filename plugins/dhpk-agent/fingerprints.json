@@ -7,7 +7,7 @@
     "create-pr": "8f92deca6a524fa35368da87ab1fd66a5e8b36546b0122173c530d01358cbbd5",
     "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
     "flow-drive": "18f65c3a8ed8055673c1b51338008057ec852d3794f00cfbd99c47b5c7515c0c",
-    "flow-guide": "c58509ec618968590a91c2fbc0eda8745c1dc0f1e4fc6a8e5cb7869be5ecb5bc",
+    "flow-guide": "ed07a6d12805c5abc5a697df60da38b822153b5293b87e4360ca956450af24a9",
     "git-smart-commit": "951b6a8f04d7787ff0c698490895ce38bcc6169c74a7bea3f28c989af50fca10",
     "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
     "precommit": "3605c5ae6ada993a6f3ef977015e86a72e0caf18df18d1566da3af80a183999f",
