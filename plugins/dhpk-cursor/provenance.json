@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.75.0",
-  "sourceCommit": "5a0982d4ac17c2e3855c6bd82c354a040faa420a",
-  "generatedFromCommit": "5a0982d4ac17c2e3855c6bd82c354a040faa420a",
-  "generatedFromTree": "1cb9b160a0f8e2de01a9ba960366b149a70bfee3",
+  "sourceCommit": "a76d206e517c6d08fecd786a5f1e90f9c09ab800",
+  "generatedFromCommit": "a76d206e517c6d08fecd786a5f1e90f9c09ab800",
+  "generatedFromTree": "88e9d4a75afd145b49bb4b2d4e97eb0eb6275231",
   "inventoryDigest": "0ef4c654facc680b79e06df6a9ccee7542a4a5d2b9d09d5572652a0b334785ee",
   "inventoryRevision": "sha256:16a44cef65247db33f348ea120af9370504c8057463f8dfd2aa8c5a969a924f7",
   "generatorVersion": "1.1.0",
@@ -1522,7 +1522,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "a1311fc9fc097b119171d4de08d99d73a8c9572e"
+        "originalGitBlobDigest": "fe2a05480f4239b58c9a2e10aa308b85dc87ee59"
       },
       {
         "ownerId": "flow-guide",
@@ -5616,7 +5616,7 @@
     }
   ],
   "fingerprints": {
-    "rules": "72b9fa01fea8029a283107ad01fd7c384297121d633ac29d58df6d1ffa565a78",
+    "rules": "83b1040e3fd706de67b3a9339f8abf342c68c0c5fbcfbd3bc93d8227beecf113",
     "agents": "2d810080a35b712033bcac5322e8c5e06b82a0895cc394154478cf5f8e9e05db",
     "commands": "12d3391961e0d575937b4e1209e532a8e9784e5bf00ff3da8aa182b8236bbc36",
     "hooks/hooks.json": "c0caf2b1ff16dc0d63fb5b181785f20dd3c0f0923856a09dfb9cff698765d689",
@@ -6686,5 +6686,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "20b78d8a5a7cdba18a08b3365f5345e59fbef6a8355d7a6a60f3e01036d83f64"
+  "planFingerprint": "97ab707091746f2b6d42d074d45a0f070f3969a74a78b9ccc1e74b3c037996a4"
 }
