@@ -992,4 +992,162 @@ test('single-host and merged output contain neither host filesystem paths nor os
   }
 });
 
+// ---- #1335 review fixes: structural validation, whitelist, key-name hygiene ----
+
+const { mergeReports } = require(SCRIPT);
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function assertRejected(result, label) {
+  assert.strictEqual(result.status, 1, `${label}: exit ${result.status}\n${result.stderr}`);
+  assert.strictEqual(result.stdout, '', `${label}: wrote to stdout`);
+  const lines = result.stderr.trim().split('\n');
+  assert.strictEqual(lines.length, 1, `${label}: stderr is not one line:\n${result.stderr}`);
+  assert.match(lines[0], /^dispatch-telemetry-report: /);
+  assert.ok(!/TypeError|\n\s+at /.test(result.stderr), `${label}: stack trace in stderr`);
+}
+
+test('merge rejects costTotals that lack a cost class, in text and --json mode, without a stack trace', () => {
+  const [a, b] = twoHosts();
+  for (const costTotals of [{}, { unpricedGroups: 0 }, (() => { const c = clone(b.costTotals); delete c.cacheWrite1h; return c; })(), { ...clone(b.costTotals), total: 'x' }]) {
+    const broken = { ...clone(b), costTotals };
+    assertRejected(mergeCli([a, broken]), 'text');
+    assertRejected(mergeCli([a, broken], ['--json']), 'json');
+  }
+});
+
+test('merge rejects byAgent groups with missing or malformed usage or cost breakdown fields', () => {
+  const [a, b] = twoHosts();
+  const mutations = {
+    'usage missing': (g) => { delete g.usage; },
+    'usage empty': (g) => { g.usage = {}; },
+    'usage field missing': (g) => { delete g.usage.cacheWrite1hTokens; },
+    'usage field not finite': (g) => { g.usage.inputTokens = 'many'; },
+    'breakdown empty': (g) => { g.estimatedCostBreakdown = {}; },
+    'breakdown field missing': (g) => { delete g.estimatedCostBreakdown.cacheWrite5m; },
+    'breakdown total not finite': (g) => { g.estimatedCostBreakdown.total = null; },
+    'estimatedCost missing': (g) => { delete g.estimatedCost; },
+  };
+  for (const [name, mutate] of Object.entries(mutations)) {
+    const broken = clone(b);
+    mutate(findAgent(broken, 'architect', 'claude-fable-5-1', 'low'));
+    assertRejected(mergeCli([a, broken]), name);
+    assertRejected(mergeCli([a, broken], ['--json']), `${name} (json)`);
+  }
+  const unpriced = clone(a);
+  const group = findAgent(unpriced, 'Explore', 'claude-unpriced-9-9', 'medium');
+  assert.strictEqual(group.estimatedCost, 'unknown', 'fixture has an unpriced group on host-a');
+  delete group.usage.outputTokens;
+  assertRejected(mergeCli([unpriced, b]), 'unpriced group with incomplete usage');
+});
+
+test('merge rejects an input whose window does not own since, until, and timezone as string or null', () => {
+  const [a, b] = twoHosts();
+  for (const field of ['since', 'until', 'timezone']) {
+    const missing = (input) => { const c = clone(input); delete c.window[field]; return c; };
+    assertRejected(mergeCli([missing(a), missing(b)]), `${field} missing on all inputs`);
+    assertRejected(mergeCli([a, missing(b)]), `${field} missing on one input`);
+    const numeric = clone(b);
+    numeric.window[field] = 7;
+    assertRejected(mergeCli([a, numeric]), `${field} numeric`);
+  }
+  const nulls = [a, b].map((input) => ({ ...clone(input), window: { since: null, until: null, timezone: 'UTC' } }));
+  assert.strictEqual(mergeCli(nulls).status, 0, 'null since/until is valid');
+});
+
+test('merge keeps keys such as __proto__ and constructor out of the prototype chain', () => {
+  const [a, b] = twoHosts();
+  const withKey = (input, key, value) => {
+    const text = JSON.stringify(input).replace('"byModel":{', `"byModel":{${JSON.stringify(key)}:${JSON.stringify(value)},`);
+    assert.notStrictEqual(text, JSON.stringify(input), 'fixture was patched');
+    return text;
+  };
+  const poisoned = JSON.parse(withKey(b, '__proto__', { polluted: 1 }));
+  assert.throws(() => mergeReports([clone(a), poisoned]), /generalPurpose has an invalid key/);
+  assert.strictEqual(({}).polluted, undefined, 'prototype polluted');
+  const cliRun = mergeCli([a, withKey(b, '__proto__', { polluted: 1 })]);
+  assertRejected(cliRun, '__proto__');
+  assert.ok(!cliRun.stderr.includes('__proto__'), 'key name echoed');
+
+  const ctor = mergeCli([withKey(a, 'constructor', 2), withKey(b, 'constructor', 3)], ['--json']);
+  assert.strictEqual(ctor.status, 0, ctor.stderr);
+  const merged = JSON.parse(ctor.stdout);
+  assert.strictEqual(Object.getOwnPropertyDescriptor(merged.generalPurpose.byModel, 'constructor').value, 5);
+  assert.strictEqual(merged.generalPurpose.byModel['claude-haiku-5-5'], 2);
+  assert.strictEqual(({}).constructor, Object);
+  assert.strictEqual(({}).polluted, undefined);
+  const inProcess = mergeReports([JSON.parse(withKey(a, 'constructor', 2)), JSON.parse(withKey(b, 'constructor', 3))]);
+  assert.strictEqual(Object.getPrototypeOf(inProcess.generalPurpose.byModel), Object.prototype);
+  assert.strictEqual(inProcess.generalPurpose.byModel.hasOwnProperty('constructor'), true);
+});
+
+test('error messages never echo input key names', () => {
+  const [a, b] = twoHosts();
+  const secret = 'SECRET-KEY-NAME-DO-NOT-ECHO';
+  const variants = [
+    (c) => { c.generalPurpose[secret] = 'x'; },
+    (c) => { c.generalPurpose.byModel[secret] = 'x'; },
+    (c) => { c.generalPurpose.byModel = { ...c.generalPurpose.byModel, [secret]: { nested: 'x' } }; },
+    (c) => { c.generalPurpose.total = { [secret]: 1 }; },
+    (c) => { c.skipped[secret] = 'x'; },
+    (c) => { c.callOverrides[secret] = null; },
+  ];
+  for (const [i, mutate] of variants.entries()) {
+    const broken = clone(b);
+    mutate(broken);
+    const r = mergeCli([a, broken]);
+    assertRejected(r, `variant ${i}`);
+    assert.ok(!r.stderr.includes(secret), `variant ${i} echoed the key: ${r.stderr}`);
+  }
+});
+
+test('--merge accepts --host and the merged output has no top-level host', () => {
+  const [a, b] = twoHosts();
+  const text = mergeCli([a, b], ['--host', 'ignored-label']);
+  assert.strictEqual(text.status, 0, text.stderr);
+  const json = mergeCli([a, b], ['--host', 'ignored-label', '--json']);
+  assert.strictEqual(json.status, 0, json.stderr);
+  const merged = JSON.parse(json.stdout);
+  assert.ok(!Object.prototype.hasOwnProperty.call(merged, 'host'), 'merged report has a host key');
+  assert.ok(!json.stdout.includes('ignored-label'));
+});
+
+test('estimatedCost "unknown" as a string stays unknown whatever the breakdown holds', () => {
+  const [a, b] = twoHosts();
+  for (const breakdown of ['unknown', null, undefined, 'keep']) {
+    const forced = clone(b);
+    const group = findAgent(forced, 'Explore', 'claude-haiku-5-5', 'low');
+    group.estimatedCost = 'unknown';
+    if (breakdown === undefined) delete group.estimatedCostBreakdown;
+    else if (breakdown !== 'keep') group.estimatedCostBreakdown = breakdown;
+    const m = mergedJson([a, forced]);
+    const merged = findAgent(m, 'Explore', 'claude-haiku-5-5', 'low');
+    assert.strictEqual(merged.count, 2, String(breakdown));
+    assert.strictEqual(merged.estimatedCost, 'unknown', String(breakdown));
+    assert.strictEqual(merged.estimatedCostBreakdown, 'unknown', String(breakdown));
+    assert.strictEqual(m.costTotals.unpricedGroups, 2, String(breakdown));
+  }
+});
+
+test('merged mismatches keep only the known fields plus host and drop unknown keys', () => {
+  const [a, b] = twoHosts();
+  const extra = clone(b);
+  extra.mismatches[0].surprise = 'SURPRISE-VALUE';
+  extra.mismatches[0].host = 'spoofed-host';
+  extra.mismatches[0].nested = { x: 1 };
+  const m = mergedJson([a, extra]);
+  const known = ['agentType', 'agentId', 'fields', 'declaredModel', 'declaredEffort', 'actualModel', 'actualEffort', 'callModel', 'callEffort', 'host'];
+  for (const x of m.mismatches) {
+    assert.deepStrictEqual(Object.keys(x).sort(), known.slice().sort());
+  }
+  const row = m.mismatches.find((x) => x.host === 'host-b');
+  assert.strictEqual(row.agentId, 'dup1');
+  assert.ok(!JSON.stringify(m).includes('SURPRISE-VALUE'));
+  const broken = clone(b);
+  delete broken.mismatches[0].fields;
+  assertRejected(mergeCli([a, broken]), 'mismatch without fields');
+});
+
 run('dispatch-telemetry-report');

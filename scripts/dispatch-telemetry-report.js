@@ -31,7 +31,16 @@
 //     group "unknown". costTotals.unpricedGroups is recounted on merged groups.
 //     costTotals (other fields), callOverrides, skipped, noDeclaredTier and every
 //     generalPurpose counter (buckets, byModel, byTrigger included) are summed.
-//   * Every mismatch gains `host` (agentId is unique only per host).
+//   * Every input must be structurally complete, else exit 1: `window` owns
+//     since, until and timezone (string or null); costTotals and every priced
+//     byAgent estimatedCostBreakdown carry finite input, output, cacheRead,
+//     cacheWrite5m, cacheWrite1h and total; every byAgent group carries finite
+//     values for all six usage fields. Error messages never echo input key names.
+//   * Merged costTotals and byAgent costs sum each host's already-rounded (6 dp)
+//     values, so a merged total can differ from a single-host total by at most
+//     hosts x 5e-7.
+//   * Every mismatch gains `host` (agentId is unique only per host); only the
+//     known mismatch fields are kept, any other key is dropped.
 //   * Output adds `sources[]` ({host, declaredTiersDigest, skippedTotal}, in
 //     input order) and `declaredTiers`: "consistent" when every digest is equal,
 //     "mixed" when they differ (the merge still happens). Text output adds one
@@ -129,6 +138,13 @@ const PRICE_TABLE = Object.freeze({
 });
 
 const COST_CLASSES = Object.freeze(['input', 'output', 'cacheRead', 'cacheWrite5m', 'cacheWrite1h']);
+const COST_KEYS = Object.freeze([...COST_CLASSES, 'total']);
+const USAGE_FIELDS = Object.freeze([
+  'inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheCreationTokens', 'cacheWrite5mTokens', 'cacheWrite1hTokens',
+]);
+const MISMATCH_TEXT_FIELDS = Object.freeze([
+  'declaredModel', 'declaredEffort', 'actualModel', 'actualEffort', 'callModel', 'callEffort',
+]);
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const COMMAND_TOOLS = new Set(['Bash', 'PowerShell']);
@@ -670,23 +686,44 @@ function stableStringify(value) {
 
 // Adds every numeric leaf of `source` into `target`, recursing into nested
 // maps (generalPurpose.byModel, ...). Anything but a finite number is rejected,
-// so a malformed input fails the merge instead of becoming NaN or 0.
+// so a malformed input fails the merge instead of becoming NaN or 0. Messages
+// carry only `label`, never an input key name.
 function addCounters(target, source, label) {
   if (!isRecord(source)) throw new MergeError(`${label} must be an object`);
   for (const key of Object.keys(source)) {
-    if (key === '__proto__') throw new MergeError(`${label} has a forbidden key`);
+    if (key === '__proto__') throw new MergeError(`${label} has an invalid key`);
     const value = source[key];
     if (isRecord(value)) {
       if (!hasOwn(target, key)) target[key] = {};
-      if (!isRecord(target[key])) throw new MergeError(`${label}.${key} mixes a number and an object`);
-      addCounters(target[key], value, `${label}.${key}`);
+      if (!isRecord(target[key])) throw new MergeError(`${label} mixes numbers and objects`);
+      addCounters(target[key], value, label);
     } else if (typeof value === 'number' && Number.isFinite(value)) {
-      if (hasOwn(target, key) && typeof target[key] !== 'number') throw new MergeError(`${label}.${key} mixes a number and an object`);
+      if (hasOwn(target, key) && typeof target[key] !== 'number') throw new MergeError(`${label} mixes numbers and objects`);
       target[key] = (hasOwn(target, key) ? target[key] : 0) + value;
     } else {
-      throw new MergeError(`${label}.${key} must be a number`);
+      throw new MergeError(`${label} has an invalid value`);
     }
   }
+}
+
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function zeros(keys) {
+  const out = {};
+  for (const key of keys) out[key] = 0;
+  return out;
+}
+
+// Reads exactly `keys` from `source` (each must be an own finite number) and
+// adds them into `target`; any other key in `source` is ignored.
+function addKnown(target, source, keys, label) {
+  if (!isRecord(source)) throw new MergeError(`${label} must be an object`);
+  for (const key of keys) {
+    if (!hasOwn(source, key) || !isFiniteNumber(source[key])) throw new MergeError(`${label} is missing a numeric field`);
+  }
+  for (const key of keys) target[key] += source[key];
 }
 
 function requireSection(input, key, label) {
@@ -716,6 +753,11 @@ function mergeReports(inputs) {
     if (hosts.has(input.host)) throw new MergeError(`${label}: host "${input.host}" appears more than once`);
     hosts.add(input.host);
     for (const key of ['window', 'pricing', 'costTotals', 'callOverrides', 'skipped', 'generalPurpose']) requireSection(input, key, label);
+    for (const field of ['since', 'until', 'timezone']) {
+      if (!hasOwn(input.window, field) || (input.window[field] !== null && typeof input.window[field] !== 'string')) {
+        throw new MergeError(`${label}: window must carry since, until and timezone as string or null`);
+      }
+    }
     if (!Array.isArray(input.byAgent) || !Array.isArray(input.mismatches)) {
       throw new MergeError(`${label}: byAgent and mismatches must be arrays`);
     }
@@ -737,7 +779,7 @@ function mergeReports(inputs) {
   }
 
   const groups = new Map();
-  const costTotals = {};
+  const costTotals = zeros(COST_KEYS);
   const callOverrides = { total: 0, withModel: 0, withEffort: 0 };
   const skipped = {
     missingRoot: 0, corruptJson: 0, missingTranscript: 0, noAssistantTurn: 0, missingParent: 0, unreadable: 0, undated: 0, total: 0,
@@ -751,8 +793,7 @@ function mergeReports(inputs) {
 
   inputs.forEach((input, index) => {
     const label = `--merge input #${index + 1}`;
-    const { unpricedGroups, ...totals } = input.costTotals;
-    addCounters(costTotals, totals, `${label} costTotals`);
+    addKnown(costTotals, input.costTotals, COST_KEYS, `${label} costTotals`);
     addCounters(callOverrides, input.callOverrides, `${label} callOverrides`);
     addCounters(skipped, input.skipped, `${label} skipped`);
     addCounters(generalPurpose, input.generalPurpose, `${label} generalPurpose`);
@@ -773,12 +814,19 @@ function mergeReports(inputs) {
       const key = JSON.stringify([group.agentType, group.model, group.effort]);
       if (!groups.has(key)) {
         groups.set(key, {
-          agentType: group.agentType, model: group.model, effort: group.effort, count: 0, usage: {}, cost: 0, breakdown: {}, unknown: false,
+          agentType: group.agentType,
+          model: group.model,
+          effort: group.effort,
+          count: 0,
+          usage: zeros(USAGE_FIELDS),
+          cost: 0,
+          breakdown: zeros(COST_KEYS),
+          unknown: false,
         });
       }
       const merged = groups.get(key);
       merged.count += group.count;
-      addCounters(merged.usage, group.usage, `${label} byAgent usage`);
+      addKnown(merged.usage, group.usage, USAGE_FIELDS, `${label} byAgent usage`);
       if (isUnknownCost(group)) {
         merged.unknown = true;
       } else {
@@ -786,14 +834,19 @@ function mergeReports(inputs) {
           throw new MergeError(`${label}: malformed byAgent estimatedCost`);
         }
         merged.cost += group.estimatedCost;
-        addCounters(merged.breakdown, group.estimatedCostBreakdown, `${label} byAgent estimatedCostBreakdown`);
+        addKnown(merged.breakdown, group.estimatedCostBreakdown, COST_KEYS, `${label} byAgent estimatedCostBreakdown`);
       }
     }
 
     for (const mismatch of input.mismatches) {
-      if (!isRecord(mismatch)) throw new MergeError(`${label}: malformed mismatch entry`);
-      const { host: ignored, ...rest } = mismatch;
-      mismatches.push({ host: input.host, ...rest });
+      if (!isRecord(mismatch) || typeof mismatch.agentType !== 'string' || typeof mismatch.agentId !== 'string'
+        || !Array.isArray(mismatch.fields) || mismatch.fields.some((f) => typeof f !== 'string')
+        || MISMATCH_TEXT_FIELDS.some((f) => hasOwn(mismatch, f) && mismatch[f] !== null && typeof mismatch[f] !== 'string')) {
+        throw new MergeError(`${label}: malformed mismatch entry`);
+      }
+      const known = { agentType: mismatch.agentType, agentId: mismatch.agentId, fields: [...mismatch.fields] };
+      for (const f of MISMATCH_TEXT_FIELDS) known[f] = hasOwn(mismatch, f) ? mismatch[f] : null;
+      mismatches.push({ ...known, host: input.host });
     }
   });
 
@@ -927,14 +980,17 @@ function main(argv = process.argv.slice(2), io = {}) {
   const stderr = io.stderr || process.stderr;
   let options;
   let report;
+  let output;
   try {
     options = parseArgs(argv);
     report = options.merge ? buildMergedReport(options.merge) : buildReport(options);
+    output = options.json ? `${JSON.stringify(report, null, 2)}\n` : formatText(report);
   } catch (error) {
-    stderr.write(`dispatch-telemetry-report: ${error.message}\n`);
+    const message = String((error && error.message) || 'unexpected error').split('\n')[0];
+    stderr.write(`dispatch-telemetry-report: ${message}\n`);
     return error instanceof UsageError ? 64 : 1;
   }
-  stdout.write(options.json ? `${JSON.stringify(report, null, 2)}\n` : formatText(report));
+  stdout.write(output);
   return 0;
 }
 
