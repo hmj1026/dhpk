@@ -64,7 +64,7 @@
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
       "skill_id": "flow-guide",
       "source": "rules/tool-routing.md",
-      "sha256": "sha256:03e264ac92bc409241fab0d8a5233fc0ba081506c1022b4f786a8224a227f436",
+      "sha256": "sha256:94f6a165ebb8e4142578d5fc85c57c24c6b7044fe7675b30ae9ea4b00c684fae",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/cli-dispatch/verify-handoff.js": {
