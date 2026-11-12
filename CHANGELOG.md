@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.75.0 — 2026-11-12 — Journals from 0.72/0.73 now fail closed; tool-routing gains result trust and fallback rules
+
+- **BREAKING(install)** — Drop recovery of dhpk 0.72/0.73 journals (an unfinished Python Host journal or a publisher journal with a `hold`) so the installer now blocks and names `--recover` of dhpk 0.74.x, `dhpk-install --recover` reports a blocking Python Host journal as `LEGACY_HOST_JOURNAL` (a publisher journal with a `hold` fails with `UNSAFE_TRANSACTION`) and, while one is present, skips projection-journal and shared-projection recovery and exits `2`, and `install-native-shared-skills.js` loses its `commit`/`abort` actions and `--transaction` option (#1321).
+- **docs(tool-routing)** — Add a "Result trust & fallback" section to the tool-routing reference card covering when gitnexus/cx results count as evidence, fallbacks, coverage config, and the rebuild command (#1327).
+
 ## 0.74.1 — 2026-11-12 — Tests and dispatch tools no longer leave temporary files behind
 
 - **fix(cli-dispatch)** — The Codex/AGY dispatch request file (which can contain prompt data) and the release-verify dry-run scratch directory are now removed from TMPDIR instead of being left behind, and the leftover directories the gate and preview tools keep on purpose are documented (#1323).
