@@ -10,6 +10,8 @@ function inside(root, candidate) {
   return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
 }
 
+const GIT_LEADING_ARGS = ['-c', 'core.fsmonitor=false', '-c', 'maintenance.auto=false', '-c', 'gc.auto=0'];
+
 function isolatedGitEnv() {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
@@ -24,7 +26,7 @@ function isolatedGitEnv() {
 }
 
 function runGit(root, args, input = undefined, { binary = false } = {}) {
-  const result = spawnSync('git', ['-c', 'core.fsmonitor=false', ...args], {
+  const result = spawnSync('git', [...GIT_LEADING_ARGS, ...args], {
     cwd: root,
     input,
     env: isolatedGitEnv(),
@@ -42,7 +44,7 @@ function runGitToFile(root, args, output) {
     ? [...args, `--output=${output}`]
     : [...args.slice(0, separator), `--output=${output}`, ...args.slice(separator)];
   const safeArgs = commandArgs[0] === 'diff' ? [commandArgs[0], '--no-ext-diff', ...commandArgs.slice(1)] : commandArgs;
-  const result = spawnSync('git', ['-c', 'core.fsmonitor=false', ...safeArgs], {
+  const result = spawnSync('git', [...GIT_LEADING_ARGS, ...safeArgs], {
     cwd: root,
     env: isolatedGitEnv(),
     stdio: ['ignore', 'ignore', 'pipe'],
