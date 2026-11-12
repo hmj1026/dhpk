@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.75.0",
-  "sourceCommit": "a76d206e517c6d08fecd786a5f1e90f9c09ab800",
-  "generatedFromCommit": "a76d206e517c6d08fecd786a5f1e90f9c09ab800",
-  "generatedFromTree": "88e9d4a75afd145b49bb4b2d4e97eb0eb6275231",
+  "sourceCommit": "de9a34c6728639f3a6fa907e30b322227ef3c27a",
+  "generatedFromCommit": "de9a34c6728639f3a6fa907e30b322227ef3c27a",
+  "generatedFromTree": "8fe6fdbf5f0bc606c88adcc88f45bc3f474e580d",
   "inventoryDigest": "3b33a70e5318307138bbf9e3ef253beae90181d7c67c83852b015696bab2a741",
   "inventoryRevision": "sha256:16a44cef65247db33f348ea120af9370504c8057463f8dfd2aa8c5a969a924f7",
   "generatorVersion": "1.1.0",
@@ -1567,7 +1567,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "fe2a05480f4239b58c9a2e10aa308b85dc87ee59"
+        "originalGitBlobDigest": "ca77eb26d88165ef7b0d5555f42504cb706925e2"
       },
       {
         "ownerId": "flow-guide",
@@ -5309,7 +5309,7 @@
     "create-pr": "8f92deca6a524fa35368da87ab1fd66a5e8b36546b0122173c530d01358cbbd5",
     "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
     "flow-drive": "18f65c3a8ed8055673c1b51338008057ec852d3794f00cfbd99c47b5c7515c0c",
-    "flow-guide": "657fab81ca19c6ba0e7ddc831916a1b4b6617b8873516bb28272d04df5dd6e0c",
+    "flow-guide": "0dfe1f550191412541e25105090318e69d29c90c2a3de31e34dff888a7e19179",
     "git-smart-commit": "951b6a8f04d7787ff0c698490895ce38bcc6169c74a7bea3f28c989af50fca10",
     "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
     "precommit": "3605c5ae6ada993a6f3ef977015e86a72e0caf18df18d1566da3af80a183999f",
