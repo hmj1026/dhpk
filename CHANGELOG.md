@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.75.1 — 2026-11-12 — Telemetry cost now counts cache tokens; architect defaults to fable@medium
+
+- **fix(dispatch-telemetry)** — dispatch-telemetry-report now prices cache read and 5-minute/1-hour cache writes at the official per-model rates, lists cost per token class with a report total, and the model-economics role benchmark figures are recomputed on that basis (#1331).
+- **chore(model-economics)** — Raise the `architect` default effort from low to medium after the 2026-11-12 role benchmark, keep `deep-reasoner` at opus high and `fast-worker` at sonnet medium, and replace the Fable 5.1 cost ratio with the measured Fable 5.2 range (#1299).
+
 ## 0.75.0 — 2026-11-12 — Journals from 0.72/0.73 now fail closed; tool-routing gains result trust and fallback rules
 
 - **BREAKING(install)** — Drop recovery of dhpk 0.72/0.73 journals (an unfinished Python Host journal or a publisher journal with a `hold`) so the installer now blocks and names `--recover` of dhpk 0.74.x, `dhpk-install --recover` reports a blocking Python Host journal as `LEGACY_HOST_JOURNAL` (a publisher journal with a `hold` fails with `UNSAFE_TRANSACTION`) and, while one is present, skips projection-journal and shared-projection recovery and exits `2`, and `install-native-shared-skills.js` loses its `commit`/`abort` actions and `--transaction` option (#1321).

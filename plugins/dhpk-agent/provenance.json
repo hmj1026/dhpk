@@ -3,10 +3,10 @@
   "surface": "agent-plugin",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
-  "sourceVersion": "0.75.0",
-  "sourceCommit": "5a0982d4ac17c2e3855c6bd82c354a040faa420a",
-  "generatedFromCommit": "5a0982d4ac17c2e3855c6bd82c354a040faa420a",
-  "generatedFromTree": "1cb9b160a0f8e2de01a9ba960366b149a70bfee3",
+  "sourceVersion": "0.75.1",
+  "sourceCommit": "646606d579cae230d50d7cc9a296607a0fefc792",
+  "generatedFromCommit": "646606d579cae230d50d7cc9a296607a0fefc792",
+  "generatedFromTree": "c94257e744e833982244079905d93f280317c098",
   "inventoryDigest": "3b33a70e5318307138bbf9e3ef253beae90181d7c67c83852b015696bab2a741",
   "inventoryRevision": "sha256:16a44cef65247db33f348ea120af9370504c8057463f8dfd2aa8c5a969a924f7",
   "generatorVersion": "1.1.0",
@@ -1567,7 +1567,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
         "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
-        "originalGitBlobDigest": "a1311fc9fc097b119171d4de08d99d73a8c9572e"
+        "originalGitBlobDigest": "ca77eb26d88165ef7b0d5555f42504cb706925e2"
       },
       {
         "ownerId": "flow-guide",
@@ -5309,7 +5309,7 @@
     "create-pr": "8f92deca6a524fa35368da87ab1fd66a5e8b36546b0122173c530d01358cbbd5",
     "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
     "flow-drive": "18f65c3a8ed8055673c1b51338008057ec852d3794f00cfbd99c47b5c7515c0c",
-    "flow-guide": "071c6d1c502d71aff9a5d738f48ee8bd0012372cabcdf518618d251f22f006ff",
+    "flow-guide": "0dfe1f550191412541e25105090318e69d29c90c2a3de31e34dff888a7e19179",
     "git-smart-commit": "951b6a8f04d7787ff0c698490895ce38bcc6169c74a7bea3f28c989af50fca10",
     "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
     "precommit": "3605c5ae6ada993a6f3ef977015e86a72e0caf18df18d1566da3af80a183999f",
@@ -5321,7 +5321,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "4eff3c0176996cce98702817d09d60269c4e111d13c513572fe0d030df6f3028",
+    "planId": "62a846c9f91fe9701b75bdcd78c2ce342f8b4443c9b8cbfd0b3d52235262b5d1",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5365,10 +5365,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "4eff3c0176996cce98702817d09d60269c4e111d13c513572fe0d030df6f3028",
+      "plan": "62a846c9f91fe9701b75bdcd78c2ce342f8b4443c9b8cbfd0b3d52235262b5d1",
       "inventory": "3b33a70e5318307138bbf9e3ef253beae90181d7c67c83852b015696bab2a741"
     },
-    "rollbackIdentity": "89ac896e9c7ce22bad9748ddd4cde6236780cc551087f5a9f1d32ab9a2187837"
+    "rollbackIdentity": "0768fef479e28ee6689400fada6fc44167a4762bad27ab4210fba64593426fd5"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {

@@ -9,7 +9,7 @@ SSOT for **which model tier each role runs on, and the cost rules that govern ti
 | Role | Model | Why |
 |---|---|---|
 | Orchestrator (main session) | opus | Owns decide → dispatch → verify; spends the expensive tier on judgment, risk, and evidence packets — never bulk discovery. |
-| `deep-reasoner` | opus | Reasoning-heavy judgment (root cause, algorithm, design synthesis), ideally on a distilled evidence packet rather than raw breadth. A single dispatch MAY raise to `fable` only for multi-question policy/spec adjudication where a wrong ruling is costly; root-cause analysis, single-failure diagnosis, and diff tracing stay on opus (the "about 2.3x opus per run" ratio is a Fable 5.1 measurement from the 2026-10-31 retrospective, pending re-measurement on Fable 5.2; do not cite it as a current figure, and there is no same-task quality evidence). |
+| `deep-reasoner` | opus | Reasoning-heavy judgment (root cause, algorithm, design synthesis), ideally on a distilled evidence packet rather than raw breadth. A single dispatch MAY raise to `fable` only for multi-question policy/spec adjudication where a wrong ruling is costly; root-cause analysis, single-failure diagnosis, and diff tracing stay on opus (Fable 5.2 cost 1.3-3.5x opus on the same task, median about 2.4x; on the 2026-11-12 root-cause benchmark Fable did not improve quality, see [Role default benchmark](#role-default-benchmark-2026-11-12) and [#1299](https://github.com/hmj1026/dhpk/issues/1299)). |
 | `codex-reasoner` (selector-driven) | external CLI — codex, default `gpt-6.1-sol` @ `high` (`reasoner_target`, `codex/<model>[:<effort>]`) | Reasoning-heavy judgment offloaded to the codex CLI (read-only sandbox) via `--reasoner=codex/<model>[:<effort>]`; the bare `--reasoner=codex` value is a compatibility shorthand; same conclusion contract as `deep-reasoner`; confirmed CLI or auth/model unavailability with no side effect follows the shared native-first fallback, while safety/task/timeout failures stay on their existing paths. |
 | `fast-worker` | sonnet | Mechanical application of a clear spec — the cheaper execution tier the policy routes to by default. |
 | `codex-worker` (selector-driven) | external CLI — codex, default `gpt-6-luna` @ `xhigh` (`worker_target`, `codex/<model>[:<effort>]`) | The strong mechanical tier: selected explicitly or by configured `auto` availability order; confirmed CLI or auth/model unavailability with no side effect follows the shared native-first fallback. |
@@ -19,7 +19,7 @@ SSOT for **which model tier each role runs on, and the cost rules that govern ti
 | `doc-reviewer` | haiku | Lightweight frontmatter / link / SSOT lint — the cheapest tier that passes. |
 | Built-in `Explore` (no dhpk frontmatter) | haiku @ low | Search and file discovery only. Pass `model: "haiku"` and `effort: "low"` on every `Agent` call, because no frontmatter can set them. Review and judgment never go through `Explore`; use `code-reviewer` or `deep-reasoner`. |
 | Built-in `general-purpose` (no dhpk frontmatter) | explicit `model` required | Only for work with no typed role. Always pass an explicit `model`; never haiku for file edits. Reassignment of work that has a typed role is owned by `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`. |
-| `architect` | fable @ low | Highest per-token Claude tier in current pricing evidence, the default tier for cross-module / DDD design judgment; `deep-reasoner` may also raise to it, see its row. `architect_model` / `architect_effort` are removed keys with no dispatch effect. |
+| `architect` | fable @ medium | Highest per-token Claude tier in current pricing evidence, the default tier for cross-module / DDD design judgment; `medium` scored 5/5 against 4.5/5 at `low` in the 2026-11-12 benchmark ([#1299](https://github.com/hmj1026/dhpk/issues/1299)); `deep-reasoner` may also raise to it, see its row. `architect_model` / `architect_effort` are removed keys with no dispatch effect. |
 
 **`fast-worker` sonnet vs haiku boundary.** sonnet stays the default. A single dispatch MAY pass the `Agent` call `model: haiku` only when every condition holds: the spec names each target file and the exact edit, the edit is a mechanical sweep (rename, docblock or anchor text, format-only, or applying a literal fix-spec), no step needs a judgment call about behavior, and one deterministic command verifies the result. Keep sonnet for anything that reads behavior, chooses between alternatives, touches tests' expectations, or spans an unresolved spec. On a haiku dispatch pass an explicit `effort` (usually `medium` or `low`) rather than raising it to compensate (see the note below). A haiku dispatch that fails its first verification goes back to sonnet (rule 6), not to a second haiku retry.
 
@@ -38,6 +38,20 @@ Both roles answer a question before a writer acts; they differ in when the quest
 | Raise | A high-risk design may raise effort; a migration spanning several Hosts may go one effort level up | One dispatch may raise to `fable` only for multi-policy or multi-spec adjudication (see the tier map row); ordinary debugging stays on opus |
 
 A multi-stage migration (3 or more independently releasable stages) may be led by a Fable main session; this is a description of an option, not a prompt or an automatic suggestion.
+
+## Role default benchmark (2026-11-12)
+
+Evidence for the role defaults in the tier map, from a 2 model x 2 effort run recorded in [#1299](https://github.com/hmj1026/dhpk/issues/1299). It is the task-class effort benchmark that ADR-0024 (dhpk repository) requires before a role default is assigned; its scope is one task per role. The tier map stays the SSOT for the resulting defaults.
+
+| Role | Result (cost per run) | Tier map outcome |
+|---|---|---|
+| `architect` | fable@low 4.5/5 $1.47; fable@medium 5/5 $1.20; opus@low 4/5 $0.42; opus@medium 4.5/5 $0.95 | Row changed to `medium`: best score, and cheaper than fable@low in this run. |
+| `deep-reasoner` | All four correct: opus@medium $1.16; opus@high $1.30; fable@medium $2.19; fable@high $3.86 | Row unchanged. The task did not discriminate; re-run on a harder task before lowering. |
+| `fast-worker` | All four produced identical passing diffs; sonnet@medium $0.11 was cheapest | Row unchanged. Low-first (rule 8) did not save cost here. |
+
+- **Fable 5.2 vs opus:** the same-task cost ratio was 1.3-3.5x, median about 2.4x. It replaces the Fable 5.1 figure of about 2.3x.
+- **Cost basis:** costs come from the telemetry report (dispatch-telemetry-report), which prices every token class at the official per-model rate: cache read 0.025x of input on Fable 5.1/5.2, 0.05x on Opus 5.5 and Sonnet 5.5, 0.1x on Haiku 5.5; cache write 1.25x (5-minute TTL) and 2x (1-hour TTL). Source: the Anthropic pricing page (https://platform.claude.com/docs/en/about-claude/pricing), verified 2026-11-12. The earlier figures assumed a flat 0.1x cache read and overstated Fable costs; they were recomputed in [#1331](https://github.com/hmj1026/dhpk/issues/1331).
+- **Limits:** n=1 per cell, and run-to-run variance was observed. Quality scores were assigned by the orchestrating session and are pending maintainer confirmation in #1299. The architect runs had GitNexus disabled, unlike daily use, and the four deep-reasoner runs shared one worktree and interfered with each other. Costs describe this one benchmark, not a general price. The Codex projection was not benchmarked.
 
 ## Codex projection map
 
