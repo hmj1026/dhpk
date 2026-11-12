@@ -397,6 +397,55 @@ test('validation reports an unmanaged entry at a reserved name but tolerates oth
   }
 });
 
+test('after a rename, a user directory at the old name is tolerated by both the writer and the validator', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    fs.renameSync(path.join(root, 'skills/dhpk-sample'), path.join(root, 'skills/sample-renamed'));
+    const sourceSkill = path.join(root, 'skills/sample-renamed/SKILL.md');
+    fs.writeFileSync(sourceSkill, fs.readFileSync(sourceSkill, 'utf8').replace('name: dhpk-sample', 'name: sample-renamed'));
+    const renamedInventory = {
+      schema: INVENTORY.schema,
+      skills: [{ id: 'sample', name: 'sample-renamed', path: 'skills/sample-renamed', lifecycle: 'promoted', surfaces: ['agent-plugin'] }],
+      surface_membership: { 'agent-plugin': ['sample'] },
+      renamed_skill_names: [{ id: 'sample', oldName: 'dhpk-sample', oldPath: 'skills/dhpk-sample', newName: 'sample-renamed', newPath: 'skills/sample-renamed' }],
+    };
+    materializeAgentsSkillsProjection({ root, inventory: renamedInventory, outDir, allowCanonicalChanges: true });
+    write(path.join(outDir, 'dhpk-sample', 'third.md'), '# user dir at the old name\n');
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: renamedInventory, outDir }).ok, true);
+    const result = materializeAgentsSkillsProjection({ root, inventory: renamedInventory, outDir, allowCanonicalChanges: true });
+    assert.deepStrictEqual(result.preservedUnmanaged, ['dhpk-sample']);
+    assert.strictEqual(fs.readFileSync(path.join(outDir, 'dhpk-sample', 'third.md'), 'utf8'), '# user dir at the old name\n');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('validation tolerates a symlink inside a foreign skill and a foreign top-level symlink', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    seedForeign(outDir);
+    const foreignDir = fs.readdirSync(outDir, { withFileTypes: true }).find((entry) => entry.isDirectory() && entry.name !== 'dhpk-sample');
+    assert.ok(foreignDir, 'seedForeign must create a foreign skill directory');
+    fs.symlinkSync(root, path.join(outDir, foreignDir.name, 'link-inside'));
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir }).ok, true);
+
+    fs.symlinkSync(root, path.join(outDir, 'foreign-top-link'));
+    const result = validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir });
+    assert.strictEqual(result.ok, true, result.errors.join('; '));
+
+    // A symlink at a reserved name is still an error.
+    fs.rmSync(path.join(outDir, 'dhpk-sample.md'));
+    fs.symlinkSync(root, path.join(outDir, 'dhpk-sample.md'));
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir }).ok, false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('a non-empty tree without a receipt is refused and left untouched', () => {
   const root = makeRoot();
   try {
