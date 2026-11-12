@@ -4,10 +4,10 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.75.0",
-  "sourceCommit": "de9a34c6728639f3a6fa907e30b322227ef3c27a",
-  "generatedFromCommit": "de9a34c6728639f3a6fa907e30b322227ef3c27a",
-  "generatedFromTree": "8fe6fdbf5f0bc606c88adcc88f45bc3f474e580d",
+  "sourceVersion": "0.75.1",
+  "sourceCommit": "646606d579cae230d50d7cc9a296607a0fefc792",
+  "generatedFromCommit": "646606d579cae230d50d7cc9a296607a0fefc792",
+  "generatedFromTree": "c94257e744e833982244079905d93f280317c098",
   "inventoryDigest": "0ef4c654facc680b79e06df6a9ccee7542a4a5d2b9d09d5572652a0b334785ee",
   "inventoryRevision": "sha256:16a44cef65247db33f348ea120af9370504c8057463f8dfd2aa8c5a969a924f7",
   "generatorVersion": "1.1.0",
@@ -5624,7 +5624,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "cb0d7ef5693877e76362e503219bae63bc1f51b0578837d29bcd56f97faabf74",
+    "planId": "21fb4f1905657587724d1178faca1eef428f7966cad237fb894c144d7615c73d",
     "scope": "project",
     "profileId": "common",
     "selectedStableIds": [
@@ -5668,10 +5668,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "cb0d7ef5693877e76362e503219bae63bc1f51b0578837d29bcd56f97faabf74",
+      "plan": "21fb4f1905657587724d1178faca1eef428f7966cad237fb894c144d7615c73d",
       "inventory": "0ef4c654facc680b79e06df6a9ccee7542a4a5d2b9d09d5572652a0b334785ee"
     },
-    "rollbackIdentity": "5e9543b0139bb776486809377da8d48c9862b5891e133ab3119f158c4e3f5d7d"
+    "rollbackIdentity": "922ad25c3c18aec2c8203e48349a3dbca29af09deb159f3d031a19545636b54a"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -6686,5 +6686,5 @@
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
   "selectionFingerprint": "ca49b9a31930a3a1f9193fc9d368d7410760fea57ca8d755523701d5757f72ba",
   "surfaceSelectionFingerprint": "d3220bf17e45e04e99ed0050f396c8f0828a65aad243e850ca084cedef0b42c0",
-  "planFingerprint": "963631e73934a8b41c0feb163e82c05eddd391dd4d9be58b4ea209024d41a61b"
+  "planFingerprint": "5f2f0672632839b332510316b753239b8a638db942c5f8a108130c470b45fb91"
 }
