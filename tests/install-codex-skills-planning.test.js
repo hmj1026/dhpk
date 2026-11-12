@@ -582,7 +582,7 @@ for (const drift of ['version', 'fingerprint', 'both']) {
     }
   });
 }
-test('--plan blocks on an interrupted transaction without recovering or mutating state', () => {
+test('--plan blocks on a dhpk 0.72/0.73 interrupted transaction, and the install refuses it too, without mutating state', () => {
   const scratch = projectRoot();
   try {
     const first = runInstaller(scratch, ['--copy', '--force']);
@@ -617,15 +617,17 @@ test('--plan blocks on an interrupted transaction without recovering or mutating
     assert.strictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
     const report = JSON.parse(planned.stdout);
     assert.strictEqual(report.state, 'blocked');
-    assert.match(report.blocking_recovery.join('\n'), /interrupted transaction|recovery/i);
+    assert.match(report.blocking_recovery.join('\n'), /dhpk 0\.74\.x/);
     assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore);
     assert.strictEqual(completeTreeFingerprint(target), targetBefore);
     assert.strictEqual(fs.readFileSync(journalPath, 'utf8'), journalBefore);
 
-    const recovered = runInstaller(scratch, ['--copy', '--update', '--force']);
-    assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
-    const recoveredJournal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
-    assert.strictEqual(recoveredJournal.phase, 'rolled_back');
+    // This release does not recover the journal either: it fails closed too.
+    const refused = runInstaller(scratch, ['--copy', '--update', '--force']);
+    assert.strictEqual(refused.status, 2, `${refused.stdout}\n${refused.stderr}`);
+    assert.match(`${refused.stdout}\n${refused.stderr}`, /dhpk 0\.74\.x/);
+    assert.strictEqual(fs.readFileSync(journalPath, 'utf8'), journalBefore);
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

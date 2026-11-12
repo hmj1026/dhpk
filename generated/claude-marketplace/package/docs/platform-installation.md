@@ -263,7 +263,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.74.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.75.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -716,17 +716,33 @@ interrupted transaction automatically.
 - The packaged `harness-setup` copy runs the same JS installer as a checkout
   or plugin cache (one generated `dhpk-installer.cjs` beside its shell entry), so
   it takes the same project lock and Projection Journal. No installer needs
-  `python3`; Node.js is required. `TRANSACTION_HELD` is no longer produced, but
-  a held transaction left by 0.72 or 0.73 is still recovered by rerunning the installer
-  or running it with `--recover`. Recover in-flight installs before downgrading.
+  `python3`; Node.js is required. `TRANSACTION_HELD` is no longer produced, and
+  from 0.75.0 a transaction left unfinished by 0.72 or 0.73 (an `active` or
+  `rollback_incomplete` Python Host journal, or a publisher journal with a
+  `hold`) is no longer recovered: the installer blocks before changing files and
+  names `--recover` of dhpk 0.74.x. Run that 0.74.x `--recover` first, then
+  upgrade. Recover in-flight installs before downgrading.
+- `dhpk-install --recover` reports the two legacy shapes differently. A Python
+  Host journal (`.codex/` or `.cursor/` `.dhpk-transaction-*.json`) left
+  `active` or `rollback_incomplete` is listed under `installerJournals` as
+  `LEGACY_HOST_JOURNAL`; one whose phase is missing or unknown is listed there
+  as `unreadable` ("unsupported phase") with its path, to inspect by hand. A
+  publisher journal carrying a `hold` is not listed there: it fails with
+  `UNSAFE_TRANSACTION`, shown in the shared projection block as `BLOCKED` and
+  naming dhpk 0.74.x.
+- While any such blocking Host journal is present, `dhpk-install --recover`
+  changes nothing: it skips projection-journal and shared-projection recovery
+  (both reported as `SKIPPED`, code `LEGACY_HOST_JOURNAL`) and returns
+  `ok: false`, exit `2`. Recover the Host journal with dhpk 0.74.x first.
 - `did not finish rolling back` lists the remaining paths and the backup
   directory. Fix the reported cause, then run the same installer with
   `--recover`. It replays the rollback and stops without installing.
 - `dhpk-install --recover [--project-root DIR] [--json]` resolves a held
   shared projection whose installer journal is gone (it never reached its
   commit point, so it is undone), refuses while that installer journal is
-  still active, and lists every incomplete installer rollback with the command
-  that finishes it. It exits `2` while anything remains.
+  still active, and lists every blocking legacy Host journal. JSON entries have
+  no `command` field; the text report says to recover with dhpk 0.74.x
+  `--recover`. It exits `2` while anything remains.
 
 ### Recover receipt-owned shared skills
 
@@ -1133,7 +1149,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.74.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.75.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

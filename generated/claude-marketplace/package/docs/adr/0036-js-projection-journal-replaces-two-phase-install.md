@@ -62,7 +62,11 @@ publisher still describes progress with flags (`liveBackedUp`, `holdReady`,
   window covers only the format written by the release before it: stage 1
   reads publisher v1/v2; stage 3 reads publisher v3 and the Python Host
   journal. Stage 1 ships as dhpk 0.71.0, so from stage 3 a v1/v2 publisher
-  journal names the `--recover` of dhpk 0.71.0.
+  journal names the `--recover` of dhpk 0.71.0. Amended for 0.75.0: the
+  stage-3 compat readers (the Python Host journal and publisher v3 `hold`) are
+  removed, so an unfinished journal of either kind fails closed and names the
+  `--recover` of dhpk 0.74.x; Python Host journals already `committed` or
+  `rolled_back` stay accepted as history (#1321).
 - The port ships in five stages, each releasable on its own: (1) the publisher
   records effects as data, with staging inside the journal; (2) a JS
   Projection Journal core with in-process crash injection, adopted by the

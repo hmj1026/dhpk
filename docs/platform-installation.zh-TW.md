@@ -246,7 +246,7 @@ dependency 一律 fail closed。runtime-only support 只記錄為 support metada
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.74.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.75.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -654,14 +654,29 @@ installer 把 native 與 shared projection 的步驟記錄在同一個 Projectio
 - 打包的 `harness-setup` 副本與 checkout、plugin cache 執行同一個 JS installer
   （shell 入口旁邊有一個產生的 `dhpk-installer.cjs`），因此取得相同的 project
   lock 與 Projection Journal。兩個 installer 都不再需要 `python3`，但必須有
-  Node.js。`TRANSACTION_HELD` 不再產生；0.72 或 0.73 留下的 held transaction 仍可重新
-  執行 installer 或以 `--recover` 處理。降版前請先復原進行中的安裝。
+  Node.js。`TRANSACTION_HELD` 不再產生；自 0.75.0 起，0.72 或 0.73 留下未完成的
+  transaction（`active` 或 `rollback_incomplete` 的 Python Host journal，或帶有
+  `hold` 的 publisher journal）不再被復原：installer 會在變更任何檔案前中止，並指示
+  執行 dhpk 0.74.x 的 `--recover`。請先以 0.74.x 執行 `--recover`，再升級。
+  降版前請先復原進行中的安裝。
+- `dhpk-install --recover` 對兩種舊格式的回報不同。停在 `active` 或
+  `rollback_incomplete` 的 Python Host journal（`.codex/` 或 `.cursor/` 的
+  `.dhpk-transaction-*.json`）列在 `installerJournals` 下，code 為
+  `LEGACY_HOST_JOURNAL`；phase 缺漏或未知者在同處以 `unreadable`（"unsupported
+  phase"）列出並附路徑，需人工檢視。帶有 `hold` 的 publisher journal 不會列在那裡：
+  它以 `UNSAFE_TRANSACTION` 失敗，顯示於 shared projection 區塊為 `BLOCKED`，並指示
+  dhpk 0.74.x。
+- 只要存在任何此類會阻擋的 Host journal，`dhpk-install --recover` 就不變更任何內容：
+  它略過 projection journal 與 shared projection 的復原（兩者皆回報 `SKIPPED`，
+  code 為 `LEGACY_HOST_JOURNAL`），並回傳 `ok: false`，以 `2` 結束。請先以
+  dhpk 0.74.x 復原該 Host journal。
 - `did not finish rolling back` 會列出剩餘路徑與備份目錄。排除回報的原因後，
   以 `--recover` 執行同一個 installer；它重播 rollback 後即停止，不會安裝。
 - `dhpk-install --recover [--project-root DIR] [--json]` 會撤銷 installer journal
   已不存在的 held shared projection（它尚未到達提交點）、在該 installer journal
-  仍為 active 時拒絕處理，並列出每個未完成的 installer rollback 及完成它的指令；
-  只要仍有待處理項目就以 `2` 結束。
+  仍為 active 時拒絕處理，並列出每個會阻擋的舊版 Host journal。JSON 項目沒有
+  `command` 欄位；文字報告則指示以 dhpk 0.74.x 的 `--recover` 復原。只要仍有待處理
+  項目就以 `2` 結束。
 
 ### 復原 receipt-owned shared skills
 
@@ -1006,7 +1021,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.74.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.75.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

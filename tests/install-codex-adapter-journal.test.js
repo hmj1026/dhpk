@@ -350,87 +350,32 @@ test('testStagedMaterialization_mutatedAfterItsFingerprint_failsBeforePublishing
   }
 });
 
-// Task 3.6: a Host journal the previous release's Python installer left in
-// flight, with its publication held, is undone by its own commit point. The
-// journal is a recording (tests/fixtures/legacy-journals/README.md): that
-// installer no longer exists to produce one.
-function restoreLegacyCodexProject(plugin, project, { withExpected = false } = {}) {
+// A Host journal a dhpk 0.72/0.73 Python installer left in flight is no longer
+// recovered (issue #1321): this release fails closed, changes nothing, and
+// names the dhpk 0.74.x line that still recovers it. The journal is a
+// recording (tests/fixtures/legacy-journals/README.md).
+function restoreLegacyCodexProject(plugin, project) {
   const recording = loadLegacyFixture('python-codex-host-journal');
   restoreTree(recording.interrupted, project, { '@@PROJECT@@': project, '@@PLUGIN@@': plugin });
-  if (!withExpected) return { expected: null };
-  const expected = tempDir('dhpk-adapter-legacy-before-');
-  restoreTree(recording.before, expected, { '@@PROJECT@@': expected, '@@PLUGIN@@': plugin });
-  return { expected };
 }
 
-test('testPreviousReleaseHeldTransaction_isRolledBackByTheJsInstaller', () => {
-  const plugin = fakePlugin();
-  const project = tempDir('dhpk-adapter-legacy-');
-  let expected;
-  try {
-    ({ expected } = restoreLegacyCodexProject(plugin, project, { withExpected: true }));
-    assert.ok(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), 'the recording must hold a publication');
-    const recovered = runIn(plugin, project, { recover: true });
-    assert.strictEqual(recovered.code, 0, `${recovered.stdout}\n${recovered.stderr}`);
-    assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), false);
-    const volatile = /\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/;
-    const state = snapshot(project, plugin).filter((line) => !volatile.test(line));
-    assert.deepStrictEqual(state, snapshot(expected, plugin).filter((line) => !volatile.test(line)));
-  } finally {
-    cleanup(plugin, project, ...(expected ? [expected] : []));
-  }
-});
-
-// Recovery of a previous release's Host journal whose shared projection was
-// only `requested` tolerates the publisher saying it holds nothing for that
-// transaction. The publisher's structured `code` decides this, never words in
-// its message.
-function requestedProjectionRecovery(publisherResult) {
-  const plugin = fakePlugin();
-  const project = tempDir('dhpk-adapter-requested-');
-  // A test-local probe: the installer calls the Publisher through its module
-  // object, so answering the held-projection calls here stands in for a
-  // Publisher that reports `publisherResult` for them.
-  const publisher = require('../scripts/lib/project-agent-projection-publisher');
-  const original = { abort: publisher.abortHeldProjection, commit: publisher.commitHeldProjection };
-  try {
-    fs.mkdirSync(path.join(project, '.git'));
-    restoreLegacyCodexProject(plugin, project);
-    // The recorded update's journal is the one whose shared projection is held.
-    const journalFile = fs.readdirSync(path.join(project, '.codex'))
-      .filter((name) => /^\.dhpk-transaction-.*\.json$/.test(name))
-      .map((name) => path.join(project, '.codex', name))
-      .find((file) => (JSON.parse(fs.readFileSync(file, 'utf8')).shared_projection || {}).phase === 'held');
-    assert.ok(journalFile, 'the recording must hold a shared projection in one Host journal');
-    const journal = JSON.parse(fs.readFileSync(journalFile, 'utf8'));
-    journal.shared_projection.phase = 'requested';
-    fs.writeFileSync(journalFile, JSON.stringify(journal));
-    publisher.abortHeldProjection = () => publisherResult;
-    publisher.commitHeldProjection = () => publisherResult;
-    const outcome = runIn(plugin, project, { recover: true });
-    return { ...outcome, hostJournalPhase: JSON.parse(fs.readFileSync(journalFile, 'utf8')).phase };
-  } finally {
-    publisher.abortHeldProjection = original.abort;
-    publisher.commitHeldProjection = original.commit;
-    cleanup(plugin, project);
-  }
+for (const [label, options] of [['normalRun', {}], ['recoverRun', { recover: true }]]) {
+  test(`testPreviousReleaseHostJournal_${label}_failsClosedNamingDhpk074x`, () => {
+    const plugin = fakePlugin();
+    const project = tempDir('dhpk-adapter-legacy-');
+    try {
+      restoreLegacyCodexProject(plugin, project);
+      const before = snapshot(project, plugin);
+      const outcome = runIn(plugin, project, options);
+      assert.strictEqual(outcome.code, 2, `${outcome.stdout}\n${outcome.stderr}`);
+      assert.match(`${outcome.stdout}\n${outcome.stderr}`, /dhpk 0\.74\.x/);
+      assert.match(`${outcome.stdout}\n${outcome.stderr}`, /--recover/);
+      assert.deepStrictEqual(snapshot(project, plugin), before, 'a refused run changes nothing');
+    } finally {
+      cleanup(plugin, project);
+    }
+  });
 }
-
-test('testPreviousReleaseRequestedProjection_publisherCodeTransactionMismatch_isTolerated', () => {
-  const outcome = requestedProjectionRecovery({ ok: false, state: 'BLOCKED', code: 'TRANSACTION_MISMATCH', error: { code: 'TRANSACTION_MISMATCH', message: 'not held by that transaction' } });
-  // The Host journal is undone; what remains is the publisher's own journal,
-  // which --recover then reports separately, so the run still exits 2.
-  assert.strictEqual(outcome.hostJournalPhase, 'rolled_back', `${outcome.stdout}\n${outcome.stderr}`);
-  assert.strictEqual(outcome.code, 2, `${outcome.stdout}\n${outcome.stderr}`);
-  assert.doesNotMatch(outcome.stderr, /cannot undo its shared projection step/);
-  assert.doesNotMatch(outcome.stderr, /shared projection abort/);
-});
-
-test('testPreviousReleaseRequestedProjection_otherPublisherFailureMentioningTheWords_isStillReported', () => {
-  const outcome = requestedProjectionRecovery({ ok: false, state: 'BLOCKED', code: 'ROLLBACK_FAILED', error: { code: 'ROLLBACK_FAILED', message: 'the journal said TRANSACTION_MISMATCH but the rollback failed' } });
-  assert.notStrictEqual(outcome.code, 0, `${outcome.stdout}\n${outcome.stderr}`);
-  assert.match(`${outcome.stdout}\n${outcome.stderr}`, /cannot undo its shared projection step: shared projection abort for transaction .* failed: ROLLBACK_FAILED/);
-});
 
 // The shell entry point routes Codex to the JS installer, so no python3 is
 // needed on PATH (only the tools the shell itself calls, plus node).

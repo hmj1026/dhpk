@@ -78,7 +78,7 @@ For every step N of an install, update, uninstall, or rollback, a crash after st
 
 ### Requirement: REQ-9 Previous journal formats for one minor release
 
-Recovery SHALL recognise the journal formats written by the previous minor release, including the Python installer journal and the Node publisher's held journal, and SHALL complete or undo them according to that format's commit point. A journal format older than the previous minor release SHALL fail closed with remediation that names the earlier release whose `--recover` handles it. Receipts SHALL NOT be rewritten to a new format by this recovery.
+Recovery SHALL recognise the journal formats written by the previous minor release and SHALL complete or undo them according to that format's commit point. A journal format older than the previous minor release SHALL fail closed with remediation that names the earlier release whose `--recover` handles it. The Python installer journal and the Node publisher's held journal were written by 0.72 and 0.73, so from 0.75.0 they are older than the window: an unfinished Python Host journal (`active` or `rollback_incomplete`) or a publisher journal carrying a `hold` SHALL block without changing files and name `--recover` of dhpk 0.74.x. Python Host journals already `committed` or `rolled_back` remain accepted as history. Receipts SHALL NOT be rewritten to a new format by this recovery.
 
 #### Scenario: In-flight previous-release journal
 
@@ -89,3 +89,8 @@ Recovery SHALL recognise the journal formats written by the previous minor relea
 
 - **WHEN** a run finds a journal format from two or more minor releases back
 - **THEN** it blocks without changing files and names the release whose `--recover` to run first
+
+#### Scenario: Unfinished 0.72 or 0.73 journal
+
+- **WHEN** a run finds an unfinished Python Host journal or a publisher journal with a `hold`
+- **THEN** it blocks without changing files and names `--recover` of dhpk 0.74.x
