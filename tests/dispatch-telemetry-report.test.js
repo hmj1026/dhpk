@@ -635,4 +635,361 @@ test('report cost totals sum priced groups and count unpriced groups instead of 
   assert.match(text.stdout, /1 unpriced group/);
 });
 
+// ---- #1335: --host and repeatable --merge --------------------------------
+
+const MERGE_WINDOW = ['--since', '2026-11-05T00:00Z', '--until', '2026-11-06T00:00Z'];
+const LONG_PROMPT_A = { input_tokens: 1000, output_tokens: 1000, cache_read_input_tokens: 150000, cache_creation_input_tokens: 0 };
+const LONG_PROMPT_B = { input_tokens: 2000, output_tokens: 500, cache_read_input_tokens: 220000, cache_creation_input_tokens: 0 };
+
+function skillTrigger(ts, name) {
+  return {
+    type: 'assistant',
+    timestamp: ts,
+    message: { id: `sk-${ts}`, content: [{ type: 'tool_use', id: `sk-${ts}`, name: 'Skill', input: { skill: name } }] },
+  };
+}
+
+function hostRoot(which) {
+  const root = mkdtemp();
+  if (which === 'a') {
+    makeSession(root, {
+      dispatches: [
+        { id: 'a1', agentType: 'architect', records: [assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-fable-5-1', effort: 'low' })] },
+        { id: 'a2', agentType: 'architect', callEffort: 'low', records: [
+          assistant({ ts: '2026-11-05T02:00:00Z', model: 'claude-fable-5-1', effort: 'low', usage: { input_tokens: 2000, output_tokens: 100 } }),
+        ] },
+        { id: 'dup1', agentType: 'dhpk:architect', callModel: 'opus', callEffort: 'high', records: [
+          assistant({ ts: '2026-11-05T03:00:00Z', model: 'claude-opus-5-5', effort: 'high' }),
+        ] },
+        { id: 'h1', agentType: 'Explore', records: [assistant({ ts: '2026-11-05T04:00:00Z', model: 'claude-haiku-5-5', effort: 'low', usage: LONG_PROMPT_A })] },
+        { id: 'u1', agentType: 'Explore', records: [assistant({ ts: '2026-11-05T05:00:00Z', model: 'claude-unpriced-9-9', effort: 'medium' })] },
+        { id: 'gp1', agentType: 'general-purpose', trigger: skillTrigger('2026-11-05T06:00:00Z', 'fake-skill'), records: [
+          assistant({ ts: '2026-11-05T06:10:00Z', model: 'claude-haiku-5-5', effort: 'medium', tools: ['Read', 'Edit'] }),
+        ] },
+        { id: 'gp2', agentType: 'general-purpose', records: [
+          assistant({ ts: '2026-11-05T07:00:00Z', model: 'claude-sonnet-5-5', effort: 'medium', tools: ['Read'] }),
+        ] },
+      ],
+    });
+    // A corrupt meta so that skipped.total is non-zero on this host.
+    fs.writeFileSync(path.join(root, '-fake-project-a', 'session-0001', 'subagents', 'agent-bad.meta.json'), '{broken');
+  } else {
+    makeSession(root, {
+      dispatches: [
+        { id: 'b1', agentType: 'architect', records: [assistant({ ts: '2026-11-05T01:30:00Z', model: 'claude-fable-5-1', effort: 'low' })] },
+        { id: 'dup1', agentType: 'dhpk:architect', callModel: 'opus', records: [
+          assistant({ ts: '2026-11-05T03:30:00Z', model: 'claude-opus-5-5', effort: 'high' }),
+        ] },
+        { id: 'h1', agentType: 'Explore', records: [assistant({ ts: '2026-11-05T04:30:00Z', model: 'claude-haiku-5-5', effort: 'low', usage: LONG_PROMPT_B })] },
+        { id: 'gp1', agentType: 'general-purpose', trigger: { type: 'user', timestamp: '2026-11-05T06:00:00Z', message: { role: 'user', content: '<command-name>/fake-command</command-name>' } }, records: [
+          assistant({ ts: '2026-11-05T06:10:00Z', model: 'claude-haiku-5-5', effort: 'medium', tools: ['Write'] }),
+        ] },
+        { id: 'gp2', agentType: 'general-purpose', records: [
+          assistant({ ts: '2026-11-05T07:00:00Z', model: 'claude-sonnet-5-5', effort: 'medium', tools: ['Bash'] }),
+        ] },
+      ],
+    });
+  }
+  return root;
+}
+
+function hostJson(host, which, agentsDir, extraArgs = []) {
+  const r = cli(['--root', hostRoot(which), '--agents-dir', agentsDir, '--json', ...(host ? ['--host', host] : []), ...MERGE_WINDOW, ...extraArgs], { TZ: 'UTC' });
+  assert.strictEqual(r.status, 0, r.stderr);
+  return JSON.parse(r.stdout);
+}
+
+let inputDir = null;
+let inputSeq = 0;
+function writeInput(value) {
+  if (!inputDir) inputDir = mkdtemp();
+  inputSeq += 1;
+  const file = path.join(inputDir, `host-${inputSeq}.json`);
+  fs.writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value));
+  return file;
+}
+
+function mergeCli(inputs, extraArgs = []) {
+  const files = inputs.map(writeInput);
+  return cli([...files.flatMap((f) => ['--merge', f]), ...extraArgs], { TZ: 'UTC' });
+}
+
+function mergedJson(inputs) {
+  const r = mergeCli(inputs, ['--json']);
+  assert.strictEqual(r.status, 0, r.stderr);
+  return JSON.parse(r.stdout);
+}
+
+function twoHosts() {
+  const agentsDir = makeAgentsDir();
+  return [hostJson('host-a', 'a', agentsDir), hostJson('host-b', 'b', agentsDir)];
+}
+
+test('single-host --json --host includes schemaVersion, host, and a sha256 declaredTiersDigest without paths', () => {
+  const agentsDir = makeAgentsDir();
+  const report = hostJson('host-a', 'a', agentsDir);
+  assert.strictEqual(report.schemaVersion, 1);
+  assert.strictEqual(report.host, 'host-a');
+  assert.match(report.declaredTiersDigest, /^[0-9a-f]{64}$/);
+  assert.ok(!JSON.stringify(report).includes(agentsDir), 'agents dir path leaked');
+  assert.strictEqual(hostJson('host-b', 'b', agentsDir).declaredTiersDigest, report.declaredTiersDigest);
+  const other = path.join(mkdtemp(), 'agents');
+  fs.mkdirSync(other);
+  fs.writeFileSync(path.join(other, 'architect.md'), '---\nname: architect\nmodel: opus\neffort: low\n---\nbody\n');
+  assert.notStrictEqual(hostJson('host-a', 'a', other).declaredTiersDigest, report.declaredTiersDigest);
+  assert.strictEqual(hostJson(null, 'a', agentsDir).host, null);
+  assert.strictEqual(cli(['--root', mkdtemp(), '--host', 'bad/host']).status, 64);
+  assert.strictEqual(cli(['--root', mkdtemp(), '--host']).status, 64);
+});
+
+test('two-host merge sums byAgent, costTotals, callOverrides, skipped, noDeclaredTier and generalPurpose with nested maps', () => {
+  const [a, b] = twoHosts();
+  const m = mergedJson([a, b]);
+  assert.strictEqual(m.schemaVersion, 1);
+  assert.deepStrictEqual(m.window, a.window);
+  assert.deepStrictEqual(m.pricing, a.pricing);
+
+  const arch = findAgent(m, 'architect', 'claude-fable-5-1', 'low');
+  assert.strictEqual(arch.count, 3);
+  assert.strictEqual(arch.usage.inputTokens, 4000);
+  assert.strictEqual(arch.usage.outputTokens, 1100);
+  near(arch.estimatedCost, 0.095, 'architect cost'); // 0.035 + 0.025 on host-a, 0.035 on host-b
+  near(arch.estimatedCostBreakdown.input, 0.04, 'architect input cost');
+  near(arch.estimatedCostBreakdown.total, 0.095, 'architect breakdown total');
+
+  // Every merged group is the field-wise sum of the same group on each host.
+  const sumKeys = (rows, pick) => rows.reduce((acc, row) => {
+    for (const [k, v] of Object.entries(pick(row))) acc[k] = (acc[k] || 0) + v;
+    return acc;
+  }, {});
+  for (const group of m.byAgent) {
+    const rows = [a, b].map((r) => findAgent(r, group.agentType, group.model, group.effort)).filter(Boolean);
+    assert.strictEqual(group.count, rows.reduce((n, r) => n + r.count, 0));
+    assert.deepStrictEqual(group.usage, sumKeys(rows, (r) => r.usage));
+    if (group.estimatedCost === 'unknown') continue;
+    near(group.estimatedCost, rows.reduce((n, r) => n + r.estimatedCost, 0), `${group.agentType} cost`);
+    for (const [k, v] of Object.entries(sumKeys(rows, (r) => r.estimatedCostBreakdown))) {
+      near(group.estimatedCostBreakdown[k], v, `${group.agentType} ${k}`);
+    }
+  }
+  assert.strictEqual(m.byAgent.length, 6);
+  assert.strictEqual(m.byAgent.reduce((n, g) => n + g.count, 0), 12);
+
+  for (const key of ['input', 'output', 'cacheRead', 'cacheWrite5m', 'cacheWrite1h', 'total']) {
+    near(m.costTotals[key], a.costTotals[key] + b.costTotals[key], `costTotals.${key}`);
+  }
+  assert.strictEqual(m.costTotals.unpricedGroups, 1, 'recounted on merged groups');
+  assert.deepStrictEqual(m.callOverrides, { total: 12, withModel: 2, withEffort: 2 });
+  assert.strictEqual(m.noDeclaredTier, a.noDeclaredTier + b.noDeclaredTier);
+  assert.strictEqual(m.noDeclaredTier, 7);
+  assert.deepStrictEqual(m.skipped, sumKeys([a, b], (r) => r.skipped));
+  assert.strictEqual(m.skipped.corruptJson, 1);
+  assert.strictEqual(m.skipped.total, 1);
+
+  const gp = m.generalPurpose;
+  assert.strictEqual(gp.total, 4);
+  assert.deepStrictEqual(gp.buckets, { edits: 2, commandsOnly: 1, readOnly: 1 });
+  assert.deepStrictEqual(gp.byModel, { 'claude-haiku-5-5': 2, 'claude-sonnet-5-5': 2 });
+  assert.deepStrictEqual(gp.byTrigger, { 'skill:fake-skill': 2, 'command:/fake-command': 2 });
+  assert.strictEqual(gp.haikuEdits, 2);
+});
+
+test('merge never recomputes cost: the Haiku long-prompt group equals the sum of the host costs', () => {
+  const [a, b] = twoHosts();
+  const m = mergedJson([a, b]);
+  const haiku = findAgent(m, 'Explore', 'claude-haiku-5-5', 'low');
+  assert.strictEqual(haiku.count, 2);
+  near(haiku.estimatedCost, 0.0105 + 0.01325, 'haiku merged cost'); // each host priced at the long-prompt rate
+  assert.ok(haiku.estimatedCost > 0.01, 'a base-rate recompute from the merged tokens would be ~0.0048');
+  near(haiku.estimatedCostBreakdown.cacheRead, 0.0075 + 0.011, 'haiku cache read');
+  near(haiku.estimatedCostBreakdown.output, 0.0025 + 0.00125, 'haiku output');
+});
+
+test('unknown cost stays unknown: one unknown contributor makes the merged group unknown and unpricedGroups is recounted', () => {
+  const [a, b] = twoHosts();
+  const forced = JSON.parse(JSON.stringify(b));
+  const haiku = findAgent(forced, 'Explore', 'claude-haiku-5-5', 'low');
+  haiku.estimatedCost = null;
+  haiku.estimatedCostBreakdown = 'unknown';
+  const m = mergedJson([a, forced]);
+  const merged = findAgent(m, 'Explore', 'claude-haiku-5-5', 'low');
+  assert.strictEqual(merged.count, 2);
+  assert.strictEqual(merged.estimatedCost, 'unknown');
+  assert.strictEqual(merged.estimatedCostBreakdown, 'unknown');
+  assert.strictEqual(findAgent(m, 'Explore', 'claude-unpriced-9-9', 'medium').estimatedCost, 'unknown');
+  assert.strictEqual(m.costTotals.unpricedGroups, 2);
+  const text = mergeCli([a, forced]);
+  assert.strictEqual(text.status, 0, text.stderr);
+  assert.match(text.stdout, /2 unpriced groups/);
+});
+
+test('merge rejects inputs whose since, until, timezone, or pricing differ (exit 1)', () => {
+  const agentsDir = makeAgentsDir();
+  const a = hostJson('host-a', 'a', agentsDir);
+  const b = hostJson('host-b', 'b', agentsDir);
+  assert.strictEqual(mergeCli([a, b]).status, 0);
+
+  const differentSince = hostJson('host-b', 'b', agentsDir, ['--since', '2026-11-05T00:00:01Z']);
+  const since = mergeCli([a, differentSince]);
+  assert.strictEqual(since.status, 1);
+  assert.match(since.stderr, /since/);
+
+  const differentUntil = hostJson('host-b', 'b', agentsDir, ['--until', '2026-11-06T00:00:01Z']);
+  const until = mergeCli([a, differentUntil]);
+  assert.strictEqual(until.status, 1);
+  assert.match(until.stderr, /until/);
+
+  const zone = mergeCli([a, { ...b, window: { ...b.window, timezone: 'Asia/Taipei' } }]);
+  assert.strictEqual(zone.status, 1);
+  assert.match(zone.stderr, /timezone/);
+
+  const pricing = mergeCli([a, { ...b, pricing: { ...b.pricing, verifiedOn: '2026-01-01' } }]);
+  assert.strictEqual(pricing.status, 1);
+  assert.match(pricing.stderr, /pricing/);
+  const nestedPrice = JSON.parse(JSON.stringify(b));
+  nestedPrice.pricing.models['claude-haiku-5-5'].longPrompt.threshold = 1;
+  assert.strictEqual(mergeCli([a, nestedPrice]).status, 1, 'nested price differences count');
+});
+
+test('merge rejects an input without schemaVersion or host, or with an unreadable file', () => {
+  const [a, b] = twoHosts();
+  const { schemaVersion, ...noVersion } = b;
+  const version = mergeCli([a, noVersion]);
+  assert.strictEqual(version.status, 1);
+  assert.match(version.stderr, /schemaVersion/);
+  assert.strictEqual(mergeCli([a, { ...b, schemaVersion: 2 }]).status, 1);
+
+  const { host, ...noHost } = b;
+  const missing = mergeCli([a, noHost]);
+  assert.strictEqual(missing.status, 1);
+  assert.match(missing.stderr, /host/);
+  assert.strictEqual(mergeCli([a, { ...b, host: null }]).status, 1, 'a report made without --host cannot merge');
+  assert.strictEqual(mergeCli([a, { ...b, host: '' }]).status, 1);
+  assert.strictEqual(mergeCli([a, { ...b, host: '/home/someone/secret' }]).status, 1);
+
+  assert.strictEqual(mergeCli([a, '{not json']).status, 1);
+  assert.strictEqual(mergeCli([a, '[]']).status, 1);
+  assert.strictEqual(cli(['--merge', path.join(inputDir, 'does-not-exist.json')]).status, 1);
+  assert.strictEqual(mergeCli([a, { ...b, skipped: { total: 'x' } }]).status, 1, 'non-numeric counters are rejected');
+});
+
+test('merge rejects duplicate host labels', () => {
+  const [a, b] = twoHosts();
+  const dup = mergeCli([a, { ...b, host: a.host }]);
+  assert.strictEqual(dup.status, 1);
+  assert.match(dup.stderr, /host/);
+  assert.strictEqual(mergeCli([a, a]).status, 1);
+});
+
+test('--merge combined with --root, --since, --until, --project or --agents-dir is a usage error (exit 64)', () => {
+  const [a, b] = twoHosts();
+  const files = [a, b].map(writeInput).flatMap((f) => ['--merge', f]);
+  for (const flag of [['--root', mkdtemp()], ['--since', '2026-11-05'], ['--until', '2026-11-06'], ['--project', 'x'], ['--agents-dir', mkdtemp()]]) {
+    const r = cli([...files, ...flag]);
+    assert.strictEqual(r.status, 64, `${flag[0]}: ${r.stderr}`);
+    assert.match(r.stderr, /--merge/);
+  }
+  assert.strictEqual(cli(['--merge']).status, 64);
+  assert.strictEqual(cli([...files, '--json']).status, 0);
+});
+
+test('merged mismatches keep their host because agentId is only unique per host', () => {
+  const [a, b] = twoHosts();
+  const m = mergedJson([a, b]);
+  assert.strictEqual(m.mismatches.length, 2);
+  assert.deepStrictEqual(m.mismatches.map((x) => [x.host, x.agentId, x.agentType]), [
+    ['host-a', 'dup1', 'dhpk:architect'],
+    ['host-b', 'dup1', 'dhpk:architect'],
+  ]);
+  for (const x of m.mismatches) {
+    assert.deepStrictEqual(x.fields.slice().sort(), ['effort', 'model']);
+    assert.strictEqual(x.actualModel, 'claude-opus-5-5');
+  }
+  assert.strictEqual(m.mismatches[0].callEffort, 'high');
+  assert.strictEqual(m.mismatches[1].callEffort, null);
+  const text = mergeCli([a, b]);
+  assert.match(text.stdout, /host-a dhpk:architect dup1: declared/);
+  assert.match(text.stdout, /host-b dhpk:architect dup1: declared/);
+});
+
+test('merge reports sources and marks declaredTiers consistent or mixed from the digests', () => {
+  const agentsDir = makeAgentsDir();
+  const a = hostJson('host-a', 'a', agentsDir);
+  const b = hostJson('host-b', 'b', agentsDir);
+  const same = mergedJson([a, b]);
+  assert.strictEqual(same.declaredTiers, 'consistent');
+  assert.deepStrictEqual(same.sources, [
+    { host: 'host-a', declaredTiersDigest: a.declaredTiersDigest, skippedTotal: 1 },
+    { host: 'host-b', declaredTiersDigest: b.declaredTiersDigest, skippedTotal: 0 },
+  ]);
+
+  const otherAgents = path.join(mkdtemp(), 'agents');
+  fs.mkdirSync(otherAgents);
+  fs.writeFileSync(path.join(otherAgents, 'architect.md'), '---\nname: architect\nmodel: opus\neffort: low\n---\nbody\n');
+  const c = hostJson('host-c', 'b', otherAgents);
+  assert.notStrictEqual(c.declaredTiersDigest, a.declaredTiersDigest);
+  const mixed = mergedJson([a, c]);
+  assert.strictEqual(mixed.declaredTiers, 'mixed', 'still merges');
+  assert.strictEqual(mixed.byAgent.reduce((n, g) => n + g.count, 0), 12);
+  assert.deepStrictEqual(mixed.sources.map((s) => s.declaredTiersDigest), [a.declaredTiersDigest, c.declaredTiersDigest]);
+
+  const text = mergeCli([a, c]);
+  assert.strictEqual(text.status, 0, text.stderr);
+  const lines = text.stdout.split('\n').filter((l) => l.startsWith('sources:'));
+  assert.strictEqual(lines.length, 1);
+  assert.match(lines[0], /host-a/);
+  assert.match(lines[0], /host-c/);
+  assert.match(lines[0], /mixed/);
+  assert.match(text.stdout, /dispatch telemetry/);
+  assert.match(text.stdout, /agentType x model@effort/);
+});
+
+test('a single-input merge works and re-uses the text and JSON renderers', () => {
+  const [a] = twoHosts();
+  const text = mergeCli([a]);
+  assert.strictEqual(text.status, 0, text.stderr);
+  assert.match(text.stdout, /^sources: host-a/m);
+  const m = mergedJson([a]);
+  assert.deepStrictEqual(m.byAgent.map((g) => g.count), a.byAgent.map((g) => g.count));
+  assert.strictEqual(m.callOverrides.total, a.callOverrides.total);
+  // A merged report is not itself a mergeable host report.
+  assert.strictEqual(mergeCli([m, a]).status, 1);
+});
+
+test('single-host and merged output contain neither host filesystem paths nor os.hostname()', () => {
+  const sentinel = 'SENTINEL-HOSTNAME-DO-NOT-LEAK';
+  const preload = path.join(mkdtemp(), 'hostname-preload.js');
+  fs.writeFileSync(preload, `require('node:os').hostname = () => '${sentinel}';\n`);
+  const env = { NODE_OPTIONS: `--require ${preload}`, TZ: 'UTC' };
+  const agentsDir = makeAgentsDir();
+  const rootA = hostRoot('a');
+  const rootB = hostRoot('b');
+  const outputs = [];
+  const files = [];
+  for (const [host, root] of [['host-a', rootA], ['host-b', rootB]]) {
+    for (const extra of [['--json'], []]) {
+      const r = cli(['--root', root, '--agents-dir', agentsDir, '--host', host, ...MERGE_WINDOW, ...extra], env);
+      assert.strictEqual(r.status, 0, r.stderr);
+      outputs.push(r.stdout, r.stderr);
+    }
+    const json = cli(['--root', root, '--agents-dir', agentsDir, '--host', host, '--json', ...MERGE_WINDOW], env);
+    files.push(writeInput(json.stdout));
+  }
+  const merged = [[], ['--json']].map((extra) => cli([...files.flatMap((f) => ['--merge', f]), ...extra], env));
+  for (const r of merged) {
+    assert.strictEqual(r.status, 0, r.stderr);
+    outputs.push(r.stdout, r.stderr);
+  }
+  const failed = cli(['--merge', files[0], '--merge', files[0]], env);
+  assert.strictEqual(failed.status, 1);
+  outputs.push(failed.stdout, failed.stderr);
+  for (const out of outputs) {
+    assert.ok(!out.includes(sentinel), 'os.hostname() leaked');
+    for (const forbidden of [rootA, rootB, agentsDir, inputDir, __dirname, ROOT]) {
+      assert.ok(!out.includes(forbidden), `path leaked: ${forbidden}`);
+    }
+    assert.ok(!out.includes(PROMPT_SENTINEL) && !out.includes(DESCRIPTION_SENTINEL));
+  }
+});
+
 run('dispatch-telemetry-report');
