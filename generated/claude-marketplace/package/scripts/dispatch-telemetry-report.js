@@ -6,7 +6,36 @@
 // the agent definition frontmatter. Part of #1295 Phase 0 (issue #1296).
 //
 //   node scripts/dispatch-telemetry-report.js [--root DIR] [--since T] [--until T]
-//        [--project SUBSTR] [--agents-dir DIR] [--json]
+//        [--project SUBSTR] [--agents-dir DIR] [--host LABEL] [--json]
+//   node scripts/dispatch-telemetry-report.js --merge FILE [--merge FILE ...] [--json]
+//
+// Multi-host merge (#1335): transcripts never leave a host. Each host runs the
+// report with `--json --host LABEL` (pass absolute times with a zone, e.g.
+// `--since 2026-11-12T07:33Z`, so every host reports the same window) and the
+// per-host JSON files are combined with repeatable `--merge FILE`.
+//   * --host LABEL names the host in the JSON (`host`). It must match
+//     ^[A-Za-z0-9._@:-]{1,64}$; os.hostname() is never read. Without --host the
+//     JSON carries `host: null` and cannot be merged. A report also carries
+//     `schemaVersion: 1` and `declaredTiersDigest`, the sha256 of the sorted
+//     declared tiers (agent, model, effort) loaded from --agents-dir; no path.
+//   * --merge cannot be combined with --root, --since, --until, --project or
+//     --agents-dir (usage error, exit 64); --host and --json are accepted, and
+//     --host is ignored because a merged report has no single host.
+//   * Rejected with exit 1: an input that is unreadable, not a JSON object, or
+//     lacks schemaVersion 1 or a valid host; a repeated host; differing
+//     window.since, window.until, window.timezone, or pricing (compared deeply).
+//   * byAgent groups by agentType+model+effort and sums count, every usage
+//     field, estimatedCost and each estimatedCostBreakdown field. Cost is never
+//     recomputed (the JSON has no per-turn data, and the Haiku long-prompt rate
+//     depends on single-turn size); one unknown contributor makes the merged
+//     group "unknown". costTotals.unpricedGroups is recounted on merged groups.
+//     costTotals (other fields), callOverrides, skipped, noDeclaredTier and every
+//     generalPurpose counter (buckets, byModel, byTrigger included) are summed.
+//   * Every mismatch gains `host` (agentId is unique only per host).
+//   * Output adds `sources[]` ({host, declaredTiersDigest, skippedTotal}, in
+//     input order) and `declaredTiers`: "consistent" when every digest is equal,
+//     "mixed" when they differ (the merge still happens). Text output adds one
+//     `sources:` line.
 //
 // Log layout read (never written):
 //   <root>/<project>/<session>.jsonl                      parent transcript
@@ -62,6 +91,7 @@
 // turn's prompt (input + cache read + cache write) exceeds the threshold.
 // Not modelled: the inference_geo 1.1x multiplier, fast mode, and batch pricing.
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -109,7 +139,28 @@ const ABSOLUTE_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?
 const SAFE_NAME = /^[A-Za-z0-9:_./@-]{1,80}$/;
 const CHUNK_BYTES = 64 * 1024;
 
+const SCHEMA_VERSION = 1;
+const HOST_LABEL = /^[A-Za-z0-9._@:-]{1,64}$/;
+
 class UsageError extends Error {}
+class MergeError extends Error {}
+
+function parseHost(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string' || !HOST_LABEL.test(value)) {
+    throw new UsageError('invalid --host value: use 1-64 characters from A-Z a-z 0-9 . _ @ : -');
+  }
+  return value;
+}
+
+// sha256 over the sorted declared tiers only; the agents directory path and
+// file names never enter the digest or the output.
+function declaredTiersDigest(tiers) {
+  const rows = [...tiers.entries()]
+    .map(([agent, tier]) => [agent, tier.model, tier.effort])
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  return crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+}
 
 function safeName(value) {
   return typeof value === 'string' && SAFE_NAME.test(value) ? value : 'other';
@@ -348,6 +399,7 @@ function buildReport(options = {}) {
   const agentsDir = options.agentsDir || path.join(__dirname, '..', 'agents');
   const since = parseBound(options.since, 'since');
   const until = parseBound(options.until, 'until');
+  const host = parseHost(options.host);
   if (since !== null && until !== null && since >= until) {
     throw new UsageError(`--since "${options.since}" is later than --until "${options.until}"`);
   }
@@ -583,6 +635,9 @@ function buildReport(options = {}) {
   mismatches.sort((a, b) => a.agentType.localeCompare(b.agentType) || a.agentId.localeCompare(b.agentId));
 
   return {
+    schemaVersion: SCHEMA_VERSION,
+    host,
+    declaredTiersDigest: declaredTiersDigest(tiers),
     window: {
       since: options.since || null,
       until: options.until || null,
@@ -599,6 +654,203 @@ function buildReport(options = {}) {
   };
 }
 
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
+}
+
+// Key order never changes the comparison: window and pricing are compared as
+// their canonical JSON.
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (isRecord(value)) {
+    return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+// Adds every numeric leaf of `source` into `target`, recursing into nested
+// maps (generalPurpose.byModel, ...). Anything but a finite number is rejected,
+// so a malformed input fails the merge instead of becoming NaN or 0.
+function addCounters(target, source, label) {
+  if (!isRecord(source)) throw new MergeError(`${label} must be an object`);
+  for (const key of Object.keys(source)) {
+    if (key === '__proto__') throw new MergeError(`${label} has a forbidden key`);
+    const value = source[key];
+    if (isRecord(value)) {
+      if (!hasOwn(target, key)) target[key] = {};
+      if (!isRecord(target[key])) throw new MergeError(`${label}.${key} mixes a number and an object`);
+      addCounters(target[key], value, `${label}.${key}`);
+    } else if (typeof value === 'number' && Number.isFinite(value)) {
+      if (hasOwn(target, key) && typeof target[key] !== 'number') throw new MergeError(`${label}.${key} mixes a number and an object`);
+      target[key] = (hasOwn(target, key) ? target[key] : 0) + value;
+    } else {
+      throw new MergeError(`${label}.${key} must be a number`);
+    }
+  }
+}
+
+function requireSection(input, key, label) {
+  if (!isRecord(input[key])) throw new MergeError(`${label}: "${key}" must be an object`);
+  return input[key];
+}
+
+function isUnknownCost(group) {
+  const bare = (value) => value === 'unknown' || value === null;
+  return bare(group.estimatedCost) || bare(group.estimatedCostBreakdown);
+}
+
+// Combines per-host `--json` reports (see the header). Throws MergeError for an
+// input that cannot be merged; cost is summed, never recomputed.
+function mergeReports(inputs) {
+  if (!Array.isArray(inputs) || inputs.length === 0) throw new MergeError('no reports to merge');
+  const hosts = new Set();
+  inputs.forEach((input, index) => {
+    const label = `--merge input #${index + 1}`;
+    if (!isRecord(input)) throw new MergeError(`${label}: not a JSON object`);
+    if (input.schemaVersion !== SCHEMA_VERSION) {
+      throw new MergeError(`${label}: missing or unsupported schemaVersion (expected ${SCHEMA_VERSION})`);
+    }
+    if (typeof input.host !== 'string' || !HOST_LABEL.test(input.host)) {
+      throw new MergeError(`${label}: missing or invalid host (run the report with --host LABEL)`);
+    }
+    if (hosts.has(input.host)) throw new MergeError(`${label}: host "${input.host}" appears more than once`);
+    hosts.add(input.host);
+    for (const key of ['window', 'pricing', 'costTotals', 'callOverrides', 'skipped', 'generalPurpose']) requireSection(input, key, label);
+    if (!Array.isArray(input.byAgent) || !Array.isArray(input.mismatches)) {
+      throw new MergeError(`${label}: byAgent and mismatches must be arrays`);
+    }
+    if (typeof input.noDeclaredTier !== 'number' || !Number.isFinite(input.noDeclaredTier)) {
+      throw new MergeError(`${label}: noDeclaredTier must be a number`);
+    }
+  });
+
+  const first = inputs[0];
+  for (const field of ['since', 'until', 'timezone']) {
+    const expected = stableStringify(first.window[field]);
+    if (inputs.some((input) => stableStringify(input.window[field]) !== expected)) {
+      throw new MergeError(`window.${field} differs across inputs`);
+    }
+  }
+  const pricing = stableStringify(first.pricing);
+  if (inputs.some((input) => stableStringify(input.pricing) !== pricing)) {
+    throw new MergeError('pricing differs across inputs');
+  }
+
+  const groups = new Map();
+  const costTotals = {};
+  const callOverrides = { total: 0, withModel: 0, withEffort: 0 };
+  const skipped = {
+    missingRoot: 0, corruptJson: 0, missingTranscript: 0, noAssistantTurn: 0, missingParent: 0, unreadable: 0, undated: 0, total: 0,
+  };
+  const generalPurpose = {
+    total: 0, buckets: { edits: 0, commandsOnly: 0, readOnly: 0 }, byModel: {}, byTrigger: {}, haikuEdits: 0,
+  };
+  const mismatches = [];
+  let noDeclaredTier = 0;
+  const sources = [];
+
+  inputs.forEach((input, index) => {
+    const label = `--merge input #${index + 1}`;
+    const { unpricedGroups, ...totals } = input.costTotals;
+    addCounters(costTotals, totals, `${label} costTotals`);
+    addCounters(callOverrides, input.callOverrides, `${label} callOverrides`);
+    addCounters(skipped, input.skipped, `${label} skipped`);
+    addCounters(generalPurpose, input.generalPurpose, `${label} generalPurpose`);
+    noDeclaredTier += input.noDeclaredTier;
+    if (typeof input.skipped.total !== 'number') throw new MergeError(`${label}: skipped.total must be a number`);
+    sources.push({
+      host: input.host,
+      declaredTiersDigest: typeof input.declaredTiersDigest === 'string' ? input.declaredTiersDigest : null,
+      skippedTotal: input.skipped.total,
+    });
+
+    for (const group of input.byAgent) {
+      if (!isRecord(group) || typeof group.agentType !== 'string' || typeof group.model !== 'string'
+        || (group.effort !== null && typeof group.effort !== 'string')
+        || typeof group.count !== 'number' || !Number.isFinite(group.count)) {
+        throw new MergeError(`${label}: malformed byAgent entry`);
+      }
+      const key = JSON.stringify([group.agentType, group.model, group.effort]);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          agentType: group.agentType, model: group.model, effort: group.effort, count: 0, usage: {}, cost: 0, breakdown: {}, unknown: false,
+        });
+      }
+      const merged = groups.get(key);
+      merged.count += group.count;
+      addCounters(merged.usage, group.usage, `${label} byAgent usage`);
+      if (isUnknownCost(group)) {
+        merged.unknown = true;
+      } else {
+        if (typeof group.estimatedCost !== 'number' || !Number.isFinite(group.estimatedCost)) {
+          throw new MergeError(`${label}: malformed byAgent estimatedCost`);
+        }
+        merged.cost += group.estimatedCost;
+        addCounters(merged.breakdown, group.estimatedCostBreakdown, `${label} byAgent estimatedCostBreakdown`);
+      }
+    }
+
+    for (const mismatch of input.mismatches) {
+      if (!isRecord(mismatch)) throw new MergeError(`${label}: malformed mismatch entry`);
+      const { host: ignored, ...rest } = mismatch;
+      mismatches.push({ host: input.host, ...rest });
+    }
+  });
+
+  let unpriced = 0;
+  const byAgent = [...groups.values()]
+    .map((g) => {
+      const base = { agentType: g.agentType, model: g.model, effort: g.effort, count: g.count, usage: g.usage };
+      if (g.unknown) {
+        unpriced += 1;
+        return { ...base, estimatedCost: 'unknown', estimatedCostBreakdown: 'unknown' };
+      }
+      return { ...base, estimatedCost: Number(g.cost.toFixed(6)), estimatedCostBreakdown: roundCost(g.breakdown) };
+    })
+    .sort((a, b) => b.count - a.count
+      || a.agentType.localeCompare(b.agentType)
+      || a.model.localeCompare(b.model)
+      || String(a.effort).localeCompare(String(b.effort)));
+  mismatches.sort((a, b) => String(a.agentType).localeCompare(String(b.agentType))
+    || String(a.agentId).localeCompare(String(b.agentId))
+    || a.host.localeCompare(b.host));
+
+  const digests = new Set(sources.map((s) => s.declaredTiersDigest));
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    sources,
+    declaredTiers: digests.size > 1 ? 'mixed' : 'consistent',
+    window: { since: first.window.since, until: first.window.until, timezone: first.window.timezone },
+    pricing: first.pricing,
+    byAgent,
+    costTotals: { ...roundCost(costTotals), unpricedGroups: unpriced },
+    callOverrides,
+    mismatches,
+    noDeclaredTier,
+    generalPurpose,
+    skipped,
+  };
+}
+
+function readMergeInput(file, index) {
+  const label = `--merge input #${index + 1}`;
+  let text;
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch (error) {
+    throw new MergeError(`${label}: cannot be read (${(error && error.code) || 'error'})`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new MergeError(`${label}: not valid JSON`);
+  }
+}
+
+function buildMergedReport(files) {
+  return mergeReports(files.map(readMergeInput));
+}
+
 function formatCost(cost) {
   if (cost === 'unknown') return 'unknown';
   const usd = (value) => `$${value.toFixed(4)}`;
@@ -609,6 +861,9 @@ function formatText(report) {
   const lines = [];
   const w = report.window;
   lines.push(`dispatch telemetry (since ${w.since || '-'} until ${w.until || '-'}, tz ${w.timezone})`);
+  if (Array.isArray(report.sources)) {
+    lines.push(`sources: ${report.sources.map((src) => `${src.host} (skipped ${src.skippedTotal})`).join(', ')}; declared tiers ${report.declaredTiers}`);
+  }
   lines.push('');
   lines.push('agentType x model@effort: count, tokens (in/out/cache read/cache write), estimated cost');
   if (report.byAgent.length === 0) lines.push('  (no dispatches)');
@@ -625,7 +880,7 @@ function formatText(report) {
   lines.push('');
   lines.push(`mismatches vs agent frontmatter: ${report.mismatches.length} (${report.noDeclaredTier} dispatches have no declared tier)`);
   for (const m of report.mismatches) {
-    lines.push(`  ${m.agentType} ${m.agentId}: declared ${m.declaredModel || '-'}@${m.declaredEffort || '-'} actual ${m.actualModel}@${m.actualEffort || 'default'} [${m.fields.join(',')}]${m.callModel || m.callEffort ? ` call=${m.callModel || '-'}@${m.callEffort || '-'}` : ''}`);
+    lines.push(`  ${m.host ? `${m.host} ` : ''}${m.agentType} ${m.agentId}: declared ${m.declaredModel || '-'}@${m.declaredEffort || '-'} actual ${m.actualModel}@${m.actualEffort || 'default'} [${m.fields.join(',')}]${m.callModel || m.callEffort ? ` call=${m.callModel || '-'}@${m.callEffort || '-'}` : ''}`);
   }
   lines.push('');
   const g = report.generalPurpose;
@@ -640,17 +895,28 @@ function formatText(report) {
 
 function parseArgs(argv) {
   const options = {};
-  const valued = { '--root': 'root', '--since': 'since', '--until': 'until', '--project': 'project', '--agents-dir': 'agentsDir' };
+  const valued = { '--root': 'root', '--since': 'since', '--until': 'until', '--project': 'project', '--agents-dir': 'agentsDir', '--host': 'host' };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--json') {
       options.json = true;
+    } else if (arg === '--merge') {
+      if (i + 1 >= argv.length) throw new UsageError('--merge requires a value');
+      options.merge = [...(options.merge || []), argv[i + 1]];
+      i += 1;
     } else if (Object.prototype.hasOwnProperty.call(valued, arg)) {
       if (i + 1 >= argv.length) throw new UsageError(`${arg} requires a value`);
       options[valued[arg]] = argv[i + 1];
       i += 1;
     } else {
       throw new UsageError(`unknown argument "${arg}"`);
+    }
+  }
+  if (options.merge) {
+    const clash = ['root', 'since', 'until', 'project', 'agentsDir'].find((key) => options[key] !== undefined);
+    if (clash) {
+      const flag = Object.keys(valued).find((name) => valued[name] === clash);
+      throw new UsageError(`--merge cannot be combined with ${flag}`);
     }
   }
   return options;
@@ -663,7 +929,7 @@ function main(argv = process.argv.slice(2), io = {}) {
   let report;
   try {
     options = parseArgs(argv);
-    report = buildReport(options);
+    report = options.merge ? buildMergedReport(options.merge) : buildReport(options);
   } catch (error) {
     stderr.write(`dispatch-telemetry-report: ${error.message}\n`);
     return error instanceof UsageError ? 64 : 1;
@@ -673,7 +939,7 @@ function main(argv = process.argv.slice(2), io = {}) {
 }
 
 module.exports = Object.freeze({
-  PRICE_TABLE, UsageError, buildReport, formatText, main, modelMatches, parseArgs, parseBound,
+  PRICE_TABLE, UsageError, MergeError, buildMergedReport, buildReport, formatText, main, mergeReports, modelMatches, parseArgs, parseBound,
 });
 
 if (require.main === module) process.exitCode = main();
