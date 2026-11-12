@@ -6,6 +6,7 @@
 // one-shot override.
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -15,7 +16,7 @@ const ROOT = path.join(__dirname, '..');
 const LIB = path.join(ROOT, 'scripts', 'hooks', '_lib', 'load-project-config.sh');
 
 function tmpRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-lpc-'));
+  return makeTempDir('dhpk-lpc-');
 }
 
 function writeSettings(root, filename, options) {
@@ -212,7 +213,7 @@ test('DHPK_HOOK_PROFILE env one-shot override wins over settings file', () => {
   const RUNTIME = path.join(ROOT, 'scripts', 'hooks', '_lib', 'runtime-config.sh');
 
   function tmpRoot() {
-    return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-runtime-config-'));
+    return makeTempDir('dhpk-runtime-config-');
   }
 
   function settings(root, options) {
@@ -448,7 +449,7 @@ test('DHPK_HOOK_PROFILE env one-shot override wins over settings file', () => {
   const LIB = path.join(ROOT, 'scripts', 'hooks', '_lib', 'session-env.sh');
 
   function tmpDir(prefix) {
-    return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
+    return fs.realpathSync(makeTempDir(prefix));
   }
 
   function sh(cmd, { cwd, projectDir, input, sourceLib = true, extraEnv = {} } = {}) {

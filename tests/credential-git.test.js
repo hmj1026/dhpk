@@ -16,7 +16,7 @@ function python(source) {
 }
 
 const PRELUDE = String.raw`
-import os, subprocess, tempfile
+import atexit, os, shutil, subprocess, tempfile
 import credential_policy, credential_scan
 from credential_policy import analyze
 import credential_verdict as v
@@ -31,8 +31,13 @@ PRODUCTION_SECONDS = (credential_policy.MAX_SECONDS, credential_scan.MAX_SECONDS
 credential_policy.MAX_SECONDS = 60.0
 credential_scan.MAX_SECONDS = 60.0
 
+def mk():
+    path = tempfile.mkdtemp()
+    atexit.register(shutil.rmtree, path, True)  # issue #1322: leave no temp dir behind
+    return path
+
 ENV = dict(os.environ, GIT_AUTHOR_NAME='t', GIT_AUTHOR_EMAIL='t@e', GIT_COMMITTER_NAME='t',
-           GIT_COMMITTER_EMAIL='t@e', GIT_CONFIG_NOSYSTEM='1', HOME=tempfile.mkdtemp())
+           GIT_COMMITTER_EMAIL='t@e', GIT_CONFIG_NOSYSTEM='1', HOME=mk())
 
 def git(repo, *args, stdin=None):
     return subprocess.run(['git', *args], cwd=repo, env=ENV, input=stdin, capture_output=True, text=True, check=True).stdout.strip()
@@ -62,7 +67,7 @@ def check(cases, cwd, patterns=()):
             failures.append('%s: %s (%s) expected %s' % (command, result.kind, result.message(), kind))
     assert not failures, '\n'.join(failures)
 
-base = os.path.realpath(tempfile.mkdtemp())
+base = os.path.realpath(mk())
 `;
 
 test('clean repository: git reads pass, non-reads untouched, objects typed', () => {

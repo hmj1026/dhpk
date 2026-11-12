@@ -39,16 +39,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# make_repo runs inside $(...), so a TMP_DIRS registration made there is lost
+# with the subshell. Every throwaway repo lives under this root, which is
+# registered in the parent shell, so cleanup removes them all (issue #1322).
+WORK_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/dhpk-hooks-validate.XXXXXX")"
+TMP_DIRS+=("$WORK_ROOT")
+
 # make_repo — create an isolated git repo on branch `main`, echo its real
 # toplevel path. Forces branch name via symbolic-ref (works on unborn HEAD,
 # avoids git-version-dependent `init -b`).
 make_repo() {
     local d
-    d="$(mktemp -d)"
+    d="$(mktemp -d "$WORK_ROOT/repo.XXXXXX")"
     git init -q "$d"
     git -C "$d" symbolic-ref HEAD refs/heads/main 2>/dev/null || true
     git -C "$d" -c user.email=t@t.test -c user.name=test commit -q --allow-empty -m init
-    TMP_DIRS+=("$d")
     ( cd "$d" && git rev-parse --show-toplevel )
 }
 

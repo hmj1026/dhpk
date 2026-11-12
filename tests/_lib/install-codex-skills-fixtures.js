@@ -4,6 +4,7 @@
 // exercise ownership boundaries rather than only checking shell syntax.
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./temp-dir');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
@@ -12,7 +13,7 @@ const { assert } = require('./tinytest');
 
 const ROOT = path.join(__dirname, '..', '..');
 const HOOK = path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh');
-const CODEX_STUB_BIN = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-stub-')));
+const CODEX_STUB_BIN = fs.realpathSync(makeTempDir('dhpk-codex-stub-'));
 const CODEX_STUB = path.join(CODEX_STUB_BIN, 'codex');
 fs.writeFileSync(CODEX_STUB, `#!/bin/sh
 if [ "$1" = "plugin" ] && [ "$2" = "list" ] && [ "$3" = "--json" ]; then
@@ -58,7 +59,7 @@ function runInstaller(project, args, pluginRoot = ROOT, envOverrides = {}) {
 }
 
 function projectRoot() {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-behavior-')));
+  const dir = fs.realpathSync(makeTempDir('dhpk-ics-behavior-'));
   fs.mkdirSync(path.join(dir, '.git'));
   return dir;
 }
@@ -197,7 +198,7 @@ function firstNativeManagedSkill(scratch) {
 
 function collisionFixture(envOverrides = {}) {
   const scratch = projectRoot();
-  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plan-plugin-')));
+  const fakePlugin = fs.realpathSync(makeTempDir('dhpk-ics-plan-plugin-'));
   // Keep only the collision target and sibling skills used by planning cases.
   const collisionSkills = ['code-trace', 'tdd-workflow', 'flow-guide'];
   const fakeCodexSkills = path.join(fakePlugin, 'codex', 'skills');

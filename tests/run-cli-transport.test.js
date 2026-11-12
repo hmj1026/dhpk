@@ -99,6 +99,79 @@ function invokeWithRunnerPatch(root, request, patch) {
   return spawnSync(commandPath('python3'), [driver], { cwd: root, encoding: 'utf8', timeout: 10000 });
 }
 
+// --consume-request unlinks only the inode it opened (#1323 review LOW-1).
+function consumeDriver(root, requestPath, patch) {
+  const driver = path.join(root, 'consume-runner.py');
+  fs.writeFileSync(driver, [
+    'import errno, importlib.util, os, sys',
+    `runner = ${JSON.stringify(RUNNER)}`,
+    `request_path = ${JSON.stringify(requestPath)}`,
+    'spec = importlib.util.spec_from_file_location("cli_transport_test_runner", runner)',
+    'module = importlib.util.module_from_spec(spec)',
+    'spec.loader.exec_module(module)',
+    patch,
+    'sys.argv = [runner, "--request", request_path, "--consume-request"]',
+    'sys.exit(module.main())',
+  ].join('\n'), { mode: 0o600 });
+  return spawnSync(commandPath('python3'), [driver], { cwd: root, encoding: 'utf8', timeout: 10000 });
+}
+
+test('--consume-request removes a rejected request that is the inode it opened', () => {
+  withRequest(({ root }) => {
+    const requestPath = path.join(root, 'bad-request.json');
+    fs.writeFileSync(requestPath, '{ not json', { mode: 0o600 });
+    const result = consumeDriver(root, requestPath, '');
+    assert.strictEqual(result.status, 64, result.stderr);
+    assert.ok(!fs.existsSync(requestPath), 'a rejected request must not linger');
+  });
+});
+
+test('--consume-request leaves a file swapped in at the request path alone', () => {
+  withRequest(({ root }) => {
+    const requestPath = path.join(root, 'swap-request.json');
+    fs.writeFileSync(requestPath, '{ not json', { mode: 0o600 });
+    const intruder = path.join(root, 'intruder.json');
+    fs.writeFileSync(intruder, 'other data', { mode: 0o600 });
+    const patch = [
+      'original = module.read_private_request',
+      'def swapping(path, *rest):',
+      '    try:',
+      '        return original(path, *rest)',
+      '    finally:',
+      '        os.rename(' + JSON.stringify(intruder) + ', path)',
+      'module.read_private_request = swapping',
+    ].join('\n');
+    const result = consumeDriver(root, requestPath, patch);
+    assert.strictEqual(result.status, 64, result.stderr);
+    assert.strictEqual(fs.readFileSync(requestPath, 'utf8'), 'other data', 'the swapped-in file must survive');
+  });
+});
+
+test('--consume-request neither follows nor removes a symlink at the request path', () => {
+  withRequest(({ root }) => {
+    const target = path.join(root, 'precious.json');
+    fs.writeFileSync(target, '{}', { mode: 0o600 });
+    const requestPath = path.join(root, 'link-request.json');
+    fs.symlinkSync(target, requestPath);
+    const result = consumeDriver(root, requestPath, '');
+    assert.strictEqual(result.status, 64, result.stderr);
+    assert.ok(fs.lstatSync(requestPath).isSymbolicLink(), 'the symlink must be left in place');
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), '{}');
+  });
+});
+
+test('--consume-request reports an unlink failure on stderr without changing the exit code', () => {
+  withRequest(({ root }) => {
+    const requestPath = path.join(root, 'stuck-request.json');
+    fs.writeFileSync(requestPath, '{ not json', { mode: 0o600 });
+    const patch = 'def refuse(path, *a, **k):\n    raise OSError(errno.EACCES, "denied", path)\nos.unlink = refuse';
+    const result = consumeDriver(root, requestPath, patch);
+    assert.strictEqual(result.status, 64, result.stderr);
+    assert.ok(result.stderr.includes(requestPath), result.stderr);
+    assert.match(result.stderr, /could not remove request file.*errno 13/);
+  });
+});
+
 test('read-only role cannot be widened and blocks before provider launch', () => {
   withRequest(({ root, request }) => {
     request.requested_role = request.effective_role = 'codex-reasoner';

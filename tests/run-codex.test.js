@@ -2,6 +2,8 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
+
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -39,7 +41,7 @@ function roleContract(role, authority, requestedRole = role) {
 }
 
 function withStub(fn) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-codex-'));
+  const dir = makeTempDir('run-codex-');
   try {
     const binDir = path.join(dir, 'bin');
     fs.mkdirSync(binDir);
@@ -163,7 +165,7 @@ test('external bootstrap-python override never executes', () => {
 test('Python startup paths cannot execute before Codex context validation', () => {
   withStub((ctx) => {
     const { contextPath } = writeContext(ctx);
-    const poison = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-python-startup-'));
+    const poison = makeTempDir('dhpk-python-startup-');
     const marker = path.join(ctx.dir, 'python-startup-ran');
     try {
       fs.writeFileSync(path.join(poison, 'sitecustomize.py'), `open(${JSON.stringify(marker)}, 'w').write('ran')\n`);
@@ -227,6 +229,33 @@ test('quoted secret output is redacted and a zero-exit empty report fails closed
     const emptyResult = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile], { contextPath: second.contextPath });
     assert.strictEqual(emptyResult.status, 1, emptyResult.stderr);
     assert.strictEqual(JSON.parse(fs.readFileSync(second.receiptPath, 'utf8')).status, 'FAILED');
+  });
+});
+
+test('the dispatch request file is removed from TMPDIR after success and after provider failure (#1323)', () => {
+  withStub((ctx) => {
+    const privateTmp = fs.mkdtempSync(path.join(ctx.dir, 'tmp-'));
+    const leftovers = () => fs.readdirSync(privateTmp);
+    const ok = writeContext(ctx);
+    const success = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile], { contextPath: ok.contextPath, env: { TMPDIR: privateTmp } });
+    assert.strictEqual(success.status, 0, success.stderr);
+    assert.deepStrictEqual(leftovers(), [], 'request file leaked after success');
+    fs.writeFileSync(path.join(ctx.dir, 'codex-empty'), '');
+    const bad = writeContext(ctx);
+    const failure = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile], { contextPath: bad.contextPath, env: { TMPDIR: privateTmp } });
+    assert.strictEqual(failure.status, 1, failure.stderr);
+    assert.deepStrictEqual(leftovers(), [], 'request file leaked after failure');
+  });
+});
+
+test('the dispatch request file is removed when the runner blocks the request (#1323)', () => {
+  withStub((ctx) => {
+    const privateTmp = fs.mkdtempSync(path.join(ctx.dir, 'tmp-'));
+    const blocked = writeContext(ctx);
+    fs.writeFileSync(blocked.receiptPath, '{}');
+    const result = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile], { contextPath: blocked.contextPath, env: { TMPDIR: privateTmp } });
+    assert.notStrictEqual(result.status, 0, result.stderr);
+    assert.deepStrictEqual(fs.readdirSync(privateTmp), [], 'request file leaked after BLOCKED');
   });
 });
 

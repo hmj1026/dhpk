@@ -7,6 +7,8 @@
 // fixture `bin/dhpk`, so no environment override can skip a real stage.
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
+
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
@@ -40,7 +42,7 @@ function git(cwd, ...args) {
 }
 
 function makeFixture({ preflightOutcome = 'PASS', preflightExit = 0 } = {}) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-verify-'));
+  const tmp = makeTempDir('dhpk-release-verify-');
   const repo = path.join(tmp, 'repo');
   const stubs = path.join(tmp, 'stubs');
   fs.mkdirSync(path.join(repo, 'scripts', 'release'), { recursive: true });
@@ -126,6 +128,19 @@ test('dry-run fails when the standalone publication verifier rejects the bundle'
   assert.notStrictEqual(res.status, 0);
   assert.strictEqual(stages[stages.length - 1], 'standalone-verify');
   assert.match(res.stderr, /stage standalone-verify failed/);
+}));
+
+test('dry-run leaves nothing in TMPDIR after success or a rejected standalone verification (#1323)', () => withFixture({}, (fixture) => {
+  const privateTmp = path.join(fixture.tmp, 'private-tmp');
+  fs.mkdirSync(privateTmp);
+  const out = path.join(fixture.tmp, 'out');
+  const ok = runVerify(fixture, ['--mode', 'dry-run', '--out-dir', out], { TMPDIR: privateTmp });
+  assert.strictEqual(ok.res.status, 0, ok.res.stderr + ok.res.stdout);
+  assert.deepStrictEqual(fs.readdirSync(privateTmp), [], 'rehearsal directory leaked after success');
+  const bad = runVerify(fixture, ['--mode', 'dry-run', '--out-dir', out], { TMPDIR: privateTmp, FAIL_STANDALONE: '1' });
+  assert.notStrictEqual(bad.res.status, 0);
+  assert.deepStrictEqual(fs.readdirSync(privateTmp), [], 'rehearsal directory leaked after failure');
+  assert.ok(fs.existsSync(path.join(out, 'dhpk-release-notes.txt')), 'the caller out-dir deliverables must be kept');
 }));
 
 test('tag mode proves provenance first, writes run outputs, and skips the standalone verifier', () => withFixture({}, (fixture) => {

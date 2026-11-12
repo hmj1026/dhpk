@@ -4,6 +4,7 @@
 // protocol (WARN / MODULE / ACTIVE lines). Guarded on python3 availability.
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -31,7 +32,7 @@ function runActivate(pluginRoot, csv) {
 }
 
 function tmpRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-activate-'));
+  return makeTempDir('dhpk-activate-');
 }
 
 test('enabled module with display_name emits MODULE line and ACTIVE csv', () => {

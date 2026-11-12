@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -10,7 +11,7 @@ const { collectInventory, listAgentFiles, relativePosix, walkFiles } =
   require(path.join(ROOT, 'scripts', 'lib', 'asset-inventory'));
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-asset-inventory-'));
+  const root = makeTempDir('dhpk-asset-inventory-');
   const dirs = [
     'agents', 'modules/demo/agents', 'skills/base', 'modules/demo/skills/extra',
     'commands', 'skills/dhpk-codex-sample', 'skills/dhpk-change-review', 'hooks', 'manifests', 'scripts/hooks/_lib', 'scripts/ci', 'scripts/lib',

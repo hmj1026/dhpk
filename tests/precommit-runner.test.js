@@ -5,6 +5,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const { spawnSync, execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -13,7 +14,7 @@ const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'skills', 'precommit', 'scripts', 'precommit-runner.js');
 
 function mkScratchRepo(pkgScripts, files = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'precommit-runner-'));
+  const dir = makeTempDir('precommit-runner-');
   let ready = false;
   try {
     execFileSync('git', ['init', '-q'], { cwd: dir });
@@ -37,7 +38,7 @@ function mkScratchRepo(pkgScripts, files = {}) {
 }
 
 function withScratchArtifacts(callback) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'precommit-artifacts-'));
+  const dir = makeTempDir('precommit-artifacts-');
   try {
     return callback({
       dir,
@@ -425,7 +426,7 @@ test('a failing test step is recorded as FAIL with its exit code and overall sta
   // the unrecognized flag, so fixture scripts point at a stub .js file that
   // ignores argv entirely instead of an inline `node -e` string.
   function mkScratchRepo(scriptExitCodes) {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-runner-'));
+    const dir = makeTempDir('verify-runner-');
     execFileSync('git', ['init', '-q'], { cwd: dir });
     execFileSync('git', ['config', 'user.email', 'a@b.com'], { cwd: dir });
     execFileSync('git', ['config', 'user.name', 'test'], { cwd: dir });
@@ -446,7 +447,7 @@ test('a failing test step is recorded as FAIL with its exit code and overall sta
   }
 
   function runScript(cwd, args) {
-    const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-cache-'));
+    const cacheDir = makeTempDir('verify-cache-');
     const env = { ...process.env, CLAUDE_VERIFY_CACHE_DIR: cacheDir };
     const res = spawnSync('node', [SCRIPT, ...(args || [])], { cwd, env, encoding: 'utf8', timeout: 20000 });
     res.cacheDir = cacheDir;
@@ -459,7 +460,7 @@ test('a failing test step is recorded as FAIL with its exit code and overall sta
 
   test('--help prints usage without scheduling steps, including outside a git repo', () => {
     const repo = mkScratchRepo({ lint: 0, test: 0 });
-    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-help-'));
+    const outside = makeTempDir('verify-help-');
     let helped;
     let bare;
     try {
@@ -500,7 +501,7 @@ test('a failing test step is recorded as FAIL with its exit code and overall sta
   });
 
   test('outside a git repo: prints "Not inside a git repo" and exits 0', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-nongit-'));
+    const tmp = makeTempDir('verify-nongit-');
     const res = runScript(tmp);
     try {
       assert.strictEqual(res.status, 0, res.stderr);

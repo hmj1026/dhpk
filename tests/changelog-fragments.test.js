@@ -7,6 +7,7 @@
 //   - orphan detection (fragment left unconsumed after promotion)
 
 const fs = require('node:fs');
+const { makeTempDir } = require('./_lib/temp-dir');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -20,7 +21,7 @@ const {
 } = require('../scripts/lib/changelog-fragments');
 
 function mkFragmentDir(files) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-fragments-'));
+  const dir = makeTempDir('dhpk-fragments-');
   for (const [name, content] of Object.entries(files)) {
     fs.writeFileSync(path.join(dir, name), content);
   }
@@ -167,7 +168,7 @@ test('promote (write mode) inserts the rendered section into CHANGELOG.md and co
   const fragDir = mkFragmentDir({
     'feat.alpha.md': 'scope: alpha\nnote: Add alpha.\n',
   });
-  const changelogPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-changelog-')), 'CHANGELOG.md');
+  const changelogPath = path.join(makeTempDir('dhpk-changelog-'), 'CHANGELOG.md');
   fs.writeFileSync(changelogPath, '# Changelog\n\n## [Unreleased]\n\n## 0.9.0 — 2026-01-01 — Prior release\n\nPrior notes.\n');
 
   const result = promote({
@@ -195,7 +196,7 @@ test('promote leaves no orphan fragments assigned to the released version', () =
     'feat.alpha.md': 'scope: alpha\nnote: Add alpha.\n',
     'fix.beta.md': 'scope: beta\nnote: Fix beta.\n',
   });
-  const changelogPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-changelog-')), 'CHANGELOG.md');
+  const changelogPath = path.join(makeTempDir('dhpk-changelog-'), 'CHANGELOG.md');
   fs.writeFileSync(changelogPath, '# Changelog\n\n## [Unreleased]\n');
 
   promote({
@@ -298,7 +299,7 @@ test('checkCoverage still fails without a promoted release section (releaseSecti
   const CLI = path.join(ROOT, 'scripts', 'ci', 'validate-changelog-fragments.js');
 
   function mkRepo() {
-    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-fragments-cli-')));
+    const dir = fs.realpathSync(makeTempDir('dhpk-fragments-cli-'));
     spawnSync('git', ['init', '-q'], { cwd: dir });
     spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
     spawnSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
