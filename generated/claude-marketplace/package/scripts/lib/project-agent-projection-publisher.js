@@ -32,6 +32,7 @@ const {
 } = require('./portable-skill-metadata');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
 const journalCore = require('./projection-journal');
+const { LEGACY_JOURNAL_RECOVERY_RELEASE } = journalCore;
 
 const {
   ProjectionJournal,
@@ -1387,24 +1388,6 @@ function removeEmptyDirectories(root) {
   walk(root);
 }
 
-// A v3 journal written by a 0.72/0.73 installer may still carry a hold: the
-// publication was kept open under that installer's transaction id, and only
-// that id (or explicit recovery) resolves it. No release produces a hold any
-// more (js-projection-journal stage 5); this validates one when it is read.
-function normalizeHold(hold, code = 'INVALID_HOLD') {
-  if (!hold || typeof hold !== 'object' || Array.isArray(hold)
-    || typeof hold.transactionId !== 'string' || !/^[A-Za-z0-9._-]{1,128}$/.test(hold.transactionId)
-    || typeof hold.host !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(hold.host)
-    || Object.keys(hold).some((key) => !['transactionId', 'host'].includes(key))) {
-    throw fail(code, 'project projection hold must name a transactionId and host');
-  }
-  return { transactionId: hold.transactionId, host: hold.host };
-}
-
-function heldError(hold) {
-  return fail('TRANSACTION_HELD', `project projection transaction ${hold.transactionId} is held by the ${hold.host} installer; rerun that installer to finish or undo it, or run dhpk-install --recover`, { transactionId: hold.transactionId, host: hold.host });
-}
-
 // A caller written for 0.72/0.73 may still ask for a held publication. It is
 // refused up front, so nothing is written and it never silently gets an unheld one.
 function refuseHold(options) {
@@ -1555,7 +1538,7 @@ function openStage(roots, kind, afterStep = null, journal = null) {
   return { transaction, stage };
 }
 
-// Undoes a transaction that no publication took over. A finished or held
+// Undoes a transaction that no publication took over. A finished or committed
 // transaction is left alone; a simulated crash leaves the journal as it is.
 function releaseStage(transaction, error = null) {
   if (!transaction || transaction.finished || transaction.committed || isSimulatedCrash(error)) return;
@@ -1610,7 +1593,7 @@ function validateEffectHeader(roots, journal) {
     || journal.claudeManagedName !== path.basename(roots.claudeManagedRoot)) {
     throw fail('UNSAFE_TRANSACTION', 'project projection transaction identity does not match the target');
   }
-  if (journal.hold !== undefined) normalizeHold(journal.hold, 'UNSAFE_TRANSACTION');
+  if (journal.hold !== undefined) throw heldTransactionError();
   if (journal.adoption !== undefined && journal.adoption !== true) throw fail('UNSAFE_TRANSACTION', 'project projection transaction adoption flag is invalid');
 }
 
@@ -1619,9 +1602,8 @@ function validateEffectJournal(roots, journal) {
   validateJournalRecords(journal, { projectRoot: roots.projectRoot, scope: effectScope(roots, journal) });
 }
 
-function recoverEffectTransaction(roots, journal, { resolveHeld = null, afterStep = null } = {}) {
+function recoverEffectTransaction(roots, journal, { afterStep = null } = {}) {
   validateEffectJournal(roots, journal);
-  if (journal.hold && journal.phase !== 'published' && journal.hold.transactionId !== resolveHeld) throw heldError(journal.hold);
   const phase = recoverJournal(journal, journalOptions(roots, afterStep));
   return { recovered: true, phase, ...(phase === 'published' && journal.adoption === true ? { backupPath: path.join(roots.agentsRoot, journal.backupName) } : {}) };
 }
@@ -1632,6 +1614,13 @@ function readTransactionJournal(roots) {
   if (!journalStat) return null;
   if (journalStat.isSymbolicLink() || !journalStat.isFile()) throw fail('UNSAFE_TRANSACTION', 'project projection transaction journal is not a regular file');
   return readJsonFile(journalPath, 'project projection transaction journal');
+}
+
+// A v3 journal with a `hold` was written by a 0.72/0.73 installer. The REQ-9
+// window for it closed in 0.75.0 (#1321): it blocks without changing files and
+// names dhpk 0.74.x, the last release line that resolves it.
+function heldTransactionError() {
+  return fail('UNSAFE_TRANSACTION', `project projection transaction carries a hold written by a dhpk 0.72/0.73 installer; this release no longer resolves held publications. Run \`dhpk-install --recover\` (or the installer's --recover) with dhpk ${LEGACY_JOURNAL_RECOVERY_RELEASE}, the last release line that recovers it, then retry`, { schema: PROJECT_TRANSACTION_SCHEMA, held: true });
 }
 
 // A journal this release cannot read blocks without changing files and names
@@ -1650,10 +1639,10 @@ function supportedTransaction(transaction) {
   return transaction;
 }
 
-function recoverProjectProjectionTransaction(roots, { resolveHeld = null, afterStep = null } = {}) {
+function recoverProjectProjectionTransaction(roots, { afterStep = null } = {}) {
   const transaction = readTransactionJournal(roots);
   if (!transaction) return { recovered: false };
-  return recoverEffectTransaction(roots, supportedTransaction(transaction), { resolveHeld, afterStep });
+  return recoverEffectTransaction(roots, supportedTransaction(transaction), { afterStep });
 }
 
 function receiptWithoutFingerprint(receipt) {
@@ -2584,73 +2573,6 @@ function rollbackAgentsSkillsProjection(options = {}) {
   }
 }
 
-// The validated hold of a v3 journal, reported as `publishing` with
-// `holdReady`, the shape hold callers read.
-function journalHold(roots, transaction) {
-  validateEffectJournal(roots, supportedTransaction(transaction));
-  if (!transaction.hold) return null;
-  const phase = ['held', 'rolling-back'].includes(transaction.phase) ? 'publishing' : transaction.phase;
-  return { ...transaction.hold, phase, holdReady: transaction.phase === 'held' };
-}
-
-function resolveHeldProjection(options, action) {
-  try {
-    const roots = operationRoots(options);
-    const transactionId = normalizeHold({ transactionId: options.transactionId, host: 'resolver' }).transactionId;
-    const transaction = readTransactionJournal(roots);
-    if (!transaction) return { ok: true, state: 'ABSENT', transactionId, projectRoot: roots.projectRoot };
-    const hold = journalHold(roots, transaction);
-    if (!hold || hold.transactionId !== transactionId) {
-      throw fail('TRANSACTION_MISMATCH', `project projection transaction journal is not held by ${transactionId}`);
-    }
-    if (action === 'abort') {
-      const recovered = recoverProjectProjectionTransaction(roots, { resolveHeld: transactionId });
-      return { ok: true, state: recovered.phase === 'published' ? 'COMMITTED' : 'ABORTED', transactionId, projectRoot: roots.projectRoot };
-    }
-    if (transaction.phase === 'published') {
-      recoverProjectProjectionTransaction(roots, { resolveHeld: transactionId });
-      return { ok: true, state: 'COMMITTED', transactionId, projectRoot: roots.projectRoot };
-    }
-    if (!hold.holdReady) {
-      throw fail('TRANSACTION_INCOMPLETE', `project projection transaction ${transactionId} did not finish publishing and can only be aborted`);
-    }
-    const effects = openTransaction(roots, transaction);
-    effects.publish(cleanupEffects(roots, transaction));
-    effects.finish();
-    const backupPath = path.join(roots.agentsRoot, transaction.backupName);
-    return {
-      ok: true,
-      state: 'COMMITTED',
-      transactionId,
-      projectRoot: roots.projectRoot,
-      ...(transaction.adoption === true ? { backupPath } : {}),
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      state: 'BLOCKED',
-      code: error.projectionCode || 'TRANSACTION_RESOLVE_FAILED',
-      error: { code: error.projectionCode || 'TRANSACTION_RESOLVE_FAILED', message: error.message },
-    };
-  }
-}
-
-// Read-only view of a held publication for explicit recovery.
-function heldProjection(options = {}) {
-  const roots = operationRoots(options);
-  const transaction = readTransactionJournal(roots);
-  if (!transaction) return null;
-  return journalHold(roots, transaction);
-}
-
-function commitHeldProjection(options = {}) {
-  return resolveHeldProjection(options, 'commit');
-}
-
-function abortHeldProjection(options = {}) {
-  return resolveHeldProjection(options, 'abort');
-}
-
 module.exports = {
   PROJECT_RECEIPT_SCHEMA,
   PROJECT_ROLLBACK_SCHEMA,
@@ -2661,9 +2583,6 @@ module.exports = {
   uninstallAgentsSkillsProjection,
   removeAgentsSkillsProjection: uninstallAgentsSkillsProjection,
   rollbackAgentsSkillsProjection,
-  commitHeldProjection,
-  abortHeldProjection,
-  heldProjection,
   projectionJournalParticipant,
   recoverAgentsSkillsProjection: (options = {}) => recoverProjectProjectionTransaction(operationRoots(options), { afterStep: options.afterStep || null }),
   readProjectProjectionReceipt,
