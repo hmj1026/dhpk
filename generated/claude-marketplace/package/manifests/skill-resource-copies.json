@@ -58,7 +58,7 @@
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:3ca6571757d103fb335d1b0f853f5ff7fa59d4743fca63e57932f0b2155eca2c",
+      "sha256": "sha256:46b70ecbddfdb6e6574c5971a4caa467b9a707dfd72fff7ed2bdbce0ca97e170",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
