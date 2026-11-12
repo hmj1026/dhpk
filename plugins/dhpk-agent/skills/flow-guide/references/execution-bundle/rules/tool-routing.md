@@ -33,6 +33,26 @@ SSOT for code exploration in dhpk-using projects. This file is the compact refer
 - **Single vs dual perspective**: default to single-perspective (cx / gitnexus_query / codebase-exploration) for clear errors with a stack trace. Escalate to the `codebase-exploration --dual` mode, issue-analyze + Codex, or gitnexus_context only when findings are uncertain, contradictory, or intermittent, or the decision spans multiple modules. (codebase-exploration, issue-analyze, gitnexus-debugging)
 - **Parallel exploration**: when independent directions materially affect the conclusion (e.g. frontend + backend + data, or several module boundaries), assess whether dispatching up to 3 Explore agents in one turn will reduce uncertainty. Give each explicit non-overlapping scope and the cx tool-priority block; consolidate before the next round. Do not dispatch for a single-file patch or symbol lookup. (harness-fill, flow-guide)
 
+## Result trust & fallback
+
+When these tools are installed, a `gitnexus_*` or `cx` result is evidence only when all four hold; otherwise record it as unresolved and use the fallback. An empty result is never "no callers" or "no change". `Grep` supplements, never replaces, the required `gitnexus_impact` gate or the unresolved record; `not found` / `UNKNOWN` go through recovery first.
+
+- **Fresh**: index status reports up to date.
+- **Right target**: the returned file is the expected one; pass a file path or symbol UID (the index's unique id) to `gitnexus_impact` / `gitnexus_context` so a same-name symbol is not bound.
+- **Covered**: the target and its caller files are indexed (files over the size cap or in `.gitnexusignore` are absent).
+- **Complete**: no `UNKNOWN`, ambiguous, `partial`, `truncated`, or not-found state; low-confidence edges (`confidence` field in `gitnexus_impact` output) are non-exhaustive.
+
+Fallbacks:
+
+- `cx lang list` shows `[missing]`: cx cannot see that language, so `no matches` means nothing. Use `Grep` / `Read`.
+- Dynamic dispatch (framework routes, string-keyed handlers, `obj.x = function`) and cross-language calls: the graph cannot resolve them, so still run `gitnexus_impact` and record `UNKNOWN` / `0` as unresolved, then confirm callers with `Grep`.
+- `gitnexus_detect_changes` must be reconciled with `git diff --stat`; a changed file missing from it is unresolved.
+- Non-Latin (e.g. CJK) concept search: use `Grep` unless the index is known to support it.
+
+Coverage: pin the size threshold in the `.gitnexus/run.cjs` wrapper or CI env (`GITNEXUS_MAX_FILE_SIZE=<kb>` or `analyze --max-file-size <kb>`; default 512 KB, cap 32768 KB) and list vendor/bundled output in `.gitnexusignore`.
+
+Rebuild: prefer `node .gitnexus/run.cjs analyze --skip-agents-md` (the flag keeps your AGENTS.md/CLAUDE.md GitNexus block intact). Without the wrapper, and only if the project already uses gitnexus, bootstrap with `bunx` / `pnpm dlx gitnexus@latest analyze --skip-agents-md` (`npx` crashes on npm 11).
+
 ## gitnexus_impact timing
 
 Run **at planning time** (once the target symbol is identified) **and** immediately before Edit/Write. Planning catches blast radius early; pre-edit is the final gate. Append-only exemption → `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` Glossary.
