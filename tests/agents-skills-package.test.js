@@ -180,17 +180,20 @@ test('local compatibility projection includes declared standalone dependencies i
   }
 });
 
-test('regeneration is deterministic and refuses a tree holding unlisted entries', () => {
+test('regeneration is deterministic and preserves unmanaged top-level entries', () => {
   const root = makeFixture();
   const first = path.join(root, 'first');
   const second = path.join(root, 'second');
   try {
     materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir: first });
     materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir: second });
-    assert.deepStrictEqual(snapshot(first), snapshot(second));
+    const managed = snapshot(first);
+    assert.deepStrictEqual(managed, snapshot(second));
     write(path.join(first, 'unmanaged.md'), '# Keep me\n');
-    assert.throws(() => materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir: first }), /OWNERSHIP_REFUSED/);
+    const result = materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir: first });
+    assert.deepStrictEqual(result.preservedUnmanaged, ['unmanaged.md']);
     assert.strictEqual(fs.readFileSync(path.join(first, 'unmanaged.md'), 'utf8'), '# Keep me\n');
+    assert.deepStrictEqual(snapshot(first).filter(([relative]) => relative !== 'unmanaged.md'), managed);
     assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir: first }).ok, true);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -399,6 +402,30 @@ test('a 1.1.0 marker-less receipt with a carried entry releases it and rewrites 
     assert.ok(fs.existsSync(path.join(outDir, 'dhpk-other.md')), 'released shim stays on disk');
     const checked = validateAgentsSkillsProjection({ root, inventory: twoSkillInventory({ deselectOther: true }), outDir });
         assert.ok(!checked.errors.some((error) => /fingerprint algorithm/.test(error)), checked.errors.join('; '));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a second sync after a legacy release succeeds and keeps the released files intact', () => {
+  const root = makeTwoSkillFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  const inventory = twoSkillInventory({ deselectOther: true });
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory(), outDir });
+    downgradeReceipt(outDir);
+    const released = materializeAgentsSkillsProjection({ root, inventory, outDir });
+    assert.deepStrictEqual(released.released.map((entry) => entry.name), ['dhpk-other']);
+    assert.deepStrictEqual(released.preservedUnmanaged, []);
+    const releasedFiles = ['dhpk-other/SKILL.md', 'dhpk-other.md'].map((relative) => [relative, fs.readFileSync(path.join(outDir, relative), 'utf8')]);
+
+    const again = materializeAgentsSkillsProjection({ root, inventory, outDir });
+    assert.deepStrictEqual(again.released, []);
+    assert.deepStrictEqual(again.preservedUnmanaged, ['dhpk-other', 'dhpk-other.md']);
+    for (const [relative, content] of releasedFiles) assert.strictEqual(fs.readFileSync(path.join(outDir, relative), 'utf8'), content, relative);
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'));
+    assert.ok(receipt.managedPaths.every((relative) => !relative.startsWith('dhpk-other')));
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory, outDir }).ok, true);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

@@ -354,17 +354,42 @@ Moving AGY, cursor-sync, or the Claude marketplace package behind the store SHAL
 
 ### Requirement: Local skills sync publishes through the store
 
-The in-checkout branch of `materializeAgentsSkillsProjection` SHALL publish `.agents/skills` through `ProjectionArtifactStore`; `writeAtomicJson` and its private journal, stage, and backup SHALL NOT exist. Replacing an existing `.agents/skills` SHALL require its `.dhpk-projection.json` receipt to account for every file in the tree; an unmanaged file SHALL refuse the replace. `npm run sync:local-skills` SHALL keep its command-line contract and byte-identical output, including the receipt.
+The in-checkout branch of `materializeAgentsSkillsProjection` SHALL publish `.agents/skills` through `ProjectionArtifactStore`; `writeAtomicJson` and its private journal, stage, and backup SHALL NOT exist. Replacing an existing `.agents/skills` SHALL require its `.dhpk-projection.json` receipt. A reserved name is `N` or `N.md` for every skill the sync generates, renames from, retires, or keeps from the prior receipt. A top-level entry whose name is neither reserved nor the receipt is unmanaged: the sync SHALL carry its regular files into the published tree with identical bytes and modes, SHALL NOT record them in the receipt, and SHALL report the preserved top-level names on standard output. The sync SHALL refuse the replace and leave the tree unchanged when a file at or under a reserved name is not owned by the receipt, when an unmanaged entry holds a symlink or other non-regular file, or when the unmanaged files change between planning and activation. Empty unmanaged directories are not carried. `npm run sync:local-skills` SHALL keep its command-line contract, and the receipt SHALL be byte-identical whether or not unmanaged entries are present.
 
 #### Scenario: Local sync runs through the store
 
 - **WHEN** `npm run sync:local-skills` runs in a repository
 - **THEN** `.agents/skills` and its receipt are byte-identical to the previous implementation's output and no private journal or backup is created
 
-#### Scenario: Unmanaged content blocks the replace
+#### Scenario: Unmanaged skill directories are preserved
 
-- **WHEN** `.agents/skills` contains a file its receipt does not list
-- **THEN** the sync is refused and the tree is unchanged
+- **WHEN** `.agents/skills` holds a third-party skill directory such as `gitnexus-cli/` whose name is not reserved
+- **THEN** the sync updates the managed skills, the third-party files keep their bytes and modes, the receipt is byte-identical to the receipt produced without the third-party directory, and the preserved name is reported on standard output
+
+#### Scenario: Empty unmanaged directory is dropped
+
+- **WHEN** `.agents/skills` holds an empty unmanaged directory
+- **THEN** the sync succeeds and the directory is absent from the published tree
+
+#### Scenario: Unmanaged content inside a managed skill blocks the replace
+
+- **WHEN** a directory with a reserved name contains a file its receipt does not list
+- **THEN** the sync refuses the replace and the tree is unchanged
+
+#### Scenario: Unmanaged entry at a reserved name blocks the replace
+
+- **WHEN** a newly selected skill `N` would be generated and `.agents/skills` already holds an unmanaged `N/` or `N.md`
+- **THEN** the sync refuses the replace and the tree is unchanged
+
+#### Scenario: Unmanaged symlink or non-regular file blocks the replace
+
+- **WHEN** an unmanaged entry is or contains a symlink or another non-regular file
+- **THEN** the sync refuses the replace and the entry and any symlink target are unchanged
+
+#### Scenario: Unmanaged files change before activation
+
+- **WHEN** an unmanaged file is added, removed, or modified after planning and before activation
+- **THEN** the sync refuses the replace and the tree is unchanged
 
 #### Scenario: Legacy writers are gone
 
