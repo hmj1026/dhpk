@@ -54,7 +54,7 @@ The generator SHALL write a versioned receipt containing the inventory revision,
 #### Scenario: Foreign content is preserved
 
 - **WHEN** an unrelated `.agents/skills` entry exists beside a receipt-owned projection
-- **THEN** regeneration leaves the unrelated entry unchanged and records it as unmanaged
+- **THEN** regeneration leaves the unrelated entry unchanged and does not list it in the receipt
 
 #### Scenario: Changed managed content is not silently discarded
 
