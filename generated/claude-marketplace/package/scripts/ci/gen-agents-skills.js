@@ -99,6 +99,10 @@ try {
       const names = released.map((entry) => entry.name).join(', ');
       console.log(`gen-agents-skills: released ${released.length} ${released.length === 1 ? 'entry' : 'entries'} (files kept on disk): ${names}`);
     }
+    const preserved = result.preservedUnmanaged || [];
+    if (preserved.length > 0) {
+      console.log(`gen-agents-skills: preserved ${preserved.length} unmanaged ${preserved.length === 1 ? 'entry' : 'entries'} (kept as-is): ${preserved.join(', ')}`);
+    }
   } else {
     const operation = args.action === 'uninstall' ? uninstallAgentsSkillsProjection : rollbackAgentsSkillsProjection;
     const result = operation({ projectRoot, outDir: outDir || undefined, inventory: inventory || undefined });
