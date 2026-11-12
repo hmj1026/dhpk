@@ -52,34 +52,53 @@
 //
 // The report never prints prompt text, descriptions, or file contents: only
 // agent types, model ids, efforts, skill/command names, counts and tokens.
+//
+// Cost estimate (#1331): every turn is priced per token class at the declared
+// per-model rate: input, output, cache read, 5-minute cache write and 1-hour
+// cache write. Cache writes are split by usage.cache_creation
+// (ephemeral_1h_input_tokens / ephemeral_5m_input_tokens); a write without
+// that breakdown, or the part the breakdown does not cover, is priced as a
+// 5-minute write (the default TTL). The Haiku long-prompt rate applies when a
+// turn's prompt (input + cache read + cache write) exceeds the threshold.
+// Not modelled: the inference_geo 1.1x multiplier, fast mode, and batch pricing.
 
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { StringDecoder } = require('node:string_decoder');
 
-// Single declared price table, USD per million tokens (input/output only; cache
-// token classes are reported in usage but excluded from the estimate). Models
-// not listed here are reported as "unknown", never as 0.
+// Single declared price table, USD per million tokens, one rate per token
+// class. Cache read is not a fixed multiple of input: 0.025x on Fable 5.1/5.2,
+// 0.05x on Opus 5.5 and Sonnet 5.5, 0.1x on Haiku 5.5. Cache writes are 1.25x
+// (5-minute TTL) and 2x (1-hour TTL) of input. Models not listed here are
+// reported as "unknown", never as 0.
 const PRICE_TABLE = Object.freeze({
-  verifiedOn: '2026-11-10',
+  verifiedOn: '2026-11-12',
   currency: 'USD',
   unit: 'per-million-tokens',
-  basis: 'input+output',
-  source: 'rules/model-economics.md; claude-fable-5-2 from the 2026-11-10 alias change',
+  basis: 'input+output+cacheRead+cacheWrite5m+cacheWrite1h',
+  source: 'https://platform.claude.com/docs/en/about-claude/pricing',
   models: Object.freeze({
-    'claude-fable-5-1': Object.freeze({ input: 10, output: 50 }),
-    'claude-fable-5-2': Object.freeze({ input: 8, output: 40 }),
-    'claude-opus-5-5': Object.freeze({ input: 4, output: 20 }),
-    'claude-sonnet-5-5': Object.freeze({ input: 2, output: 10 }),
+    'claude-fable-5-1': Object.freeze({ input: 10, output: 50, cacheRead: 0.25, cacheWrite5m: 12.5, cacheWrite1h: 20 }),
+    'claude-fable-5-2': Object.freeze({ input: 8, output: 40, cacheRead: 0.2, cacheWrite5m: 10, cacheWrite1h: 16 }),
+    'claude-opus-5-5': Object.freeze({ input: 4, output: 20, cacheRead: 0.2, cacheWrite5m: 5, cacheWrite1h: 8 }),
+    'claude-sonnet-5-5': Object.freeze({ input: 2, output: 10, cacheRead: 0.1, cacheWrite5m: 2.5, cacheWrite1h: 4 }),
     'claude-haiku-5-5': Object.freeze({
       input: 0.1,
       output: 0.5,
-      // Prompts above the threshold bill at the long-prompt rate.
-      longPrompt: Object.freeze({ threshold: 100000, input: 0.5, output: 2.5 }),
+      cacheRead: 0.01,
+      cacheWrite5m: 0.125,
+      cacheWrite1h: 0.2,
+      // Prompts above the threshold (cache read and write included) bill at
+      // the long-prompt rate.
+      longPrompt: Object.freeze({
+        threshold: 100000, input: 0.5, output: 2.5, cacheRead: 0.05, cacheWrite5m: 0.625, cacheWrite1h: 1,
+      }),
     }),
   }),
 });
+
+const COST_CLASSES = Object.freeze(['input', 'output', 'cacheRead', 'cacheWrite5m', 'cacheWrite1h']);
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const COMMAND_TOOLS = new Set(['Bash', 'PowerShell']);
@@ -259,16 +278,24 @@ function scanParent(file, skipped) {
   return { calls, error };
 }
 
+// Returns the cost per token class plus the total, or null for an unpriced model.
 function priceUsage(model, turns) {
   const price = PRICE_TABLE.models[model];
   if (!price) return null;
-  let usd = 0;
+  const cost = { input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0, total: 0 };
   for (const turn of turns) {
-    const long = price.longPrompt
+    const rate = price.longPrompt
       && turn.promptTokens > price.longPrompt.threshold ? price.longPrompt : price;
-    usd += (turn.input * long.input + turn.output * long.output) / 1e6;
+    for (const cls of COST_CLASSES) cost[cls] += (turn[cls] * rate[cls]) / 1e6;
   }
-  return usd;
+  for (const cls of COST_CLASSES) cost.total += cost[cls];
+  return cost;
+}
+
+function roundCost(cost) {
+  const out = {};
+  for (const [key, value] of Object.entries(cost)) out[key] = Number(value.toFixed(6));
+  return out;
 }
 
 // Streaming writes the same message more than once; the last copy is final.
@@ -288,6 +315,8 @@ function scanSubagent(file, skipped) {
     const input = Number(usage.input_tokens) || 0;
     const cacheRead = Number(usage.cache_read_input_tokens) || 0;
     const cacheCreate = Number(usage.cache_creation_input_tokens) || 0;
+    const ttl = isRecord(usage.cache_creation) ? usage.cache_creation : {};
+    const cacheWrite1h = Math.min(Math.max(Number(ttl.ephemeral_1h_input_tokens) || 0, 0), cacheCreate);
     const key = typeof record.message.id === 'string' ? record.message.id : `#${sequence}`;
     sequence += 1;
     byMessage.set(key, {
@@ -297,6 +326,8 @@ function scanSubagent(file, skipped) {
       output: Number(usage.output_tokens) || 0,
       cacheRead,
       cacheCreate,
+      cacheWrite5m: cacheCreate - cacheWrite1h,
+      cacheWrite1h,
       promptTokens: input + cacheRead + cacheCreate,
     });
   });
@@ -471,7 +502,14 @@ function buildReport(options = {}) {
               model,
               effort,
               count: 0,
-              usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+              usage: {
+                inputTokens: 0,
+                outputTokens: 0,
+                cacheReadTokens: 0,
+                cacheCreationTokens: 0,
+                cacheWrite5mTokens: 0,
+                cacheWrite1hTokens: 0,
+              },
               turns: [],
             });
           }
@@ -482,6 +520,8 @@ function buildReport(options = {}) {
             group.usage.outputTokens += turn.output;
             group.usage.cacheReadTokens += turn.cacheRead;
             group.usage.cacheCreationTokens += turn.cacheCreate;
+            group.usage.cacheWrite5mTokens += turn.cacheWrite5m;
+            group.usage.cacheWrite1hTokens += turn.cacheWrite1h;
             group.turns.push(turn);
           }
 
@@ -523,10 +563,18 @@ function buildReport(options = {}) {
   skipped.total = skipped.missingRoot + skipped.corruptJson + skipped.missingTranscript
     + skipped.noAssistantTurn + skipped.missingParent + skipped.unreadable + skipped.undated;
 
+  const costSums = { input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0, total: 0 };
+  let unpricedGroups = 0;
   const byAgent = [...groups.values()]
     .map(({ turns, ...group }) => {
       const cost = priceUsage(group.model, turns);
-      return { ...group, estimatedCost: cost === null ? 'unknown' : Number(cost.toFixed(6)) };
+      if (cost === null) {
+        unpricedGroups += 1;
+        return { ...group, estimatedCost: 'unknown', estimatedCostBreakdown: 'unknown' };
+      }
+      for (const key of Object.keys(costSums)) costSums[key] += cost[key];
+      const rounded = roundCost(cost);
+      return { ...group, estimatedCost: rounded.total, estimatedCostBreakdown: rounded };
     })
     .sort((a, b) => b.count - a.count
       || a.agentType.localeCompare(b.agentType)
@@ -542,6 +590,7 @@ function buildReport(options = {}) {
     },
     pricing: { ...PRICE_TABLE, models: PRICE_TABLE.models },
     byAgent,
+    costTotals: { ...roundCost(costSums), unpricedGroups },
     callOverrides,
     mismatches,
     noDeclaredTier,
@@ -550,17 +599,25 @@ function buildReport(options = {}) {
   };
 }
 
+function formatCost(cost) {
+  if (cost === 'unknown') return 'unknown';
+  const usd = (value) => `$${value.toFixed(4)}`;
+  return `${usd(cost.total)} (input ${usd(cost.input)}, output ${usd(cost.output)}, cache read ${usd(cost.cacheRead)}, cache write 5m ${usd(cost.cacheWrite5m)}, 1h ${usd(cost.cacheWrite1h)})`;
+}
+
 function formatText(report) {
   const lines = [];
   const w = report.window;
   lines.push(`dispatch telemetry (since ${w.since || '-'} until ${w.until || '-'}, tz ${w.timezone})`);
   lines.push('');
-  lines.push('agentType x model@effort: count, tokens (in/out), estimated cost');
+  lines.push('agentType x model@effort: count, tokens (in/out/cache read/cache write), estimated cost');
   if (report.byAgent.length === 0) lines.push('  (no dispatches)');
   for (const e of report.byAgent) {
-    const cost = e.estimatedCost === 'unknown' ? 'unknown' : `$${e.estimatedCost.toFixed(4)}`;
-    lines.push(`  ${e.agentType}  ${e.model}@${e.effort || 'default'}  x${e.count}  ${e.usage.inputTokens}/${e.usage.outputTokens}  ${cost}`);
+    const u = e.usage;
+    lines.push(`  ${e.agentType}  ${e.model}@${e.effort || 'default'}  x${e.count}  ${u.inputTokens}/${u.outputTokens}/${u.cacheReadTokens}/${u.cacheCreationTokens}  ${formatCost(e.estimatedCostBreakdown)}`);
   }
+  const t = report.costTotals;
+  lines.push(`  estimated cost total ${formatCost(t)}; ${t.unpricedGroups} unpriced group${t.unpricedGroups === 1 ? '' : 's'}`);
   lines.push(`  price table verified ${report.pricing.verifiedOn} (${report.pricing.basis}); unlisted models are "unknown"`);
   lines.push('');
   const o = report.callOverrides;

@@ -48,7 +48,7 @@ test('model-economics states Fable 5.2 at $8/$40 and no longer resolves fable to
   assert.match(rule, /\$8\/\$40/);
   assert.match(rule, /2026-11-10/);
   assert.doesNotMatch(rule, /resolves to Fable 5\.1/);
-  assert.match(rule, /Fable 5\.2 cost 1\.3-3\.7x opus/);
+  assert.match(rule, /Fable 5\.2 cost 1\.3-3\.5x opus/);
   assert.doesNotMatch(rule, /about 2\.3x opus per run/);
 });
 

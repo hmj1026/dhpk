@@ -530,4 +530,109 @@ test('effort mismatch is ignored when the actual effort is null', () => {
   assert.ok(findAgent(report, 'architect', 'claude-fable-5-1', null));
 });
 
+// Fixed usage fixture for #1331: every token class present, cache writes split
+// across the 5-minute and 1-hour TTLs. Prices are the declared table's.
+const CACHE_FIXTURE_USAGE = Object.freeze({
+  input_tokens: 1000,
+  output_tokens: 2000,
+  cache_read_input_tokens: 1000000,
+  cache_creation_input_tokens: 300000,
+  cache_creation: { ephemeral_5m_input_tokens: 200000, ephemeral_1h_input_tokens: 100000 },
+});
+
+function near(actual, expected, label) {
+  assert.ok(Math.abs(actual - expected) < 1e-9, `${label}: ${actual} != ${expected}`);
+}
+
+test('cost includes input, output, cache read and both cache-write TTLs at their own rates', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  makeSession(root, {
+    dispatches: [{ id: 'c1', agentType: 'Explore', records: [
+      assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-opus-5-5', effort: 'medium', usage: CACHE_FIXTURE_USAGE }),
+    ] }],
+  });
+  const report = buildReport({ root, agentsDir });
+  const entry = findAgent(report, 'Explore', 'claude-opus-5-5', 'medium');
+  assert.strictEqual(entry.usage.cacheReadTokens, 1000000);
+  assert.strictEqual(entry.usage.cacheCreationTokens, 300000);
+  assert.strictEqual(entry.usage.cacheWrite5mTokens, 200000);
+  assert.strictEqual(entry.usage.cacheWrite1hTokens, 100000);
+  const b = entry.estimatedCostBreakdown;
+  near(b.input, 0.004, 'input'); // 1000 * $4/M
+  near(b.output, 0.04, 'output'); // 2000 * $20/M
+  near(b.cacheRead, 0.2, 'cacheRead'); // 1,000,000 * $0.20/M
+  near(b.cacheWrite5m, 1.0, 'cacheWrite5m'); // 200,000 * $5/M
+  near(b.cacheWrite1h, 0.8, 'cacheWrite1h'); // 100,000 * $8/M
+  near(b.total, 2.044, 'total');
+  near(entry.estimatedCost, 2.044, 'estimatedCost');
+  assert.strictEqual(report.pricing.basis, 'input+output+cacheRead+cacheWrite5m+cacheWrite1h');
+});
+
+test('haiku long-prompt rate applies when cache reads push the prompt over the threshold', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  makeSession(root, {
+    dispatches: [{ id: 'h1', agentType: 'Explore', records: [
+      assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-haiku-5-5', effort: 'low', usage: {
+        input_tokens: 1000, output_tokens: 1000, cache_read_input_tokens: 150000, cache_creation_input_tokens: 0,
+      } }),
+    ] }],
+  });
+  const b = findAgent(buildReport({ root, agentsDir }), 'Explore', 'claude-haiku-5-5', 'low').estimatedCostBreakdown;
+  near(b.input, 0.0005, 'input'); // 1000 * $0.50/M
+  near(b.cacheRead, 0.0075, 'cacheRead'); // 150,000 * $0.05/M
+  near(b.output, 0.0025, 'output'); // 1000 * $2.50/M
+  near(b.total, 0.0105, 'total');
+});
+
+test('cache writes without a TTL breakdown are priced as 5-minute writes', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  makeSession(root, {
+    dispatches: [{ id: 'w1', agentType: 'fast-worker', records: [
+      assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-sonnet-5-5', effort: 'medium', usage: {
+        input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 400000,
+      } }),
+    ] }],
+  });
+  const entry = findAgent(buildReport({ root, agentsDir }), 'fast-worker', 'claude-sonnet-5-5', 'medium');
+  assert.strictEqual(entry.usage.cacheWrite5mTokens, 400000);
+  assert.strictEqual(entry.usage.cacheWrite1hTokens, 0);
+  near(entry.estimatedCostBreakdown.cacheWrite5m, 1.0, 'cacheWrite5m'); // 400,000 * $2.50/M
+  near(entry.estimatedCostBreakdown.cacheWrite1h, 0, 'cacheWrite1h');
+});
+
+test('report cost totals sum priced groups and count unpriced groups instead of treating them as 0', () => {
+  const root = mkdtemp();
+  const agentsDir = makeAgentsDir();
+  makeSession(root, {
+    dispatches: [
+      { id: 't1', agentType: 'Explore', records: [
+        assistant({ ts: '2026-11-05T01:00:00Z', model: 'claude-opus-5-5', effort: 'medium', usage: CACHE_FIXTURE_USAGE }),
+      ] },
+      { id: 't2', agentType: 'Explore', records: [
+        assistant({ ts: '2026-11-05T02:00:00Z', model: 'claude-unpriced-9-9', effort: 'medium', usage: CACHE_FIXTURE_USAGE }),
+      ] },
+    ],
+  });
+  const report = buildReport({ root, agentsDir });
+  const t = report.costTotals;
+  near(t.input, 0.004, 'input');
+  near(t.output, 0.04, 'output');
+  near(t.cacheRead, 0.2, 'cacheRead');
+  near(t.cacheWrite5m, 1.0, 'cacheWrite5m');
+  near(t.cacheWrite1h, 0.8, 'cacheWrite1h');
+  near(t.total, 2.044, 'total');
+  assert.strictEqual(t.unpricedGroups, 1);
+  assert.strictEqual(findAgent(report, 'Explore', 'claude-unpriced-9-9', 'medium').estimatedCostBreakdown, 'unknown');
+
+  const text = cli(['--root', root, '--agents-dir', agentsDir]);
+  assert.strictEqual(text.status, 0, text.stderr);
+  assert.match(text.stdout, /input\+output\+cacheRead\+cacheWrite5m\+cacheWrite1h/);
+  assert.match(text.stdout, /cache read \$0\.2000/);
+  assert.match(text.stdout, /estimated cost total \$2\.0440/);
+  assert.match(text.stdout, /1 unpriced group/);
+});
+
 run('dispatch-telemetry-report');
