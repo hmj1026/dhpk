@@ -3,7 +3,6 @@
 
 const path = require('node:path');
 const { installNativeSharedSkills, uninstallNativeSharedSkills, recoverSharedProjection } = require('../lib/native-shared-skill-install');
-const { commitHeldProjection, abortHeldProjection } = require('../lib/project-agent-projection-publisher');
 const { classifyHostBinding } = require('../lib/cursor-consumer-evidence');
 
 function parseArgs(argv) {
@@ -17,11 +16,10 @@ function parseArgs(argv) {
     update: false,
     json: false,
     consumerEvidencePath: null,
-    transactionId: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (['install', 'update', 'classify', 'uninstall', 'commit', 'abort', 'recover'].includes(arg)) args.action = arg;
+    if (['install', 'update', 'classify', 'uninstall', 'recover'].includes(arg)) args.action = arg;
     else if (arg === '--source' || arg === '--source-root') args.sourceRoot = argv[++index];
     else if (arg === '--project-root') args.projectRoot = argv[++index];
     else if (arg === '--host') args.host = argv[++index];
@@ -30,7 +28,6 @@ function parseArgs(argv) {
     else if (arg === '--update') args.update = true;
     else if (arg === '--json') args.json = true;
     else if (arg === '--consumer-evidence') args.consumerEvidencePath = argv[++index];
-    else if (arg === '--transaction') args.transactionId = argv[++index];
     else throw new Error(`unknown argument: ${arg}`);
   }
   if (args.action === 'update') args.update = true;
@@ -59,29 +56,6 @@ try {
     else if (result.ok) console.log(`install-native-shared-skills: recover: ${result.state}`);
     if (!result.ok) {
       if (!args.json) console.error(`FAIL [install-native-shared-skills]: ${result.message || result.state}`);
-      process.exit(1);
-    }
-    process.exit(0);
-  }
-  if (args.action === 'commit' || args.action === 'abort') {
-    if (!args.projectRoot || !args.transactionId) {
-      fail(`usage: install-native-shared-skills.js ${args.action} --project-root <dir> --transaction <id> [--json]`);
-    }
-    const resolve = args.action === 'commit' ? commitHeldProjection : abortHeldProjection;
-    const result = resolve({ projectRoot: path.resolve(args.projectRoot), transactionId: args.transactionId });
-    if (args.json) {
-      console.log(JSON.stringify({
-        ok: result.ok,
-        state: result.state,
-        code: result.code || null,
-        message: (result.error && result.error.message) || null,
-        transactionId: args.transactionId,
-      }));
-    } else if (result.ok) {
-      console.log(`install-native-shared-skills: ${args.action} ${args.transactionId}: ${result.state}`);
-    }
-    if (!result.ok) {
-      if (!args.json) console.error(`FAIL [install-native-shared-skills]: ${result.error ? result.error.message : result.state}`);
       process.exit(1);
     }
     process.exit(0);

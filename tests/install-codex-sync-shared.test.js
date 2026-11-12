@@ -742,11 +742,12 @@ test('Cursor --update inside the canonical source checkout skips relocatable Sha
 
 // --- Explicit recovery (REQ-6) ---
 
-// The Python installer that wrote Host journals is gone, but the JS installer
-// still reads them (REQ-9). The projects below are recordings of what it left
+// The Python installer that wrote Host journals is gone, and this release no
+// longer recovers the ones it left (issue #1321): an active or incomplete
+// journal fails closed and names the dhpk 0.74.x line that still recovers it.
+// The projects below are recordings of what it left
 // (tests/fixtures/legacy-journals/README.md).
 const DHPK_INSTALL = path.join(REPO, 'scripts', 'dhpk-install.js');
-const SHARED_CLI = path.join(REPO, 'scripts', 'ci', 'install-native-shared-skills.js');
 
 // The recorded committed install, with its last Host journal turned into an
 // incomplete rollback that still owes one restore: `.codex/agents/explorer.toml`
@@ -775,72 +776,139 @@ function incompleteRollbackScenario() {
   journal.receipt_snapshot_present = true;
   journal.receipt_snapshot = JSON.parse(fs.readFileSync(path.join(hostRoot, '.dhpk-installed.json'), 'utf8'));
   fs.writeFileSync(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
-  return { scratch, plugin, hostRoot, journalPath, live, bytes, backup };
+  return { scratch, plugin, hostRoot, journalPath, run: journal.run };
 }
 
-test('an incomplete rollback blocks with its remaining paths and backup, and --recover finishes it', () => {
-  const { scratch, plugin, journalPath, live, bytes, backup } = incompleteRollbackScenario();
+test('an incomplete rollback fails closed naming dhpk 0.74.x, with and without --recover, and changes nothing', () => {
+  const { scratch, plugin } = incompleteRollbackScenario();
   try {
-    const blocked = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
-    assert.strictEqual(blocked.status, 2, outputOf(blocked));
-    assert.match(outputOf(blocked), /agents\/explorer\.toml/);
-    assert.ok(outputOf(blocked).includes(path.posix.dirname(path.posix.dirname(backup))), outputOf(blocked));
-    assert.match(outputOf(blocked), /--recover/);
-    const recovered = runCodexInstaller(scratch, ['--recover'], plugin);
-    assert.strictEqual(recovered.status, 0, outputOf(recovered));
-    assert.deepStrictEqual(fs.readFileSync(live), bytes);
-    assert.strictEqual(JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase, 'rolled_back');
-    const next = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
-    assert.strictEqual(next.status, 0, outputOf(next));
+    const before = snapshotTree(scratch);
+    for (const args of [['--copy', '--force'], ['--recover']]) {
+      const result = runCodexInstaller(scratch, args, plugin);
+      assert.strictEqual(result.status, 2, outputOf(result));
+      assert.match(outputOf(result), /dhpk 0\.74\.x/);
+      assert.match(outputOf(result), /--recover/);
+      assert.strictEqual(snapshotTree(scratch), before, `${args.join(' ')} must change nothing`);
+    }
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
   }
 });
 
-test('dhpk-install --recover lists incomplete installer rollbacks with the command that finishes them', () => {
-  const { scratch, plugin } = incompleteRollbackScenario();
+test('dhpk-install --recover reports an incomplete installer rollback as LEGACY_HOST_JOURNAL without a command', () => {
+  const { scratch, plugin, run } = incompleteRollbackScenario();
   try {
+    const before = snapshotTree(scratch);
     const result = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
     assert.strictEqual(result.status, 2, outputOf(result));
     const report = JSON.parse(result.stdout);
-    assert.strictEqual(report.sharedProjection.state, 'ABSENT');
+    assert.strictEqual(report.ok, false);
+    assert.strictEqual(report.sharedProjection.state, 'SKIPPED');
     assert.strictEqual(report.installerJournals.length, 1);
-    assert.strictEqual(report.installerJournals[0].host, '.codex');
-    assert.match(report.installerJournals[0].command, /--recover/);
+    const [entry] = report.installerJournals;
+    assert.strictEqual(entry.host, '.codex');
+    assert.strictEqual(entry.run, run);
+    assert.strictEqual(entry.phase, 'rollback_incomplete');
+    assert.strictEqual(entry.code, 'LEGACY_HOST_JOURNAL');
+    assert.ok(!('command' in entry), 'no command can replay a journal this release does not recover');
+    assert.match(entry.action, /dhpk 0\.74\.x/);
+    assert.strictEqual(snapshotTree(scratch), before);
+    const text = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch], { encoding: 'utf8' });
+    assert.strictEqual(text.status, 2, outputOf(text));
+    assert.ok(outputOf(text).includes(`.codex transaction ${run} is rollback_incomplete; recover it with dhpk 0.74.x --recover`), outputOf(text));
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
   }
 });
 
-// The recorded killed update: a held publication and the Host journal of the run that held it.
-function interruptedScenario() {
-  const scratch = projectRoot();
-  const plugin = fakePlugin();
-  restoreTree(loadLegacyFixture('python-codex-host-journal').interrupted, scratch, { '@@PROJECT@@': scratch, '@@PLUGIN@@': plugin });
-  return { scratch, plugin };
+function hostJournalProject(scratch, content) {
+  fs.mkdirSync(path.join(scratch, '.codex'), { recursive: true });
+  fs.writeFileSync(path.join(scratch, '.codex', '.dhpk-transaction-20260101T000000Z-1.json'), content);
 }
 
-test('explicit recovery refuses a held publication while its installer journal is active, then aborts it once orphaned', () => {
-  const { scratch, plugin } = interruptedScenario();
+test('dhpk-install --recover with a blocking Host journal skips every mutating recovery and changes nothing', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
   try {
+    restoreTree(loadLegacyFixture('python-codex-host-journal').interrupted, scratch, { '@@PROJECT@@': scratch, '@@PLUGIN@@': plugin });
+    // The recording also holds a v3 Publisher journal; unheld, recovery rolls it back.
+    const publisherJournal = path.join(scratch, '.agents', '.dhpk-installed.transaction.json');
+    const journal = JSON.parse(fs.readFileSync(publisherJournal, 'utf8'));
+    delete journal.hold;
+    journal.phase = 'publishing';
+    fs.writeFileSync(publisherJournal, `${JSON.stringify(journal, null, 2)}\n`);
+    assert.ok(activeTransactionJournals(path.join(scratch, '.codex')).length > 0, 'the Host journal must be active');
+    const before = snapshotTree(scratch);
+    const result = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 2, outputOf(result));
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(snapshotTree(scratch), before, 'no mutating recovery may run while a Host journal blocks');
+    assert.strictEqual(report.ok, false);
+    assert.ok(report.installerJournals.some((entry) => entry.code === 'LEGACY_HOST_JOURNAL'), outputOf(result));
+    assert.strictEqual(report.sharedProjection.state, 'SKIPPED', 'the skipped step must be marked, not shown as run');
+    assert.strictEqual(report.projectionJournal.state, 'SKIPPED');
+    const text = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch], { encoding: 'utf8' });
+    assert.match(outputOf(text), /shared projection: SKIPPED/);
+    assert.strictEqual(snapshotTree(scratch), before);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+for (const [label, content] of [['an empty object', '{}'], ['an unknown phase', '{"phase":"weird"}'], ['a null phase', '{"phase":null}'], ['a numeric phase', '{"phase":3}']]) {
+  test(`dhpk-install --recover blocks on a Host journal with ${label}`, () => {
+    const scratch = projectRoot();
+    const plugin = fakePlugin();
+    try {
+      hostJournalProject(scratch, content);
+      const before = snapshotTree(scratch);
+      const result = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
+      assert.strictEqual(result.status, 2, outputOf(result));
+      const report = JSON.parse(result.stdout);
+      assert.strictEqual(report.ok, false);
+      assert.strictEqual(report.installerJournals.length, 1, outputOf(result));
+      assert.match(report.installerJournals[0].error, /unsupported phase/);
+      assert.strictEqual(snapshotTree(scratch), before);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(plugin, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const phase of ['committed', 'rolled_back']) {
+  test(`dhpk-install --recover ignores a ${phase} Host journal`, () => {
+    const scratch = projectRoot();
+    const plugin = fakePlugin();
+    try {
+      hostJournalProject(scratch, JSON.stringify({ phase }));
+      const result = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
+      assert.strictEqual(JSON.parse(result.stdout).installerJournals.length, 0, outputOf(result));
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(plugin, { recursive: true, force: true });
+    }
+  });
+}
+
+test('dhpk-install --recover reports the active journal of the recorded killed update as LEGACY_HOST_JOURNAL', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    restoreTree(loadLegacyFixture('python-codex-host-journal').interrupted, scratch, { '@@PROJECT@@': scratch, '@@PLUGIN@@': plugin });
     const [active] = activeTransactionJournals(path.join(scratch, '.codex'));
     assert.ok(active, 'the recording must hold an active Host journal');
-    const refused = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
-    assert.strictEqual(refused.status, 2, outputOf(refused));
-    const report = JSON.parse(refused.stdout);
-    assert.strictEqual(report.sharedProjection.code, 'INSTALLER_ACTIVE');
-    assert.match(report.sharedProjection.message, /codex/);
-    assert.match(report.sharedProjection.message, /20261111T034659Z-11426/, 'names the recorded run that holds the publication');
-    assert.ok(fs.existsSync(path.join(scratch, '.agents', '.dhpk-installed.transaction.json')));
-    // The installer journal is lost: the publication is orphaned.
-    fs.rmSync(path.join(scratch, '.codex', active));
-    const aborted = spawnSync(process.execPath, [SHARED_CLI, 'recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
-    assert.strictEqual(aborted.status, 0, outputOf(aborted));
-    assert.strictEqual(JSON.parse(aborted.stdout).state, 'ABORTED');
-    assert.strictEqual(fs.existsSync(path.join(scratch, '.agents', '.dhpk-installed.transaction.json')), false);
-    assert.doesNotMatch(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md'), 'utf8'), /v2/);
+    const before = snapshotTree(scratch);
+    const result = spawnSync(process.execPath, [DHPK_INSTALL, '--recover', '--project-root', scratch, '--json'], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 2, outputOf(result));
+    const entry = JSON.parse(result.stdout).installerJournals.find((item) => item.phase === 'active');
+    assert.ok(entry, outputOf(result));
+    assert.strictEqual(entry.code, 'LEGACY_HOST_JOURNAL');
+    assert.ok(!('command' in entry));
+    assert.strictEqual(snapshotTree(scratch), before, 'the refused recovery changes nothing');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });

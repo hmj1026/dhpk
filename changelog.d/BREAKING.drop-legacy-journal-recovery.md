@@ -1,0 +1,2 @@
+scope: install
+note: Drop recovery of dhpk 0.72/0.73 journals (an unfinished Python Host journal or a publisher journal with a `hold`) so the installer now blocks and names `--recover` of dhpk 0.74.x, `dhpk-install --recover` reports a blocking Python Host journal as `LEGACY_HOST_JOURNAL` (a publisher journal with a `hold` fails with `UNSAFE_TRANSACTION`) and, while one is present, skips projection-journal and shared-projection recovery and exits `2`, and `install-native-shared-skills.js` loses its `commit`/`abort` actions and `--transaction` option (#1321).

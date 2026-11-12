@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
+const { snapshot: snapshotTree } = require('./_lib/adapter-journal-sweep');
 const { installNativeSharedSkills, uninstallNativeSharedSkills } = require('../scripts/lib/native-shared-skill-install');
 const {
   validateRelocatableAgentsSkillsProjection,
@@ -1338,8 +1339,8 @@ const crypto = require('node:crypto');
     }
   });
 
-  // The `--hold` producer is removed (js-projection-journal stage 5); commit and
-  // abort still resolve a transaction a 0.72/0.73 installer left held.
+  // The `--hold` producer and its commit/abort resolvers are removed (dhpk
+  // 0.75.0, #1321): a transaction a 0.72/0.73 installer left held fails closed.
   function heldProject(name) {
     const { loadLegacyFixture, restoreTree } = require('./_lib/legacy-journal-fixtures');
     const projectRoot = tmpDir('dhpk-install-native-held-');
@@ -1348,31 +1349,28 @@ const crypto = require('node:crypto');
     return { projectRoot, recording };
   }
 
-  test('CLI resolves a held transaction only with that transaction', () => {
-    const journalOf = (root) => path.join(root, '.agents', '.dhpk-installed.transaction.json');
-    const aborting = heldProject('held-v3-install');
-    const committing = heldProject('held-v3-install');
-    try {
-      const mismatch = invoke(['commit', '--project-root', aborting.projectRoot, '--transaction', 'run-2', '--json']);
-      assert.strictEqual(mismatch.status, 1);
-      assert.strictEqual(JSON.parse(mismatch.stdout).code, 'TRANSACTION_MISMATCH');
-      assert.ok(fs.existsSync(journalOf(aborting.projectRoot)));
-
-      const aborted = invoke(['abort', '--project-root', aborting.projectRoot, '--transaction', 'run-1', '--json']);
-      assert.strictEqual(aborted.status, 0, `${aborted.stdout}\n${aborted.stderr}`);
-      assert.strictEqual(JSON.parse(aborted.stdout).state, 'ABORTED');
-      assert.strictEqual(fs.existsSync(journalOf(aborting.projectRoot)), false);
-      // The previous projection is back: the recorded `before` receipt names the v1 skill.
-      assert.strictEqual(fs.readFileSync(path.join(aborting.projectRoot, '.agents', '.dhpk-installed.json'), 'utf8'), aborting.recording.before['.agents/.dhpk-installed.json'].text.split('@@PROJECT@@').join(aborting.projectRoot));
-
-      const committed = invoke(['commit', '--project-root', committing.projectRoot, '--transaction', 'run-1', '--json']);
-      assert.strictEqual(JSON.parse(committed.stdout).state, 'COMMITTED');
-      const absent = invoke(['commit', '--project-root', committing.projectRoot, '--transaction', 'run-1', '--json']);
-      assert.strictEqual(JSON.parse(absent.stdout).state, 'ABSENT');
-      assert.ok(fs.lstatSync(path.join(committing.projectRoot, '.codex', 'skills', 'dhpk-sample')).isSymbolicLink());
-    } finally {
-      fs.rmSync(aborting.projectRoot, { recursive: true, force: true });
-      fs.rmSync(committing.projectRoot, { recursive: true, force: true });
+  test('CLI recover fails closed on a held transaction and names the last recovering release', () => {
+    for (const name of ['held-v3-install', 'held-v3-install-killed']) {
+      const held = heldProject(name);
+      try {
+        const before = snapshotTree(held.projectRoot, held.projectRoot);
+        const result = invoke(['recover', '--project-root', held.projectRoot, '--json']);
+        assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+        const report = JSON.parse(result.stdout);
+        assert.strictEqual(report.ok, false);
+        assert.strictEqual(report.code, 'UNSAFE_TRANSACTION');
+        assert.match(report.message, /dhpk 0\.74\.x/);
+        assert.match(report.message, /--recover/);
+        assert.deepStrictEqual(snapshotTree(held.projectRoot, held.projectRoot), before);
+        for (const action of ['commit', 'abort']) {
+          const removed = invoke([action, '--project-root', held.projectRoot, '--transaction', 'run-1', '--json']);
+          assert.strictEqual(removed.status, 1, action);
+          assert.match(removed.stderr, /unknown argument|--transaction/, action);
+        }
+        assert.deepStrictEqual(snapshotTree(held.projectRoot, held.projectRoot), before);
+      } finally {
+        fs.rmSync(held.projectRoot, { recursive: true, force: true });
+      }
     }
   });
 

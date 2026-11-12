@@ -2,17 +2,17 @@
 
 // `dhpk-install --recover`: explicit recovery for the states that stay
 // fail-closed (ADR-0033). It resolves an orphaned held shared-projection
-// publication and names every installer journal whose rollback did not finish,
-// with the installer command that replays it. It never guesses a commit.
+// publication and names every Host journal a dhpk 0.72/0.73 installer left
+// unfinished. This release no longer recovers those (issue #1321); the report
+// points at the dhpk 0.74.x line that does. It never guesses a commit.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { recoverSharedProjection } = require('./native-shared-skill-install');
+const { LEGACY_JOURNAL_RECOVERY_RELEASE } = require('./projection-journal');
 
-const INSTALLER_HOSTS = Object.freeze([
-  { hostRoot: '.codex', script: path.join('scripts', 'hooks', 'install-codex-skills.sh') },
-  { hostRoot: '.cursor', script: path.join('scripts', 'hooks', 'install-cursor-harness.sh') },
-]);
+const INSTALLER_HOSTS = Object.freeze(['.codex', '.cursor']);
+const HOST_JOURNAL_PHASES = Object.freeze(['committed', 'rolled_back', 'active', 'rollback_incomplete']);
 const JOURNAL_NAME = /^\.dhpk-transaction-(\d{8}T\d{6}Z-\d+)\.json$/;
 
 function parseRecoverArgs(argv) {
@@ -31,9 +31,9 @@ function parseRecoverArgs(argv) {
   return options;
 }
 
-function incompleteInstallerJournals(projectRoot, installerRoot) {
+function legacyHostJournals(projectRoot) {
   const found = [];
-  for (const { hostRoot, script } of INSTALLER_HOSTS) {
+  for (const hostRoot of INSTALLER_HOSTS) {
     const directory = path.join(projectRoot, hostRoot);
     let names;
     try {
@@ -50,14 +50,19 @@ function incompleteInstallerJournals(projectRoot, installerRoot) {
       let error = null;
       try {
         phase = JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase;
+        // A phase this release cannot classify is not a finished journal: block, never all-clear.
+        if (!HOST_JOURNAL_PHASES.includes(phase)) {
+          error = `unsupported phase: ${JSON.stringify(phase === undefined ? null : phase)}`;
+          phase = 'unreadable';
+        }
       } catch (readError) {
         phase = 'unreadable';
         error = readError.message;
       }
-      if (phase === 'rollback_incomplete') {
-        found.push({ host: hostRoot, run: match[1], phase, command: `bash ${path.join(installerRoot, script)} --recover` });
+      if (phase === 'active' || phase === 'rollback_incomplete') {
+        found.push({ host: hostRoot, run: match[1], phase, code: 'LEGACY_HOST_JOURNAL', action: `recover it with dhpk ${LEGACY_JOURNAL_RECOVERY_RELEASE} --recover` });
       } else if (phase === 'unreadable') {
-        // The installer cannot replay a journal it cannot read; say so instead of suggesting it.
+        // No release can replay a journal it cannot read; say so instead of suggesting it.
         found.push({ host: hostRoot, run: match[1], phase, journalPath, error, action: 'inspect or restore this journal by hand; the installer cannot replay it' });
       }
     }
@@ -112,9 +117,15 @@ function pathExists(file) {
 }
 
 function recoverProject({ projectRoot, installerRoot }) {
+  // Host journals first: when one blocks, neither mutating recovery may run
+  // (it would change the tree this release then tells the user to hand to 0.74.x).
+  const installerJournals = legacyHostJournals(projectRoot);
+  if (installerJournals.length > 0) {
+    const skipped = { ok: false, state: 'SKIPPED', code: 'LEGACY_HOST_JOURNAL', message: 'not run: a Host journal this release cannot recover blocks every mutating recovery' };
+    return { ok: false, projectRoot, projectionJournal: { ...skipped }, sharedProjection: { ...skipped }, installerJournals };
+  }
   const projectionJournal = recoverProjectionJournal(projectRoot, installerRoot);
   const sharedProjection = recoverSharedProjection({ projectRoot });
-  const installerJournals = incompleteInstallerJournals(projectRoot, installerRoot);
   return {
     ok: projectionJournal.ok && sharedProjection.ok && installerJournals.length === 0,
     projectRoot,
@@ -127,13 +138,15 @@ function recoverProject({ projectRoot, installerRoot }) {
 function formatRecoverReport(report) {
   const lines = [];
   const journal = report.projectionJournal;
-  if (journal && journal.state !== 'ABSENT') {
+  if (journal && journal.state === 'SKIPPED') {
+    lines.push(`projection journal: SKIPPED (${journal.message})`);
+  } else if (journal && journal.state !== 'ABSENT') {
     lines.push(journal.ok ? `projection journal: ${journal.state} (${journal.host})` : `projection journal: BLOCKED (${journal.code}): ${journal.message}`);
   }
   const shared = report.sharedProjection;
-  lines.push(shared.ok ? `shared projection: ${shared.state}` : `shared projection: BLOCKED (${shared.code}): ${shared.message}`);
+  lines.push(shared.state === 'SKIPPED' ? `shared projection: SKIPPED (${shared.message})` : shared.ok ? `shared projection: ${shared.state}` : `shared projection: BLOCKED (${shared.code}): ${shared.message}`);
   for (const journal of report.installerJournals) {
-    if (journal.command) lines.push(`${journal.host} transaction ${journal.run} is ${journal.phase}; run: ${journal.command}`);
+    if (journal.code === 'LEGACY_HOST_JOURNAL') lines.push(`${journal.host} transaction ${journal.run} is ${journal.phase}; ${journal.action}`);
     else lines.push(`${journal.host} transaction ${journal.run} is ${journal.phase} (${journal.journalPath}: ${journal.error}); ${journal.action}`);
   }
   if (report.ok) lines.push('no incomplete rollback or orphaned shared projection remains; an interrupted installer run is reconciled by its next normal run');

@@ -14,7 +14,7 @@
 //   project install lock keeps other installers out. The remaining
 //   check-to-use window is an accepted residual risk.
 // - Transaction bookkeeping is one Projection Journal (projection-journal.js)
-//   instead of the Python Host journal and pending-rollback lists.
+//   instead of the retired Python Host journal and pending-rollback lists.
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -2404,10 +2404,10 @@ function createInstaller(env, io) {
 
 
   // ---------------------------------------------------------------------
-  // Python Host journals (.<host>/.dhpk-transaction-<run>.json). This port
-  // does not write them; it still reads the ones earlier releases left: a
-  // committed or rolled-back journal is validated history, an active one is
-  // recovered by legacy-host-journal.js (task 3.6).
+  // Python Host journals (.<host>/.dhpk-transaction-<run>.json). This release
+  // does not write or recover them: a committed or rolled-back journal is
+  // validated history; an active or rollback_incomplete one was left by a
+  // dhpk 0.72/0.73 installer and fails closed (issue #1321).
 
   const SHARED_PROJECTION_PHASES = Object.freeze(['requested', 'held', 'committing']);
   const HOST_JOURNAL_NAME = /^\.dhpk-transaction-(\d{8}T\d{6}Z-\d+)\.json$/;
@@ -2420,20 +2420,6 @@ function createInstaller(env, io) {
     } finally {
       fs.closeSync(descriptor);
     }
-  }
-
-  // What an incomplete rollback still owes and how to finish it.
-  function incompleteRollbackMessage(journal, run) {
-    const remaining = [];
-    for (const key of ['prunes', 'mutations', 'adoptions']) {
-      for (const item of journal[key] || []) {
-        if (isDict(item) && isStr(item.relative)) remaining.push(`${DEST_REL}/${item.relative}`);
-      }
-    }
-    const paths = pySorted(new Set(remaining)).join(', ') || 'none recorded';
-    const causes = (journal.rollback_errors || []).filter((item) => isStr(item));
-    const cause = causes.length ? `; rollback errors: ${causes.join('; ')}` : '';
-    return `transaction ${run} did not finish rolling back; paths recorded in its journal: ${paths}; backups: ${DEST_REL}/${BACKUP_DIR}/${run}${cause}; fix the cause, then rerun this installer with --recover`;
   }
 
   // Validate a journal's path and transaction binding, so a damaged record is
@@ -2461,7 +2447,6 @@ function createInstaller(env, io) {
       throw new ValueError(`transaction journal ${run} shared projection record is malformed; manual recovery required`);
     }
     const phase = journal.phase;
-    if (phase === 'rollback_incomplete' && !RECOVER) throw new ValueError(incompleteRollbackMessage(journal, run));
     if (!['active', 'committed', 'rolled_back', 'rollback_incomplete'].includes(phase)) {
       throw new ValueError(`transaction journal ${run} has unsupported phase ${pyRepr(phase)}; manual recovery required`);
     }
@@ -2477,6 +2462,10 @@ function createInstaller(env, io) {
       throw new ValueError(`transaction journal ${run} source fingerprint is malformed; manual recovery required`);
     }
     if (phase === 'active' || Object.prototype.hasOwnProperty.call(journal, 'fingerprint_algorithm')) recordFingerprintAlgorithm(journal);
+    // Checked last so a damaged or unknown-algorithm record keeps its own, more specific message.
+    if (phase === 'active' || phase === 'rollback_incomplete') {
+      throw new ValueError(`transaction journal ${run} was left ${phase} by a dhpk 0.72/0.73 installer; this release no longer recovers it. Run this installer's --recover (or \`dhpk-install --recover\`) with dhpk ${journalCore.LEGACY_JOURNAL_RECOVERY_RELEASE}, the last release line that recovers it, then retry`);
+    }
     return phase;
   }
 
@@ -2540,8 +2529,7 @@ function createInstaller(env, io) {
           blocked.push(`${journalName}: ${errorText(error)}`);
           continue;
         }
-        if (phase === 'active') blocked.push(`${journalName}: interrupted transaction requires recovery`);
-        else if (!['committed', 'rolled_back'].includes(phase)) blocked.push(`${journalName}: unsupported phase ${pyRepr(phase)}`);
+        if (!['committed', 'rolled_back'].includes(phase)) blocked.push(`${journalName}: unsupported phase ${pyRepr(phase)}`);
       }
     }
     return blocked.concat(projectionJournalBlockers());
@@ -3036,9 +3024,9 @@ function createInstaller(env, io) {
     }
   }
 
-  // A publisher transaction journal no Host journal owns (task 3.6): --recover
-  // hands it to the publisher, which finishes a v3 journal and blocks a held
-  // or older one, so "recovery complete" is never reported over it.
+  // A publisher transaction journal no Host journal owns: --recover hands it
+  // to the publisher, which finishes a v3 journal and blocks a held or older
+  // one (UNSAFE_TRANSACTION), so "recovery complete" is never reported over it.
   function recoverPublisherJournal() {
     if (!RECOVER || !lexists(path.join(AGENTS_ROOT, '.dhpk-installed.transaction.json'))) return;
     try {
@@ -3050,564 +3038,9 @@ function createInstaller(env, io) {
 
   recoverStaleTransactions = () => {
     checkTransactionJournalMarkers();
-    legacyHostJournalRecovery();
     recoverPublisherJournal();
     recoverProjectionJournal();
   };
-
-  // ---------------------------------------------------------------------
-  // Python Host journals in flight (task 3.6). A journal the previous
-  // release's Python installer left `active` (or `rollback_incomplete` under
-  // --recover) is finished or undone by its own commit point, exactly as that
-  // installer would have, before this run takes the project.
-
-  function legacyJournalRelative(target) {
-    return path.relative(CODEX_ROOT, target).split(path.sep).join('/');
-  }
-
-  function persistLegacyJournal(state, phase) {
-    const journal = state.journal;
-    journal.started = true;
-    if (phase) journal.phase = phase;
-    const rel = (value) => (isStr(value) ? legacyJournalRelative(value) : null);
-    const payload = {
-      ...journal,
-      prunes: state.prunes.map((item) => ({ relative: item.relative, destination: rel(item.destination), backup: rel(item.backup) })),
-      mutations: state.mutations.map((item) => ({ relative: item.relative, destination: rel(item.destination), backup: rel(item.backup), expected: item.expected })),
-      adoptions: state.adoptions.map((item) => ({
-        relative: item.relative,
-        destination: rel(item.destination),
-        backup: rel(item.backup),
-        quarantine: rel(item.quarantine),
-        expected_source: item.expected_source,
-        expected_destination: item.expected_destination,
-        published: item.published === undefined ? null : item.published,
-        phase: item.phase === undefined ? null : item.phase,
-      })),
-    };
-    writePyJsonAtomic(path.join(openRelativeDirectory('', { create: true }), journal.relative), payload, `.transaction.json.${uuidHex()}`);
-  }
-
-  // json.dump(indent=2, sort_keys=True) + '\n' through a temporary O_EXCL file.
-  function writePyJsonAtomic(target, value, temporaryName) {
-    const temporary = path.join(path.dirname(target), temporaryName);
-    try {
-      const descriptor = fs.openSync(temporary, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | O_NOFOLLOW, 0o600);
-      try {
-        fs.writeSync(descriptor, `${pyJsonDumps(value, { indent: 2, sortKeys: true })}\n`);
-        fs.fsyncSync(descriptor);
-      } finally {
-        fs.closeSync(descriptor);
-      }
-      fs.renameSync(temporary, target);
-      fsyncPath(path.dirname(target), true);
-    } finally {
-      fs.rmSync(temporary, { force: true });
-    }
-  }
-
-  // remove_relative_path outside any Projection Journal: rename to a private
-  // tombstone in the same parent, then delete it.
-  function legacyRemoveRelativePath(relative, expectedFingerprint = null) {
-    safeDestination(relative);
-    const index = relative.lastIndexOf('/');
-    const parent = openRelativeDirectory(index < 0 ? '' : relative.slice(0, index));
-    const name = relative.slice(index + 1);
-    if (!fdEntryExists(parent, name)) return;
-    if (expectedFingerprint !== null && fingerprintFdEntry(parent, name) !== expectedFingerprint) throw new ValueError(`destination changed before removal: ${relative}`);
-    const tombstone = `.dhpk-remove-${uuidHex()}`;
-    fs.renameSync(path.join(parent, name), path.join(parent, tombstone));
-    if (expectedFingerprint !== null && fingerprintFdEntry(parent, tombstone) !== expectedFingerprint) {
-      fs.renameSync(path.join(parent, tombstone), path.join(parent, name));
-      throw new ValueError(`destination changed during removal: ${relative}`);
-    }
-    removeFdEntry(parent, tombstone);
-    fsyncPath(parent, true);
-  }
-
-  // Restore a backup while keeping the rollback copy as evidence.
-  function restoreBackupCopy(backup, destination, allowBrokenSymlinks = false) {
-    const backupRelative = legacyJournalRelative(backup);
-    const destinationRelative = legacyJournalRelative(destination);
-    safeDestination(backupRelative);
-    safeDestination(destinationRelative);
-    if (isLink(backup) && !(isWithin(backup, CODEX_ROOT) || isWithin(backup, PLUGIN_ROOT))) {
-      throw new ValueError(`rollback backup symlink escapes the ${SURFACE_LABEL} root: ${backupRelative}`);
-    }
-    validateSourceTree(backup, 'rollback backup', [CODEX_ROOT, PLUGIN_ROOT], allowBrokenSymlinks);
-    const split = (relative) => {
-      const index = relative.lastIndexOf('/');
-      return [index < 0 ? '' : relative.slice(0, index), relative.slice(index + 1)];
-    };
-    const [backupParentRelative, backupName] = split(backupRelative);
-    const [destinationParentRelative, destinationName] = split(destinationRelative);
-    const backupParent = openRelativeDirectory(backupParentRelative);
-    const destinationParent = openRelativeDirectory(destinationParentRelative, { create: true });
-    if (fdEntryExists(destinationParent, destinationName)) return false;
-    copyFdEntry(backupParent, backupName, destinationParent, destinationName);
-    fsyncPath(destinationParent, true);
-    return true;
-  }
-
-  // The publisher's structured failure code travels with the error, so callers
-  // decide on the code and never on words in the message.
-  function withProjectionCode(error, code) {
-    if (typeof code === 'string' && code) error.projectionCode = code;
-    return error;
-  }
-
-  function legacyResolution(action, transaction) {
-    const publisher = publisherModule;
-    let result;
-    try {
-      result = (action === 'commit' ? publisher.commitHeldProjection : publisher.abortHeldProjection)({ projectRoot: PROJECT_ROOT, transactionId: transaction });
-    } catch (error) {
-      throw withProjectionCode(new ValueError(`shared projection ${action} for transaction ${transaction} failed: ${errorText(error)}`), error && error.projectionCode);
-    }
-    if (!isDict(result) || result.ok !== true) {
-      const code = isDict(result) ? result.code : null;
-      const message = isDict(result) && isDict(result.error) ? result.error.message : null;
-      const detail = [code, message].filter(Boolean).map(String).join(': ');
-      throw withProjectionCode(new ValueError(`shared projection ${action} for transaction ${transaction} failed: ${detail}`), code);
-    }
-    return result.state;
-  }
-
-  function legacyAbortShared(state) {
-    const record = isDict(state.journal.shared_projection) ? state.journal.shared_projection : null;
-    if (!record || !['requested', 'held'].includes(record.phase)) return [];
-    try {
-      legacyResolution('abort', record.transaction);
-    } catch (error) {
-      if (!isValueError(error)) throw error;
-      // Still `requested`: the publisher refused before holding anything.
-      if (record.phase === 'requested' && error.projectionCode === 'TRANSACTION_MISMATCH') return [];
-      return [errorText(error)];
-    }
-    return [];
-  }
-
-  function legacyRestoreMutations(state) {
-    const errors = [];
-    for (const pending of state.mutations.slice().reverse()) {
-      const { relative, destination, backup, expected } = pending;
-      if (![relative, destination, expected].every(isStr)) {
-        errors.push('malformed pending mutation journal entry');
-        continue;
-      }
-      try {
-        if (!lexists(destination)) {
-          if (backup !== null) {
-            if (!lexists(backup)) errors.push(`rollback backup missing: ${relative}`);
-            else restoreBackupCopy(backup, destination, true);
-          }
-          continue;
-        }
-        if (backup !== null && lexists(backup) && safeDestinationFingerprint(destination) === safeDestinationFingerprint(backup)) continue;
-        if (safeDestinationFingerprint(destination) !== expected) {
-          errors.push(`rollback preserved changed destination: ${relative}`);
-          continue;
-        }
-        if (backup !== null && !lexists(backup)) {
-          errors.push(`rollback backup missing: ${relative}`);
-          continue;
-        }
-        legacyRemoveRelativePath(relative, expected);
-        if (backup !== null) {
-          if (!lexists(backup)) errors.push(`rollback backup missing after removal: ${relative}`);
-          else restoreBackupCopy(backup, destination, true);
-        }
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        errors.push(`${relative}: ${errorText(error)}`);
-      }
-    }
-    return errors;
-  }
-
-  function legacyRestoreAdoptions(state) {
-    const resolve = (value) => {
-      const relative = path.isAbsolute(value) ? legacyJournalRelative(value) : value;
-      return [safeDestination(relative), relative];
-    };
-    const errors = [];
-    for (const pending of state.adoptions.slice().reverse()) {
-      const { relative, published } = pending;
-      const destinationRelative = pending.destination;
-      const backupRelative = pending.backup;
-      const quarantineRelative = pending.quarantine;
-      const expectedSource = pending.expected_source;
-      const expectedDestination = pending.expected_destination;
-      if (![relative, destinationRelative, backupRelative, expectedSource, expectedDestination].every(isStr)) {
-        errors.push('malformed pending adoption journal entry');
-        continue;
-      }
-      if (!HEX64.test(expectedSource) || !HEX64.test(expectedDestination) || (published !== null && published !== undefined && !HEX64.test(published))) {
-        errors.push(`malformed adoption fingerprints: ${relative}`);
-        continue;
-      }
-      try {
-        const [destination, destinationRel] = resolve(destinationRelative);
-        const [backup] = resolve(backupRelative);
-        const [quarantine, quarantineRel] = quarantineRelative ? resolve(quarantineRelative) : [null, null];
-        if (!lexists(backup)) {
-          errors.push(`adoption rollback backup missing: ${relative}`);
-          continue;
-        }
-        const backupFingerprint = safeDestinationFingerprint(backup);
-        if (lexists(destination)) {
-          const current = safeDestinationFingerprint(destination);
-          if (current !== backupFingerprint) {
-            const expectedCurrent = published || expectedSource;
-            const sourceCurrent = safeDestinationFingerprint(destination, false);
-            if (current !== expectedCurrent && sourceCurrent !== expectedSource) {
-              errors.push(`adoption rollback preserved changed destination: ${relative}`);
-              continue;
-            }
-            legacyRemoveRelativePath(destinationRel, published || expectedSource);
-          }
-        }
-        restoreBackupCopy(backup, destination, true);
-        if (quarantine && lexists(quarantine)) legacyRemoveRelativePath(quarantineRel);
-        pending.phase = 'restored';
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        errors.push(`${relative}: ${errorText(error)}`);
-      }
-    }
-    return errors;
-  }
-
-  function legacyRestorePrunes(state) {
-    const errors = [];
-    for (const pending of state.prunes.slice().reverse()) {
-      const { destination, backup } = pending;
-      if (!isStr(destination) || !isStr(backup)) continue;
-      if (lexists(destination)) continue;
-      if (!lexists(backup)) {
-        errors.push(`rollback backup missing: ${pyStr(pending.relative)}`);
-        continue;
-      }
-      try {
-        restoreBackupCopy(backup, destination, true);
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        errors.push(`${pyStr(pending.relative)}: ${errorText(error)}`);
-      }
-    }
-    return errors;
-  }
-
-  function legacyRestoreReceiptArchive(state) {
-    const archiveRelative = state.journal.receipt_archive;
-    if (!isStr(archiveRelative)) return [];
-    const run = state.journal.run;
-    if (!isStr(run) || archiveRelative !== `${BACKUP_DIR}/${run}/receipt.json`) return ['uninstall receipt archive is not bound to the active transaction'];
-    const errors = [];
-    try {
-      safeDestination(archiveRelative);
-      const archive = path.join(CODEX_ROOT, ...archiveRelative.split('/'));
-      if (lexists(MANIFEST)) {
-        if (lexists(archive)) errors.push('cannot restore uninstall receipt: live receipt already exists');
-        return errors;
-      }
-      if (!lexists(archive)) return errors;
-      fs.renameSync(archive, MANIFEST);
-      fsyncPath(path.dirname(archive), true);
-      fsyncPath(CODEX_ROOT, true);
-    } catch (error) {
-      if (!isOSOrValueError(error)) throw error;
-      errors.push(`uninstall receipt restore failed: ${errorText(error)}`);
-    }
-    return errors;
-  }
-
-  function legacyRestoreReceiptSnapshot(state) {
-    const journal = state.journal;
-    if (!Object.prototype.hasOwnProperty.call(journal, 'receipt_snapshot_present')) return [];
-    const present = journal.receipt_snapshot_present === true;
-    const snapshot = journal.receipt_snapshot;
-    const currentExists = lexists(MANIFEST);
-    if (currentExists) {
-      let current;
-      try {
-        current = readManifestDocument();
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        return [`receipt snapshot recovery cannot read the live receipt: ${errorText(error)}`];
-      }
-      if (isDict(current) && pyJsonDumps(current, { sortKeys: true }) === pyJsonDumps(snapshot, { sortKeys: true })) return [];
-      if (!(isDict(current) && current.transaction_id === journal.run && current.transaction_final === false)) {
-        return ['receipt snapshot recovery refused to overwrite a receipt not owned by the active transaction'];
-      }
-    }
-    if (!present) {
-      if (!currentExists) return [];
-      try {
-        fs.unlinkSync(MANIFEST);
-        fsyncPath(CODEX_ROOT, true);
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        return [`receipt snapshot removal failed: ${errorText(error)}`];
-      }
-      return [];
-    }
-    if (!isDict(snapshot)) return ['receipt snapshot is malformed; manual recovery required'];
-    try {
-      writePyJsonAtomic(MANIFEST, snapshot, `.dhpk-installed.json.snapshot.${uuidHex()}`);
-    } catch (error) {
-      if (!isOSOrValueError(error)) throw error;
-      return [`receipt snapshot restore failed: ${errorText(error)}`];
-    }
-    return [];
-  }
-
-  function legacyRollback(state) {
-    const shared = isDict(state.journal.shared_projection) ? state.journal.shared_projection : null;
-    if (shared && shared.phase === 'committing') return [];
-    const errors = legacyAbortShared(state);
-    errors.push(...legacyRestoreAdoptions(state), ...legacyRestoreMutations(state), ...legacyRestorePrunes(state));
-    errors.push(...legacyRestoreReceiptArchive(state), ...legacyRestoreReceiptSnapshot(state));
-    if (errors.length) printErr(`[install-codex-skills] ERROR: rollback incomplete: ${errors.join('; ')}`);
-    return errors;
-  }
-
-  function legacyReceiptProvesAdoptions(state, receipt) {
-    const journal = state.journal;
-    if (!isDict(receipt) || receipt.transaction_id !== journal.run || receipt.transaction_final !== false
-      || receipt.plugin_version !== journal.plugin_version || receipt.source_fingerprint !== journal.source_fingerprint
-      || state.adoptions.length === 0) return false;
-    const managed = receipt.managed_entries;
-    if (!isDict(managed)) return false;
-    for (const pending of state.adoptions) {
-      const { relative, expected_source: expectedSource, published, phase } = pending;
-      if (!isStr(relative) || !isStr(expectedSource) || !['published', 'receipt_persisted', 'cleanup_pending'].includes(phase) || !isStr(published)) return false;
-      const destination = safeDestination(relative);
-      if (safeDestinationFingerprint(destination) !== published) return false;
-      const found = Object.values(managed).some((entries) => isDict(entries) && Object.values(entries).some((entry) => isDict(entry)
-        && entry.destination === relative && entry.source_fingerprint === expectedSource && isOwned(entry, destination)));
-      if (!found) return false;
-    }
-    return true;
-  }
-
-  function legacyFinalizeReceipt(state, receipt) {
-    if (!isDict(receipt)) return ['partial adoption receipt is malformed'];
-    const finalReceipt = { ...receipt, transaction_id: state.journal.run, transaction_final: true };
-    try {
-      writePyJsonAtomic(MANIFEST, finalReceipt, `.dhpk-installed.json.recovery.${uuidHex()}`);
-    } catch (error) {
-      if (!isOSOrValueError(error)) throw error;
-      return [`partial adoption receipt finalization failed: ${errorText(error)}`];
-    }
-    return [];
-  }
-
-  function legacyRollForward(state, shared, committedReceipt) {
-    const run = state.journal.run;
-    let resolved;
-    try {
-      resolved = legacyResolution('commit', shared.transaction);
-    } catch (error) {
-      if (!isValueError(error)) throw error;
-      return [errorText(error)];
-    }
-    if (!['COMMITTED', 'ABSENT'].includes(resolved)) return [`the publisher reported ${resolved} for a transaction past its commit point`];
-    if ((Object.prototype.hasOwnProperty.call(shared, 'finalize') ? shared.finalize : 'receipt') === 'archive') {
-      if (!lexists(MANIFEST)) return [];
-      try {
-        const archive = path.join(CODEX_ROOT, BACKUP_DIR, run, 'receipt.json');
-        openRelativeDirectory(`${BACKUP_DIR}/${run}`, { create: true });
-        if (lexists(archive)) throw new ValueError('uninstall receipt backup already exists; retry with a fresh transaction');
-        fs.renameSync(MANIFEST, archive);
-        fsyncPath(CODEX_ROOT, true);
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        return [`uninstall receipt archive failed: ${errorText(error)}`];
-      }
-      return [];
-    }
-    if (isDict(committedReceipt) && committedReceipt.transaction_id === run && committedReceipt.transaction_final === true) return [];
-    if (!(isDict(committedReceipt) && committedReceipt.transaction_id === run && committedReceipt.transaction_final === false)) {
-      return [`the partial receipt ${DEST_REL}/${path.basename(MANIFEST)} written before the commit point is missing or unreadable; backups are in ${DEST_REL}/${BACKUP_DIR}/${run}`];
-    }
-    return legacyFinalizeReceipt(state, committedReceipt);
-  }
-
-  function legacyPendingLists(journal, run) {
-    const state = { journal, prunes: [], mutations: [], adoptions: [] };
-    const rawPrunes = journal.prunes;
-    const rawMutations = journal.mutations;
-    const rawAdoptions = Object.prototype.hasOwnProperty.call(journal, 'adoptions') ? journal.adoptions : [];
-    if (!Array.isArray(rawPrunes) || !Array.isArray(rawMutations) || !Array.isArray(rawAdoptions)) {
-      throw new ValueError(`interrupted transaction ${run} has malformed rollback lists; manual recovery required`);
-    }
-    const unsafe = (kind, error) => new ValueError(`interrupted transaction ${run} has an unsafe ${kind} entry: ${errorText(error)}`);
-    for (const item of rawPrunes) {
-      if (!isDict(item)) throw new ValueError(`interrupted transaction ${run} has a malformed prune entry; manual recovery required`);
-      const relative = item.relative;
-      const destinationRelative = item.destination || relative;
-      const backupRelative = item.backup;
-      if (![relative, destinationRelative, backupRelative].every(isStr)) throw new ValueError(`interrupted transaction ${run} has an invalid prune entry; manual recovery required`);
-      if (destinationRelative !== relative || backupRelative !== `${BACKUP_DIR}/${run}/${relative}`) throw new ValueError(`interrupted transaction ${run} has an unbound prune entry; manual recovery required`);
-      try {
-        safeDestination(relative);
-        state.prunes.push({ relative, destination: safeDestination(destinationRelative), backup: safeDestination(backupRelative) });
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        throw unsafe('prune', error);
-      }
-    }
-    for (const item of rawMutations) {
-      if (!isDict(item)) throw new ValueError(`interrupted transaction ${run} has a malformed mutation entry; manual recovery required`);
-      const relative = item.relative;
-      const destinationRelative = item.destination || relative;
-      const expected = item.expected;
-      if (!isStr(relative) || !isStr(destinationRelative) || !isStr(expected)) throw new ValueError(`interrupted transaction ${run} has an invalid mutation entry; manual recovery required`);
-      if (!HEX64.test(expected)) throw new ValueError(`interrupted transaction ${run} has an invalid mutation fingerprint; manual recovery required`);
-      const backupRelative = Object.prototype.hasOwnProperty.call(item, 'backup') ? item.backup : null;
-      if (backupRelative !== null && !isStr(backupRelative)) throw new ValueError(`interrupted transaction ${run} has an invalid mutation backup; manual recovery required`);
-      if (destinationRelative !== relative || (backupRelative !== null && backupRelative !== `${BACKUP_DIR}/${run}/${relative}`)) throw new ValueError(`interrupted transaction ${run} has an unbound mutation entry; manual recovery required`);
-      try {
-        safeDestination(relative);
-        state.mutations.push({ relative, destination: safeDestination(destinationRelative), backup: isStr(backupRelative) ? safeDestination(backupRelative) : null, expected });
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        throw unsafe('mutation', error);
-      }
-    }
-    for (const item of rawAdoptions) {
-      if (!isDict(item)) throw new ValueError(`interrupted transaction ${run} has a malformed adoption entry; manual recovery required`);
-      const { relative } = item;
-      const destinationRelative = item.destination;
-      const backupRelative = item.backup;
-      const quarantineRelative = item.quarantine === undefined ? null : item.quarantine;
-      const expectedSource = item.expected_source;
-      const expectedDestination = item.expected_destination;
-      const published = item.published === undefined ? null : item.published;
-      const phase = item.phase;
-      if (![relative, destinationRelative, backupRelative, expectedSource, expectedDestination].every(isStr)
-        || (quarantineRelative !== null && !isStr(quarantineRelative)) || (published !== null && !isStr(published))
-        || !['prepared', 'quarantined', 'published', 'receipt_persisted', 'cleanup_pending', 'restored'].includes(phase)) {
-        throw new ValueError(`interrupted transaction ${run} has an invalid adoption entry; manual recovery required`);
-      }
-      if (destinationRelative !== relative || backupRelative !== `${BACKUP_DIR}/${run}/${relative}`
-        || (quarantineRelative !== null && (!quarantineRelative.startsWith(`${BACKUP_DIR}/${run}/`) || path.posix.dirname(quarantineRelative) !== path.posix.dirname(backupRelative)))) {
-        throw new ValueError(`interrupted transaction ${run} has an unbound adoption entry; manual recovery required`);
-      }
-      if (!HEX64.test(expectedSource) || !HEX64.test(expectedDestination) || (published !== null && !HEX64.test(published))) {
-        throw new ValueError(`interrupted transaction ${run} has an invalid adoption fingerprint; manual recovery required`);
-      }
-      try {
-        safeDestination(relative);
-        safeDestination(destinationRelative);
-        safeDestination(backupRelative);
-        if (quarantineRelative) safeDestination(quarantineRelative);
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        throw unsafe('adoption', error);
-      }
-      state.adoptions.push({
-        relative,
-        destination: safeDestination(destinationRelative),
-        backup: safeDestination(backupRelative),
-        quarantine: quarantineRelative ? safeDestination(quarantineRelative) : null,
-        expected_source: expectedSource,
-        expected_destination: expectedDestination,
-        published,
-        phase,
-      });
-    }
-    return state;
-  }
-
-  // recover_stale_transactions for journals an earlier release left behind.
-  function legacyHostJournalRecovery() {
-    const listing = hostJournalNames();
-    if (!listing) return;
-    const [root, names] = listing;
-    for (const journalName of names) {
-      const match = HOST_JOURNAL_NAME.exec(journalName);
-      if (!match) continue;
-      const run = match[1];
-      let journal;
-      try {
-        journal = readRelativeJson(root, journalName);
-      } catch (error) {
-        if (!(isOSOrValueError(error) || error instanceof SyntaxError)) throw error;
-        printErr(`[install-codex-skills] ERROR: transaction journal ${run} cannot be read; manual recovery required: ${errorText(error)}`);
-        throw new ValueError(`transaction journal ${run} is unreadable`);
-      }
-      const phase = classifyJournalEnvelope(journal, journalName, run);
-      if (phase !== 'active' && !(RECOVER && phase === 'rollback_incomplete')) continue;
-      if (phase === 'active' && pidIsAlive(journal.pid)) {
-        printErr(`[install-codex-skills] ERROR: active transaction ${run} is owned by a live process; refusing concurrent reconciliation`);
-        throw new ValueError(`active transaction ${run} is still running`);
-      }
-      let committedReceipt = null;
-      try {
-        ensureManifestSafe();
-        committedReceipt = readManifestDocument();
-      } catch (error) {
-        if (!isOSOrValueError(error)) throw error;
-        committedReceipt = null;
-      }
-      const empty = { journal: { ...journal }, prunes: [], mutations: [], adoptions: [] };
-      const shared = isDict(journal.shared_projection) ? journal.shared_projection : null;
-      if (shared && shared.phase === 'committing') {
-        const errors = legacyRollForward(empty, shared, committedReceipt);
-        if (errors.length) {
-          printErr(`[install-codex-skills] ERROR: transaction ${run} passed its commit point but could not be finished: ${errors.join('; ')}`);
-          throw new ValueError(`transaction ${run} roll-forward failed; manual recovery required`);
-        }
-        persistLegacyJournal(empty, 'committed');
-        continue;
-      }
-      if (shared) {
-        const errors = legacyAbortShared(empty);
-        if (errors.length) {
-          printErr(`[install-codex-skills] ERROR: transaction ${run} cannot undo its shared projection step: ${errors.join('; ')}`);
-          throw new ValueError(`transaction ${run} shared projection abort failed; manual recovery required`);
-        }
-      }
-      if (phase === 'active' && isDict(committedReceipt) && committedReceipt.transaction_id === run && committedReceipt.transaction_final === true
-        && committedReceipt.plugin_version === journal.plugin_version && committedReceipt.source_fingerprint === journal.source_fingerprint) {
-        persistLegacyJournal(empty, 'committed');
-        continue;
-      }
-      const state = legacyPendingLists({ ...journal }, run);
-      // A partial receipt proves a commit only with no shared decision pending.
-      if (!shared && legacyReceiptProvesAdoptions(state, committedReceipt)) {
-        const errors = [];
-        for (const pending of state.adoptions.slice().reverse()) {
-          if (!isStr(pending.quarantine)) continue;
-          const quarantineRelative = legacyJournalRelative(pending.quarantine);
-          try {
-            safeDestination(quarantineRelative);
-            if (lexists(pending.quarantine)) legacyRemoveRelativePath(quarantineRelative);
-            pending.phase = 'cleanup_recovered';
-          } catch (error) {
-            if (!isOSOrValueError(error)) throw error;
-            errors.push(`${pending.relative}: adoption quarantine cleanup failed: ${errorText(error)}`);
-          }
-        }
-        if (!errors.length) errors.push(...legacyFinalizeReceipt(state, committedReceipt));
-        if (errors.length) {
-          persistLegacyJournal(state, 'rollback_incomplete');
-          throw new ValueError(`interrupted transaction ${run} requires manual recovery: ${errors.join('; ')}`);
-        }
-        persistLegacyJournal({ ...state, prunes: [], mutations: [], adoptions: [] }, 'committed');
-        continue;
-      }
-      const errors = legacyRollback(state);
-      if (errors.length) {
-        state.journal.rollback_errors = errors.map(String);
-        persistLegacyJournal(state, 'rollback_incomplete');
-        throw new ValueError(`interrupted transaction ${run} requires manual recovery`);
-      }
-      persistLegacyJournal({ ...state, prunes: [], mutations: [], adoptions: [] }, 'rolled_back');
-    }
-  }
 
   function beginTransaction() {
     TX = journalCore.ProjectionJournal.begin({
@@ -4630,7 +4063,7 @@ function createInstaller(env, io) {
             schema_version: SCHEMA_VERSION,
             state: 'blocked',
             receipt_state: 'blocked',
-            next_action: 're-run without --plan so the interrupted transaction can be recovered under the project lock',
+            next_action: 'resolve the blocking recovery items listed above, then re-run the plan',
             blocking_recovery: planBlockers,
           };
           if (JSON_OUTPUT) printJsonReport(blockedReport);
