@@ -255,10 +255,6 @@ function agyShim(name, description) {
   ].join('\n');
 }
 
-function relativeFiles(directory, budget) {
-  return collectFiles(directory, budget).map((file) => file.relative).sort();
-}
-
 // options.allowUnmarked: the updater accepts the one marker-less 1.1.0 receipt
 // and reports `legacyUnmarked` so it can release the entries it carries.
 function readReceipt(outDir, selected = null, sourceRoot = null, availableEntries = [], { allowUnmarked = false } = {}) {
@@ -491,8 +487,28 @@ function renamedReceiptPaths(outDir, receipt, selected, inventory) {
   return migrations;
 }
 
-function outputFiles(outDir, budget = createTraversalBudget()) {
-  return relativeFiles(outDir, budget).filter((relative) => relative !== RECEIPT_NAME);
+// Validator-only enumeration. Only receipt/reserved top-level entries are
+// walked; every other top-level entry (including a top-level symlink) belongs to
+// the user and is skipped without being statted below its name, so a symlink or
+// file count inside a foreign skill cannot fail or exhaust validation. Reserved
+// entries keep the strict collectFiles rules (symlinks and special files throw).
+function reservedOutputFiles(outDir, isReserved, budget = createTraversalBudget()) {
+  const realRoot = budget.enterDirectory(outDir, 0);
+  try {
+    const files = [];
+    for (const entry of readDirectoryEntries(outDir, { budget, sort: true, localeSort: true })) {
+      if (entry.name === RECEIPT_NAME || !isReserved(entry.name)) continue;
+      if (entry.name === '__pycache__' || entry.name.endsWith('.pyc')) continue;
+      const child = path.join(outDir, entry.name);
+      if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in canonical skill package: ${child}`);
+      if (entry.isDirectory()) files.push(...collectFiles(child, budget, entry.name).map((file) => file.relative));
+      else if (entry.isFile()) files.push(entry.name);
+      else throw new Error(`unsupported canonical skill entry: ${child}`);
+    }
+    return files.sort();
+  } finally {
+    budget.leaveDirectory(realRoot);
+  }
 }
 
 function retiredLedgerNames(inventory) {
@@ -842,21 +858,20 @@ function validateAgentsSkillsProjection(options = {}) {
       }
     }
     const expectedPaths = new Set(receipt.managedPaths);
-    const actualPaths = new Set(outputFiles(outputRoot));
-    for (const relative of expectedPaths) {
-      if (!actualPaths.has(relative)) errors.push(`managed projection file is missing: ${relative}`);
-    }
     // Same predicate as the writer: an unmanaged entry at a reserved name is an
-    // error, any other unmanaged entry is tolerated.
+    // error, any other unmanaged entry is tolerated and never walked.
     const isReserved = reservedNamePredicate([
       ...selectedNames,
       ...receipt.entries.map((entry) => entry.name),
       ...receipt.managedPaths.map((relative) => topLevelName(relative).replace(/\.md$/, '')),
       ...retiredLedgerNames(inventory),
     ]);
+    const actualPaths = new Set(reservedOutputFiles(outputRoot, isReserved));
+    for (const relative of expectedPaths) {
+      if (!actualPaths.has(relative)) errors.push(`managed projection file is missing: ${relative}`);
+    }
     for (const relative of actualPaths) {
       if (expectedPaths.has(relative)) continue;
-      if (!isReserved(topLevelName(relative))) continue;
       errors.push(relative.includes('/')
         ? `unrecorded file inside managed projection: ${relative}`
         : `unmanaged entry at a reserved name: ${relative}`);
