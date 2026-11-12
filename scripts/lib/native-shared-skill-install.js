@@ -10,8 +10,6 @@ const { compileProjectAgentProjection } = require('./project-agent-projection-pl
 const {
   materializeRelocatableAgentsSkillsProjection,
   uninstallAgentsSkillsProjection,
-  abortHeldProjection,
-  heldProjection,
   recoverAgentsSkillsProjection,
 } = require('./project-agent-projection-publisher');
 const { classifyHostBinding } = require('./cursor-consumer-evidence');
@@ -325,45 +323,12 @@ function uninstallNativeSharedSkills({
   return { ok: true, ...published };
 }
 
-// Explicit recovery (ADR-0033): a held publication belongs to its installer
-// while that installer's journal is active; once the journal is gone or
-// terminal, the publication never reached its commit point and is aborted.
-function installerJournalState(projectRoot, hold) {
-  const journalPath = path.join(projectRoot, `.${hold.host}`, `.dhpk-transaction-${hold.transactionId}.json`);
-  try {
-    return { journalPath, state: JSON.parse(fs.readFileSync(journalPath, 'utf8')).phase === 'active' ? 'active' : 'terminal' };
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return { journalPath, state: 'absent' };
-    // An unreadable journal is not proof that the installer is done.
-    return { journalPath, state: 'unreadable', error: error.message };
-  }
-}
-
+// Explicit recovery (ADR-0033). A journal a 0.72/0.73 installer left held, or
+// any other format this release does not read, blocks without changing files
+// and names the release line that can recover it.
 function recoverSharedProjection({ projectRoot } = {}) {
   if (!projectRoot) throw new Error('projectRoot is required');
   try {
-    const held = heldProjection({ projectRoot });
-    if (held && held.phase !== 'published') {
-      const installer = installerJournalState(projectRoot, held);
-      if (installer.state === 'active') {
-        return {
-          ok: false,
-          state: 'BLOCKED',
-          code: 'INSTALLER_ACTIVE',
-          message: `project projection transaction ${held.transactionId} belongs to the ${held.host} installer, whose journal is still active; rerun that installer to finish or undo it`,
-        };
-      }
-      if (installer.state === 'unreadable') {
-        return {
-          ok: false,
-          state: 'BLOCKED',
-          code: 'INSTALLER_JOURNAL_UNREADABLE',
-          message: `cannot tell whether the ${held.host} installer finished transaction ${held.transactionId}: ${installer.journalPath} is unreadable (${installer.error}); inspect that file before recovering`,
-        };
-      }
-      const aborted = abortHeldProjection({ projectRoot, transactionId: held.transactionId });
-      return aborted.ok ? aborted : { ...aborted, message: aborted.error && aborted.error.message };
-    }
     const recovered = recoverAgentsSkillsProjection({ projectRoot });
     return { ok: true, state: recovered.recovered ? 'RECOVERED' : 'ABSENT' };
   } catch (error) {

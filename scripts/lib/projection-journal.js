@@ -24,7 +24,11 @@ const { safeRelative, safeLinkTarget, inside } = require('./projection-artifact-
 const EFFECT_KINDS = Object.freeze(['mkdir', 'rename', 'symlink', 'remove', 'write-file', 'copy-tree', 'chmod']);
 const EFFECT_REMOVE_MODES = Object.freeze(['tree', 'empty', 'file', 'link']);
 const EFFECT_STATES = Object.freeze(['planned', 'done', 'undone']);
-const EFFECT_PHASES = Object.freeze(['staging', 'prepared', 'publishing', 'held', 'published', 'rolling-back']);
+const EFFECT_PHASES = Object.freeze(['staging', 'prepared', 'publishing', 'published', 'rolling-back']);
+// The last dhpk release line that recovers the 0.72/0.73 journals this core no
+// longer reads (REQ-9 window closed in 0.75.0, #1321): Python Host journals and
+// held v3 publisher journals. Callers name it when they fail closed on one.
+const LEGACY_JOURNAL_RECOVERY_RELEASE = '0.74.x';
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 
 // Test-only sentinel for in-process crash injection: no catch or finally block
@@ -514,6 +518,7 @@ module.exports = {
   EFFECT_REMOVE_MODES,
   EFFECT_STATES,
   EFFECT_PHASES,
+  LEGACY_JOURNAL_RECOVERY_RELEASE,
   SimulatedCrash,
   isSimulatedCrash,
   ProjectionJournal,

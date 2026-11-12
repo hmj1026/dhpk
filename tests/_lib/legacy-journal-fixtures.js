@@ -1,11 +1,11 @@
 'use strict';
 
 // Recorded states left behind by installers that no longer exist in the tree.
-// The Python installer and the Publisher's hold producer are removed in
-// js-projection-journal stage 5, but a project can still carry what a
-// 0.72/0.73 run left in flight, so recovery is tested against recordings
-// (tests/fixtures/legacy-journals/README.md says how they were made) instead of
-// against a live producer.
+// The Python installer and the Publisher's hold producer were removed in
+// js-projection-journal stage 5 and the recovery of what they left in flight
+// in 0.75.0 (#1321). These recordings now prove the other direction: this
+// release fails closed on them without changing a file and names dhpk 0.74.x
+// (tests/fixtures/legacy-journals/README.md says how they were made).
 
 const fs = require('node:fs');
 const path = require('node:path');

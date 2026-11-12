@@ -242,61 +242,27 @@ test('testSameHostTakeover_cursorAfterCursor_staysQuiet', () => {
   }
 });
 
-// The previous release's Python Cursor installer, killed after it published
-// the Shared Project Projection, leaves a held publication and a Host journal
-// (a recording: tests/fixtures/legacy-journals/README.md).
-// The JS Cursor installer rolls it back to the state before that run.
-function legacyHeldTransaction({ extraLeftover = null } = {}) {
+// A Host journal the previous release's Python Cursor installer left in
+// flight (with a held publication) is no longer recovered (issue #1321): the
+// JS Cursor installer fails closed, changes nothing, and names the dhpk 0.74.x
+// line that still recovers it. The project is a recording
+// (tests/fixtures/legacy-journals/README.md).
+test('testPreviousPythonCursorHostJournal_failsClosedNamingDhpk074x_withAndWithoutRecover', () => {
   const plugin = fakePlugin();
   const project = tempDir('dhpk-cursor-legacy-');
-  const recording = loadLegacyFixture('python-cursor-host-journal');
-  fs.mkdirSync(path.join(project, '.git'));
-  restoreTree(recording.interrupted, project, { '@@PROJECT@@': project, '@@PLUGIN@@': plugin });
-  const expected = tempDir('dhpk-cursor-legacy-before-');
-  restoreTree(recording.before, expected, { '@@PROJECT@@': expected, '@@PLUGIN@@': plugin });
-  const volatile = /\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/;
-  const before = snapshot(expected, plugin).filter((line) => !volatile.test(line));
-  fs.rmSync(expected, { recursive: true, force: true });
-  assert.ok(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), 'the recording must hold a publication');
-  if (extraLeftover) extraLeftover(project);
-  return { plugin, project, before };
-}
-
-test('testPreviousPythonCursorHeldTransaction_isRecoveredByTheJsCursorInstaller', () => {
-  const { plugin, project, before } = legacyHeldTransaction();
   try {
-    // The Cursor Host journal of the killed run is still in flight.
+    const recording = loadLegacyFixture('python-cursor-host-journal');
+    fs.mkdirSync(path.join(project, '.git'));
+    restoreTree(recording.interrupted, project, { '@@PROJECT@@': project, '@@PLUGIN@@': plugin });
     assert.ok(fs.readdirSync(path.join(project, '.cursor')).some((name) => /^\.dhpk-transaction-.*\.json$/.test(name)));
-    write(path.join(plugin, 'skills', 'dhpk-portable', 'SKILL.md'), skillBody('dhpk-portable', 'Portable'));
-    write(path.join(plugin, 'cursor', 'skills', 'dhpk-portable', 'SKILL.md'), skillBody('dhpk-portable', 'Portable'));
-    write(path.join(plugin, 'cursor', 'commands', 'review.md'), '---\nname: review\ndescription: review command\n---\n# Review\n');
-    const recovered = runIn(plugin, project, { recover: true });
-    assert.strictEqual(recovered.code, 0, `${recovered.stdout}\n${recovered.stderr}`);
-    assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), false);
-    const state = snapshot(project, plugin).filter((line) => !/\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/.test(line));
-    assert.deepStrictEqual(state, before);
-  } finally {
-    cleanup(plugin, project);
-  }
-});
-
-test('testPreviousPythonCursorHeldTransaction_withALeftoverCursorLockFile_isRecoveredToo', () => {
-  const { plugin, project, before } = legacyHeldTransaction({
-    extraLeftover: (dir) => write(path.join(dir, '.cursor', '.dhpk-install.lock'), ''),
-  });
-  try {
-    assert.ok(fs.existsSync(path.join(project, '.cursor', '.dhpk-install.lock')));
-    write(path.join(plugin, 'skills', 'dhpk-portable', 'SKILL.md'), skillBody('dhpk-portable', 'Portable'));
-    write(path.join(plugin, 'cursor', 'skills', 'dhpk-portable', 'SKILL.md'), skillBody('dhpk-portable', 'Portable'));
-    write(path.join(plugin, 'cursor', 'commands', 'review.md'), '---\nname: review\ndescription: review command\n---\n# Review\n');
-    const recovered = runIn(plugin, project, { recover: true });
-    assert.strictEqual(recovered.code, 0, `${recovered.stdout}\n${recovered.stderr}`);
-    assert.strictEqual(fs.existsSync(path.join(project, '.agents', '.dhpk-installed.transaction.json')), false);
-    const state = snapshot(project, plugin).filter((line) => !/\.dhpk-transaction-|\.dhpk-install\.lock|\.dhpk-backups/.test(line));
-    assert.deepStrictEqual(state, before);
-    // The next ordinary run is not blocked by what the old installer left.
-    const next = runIn(plugin, project, { update: true });
-    assert.strictEqual(next.code, 0, `${next.stdout}\n${next.stderr}`);
+    const before = snapshot(project, plugin);
+    for (const options of [{}, { recover: true }]) {
+      const outcome = runIn(plugin, project, options);
+      assert.strictEqual(outcome.code, 2, `${outcome.stdout}\n${outcome.stderr}`);
+      assert.match(`${outcome.stdout}\n${outcome.stderr}`, /dhpk 0\.74\.x/);
+      assert.match(`${outcome.stdout}\n${outcome.stderr}`, /--recover/);
+      assert.deepStrictEqual(snapshot(project, plugin), before, 'a refused run changes nothing');
+    }
   } finally {
     cleanup(plugin, project);
   }

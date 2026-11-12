@@ -326,7 +326,6 @@ for (const schema of ['dhpk.project-agent-projection-transaction.v1', 'dhpk.proj
         && error.message.includes(schema) && /dhpk 0\.71\.0/.test(error.message) && /--recover/.test(error.message);
       assert.throws(() => publisher.recoverAgentsSkillsProjection({ projectRoot: context.projectRoot }), remediation);
       assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...context.options, update: true }), remediation);
-      assert.throws(() => publisher.heldProjection({ projectRoot: context.projectRoot }), remediation);
       const uninstalled = publisher.uninstallAgentsSkillsProjection(context.options);
       assert.strictEqual(uninstalled.code, 'UNSAFE_TRANSACTION');
       assert.deepStrictEqual(snapshot(context.projectRoot), before);
@@ -345,7 +344,6 @@ test('testUnknownJournalFormat_failsClosedWithRemediation', () => {
       && /transaction\.v0/.test(error.message) && /--recover/.test(error.message) && /release that wrote it/.test(error.message);
     assert.throws(() => publisher.recoverAgentsSkillsProjection({ projectRoot: context.projectRoot }), remediation);
     assert.throws(() => publisher.materializeRelocatableAgentsSkillsProjection({ ...context.options, update: true }), remediation);
-    assert.throws(() => publisher.heldProjection({ projectRoot: context.projectRoot }), remediation);
     const uninstalled = publisher.uninstallAgentsSkillsProjection(context.options);
     assert.strictEqual(uninstalled.code, 'UNSAFE_TRANSACTION');
     assert.deepStrictEqual(snapshot(context.projectRoot), before);
@@ -354,9 +352,10 @@ test('testUnknownJournalFormat_failsClosedWithRemediation', () => {
   }
 });
 
-// The hold producer is removed (js-projection-journal stage 5); a 0.72/0.73
-// installer's held v3 journal is a recording (tests/fixtures/legacy-journals).
-test('testHeldJournal_v3_recordingReportsPublishingHoldReadyForCallers', () => {
+// The hold producer and its resolvers are removed (dhpk 0.75.0, #1321); a
+// 0.72/0.73 installer's held v3 journal is a recording
+// (tests/fixtures/legacy-journals) that this release refuses to resolve.
+test('testHeldJournal_v3_recordingFailsClosedNamingLastRecoveringRelease', () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-held-journal-'));
   try {
     const recording = loadLegacyFixture('held-v3-install');
@@ -364,12 +363,15 @@ test('testHeldJournal_v3_recordingReportsPublishingHoldReadyForCallers', () => {
     const journal = JSON.parse(fs.readFileSync(path.join(projectRoot, JOURNAL), 'utf8'));
     assert.strictEqual(journal.schema, publisher.PROJECT_TRANSACTION_SCHEMA);
     assert.strictEqual(journal.phase, 'held');
-    for (const flag of ['liveBackedUp', 'oldRollbackMoved', 'newRollbackInstalled', 'holdReady']) assert.strictEqual(journal[flag], undefined, flag);
-    assert.ok(journal.effects.every((effect) => effect.state === 'done'));
-    assert.deepStrictEqual(publisher.heldProjection({ projectRoot }), { transactionId: 'run-1', host: 'codex', phase: 'publishing', holdReady: true });
-    assert.strictEqual(publisher.commitHeldProjection({ projectRoot, transactionId: 'run-1' }).state, 'COMMITTED');
-    assert.strictEqual(fs.existsSync(path.join(projectRoot, JOURNAL)), false);
-    assert.deepStrictEqual(fs.readdirSync(path.join(projectRoot, '.agents')).filter((name) => /^\.dhpk-projection-(?:artifact|backup|rollback-stage)-/.test(name)), []);
+    assert.deepStrictEqual(journal.hold, { transactionId: 'run-1', host: 'codex' });
+    const before = snapshot(projectRoot);
+    const remediation = (error) => error.projectionCode === 'UNSAFE_TRANSACTION'
+      && /dhpk 0\.74\.x/.test(error.message) && /--recover/.test(error.message);
+    assert.throws(() => publisher.recoverAgentsSkillsProjection({ projectRoot }), remediation);
+    const uninstalled = publisher.uninstallAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(uninstalled.code, 'UNSAFE_TRANSACTION');
+    assert.match(uninstalled.error.message, /dhpk 0\.74\.x/);
+    assert.deepStrictEqual(snapshot(projectRoot), before);
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }
