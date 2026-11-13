@@ -547,7 +547,10 @@ printf '%s' "$_advisory_payload" | (
     # surface, so a session that edited >=3 files inline under orchestration_dispatch
     # with no fast-worker batch is flagged at turn end (not only in a later audit).
     mkdir -p "$SESS" 2>/dev/null || true
-    _dispatch_audit="$(dhpk_stop_dispatch_audit "$SESS" "$(extract_top_field session_id "$payload")" 2>/dev/null || true)"
+    _dispatch_audit=""
+    if [ "${DHPK_ORCHESTRATION_DISPATCH:-off}" = "on" ]; then
+        _dispatch_audit="$(dhpk_stop_dispatch_audit "$SESS" "$(extract_top_field session_id "$payload")" 2>/dev/null || true)"
+    fi
     [ -n "$_dispatch_audit" ] && printf '%s\n' "$_dispatch_audit" >> "$FINDINGS"
 
     # Surface the consolidated module findings (per-file lint from

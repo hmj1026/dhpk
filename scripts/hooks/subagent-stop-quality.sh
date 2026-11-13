@@ -46,16 +46,22 @@ PAYLOAD="$(dhpk_read_payload)"
 
 # Task 4.4 — honor stop_hook_active / subagent_stop_hook_active (prevents a
 # re-block loop on the continuation turn Claude Code generates after a block).
-STOP_ACTIVE="$(printf '%s' "$PAYLOAD" | jq -r '
-    if (.stop_hook_active == true) or (.subagent_stop_hook_active == true) then "true" else "false" end
-' 2>/dev/null || echo false)"
+# One jq call yields "<stop-active>\x1f<subagent>"; the subagent is taken as the
+# whole remainder so multi-line values stay intact.
+_SA_OUT="$(printf '%s' "$PAYLOAD" | jq -r '
+    (if (.stop_hook_active == true) or (.subagent_stop_hook_active == true) then "true" else "false" end)
+    + "\u001f"
+    + ((.agent_type // .subagent_type // .subagent // .agent_name // .tool_input.subagent_type // "")
+       | if type == "string" then . else tojson end)
+' 2>/dev/null || true)"
+case "$_SA_OUT" in
+    *$'\x1f'*) STOP_ACTIVE="${_SA_OUT%%$'\x1f'*}"; SUBAGENT="${_SA_OUT#*$'\x1f'}" ;;
+    *) STOP_ACTIVE=false; SUBAGENT="" ;;
+esac
 [ "$STOP_ACTIVE" = "true" ] && exit 0
 
 # Task 4.6 — scope to delegation agents only (same candidate chain as
 # subagent-stop-verify.sh, namespace-strip via ${SUBAGENT##*:}).
-SUBAGENT="$(printf '%s' "$PAYLOAD" | jq -r '
-    .agent_type // .subagent_type // .subagent // .agent_name // .tool_input.subagent_type // empty
-' 2>/dev/null || true)"
 [ -n "$SUBAGENT" ] || exit 0
 SUBAGENT_BARE="${SUBAGENT##*:}"
 
