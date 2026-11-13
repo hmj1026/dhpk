@@ -10,9 +10,67 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  lstatOrNull,
+  isInside,
+} = require('./bounded-filesystem');
 
 const MANAGED_DIRS = ['skills', 'commands', 'agents', 'hooks', 'rules'];
+const NATIVE_AGENTS_SKILLS_TARGETS = new Set(['.codex', 'codex', '.cursor', 'cursor', '.agent', 'agent']);
+
+function targetSupportsAgentsSkills(targetName) {
+  const normalized = String(targetName || '').trim().replace(/^\/+|\/+$/g, '');
+  return NATIVE_AGENTS_SKILLS_TARGETS.has(normalized);
+}
+
+function realpathOrNull(candidate) {
+  try {
+    return fs.realpathSync(candidate);
+  } catch (_) {
+    return null;
+  }
+}
+
+function isSharedSkillsDirectory(repoRoot, skillsDir) {
+  const stat = lstatOrNull(skillsDir);
+  if (!stat || !stat.isSymbolicLink()) return false;
+  const agentsRoot = path.join(repoRoot, '.agents');
+  const sharedCandidates = [
+    path.join(agentsRoot, 'skills'),
+    path.join(agentsRoot, 'claude-skills'),
+  ];
+  const realSkillsDir = realpathOrNull(skillsDir);
+  if (realSkillsDir) {
+    for (const candidate of sharedCandidates) {
+      const realCandidate = realpathOrNull(candidate);
+      if (realCandidate && isInside(realCandidate, realSkillsDir)) return true;
+    }
+  }
+  try {
+    const resolvedLink = path.resolve(path.dirname(skillsDir), fs.readlinkSync(skillsDir));
+    return sharedCandidates.some((candidate) => isInside(candidate, resolvedLink));
+  } catch (_) {
+    return false;
+  }
+}
+
+function hasMatchingSharedSkill(repoRoot, relative, sourceHash) {
+  if (!relative.startsWith('skills/')) return false;
+  const subPath = relative.slice('skills/'.length);
+  if (!subPath) return false;
+  const candidates = [
+    path.join(repoRoot, '.agents', 'skills', subPath),
+    path.join(repoRoot, '.agents', 'claude-skills', subPath),
+  ];
+  for (const candidate of candidates) {
+    const stat = lstatOrNull(candidate);
+    if (stat && stat.isFile() && hashFile(candidate) === sourceHash) return true;
+  }
+  return false;
+}
 
 function walkFiles(dir, options = {}) {
   if (!fs.existsSync(dir)) return [];
@@ -41,11 +99,15 @@ function hashFile(filePath) {
   return crypto.createHash('sha256').update(readFileBounded(filePath)).digest('hex');
 }
 
-function managedFiles(root) {
+function managedFiles(root, options = {}) {
   const files = [];
+  const resolvedRoot = path.resolve(root);
+  const repoRoot = path.resolve(options.repoRoot || path.dirname(resolvedRoot));
+  const skipSharedSkills = options.skipSharedSkills !== false;
   for (const dir of MANAGED_DIRS) {
-    const base = path.join(root, dir);
-    for (const fp of walkFiles(base)) files.push([path.relative(root, fp).split(path.sep).join('/'), fp]);
+    const base = path.join(resolvedRoot, dir);
+    if (dir === 'skills' && skipSharedSkills && isSharedSkillsDirectory(repoRoot, base)) continue;
+    for (const fp of walkFiles(base)) files.push([path.relative(resolvedRoot, fp).split(path.sep).join('/'), fp]);
   }
   return files;
 }
@@ -65,8 +127,11 @@ function compareHarnesses(root, sourceName = '.claude', targetName = '.codex') {
   const sourceRoot = path.join(repoRoot, sourceName.replace(/^\/+/, ''));
   const targetRoot = path.join(repoRoot, targetName.replace(/^\/+/, ''));
   const allowlist = loadAllowlist(repoRoot, targetName);
-  const source = new Map(managedFiles(sourceRoot));
-  const target = new Map(managedFiles(targetRoot));
+  const sharedSkillsSupported = targetSupportsAgentsSkills(targetName);
+  const sourceSkillsDir = path.join(sourceRoot, 'skills');
+  const sourceSkillsShared = sharedSkillsSupported && isSharedSkillsDirectory(repoRoot, sourceSkillsDir);
+  const source = new Map(managedFiles(sourceRoot, { repoRoot, skipSharedSkills: sourceSkillsShared }));
+  const target = new Map(managedFiles(targetRoot, { repoRoot, skipSharedSkills: false }));
   const missing = [];
   const different = [];
 
@@ -74,10 +139,23 @@ function compareHarnesses(root, sourceName = '.claude', targetName = '.codex') {
     if (allowlist.has(relative)) continue;
     const targetPath = target.get(relative);
     if (!targetPath) {
+      const sourceHash = hashFile(sourcePath);
+      if (sharedSkillsSupported && hasMatchingSharedSkill(repoRoot, relative, sourceHash)) continue;
       missing.push(relative);
       continue;
     }
     if (hashFile(sourcePath) !== hashFile(targetPath)) different.push(relative);
+  }
+
+  if (sourceSkillsShared) {
+    for (const [relative, targetPath] of target) {
+      if (!relative.startsWith('skills/') || source.has(relative) || allowlist.has(relative)) continue;
+      const sharedSourcePath = path.join(sourceRoot, relative);
+      const stat = lstatOrNull(sharedSourcePath);
+      if (stat && stat.isFile() && hashFile(sharedSourcePath) !== hashFile(targetPath)) {
+        different.push(relative);
+      }
+    }
   }
 
   return {
@@ -119,7 +197,7 @@ function main(argv = process.argv.slice(2)) {
     const details = [];
     if (result.different.length) details.push(`different=${result.different.length}`);
     if (result.missing.length) details.push(`missing=${result.missing.length}`);
-    console.log(`[session-start] cross-cli content drift: ${result.target} (${details.join(', ')}) — consider \`/multi-ai-sync\``);
+    console.log(`[session-start] cross-cli content drift: ${result.target} (${details.join(', ')}) — consider syncing via \`dhpk-install\``);
   }
   return 0;
 }
