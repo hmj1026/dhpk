@@ -795,17 +795,56 @@ function createInstaller(env, io) {
     return pyJsonLoads(fs.readFileSync(file, 'utf8'));
   }
 
+  // One run's view of the distribution inventory. A run (a plan, or an apply)
+  // creates it once and passes it down as a parameter, so the file is read and
+  // parsed once per run. Nothing is cached across runs, so a fixture that
+  // rewrites the inventory between two runs in one process sees the new value.
+  // `document()` returns the shared parsed document (never mutate it) or throws
+  // the parse failure each caller words in its own message.
+  function createInventoryContext() {
+    const file = inventoryPath();
+    let loaded = null;
+    const load = () => {
+      if (loaded !== null) return loaded;
+      if (!isFileFollow(file)) {
+        loaded = { exists: false, document: null, error: null };
+        return loaded;
+      }
+      try {
+        loaded = { exists: true, document: loadJsonFile(file), error: null };
+      } catch (error) {
+        rethrowExit(error);
+        loaded = { exists: true, document: null, error };
+      }
+      return loaded;
+    };
+    return {
+      exists: () => load().exists,
+      document: () => {
+        const state = load();
+        if (state.error !== null) throw state.error;
+        return state.document;
+      },
+      skillMetadata: null,
+    };
+  }
+
   // Current public skill names with stable identity metadata; a missing or
   // malformed inventory is an empty map, validated before materialization.
-  function inventorySkillMetadata() {
-    const file = inventoryPath();
-    if (!isFileFollow(file)) return {};
+  // The map and its records are shared for the run and frozen: a caller that
+  // needs to change one takes a copy.
+  function inventorySkillMetadata(context) {
+    if (context.skillMetadata === null) context.skillMetadata = buildInventorySkillMetadata(context);
+    return context.skillMetadata;
+  }
+
+  function buildInventorySkillMetadata(context) {
+    if (!context.exists()) return Object.freeze({});
     let inventory;
     try {
-      inventory = loadJsonFile(file);
+      inventory = context.document();
     } catch (error) {
-      rethrowExit(error);
-      return {};
+      return Object.freeze({});
     }
     const result = {};
     const skills = isDict(inventory) ? inventory.skills : null;
@@ -814,29 +853,27 @@ function createInstaller(env, io) {
       const name = skill.name;
       if (!isStr(name) || !name) continue;
       const strings = (values) => (Array.isArray(values) ? values : []).filter((value) => isStr(value));
-      result[name] = {
+      result[name] = Object.freeze({
         id: skill.id === undefined ? null : skill.id,
         name,
         path: skill.path === undefined ? null : skill.path,
-        legacy_names: (Array.isArray(skill.legacy_names) ? skill.legacy_names : []).filter((legacy) => isStr(legacy) && legacy),
+        legacy_names: Object.freeze((Array.isArray(skill.legacy_names) ? skill.legacy_names : []).filter((legacy) => isStr(legacy) && legacy)),
         lifecycle: skill.lifecycle === undefined ? null : skill.lifecycle,
         tier: skill.tier === undefined ? null : skill.tier,
         invokable: skill.invokable === undefined ? null : skill.invokable,
-        profiles: strings(skill.profiles),
-        surfaces: strings(skill.surfaces),
-      };
+        profiles: Object.freeze(strings(skill.profiles)),
+        surfaces: Object.freeze(strings(skill.surfaces)),
+      });
     }
-    return result;
+    return Object.freeze(result);
   }
 
-  function readInventoryDocument() {
-    const file = inventoryPath();
-    if (!isFileFollow(file)) return null;
+  function readInventoryDocument(context) {
+    if (!context.exists()) return null;
     let inventory;
     try {
-      inventory = loadJsonFile(file);
+      inventory = context.document();
     } catch (error) {
-      rethrowExit(error);
       throw new ValueError(`cannot read distribution inventory for capability selection: ${errorText(error)}`);
     }
     if (!isDict(inventory)) throw new ValueError('distribution inventory must be an object for capability selection');
@@ -918,13 +955,13 @@ function createInstaller(env, io) {
   }
 
   // Resolve the common collection and additive overlays before mutation.
-  function resolveInstallerSelection(receipt, metadata) {
+  function resolveInstallerSelection(context, receipt, metadata) {
     if (UNINSTALL && isDict(receipt) && receipt.profileId !== 'common') {
       // Uninstall acts only on receipt-owned destinations.
       assignReceiptSelection(receipt);
       return;
     }
-    const inventory = readInventoryDocument();
+    const inventory = readInventoryDocument(context);
     const [profilesDocument, profiles] = readInstallProfiles();
     if (inventory === null || profiles === null) {
       if (REQUESTED_SKILL_IDS.length) throw new ValueError('skill selection requires distribution inventory and install profiles');
@@ -1212,12 +1249,11 @@ function createInstaller(env, io) {
   // ---------------------------------------------------------------------
   // Sources and fingerprints
 
-  function inventorySupportingSources() {
-    const file = inventoryPath();
+  function inventorySupportingSources(context) {
     let assets = null;
-    if (isFileFollow(file)) {
+    if (context.exists()) {
       try {
-        const document = loadJsonFile(file);
+        const document = context.document();
         assets = isDict(document) ? document.supporting_assets : undefined;
         if (!isDict(document)) throw new ValueError(`'${Array.isArray(document) ? 'list' : typeof document}' object has no attribute 'get'`);
       } catch (error) {
@@ -1252,10 +1288,10 @@ function createInstaller(env, io) {
     return isDict(record) ? (record.id === undefined ? null : record.id) : null;
   }
 
-  function sourceFingerprint() {
+  function sourceFingerprint(context) {
     const digest = crypto.createHash('sha256');
     const update = (text) => digest.update(Buffer.from(text, 'utf8'));
-    const metadata = inventorySkillMetadata();
+    const metadata = inventorySkillMetadata(context);
     const available = new Set([...(SELECTION_EMITTED_IDS || []), ...(SELECTION_RUNTIME_IDS || [])]);
     const runtimeIds = nativeRuntimeSkillIds();
     for (const rootName of SOURCE_KINDS) {
@@ -1278,7 +1314,7 @@ function createInstaller(env, io) {
         update('\0');
       }
     }
-    const supporting = inventorySupportingSources();
+    const supporting = inventorySupportingSources(context);
     for (const relative of pySorted(Object.keys(supporting))) {
       const [source, destination] = supporting[relative];
       validateSourceTree(source, 'supporting asset source');
@@ -1323,14 +1359,12 @@ function createInstaller(env, io) {
 
   // Inventory-owned retirement rows keyed by every stable identity. Evidence
   // only: they annotate reconciliation reports, never materializable sources.
-  function inventoryRetirementMetadata(activeMetadata = null) {
-    const file = inventoryPath();
-    if (!isFileFollow(file)) return {};
+  function inventoryRetirementMetadata(context, activeMetadata = null) {
+    if (!context.exists()) return {};
     let inventory;
     try {
-      inventory = loadJsonFile(file);
+      inventory = context.document();
     } catch (error) {
-      rethrowExit(error);
       throw new ValueError(`cannot read distribution inventory for retirement metadata: ${errorText(error)}`);
     }
     if (!isDict(inventory) || !Object.prototype.hasOwnProperty.call(inventory, 'retired_skills')) return {};
@@ -1677,11 +1711,11 @@ function createInstaller(env, io) {
     EXCLUDED_SOURCE_ENTRIES.push({ kind, name, reason: 'unmet-skill-dependency', missing: missing.slice() });
   }
 
-  function currentSources() {
+  function currentSources(context) {
     EXCLUDED_SOURCE_ENTRIES.length = 0;
     const result = {};
     for (const kind of MANAGED_KINDS) result[kind] = {};
-    const metadata = inventorySkillMetadata();
+    const metadata = inventorySkillMetadata(context);
     const available = new Set([...(SELECTION_EMITTED_IDS || []), ...(SELECTION_RUNTIME_IDS || [])]);
     const tokens = inventorySkillTokenMap(metadata);
     const runtimeIds = nativeRuntimeSkillIds();
@@ -1706,7 +1740,7 @@ function createInstaller(env, io) {
         result[kind][name] = [source, `${kind}/${name}`];
       }
     }
-    Object.assign(result.supporting_assets, inventorySupportingSources());
+    Object.assign(result.supporting_assets, inventorySupportingSources(context));
     return result;
   }
 
@@ -1972,8 +2006,8 @@ function createInstaller(env, io) {
     return { bindingShape: shape, reason };
   }
 
-  function declaredSkillPublicNames() {
-    const metadata = inventorySkillMetadata();
+  function declaredSkillPublicNames(context) {
+    const metadata = inventorySkillMetadata(context);
     const byId = {};
     for (const [name, record] of Object.entries(metadata)) {
       if (!isDict(record)) continue;
@@ -1993,8 +2027,8 @@ function createInstaller(env, io) {
     return names;
   }
 
-  function pluginSkillSourcePath(name) {
-    const record = inventorySkillMetadata()[name] || {};
+  function pluginSkillSourcePath(context, name) {
+    const record = inventorySkillMetadata(context)[name] || {};
     let relative = record.path;
     if (!isStr(relative) || !relative) relative = `skills/${name}`;
     return path.join(PLUGIN_ROOT, ...relative.split('/'));
@@ -2017,12 +2051,12 @@ function createInstaller(env, io) {
   }
 
   // Leftover native declared-skill destinations, classified before Host Bindings.
-  function classifyLegacyNativeDeclaredSkills() {
+  function classifyLegacyNativeDeclaredSkills(context) {
     if (!sharedProjectionRelocatable()) return [];
     const runtimeIds = nativeRuntimeSkillIds();
-    const metadata = inventorySkillMetadata();
+    const metadata = inventorySkillMetadata(context);
     const rows = [];
-    for (const name of declaredSkillPublicNames()) {
+    for (const name of declaredSkillPublicNames(context)) {
       const record = metadata[name];
       const stableId = isDict(record) ? (record.id === undefined ? null : record.id) : null;
       if (runtimeIds.has(stableId)) continue;
@@ -2037,7 +2071,7 @@ function createInstaller(env, io) {
       if (!lexists(destination)) continue;
       const expected = `../../.agents/skills/${name}`;
       if (isLink(destination) && fs.readlinkSync(destination) === expected) continue;
-      const source = pluginSkillSourcePath(name);
+      const source = pluginSkillSourcePath(context, name);
       const sourceFp = lexists(source) ? fingerprintSource(source) : '';
       const destFp = safeDestinationFingerprint(destination);
       const old = nativeSkillReceiptEntry(name);
@@ -2062,10 +2096,10 @@ function createInstaller(env, io) {
     return rows;
   }
 
-  function selectedSharedProjectionIds(adopted = null) {
+  function selectedSharedProjectionIds(context, adopted = null) {
     const adoptedPaths = adopted || {};
     const skip = new Set();
-    for (const item of classifyLegacyNativeDeclaredSkills()) {
+    for (const item of classifyLegacyNativeDeclaredSkills(context)) {
       if (!['keep-modified', 'unowned'].includes(item.handling)) continue;
       if (Object.prototype.hasOwnProperty.call(adoptedPaths, item.path)) continue;
       if (isStr(item.stableId) && item.stableId) skip.add(item.stableId);
@@ -2073,7 +2107,7 @@ function createInstaller(env, io) {
     return (SELECTION_EMITTED_IDS || []).filter((stableId) => !skip.has(stableId));
   }
 
-  function receiptOwnedNativeDeclaredDestsBlockSharedProjection() {
+  function receiptOwnedNativeDeclaredDestsBlockSharedProjection(context) {
     if (UPDATE || UNINSTALL) return false;
     let skills = {};
     if (isDict(RUN_RECEIPT)) {
@@ -2082,8 +2116,8 @@ function createInstaller(env, io) {
     }
     if (Object.keys(skills).length === 0) return false;
     const runtimeIds = nativeRuntimeSkillIds();
-    const metadata = inventorySkillMetadata();
-    const blocking = new Set(declaredSkillPublicNames());
+    const metadata = inventorySkillMetadata(context);
+    const blocking = new Set(declaredSkillPublicNames(context));
     for (const [name, old] of Object.entries(skills)) {
       if (!blocking.has(name)) continue;
       const record = metadata[name];
@@ -2118,7 +2152,7 @@ function createInstaller(env, io) {
   }
 
   // A relative-path-only reconciliation report; writes nothing.
-  function buildPlan(receipt, classification, sources, metadata, pluginVersion, fingerprint, retirements = null) {
+  function buildPlan(context, receipt, classification, sources, metadata, pluginVersion, fingerprint, retirements = null) {
     const entries = entryMap(receipt);
     const classificationReasons = (classification.reasons || []).filter((reason) => isStr(reason));
     const collisions = [];
@@ -2228,7 +2262,7 @@ function createInstaller(env, io) {
         retired.push(item);
       }
     }
-    const legacyNativeSkills = classifyLegacyNativeDeclaredSkills();
+    const legacyNativeSkills = classifyLegacyNativeDeclaredSkills(context);
     const collisionPaths = new Set(collisions.map((item) => item.path));
     for (const item of legacyNativeSkills) {
       if (item.handling !== 'keep-modified' || collisionPaths.has(item.path)) continue;
@@ -3356,14 +3390,14 @@ function createInstaller(env, io) {
     }
   }
 
-  function maybeInstallSharedProjection(adopted = null) {
+  function maybeInstallSharedProjection(context, adopted = null) {
     if (UNINSTALL || !sharedProjectionAvailable()) return;
     if (relocatableProjectOverlapsSource()) {
       noteSharedProjectionSkip('install');
       return;
     }
-    if (receiptOwnedNativeDeclaredDestsBlockSharedProjection()) return;
-    const selected = selectedSharedProjectionIds(adopted);
+    if (receiptOwnedNativeDeclaredDestsBlockSharedProjection(context)) return;
+    const selected = selectedSharedProjectionIds(context, adopted);
     if (selected.length === 0) return;
     installSharedProjection(selected);
   }
@@ -3431,9 +3465,9 @@ function createInstaller(env, io) {
   }
 
   // Remove adopted leftover native copies so Host Bindings can replace them.
-  function handoverAdoptedLegacyNativeSkills(adopted, counts) {
+  function handoverAdoptedLegacyNativeSkills(context, adopted, counts) {
     if (!pyTruthy(adopted)) return;
-    for (const item of classifyLegacyNativeDeclaredSkills()) {
+    for (const item of classifyLegacyNativeDeclaredSkills(context)) {
       if (item.handling !== 'keep-modified' || !Object.prototype.hasOwnProperty.call(adopted, item.path)) continue;
       const relative = item.path;
       const destination = targetFor(relative);
@@ -3756,7 +3790,7 @@ function createInstaller(env, io) {
           recordOwnership(relative, 'dhpk-managed');
         } else {
           entries[kind][name] = { ...old, orphaned: true };
-          let keepModifiedLegacy = skipNativeSkillKind(kind) && declaredSkillPublicNames().includes(name);
+          let keepModifiedLegacy = skipNativeSkillKind(kind) && declaredSkillPublicNames(run.inventory).includes(name);
           const orphanedEntry = { ...old, reason: keepModifiedLegacy ? 'keep-modified-legacy-native' : 'modified-removed-source' };
           if (retirement) {
             orphanedEntry.reason = 'retired-entry-modified-or-retargeted';
@@ -3924,7 +3958,7 @@ function createInstaller(env, io) {
     const hasPendingConflicts = Object.keys(orphaned).length > 0 || Boolean(isDict(priorReconciliation) && pyTruthy(priorReconciliation.skipped_collision));
     if (!UPDATE && !MIGRATE && !UNINSTALL && !legacy && !releasedEntries.length && !hasPendingConflicts && receipt.plugin_version === pluginVersion && receipt.source_fingerprint === fingerprint) {
       try {
-        maybeInstallSharedProjection(adoptPaths);
+        maybeInstallSharedProjection(run.inventory, adoptPaths);
       } catch (error) {
         if (!isValueError(error)) throw error;
         printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
@@ -3964,8 +3998,8 @@ function createInstaller(env, io) {
     if (UPDATE && !ADOPT_PATHS.length) preserveUnownedRetirements(run);
     if (sharedProjectionAvailable() && !UNINSTALL) {
       guarded(() => {
-        handoverAdoptedLegacyNativeSkills(adoptPaths, counts);
-        maybeInstallSharedProjection(adoptPaths);
+        handoverAdoptedLegacyNativeSkills(run.inventory, adoptPaths, counts);
+        maybeInstallSharedProjection(run.inventory, adoptPaths);
       });
     }
     try {
@@ -4109,22 +4143,24 @@ function createInstaller(env, io) {
       printReceiptProfileUpdateBlock(blockedProfileUpdate);
       exit(2);
     }
+    // One inventory read for the whole run, handed to every consumer below.
+    const inventory = createInventoryContext();
     let skillMetadata;
     let sources;
     let skillRetirements;
     try {
-      skillMetadata = inventorySkillMetadata();
-      resolveInstallerSelection(receipt, skillMetadata);
+      skillMetadata = inventorySkillMetadata(inventory);
+      resolveInstallerSelection(inventory, receipt, skillMetadata);
       if (sharedProjectionAvailable() && !UNINSTALL) applyDeclaredProjectionSelection();
-      sources = currentSources();
-      skillRetirements = inventoryRetirementMetadata(skillMetadata);
+      sources = currentSources(inventory);
+      skillRetirements = inventoryRetirementMetadata(inventory, skillMetadata);
       validateSkillMetadata(sources, skillMetadata);
     } catch (error) {
       if (!isValueError(error)) throw error;
       printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
       exit(2);
     }
-    const fingerprint = sourceFingerprint();
+    const fingerprint = sourceFingerprint(inventory);
 
     if (ADOPT_PATHS.length) {
       const recordedMode = isDict(receipt) ? receipt.mode : null;
@@ -4154,6 +4190,7 @@ function createInstaller(env, io) {
       legacy,
       classification,
       sources,
+      inventory,
       skillMetadata,
       skillRetirements,
       pluginVersion,
@@ -4168,7 +4205,7 @@ function createInstaller(env, io) {
     RUN_ENTRIES = run.entries;
     RUN_ORPHANED = run.orphaned;
 
-    const plan = buildPlan(receipt, classification, sources, skillMetadata, pluginVersion, fingerprint, skillRetirements);
+    const plan = buildPlan(inventory, receipt, classification, sources, skillMetadata, pluginVersion, fingerprint, skillRetirements);
     if (PLAN) {
       if (isDict(receipt) && isStr(receipt.profileId) && receipt.profileId !== 'common' && !isRetiredOrphanOnlyReceipt(receipt)) {
         plan.next_action = 'run this installer with --uninstall, then perform a fresh install without --profile';
