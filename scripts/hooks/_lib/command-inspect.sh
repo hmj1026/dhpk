@@ -279,12 +279,17 @@ _dhpk_ci_ansi_escape() {
         e|E) _dhpk_ci_esc_out=$'\033'; return 0 ;;
         \\|"'"|'"'|'?') _dhpk_ci_esc_out="$ch"; return 0 ;;
         c)
+            # <text> is the body without its closing quote, so a \c at the
+            # end stays literal. \c\\ is one unit; \c\ alone is also 0x1c.
             d="${text:$((at + 1)):1}"
             if [ -z "$d" ]; then
                 _dhpk_ci_esc_out="\\c"
                 return 0
             fi
             _dhpk_ci_esc_len=2
+            if [ "$d" = "\\" ] && [ "${text:$((at + 2)):1}" = "\\" ]; then
+                _dhpk_ci_esc_len=3
+            fi
             printf -v val '%d' "'$d"
             _dhpk_ci_esc_byte $((val & 31))
             return 0
@@ -322,6 +327,45 @@ _dhpk_ci_ansi_escape() {
             ;;
     esac
     return 0
+}
+
+# _dhpk_ci_ansi_end <text> <index>
+#   Sets _dhpk_ci_ansi_close to the index of the quote that closes the $'...'
+#   body starting at <index>, using the bash lexer rule that a backslash
+#   pairs with exactly one character. Unterminated: the text length.
+_dhpk_ci_ansi_end() {
+    local text="$1" k="$2" n="${#1}" ch
+    while [ "$k" -lt "$n" ]; do
+        ch="${text:$k:1}"
+        if [ "$ch" = "\\" ]; then
+            k=$((k + 2))
+            continue
+        fi
+        [ "$ch" = "'" ] && break
+        k=$((k + 1))
+    done
+    [ "$k" -le "$n" ] || k="$n"
+    _dhpk_ci_ansi_close="$k"
+}
+
+# _dhpk_ci_ansi_decode <body>
+#   Sets _dhpk_ci_ansi_out to the bash value of a $'...' body (without its
+#   quotes). Decoding stops at a NUL, as bash truncates the string there.
+_dhpk_ci_ansi_decode() {
+    local body="$1" k=0 n="${#1}" ch out=""
+    while [ "$k" -lt "$n" ]; do
+        ch="${body:$k:1}"
+        if [ "$ch" = "\\" ] && [ $((k + 1)) -lt "$n" ]; then
+            _dhpk_ci_ansi_escape "$body" $((k + 1))
+            [ "$_dhpk_ci_esc_nul" -eq 1 ] && break
+            out="$out$_dhpk_ci_esc_out"
+            k=$((k + 1 + _dhpk_ci_esc_len))
+            continue
+        fi
+        out="$out$ch"
+        k=$((k + 1))
+    done
+    _dhpk_ci_ansi_out="$out"
 }
 
 # _dhpk_ci_esc_byte <0-255>
@@ -402,32 +446,6 @@ dhpk_inspect_command() {
             else
                 _dhpk_ci_word="${_dhpk_ci_word}${ch}"
                 _dhpk_ci_word_open=1
-            fi
-            i=$((i + 1))
-            continue
-        fi
-        if [ "$_dhpk_ci_mode" = "ansi" ] || [ "$_dhpk_ci_mode" = "ansi_nul" ]; then
-            if [ "$ch" = "\\" ] && [ -n "$next" ]; then
-                if [ "$_dhpk_ci_mode" = "ansi_nul" ]; then
-                    # Past a decoded NUL: bash drops the rest of the string,
-                    # but an escaped quote still does not close it.
-                    _dhpk_ci_esc_len=1
-                else
-                    _dhpk_ci_ansi_escape "$cmd" $((i + 1))
-                    _dhpk_ci_word="${_dhpk_ci_word}${_dhpk_ci_esc_out}"
-                    [ "$_dhpk_ci_esc_nul" -eq 1 ] && _dhpk_ci_mode="ansi_nul"
-                fi
-                DHPK_STRIPPED="${DHPK_STRIPPED}${cmd:$i:$((_dhpk_ci_esc_len + 1))}"
-                _dhpk_ci_seg="${_dhpk_ci_seg}${cmd:$i:$((_dhpk_ci_esc_len + 1))}"
-                i=$((i + 1 + _dhpk_ci_esc_len))
-                continue
-            fi
-            DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-            _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
-            if [ "$ch" = "'" ]; then
-                _dhpk_ci_mode="normal"
-            elif [ "$_dhpk_ci_mode" = "ansi" ]; then
-                _dhpk_ci_word="${_dhpk_ci_word}${ch}"
             fi
             i=$((i + 1))
             continue
@@ -577,12 +595,18 @@ dhpk_inspect_command() {
                 ;;
             '$')
                 _dhpk_ci_word_dyn=1
-                if [ "$next" = "'" ] || [ "$next" = '"' ]; then
-                    if [ "$next" = "'" ]; then
-                        _dhpk_ci_mode="ansi"
-                    else
-                        _dhpk_ci_mode="double"
-                    fi
+                if [ "$next" = "'" ]; then
+                    _dhpk_ci_ansi_end "$cmd" $((i + 2))
+                    _dhpk_ci_ansi_decode "${cmd:$((i + 2)):$((_dhpk_ci_ansi_close - i - 2))}"
+                    _dhpk_ci_word="${_dhpk_ci_word}${_dhpk_ci_ansi_out}"
+                    _dhpk_ci_word_open=1
+                    DHPK_STRIPPED="${DHPK_STRIPPED}${cmd:$i:$((_dhpk_ci_ansi_close - i + 1))}"
+                    _dhpk_ci_seg="${_dhpk_ci_seg}${cmd:$i:$((_dhpk_ci_ansi_close - i + 1))}"
+                    i=$((_dhpk_ci_ansi_close + 1))
+                    continue
+                fi
+                if [ "$next" = '"' ]; then
+                    _dhpk_ci_mode="double"
                     _dhpk_ci_word_open=1
                     DHPK_STRIPPED="${DHPK_STRIPPED}\$${next}"
                     _dhpk_ci_seg="${_dhpk_ci_seg}\$${next}"

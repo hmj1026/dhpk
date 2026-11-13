@@ -170,6 +170,21 @@ test("$'...' ends at a decoded NUL, as bash does, and \\cX is a control characte
   ]);
 });
 
+// Oracles below were checked against bash 5.2: the $'...' end is found
+// first (a backslash pairs with exactly one character), then the body is
+// decoded, so no escape can swallow the closing quote.
+test("$'\\c' before the closing quote stays literal and the string ends there", () => {
+  const got = decoded("echo $'\\c' ; git commit --no-verify -m x #'");
+  assert.deepStrictEqual(got.cmds, [['echo', '\\c'], ['git', 'commit', '--no-verify', '-m', 'x']]);
+  assert.strictEqual(inspect("echo $'\\c' ; git commit --no-verify -m x #'").no_verify, '1');
+});
+
+test("$'\\c\\\\' is one unit (0x1c) and $'\\c\\'' keeps the quote inside the string", () => {
+  assert.deepStrictEqual(decoded("$'a\\c\\\\b' $'a\\c\\xb' $'a\\c\\'b' next").cmds, [
+    ['a\x1cb', 'a\x1cxb', "a\x1c'b", 'next'],
+  ]);
+});
+
 test('inside double quotes a backslash escapes only $ ` " \\ and joins a newline', () => {
   assert.deepStrictEqual(decoded('"gi\\\nt" "a\\b" "\\$x\\`\\"\\\\"').cmds, [['git', 'a\\b', '$x`"\\']]);
 });
