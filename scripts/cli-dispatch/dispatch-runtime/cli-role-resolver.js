@@ -31,6 +31,8 @@ const digest = (fields) => crypto.createHash('sha256')
   .update(JSON.stringify(fields, Object.keys(fields).sort()))
   .digest('hex');
 
+const hasOwn = (table, key) => Object.prototype.hasOwnProperty.call(table, key);
+
 const blocked = (reason) => Object.freeze({ status: 'BLOCKED', reason });
 
 function createSessionDiagnostics(emit = () => {}) {
@@ -54,21 +56,21 @@ function resolveRole({ requestedRole, mode, provider, diagnostics } = {}) {
   let providerConstraint;
   let deprecatedAlias = false;
   let compatibilitySource = 'canonical-role';
-  if (ALIASES[requestedRole]) {
+  if (hasOwn(ALIASES, requestedRole)) {
     effectiveRole = ALIASES[requestedRole].effectiveRole;
     canonicalRole = LEGACY_PROVIDER_ROLES[effectiveRole].canonicalRole;
     providerConstraint = LEGACY_PROVIDER_ROLES[effectiveRole].provider;
     deprecatedAlias = true;
     compatibilitySource = 'legacy-role-alias';
-  } else if (LEGACY_PROVIDER_ROLES[requestedRole]) {
+  } else if (hasOwn(LEGACY_PROVIDER_ROLES, requestedRole)) {
     canonicalRole = LEGACY_PROVIDER_ROLES[requestedRole].canonicalRole;
     providerConstraint = LEGACY_PROVIDER_ROLES[requestedRole].provider;
     compatibilitySource = 'legacy-provider-role';
-  } else if (!CANONICAL_ROLES[requestedRole]) {
+  } else if (!hasOwn(CANONICAL_ROLES, requestedRole)) {
     return blocked(`unknown role: ${requestedRole}`);
   }
 
-  const definition = ROLE_MATRIX[effectiveRole] || {
+  const definition = hasOwn(ROLE_MATRIX, effectiveRole) ? ROLE_MATRIX[effectiveRole] : {
     authority: CANONICAL_ROLES[canonicalRole].authority,
   };
   if (mode !== 'read-only' && mode !== 'workspace-write') return blocked('mode is required and must be explicit');
@@ -111,7 +113,7 @@ function resolveConfig({ effectiveRole, config = {} } = {}) {
 }
 
 function resolvePublication({ role, target, capabilities = [] } = {}) {
-  if (!ROLE_MATRIX[role] && !CANONICAL_ROLES[role]) return Object.freeze({ status: 'UNAVAILABLE', reason: `unknown role: ${role}` });
+  if (!hasOwn(ROLE_MATRIX, role) && !hasOwn(CANONICAL_ROLES, role)) return Object.freeze({ status: 'UNAVAILABLE', reason: `unknown role: ${role}` });
   if (role === 'codex-reviewer' && target === 'codex-native' && !capabilities.includes('codex-native-read-only-reviewer')) {
     return Object.freeze({ status: 'UNAVAILABLE', reason: 'missing capability: codex-native-read-only-reviewer' });
   }
