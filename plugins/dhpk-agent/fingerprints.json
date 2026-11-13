@@ -2,18 +2,18 @@
   "generatorVersion": "1.1.0",
   "surface": "agent-plugin",
   "skills": {
-    "change-verdict": "ccddf069995af1fe56cf9fb8da2258a9741b304c0da4e9190392e2e40b4d896d",
-    "code-trace": "92f6c83e2fe8af7490ab64fa81cd174bef2737f0916145eb208fc45157630716",
+    "change-verdict": "d9e0f2fcf93e8f4ff5cbba7829e06ec224a90a95b98a4b3f735c78d0025fb09f",
+    "code-trace": "7594f6c97419858f60348b1470219bc35a0752e66fbb7ad0a95c530647d15e91",
     "create-pr": "8f92deca6a524fa35368da87ab1fd66a5e8b36546b0122173c530d01358cbbd5",
     "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
     "flow-drive": "18f65c3a8ed8055673c1b51338008057ec852d3794f00cfbd99c47b5c7515c0c",
-    "flow-guide": "ea9b5a14921bc79e63cab37a010183702119774e3c14e149357d4278de8d26da",
+    "flow-guide": "ddcc2edb5d1178335200820ec75abf47317e7bbd8ae301184c989ea4d8e9f16d",
     "git-smart-commit": "951b6a8f04d7787ff0c698490895ce38bcc6169c74a7bea3f28c989af50fca10",
     "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
-    "precommit": "2984831f996540d955d67c21325a3c6a1ead9fa1af36f972e8597a8b844c34ed",
+    "precommit": "f53a31490a6a5001ecb13c4a2e772a6aa98d87532304abc15b79aaccb2f53640",
     "proposal-analyze": "7cbc5c6b5d5faed62e67ddb7e1f3f921c1b8faa8123ae8f36c661837f7aa4d00",
     "release-creator": "44302bc409fea90b914c28086e206369f2f8df3c2259b0799c1b2c95acd20561",
-    "repo-verify": "dbe72278bb16c28d7a0dd0d04357884e4494568b263ea68c85fc20d79861dff5",
+    "repo-verify": "a384a5d193c27e3fb3e670d3e8b89b386a0c0f5d3d68a20e3db67e86cd68d7b0",
     "tdd-workflow": "78832c7effebac7325cc44c91c706de885aad4f21cb96f3db183a9312a6bb150",
     "ui-ux-verify": "e3595020b7382995d4335fb288b2e324c837151faa75fc5d61604fafd0ce9746"
   }
