@@ -35,8 +35,8 @@ const lexed = [
   // the word view lexes substitution bodies inline
   ['echo $(cat .env)', 'echo $:d (:o cat .env ):o', ['cat .env']],
   ["git commit -m \"$(cat <<'EOF'\nmsg\nEOF\n)\"", null, ["cat <<'EOF'\nmsg\nEOF\n"]],
-  // an unquoted substitution loses its heredoc body to the outer mask
-  ["x=$(cat <<'EOF'\nhi\nEOF\n)", null, ["cat <<'EOF'\n"]],
+  // an unquoted substitution in assignment position keeps its heredoc body (#1407)
+  ["x=$(cat <<'EOF'\nhi\nEOF\n)", null, ["cat <<'EOF'\nhi\nEOF\n"]],
   // a heredoc inside a double-quoted substitution belongs to its body; quotes there are data (#1396)
   ["git commit -m \"$(cat <<'EOF'\nfix: don't\nEOF\n)\"", 'git commit -m $(cat\\u0020<<\'EOF\'\n):d', ["cat <<'EOF'\nfix: don't\nEOF\n"]],
   ["git commit -m \"$(cat <<'EOF'\nsay \"hi\nEOF\n)\"", null, ["cat <<'EOF'\nsay \"hi\nEOF\n"]],
