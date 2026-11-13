@@ -394,7 +394,8 @@ test('a cd inside a subshell applies to the subshell and is undone by its )', ()
 test('a case pattern ) after a cd leaves the directory unresolved', () => {
   // The pattern's ) is not the subshell's ), so the cd may still apply.
   assert.strictEqual(gitRecords('(cd /x; case a in a) ;; esac; git commit -m x)').records[0].state, 'unresolved');
-  assert.strictEqual(gitRecords('case a in a) cd /x ;; esac ; git commit -m x').records[0].repo, '/x');
+  // A cd in a case arm may not run, so it is unresolved too (round 2).
+  assert.strictEqual(gitRecords('case a in a) cd /x ;; esac ; git commit -m x').records[0].state, 'unresolved');
 });
 
 test('${...} inside double quotes or a heredoc body still runs substitutions inside single quotes', () => {
