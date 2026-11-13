@@ -5,7 +5,8 @@
 // normalizeSkillRoutingFamilies; this module only enriches that view with
 // canonical skill metadata, discovery budgets, and source fingerprints.
 
-const crypto = require('node:crypto');
+const { canonicalJson, sha256Hex } = require('./content-fingerprint');
+
 const PROJECTION_SCHEMA = 'dhpk.skill-routing-projection.v1';
 const BUDGET_FIELDS = Object.freeze(['words', 'tokens', 'wordBudget', 'tokenBudget']);
 const ENTRY_FIELDS = Object.freeze([
@@ -23,22 +24,8 @@ const ENTRY_FIELDS = Object.freeze([
   'sourceFingerprint',
 ]);
 
-function cloneSorted(value) {
-  if (Array.isArray(value)) return value.map(cloneSorted);
-  if (value && typeof value === 'object') {
-    const output = {};
-    for (const key of Object.keys(value).sort()) output[key] = cloneSorted(value[key]);
-    return output;
-  }
-  return value;
-}
-
-function canonicalize(value) {
-  return JSON.stringify(cloneSorted(value));
-}
-
 function deterministicFingerprint(value) {
-  return crypto.createHash('sha256').update(canonicalize(value)).digest('hex');
+  return sha256Hex(canonicalJson(value));
 }
 
 function freezeDeep(value) {

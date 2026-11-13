@@ -25,7 +25,8 @@ function extractionPlan(root, phase) {
     const old = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { schema: DISTRIBUTION_SCHEMA };
     const next = { ...old };
     const skillPath = path.join(dir, 'SKILL.md');
-    let skill = fs.readFileSync(skillPath, 'utf8');
+    const previousSkill = fs.readFileSync(skillPath, 'utf8');
+    let skill = previousSkill;
     if (phase === 'coverage' && source.skills[row.id]) next.coverage = source.skills[row.id];
     if (phase === 'resources' && source.skills[row.id]) next.resource_copies = source.skills[row.id];
     if (phase === 'inventory') {
@@ -49,7 +50,7 @@ function extractionPlan(root, phase) {
         return { ...command, ...(grant === undefined ? {} : { allowed_tools: grant }) };
       });
     }
-    return { file, content: json(next), skillPath, skill, previousSkill: fs.readFileSync(skillPath, 'utf8'), needed: Object.keys(next).length > 1 };
+    return { file, content: json(next), skillPath, skill, previousSkill, needed: Object.keys(next).length > 1 };
   });
 }
 
@@ -71,11 +72,15 @@ function roundTrip(root, phase) {
   const load = name => JSON.parse(fs.readFileSync(path.join(root, 'manifests', `${name}.json`), 'utf8'));
   const inventory = load('distribution-inventory');
   const directories = readSkillDirectories(root);
+  const directoryByPath = new Map();
+  for (const candidate of directories) if (!directoryByPath.has(candidate.path)) directoryByPath.set(candidate.path, candidate);
+  let dispositions = null;
+  const loadDispositions = () => dispositions || (dispositions = load('command-skill-dispositions'));
   const drift = [];
   const expected = phase === 'coverage' ? load('skill-directory-coverage').skills : phase === 'resources' ? load('skill-resources').skills : null;
   const key = phase === 'coverage' ? 'coverage' : 'resource_copies';
   for (const row of inventory.skills) {
-    const skill = directories.find(candidate => candidate.path === row.path);
+    const skill = directoryByPath.get(row.path);
     if (!skill) { drift.push(`${row.id}: missing Skill directory`); continue; }
     if (phase === 'identity') {
       if (skill.id !== row.id || skill.capability_id !== row.capability_id) drift.push(`${row.id}: compact identity`);
@@ -86,7 +91,7 @@ function roundTrip(root, phase) {
       for (const field of ['usage', 'standalone_dependencies']) if (JSON.stringify(skill.distribution[field]) !== JSON.stringify(row[field])) drift.push(`${row.id}: ${field}`);
     } else if (expected && JSON.stringify(skill.distribution[key]) !== JSON.stringify(expected[row.id])) drift.push(`${row.id}: ${key}`);
     else if (phase === 'commands') {
-      const wanted = load('command-skill-dispositions').commands.filter(command => command.skill_owner === row.id && command.path.startsWith('commands/') && command.disposition === 'thin-front-door').map(({ path: ignoredPath, skill_owner: ignoredOwner, resource: ignoredResource, ...command }) => command);
+      const wanted = loadDispositions().commands.filter(command => command.skill_owner === row.id && command.path.startsWith('commands/') && command.disposition === 'thin-front-door').map(({ path: ignoredPath, skill_owner: ignoredOwner, resource: ignoredResource, ...command }) => command);
       const local = (skill.distribution.commands || []).map(({ allowed_tools: ignoredTools, description: ignoredDescription, ...command }) => command);
       if (JSON.stringify(local) !== JSON.stringify(wanted)) drift.push(`${row.id}: commands`);
       for (const declaration of skill.distribution.commands || []) if (declaration.allowed_tools !== commandGrant(root, `commands/${declaration.id}.md`)) drift.push(`${row.id}: command ${declaration.id} allowed_tools`);

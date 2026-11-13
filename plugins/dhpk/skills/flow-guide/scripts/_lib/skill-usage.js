@@ -204,6 +204,20 @@ function startsWithPublicCommand(value, name) {
   return value.startsWith(prefix + ' ') || value.startsWith(prefix + '\t');
 }
 
+// Shared identity check for action, input, and option ids: a bounded string,
+// a lower-case public identifier, and unique within its kind.
+function validateEntryId(errors, entry, prefix, owner, kind, seenIds) {
+  const idValid = requireString(errors, entry.id, prefix + '.id', owner, { max: 64 });
+  if (idValid && !IDENTIFIER.test(entry.id)) {
+    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
+  }
+  if (idValid && seenIds.has(entry.id)) {
+    errors.push(owner + ' usage has duplicate ' + kind + " id '" + entry.id + "'");
+  } else if (idValid) {
+    seenIds.add(entry.id);
+  }
+}
+
 function validateAction(errors, action, index, name, parentAuthority, actionIds, owner) {
   const prefix = 'actions[' + index + ']';
   if (!isRecord(action)) {
@@ -212,15 +226,7 @@ function validateAction(errors, action, index, name, parentAuthority, actionIds,
   }
   addUnknownKeys(errors, action, ACTION_KEYS, prefix + '.', owner);
 
-  const idValid = requireString(errors, action.id, prefix + '.id', owner, { max: 64 });
-  if (idValid && !IDENTIFIER.test(action.id)) {
-    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
-  }
-  if (idValid && actionIds.has(action.id)) {
-    errors.push(owner + " usage has duplicate action id '" + action.id + "'");
-  } else if (idValid) {
-    actionIds.add(action.id);
-  }
+  validateEntryId(errors, action, prefix, owner, 'action', actionIds);
 
   requireString(errors, action.summary, prefix + '.summary', owner, { max: 256 });
   const syntaxValid = requireString(errors, action.syntax, prefix + '.syntax', owner, { max: 512 });
@@ -314,15 +320,7 @@ function validateInput(errors, input, index, actionIds, inputIds, owner) {
   }
   addUnknownKeys(errors, input, INPUT_KEYS, prefix + '.', owner);
 
-  const idValid = requireString(errors, input.id, prefix + '.id', owner, { max: 64 });
-  if (idValid && !IDENTIFIER.test(input.id)) {
-    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
-  }
-  if (idValid && inputIds.has(input.id)) {
-    errors.push(owner + " usage has duplicate input id '" + input.id + "'");
-  } else if (idValid) {
-    inputIds.add(input.id);
-  }
+  validateEntryId(errors, input, prefix, owner, 'input', inputIds);
 
   const syntaxValid = requireString(errors, input.syntax, prefix + '.syntax', owner, { max: 256 });
   if (syntaxValid && !/^<[^<>\r\n]+>$/.test(input.syntax)) {
@@ -362,15 +360,7 @@ function validateOption(errors, option, index, actionIds, optionIds, owner) {
   }
   addUnknownKeys(errors, option, OPTION_KEYS, prefix + '.', owner);
 
-  const idValid = requireString(errors, option.id, prefix + '.id', owner, { max: 64 });
-  if (idValid && !IDENTIFIER.test(option.id)) {
-    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
-  }
-  if (idValid && optionIds.has(option.id)) {
-    errors.push(owner + " usage has duplicate option id '" + option.id + "'");
-  } else if (idValid) {
-    optionIds.add(option.id);
-  }
+  validateEntryId(errors, option, prefix, owner, 'option', optionIds);
 
   const syntaxValid = requireString(errors, option.syntax, prefix + '.syntax', owner, { max: 512 });
   if (syntaxValid && !/^--\S+$/.test(option.syntax)) {
@@ -907,6 +897,15 @@ function formatDocumentationValue(value) {
   return String(value);
 }
 
+// One documentation bullet for an input or option: id, syntax, requirement,
+// value kind, enum values, and default.
+function formatParameterLine(entry, isChinese) {
+  const details = [entry.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), entry.value_kind];
+  if (entry.enum_values) details.push('values=' + entry.enum_values.join('|'));
+  if (hasOwn(entry, 'default')) details.push('default=' + formatDocumentationValue(entry.default));
+  return '- `' + entry.id + '` `' + entry.syntax + '` (' + details.join(', ') + ') — ' + entry.summary;
+}
+
 function renderSkillUsageDocumentation(catalog, locale = 'en') {
   const isChinese = locale === 'zh-TW';
   const lines = isChinese
@@ -938,12 +937,7 @@ function renderSkillUsageDocumentation(catalog, locale = 'en') {
     lines.push((isChinese ? '最高 authority：' : 'Maximum authority: ') + '`' + usage.effect_authority + '`');
     if (usage.inputs.length > 0) {
       lines.push('', isChinese ? '輸入：' : 'Inputs:');
-      for (const input of usage.inputs) {
-        const details = [input.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), input.value_kind];
-        if (input.enum_values) details.push('values=' + input.enum_values.join('|'));
-        if (hasOwn(input, 'default')) details.push('default=' + formatDocumentationValue(input.default));
-        lines.push('- `' + input.id + '` `' + input.syntax + '` (' + details.join(', ') + ') — ' + input.summary);
-      }
+      for (const input of usage.inputs) lines.push(formatParameterLine(input, isChinese));
     }
     if (usage.actions.length > 0) {
       lines.push('', isChinese ? 'Actions：' : 'Actions:');
@@ -952,12 +946,7 @@ function renderSkillUsageDocumentation(catalog, locale = 'en') {
     const options = usage.options.filter((option) => !option.legacy);
     if (options.length > 0) {
       lines.push('', isChinese ? '選項：' : 'Options:');
-      for (const option of options) {
-        const details = [option.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), option.value_kind];
-        if (option.enum_values) details.push('values=' + option.enum_values.join('|'));
-        if (hasOwn(option, 'default')) details.push('default=' + formatDocumentationValue(option.default));
-        lines.push('- `' + option.id + '` `' + option.syntax + '` (' + details.join(', ') + ') — ' + option.summary);
-      }
+      for (const option of options) lines.push(formatParameterLine(option, isChinese));
     }
     const legacy = usage.options.filter((option) => option.legacy);
     if (legacy.length > 0) {
@@ -974,29 +963,19 @@ function renderSkillUsageDocumentation(catalog, locale = 'en') {
 }
 
 module.exports = {
-  ACTION_KEYS,
   AUTHORITY_RANK,
-  CARD_SCHEMA,
   CATALOG_SCHEMA,
   deriveArgumentHint,
-  EFFECT_AUTHORITIES,
-  INPUT_KINDS,
-  INPUT_KEYS,
   INVOCATION_CLASSES,
-  OPTION_KEYS,
   LEGACY_KEYS,
-  USAGE_KEYS,
   USAGE_SCHEMA,
-  VALUE_KINDS,
   compileSkillUsageCatalog,
   fingerprint,
   hasCodexSurface,
-  isCodexInvokableSkill,
   normalizeSkillUsage,
   renderSkillUsageCard,
   renderSkillUsageDocumentation,
   resolveInventoryRevision,
-  usageInventoryRevision,
   validateRuntimeIndex,
   serializeSkillUsageCatalog,
   stableStringify,

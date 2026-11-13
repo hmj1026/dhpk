@@ -140,15 +140,6 @@ function tailLinesFromFile(filePath, maxLines = 120, maxBytes = 250_000) {
   }
 }
 
-/**
- * Filter function for stdout streaming.
- * Returns true if the line should be printed to terminal.
- * All lines are always written to the log file regardless.
- */
-function defaultStdoutFilter(_line) {
-  return true;
-}
-
 /** Strip ANSI escape codes so regex matching works on coloured output. */
 function stripAnsi(s) {
   // eslint-disable-next-line no-control-regex
@@ -221,7 +212,7 @@ async function runStep({
     };
   }
 
-  const filter = stdoutFilter || defaultStdoutFilter;
+  const filter = stdoutFilter || (() => true);
   let _lineBuf = '';
 
   if (child.stdout) {
@@ -327,7 +318,6 @@ module.exports = {
   runStep,
   tailLinesFromFile,
   stripAnsi,
-  defaultStdoutFilter,
   testStdoutFilter,
   gitRepoRoot,
   gitShortHead,

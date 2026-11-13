@@ -114,6 +114,16 @@ function canonicalize(value) {
   return JSON.stringify(clone(value));
 }
 
+// Key-sorted canonical string of a metadata value: arrays keep order, object keys
+// sort by UTF-16 order, leaves use JSON.stringify.
+function canonicalMetadata(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalMetadata).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalMetadata(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function fingerprint(value) {
   return crypto.createHash('sha256').update(canonicalize(value)).digest('hex');
 }
@@ -571,6 +581,7 @@ module.exports = {
   SYMLINK_POLICIES,
   EXTERNAL_SKILL_PACKAGE_FIELDS,
   canonicalize,
+  canonicalMetadata,
   fingerprint,
   normalizeExternalSkillPackages,
   externalSkillPackagesFingerprint,

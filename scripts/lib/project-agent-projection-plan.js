@@ -553,8 +553,10 @@ function compileProjectAgentProjection({
     return publicDecision;
   });
   const emittedStableIds = capabilityDecisions.filter((entry) => entry.outcome === 'EMIT' && byId.get(entry.stableId).entityKind === 'skill').map((entry) => entry.stableId).sort();
+  const decisionById = new Map();
+  for (const entry of capabilityDecisions) if (!decisionById.has(entry.stableId)) decisionById.set(entry.stableId, entry);
   const selected = selectedStableIds.map((id) => {
-    const decision = capabilityDecisions.find((entry) => entry.stableId === id);
+    const decision = decisionById.get(id);
     return {
       stableId: id,
       role: decision.role,

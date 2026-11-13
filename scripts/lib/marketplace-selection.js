@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
+const { canonicalJson } = require('./content-fingerprint');
 
 // Compile the accepted marketplace catalog (manifests/marketplace-selection.json)
 // against the distribution inventory. Common entries become public listings;
@@ -104,14 +105,6 @@ function compileMarketplaceSelection({ inventory, selection, aliases = [] }) {
   });
 }
 
-function canonicalizeJson(value) {
-  if (Array.isArray(value)) return value.map(canonicalizeJson);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalizeJson(value[key])]));
-  }
-  return value;
-}
-
 function copyJson(value) {
   if (Array.isArray(value)) return value.map(copyJson);
   if (value && typeof value === 'object') {
@@ -124,7 +117,7 @@ function compileMarketplacePublicationView({ inventory, selection, aliases = [],
   const errors = [];
   let selectionDigest = null;
   try {
-    const canonicalSelection = JSON.stringify(canonicalizeJson(selection));
+    const canonicalSelection = canonicalJson(selection);
     if (typeof canonicalSelection !== 'string') throw new TypeError('selection is not JSON serializable');
     selectionDigest = createHash('sha256').update(canonicalSelection).digest('hex');
   } catch (_) {

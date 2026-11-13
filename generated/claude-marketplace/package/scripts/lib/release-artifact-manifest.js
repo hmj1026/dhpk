@@ -100,6 +100,43 @@ function adapterIdentity(provenance, surface) {
   };
 }
 
+// Identity record bound by bindingFingerprint; key order is part of the digest.
+// Callers resolve sourceTree and fingerprints in their own order so error
+// precedence is unchanged.
+function packageIdentity({ surface, packageRoot, owner, sourceCommit, sourceTree, generatedFromCommit, generatedFromTree, sourceVersion, selection, compiler, adapter, fingerprints }) {
+  return {
+    surface,
+    packageRoot,
+    owner,
+    sourceCommit,
+    sourceTree,
+    generatedFromCommit,
+    generatedFromTree,
+    sourceVersion,
+    selection,
+    compiler,
+    adapter,
+    fingerprints,
+  };
+}
+
+function provenanceIdentity(provenance, surface, relativeRoot, sourceTree, fingerprints) {
+  return packageIdentity({
+    surface,
+    packageRoot: relativeRoot,
+    owner: SURFACE_OWNERS[surface],
+    sourceCommit: provenance.sourceCommit,
+    sourceTree,
+    generatedFromCommit: provenance.generatedFromCommit || provenance.sourceCommit,
+    generatedFromTree: provenance.generatedFromTree || null,
+    sourceVersion: provenance.sourceVersion,
+    selection: selectionIdentity(provenance),
+    compiler: compilerIdentity(provenance),
+    adapter: adapterIdentity(provenance, surface),
+    fingerprints,
+  });
+}
+
 function buildReleaseArtifactManifest({
   root,
   targetCommit = git(root, ['rev-parse', 'HEAD']),
@@ -121,20 +158,13 @@ function buildReleaseArtifactManifest({
     });
     if (!checked.ok) throw new Error(`${surface} provenance is invalid: ${checked.errors.join('; ')}`);
     const fingerprints = packageFingerprints(packageRoot);
-    const entry = {
+    const entry = provenanceIdentity(
+      provenance,
       surface,
-      packageRoot: relativeRoot,
-      owner: SURFACE_OWNERS[surface],
-      sourceCommit: provenance.sourceCommit,
-      sourceTree: resolveGeneratedFromTree(root, provenance.sourceCommit),
-      generatedFromCommit: provenance.generatedFromCommit || provenance.sourceCommit,
-      generatedFromTree: provenance.generatedFromTree || null,
-      sourceVersion: provenance.sourceVersion,
-      selection: selectionIdentity(provenance),
-      compiler: compilerIdentity(provenance),
-      adapter: adapterIdentity(provenance, surface),
+      relativeRoot,
+      resolveGeneratedFromTree(root, provenance.sourceCommit),
       fingerprints,
-    };
+    );
     return { ...entry, bindingFingerprint: canonicalJsonSha256Prefixed(entry) };
   });
   const manifest = {
@@ -197,36 +227,11 @@ function validateReleaseArtifactManifest(manifest, {
       const provenance = readJson(path.join(packageRoot, 'provenance.json'));
       const checked = validateSurfaceReceipt(normalizedProvenance(provenance), entry.surface, { root, targetCommit, targetTree });
       if (!checked.ok) errors.push(`${entry.surface} provenance no longer validates: ${checked.errors.join('; ')}`);
-      const current = {
-        surface: entry.surface,
-        packageRoot: entry.packageRoot,
-        owner: entry.owner,
-        sourceCommit: provenance.sourceCommit,
-        sourceTree: resolveGeneratedFromTree(root, provenance.sourceCommit),
-        generatedFromCommit: provenance.generatedFromCommit || provenance.sourceCommit,
-        generatedFromTree: provenance.generatedFromTree || null,
-        sourceVersion: provenance.sourceVersion,
-        selection: selectionIdentity(provenance),
-        compiler: compilerIdentity(provenance),
-        adapter: adapterIdentity(provenance, entry.surface),
-        fingerprints: packageFingerprints(packageRoot),
-      };
+      const sourceTree = resolveGeneratedFromTree(root, provenance.sourceCommit);
+      const current = provenanceIdentity(provenance, entry.surface, entry.packageRoot, sourceTree, packageFingerprints(packageRoot));
       const currentBinding = canonicalJsonSha256Prefixed(current);
       if (currentBinding !== entry.bindingFingerprint) errors.push(`${entry.surface} artifact identity or bytes/modes drifted after package verification`);
-      if (JSON.stringify(current) !== JSON.stringify({
-        surface: entry.surface,
-        packageRoot: entry.packageRoot,
-        owner: entry.owner,
-        sourceCommit: entry.sourceCommit,
-        sourceTree: entry.sourceTree,
-        generatedFromCommit: entry.generatedFromCommit,
-        generatedFromTree: entry.generatedFromTree,
-        sourceVersion: entry.sourceVersion,
-        selection: entry.selection,
-        compiler: entry.compiler,
-        adapter: entry.adapter,
-        fingerprints: entry.fingerprints,
-      })) errors.push(`${entry.surface} manifest identity does not match current provenance`);
+      if (JSON.stringify(current) !== JSON.stringify(packageIdentity(entry))) errors.push(`${entry.surface} manifest identity does not match current provenance`);
     } catch (error) {
       errors.push(`${entry.surface} artifact is missing, unreadable, or unsafe: ${error.message}`);
     }

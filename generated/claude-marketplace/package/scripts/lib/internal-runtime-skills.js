@@ -12,7 +12,13 @@ const INTERNAL_RUNTIME_SURFACES = Object.freeze([
   'codex-native',
 ]);
 
-function runtimeSupportSkillIds(inventory, surface) {
+function skillEntryMap(inventory) {
+  return new Map((inventory.skills || []).map((entry) => [entry && entry.id, entry]));
+}
+
+// `getEntries` lets a caller that checks several surfaces share one lazily
+// built id map; it is only invoked after the surface's early-return checks.
+function runtimeSupportSkillIds(inventory, surface, getEntries = () => skillEntryMap(inventory)) {
   const mapping = inventory && inventory.internal_runtime_skills;
   if (mapping === undefined) return [];
   if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) {
@@ -22,7 +28,7 @@ function runtimeSupportSkillIds(inventory, surface) {
   if (values === undefined) return [];
   if (!Array.isArray(values)) throw new Error(`internal_runtime_skills.${surface} must be a string array`);
 
-  const entries = new Map((inventory.skills || []).map((entry) => [entry && entry.id, entry]));
+  const entries = getEntries();
   const declaredMembership = inventory.surface_membership && inventory.surface_membership[surface];
   const membership = Array.isArray(declaredMembership)
     ? declaredMembership
@@ -56,13 +62,18 @@ function validateInternalRuntimeSkills({ inventory, skillIds = new Set() } = {})
       errors.push(`internal_runtime_skills declares unsupported surface '${surface}'`);
     }
   }
+  let sharedEntries = null;
+  const getEntries = () => {
+    if (sharedEntries === null) sharedEntries = skillEntryMap(inventory);
+    return sharedEntries;
+  };
   for (const surface of INTERNAL_RUNTIME_SURFACES) {
     if (!Object.prototype.hasOwnProperty.call(mapping, surface)) {
       errors.push(`internal_runtime_skills is missing required '${surface}' support`);
       continue;
     }
     try {
-      runtimeSupportSkillIds(inventory, surface);
+      runtimeSupportSkillIds(inventory, surface, getEntries);
     } catch (error) {
       errors.push(error.message);
     }
