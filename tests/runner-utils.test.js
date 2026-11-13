@@ -92,6 +92,44 @@ test('tailLinesFromFile returns empty string for a missing file', () => {
   assert.strictEqual(utils.tailLinesFromFile('/no/such/file.log'), '');
 });
 
+test('tailLinesFromFile closes the fd and returns empty string when readSync throws', () => {
+  const tmp = mkTmp();
+  const p = path.join(tmp, 'a.log');
+  fs.writeFileSync(p, 'one\ntwo\n');
+  const origOpen = fs.openSync;
+  const origRead = fs.readSync;
+  const origClose = fs.closeSync;
+  const opened = [];
+  const closed = [];
+  fs.openSync = (...args) => {
+    const fd = origOpen.apply(fs, args);
+    opened.push(fd);
+    return fd;
+  };
+  fs.readSync = () => {
+    throw new Error('simulated read failure');
+  };
+  fs.closeSync = fd => {
+    closed.push(fd);
+    return origClose.call(fs, fd);
+  };
+  let result;
+  try {
+    result = utils.tailLinesFromFile(p, 3);
+  } finally {
+    fs.openSync = origOpen;
+    fs.readSync = origRead;
+    fs.closeSync = origClose;
+    for (const fd of opened) {
+      if (!closed.includes(fd)) origClose.call(fs, fd);
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  assert.strictEqual(result, '');
+  assert.strictEqual(opened.length, 1);
+  assert.deepStrictEqual(closed, opened);
+});
+
 test('stripAnsi removes color escape codes', () => {
   assert.strictEqual(utils.stripAnsi('[32mPASS[0m'), 'PASS');
 });

@@ -10,7 +10,7 @@
     "skills/change-verdict/scripts/lib/runner-utils.js": {
       "skill_id": "change-verdict",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/docs/agent-guidance/verification-handoff.md": {
@@ -178,7 +178,7 @@
     "skills/flow-guide/scripts/_lib/runner-utils.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
       "mode": "0644"
     },
     "skills/flow-guide/scripts/_lib/skill-next-map.js": {
@@ -220,7 +220,7 @@
     "skills/precommit/scripts/lib/runner-utils.js": {
       "skill_id": "precommit",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
       "mode": "0644"
     },
     "skills/project-audit/scripts/lib/command-namespace.js": {
@@ -232,19 +232,19 @@
     "skills/project-audit/scripts/lib/runner-utils.js": {
       "skill_id": "project-audit",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
       "mode": "0644"
     },
     "skills/repo-intake/scripts/lib/runner-utils.js": {
       "skill_id": "repo-intake",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
       "mode": "0644"
     },
     "skills/repo-verify/scripts/lib/runner-utils.js": {
       "skill_id": "repo-verify",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
+      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
       "mode": "0644"
     },
     "skills/swift/references/actor-persistence.md": {
