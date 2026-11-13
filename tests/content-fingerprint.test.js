@@ -344,6 +344,50 @@ test('tree node fingerprint of an absent prefix is empty and of a single file ha
   );
 });
 
+test('multi-prefix tree fingerprints equal one single-prefix call per prefix', () => {
+  const files = [
+    { path: 'skills/z/SKILL.md', type: 'file', content: Buffer.from('z') },
+    { path: 'skills/a/SKILL.md', type: 'file', content: Buffer.from('a') },
+    { path: 'rules/r.mdc', type: 'file', content: Buffer.from('r') },
+    { path: 'hooks/hooks.json', type: 'file', content: Buffer.from('{}') },
+  ];
+  const prefixes = ['skills', 'rules', 'hooks/hooks.json', 'missing', '', 'skills'];
+  const digests = fingerprint.treeNodeFingerprints(files, prefixes);
+  assert.ok(digests instanceof Map);
+  assert.deepStrictEqual([...digests.keys()], ['skills', 'rules', 'hooks/hooks.json', 'missing', '']);
+  for (const prefix of prefixes) {
+    assert.strictEqual(digests.get(prefix), fingerprint.treeNodeFingerprint(files, prefix), `prefix '${prefix}'`);
+  }
+  assert.strictEqual(digests.get('missing'), '');
+  assert.strictEqual(digests.get(''), fingerprint.treeFingerprint(files));
+});
+
+test('multi-prefix tree fingerprints keep the tree validation errors', () => {
+  assert.throws(
+    () => fingerprint.treeNodeFingerprints([{ path: 'a/../b', type: 'file', content: Buffer.alloc(0) }], ['a']),
+    /invalid tree path 'a\/\.\.\/b'/,
+  );
+});
+
+test('collector asks lstat only about the root and regular files, never directories or links', () => {
+  const dir = buildAdversarialTree();
+  fs.symlinkSync('a.txt', path.join(dir, 'link-to-a'));
+  const original = fs.lstatSync;
+  const probed = [];
+  fs.lstatSync = (target, ...rest) => { probed.push(path.relative(dir, String(target))); return original(target, ...rest); };
+  try {
+    fingerprint.collectDirectoryEntries(dir, { skipBytecode: true, symlinks: 'record' });
+  } finally {
+    fs.lstatSync = original;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  assert.ok(probed.includes(''), 'root is still lstat-checked');
+  assert.ok(probed.includes('a.txt'));
+  for (const skipped of ['a', 'sub', 'empty', 'link-to-a']) {
+    assert.ok(!probed.includes(skipped), `${skipped} must be classified by its Dirent, not lstat`);
+  }
+});
+
 test('package content and mode fingerprints reproduce the recorded recipe and separate content from mode', () => {
   const dir = buildAdversarialTree();
   try {
