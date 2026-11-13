@@ -1,0 +1,2 @@
+scope: hooks
+note: Fix the credential reader blocking a heredoc commit message whose body holds an apostrophe or a double quote, such as a `cat` heredoc inside `$(...)`. A heredoc declared in a command substitution, including `<<-` and several on one line, is now skipped up to its delimiter line, as `command-inspect.sh` does. Unterminated quotes and substitutions outside heredoc bodies still block, and a substitution whose output may run as a command keeps the stricter reading (#1396).

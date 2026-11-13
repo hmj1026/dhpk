@@ -35,8 +35,17 @@ const lexed = [
   // the word view lexes substitution bodies inline
   ['echo $(cat .env)', 'echo $:d (:o cat .env ):o', ['cat .env']],
   ["git commit -m \"$(cat <<'EOF'\nmsg\nEOF\n)\"", null, ["cat <<'EOF'\nmsg\nEOF\n"]],
-  // an unquoted substitution loses its heredoc body to the outer mask
-  ["x=$(cat <<'EOF'\nhi\nEOF\n)", null, ["cat <<'EOF'\n"]],
+  // a heredoc inside a substitution belongs to its body; quotes there are data (#1396)
+  ["x=$(cat <<'EOF'\nhi\nEOF\n)", null, ["cat <<'EOF'\nhi\nEOF\n"]],
+  ["git commit -m \"$(cat <<'EOF'\nfix: don't\nEOF\n)\"", 'git commit -m $(cat\\u0020<<\'EOF\'\n):d', ["cat <<'EOF'\nfix: don't\nEOF\n"]],
+  ["git commit -m \"$(cat <<'EOF'\nsay \"hi\nEOF\n)\"", null, ["cat <<'EOF'\nsay \"hi\nEOF\n"]],
+  ["git commit -m \"$(cat <<-'EOF'\n\tit's\n\tEOF\n)\"", null, ["cat <<-'EOF'\n\tit's\n\tEOF\n"]],
+  ["echo \"$(cat <<EOF\nit's $(git rev-parse HEAD)\nEOF\n)\"", null, ["cat <<EOF\nit's $(git rev-parse HEAD)\nEOF\n"]],
+  ["echo \"$(cat <<'EOF'\n)\nit's\nEOF\n)\"", null, ["cat <<'EOF'\n)\nit's\nEOF\n"]],
+  ["echo \"$(cat <<'A' <<'B'\nit's\nA\nit's\nB\n)\"", null, ["cat <<'A' <<'B'\nit's\nA\nit's\nB\n"]],
+  ["cat <<-'EOF'\n\tit's\n\tEOF\n", 'cat <<-:o EOF ;:o', []],
+  // several heredocs on one line are read in order
+  ["cat <<A <<'B'\nit's\nA\n$(x)\nB\n", 'cat <<:o A <<:o B ;:o', []],
   ['echo \'a b\' "c*" d* "\\x" $x', 'echo a\\u0020b c* d*:g \\x $x:d', []],
   ['a&&b||c|&d;;e>&f', 'a &&:o b ||:o c |&:o d ;;:o e >&:o f', []],
 ];
@@ -46,7 +55,13 @@ const failures = [
   ["echo 'x", 'unfinished quote'],
   ['echo x\\', 'unfinished escape'],
   ["cat <<'EOF'\ncat .env", 'unterminated heredoc'],
-  ['cat <<A <<B\nA\nB\n', 'ambiguous heredoc'],
+  ['bash <<A <<B\nA\nB\n', 'ambiguous heredoc'],
+  // output that runs as a command keeps the pre-#1396 reading of the body
+  ["eval \"$(cat <<'EOF'\ndon't\nEOF\n)\"", 'unfinished substitution'],
+  ["echo \"$(cat <<'EOF'\ndon't\n)\"", 'unterminated heredoc'],
+  ['echo "$(cat <<EOF\nx\nEOF)"', 'ambiguous heredoc delimiter'],
+  ['cat <<EOF $(echo\n)\nx\nEOF\n', 'ambiguous heredoc substitution'],
+  ["echo \"$(cat <<'EOF'\nok\nEOF\n)\" 'x", 'unfinished quote'],
   ["cat <<'EOF' |\ncat .env\nEOF\n", 'ambiguous heredoc pipeline'],
   ['cat <<EOF\n`echo "x"`\nEOF\n', 'ambiguous heredoc backtick'],
   ["cat <<'E\nF'\nx\nE\n", 'ambiguous heredoc declaration quote'],
