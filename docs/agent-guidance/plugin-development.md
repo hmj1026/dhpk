@@ -211,6 +211,14 @@ package CI does not depend on a developer's ignored installation. Back up local
 content before repair and resolve reported conflicts without overwriting
 modified or unmanaged files.
 
+When `.agents/skills` already holds third-party skills (for example from
+`gitnexus analyze`) but no `.dhpk-projection.json`, the first sync refuses with
+`NO_OWNER_RECEIPT`. Run `npm run sync:local-skills -- --preserve-unmanaged` (or
+`node scripts/ci/gen-agents-skills.js --update --preserve-unmanaged`) to create
+the projection beside them. The option keeps their files as-is and does not
+take ownership of them; names that collide with a generated skill (including
+case variants), symlinks, and an invalid receipt are still refused.
+
 For an external consumer project, pass `--source-root`, `--project-root`, the
 explicit `portable-core` profile, and the requested Hosts; the shared publisher
 then writes a self-contained artifact, a project receipt at

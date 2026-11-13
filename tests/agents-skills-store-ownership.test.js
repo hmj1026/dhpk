@@ -749,4 +749,194 @@ test('validation reports a case-variant entry at a reserved name', () => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// #1344: --preserve-unmanaged initializes a receipt-less tree beside foreign entries.
+// ---------------------------------------------------------------------------
+
+function init(root, outDir, extra = {}) {
+  return materializeAgentsSkillsProjection({ root, inventory: INVENTORY, outDir, ...extra });
+}
+
+function snapshot(outDir) {
+  return { rows: tree(outDir), names: fs.readdirSync(outDir, { recursive: true }).sort() };
+}
+
+test('default receipt-less sync still refuses NO_OWNER_RECEIPT and names --preserve-unmanaged', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    seedForeign(outDir);
+    const before = snapshot(outDir);
+    assert.throws(() => init(root, outDir), /OWNERSHIP_REFUSED[^]*NO_OWNER_RECEIPT|NO_OWNER_RECEIPT|no \.dhpk-projection\.json receipt/);
+    assert.throws(() => init(root, outDir), /--preserve-unmanaged/);
+    assert.throws(() => init(root, outDir, { preserveUnmanaged: false }), /--preserve-unmanaged/);
+    assert.deepStrictEqual(snapshot(outDir), before);
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('preserveUnmanaged initializes a receipt-less tree, keeps foreign bytes and modes, and never owns them', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    seedForeign(outDir);
+    fs.mkdirSync(path.join(outDir, 'empty-dir'));
+    const foreignBefore = rowsFor(outDir, FOREIGN_PATHS);
+    assert.strictEqual(foreignBefore.length, 3);
+    const result = init(root, outDir, { preserveUnmanaged: true });
+    assert.deepStrictEqual(result.preservedUnmanaged, ['gitnexus-cli', 'notes.md']);
+    assert.deepStrictEqual(rowsFor(outDir, FOREIGN_PATHS), foreignBefore);
+    assert.strictEqual(fs.existsSync(path.join(outDir, 'empty-dir')), false, 'empty unmanaged directories are not carried');
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, RECEIPT_NAME), 'utf8'));
+    const owned = JSON.stringify([receipt.managedPaths, Object.keys(receipt.generatedFingerprints), receipt.entries]);
+    for (const foreign of [...FOREIGN_PATHS, 'gitnexus-cli', 'notes']) assert.ok(!owned.includes(foreign), `${foreign} must stay unowned`);
+    assert.deepStrictEqual(rowsFor(outDir, GOLDEN.map((row) => row[0])), sortedRows(GOLDEN.map((row) => [...row])));
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir }).ok, true);
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills']);
+
+    const second = materialize(root, outDir);
+    assert.deepStrictEqual(second.preservedUnmanaged, ['gitnexus-cli', 'notes.md']);
+    assert.deepStrictEqual(rowsFor(outDir, FOREIGN_PATHS), foreignBefore);
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir }).ok, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('preserveUnmanaged on an empty or absent output root behaves like a plain first sync', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    const result = init(root, outDir, { preserveUnmanaged: true });
+    assert.deepStrictEqual(result.preservedUnmanaged, []);
+    assert.deepStrictEqual(tree(outDir), GOLDEN.map((row) => [...row]));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('preserveUnmanaged is a no-op when a valid receipt exists', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    seedForeign(outDir);
+    const foreignBefore = rowsFor(outDir, FOREIGN_PATHS);
+    const result = init(root, outDir, { preserveUnmanaged: true });
+    assert.deepStrictEqual(result.preservedUnmanaged, ['gitnexus-cli', 'notes.md']);
+    assert.deepStrictEqual(rowsFor(outDir, FOREIGN_PATHS), foreignBefore);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('preserveUnmanaged still refuses reserved, case-equivalent, and prefix-conflicting entries with the tree unchanged', () => {
+  const cases = {
+    'exact reserved directory': (outDir) => write(path.join(outDir, 'dhpk-sample', 'SKILL.md'), '# old dhpk\n'),
+    'exact reserved shim file': (outDir) => write(path.join(outDir, 'dhpk-sample.md'), '# old shim\n'),
+    'case-equivalent directory': (outDir) => write(path.join(outDir, 'DHPK-SAMPLE', 'SKILL.md'), '# user\n'),
+    'case-equivalent shim file': (outDir) => write(path.join(outDir, 'Dhpk-Sample.md'), '# user\n'),
+    'empty reserved directory': (outDir) => fs.mkdirSync(path.join(outDir, 'dhpk-sample')),
+    'file where a reserved directory is needed': (outDir) => write(path.join(outDir, 'dhpk-sample'), 'file\n'),
+    'directory where a reserved shim file is needed': (outDir) => write(path.join(outDir, 'dhpk-sample.md', 'x.md'), 'x\n'),
+  };
+  for (const [label, seed] of Object.entries(cases)) {
+    const root = makeRoot();
+    try {
+      const outDir = path.join(root, '.agents', 'skills');
+      seedForeign(outDir);
+      seed(outDir);
+      const before = snapshot(outDir);
+      assert.throws(() => init(root, outDir, { preserveUnmanaged: true }), /OWNERSHIP_REFUSED/, label);
+      assert.deepStrictEqual(snapshot(outDir), before, label);
+      assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills'], label);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('preserveUnmanaged still refuses symlinks and non-regular files with the tree unchanged', () => {
+  const cases = {
+    'top-level directory symlink': (outDir, target) => fs.symlinkSync(path.dirname(target), path.join(outDir, 'linked-dir')),
+    'top-level file symlink': (outDir, target) => fs.symlinkSync(target, path.join(outDir, 'linked.md')),
+    'nested symlink': (outDir, target) => fs.symlinkSync(target, path.join(outDir, 'gitnexus-cli', 'link.md')),
+  };
+  for (const [label, seed] of Object.entries(cases)) {
+    const root = makeRoot();
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-store-outside-'));
+    try {
+      const outDir = path.join(root, '.agents', 'skills');
+      seedForeign(outDir);
+      const target = path.join(outside, 'target.md');
+      write(target, '# outside\n');
+      seed(outDir, target);
+      const before = fs.readdirSync(outDir, { recursive: true }).sort();
+      assert.throws(() => init(root, outDir, { preserveUnmanaged: true }), /symlink/i, label);
+      assert.deepStrictEqual(fs.readdirSync(outDir, { recursive: true }).sort(), before, label);
+      assert.strictEqual(fs.readFileSync(target, 'utf8'), '# outside\n', label);
+      assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills'], label);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  }
+});
+
+test('preserveUnmanaged never bypasses an existing but invalid receipt', () => {
+  const cases = {
+    'invalid JSON': (receiptPath) => fs.writeFileSync(receiptPath, '{not json'),
+    'wrong schema': (receiptPath) => fs.writeFileSync(receiptPath, '{"schema":"other"}\n'),
+    'receipt is a directory': (receiptPath) => fs.mkdirSync(receiptPath),
+    'receipt is a symlink': (receiptPath) => fs.symlinkSync(path.join(path.dirname(receiptPath), 'notes.md'), receiptPath),
+  };
+  for (const [label, seed] of Object.entries(cases)) {
+    const root = makeRoot();
+    try {
+      const outDir = path.join(root, '.agents', 'skills');
+      seedForeign(outDir);
+      seed(path.join(outDir, RECEIPT_NAME));
+      const before = fs.readdirSync(outDir, { recursive: true }).sort();
+      assert.throws(() => init(root, outDir, { preserveUnmanaged: true }), /receipt/i, label);
+      assert.deepStrictEqual(fs.readdirSync(outDir, { recursive: true }).sort(), before, label);
+      assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills'], label);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('the receipt-less activation verifier refuses drift after planning and a receipt that appears late', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    seedForeign(outDir);
+    const isReserved = reservedNamePredicate(['dhpk-sample']);
+    const plan = planUnmanagedSkillEntries(outDir, isReserved);
+    const verify = () => agentsSkillsOwnership(new Set(), { isReserved, files: plan.files, receiptless: true }).verify(outDir);
+    assert.strictEqual(verify().ok, true);
+    // Without the receiptless authorization the missing receipt is still refused.
+    assert.strictEqual(agentsSkillsOwnership(new Set(), { isReserved, files: plan.files }).verify(outDir).code, 'NO_OWNER_RECEIPT');
+
+    fs.writeFileSync(path.join(outDir, 'notes.md'), '# changed\n');
+    assert.strictEqual(verify().ok, false, 'modified');
+    fs.writeFileSync(path.join(outDir, 'notes.md'), '# my notes\n');
+    fs.chmodSync(path.join(outDir, 'notes.md'), 0o600);
+    assert.strictEqual(verify().ok, false, 're-moded');
+    fs.chmodSync(path.join(outDir, 'notes.md'), 0o644);
+    write(path.join(outDir, 'late.md'), 'late\n');
+    assert.strictEqual(verify().ok, false, 'added');
+    fs.rmSync(path.join(outDir, 'late.md'));
+    write(path.join(outDir, 'DHPK-SAMPLE', 'x.md'), 'late\n');
+    assert.strictEqual(verify().ok, false, 'case-equivalent reserved entry appears');
+    fs.rmSync(path.join(outDir, 'DHPK-SAMPLE'), { recursive: true });
+    write(path.join(outDir, RECEIPT_NAME), '{}\n');
+    assert.strictEqual(verify().ok, false, 'a receipt that appears after planning is not silently replaced');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 run('agents-skills-store-ownership');

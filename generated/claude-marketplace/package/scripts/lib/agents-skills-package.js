@@ -580,7 +580,11 @@ function unmanagedSymlinkMessage(relative) {
 // collectFiles: that one skips __pycache__ and *.pyc, which a third-party skill
 // owns just as much as its SKILL.md. Empty directories cannot be staged and are
 // dropped. One traversal budget covers the whole walk and every read.
-function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
+//
+// `options.refuseReserved` is the receipt-less initialization path: with no
+// receipt a reserved-name entry may be a former dhpk projection, so it is
+// refused instead of skipped.
+function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}, { refuseReserved = false } = {}) {
   const files = new Map();
   const outputs = [];
   const names = new Set();
@@ -614,7 +618,11 @@ function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
   };
 
   for (const entry of readDirectoryEntries(outputRoot, { budget, sort: true })) {
-    if (entry.name === RECEIPT_NAME || isReserved(entry.name)) continue;
+    if (entry.name === RECEIPT_NAME) continue;
+    if (isReserved(entry.name)) {
+      if (refuseReserved) throw new Error(`OWNERSHIP_REFUSED: unmanaged entry "${entry.name}" uses a reserved name and no ${RECEIPT_NAME} receipt proves it is not a former dhpk projection`);
+      continue;
+    }
     const reservedName = isReserved.foldCollision ? isReserved.foldCollision(entry.name) : null;
     if (reservedName) throw new Error(`OWNERSHIP_REFUSED: ${caseCollisionMessage(entry.name, reservedName)}`);
     assertSafeRelative(entry.name, 'unmanaged entry name');
@@ -633,6 +641,11 @@ function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
 // the whole-root swap can never lose or resurrect a file. Without `unmanaged`,
 // every file the receipt does not own is refused.
 //
+// `unmanaged.receiptless` is the explicit --preserve-unmanaged authorization for
+// a tree that has no receipt at all: the walk then runs with an empty owned set,
+// so only planned unmanaged entries pass. It never applies once a receipt
+// exists, so a receipt that appears after planning is refused.
+//
 // `preserved` (Map of relative path -> { digest, mode }) is the planned snapshot
 // of carried and legacy-released files that the staged tree rewrites from
 // captured bytes. Each must still be a regular file with the planned digest and
@@ -643,8 +656,13 @@ function agentsSkillsOwnership(ownedPaths, unmanaged = null, preserved = null) {
       // A pre-created empty tree holds nothing to lose.
       if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
       const receiptStat = lstatOrNull(path.join(existingRoot, RECEIPT_NAME));
-      if (!receiptStat || receiptStat.isSymbolicLink() || !receiptStat.isFile()) {
-        return { ok: false, code: 'NO_OWNER_RECEIPT', message: `existing tree has no ${RECEIPT_NAME} receipt` };
+      const receiptless = Boolean(unmanaged && unmanaged.receiptless) && !receiptStat;
+      if (!receiptless && (!receiptStat || receiptStat.isSymbolicLink() || !receiptStat.isFile())) {
+        return {
+          ok: false,
+          code: 'NO_OWNER_RECEIPT',
+          message: `existing tree has no ${RECEIPT_NAME} receipt; rerun with --preserve-unmanaged to create the projection beside non-reserved third-party entries (they stay unowned)`,
+        };
       }
       const observed = new Map();
       const observedPreserved = new Map();
@@ -768,7 +786,7 @@ function materializeAgentsSkillsProjection(options = {}) {
   if (usesRelocatableProjection(options)) return materializeRelocatableAgentsSkillsProjection(options);
   // In-checkout build-time tree: planned outputs published as one tree through
   // ProjectionArtifactStore, gated by a receipt-based ownership verifier.
-  const { root, inventory, outDir = path.join(root, '.agents', 'skills'), allowCanonicalChanges = false } = options;
+  const { root, inventory, outDir = path.join(root, '.agents', 'skills'), allowCanonicalChanges = false, preserveUnmanaged = false } = options;
   if (!root || !inventory) throw new Error('root and inventory are required');
   const sourceRoot = path.resolve(root);
   const outputRoot = path.resolve(outDir);
@@ -883,15 +901,20 @@ function materializeAgentsSkillsProjection(options = {}) {
     ...[...currentPathSet, ...renamedPaths, ...retired.paths, ...carriedPaths].map((relative) => topLevelName(relative).replace(/\.md$/, '')),
     ...retiredLedgerNames(inventory),
   ]);
+  // Receipt-less initialization is an explicit opt-in; the default keeps the
+  // verifier's NO_OWNER_RECEIPT refusal.
+  const receiptless = !previous && preserveUnmanaged === true;
   const unmanaged = previous
     ? planUnmanagedSkillEntries(outputRoot, isReserved)
-    : { outputs: [], files: new Map(), names: [] };
+    : receiptless
+      ? planUnmanagedSkillEntries(outputRoot, isReserved, {}, { refuseReserved: true })
+      : { outputs: [], files: new Map(), names: [] };
   publishAgentsSkillsTree({
     sourceRoot,
     outputRoot,
     inventory,
     ownedPaths,
-    unmanaged: { isReserved, files: unmanaged.files },
+    unmanaged: { isReserved, files: unmanaged.files, receiptless },
     preserved,
     outputs: [...outputs, ...carriedOutputs, ...unmanaged.outputs, { path: RECEIPT_NAME, content: receiptContent, mode: 0o644, source: 'skills' }],
   });
