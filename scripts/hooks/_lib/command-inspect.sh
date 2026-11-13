@@ -306,7 +306,7 @@ _dhpk_ci_head_index() {
 #   sep is the separator that ends the command: compound (; newline ( ) or
 #   the end), and (&&), or (||), bg (&) or pipe (| |&).
 _dhpk_ci_flush_command() {
-    local sep="$1" n h head k cond kwhead=""
+    local sep="$1" n h head k cond kwhead="" git_has_c
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -400,23 +400,40 @@ _dhpk_ci_flush_command() {
         fi
         _dhpk_ci_prev_sep="$sep"
     fi
-    # Heredocs opened by this command: the body is data for cat and tee
-    # unless the command pipes into another one, its output can run as a
-    # command, or the text writes into a process or a FIFO. Any other body
-    # is a script.
-    while [ "$_dhpk_ci_hd_seen" -lt "${#_dhpk_ci_hd_d[@]}" ]; do
+    # Heredocs opened by this command: the body is data for cat, tee, and
+    # git (without -c/--config-env/--exec-path before the subcommand) unless
+    # the command pipes into another one, its output can run as a command, or
+    # the text writes into a process or a FIFO. Any other body is a script.
+    if [ "$_dhpk_ci_hd_seen" -lt "${#_dhpk_ci_hd_d[@]}" ]; then
+        git_has_c=0
         case "$head" in
-            cat|*/cat|tee|*/tee)
-                if [ "$sep" = "pipe" ] || [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
-                    _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1
-                else
-                    _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=0
-                fi
+            git|*/git)
+                k=$((h + 1))
+                while [ "$k" -lt "$n" ]; do
+                    case "${_dhpk_ci_words[$k]}" in
+                        --) break ;;
+                        -c|-c*|--config-env|--config-env=*|--exec-path|--exec-path=*) git_has_c=1; break ;;
+                        -C|--git-dir|--work-tree|--namespace|--super-prefix|--list-cmds) k=$((k + 2)) ;;
+                        -*) k=$((k + 1)) ;;
+                        *) break ;;
+                    esac
+                done
                 ;;
-            *) _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1 ;;
         esac
-        _dhpk_ci_hd_seen=$((_dhpk_ci_hd_seen + 1))
-    done
+        while [ "$_dhpk_ci_hd_seen" -lt "${#_dhpk_ci_hd_d[@]}" ]; do
+            case "$head" in
+                cat|*/cat|tee|*/tee|git|*/git)
+                    if [ "$git_has_c" -eq 1 ] || [ "$sep" = "pipe" ] || [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
+                        _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1
+                    else
+                        _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=0
+                    fi
+                    ;;
+                *) _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1 ;;
+            esac
+            _dhpk_ci_hd_seen=$((_dhpk_ci_hd_seen + 1))
+        done
+    fi
     if [ "$sep" != "pipe" ]; then
         _dhpk_ci_pipeline_cd=0
         _dhpk_ci_seg=""
@@ -670,27 +687,42 @@ _dhpk_ci_backtick() {
 #   Handles $(...), $((...)), $[...], ${...} or a backtick at <index>: commands
 #   inside are inspected and _dhpk_ci_end is set after the construct.
 #   Returns 1, without side effects, for any other character.
+_dhpk_ci_wrap_subst() {
+    local opener="$1" text="$2"
+    if [ "${text:$((_dhpk_ci_end - 1)):1}" = ")" ]; then
+        _dhpk_ci_sub_stripped="${opener}${_dhpk_ci_sub_stripped})"
+    else
+        _dhpk_ci_sub_stripped="${opener}${_dhpk_ci_sub_stripped}"
+    fi
+}
+
 _dhpk_ci_expand() {
     local text="$1" i="$2" indq="$3"
     if [ "${text:$i:1}" = '`' ]; then
         _dhpk_ci_backtick "$text" "$i" "$indq"
+        _dhpk_ci_expand_stripped="\`$_dhpk_ci_sub_stripped\`"
         return 0
     fi
     [ "${text:$i:1}" = '$' ] || return 1
     case "${text:$((i + 1)):1}" in
         '(')
             if [ "${text:$((i + 2)):1}" = "(" ] && _dhpk_ci_arith "$text" $((i + 3)); then
+                _dhpk_ci_expand_stripped="${text:$i:$((_dhpk_ci_end - i))}"
                 return 0
             fi
             _dhpk_ci_list "$text" $((i + 2)) subst
+            _dhpk_ci_wrap_subst "\$(" "$text"
+            _dhpk_ci_expand_stripped="$_dhpk_ci_sub_stripped"
             return 0
             ;;
         '{')
             _dhpk_ci_scan "$text" $((i + 2)) param "$indq"
+            _dhpk_ci_expand_stripped="${text:$i:$((_dhpk_ci_end - i))}"
             return 0
             ;;
         '[')
             _dhpk_ci_brack "$text" $((i + 2))
+            _dhpk_ci_expand_stripped="${text:$i:$((_dhpk_ci_end - i))}"
             return 0
             ;;
     esac
@@ -745,6 +777,9 @@ _dhpk_ci_scan_run() {
                     continue
                 fi
                 if _dhpk_ci_expand "$text" "$k" 1; then
+                    if [ "$kind" = "hbody" ]; then
+                        DHPK_STRIPPED="${DHPK_STRIPPED}${_dhpk_ci_expand_stripped}"$'\n'
+                    fi
                     k="$_dhpk_ci_end"
                     continue
                 fi
@@ -953,17 +988,19 @@ _dhpk_ci_exec_context() {
     return 0
 }
 
-# _dhpk_ci_sub_word <text> <start> <end>
+# _dhpk_ci_sub_word <text> <start> <end> [stripped]
 #   Adds the raw text of a substitution that ended at <end> to the current
-#   word, segment and stripped text. A substitution that spans a newline
-#   while a heredoc is pending cannot be placed and is reported.
+#   word and segment, and <stripped> (defaulting to raw) to DHPK_STRIPPED. A
+#   substitution that spans a newline while a heredoc is pending cannot be
+#   placed and is reported.
 _dhpk_ci_sub_word() {
     local raw="${1:$2:$(($3 - $2))}"
+    local stripped="${4-$raw}"
     _dhpk_ci_word="$_dhpk_ci_word$raw"
     _dhpk_ci_word_open=1
     _dhpk_ci_word_dyn=1
     _dhpk_ci_seg="$_dhpk_ci_seg$raw"
-    DHPK_STRIPPED="$DHPK_STRIPPED$raw"
+    DHPK_STRIPPED="$DHPK_STRIPPED$stripped"
     if [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ]; then
         case "$raw" in
             *$'\n'*) _dhpk_ci_unsupported "substitution spans a pending heredoc" ;;
@@ -976,11 +1013,13 @@ _dhpk_ci_sub_word() {
 #   body of $(...) or <(...), ending at its unmatched ')'), or body (a
 #   heredoc script or backtick body, a separate text). Parser state is local,
 #   so a nested list starts clean and its cd or quotes cannot leak out.
-#   Only the top list writes DHPK_STRIPPED; a caller adds a nested list's raw
-#   text instead. Sets _dhpk_ci_end after the list.
+#   Only the top list writes the outer DHPK_STRIPPED; nested lists build a
+#   local DHPK_STRIPPED and return it via _dhpk_ci_sub_stripped. Sets
+#   _dhpk_ci_end after the list.
 _dhpk_ci_list() {
     if [ "$_dhpk_ci_depth" -ge "$DHPK_CI_MAX_DEPTH" ]; then
         _dhpk_ci_unsupported "nesting too deep"
+        _dhpk_ci_sub_stripped=""
         _dhpk_ci_end="${#1}"
         return 0
     fi
@@ -1070,7 +1109,7 @@ _dhpk_ci_list_run() {
                 '$'|'`') _dhpk_ci_exec_context 0 ;;
             esac
             if _dhpk_ci_expand "$text" "$i" 1; then
-                _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end" "$_dhpk_ci_expand_stripped"
                 i="$_dhpk_ci_end"
                 continue
             fi
@@ -1177,6 +1216,7 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_flush_command compound
                 if [ "$_dhpk_ci_paren" -eq 0 ] && [ "$_dhpk_ci_kind" = "subst" ]; then
                     [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ] && _dhpk_ci_unsupported "heredoc left open inside a command substitution"
+                    _dhpk_ci_sub_stripped="$DHPK_STRIPPED"
                     _dhpk_ci_end=$((i + 1))
                     return 0
                 fi
@@ -1206,7 +1246,8 @@ _dhpk_ci_list_run() {
             '>')
                 if [ "$next" = "(" ]; then
                     _dhpk_ci_list "$text" $((i + 2)) subst
-                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                    _dhpk_ci_wrap_subst ">(" "$text"
+                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end" "$_dhpk_ci_sub_stripped"
                     i="$_dhpk_ci_end"
                     continue
                 fi
@@ -1230,7 +1271,8 @@ _dhpk_ci_list_run() {
                         ;;
                     '(')
                         _dhpk_ci_list "$text" $((i + 2)) subst
-                        _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                        _dhpk_ci_wrap_subst "<(" "$text"
+                        _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end" "$_dhpk_ci_sub_stripped"
                         i="$_dhpk_ci_end"
                         continue
                         ;;
@@ -1297,7 +1339,7 @@ _dhpk_ci_list_run() {
             '$')
                 _dhpk_ci_exec_context 1
                 if _dhpk_ci_expand "$text" "$i" 0; then
-                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end" "$_dhpk_ci_expand_stripped"
                     i="$_dhpk_ci_end"
                     continue
                 fi
@@ -1336,7 +1378,7 @@ _dhpk_ci_list_run() {
             '`')
                 _dhpk_ci_exec_context 1
                 _dhpk_ci_expand "$text" "$i" 0
-                _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end" "$_dhpk_ci_expand_stripped"
                 i="$_dhpk_ci_end"
                 continue
                 ;;
@@ -1353,6 +1395,9 @@ _dhpk_ci_list_run() {
         i=$((i + 1))
     done
     _dhpk_ci_flush_command compound
+    if [ "$_dhpk_ci_kind" != "top" ]; then
+        _dhpk_ci_sub_stripped="$DHPK_STRIPPED"
+    fi
     _dhpk_ci_end="$len"
     return 0
 }
@@ -1449,9 +1494,11 @@ dhpk_inspect_command() {
     _dhpk_ci_cwd_state="literal"
     _dhpk_ci_exec_next=0
     _dhpk_ci_depth=0
+    _dhpk_ci_sub_stripped=""
+    _dhpk_ci_expand_stripped=""
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
-    unset _dhpk_ci_hd_word _dhpk_ci_hd_quoted
+    unset _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
     return 0
 }
 

@@ -301,6 +301,20 @@ test('rm -rf "/home/paul/projects/x/y" (quoted deep path) still passes (quoted-t
   assert.strictEqual(res.status, 0, `expected allowed, got blocked: ${res.stderr}`);
 });
 
+test('non-recursive rm on a deep file under /usr/local is allowed while recursive or shallow/sysdir rm stays blocked (#1407)', () => {
+  const allowed = runHook('rm -f /usr/local/proj/x.log');
+  assert.strictEqual(allowed.status, 0, `expected allowed, got blocked: ${allowed.stderr}`);
+  for (const command of [
+    'rm -rf /usr/local/proj/x.log',
+    'rm -f /usr/local',
+    'rm -f /usr/bin',
+    'rm -f /etc',
+  ]) {
+    const blocked = runHook(command);
+    assert.strictEqual(blocked.status, 2, `${command}: expected blocked, got ${blocked.status} / ${blocked.stderr}`);
+  }
+});
+
 
 // Begin merged tests from tests/pre-bash-dispatch.test.js.
 {

@@ -11,10 +11,11 @@ view lexes substitution bodies inline, while the substitution view skips them,
 and heredoc headers use a line-based comment rule. Changing a view's rules
 changes allow/block outcomes, so it needs the decision snapshot regenerated.
 
-A heredoc declared inside a double-quoted `$(...)` belongs to that body, so
-quotes in it are data (#1396). An unquoted substitution, or a command that may
-run text a substitution prints, keeps the pre-#1396 reading. `<<` inside
-arithmetic, `${...}` or `$[...]` is never a heredoc.
+A heredoc declared inside a `$(...)` outside single quotes belongs to that body,
+so quotes in it are data (#1396, #1407). An unquoted substitution in
+non-assignment position, or a command that may run text a substitution prints,
+keeps the pre-#1396 reading. `<<` inside arithmetic, `${...}` or `$[...]` is
+never a heredoc.
 """
 
 from dataclasses import dataclass, field
@@ -311,7 +312,7 @@ def _substitutions(text, heredoc=False, heredocs=True):
             continue
         if ch == '$' and text.startswith('(', cursor.i):
             start = cursor.i + 1
-            end = _paren_end(text, start, heredocs and cursor.quote == '"')
+            end = _paren_end(text, start, heredocs and cursor.quote != "'")
             result.append(text[start:end - 1])
             cursor.seek(end)
         elif ch == '`':
@@ -363,10 +364,10 @@ def _heredoc_body(text, start, header, line, heredocs=True):
 
 
 def _substitution_span(text, i, heredocs, quote):
-    """End of the double-quoted `$(` body that starts at `i`, or None when it is not one to mask."""
-    # 未加引號的替換輸出會被拆成運算元或指令，內文不能當資料；算術 $(( 與無法定位
-    # 結尾的替換也維持原本逐字掃描，錯誤留給後續檢視回報。
-    if not heredocs or quote != '"' or not text.startswith('(', i) or text.startswith('((', i):
+    """End of the `$(` body outside single quotes that starts at `i`, or None when it is not one to mask."""
+    # 單引號內字元已是字面值，而算術 $(( 與無法定位結尾的替換也維持原本逐字掃描，
+    # 錯誤留給後續檢視回報；外層未加引號但非賦值位置的字詞切割則由 _runs_output 處理。
+    if not heredocs or quote == "'" or not text.startswith('(', i) or text.startswith('((', i):
         return None
     try:
         return _paren_end(text, i + 1)
@@ -437,8 +438,8 @@ def _heredocs(text, heredocs=True):
         while not cursor.at_end():
             position = cursor.i
             kind, ch = cursor.next()
-            if kind == CHAR and ch == '$' and cursor.quote == '"':
-                # "$(...)" 內的 heredoc 屬於替換本體；跳過整段，引號狀態不受內文影響。
+            if kind == CHAR and ch == '$' and cursor.quote != "'":
+                # 單引號外的 $(...) 內 heredoc 屬於替換本體；跳過整段，引號狀態不受內文影響。
                 span = _substitution_span(text, cursor.i, heredocs, cursor.quote)
                 if span is not None:
                     inner = text[cursor.i + 1:span - 1]
@@ -467,18 +468,27 @@ def _heredocs(text, heredocs=True):
 
 
 def _runs_output(tokens):
-    """True when a command may run text a substitution produced.
+    """True when a command may run or word-split text a substitution produced.
 
-    A shell, eval or source anywhere, or a dynamic or wrapper command word,
-    can execute a heredoc body that `$(cat <<EOF ...)` prints.
+    A shell, eval or source anywhere, a dynamic or wrapper command word, or
+    an unquoted command substitution in non-assignment position can execute or
+    split a heredoc body that `$(cat <<EOF ...)` prints.
     """
     head = True
     target = False
-    for token in tokens:
+    for index, token in enumerate(tokens):
         if token.operator:
             head = head or token.value in SEGMENT_OPERATORS
             target = token.value not in SEGMENT_OPERATORS
             continue
+        next_is_sub = (
+            token.dynamic
+            and index + 1 < len(tokens)
+            and tokens[index + 1].operator
+            and tokens[index + 1].value == '('
+        )
+        if next_is_sub and (target or not head):
+            return True
         if target:
             target = False
             continue
