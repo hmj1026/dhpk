@@ -322,8 +322,6 @@ def remove_stage(parent_fd, name):
         return
     try:
         os.unlink(name, dir_fd=parent_fd)
-    except FileNotFoundError:
-        pass
     except OSError:
         pass
 
@@ -483,6 +481,7 @@ if __name__ == '__main__':
 PY
         return
     fi
+    if [ "$DRY_RUN" -eq 1 ]; then prefix="DRY-RUN "; fi
     while IFS= read -r -d '' source_file; do
         rel="${source_file#"$source_dir"/}"
         target_file="$target_dir/$rel"
@@ -508,7 +507,6 @@ PY
                 fi
                 ;;
             report)
-                if [ "$DRY_RUN" -eq 1 ]; then prefix="DRY-RUN "; fi
                 if [ -f "$target_file" ] && cmp -s "$source_file" "$target_file"; then
                     echo "SKIP $target_file (identical)"
                 elif [ -f "$target_file" ]; then
@@ -528,15 +526,14 @@ check_pilot_resources() {
             precommit) runner="precommit-runner.js" ;;
             repo-verify) runner="verify-runner.js" ;;
         esac
-        for source_file in "$SOURCE/skills/$skill/scripts/$runner"; do
-            if [ ! -f "$source_file" ]; then
-                echo "Missing required Skill resource: $source_file" >&2
-                HAS_MISSING_PILOT_RESOURCE=1
-            elif has_symlink_component "$source_file"; then
-                echo "UNSAFE SOURCE $source_file (Skill resources must use a physical non-symlink path)" >&2
-                HAS_UNSAFE_PILOT_SOURCE=1
-            fi
-        done
+        source_file="$SOURCE/skills/$skill/scripts/$runner"
+        if [ ! -f "$source_file" ]; then
+            echo "Missing required Skill resource: $source_file" >&2
+            HAS_MISSING_PILOT_RESOURCE=1
+        elif has_symlink_component "$source_file"; then
+            echo "UNSAFE SOURCE $source_file (Skill resources must use a physical non-symlink path)" >&2
+            HAS_UNSAFE_PILOT_SOURCE=1
+        fi
         source_file="$SOURCE/skills/$skill/scripts/lib/runner-utils.js"
         if [ ! -f "$source_file" ]; then
             echo "Missing required pilot Skill resource: $source_file" >&2
@@ -583,21 +580,31 @@ walk_rules_group() {
     fi
 }
 
+walk_hooks_group() {
+    local mode="$1"
+    [ -f "$SOURCE/hooks/hooks.json" ] || { echo "Missing source asset: $SOURCE/hooks/hooks.json" >&2; exit 66; }
+    walk_tree "$mode" "$SOURCE/hooks" "$TARGET/hooks"
+    walk_tree "$mode" "$SOURCE/scripts/hooks" "$TARGET/scripts/hooks"
+}
+
+walk_scripts_group() {
+    local mode="$1"
+    walk_tree "$mode" "$SOURCE/scripts" "$TARGET/scripts"
+    walk_tree "$mode" "$SOURCE/skills/precommit/scripts" "$TARGET/skills/precommit/scripts"
+    walk_tree "$mode" "$SOURCE/skills/repo-verify/scripts" "$TARGET/skills/repo-verify/scripts"
+}
+
 walk_groups() {
     local mode="$1"
     case "$INSTALL" in
         hooks)
-            [ -f "$SOURCE/hooks/hooks.json" ] || { echo "Missing source asset: $SOURCE/hooks/hooks.json" >&2; exit 66; }
-            walk_tree "$mode" "$SOURCE/hooks" "$TARGET/hooks"
-            walk_tree "$mode" "$SOURCE/scripts/hooks" "$TARGET/scripts/hooks"
+            walk_hooks_group "$mode"
             ;;
         rules)
             walk_rules_group "$mode"
             ;;
         scripts)
-            walk_tree "$mode" "$SOURCE/scripts" "$TARGET/scripts"
-            walk_tree "$mode" "$SOURCE/skills/precommit/scripts" "$TARGET/skills/precommit/scripts"
-            walk_tree "$mode" "$SOURCE/skills/repo-verify/scripts" "$TARGET/skills/repo-verify/scripts"
+            walk_scripts_group "$mode"
             ;;
         all)
             walk_groups_for_all "$mode"
@@ -607,13 +614,9 @@ walk_groups() {
 
 walk_groups_for_all() {
     local mode="$1"
-    [ -f "$SOURCE/hooks/hooks.json" ] || { echo "Missing source asset: $SOURCE/hooks/hooks.json" >&2; exit 66; }
-    walk_tree "$mode" "$SOURCE/hooks" "$TARGET/hooks"
-    walk_tree "$mode" "$SOURCE/scripts/hooks" "$TARGET/scripts/hooks"
+    walk_hooks_group "$mode"
     walk_rules_group "$mode"
-    walk_tree "$mode" "$SOURCE/scripts" "$TARGET/scripts"
-    walk_tree "$mode" "$SOURCE/skills/precommit/scripts" "$TARGET/skills/precommit/scripts"
-    walk_tree "$mode" "$SOURCE/skills/repo-verify/scripts" "$TARGET/skills/repo-verify/scripts"
+    walk_scripts_group "$mode"
 }
 
 if [ "$INSTALL" = "scripts" ] || [ "$INSTALL" = "all" ]; then
