@@ -77,6 +77,46 @@ test('bounded reads fail closed when the file changes size during the read', () 
   }
 });
 
+test('bounded reads reject a file truncated mid-read without returning a partial or uninitialized buffer', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-midread-'));
+  const file = path.join(root, 'payload.bin');
+  const originalReadSync = fs.readSync;
+  try {
+    // Truncate after the first (partial) chunk has been read: the next read
+    // reports end-of-file while bytes are still owed to the caller.
+    fs.writeFileSync(file, Buffer.alloc(200 * 1024, 0x61));
+    let reads = 0;
+    fs.readSync = (fd, buffer, offset, length, position) => {
+      reads += 1;
+      const count = originalReadSync(fd, buffer, offset, length, position);
+      if (reads === 1) fs.truncateSync(file, count);
+      return count;
+    };
+    let returned = null;
+    assert.throws(
+      () => { returned = createTraversalBudget().readFile(file, null, 'rel/midread.bin'); },
+      (err) => err.message === 'file changed while reading: rel/midread.bin',
+    );
+    assert.strictEqual(returned, null);
+
+    // Truncate after every byte was read: the post-read size check must still
+    // reject the buffer.
+    fs.writeFileSync(file, 'payload');
+    fs.readSync = (fd, buffer, offset, length, position) => {
+      const count = originalReadSync(fd, buffer, offset, length, position);
+      fs.truncateSync(file, 3);
+      return count;
+    };
+    assert.throws(
+      () => createTraversalBudget().readFile(file, null, 'rel/late.bin'),
+      (err) => err.message === 'file changed while reading: rel/late.bin',
+    );
+  } finally {
+    fs.readSync = originalReadSync;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('bounded directory reads stop at the entry budget before retaining a huge listing', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-entries-'));
   try {
