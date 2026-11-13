@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.77.0 — 2026-11-13 — Local skills sync adds --preserve-unmanaged, case-folded reserved names, and symlink recovery guidance
+
+- **feat(agents-skills)** — Added an opt-in `--preserve-unmanaged` to `gen-agents-skills.js` and `npm run sync:local-skills` that creates the first `.agents/skills` projection beside non-colliding third-party entries (such as GitNexus skills) without a receipt, keeping their bytes and modes and leaving them unowned; the default still refuses with NO_OWNER_RECEIPT (#1344).
+- **feat(agents-skills)** — A refused unmanaged symlink under `.agents/skills` now names the relative path, says whether it is the top-level entry or nested, keeps the `UNMANAGED_SYMLINK` code, and explains how to recover by copying or moving the link aside (#1354).
+- **fix(agents-skills)** — Reserved-name matching for `.agents/skills` now case-folds (NFC then lowercase) on every Host, so a case-variant unmanaged entry such as `Code-Trace/` is refused with OWNERSHIP_REFUSED instead of depending on the filesystem (#1353).
+
 ## 0.76.0 — 2026-11-13 — Telemetry merges multi-host reports; local skills sync preserves third-party and carried content
 
 - **feat(telemetry)** — dispatch-telemetry-report adds --host and repeatable --merge to combine per-host --json reports without moving transcripts (#1335).
