@@ -8,6 +8,7 @@
 // finished worker no longer shows up as in-flight.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { mkRepo, rmRepo, sessionsDir, runHook } = require('./_lib/hookharness');
@@ -188,5 +189,75 @@ test('dispatch log rotates to .1 when larger than 1MB', () => {
     rmRepo(repo);
   }
 });
+
+// --- chain fallbacks + no-jq degradation ---
+
+test('subagent_type (legacy field) still identifies a fast-worker; log agent_type stays null', () => {
+  const repo = mkRepo();
+  try {
+    const sess = sessionsDir(repo);
+    fs.mkdirSync(sess, { recursive: true });
+    const activeFile = path.join(sess, '.active-fast-worker');
+    fs.writeFileSync(activeFile, 'l1\tdhpk:fast-worker\nl2\tdhpk:codex-worker\n');
+    const res = runHook(HOOK, { payload: { subagent_type: 'dhpk:fast-worker', agent_id: 'c1' }, projectDir: repo });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(fs.readFileSync(activeFile, 'utf8'), 'l2\tdhpk:codex-worker\n');
+    const [rec] = readLog(repo);
+    assert.strictEqual(rec.agent_type, null);
+    assert.strictEqual(rec.agent_id, 'c1');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('tool_input that is not an object does not break the hook or the log', () => {
+  const repo = mkRepo();
+  try {
+    const res = runHook(HOOK, { payload: { tool_input: 'oops', agent_id: 'c2' }, projectDir: repo });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, '');
+    assert.strictEqual(readLog(repo).length, 1);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+// PATH made of every executable on the current PATH except jq.
+function mkNoJqBin() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-nojq-'));
+  for (const d of (process.env.PATH || '').split(path.delimiter)) {
+    let names = [];
+    try { names = fs.readdirSync(d); } catch { continue; }
+    for (const n of names) {
+      if (n === 'jq') continue;
+      try { fs.symlinkSync(path.join(d, n), path.join(dir, n)); } catch { /* first PATH entry wins */ }
+    }
+  }
+  return dir;
+}
+
+test('without jq: a fast-worker entry is still cleared (python3 fallback) and no dispatch log is written', () => {
+  const repo = mkRepo();
+  const bin = mkNoJqBin();
+  try {
+    const sess = sessionsDir(repo);
+    fs.mkdirSync(sess, { recursive: true });
+    const activeFile = path.join(sess, '.active-fast-worker');
+    fs.writeFileSync(activeFile, 'l1\tdhpk:fast-worker\nl2\tdhpk:codex-worker\n');
+    const res = runHook(HOOK, {
+      payload: { agent_type: 'dhpk:fast-worker', agent_id: 'n1' },
+      projectDir: repo,
+      env: { PATH: bin },
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, '');
+    assert.strictEqual(fs.readFileSync(activeFile, 'utf8'), 'l2\tdhpk:codex-worker\n');
+    assert.ok(!fs.existsSync(path.join(sess, LOG_NAME)), 'log needs jq and is skipped silently');
+  } finally {
+    rmRepo(repo);
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
 
 run('subagent-stop-verify');
