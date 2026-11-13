@@ -76,83 +76,114 @@ _guard_word_head_is() {
     return 1
 }
 
-# _guard_rm_target_dangerous <decoded-target>
-#   Mirrors the Pattern 1 regex on one decoded rm operand: the root, a root
-#   glob or expansion, any path under a DANGEROUS_ROOT_ANY directory, or a
-#   DANGEROUS_ROOT_SHALLOW path at depth 2 or less. An expansion character
-#   ({, *, ?, [, $ or a backtick) in the first segment, or a glob or brace in
-#   the second segment under a shallow root, can reach a protected directory
-#   and blocks too. An absolute operand with a '.' or '..' segment is judged
-#   on both its raw and its normalised form.
-_guard_rm_target_dangerous() {
-    local dots='/\.\.?(/|$)'
-    _guard_rm_abs_dangerous "$1" && return 0
-    if [[ "$1" == /* ]] && [[ "$1" =~ $dots ]]; then
-        dhpk_norm_path_var / "$1"
-        _guard_rm_abs_dangerous "$DHPK_NORM_PATH" && return 0
+# Two tiers for Pattern 1 (D4, harvest-advice-20260711; #1407):
+#   - DANGEROUS_ROOT_ANY: system dirs. Deleting the dir itself blocks even
+#     without -r/-R/--recursive; deleting a deeper path inside one blocks only
+#     when recursive (so `rm -f /usr/local/proj/x.log` passes while
+#     `rm -rf /etc/nginx/conf.d` stays blocked).
+#   - home/opt/srv/usr shallow tier: blocked at depth <=2 even without -r
+#     (/home, /home/u, /usr/local, /usr/bin) so whole-tree deletion stays
+#     blocked while deep workspace paths (/home/u/projects/repo/...) pass.
+DANGEROUS_ROOT_ANY='(etc|usr|bin|sbin|lib|lib64|boot|proc|sys|dev|run|root|snap)'
+
+# _guard_rm_target_matches <abs-check-fn> <decoded-target>
+#   Evaluates <abs-check-fn> on <decoded-target>, and on its normalised form
+#   when an absolute path contains a '.' or '..' segment.
+_guard_rm_target_matches() {
+    local fn="$1" target="$2" dots='/\.\.?(/|$)'
+    "$fn" "$target" && return 0
+    if [[ "$target" == /* ]] && [[ "$target" =~ $dots ]]; then
+        dhpk_norm_path_var / "$target"
+        "$fn" "$DHPK_NORM_PATH" && return 0
     fi
     return 1
 }
 
-# _guard_rm_relative_dangerous <decoded-operand> <command-cwd>
+# _guard_rm_relative_matches <abs-check-fn> <decoded-operand> <command-cwd>
 #   A relative operand is judged on its absolute form when the command's
 #   working directory is known and either the operand climbs with '..' or a
 #   literal cd chose that directory. Other relative operands stay inside the
 #   session directory and are not judged.
-_guard_rm_relative_dangerous() {
-    local dots='(^|/)\.\.(/|$)'
-    [ -n "$2" ] || return 1
-    if [[ "$1" =~ $dots ]] || [ "$2" != "$DHPK_START_CWD" ]; then
-        dhpk_norm_path_var "$2" "$1"
-        _guard_rm_abs_dangerous "$DHPK_NORM_PATH" && return 0
+_guard_rm_relative_matches() {
+    local fn="$1" operand="$2" cwd="$3" dots='(^|/)\.\.(/|$)'
+    [ -n "$cwd" ] || return 1
+    if [[ "$operand" =~ $dots ]] || [ "$cwd" != "$DHPK_START_CWD" ]; then
+        dhpk_norm_path_var "$cwd" "$operand"
+        "$fn" "$DHPK_NORM_PATH" && return 0
     fi
     return 1
 }
 
-_guard_rm_abs_dangerous() {
-    local root='^/+$' expand='^/+[$*]' any="^/+${DANGEROUS_ROOT_ANY}(/|\$)"
-    local shallow='^/+(home|opt|srv)(/+[^/]+)?/*$'
-    local glob1='^/+[^/]*[][{*?$`]' glob2='^/+(home|opt|srv)/+[^/]*[][{*?]'
+_guard_rm_target_sysdir() { _guard_rm_target_matches _guard_rm_abs_sysdir "$1"; }
+_guard_rm_relative_sysdir() { _guard_rm_relative_matches _guard_rm_abs_sysdir "$1" "$2"; }
+_guard_rm_target_dangerous() { _guard_rm_target_matches _guard_rm_abs_dangerous "$1"; }
+_guard_rm_relative_dangerous() { _guard_rm_relative_matches _guard_rm_abs_dangerous "$1" "$2"; }
+
+# _guard_rm_abs_sysdir <abs-path>
+#   True when <abs-path> is the root, a root/shallow glob or expansion, a
+#   DANGEROUS_ROOT_ANY directory itself, or a shallow (depth <=2) path under
+#   home/opt/srv/usr.
+_guard_rm_abs_sysdir() {
+    local root='^/+$' expand='^/+[$*]' sysroot="^/+${DANGEROUS_ROOT_ANY}/*$"
+    local shallow='^/+(home|opt|srv|usr)(/+[^/]+)?/*$'
+    local glob1='^/+[^/]*[][{*?$`]' glob2='^/+(home|opt|srv|usr)/+[^/]*[][{*?]'
     [[ "$1" =~ $root ]] && return 0
     [[ "$1" =~ $expand ]] && return 0
     [[ "$1" =~ $glob1 ]] && return 0
     [[ "$1" =~ $glob2 ]] && return 0
-    [[ "$1" =~ $any ]] && return 0
+    [[ "$1" =~ $sysroot ]] && return 0
     [[ "$1" =~ $shallow ]] && return 0
+    return 1
+}
+
+# _guard_rm_abs_dangerous <abs-path>
+#   True for any system directory itself or any path beneath DANGEROUS_ROOT_ANY.
+_guard_rm_abs_dangerous() {
+    local deep="^/+${DANGEROUS_ROOT_ANY}/+"
+    _guard_rm_abs_sysdir "$1" && return 0
+    [[ "$1" =~ $deep ]] && return 0
     return 1
 }
 
 # _guard_rm_decoded
 #   Pattern 1 on decoded argv, so r"m", $'rm', "/" and $'/etc' are judged by
-#   their shell value. An rm word with at least one option blocks when any
-#   operand is dangerous, including a relative operand that resolves to a
-#   dangerous path from a known working directory (cd /tmp && rm -rf ../etc).
+#   their shell value. Blocks when any operand targets a system directory
+#   itself (even without -r), or targets a path beneath DANGEROUS_ROOT_ANY
+#   when -r/-R/--recursive is present.
 _guard_rm_decoded() {
-    local c=0 k end w has_flag operands_only hit cwd
+    local c=0 k end w is_recursive operands_only hit_sysdir hit_deep cwd
     while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
         k="${DHPK_CMD_START[$c]}"
         end=$((k + DHPK_CMD_LEN[c]))
         cwd="${DHPK_CMD_CWD[$c]}"
         while [ "$k" -lt "$end" ]; do
             if _guard_word_head_is "${DHPK_WORDS[$k]}" rm; then
-                has_flag=0
+                is_recursive=0
                 operands_only=0
-                hit=0
+                hit_sysdir=0
+                hit_deep=0
                 k=$((k + 1))
                 while [ "$k" -lt "$end" ]; do
                     w="${DHPK_WORDS[$k]}"
                     if [ "$operands_only" -eq 0 ] && [ "$w" = "--" ]; then
                         operands_only=1
                     elif [ "$operands_only" -eq 0 ] && [ "${w#-}" != "$w" ]; then
-                        has_flag=1
-                    elif _guard_rm_target_dangerous "$w"; then
-                        hit=1
-                    elif [[ "$w" != /* ]] && _guard_rm_relative_dangerous "$w" "$cwd"; then
-                        hit=1
+                        case "$w" in
+                            --recursive) is_recursive=1 ;;
+                            --*) ;;
+                            -*[rR]*) is_recursive=1 ;;
+                        esac
+                    elif _guard_rm_target_sysdir "$w" || { [[ "$w" != /* ]] && _guard_rm_relative_sysdir "$w" "$cwd"; }; then
+                        hit_sysdir=1
+                        hit_deep=1
+                    elif _guard_rm_target_dangerous "$w" || { [[ "$w" != /* ]] && _guard_rm_relative_dangerous "$w" "$cwd"; }; then
+                        hit_deep=1
                     fi
                     k=$((k + 1))
                 done
-                [ "$has_flag" -eq 1 ] && [ "$hit" -eq 1 ] && return 0
+                if [ "$hit_sysdir" -eq 1 ] || { [ "$is_recursive" -eq 1 ] && [ "$hit_deep" -eq 1 ]; }; then
+                    return 0
+                fi
             fi
             k=$((k + 1))
         done
@@ -209,21 +240,8 @@ _guard_env_write_decoded() {
     return 1
 }
 
-# Pattern 1: rm -rf on root or sensitive top-level dirs.
-# Whitelist approach: only block known-dangerous targets to avoid false-positives
-# on /tmp, /var/tmp, /var/log cleanups.
-#
-# Two tiers (D4, harvest-advice-20260711):
-#   - DANGEROUS_ROOT_ANY: system dirs, blocked at any depth (rm -rf /etc/nginx/conf.d
-#     stays blocked — these never legitimately need recursive deletion under Claude).
-#   - DANGEROUS_ROOT_SHALLOW: user-data dirs (home/opt/srv), blocked only at depth <=2
-#     (/home, /home/, /home/<seg>, /home/<seg>/) so whole-home deletion stays blocked
-#     while workspace-internal paths (/home/<user>/projects/<repo>/...) pass.
-DANGEROUS_ROOT_ANY='(etc|usr|bin|sbin|lib|lib64|boot|proc|sys|dev|run|root|snap)'
-DANGEROUS_ROOT_SHALLOW="(home|opt|srv)(/+[^/[:space:]]+)?/*[\"']?([[:space:];&|]|$)"
-if { _guard_mentions rm && printf '%s' "$CMD_STRIPPED" | grep -Eq \
-    "(^|[[:space:];&|])rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)+(--[[:space:]]+)?[\"']?/+([[:space:]\$\*]|$|${DANGEROUS_ROOT_ANY}([/[:space:]]|[\"']?([[:space:];&|]|$))|${DANGEROUS_ROOT_SHALLOW})"; } || \
-    _guard_rm_decoded; then
+# Pattern 1: rm on root or sensitive top-level dirs (decoded argv in _guard_rm_decoded).
+if _guard_rm_decoded; then
     echo "[bash-guard] blocked: rm -rf against root or system directory. Narrow the path or run outside Claude." >&2
     exit 2
 fi

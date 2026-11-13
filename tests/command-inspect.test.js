@@ -327,6 +327,10 @@ test('a multi-line commit message written with a heredoc stays one commit argv',
   const got = gitRecords(command);
   assert.deepStrictEqual(got.records, [{ sub: 'commit', state: 'cwd', repo: '/session', noVerify: '0' }]);
   assert.strictEqual(got.unsupported, '');
+  assert.strictEqual(decoded(command).stripped, "git commit -m \"$(cat <<'EOF'\n)\"");
+  const direct = "git commit -F - <<'EOF'\nfix: block rm -rf /etc and git commit --no-verify\nEOF";
+  assert.deepStrictEqual(gitRecords(direct).records, [{ sub: 'commit', state: 'cwd', repo: '/session', noVerify: '0' }]);
+  assert.strictEqual(decoded(direct).stripped, "git commit -F - <<'EOF'\n");
 });
 
 test('a here-string is one data word and never starts a heredoc', () => {
