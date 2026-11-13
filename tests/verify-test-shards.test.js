@@ -1345,7 +1345,7 @@ test('public CI plan selects existing hook owner suites and requires macOS', () 
     assert.deepStrictEqual(fixture.plan.testFiles, ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']);
     assert.strictEqual(fixture.plan.shardCount, 1);
     assert.ok(fixture.plan.requiredJobs.includes('macos-installer'));
-    const runner = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), 'tests/utils.test.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
+    const runner = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), 'tests/runner-utils.test.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
     assert.strictEqual(runner.status, 0, runner.stderr);
     const plan = createCiPlan({ root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop', classification: fixture.classification });
     assert.strictEqual(validateCiPlan(plan, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop', classification: fixture.classification }).ok, true);
