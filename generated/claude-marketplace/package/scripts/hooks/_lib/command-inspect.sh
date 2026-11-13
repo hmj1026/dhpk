@@ -286,8 +286,11 @@ _dhpk_ci_head_index() {
     _dhpk_ci_head="$h"
 }
 
+# _dhpk_ci_flush_command <sep>
+#   sep is the separator that ends the command: compound (; newline ( ) or
+#   the end), and (&&), or (||), bg (&) or pipe (| |&).
 _dhpk_ci_flush_command() {
-    local sep="$1" n h head
+    local sep="$1" n h head k cond
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -305,19 +308,57 @@ _dhpk_ci_flush_command() {
             DHPK_CMD_CWD+=("")
         fi
         _dhpk_ci_record_git
+        _dhpk_ci_paren_empty=0
         [ "$head" = "case" ] && _dhpk_ci_case=1
+        # A cd runs conditionally inside if/while/until/for/select/case, a
+        # function body, after || or after && (until the && chain ends), and
+        # not at all in the current shell when backgrounded with &.
+        cond=0
+        k=0
+        while [ "$k" -lt "$h" ]; do
+            case "${_dhpk_ci_words[$k]}" in
+                if|while|until) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)) ;;
+                then|else|elif|do|'!') cond=1 ;;
+            esac
+            k=$((k + 1))
+        done
+        case "$head" in
+            for|select|case) _dhpk_ci_block=$((_dhpk_ci_block + 1)) ;;
+            'fi'|'done'|'esac') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)) ;;
+            function)
+                # "function f { cd X; }" keeps the body's cd out of head
+                # position, and a later call may run it.
+                _dhpk_ci_func=1
+                _dhpk_ci_cwd_state="unresolved"
+                _dhpk_ci_cwd=""
+                ;;
+        esac
+        if [ "$_dhpk_ci_block" -gt 0 ] || [ "$_dhpk_ci_func" -eq 1 ] || [ "$_dhpk_ci_prev_sep" = "or" ] || [ "$sep" = "bg" ]; then
+            cond=1
+        fi
         if [ "$head" = "cd" ]; then
             _dhpk_ci_any_cd=1
-            if [ "$sep" = "pipe" ]; then
+            if [ "$cond" -eq 1 ]; then
+                _dhpk_ci_cwd_state="unresolved"
+                _dhpk_ci_cwd=""
+            elif [ "$sep" = "pipe" ]; then
                 _dhpk_ci_pipeline_cd=1
             elif [ "$_dhpk_ci_cwd_state" = "literal" ] && [ $((n - h)) -eq 2 ] && [ "${_dhpk_ci_dyn[$((h + 1))]}" != "1" ]; then
                 dhpk_norm_path_var "$_dhpk_ci_cwd" "${_dhpk_ci_words[$((h + 1))]}"
                 _dhpk_ci_cwd="$DHPK_NORM_PATH"
+                [ "$_dhpk_ci_prev_sep" = "and" ] && _dhpk_ci_cd_cond=1
             else
                 _dhpk_ci_cwd_state="unresolved"
                 _dhpk_ci_cwd=""
             fi
         fi
+        # A cd after && holds only for commands in the same && chain.
+        if [ "$_dhpk_ci_cd_cond" -eq 1 ] && [ "$sep" != "and" ]; then
+            _dhpk_ci_cd_cond=0
+            _dhpk_ci_cwd_state="unresolved"
+            _dhpk_ci_cwd=""
+        fi
+        _dhpk_ci_prev_sep="$sep"
     fi
     # Heredocs opened by this command: the body is data for cat and tee
     # unless the command pipes into another one, its output can run as a
@@ -641,10 +682,10 @@ _dhpk_ci_scan_run() {
         ch="${text:$k:1}"
         if [ "$sq" -eq 1 ]; then
             # '...' in a double-quoted ${...}: it hides } and ", but bash
-            # still runs the substitutions inside it.
+            # still runs the substitutions inside it. A backslash is literal
+            # there, so '\' ends at its second quote (bash 5.2).
             case "$ch" in
                 "'") sq=0 ;;
-                \\) k=$((k + 2)); continue ;;
                 '$'|'`')
                     if _dhpk_ci_expand "$text" "$k" 1; then
                         k="$_dhpk_ci_end"
@@ -915,6 +956,9 @@ _dhpk_ci_list_run() {
     local _dhpk_ci_mode="normal" _dhpk_ci_word="" _dhpk_ci_word_dyn=0 _dhpk_ci_word_open=0 _dhpk_ci_redir=0
     local -a _dhpk_ci_words _dhpk_ci_dyn
     local _dhpk_ci_seg="" _dhpk_ci_pipeline_cd=0 _dhpk_ci_paren=0 _dhpk_ci_any_cd=0 _dhpk_ci_case=0
+    # Conditional-cd tracking: open if/loop/case blocks, a function body
+    # seen, the separator before this command, a cd held by an && chain.
+    local _dhpk_ci_block=0 _dhpk_ci_func=0 _dhpk_ci_prev_sep="" _dhpk_ci_cd_cond=0 _dhpk_ci_paren_empty=0
     # Directory and state saved at each open subshell '('.
     local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk
     _dhpk_ci_cwd_stk=()
@@ -1080,6 +1124,7 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_cwd_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd"
                 _dhpk_ci_state_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd_state"
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
+                _dhpk_ci_paren_empty=1
                 DHPK_STRIPPED="${DHPK_STRIPPED}("
                 i=$((i + 1))
                 continue
@@ -1095,6 +1140,9 @@ _dhpk_ci_list_run() {
                 # directory saved at its (. A case pattern's ) is not a
                 # subshell's, so after a case and a cd, or at an unmatched )
                 # after a cd, the directory is unresolved.
+                # "name()" defines a function: its body may never run.
+                [ "$_dhpk_ci_paren_empty" -eq 1 ] && _dhpk_ci_func=1
+                _dhpk_ci_paren_empty=0
                 if [ "$_dhpk_ci_paren" -gt 0 ]; then
                     _dhpk_ci_paren=$((_dhpk_ci_paren - 1))
                     _dhpk_ci_cwd="${_dhpk_ci_cwd_stk[$_dhpk_ci_paren]}"
@@ -1176,11 +1224,11 @@ _dhpk_ci_list_run() {
                     continue
                 fi
                 if [ "$next" = "&" ]; then
-                    _dhpk_ci_flush_command compound
+                    _dhpk_ci_flush_command and
                     DHPK_STRIPPED="${DHPK_STRIPPED}&&"
                     i=$((i + 2))
                 else
-                    _dhpk_ci_flush_command compound
+                    _dhpk_ci_flush_command bg
                     DHPK_STRIPPED="${DHPK_STRIPPED}&"
                     i=$((i + 1))
                 fi
@@ -1188,7 +1236,7 @@ _dhpk_ci_list_run() {
                 ;;
             '|')
                 if [ "$next" = "|" ]; then
-                    _dhpk_ci_flush_command compound
+                    _dhpk_ci_flush_command or
                     DHPK_STRIPPED="${DHPK_STRIPPED}||"
                     i=$((i + 2))
                 elif [ "$next" = "&" ]; then
