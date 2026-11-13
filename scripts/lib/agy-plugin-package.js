@@ -60,7 +60,6 @@ const GENERATOR_VERSION = '1.0.0';
 const PACKAGE_SCHEMA = PACKAGE_RECEIPT_SURFACES[SURFACE].schema;
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const COMMIT = /^[a-f0-9]{40}$/i;
-const SAFE_RELATIVE = /^[^\\]+(?:\/[^\\]+)*$/;
 const PACKAGE_FILES = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
 const COMPONENT_ROOTS = new Set(['agents', 'manifests', 'rules', 'scripts', 'skills']);
 const OPTIONAL_FILES = new Set(['mcp_config.json', 'hooks.json']);
@@ -829,8 +828,6 @@ module.exports = {
   SURFACE,
   GENERATOR_VERSION,
   PACKAGE_SCHEMA,
-  stableStringify,
-  digest: sha256Hex,
   compileAgyPluginPackage,
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
