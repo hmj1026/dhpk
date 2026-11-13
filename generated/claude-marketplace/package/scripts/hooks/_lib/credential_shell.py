@@ -11,9 +11,10 @@ view lexes substitution bodies inline, while the substitution view skips them,
 and heredoc headers use a line-based comment rule. Changing a view's rules
 changes allow/block outcomes, so it needs the decision snapshot regenerated.
 
-A heredoc declared inside `$(...)` belongs to that body, so quotes in it are
-data (#1396). When the command may run text a substitution prints, `lex`
-keeps the pre-#1396 reading instead.
+A heredoc declared inside a double-quoted `$(...)` belongs to that body, so
+quotes in it are data (#1396). An unquoted substitution, or a command that may
+run text a substitution prints, keeps the pre-#1396 reading. `<<` inside
+arithmetic, `${...}` or `$[...]` is never a heredoc.
 """
 
 from dataclasses import dataclass, field
@@ -29,7 +30,9 @@ HEREDOC_DELIMITER = re.compile(
     r'<<(-?)[ \t]*((?:[A-Za-z0-9_]+|\x27[A-Za-z0-9_]*\x27|"[A-Za-z0-9_]*"|\\[A-Za-z0-9_])+)(?=[ \t;|&<>\n]|$)')
 MAX_SUBSTITUTION_DEPTH = 64
 # shell 出現在任何位置、或指令位置的包裝器，都可能執行命令替換產生的文字。
-EXEC_SHELLS = frozenset(('sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'mksh'))
+EXEC_SHELLS = frozenset((
+    'sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'mksh', 'fish', 'csh', 'tcsh', 'busybox', 'script', 'ssh',
+    'python', 'python3', 'perl', 'ruby', 'node', 'php', 'awk', 'gawk'))
 EXEC_WRAPPERS = frozenset((
     'eval', 'source', '.', 'command', 'builtin', 'exec', 'env', 'nohup', 'time', 'nice', 'timeout', 'sudo', 'doas', 'xargs',
     'stdbuf', 'setsid', 'chroot', 'ionice', 'taskset', 'watch', 'su', 'runuser', 'unbuffer', 'flock',
@@ -203,6 +206,35 @@ def tokenize(text):
     return tokens
 
 
+class _Nesting:
+    """Unclosed `${`, `$[` and arithmetic `((` at the cursor.
+
+    bash never reads `<<` inside them as a heredoc, so a scanner must not skip
+    the lines after it as a body. Feed every unquoted `CHAR`.
+    """
+
+    def __init__(self):
+        self.stack = []
+
+    def inside(self):
+        return bool(self.stack)
+
+    def feed(self, text, position, ch):
+        top = self.stack[-1] if self.stack else None
+        if ch == '$' and text.startswith(('{', '['), position + 1):
+            self.stack.append(['}' if text[position + 1] == '{' else ']', 0])
+        elif ch == '(' and top is not None and top[0] == '))':
+            top[1] += 1
+        elif ch == '(' and text.startswith('((', position):
+            self.stack.append(['))', 1])
+        elif ch == ')' and top is not None and top[0] == '))':
+            top[1] -= 1
+            if not top[1]:
+                self.stack.pop()
+        elif top is not None and ch == top[0]:
+            self.stack.pop()
+
+
 def _paren_end(text, start, heredocs=True):
     """Index just past the `)` that closes a `$(` body starting at `start`.
 
@@ -214,13 +246,16 @@ def _paren_end(text, start, heredocs=True):
     heredocs = heredocs and not text.startswith('(', start)
     depth = 1
     pending = []
+    nesting = _Nesting()
     while depth and not cursor.at_end():
         position = cursor.i
         kind, ch = cursor.next()
         # 註解與引號內的括號不是 shell 語法，不能提早結束命令替換。
         if kind != CHAR or cursor.quote is not None:
             continue
-        if heredocs and ch == '<' and text.startswith('<<', position):
+        nesting.feed(text, position, ch)
+        # 算術、${...} 與 $[...] 內的 << 不是 heredoc；其後各行仍是指令。
+        if heredocs and ch == '<' and text.startswith('<<', position) and not nesting.inside():
             cursor.seek(_heredoc_operator(text, position, pending))
         elif heredocs and ch == '\n' and pending:
             for match in pending:
@@ -276,7 +311,7 @@ def _substitutions(text, heredoc=False, heredocs=True):
             continue
         if ch == '$' and text.startswith('(', cursor.i):
             start = cursor.i + 1
-            end = _paren_end(text, start, heredocs)
+            end = _paren_end(text, start, heredocs and cursor.quote == '"')
             result.append(text[start:end - 1])
             cursor.seek(end)
         elif ch == '`':
@@ -327,10 +362,11 @@ def _heredoc_body(text, start, header, line, heredocs=True):
     return end, _substitutions(body, heredoc=True, heredocs=heredocs)
 
 
-def _substitution_span(text, i, heredocs):
-    """End of the `$(` body that starts at `i`, or None when it is not one to mask."""
-    # 算術 $(( 與無法定位結尾的替換維持原本逐字掃描，錯誤留給後續檢視回報。
-    if not heredocs or not text.startswith('(', i) or text.startswith('((', i):
+def _substitution_span(text, i, heredocs, quote):
+    """End of the double-quoted `$(` body that starts at `i`, or None when it is not one to mask."""
+    # 未加引號的替換輸出會被拆成運算元或指令，內文不能當資料；算術 $(( 與無法定位
+    # 結尾的替換也維持原本逐字掃描，錯誤留給後續檢視回報。
+    if not heredocs or quote != '"' or not text.startswith('(', i) or text.startswith('((', i):
         return None
     try:
         return _paren_end(text, i + 1)
@@ -353,6 +389,7 @@ def _heredocs(text, heredocs=True):
     active = []
     masks = []
     headers = []
+    nesting = _Nesting()
     line_start = 0
 
     def emit(end):
@@ -400,9 +437,9 @@ def _heredocs(text, heredocs=True):
         while not cursor.at_end():
             position = cursor.i
             kind, ch = cursor.next()
-            if kind == CHAR and ch == '$' and cursor.quote != "'":
-                # $(...) 內的 heredoc 屬於替換本體；跳過整段，引號狀態不受內文影響。
-                span = _substitution_span(text, cursor.i, heredocs)
+            if kind == CHAR and ch == '$' and cursor.quote == '"':
+                # "$(...)" 內的 heredoc 屬於替換本體；跳過整段，引號狀態不受內文影響。
+                span = _substitution_span(text, cursor.i, heredocs, cursor.quote)
                 if span is not None:
                     inner = text[cursor.i + 1:span - 1]
                     if headers and '\n' in inner:
@@ -410,7 +447,10 @@ def _heredocs(text, heredocs=True):
                     masks.append((cursor.i + 1, span - 1, _heredocs(inner)[1]))
                     cursor.seek(span)
                     continue
-            if kind == CHAR and cursor.quote is None and text.startswith('<<', position):
+            if kind == CHAR and cursor.quote is None:
+                nesting.feed(text, position, ch)
+            # 算術、${...} 與 $[...] 內的 << 不是 heredoc；其後各行仍是指令。
+            if kind == CHAR and cursor.quote is None and text.startswith('<<', position) and not nesting.inside():
                 if text.startswith('<<<', position):
                     raise _NoHeredocs()
                 if headers and not heredocs:

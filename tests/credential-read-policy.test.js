@@ -580,6 +580,7 @@ const heredocMessages = [
   "git commit -m \"$(cat <<-'EOF'\n\tfix: don't drop the marker\n\tEOF\n)\"",
   "git commit -m \"$(cat <<EOF\nfix: don't drop $(git rev-parse HEAD)\nEOF\n)\"",
   "git commit -m \"$(cat <<'A' <<'B'\nit's a\nA\nit's b\nB\n)\"",
+  "git commit -m \"$(echo ${x:-a}; cat <<'EOF'\nit's closed\nEOF\n)\"",
 ];
 const heredocAttacks = [
   ["git commit -m 'it", /unfinished quote/],
@@ -592,6 +593,16 @@ const heredocAttacks = [
   ["$(cat <<'EOF'\ncat .env\nEOF\n)", null],
   ["env $(cat <<'EOF'\ncat .env\nEOF\n)", null],
   ["bash <<'A' <<'B'\nx\nA\ncat .env\nB\n", null],
+  // `<<` inside arithmetic, `${...}` or `$[...]` is not a heredoc; the next lines run
+  ['y=$( (( z = 1 << x ))\ncat .env\nx\n)', /protected path/],
+  ['z=$(echo ${x:-<< y }\ncat .env\ny\n)', /protected path/],
+  ['(( z = 1 << x ))\ncat .env\nx\n', /protected path/],
+  ['echo ${x:-<< y }\ncat .env\ny\n', /protected path/],
+  ['echo $[1 << x ]\ncat .env\nx\n', /protected path/],
+  // an unquoted substitution splits its output into operands or code, so its body is not data
+  ['cat $(cat <<EOF\n.env\nEOF\n)', null],
+  ["tcsh -c $(cat <<'EOF'\ncat .env\nEOF\n)", null],
+  ["python3 -c \"$(cat <<'EOF'\nopen('.env'); it's\nEOF\n)\"", null],
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   test(`${hook} allows a heredoc commit message whose body holds quotes (#1396)`, () => {

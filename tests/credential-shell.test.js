@@ -35,8 +35,9 @@ const lexed = [
   // the word view lexes substitution bodies inline
   ['echo $(cat .env)', 'echo $:d (:o cat .env ):o', ['cat .env']],
   ["git commit -m \"$(cat <<'EOF'\nmsg\nEOF\n)\"", null, ["cat <<'EOF'\nmsg\nEOF\n"]],
-  // a heredoc inside a substitution belongs to its body; quotes there are data (#1396)
-  ["x=$(cat <<'EOF'\nhi\nEOF\n)", null, ["cat <<'EOF'\nhi\nEOF\n"]],
+  // an unquoted substitution loses its heredoc body to the outer mask
+  ["x=$(cat <<'EOF'\nhi\nEOF\n)", null, ["cat <<'EOF'\n"]],
+  // a heredoc inside a double-quoted substitution belongs to its body; quotes there are data (#1396)
   ["git commit -m \"$(cat <<'EOF'\nfix: don't\nEOF\n)\"", 'git commit -m $(cat\\u0020<<\'EOF\'\n):d', ["cat <<'EOF'\nfix: don't\nEOF\n"]],
   ["git commit -m \"$(cat <<'EOF'\nsay \"hi\nEOF\n)\"", null, ["cat <<'EOF'\nsay \"hi\nEOF\n"]],
   ["git commit -m \"$(cat <<-'EOF'\n\tit's\n\tEOF\n)\"", null, ["cat <<-'EOF'\n\tit's\n\tEOF\n"]],
@@ -60,7 +61,7 @@ const failures = [
   ["eval \"$(cat <<'EOF'\ndon't\nEOF\n)\"", 'unfinished substitution'],
   ["echo \"$(cat <<'EOF'\ndon't\n)\"", 'unterminated heredoc'],
   ['echo "$(cat <<EOF\nx\nEOF)"', 'ambiguous heredoc delimiter'],
-  ['cat <<EOF $(echo\n)\nx\nEOF\n', 'ambiguous heredoc substitution'],
+  ['cat <<EOF "$(echo\n)"\nx\nEOF\n', 'ambiguous heredoc substitution'],
   ["echo \"$(cat <<'EOF'\nok\nEOF\n)\" 'x", 'unfinished quote'],
   ["cat <<'EOF' |\ncat .env\nEOF\n", 'ambiguous heredoc pipeline'],
   ['cat <<EOF\n`echo "x"`\nEOF\n', 'ambiguous heredoc backtick'],
