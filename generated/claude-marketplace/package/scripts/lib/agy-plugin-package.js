@@ -24,7 +24,7 @@ const {
 const {
   createTraversalBudget,
   readFileBounded,
-  readDirectoryEntries,
+  listPhysicalFiles,
   lstatOrNull,
   isInside,
   assertPhysicalDirectory,
@@ -58,6 +58,10 @@ const {
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
 const PACKAGE_SCHEMA = PACKAGE_RECEIPT_SURFACES[SURFACE].schema;
+const PACKAGE_WALK_LABELS = Object.freeze({
+  symlink: 'symlink is not allowed in AGY package',
+  unsupported: 'unsupported AGY package entry',
+});
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const COMMIT = /^[a-f0-9]{40}$/i;
 const PACKAGE_FILES = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
@@ -103,10 +107,6 @@ function assertSafeRelative(relative, label = 'path') {
     throw new Error(`${label} escapes its root: ${relative}`);
   }
   return relative;
-}
-
-function sortedEntries(directory, budget = createTraversalBudget()) {
-  return readDirectoryEntries(directory, { budget, sort: true, localeSort: true });
 }
 
 function assertNoSymlink(filePath, label) {
@@ -271,27 +271,6 @@ function selectedConfiguration(inventory, profileSelection = null, root = null, 
   };
 }
 
-function outputFiles(packageRoot, options = {}) {
-  const files = [];
-  const budget = createTraversalBudget(options);
-  const walk = (directory, depth) => {
-    const realDirectory = budget.enterDirectory(directory, depth);
-    try {
-      for (const entry of sortedEntries(directory, budget)) {
-        const child = path.join(directory, entry.name);
-        if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in AGY package: ${child}`);
-        if (entry.isDirectory()) walk(child, depth + 1);
-        else if (entry.isFile()) files.push(path.relative(packageRoot, child).split(path.sep).join('/'));
-        else throw new Error(`unsupported AGY package entry: ${child}`);
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  walk(packageRoot, 0);
-  return files.sort();
-}
-
 function fingerprintFiles(packageRoot, files) {
   const budget = createTraversalBudget();
   return Object.fromEntries(files.filter((relative) => !['provenance.json', 'fingerprints.json'].includes(relative)).map((relative) => {
@@ -324,7 +303,7 @@ function assertOwnedOutputRoot(outDir) {
   if (!checked.ok || provenance.schema !== PACKAGE_SCHEMA || provenance.owner !== 'plugins/dhpk-agy' || provenance.packageRoot !== PACKAGE_RECEIPT_SURFACES[SURFACE].packageRoot) {
     throw new Error(`refusing to replace foreign or invalid AGY output: ${checked.errors.join('; ')}`);
   }
-  const files = outputFiles(outDir);
+  const files = listPhysicalFiles(outDir, PACKAGE_WALK_LABELS);
   const fingerprints = provenance.fingerprints;
   if (!fingerprints || typeof fingerprints !== 'object') throw new Error('refusing to replace AGY output without fingerprints');
   const dataFiles = files.filter((file) => !['provenance.json', 'fingerprints.json'].includes(file));
@@ -743,7 +722,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     : new Set();
 
   let files = [];
-  try { files = outputFiles(root); } catch (error) { errors.push(error.message); }
+  try { files = listPhysicalFiles(root, PACKAGE_WALK_LABELS); } catch (error) { errors.push(error.message); }
   for (const relative of files) {
     assertSafeRelative(relative, 'AGY package file');
     const base = relative.split('/')[0];

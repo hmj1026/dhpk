@@ -33,6 +33,7 @@ const {
   TREE_FINGERPRINT_ALGORITHM,
   sha256Hex,
   treeNodeFingerprint,
+  treeNodeFingerprints,
   fingerprintPath,
   fingerprintPath: fingerprintDir,
 } = require('./content-fingerprint');
@@ -653,10 +654,19 @@ function collectAdaptedCursorHooks(root, transformations, traversalBudget) {
   return { adapted, files };
 }
 
+// Single-prefix form, kept because the golden digest test loads it by name.
 function cursorVirtualFingerprint(files, prefix) {
   return treeNodeFingerprint(
     files.map((file) => ({ path: file.destination, type: 'file', content: file.content })),
     prefix,
+  );
+}
+
+// One node tree for all prefixes; Map prefix -> digest ('' when absent).
+function cursorVirtualFingerprints(files, prefixes) {
+  return treeNodeFingerprints(
+    files.map((file) => ({ path: file.destination, type: 'file', content: file.content })),
+    prefixes,
   );
 }
 
@@ -853,8 +863,8 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   files.push(manifestOutput);
   files.push(marketplaceOutput);
   const fingerprints = {};
-  for (const relative of ['skills', 'rules', 'agents', 'commands', 'hooks/hooks.json', 'agent-traps']) {
-    const value = cursorVirtualFingerprint(files, relative);
+  const virtualDigests = cursorVirtualFingerprints(files, ['skills', 'rules', 'agents', 'commands', 'hooks/hooks.json', 'agent-traps']);
+  for (const [relative, value] of virtualDigests) {
     if (value) fingerprints[relative] = value;
   }
   const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);

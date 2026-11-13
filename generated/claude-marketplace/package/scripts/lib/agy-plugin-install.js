@@ -13,6 +13,7 @@ const {
   createTraversalBudget,
   readFileBounded,
   readDirectoryEntries,
+  listPhysicalFiles,
   lstatOrNull,
   isInside,
   assertPhysicalAncestors,
@@ -69,26 +70,10 @@ function assertExistingPhysicalAncestors(directory, label) {
   }
 }
 
-function relativeFiles(root, options = {}) {
-  const files = [];
-  const budget = createTraversalBudget(options);
-  const walk = (directory, depth) => {
-    const realDirectory = budget.enterDirectory(directory, depth);
-    try {
-      for (const entry of readDirectoryEntries(directory, { budget, sort: true, localeSort: true })) {
-        const child = path.join(directory, entry.name);
-        if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in AGY installation: ${child}`);
-        if (entry.isDirectory()) walk(child, depth + 1);
-        else if (entry.isFile()) files.push(path.relative(root, child).split(path.sep).join('/'));
-        else throw new Error(`unsupported AGY installation entry: ${child}`);
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  walk(root, 0);
-  return files.sort();
-}
+const INSTALL_WALK_LABELS = Object.freeze({
+  symlink: 'symlink is not allowed in AGY installation',
+  unsupported: 'unsupported AGY installation entry',
+});
 
 function copyTreePreservingEntries(sourceRoot, destinationRoot, directoryModes) {
   const budget = createTraversalBudget();
@@ -248,7 +233,7 @@ function inspectAgyPlugin({ sourceRoot, targetRoot } = {}) {
   assertExistingPhysicalAncestors(path.dirname(target), 'AGY target');
 
   const sourceManifest = readJsonFile(source, 'plugin.json', 'AGY source manifest');
-  const sourceFiles = relativeFiles(source);
+  const sourceFiles = listPhysicalFiles(source, INSTALL_WALK_LABELS);
   const sourceDigests = sourceFileDigests(source, sourceFiles);
   const sourceFingerprint = sha256Hex(JSON.stringify(sourceDigests));
   const sourceReport = {
@@ -704,7 +689,7 @@ function installAgyPlugin({ sourceRoot, targetRoot, mode = 'update' } = {}) {
   if (targetStat && (targetStat.isSymbolicLink() || !targetStat.isDirectory())) throw new Error(`AGY target root must be a physical directory: ${target}`);
 
   const existingReceipt = readReceipt(target);
-  const sourceFiles = relativeFiles(source);
+  const sourceFiles = listPhysicalFiles(source, INSTALL_WALK_LABELS);
   const collisions = [];
   for (const relative of sourceFiles) {
     const destination = path.join(target, relative);
