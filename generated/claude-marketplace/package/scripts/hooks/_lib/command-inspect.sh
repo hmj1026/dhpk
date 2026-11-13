@@ -88,8 +88,10 @@ DHPK_CI_MAX_DEPTH=64
 _dhpk_ci_reset_words() {
     _dhpk_ci_words=()
     _dhpk_ci_dyn=()
+    _dhpk_ci_quoted=()
     _dhpk_ci_word=""
     _dhpk_ci_word_dyn=0
+    _dhpk_ci_word_q=0
 }
 
 _dhpk_ci_flush_word() {
@@ -110,11 +112,13 @@ _dhpk_ci_flush_word() {
             fi
             _dhpk_ci_words+=("$_dhpk_ci_word")
             _dhpk_ci_dyn+=("$_dhpk_ci_word_dyn")
+            _dhpk_ci_quoted+=("$_dhpk_ci_word_q")
         fi
     fi
     _dhpk_ci_word=""
     _dhpk_ci_word_dyn=0
     _dhpk_ci_word_open=0
+    _dhpk_ci_word_q=0
 }
 
 # True when $1 is an option whose next argv is its value, not a new flag.
@@ -270,27 +274,39 @@ _dhpk_ci_record_git() {
 #   Sets _dhpk_ci_head to the index of the command word in _dhpk_ci_words,
 #   after reserved words (such as {, if, then, !, time -p) and VAR=value
 #   assignments. Equals the word count when there is no command word.
+#   A reserved word counts only when unquoted and before any assignment, as
+#   in bash; _dhpk_ci_head_kw is 1 when the head word itself could be one.
 _dhpk_ci_head_index() {
-    local h=0 n="${#_dhpk_ci_words[@]}"
+    local h=0 n="${#_dhpk_ci_words[@]}" assigned=0
     while [ "$h" -lt "$n" ]; do
+        if [ "$assigned" -eq 0 ] && [ "${_dhpk_ci_quoted[$h]}" = "0" ]; then
+            case "${_dhpk_ci_words[$h]}" in
+                '!'|'{'|if|then|else|elif|do|while|until|coproc) h=$((h + 1)); continue ;;
+                time)
+                    [ "${_dhpk_ci_words[$((h + 1))]:-}" = "-p" ] && h=$((h + 1))
+                    h=$((h + 1))
+                    continue
+                    ;;
+            esac
+        fi
         case "${_dhpk_ci_words[$h]}" in
-            '!'|'{'|if|then|else|elif|do|while|until|coproc) ;;
-            time)
-                [ "${_dhpk_ci_words[$((h + 1))]:-}" = "-p" ] && h=$((h + 1))
-                ;;
-            *=*) ;;
+            *=*) assigned=1 ;;
             *) break ;;
         esac
         h=$((h + 1))
     done
     _dhpk_ci_head="$h"
+    _dhpk_ci_head_kw=0
+    if [ "$h" -lt "$n" ] && [ "$assigned" -eq 0 ] && [ "${_dhpk_ci_quoted[$h]}" = "0" ]; then
+        _dhpk_ci_head_kw=1
+    fi
 }
 
 # _dhpk_ci_flush_command <sep>
 #   sep is the separator that ends the command: compound (; newline ( ) or
 #   the end), and (&&), or (||), bg (&) or pipe (| |&).
 _dhpk_ci_flush_command() {
-    local sep="$1" n h head k cond
+    local sep="$1" n h head k cond kwhead=""
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -309,7 +325,26 @@ _dhpk_ci_flush_command() {
         fi
         _dhpk_ci_record_git
         _dhpk_ci_paren_empty=0
-        [ "$head" = "case" ] && _dhpk_ci_case=1
+        # command cd and builtin cd are cd; any other use of cd, pushd or
+        # popd through them is not tracked.
+        case "$head" in
+            command|builtin)
+                if [ "${_dhpk_ci_words[$((h + 1))]:-}" = "cd" ]; then
+                    h=$((h + 1))
+                    head="cd"
+                else
+                    for k in "${_dhpk_ci_words[@]}"; do
+                        case "$k" in cd|pushd|popd) _dhpk_ci_cwd_state="unresolved"; _dhpk_ci_cwd="" ;; esac
+                    done
+                fi
+                ;;
+            pushd|popd)
+                _dhpk_ci_any_cd=1
+                _dhpk_ci_cwd_state="unresolved"
+                _dhpk_ci_cwd=""
+                ;;
+        esac
+        [ "$head" = "case" ] && [ "$_dhpk_ci_head_kw" -eq 1 ] && _dhpk_ci_case=1
         # A cd runs conditionally inside if/while/until/for/select/case, a
         # function body, after || or after && (until the && chain ends), and
         # not at all in the current shell when backgrounded with &.
@@ -318,11 +353,16 @@ _dhpk_ci_flush_command() {
         while [ "$k" -lt "$h" ]; do
             case "${_dhpk_ci_words[$k]}" in
                 if|while|until) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)) ;;
-                then|else|elif|do|'!') cond=1 ;;
+                # coproc runs its command in an async subshell.
+                then|else|elif|do|'!'|coproc) cond=1 ;;
             esac
             k=$((k + 1))
         done
-        case "$head" in
+        # Openers and closers count only as unquoted keywords in head
+        # position: "fi", \fi and x=1 fi do not close a block in bash.
+        [ "$_dhpk_ci_head_kw" -eq 1 ] || kwhead=""
+        [ "$_dhpk_ci_head_kw" -eq 1 ] && kwhead="$head"
+        case "$kwhead" in
             for|select|case) _dhpk_ci_block=$((_dhpk_ci_block + 1)) ;;
             'fi'|'done'|'esac') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)) ;;
             function)
@@ -519,7 +559,7 @@ _dhpk_ci_esc_byte() {
 _dhpk_ci_start_redirect() {
     case "$_dhpk_ci_word" in
         ""|*[!0-9]*) _dhpk_ci_flush_word ;;
-        *) _dhpk_ci_word=""; _dhpk_ci_word_dyn=0; _dhpk_ci_word_open=0 ;;
+        *) _dhpk_ci_word=""; _dhpk_ci_word_dyn=0; _dhpk_ci_word_open=0; _dhpk_ci_word_q=0 ;;
     esac
     _dhpk_ci_redir=1
 }
@@ -954,7 +994,8 @@ _dhpk_ci_list_run() {
     local text="$1" i="$2" _dhpk_ci_kind="$3"
     local len="${#1}" ch next matched
     local _dhpk_ci_mode="normal" _dhpk_ci_word="" _dhpk_ci_word_dyn=0 _dhpk_ci_word_open=0 _dhpk_ci_redir=0
-    local -a _dhpk_ci_words _dhpk_ci_dyn
+    local -a _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_quoted
+    local _dhpk_ci_word_q=0
     local _dhpk_ci_seg="" _dhpk_ci_pipeline_cd=0 _dhpk_ci_paren=0 _dhpk_ci_any_cd=0 _dhpk_ci_case=0
     # Conditional-cd tracking: open if/loop/case blocks, a function body
     # seen, the separator before this command, a cd held by an && chain.
@@ -1056,6 +1097,7 @@ _dhpk_ci_list_run() {
                 if [ -n "$next" ]; then
                     _dhpk_ci_word="${_dhpk_ci_word}${next}"
                     _dhpk_ci_word_open=1
+                    _dhpk_ci_word_q=1
                     DHPK_STRIPPED="${DHPK_STRIPPED}${next}"
                     _dhpk_ci_seg="${_dhpk_ci_seg}${next}"
                     i=$((i + 2))
@@ -1065,6 +1107,7 @@ _dhpk_ci_list_run() {
             "'")
                 _dhpk_ci_mode="single"
                 _dhpk_ci_word_open=1
+                _dhpk_ci_word_q=1
                 DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
                 _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
                 i=$((i + 1))
@@ -1073,6 +1116,7 @@ _dhpk_ci_list_run() {
             '"')
                 _dhpk_ci_mode="double"
                 _dhpk_ci_word_open=1
+                _dhpk_ci_word_q=1
                 DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
                 _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
                 i=$((i + 1))
@@ -1273,6 +1317,7 @@ _dhpk_ci_list_run() {
                     _dhpk_ci_ansi_decode "${text:$((i + 2)):$((_dhpk_ci_ansi_close - i - 2))}"
                     _dhpk_ci_word="${_dhpk_ci_word}${_dhpk_ci_ansi_out}"
                     _dhpk_ci_word_open=1
+                    _dhpk_ci_word_q=1
                     DHPK_STRIPPED="${DHPK_STRIPPED}${text:$i:$((_dhpk_ci_ansi_close - i + 1))}"
                     _dhpk_ci_seg="${_dhpk_ci_seg}${text:$i:$((_dhpk_ci_ansi_close - i + 1))}"
                     i=$((_dhpk_ci_ansi_close + 1))
@@ -1281,6 +1326,7 @@ _dhpk_ci_list_run() {
                 if [ "$next" = '"' ]; then
                     _dhpk_ci_mode="double"
                     _dhpk_ci_word_open=1
+                    _dhpk_ci_word_q=1
                     DHPK_STRIPPED="${DHPK_STRIPPED}\$${next}"
                     _dhpk_ci_seg="${_dhpk_ci_seg}\$${next}"
                     i=$((i + 2))
