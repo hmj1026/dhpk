@@ -587,4 +587,85 @@ test('pre-edit-guard does not let a scratchpad symlink lead out of the scratchpa
   }
 });
 
+// ---------------------------------------------------------------------------
+// Review round (#1389): NUL truncation in $'...', backslash-newline inside
+// double quotes, and rm globs / traversal to a glob.
+// ---------------------------------------------------------------------------
+
+const NUL_TRUNCATED_GIT = [
+  "$'git\\x00q' commit --no-verify -m x",
+  "$'git\\0q' commit --no-verify -m x",
+  "$'git\\c@q' commit --no-verify -m x",
+  "$'git\\u0000q' commit --no-verify -m x",
+  "$'git\\400q' commit --no-verify -m x",
+];
+
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  test(`${hook} blocks --no-verify when $'...' truncates at a decoded NUL`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const command of NUL_TRUNCATED_GIT) {
+        const res = bashHook(hook, command, { cwd: featureRepo });
+        expectStatus(res, BLOCK, command);
+        assert.match(res.stderr, /--no-verify/);
+      }
+    });
+  });
+}
+
+test("pretool-git-gate (block mode) blocks a NUL-truncated $'git' commit on main", () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ["$'git\\x00q' commit -m x", "$'gi\\x74\\0' commit -m x"]) {
+      const res = bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE });
+      expectStatus(res, BLOCK, command);
+      assert.match(res.stderr, /branch-safety/);
+    }
+  });
+});
+
+const REVIEW_GUARD_BLOCKED = [
+  ['rm target truncated by \\x00', "rm -rf $'/etc\\x00junk'"],
+  ['rm target truncated by \\0', "rm -rf $'/etc\\0junk'"],
+  ['rm target truncated by \\c@', "rm -rf $'/etc\\c@junk'"],
+  ['shallow home truncated by NUL', "rm -rf $'/home/u\\x00/projects/x'"],
+  ['NUL skip honours an escaped quote', "rm -rf $'/etc\\x00a\\'b'"],
+  ['.env redirect truncated by NUL', "echo x > $'.env\\x00q'"],
+  ['tee .env truncated before a template suffix', "echo x | tee $'.env\\0.example'"],
+  ['backslash-newline inside a double-quoted rm target', 'rm -rf "/et\\\nc"'],
+  ['backslash-newline inside a double-quoted .env target', 'echo x > ".en\\\nv"'],
+  ['rm with a glob in the first segment', 'rm -rf /[e]tc'],
+  ['rm with a ? glob in the first segment', 'rm -rf /et?'],
+  ['rm with a glob under a shallow root', 'rm -rf /home/*'],
+  ['rm traversal to a root glob', 'rm -rf /tmp/../*'],
+  ['rm traversal to the root', 'rm -rf /tmp/..'],
+];
+
+for (const [label, command] of REVIEW_GUARD_BLOCKED) {
+  test(`pre-bash-guard blocks (review round): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+}
+
+test('backslash-newline inside a double-quoted git word is a continuation for all Bash hooks', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = '"gi\\\nt" commit --no-verify -m x';
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, `guard ${command}`);
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo }), BLOCK, `dispatch ${command}`);
+    const gate = bashHook('pretool-git-gate.sh', '"gi\\\nt" commit -m x', { cwd: protectedRepo, env: BLOCK_MODE });
+    expectStatus(gate, BLOCK, 'gate continuation');
+  });
+});
+
+test('pre-bash-guard keeps allowing benign NUL, escape and glob forms', () => {
+  for (const command of [
+    "echo x > $'notes\\x00.env'",
+    "echo x > $'.env.example\\x00'",
+    'rm -rf /tmp/dhpk-*',
+    'rm -rf "/tmp/a\\b"',
+    "rm -rf $'/tmp/x\\c@/etc'",
+    'echo "a\\b" > notes.txt',
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  }
+});
+
 run('hook-bypass');
