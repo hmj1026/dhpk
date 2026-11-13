@@ -9,6 +9,7 @@
 - **fix(agents-skills)** — `npm run sync:local-skills` keeps third-party skill directories such as GitNexus in `.agents/skills` instead of refusing the update, while still refusing unmanaged files inside managed skills, name collisions, and symlinks (#1337).
 - **fix(dispatch)** — Execution policy bounds each implementation dispatch to one verifiable round, sends the next round to a fresh dispatch with a full handoff above 120 turns or a 200k peak prompt, states a test budget with rerun conditions, and dispatch-telemetry-report lists oversized and incompletely measured dispatches (#1336).
 - **fix(distribution)** — Distribution preview disables git auto-maintenance in its temporary snapshot so cleanup no longer leaks dhpk-preview- directories into TMPDIR (#1338).
+- **fix(hooks)** — Fix pre-bash-dispatch.sh exiting 141 (SIGPIPE) instead of continuing when a guard or module hook exits 0 without reading its stdin payload (#1351).
 
 ## 0.75.1 — 2026-11-12 — Telemetry cost now counts cache tokens; architect defaults to fable@medium
 
