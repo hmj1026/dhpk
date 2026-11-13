@@ -8662,6 +8662,7 @@ const {
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
+  canonicalJson: stableStringify,
 } = require('./content-fingerprint');
 const {
   compileProjectAgentProjection,
@@ -8677,7 +8678,7 @@ const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
 } = require('./portable-skill-metadata');
-const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { createTraversalBudget, readDirectoryEntries, lstatOrNull } = require('./bounded-filesystem');
 const journalCore = require('./projection-journal');
 const { LEGACY_JOURNAL_RECOVERY_RELEASE } = journalCore;
 
@@ -8744,10 +8745,6 @@ function clone(value) {
   return value;
 }
 
-function stableStringify(value) {
-  return JSON.stringify(clone(value));
-}
-
 function fail(code, message, details = {}) {
   const error = new Error(message);
   error.projectionCode = code;
@@ -8762,15 +8759,6 @@ function portableSkillContent(content, label) {
     throw fail('INVALID_PORTABLE_METADATA', `${label}: ${details}`);
   }
   return result.output;
-}
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 // Path-safety predicates are shared with the build-time artifact store; this
@@ -11744,7 +11732,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createDistributionArtifact, projectionError, SYMLINK_POLICIES } = require('./distribution-projection-contract');
 const { sha256Hex } = require('./content-fingerprint');
-const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { createTraversalBudget, readDirectoryEntries, lstatOrNull } = require('./bounded-filesystem');
 
 // Shared path-safety predicates (also used by the Projection Receipt
 // publisher).  They reject the union of everything either prior implementation
@@ -12137,15 +12125,6 @@ function reconcileScratch(storeRoot, publishRoot) {
   for (const name of candidates) fs.rmSync(path.join(storeRoot, name), { recursive: true, force: true });
 }
 
-function lstatOrNull(target) {
-  try {
-    return fs.lstatSync(target);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
 // Default ownership proof: a physical directory whose provenance.json records
 // the declared owner.  The store reads only the `owner` field, so it still
 // knows no Host receipt schema.
@@ -12215,7 +12194,7 @@ module.exports = {
 };
 
 }],
-  "scripts/lib/projection-journal.js": [{"./content-fingerprint":"scripts/lib/content-fingerprint.js","./projection-artifact-store":"scripts/lib/projection-artifact-store.js"}, function (exports, require, module, __filename, __dirname) {
+  "scripts/lib/projection-journal.js": [{"./content-fingerprint":"scripts/lib/content-fingerprint.js","./bounded-filesystem":"scripts/lib/bounded-filesystem.js","./projection-artifact-store":"scripts/lib/projection-artifact-store.js"}, function (exports, require, module, __filename, __dirname) {
 'use strict';
 
 // Projection Journal core (ADR-0036, js-projection-journal stage 2).
@@ -12237,6 +12216,7 @@ module.exports = {
 const fs = require('node:fs');
 const path = require('node:path');
 const { sha256Hex } = require('./content-fingerprint');
+const { lstatOrNull } = require('./bounded-filesystem');
 const { safeRelative, safeLinkTarget, inside } = require('./projection-artifact-store');
 
 const EFFECT_KINDS = Object.freeze(['mkdir', 'rename', 'symlink', 'remove', 'write-file', 'copy-tree', 'chmod']);
@@ -12268,15 +12248,6 @@ function fail(code, message, details = {}) {
   error.projectionCode = code;
   error.projectionDetails = details;
   return error;
-}
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 function isInside(parent, candidate) {

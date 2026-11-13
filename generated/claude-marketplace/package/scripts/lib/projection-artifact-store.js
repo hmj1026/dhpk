@@ -16,7 +16,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createDistributionArtifact, projectionError, SYMLINK_POLICIES } = require('./distribution-projection-contract');
 const { sha256Hex } = require('./content-fingerprint');
-const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { createTraversalBudget, readDirectoryEntries, lstatOrNull } = require('./bounded-filesystem');
 
 // Shared path-safety predicates (also used by the Projection Receipt
 // publisher).  They reject the union of everything either prior implementation
@@ -407,15 +407,6 @@ function reconcileScratch(storeRoot, publishRoot) {
     return;
   }
   for (const name of candidates) fs.rmSync(path.join(storeRoot, name), { recursive: true, force: true });
-}
-
-function lstatOrNull(target) {
-  try {
-    return fs.lstatSync(target);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 // Default ownership proof: a physical directory whose provenance.json records

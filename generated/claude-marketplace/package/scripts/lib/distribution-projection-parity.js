@@ -456,6 +456,5 @@ module.exports = {
   CHECKED_FIELDS,
   CHECKER,
   compareDistributionProjections,
-  compareDistributionProjection: compareDistributionProjections,
   compareRoutingProjections,
 };

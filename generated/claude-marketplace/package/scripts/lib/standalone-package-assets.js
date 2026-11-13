@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { isInside } = require('./bounded-filesystem');
 
 function isSafeRelativePath(value) {
   return typeof value === 'string'
@@ -14,11 +15,6 @@ function isSafeRelativePath(value) {
     && value !== '.'
     && value !== '..'
     && !value.startsWith('../');
-}
-
-function isInside(root, candidate) {
-  const relative = path.relative(path.resolve(root), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
 }
 
 function readPhysicalFile(root, relativePath) {

@@ -23,10 +23,6 @@ const STATIC_REQUIRE = /\brequire\(\s*(['"])([^'"\n]+)\1\s*\)/g;
 const ANY_REQUIRE = /\brequire\s*(?:\.\s*resolve\s*)?\(/g;
 const DYNAMIC_IMPORT = /(?<![.\w$])import\s*\(/;
 
-function toPosix(value) {
-  return value.split(path.sep).join('/');
-}
-
 // Replaces comments and string/template bodies by spaces so the scans below
 // look at code only. Regex literals are not special-cased: the closure holds
 // none that confuse a `require(` scan, and a false hit fails loudly.
