@@ -789,4 +789,187 @@ test('pre-bash-guard keeps allowing benign NUL, escape and glob forms', () => {
   }
 });
 
+// #1392: pre-existing desyncs. Heredoc bodies are data, ${...}, $(...),
+// backticks and subshells are modelled, and syntax the decoder cannot place
+// is blocked instead of guessed.
+const DESYNC_NO_VERIFY = [
+  ['heredoc body with an apostrophe', "cat <<EOF\nit's\nEOF\ngit commit --no-verify -m x\n"],
+  ['tab-stripped heredoc', "cat <<-'EOF'\n\tit's\n\tEOF\ngit commit --no-verify -m x"],
+  ['nested double quote inside ${...}', 'echo "${x:-"\'"}" ; git commit --no-verify -m x #\''],
+  ['command substitution', 'echo $(git commit --no-verify -m x)'],
+  ['backtick substitution', 'echo `git commit --no-verify -m x`'],
+  ['( followed by #', "(#'\ngit commit --no-verify -m x\n) #'"],
+  ['brace group', '{ git commit --no-verify -m x; }'],
+  ['if body', 'if true; then git commit --no-verify -m x; fi'],
+];
+
+for (const [label, command] of DESYNC_NO_VERIFY) {
+  test(`pre-bash-guard and dispatch block --no-verify after a desync: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, `guard ${JSON.stringify(command)}`);
+      expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo }), BLOCK, `dispatch ${JSON.stringify(command)}`);
+    });
+  });
+}
+
+test('pretool-git-gate and dispatch (block mode) block a commit on main after a heredoc body', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ["cat <<EOF\nit's\nEOF\ngit commit -m x", "(#'\ngit commit -m x\n) #'", 'echo $(git commit -m x)']) {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook} ${JSON.stringify(command)}`);
+        assert.match(res.stderr, /branch-safety/);
+      }
+    }
+  });
+});
+
+test('pretool-git-gate allows a heredoc commit message with quotes on a feature branch', () => {
+  withRepos(({ featureRepo }) => {
+    const command = "git commit -m \"$(cat <<'EOF'\nfix: it's done\n\nNever run `git commit --no-verify`.\nEOF\n)\"";
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, command);
+  });
+});
+
+test('pre-bash-guard and dispatch allow a heredoc commit message that mentions blocked commands', () => {
+  withRepos(({ featureRepo }) => {
+    const command = "git commit -m \"$(cat <<'EOF'\nfix: block `git commit --no-verify`\n\nAlso `echo x > .env` and (cd /tmp).\nEOF\n)\"";
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, `guard ${command}`);
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo }), ALLOW, `dispatch ${command}`);
+  });
+});
+
+test('pre-bash-guard blocks rm in a subshell and a relative rm that climbs to a system directory', () => {
+  for (const command of ['(rm -rf /etc)', 'cd /tmp && rm -rf ../etc', 'cd /etc && rm -rf nginx', 'echo $(rm -rf /etc)']) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test('pre-bash-guard allows relative rm under a scratch directory and plain substitutions', () => {
+  for (const command of [
+    'cd /tmp/x && rm -rf ../y',
+    'rm -rf ./node_modules dist',
+    'x=$(git rev-parse HEAD) && echo "$x"',
+    'diff <(ls a) <(ls b)',
+    'echo "${HOME:-/tmp}"',
+    "cat <<< \"it's\"",
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  }
+});
+
+test('pre-bash-guard blocks syntax the decoder cannot place', () => {
+  const res = bashHook('pre-bash-guard.sh', 'x=$(case a in a) echo ;; esac)');
+  expectStatus(res, BLOCK, 'case inside $(...)');
+  assert.match(res.stderr, /unsupported shell syntax/);
+});
+
+test('pre-bash-dispatch blocks deeply nested substitutions with exit 2, not a crash', () => {
+  const tail = ' ; git commit --no-verify -m x';
+  for (const command of [
+    `echo ${'$('.repeat(2000)}true${')'.repeat(2000)}${tail}`,
+    `echo ${'${x:-'.repeat(2000)}a${'}'.repeat(2000)}${tail}`,
+    `echo ${'${x:-"'.repeat(2000)}a${'"}'.repeat(2000)}${tail}`,
+    `cat ${'<('.repeat(2000)}true${')'.repeat(2000)}${tail}`,
+  ]) {
+    const res = runHook('pre-bash-dispatch.sh', {
+      payload: { tool_input: { command } }, deleteEnv: ['DHPK_ALLOW_NO_VERIFY', 'DHPK_BRANCH_SAFETY'], timeout: 60000,
+    });
+    expectStatus(res, BLOCK, command.slice(0, 20));
+  }
+});
+
+// A child hook that crashes (any status other than 0 or 2) must still block:
+// Claude Code treats only exit 2 as a block.
+function withCrashingRoot(fn) {
+  const root = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-crash-root-'));
+  try {
+    fs.cpSync(path.join(__dirname, '..', 'scripts'), path.join(root, 'scripts'), { recursive: true });
+    return fn(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('pre-bash-dispatch maps a crashed or failing child hook to exit 2', () => {
+  for (const [child, body] of [
+    ['pre-bash-guard.sh', 'cat >/dev/null; kill -SEGV $$'],
+    ['pre-bash-guard.sh', 'cat >/dev/null; exit 1'],
+    ['pretool-git-gate.sh', 'cat >/dev/null; exit 3'],
+  ]) {
+    withCrashingRoot((root) => {
+      fs.writeFileSync(path.join(root, 'scripts', 'hooks', child), `#!/usr/bin/env bash\n${body}\n`);
+      const res = runHook(path.join(root, 'scripts', 'hooks', 'pre-bash-dispatch.sh'), {
+        payload: { tool_input: { command: 'ls' } }, pluginRoot: root,
+      });
+      expectStatus(res, BLOCK, `${child}: ${body}`);
+    });
+  }
+});
+
+test('pre-bash-dispatch keeps a cd inside a subshell from moving a later commit (block mode)', () => {
+  withRepos(({ featureRepo }) => {
+    fs.mkdirSync(path.join(featureRepo, 'sub'));
+    const command = '(cd sub && ls) && git commit --allow-empty -m x';
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, command);
+  });
+});
+
+test('pre-bash-guard blocks substitutions inside single quotes of a double-quoted ${...}', () => {
+  for (const command of [
+    'echo "${x:-\'$(git commit --no-verify -m x)\'}"',
+    'echo "${x:-\'`git commit --no-verify -m x`\'}"',
+    "cat <<EOF\n${x:-'$(git commit --no-verify -m x)'}\nEOF",
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, JSON.stringify(command));
+  }
+});
+
+test("pre-bash-guard blocks commands after '\\' inside a double-quoted ${...}", () => {
+  for (const command of [
+    'echo "${x:-\'\\\'}" ; git commit --no-verify -m x #\'"',
+    'echo "${x#\'\\\'}" ; git commit --no-verify -m x #\'"',
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test('pre-bash-dispatch (block mode) does not trust a cd that may not run', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `if false; then cd ${featureRepo}; fi; git commit -m x`,
+      `while false; do cd ${featureRepo}; done; git commit -m x`,
+      `case a in b) cd ${featureRepo};; esac; git commit -m x`,
+      `f() { cd ${featureRepo}; }; git commit -m x`,
+      `false && cd ${featureRepo}; git commit -m x`,
+    ]) {
+      const res = bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE });
+      expectStatus(res, BLOCK, command);
+    }
+    for (const command of [
+      `coproc cd ${featureRepo}; git commit -m x`,
+      `if false; then "fi"; cd ${featureRepo}; fi; git commit -m x`,
+      `pushd ${featureRepo} && git commit -m x`,
+    ]) {
+      expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    }
+    expectStatus(
+      bashHook('pre-bash-dispatch.sh', `command cd ${protectedRepo} && git commit -m x`, { cwd: featureRepo, env: BLOCK_MODE }),
+      BLOCK,
+      'command cd into a protected repo',
+    );
+    const chained = `cd ${featureRepo} && git commit --allow-empty -m x`;
+    expectStatus(bashHook('pre-bash-dispatch.sh', chained, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, chained);
+  });
+});
+
+test('pre-edit-guard blocks Windows-equivalent .env and .git names', () => {
+  for (const filePath of ['.env ', '.env.', '.env::$DATA', '.git::$INDEX_ALLOCATION/config', 'a/.git /config']) {
+    expectStatus(editHook(filePath), BLOCK, JSON.stringify(filePath));
+  }
+  for (const filePath of ['.envrc', 'src/.env.example', 'docs/environment.md']) {
+    expectStatus(editHook(filePath), ALLOW, JSON.stringify(filePath));
+  }
+});
+
 run('hook-bypass');

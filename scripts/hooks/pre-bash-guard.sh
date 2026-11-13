@@ -49,6 +49,13 @@ CMD="$(extract_tool_input command "$PAYLOAD")"
 dhpk_inspect_command "$CMD"
 CMD_STRIPPED="$DHPK_STRIPPED"
 
+# The decoder reports syntax it cannot place (for example a case statement
+# inside $(...)). Guessing there could hide a later command, so block.
+if [ -n "$DHPK_UNSUPPORTED" ]; then
+    echo "[bash-guard] blocked: unsupported shell syntax ($DHPK_UNSUPPORTED); rewrite the command without it." >&2
+    exit 2
+fi
+
 # _guard_word_head_is <word> <name>
 #   True when the decoded argv word is <name> or a path ending in /<name>.
 _guard_word_head_is() {
@@ -70,7 +77,23 @@ _guard_rm_target_dangerous() {
     local dots='/\.\.?(/|$)'
     _guard_rm_abs_dangerous "$1" && return 0
     if [[ "$1" == /* ]] && [[ "$1" =~ $dots ]]; then
-        _guard_rm_abs_dangerous "$(dhpk_norm_path / "$1")" && return 0
+        dhpk_norm_path_var / "$1"
+        _guard_rm_abs_dangerous "$DHPK_NORM_PATH" && return 0
+    fi
+    return 1
+}
+
+# _guard_rm_relative_dangerous <decoded-operand> <command-cwd>
+#   A relative operand is judged on its absolute form when the command's
+#   working directory is known and either the operand climbs with '..' or a
+#   literal cd chose that directory. Other relative operands stay inside the
+#   session directory and are not judged.
+_guard_rm_relative_dangerous() {
+    local dots='(^|/)\.\.(/|$)'
+    [ -n "$2" ] || return 1
+    if [[ "$1" =~ $dots ]] || [ "$2" != "$DHPK_START_CWD" ]; then
+        dhpk_norm_path_var "$2" "$1"
+        _guard_rm_abs_dangerous "$DHPK_NORM_PATH" && return 0
     fi
     return 1
 }
@@ -91,12 +114,14 @@ _guard_rm_abs_dangerous() {
 # _guard_rm_decoded
 #   Pattern 1 on decoded argv, so r"m", $'rm', "/" and $'/etc' are judged by
 #   their shell value. An rm word with at least one option blocks when any
-#   operand is dangerous.
+#   operand is dangerous, including a relative operand that resolves to a
+#   dangerous path from a known working directory (cd /tmp && rm -rf ../etc).
 _guard_rm_decoded() {
-    local c=0 k end w has_flag operands_only hit
+    local c=0 k end w has_flag operands_only hit cwd
     while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
         k="${DHPK_CMD_START[$c]}"
         end=$((k + DHPK_CMD_LEN[c]))
+        cwd="${DHPK_CMD_CWD[$c]}"
         while [ "$k" -lt "$end" ]; do
             if _guard_word_head_is "${DHPK_WORDS[$k]}" rm; then
                 has_flag=0
@@ -110,6 +135,8 @@ _guard_rm_decoded() {
                     elif [ "$operands_only" -eq 0 ] && [ "${w#-}" != "$w" ]; then
                         has_flag=1
                     elif _guard_rm_target_dangerous "$w"; then
+                        hit=1
+                    elif [[ "$w" != /* ]] && _guard_rm_relative_dangerous "$w" "$cwd"; then
                         hit=1
                     fi
                     k=$((k + 1))
