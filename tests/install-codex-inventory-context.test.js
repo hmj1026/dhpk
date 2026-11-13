@@ -118,4 +118,13 @@ test('a plan after the inventory becomes unreadable reports the new parse failur
   }
 });
 
+test('the Codex CLI Host list is the installer Host table', () => {
+  const codex = require('../scripts/lib/install-adapters/codex');
+  const cli = require('../scripts/lib/install-adapters/codex-cli');
+  assert.strictEqual(cli.HOSTS, codex.HOSTS);
+  assert.deepStrictEqual(Object.keys(cli.HOSTS), ['codex', 'cursor']);
+  assert.strictEqual(cli.HOSTS.cursor.installerName, 'install-cursor-harness');
+  assert.strictEqual(cli.HOSTS.codex.surfaceLabel, 'Codex');
+});
+
 run('install-codex-inventory-context');

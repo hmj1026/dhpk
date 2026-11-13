@@ -1802,7 +1802,9 @@ function createInstaller(env, io) {
     return !isLink(destination) && (isFileFollow(destination) || isDirFollow(destination)) && !containsSymlink(destination);
   }
 
-  function isOwned(entry, destination) {
+  // `knownFingerprint`: the complete-view fingerprint of `destination` when the
+  // caller (a plan) already computed it; apply paths omit it and re-hash.
+  function isOwned(entry, destination, knownFingerprint = null) {
     if (!isDict(entry) || pyTruthy(entry.orphaned) || !lexists(destination)) return false;
     const mode = entry.mode;
     const relative = entry.source || entry.destination;
@@ -1819,7 +1821,7 @@ function createInstaller(env, io) {
     if (!isStr(recorded) || !recorded) return false;
     // Ownership always uses complete integrity, so an ignored bytecode edit
     // cannot pass as an owned, unchanged target.
-    return fingerprintDestination(destination) === recorded;
+    return (knownFingerprint === null ? fingerprintDestination(destination) : knownFingerprint) === recorded;
   }
 
   // The receipt fingerprint that guards copy-mode deletion.
@@ -1829,15 +1831,19 @@ function createInstaller(env, io) {
     return isStr(value) && value.length === 64 ? value : null;
   }
 
-  function exactSourceMatch(source, destination, relative, oldEntry = null) {
+  // `known`: { source, destination } fingerprints a plan already computed for
+  // this pair; apply paths omit it and re-hash.
+  function exactSourceMatch(source, destination, relative, oldEntry = null, known = null) {
     if (!lexists(destination)) return false;
     if (isLink(destination)) return realpath(destination) === realpath(source);
+    const currentSource = () => (known === null ? fingerprintSource(source) : known.source);
+    const currentDestination = () => (known === null ? fingerprintDestination(destination) : known.destination);
     if (relative.startsWith('skills/') && isDict(oldEntry) && oldEntry.metadata_projection === 'portable-skill-metadata.v1') {
       const sourceFp = oldEntry.source_fingerprint;
       const destinationFp = oldEntry.destination_fingerprint || oldEntry.fingerprint;
-      return sourceFp === fingerprintSource(source) && destinationFp === fingerprintDestination(destination);
+      return sourceFp === currentSource() && destinationFp === currentDestination();
     }
-    return fingerprintSource(source) === fingerprintDestination(destination);
+    return currentSource() === currentDestination();
   }
 
   // An installer source: distributable view, links followed.
@@ -2078,7 +2084,7 @@ function createInstaller(env, io) {
       let handling;
       let reason;
       let action;
-      if (isDict(old) && isOwned(old, destination)) {
+      if (isDict(old) && isOwned(old, destination, destFp)) {
         handling = 'migrate';
         reason = 'unchanged-receipt-owned-native-copy';
         action = '--update';
@@ -2176,12 +2182,12 @@ function createInstaller(env, io) {
           continue;
         }
         const destinationFp = safeDestinationFingerprint(destination);
-        if (!isOwned(old, destination)) {
+        if (!isOwned(old, destination, destinationFp)) {
           const ownership = isDict(old) && pyTruthy(old.orphaned) ? 'orphaned' : 'unowned-collision';
           collisions.push({ path: relative, kind, name, ownership, source_fingerprint: sourceFp, destination_fingerprint: destinationFp, action: `--adopt=${relative}@${destinationFp}@${sourceFp}` });
           continue;
         }
-        if (old.mode !== effectiveMaterializationMode(relative) || !exactSourceMatch(source, destination, relative, old)) {
+        if (old.mode !== effectiveMaterializationMode(relative) || !exactSourceMatch(source, destination, relative, old, { source: sourceFp, destination: destinationFp })) {
           updates.push({ path: relative, kind, name, ownership: 'dhpk-managed', source_fingerprint: sourceFp, destination_fingerprint: destinationFp, action: '--update' });
         }
       }
@@ -2229,7 +2235,7 @@ function createInstaller(env, io) {
         if (lexists(destination)) {
           observedDestination = safeDestinationFingerprint(destination);
           destinationFingerprint = observedDestination;
-          if (isOwned(old, destination)) {
+          if (isOwned(old, destination, observedDestination)) {
             ownership = 'receipt-entry';
             reason = 'unchanged-receipt-owned';
           } else if (isDict(old) && pyTruthy(old.orphaned)) {
