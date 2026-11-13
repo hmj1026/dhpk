@@ -4,10 +4,10 @@
 // skills generator. It changes description text only; the legacy config
 // contract remains the source of truth for keys and values.
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { evaluateDiscoveryBudget, ESTIMATOR } = require('./discovery-budget');
+const { sha256Hex } = require('./content-fingerprint');
 
 const SCHEMA = 'dhpk.plugin-user-config-metadata.v1';
 const CATEGORY = 'claude-user-config';
@@ -25,10 +25,7 @@ function clone(value) {
 }
 
 function digest(value) {
-  const bytes = Buffer.isBuffer(value)
-    ? value
-    : Buffer.from(typeof value === 'string' ? value : JSON.stringify(value));
-  return crypto.createHash('sha256').update(bytes).digest('hex');
+  return sha256Hex(Buffer.isBuffer(value) || typeof value === 'string' ? value : JSON.stringify(value));
 }
 
 function words(value) {

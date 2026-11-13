@@ -8,6 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { extract } = require('../ci/_lib/frontmatter');
+const { isInside } = require('./bounded-filesystem');
 
 function asTopologyOptions(options, inventoryArg, extraOptions) {
   if (typeof options === 'string') {
@@ -18,11 +19,6 @@ function asTopologyOptions(options, inventoryArg, extraOptions) {
 
 function relativePosix(root, filePath) {
   return path.relative(root, filePath).split(path.sep).join('/');
-}
-
-function isOutside(root, candidate) {
-  const relative = path.relative(root, candidate);
-  return relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
 }
 
 function readDirectoryEntries(dir) {
@@ -144,7 +140,7 @@ function validateProjectionLink({ root, linkPath, expectedEntry, kind, errors })
   }
 
   const resolvedTarget = path.resolve(path.dirname(linkPath), rawTarget);
-  if (isOutside(root, resolvedTarget)) {
+  if (!isInside(root, resolvedTarget)) {
     errors.push(`${kind} projection ${relativeLink} points outside the repository: ${rawTarget}`);
     return;
   }

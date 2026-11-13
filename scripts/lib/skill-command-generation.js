@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
+const { sha256Hex } = require('./content-fingerprint');
 const { readSkillDirectories } = require('./skill-distribution-source');
 const { serialize, same } = require('./skill-distribution-compile');
 const { writeInventoryAtomically } = require('./distribution-inventory');
@@ -74,7 +74,7 @@ function forwarder({ skill, declaration }) {
 
 const FORWARDER_LEDGER = 'manifests/command-forwarder-copies.json';
 const FORWARDER_SCHEMA = 'dhpk.command-forwarder-copies.v1';
-const fingerprint = content => crypto.createHash('sha256').update(content).digest('hex');
+const fingerprint = sha256Hex;
 
 function physicalPath(root, relative) {
   let current = path.resolve(root);
