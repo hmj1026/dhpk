@@ -61,10 +61,11 @@ _guard_word_head_is() {
 # _guard_rm_target_dangerous <decoded-target>
 #   Mirrors the Pattern 1 regex on one decoded rm operand: the root, a root
 #   glob or expansion, any path under a DANGEROUS_ROOT_ANY directory, or a
-#   DANGEROUS_ROOT_SHALLOW path at depth 2 or less. A glob (*, ?, [) in the
-#   first segment, or in the second segment under a shallow root, can match a
-#   protected directory and blocks too. An absolute operand with a '.' or
-#   '..' segment is judged on both its raw and its normalised form.
+#   DANGEROUS_ROOT_SHALLOW path at depth 2 or less. An expansion character
+#   ({, *, ?, [, $ or a backtick) in the first segment, or a glob or brace in
+#   the second segment under a shallow root, can reach a protected directory
+#   and blocks too. An absolute operand with a '.' or '..' segment is judged
+#   on both its raw and its normalised form.
 _guard_rm_target_dangerous() {
     local dots='/\.\.?(/|$)'
     _guard_rm_abs_dangerous "$1" && return 0
@@ -77,7 +78,7 @@ _guard_rm_target_dangerous() {
 _guard_rm_abs_dangerous() {
     local root='^/+$' expand='^/+[$*]' any="^/+${DANGEROUS_ROOT_ANY}(/|\$)"
     local shallow='^/+(home|opt|srv)(/+[^/]+)?/*$'
-    local glob1='^/+[^/]*[]*?[]' glob2='^/+(home|opt|srv)/+[^/]*[]*?[]'
+    local glob1='^/+[^/]*[][{*?$`]' glob2='^/+(home|opt|srv)/+[^/]*[][{*?]'
     [[ "$1" =~ $root ]] && return 0
     [[ "$1" =~ $expand ]] && return 0
     [[ "$1" =~ $glob1 ]] && return 0

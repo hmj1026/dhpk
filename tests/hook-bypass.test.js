@@ -655,6 +655,51 @@ test('backslash-newline inside a double-quoted git word is a continuation for al
   });
 });
 
+// Review round 2 (#1389): a $'\c' right before the closing quote must not
+// swallow it, and a brace expansion in the first segment can reach /etc.
+const CTRL_C_PREFIX = "echo $'\\c' ; ";
+
+test("pre-bash-guard blocks commands that follow a $'\\c' string", () => {
+  for (const command of [
+    `${CTRL_C_PREFIX}git commit --no-verify -m x #'`,
+    `${CTRL_C_PREFIX}r"m" -rf /etc #'`,
+    `${CTRL_C_PREFIX}echo x > ".e"nv #'`,
+    "echo $'\\c\\\\' ; git commit --no-verify -m x #'",
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test("pretool-git-gate and dispatch (block mode) block a commit that follows a $'\\c' string on main", () => {
+  withRepos(({ protectedRepo }) => {
+    const command = `${CTRL_C_PREFIX}git commit -m x #'`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+      expectStatus(res, BLOCK, `${hook} ${command}`);
+      assert.match(res.stderr, /branch-safety/);
+    }
+  });
+});
+
+test('pre-bash-dispatch blocks --no-verify that follows a $\'\\c\' string', () => {
+  withRepos(({ featureRepo }) => {
+    const command = `${CTRL_C_PREFIX}git commit --no-verify -m x #'`;
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo }), BLOCK, command);
+  });
+});
+
+test('pre-bash-guard blocks rm -rf with an expansion character in the first path segment', () => {
+  for (const command of [
+    'rm -rf /{etc,nonexist}',
+    'rm -rf /tmp/../{etc,x}',
+    'rm -rf "/"{etc,x}',
+    'rm -rf /e`echo t`c',
+    'rm -rf /$D',
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
 test('pre-bash-guard keeps allowing benign NUL, escape and glob forms', () => {
   for (const command of [
     "echo x > $'notes\\x00.env'",
