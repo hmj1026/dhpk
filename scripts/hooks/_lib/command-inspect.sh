@@ -297,12 +297,14 @@ _dhpk_ci_flush_command() {
             fi
         fi
     fi
-    # Heredocs opened by this command: the body is data for cat, tee and git
-    # unless the command pipes into another one; otherwise it is a script.
+    # Heredocs opened by this command: the body is data for cat and tee
+    # unless the command pipes into another one, its output can run as a
+    # command, or the text writes into a process or a FIFO. Any other body
+    # is a script.
     while [ "$_dhpk_ci_hd_seen" -lt "${#_dhpk_ci_hd_d[@]}" ]; do
         case "$head" in
-            cat|*/cat|tee|*/tee|git|*/git)
-                if [ "$sep" = "pipe" ]; then
+            cat|*/cat|tee|*/tee)
+                if [ "$sep" = "pipe" ] || [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
                     _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1
                 else
                     _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=0
@@ -792,6 +794,28 @@ _dhpk_ci_hd_bodies() {
     _dhpk_ci_end="$k"
 }
 
+# _dhpk_ci_exec_context <unquoted>
+#   Sets _dhpk_ci_exec_next to 1 when a substitution starting now produces
+#   text that runs as a command: an unquoted command word, or an argument of
+#   eval, source or a shell. The nested list then treats its heredocs as
+#   scripts.
+_dhpk_ci_exec_context() {
+    local h
+    _dhpk_ci_exec_next=0
+    _dhpk_ci_head_index
+    h="$_dhpk_ci_head"
+    if [ "$h" -ge "${#_dhpk_ci_words[@]}" ]; then
+        if [ "$1" -eq 1 ] && [ -z "$_dhpk_ci_word" ] && [ "$_dhpk_ci_word_open" -eq 0 ]; then
+            _dhpk_ci_exec_next=1
+        fi
+        return 0
+    fi
+    case "${_dhpk_ci_words[$h]##*/}" in
+        eval|source|.|sh|bash|zsh|dash|ksh|ash|mksh) _dhpk_ci_exec_next=1 ;;
+    esac
+    return 0
+}
+
 # _dhpk_ci_sub_word <text> <start> <end>
 #   Adds the raw text of a substitution that ended at <end> to the current
 #   word, segment and stripped text. A substitution that spans a newline
@@ -826,6 +850,9 @@ _dhpk_ci_list() {
     local _dhpk_ci_cwd="$_dhpk_ci_cwd" _dhpk_ci_cwd_state="$_dhpk_ci_cwd_state"
     local -a _dhpk_ci_hd_d _dhpk_ci_hd_q _dhpk_ci_hd_t _dhpk_ci_hd_x
     local _dhpk_ci_hd_seen=0
+    # Set by the caller when this list's output runs as a command.
+    local _dhpk_ci_xctx="${_dhpk_ci_exec_next:-0}"
+    _dhpk_ci_exec_next=0
     _dhpk_ci_hd_d=()
     _dhpk_ci_hd_q=()
     _dhpk_ci_hd_t=()
@@ -882,6 +909,9 @@ _dhpk_ci_list() {
                 i=$((i + 2))
                 continue
             fi
+            case "$ch" in
+                '$'|'`') _dhpk_ci_exec_context 0 ;;
+            esac
             if _dhpk_ci_expand "$text" "$i" 1; then
                 _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
                 i="$_dhpk_ci_end"
@@ -1095,6 +1125,7 @@ _dhpk_ci_list() {
                 continue
                 ;;
             '$')
+                _dhpk_ci_exec_context 1
                 if _dhpk_ci_expand "$text" "$i" 0; then
                     _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
                     i="$_dhpk_ci_end"
@@ -1131,6 +1162,7 @@ _dhpk_ci_list() {
                 fi
                 ;;
             '`')
+                _dhpk_ci_exec_context 1
                 _dhpk_ci_expand "$text" "$i" 0
                 _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
                 i="$_dhpk_ci_end"
@@ -1179,10 +1211,16 @@ dhpk_inspect_command() {
     DHPK_START_CWD="$start"
     DHPK_REDIRECT_TARGETS=()
     DHPK_UNSUPPORTED=""
+    # A process substitution or a FIFO can carry a cat heredoc into a shell.
+    DHPK_HD_FORCE_EXEC=0
+    case "$cmd" in
+        *'>('*|*mkfifo*) DHPK_HD_FORCE_EXEC=1 ;;
+    esac
     _dhpk_ci_cwd="$start"
     _dhpk_ci_cwd_state="literal"
+    _dhpk_ci_exec_next=0
     _dhpk_ci_list "$cmd" 0 top
-    unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head
+    unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next
     unset _dhpk_ci_hd_word _dhpk_ci_hd_quoted
     return 0
 }

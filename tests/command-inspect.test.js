@@ -302,6 +302,20 @@ test('a heredoc body fed to a command other than cat, tee or git is inspected on
   assert.deepStrictEqual(decoded("sh <<'EOF'\nit's\nEOF\ngit commit --no-verify -m x").cmds.slice(-1), [NV_COMMIT]);
 });
 
+test('a cat heredoc whose text can run as a command is inspected as a script', () => {
+  const body = "<<'EOF'\ngit commit --no-verify -m x\nEOF";
+  for (const command of [
+    `cat ${body.split('\n')[0]} > >(sh)\n${body.split('\n').slice(1).join('\n')}`,
+    `mkfifo p ; cat ${body} > p`,
+    `$(cat ${body}\n)`,
+    `\`cat ${body}\n\``,
+    `eval "$(cat ${body}\n)"`,
+    `git -c alias.x='!sh' x ${body}`,
+  ]) {
+    assert.deepStrictEqual(gitRecords(command).records.map((r) => r.noVerify).filter((v) => v === '1'), ['1'], command);
+  }
+});
+
 test('substitutions in an unquoted cat heredoc body are inspected, a quoted body is not', () => {
   assert.strictEqual(gitRecords("cat <<EOF\nit's $(git commit --no-verify -m x)\nEOF").records[0].noVerify, '1');
   assert.strictEqual(gitRecords("cat <<EOF\nit's `git commit --no-verify -m x`\nEOF").records[0].noVerify, '1');
