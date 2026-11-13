@@ -1931,6 +1931,17 @@ const EXPECTED_REMOVED_KEYS = {
     }
   });
 
+  test('legacy request rejects Object.prototype member names as unknown legacy roles', () => {
+    for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      assert.throws(() => translateLegacyRequest({
+        schema: 'dhpk.cli.request.v1', host_profile: HOST_PROFILE,
+        task_id: 'legacy-task-proto', attempt_id: 'legacy-attempt-proto',
+        requested_role: name, mode: 'read-only',
+        task: { description_digest: 'e'.repeat(64) }, scope: request().scope,
+      }), new RegExp(`^TypeError: unknown legacy role: ${name}$`));
+    }
+  });
+
   test('v2 receipt identifies target and verification without raw prompt, output, or secret content', () => {
     const normalized = createDispatchRequest(request({
       role: 'reasoner',

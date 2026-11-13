@@ -45,9 +45,11 @@ const RETIRED_ROLES = Object.freeze({
   'agy-fast-worker': 'agy-worker',
 });
 
+const hasOwn = (table, key) => Object.prototype.hasOwnProperty.call(table, key);
+
 // Retirement guidance naming the successor, or null when the name is not a retired Role.
 function retirementGuidance(name) {
-  if (!Object.prototype.hasOwnProperty.call(RETIRED_ROLES, name)) return null;
+  if (!hasOwn(RETIRED_ROLES, name)) return null;
   return `retired role ${name} in 0.66.2; use ${RETIRED_ROLES[name]}; rollback 0.66.1`;
 }
 
@@ -793,7 +795,7 @@ function legacyTransport(provider) {
 function normalizeLegacyTransport(value, provider) {
   if (value === undefined || value === null) return legacyTransport(provider);
   const map = { 'codex-exec': 'local-cli', 'agy-print': 'local-cli', native: 'native-runtime' };
-  return map[value] || value;
+  return hasOwn(map, value) ? map[value] : value;
 }
 
 function translateLegacyRequest(input) {
@@ -802,7 +804,8 @@ function translateLegacyRequest(input) {
   const requestedAlias = legacy.requested_role || legacy.role;
   requiredString(requestedAlias, 'legacy requested role');
   if (retirementGuidance(requestedAlias)) throw new TypeError(retirementGuidance(requestedAlias));
-  let mapping = ROLE_ALIASES[requestedAlias] || LEGACY_REQUEST_ROLES[requestedAlias];
+  let mapping = hasOwn(ROLE_ALIASES, requestedAlias) ? ROLE_ALIASES[requestedAlias]
+    : hasOwn(LEGACY_REQUEST_ROLES, requestedAlias) ? LEGACY_REQUEST_ROLES[requestedAlias] : undefined;
   if (!mapping && CANONICAL_ROLES.includes(requestedAlias)) mapping = { role: requestedAlias };
   if (!mapping) throw new TypeError(`unknown legacy role: ${requestedAlias}`);
   const authority = mapping.authority || legacy.authority || legacy.mode || MAX_AUTHORITY[mapping.role];

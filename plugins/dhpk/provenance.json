@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.77.0",
-  "sourceCommit": "7c697f8f94b93a1e168b0b93e6a00d92c12f873d",
-  "generatedFromCommit": "7c697f8f94b93a1e168b0b93e6a00d92c12f873d",
-  "generatedFromTree": "244d8e1ed7cbb42a3b91f7038a65029f97d7d7cb",
+  "sourceCommit": "d6358b31c13ac78b08b4692672fc38efa862afab",
+  "generatedFromCommit": "d6358b31c13ac78b08b4692672fc38efa862afab",
+  "generatedFromTree": "7840637185064d12c3aa466ff7b65df9f0895e14",
   "inventoryDigest": "a1b3044fe89bcbd81ed7a5ad04c8cf52e71d3b3310639fac23fec780ee90d879",
   "inventoryRevision": "sha256:f73bfda3b167048cce7257dae03d804d25b56363d5e65650c1798387f245a3ca",
   "generatorVersion": "2.4.0",
@@ -1632,7 +1632,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
-        "originalGitBlobDigest": "be13b76770fa5f35b908e04879af72fe7c536153"
+        "originalGitBlobDigest": "e90dabd417ceb14ff764559c12522a40e92ac35c"
       },
       {
         "ownerId": "flow-guide",
@@ -5674,7 +5674,7 @@
     "create-pr": "e8d155d01c115e97ed80051dee8be1b9eadb47c863ca1183e792884693c0aee7",
     "doc-maintain": "9bc045d9d8b3089a032495598db1788a1ac88869b7a28faf3b2d6ed6bac611f5",
     "flow-drive": "ce6d792b676419e20bb1bf827fc94eda502969468c53f57be0cef067193423d0",
-    "flow-guide": "a3c66c0794feb4405a4a381b3f34375a0c0471c33d5d0952cde64b3a8ec1f6fc",
+    "flow-guide": "baebfcc133ead0c5e1e8a1ab7dd7805a0cd2497ff6434949bdfdfe61772928e8",
     "git-smart-commit": "9279cd262a75639559d49229592ce7f13492d3a4c187b9f31522ba5f96e7dc76",
     "git-worktree": "ca92194954739679923d809fc5b0484c589f3da8caaced73b964ea62d6df8c28",
     "library-author": "7cbc852e03a358d9f22ba7fa250a83cf90cad0223c4f2ae5df9e8d3d5c9842dd",
