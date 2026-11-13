@@ -10,6 +10,13 @@ set -o pipefail
 . "$(dirname "$0")/_lib/session-env.sh"
 _advisory_payload="$(dhpk_read_payload)"
 
+# Parse the project config ONCE here. Every advisory block below resolves the
+# same root (dhpk_root: CLAUDE_PROJECT_DIR, then git toplevel, then pwd) and the
+# loader exports its overlay as env vars plus defines the dhpk_config_* helpers;
+# each block's subshell inherits both, so no block re-runs the loader (which
+# forks python3 to read settings.json).
+. "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
+
 # --- Advisory 1: completion-evidence (gate: completion_evidence_enabled) ---
 printf '%s' "$_advisory_payload" | (
     # the completion-evidence advisory — Stop hook (advisory only, opt-in).
@@ -37,7 +44,6 @@ printf '%s' "$_advisory_payload" | (
     . "$(dirname "$0")/_lib/json-out.sh"
 
     ROOT="$(dhpk_root)"
-    . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
 
     # Opt-in gate (env override > userConfig > default off).
     _enabled="$(dhpk_config_bool completion_evidence_enabled false DHPK_COMPLETION_EVIDENCE)"
@@ -164,7 +170,6 @@ printf '%s' "$_advisory_payload" | (
     # Cost: full transcript read + 1 python3 pass, <500ms (large sessions more).
 
     PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-    . "$(dirname "$0")/_lib/load-project-config.sh"
     . "$(dirname "$0")/_lib/transcript.sh"
 
     # --- enablement (opt-in) ---------------------------------------------------
@@ -519,9 +524,8 @@ printf '%s' "$_advisory_payload" | (
     . "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
     payload="$(dhpk_read_payload)"
 
-    # Overlay project pluginConfigs so module selection respects per-project
-    # .claude/settings.local.json (Claude Code only injects global pluginConfigs).
-    . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh" 2>/dev/null || true
+    # Project pluginConfigs overlay (per-project .claude/settings.local.json) was
+    # already loaded by the parent; module selection below reads the inherited env.
     . "$PLUGIN_ROOT/scripts/hooks/_lib/json-out.sh" 2>/dev/null || true
     . "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh" 2>/dev/null || true
     . "$PLUGIN_ROOT/scripts/hooks/_lib/payload.sh" 2>/dev/null || true

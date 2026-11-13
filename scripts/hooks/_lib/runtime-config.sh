@@ -75,6 +75,22 @@ dhpk_config_bool() {
     esac
 }
 
+# _dhpk_ws_normalize <text>
+# Trims the text and collapses every run of blanks (space, tab, newline) to one
+# space, in pure bash, result in _DHPK_NORM. Same result as `awk '{$1=$1; print}'`
+# without forking. Word splitting runs under `set -f` so a field such as `*` or
+# `release/*` is never expanded against the filesystem; the caller's noglob
+# state is restored. IFS is function-local, so the caller's IFS is untouched.
+_dhpk_ws_normalize() {
+    local IFS=$' \t\n' _had_noglob=0
+    case $- in *f*) _had_noglob=1 ;; esac
+    set -f
+    # shellcheck disable=SC2086  # intentional word splitting, globbing disabled above
+    set -- $1
+    _DHPK_NORM="$*"
+    [ "$_had_noglob" = 1 ] || set +f
+}
+
 # dhpk_config_csv <key> <default> [override-env]
 # Normalizes comma-separated settings by trimming entries and dropping blanks.
 dhpk_config_csv() {
@@ -84,7 +100,8 @@ dhpk_config_csv() {
     [ -n "$_raw" ] || return 0
     IFS=',' read -r -a _items <<< "$_raw"
     for _item in "${_items[@]}"; do
-        _item="$(printf '%s' "$_item" | awk '{$1=$1; print}')"
+        _dhpk_ws_normalize "$_item"
+        _item="$_DHPK_NORM"
         [ -n "$_item" ] || continue
         if [ -n "$_out" ]; then _out="$_out,$_item"; else _out="$_item"; fi
     done
