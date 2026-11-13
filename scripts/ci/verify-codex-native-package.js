@@ -99,6 +99,13 @@ if (trackedProvenance.schema !== undefined) {
 // shared verifier owns structural, identity, membership, and stage-bound
 // EvidenceResult construction. Structural PASS remains distinct from any
 // consumer-runtime claim.
+function membershipDriftError(label, tracked, fresh) {
+  if (JSON.stringify(tracked) === JSON.stringify(fresh)) return null;
+  const missing = fresh.filter((item) => !tracked.includes(item));
+  const extra = tracked.filter((item) => !fresh.includes(item));
+  return `materialized ${label} membership drifted: missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`;
+}
+
 const trackedVerification = verifyNativePackage({ packageRoot: pkgDir, inventory, sourceRoot: ROOT, stage: 'structural' });
 errors.push(...trackedVerification.structural.errors);
 errors.push(...trackedVerification.identity.errors);
@@ -110,11 +117,8 @@ if (fresh.manifestSkillsField !== trackedManifest.skills) {
 
 const trackedIds = trackedProvenance.materializedSkillIds || trackedProvenance.selectedSkillIds || [];
 const freshIds = fresh.skillIds;
-if (JSON.stringify(trackedIds) !== JSON.stringify(freshIds)) {
-  const missing = freshIds.filter((id) => !trackedIds.includes(id));
-  const extra = trackedIds.filter((id) => !freshIds.includes(id));
-  errors.push(`materialized skill membership drifted: missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`);
-}
+const idsDrift = membershipDriftError('skill', trackedIds, freshIds);
+if (idsDrift) errors.push(idsDrift);
 
 const trackedNames = Array.isArray(trackedProvenance.materializedSkillNames)
   ? [...trackedProvenance.materializedSkillNames].sort()
@@ -122,11 +126,8 @@ const trackedNames = Array.isArray(trackedProvenance.materializedSkillNames)
     ? [...trackedProvenance.selectedSkillNames].sort()
   : [];
 const freshNames = fresh.skillNames;
-if (JSON.stringify(trackedNames) !== JSON.stringify(freshNames)) {
-  const missing = freshNames.filter((name) => !trackedNames.includes(name));
-  const extra = trackedNames.filter((name) => !freshNames.includes(name));
-  errors.push(`materialized public-name membership drifted: missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`);
-}
+const namesDrift = membershipDriftError('public-name', trackedNames, freshNames);
+if (namesDrift) errors.push(namesDrift);
 
 for (const name of freshNames) {
   if (trackedFingerprints[name] !== fresh.fingerprints[name]) {

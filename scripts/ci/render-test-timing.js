@@ -79,7 +79,7 @@ function summarizeTiming(observed) {
   lines.push(formatSuiteEvidence('full suite', report.suites && report.suites.full_suite));
   lines.push('');
 
-  const files = Array.isArray(report.files) ? report.files.slice() : [];
+  const files = Array.isArray(report.files) ? report.files : [];
   const failed = files.filter((entry) => entry.status === 'FAIL');
   const slowest = files
     .filter((entry) => Number.isFinite(Number(entry.duration_ms)))
@@ -88,7 +88,6 @@ function summarizeTiming(observed) {
   const longRunning = files.filter((entry) => (
     typeof entry.duration_ms === 'number'
     && Number.isFinite(entry.duration_ms)
-    && entry.duration_ms >= 0
     && entry.duration_ms > FILE_DURATION_WARNING_THRESHOLD_MS
   ));
   lines.push('### Slowest files');

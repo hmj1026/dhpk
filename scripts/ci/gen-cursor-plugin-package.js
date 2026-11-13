@@ -69,21 +69,23 @@ if (!fs.existsSync(inventoryPath)) fail(`distribution inventory not found: ${inv
 let inventory;
 try { inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8')); } catch (error) { fail(`invalid distribution inventory: ${error.message}`); }
 
+const version = readVersion(root, args.version);
+const sourceCommit = args.sourceCommit || resolveSourceCommit(root);
 let result;
 try {
   const compiledProjection = compileCursorPackage({
     inventory,
     root,
     outDir,
-    version: readVersion(root, args.version),
-    sourceCommit: args.sourceCommit || resolveSourceCommit(root),
+    version,
+    sourceCommit,
   });
   result = materializeCursorPackage({
     inventory,
     root,
     outDir,
-    version: readVersion(root, args.version),
-    sourceCommit: args.sourceCommit || resolveSourceCommit(root),
+    version,
+    sourceCommit,
     compiledProjection,
   });
 } catch (error) {
