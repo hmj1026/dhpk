@@ -81,6 +81,10 @@ dhpk_norm_path_var() {
     return 0
 }
 
+# Nested lists and ${...} scans recurse; deeper text is reported as
+# unsupported instead of exhausting the bash stack.
+DHPK_CI_MAX_DEPTH=64
+
 _dhpk_ci_reset_words() {
     _dhpk_ci_words=()
     _dhpk_ci_dyn=()
@@ -301,9 +305,9 @@ _dhpk_ci_flush_command() {
             DHPK_CMD_CWD+=("")
         fi
         _dhpk_ci_record_git
+        [ "$head" = "case" ] && _dhpk_ci_case=1
         if [ "$head" = "cd" ]; then
             _dhpk_ci_any_cd=1
-            [ "$_dhpk_ci_paren" -gt 0 ] && _dhpk_ci_sub_cd=1
             if [ "$sep" = "pipe" ]; then
                 _dhpk_ci_pipeline_cd=1
             elif [ "$_dhpk_ci_cwd_state" = "literal" ] && [ $((n - h)) -eq 2 ] && [ "${_dhpk_ci_dyn[$((h + 1))]}" != "1" ]; then
@@ -601,7 +605,7 @@ _dhpk_ci_expand() {
             return 0
             ;;
         '{')
-            _dhpk_ci_scan "$text" $((i + 2)) param
+            _dhpk_ci_scan "$text" $((i + 2)) param "$indq"
             return 0
             ;;
         '[')
@@ -620,13 +624,41 @@ _dhpk_ci_expand() {
 #   pdq:   a "..." nested in a ${...}; ends after the closing quote.
 #   hbody: an unquoted-delimiter heredoc body; quotes are data.
 _dhpk_ci_scan() {
-    local text="$1" k="$2" kind="$3" n="${#1}" ch rest
+    if [ "$_dhpk_ci_depth" -ge "$DHPK_CI_MAX_DEPTH" ]; then
+        _dhpk_ci_unsupported "nesting too deep"
+        _dhpk_ci_end="${#1}"
+        return 0
+    fi
+    _dhpk_ci_depth=$((_dhpk_ci_depth + 1))
+    _dhpk_ci_scan_run "$@"
+    _dhpk_ci_depth=$((_dhpk_ci_depth - 1))
+    return 0
+}
+
+_dhpk_ci_scan_run() {
+    local text="$1" k="$2" kind="$3" indq="${4:-0}" n="${#1}" ch rest sq=0
     while [ "$k" -lt "$n" ]; do
         ch="${text:$k:1}"
+        if [ "$sq" -eq 1 ]; then
+            # '...' in a double-quoted ${...}: it hides } and ", but bash
+            # still runs the substitutions inside it.
+            case "$ch" in
+                "'") sq=0 ;;
+                \\) k=$((k + 2)); continue ;;
+                '$'|'`')
+                    if _dhpk_ci_expand "$text" "$k" 1; then
+                        k="$_dhpk_ci_end"
+                        continue
+                    fi
+                    ;;
+            esac
+            k=$((k + 1))
+            continue
+        fi
         case "$ch" in
             \\) k=$((k + 2)); continue ;;
             '$'|'`')
-                if [ "$kind" = "param" ] && [ "${text:$((k + 1)):1}" = "'" ]; then
+                if [ "$kind" = "param" ] && [ "$indq" -eq 0 ] && [ "${text:$((k + 1)):1}" = "'" ]; then
                     _dhpk_ci_ansi_end "$text" $((k + 2))
                     k=$((_dhpk_ci_ansi_close + 1))
                     continue
@@ -637,6 +669,11 @@ _dhpk_ci_scan() {
                 fi
                 ;;
             "'")
+                if [ "$kind" = "param" ] && [ "$indq" -eq 1 ]; then
+                    sq=1
+                    k=$((k + 1))
+                    continue
+                fi
                 if [ "$kind" = "param" ]; then
                     rest="${text:$((k + 1))}"
                     case "$rest" in
@@ -746,8 +783,9 @@ _dhpk_ci_hd_delim() {
 #   <index> is just after the newline that ends a line with pending heredocs.
 #   Consumes each body in order, up to its delimiter line (or the end of the
 #   text, as bash does). With an unquoted delimiter a line that ends in an odd
-#   number of backslashes joins the next line first. A body for cat, tee or
-#   git is data: only the substitutions of an unquoted body are inspected. Any
+#   number of backslashes joins the next line first. A body that
+#   _dhpk_ci_flush_command classified as data (cat or tee whose output does
+#   not run) is skipped, except the substitutions of an unquoted body. Any
 #   other body is inspected as its own command list. Sets _dhpk_ci_end.
 _dhpk_ci_hd_bodies() {
     local text="$1" k="$2" n="${#1}" j=0 count="${#_dhpk_ci_hd_d[@]}"
@@ -860,11 +898,27 @@ _dhpk_ci_sub_word() {
 #   Only the top list writes DHPK_STRIPPED; a caller adds a nested list's raw
 #   text instead. Sets _dhpk_ci_end after the list.
 _dhpk_ci_list() {
+    if [ "$_dhpk_ci_depth" -ge "$DHPK_CI_MAX_DEPTH" ]; then
+        _dhpk_ci_unsupported "nesting too deep"
+        _dhpk_ci_end="${#1}"
+        return 0
+    fi
+    _dhpk_ci_depth=$((_dhpk_ci_depth + 1))
+    _dhpk_ci_list_run "$@"
+    _dhpk_ci_depth=$((_dhpk_ci_depth - 1))
+    return 0
+}
+
+_dhpk_ci_list_run() {
     local text="$1" i="$2" _dhpk_ci_kind="$3"
-    local len="${#1}" ch next
+    local len="${#1}" ch next matched
     local _dhpk_ci_mode="normal" _dhpk_ci_word="" _dhpk_ci_word_dyn=0 _dhpk_ci_word_open=0 _dhpk_ci_redir=0
     local -a _dhpk_ci_words _dhpk_ci_dyn
-    local _dhpk_ci_seg="" _dhpk_ci_pipeline_cd=0 _dhpk_ci_paren=0 _dhpk_ci_sub_cd=0 _dhpk_ci_any_cd=0
+    local _dhpk_ci_seg="" _dhpk_ci_pipeline_cd=0 _dhpk_ci_paren=0 _dhpk_ci_any_cd=0 _dhpk_ci_case=0
+    # Directory and state saved at each open subshell '('.
+    local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk
+    _dhpk_ci_cwd_stk=()
+    _dhpk_ci_state_stk=()
     local _dhpk_ci_cwd="$_dhpk_ci_cwd" _dhpk_ci_cwd_state="$_dhpk_ci_cwd_state"
     local -a _dhpk_ci_hd_d _dhpk_ci_hd_q _dhpk_ci_hd_t _dhpk_ci_hd_x
     local _dhpk_ci_hd_seen=0
@@ -1023,6 +1077,8 @@ _dhpk_ci_list() {
                     continue
                 fi
                 _dhpk_ci_flush_command compound
+                _dhpk_ci_cwd_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd"
+                _dhpk_ci_state_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd_state"
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
                 DHPK_STRIPPED="${DHPK_STRIPPED}("
                 i=$((i + 1))
@@ -1035,15 +1091,19 @@ _dhpk_ci_list() {
                     _dhpk_ci_end=$((i + 1))
                     return 0
                 fi
-                # A subshell's cd does not outlive it, and an unmatched ) (a
-                # case pattern) can hide where a subshell really ended.
+                # A subshell's cd does not outlive it: its ) restores the
+                # directory saved at its (. A case pattern's ) is not a
+                # subshell's, so after a case and a cd, or at an unmatched )
+                # after a cd, the directory is unresolved.
                 if [ "$_dhpk_ci_paren" -gt 0 ]; then
                     _dhpk_ci_paren=$((_dhpk_ci_paren - 1))
-                    if [ "$_dhpk_ci_sub_cd" -eq 1 ]; then
-                        _dhpk_ci_cwd_state="unresolved"
-                        _dhpk_ci_cwd=""
-                    fi
-                elif [ "$_dhpk_ci_any_cd" -eq 1 ]; then
+                    _dhpk_ci_cwd="${_dhpk_ci_cwd_stk[$_dhpk_ci_paren]}"
+                    _dhpk_ci_cwd_state="${_dhpk_ci_state_stk[$_dhpk_ci_paren]}"
+                    matched=1
+                else
+                    matched=0
+                fi
+                if [ "$_dhpk_ci_any_cd" -eq 1 ] && { [ "$_dhpk_ci_case" -eq 1 ] || [ "$matched" -eq 0 ]; }; then
                     _dhpk_ci_cwd_state="unresolved"
                     _dhpk_ci_cwd=""
                 fi
@@ -1237,8 +1297,9 @@ dhpk_inspect_command() {
     _dhpk_ci_cwd="$start"
     _dhpk_ci_cwd_state="literal"
     _dhpk_ci_exec_next=0
+    _dhpk_ci_depth=0
     _dhpk_ci_list "$cmd" 0 top
-    unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next
+    unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_hd_word _dhpk_ci_hd_quoted
     return 0
 }
