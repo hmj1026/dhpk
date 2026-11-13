@@ -24,6 +24,7 @@ const {
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint: sharedTreeFingerprint,
+  canonicalJson: stableStringify,
 } = require('./content-fingerprint');
 const { resolveStandaloneSkillDependencies } = require('./standalone-skill-dependencies');
 const { planRetiredAgentSkills } = require('./agents-skills-retirement');
@@ -55,18 +56,6 @@ const UNMARKED_RECEIPT_GENERATOR_VERSION = '1.1.0';
 const RECEIPT_NAME = '.dhpk-projection.json';
 const SAFE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
-
-function stableClone(value) {
-  if (Array.isArray(value)) return value.map(stableClone);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableClone(value[key])]));
-  }
-  return value;
-}
-
-function stableStringify(value) {
-  return JSON.stringify(stableClone(value));
-}
 
 // Deliberately bounded (#1248): the walk stops at `boundary` so a checkout under
 // a symlinked parent (for example /var on macOS) still works.

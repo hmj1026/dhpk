@@ -15,6 +15,7 @@ const {
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
+  canonicalJson: stableStringify,
 } = require('./content-fingerprint');
 const {
   compileProjectAgentProjection,
@@ -30,7 +31,7 @@ const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
 } = require('./portable-skill-metadata');
-const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { createTraversalBudget, readDirectoryEntries, lstatOrNull } = require('./bounded-filesystem');
 const journalCore = require('./projection-journal');
 const { LEGACY_JOURNAL_RECOVERY_RELEASE } = journalCore;
 
@@ -97,10 +98,6 @@ function clone(value) {
   return value;
 }
 
-function stableStringify(value) {
-  return JSON.stringify(clone(value));
-}
-
 function fail(code, message, details = {}) {
   const error = new Error(message);
   error.projectionCode = code;
@@ -115,15 +112,6 @@ function portableSkillContent(content, label) {
     throw fail('INVALID_PORTABLE_METADATA', `${label}: ${details}`);
   }
   return result.output;
-}
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 // Path-safety predicates are shared with the build-time artifact store; this

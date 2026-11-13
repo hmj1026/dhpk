@@ -13,7 +13,6 @@
 // repository-tests); it needs no --version. The stage records the step
 // toolchain (python3/node/bash resolved from the gate PATH) as evidence.
 
-const fs = require('fs');
 const path = require('path');
 const { runSteps } = require('../lib/gate-runner');
 const { readFileBounded } = require('../lib/bounded-filesystem');

@@ -9,6 +9,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { recoverSharedProjection } = require('./native-shared-skill-install');
+const { lstatOrNull } = require('./bounded-filesystem');
 const { LEGACY_JOURNAL_RECOVERY_RELEASE } = require('./projection-journal');
 
 const INSTALLER_HOSTS = Object.freeze(['.codex', '.cursor']);
@@ -107,13 +108,7 @@ function recoverProjectionJournal(projectRoot, installerRoot) {
 }
 
 function pathExists(file) {
-  try {
-    fs.lstatSync(file);
-    return true;
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return false;
-    throw error;
-  }
+  return lstatOrNull(file) !== null;
 }
 
 function recoverProject({ projectRoot, installerRoot }) {

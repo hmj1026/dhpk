@@ -54,12 +54,9 @@ function rejectWith(options, reason, path) {
     path: Object.freeze(path.slice()),
     context: options.context,
   });
-  if (typeof options.onReject === 'function') {
-    const result = options.onReject(details);
-    if (result !== undefined) throw result;
-  }
-  if (typeof options.errorFactory === 'function') {
-    const result = options.errorFactory(details);
+  for (const hook of [options.onReject, options.errorFactory]) {
+    if (typeof hook !== 'function') continue;
+    const result = hook(details);
     if (result !== undefined) throw result;
   }
   throw new ReceiptJsonPrimitiveError(reason, path);
@@ -85,7 +82,8 @@ function readPrototype(value, options, path) {
   }
 }
 
-function readArrayShape(value, descriptors, limits, options, path) {
+function readArrayShape(descriptors, options, path) {
+  const { limits } = options;
   const lengthDescriptor = descriptors.length;
   rejectIf(!isDataDescriptor(lengthDescriptor), options, 'ACCESSOR', path);
   const length = lengthDescriptor.value;
@@ -98,7 +96,8 @@ function readArrayShape(value, descriptors, limits, options, path) {
   return { keys, length };
 }
 
-function inspectKey(key, descriptor, path, options, limits, state, policyContext) {
+function inspectKey(key, descriptor, path, options, state, policyContext) {
+  const { limits } = options;
   const keyBytes = Buffer.byteLength(key, 'utf8');
   rejectIf(keyBytes > limits.maxKeyBytes, options, 'MAX_KEY_BYTES', path);
   state.bytes += keyBytes;
@@ -148,7 +147,7 @@ function prepareContainer(candidate, path, options) {
     : prototype !== Object.prototype && prototype !== null,
   options, 'NON_PLAIN_PROTOTYPE', path);
   if (array) {
-    const shape = readArrayShape(candidate, descriptors, options.limits, options, path);
+    const shape = readArrayShape(descriptors, options, path);
     return { descriptors, array, ...shape, result: [] };
   }
   const keys = Object.keys(descriptors);
@@ -179,7 +178,7 @@ function cloneChildren(shape, path, depth, context, options, state) {
     if (shape.array && key === 'length') continue;
     const descriptor = shape.descriptors[key];
     const childPath = path.concat(key);
-    inspectKey(key, descriptor, childPath, options, options.limits, state, context);
+    inspectKey(key, descriptor, childPath, options, state, context);
     rejectIf(!descriptor.enumerable, options, 'NON_ENUMERABLE', childPath);
     rejectIf(!isDataDescriptor(descriptor), options, 'ACCESSOR', childPath);
     const child = visitValue(descriptor.value, childPath, depth + 1, context, options, state);

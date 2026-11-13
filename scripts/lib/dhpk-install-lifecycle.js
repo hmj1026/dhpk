@@ -3,7 +3,7 @@
 // Lifecycle orchestration deliberately reuses the projection contracts. It is
 // read-only until a surface adapter is characterized for ArtifactStore writes.
 
-const crypto = require('node:crypto');
+const { sha256Hex } = require('./content-fingerprint');
 const { compileDistribution } = require('./distribution-compiler');
 const { createEvidenceResult, VERDICTS } = require('./distribution-projection-contract');
 const { resolveCapabilitySelection } = require('./capability-bundle-selection');
@@ -141,7 +141,7 @@ function inventoryEntries(inventory, surface) {
 }
 
 function inventoryFingerprint(inventory) {
-  return crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex');
+  return sha256Hex(JSON.stringify(inventory));
 }
 
 function installationSurfaceContract(inventory, surface) {
@@ -189,7 +189,7 @@ function compileLifecyclePlan(request, inventory, selectionConfig = {}) {
       profileSelection,
       compilerVersion: 'dhpk-install-lifecycle-v1',
       inventoryFingerprint: inventoryFingerprint(inventory),
-      inputFingerprint: crypto.createHash('sha256').update(JSON.stringify(request)).digest('hex'),
+      inputFingerprint: sha256Hex(JSON.stringify(request)),
     });
   } else {
     const normalized = compileDistribution({ inventory, surface });
@@ -203,7 +203,7 @@ function compileLifecyclePlan(request, inventory, selectionConfig = {}) {
       selectionEntries: entries,
       compilerVersion: 'dhpk-install-lifecycle-v1',
       inventoryFingerprint: inventoryFingerprint(inventory),
-      inputFingerprint: crypto.createHash('sha256').update(JSON.stringify(request)).digest('hex'),
+      inputFingerprint: sha256Hex(JSON.stringify(request)),
     });
   }
   if (!compiled.ok) return compiled;
@@ -214,7 +214,7 @@ function compileLifecyclePlan(request, inventory, selectionConfig = {}) {
     ? profileSelection.dependencyClosure
     : { stableIds: selectedIds };
   const owner = surfaceContract.owner || compiled.value.entries[0] && compiled.value.entries[0].owner || request.surface;
-  const planId = crypto.createHash('sha256').update(JSON.stringify({
+  const planId = sha256Hex(JSON.stringify({
     schema: 'dhpk.installation-plan.v1',
     sourceVersion,
     source: request.source,
@@ -222,10 +222,10 @@ function compileLifecyclePlan(request, inventory, selectionConfig = {}) {
     scope: request.scope,
     mode: request.mode,
     distribution: compiled.value.planFingerprint,
-  })).digest('hex');
-  const rollbackIdentity = crypto.createHash('sha256').update(JSON.stringify({
+  }));
+  const rollbackIdentity = sha256Hex(JSON.stringify({
     surface: request.surface, scope: request.scope, owner, plan: planId,
-  })).digest('hex');
+  }));
   return {
     ok: true,
     value: Object.freeze({

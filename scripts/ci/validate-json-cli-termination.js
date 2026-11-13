@@ -15,7 +15,7 @@ const JSON_CLI_ENTRYPOINTS = Object.freeze([
   Object.freeze({ name: 'source-gate', path: 'scripts/release/source-gate.js' }),
 ]);
 
-const PROCESS_EXIT = /\bprocess\.exit\s*\(/g;
+const PROCESS_EXIT = /\bprocess\.exit\s*\(/;
 
 function addError(errors, relativePath, line, message) {
   errors.push(`${relativePath}:${line}: ${message}`);
@@ -48,7 +48,6 @@ function validateEntryPoint(root, entry, errors) {
 
   content.split(/\r?\n/).forEach((line, index) => {
     if (!PROCESS_EXIT.test(line)) return;
-    PROCESS_EXIT.lastIndex = 0;
     addError(
       errors,
       entry.path,

@@ -168,19 +168,11 @@ function fragmentChangedInDiff(name, changedFiles) {
 }
 
 function checkCoverage({ changedFiles, fragments, markers, releaseSectionAdded = false, botAuthored = false }) {
-  if (botAuthored) {
-    return { ok: true, uncovered: [] };
-  }
-  const userVisible = changedFiles.filter((f) => !isInternalOnlyPath(f));
-  if (userVisible.length === 0) {
-    return { ok: true, uncovered: [] };
-  }
-  const coveredByThisDiff = fragments.some((frag) => fragmentChangedInDiff(frag.file, changedFiles))
-    || markers.some((slug) => fragmentChangedInDiff(`${slug}.none`, changedFiles));
-  if (coveredByThisDiff) {
-    return { ok: true, uncovered: [] };
-  }
-  if (releaseSectionAdded) {
+  const userVisible = botAuthored ? [] : changedFiles.filter((f) => !isInternalOnlyPath(f));
+  if (userVisible.length === 0
+    || fragments.some((frag) => fragmentChangedInDiff(frag.file, changedFiles))
+    || markers.some((slug) => fragmentChangedInDiff(`${slug}.none`, changedFiles))
+    || releaseSectionAdded) {
     return { ok: true, uncovered: [] };
   }
   return { ok: false, uncovered: userVisible };

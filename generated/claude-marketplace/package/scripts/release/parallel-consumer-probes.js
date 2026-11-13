@@ -16,6 +16,25 @@ const { REQUIRED_SURFACES } = require('../lib/harness-surfaces');
 const MAX_PROBE_TIMEOUT_MS = 5 * 60 * 1000;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/;
 
+function failureExecution(surface, status, reason) {
+  return {
+    outcome: status,
+    surfaceResults: [{
+      surface,
+      status,
+      stage: 'CONSUMER',
+      producer: 'parallel-consumer-probes',
+      adapter: { id: 'parallel-consumer-probes', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [reason],
+      checkedClaims: ['consumer-route'],
+    }],
+  };
+}
+
 function parseArgs(argv) {
   const args = { concurrency: 1, timeoutMs: 120000 };
   for (let i = 0; i < argv.length; i += 1) {
@@ -34,11 +53,11 @@ function parseArgs(argv) {
   }
   if (!args.root || !path.isAbsolute(args.root)) throw new Error('an absolute --repo-root is required');
   if (args.worker && !REQUIRED_SURFACES.includes(args.surface)) throw new Error('worker surface is not canonical');
-  if (!args.worker && (!args.surfaces || args.surfaces.split(',').length === 0)) throw new Error('a --surfaces list is required');
+  if (!args.worker && !args.surfaces) throw new Error('a --surfaces list is required');
   args.concurrency = normalizeConcurrency(args.concurrency, { fallback: 1, maximum: REQUIRED_SURFACES.length });
   if (!args.worker) {
     const surfaces = args.surfaces.split(',').map((surface) => surface.trim());
-    if (surfaces.length === 0 || surfaces.some((surface) => !REQUIRED_SURFACES.includes(surface))) {
+    if (surfaces.some((surface) => !REQUIRED_SURFACES.includes(surface))) {
       throw new Error('batch surface list must contain only canonical surfaces');
     }
     if (new Set(surfaces).size !== surfaces.length) throw new Error('batch surface list must contain unique canonical surfaces');
@@ -106,22 +125,7 @@ function workerMain(args) {
     emit({
       surface: args.surface,
       namespace: args.namespace,
-      execution: {
-        outcome: 'FAIL',
-        surfaceResults: [{
-          surface: args.surface,
-          status: 'FAIL',
-          stage: 'CONSUMER',
-          producer: 'parallel-consumer-probes',
-          adapter: { id: 'parallel-consumer-probes', version: '1.0.0' },
-          commands: [],
-          environment: { network: 'disabled' },
-          artifacts: [],
-          diagnostics: [],
-          reasons: [`probe worker failed: ${error.message}`],
-          checkedClaims: ['consumer-route'],
-        }],
-      },
+      execution: failureExecution(args.surface, 'FAIL', `probe worker failed: ${error.message}`),
     }, 1);
   }
 }
@@ -186,22 +190,7 @@ function spawnWorker(args, surface, index, privateRoot) {
       finish({
         surface,
         namespace,
-        execution: {
-          outcome: 'BLOCKED',
-          surfaceResults: [{
-            surface,
-            status: 'BLOCKED',
-            stage: 'CONSUMER',
-            producer: 'parallel-consumer-probes',
-            adapter: { id: 'parallel-consumer-probes', version: '1.0.0' },
-            commands: [],
-            environment: { network: 'disabled' },
-            artifacts: [],
-            diagnostics: [],
-            reasons: [`consumer probe timed out after ${args.timeoutMs} ms`],
-            checkedClaims: ['consumer-route'],
-          }],
-        },
+        execution: failureExecution(surface, 'BLOCKED', `consumer probe timed out after ${args.timeoutMs} ms`),
         diagnostic: `consumer probe timed out after ${args.timeoutMs} ms`,
         transportStatus: 'FAIL',
       });

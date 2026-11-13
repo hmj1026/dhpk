@@ -10,16 +10,6 @@ const { spawnSync } = require('node:child_process');
 const { terminateProcessGroup } = require('./bounded-child-process');
 
 const CODEX_NATIVE_PLUGIN_ID = 'dhpk@dhpk';
-const ACTIVATION_STATUSES = Object.freeze([
-  'NOT_INSTALLED',
-  'UNAVAILABLE',
-  'AVAILABLE',
-  'DISABLED',
-  'ENABLED',
-  // INACTIVE is override-only: it never comes from probeCodexNativeActivation
-  // (the live probe), only from `--native-activation inactive` in the CLI.
-  'INACTIVE',
-]);
 const QUERY_TIMEOUT_MS = 30000;
 const QUERY_OUTPUT_LIMIT_BYTES = 1024 * 1024;
 
@@ -93,6 +83,8 @@ function probeCodexNativeActivation({ env = process.env, spawn = spawnSync, time
   return disabled;
 }
 
+// INACTIVE is override-only: it never comes from probeCodexNativeActivation
+// (the live probe), only from `--native-activation inactive` in the CLI.
 function normalizeActivationOverride(value) {
   if (value === 'auto' || value === 'enabled' || value === 'inactive') return value;
   throw new Error(`invalid --native-activation '${value}' (expected auto|enabled|inactive)`);
@@ -100,7 +92,6 @@ function normalizeActivationOverride(value) {
 
 module.exports = {
   CODEX_NATIVE_PLUGIN_ID,
-  ACTIVATION_STATUSES,
   probeCodexNativeActivation,
   normalizeActivationOverride,
 };

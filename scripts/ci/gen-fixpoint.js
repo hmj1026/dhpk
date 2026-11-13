@@ -8,10 +8,10 @@
 // (never gen-distribution-inventory --write, which is destructive).
 //   node scripts/ci/gen-fixpoint.js [--dry-run]
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { sha256Hex } = require('../lib/content-fingerprint');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MAX_PASSES = 5;
@@ -38,7 +38,7 @@ function defaultRunner(name, args) {
 
 function hashFile(rel) {
   try {
-    return crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, rel))).digest('hex');
+    return sha256Hex(fs.readFileSync(path.join(ROOT, rel)));
   } catch (_) {
     return 'absent';
   }

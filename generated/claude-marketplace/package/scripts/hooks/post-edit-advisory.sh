@@ -31,9 +31,7 @@ set -o pipefail
 . "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/json-out.sh"
-
-ROOT="$(dhpk_root)"
-. "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
+. "$(dirname "$0")/_lib/portable-sed.sh"
 
 PAYLOAD="$(dhpk_read_payload)"
 [ -z "$PAYLOAD" ] && exit 0
@@ -48,18 +46,10 @@ FILE="$(extract_tool_input file_path "$PAYLOAD")"
 case "$FILE" in
     *.sh)
         if [ -f "$FILE" ] && grep -q $'\r' "$FILE" 2>/dev/null; then
-            if [ "$(uname)" = "Darwin" ]; then
-                if sed -i '' 's/\r$//' "$FILE"; then
-                    echo "[crlf-fix] normalised line endings: $FILE"
-                else
-                    echo "[crlf-fix] WARN: sed failed for $FILE" >&2
-                fi
+            if sed_inplace 's/\r$//' "$FILE"; then
+                echo "[crlf-fix] normalised line endings: $FILE"
             else
-                if sed -i 's/\r$//' "$FILE"; then
-                    echo "[crlf-fix] normalised line endings: $FILE"
-                else
-                    echo "[crlf-fix] WARN: sed failed for $FILE" >&2
-                fi
+                echo "[crlf-fix] WARN: sed failed for $FILE" >&2
             fi
         fi
         ;;
@@ -69,6 +59,9 @@ esac
 # Root-manifest lockfile-sync reminder — ported unchanged from
 # post-edit-manifest-guard.sh
 # ---------------------------------------------------------------------------
+ROOT="$(dhpk_root)"
+. "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
+
 REL="${FILE#$ROOT/}"
 
 # Root-level manifests only (REL contains no slash) — nested package.json in a

@@ -4,7 +4,8 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const crypto = require('crypto');
+const { isInside } = require('./lib/bounded-filesystem');
+const { sha256Hex } = require('./lib/content-fingerprint');
 
 const TOOL_NAME_MAP = new Map([
   ['Read', 'view_file'],
@@ -100,11 +101,6 @@ function ensureDirectory(dirPath) {
   }
 }
 
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
-
 function assertPhysicalAncestors(directory, label) {
   let current = path.resolve(directory);
   while (true) {
@@ -186,7 +182,7 @@ function verifyStagingReceipt(packageRoot) {
   const expectedFiles = Object.keys(expected).sort();
   if (JSON.stringify(dataFiles) !== JSON.stringify(expectedFiles)) throw new Error('staging package fingerprints do not cover every package file');
   for (const relative of dataFiles) {
-    const digest = crypto.createHash('sha256').update(fs.readFileSync(path.join(packageRoot, relative))).digest('hex');
+    const digest = sha256Hex(fs.readFileSync(path.join(packageRoot, relative)));
     if (digest !== expected[relative]) throw new Error(`staging package fingerprint mismatch: ${relative}`);
   }
 }
@@ -194,7 +190,7 @@ function verifyStagingReceipt(packageRoot) {
 function refreshStagingReceipt(packageRoot) {
   const fingerprints = {};
   for (const relative of packageFiles(packageRoot).filter((value) => !['provenance.json', 'fingerprints.json'].includes(value))) {
-    fingerprints[relative] = crypto.createHash('sha256').update(fs.readFileSync(path.join(packageRoot, relative))).digest('hex');
+    fingerprints[relative] = sha256Hex(fs.readFileSync(path.join(packageRoot, relative)));
   }
   const provenancePath = path.join(packageRoot, 'provenance.json');
   const provenance = readJsonObject(provenancePath, 'staging package provenance.json');

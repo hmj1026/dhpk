@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { buildInstallerBundle } = require('./installer-bundle');
+const { isInside } = require('./bounded-filesystem');
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 512 * 1024 * 1024;
@@ -97,11 +98,6 @@ function originalGitBlobDigest(bytes) {
     .digest('hex');
 }
 
-function inside(parent, candidate) {
-  const relative = path.relative(parent, candidate);
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
-
 function normalizeRelative(value, label, errors) {
   if (typeof value !== 'string' || value.length === 0 || value.includes('\0') || value.includes('\\') || path.posix.isAbsolute(value)) {
     errors.push(`${label} must be a contained relative path`);
@@ -119,7 +115,7 @@ function safePath(root, relative, label, errors) {
   const normalized = normalizeRelative(relative, label, errors);
   if (!normalized) return null;
   const candidate = path.resolve(root, ...normalized.split('/'));
-  if (!inside(root, candidate)) {
+  if (!isInside(root, candidate)) {
     errors.push(`${label} escapes the source root`);
     return null;
   }

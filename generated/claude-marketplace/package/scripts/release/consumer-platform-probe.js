@@ -394,9 +394,12 @@ function runAgentPluginProbe(root, execute = false) {
 
 const AGY_PROJECT_DISCOVERY_PROMPT = 'Read only. Inspect the project-local generated skill named %s under .agents/skills. Return exactly AGY_PROJECT_SMOKE_OK when it is available. Do not call tools or edit files.';
 
+function evidenceFingerprint(value) {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value) ? `sha256:${value}` : value;
+}
+
 function runAgyProjectProbe(root, structural, execute = false) {
   const receipt = structural && structural.receipt;
-  const evidenceFingerprint = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value) ? `sha256:${value}` : value;
   const command = `agy --mode plan --agent agy-worker --print <project-artifact> --output-format text`;
   const blocked = (reason) => ({
     status: 'BLOCKED',
@@ -541,7 +544,6 @@ function assertPhysicalProjectRoot(root, label) {
 
 function runClaudeProjectProbe(root, structural, execute = false) {
   const receipt = structural && structural.receipt;
-  const evidenceFingerprint = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value) ? `sha256:${value}` : value;
   const command = 'claude -p <smoke-prompt> --output-format text';
   const blocked = (reason) => ({
     status: 'BLOCKED',
@@ -653,10 +655,7 @@ function resolveCursorInventoryPath(inventoryPath) {
 }
 
 function validatePackage(platform, root, inventoryPath = null) {
-  if (platform === 'agy-project') {
-    return validateRelocatableAgentsSkillsProjection({ projectRoot: root });
-  }
-  if (platform === 'claude-project') {
+  if (platform === 'agy-project' || platform === 'claude-project') {
     return validateRelocatableAgentsSkillsProjection({ projectRoot: root });
   }
   let inventory = null;
@@ -664,22 +663,25 @@ function validatePackage(platform, root, inventoryPath = null) {
     const resolved = resolveCursorInventoryPath(inventoryPath);
     if (resolved) inventory = JSON.parse(fs.readFileSync(path.resolve(resolved), 'utf8'));
   }
-  const result = platform === 'codex' || platform === 'agent-plugin'
+  return platform === 'codex' || platform === 'agent-plugin'
     ? validateAgentPluginPackage(root)
     : validateCursorPackage({ packageRoot: root, expectedManifestName: 'dhpk-cursor', inventory });
-  return result;
 }
 
+const PROBE_EVIDENCE_SURFACES = new Map([
+  ['codex', 'codex-marketplace'],
+  ['agent-plugin', 'agent-plugin'],
+  ['agy-project', 'agy-plugin'],
+  ['claude-project', 'claude-project'],
+]);
+
+const PROBE_EVIDENCE_CLAIMS = new Map([
+  ['agy-project', ['project-artifact-structure', 'project-agent-direct-file', 'consumer-route']],
+  ['claude-project', CLAUDE_PROJECT_PROBE_CLAIMS],
+]);
+
 function normalizedProbeEvidence(platform, manifest, result, version) {
-  const surface = platform === 'codex'
-    ? 'codex-marketplace'
-    : platform === 'agent-plugin'
-      ? 'agent-plugin'
-      : platform === 'agy-project'
-        ? 'agy-plugin'
-        : platform === 'claude-project'
-          ? 'claude-project'
-        : 'cursor-plugin';
+  const surface = PROBE_EVIDENCE_SURFACES.get(platform) || 'cursor-plugin';
   const loaderRoute = platform === 'agent-plugin'
     ? 'agent-plugin-loader'
     : platform === 'cursor' ? 'cursor-plugin-loader' : null;
@@ -718,11 +720,7 @@ function normalizedProbeEvidence(platform, manifest, result, version) {
       ],
       diagnostics: result.diagnostics || result.diagnostic || [],
       reasons: result.reasons || (result.reason ? [result.reason] : []),
-      checkedClaims: result.checkedClaims || (platform === 'agy-project'
-        ? ['project-artifact-structure', 'project-agent-direct-file', 'consumer-route']
-        : platform === 'claude-project'
-          ? CLAUDE_PROJECT_PROBE_CLAIMS.slice()
-        : ['package-manifest', 'consumer-route']),
+      checkedClaims: result.checkedClaims || (PROBE_EVIDENCE_CLAIMS.get(platform) || ['package-manifest', 'consumer-route']).slice(),
       ...(result.planFingerprint ? { planFingerprint: result.planFingerprint } : {}),
       ...(result.artifactFingerprint ? { artifactFingerprint: result.artifactFingerprint } : {}),
       ...(result.reason_code ? { reason_code: result.reason_code } : {}),

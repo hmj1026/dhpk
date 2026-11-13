@@ -7,7 +7,6 @@
 // explicit JSON allowlist at .cross-cli-allowlist.json with:
 //   { ".codex": ["skills/native-only.md"] }
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
@@ -17,6 +16,7 @@ const {
   lstatOrNull,
   isInside,
 } = require('./bounded-filesystem');
+const { sha256Hex } = require('./content-fingerprint');
 
 const MANAGED_DIRS = ['skills', 'commands', 'agents', 'hooks', 'rules'];
 // Targets whose CLI reads the shared .agents skill roots natively.
@@ -82,7 +82,7 @@ function walkFiles(dir, options = {}) {
 }
 
 function hashFile(filePath) {
-  return crypto.createHash('sha256').update(readFileBounded(filePath)).digest('hex');
+  return sha256Hex(readFileBounded(filePath));
 }
 
 function managedFiles(root, { skipSkills = false } = {}) {

@@ -8,6 +8,8 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { isInside } = require('../lib/bounded-filesystem');
+const { sha256Hex } = require('../lib/content-fingerprint');
 const { createDistributionPlan } = require('../lib/distribution-projection-contract');
 const { ProjectionArtifactStore } = require('../lib/projection-artifact-store');
 const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
@@ -48,11 +50,6 @@ function parseArgs(argv) {
   }
   if (!args.out) return { error: '--out requires a directory' };
   return args;
-}
-
-function isInside(root, candidate) {
-  const relative = path.relative(root, candidate);
-  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
 function isTransientEntry(name, entry) {
@@ -132,7 +129,7 @@ function provenanceDocument(publicationView, content) {
     files: content.files.map((file) => ({
       skillId: file.skillId, ownerId: file.ownerId, sourcePath: file.sourcePath,
       destination: file.path, kind: file.kind,
-      sha256: crypto.createHash('sha256').update(file.bytes).digest('hex'),
+      sha256: sha256Hex(file.bytes),
     })),
   }, null, 2)}\n`;
 }
@@ -255,7 +252,7 @@ function fingerprint(directory) {
         // holds content; a genuinely empty directory is still an extra.
         return content.retained ? [`D:${childRelative}\n`, ...content.records] : [];
       } else if (entry.isFile()) {
-        return [`F:${childRelative}:${crypto.createHash('sha256').update(fs.readFileSync(child)).digest('hex')}\n`];
+        return [`F:${childRelative}:${sha256Hex(fs.readFileSync(child))}\n`];
       } else {
         throw new Error(`Claude marketplace package contains an unsupported entry: ${childRelative}`);
       }

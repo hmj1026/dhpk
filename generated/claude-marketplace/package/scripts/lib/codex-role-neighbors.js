@@ -244,8 +244,5 @@ function collectCodexRoleNeighborErrors({
 }
 
 module.exports = {
-  ROLE_TOKEN,
   collectCodexRoleNeighborErrors,
-  inlineRoleTokens,
-  logicalUnits,
 };

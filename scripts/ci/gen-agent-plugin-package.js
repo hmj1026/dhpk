@@ -45,6 +45,7 @@ const versionArg = args.find((arg) => arg.startsWith('--version='));
 const version = versionArg ? versionArg.slice('--version='.length) : sourceManifest.version;
 const outDir = path.resolve(outArg);
 
+const sourceCommit = resolveSourceCommit();
 let result;
 try {
   const compiledProjection = compileAgentPluginPackage({
@@ -53,7 +54,7 @@ try {
     outDir,
     name: 'dhpk',
     version,
-    sourceCommit: resolveSourceCommit(),
+    sourceCommit,
     manifestMetadata: sourceManifest,
   });
   result = materializeAgentPluginPackage({
@@ -62,7 +63,7 @@ try {
     outDir,
     name: 'dhpk',
     version,
-    sourceCommit: resolveSourceCommit(),
+    sourceCommit,
     manifestMetadata: sourceManifest,
     compiledProjection,
   });

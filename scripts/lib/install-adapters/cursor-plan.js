@@ -17,7 +17,7 @@
 // json.load accepted them). Neither occurs in a manifest Cursor writes.
 
 const fs = require('node:fs');
-const { isDict, pyJsonLoads, pySorted } = require('./python-compat');
+const { isDict, isDirFollow, pyJsonLoads, pySorted } = require('./python-compat');
 
 const DRIFT_MESSAGE = 'Cursor marketplace hash cache is not SSOT; local packages '
   + 'and the project-local receipt are. Disable/remove the '
@@ -46,14 +46,6 @@ function readVersion(file) {
   } catch (error) {
     if (error && (error.name === 'ValueError' || error.code)) return null;
     throw error;
-  }
-}
-
-function isDirectory(directory) {
-  try {
-    return fs.statSync(directory).isDirectory();
-  } catch (error) {
-    return false;
   }
 }
 
@@ -96,7 +88,7 @@ function addCursorCacheDriftWarnings(report, env = process.env) {
     if (version) ssot.add(version);
   }
   const warnings = (Array.isArray(report.warnings) ? report.warnings : []).filter(isDict);
-  if (ssot.size > 0 && isDirectory(cacheRoot)) {
+  if (ssot.size > 0 && isDirFollow(cacheRoot)) {
     for (const manifest of cacheManifests(cacheRoot)) {
       const cacheVersion = readVersion(manifest);
       if (cacheVersion && !ssot.has(cacheVersion)) {

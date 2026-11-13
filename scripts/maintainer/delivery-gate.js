@@ -1,9 +1,9 @@
 'use strict';
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { sha256Hex } = require('../lib/content-fingerprint');
 
 function requireGate(condition, message) {
   if (!condition) throw new Error(message);
@@ -162,7 +162,7 @@ function validate(opts) {
   requireGate(pull.head?.sha === opts['--head'], 'PR head SHA changed');
   requireGate(pull.mergeable === true, 'PR mergeability is unresolved or conflicting');
   requireGate(pull.title === evidence.metadata.title && typeof pull.body === 'string' &&
-    crypto.createHash('sha256').update(pull.body).digest('hex') === evidence.metadata.bodySha256, 'PR title or body digest differs from metadata evidence');
+    sha256Hex(pull.body) === evidence.metadata.bodySha256, 'PR title or body digest differs from metadata evidence');
   let review;
   try { review = JSON.parse(gh(['pr', 'view', opts['--pr'], '--repo', opts['--repo'], '--json', 'reviewDecision'])); }
   catch { throw new Error('reviewDecision lookup failed'); }

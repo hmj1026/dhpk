@@ -68,6 +68,7 @@ function runInstaller(env = process.env, io = {}) {
     stderr: io.stderr || ((text) => fs.writeSync(2, text)),
     afterStep: io.afterStep || null,
   };
+  const DEFAULT_INSTALLER_NAME = 'install-codex-skills';
   const installer = createInstaller(env, output);
   let crashed = false;
   let code = 0;
@@ -80,7 +81,7 @@ function runInstaller(env = process.env, io = {}) {
       crashed = true;
       throw error;
     } else {
-      output.stderr(`[${env.DHPK_INSTALLER_NAME || 'install-codex-skills'}] ERROR: unexpected failure: ${error && error.stack ? error.stack : error}\n`);
+      output.stderr(`[${env.DHPK_INSTALLER_NAME || DEFAULT_INSTALLER_NAME}] ERROR: unexpected failure: ${error && error.stack ? error.stack : error}\n`);
       code = 1;
     }
   } finally {
@@ -90,7 +91,7 @@ function runInstaller(env = process.env, io = {}) {
       } catch (error) {
         // Never silent, and never a different outcome: a failing run keeps its
         // code; a run that would have succeeded now fails with 2.
-        output.stderr(`[${env.DHPK_INSTALLER_NAME || 'install-codex-skills'}] ERROR: could not release the install lock: ${error && error.message ? error.message : error}\n`);
+        output.stderr(`[${env.DHPK_INSTALLER_NAME || DEFAULT_INSTALLER_NAME}] ERROR: could not release the install lock: ${error && error.message ? error.message : error}\n`);
         if (code === 0) code = 2;
       }
     }

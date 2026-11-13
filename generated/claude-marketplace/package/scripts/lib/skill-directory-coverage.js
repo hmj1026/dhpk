@@ -172,7 +172,8 @@ function localMarkdownLinks(content, document) {
     }
   }
   const textual = /(?<![A-Za-z0-9_./-])(?:references|docs)\/[A-Za-z0-9._/-]+\.md\b/g;
-  while ((match = textual.exec(maskedContent.join(''))) !== null) add(match[0], false);
+  const maskedText = maskedContent.join('');
+  while ((match = textual.exec(maskedText)) !== null) add(match[0], false);
   return { links: [...new Set(links)], errors };
 }
 
@@ -241,7 +242,7 @@ function callerReferencesHelper(callerText, callerPath, helperPath) {
   return false;
 }
 
-function listEntries(record, field, options, root, skillPath, fixtures, structuralErrors, fixtureErrors, checkedFixtures, kinds) {
+function listEntries(record, field, root, skillPath, fixtures, structuralErrors, fixtureErrors, checkedFixtures, kinds) {
   const value = record[field] === undefined ? [] : record[field];
   if (!Array.isArray(value)) {
     structuralErrors.push(`${field} must be an array`);
@@ -342,10 +343,10 @@ function validateSkillDirectoryCoverage({ root, inventory, coverage, fixtures } 
     }
     const kinds = new Map();
     const executable = skillRoot
-      ? listEntries(record, 'executable_entries', {}, repositoryRoot, skillPath, fixtureDefinitions, errors, fixtureErrors, checkedFixtures, kinds)
+      ? listEntries(record, 'executable_entries', repositoryRoot, skillPath, fixtureDefinitions, errors, fixtureErrors, checkedFixtures, kinds)
       : [];
     const api = skillRoot
-      ? listEntries(record, 'api_entries', {}, repositoryRoot, skillPath, fixtureDefinitions, errors, fixtureErrors, checkedFixtures, kinds)
+      ? listEntries(record, 'api_entries', repositoryRoot, skillPath, fixtureDefinitions, errors, fixtureErrors, checkedFixtures, kinds)
       : [];
     const helpers = record.internal_helpers === undefined ? [] : record.internal_helpers;
     const helperEdges = new Map();
@@ -497,8 +498,7 @@ function validateSkillDirectoryCoverage({ root, inventory, coverage, fixtures } 
         if (!capabilities.includes(capability)) errors.push(`Skill '${id}' has host evidence without capability '${capability}'`);
       }
       if (capabilities.length > 0) {
-        detail.host = capabilities.some((capability) => evidence[capability]?.status === 'PASS')
-          && capabilities.every((capability) => evidence[capability]?.status === 'PASS')
+        detail.host = capabilities.every((capability) => evidence[capability]?.status === 'PASS')
           ? 'PASS'
           : (capabilities.map((capability) => evidence[capability]?.status).find((status) => status && status !== 'PASS') || 'NOT_RUN');
         result.host_evidence[id] = evidence;

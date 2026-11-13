@@ -105,13 +105,7 @@ function sourceFingerprint({ sourceFingerprints, stableId, target, skill }) {
     skill && skill.name,
   ]);
   if (provided !== null) return provided;
-  if (skill && typeof skill.source_fingerprint === 'string' && skill.source_fingerprint.length > 0) {
-    return skill.source_fingerprint;
-  }
-  if (skill && typeof skill.sourceFingerprint === 'string' && skill.sourceFingerprint.length > 0) {
-    return skill.sourceFingerprint;
-  }
-  for (const field of ['source_digest', 'canonical_digest', 'digest']) {
+  for (const field of ['source_fingerprint', 'sourceFingerprint', 'source_digest', 'canonical_digest', 'digest']) {
     if (skill && typeof skill[field] === 'string' && skill[field].length > 0) return skill[field];
   }
   return deterministicFingerprint({

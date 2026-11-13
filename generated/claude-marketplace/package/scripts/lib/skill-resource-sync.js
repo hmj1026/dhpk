@@ -6,9 +6,9 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { resolveSkillIdentity } = require('./distribution-inventory');
 const { createTraversalBudget } = require('./bounded-filesystem');
+const { sha256Hex } = require('./content-fingerprint');
 
 const MAP_SCHEMA = 'dhpk.skill-resources.v1';
 const LEDGER_SCHEMA = 'dhpk.skill-resource-copies.v1';
@@ -233,10 +233,6 @@ function verifyPathPin(root, pin, label = pin.relative || root, { allowMissing =
   }
 }
 
-function assertNoSymlinkComponents(root, relative, label) {
-  capturePathPin(root, relative, { allowMissing: true, label });
-}
-
 function pinIdentity(pin) {
   if (!pin || pin.components.length === 0) return null;
   return pin.components[pin.components.length - 1].identity;
@@ -264,7 +260,7 @@ function modeString(mode) {
 }
 
 function digest(bytes) {
-  return `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
+  return `sha256:${sha256Hex(bytes)}`;
 }
 
 function boundedRead(file, label) {
@@ -606,7 +602,7 @@ function planSkillResourceSync(args = {}) {
     );
     const sourceState = stateFromSnapshot(sourceSnapshot);
     const record = ledgerRecord(operation, {
-      sha256: digest(sourceState.bytes),
+      sha256: sourceState.sha256,
       mode: sourceState.mode,
     });
     desiredRecords[operation.destination] = record;
@@ -643,9 +639,7 @@ function planSkillResourceSync(args = {}) {
       errors.push(`edited managed destination cannot be adopted: ${destination}`);
       continue;
     }
-    if (!current) {
-      changes.push({ type: 'copy', destination });
-    } else if (!sameRecord(current, desiredRecords[destination])) {
+    if (!current || !sameRecord(current, desiredRecords[destination])) {
       changes.push({ type: 'copy', destination });
     }
     if (JSON.stringify(recorded || null) !== JSON.stringify(desiredRecords[destination])) {

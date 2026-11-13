@@ -60,6 +60,7 @@ CMD="$(extract_tool_input command "$PAYLOAD")"
 # Each git invocation is judged on its own argv and repository. A dry-run,
 # help, or commit-tree segment does not exempt a later mutating command.
 dhpk_inspect_command "$CMD"
+[ "${DHPK_GIT_COUNT:-0}" -eq 0 ] && exit 0
 
 # Slot state: fired flag, mode, and detail string.
 BRANCH_FIRED=0

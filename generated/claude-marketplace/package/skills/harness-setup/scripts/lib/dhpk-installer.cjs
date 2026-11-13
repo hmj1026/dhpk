@@ -781,11 +781,12 @@ function isObject(value) {
 }
 
 function sameSortedList(left, right) {
-  return Array.isArray(left)
+  if (!(Array.isArray(left)
     && Array.isArray(right)
     && left.length === right.length
-    && new Set(left).size === left.length
-    && left.slice().sort().every((value, index) => value === right.slice().sort()[index]);
+    && new Set(left).size === left.length)) return false;
+  const sortedRight = right.slice().sort();
+  return left.slice().sort().every((value, index) => value === sortedRight[index]);
 }
 
 function probeSpec(host) {
@@ -906,10 +907,6 @@ function classifyHostBinding(host, options = {}) {
       reason: String(error && error.message ? error.message : error),
     };
   }
-}
-
-function normalizeCursorConsumerEvidence(raw) {
-  return normalizeHostConsumerEvidence('cursor', raw);
 }
 
 function isPassingCursorConsumerProbe(evidence) {
@@ -2137,6 +2134,7 @@ function runInstaller(env = process.env, io = {}) {
     stderr: io.stderr || ((text) => fs.writeSync(2, text)),
     afterStep: io.afterStep || null,
   };
+  const DEFAULT_INSTALLER_NAME = 'install-codex-skills';
   const installer = createInstaller(env, output);
   let crashed = false;
   let code = 0;
@@ -2149,7 +2147,7 @@ function runInstaller(env = process.env, io = {}) {
       crashed = true;
       throw error;
     } else {
-      output.stderr(`[${env.DHPK_INSTALLER_NAME || 'install-codex-skills'}] ERROR: unexpected failure: ${error && error.stack ? error.stack : error}\n`);
+      output.stderr(`[${env.DHPK_INSTALLER_NAME || DEFAULT_INSTALLER_NAME}] ERROR: unexpected failure: ${error && error.stack ? error.stack : error}\n`);
       code = 1;
     }
   } finally {
@@ -2159,7 +2157,7 @@ function runInstaller(env = process.env, io = {}) {
       } catch (error) {
         // Never silent, and never a different outcome: a failing run keeps its
         // code; a run that would have succeeded now fails with 2.
-        output.stderr(`[${env.DHPK_INSTALLER_NAME || 'install-codex-skills'}] ERROR: could not release the install lock: ${error && error.message ? error.message : error}\n`);
+        output.stderr(`[${env.DHPK_INSTALLER_NAME || DEFAULT_INSTALLER_NAME}] ERROR: could not release the install lock: ${error && error.message ? error.message : error}\n`);
         if (code === 0) code = 2;
       }
     }
@@ -2209,13 +2207,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const childProcess = require('node:child_process');
 const compat = require('./python-compat');
-const { versionBoundaryMessage: nodeVersionBoundaryMessage } = require('../content-fingerprint');
+const { versionBoundaryMessage: nodeVersionBoundaryMessage, TREE_FINGERPRINT_ALGORITHM } = require('../content-fingerprint');
 
 const {
   ValueError,
   OSError,
-  ReceiptCommitError,
-  AdoptionCommittedError,
   ProviderReceiptTooLarge,
   InstallerExit,
   isExit,
@@ -2268,7 +2264,8 @@ const PROVIDER_RECEIPT_BYTES_LIMIT = 1024 * 1024;
 const PROVIDER_RECEIPT_ENTRY_LIMIT = 512;
 const PROVIDER_RECEIPT_PATH_LIMIT = 64;
 const PROVIDER_RECEIPT_VERSION_LIMIT = 128;
-const TREE_FINGERPRINT_ALGORITHM = 'tree-merkle-v1';
+// treeFileDigest is synchronous, so one scratch buffer is never shared across calls in flight.
+const TREE_READ_BUFFER = Buffer.allocUnsafe(1024 * 1024);
 const ENTRY_LEGACY_MARKER = 'legacy';
 const DEPENDENCY_GATED_KINDS = Object.freeze(['commands', 'agents']);
 const SKILL_REF_RE = /skills\/([A-Za-z0-9._-]+)\//g;
@@ -2828,11 +2825,10 @@ function createInstaller(env, io) {
     const digest = crypto.createHash('sha256').update('file\0');
     const descriptor = fs.openSync(target, fs.constants.O_RDONLY | O_NOFOLLOW);
     try {
-      const buffer = Buffer.alloc(1024 * 1024);
       while (true) {
-        const count = fs.readSync(descriptor, buffer, 0, buffer.length, null);
+        const count = fs.readSync(descriptor, TREE_READ_BUFFER, 0, TREE_READ_BUFFER.length, null);
         if (count === 0) break;
-        digest.update(buffer.subarray(0, count));
+        digest.update(TREE_READ_BUFFER.subarray(0, count));
       }
     } finally {
       fs.closeSync(descriptor);
@@ -3847,10 +3843,10 @@ function createInstaller(env, io) {
   }
 
   // Inventory skill ids referenced by a command/agent but not selected.
-  function unmetSkillDependencyIds(kind, source, metadata) {
+  function unmetSkillDependencyIds(kind, source, metadata, availableIds = null, tokenMap = null) {
     if (!DEPENDENCY_GATED_KINDS.includes(kind) || SELECTION_EMITTED_IDS === null) return [];
-    const available = new Set([...(SELECTION_EMITTED_IDS || []), ...(SELECTION_RUNTIME_IDS || [])]);
-    const tokens = inventorySkillTokenMap(metadata);
+    const available = availableIds || new Set([...(SELECTION_EMITTED_IDS || []), ...(SELECTION_RUNTIME_IDS || [])]);
+    const tokens = tokenMap || inventorySkillTokenMap(metadata);
     const missing = new Set();
     for (const text of sourceTexts(source)) {
       for (const match of text.matchAll(SKILL_REF_RE)) {
@@ -3871,6 +3867,7 @@ function createInstaller(env, io) {
     for (const kind of MANAGED_KINDS) result[kind] = {};
     const metadata = inventorySkillMetadata();
     const available = new Set([...(SELECTION_EMITTED_IDS || []), ...(SELECTION_RUNTIME_IDS || [])]);
+    const tokens = inventorySkillTokenMap(metadata);
     const runtimeIds = nativeRuntimeSkillIds();
     for (const kind of SOURCE_KINDS) {
       if (skipNativeSkillKind(kind) && runtimeIds.size === 0) continue;
@@ -3885,7 +3882,7 @@ function createInstaller(env, io) {
         }
         const source = path.join(root, name);
         if (!lexists(source)) continue;
-        const missing = unmetSkillDependencyIds(kind, source, metadata);
+        const missing = unmetSkillDependencyIds(kind, source, metadata, available, tokens);
         if (missing.length) {
           recordUnmetSkillExclusion(kind, name, missing);
           continue;
@@ -4929,10 +4926,6 @@ function createInstaller(env, io) {
   let TX = null;
   let LOCK_HELD = false;
   let AGENTS_CREATED = false;
-
-  function codexRelative(relative) {
-    return relative ? `${DEST_REL}/${relative}` : DEST_REL;
-  }
 
   function participant() {
     return publisherModule.projectionJournalParticipant(PROJECT_ROOT);
@@ -6423,7 +6416,7 @@ module.exports = { createInstaller, SCHEMA_VERSION, TREE_FINGERPRINT_ALGORITHM }
 // json.load accepted them). Neither occurs in a manifest Cursor writes.
 
 const fs = require('node:fs');
-const { isDict, pyJsonLoads, pySorted } = require('./python-compat');
+const { isDict, isDirFollow, pyJsonLoads, pySorted } = require('./python-compat');
 
 const DRIFT_MESSAGE = 'Cursor marketplace hash cache is not SSOT; local packages '
   + 'and the project-local receipt are. Disable/remove the '
@@ -6452,14 +6445,6 @@ function readVersion(file) {
   } catch (error) {
     if (error && (error.name === 'ValueError' || error.code)) return null;
     throw error;
-  }
-}
-
-function isDirectory(directory) {
-  try {
-    return fs.statSync(directory).isDirectory();
-  } catch (error) {
-    return false;
   }
 }
 
@@ -6502,7 +6487,7 @@ function addCursorCacheDriftWarnings(report, env = process.env) {
     if (version) ssot.add(version);
   }
   const warnings = (Array.isArray(report.warnings) ? report.warnings : []).filter(isDict);
-  if (ssot.size > 0 && isDirectory(cacheRoot)) {
+  if (ssot.size > 0 && isDirFollow(cacheRoot)) {
     for (const manifest of cacheManifests(cacheRoot)) {
       const cacheVersion = readVersion(manifest);
       if (cacheVersion && !ssot.has(cacheVersion)) {
@@ -6552,21 +6537,6 @@ class OSError extends Error {
   constructor(message) {
     super(message);
     this.name = 'OSError';
-  }
-}
-
-class ReceiptCommitError extends OSError {
-  constructor(message, committed = false) {
-    super(message);
-    this.name = 'ReceiptCommitError';
-    this.committed = committed;
-  }
-}
-
-class AdoptionCommittedError extends OSError {
-  constructor(message) {
-    super(message);
-    this.name = 'AdoptionCommittedError';
   }
 }
 
@@ -6880,8 +6850,6 @@ function uuidHex() {
 module.exports = {
   ValueError,
   OSError,
-  ReceiptCommitError,
-  AdoptionCommittedError,
   ProviderReceiptTooLarge,
   InstallerExit,
   PyFloat,
@@ -6909,8 +6877,6 @@ module.exports = {
   sha256,
   utcStamp,
   uuidHex,
-  fs,
-  path,
   childProcess,
 };
 
@@ -7011,24 +6977,7 @@ function installNativeSharedSkills({
     ? previous.hostBindings
     : {};
   const resolvedInventory = inventory || readInventory(sourceRoot);
-  const currentIds = new Set([
-    ...(Array.isArray(resolvedInventory.skills) ? resolvedInventory.skills : []),
-    ...(Array.isArray(resolvedInventory.modules) ? resolvedInventory.modules : []),
-  ].map((entry) => entry && entry.id).filter((id) => typeof id === 'string'));
-  const originalEntries = previous && Array.isArray(previous.entries) ? previous.entries : [];
-  const originalIds = [
-    ...(previous && Array.isArray(previous.selectedIds) ? previous.selectedIds : []),
-    ...(previous && Array.isArray(previous.emittedIds) ? previous.emittedIds : []),
-    ...originalEntries.map((entry) => entry && entry.stableId),
-    ...Object.values(previousBindings).flatMap((binding) => [
-      ...(binding && Array.isArray(binding.selectedStableIds) ? binding.selectedStableIds : []),
-      ...(binding && Array.isArray(binding.emittedStableIds) ? binding.emittedStableIds : []),
-      ...(binding && Array.isArray(binding.bindings) ? binding.bindings.map((entry) => entry && entry.stableId) : []),
-    ]),
-  ];
-  const retiredIds = new Set(originalIds.filter((id) => typeof id === 'string' && !currentIds.has(id)));
-  const retiredNames = originalEntries.filter((entry) => entry && retiredIds.has(entry.stableId))
-    .map((entry) => entry.name).filter((name) => typeof name === 'string');
+  const { retiredIds, retiredNames } = retiredState(previous, previousBindings, resolvedInventory);
   for (const other of Object.keys(previousBindings)) {
     if (other === host) continue;
     const pruned = pruneRetiredHostBinding(previousBindings[other], retiredIds, retiredNames);
@@ -7087,6 +7036,28 @@ function throwIfUninstallFailed(result) {
     throw new Error(detail);
   }
   return result;
+}
+
+function retiredState(previous, previousBindings, resolvedInventory) {
+  const currentIds = new Set([
+    ...(Array.isArray(resolvedInventory.skills) ? resolvedInventory.skills : []),
+    ...(Array.isArray(resolvedInventory.modules) ? resolvedInventory.modules : []),
+  ].map((entry) => entry && entry.id).filter((id) => typeof id === 'string'));
+  const originalEntries = previous && Array.isArray(previous.entries) ? previous.entries : [];
+  const originalIds = [
+    ...(previous && Array.isArray(previous.selectedIds) ? previous.selectedIds : []),
+    ...(previous && Array.isArray(previous.emittedIds) ? previous.emittedIds : []),
+    ...originalEntries.map((entry) => entry && entry.stableId),
+    ...Object.values(previousBindings).flatMap((binding) => [
+      ...(binding && Array.isArray(binding.selectedStableIds) ? binding.selectedStableIds : []),
+      ...(binding && Array.isArray(binding.emittedStableIds) ? binding.emittedStableIds : []),
+      ...(binding && Array.isArray(binding.bindings) ? binding.bindings.map((entry) => entry && entry.stableId) : []),
+    ]),
+  ];
+  const retiredIds = new Set(originalIds.filter((id) => typeof id === 'string' && !currentIds.has(id)));
+  const retiredNames = originalEntries.filter((entry) => entry && retiredIds.has(entry.stableId))
+    .map((entry) => entry.name).filter((name) => typeof name === 'string');
+  return { retiredIds, retiredNames };
 }
 
 function pruneRetiredHostBinding(binding, retiredIds, retiredNames) {
@@ -7181,25 +7152,7 @@ function uninstallNativeSharedSkills({
   }
   const profileId = previous.profileId || 'portable-core';
   compileRetirementGuard(resolvedInventory, profileId, remainingHosts);
-  const currentIds = new Set([
-    ...(Array.isArray(resolvedInventory.skills) ? resolvedInventory.skills : []),
-    ...(Array.isArray(resolvedInventory.modules) ? resolvedInventory.modules : []),
-  ].map((entry) => entry && entry.id).filter((id) => typeof id === 'string'));
-  const originalEntries = Array.isArray(previous.entries) ? previous.entries : [];
-  const originalIds = [
-    ...(Array.isArray(previous.selectedIds) ? previous.selectedIds : []),
-    ...(Array.isArray(previous.emittedIds) ? previous.emittedIds : []),
-    ...originalEntries.map((entry) => entry && entry.stableId),
-    ...Object.values(previousBindings).flatMap((binding) => [
-      ...(binding && Array.isArray(binding.selectedStableIds) ? binding.selectedStableIds : []),
-      ...(binding && Array.isArray(binding.emittedStableIds) ? binding.emittedStableIds : []),
-      ...(binding && Array.isArray(binding.bindings) ? binding.bindings.map((entry) => entry && entry.stableId) : []),
-    ]),
-  ];
-  const retiredIds = new Set(originalIds.filter((id) => typeof id === 'string' && !currentIds.has(id)));
-  const retiredEntries = originalEntries.filter((entry) => entry && retiredIds.has(entry.stableId));
-  const retiredNames = retiredEntries.map((entry) => entry.name)
-    .filter((name) => typeof name === 'string');
+  const { retiredIds, retiredNames } = retiredState(previous, previousBindings, resolvedInventory);
   const preserveHostBindings = {};
   const preserveBindingPaths = {};
   const remainingIds = [];
@@ -8709,6 +8662,7 @@ const {
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
+  canonicalJson: stableStringify,
 } = require('./content-fingerprint');
 const {
   compileProjectAgentProjection,
@@ -8724,7 +8678,7 @@ const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
 } = require('./portable-skill-metadata');
-const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { createTraversalBudget, readDirectoryEntries, lstatOrNull } = require('./bounded-filesystem');
 const journalCore = require('./projection-journal');
 const { LEGACY_JOURNAL_RECOVERY_RELEASE } = journalCore;
 
@@ -8791,10 +8745,6 @@ function clone(value) {
   return value;
 }
 
-function stableStringify(value) {
-  return JSON.stringify(clone(value));
-}
-
 function fail(code, message, details = {}) {
   const error = new Error(message);
   error.projectionCode = code;
@@ -8809,15 +8759,6 @@ function portableSkillContent(content, label) {
     throw fail('INVALID_PORTABLE_METADATA', `${label}: ${details}`);
   }
   return result.output;
-}
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 // Path-safety predicates are shared with the build-time artifact store; this
@@ -11791,7 +11732,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createDistributionArtifact, projectionError, SYMLINK_POLICIES } = require('./distribution-projection-contract');
 const { sha256Hex } = require('./content-fingerprint');
-const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { createTraversalBudget, readDirectoryEntries, lstatOrNull } = require('./bounded-filesystem');
 
 // Shared path-safety predicates (also used by the Projection Receipt
 // publisher).  They reject the union of everything either prior implementation
@@ -12184,15 +12125,6 @@ function reconcileScratch(storeRoot, publishRoot) {
   for (const name of candidates) fs.rmSync(path.join(storeRoot, name), { recursive: true, force: true });
 }
 
-function lstatOrNull(target) {
-  try {
-    return fs.lstatSync(target);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
 // Default ownership proof: a physical directory whose provenance.json records
 // the declared owner.  The store reads only the `owner` field, so it still
 // knows no Host receipt schema.
@@ -12262,7 +12194,7 @@ module.exports = {
 };
 
 }],
-  "scripts/lib/projection-journal.js": [{"./content-fingerprint":"scripts/lib/content-fingerprint.js","./projection-artifact-store":"scripts/lib/projection-artifact-store.js"}, function (exports, require, module, __filename, __dirname) {
+  "scripts/lib/projection-journal.js": [{"./content-fingerprint":"scripts/lib/content-fingerprint.js","./bounded-filesystem":"scripts/lib/bounded-filesystem.js","./projection-artifact-store":"scripts/lib/projection-artifact-store.js"}, function (exports, require, module, __filename, __dirname) {
 'use strict';
 
 // Projection Journal core (ADR-0036, js-projection-journal stage 2).
@@ -12284,6 +12216,7 @@ module.exports = {
 const fs = require('node:fs');
 const path = require('node:path');
 const { sha256Hex } = require('./content-fingerprint');
+const { lstatOrNull } = require('./bounded-filesystem');
 const { safeRelative, safeLinkTarget, inside } = require('./projection-artifact-store');
 
 const EFFECT_KINDS = Object.freeze(['mkdir', 'rename', 'symlink', 'remove', 'write-file', 'copy-tree', 'chmod']);
@@ -12315,15 +12248,6 @@ function fail(code, message, details = {}) {
   error.projectionCode = code;
   error.projectionDetails = details;
   return error;
-}
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 function isInside(parent, candidate) {
@@ -12987,6 +12911,7 @@ const REQUIREMENT_EVIDENCE_FIELDS = new Set([
 ]);
 const REQUIREMENT_ADAPTER_FIELDS = new Set(['id', 'version']);
 const NATIVE_PROOF_HASH = /^[a-f0-9]{64}$/i;
+const ROLE_CONTRACT_KEYS = ['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'];
 const CONSUMER_CHECK_IDENTITY_FIELDS = Object.freeze([
   'contractVersion',
   'sourceFingerprint',
@@ -13158,7 +13083,7 @@ function normalizeRoleContract(contractEvidence, capability, status, surfaceReco
   const roleId = capability.slice('named-role-'.length);
   const role = contractEvidence.role;
   if (!role || typeof role !== 'object' || Array.isArray(role)
-    || Object.keys(role).some((key) => !['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'].includes(key))
+    || Object.keys(role).some((key) => !ROLE_CONTRACT_KEYS.includes(key))
     || role.path !== `agents/${roleId}.toml`) {
     throw new Error('consumer evidence: Codex role contract proof does not match its capability');
   }
@@ -13177,7 +13102,7 @@ function normalizeRoleContract(contractEvidence, capability, status, surfaceReco
   }
   const normalizedResources = resources.map((resource) => {
     if (!resource || typeof resource !== 'object' || Array.isArray(resource)
-      || Object.keys(resource).some((key) => !['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'].includes(key))
+      || Object.keys(resource).some((key) => !ROLE_CONTRACT_KEYS.includes(key))
       || typeof resource.path !== 'string' || !/^\.codex\/dhpk\/[A-Za-z0-9._/-]+\.md$/.test(resource.path)
       || resource.path.length > 4096
       || resource.path.split('/').includes('..')) {

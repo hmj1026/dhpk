@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const utils = require('../scripts/lib/utils');
+const utils = require('../scripts/lib/runner-utils');
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'utils-test-'));
@@ -135,13 +135,6 @@ test('pmCommand builds the right argv per package manager', () => {
   assert.deepStrictEqual(utils.pmCommand('npm', 'test', ['--foo']), ['npm', ['run', 'test', '--', '--foo']]);
 });
 
-test('qualifyCommand prefixes a slash-command with the plugin name once', () => {
-  const q1 = utils.qualifyCommand('/do');
-  assert.ok(q1.startsWith('/'));
-  assert.strictEqual(utils.qualifyCommand(q1), q1, 'already-qualified command must be idempotent');
-  assert.strictEqual(utils.qualifyCommand('not-a-command'), 'not-a-command');
-});
-
 test('runCapture resolves stdout/code for a real command', async () => {
   const r = await utils.runCapture('node', ['-e', 'console.log("hi")']);
   assert.strictEqual(r.code, 0);
@@ -158,4 +151,4 @@ test('gitRepoRoot resolves to the real repo root when run inside it', async () =
   assert.ok(root && fs.existsSync(path.join(root, '.git')), `unexpected root: ${root}`);
 });
 
-run('utils');
+run('runner-utils');

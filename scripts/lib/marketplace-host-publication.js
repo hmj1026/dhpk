@@ -3,14 +3,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { compileMarketplacePublicationView } = require('./marketplace-selection');
-const { readFileBounded } = require('./bounded-filesystem');
+const { isInside, readFileBounded } = require('./bounded-filesystem');
 
 const SELECTION_RELATIVE_PATH = 'manifests/marketplace-selection.json';
-
-function inside(parent, candidate) {
-  const relative = path.relative(parent, candidate);
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
 
 function readSelection(root) {
   let physicalRoot;
@@ -22,7 +17,7 @@ function readSelection(root) {
   }
 
   const selectionPath = path.resolve(physicalRoot, ...SELECTION_RELATIVE_PATH.split('/'));
-  if (!inside(physicalRoot, selectionPath)) throw new Error('marketplace selection path escapes the source root');
+  if (!isInside(physicalRoot, selectionPath)) throw new Error('marketplace selection path escapes the source root');
   let current = physicalRoot;
   for (const segment of SELECTION_RELATIVE_PATH.split('/')) {
     current = path.join(current, segment);

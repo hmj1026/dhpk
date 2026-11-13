@@ -7,7 +7,7 @@
 // explicit fixtures. `runtimeObserved` is caller-supplied telemetry and is
 // never folded into static totals.
 
-const crypto = require('node:crypto');
+const { sha256Hex } = require('../lib/content-fingerprint');
 const fs = require('node:fs');
 const path = require('node:path');
 const { extract } = require('./_lib/frontmatter');
@@ -87,10 +87,6 @@ function measureText(value) {
     words: text ? text.split(/\s+/u).length : 0,
     tokens: text ? Math.ceil(Array.from(text).length / 4) : 0,
   };
-}
-
-function digest(text) {
-  return crypto.createHash('sha256').update(text).digest('hex');
 }
 
 function unquote(value) {
@@ -178,7 +174,7 @@ function makeMeasurement({
 } = {}) {
   const text = textValue(value).trim();
   const measured = measureText(text);
-  const fingerprint = digest(text);
+  const fingerprint = sha256Hex(text);
   return {
     id: id || null,
     kind: kind || null,

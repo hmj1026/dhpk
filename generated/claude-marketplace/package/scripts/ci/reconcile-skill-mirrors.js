@@ -7,6 +7,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { isInside } = require('../lib/bounded-filesystem');
 const { PORTABLE_FAMILY_NAMES } = require('../lib/distribution-inventory');
 
 const SURFACES = Object.freeze([
@@ -26,11 +27,6 @@ function parseArgs(argv) {
     throw new Error('--skill must be a canonical kebab-case package name');
   }
   return args;
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
 }
 
 function regularDirectory(directory, label) {
@@ -69,8 +65,8 @@ function reconcileMirror({ root, rootRealPath, canonicalDir, canonicalRealPath, 
 
   const destination = path.join(skillsDir, skill);
   const target = `../../skills/${skill}`;
-  if (fs.existsSync(destination) || fs.lstatSync(destination, { throwIfNoEntry: false })) {
-    const stat = fs.lstatSync(destination);
+  const stat = fs.lstatSync(destination, { throwIfNoEntry: false });
+  if (stat) {
     if (!stat.isSymbolicLink()) throw new Error(`${surface.name}/skills/${skill} exists but is not a symlink`);
     if (fs.readlinkSync(destination) !== target) {
       throw new Error(`${surface.name}/skills/${skill} has an unexpected target; refusing to overwrite it`);

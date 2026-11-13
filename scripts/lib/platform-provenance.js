@@ -5,7 +5,6 @@
 // cross-platform migration manifest and therefore cannot authorize rollback of
 // another surface.
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
@@ -14,6 +13,7 @@ const {
   inventoryDigestInsertionOrder,
   inventoryDigestKeySorted,
   requireTreeMerkle,
+  sha256Hex,
 } = require('./content-fingerprint');
 const { readFileBounded } = require('./bounded-filesystem');
 
@@ -30,10 +30,6 @@ const SURFACE_OWNERS = Object.freeze({
 const SHA256 = /^[a-f0-9]{64}$/i;
 const COMMIT = /^[a-f0-9]{40}$/i;
 const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-
-function digest(value) {
-  return crypto.createHash('sha256').update(String(value)).digest('hex');
-}
 
 function createInstallationReceiptIdentity({
   surface,
@@ -52,7 +48,7 @@ function createInstallationReceiptIdentity({
     throw new Error('installation selectedStableIds must be a non-empty string array');
   }
   const selection = [...new Set(selectedStableIds || [])].sort();
-  const planId = planFingerprint || digest(JSON.stringify({
+  const planId = planFingerprint || sha256Hex(JSON.stringify({
     schema: 'dhpk.installation-receipt.v1', surface, scope, sourceVersion, inventoryDigest, profileId, selection,
   }));
   return {
@@ -64,7 +60,7 @@ function createInstallationReceiptIdentity({
     supportClosure: supportClosure || { stableIds: selection },
     ownership: { owner: SURFACE_OWNERS[surface], roots: [...new Set(ownedRoots)].sort() },
     fingerprints: { plan: planId, inventory: inventoryDigest },
-    rollbackIdentity: digest(JSON.stringify({ surface, scope, owner: SURFACE_OWNERS[surface], planId })),
+    rollbackIdentity: sha256Hex(JSON.stringify({ surface, scope, owner: SURFACE_OWNERS[surface], planId })),
   };
 }
 
@@ -631,7 +627,6 @@ module.exports = {
   packageFingerprintAlgorithm,
   RECEIPT_SCHEMA,
   SURFACE_OWNERS,
-  digest,
   createInstallationReceiptIdentity,
   resolveGeneratedFromTree,
   createSurfaceReceipt,

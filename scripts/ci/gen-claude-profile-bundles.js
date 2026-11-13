@@ -9,7 +9,6 @@
 // --check regenerates into a temporary directory and compares it file by file
 // with the committed package, so a stale copy fails instead of passing.
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -17,6 +16,7 @@ const {
   compileClaudeCapabilityBundle,
   materializeClaudeCapabilityBundle,
 } = require('../lib/claude-capability-bundle');
+const { sha256Hex } = require('../lib/content-fingerprint');
 const { ProjectionArtifactStore } = require('../lib/projection-artifact-store');
 
 const ROOT = path.join(__dirname, '..', '..');
@@ -106,7 +106,7 @@ function hashTree(directory) {
       const child = path.join(current, entry.name);
       const childRelative = relative ? path.posix.join(relative, entry.name) : entry.name;
       if (entry.isDirectory()) walk(child, childRelative);
-      else if (entry.isFile()) files.set(childRelative, crypto.createHash('sha256').update(fs.readFileSync(child)).digest('hex'));
+      else if (entry.isFile()) files.set(childRelative, sha256Hex(fs.readFileSync(child)));
       else throw new Error(`profile package contains an unsupported entry (symlink or special file): ${childRelative}`);
     }
   };
@@ -169,7 +169,8 @@ function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (args.help) { usage(); return 0; }
   if (args.error) { console.error(`FAIL [gen-claude-profile-bundles]: ${args.error}`); usage(); return 2; }
-  if (!args.plan && !args.out && args.standaloneSkillIds.length === 0) {
+  const standalone = args.standaloneSkillIds.length > 0;
+  if (!args.plan && !args.out && !standalone) {
     console.error('FAIL [gen-claude-profile-bundles]: --out is required to materialize the internal common collection');
     usage();
     return 2;
@@ -179,9 +180,9 @@ function main(argv = process.argv.slice(2)) {
     inventory: readJson('manifests/distribution-inventory.json'),
     profiles: readJson('manifests/install-profiles.json'),
     moduleCatalog: readJson('manifests/module-catalog.json'),
-    profileId: args.standaloneSkillIds.length === 0 ? 'common' : null,
-    skillIds: args.standaloneSkillIds.length > 0 ? undefined : args.skillIds,
-    ...(args.standaloneSkillIds.length > 0 ? { standaloneSkillIds: args.standaloneSkillIds } : {}),
+    profileId: !standalone ? 'common' : null,
+    skillIds: standalone ? undefined : args.skillIds,
+    ...(standalone ? { standaloneSkillIds: args.standaloneSkillIds } : {}),
   });
   if (!compiled.ok) {
     console.error(`FAIL [gen-claude-profile-bundles]: ${compiled.error.message}`);
@@ -196,11 +197,11 @@ function main(argv = process.argv.slice(2)) {
     }, null, 2));
     return 0;
   }
-  const outputName = args.standaloneSkillIds.length > 0
+  const outputName = standalone
     ? `standalone-${args.standaloneSkillIds.join('-')}`
     : 'common';
   const outputRoot = path.resolve(args.out || path.join(ROOT, 'generated', 'claude-profiles', outputName));
-  const selectionArgs = args.standaloneSkillIds.length > 0
+  const selectionArgs = standalone
     ? args.standaloneSkillIds.map((id) => `--standalone ${id}`)
     : args.skillIds.map((id) => `--skill ${id}`);
   const resumeCommand = `node scripts/ci/gen-claude-profile-bundles.js ${selectionArgs.join(' ')} --out ${outputRoot}`.replace(/  +/g, ' ').trim();

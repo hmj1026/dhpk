@@ -6,6 +6,7 @@ const {
   adaptNativeDocument,
   parseFrontmatter,
   COMPONENT_EXTENSIONS,
+  listComponentFiles,
 } = require('./cursor-plugin-package');
 const { selectPortableSkills } = require('./agent-plugin-package');
 const {
@@ -14,10 +15,7 @@ const {
   retainsCodexSupportRoot,
   rewriteCursorSupportingAssetBody,
 } = require('./cursor-harness-adapt');
-const {
-  readDirectoryEntries,
-  isInside,
-} = require('./bounded-filesystem');
+const { isInside } = require('./bounded-filesystem');
 const { compileDistribution, materializeDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { sha256Hex } = require('./content-fingerprint');
@@ -31,18 +29,9 @@ const GENERATOR_VERSION = '1.0.0';
 const SURFACE = 'cursor-sync';
 const OWNED_SUBDIRECTORIES = Object.freeze(['skills', 'agents', 'rules', 'commands', 'dhpk']);
 const NATIVE_SUBDIRECTORIES = Object.freeze(['agents', 'rules', 'commands', 'dhpk']);
-const INDEX_NAMES = /^(?:INDEX|README)\./i;
 const CANONICAL_SOURCE_TREES = Object.freeze([
   'skills', 'rules', 'agents', 'commands', 'hooks', 'modules', 'scripts', 'docs', 'manifests',
 ]);
-
-function listComponentFiles(directory, extensions) {
-  if (!fs.existsSync(directory)) return [];
-  return readDirectoryEntries(directory)
-    .filter((entry) => entry.isFile() && extensions.has(path.extname(entry.name).toLowerCase()) && !INDEX_NAMES.test(entry.name))
-    .map((entry) => path.join(directory, entry.name))
-    .sort();
-}
 
 function relativePosix(from, to) {
   return path.relative(from, to).split(path.sep).join('/');

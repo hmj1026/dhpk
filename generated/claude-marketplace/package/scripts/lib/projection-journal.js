@@ -19,6 +19,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { sha256Hex } = require('./content-fingerprint');
+const { lstatOrNull } = require('./bounded-filesystem');
 const { safeRelative, safeLinkTarget, inside } = require('./projection-artifact-store');
 
 const EFFECT_KINDS = Object.freeze(['mkdir', 'rename', 'symlink', 'remove', 'write-file', 'copy-tree', 'chmod']);
@@ -50,15 +51,6 @@ function fail(code, message, details = {}) {
   error.projectionCode = code;
   error.projectionDetails = details;
   return error;
-}
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 function isInside(parent, candidate) {
