@@ -477,4 +477,43 @@ test('the writer carries no private journal, backup, or atomic-json helper', () 
   }
 });
 
+test('the activation verifier refuses preserved content that was modified, re-moded, removed, or replaced by a symlink after planning', () => {
+  const root = makeRoot();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-store-outside-'));
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, RECEIPT_NAME), 'utf8'));
+    const owned = new Set([...receipt.managedPaths, RECEIPT_NAME]);
+    const isReserved = reservedNamePredicate(['dhpk-sample']);
+    const target = 'dhpk-sample/references/guide.md';
+    const planned = new Map([[target, { digest: crypto.createHash('sha256').update(fs.readFileSync(path.join(outDir, target))).digest('hex'), mode: fs.statSync(path.join(outDir, target)).mode & 0o7777 }]]);
+    const verify = () => agentsSkillsOwnership(owned, { isReserved, files: new Map() }, planned).verify(outDir);
+    assert.strictEqual(verify().ok, true);
+
+    fs.writeFileSync(path.join(outDir, target), 'changed\n');
+    assert.strictEqual(verify().ok, false, 'modified');
+    fs.writeFileSync(path.join(outDir, target), '# Guide\n');
+    assert.strictEqual(verify().ok, true);
+
+    fs.chmodSync(path.join(outDir, target), 0o600);
+    assert.strictEqual(verify().ok, false, 're-moded');
+    fs.chmodSync(path.join(outDir, target), 0o644);
+    assert.strictEqual(verify().ok, true);
+
+    const outsideFile = path.join(outside, 'target.md');
+    fs.writeFileSync(outsideFile, '# Guide\n');
+    fs.rmSync(path.join(outDir, target));
+    fs.symlinkSync(outsideFile, path.join(outDir, target));
+    assert.strictEqual(verify().ok, false, 'replaced by symlink');
+    fs.rmSync(path.join(outDir, target));
+    const removed = verify();
+    assert.strictEqual(removed.ok, false, 'removed');
+    assert.match(removed.message, /guide\.md/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
 run('agents-skills-store-ownership');

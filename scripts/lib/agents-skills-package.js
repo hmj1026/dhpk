@@ -589,7 +589,12 @@ function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
 // staged: anything added, removed, or modified since planning is refused, so
 // the whole-root swap can never lose or resurrect a file. Without `unmanaged`,
 // every file the receipt does not own is refused.
-function agentsSkillsOwnership(ownedPaths, unmanaged = null) {
+//
+// `preserved` (Map of relative path -> { digest, mode }) is the planned snapshot
+// of carried and legacy-released files that the staged tree rewrites from
+// captured bytes. Each must still be a regular file with the planned digest and
+// mode; modified, re-moded, removed, or symlink-replaced content is refused.
+function agentsSkillsOwnership(ownedPaths, unmanaged = null, preserved = null) {
   return {
     verify: (existingRoot) => {
       // A pre-created empty tree holds nothing to lose.
@@ -599,6 +604,7 @@ function agentsSkillsOwnership(ownedPaths, unmanaged = null) {
         return { ok: false, code: 'NO_OWNER_RECEIPT', message: `existing tree has no ${RECEIPT_NAME} receipt` };
       }
       const observed = new Map();
+      const observedPreserved = new Map();
       const budget = createTraversalBudget();
       const refuse = (code, message) => ({ ok: false, code, message });
       const walk = (directory, prefix) => {
@@ -624,6 +630,12 @@ function agentsSkillsOwnership(ownedPaths, unmanaged = null) {
             if (nested) return nested;
           } else if (!ownedPaths.has(relative)) {
             return refuse('UNLISTED_FILE', `existing tree holds a file the receipt does not own: ${relative}`);
+          } else if (preserved && preserved.has(relative)) {
+            const stat = lstatOrNull(absolute);
+            if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
+              return refuse('PRESERVED_UNSAFE', `preserved file is missing or unsafe: ${relative}`);
+            }
+            observedPreserved.set(relative, { digest: sha256Hex(budget.readFile(absolute, stat, `preserved file: ${relative}`)), mode: stat.mode & 0o7777 });
           }
         }
         return null;
@@ -631,6 +643,14 @@ function agentsSkillsOwnership(ownedPaths, unmanaged = null) {
       try {
         const refusal = walk(existingRoot, '');
         if (refusal) return refusal;
+        if (preserved) {
+          for (const [relative, planned] of preserved) {
+            const actual = observedPreserved.get(relative);
+            if (!actual || actual.digest !== planned.digest || actual.mode !== planned.mode) {
+              return refuse('PRESERVED_CHANGED', `preserved file changed after planning: ${relative}`);
+            }
+          }
+        }
         if (unmanaged) {
           const changed = (relative) => refuse('UNMANAGED_CHANGED', `unmanaged file changed after planning: ${relative}`);
           for (const [relative, planned] of unmanaged.files) {
@@ -662,7 +682,7 @@ function agentsSkillsPlanEntries(outputs) {
   }));
 }
 
-function publishAgentsSkillsTree({ sourceRoot, outputRoot, inventory, outputs, ownedPaths, unmanaged }) {
+function publishAgentsSkillsTree({ sourceRoot, outputRoot, inventory, outputs, ownedPaths, unmanaged, preserved = null }) {
   const entries = agentsSkillsPlanEntries(outputs);
   const compiled = compileDistribution({
     internalCharacterization: true,
@@ -690,7 +710,7 @@ function publishAgentsSkillsTree({ sourceRoot, outputRoot, inventory, outputs, o
     root: path.dirname(outputRoot),
     sourceRoot,
     publishRoot: outputRoot,
-    ownership: agentsSkillsOwnership(ownedPaths, unmanaged),
+    ownership: agentsSkillsOwnership(ownedPaths, unmanaged, preserved),
   });
   const artifact = materializeDistribution(compiled.value, adapter, store);
   if (!artifact.ok) {
@@ -766,12 +786,24 @@ function materializeAgentsSkillsProjection(options = {}) {
         return !currentNames.has(top);
       })
     : [];
-  const carriedFingerprints = previous
-    ? Object.fromEntries(carriedPaths.map((relative) => [relative, previous.generatedFingerprints[relative]]))
-    : {};
+  // One planned snapshot of the preserved bytes and modes. A modern carried file
+  // must still match its receipt fingerprint: a mismatch is refused, never
+  // released or re-fingerprinted. A qualifying marker-less 1.1.0 receipt has no
+  // recomputable recipe, so its entries are released without that comparison.
+  const releasing = Boolean(previous) && previous.legacyUnmarked;
+  const carriedOutputs = carriedPaths.map((relative) => {
+    const target = pathInOutput(outputRoot, relative);
+    const content = readPhysicalFile(target, createTraversalBudget(), `carried projection file: ${relative}`);
+    const mode = lstatOrNull(target).mode & 0o7777;
+    if (!releasing && sha256Hex(content) !== previous.generatedFingerprints[relative]) {
+      throw new Error(`OWNERSHIP_REFUSED: carried file does not match its receipt fingerprint: ${relative}`);
+    }
+    return { path: relative, content, mode, source: 'skills' };
+  });
+  const carriedFingerprints = Object.fromEntries(carriedOutputs.map((file) => [file.path, sha256Hex(file.content)]));
+  const preserved = new Map(carriedOutputs.map((file) => [file.path, { digest: sha256Hex(file.content), mode: file.mode }]));
   // A marker-less receipt carries entries whose legacy values cannot be
   // recomputed: release them (drop them from the receipt, keep their files).
-  const releasing = Boolean(previous) && previous.legacyUnmarked;
   const keptEntries = releasing ? [] : carriedEntries;
   const keptPaths = releasing ? [] : carriedPaths;
   const keptFingerprints = releasing ? {} : carriedFingerprints;
@@ -792,11 +824,6 @@ function materializeAgentsSkillsProjection(options = {}) {
       ...keptFingerprints,
     },
   };
-  const carriedOutputs = carriedPaths.map((relative) => {
-    const target = pathInOutput(outputRoot, relative);
-    const content = readPhysicalFile(target, createTraversalBudget(), `carried projection file: ${relative}`);
-    return { path: relative, content, mode: lstatOrNull(target).mode & 0o7777, source: 'skills' };
-  });
   const receiptContent = Buffer.from(`${stableStringify(receipt)}\n`, 'utf8');
   const ownedPaths = new Set(previous
     ? [...previous.trustedManagedPaths, ...renamedPaths, ...retired.paths, ...carriedPaths, RECEIPT_NAME]
@@ -820,6 +847,7 @@ function materializeAgentsSkillsProjection(options = {}) {
     inventory,
     ownedPaths,
     unmanaged: { isReserved, files: unmanaged.files },
+    preserved,
     outputs: [...outputs, ...carriedOutputs, ...unmanaged.outputs, { path: RECEIPT_NAME, content: receiptContent, mode: 0o644, source: 'skills' }],
   });
   return {
