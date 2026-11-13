@@ -15,6 +15,35 @@ const harness = require('../scripts/lib/harness');
 const ROOT = path.join(__dirname, '..');
 const NODE_BASH_ONLY_PATH = [path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
 const DEFAULT_INVOKE_TIMEOUT_MS = 30_000;
+
+// Simulated developer machine: an ambient `cursor-agent` is first on the
+// parent PATH.  Every invocation is recorded and creates the log directory the
+// real CLI leaves in TMPDIR.  The hermetic default PATH below must keep it
+// from ever being discovered.
+function writeCursorAgentStub(directory, { createLogs }) {
+  fs.mkdirSync(directory, { recursive: true });
+  const invocationLog = path.join(directory, 'invocations.log');
+  const script = [
+    '#!/bin/sh',
+    `echo "$0 $*" >> '${invocationLog}'`,
+    createLogs ? 'mkdir -p "${TMPDIR:-/tmp}/cursor-agent-logs-$(id -u)"' : ':',
+    'echo "cursor-agent 0.0.0-stub"',
+    '',
+  ].join('\n');
+  const executable = path.join(directory, 'cursor-agent');
+  fs.writeFileSync(executable, script, { mode: 0o755 });
+  return invocationLog;
+}
+
+function invocationCount(invocationLog) {
+  if (!fs.existsSync(invocationLog)) return 0;
+  return fs.readFileSync(invocationLog, 'utf8').split('\n').filter(Boolean).length;
+}
+
+const AMBIENT_STUB_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ambient-cursor-agent-'));
+const AMBIENT_STUB_LOG = writeCursorAgentStub(AMBIENT_STUB_ROOT, { createLogs: true });
+process.env.PATH = [AMBIENT_STUB_ROOT, process.env.PATH].filter(Boolean).join(path.delimiter);
+process.on('exit', () => fs.rmSync(AMBIENT_STUB_ROOT, { recursive: true, force: true }));
 // scripts/lib/harness.js gives each consumer-gate child 120s. Release walks
 // every required surface sequentially, so the outer spawn must outlive that
 // cap instead of reporting status null on ETIMEDOUT.
@@ -25,7 +54,7 @@ function invokeAt(root, args, env = {}, timeoutMs = DEFAULT_INVOKE_TIMEOUT_MS) {
     cwd: root,
     encoding: 'utf8',
     timeout: timeoutMs,
-    env: { ...process.env, DHPK_BOUNDED_REQUIRE_CGROUP: '0', DHPK_BOUNDED_ALLOW_FALLBACK: '1', ...env },
+    env: { ...process.env, PATH: NODE_BASH_ONLY_PATH, DHPK_BOUNDED_REQUIRE_CGROUP: '0', DHPK_BOUNDED_ALLOW_FALLBACK: '1', ...env },
   });
 }
 
@@ -1974,7 +2003,6 @@ test('release current acceptance uses bounded coordinator and transports current
   ].join('\n') + '\n');
   git(root, ['add', 'manifests/distribution-inventory.json', 'scripts/release/parallel-consumer-probes.js']);
   git(root, ['commit', '-qm', 'fixture bounded consumer coordinator']);
-  const originalNodePath = process.env.PATH;
   try {
     const result = invokeAt(root, [
       'release', '--surfaces', selectedSurfaces.join(','), '--task-id', 'facade-current-parallel', '--json',
@@ -1985,7 +2013,6 @@ test('release current acceptance uses bounded coordinator and transports current
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
       BATCH_ARGS_FILE: argsFile,
       GATE_ARGS_FILE: argsFile,
-      PATH: originalNodePath,
     }, RELEASE_INVOKE_TIMEOUT_MS);
 
     assert.ok(fs.existsSync(argsFile), 'current release did not use the bounded coordinator');
@@ -2576,6 +2603,28 @@ test('probe facade does not trust CI=false as permission for shared consumer pro
     assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
+  }
+});
+
+test('ambient cursor-agent is never invoked by any harness case in this file', () => {
+  assert.strictEqual(invocationCount(AMBIENT_STUB_LOG), 0,
+    `ambient cursor-agent was invoked:\n${fs.existsSync(AMBIENT_STUB_LOG) ? fs.readFileSync(AMBIENT_STUB_LOG, 'utf8') : ''}`);
+});
+
+test('explicit per-test PATH override still exposes an owned cursor-agent stub', () => {
+  const receiptRoot = temporaryReceiptRoot();
+  const stubRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-owned-cursor-agent-'));
+  try {
+    const ownedLog = writeCursorAgentStub(stubRoot, { createLogs: false });
+    invoke(['preflight', '--task-id', 'facade-owned-cursor-stub', '--json'], {
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      PATH: [stubRoot, NODE_BASH_ONLY_PATH].join(path.delimiter),
+    });
+    assert.ok(invocationCount(ownedLog) >= 1, 'explicit PATH override was not honored');
+    assert.strictEqual(invocationCount(AMBIENT_STUB_LOG), 0);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(stubRoot, { recursive: true, force: true });
   }
 });
 
