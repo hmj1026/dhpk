@@ -12891,10 +12891,12 @@ function buildEvidence({ version, stages }) {
   return evidence;
 }
 
+const SENSITIVE_KEY = /authorization|proxy.?authorization|token|password|secret|api.?key|credential/i;
+
 function boundedEvidenceValue(value, depth = 0, key = '') {
   if (depth > 5) return '[truncated]';
   if (typeof value === 'string') {
-    if (/authorization|proxy.?authorization|token|password|secret|api.?key|credential/i.test(key)) return '<redacted>';
+    if (SENSITIVE_KEY.test(key)) return '<redacted>';
     if (/^(?:path|packageRoot|cwd|home|root|sourcePath|installedCachePath)$/i.test(key) && /^(?:\/|[A-Za-z]:[\\/])/.test(value)) {
       return `<path>/${value.split(/[\\/]/).pop()}`;
     }
@@ -12907,7 +12909,7 @@ function boundedEvidenceValue(value, depth = 0, key = '') {
   if (Array.isArray(value)) return value.slice(0, 200).map((entry) => boundedEvidenceValue(entry, depth + 1, key));
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).slice(0, 200).map(([entryKey, entry]) => {
-    const safeKey = /authorization|proxy.?authorization|token|password|secret|api.?key|credential/i.test(entryKey)
+    const safeKey = SENSITIVE_KEY.test(entryKey)
       ? '<redacted-key>'
       : entryKey;
     return [safeKey, boundedEvidenceValue(entry, depth + 1, entryKey)];

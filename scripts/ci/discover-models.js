@@ -94,8 +94,9 @@ function run(argv, { runner = spawnSync, now = new Date() } = {}) {
   const observations = args.agents.map((agent) => discoverModels({ agent, ...COMMANDS[agent], runner, now }));
   const document = { schema: SCHEMA, status: observations.length ? 'OBSERVED' : 'NOT_RUN', observations };
   fs.mkdirSync(path.dirname(args.output), { recursive: true });
-  fs.writeFileSync(args.output, `${JSON.stringify(document, null, 2)}\n`);
-  process.stdout.write(`${JSON.stringify(document, null, 2)}\n`);
+  const serialized = `${JSON.stringify(document, null, 2)}\n`;
+  fs.writeFileSync(args.output, serialized);
+  process.stdout.write(serialized);
   return 0;
 }
 
