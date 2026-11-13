@@ -386,6 +386,12 @@ The in-checkout branch of `materializeAgentsSkillsProjection` SHALL publish `.ag
 - **WHEN** an unmanaged entry is or contains a symlink or another non-regular file
 - **THEN** the sync refuses the replace and the entry and any symlink target are unchanged
 
+#### Scenario: Symlink refusal names the path and gives recovery guidance
+
+- **WHEN** the sync refuses because an unmanaged top-level entry is a symlink or contains one
+- **THEN** the refusal keeps the stable `UNMANAGED_SYMLINK` code, names the relative path of the link, states whether it is the top-level entry or a nested path, and advises replacing the link with a real directory copy or moving it outside `.agents/skills` while syncing and restoring it afterwards
+- **AND** the guidance does not suggest automatic dereferencing or deletion, no symlink is followed, copied, deleted, or relocated, and `node scripts/ci/gen-agents-skills.js --update` and `npm run sync:local-skills` surface the same text
+
 #### Scenario: Unmanaged files change before activation
 
 - **WHEN** an unmanaged file is added, removed, or modified after planning and before activation

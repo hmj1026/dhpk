@@ -535,6 +535,20 @@ function topLevelName(relative) {
   return relative.split('/')[0];
 }
 
+// A symlink under an unmanaged `.agents/skills` entry is never followed,
+// dereferenced, copied, or deleted. The refusal names the path, says whether the
+// link is the top-level entry or nested, and tells the user how to recover by hand.
+const UNMANAGED_SYMLINK_CODE = 'UNMANAGED_SYMLINK';
+
+function unmanagedSymlinkMessage(relative) {
+  const scope = relative.includes('/')
+    ? `nested path inside unmanaged top-level entry ${topLevelName(relative)}`
+    : 'top-level entry';
+  return `${UNMANAGED_SYMLINK_CODE}: unmanaged ${scope} is a symlink, which cannot be preserved: ${relative}. `
+    + 'Nothing was changed. To sync, either replace the link with a real directory copy, '
+    + 'or move it outside `.agents/skills` while syncing and restore it afterwards.';
+}
+
 // Unmanaged = a top-level entry that is neither reserved nor the receipt. Its
 // regular files are carried through the staged tree with identical bytes and
 // modes and never enter the receipt. This walker deliberately does not reuse
@@ -551,7 +565,9 @@ function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
   const collect = (absolute, relative, depth) => {
     const stat = lstatOrNull(absolute);
     if (!stat) throw new Error(`unmanaged entry disappeared while planning: ${relative}`);
-    if (stat.isSymbolicLink()) throw new Error(`unmanaged entry holds a symlink, which cannot be preserved: ${relative}`);
+    if (stat.isSymbolicLink()) {
+      throw Object.assign(new Error(unmanagedSymlinkMessage(relative)), { code: UNMANAGED_SYMLINK_CODE });
+    }
     if (stat.isDirectory()) {
       const realDirectory = budget.enterDirectory(absolute, depth);
       try {
@@ -615,7 +631,7 @@ function agentsSkillsOwnership(ownedPaths, unmanaged = null, preserved = null) {
           if (unmanaged && top !== RECEIPT_NAME && !unmanaged.isReserved(top)) {
             const stat = lstatOrNull(absolute);
             if (!stat || stat.isSymbolicLink()) {
-              return refuse('UNMANAGED_SYMLINK', `unmanaged entry holds a symlink: ${relative}`);
+              return refuse(UNMANAGED_SYMLINK_CODE, unmanagedSymlinkMessage(relative));
             }
             if (stat.isDirectory()) {
               const nested = walk(absolute, relative);
