@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.76.0 — 2026-11-13 — Telemetry merges multi-host reports; local skills sync preserves third-party and carried content
+
+- **feat(telemetry)** — dispatch-telemetry-report adds --host and repeatable --merge to combine per-host --json reports without moving transcripts (#1335).
+- **fix(agents-skills)** — `npm run sync:local-skills` now refuses with `OWNERSHIP_REFUSED` when a deselected (carried) or legacy-released skill file changes between planning and activation, or when a carried file no longer matches its receipt fingerprint, instead of silently overwriting it (#1343).
+- **fix(agents-skills)** — `npm run sync:local-skills` keeps third-party skill directories such as GitNexus in `.agents/skills` instead of refusing the update, while still refusing unmanaged files inside managed skills, name collisions, and symlinks (#1337).
+- **fix(dispatch)** — Execution policy bounds each implementation dispatch to one verifiable round, sends the next round to a fresh dispatch with a full handoff above 120 turns or a 200k peak prompt, states a test budget with rerun conditions, and dispatch-telemetry-report lists oversized and incompletely measured dispatches (#1336).
+- **fix(distribution)** — Distribution preview disables git auto-maintenance in its temporary snapshot so cleanup no longer leaks dhpk-preview- directories into TMPDIR (#1338).
+
 ## 0.75.1 — 2026-11-12 — Telemetry cost now counts cache tokens; architect defaults to fable@medium
 
 - **fix(dispatch-telemetry)** — dispatch-telemetry-report now prices cache read and 5-minute/1-hour cache writes at the official per-model rates, lists cost per token class with a report total, and the model-economics role benchmark figures are recomputed on that basis (#1331).
