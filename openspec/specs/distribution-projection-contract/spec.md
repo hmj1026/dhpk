@@ -255,7 +255,7 @@ The compiler SHALL reject retired stable IDs, retired version-specific aliases, 
 
 ### Requirement: Replacing an existing generated root requires proven ownership
 
-`ProjectionArtifactStore` SHALL refuse to replace an existing publish root that this surface did not produce. Before activation the store MUST require that an existing root is a physical directory and passes the ownership verification supplied for the surface; a missing root passes. A refused replacement MUST leave the existing tree byte-unchanged and report a structured ownership failure. A surface MAY supply a stricter verification than the store default, and the store MUST NOT interpret Host receipt schemas itself.
+`ProjectionArtifactStore` SHALL refuse to replace an existing publish root that this surface did not produce. Before activation the store MUST require that an existing root is a physical directory and passes the ownership verification supplied for the surface; a missing root passes. A refused replacement MUST leave the existing tree byte-unchanged and report a structured ownership failure. A surface MAY supply a stricter verification than the store default, and the store MUST NOT interpret Host receipt schemas itself. The store's guarantees end at activation verification: it does not detect or lock out writes to the existing publish root between verification and removal of the previous-tree backup, and such writes may be lost with the backup. Concurrent-write safety is not provided; do not edit a projection while a sync runs. This limitation applies to every surface that publishes through the store.
 
 #### Scenario: Foreign directory occupies the publish root
 
@@ -281,6 +281,11 @@ The compiler SHALL reject retired stable IDs, retired version-specific aliases, 
 
 - **WHEN** the publish root does not exist
 - **THEN** activation publishes the staged tree without an ownership failure
+
+#### Scenario: Write lands in the old tree after verification
+
+- **WHEN** an external process writes a file into the existing publish root after ownership verification passes and before the previous-tree backup is removed
+- **THEN** the store does not detect the write, the file is not carried into the published tree and may be lost with the backup, and no concurrent-write safety is claimed
 
 ### Requirement: Activation outcome is not reversed by cleanup
 
@@ -354,7 +359,7 @@ Moving AGY, cursor-sync, or the Claude marketplace package behind the store SHAL
 
 ### Requirement: Local skills sync publishes through the store
 
-The in-checkout branch of `materializeAgentsSkillsProjection` SHALL publish `.agents/skills` through `ProjectionArtifactStore`; `writeAtomicJson` and its private journal, stage, and backup SHALL NOT exist. Replacing an existing `.agents/skills` SHALL require its `.dhpk-projection.json` receipt. A reserved name is `N` or `N.md` for every skill the sync generates, renames from, retires, or keeps from the prior receipt. A top-level entry whose name is neither reserved nor the receipt is unmanaged: the sync SHALL carry its regular files into the published tree with identical bytes and modes, SHALL NOT record them in the receipt, and SHALL report the preserved top-level names on standard output. The sync SHALL refuse the replace and leave the tree unchanged when a file at or under a reserved name is not owned by the receipt, when an unmanaged entry holds a symlink or other non-regular file, or when the unmanaged files change between planning and activation. Carried entries (kept from the prior receipt but no longer selected) and legacy-released entries SHALL be captured as one planned snapshot of bytes and modes; a modern carried file whose content does not match its prior receipt fingerprint SHALL be refused, never released or re-fingerprinted, and the sync SHALL refuse the replace and leave the tree as it stands at refusal when a preserved file is added, removed, modified, re-moded, or replaced by a symlink between planning and activation. The receipt SHALL NOT publish a carried fingerprint that disagrees with the carried bytes. These checks cover changes up to activation verification; they do not guard writes between verification and the atomic rename. Empty unmanaged directories are not carried. `npm run sync:local-skills` SHALL keep its command-line contract, and the receipt SHALL be byte-identical whether or not unmanaged entries are present.
+The in-checkout branch of `materializeAgentsSkillsProjection` SHALL publish `.agents/skills` through `ProjectionArtifactStore`; `writeAtomicJson` and its private journal, stage, and backup SHALL NOT exist. Replacing an existing `.agents/skills` SHALL require its `.dhpk-projection.json` receipt. A reserved name is `N` or `N.md` for every skill the sync generates, renames from, retires, or keeps from the prior receipt. Reserved-name matching SHALL compare names after one normalization applied to both sides and identical on every Host and filesystem: Unicode NFC, then locale-independent `toLowerCase()`, with the `.md` suffix stripped after folding. An unmanaged top-level entry whose folded name equals the folded form of a reserved name, while not an exact-case match, SHALL be refused with structured `OWNERSHIP_REFUSED` naming both the entry and the reserved name, leaving the tree and receipt unchanged; this includes a file and a directory that differ only by case. Exact-case behavior is unchanged, and two unmanaged entries that are case-equivalent only to each other keep their current behavior. A top-level entry whose name is neither reserved nor the receipt is unmanaged: the sync SHALL carry its regular files into the published tree with identical bytes and modes, SHALL NOT record them in the receipt, and SHALL report the preserved top-level names on standard output. The sync SHALL refuse the replace and leave the tree unchanged when a file at or under a reserved name is not owned by the receipt, when an unmanaged entry holds a symlink or other non-regular file, or when the unmanaged files change between planning and activation. Carried entries (kept from the prior receipt but no longer selected) and legacy-released entries SHALL be captured as one planned snapshot of bytes and modes; a modern carried file whose content does not match its prior receipt fingerprint SHALL be refused, never released or re-fingerprinted, and the sync SHALL refuse the replace and leave the tree as it stands at refusal when a preserved file is added, removed, modified, re-moded, or replaced by a symlink between planning and activation. The receipt SHALL NOT publish a carried fingerprint that disagrees with the carried bytes. These checks cover changes up to activation verification; they do not guard writes between verification and the atomic rename. Empty unmanaged directories are not carried. `npm run sync:local-skills` SHALL keep its command-line contract, and the receipt SHALL be byte-identical whether or not unmanaged entries are present.
 
 #### Scenario: Local sync runs through the store
 
@@ -380,6 +385,16 @@ The in-checkout branch of `materializeAgentsSkillsProjection` SHALL publish `.ag
 
 - **WHEN** a newly selected skill `N` would be generated and `.agents/skills` already holds an unmanaged `N/` or `N.md`
 - **THEN** the sync refuses the replace and the tree is unchanged
+
+#### Scenario: Case-variant of a reserved name blocks the replace
+
+- **WHEN** `.agents/skills` holds an unmanaged top-level entry such as `Code-Trace/` or `Code-Trace.MD` whose name differs only by case or Unicode normalization from a selected, carried, renamed-from, retired, or shim reserved name such as `code-trace`
+- **THEN** the sync refuses the replace with `OWNERSHIP_REFUSED` naming both names, on every Host, and the tree and receipt are unchanged
+
+#### Scenario: Case-only file and directory conflict blocks the replace
+
+- **WHEN** an unmanaged file differs only by case from a reserved directory name, or an unmanaged directory differs only by case from a reserved shim file name
+- **THEN** the sync refuses the replace with `OWNERSHIP_REFUSED` naming both names and the tree is unchanged
 
 #### Scenario: Unmanaged symlink or non-regular file blocks the replace
 

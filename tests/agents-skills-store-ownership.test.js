@@ -587,4 +587,166 @@ test('the activation verifier refuses preserved content that was modified, re-mo
   }
 });
 
+// ---------------------------------------------------------------------------
+// #1353: reserved names are compared after NFC + locale-independent lowercase,
+// on every Host. Synthetic evidence on a case-sensitive filesystem.
+// ---------------------------------------------------------------------------
+
+function refuseCaseCollision(setup, run, pattern, label) {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    const context = setup(root, outDir) || {};
+    seedForeign(outDir);
+    const before = tree(outDir);
+    assert.throws(() => run(root, outDir, context), pattern, label);
+    assert.deepStrictEqual(tree(outDir), before, `${label}: tree and receipt unchanged`);
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills'], `${label}: no stage remains`);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+const renamedInventory = () => ({
+  schema: INVENTORY.schema,
+  skills: [{ id: 'sample', name: 'sample-renamed', path: 'skills/sample-renamed', lifecycle: 'promoted', surfaces: ['agent-plugin'] }],
+  surface_membership: { 'agent-plugin': ['sample'] },
+  renamed_skill_names: [{ id: 'sample', oldName: 'dhpk-sample', oldPath: 'skills/dhpk-sample', newName: 'sample-renamed', newPath: 'skills/sample-renamed' }],
+});
+
+function renameSampleSource(root) {
+  fs.renameSync(path.join(root, 'skills/dhpk-sample'), path.join(root, 'skills/sample-renamed'));
+  const sourceSkill = path.join(root, 'skills/sample-renamed/SKILL.md');
+  fs.writeFileSync(sourceSkill, fs.readFileSync(sourceSkill, 'utf8').replace('name: dhpk-sample', 'name: sample-renamed'));
+}
+
+test('a case-variant directory of a selected skill is refused naming both names, tree and receipt unchanged', () => {
+  refuseCaseCollision(
+    (root, outDir) => { materialize(root, outDir); write(path.join(outDir, 'Dhpk-Sample', 'SKILL.md'), '# user\n'); },
+    (root, outDir) => materialize(root, outDir),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Sample"[^]*"dhpk-sample"/,
+    'selected directory',
+  );
+});
+
+test('a case-variant shim file of a selected skill is refused, including an upper-case .MD suffix', () => {
+  for (const name of ['Dhpk-Sample.md', 'DHPK-SAMPLE.MD']) {
+    refuseCaseCollision(
+      (root, outDir) => { materialize(root, outDir); write(path.join(outDir, name), '# user\n'); },
+      (root, outDir) => materialize(root, outDir),
+      new RegExp(`OWNERSHIP_REFUSED[^]*"${name}"[^]*"dhpk-sample"`),
+      name,
+    );
+  }
+});
+
+test('a case-variant directory of a carried skill is refused', () => {
+  refuseCaseCollision(
+    (root, outDir) => {
+      addExtraSkill(root);
+      materializeAgentsSkillsProjection({ root, inventory: secondSkillInventory(), outDir });
+      write(path.join(outDir, 'Dhpk-Extra', 'SKILL.md'), '# user\n');
+    },
+    (root, outDir) => materialize(root, outDir),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Extra"[^]*"dhpk-extra"/,
+    'carried',
+  );
+});
+
+test('a case-variant entry at a renamed-from name is refused', () => {
+  refuseCaseCollision(
+    (root, outDir) => { materialize(root, outDir); renameSampleSource(root); write(path.join(outDir, 'Dhpk-Sample', 'third.md'), '# user\n'); },
+    (root, outDir) => materializeAgentsSkillsProjection({ root, inventory: renamedInventory(), outDir, allowCanonicalChanges: true }),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Sample"[^]*"dhpk-sample"/,
+    'renamed-from',
+  );
+});
+
+test('a case-variant entry at a retired name is refused', () => {
+  const inventory = { ...INVENTORY, retired_skills: [{ id: 'old', name: 'dhpk-old', canonicalPath: 'skills/dhpk-old' }] };
+  refuseCaseCollision(
+    (root, outDir) => { materialize(root, outDir); write(path.join(outDir, 'Dhpk-Old.md'), '# user\n'); },
+    (root, outDir) => materializeAgentsSkillsProjection({ root, inventory, outDir }),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Old.md"[^]*"dhpk-old"/,
+    'retired',
+  );
+});
+
+test('a file that differs only by case from a reserved directory, and the reverse, is refused', () => {
+  // Reserved directory dhpk-sample/ against a file Dhpk-Sample.md (case-only file/directory conflict).
+  refuseCaseCollision(
+    (root, outDir) => { materialize(root, outDir); write(path.join(outDir, 'Dhpk-Sample.md'), '# user\n'); },
+    (root, outDir) => materialize(root, outDir),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Sample.md"[^]*"dhpk-sample"/,
+    'file vs reserved directory',
+  );
+  // Reserved shim file dhpk-extra.md against a directory Dhpk-Extra/.
+  refuseCaseCollision(
+    (root, outDir) => { addExtraSkill(root); materializeAgentsSkillsProjection({ root, inventory: secondSkillInventory(), outDir }); write(path.join(outDir, 'Dhpk-Extra', 'a.md'), '# user\n'); },
+    (root, outDir) => materializeAgentsSkillsProjection({ root, inventory: secondSkillInventory(), outDir }),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Extra"[^]*"dhpk-extra"/,
+    'directory vs reserved shim file',
+  );
+});
+
+test('the fold is NFC then locale-independent lowercase, applied to both sides', () => {
+  const composed = 'café';
+  const decomposed = 'café';
+  const isReserved = reservedNamePredicate([composed]);
+  assert.strictEqual(isReserved.foldCollision(decomposed.toUpperCase()), composed);
+  assert.strictEqual(isReserved.foldCollision(`${decomposed}.MD`), composed);
+  assert.strictEqual(isReserved.foldCollision(composed), null, 'exact-case match is not a fold collision');
+  assert.strictEqual(isReserved.foldCollision('cafeteria'), null);
+  // Locale-independent: a Turkish dotted capital I folds the same way everywhere.
+  assert.strictEqual(reservedNamePredicate(['i-skill']).foldCollision('I-SKILL'), 'i-skill');
+});
+
+test('exact-case unmanaged entries and non-colliding case variants keep their behavior', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    seedForeign(outDir);
+    write(path.join(outDir, 'Unrelated-Skill', 'SKILL.md'), '# user\n');
+    const result = materialize(root, outDir);
+    assert.deepStrictEqual(result.preservedUnmanaged, ['Unrelated-Skill', 'gitnexus-cli', 'notes.md']);
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir }).ok, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the activation verifier refuses a case-variant reserved entry that appears after planning', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, RECEIPT_NAME), 'utf8'));
+    const owned = new Set([...receipt.managedPaths, RECEIPT_NAME]);
+    const isReserved = reservedNamePredicate(['dhpk-sample']);
+    const verify = () => agentsSkillsOwnership(owned, { isReserved, files: new Map() }).verify(outDir);
+    assert.strictEqual(verify().ok, true);
+    write(path.join(outDir, 'DHPK-SAMPLE', 'x.md'), '# late\n');
+    const refused = verify();
+    assert.strictEqual(refused.ok, false);
+    assert.match(refused.message, /"DHPK-SAMPLE"[^]*"dhpk-sample"/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('validation reports a case-variant entry at a reserved name', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    write(path.join(outDir, 'Dhpk-Sample.md'), '# user\n');
+    const result = validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir });
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((error) => /"Dhpk-Sample\.md"[^]*"dhpk-sample"/.test(error)), result.errors.join('; '));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 run('agents-skills-store-ownership');
