@@ -222,6 +222,9 @@ const RM_DECODED_BLOCKED = [
   ['split-quoted system dir', 'rm -rf /"et"c'],
   ['quoted shallow home', 'rm -rf "/home/u"'],
   ['dangerous path as a later argument', 'rm -rf /tmp/x "/etc"'],
+  ['.. traversal into a system dir', 'rm -rf /tmp/../etc'],
+  ['quoted .. traversal to the root', 'rm -rf "/tmp/x/../.."'],
+  ['dot segment before home', 'rm -rf /./home/u'],
 ];
 
 for (const [label, command] of RM_DECODED_BLOCKED) {
@@ -233,7 +236,7 @@ for (const [label, command] of RM_DECODED_BLOCKED) {
 }
 
 test('pre-bash-guard allows decoded rm -rf on workspace and scratch paths', () => {
-  for (const command of ['rm -rf "/tmp/dhpk scratch"', "rm -rf $'/home/u/projects/repo/dist'", 'r"m" -rf ./build', 'echo "rm -rf /etc" > notes.txt']) {
+  for (const command of ['rm -rf "/tmp/dhpk scratch"', "rm -rf $'/home/u/projects/repo/dist'", 'r"m" -rf ./build', 'echo "rm -rf /etc" > notes.txt', 'rm -rf /tmp/x/../y']) {
     expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
   }
 });

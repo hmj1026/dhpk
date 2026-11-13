@@ -61,14 +61,19 @@ _guard_word_head_is() {
 # _guard_rm_target_dangerous <decoded-target>
 #   Mirrors the Pattern 1 regex on one decoded rm operand: the root, a root
 #   glob or expansion, any path under a DANGEROUS_ROOT_ANY directory, or a
-#   DANGEROUS_ROOT_SHALLOW path at depth 2 or less.
+#   DANGEROUS_ROOT_SHALLOW path at depth 2 or less. An absolute operand with
+#   a '.' or '..' segment is judged after lexical normalisation as well.
 _guard_rm_target_dangerous() {
     local root='^/+$' expand='^/+[$*]' any="^/+${DANGEROUS_ROOT_ANY}(/|\$)"
-    local shallow='^/+(home|opt|srv)(/+[^/]+)?/*$'
-    [[ "$1" =~ $root ]] && return 0
-    [[ "$1" =~ $expand ]] && return 0
-    [[ "$1" =~ $any ]] && return 0
-    [[ "$1" =~ $shallow ]] && return 0
+    local shallow='^/+(home|opt|srv)(/+[^/]+)?/*$' dots='/\.\.?(/|$)'
+    local t="$1"
+    [[ "$t" =~ $expand ]] && return 0
+    if [[ "$t" == /* ]] && [[ "$t" =~ $dots ]]; then
+        t="$(dhpk_norm_path / "$t")"
+    fi
+    [[ "$t" =~ $root ]] && return 0
+    [[ "$t" =~ $any ]] && return 0
+    [[ "$t" =~ $shallow ]] && return 0
     return 1
 }
 
