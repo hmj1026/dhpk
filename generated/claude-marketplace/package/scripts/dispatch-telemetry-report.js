@@ -16,13 +16,13 @@
 //   * --host LABEL names the host in the JSON (`host`). It must match
 //     ^[A-Za-z0-9._@:-]{1,64}$; os.hostname() is never read. Without --host the
 //     JSON carries `host: null` and cannot be merged. A report also carries
-//     `schemaVersion: 1` and `declaredTiersDigest`, the sha256 of the sorted
+//     `schemaVersion: 2` and `declaredTiersDigest`, the sha256 of the sorted
 //     declared tiers (agent, model, effort) loaded from --agents-dir; no path.
 //   * --merge cannot be combined with --root, --since, --until, --project or
 //     --agents-dir (usage error, exit 64); --host and --json are accepted, and
 //     --host is ignored because a merged report has no single host.
 //   * Rejected with exit 1: an input that is unreadable, not a JSON object, or
-//     lacks schemaVersion 1 or a valid host; a repeated host; differing
+//     lacks schemaVersion 2 or a valid host; a repeated host; differing
 //     window.since, window.until, window.timezone, or pricing (compared deeply).
 //   * byAgent groups by agentType+model+effort and sums count, every usage
 //     field, estimatedCost and each estimatedCostBreakdown field. Cost is never
@@ -45,6 +45,15 @@
 //     input order) and `declaredTiers`: "consistent" when every digest is equal,
 //     "mixed" when they differ (the merge still happens). Text output adds one
 //     `sources:` line.
+//
+// Oversized dispatches (#1336): a dispatch is flagged when its assistant turn
+// count (de-duplicated by message id) exceeds 120 or its peak prompt context
+// (largest input + cache read + cache write of any turn) exceeds 200000 tokens.
+// The report's `oversized` section carries `thresholds` and `dispatches`
+// ({agentType, agentId, model, effort, turns, peakPromptTokens, reasons}, with
+// reasons from `turns`/`context`), sorted by peak context desc. --merge requires
+// the section on every input, refuses differing thresholds, and adds `host`.
+// Text output adds an `oversized dispatches` line plus one line per dispatch.
 //
 // Log layout read (never written):
 //   <root>/<project>/<session>.jsonl                      parent transcript
@@ -155,7 +164,10 @@ const ABSOLUTE_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?
 const SAFE_NAME = /^[A-Za-z0-9:_./@-]{1,80}$/;
 const CHUNK_BYTES = 64 * 1024;
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
+const OVERSIZE_TURNS = 120;
+const OVERSIZE_PROMPT_TOKENS = 200000;
+const OVERSIZE_REASONS = Object.freeze(['turns', 'context']);
 const HOST_LABEL = /^[A-Za-z0-9._@:-]{1,64}$/;
 
 class UsageError extends Error {}
@@ -446,6 +458,7 @@ function buildReport(options = {}) {
   };
   const groups = new Map();
   const mismatches = [];
+  const oversized = [];
   const callOverrides = { total: 0, withModel: 0, withEffort: 0 };
   const gp = {
     total: 0,
@@ -563,6 +576,13 @@ function buildReport(options = {}) {
           const callModel = (typeof meta.model === 'string' && meta.model ? safeName(meta.model) : null)
             || (call && call.model) || null;
           const callEffort = (call && call.effort) || null;
+          const peakPromptTokens = summary.turns.reduce((max, turn) => Math.max(max, turn.promptTokens), 0);
+          const reasons = [];
+          if (summary.turns.length > OVERSIZE_TURNS) reasons.push('turns');
+          if (peakPromptTokens > OVERSIZE_PROMPT_TOKENS) reasons.push('context');
+          if (reasons.length > 0) {
+            oversized.push({ agentType, agentId, model, effort, turns: summary.turns.length, peakPromptTokens, reasons });
+          }
           const key = `${agentType}\u0000${model}\u0000${effort}`;
           if (!groups.has(key)) {
             groups.set(key, {
@@ -649,6 +669,9 @@ function buildReport(options = {}) {
       || a.model.localeCompare(b.model)
       || String(a.effort).localeCompare(String(b.effort)));
   mismatches.sort((a, b) => a.agentType.localeCompare(b.agentType) || a.agentId.localeCompare(b.agentId));
+  oversized.sort((a, b) => b.peakPromptTokens - a.peakPromptTokens
+    || a.agentType.localeCompare(b.agentType)
+    || a.agentId.localeCompare(b.agentId));
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -666,6 +689,10 @@ function buildReport(options = {}) {
     mismatches,
     noDeclaredTier,
     generalPurpose: gp,
+    oversized: {
+      thresholds: { turns: OVERSIZE_TURNS, promptTokens: OVERSIZE_PROMPT_TOKENS },
+      dispatches: oversized,
+    },
     skipped,
   };
 }
@@ -758,6 +785,12 @@ function mergeReports(inputs) {
         throw new MergeError(`${label}: window must carry since, until and timezone as string or null`);
       }
     }
+    requireSection(input, 'oversized', label);
+    const { thresholds } = input.oversized;
+    if (!isRecord(thresholds) || !isFiniteNumber(thresholds.turns) || !isFiniteNumber(thresholds.promptTokens)
+      || !Array.isArray(input.oversized.dispatches)) {
+      throw new MergeError(`${label}: oversized must carry numeric thresholds and a dispatches array`);
+    }
     if (!Array.isArray(input.byAgent) || !Array.isArray(input.mismatches)) {
       throw new MergeError(`${label}: byAgent and mismatches must be arrays`);
     }
@@ -778,6 +811,12 @@ function mergeReports(inputs) {
     throw new MergeError('pricing differs across inputs');
   }
 
+  for (const field of ['turns', 'promptTokens']) {
+    if (inputs.some((input) => input.oversized.thresholds[field] !== first.oversized.thresholds[field])) {
+      throw new MergeError('oversized thresholds differ across inputs');
+    }
+  }
+
   const groups = new Map();
   const costTotals = zeros(COST_KEYS);
   const callOverrides = { total: 0, withModel: 0, withEffort: 0 };
@@ -788,6 +827,7 @@ function mergeReports(inputs) {
     total: 0, buckets: { edits: 0, commandsOnly: 0, readOnly: 0 }, byModel: {}, byTrigger: {}, haikuEdits: 0,
   };
   const mismatches = [];
+  const oversized = [];
   let noDeclaredTier = 0;
   const sources = [];
 
@@ -848,6 +888,26 @@ function mergeReports(inputs) {
       for (const f of MISMATCH_TEXT_FIELDS) known[f] = hasOwn(mismatch, f) ? mismatch[f] : null;
       mismatches.push({ ...known, host: input.host });
     }
+
+    for (const entry of input.oversized.dispatches) {
+      if (!isRecord(entry) || typeof entry.agentType !== 'string' || typeof entry.agentId !== 'string'
+        || typeof entry.model !== 'string' || (entry.effort !== null && typeof entry.effort !== 'string')
+        || !isFiniteNumber(entry.turns) || entry.turns < 0
+        || !isFiniteNumber(entry.peakPromptTokens) || entry.peakPromptTokens < 0
+        || !Array.isArray(entry.reasons) || entry.reasons.some((r) => !OVERSIZE_REASONS.includes(r))) {
+        throw new MergeError(`${label}: malformed oversized entry`);
+      }
+      oversized.push({
+        agentType: entry.agentType,
+        agentId: entry.agentId,
+        model: entry.model,
+        effort: entry.effort,
+        turns: entry.turns,
+        peakPromptTokens: entry.peakPromptTokens,
+        reasons: [...entry.reasons],
+        host: input.host,
+      });
+    }
   });
 
   let unpriced = 0;
@@ -867,6 +927,10 @@ function mergeReports(inputs) {
   mismatches.sort((a, b) => String(a.agentType).localeCompare(String(b.agentType))
     || String(a.agentId).localeCompare(String(b.agentId))
     || a.host.localeCompare(b.host));
+  oversized.sort((a, b) => b.peakPromptTokens - a.peakPromptTokens
+    || a.agentType.localeCompare(b.agentType)
+    || a.agentId.localeCompare(b.agentId)
+    || a.host.localeCompare(b.host));
 
   const digests = new Set(sources.map((s) => s.declaredTiersDigest));
   return {
@@ -881,6 +945,7 @@ function mergeReports(inputs) {
     mismatches,
     noDeclaredTier,
     generalPurpose,
+    oversized: { thresholds: { ...first.oversized.thresholds }, dispatches: oversized },
     skipped,
   };
 }
@@ -940,6 +1005,12 @@ function formatText(report) {
   lines.push(`general-purpose: ${g.total} dispatches; edits ${g.buckets.edits}, commands-only ${g.buckets.commandsOnly}, read-only ${g.buckets.readOnly}; haiku edits ${g.haikuEdits}`);
   lines.push(`  models: ${Object.entries(g.byModel).map(([k, v]) => `${k} x${v}`).join(', ') || '-'}`);
   lines.push(`  triggers: ${Object.entries(g.byTrigger).map(([k, v]) => `${k} x${v}`).join(', ') || '-'}`);
+  lines.push('');
+  const ov = report.oversized;
+  lines.push(`oversized dispatches (>${ov.thresholds.turns} turns or >${Math.round(ov.thresholds.promptTokens / 1000)}k context): ${ov.dispatches.length}`);
+  for (const d of ov.dispatches) {
+    lines.push(`  ${d.host ? `${d.host} ` : ''}${d.agentType} ${d.agentId}: turns ${d.turns}, peak ${Math.round(d.peakPromptTokens / 1000)}k [${d.reasons.join(',')}]`);
+  }
   lines.push('');
   const s = report.skipped;
   lines.push(`skipped: ${s.total} (missing root ${s.missingRoot}, corrupt JSON ${s.corruptJson}, missing transcript ${s.missingTranscript}, no assistant turn ${s.noAssistantTurn}, missing parent ${s.missingParent}, unreadable ${s.unreadable}, undated ${s.undated})`);
