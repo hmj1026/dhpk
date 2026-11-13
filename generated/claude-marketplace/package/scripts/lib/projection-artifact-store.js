@@ -3,6 +3,14 @@
 // Filesystem implementation of the ProjectionArtifactStore port.  Callers
 // receive only a plan-bound session; destination paths and link targets are
 // validated against that plan before any staged mutation is made.
+//
+// Known limitation (#1355): the store's guarantees end at activation
+// verification.  It runs the surface verifier, renames the existing publish
+// root to a backup, activates the staged tree, then removes the backup.  Files
+// written into the old tree after verification and before backup removal are
+// not detected and may be lost with the backup.  There is no lock against
+// external writers and no concurrent-write safety is claimed; do not edit a
+// projection while a sync runs.
 
 const fs = require('node:fs');
 const path = require('node:path');

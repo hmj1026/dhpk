@@ -255,7 +255,7 @@ The compiler SHALL reject retired stable IDs, retired version-specific aliases, 
 
 ### Requirement: Replacing an existing generated root requires proven ownership
 
-`ProjectionArtifactStore` SHALL refuse to replace an existing publish root that this surface did not produce. Before activation the store MUST require that an existing root is a physical directory and passes the ownership verification supplied for the surface; a missing root passes. A refused replacement MUST leave the existing tree byte-unchanged and report a structured ownership failure. A surface MAY supply a stricter verification than the store default, and the store MUST NOT interpret Host receipt schemas itself.
+`ProjectionArtifactStore` SHALL refuse to replace an existing publish root that this surface did not produce. Before activation the store MUST require that an existing root is a physical directory and passes the ownership verification supplied for the surface; a missing root passes. A refused replacement MUST leave the existing tree byte-unchanged and report a structured ownership failure. A surface MAY supply a stricter verification than the store default, and the store MUST NOT interpret Host receipt schemas itself. The store's guarantees end at activation verification: it does not detect or lock out writes to the existing publish root between verification and removal of the previous-tree backup, and such writes may be lost with the backup. Concurrent-write safety is not provided; do not edit a projection while a sync runs. This limitation applies to every surface that publishes through the store.
 
 #### Scenario: Foreign directory occupies the publish root
 
@@ -281,6 +281,11 @@ The compiler SHALL reject retired stable IDs, retired version-specific aliases, 
 
 - **WHEN** the publish root does not exist
 - **THEN** activation publishes the staged tree without an ownership failure
+
+#### Scenario: Write lands in the old tree after verification
+
+- **WHEN** an external process writes a file into the existing publish root after ownership verification passes and before the previous-tree backup is removed
+- **THEN** the store does not detect the write, the file is not carried into the published tree and may be lost with the backup, and no concurrent-write safety is claimed
 
 ### Requirement: Activation outcome is not reversed by cleanup
 
