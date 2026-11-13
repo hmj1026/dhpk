@@ -353,7 +353,12 @@ test('a ) inside quotes in $(...) does not end it', () => {
 });
 
 test('arithmetic << is a shift, not a heredoc', () => {
-  for (const command of ['echo $((1<<2))\ngit commit --no-verify -m x', '((x<<2))\ngit commit --no-verify -m x']) {
+  for (const command of [
+    'echo $((1<<2))\ngit commit --no-verify -m x',
+    '((x<<2))\ngit commit --no-verify -m x',
+    'echo $[1<<2]\ngit commit --no-verify -m x',
+    'for ((i=0; i<<2; i++)); do :; done\ngit commit --no-verify -m x',
+  ]) {
     assert.deepStrictEqual(decoded(command).cmds.slice(-1), [NV_COMMIT], command);
   }
 });
@@ -384,7 +389,9 @@ test('reserved words before git do not hide it', () => {
 });
 
 test('syntax the decoder cannot place is reported as unsupported', () => {
-  assert.strictEqual(gitRecords('git status').unsupported, '');
+  for (const command of ['git status', 'x=$(echo case)', 'echo $[x+1] ${#x} $(( (1+2) * 3 ))']) {
+    assert.strictEqual(gitRecords(command).unsupported, '', command);
+  }
   for (const command of [
     'x=$(case a in a) echo ;; esac)',
     'x=$(cat <<EOF\nhi\nEOF)\ngit commit --no-verify -m x',
