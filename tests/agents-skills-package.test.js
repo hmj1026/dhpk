@@ -1051,4 +1051,149 @@ test('agents-skills plan entries name the agents-skills surface as owner (#1249)
   assert.strictEqual(entries[0].symlinkPolicy, 'forbid');
 });
 
+// ---------------------------------------------------------------------------
+// #1343: carried and legacy-released content is captured as one planned
+// snapshot, checked against the receipt, and re-verified before activation.
+// Evidence is synthetic filesystem only; drift is injected by a process-local
+// wrapper that runs immediately before the session activates.
+// ---------------------------------------------------------------------------
+
+const { ProjectionArtifactStore } = require('../scripts/lib/projection-artifact-store');
+
+function withDriftBeforeActivation(drift, body) {
+  const original = ProjectionArtifactStore.prototype.begin;
+  ProjectionArtifactStore.prototype.begin = function begin(...args) {
+    const session = original.apply(this, args);
+    const activate = session.activate;
+    session.activate = (...activateArgs) => {
+      drift();
+      return activate(...activateArgs);
+    };
+    return session;
+  };
+  try {
+    return body();
+  } finally {
+    ProjectionArtifactStore.prototype.begin = original;
+  }
+}
+
+function treeWithModes(directory) {
+  const rows = [];
+  const walk = (current, relative) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const child = path.join(current, entry.name);
+      const childRelative = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) walk(child, childRelative);
+      else if (entry.isSymbolicLink()) rows.push([childRelative, 'symlink', fs.readlinkSync(child)]);
+      else rows.push([childRelative, (fs.statSync(child).mode & 0o7777).toString(8), fs.readFileSync(child, 'utf8')]);
+    }
+  };
+  walk(directory, '');
+  return rows;
+}
+
+const CARRIED_FILES = ['dhpk-other/SKILL.md', 'dhpk-other.md'];
+
+// kind: 'modern' keeps the tree-merkle-v1 receipt; 'legacy' downgrades it to the
+// qualifying marker-less 1.1.0 receipt. Both then deselect dhpk-other.
+function carriedDriftCase(kind, drift) {
+  const root = makeTwoSkillFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  const outside = tmpDir('dhpk-agents-skills-outside-');
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory(), outDir });
+    if (kind === 'legacy') downgradeReceipt(outDir);
+    let after = null;
+    assert.throws(() => withDriftBeforeActivation(() => {
+      drift({ outDir, outside });
+      after = treeWithModes(outDir);
+    }, () => materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory({ deselectOther: true }), outDir })), /OWNERSHIP_REFUSED/);
+    assert.ok(after, 'drift must have been injected');
+    assert.deepStrictEqual(treeWithModes(outDir), after, 'active tree and receipt stay exactly as they were at refusal');
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills'], 'no stage or backup may remain');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+}
+
+const DRIFTS = {
+  'content modified': ({ outDir }) => fs.writeFileSync(path.join(outDir, 'dhpk-other', 'SKILL.md'), '# user edit\n'),
+  'mode changed': ({ outDir }) => fs.chmodSync(path.join(outDir, 'dhpk-other', 'SKILL.md'), 0o600),
+  'file removed': ({ outDir }) => fs.rmSync(path.join(outDir, 'dhpk-other.md')),
+  'file added in carried entry': ({ outDir }) => write(path.join(outDir, 'dhpk-other', 'extra.md'), '# added\n'),
+  'file replaced by symlink': ({ outDir, outside }) => {
+    const target = path.join(outside, 'target.md');
+    fs.writeFileSync(target, fs.readFileSync(path.join(outDir, 'dhpk-other.md')));
+    fs.rmSync(path.join(outDir, 'dhpk-other.md'));
+    fs.symlinkSync(target, path.join(outDir, 'dhpk-other.md'));
+  },
+};
+
+for (const kind of ['modern', 'legacy']) {
+  for (const [label, drift] of Object.entries(DRIFTS)) {
+    test(`a ${kind} carried entry whose file is ${label} after planning is refused and the tree is unchanged`, () => {
+      carriedDriftCase(kind, drift);
+    });
+  }
+}
+
+test('a modern carried file that does not match its receipt fingerprint is refused before planning completes', () => {
+  const root = makeTwoSkillFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory(), outDir });
+    fs.writeFileSync(path.join(outDir, 'dhpk-other', 'SKILL.md'), '# edited before the update\n');
+    fs.chmodSync(path.join(outDir, 'dhpk-other.md'), 0o600);
+    const before = treeWithModes(outDir);
+    assert.throws(() => materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory({ deselectOther: true }), outDir }), /OWNERSHIP_REFUSED.*dhpk-other\/SKILL\.md/);
+    assert.deepStrictEqual(treeWithModes(outDir), before);
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a stable modern carried entry is preserved with bytes, modes and receipt fingerprints that agree', () => {
+  const root = makeTwoSkillFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory(), outDir });
+    const carriedBefore = CARRIED_FILES.map((relative) => [relative, fs.readFileSync(path.join(outDir, relative), 'utf8'), fs.statSync(path.join(outDir, relative)).mode & 0o7777]);
+    const result = materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory({ deselectOther: true }), outDir });
+    assert.deepStrictEqual(result.released, []);
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'));
+    for (const [relative, content, mode] of carriedBefore) {
+      assert.strictEqual(fs.readFileSync(path.join(outDir, relative), 'utf8'), content, relative);
+      assert.strictEqual(fs.statSync(path.join(outDir, relative)).mode & 0o7777, mode, relative);
+      assert.ok(receipt.managedPaths.includes(relative), relative);
+    }
+    for (const relative of receipt.managedPaths) {
+      const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(outDir, relative))).digest('hex');
+      assert.strictEqual(receipt.generatedFingerprints[relative], actual, `fingerprint must match bytes: ${relative}`);
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a stable qualifying legacy entry is still released with its bytes and modes preserved', () => {
+  const root = makeTwoSkillFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory(), outDir });
+    fs.chmodSync(path.join(outDir, 'dhpk-other.md'), 0o600);
+    downgradeReceipt(outDir);
+    const before = treeWithModes(outDir).filter(([relative]) => relative.startsWith('dhpk-other'));
+    const result = withDriftBeforeActivation(() => {}, () => materializeAgentsSkillsProjection({ root, inventory: twoSkillInventory({ deselectOther: true }), outDir }));
+    assert.deepStrictEqual(result.released.map((entry) => entry.name), ['dhpk-other']);
+    assert.deepStrictEqual(treeWithModes(outDir).filter(([relative]) => relative.startsWith('dhpk-other')), before);
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'));
+    assert.ok(receipt.managedPaths.every((relative) => !relative.startsWith('dhpk-other')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 run('agents-skills-compatibility');
