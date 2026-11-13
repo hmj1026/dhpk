@@ -203,3 +203,17 @@ _Avoid_: Remote reader
 **Credential Verdict**:
 The credential guard's single decision about one agent command: allowed, or blocked for one named reason with the recovery advice for that reason. A guard that cannot inspect the command reaches a blocked verdict, never an allowed one.
 _Avoid_: Block reason, guard result
+
+## Git Gate
+
+**Git Gate**:
+The pre-execution check that stops an agent command from skipping commit verification or committing to a protected branch.
+_Avoid_: git hook, commit guard
+
+**Git Verdict**:
+The Git Gate's single decision about one agent command: allowed, or blocked for one named reason with recovery advice. A command that carries a git token next to a construct the gate cannot resolve reaches a blocked verdict, never an allowed one.
+_Avoid_: gate result
+
+**Text Guard Scope**:
+What a pre-execution guard can judge: only what the command text itself states. Content produced or written at run time, such as a script written then executed or an interpreter's code string, lies outside it.
+_Avoid_: guard coverage, threat model
