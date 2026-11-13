@@ -21,7 +21,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const childProcess = require('node:child_process');
 const compat = require('./python-compat');
-const { versionBoundaryMessage: nodeVersionBoundaryMessage, TREE_FINGERPRINT_ALGORITHM } = require('../content-fingerprint');
+const {
+  versionBoundaryMessage: nodeVersionBoundaryMessage,
+  TREE_FINGERPRINT_ALGORITHM,
+  isBytecodeName,
+  fileLeafDigest,
+  linkLeafDigest,
+  directoryDigest,
+} = require('../content-fingerprint');
 
 const {
   ValueError,
@@ -631,10 +638,6 @@ function createInstaller(env, io) {
   // ---------------------------------------------------------------------
   // Tree fingerprints (tree-merkle-v1)
 
-  function treeIsBytecode(name) {
-    return name === '__pycache__' || name.endsWith('.pyc');
-  }
-
   function treeFileDigest(target) {
     const digest = crypto.createHash('sha256').update('file\0');
     const descriptor = fs.openSync(target, fs.constants.O_RDONLY | O_NOFOLLOW);
@@ -650,20 +653,9 @@ function createInstaller(env, io) {
     return digest.digest('hex');
   }
 
-  function treeLinkDigest(target) {
-    return crypto.createHash('sha256').update(Buffer.concat([Buffer.from('link\0'), Buffer.from(target, 'utf8')])).digest('hex');
-  }
-
+  // The tree-merkle-v1 leaf and directory recipes live in content-fingerprint.
   function treeDirectoryDigest(children) {
-    const digest = crypto.createHash('sha256').update('directory\0');
-    // sorted(key=utf-16-be) is the JS default code-unit order.
-    for (const name of Object.keys(children).sort()) {
-      digest.update(Buffer.from(name, 'utf8'));
-      digest.update('\0');
-      digest.update(Buffer.from(children[name], 'ascii'));
-      digest.update('\0');
-    }
-    return digest.digest('hex');
+    return directoryDigest(Object.keys(children), (name) => children[name]);
   }
 
   function treeRefuseLink(relative) {
@@ -680,7 +672,7 @@ function createInstaller(env, io) {
     const stat = fs.lstatSync(target);
     if (stat.isSymbolicLink()) {
       if (!recordLinks) treeRefuseLink(relative);
-      return treeLinkDigest(fs.readlinkSync(target));
+      return linkLeafDigest(fs.readlinkSync(target));
     }
     if (stat.isFile()) return treeFileDigest(target);
     if (!stat.isDirectory()) treeRefuseSpecial(relative);
@@ -690,7 +682,7 @@ function createInstaller(env, io) {
   function treeChildrenFd(directory, relative, recordLinks, skipBytecode, isRoot) {
     const children = {};
     for (const name of fs.readdirSync(directory)) {
-      if (skipBytecode && treeIsBytecode(name)) continue;
+      if (skipBytecode && isBytecodeName(name)) continue;
       const childRelative = relative ? `${relative}/${name}` : name;
       const digest = treeNodeFd(directory, name, childRelative, recordLinks, skipBytecode, false);
       if (digest !== null) children[name] = digest;
@@ -711,7 +703,7 @@ function createInstaller(env, io) {
   function treeNodePath(target, relative, symlinks, skipBytecode, isRoot, ancestors = []) {
     let current = target;
     if (isLink(current)) {
-      if (symlinks === 'record') return treeLinkDigest(fs.readlinkSync(current));
+      if (symlinks === 'record') return linkLeafDigest(fs.readlinkSync(current));
       if (symlinks !== 'follow') treeRefuseLink(relative);
       current = realpath(current);
       if (!pathExists(current)) {
@@ -720,9 +712,7 @@ function createInstaller(env, io) {
       }
     }
     if (isFileFollow(current)) {
-      const digest = crypto.createHash('sha256').update('file\0');
-      digest.update(fs.readFileSync(current));
-      return digest.digest('hex');
+      return fileLeafDigest(fs.readFileSync(current));
     }
     if (!isDirFollow(current)) treeRefuseSpecial(relative);
     const realDirectory = realpath(current);
@@ -730,7 +720,7 @@ function createInstaller(env, io) {
     const nextAncestors = [...ancestors, realDirectory];
     const children = {};
     for (const name of fs.readdirSync(current)) {
-      if (skipBytecode && treeIsBytecode(name)) continue;
+      if (skipBytecode && isBytecodeName(name)) continue;
       const childRelative = relative ? `${relative}/${name}` : name;
       const digest = treeNodePath(path.join(current, name), childRelative, symlinks, skipBytecode, false, nextAncestors);
       if (digest !== null) children[name] = digest;
@@ -755,10 +745,6 @@ function createInstaller(env, io) {
     const value = record.fingerprint_algorithm;
     if (value !== TREE_FINGERPRINT_ALGORITHM) throw new ValueError(versionBoundaryMessage('fingerprint_algorithm', value));
     return TREE_FINGERPRINT_ALGORITHM;
-  }
-
-  function isIgnoredDistributionName(name) {
-    return name === '__pycache__' || name.endsWith('.pyc');
   }
 
   function safeInventoryRelative(relative, label) {
@@ -1206,10 +1192,6 @@ function createInstaller(env, io) {
   // ---------------------------------------------------------------------
   // Sources and fingerprints
 
-  function sourceFingerprintFor(source) {
-    return fingerprintSource(source);
-  }
-
   function inventorySupportingSources() {
     const file = inventoryPath();
     let assets = null;
@@ -1261,7 +1243,7 @@ function createInstaller(env, io) {
       const root = path.join(CODEX_SRC, rootName);
       if (!isDirFollow(root)) continue;
       for (const name of pySorted(fs.readdirSync(root))) {
-        if (isIgnoredDistributionName(name)) continue;
+        if (isBytecodeName(name)) continue;
         if (rootName === 'skills' && skipNativeSkillKind(rootName)) {
           if (!runtimeIds.has(stableIdOf(metadata, name))) continue;
         } else if (rootName === 'skills' && SELECTION_EMITTED_IDS !== null) {
@@ -1642,11 +1624,11 @@ function createInstaller(env, io) {
         const full = path.join(directory, name);
         const stat = lstatOrNull(full);
         if (stat && stat.isDirectory()) {
-          if (!isIgnoredDistributionName(name)) directories.push(full);
+          if (!isBytecodeName(name)) directories.push(full);
         } else if (stat && stat.isSymbolicLink() && isDirFollow(full)) {
           // os.walk lists a directory symlink as a directory and does not descend.
         } else {
-          if (isIgnoredDistributionName(name)) continue;
+          if (isBytecodeName(name)) continue;
           if (isFileFollow(full)) read(full);
         }
       }
@@ -1688,7 +1670,7 @@ function createInstaller(env, io) {
       const root = path.join(CODEX_SRC, kind);
       if (!isDirFollow(root)) continue;
       for (const name of pySorted(fs.readdirSync(root))) {
-        if (isIgnoredDistributionName(name)) continue;
+        if (isBytecodeName(name)) continue;
         if (kind === 'skills' && skipNativeSkillKind(kind)) {
           if (!runtimeIds.has(stableIdOf(metadata, name))) continue;
         } else if (kind === 'skills' && SELECTION_EMITTED_IDS !== null) {
@@ -1721,7 +1703,7 @@ function createInstaller(env, io) {
   }
 
   function makeEntry(source, relative, destination, metadata = null) {
-    const sourceFp = sourceFingerprintFor(source, relative);
+    const sourceFp = fingerprintSource(source);
     const mode = effectiveMaterializationMode(relative);
     const destinationFp = mode === 'symlink' ? followedDestinationFingerprint(destination) : fingerprintDestination(destination);
     const entry = {
@@ -1861,7 +1843,7 @@ function createInstaller(env, io) {
       for (const name of names) {
         const full = path.join(current, name);
         const stat = lstatOrNull(full);
-        if (stat && stat.isDirectory() && !isIgnoredDistributionName(name)) directories.push(name);
+        if (stat && stat.isDirectory() && !isBytecodeName(name)) directories.push(name);
       }
       if (names.includes('SKILL.md')) {
         const candidate = path.join(current, 'SKILL.md');
@@ -1893,7 +1875,7 @@ function createInstaller(env, io) {
     const stat = fs.statSync(source);
     fs.mkdirSync(destination, { mode: 0o777 });
     for (const name of fs.readdirSync(source)) {
-      if (isIgnoredDistributionName(name)) continue;
+      if (isBytecodeName(name)) continue;
       const from = path.join(source, name);
       const to = path.join(destination, name);
       if (isDirFollow(from)) copyTreeFollow(from, to);
@@ -2036,7 +2018,7 @@ function createInstaller(env, io) {
       const expected = `../../.agents/skills/${name}`;
       if (isLink(destination) && fs.readlinkSync(destination) === expected) continue;
       const source = pluginSkillSourcePath(name);
-      const sourceFp = lexists(source) ? sourceFingerprintFor(source, destRel) : '';
+      const sourceFp = lexists(source) ? fingerprintSource(source) : '';
       const destFp = safeDestinationFingerprint(destination);
       const old = nativeSkillReceiptEntry(name);
       let handling;
@@ -2134,7 +2116,7 @@ function createInstaller(env, io) {
           continue;
         }
         const old = Object.prototype.hasOwnProperty.call(entries[kind], name) ? entries[kind][name] : null;
-        const sourceFp = sourceFingerprintFor(source, relative);
+        const sourceFp = fingerprintSource(source);
         if (!lexists(destination)) {
           missing.push({ path: relative, kind, name, source_fingerprint: sourceFp });
           continue;
@@ -3142,7 +3124,7 @@ function createInstaller(env, io) {
     const relative = path.relative(CODEX_ROOT, destination).split(path.sep).join('/');
     safeDestination(relative);
     validateSourceTree(source, 'install source', [PLUGIN_ROOT, INSTALLER_ROOT]);
-    const sourceFp = sourceFingerprintFor(source, relative);
+    const sourceFp = fingerprintSource(source);
     const index = relative.lastIndexOf('/');
     const parentRelative = index < 0 ? '' : relative.slice(0, index);
     const name = relative.slice(index + 1);
@@ -3152,7 +3134,7 @@ function createInstaller(env, io) {
     if (effectiveMaterializationMode(relative) === 'symlink') fs.symlinkSync(source, path.join(stage, name), isDirFollow(source) ? 'dir' : 'file');
     else copySourceIntoStage(source, name, stage, relative);
     fsyncFdEntry(stage, name);
-    if (sourceFingerprintFor(source, relative) !== sourceFp) throw new ValueError(`install source changed during materialization: ${relative}; run a fresh update`);
+    if (fingerprintSource(source) !== sourceFp) throw new ValueError(`install source changed during materialization: ${relative}; run a fresh update`);
     const expectedProjection = fingerprintFdEntry(stage, name, false);
     if (!verifyStagedMaterialization(source, relative, stage, name, sourceFp, expectedProjection)) throw new ValueError(`install materialization changed: ${relative}; run a fresh update`);
     const parent = txDirectory(parentRelative);
@@ -3169,7 +3151,7 @@ function createInstaller(env, io) {
     }
     let sourceMatches = false;
     try {
-      sourceMatches = sourceFingerprintFor(source, relative) === sourceFp;
+      sourceMatches = fingerprintSource(source) === sourceFp;
     } catch (error) {
       if (!isOSOrValueError(error)) throw error;
     }
@@ -3210,7 +3192,7 @@ function createInstaller(env, io) {
     recordPath('backed_up', relative);
     const quarantine = detachEntry(parent, name);
     if (fingerprintFdEntry(path.dirname(quarantine), path.basename(quarantine)) !== expectedDestination) throw new ValueError(`adoption preflight changed: ${relative}; run a fresh plan`);
-    if (sourceFingerprintFor(source, relative) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
+    if (fingerprintSource(source) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
     const stageRoot = txTransientDirectory(NATIVE_STAGE);
     const stage = path.join(stageRoot, uuidHex());
     fs.mkdirSync(stage, { mode: 0o700 });
@@ -3219,7 +3201,7 @@ function createInstaller(env, io) {
     fsyncFdEntry(stage, name);
     const expectedProjection = fingerprintFdEntry(stage, name, false);
     if (!verifyStagedMaterialization(source, relative, stage, name, expectedSource, expectedProjection)) throw new ValueError(`adoption materialization changed: ${relative}; run a fresh plan`);
-    if (sourceFingerprintFor(source, relative) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
+    if (fingerprintSource(source) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
     if (fdEntryExists(parent, name)) throw new ValueError(`adoption target reappeared: ${relative}; run a fresh plan`);
     journalCore.recordRename(TX, path.join(stage, name), path.join(parent, name));
     let publishedMatches = false;
@@ -3230,7 +3212,7 @@ function createInstaller(env, io) {
     }
     let sourceMatches = false;
     try {
-      sourceMatches = sourceFingerprintFor(source, relative) === expectedSource;
+      sourceMatches = fingerprintSource(source) === expectedSource;
     } catch (error) {
       if (!isOSOrValueError(error)) throw error;
     }
@@ -3850,7 +3832,7 @@ function createInstaller(env, io) {
             if (Object.prototype.hasOwnProperty.call(adoptPaths, relative)) {
               const expected = (plan.collisions || []).find((item) => item.path === relative).destination_fingerprint;
               const expectedSource = adoptPaths[relative];
-              if (safeDestinationFingerprint(destination) !== expected || sourceFingerprintFor(source, relative) !== expectedSource) {
+              if (safeDestinationFingerprint(destination) !== expected || fingerprintSource(source) !== expectedSource) {
                 failOpenTransaction(`adoption preflight changed: ${relative}; run a fresh plan`);
               }
               counts.backed_up += 1;
