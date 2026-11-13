@@ -6,7 +6,62 @@
 // the agent definition frontmatter. Part of #1295 Phase 0 (issue #1296).
 //
 //   node scripts/dispatch-telemetry-report.js [--root DIR] [--since T] [--until T]
-//        [--project SUBSTR] [--agents-dir DIR] [--json]
+//        [--project SUBSTR] [--agents-dir DIR] [--host LABEL] [--json]
+//   node scripts/dispatch-telemetry-report.js --merge FILE [--merge FILE ...] [--json]
+//
+// Multi-host merge (#1335): transcripts never leave a host. Each host runs the
+// report with `--json --host LABEL` (pass absolute times with a zone, e.g.
+// `--since 2026-11-12T07:33Z`, so every host reports the same window) and the
+// per-host JSON files are combined with repeatable `--merge FILE`.
+//   * --host LABEL names the host in the JSON (`host`). It must match
+//     ^[A-Za-z0-9._@:-]{1,64}$; os.hostname() is never read. Without --host the
+//     JSON carries `host: null` and cannot be merged. A report also carries
+//     `schemaVersion: 2` and `declaredTiersDigest`, the sha256 of the sorted
+//     declared tiers (agent, model, effort) loaded from --agents-dir; no path.
+//   * --merge cannot be combined with --root, --since, --until, --project or
+//     --agents-dir (usage error, exit 64); --host and --json are accepted, and
+//     --host is ignored because a merged report has no single host.
+//   * Rejected with exit 1: an input that is unreadable, not a JSON object, or
+//     lacks schemaVersion 2 or a valid host; a repeated host; differing
+//     window.since, window.until, window.timezone, or pricing (compared deeply).
+//   * byAgent groups by agentType+model+effort and sums count, every usage
+//     field, estimatedCost and each estimatedCostBreakdown field. Cost is never
+//     recomputed (the JSON has no per-turn data, and the Haiku long-prompt rate
+//     depends on single-turn size); one unknown contributor makes the merged
+//     group "unknown". costTotals.unpricedGroups is recounted on merged groups.
+//     costTotals (other fields), callOverrides, skipped, noDeclaredTier and every
+//     generalPurpose counter (buckets, byModel, byTrigger included) are summed.
+//   * Every input must be structurally complete, else exit 1: `window` owns
+//     since, until and timezone (string or null); costTotals and every priced
+//     byAgent estimatedCostBreakdown carry finite input, output, cacheRead,
+//     cacheWrite5m, cacheWrite1h and total; every byAgent group carries finite
+//     values for all six usage fields. Error messages never echo input key names.
+//   * Merged costTotals and byAgent costs sum each host's already-rounded (6 dp)
+//     values, so a merged total can differ from a single-host total by at most
+//     hosts x 5e-7.
+//   * Every mismatch gains `host` (agentId is unique only per host); only the
+//     known mismatch fields are kept, any other key is dropped.
+//   * Output adds `sources[]` ({host, declaredTiersDigest, skippedTotal}, in
+//     input order) and `declaredTiers`: "consistent" when every digest is equal,
+//     "mixed" when they differ (the merge still happens). Text output adds one
+//     `sources:` line.
+//
+// Oversized dispatches (#1336): a dispatch is flagged when its assistant turn
+// count (de-duplicated by message id) exceeds 120 or its peak prompt proxy
+// (largest input + cache read + cache write of any turn with usage; not the
+// context window) exceeds 200000 tokens. A turn whose message.usage is missing
+// or lacks any of those three numeric fields counts in `usageMissingTurns`;
+// such a dispatch has `complete: false` and is listed even below the thresholds,
+// so missing measurement never reads as 0. `peakPromptTokens` is null when no
+// turn was measured, and a lower bound when the dispatch is incomplete. The `oversized` section carries
+// `thresholds`, `metric` (a constant string naming the measure) and `dispatches`
+// ({agentType, agentId, model, effort, turns, peakPromptTokens, reasons,
+// complete, usageMissingTurns}, reasons from `turns`/`context`, possibly empty),
+// sorted by peak desc. --merge requires the section on every input, refuses
+// differing thresholds or metric, requires complete to equal usageMissingTurns 0
+// (a null peak only when incomplete), and adds
+// `host`. Text output adds an `oversized dispatches` line plus one line per
+// dispatch, with ` UNKNOWN: N turn(s) without usage` when incomplete.
 //
 // Log layout read (never written):
 //   <root>/<project>/<session>.jsonl                      parent transcript
@@ -62,6 +117,7 @@
 // turn's prompt (input + cache read + cache write) exceeds the threshold.
 // Not modelled: the inference_geo 1.1x multiplier, fast mode, and batch pricing.
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -99,6 +155,13 @@ const PRICE_TABLE = Object.freeze({
 });
 
 const COST_CLASSES = Object.freeze(['input', 'output', 'cacheRead', 'cacheWrite5m', 'cacheWrite1h']);
+const COST_KEYS = Object.freeze([...COST_CLASSES, 'total']);
+const USAGE_FIELDS = Object.freeze([
+  'inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheCreationTokens', 'cacheWrite5mTokens', 'cacheWrite1hTokens',
+]);
+const MISMATCH_TEXT_FIELDS = Object.freeze([
+  'declaredModel', 'declaredEffort', 'actualModel', 'actualEffort', 'callModel', 'callEffort',
+]);
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const COMMAND_TOOLS = new Set(['Bash', 'PowerShell']);
@@ -109,7 +172,33 @@ const ABSOLUTE_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?
 const SAFE_NAME = /^[A-Za-z0-9:_./@-]{1,80}$/;
 const CHUNK_BYTES = 64 * 1024;
 
+const SCHEMA_VERSION = 2;
+const OVERSIZE_TURNS = 120;
+const OVERSIZE_PROMPT_TOKENS = 200000;
+const OVERSIZE_METRIC = 'peak per-message input + cache read + cache creation tokens (prompt proxy, not the context window)';
+const USAGE_PROMPT_FIELDS = Object.freeze(['input_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens']);
+const OVERSIZE_REASONS = Object.freeze(['turns', 'context']);
+const HOST_LABEL = /^[A-Za-z0-9._@:-]{1,64}$/;
+
 class UsageError extends Error {}
+class MergeError extends Error {}
+
+function parseHost(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string' || !HOST_LABEL.test(value)) {
+    throw new UsageError('invalid --host value: use 1-64 characters from A-Z a-z 0-9 . _ @ : -');
+  }
+  return value;
+}
+
+// sha256 over the sorted declared tiers only; the agents directory path and
+// file names never enter the digest or the output.
+function declaredTiersDigest(tiers) {
+  const rows = [...tiers.entries()]
+    .map(([agent, tier]) => [agent, tier.model, tier.effort])
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  return crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+}
 
 function safeName(value) {
   return typeof value === 'string' && SAFE_NAME.test(value) ? value : 'other';
@@ -312,6 +401,7 @@ function scanSubagent(file, skipped) {
     if (record.type !== 'assistant' || !isRecord(record.message)) return;
     for (const use of toolUses(record)) if (typeof use.name === 'string') tools.add(use.name);
     const usage = isRecord(record.message.usage) ? record.message.usage : {};
+    const hasUsage = USAGE_PROMPT_FIELDS.every((field) => isFiniteNumber(usage[field]));
     const input = Number(usage.input_tokens) || 0;
     const cacheRead = Number(usage.cache_read_input_tokens) || 0;
     const cacheCreate = Number(usage.cache_creation_input_tokens) || 0;
@@ -329,12 +419,14 @@ function scanSubagent(file, skipped) {
       cacheWrite5m: cacheCreate - cacheWrite1h,
       cacheWrite1h,
       promptTokens: input + cacheRead + cacheCreate,
+      hasUsage,
     });
   });
   const turns = [...byMessage.values()];
   const model = (turns.find((t) => t.model !== null) || {}).model || null;
   const effort = (turns.find((t) => t.effort !== null) || {}).effort || null;
-  return { error, firstTs, tools, turns, model, effort };
+  const usageMissingTurns = turns.filter((t) => !t.hasUsage).length;
+  return { error, firstTs, tools, turns, model, effort, usageMissingTurns };
 }
 
 function bucketOf(tools) {
@@ -348,6 +440,7 @@ function buildReport(options = {}) {
   const agentsDir = options.agentsDir || path.join(__dirname, '..', 'agents');
   const since = parseBound(options.since, 'since');
   const until = parseBound(options.until, 'until');
+  const host = parseHost(options.host);
   if (since !== null && until !== null && since >= until) {
     throw new UsageError(`--since "${options.since}" is later than --until "${options.until}"`);
   }
@@ -378,6 +471,7 @@ function buildReport(options = {}) {
   };
   const groups = new Map();
   const mismatches = [];
+  const oversized = [];
   const callOverrides = { total: 0, withModel: 0, withEffort: 0 };
   const gp = {
     total: 0,
@@ -495,6 +589,20 @@ function buildReport(options = {}) {
           const callModel = (typeof meta.model === 'string' && meta.model ? safeName(meta.model) : null)
             || (call && call.model) || null;
           const callEffort = (call && call.effort) || null;
+          const measured = summary.turns.filter((turn) => turn.hasUsage);
+          const peakPromptTokens = measured.length === 0
+            ? null
+            : measured.reduce((max, turn) => Math.max(max, turn.promptTokens), 0);
+          const { usageMissingTurns } = summary;
+          const complete = usageMissingTurns === 0;
+          const reasons = [];
+          if (summary.turns.length > OVERSIZE_TURNS) reasons.push('turns');
+          if (peakPromptTokens !== null && peakPromptTokens > OVERSIZE_PROMPT_TOKENS) reasons.push('context');
+          if (reasons.length > 0 || !complete) {
+            oversized.push({
+              agentType, agentId, model, effort, turns: summary.turns.length, peakPromptTokens, reasons, complete, usageMissingTurns,
+            });
+          }
           const key = `${agentType}\u0000${model}\u0000${effort}`;
           if (!groups.has(key)) {
             groups.set(key, {
@@ -581,8 +689,14 @@ function buildReport(options = {}) {
       || a.model.localeCompare(b.model)
       || String(a.effort).localeCompare(String(b.effort)));
   mismatches.sort((a, b) => a.agentType.localeCompare(b.agentType) || a.agentId.localeCompare(b.agentId));
+  oversized.sort((a, b) => peakOrder(b) - peakOrder(a)
+    || a.agentType.localeCompare(b.agentType)
+    || a.agentId.localeCompare(b.agentId));
 
   return {
+    schemaVersion: SCHEMA_VERSION,
+    host,
+    declaredTiersDigest: declaredTiersDigest(tiers),
     window: {
       since: options.since || null,
       until: options.until || null,
@@ -595,8 +709,300 @@ function buildReport(options = {}) {
     mismatches,
     noDeclaredTier,
     generalPurpose: gp,
+    oversized: {
+      thresholds: { turns: OVERSIZE_TURNS, promptTokens: OVERSIZE_PROMPT_TOKENS },
+      metric: OVERSIZE_METRIC,
+      dispatches: oversized,
+    },
     skipped,
   };
+}
+
+// Sort key for oversized entries: an unmeasured peak (null) sorts last.
+function peakOrder(entry) {
+  return entry.peakPromptTokens === null ? -1 : entry.peakPromptTokens;
+}
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
+}
+
+// Key order never changes the comparison: window and pricing are compared as
+// their canonical JSON.
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (isRecord(value)) {
+    return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+// Adds every numeric leaf of `source` into `target`, recursing into nested
+// maps (generalPurpose.byModel, ...). Anything but a finite number is rejected,
+// so a malformed input fails the merge instead of becoming NaN or 0. Messages
+// carry only `label`, never an input key name.
+function addCounters(target, source, label) {
+  if (!isRecord(source)) throw new MergeError(`${label} must be an object`);
+  for (const key of Object.keys(source)) {
+    if (key === '__proto__') throw new MergeError(`${label} has an invalid key`);
+    const value = source[key];
+    if (isRecord(value)) {
+      if (!hasOwn(target, key)) target[key] = {};
+      if (!isRecord(target[key])) throw new MergeError(`${label} mixes numbers and objects`);
+      addCounters(target[key], value, label);
+    } else if (typeof value === 'number' && Number.isFinite(value)) {
+      if (hasOwn(target, key) && typeof target[key] !== 'number') throw new MergeError(`${label} mixes numbers and objects`);
+      target[key] = (hasOwn(target, key) ? target[key] : 0) + value;
+    } else {
+      throw new MergeError(`${label} has an invalid value`);
+    }
+  }
+}
+
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function zeros(keys) {
+  const out = {};
+  for (const key of keys) out[key] = 0;
+  return out;
+}
+
+// Reads exactly `keys` from `source` (each must be an own finite number) and
+// adds them into `target`; any other key in `source` is ignored.
+function addKnown(target, source, keys, label) {
+  if (!isRecord(source)) throw new MergeError(`${label} must be an object`);
+  for (const key of keys) {
+    if (!hasOwn(source, key) || !isFiniteNumber(source[key])) throw new MergeError(`${label} is missing a numeric field`);
+  }
+  for (const key of keys) target[key] += source[key];
+}
+
+function requireSection(input, key, label) {
+  if (!isRecord(input[key])) throw new MergeError(`${label}: "${key}" must be an object`);
+  return input[key];
+}
+
+function isUnknownCost(group) {
+  const bare = (value) => value === 'unknown' || value === null;
+  return bare(group.estimatedCost) || bare(group.estimatedCostBreakdown);
+}
+
+// Combines per-host `--json` reports (see the header). Throws MergeError for an
+// input that cannot be merged; cost is summed, never recomputed.
+function mergeReports(inputs) {
+  if (!Array.isArray(inputs) || inputs.length === 0) throw new MergeError('no reports to merge');
+  const hosts = new Set();
+  inputs.forEach((input, index) => {
+    const label = `--merge input #${index + 1}`;
+    if (!isRecord(input)) throw new MergeError(`${label}: not a JSON object`);
+    if (input.schemaVersion !== SCHEMA_VERSION) {
+      throw new MergeError(`${label}: missing or unsupported schemaVersion (expected ${SCHEMA_VERSION})`);
+    }
+    if (typeof input.host !== 'string' || !HOST_LABEL.test(input.host)) {
+      throw new MergeError(`${label}: missing or invalid host (run the report with --host LABEL)`);
+    }
+    if (hosts.has(input.host)) throw new MergeError(`${label}: host "${input.host}" appears more than once`);
+    hosts.add(input.host);
+    for (const key of ['window', 'pricing', 'costTotals', 'callOverrides', 'skipped', 'generalPurpose']) requireSection(input, key, label);
+    for (const field of ['since', 'until', 'timezone']) {
+      if (!hasOwn(input.window, field) || (input.window[field] !== null && typeof input.window[field] !== 'string')) {
+        throw new MergeError(`${label}: window must carry since, until and timezone as string or null`);
+      }
+    }
+    requireSection(input, 'oversized', label);
+    const { thresholds } = input.oversized;
+    if (!isRecord(thresholds) || !isFiniteNumber(thresholds.turns) || !isFiniteNumber(thresholds.promptTokens)
+      || typeof input.oversized.metric !== 'string' || !Array.isArray(input.oversized.dispatches)) {
+      throw new MergeError(`${label}: oversized must carry numeric thresholds, a metric string and a dispatches array`);
+    }
+    if (!Array.isArray(input.byAgent) || !Array.isArray(input.mismatches)) {
+      throw new MergeError(`${label}: byAgent and mismatches must be arrays`);
+    }
+    if (typeof input.noDeclaredTier !== 'number' || !Number.isFinite(input.noDeclaredTier)) {
+      throw new MergeError(`${label}: noDeclaredTier must be a number`);
+    }
+  });
+
+  const first = inputs[0];
+  for (const field of ['since', 'until', 'timezone']) {
+    const expected = stableStringify(first.window[field]);
+    if (inputs.some((input) => stableStringify(input.window[field]) !== expected)) {
+      throw new MergeError(`window.${field} differs across inputs`);
+    }
+  }
+  const pricing = stableStringify(first.pricing);
+  if (inputs.some((input) => stableStringify(input.pricing) !== pricing)) {
+    throw new MergeError('pricing differs across inputs');
+  }
+
+  for (const field of ['turns', 'promptTokens']) {
+    if (inputs.some((input) => input.oversized.thresholds[field] !== first.oversized.thresholds[field])) {
+      throw new MergeError('oversized thresholds differ across inputs');
+    }
+  }
+
+  if (inputs.some((input) => input.oversized.metric !== first.oversized.metric)) {
+    throw new MergeError('oversized metric differs across inputs');
+  }
+
+  const groups = new Map();
+  const costTotals = zeros(COST_KEYS);
+  const callOverrides = { total: 0, withModel: 0, withEffort: 0 };
+  const skipped = {
+    missingRoot: 0, corruptJson: 0, missingTranscript: 0, noAssistantTurn: 0, missingParent: 0, unreadable: 0, undated: 0, total: 0,
+  };
+  const generalPurpose = {
+    total: 0, buckets: { edits: 0, commandsOnly: 0, readOnly: 0 }, byModel: {}, byTrigger: {}, haikuEdits: 0,
+  };
+  const mismatches = [];
+  const oversized = [];
+  let noDeclaredTier = 0;
+  const sources = [];
+
+  inputs.forEach((input, index) => {
+    const label = `--merge input #${index + 1}`;
+    addKnown(costTotals, input.costTotals, COST_KEYS, `${label} costTotals`);
+    addCounters(callOverrides, input.callOverrides, `${label} callOverrides`);
+    addCounters(skipped, input.skipped, `${label} skipped`);
+    addCounters(generalPurpose, input.generalPurpose, `${label} generalPurpose`);
+    noDeclaredTier += input.noDeclaredTier;
+    if (typeof input.skipped.total !== 'number') throw new MergeError(`${label}: skipped.total must be a number`);
+    sources.push({
+      host: input.host,
+      declaredTiersDigest: typeof input.declaredTiersDigest === 'string' ? input.declaredTiersDigest : null,
+      skippedTotal: input.skipped.total,
+    });
+
+    for (const group of input.byAgent) {
+      if (!isRecord(group) || typeof group.agentType !== 'string' || typeof group.model !== 'string'
+        || (group.effort !== null && typeof group.effort !== 'string')
+        || typeof group.count !== 'number' || !Number.isFinite(group.count)) {
+        throw new MergeError(`${label}: malformed byAgent entry`);
+      }
+      const key = JSON.stringify([group.agentType, group.model, group.effort]);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          agentType: group.agentType,
+          model: group.model,
+          effort: group.effort,
+          count: 0,
+          usage: zeros(USAGE_FIELDS),
+          cost: 0,
+          breakdown: zeros(COST_KEYS),
+          unknown: false,
+        });
+      }
+      const merged = groups.get(key);
+      merged.count += group.count;
+      addKnown(merged.usage, group.usage, USAGE_FIELDS, `${label} byAgent usage`);
+      if (isUnknownCost(group)) {
+        merged.unknown = true;
+      } else {
+        if (typeof group.estimatedCost !== 'number' || !Number.isFinite(group.estimatedCost)) {
+          throw new MergeError(`${label}: malformed byAgent estimatedCost`);
+        }
+        merged.cost += group.estimatedCost;
+        addKnown(merged.breakdown, group.estimatedCostBreakdown, COST_KEYS, `${label} byAgent estimatedCostBreakdown`);
+      }
+    }
+
+    for (const mismatch of input.mismatches) {
+      if (!isRecord(mismatch) || typeof mismatch.agentType !== 'string' || typeof mismatch.agentId !== 'string'
+        || !Array.isArray(mismatch.fields) || mismatch.fields.some((f) => typeof f !== 'string')
+        || MISMATCH_TEXT_FIELDS.some((f) => hasOwn(mismatch, f) && mismatch[f] !== null && typeof mismatch[f] !== 'string')) {
+        throw new MergeError(`${label}: malformed mismatch entry`);
+      }
+      const known = { agentType: mismatch.agentType, agentId: mismatch.agentId, fields: [...mismatch.fields] };
+      for (const f of MISMATCH_TEXT_FIELDS) known[f] = hasOwn(mismatch, f) ? mismatch[f] : null;
+      mismatches.push({ ...known, host: input.host });
+    }
+
+    for (const entry of input.oversized.dispatches) {
+      if (!isRecord(entry) || typeof entry.agentType !== 'string' || typeof entry.agentId !== 'string'
+        || typeof entry.model !== 'string' || (entry.effort !== null && typeof entry.effort !== 'string')
+        || !isFiniteNumber(entry.turns) || entry.turns < 0
+        || (entry.peakPromptTokens === null ? entry.complete !== false
+          : !isFiniteNumber(entry.peakPromptTokens) || entry.peakPromptTokens < 0)
+        || typeof entry.complete !== 'boolean'
+        || !Number.isInteger(entry.usageMissingTurns) || entry.usageMissingTurns < 0
+        || entry.complete !== (entry.usageMissingTurns === 0)
+        || !Array.isArray(entry.reasons) || entry.reasons.some((r) => !OVERSIZE_REASONS.includes(r))) {
+        throw new MergeError(`${label}: malformed oversized entry`);
+      }
+      oversized.push({
+        agentType: entry.agentType,
+        agentId: entry.agentId,
+        model: entry.model,
+        effort: entry.effort,
+        turns: entry.turns,
+        peakPromptTokens: entry.peakPromptTokens,
+        reasons: [...entry.reasons],
+        complete: entry.complete,
+        usageMissingTurns: entry.usageMissingTurns,
+        host: input.host,
+      });
+    }
+  });
+
+  let unpriced = 0;
+  const byAgent = [...groups.values()]
+    .map((g) => {
+      const base = { agentType: g.agentType, model: g.model, effort: g.effort, count: g.count, usage: g.usage };
+      if (g.unknown) {
+        unpriced += 1;
+        return { ...base, estimatedCost: 'unknown', estimatedCostBreakdown: 'unknown' };
+      }
+      return { ...base, estimatedCost: Number(g.cost.toFixed(6)), estimatedCostBreakdown: roundCost(g.breakdown) };
+    })
+    .sort((a, b) => b.count - a.count
+      || a.agentType.localeCompare(b.agentType)
+      || a.model.localeCompare(b.model)
+      || String(a.effort).localeCompare(String(b.effort)));
+  mismatches.sort((a, b) => String(a.agentType).localeCompare(String(b.agentType))
+    || String(a.agentId).localeCompare(String(b.agentId))
+    || a.host.localeCompare(b.host));
+  oversized.sort((a, b) => peakOrder(b) - peakOrder(a)
+    || a.agentType.localeCompare(b.agentType)
+    || a.agentId.localeCompare(b.agentId)
+    || a.host.localeCompare(b.host));
+
+  const digests = new Set(sources.map((s) => s.declaredTiersDigest));
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    sources,
+    declaredTiers: digests.size > 1 ? 'mixed' : 'consistent',
+    window: { since: first.window.since, until: first.window.until, timezone: first.window.timezone },
+    pricing: first.pricing,
+    byAgent,
+    costTotals: { ...roundCost(costTotals), unpricedGroups: unpriced },
+    callOverrides,
+    mismatches,
+    noDeclaredTier,
+    generalPurpose,
+    oversized: { thresholds: { ...first.oversized.thresholds }, metric: first.oversized.metric, dispatches: oversized },
+    skipped,
+  };
+}
+
+function readMergeInput(file, index) {
+  const label = `--merge input #${index + 1}`;
+  let text;
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch (error) {
+    throw new MergeError(`${label}: cannot be read (${(error && error.code) || 'error'})`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new MergeError(`${label}: not valid JSON`);
+  }
+}
+
+function buildMergedReport(files) {
+  return mergeReports(files.map(readMergeInput));
 }
 
 function formatCost(cost) {
@@ -609,6 +1015,9 @@ function formatText(report) {
   const lines = [];
   const w = report.window;
   lines.push(`dispatch telemetry (since ${w.since || '-'} until ${w.until || '-'}, tz ${w.timezone})`);
+  if (Array.isArray(report.sources)) {
+    lines.push(`sources: ${report.sources.map((src) => `${src.host} (skipped ${src.skippedTotal})`).join(', ')}; declared tiers ${report.declaredTiers}`);
+  }
   lines.push('');
   lines.push('agentType x model@effort: count, tokens (in/out/cache read/cache write), estimated cost');
   if (report.byAgent.length === 0) lines.push('  (no dispatches)');
@@ -625,13 +1034,19 @@ function formatText(report) {
   lines.push('');
   lines.push(`mismatches vs agent frontmatter: ${report.mismatches.length} (${report.noDeclaredTier} dispatches have no declared tier)`);
   for (const m of report.mismatches) {
-    lines.push(`  ${m.agentType} ${m.agentId}: declared ${m.declaredModel || '-'}@${m.declaredEffort || '-'} actual ${m.actualModel}@${m.actualEffort || 'default'} [${m.fields.join(',')}]${m.callModel || m.callEffort ? ` call=${m.callModel || '-'}@${m.callEffort || '-'}` : ''}`);
+    lines.push(`  ${m.host ? `${m.host} ` : ''}${m.agentType} ${m.agentId}: declared ${m.declaredModel || '-'}@${m.declaredEffort || '-'} actual ${m.actualModel}@${m.actualEffort || 'default'} [${m.fields.join(',')}]${m.callModel || m.callEffort ? ` call=${m.callModel || '-'}@${m.callEffort || '-'}` : ''}`);
   }
   lines.push('');
   const g = report.generalPurpose;
   lines.push(`general-purpose: ${g.total} dispatches; edits ${g.buckets.edits}, commands-only ${g.buckets.commandsOnly}, read-only ${g.buckets.readOnly}; haiku edits ${g.haikuEdits}`);
   lines.push(`  models: ${Object.entries(g.byModel).map(([k, v]) => `${k} x${v}`).join(', ') || '-'}`);
   lines.push(`  triggers: ${Object.entries(g.byTrigger).map(([k, v]) => `${k} x${v}`).join(', ') || '-'}`);
+  lines.push('');
+  const ov = report.oversized;
+  lines.push(`oversized dispatches (>${ov.thresholds.turns} turns or >${Math.round(ov.thresholds.promptTokens / 1000)}k prompt tokens; prompt proxy): ${ov.dispatches.length}`);
+  for (const d of ov.dispatches) {
+    lines.push(`  ${d.host ? `${d.host} ` : ''}${d.agentType} ${d.agentId}: turns ${d.turns}, peak ${d.peakPromptTokens === null ? 'UNKNOWN' : `${Math.round(d.peakPromptTokens / 1000)}k`} [${d.reasons.join(',') || '-'}]${d.complete ? '' : ` UNKNOWN: ${d.usageMissingTurns} turn(s) without usage`}`);
+  }
   lines.push('');
   const s = report.skipped;
   lines.push(`skipped: ${s.total} (missing root ${s.missingRoot}, corrupt JSON ${s.corruptJson}, missing transcript ${s.missingTranscript}, no assistant turn ${s.noAssistantTurn}, missing parent ${s.missingParent}, unreadable ${s.unreadable}, undated ${s.undated})`);
@@ -640,17 +1055,28 @@ function formatText(report) {
 
 function parseArgs(argv) {
   const options = {};
-  const valued = { '--root': 'root', '--since': 'since', '--until': 'until', '--project': 'project', '--agents-dir': 'agentsDir' };
+  const valued = { '--root': 'root', '--since': 'since', '--until': 'until', '--project': 'project', '--agents-dir': 'agentsDir', '--host': 'host' };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--json') {
       options.json = true;
+    } else if (arg === '--merge') {
+      if (i + 1 >= argv.length) throw new UsageError('--merge requires a value');
+      options.merge = [...(options.merge || []), argv[i + 1]];
+      i += 1;
     } else if (Object.prototype.hasOwnProperty.call(valued, arg)) {
       if (i + 1 >= argv.length) throw new UsageError(`${arg} requires a value`);
       options[valued[arg]] = argv[i + 1];
       i += 1;
     } else {
       throw new UsageError(`unknown argument "${arg}"`);
+    }
+  }
+  if (options.merge) {
+    const clash = ['root', 'since', 'until', 'project', 'agentsDir'].find((key) => options[key] !== undefined);
+    if (clash) {
+      const flag = Object.keys(valued).find((name) => valued[name] === clash);
+      throw new UsageError(`--merge cannot be combined with ${flag}`);
     }
   }
   return options;
@@ -661,19 +1087,22 @@ function main(argv = process.argv.slice(2), io = {}) {
   const stderr = io.stderr || process.stderr;
   let options;
   let report;
+  let output;
   try {
     options = parseArgs(argv);
-    report = buildReport(options);
+    report = options.merge ? buildMergedReport(options.merge) : buildReport(options);
+    output = options.json ? `${JSON.stringify(report, null, 2)}\n` : formatText(report);
   } catch (error) {
-    stderr.write(`dispatch-telemetry-report: ${error.message}\n`);
+    const message = String((error && error.message) || 'unexpected error').split('\n')[0];
+    stderr.write(`dispatch-telemetry-report: ${message}\n`);
     return error instanceof UsageError ? 64 : 1;
   }
-  stdout.write(options.json ? `${JSON.stringify(report, null, 2)}\n` : formatText(report));
+  stdout.write(output);
   return 0;
 }
 
 module.exports = Object.freeze({
-  PRICE_TABLE, UsageError, buildReport, formatText, main, modelMatches, parseArgs, parseBound,
+  PRICE_TABLE, UsageError, MergeError, buildMergedReport, buildReport, formatText, main, mergeReports, modelMatches, parseArgs, parseBound,
 });
 
 if (require.main === module) process.exitCode = main();

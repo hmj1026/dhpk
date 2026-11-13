@@ -391,6 +391,44 @@ test('active module pass hooks compose in order and a block stops later hooks', 
   }
 });
 
+test('module hook that exits without reading stdin does not turn a later block into SIGPIPE 141', () => {
+  const repo = mkRepo({ prefix: 'dhpk-pre-bash-sigpipe-repo-' });
+  let pluginRoot;
+  try {
+    pluginRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-pre-bash-sigpipe-plugin-'));
+    const marker = path.join(pluginRoot, 'module-order.txt');
+    fs.cpSync(path.join(ROOT, 'scripts', 'hooks'), path.join(pluginRoot, 'scripts', 'hooks'), { recursive: true });
+    const hooksDir = path.join(pluginRoot, 'modules', 'batch-probe', 'hooks');
+    fs.mkdirSync(hooksDir, { recursive: true });
+    for (const [name, exitCode] of [['10-pass', 0], ['20-block', 2]]) {
+      const label = name.split('-').slice(1).join('-');
+      fs.writeFileSync(path.join(hooksDir, `pre-bash-${name}.sh`), `#!/usr/bin/env bash\nprintf '%s\\n' '${label}' >> "$DHPK_TEST_MARKER"\nexit ${exitCode}\n`);
+    }
+
+    // Payload above the 64 KiB pipe buffer: printf blocks, then gets SIGPIPE when
+    // a stdin-ignoring child exits 0. The size sits in an ignored tool_input
+    // field (a large `command` makes the core guard quadratic-slow, and the
+    // harness env var caps at 128 KiB), so the command itself stays harmless.
+    const res = runHookRaw(HOOK, {
+      payload: { tool_input: { command: 'echo active module composition', padding: 'a'.repeat(100 * 1024) } },
+      cwd: repo,
+      projectDir: repo,
+      pluginRoot,
+      env: {
+        DHPK_ACTIVE_MODULES: 'batch-probe',
+        DHPK_BRANCH_SAFETY: 'off',
+        DHPK_TEST_MARKER: marker,
+      },
+      deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_MODULES'],
+    });
+    assert.strictEqual(res.status, 2, `expected module block (2), got ${res.status}: ${String(res.stderr).slice(0, 300)}`);
+    assert.deepStrictEqual(fs.readFileSync(marker, 'utf8').trim().split('\n'), ['pass', 'block']);
+  } finally {
+    rmRepo(repo);
+    if (pluginRoot) fs.rmSync(pluginRoot, { recursive: true, force: true });
+  }
+});
+
 test('Bash PreToolUse declares the 2100-second block ceiling', () => {
   const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8'));
   const bash = hooks.hooks.PreToolUse.find((entry) => entry.matcher === 'Bash').hooks[0];

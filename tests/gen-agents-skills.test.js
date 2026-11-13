@@ -87,6 +87,40 @@ test('gen-agents-skills CLI lists each Released Entry when it rewrites a marker-
   }
 });
 
+test('gen-agents-skills CLI --update keeps unmanaged skill directories and prints the preserved line', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-skills-cli-preserve-'));
+  const inventory = retirementInventory([RETIREMENT_ACTIVE]);
+  const skillFile = path.join(root, RETIREMENT_ACTIVE.path, 'SKILL.md');
+  const outDir = path.join(root, '.agents', 'skills');
+  try {
+    retirementWrite(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify(inventory)}\n`);
+    retirementWrite(skillFile, ['---', `name: ${RETIREMENT_ACTIVE.name}`, "description: 'Active fixture skill.'", '---', '# Active skill', ''].join('\n'));
+    const seeded = invokeCli(GENERATOR, ['--repo-root', root], ROOT);
+    assert.strictEqual(seeded.status, 0, `${seeded.stdout}\n${seeded.stderr}`);
+    assert.doesNotMatch(seeded.stdout, /preserved/);
+
+    retirementWrite(path.join(outDir, 'gitnexus-cli', 'SKILL.md'), '# third-party\n');
+    retirementWrite(path.join(outDir, 'gitnexus-cli', 'scripts', 'run.sh'), '#!/bin/sh\n');
+    fs.chmodSync(path.join(outDir, 'gitnexus-cli', 'scripts', 'run.sh'), 0o755);
+    retirementWrite(path.join(outDir, 'notes.md'), '# notes\n');
+    retirementWrite(skillFile, ['---', `name: ${RETIREMENT_ACTIVE.name}`, "description: 'Active fixture skill.'", '---', '# Active skill v2', ''].join('\n'));
+
+    const updated = invokeCli(GENERATOR, ['--repo-root', root, '--update'], ROOT);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(updated.stdout, /preserved 2 unmanaged entries \(kept as-is\): gitnexus-cli, notes\.md/);
+    assert.match(fs.readFileSync(path.join(outDir, RETIREMENT_ACTIVE.name, 'SKILL.md'), 'utf8'), /# Active skill v2/);
+    assert.strictEqual(fs.readFileSync(path.join(outDir, 'gitnexus-cli', 'SKILL.md'), 'utf8'), '# third-party\n');
+    assert.strictEqual(fs.statSync(path.join(outDir, 'gitnexus-cli', 'scripts', 'run.sh')).mode & 0o777, 0o755);
+    assert.strictEqual(fs.readFileSync(path.join(outDir, 'notes.md'), 'utf8'), '# notes\n');
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills']);
+    assert.ok(!JSON.stringify(retirementReadReceipt(outDir)).includes('gitnexus'));
+    const checked = invokeCli(VALIDATOR, ['--repo-root', root, '--out-dir', outDir], ROOT);
+    assert.strictEqual(checked.status, 0, `${checked.stdout}\n${checked.stderr}`);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('gen-agents-skills CLI can materialize outside the canonical source checkout', () => {
   const projectRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-agents-skills-cli-project-'));
   try {
@@ -546,6 +580,26 @@ test('owned unchanged retired output is removed from the package and receipt', (
     const firstUpdate = retirementSnapshotTree(fixture.outDir);
     retirementMaterializeCurrent(fixture);
     assert.deepStrictEqual(retirementSnapshotTree(fixture.outDir), firstUpdate, 'reconciliation remains deterministic on repeat');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('retirement keeps an unmanaged sibling while removing the retired output', () => {
+  const fixture = retirementMakeFixture();
+  const sibling = path.join(fixture.outDir, 'third-party-skill', 'SKILL.md');
+  const note = path.join(fixture.outDir, 'third-party.md');
+  try {
+    retirementWrite(sibling, '# third-party\n');
+    retirementWrite(note, '# note\n');
+    const result = retirementMaterializeCurrent(fixture);
+    assert.deepStrictEqual(result.preservedUnmanaged, ['third-party-skill', 'third-party.md']);
+    assert.strictEqual(fs.existsSync(path.join(fixture.outDir, RETIREMENT_RETIRED.name)), false);
+    assert.strictEqual(fs.existsSync(path.join(fixture.outDir, `${RETIREMENT_RETIRED.name}.md`)), false);
+    assert.strictEqual(fs.readFileSync(sibling, 'utf8'), '# third-party\n');
+    assert.strictEqual(fs.readFileSync(note, 'utf8'), '# note\n');
+    assert.ok(!JSON.stringify(retirementReadReceipt(fixture.outDir)).includes('third-party'));
+    assert.strictEqual(validateAgentsSkillsProjection({ root: fixture.root, inventory: fixture.currentInventory, outDir: fixture.outDir }).ok, true);
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }

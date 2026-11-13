@@ -54,7 +54,7 @@ The generator SHALL write a versioned receipt containing the inventory revision,
 #### Scenario: Foreign content is preserved
 
 - **WHEN** an unrelated `.agents/skills` entry exists beside a receipt-owned projection
-- **THEN** regeneration leaves the unrelated entry unchanged and records it as unmanaged
+- **THEN** regeneration leaves the unrelated entry unchanged and does not list it in the receipt
 
 #### Scenario: Changed managed content is not silently discarded
 
@@ -103,12 +103,22 @@ compatibility projection.
 
 ### Requirement: Carried legacy entries become Released Entries
 
-When the agents-skills generator updates a receipt that carries entries it cannot recompute with `tree-merkle-v1` (entries kept in a receipt written by 0.69.x: generator version `1.1.0`, no `fingerprint_algorithm`, legacy values), it SHALL remove each such entry from the receipt, leave its files in place, and list it in the command output as a Released Entry. It SHALL then write the whole receipt with `fingerprint_algorithm: "tree-merkle-v1"` and `tree-merkle-v1` values for every remaining entry. A carried legacy entry SHALL NOT make the update that releases it fail; afterwards its files are unowned and later materializations apply the existing ownership rules to them. This precondition (generator version `1.1.0`, no marker) is the only marker-less agents-skills receipt the generator reads. A marker-less receipt with any other generator version SHALL fail closed with the version-boundary diagnostic of `content-fingerprint-ownership`.
+When the agents-skills generator updates a receipt that carries entries it cannot recompute with `tree-merkle-v1` (entries kept in a receipt written by 0.69.x: generator version `1.1.0`, no `fingerprint_algorithm`, legacy values), it SHALL remove each such entry from the receipt, leave its files in place, and list it in the command output as a Released Entry. It SHALL then write the whole receipt with `fingerprint_algorithm: "tree-merkle-v1"` and `tree-merkle-v1` values for every remaining entry. A carried legacy entry SHALL NOT make the update that releases it fail; afterwards a released legacy entry's files are unowned and later materializations apply the existing ownership rules to them. Its captured bytes and modes SHALL nevertheless be verified against the planned snapshot before activation, so a change between planning and activation refuses the update with `OWNERSHIP_REFUSED` and leaves the tree as it stands at refusal. A carried entry of a `tree-merkle-v1` receipt SHALL be verified against its receipt fingerprint before it is accepted; a mismatch refuses the update, and the generator SHALL NOT release the entry or rewrite its fingerprint. These checks cover changes up to activation verification; they do not guard writes between verification and the atomic rename. This precondition (generator version `1.1.0`, no marker) is the only marker-less agents-skills receipt the generator reads. A marker-less receipt with any other generator version SHALL fail closed with the version-boundary diagnostic of `content-fingerprint-ownership`.
 
 #### Scenario: Carried legacy entry is released
 
 - **WHEN** an update runs against a `1.1.0` receipt without `fingerprint_algorithm` that carries an entry whose skill is no longer selected
 - **THEN** the entry is absent from the written receipt, its managed files are still on disk, the output lists the entry as released, and the written receipt carries `fingerprint_algorithm: "tree-merkle-v1"`
+
+#### Scenario: Legacy entry changes between planning and activation
+
+- **WHEN** a legacy entry that qualifies for release has a file modified, re-moded, removed, added, or replaced by a symlink after planning and before activation
+- **THEN** the update is refused with `OWNERSHIP_REFUSED`, the files stay as they were at refusal, and the receipt is unchanged
+
+#### Scenario: Modern carried entry does not match its receipt
+
+- **WHEN** an update runs against a `tree-merkle-v1` receipt and a carried file does not match its recorded fingerprint
+- **THEN** the update is refused with `OWNERSHIP_REFUSED`, the entry is neither released nor re-fingerprinted, and the tree is unchanged
 
 #### Scenario: Receipt with no carried entries rewrites normally
 
