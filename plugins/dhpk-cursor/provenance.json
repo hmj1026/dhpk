@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.77.0",
-  "sourceCommit": "54b4511a54b9a95b0d17d8726f27bacf7d0082c8",
-  "generatedFromCommit": "54b4511a54b9a95b0d17d8726f27bacf7d0082c8",
-  "generatedFromTree": "7d5478bb5e6348b70d7196df702a6bcc574a502e",
+  "sourceCommit": "fd90cccf8f720944a43f5b9ab1c967d3fa36b100",
+  "generatedFromCommit": "fd90cccf8f720944a43f5b9ab1c967d3fa36b100",
+  "generatedFromTree": "dc9b925765a2051cfabcd4a75fe2b00f46b71249",
   "inventoryDigest": "a1b3044fe89bcbd81ed7a5ad04c8cf52e71d3b3310639fac23fec780ee90d879",
   "inventoryRevision": "sha256:f73bfda3b167048cce7257dae03d804d25b56363d5e65650c1798387f245a3ca",
   "generatorVersion": "1.1.0",
@@ -184,7 +184,7 @@
         "ownerId": "change-verdict",
         "source": "skills/project-audit/scripts/lib/runner-utils.js",
         "destination": "skills/change-verdict/references/project-audit/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "change-verdict",
@@ -274,7 +274,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/scripts/lib/runner-utils.js",
         "destination": "skills/change-verdict/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "change-verdict",
@@ -430,7 +430,7 @@
         "ownerId": "code-trace",
         "source": "skills/repo-intake/scripts/lib/runner-utils.js",
         "destination": "skills/code-trace/references/repo-intake/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "code-trace",
@@ -1774,7 +1774,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/runner-utils.js",
         "destination": "skills/flow-guide/scripts/_lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "flow-guide",
@@ -1936,7 +1936,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/scripts/lib/runner-utils.js",
         "destination": "skills/precommit/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "precommit",
@@ -2326,7 +2326,7 @@
         "ownerId": "repo-verify",
         "source": "skills/repo-verify/scripts/lib/runner-utils.js",
         "destination": "skills/repo-verify/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "repo-verify",
