@@ -600,9 +600,6 @@ function verifyPackageReceipt(receipt, observedFingerprints) {
   return errors;
 }
 
-// Recipe named by the package's provenance.json marker. A package without
-// provenance or without the marker fails closed with the version-boundary
-// diagnostic; unparseable provenance fails closed as unreadable.
 // HEAD of `root`, or 'unknown' when git cannot resolve it. The package
 // generators record this value; distribution keeps its own throwing resolver.
 function resolveSourceCommitOrUnknown(root) {
@@ -623,6 +620,9 @@ function readProvenanceForValidation(packageRoot) {
   }
 }
 
+// Recipe named by the package's provenance.json marker. A package without
+// provenance or without the marker fails closed with the version-boundary
+// diagnostic; unparseable provenance fails closed as unreadable.
 function packageFingerprintAlgorithm(packageRoot) {
   const provenancePath = path.join(packageRoot, PACKAGE_RECEIPT_FILES.provenance);
   let provenance = null;
