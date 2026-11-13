@@ -21,12 +21,15 @@ if [ ! -f "$changelog" ]; then
     exit 2
 fi
 
-if ! grep -qE "^## ${version} " "$changelog"; then
+# The version is passed via ENVIRON and compared with index(), never spliced
+# into a regex or awk program, so "." and other metacharacters match literally
+# (awk -v would additionally process backslash escapes; ENVIRON does not).
+if ! EXTRACT_NOTES_VERSION="$version" awk 'BEGIN{h="## " ENVIRON["EXTRACT_NOTES_VERSION"] " "} index($0, h) == 1{found=1; exit} END{exit !found}' "$changelog"; then
     echo "extract-notes: heading '## ${version} ' not found in $changelog" >&2
     exit 1
 fi
 
-notes="$(awk "/^## ${version} /{found=1; next} found && /^## [0-9]/{exit} found{print}" "$changelog")"
+notes="$(EXTRACT_NOTES_VERSION="$version" awk 'BEGIN{h="## " ENVIRON["EXTRACT_NOTES_VERSION"] " "} index($0, h) == 1{found=1; next} found && /^## [0-9]/{exit} found{print}' "$changelog")"
 
 if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
     echo "extract-notes: empty release notes for ${version}" >&2
