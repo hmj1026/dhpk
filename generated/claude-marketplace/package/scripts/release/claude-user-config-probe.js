@@ -7,9 +7,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { isInside } = require('../lib/bounded-filesystem');
 const { digest, safeRegularPath } = require('../lib/plugin-user-config-metadata');
-
-const STATUSES = new Set(['PASS', 'FAIL', 'NOT_RUN', 'NOT_CONFIGURED', 'BLOCKED', 'UNAVAILABLE']);
 
 function safeCommand(command) {
   const value = typeof command === 'string' && command.trim() ? command.trim() : 'claude';
@@ -65,8 +64,7 @@ function applicableRecords(inventory) {
       if (typeof record.projectPath !== 'string' || !path.isAbsolute(record.projectPath)) {
         return { status: 'BLOCKED', reason: 'project inventory requires an absolute project path' };
       }
-      const relative = path.relative(record.projectPath, process.cwd());
-      if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) continue;
+      if (!isInside(record.projectPath, process.cwd())) continue;
     }
     if (!record.enabled) continue;
     if (record.errors !== undefined && (!Array.isArray(record.errors) || record.errors.length > 0)) {
@@ -180,7 +178,7 @@ function runClaudeUserConfigProbe({ executable = 'claude', manifestPath, manifes
   };
 }
 
-module.exports = { runClaudeUserConfigProbe, STATUSES };
+module.exports = { runClaudeUserConfigProbe };
 
 function parseArgs(argv) {
   const args = { execute: false };

@@ -17,6 +17,10 @@ function valueFor(argv, index, option) {
   return value;
 }
 
+function optionName(key) {
+  return key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+}
+
 function parseArgs(argv) {
   const args = {};
   for (let index = 0; index < argv.length; index += 1) {
@@ -36,12 +40,12 @@ function parseArgs(argv) {
   if (building) {
     if (args.notesOutput !== undefined) throw new Error('--notes-output is only valid with --bundle');
     for (const key of ['notesFile', 'runId', 'tag', 'version', 'targetCommit', 'targetTree', 'expectedNotesSha256']) {
-      if (args[key] === undefined) throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} is required with --output`);
+      if (args[key] === undefined) throw new Error(`--${optionName(key)} is required with --output`);
     }
   } else {
     if (args.digestOutput !== undefined) throw new Error('--digest-output is only valid with --output');
     for (const key of ['expectedRunId', 'expectedTag', 'expectedVersion', 'expectedTargetCommit', 'expectedTargetTree']) {
-      if (args[key] === undefined) throw new Error(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)} is required with --bundle`);
+      if (args[key] === undefined) throw new Error(`--${optionName(key)} is required with --bundle`);
     }
     if (args.expectedNotesSha256 === undefined && args.expectedNotesDigestFile === undefined) {
       throw new Error('--expected-notes-sha256 or --expected-notes-digest-file is required with --bundle');

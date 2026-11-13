@@ -66,6 +66,14 @@ function preflightErrors(plan, { surfaces, requireClean }) {
   return errors;
 }
 
+function planInputs(argv, classification) {
+  return {
+    root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
+    checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
+    ...classification,
+  };
+}
+
 function main(argv = process.argv.slice(2)) {
   const command = argv[0] || 'plan';
   if (command !== 'validate' && hasValidateOnlyOptions(argv)) {
@@ -78,11 +86,7 @@ function main(argv = process.argv.slice(2)) {
     if (githubOutputPath && !outputPath) {
       throw new Error('--github-output requires --out so full plan data stays in a file');
     }
-    const plan = createCiPlan({
-      root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
-      checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
-      ...classification,
-    });
+    const plan = createCiPlan(planInputs(argv, classification));
     const serializedPlan = `${JSON.stringify(plan)}\n`;
     if (outputPath) {
       fs.writeFileSync(outputPath, serializedPlan);
@@ -106,11 +110,7 @@ function main(argv = process.argv.slice(2)) {
   if (command === 'validate') {
     const preflightOptions = parseValidateOnlyOptions(argv);
     const plan = JSON.parse(fs.readFileSync(value(argv, '--plan'), 'utf8'));
-    const result = validateCiPlan(plan, {
-      root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
-      checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
-      ...classification,
-    });
+    const result = validateCiPlan(plan, planInputs(argv, classification));
     const errors = [...result.errors, ...preflightErrors(plan, preflightOptions)];
     if (errors.length > 0) errors.forEach((error) => process.stderr.write(`FAIL: ${error}\n`));
     else process.stdout.write('PASS: CI plan is valid\n');
@@ -119,11 +119,7 @@ function main(argv = process.argv.slice(2)) {
   if (command === 'aggregate') {
     const plan = JSON.parse(fs.readFileSync(value(argv, '--plan'), 'utf8'));
     const results = JSON.parse(fs.readFileSync(value(argv, '--results'), 'utf8'));
-    const result = verifyCiResults(plan, results, {
-      root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
-      checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
-      ...classification,
-    });
+    const result = verifyCiResults(plan, results, planInputs(argv, classification));
     if (!result.ok) result.errors.forEach((error) => process.stderr.write(`FAIL: ${error}\n`));
     else process.stdout.write('PASS: CI plan aggregate is valid\n');
     return result.ok ? 0 : 1;

@@ -12911,6 +12911,7 @@ const REQUIREMENT_EVIDENCE_FIELDS = new Set([
 ]);
 const REQUIREMENT_ADAPTER_FIELDS = new Set(['id', 'version']);
 const NATIVE_PROOF_HASH = /^[a-f0-9]{64}$/i;
+const ROLE_CONTRACT_KEYS = ['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'];
 const CONSUMER_CHECK_IDENTITY_FIELDS = Object.freeze([
   'contractVersion',
   'sourceFingerprint',
@@ -13082,7 +13083,7 @@ function normalizeRoleContract(contractEvidence, capability, status, surfaceReco
   const roleId = capability.slice('named-role-'.length);
   const role = contractEvidence.role;
   if (!role || typeof role !== 'object' || Array.isArray(role)
-    || Object.keys(role).some((key) => !['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'].includes(key))
+    || Object.keys(role).some((key) => !ROLE_CONTRACT_KEYS.includes(key))
     || role.path !== `agents/${roleId}.toml`) {
     throw new Error('consumer evidence: Codex role contract proof does not match its capability');
   }
@@ -13101,7 +13102,7 @@ function normalizeRoleContract(contractEvidence, capability, status, surfaceReco
   }
   const normalizedResources = resources.map((resource) => {
     if (!resource || typeof resource !== 'object' || Array.isArray(resource)
-      || Object.keys(resource).some((key) => !['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'].includes(key))
+      || Object.keys(resource).some((key) => !ROLE_CONTRACT_KEYS.includes(key))
       || typeof resource.path !== 'string' || !/^\.codex\/dhpk\/[A-Za-z0-9._/-]+\.md$/.test(resource.path)
       || resource.path.length > 4096
       || resource.path.split('/').includes('..')) {

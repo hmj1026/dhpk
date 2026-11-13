@@ -52,10 +52,11 @@ for f in "$ASSET_ROOT"/agents/*.md; do
     [[ -f "$f" ]] || continue
     base="$(basename "$f")"
     [[ "$base" == "INDEX.md" ]] && continue
-    head -20 "$f" | grep -q '^name:' || { fail "$base 缺 name:"; continue; }
-    head -20 "$f" | grep -q '^description:' || fail "$base 缺 description:"
-    head -20 "$f" | grep -q '^model:' || warn "$base 缺 model:"
-    head -20 "$f" | grep -q '^tools:' || warn "$base 缺 tools:"
+    header="$(head -20 "$f")"
+    grep -q '^name:' <<<"$header" || { fail "$base 缺 name:"; continue; }
+    grep -q '^description:' <<<"$header" || fail "$base 缺 description:"
+    grep -q '^model:' <<<"$header" || warn "$base 缺 model:"
+    grep -q '^tools:' <<<"$header" || warn "$base 缺 tools:"
 done
 [[ $ERR -eq 0 ]] && ok "agents 全部通過"
 
@@ -80,7 +81,8 @@ for f in "$ASSET_ROOT"/rules/*.md "$ASSET_ROOT"/rules/**/*.md; do
     [[ -f "$f" ]] || continue
     # 抓 `*.md` 相對路徑引用
     while IFS= read -r link; do
-        target="$(echo "$link" | grep -oE '[A-Za-z0-9_./-]+\.md' | head -1)"
+        target=""
+        [[ $link =~ ([A-Za-z0-9_./-]+\.md) ]] && target=${BASH_REMATCH[1]}
         [[ -z "$target" ]] && continue
         # 跳過絕對路徑 / URL / 範本（含 20YYMMDD 時間戳或 {...} 佔位符）
         [[ "$target" == /* || "$target" == http* ]] && continue

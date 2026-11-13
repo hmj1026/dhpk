@@ -25,7 +25,10 @@
 # Default agent names — overridable via userConfig.review_agents (comma-joined).
 _dhpk_default_agents=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer")
 
-_dhpk_review_agents="$(dhpk_config_review_agents)"
+_dhpk_review_agents=""
+if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS:-}" ]; then
+    _dhpk_review_agents="$(dhpk_config_review_agents)"
+fi
 if [ -n "$_dhpk_review_agents" ]; then
     IFS=',' read -r -a REVIEWER_AGENTS <<< "$_dhpk_review_agents"
 else
