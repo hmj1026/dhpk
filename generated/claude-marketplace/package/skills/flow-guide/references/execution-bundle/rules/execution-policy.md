@@ -179,7 +179,7 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 
 | Agent | Runs when | Review role |
 |---|---|---|
-| `tdd-guide` | RED / test-first specialist when a separate test seam or live integration setup needs that expertise; GREEN ownership follows the settled task scope and capability; a multi-commit implementation goes to the implementation roles, not `tdd-guide` (§Implementation dispatch) | specialist |
+| `tdd-guide` | RED / test-first specialist when a separate test seam or live integration setup needs that expertise; GREEN ownership follows the settled task scope and capability; a multi-round production implementation goes to the implementation owner (§Dispatch rounds) | specialist |
 | `architect` | Cross-module or DDD-layer design | — |
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
 | `codex-reasoner` | Selected by `--reasoner=codex[/<model>[:<effort>]]` — a `deep-reasoner` whose reasoning runs on the codex CLI backend (read-only sandbox); canonical role ID; see §Implementation dispatch | — |
@@ -350,7 +350,7 @@ or `UNAVAILABLE` evidence does not satisfy that obligation. The external
 | The same mechanical clear-spec work, offloaded to the agy CLI backend — **agy CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `agy-worker` (canonical role ID) |
 | Work with a settled outcome, one clear owner, adequate local context, and low coordination need | Inline in the main loop; file count alone does not decide |
 | Complex implementation (needs both reasoning and mechanical application) | `deep-reasoner` produces the fix spec (conclusion contract) → `fast-worker` applies it |
-| Multi-commit implementation (several independently verifiable commits) | One implementation dispatch per commit under §Dispatch size below; `tdd-guide` supplies RED only |
+| Multi-round production implementation | One implementation-owner dispatch per independently verifiable round (§Dispatch rounds); `tdd-guide` keeps test design, RED, and an explicitly authorized minimal GREEN slice |
 | Post-review findings form one clear fix-spec with a bounded scope and coordination benefit from a separate owner | One batched selector-resolved fast-worker dispatch; keep one finding wave together |
 | Specialist fix-spec handback (`tdd-guide` or `e2e-runner` report) with a suitable independent application scope | Selector-resolved fast-worker applies it; acceptance uses the originating specialist's stated scoped verification command or journey |
 | RED / E2E test that must reason about seeding AND run against a live server (Playwright user journeys) — read-only `deep-reasoner` can't run it, mechanical `fast-worker` can't reason about the seeding | `e2e-runner` |
@@ -371,15 +371,20 @@ When a validator reads or modifies shared ratchet/configuration state, workers M
 
 `Judgment-Dense Standardizable Batch` is a recommended fast-worker route, not a forced route. Select it when a bounded repeatable task benefits from one consistent owner and has a known verification path; file count alone does not trigger it. Open-ended design, unresolved root cause, and architecture decisions remain with the appropriate reasoning or human decision before implementation. The acceptance report records the selected tier, material reason, and result.
 
-**Dispatch size:** one dispatch delivers one independently verifiable commit or
-one round of work; a resume after a pause and a review-fix wave are new rounds.
-When the prior worker's context is above about 200k tokens, start the new round
-as a new dispatch with commit SHAs, `git diff --stat`, and the remaining tasks;
-reuse it through `SendMessage` only below that size. A turn-cap partial
-continuation stays in the same round. Every dispatch spec carries a test budget:
-scoped tests per commit and the full suite at most once. Detail, the six-file
-batch guideline, and the telemetry flag (more than 120 turns or more than 200k
-peak context): `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`
+### Dispatch rounds
+
+A dispatch covers one independently verifiable round of work: an exact scope,
+its verification, and the owner of its handoff. Commit count does not set the
+boundary and grants no commit authority. Below the size threshold, a follow-up
+in the same round may reuse the worker through `SendMessage`; the one
+partial-continuation recovery above applies at any size. After a worker passed
+the threshold, further work, in the same round or the next one (a review-fix
+round included), goes to a new `cold` dispatch with a round handoff. Never stop
+an in-flight side effect to meet the threshold. When the size is not
+observable, record `UNKNOWN` and treat the threshold as passed. Each task spec states its test
+budget. The threshold, the handoff contents, the test budget, and the six-file
+guideline live in
+`${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`
 (§Dispatch size and fresh context).
 
 ### Provider-neutral dispatch baseline

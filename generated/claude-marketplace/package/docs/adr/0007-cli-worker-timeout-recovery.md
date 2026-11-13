@@ -2,6 +2,12 @@
 
 Status: accepted
 
+Related: #1336 moved the six-file starting guideline to
+`skills/flow-guide/references/implementation-dispatch.md` (§Dispatch size and fresh
+context). It now covers native and CLI-backed dispatches as a recommended split, and a
+larger cohesive batch records its reason. The CLI timeout recovery decision below is
+unchanged.
+
 ## Context
 
 The `codex` and `agy` fast-worker wrappers can run a multi-file implementation batch in a
@@ -38,8 +44,9 @@ leave an explicit reconciliation obligation when the batch cannot finish safely.
   path named `.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`. It is separate
   from product edited-file accounting and `.pending-*` reviewer sentinels, is not auto-cleared,
   and requires explicit orchestrator or human reconciliation.
-- Batches with more than six assigned product files are split by default. The threshold is a
-  tunable starting guideline; an override records its reason and never expands worker scope.
+- Large batches are split under the starting guideline in
+  `skills/flow-guide/references/implementation-dispatch.md` (§Dispatch size and fresh context);
+  an override records its reason and never expands worker scope.
 - Shared state is reconciled once, sequentially, by the orchestrator after all workers and
   retries return.
 
