@@ -12,7 +12,7 @@
 # silent (no stdout/stderr, never injected into context) and best-effort.
 #
 # Trigger: SubagentStop event (wired once in hooks/hooks.json).
-# Cost: one jq/python3 parse, <20ms.
+# Cost: two jq calls (payload parse + record), no python3/date, <20ms.
 
 set -o pipefail
 
@@ -25,20 +25,40 @@ SESS="$(dhpk_sessions_dir "$ROOT")"
 # Read stdin payload (JSON envelope from Claude Code SubagentStop event).
 PAYLOAD="$(dhpk_read_payload)"
 
-# Try multiple field names — SubagentStop envelope schema differs across
-# Claude Code versions. The current (verified) schema delivers the reviewer
-# identity in top-level `agent_type`, prefixed with the plugin namespace (e.g.
-# `dhpk:doc-reviewer`); other candidates are kept for back-compat / forward-compat.
-extract_subagent_name() {
+# One jq call parses every payload field this hook needs, joined by \x1f (a
+# non-whitespace IFS char, so empty fields survive `read`). Sets SUBAGENT (the
+# first non-empty of the candidate chain) and the dispatch-log fields
+# (LOG_ATYPE / LOG_AID / LOG_TPATH / LOG_EFFORT). The SubagentStop envelope
+# schema differs across Claude Code versions: the current (verified) schema
+# delivers the identity in top-level `agent_type`, prefixed with the plugin
+# namespace (e.g. `dhpk:doc-reviewer`); the other candidates are kept for
+# back-compat / forward-compat. LOG_ATYPE deliberately reads agent_type only.
+# PARSED_BY_JQ=1 means the fields are authoritative.
+SUBAGENT="" LOG_ATYPE="" LOG_AID="" LOG_TPATH="" LOG_EFFORT="" PARSED_BY_JQ=0
+parse_payload() {
+    local payload="$1" fields=""
+    [ -z "$payload" ] && return 0
+    command -v jq >/dev/null 2>&1 || return 0
+    fields="$(printf '%s' "$payload" | jq -r '
+        [ ((.agent_type // .subagent_type // .subagent // .agent_name // (.tool_input? | .subagent_type?) // "")
+           | if type == "string" then . else tojson end),
+          (.agent_type // ""),
+          (.agent_id // ""),
+          (.agent_transcript_path // ""),
+          ((.effort // "") | if type == "object" then (.level // "" | tostring) else tostring end)
+        ] | join("\u001f")' 2>/dev/null)" || return 0
+    IFS=$'\x1f' read -r SUBAGENT LOG_ATYPE LOG_AID LOG_TPATH LOG_EFFORT <<< "$fields"
+    PARSED_BY_JQ=1
+    return 0
+}
+
+# No-jq (or jq-failed) fallback for the subagent name only; the dispatch log
+# needs jq and is skipped silently without it.
+python_subagent_name() {
     local payload="$1" out=""
     [ -z "$payload" ] && return 0
-    if command -v jq >/dev/null 2>&1; then
-        out="$(printf '%s' "$payload" | jq -r '
-            .agent_type // .subagent_type // .subagent // .agent_name // .tool_input.subagent_type // empty
-        ' 2>/dev/null || true)"
-    fi
-    if [ -z "$out" ] && command -v python3 >/dev/null 2>&1; then
-        out="$(printf '%s' "$payload" | python3 -c '
+    command -v python3 >/dev/null 2>&1 || return 0
+    out="$(printf '%s' "$payload" | python3 -c '
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -53,7 +73,6 @@ try:
 except Exception:
     pass
 ' 2>/dev/null || true)"
-    fi
     printf '%s' "$out"
 }
 
@@ -77,37 +96,29 @@ remove_matching_active_entry() {
     fi
 }
 
-# Last assistant `message.model` from the subagent's own transcript. Tolerates
-# malformed lines (fromjson?) and a missing/unreadable file; prints nothing then.
-last_transcript_model() {
-    local path="$1"
-    [ -n "$path" ] && [ -r "$path" ] || return 0
-    tail -n 200 "$path" 2>/dev/null \
-        | jq -R -r 'fromjson? | select(type == "object" and .type == "assistant") | .message.model // empty' 2>/dev/null \
-        | tail -n 1
-    return 0
-}
-
-# Append one JSONL dispatch record. Skips silently without jq. effort is the
-# per-subagent SubagentStop hook-input value; the host sends {"level": "..."}
-# and the record keeps only the level string.
+# Append one JSONL dispatch record. Skips silently without jq (PARSED_BY_JQ=0).
+# effort is the per-subagent SubagentStop hook-input value; the host sends
+# {"level": "..."} and the record keeps only the level string. A single jq call
+# derives the LAST assistant `message.model` from the tail of the subagent's own
+# transcript (tolerating malformed lines and a missing/unreadable file) and
+# stamps the UTC time, so no separate date or model-lookup process is needed.
 log_subagent_dispatch() {
-    local payload="$1" file="$SESS/$DHPK_SIDECAR_SUBAGENT_LOG" fields="" model="" size=0
-    local atype aid tpath effort
-    [ -n "$payload" ] || return 0
-    command -v jq >/dev/null 2>&1 || return 0
-    fields="$(printf '%s' "$payload" | jq -r '[(.agent_type // ""), (.agent_id // ""), (.agent_transcript_path // ""), ((.effort // "") | if type == "object" then (.level // "" | tostring) else tostring end)] | join("\u001f")' 2>/dev/null)" || return 0
-    IFS=$'\x1f' read -r atype aid tpath effort <<< "$fields"
-    model="$(last_transcript_model "$tpath")"
+    local file="$SESS/$DHPK_SIDECAR_SUBAGENT_LOG" size=0
+    [ "$PARSED_BY_JQ" = 1 ] || return 0
     mkdir -p "$SESS" 2>/dev/null || return 0
     if [ -f "$file" ]; then
-        size="$(wc -c < "$file" 2>/dev/null | tr -d ' ')"
+        size="$(wc -c < "$file" 2>/dev/null)"
+        size="${size//[[:space:]]/}"
         [ "${size:-0}" -gt 1048576 ] && mv -f "$file" "$file.1" 2>/dev/null
     fi
-    jq -n -c \
-        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --arg agent_type "$atype" --arg agent_id "$aid" --arg model "$model" --arg effort "$effort" \
-        '{ts: $ts,
+    {
+        if [ -n "$LOG_TPATH" ] && [ -r "$LOG_TPATH" ]; then
+            tail -n 200 "$LOG_TPATH" 2>/dev/null
+        fi
+    } | jq -R -n -c \
+        --arg agent_type "$LOG_ATYPE" --arg agent_id "$LOG_AID" --arg effort "$LOG_EFFORT" \
+        '([inputs | fromjson? | select(type == "object" and .type == "assistant") | .message.model // empty] | last // "") as $model
+         | {ts: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
           agent_type: (if $agent_type == "" then null else $agent_type end),
           agent_id: (if $agent_id == "" then null else $agent_id end),
           model: (if $model == "" then null else $model end),
@@ -118,9 +129,12 @@ log_subagent_dispatch() {
     return 0
 }
 
-log_subagent_dispatch "$PAYLOAD" >/dev/null 2>&1 || true
+parse_payload "$PAYLOAD"
+log_subagent_dispatch >/dev/null 2>&1 || true
 
-SUBAGENT="$(extract_subagent_name "$PAYLOAD")"
+# jq absent or its parse failed: recover the name via python3 (clearing the
+# fast-worker liveness marker must still work without jq).
+[ "$PARSED_BY_JQ" = 1 ] || SUBAGENT="$(python_subagent_name "$PAYLOAD")"
 
 case "${SUBAGENT##*:}" in
     fast-worker|codex-worker|agy-worker)
