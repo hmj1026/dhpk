@@ -382,6 +382,8 @@ def _heredocs(text, heredocs=True):
     With `heredocs` False the view keeps its pre-#1396 reading: one heredoc
     per line, and `$(...)` bodies are read as part of the outer text.
     """
+    if '<<' not in text:
+        return text, text, []
     # shell 只以 LF 分行；heredoc 宣告以實體行判斷，註解以前一個字元判斷起點。
     cursor = _Cursor(text, comments='line')
     output = []
@@ -389,6 +391,8 @@ def _heredocs(text, heredocs=True):
     active = []
     masks = []
     headers = []
+    header_tokens = []
+    tokenized_at = 0
     nesting = _Nesting()
     line_start = 0
 
@@ -405,7 +409,7 @@ def _heredocs(text, heredocs=True):
         masks = []
 
     def end_line(end):
-        nonlocal line_start, headers
+        nonlocal line_start, headers, tokenized_at
         line = text[line_start:end]
         emit(end)
         if not headers:
@@ -417,14 +421,16 @@ def _heredocs(text, heredocs=True):
         if line.endswith('\\\n'):
             raise ValueError('ambiguous heredoc declaration continuation')
         # shell 本身可能執行標準輸入；先做 shell 引號移除，否則 'bash' 或 ba''sh 可繞過比對。
-        header_tokens = tokenize(''.join(deep))
+        new_tokens = tokenize(''.join(deep[tokenized_at:]))
+        header_tokens.extend(new_tokens)
+        tokenized_at = len(deep)
         # 管線的接收端可能出現在 heredoc 結束之後，未解析完成前不得隱藏內文。
         header_end = header_tokens
         if header_tokens and header_tokens[-1].operator and header_tokens[-1].value == ';' and line.endswith('\n'):
             header_end = header_tokens[:-1]
         if header_end and header_end[-1].operator and header_end[-1].value in ('|', '|&', '&&', '||'):
             raise ValueError('ambiguous heredoc pipeline')
-        if any(not token.operator and token.value.rsplit('/', 1)[-1] in HEREDOC_SHELLS for token in header_tokens):
+        if any(not token.operator and token.value.rsplit('/', 1)[-1] in HEREDOC_SHELLS for token in new_tokens):
             raise _NoHeredocs()
         # 同一行可宣告多個 heredoc，內文依宣告順序接續讀取。
         for header in headers:
@@ -444,7 +450,8 @@ def _heredocs(text, heredocs=True):
                     inner = text[cursor.i + 1:span - 1]
                     if headers and '\n' in inner:
                         raise ValueError('ambiguous heredoc substitution')
-                    masks.append((cursor.i + 1, span - 1, _heredocs(inner)[1]))
+                    if '<<' in inner:
+                        masks.append((cursor.i + 1, span - 1, _heredocs(inner)[1]))
                     cursor.seek(span)
                     continue
             if kind == CHAR and cursor.quote is None:
@@ -503,6 +510,8 @@ def _lex(text, heredocs):
 
 def lex(text):
     """Lex one command; raise ValueError with a fixed reason when it is ambiguous."""
+    if '<<' not in text:
+        return _lex(text, False)
     lexed = _lex(text, True)
     # 替換輸出可能被當成指令執行時，heredoc 內文不能視為資料，改用 #1396 前的讀法。
     if _runs_output(lexed.tokens):

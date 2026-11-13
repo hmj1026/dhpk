@@ -73,7 +73,7 @@ dhpk_norm_path_var() {
                     *) out="${out%/*}"; [ -n "$out" ] || out="/" ;;
                 esac
                 ;;
-            *) out="$out/$part" ;;
+            *) out+="/$part" ;;
         esac
     done
     [ -n "$out" ] || out="/"
@@ -84,6 +84,26 @@ dhpk_norm_path_var() {
 # Nested lists and ${...} scans recurse; deeper text is reported as
 # unsupported instead of exhausting the bash stack.
 DHPK_CI_MAX_DEPTH=64
+_DHPK_CI_SIMPLE_STOP=$'\\\'"# \t\n;()><&|$`~=*?[]{}!'
+
+# _dhpk_ci_make_pages
+#   Splits `text` (length `len`) into overlapping 512-byte pages stepped by
+#   256 bytes in _dhpk_ci_pg so per-character and short lookahead reads stay
+#   O(1) without scanning strlen(text) on every ${text:$i:1}.
+_dhpk_ci_make_pages() {
+    _dhpk_ci_pg=()
+    local _k=0 _j _c _cl
+    while [ "$_k" -lt "$len" ]; do
+        _c="${text:$_k:16640}"
+        _cl="${#_c}"
+        _j=0
+        while [ "$_j" -lt "$_cl" ] && [ "$_j" -lt 16384 ]; do
+            _dhpk_ci_pg+=("${_c:$_j:512}")
+            _j=$((_j + 256))
+        done
+        _k=$((_k + 16384))
+    done
+}
 
 _dhpk_ci_reset_words() {
     _dhpk_ci_words=()
@@ -477,7 +497,7 @@ _dhpk_ci_ansi_escape() {
             [01234567]) case "$d" in [01234567]) ;; *) break ;; esac ;;
             *) case "$d" in [0123456789abcdefABCDEF]) ;; *) break ;; esac ;;
         esac
-        digits="$digits$d"
+        digits+="$d"
         k=$((k + 1))
     done
     _dhpk_ci_esc_len=$((k - at))
@@ -500,14 +520,18 @@ _dhpk_ci_ansi_escape() {
     return 0
 }
 
-# _dhpk_ci_ansi_end <text> <index>
+# _dhpk_ci_ansi_end <index>
 #   Sets _dhpk_ci_ansi_close to the index of the quote that closes the $'...'
-#   body starting at <index>, using the bash lexer rule that a backslash
-#   pairs with exactly one character. Unterminated: the text length.
+#   body starting at <index> in the enclosing paged text, using the bash lexer
+#   rule that a backslash pairs with exactly one character. Unterminated: len.
 _dhpk_ci_ansi_end() {
-    local text="$1" k="$2" n="${#1}" ch
-    while [ "$k" -lt "$n" ]; do
-        ch="${text:$k:1}"
+    local k="$1" ch _pi=-1 _p=""
+    while [ "$k" -lt "$len" ]; do
+        if [ $((k >> 8)) -ne "$_pi" ]; then
+            _pi=$((k >> 8))
+            _p="${_dhpk_ci_pg[$_pi]}"
+        fi
+        ch="${_p:$((k & 255)):1}"
         if [ "$ch" = "\\" ]; then
             k=$((k + 2))
             continue
@@ -515,7 +539,7 @@ _dhpk_ci_ansi_end() {
         [ "$ch" = "'" ] && break
         k=$((k + 1))
     done
-    [ "$k" -le "$n" ] || k="$n"
+    [ "$k" -le "$len" ] || k="$len"
     _dhpk_ci_ansi_close="$k"
 }
 
@@ -529,11 +553,11 @@ _dhpk_ci_ansi_decode() {
         if [ "$ch" = "\\" ] && [ $((k + 1)) -lt "$n" ]; then
             _dhpk_ci_ansi_escape "$body" $((k + 1))
             [ "$_dhpk_ci_esc_nul" -eq 1 ] && break
-            out="$out$_dhpk_ci_esc_out"
+            out+="$_dhpk_ci_esc_out"
             k=$((k + 1 + _dhpk_ci_esc_len))
             continue
         fi
-        out="$out$ch"
+        out+="$ch"
         k=$((k + 1))
     done
     _dhpk_ci_ansi_out="$out"
@@ -571,21 +595,27 @@ _dhpk_ci_unsupported() {
     [ -n "$DHPK_UNSUPPORTED" ] || DHPK_UNSUPPORTED="$1"
 }
 
-# _dhpk_ci_arith <text> <index>
-#   <index> is just after '$((' or '(('. Sets _dhpk_ci_end after the closing
-#   '))' and returns 0. Returns 1 when the first unmatched ')' is not doubled,
-#   because bash then reads the text as a subshell, not arithmetic. Quotes or
-#   a command substitution inside arithmetic are reported as unsupported.
+# _dhpk_ci_arith <index>
+#   <index> is just after '$((' or '((' in the enclosing paged text. Sets
+#   _dhpk_ci_end after the closing '))' and returns 0. Returns 1 when the first
+#   unmatched ')' is not doubled, because bash then reads the text as a
+#   subshell, not arithmetic. Quotes or a command substitution inside
+#   arithmetic are reported as unsupported.
 _dhpk_ci_arith() {
-    local text="$1" k="$2" n="${#1}" depth=0 ch reason=""
-    while [ "$k" -lt "$n" ]; do
-        ch="${text:$k:1}"
+    local k="$1" depth=0 ch reason="" _pi=-1 _p="" _o
+    while [ "$k" -lt "$len" ]; do
+        if [ $((k >> 8)) -ne "$_pi" ]; then
+            _pi=$((k >> 8))
+            _p="${_dhpk_ci_pg[$_pi]}"
+        fi
+        _o=$((k & 255))
+        ch="${_p:$_o:1}"
         case "$ch" in
             '(') depth=$((depth + 1)) ;;
             ')')
                 if [ "$depth" -gt 0 ]; then
                     depth=$((depth - 1))
-                elif [ "${text:$((k + 1)):1}" = ")" ]; then
+                elif [ "${_p:$((_o + 1)):1}" = ")" ]; then
                     [ -z "$reason" ] || _dhpk_ci_unsupported "$reason"
                     _dhpk_ci_end=$((k + 2))
                     return 0
@@ -595,7 +625,7 @@ _dhpk_ci_arith() {
                 ;;
             "'"|'"'|'`') reason="quote or backtick inside arithmetic" ;;
             '$')
-                if [ "${text:$((k + 1)):1}" = "(" ]; then
+                if [ "${_p:$((_o + 1)):1}" = "(" ]; then
                     reason="command substitution inside arithmetic"
                 fi
                 ;;
@@ -603,18 +633,23 @@ _dhpk_ci_arith() {
         k=$((k + 1))
     done
     _dhpk_ci_unsupported "unterminated arithmetic"
-    _dhpk_ci_end="$n"
+    _dhpk_ci_end="$len"
     return 0
 }
 
-# _dhpk_ci_brack <text> <index>
-#   <index> is just after '$['. Sets _dhpk_ci_end after the matching ']' of
-#   this legacy arithmetic form; quotes or substitutions inside it, or no
-#   closing bracket, are reported as unsupported.
+# _dhpk_ci_brack <index>
+#   <index> is just after '$[' in the enclosing paged text. Sets _dhpk_ci_end
+#   after the matching ']' of this legacy arithmetic form; quotes or
+#   substitutions inside it, or no closing bracket, are reported as unsupported.
 _dhpk_ci_brack() {
-    local text="$1" k="$2" n="${#1}" depth=0 ch
-    while [ "$k" -lt "$n" ]; do
-        ch="${text:$k:1}"
+    local k="$1" depth=0 ch _pi=-1 _p="" _o
+    while [ "$k" -lt "$len" ]; do
+        if [ $((k >> 8)) -ne "$_pi" ]; then
+            _pi=$((k >> 8))
+            _p="${_dhpk_ci_pg[$_pi]}"
+        fi
+        _o=$((k & 255))
+        ch="${_p:$_o:1}"
         case "$ch" in
             '[') depth=$((depth + 1)) ;;
             ']')
@@ -626,7 +661,7 @@ _dhpk_ci_brack() {
                 ;;
             "'"|'"'|'`') _dhpk_ci_unsupported "quote or backtick inside \$[...]" ;;
             '$')
-                if [ "${text:$((k + 1)):1}" = "(" ]; then
+                if [ "${_p:$((_o + 1)):1}" = "(" ]; then
                     _dhpk_ci_unsupported "command substitution inside \$[...]"
                 fi
                 ;;
@@ -634,80 +669,139 @@ _dhpk_ci_brack() {
         k=$((k + 1))
     done
     _dhpk_ci_unsupported "unterminated \$[...]"
-    _dhpk_ci_end="$n"
+    _dhpk_ci_end="$len"
 }
 
-# _dhpk_ci_backtick <text> <index> <in-double-quotes>
-#   <index> is the opening backtick. The body ends at the next unescaped
-#   backtick (quotes do not count, as in bash). \$ \` \\ (and \" inside
-#   double quotes) lose their backslash, then the body is inspected as its
-#   own command list, so a quote inside it cannot leak out.
+# _dhpk_ci_backtick <index> <in-double-quotes>
+#   <index> is the opening backtick in the enclosing paged text. The body ends
+#   at the next unescaped backtick (quotes do not count, as in bash). \$ \` \\
+#   (and \" inside double quotes) lose their backslash, then the body is
+#   inspected as its own command list, so a quote inside it cannot leak out.
 _dhpk_ci_backtick() {
-    local text="$1" k=$(($2 + 1)) indq="$3" n="${#1}" ch nx body=""
-    while [ "$k" -lt "$n" ]; do
-        ch="${text:$k:1}"
+    local k=$(($1 + 1)) indq="$2" ch nx body="" _pi=-1 _p="" _o
+    while [ "$k" -lt "$len" ]; do
+        if [ $((k >> 8)) -ne "$_pi" ]; then
+            _pi=$((k >> 8))
+            _p="${_dhpk_ci_pg[$_pi]}"
+        fi
+        _o=$((k & 255))
+        ch="${_p:$_o:1}"
         if [ "$ch" = "\\" ]; then
-            nx="${text:$((k + 1)):1}"
+            nx="${_p:$((_o + 1)):1}"
             case "$nx" in
-                '$'|'`'|\\) body="$body$nx" ;;
-                '"') if [ "$indq" = 1 ]; then body="$body$nx"; else body="$body\\$nx"; fi ;;
-                *) body="$body\\$nx" ;;
+                '$'|'`'|\\) body+="$nx" ;;
+                '"') if [ "$indq" = 1 ]; then body+="$nx"; else body+="\\$nx"; fi ;;
+                *) body+="\\$nx" ;;
             esac
             k=$((k + 2))
             continue
         fi
         [ "$ch" = '`' ] && break
-        body="$body$ch"
+        body+="$ch"
         k=$((k + 1))
     done
-    [ "$k" -lt "$n" ] && k=$((k + 1))
-    [ "$k" -le "$n" ] || k="$n"
+    [ "$k" -lt "$len" ] && k=$((k + 1))
+    [ "$k" -le "$len" ] || k="$len"
     _dhpk_ci_list "$body" 0 body
     _dhpk_ci_end="$k"
 }
 
-# _dhpk_ci_expand <text> <index> <in-double-quotes>
-#   Handles $(...), $((...)), $[...], ${...} or a backtick at <index>: commands
-#   inside are inspected and _dhpk_ci_end is set after the construct.
-#   Returns 1, without side effects, for any other character.
+# _dhpk_ci_expand <index> <in-double-quotes>
+#   Handles $(...), $((...)), $[...], ${...} or a backtick at <index> in the
+#   enclosing paged text: commands inside are inspected and _dhpk_ci_end is
+#   set after the construct. Returns 1, without side effects, for any other
+#   character.
 _dhpk_ci_expand() {
-    local text="$1" i="$2" indq="$3"
-    if [ "${text:$i:1}" = '`' ]; then
-        _dhpk_ci_backtick "$text" "$i" "$indq"
+    local i="$1" indq="$2" _p _o _ch _nx _rest _sp
+    _p="${_dhpk_ci_pg[$((i >> 8))]}"
+    _o=$((i & 255))
+    _ch="${_p:$_o:1}"
+    if [ "$_ch" = '`' ]; then
+        _dhpk_ci_exec_context $((1 - indq))
+        _dhpk_ci_backtick "$i" "$indq"
         return 0
     fi
-    [ "${text:$i:1}" = '$' ] || return 1
-    case "${text:$((i + 1)):1}" in
+    [ "$_ch" = '$' ] || return 1
+    _nx="${_p:$((_o + 1)):1}"
+    case "$_nx" in
         '(')
-            if [ "${text:$((i + 2)):1}" = "(" ] && _dhpk_ci_arith "$text" $((i + 3)); then
-                return 0
+            if [ "${_p:$((_o + 2)):1}" = "(" ]; then
+                _dhpk_ci_arith $((i + 3)) && return 0
+            elif [ "$_dhpk_ci_depth" -lt "$DHPK_CI_MAX_DEPTH" ]; then
+                # Fast path for simple single-word $(cmd) within the current page.
+                _rest="${_p:$((_o + 2)):256}"
+                case "$_rest" in
+                    *')'*)
+                        _sp="${_rest%%\)*}"
+                        if [ -n "$_sp" ]; then
+                            case "$_sp" in
+                                *["$_DHPK_CI_SIMPLE_STOP"]*) ;;
+                                git|*/git|cd|*/cd|pushd|popd|command|builtin|case|function|for|select|if|while|until|'fi'|'done'|'esac'|time|coproc) ;;
+                                *)
+                                    _dhpk_ci_exec_next=0
+                                    DHPK_CMD_START+=("${#DHPK_WORDS[@]}")
+                                    DHPK_CMD_LEN+=(1)
+                                    DHPK_WORDS+=("$_sp")
+                                    if [ "$_dhpk_ci_cwd_state" = "literal" ]; then
+                                        DHPK_CMD_CWD+=("$_dhpk_ci_cwd")
+                                    else
+                                        DHPK_CMD_CWD+=("")
+                                    fi
+                                    _dhpk_ci_end=$((i + 3 + ${#_sp}))
+                                    return 0
+                                    ;;
+                            esac
+                        fi
+                        ;;
+                esac
             fi
-            _dhpk_ci_list "$text" $((i + 2)) subst
+            _dhpk_ci_exec_context $((1 - indq))
+            _dhpk_ci_list "" $((i + 2)) subst
             return 0
             ;;
         '{')
-            _dhpk_ci_scan "$text" $((i + 2)) param "$indq"
+            if [ "$_dhpk_ci_depth" -lt "$DHPK_CI_MAX_DEPTH" ]; then
+                _rest="${_p:$((_o + 2)):256}"
+                case "$_rest" in
+                    *'}'*)
+                        _sp="${_rest%%\}*}"
+                        case "$_sp" in
+                            *[\'\"\\$\`]*) ;;
+                            *)
+                                _dhpk_ci_end=$((i + 3 + ${#_sp}))
+                                return 0
+                                ;;
+                        esac
+                        ;;
+                esac
+            fi
+            _dhpk_ci_scan "" $((i + 2)) param "$indq"
             return 0
             ;;
         '[')
-            _dhpk_ci_brack "$text" $((i + 2))
+            _dhpk_ci_brack $((i + 2))
             return 0
             ;;
     esac
     return 1
 }
 
-# _dhpk_ci_scan <text> <index> <kind>
+# _dhpk_ci_scan <text-or-empty> <index> <kind> [<indq>]
 #   Finds the end of text that holds no commands of its own and inspects the
 #   substitutions inside it. Sets _dhpk_ci_end after the end.
-#   param: a ${...} body. '...', $'...' and "..." quote (bash 5.2 rules, in
-#          and out of double quotes); the first unquoted } ends it.
+#   param: a ${...} body (in enclosing paged text). '...', $'...' and "..."
+#          quote (bash 5.2 rules, in and out of double quotes); the first
+#          unquoted } ends it.
 #   pdq:   a "..." nested in a ${...}; ends after the closing quote.
-#   hbody: an unquoted-delimiter heredoc body; quotes are data.
+#   hbody: an unquoted-delimiter heredoc body ($1); quotes are data.
 _dhpk_ci_scan() {
     if [ "$_dhpk_ci_depth" -ge "$DHPK_CI_MAX_DEPTH" ]; then
         _dhpk_ci_unsupported "nesting too deep"
-        _dhpk_ci_end="${#1}"
+        if [ "$3" = "hbody" ]; then
+            _dhpk_ci_end="${#1}"
+        else
+            _dhpk_ci_end="$len"
+        fi
         return 0
     fi
     _dhpk_ci_depth=$((_dhpk_ci_depth + 1))
@@ -717,9 +811,20 @@ _dhpk_ci_scan() {
 }
 
 _dhpk_ci_scan_run() {
-    local text="$1" k="$2" kind="$3" indq="${4:-0}" n="${#1}" ch rest sq=0
-    while [ "$k" -lt "$n" ]; do
-        ch="${text:$k:1}"
+    local k="$2" kind="$3" indq="${4:-0}" ch rest sq=0 _pi=-1 _p="" _o scan_indq=1
+    [ "$kind" = "param" ] && scan_indq="$indq"
+    if [ "$kind" = "hbody" ]; then
+        local text="$1" len="${#1}"
+        local -a _dhpk_ci_pg
+        _dhpk_ci_make_pages
+    fi
+    while [ "$k" -lt "$len" ]; do
+        if [ $((k >> 8)) -ne "$_pi" ]; then
+            _pi=$((k >> 8))
+            _p="${_dhpk_ci_pg[$_pi]}"
+        fi
+        _o=$((k & 255))
+        ch="${_p:$_o:1}"
         if [ "$sq" -eq 1 ]; then
             # '...' in a double-quoted ${...}: it hides } and ", but bash
             # still runs the substitutions inside it. A backslash is literal
@@ -727,7 +832,7 @@ _dhpk_ci_scan_run() {
             case "$ch" in
                 "'") sq=0 ;;
                 '$'|'`')
-                    if _dhpk_ci_expand "$text" "$k" 1; then
+                    if _dhpk_ci_expand "$k" 1; then
                         k="$_dhpk_ci_end"
                         continue
                     fi
@@ -739,12 +844,12 @@ _dhpk_ci_scan_run() {
         case "$ch" in
             \\) k=$((k + 2)); continue ;;
             '$'|'`')
-                if [ "$kind" = "param" ] && [ "$indq" -eq 0 ] && [ "${text:$((k + 1)):1}" = "'" ]; then
-                    _dhpk_ci_ansi_end "$text" $((k + 2))
+                if [ "$kind" = "param" ] && [ "$indq" -eq 0 ] && [ "${_p:$((_o + 1)):1}" = "'" ]; then
+                    _dhpk_ci_ansi_end $((k + 2))
                     k=$((_dhpk_ci_ansi_close + 1))
                     continue
                 fi
-                if _dhpk_ci_expand "$text" "$k" 1; then
+                if _dhpk_ci_expand "$k" "$scan_indq"; then
                     k="$_dhpk_ci_end"
                     continue
                 fi
@@ -756,17 +861,23 @@ _dhpk_ci_scan_run() {
                     continue
                 fi
                 if [ "$kind" = "param" ]; then
-                    rest="${text:$((k + 1))}"
+                    rest="${_p:$((_o + 1)):256}"
                     case "$rest" in
                         *"'"*) rest="${rest%%\'*}"; k=$((k + 2 + ${#rest})) ;;
-                        *) k="$n" ;;
+                        *)
+                            rest="${text:$((k + 1))}"
+                            case "$rest" in
+                                *"'"*) rest="${rest%%\'*}"; k=$((k + 2 + ${#rest})) ;;
+                                *) k="$len" ;;
+                            esac
+                            ;;
                     esac
                     continue
                 fi
                 ;;
             '"')
                 if [ "$kind" = "param" ]; then
-                    _dhpk_ci_scan "$text" $((k + 1)) pdq
+                    _dhpk_ci_scan "" $((k + 1)) pdq
                     k="$_dhpk_ci_end"
                     continue
                 fi
@@ -784,50 +895,71 @@ _dhpk_ci_scan_run() {
         esac
         k=$((k + 1))
     done
-    _dhpk_ci_end="$n"
+    _dhpk_ci_end="$len"
 }
 
-# _dhpk_ci_hd_delim <text> <index>
-#   <index> is just after '<<' or '<<-'. Reads the delimiter word with quote
-#   removal into _dhpk_ci_hd_word, sets _dhpk_ci_hd_quoted to 1 when any part
-#   was quoted, and _dhpk_ci_end after the word.
+# _dhpk_ci_hd_delim <index>
+#   <index> is just after '<<' or '<<-' in the enclosing paged text. Reads the
+#   delimiter word with quote removal into _dhpk_ci_hd_word, sets
+#   _dhpk_ci_hd_quoted to 1 when any part was quoted, and _dhpk_ci_end after
+#   the word.
 _dhpk_ci_hd_delim() {
-    local text="$1" k="$2" n="${#1}" ch nx word="" quoted=0 rest
-    while [ "$k" -lt "$n" ]; do
-        case "${text:$k:1}" in
+    local k="$1" ch nx word="" quoted=0 rest _pi=-1 _p="" _o
+    while [ "$k" -lt "$len" ]; do
+        if [ $((k >> 8)) -ne "$_pi" ]; then
+            _pi=$((k >> 8))
+            _p="${_dhpk_ci_pg[$_pi]}"
+        fi
+        case "${_p:$((k & 255)):1}" in
             ' '|$'\t') k=$((k + 1)) ;;
             *) break ;;
         esac
     done
-    while [ "$k" -lt "$n" ]; do
-        ch="${text:$k:1}"
+    while [ "$k" -lt "$len" ]; do
+        if [ $((k >> 8)) -ne "$_pi" ]; then
+            _pi=$((k >> 8))
+            _p="${_dhpk_ci_pg[$_pi]}"
+        fi
+        _o=$((k & 255))
+        ch="${_p:$_o:1}"
         case "$ch" in
             ' '|$'\t'|$'\n'|';'|'&'|'|'|'<'|'>'|'('|')') break ;;
             "'")
                 quoted=1
-                rest="${text:$((k + 1))}"
+                rest="${_p:$((_o + 1)):256}"
                 case "$rest" in
-                    *"'"*) rest="${rest%%\'*}"; word="$word$rest"; k=$((k + 2 + ${#rest})) ;;
-                    *) word="$word$rest"; k="$n" ;;
+                    *"'"*) rest="${rest%%\'*}"; word+="$rest"; k=$((k + 2 + ${#rest})) ;;
+                    *)
+                        rest="${text:$((k + 1))}"
+                        case "$rest" in
+                            *"'"*) rest="${rest%%\'*}"; word+="$rest"; k=$((k + 2 + ${#rest})) ;;
+                            *) word+="$rest"; k="$len" ;;
+                        esac
+                        ;;
                 esac
                 continue
                 ;;
             '"')
                 quoted=1
                 k=$((k + 1))
-                while [ "$k" -lt "$n" ]; do
-                    ch="${text:$k:1}"
+                while [ "$k" -lt "$len" ]; do
+                    if [ $((k >> 8)) -ne "$_pi" ]; then
+                        _pi=$((k >> 8))
+                        _p="${_dhpk_ci_pg[$_pi]}"
+                    fi
+                    _o=$((k & 255))
+                    ch="${_p:$_o:1}"
                     [ "$ch" = '"' ] && break
                     if [ "$ch" = "\\" ]; then
-                        nx="${text:$((k + 1)):1}"
+                        nx="${_p:$((_o + 1)):1}"
                         case "$nx" in
-                            '$'|'`'|'"'|\\) word="$word$nx"; k=$((k + 2)); continue ;;
+                            '$'|'`'|'"'|\\) word+="$nx"; k=$((k + 2)); continue ;;
                         esac
                     fi
                     case "$ch" in
                         '$'|'`') _dhpk_ci_unsupported "expansion in a heredoc delimiter" ;;
                     esac
-                    word="$word$ch"
+                    word+="$ch"
                     k=$((k + 1))
                 done
                 k=$((k + 1))
@@ -835,23 +967,23 @@ _dhpk_ci_hd_delim() {
                 ;;
             \\)
                 quoted=1
-                nx="${text:$((k + 1)):1}"
+                nx="${_p:$((_o + 1)):1}"
                 [ "$nx" = $'\n' ] && _dhpk_ci_unsupported "line continuation in a heredoc delimiter"
-                word="$word$nx"
+                word+="$nx"
                 k=$((k + 2))
                 continue
                 ;;
             '`') _dhpk_ci_unsupported "expansion in a heredoc delimiter" ;;
             '$')
-                case "${text:$((k + 1)):1}" in
+                case "${_p:$((_o + 1)):1}" in
                     "'"|'"'|'('|'{') _dhpk_ci_unsupported "expansion in a heredoc delimiter" ;;
                 esac
                 ;;
         esac
-        word="$word$ch"
+        word+="$ch"
         k=$((k + 1))
     done
-    [ "$k" -le "$n" ] || k="$n"
+    [ "$k" -le "$len" ] || k="$len"
     if [ -z "$word" ] && [ "$quoted" -eq 0 ]; then
         _dhpk_ci_unsupported "heredoc without a delimiter"
     fi
@@ -860,17 +992,18 @@ _dhpk_ci_hd_delim() {
     _dhpk_ci_end="$k"
 }
 
-# _dhpk_ci_hd_bodies <text> <index>
-#   <index> is just after the newline that ends a line with pending heredocs.
-#   Consumes each body in order, up to its delimiter line (or the end of the
-#   text, as bash does). With an unquoted delimiter a line that ends in an odd
-#   number of backslashes joins the next line first. A body that
-#   _dhpk_ci_flush_command classified as data (cat or tee whose output does
-#   not run) is skipped, except the substitutions of an unquoted body. Any
-#   other body is inspected as its own command list. Sets _dhpk_ci_end.
+# _dhpk_ci_hd_bodies <index>
+#   <index> is just after the newline that ends a line with pending heredocs
+#   in the enclosing paged text. Consumes each body in order, up to its
+#   delimiter line (or the end of the text, as bash does). With an unquoted
+#   delimiter a line that ends in an odd number of backslashes joins the next
+#   line first. A body that _dhpk_ci_flush_command classified as data (cat or
+#   tee whose output does not run) is skipped, except the substitutions of an
+#   unquoted body. Any other body is inspected as its own command list. Sets
+#   _dhpk_ci_end.
 _dhpk_ci_hd_bodies() {
-    local text="$1" k="$2" n="${#1}" j=0 count="${#_dhpk_ci_hd_d[@]}"
-    local delim quoted strip isexec start lstart rest line logical bs body cont
+    local k="$1" j=0 count="${#_dhpk_ci_hd_d[@]}"
+    local delim quoted strip isexec start lstart rest line logical bs body cont chunk _p _o
     while [ "$j" -lt "$count" ]; do
         delim="${_dhpk_ci_hd_d[$j]}"
         quoted="${_dhpk_ci_hd_q[$j]}"
@@ -880,17 +1013,24 @@ _dhpk_ci_hd_bodies() {
         lstart="$k"
         logical=""
         cont=0
-        body="${text:$start}"
-        while [ "$k" -lt "$n" ]; do
+        body=""
+        while [ "$k" -lt "$len" ]; do
             [ "$cont" -eq 1 ] || lstart="$k"
             cont=0
-            rest="${text:$k}"
-            line="${rest%%$'\n'*}"
-            if [ "$line" = "$rest" ]; then
-                k="$n"
-            else
-                k=$((k + ${#line} + 1))
-            fi
+            line=""
+            while [ "$k" -lt "$len" ]; do
+                _p="${_dhpk_ci_pg[$((k >> 8))]}"
+                _o=$((k & 255))
+                rest="${_p:$_o}"
+                chunk="${rest%%$'\n'*}"
+                if [ "${#chunk}" -lt "${#rest}" ]; then
+                    line+="$chunk"
+                    k=$((k + ${#chunk} + 1))
+                    break
+                fi
+                line+="$rest"
+                k=$((k + ${#rest}))
+            done
             if [ "$strip" -eq 1 ]; then
                 while [ "${line:0:1}" = $'\t' ]; do line="${line:1}"; done
             fi
@@ -899,15 +1039,16 @@ _dhpk_ci_hd_bodies() {
                 while [ "$bs" -lt "${#line}" ] && [ "${line:$((${#line} - 1 - bs)):1}" = "\\" ]; do
                     bs=$((bs + 1))
                 done
-                if [ $((bs % 2)) -eq 1 ] && [ "$k" -lt "$n" ]; then
-                    logical="$logical${line%\\}"
+                if [ $((bs % 2)) -eq 1 ] && [ "$k" -lt "$len" ]; then
+                    logical+="${line%\\}"
                     cont=1
                     continue
                 fi
             fi
-            logical="$logical$line"
+            logical+="$line"
             if [ "$logical" = "$delim" ]; then
                 body="${text:$start:$((lstart - start))}"
+                lstart=-1
                 break
             fi
             if [ "$_dhpk_ci_kind" = "subst" ] && [ "${logical#"$delim")}" != "$logical" ]; then
@@ -915,8 +1056,9 @@ _dhpk_ci_hd_bodies() {
             fi
             logical=""
         done
+        [ "$lstart" -ge 0 ] && body="${text:$start:$((len - start))}"
         if [ "$isexec" = 1 ]; then
-            DHPK_STRIPPED="$DHPK_STRIPPED$body"
+            DHPK_STRIPPED+="$body"
             _dhpk_ci_list "$body" 0 body
         elif [ "$quoted" -eq 0 ]; then
             _dhpk_ci_scan "$body" 0 hbody
@@ -953,17 +1095,24 @@ _dhpk_ci_exec_context() {
     return 0
 }
 
-# _dhpk_ci_sub_word <text> <start> <end>
-#   Adds the raw text of a substitution that ended at <end> to the current
-#   word, segment and stripped text. A substitution that spans a newline
-#   while a heredoc is pending cannot be placed and is reported.
+# _dhpk_ci_sub_word <start> <end>
+#   Adds the raw text of a substitution that ended at <end> (from enclosing
+#   paged text) to the current word, segment and stripped text. A substitution
+#   that spans a newline while a heredoc is pending cannot be placed and is
+#   reported.
 _dhpk_ci_sub_word() {
-    local raw="${1:$2:$(($3 - $2))}"
-    _dhpk_ci_word="$_dhpk_ci_word$raw"
+    local _s="$1" _e="$2" _l raw
+    _l=$((_e - _s))
+    if [ "$_l" -le 257 ]; then
+        raw="${_dhpk_ci_pg[$((_s >> 8))]:$((_s & 255)):$_l}"
+    else
+        raw="${text:$_s:$_l}"
+    fi
+    _dhpk_ci_word+="$raw"
     _dhpk_ci_word_open=1
     _dhpk_ci_word_dyn=1
-    _dhpk_ci_seg="$_dhpk_ci_seg$raw"
-    DHPK_STRIPPED="$DHPK_STRIPPED$raw"
+    _dhpk_ci_seg+="$raw"
+    DHPK_STRIPPED+="$raw"
     if [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ]; then
         case "$raw" in
             *$'\n'*) _dhpk_ci_unsupported "substitution spans a pending heredoc" ;;
@@ -971,17 +1120,22 @@ _dhpk_ci_sub_word() {
     fi
 }
 
-# _dhpk_ci_list <text> <index> <kind>
+# _dhpk_ci_list <text-or-empty> <index> <kind>
 #   Inspects a command list. kind is top (the whole command), subst (the
-#   body of $(...) or <(...), ending at its unmatched ')'), or body (a
-#   heredoc script or backtick body, a separate text). Parser state is local,
-#   so a nested list starts clean and its cd or quotes cannot leak out.
-#   Only the top list writes DHPK_STRIPPED; a caller adds a nested list's raw
-#   text instead. Sets _dhpk_ci_end after the list.
+#   body of $(...) or <(...), ending at its unmatched ')'; reuses enclosing
+#   text/len/_dhpk_ci_pg), or body (a heredoc script or backtick body, a
+#   separate text). Parser state is local, so a nested list starts clean and
+#   its cd or quotes cannot leak out. Only the top list writes DHPK_STRIPPED;
+#   a caller adds a nested list's raw text instead. Sets _dhpk_ci_end after
+#   the list.
 _dhpk_ci_list() {
     if [ "$_dhpk_ci_depth" -ge "$DHPK_CI_MAX_DEPTH" ]; then
         _dhpk_ci_unsupported "nesting too deep"
-        _dhpk_ci_end="${#1}"
+        if [ "$3" = "subst" ]; then
+            _dhpk_ci_end="$len"
+        else
+            _dhpk_ci_end="${#1}"
+        fi
         return 0
     fi
     _dhpk_ci_depth=$((_dhpk_ci_depth + 1))
@@ -991,8 +1145,13 @@ _dhpk_ci_list() {
 }
 
 _dhpk_ci_list_run() {
-    local text="$1" i="$2" _dhpk_ci_kind="$3"
-    local len="${#1}" ch next matched
+    local i="$2" _dhpk_ci_kind="$3"
+    if [ "$_dhpk_ci_kind" != "subst" ]; then
+        local text="$1" len="${#1}"
+        local -a _dhpk_ci_pg
+        _dhpk_ci_make_pages
+    fi
+    local ch next matched _pi=-1 _p="" _o
     local _dhpk_ci_mode="normal" _dhpk_ci_word="" _dhpk_ci_word_dyn=0 _dhpk_ci_word_open=0 _dhpk_ci_redir=0
     local -a _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_quoted
     local _dhpk_ci_word_q=0
@@ -1020,15 +1179,20 @@ _dhpk_ci_list_run() {
     fi
 
     while [ "$i" -lt "$len" ]; do
-        ch="${text:$i:1}"
-        next="${text:$((i + 1)):1}"
+        if [ $((i >> 8)) -ne "$_pi" ]; then
+            _pi=$((i >> 8))
+            _p="${_dhpk_ci_pg[$_pi]}"
+        fi
+        _o=$((i & 255))
+        ch="${_p:$_o:1}"
+        next="${_p:$((_o + 1)):1}"
         if [ "$_dhpk_ci_mode" = "comment" ]; then
             if [ "$ch" = $'\n' ]; then
                 _dhpk_ci_flush_command compound
                 _dhpk_ci_mode="normal"
-                DHPK_STRIPPED="${DHPK_STRIPPED}"$'\n'
+                DHPK_STRIPPED+=$'\n'
                 if [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ]; then
-                    _dhpk_ci_hd_bodies "$text" $((i + 1))
+                    _dhpk_ci_hd_bodies $((i + 1))
                     i="$_dhpk_ci_end"
                     continue
                 fi
@@ -1037,12 +1201,12 @@ _dhpk_ci_list_run() {
             continue
         fi
         if [ "$_dhpk_ci_mode" = "single" ]; then
-            DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-            _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+            DHPK_STRIPPED+="$ch"
+            _dhpk_ci_seg+="$ch"
             if [ "$ch" = "'" ]; then
                 _dhpk_ci_mode="normal"
             else
-                _dhpk_ci_word="${_dhpk_ci_word}${ch}"
+                _dhpk_ci_word+="$ch"
                 _dhpk_ci_word_open=1
             fi
             i=$((i + 1))
@@ -1050,36 +1214,33 @@ _dhpk_ci_list_run() {
         fi
         if [ "$_dhpk_ci_mode" = "double" ]; then
             if [ "$ch" = "\\" ] && [ -n "$next" ]; then
-                DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-                _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                DHPK_STRIPPED+="$ch"
+                _dhpk_ci_seg+="$ch"
                 # Inside "...", backslash-newline is a line continuation and a
                 # backslash escapes only $, `, " and \; before anything else
                 # it stays part of the word.
                 case "$next" in
                     $'\n') ;;
-                    '$'|'`'|'"'|\\) _dhpk_ci_word="${_dhpk_ci_word}${next}" ;;
-                    *) _dhpk_ci_word="${_dhpk_ci_word}\\${next}" ;;
+                    '$'|'`'|'"'|\\) _dhpk_ci_word+="$next" ;;
+                    *) _dhpk_ci_word+="\\$next" ;;
                 esac
                 _dhpk_ci_word_open=1
-                DHPK_STRIPPED="${DHPK_STRIPPED}${next}"
-                _dhpk_ci_seg="${_dhpk_ci_seg}${next}"
+                DHPK_STRIPPED+="$next"
+                _dhpk_ci_seg+="$next"
                 i=$((i + 2))
                 continue
             fi
-            case "$ch" in
-                '$'|'`') _dhpk_ci_exec_context 0 ;;
-            esac
-            if _dhpk_ci_expand "$text" "$i" 1; then
-                _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+            if _dhpk_ci_expand "$i" 1; then
+                _dhpk_ci_sub_word "$i" "$_dhpk_ci_end"
                 i="$_dhpk_ci_end"
                 continue
             fi
-            DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-            _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+            DHPK_STRIPPED+="$ch"
+            _dhpk_ci_seg+="$ch"
             if [ "$ch" = '"' ]; then
                 _dhpk_ci_mode="normal"
             else
-                _dhpk_ci_word="${_dhpk_ci_word}${ch}"
+                _dhpk_ci_word+="$ch"
                 _dhpk_ci_word_open=1
                 case "$ch" in
                     '$'|'`') _dhpk_ci_word_dyn=1 ;;
@@ -1095,11 +1256,11 @@ _dhpk_ci_list_run() {
                     continue
                 fi
                 if [ -n "$next" ]; then
-                    _dhpk_ci_word="${_dhpk_ci_word}${next}"
+                    _dhpk_ci_word+="$next"
                     _dhpk_ci_word_open=1
                     _dhpk_ci_word_q=1
-                    DHPK_STRIPPED="${DHPK_STRIPPED}${next}"
-                    _dhpk_ci_seg="${_dhpk_ci_seg}${next}"
+                    DHPK_STRIPPED+="$next"
+                    _dhpk_ci_seg+="$next"
                     i=$((i + 2))
                     continue
                 fi
@@ -1108,8 +1269,8 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_mode="single"
                 _dhpk_ci_word_open=1
                 _dhpk_ci_word_q=1
-                DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-                _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                DHPK_STRIPPED+="$ch"
+                _dhpk_ci_seg+="$ch"
                 i=$((i + 1))
                 continue
                 ;;
@@ -1117,8 +1278,8 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_mode="double"
                 _dhpk_ci_word_open=1
                 _dhpk_ci_word_q=1
-                DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-                _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                DHPK_STRIPPED+="$ch"
+                _dhpk_ci_seg+="$ch"
                 i=$((i + 1))
                 continue
                 ;;
@@ -1134,24 +1295,24 @@ _dhpk_ci_list_run() {
                 ;;
             ' '|$'\t')
                 _dhpk_ci_flush_word
-                DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-                _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                DHPK_STRIPPED+="$ch"
+                _dhpk_ci_seg+="$ch"
                 i=$((i + 1))
                 continue
                 ;;
             $'\n')
                 _dhpk_ci_flush_command compound
-                DHPK_STRIPPED="${DHPK_STRIPPED}"$'\n'
+                DHPK_STRIPPED+=$'\n'
                 i=$((i + 1))
                 if [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ]; then
-                    _dhpk_ci_hd_bodies "$text" "$i"
+                    _dhpk_ci_hd_bodies "$i"
                     i="$_dhpk_ci_end"
                 fi
                 continue
                 ;;
             ';')
                 _dhpk_ci_flush_command compound
-                DHPK_STRIPPED="${DHPK_STRIPPED};"
+                DHPK_STRIPPED+=";"
                 i=$((i + 1))
                 continue
                 ;;
@@ -1159,8 +1320,8 @@ _dhpk_ci_list_run() {
                 # (( is arithmetic when it closes with )); otherwise each ( is
                 # a subshell. Both are operators, so a # after ( is a comment.
                 if [ "$next" = "(" ] && [ -z "$_dhpk_ci_word" ] && [ "$_dhpk_ci_word_open" -eq 0 ] \
-                    && _dhpk_ci_arith "$text" $((i + 2)); then
-                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                    && _dhpk_ci_arith $((i + 2)); then
+                    _dhpk_ci_sub_word "$i" "$_dhpk_ci_end"
                     i="$_dhpk_ci_end"
                     continue
                 fi
@@ -1169,7 +1330,7 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_state_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd_state"
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
                 _dhpk_ci_paren_empty=1
-                DHPK_STRIPPED="${DHPK_STRIPPED}("
+                DHPK_STRIPPED+="("
                 i=$((i + 1))
                 continue
                 ;;
@@ -1199,23 +1360,23 @@ _dhpk_ci_list_run() {
                     _dhpk_ci_cwd_state="unresolved"
                     _dhpk_ci_cwd=""
                 fi
-                DHPK_STRIPPED="${DHPK_STRIPPED})"
+                DHPK_STRIPPED+=")"
                 i=$((i + 1))
                 continue
                 ;;
             '>')
                 if [ "$next" = "(" ]; then
-                    _dhpk_ci_list "$text" $((i + 2)) subst
-                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                    _dhpk_ci_list "" $((i + 2)) subst
+                    _dhpk_ci_sub_word "$i" "$_dhpk_ci_end"
                     i="$_dhpk_ci_end"
                     continue
                 fi
                 _dhpk_ci_start_redirect
                 case "$next" in
-                    '>'|'|'|'&') ch="${ch}${next}" ;;
+                    '>'|'|'|'&') ch+="$next" ;;
                 esac
-                DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-                _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                DHPK_STRIPPED+="$ch"
+                _dhpk_ci_seg+="$ch"
                 i=$((i + ${#ch}))
                 continue
                 ;;
@@ -1223,35 +1384,40 @@ _dhpk_ci_list_run() {
                 case "$next" in
                     '>')
                         _dhpk_ci_start_redirect
-                        DHPK_STRIPPED="${DHPK_STRIPPED}<>"
-                        _dhpk_ci_seg="${_dhpk_ci_seg}<>"
+                        DHPK_STRIPPED+="<>"
+                        _dhpk_ci_seg+="<>"
                         i=$((i + 2))
                         continue
                         ;;
                     '(')
-                        _dhpk_ci_list "$text" $((i + 2)) subst
-                        _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                        _dhpk_ci_list "" $((i + 2)) subst
+                        _dhpk_ci_sub_word "$i" "$_dhpk_ci_end"
                         i="$_dhpk_ci_end"
                         continue
                         ;;
                     '<')
                         _dhpk_ci_start_redirect
-                        if [ "${text:$((i + 2)):1}" = "<" ]; then
+                        if [ "${_p:$((_o + 2)):1}" = "<" ]; then
                             # Here-string: the next word is stdin data.
                             _dhpk_ci_redir=2
                             ch="<<<"
                         else
                             _dhpk_ci_redir=0
                             ch="<<"
-                            [ "${text:$((i + 2)):1}" = "-" ] && ch="<<-"
-                            _dhpk_ci_hd_delim "$text" $((i + ${#ch}))
+                            [ "${_p:$((_o + 2)):1}" = "-" ] && ch="<<-"
+                            _dhpk_ci_hd_delim $((i + ${#ch}))
                             _dhpk_ci_hd_d+=("$_dhpk_ci_hd_word")
                             _dhpk_ci_hd_q+=("$_dhpk_ci_hd_quoted")
                             if [ "$ch" = "<<-" ]; then _dhpk_ci_hd_t+=(1); else _dhpk_ci_hd_t+=(0); fi
-                            ch="${text:$i:$((_dhpk_ci_end - i))}"
+                            local _hl=$((_dhpk_ci_end - i))
+                            if [ "$_hl" -le 257 ]; then
+                                ch="${_p:$_o:$_hl}"
+                            else
+                                ch="${text:$i:$_hl}"
+                            fi
                         fi
-                        DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-                        _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                        DHPK_STRIPPED+="$ch"
+                        _dhpk_ci_seg+="$ch"
                         i=$((i + ${#ch}))
                         continue
                         ;;
@@ -1261,19 +1427,19 @@ _dhpk_ci_list_run() {
                 if [ "$next" = ">" ]; then
                     _dhpk_ci_start_redirect
                     ch="&>"
-                    [ "${text:$((i + 2)):1}" = ">" ] && ch="&>>"
-                    DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-                    _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                    [ "${_p:$((_o + 2)):1}" = ">" ] && ch="&>>"
+                    DHPK_STRIPPED+="$ch"
+                    _dhpk_ci_seg+="$ch"
                     i=$((i + ${#ch}))
                     continue
                 fi
                 if [ "$next" = "&" ]; then
                     _dhpk_ci_flush_command and
-                    DHPK_STRIPPED="${DHPK_STRIPPED}&&"
+                    DHPK_STRIPPED+="&&"
                     i=$((i + 2))
                 else
                     _dhpk_ci_flush_command bg
-                    DHPK_STRIPPED="${DHPK_STRIPPED}&"
+                    DHPK_STRIPPED+="&"
                     i=$((i + 1))
                 fi
                 continue
@@ -1281,23 +1447,22 @@ _dhpk_ci_list_run() {
             '|')
                 if [ "$next" = "|" ]; then
                     _dhpk_ci_flush_command or
-                    DHPK_STRIPPED="${DHPK_STRIPPED}||"
+                    DHPK_STRIPPED+="||"
                     i=$((i + 2))
                 elif [ "$next" = "&" ]; then
                     _dhpk_ci_flush_command pipe
-                    DHPK_STRIPPED="${DHPK_STRIPPED}|&"
+                    DHPK_STRIPPED+="|&"
                     i=$((i + 2))
                 else
                     _dhpk_ci_flush_command pipe
-                    DHPK_STRIPPED="${DHPK_STRIPPED}|"
+                    DHPK_STRIPPED+="|"
                     i=$((i + 1))
                 fi
                 continue
                 ;;
             '$')
-                _dhpk_ci_exec_context 1
-                if _dhpk_ci_expand "$text" "$i" 0; then
-                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                if _dhpk_ci_expand "$i" 0; then
+                    _dhpk_ci_sub_word "$i" "$_dhpk_ci_end"
                     i="$_dhpk_ci_end"
                     continue
                 fi
@@ -1305,21 +1470,28 @@ _dhpk_ci_list_run() {
                 if [ "$next" = '$' ]; then
                     # $$ is the PID parameter: the second $ cannot start a
                     # $'...' string, so a following quote is an ordinary one.
-                    _dhpk_ci_word="${_dhpk_ci_word}\$\$"
+                    _dhpk_ci_word+="\$\$"
                     _dhpk_ci_word_open=1
-                    DHPK_STRIPPED="${DHPK_STRIPPED}\$\$"
-                    _dhpk_ci_seg="${_dhpk_ci_seg}\$\$"
+                    DHPK_STRIPPED+="\$\$"
+                    _dhpk_ci_seg+="\$\$"
                     i=$((i + 2))
                     continue
                 fi
                 if [ "$next" = "'" ]; then
-                    _dhpk_ci_ansi_end "$text" $((i + 2))
-                    _dhpk_ci_ansi_decode "${text:$((i + 2)):$((_dhpk_ci_ansi_close - i - 2))}"
-                    _dhpk_ci_word="${_dhpk_ci_word}${_dhpk_ci_ansi_out}"
+                    _dhpk_ci_ansi_end $((i + 2))
+                    local _al=$((_dhpk_ci_ansi_close - i - 2)) _araw
+                    if [ "$_al" -le 254 ]; then
+                        _dhpk_ci_ansi_decode "${_p:$((_o + 2)):$_al}"
+                        _araw="${_p:$_o:$((_al + 3))}"
+                    else
+                        _dhpk_ci_ansi_decode "${text:$((i + 2)):$_al}"
+                        _araw="${text:$i:$((_al + 3))}"
+                    fi
+                    _dhpk_ci_word+="$_dhpk_ci_ansi_out"
                     _dhpk_ci_word_open=1
                     _dhpk_ci_word_q=1
-                    DHPK_STRIPPED="${DHPK_STRIPPED}${text:$i:$((_dhpk_ci_ansi_close - i + 1))}"
-                    _dhpk_ci_seg="${_dhpk_ci_seg}${text:$i:$((_dhpk_ci_ansi_close - i + 1))}"
+                    DHPK_STRIPPED+="$_araw"
+                    _dhpk_ci_seg+="$_araw"
                     i=$((_dhpk_ci_ansi_close + 1))
                     continue
                 fi
@@ -1327,16 +1499,15 @@ _dhpk_ci_list_run() {
                     _dhpk_ci_mode="double"
                     _dhpk_ci_word_open=1
                     _dhpk_ci_word_q=1
-                    DHPK_STRIPPED="${DHPK_STRIPPED}\$${next}"
-                    _dhpk_ci_seg="${_dhpk_ci_seg}\$${next}"
+                    DHPK_STRIPPED+="\$${next}"
+                    _dhpk_ci_seg+="\$${next}"
                     i=$((i + 2))
                     continue
                 fi
                 ;;
             '`')
-                _dhpk_ci_exec_context 1
-                _dhpk_ci_expand "$text" "$i" 0
-                _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                _dhpk_ci_expand "$i" 0
+                _dhpk_ci_sub_word "$i" "$_dhpk_ci_end"
                 i="$_dhpk_ci_end"
                 continue
                 ;;
@@ -1346,10 +1517,10 @@ _dhpk_ci_list_run() {
                 fi
                 ;;
         esac
-        _dhpk_ci_word="${_dhpk_ci_word}${ch}"
+        _dhpk_ci_word+="$ch"
         _dhpk_ci_word_open=1
-        DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-        _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+        DHPK_STRIPPED+="$ch"
+        _dhpk_ci_seg+="$ch"
         i=$((i + 1))
     done
     _dhpk_ci_flush_command compound
@@ -1410,6 +1581,9 @@ _dhpk_ci_trivial_fill() {
 #   A command dhpk_command_is_trivial accepts skips the per-character scan;
 #   DHPK_INSPECT_FAST is 1 then and 0 when the full decoder ran.
 dhpk_inspect_command() {
+    # Byte indexing keeps ${#var} and ${var:i:n} O(1) instead of scanning UTF-8.
+    # shellcheck disable=SC2034
+    local LC_ALL=C
     local cmd="$1"
     local start="${2:-}"
     [ -n "$start" ] || start="$(pwd -P 2>/dev/null || pwd)"
