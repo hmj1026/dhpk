@@ -35,7 +35,7 @@ The dispatcher provides:
 2. **Change intent per file** — what changes, precisely enough to implement without inventing an interpretation.
 3. **Verification command** — the command that proves the change works (`npm test`, `pytest -x`, `php -l`, a specific test file, etc.).
 
-The spec also states the test budget: the tests for the changed behavior after each commit, the full suite at most once at the end, a long suite run in the background with a log and checked at most every 270 seconds, and one full suite at a time.
+The spec should also state the test budget: the scoped tests for the round, the stage owner, and the rerun conditions, as defined in `skills/flow-guide/references/implementation-dispatch.md` (§Dispatch size and fresh context). Without one, the budget defaults to the verification command only, and the full suite stays with the dispatcher.
 
 For a shared-checkout parallel dispatch, the spec must also provide:
 
