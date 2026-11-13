@@ -21,7 +21,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const childProcess = require('node:child_process');
 const compat = require('./python-compat');
-const { versionBoundaryMessage: nodeVersionBoundaryMessage, TREE_FINGERPRINT_ALGORITHM } = require('../content-fingerprint');
+const {
+  versionBoundaryMessage: nodeVersionBoundaryMessage,
+  TREE_FINGERPRINT_ALGORITHM,
+  isBytecodeName,
+  fileLeafDigest,
+  linkLeafDigest,
+  directoryDigest,
+} = require('../content-fingerprint');
 
 const {
   ValueError,
@@ -68,6 +75,31 @@ const portableSkillMetadata = require('../portable-skill-metadata');
 const O_NOFOLLOW = fs.constants.O_NOFOLLOW || 0;
 const O_NONBLOCK = fs.constants.O_NONBLOCK || 0;
 const O_DIRECTORY = fs.constants.O_DIRECTORY || 0;
+
+// One row per Host: the shell entry's DHPK_* shape (read by codex-cli.js) and
+// the Host-specific names the installer itself needs.
+const HOSTS = Object.freeze({
+  codex: Object.freeze({
+    srcRel: 'codex',
+    destRel: '.codex',
+    sourceKinds: 'skills,agents',
+    installerName: 'install-codex-skills',
+    surfaceLabel: 'Codex',
+    sharedProjectionHost: 'codex',
+    declaredProjectionHostKey: 'codex-sync',
+    consumerEvidenceEnvKey: 'DHPK_CODEX_CONSUMER_EVIDENCE',
+  }),
+  cursor: Object.freeze({
+    srcRel: 'cursor',
+    destRel: '.cursor',
+    sourceKinds: 'skills,agents,rules,commands',
+    installerName: 'install-cursor-harness',
+    surfaceLabel: 'Cursor',
+    sharedProjectionHost: 'cursor',
+    declaredProjectionHostKey: 'cursor',
+    consumerEvidenceEnvKey: 'DHPK_CURSOR_CONSUMER_EVIDENCE',
+  }),
+});
 
 const SCHEMA_VERSION = 3;
 const BACKUP_DIR = '.dhpk-backups';
@@ -148,13 +180,14 @@ function createInstaller(env, io) {
   const INSTALLER_ROOT = env.DHPK_INSTALLER_ROOT || PLUGIN_ROOT;
   const PROJECT_ROOT = env.DHPK_PROJECT_ROOT;
   const HARNESS_KIND = env.DHPK_HARNESS_KIND || 'codex';
-  const SURFACE_LABEL = HARNESS_KIND === 'cursor' ? 'Cursor' : 'Codex';
+  // An unknown kind has no row: Codex wording, and no shared projection.
+  const HOST = Object.prototype.hasOwnProperty.call(HOSTS, HARNESS_KIND) ? HOSTS[HARNESS_KIND] : null;
+  const SURFACE_LABEL = HOST ? HOST.surfaceLabel : 'Codex';
   const SRC_REL = env.DHPK_SRC_REL || 'codex';
   const DEST_REL = env.DHPK_DEST_REL || '.codex';
   const SOURCE_KINDS = Object.freeze(String(env.DHPK_SOURCE_KINDS || 'skills,agents').split(',').map((kind) => kind.trim()).filter(Boolean));
   const MANAGED_KINDS = Object.freeze([...SOURCE_KINDS, 'supporting_assets']);
   const INSTALLER_NAME = env.DHPK_INSTALLER_NAME || 'install-codex-skills';
-  const HOSTS_INSTALLER = { codex: 'install-codex-skills', cursor: 'install-cursor-harness' };
   const INSTALLER_SCRIPT = `scripts/hooks/${INSTALLER_NAME}.sh`;
   const CODEX_SRC = path.join(PLUGIN_ROOT, SRC_REL);
   const CODEX_ROOT = path.join(PROJECT_ROOT, DEST_REL);
@@ -631,10 +664,6 @@ function createInstaller(env, io) {
   // ---------------------------------------------------------------------
   // Tree fingerprints (tree-merkle-v1)
 
-  function treeIsBytecode(name) {
-    return name === '__pycache__' || name.endsWith('.pyc');
-  }
-
   function treeFileDigest(target) {
     const digest = crypto.createHash('sha256').update('file\0');
     const descriptor = fs.openSync(target, fs.constants.O_RDONLY | O_NOFOLLOW);
@@ -650,20 +679,9 @@ function createInstaller(env, io) {
     return digest.digest('hex');
   }
 
-  function treeLinkDigest(target) {
-    return crypto.createHash('sha256').update(Buffer.concat([Buffer.from('link\0'), Buffer.from(target, 'utf8')])).digest('hex');
-  }
-
+  // The tree-merkle-v1 leaf and directory recipes live in content-fingerprint.
   function treeDirectoryDigest(children) {
-    const digest = crypto.createHash('sha256').update('directory\0');
-    // sorted(key=utf-16-be) is the JS default code-unit order.
-    for (const name of Object.keys(children).sort()) {
-      digest.update(Buffer.from(name, 'utf8'));
-      digest.update('\0');
-      digest.update(Buffer.from(children[name], 'ascii'));
-      digest.update('\0');
-    }
-    return digest.digest('hex');
+    return directoryDigest(Object.keys(children), (name) => children[name]);
   }
 
   function treeRefuseLink(relative) {
@@ -680,7 +698,7 @@ function createInstaller(env, io) {
     const stat = fs.lstatSync(target);
     if (stat.isSymbolicLink()) {
       if (!recordLinks) treeRefuseLink(relative);
-      return treeLinkDigest(fs.readlinkSync(target));
+      return linkLeafDigest(fs.readlinkSync(target));
     }
     if (stat.isFile()) return treeFileDigest(target);
     if (!stat.isDirectory()) treeRefuseSpecial(relative);
@@ -690,7 +708,7 @@ function createInstaller(env, io) {
   function treeChildrenFd(directory, relative, recordLinks, skipBytecode, isRoot) {
     const children = {};
     for (const name of fs.readdirSync(directory)) {
-      if (skipBytecode && treeIsBytecode(name)) continue;
+      if (skipBytecode && isBytecodeName(name)) continue;
       const childRelative = relative ? `${relative}/${name}` : name;
       const digest = treeNodeFd(directory, name, childRelative, recordLinks, skipBytecode, false);
       if (digest !== null) children[name] = digest;
@@ -711,7 +729,7 @@ function createInstaller(env, io) {
   function treeNodePath(target, relative, symlinks, skipBytecode, isRoot, ancestors = []) {
     let current = target;
     if (isLink(current)) {
-      if (symlinks === 'record') return treeLinkDigest(fs.readlinkSync(current));
+      if (symlinks === 'record') return linkLeafDigest(fs.readlinkSync(current));
       if (symlinks !== 'follow') treeRefuseLink(relative);
       current = realpath(current);
       if (!pathExists(current)) {
@@ -720,9 +738,7 @@ function createInstaller(env, io) {
       }
     }
     if (isFileFollow(current)) {
-      const digest = crypto.createHash('sha256').update('file\0');
-      digest.update(fs.readFileSync(current));
-      return digest.digest('hex');
+      return fileLeafDigest(fs.readFileSync(current));
     }
     if (!isDirFollow(current)) treeRefuseSpecial(relative);
     const realDirectory = realpath(current);
@@ -730,7 +746,7 @@ function createInstaller(env, io) {
     const nextAncestors = [...ancestors, realDirectory];
     const children = {};
     for (const name of fs.readdirSync(current)) {
-      if (skipBytecode && treeIsBytecode(name)) continue;
+      if (skipBytecode && isBytecodeName(name)) continue;
       const childRelative = relative ? `${relative}/${name}` : name;
       const digest = treeNodePath(path.join(current, name), childRelative, symlinks, skipBytecode, false, nextAncestors);
       if (digest !== null) children[name] = digest;
@@ -757,10 +773,6 @@ function createInstaller(env, io) {
     return TREE_FINGERPRINT_ALGORITHM;
   }
 
-  function isIgnoredDistributionName(name) {
-    return name === '__pycache__' || name.endsWith('.pyc');
-  }
-
   function safeInventoryRelative(relative, label) {
     if (!isStr(relative) || !relative || relative.includes('\x00') || relative.includes('\\')) throw new ValueError(`${label} is not a valid relative path`);
     const normalized = normpath(relative);
@@ -783,17 +795,56 @@ function createInstaller(env, io) {
     return pyJsonLoads(fs.readFileSync(file, 'utf8'));
   }
 
+  // One run's view of the distribution inventory. A run (a plan, or an apply)
+  // creates it once and passes it down as a parameter, so the file is read and
+  // parsed once per run. Nothing is cached across runs, so a fixture that
+  // rewrites the inventory between two runs in one process sees the new value.
+  // `document()` returns the shared parsed document (never mutate it) or throws
+  // the parse failure each caller words in its own message.
+  function createInventoryContext() {
+    const file = inventoryPath();
+    let loaded = null;
+    const load = () => {
+      if (loaded !== null) return loaded;
+      if (!isFileFollow(file)) {
+        loaded = { exists: false, document: null, error: null };
+        return loaded;
+      }
+      try {
+        loaded = { exists: true, document: loadJsonFile(file), error: null };
+      } catch (error) {
+        rethrowExit(error);
+        loaded = { exists: true, document: null, error };
+      }
+      return loaded;
+    };
+    return {
+      exists: () => load().exists,
+      document: () => {
+        const state = load();
+        if (state.error !== null) throw state.error;
+        return state.document;
+      },
+      skillMetadata: null,
+    };
+  }
+
   // Current public skill names with stable identity metadata; a missing or
   // malformed inventory is an empty map, validated before materialization.
-  function inventorySkillMetadata() {
-    const file = inventoryPath();
-    if (!isFileFollow(file)) return {};
+  // The map and its records are shared for the run and frozen: a caller that
+  // needs to change one takes a copy.
+  function inventorySkillMetadata(context) {
+    if (context.skillMetadata === null) context.skillMetadata = buildInventorySkillMetadata(context);
+    return context.skillMetadata;
+  }
+
+  function buildInventorySkillMetadata(context) {
+    if (!context.exists()) return Object.freeze({});
     let inventory;
     try {
-      inventory = loadJsonFile(file);
+      inventory = context.document();
     } catch (error) {
-      rethrowExit(error);
-      return {};
+      return Object.freeze({});
     }
     const result = {};
     const skills = isDict(inventory) ? inventory.skills : null;
@@ -802,29 +853,27 @@ function createInstaller(env, io) {
       const name = skill.name;
       if (!isStr(name) || !name) continue;
       const strings = (values) => (Array.isArray(values) ? values : []).filter((value) => isStr(value));
-      result[name] = {
+      result[name] = Object.freeze({
         id: skill.id === undefined ? null : skill.id,
         name,
         path: skill.path === undefined ? null : skill.path,
-        legacy_names: (Array.isArray(skill.legacy_names) ? skill.legacy_names : []).filter((legacy) => isStr(legacy) && legacy),
+        legacy_names: Object.freeze((Array.isArray(skill.legacy_names) ? skill.legacy_names : []).filter((legacy) => isStr(legacy) && legacy)),
         lifecycle: skill.lifecycle === undefined ? null : skill.lifecycle,
         tier: skill.tier === undefined ? null : skill.tier,
         invokable: skill.invokable === undefined ? null : skill.invokable,
-        profiles: strings(skill.profiles),
-        surfaces: strings(skill.surfaces),
-      };
+        profiles: Object.freeze(strings(skill.profiles)),
+        surfaces: Object.freeze(strings(skill.surfaces)),
+      });
     }
-    return result;
+    return Object.freeze(result);
   }
 
-  function readInventoryDocument() {
-    const file = inventoryPath();
-    if (!isFileFollow(file)) return null;
+  function readInventoryDocument(context) {
+    if (!context.exists()) return null;
     let inventory;
     try {
-      inventory = loadJsonFile(file);
+      inventory = context.document();
     } catch (error) {
-      rethrowExit(error);
       throw new ValueError(`cannot read distribution inventory for capability selection: ${errorText(error)}`);
     }
     if (!isDict(inventory)) throw new ValueError('distribution inventory must be an object for capability selection');
@@ -906,13 +955,13 @@ function createInstaller(env, io) {
   }
 
   // Resolve the common collection and additive overlays before mutation.
-  function resolveInstallerSelection(receipt, metadata) {
+  function resolveInstallerSelection(context, receipt, metadata) {
     if (UNINSTALL && isDict(receipt) && receipt.profileId !== 'common') {
       // Uninstall acts only on receipt-owned destinations.
       assignReceiptSelection(receipt);
       return;
     }
-    const inventory = readInventoryDocument();
+    const inventory = readInventoryDocument(context);
     const [profilesDocument, profiles] = readInstallProfiles();
     if (inventory === null || profiles === null) {
       if (REQUESTED_SKILL_IDS.length) throw new ValueError('skill selection requires distribution inventory and install profiles');
@@ -1018,21 +1067,15 @@ function createInstaller(env, io) {
   }
 
   function sharedProjectionHost() {
-    if (HARNESS_KIND === 'cursor') return 'cursor';
-    if (HARNESS_KIND === 'codex') return 'codex';
-    return null;
+    return HOST ? HOST.sharedProjectionHost : null;
   }
 
   function declaredProjectionHostKey() {
-    if (HARNESS_KIND === 'cursor') return 'cursor';
-    if (HARNESS_KIND === 'codex') return 'codex-sync';
-    return null;
+    return HOST ? HOST.declaredProjectionHostKey : null;
   }
 
   function consumerEvidenceEnvKey() {
-    if (HARNESS_KIND === 'cursor') return 'DHPK_CURSOR_CONSUMER_EVIDENCE';
-    if (HARNESS_KIND === 'codex') return 'DHPK_CODEX_CONSUMER_EVIDENCE';
-    return null;
+    return HOST ? HOST.consumerEvidenceEnvKey : null;
   }
 
   function readProfileProjectionSets() {
@@ -1206,16 +1249,11 @@ function createInstaller(env, io) {
   // ---------------------------------------------------------------------
   // Sources and fingerprints
 
-  function sourceFingerprintFor(source) {
-    return fingerprintSource(source);
-  }
-
-  function inventorySupportingSources() {
-    const file = inventoryPath();
+  function inventorySupportingSources(context) {
     let assets = null;
-    if (isFileFollow(file)) {
+    if (context.exists()) {
       try {
-        const document = loadJsonFile(file);
+        const document = context.document();
         assets = isDict(document) ? document.supporting_assets : undefined;
         if (!isDict(document)) throw new ValueError(`'${Array.isArray(document) ? 'list' : typeof document}' object has no attribute 'get'`);
       } catch (error) {
@@ -1250,10 +1288,10 @@ function createInstaller(env, io) {
     return isDict(record) ? (record.id === undefined ? null : record.id) : null;
   }
 
-  function sourceFingerprint() {
+  function sourceFingerprint(context) {
     const digest = crypto.createHash('sha256');
     const update = (text) => digest.update(Buffer.from(text, 'utf8'));
-    const metadata = inventorySkillMetadata();
+    const metadata = inventorySkillMetadata(context);
     const available = new Set([...(SELECTION_EMITTED_IDS || []), ...(SELECTION_RUNTIME_IDS || [])]);
     const runtimeIds = nativeRuntimeSkillIds();
     for (const rootName of SOURCE_KINDS) {
@@ -1261,7 +1299,7 @@ function createInstaller(env, io) {
       const root = path.join(CODEX_SRC, rootName);
       if (!isDirFollow(root)) continue;
       for (const name of pySorted(fs.readdirSync(root))) {
-        if (isIgnoredDistributionName(name)) continue;
+        if (isBytecodeName(name)) continue;
         if (rootName === 'skills' && skipNativeSkillKind(rootName)) {
           if (!runtimeIds.has(stableIdOf(metadata, name))) continue;
         } else if (rootName === 'skills' && SELECTION_EMITTED_IDS !== null) {
@@ -1276,7 +1314,7 @@ function createInstaller(env, io) {
         update('\0');
       }
     }
-    const supporting = inventorySupportingSources();
+    const supporting = inventorySupportingSources(context);
     for (const relative of pySorted(Object.keys(supporting))) {
       const [source, destination] = supporting[relative];
       validateSourceTree(source, 'supporting asset source');
@@ -1321,14 +1359,12 @@ function createInstaller(env, io) {
 
   // Inventory-owned retirement rows keyed by every stable identity. Evidence
   // only: they annotate reconciliation reports, never materializable sources.
-  function inventoryRetirementMetadata(activeMetadata = null) {
-    const file = inventoryPath();
-    if (!isFileFollow(file)) return {};
+  function inventoryRetirementMetadata(context, activeMetadata = null) {
+    if (!context.exists()) return {};
     let inventory;
     try {
-      inventory = loadJsonFile(file);
+      inventory = context.document();
     } catch (error) {
-      rethrowExit(error);
       throw new ValueError(`cannot read distribution inventory for retirement metadata: ${errorText(error)}`);
     }
     if (!isDict(inventory) || !Object.prototype.hasOwnProperty.call(inventory, 'retired_skills')) return {};
@@ -1642,11 +1678,11 @@ function createInstaller(env, io) {
         const full = path.join(directory, name);
         const stat = lstatOrNull(full);
         if (stat && stat.isDirectory()) {
-          if (!isIgnoredDistributionName(name)) directories.push(full);
+          if (!isBytecodeName(name)) directories.push(full);
         } else if (stat && stat.isSymbolicLink() && isDirFollow(full)) {
           // os.walk lists a directory symlink as a directory and does not descend.
         } else {
-          if (isIgnoredDistributionName(name)) continue;
+          if (isBytecodeName(name)) continue;
           if (isFileFollow(full)) read(full);
         }
       }
@@ -1675,11 +1711,11 @@ function createInstaller(env, io) {
     EXCLUDED_SOURCE_ENTRIES.push({ kind, name, reason: 'unmet-skill-dependency', missing: missing.slice() });
   }
 
-  function currentSources() {
+  function currentSources(context) {
     EXCLUDED_SOURCE_ENTRIES.length = 0;
     const result = {};
     for (const kind of MANAGED_KINDS) result[kind] = {};
-    const metadata = inventorySkillMetadata();
+    const metadata = inventorySkillMetadata(context);
     const available = new Set([...(SELECTION_EMITTED_IDS || []), ...(SELECTION_RUNTIME_IDS || [])]);
     const tokens = inventorySkillTokenMap(metadata);
     const runtimeIds = nativeRuntimeSkillIds();
@@ -1688,7 +1724,7 @@ function createInstaller(env, io) {
       const root = path.join(CODEX_SRC, kind);
       if (!isDirFollow(root)) continue;
       for (const name of pySorted(fs.readdirSync(root))) {
-        if (isIgnoredDistributionName(name)) continue;
+        if (isBytecodeName(name)) continue;
         if (kind === 'skills' && skipNativeSkillKind(kind)) {
           if (!runtimeIds.has(stableIdOf(metadata, name))) continue;
         } else if (kind === 'skills' && SELECTION_EMITTED_IDS !== null) {
@@ -1704,7 +1740,7 @@ function createInstaller(env, io) {
         result[kind][name] = [source, `${kind}/${name}`];
       }
     }
-    Object.assign(result.supporting_assets, inventorySupportingSources());
+    Object.assign(result.supporting_assets, inventorySupportingSources(context));
     return result;
   }
 
@@ -1721,7 +1757,7 @@ function createInstaller(env, io) {
   }
 
   function makeEntry(source, relative, destination, metadata = null) {
-    const sourceFp = sourceFingerprintFor(source, relative);
+    const sourceFp = fingerprintSource(source);
     const mode = effectiveMaterializationMode(relative);
     const destinationFp = mode === 'symlink' ? followedDestinationFingerprint(destination) : fingerprintDestination(destination);
     const entry = {
@@ -1766,7 +1802,10 @@ function createInstaller(env, io) {
     return !isLink(destination) && (isFileFollow(destination) || isDirFollow(destination)) && !containsSymlink(destination);
   }
 
-  function isOwned(entry, destination) {
+  // `knownFingerprint`: the complete-view fingerprint of `destination`. The
+  // caller must compute it in the same step, immediately before this call; never
+  // pass a value carried across steps or taken from a plan object. Omit it to re-hash.
+  function isOwned(entry, destination, knownFingerprint = null) {
     if (!isDict(entry) || pyTruthy(entry.orphaned) || !lexists(destination)) return false;
     const mode = entry.mode;
     const relative = entry.source || entry.destination;
@@ -1783,7 +1822,7 @@ function createInstaller(env, io) {
     if (!isStr(recorded) || !recorded) return false;
     // Ownership always uses complete integrity, so an ignored bytecode edit
     // cannot pass as an owned, unchanged target.
-    return fingerprintDestination(destination) === recorded;
+    return (knownFingerprint === null ? fingerprintDestination(destination) : knownFingerprint) === recorded;
   }
 
   // The receipt fingerprint that guards copy-mode deletion.
@@ -1793,15 +1832,20 @@ function createInstaller(env, io) {
     return isStr(value) && value.length === 64 ? value : null;
   }
 
-  function exactSourceMatch(source, destination, relative, oldEntry = null) {
+  // `known`: { source, destination } fingerprints of this pair. The caller must
+  // compute them in the same step, immediately before this call; never pass
+  // values carried across steps or taken from a plan object. Omit it to re-hash.
+  function exactSourceMatch(source, destination, relative, oldEntry = null, known = null) {
     if (!lexists(destination)) return false;
     if (isLink(destination)) return realpath(destination) === realpath(source);
+    const currentSource = () => (known === null ? fingerprintSource(source) : known.source);
+    const currentDestination = () => (known === null ? fingerprintDestination(destination) : known.destination);
     if (relative.startsWith('skills/') && isDict(oldEntry) && oldEntry.metadata_projection === 'portable-skill-metadata.v1') {
       const sourceFp = oldEntry.source_fingerprint;
       const destinationFp = oldEntry.destination_fingerprint || oldEntry.fingerprint;
-      return sourceFp === fingerprintSource(source) && destinationFp === fingerprintDestination(destination);
+      return sourceFp === currentSource() && destinationFp === currentDestination();
     }
-    return fingerprintSource(source) === fingerprintDestination(destination);
+    return currentSource() === currentDestination();
   }
 
   // An installer source: distributable view, links followed.
@@ -1861,7 +1905,7 @@ function createInstaller(env, io) {
       for (const name of names) {
         const full = path.join(current, name);
         const stat = lstatOrNull(full);
-        if (stat && stat.isDirectory() && !isIgnoredDistributionName(name)) directories.push(name);
+        if (stat && stat.isDirectory() && !isBytecodeName(name)) directories.push(name);
       }
       if (names.includes('SKILL.md')) {
         const candidate = path.join(current, 'SKILL.md');
@@ -1893,7 +1937,7 @@ function createInstaller(env, io) {
     const stat = fs.statSync(source);
     fs.mkdirSync(destination, { mode: 0o777 });
     for (const name of fs.readdirSync(source)) {
-      if (isIgnoredDistributionName(name)) continue;
+      if (isBytecodeName(name)) continue;
       const from = path.join(source, name);
       const to = path.join(destination, name);
       if (isDirFollow(from)) copyTreeFollow(from, to);
@@ -1970,8 +2014,8 @@ function createInstaller(env, io) {
     return { bindingShape: shape, reason };
   }
 
-  function declaredSkillPublicNames() {
-    const metadata = inventorySkillMetadata();
+  function declaredSkillPublicNames(context) {
+    const metadata = inventorySkillMetadata(context);
     const byId = {};
     for (const [name, record] of Object.entries(metadata)) {
       if (!isDict(record)) continue;
@@ -1991,8 +2035,8 @@ function createInstaller(env, io) {
     return names;
   }
 
-  function pluginSkillSourcePath(name) {
-    const record = inventorySkillMetadata()[name] || {};
+  function pluginSkillSourcePath(context, name) {
+    const record = inventorySkillMetadata(context)[name] || {};
     let relative = record.path;
     if (!isStr(relative) || !relative) relative = `skills/${name}`;
     return path.join(PLUGIN_ROOT, ...relative.split('/'));
@@ -2015,12 +2059,12 @@ function createInstaller(env, io) {
   }
 
   // Leftover native declared-skill destinations, classified before Host Bindings.
-  function classifyLegacyNativeDeclaredSkills() {
+  function classifyLegacyNativeDeclaredSkills(context) {
     if (!sharedProjectionRelocatable()) return [];
     const runtimeIds = nativeRuntimeSkillIds();
-    const metadata = inventorySkillMetadata();
+    const metadata = inventorySkillMetadata(context);
     const rows = [];
-    for (const name of declaredSkillPublicNames()) {
+    for (const name of declaredSkillPublicNames(context)) {
       const record = metadata[name];
       const stableId = isDict(record) ? (record.id === undefined ? null : record.id) : null;
       if (runtimeIds.has(stableId)) continue;
@@ -2035,14 +2079,14 @@ function createInstaller(env, io) {
       if (!lexists(destination)) continue;
       const expected = `../../.agents/skills/${name}`;
       if (isLink(destination) && fs.readlinkSync(destination) === expected) continue;
-      const source = pluginSkillSourcePath(name);
-      const sourceFp = lexists(source) ? sourceFingerprintFor(source, destRel) : '';
+      const source = pluginSkillSourcePath(context, name);
+      const sourceFp = lexists(source) ? fingerprintSource(source) : '';
       const destFp = safeDestinationFingerprint(destination);
       const old = nativeSkillReceiptEntry(name);
       let handling;
       let reason;
       let action;
-      if (isDict(old) && isOwned(old, destination)) {
+      if (isDict(old) && isOwned(old, destination, destFp)) {
         handling = 'migrate';
         reason = 'unchanged-receipt-owned-native-copy';
         action = '--update';
@@ -2060,10 +2104,10 @@ function createInstaller(env, io) {
     return rows;
   }
 
-  function selectedSharedProjectionIds(adopted = null) {
+  function selectedSharedProjectionIds(context, adopted = null) {
     const adoptedPaths = adopted || {};
     const skip = new Set();
-    for (const item of classifyLegacyNativeDeclaredSkills()) {
+    for (const item of classifyLegacyNativeDeclaredSkills(context)) {
       if (!['keep-modified', 'unowned'].includes(item.handling)) continue;
       if (Object.prototype.hasOwnProperty.call(adoptedPaths, item.path)) continue;
       if (isStr(item.stableId) && item.stableId) skip.add(item.stableId);
@@ -2071,7 +2115,7 @@ function createInstaller(env, io) {
     return (SELECTION_EMITTED_IDS || []).filter((stableId) => !skip.has(stableId));
   }
 
-  function receiptOwnedNativeDeclaredDestsBlockSharedProjection() {
+  function receiptOwnedNativeDeclaredDestsBlockSharedProjection(context) {
     if (UPDATE || UNINSTALL) return false;
     let skills = {};
     if (isDict(RUN_RECEIPT)) {
@@ -2080,8 +2124,8 @@ function createInstaller(env, io) {
     }
     if (Object.keys(skills).length === 0) return false;
     const runtimeIds = nativeRuntimeSkillIds();
-    const metadata = inventorySkillMetadata();
-    const blocking = new Set(declaredSkillPublicNames());
+    const metadata = inventorySkillMetadata(context);
+    const blocking = new Set(declaredSkillPublicNames(context));
     for (const [name, old] of Object.entries(skills)) {
       if (!blocking.has(name)) continue;
       const record = metadata[name];
@@ -2116,7 +2160,7 @@ function createInstaller(env, io) {
   }
 
   // A relative-path-only reconciliation report; writes nothing.
-  function buildPlan(receipt, classification, sources, metadata, pluginVersion, fingerprint, retirements = null) {
+  function buildPlan(context, receipt, classification, sources, metadata, pluginVersion, fingerprint, retirements = null) {
     const entries = entryMap(receipt);
     const classificationReasons = (classification.reasons || []).filter((reason) => isStr(reason));
     const collisions = [];
@@ -2134,18 +2178,18 @@ function createInstaller(env, io) {
           continue;
         }
         const old = Object.prototype.hasOwnProperty.call(entries[kind], name) ? entries[kind][name] : null;
-        const sourceFp = sourceFingerprintFor(source, relative);
+        const sourceFp = fingerprintSource(source);
         if (!lexists(destination)) {
           missing.push({ path: relative, kind, name, source_fingerprint: sourceFp });
           continue;
         }
         const destinationFp = safeDestinationFingerprint(destination);
-        if (!isOwned(old, destination)) {
+        if (!isOwned(old, destination, destinationFp)) {
           const ownership = isDict(old) && pyTruthy(old.orphaned) ? 'orphaned' : 'unowned-collision';
           collisions.push({ path: relative, kind, name, ownership, source_fingerprint: sourceFp, destination_fingerprint: destinationFp, action: `--adopt=${relative}@${destinationFp}@${sourceFp}` });
           continue;
         }
-        if (old.mode !== effectiveMaterializationMode(relative) || !exactSourceMatch(source, destination, relative, old)) {
+        if (old.mode !== effectiveMaterializationMode(relative) || !exactSourceMatch(source, destination, relative, old, { source: sourceFp, destination: destinationFp })) {
           updates.push({ path: relative, kind, name, ownership: 'dhpk-managed', source_fingerprint: sourceFp, destination_fingerprint: destinationFp, action: '--update' });
         }
       }
@@ -2193,7 +2237,7 @@ function createInstaller(env, io) {
         if (lexists(destination)) {
           observedDestination = safeDestinationFingerprint(destination);
           destinationFingerprint = observedDestination;
-          if (isOwned(old, destination)) {
+          if (isOwned(old, destination, observedDestination)) {
             ownership = 'receipt-entry';
             reason = 'unchanged-receipt-owned';
           } else if (isDict(old) && pyTruthy(old.orphaned)) {
@@ -2226,7 +2270,7 @@ function createInstaller(env, io) {
         retired.push(item);
       }
     }
-    const legacyNativeSkills = classifyLegacyNativeDeclaredSkills();
+    const legacyNativeSkills = classifyLegacyNativeDeclaredSkills(context);
     const collisionPaths = new Set(collisions.map((item) => item.path));
     for (const item of legacyNativeSkills) {
       if (item.handling !== 'keep-modified' || collisionPaths.has(item.path)) continue;
@@ -3002,7 +3046,7 @@ function createInstaller(env, io) {
     // Hosts share one journal, so this run may have settled another Host's
     // transaction. Say so; a same-Host recovery stays as quiet as before.
     if (isStr(document.host) && document.host !== HARNESS_KIND) {
-      const installer = HOSTS_INSTALLER[document.host] || `the ${document.host} installer`;
+      const installer = (Object.prototype.hasOwnProperty.call(HOSTS, document.host) && HOSTS[document.host].installerName) || `the ${document.host} installer`;
       print(`[install-codex-skills] recovered interrupted ${document.host} transaction ${pyStr(document.run)}: ${finishes ? `finished; its changes are in place` : `rolled back; re-run ${installer} to apply it`}`);
     }
   }
@@ -3142,7 +3186,7 @@ function createInstaller(env, io) {
     const relative = path.relative(CODEX_ROOT, destination).split(path.sep).join('/');
     safeDestination(relative);
     validateSourceTree(source, 'install source', [PLUGIN_ROOT, INSTALLER_ROOT]);
-    const sourceFp = sourceFingerprintFor(source, relative);
+    const sourceFp = fingerprintSource(source);
     const index = relative.lastIndexOf('/');
     const parentRelative = index < 0 ? '' : relative.slice(0, index);
     const name = relative.slice(index + 1);
@@ -3152,7 +3196,7 @@ function createInstaller(env, io) {
     if (effectiveMaterializationMode(relative) === 'symlink') fs.symlinkSync(source, path.join(stage, name), isDirFollow(source) ? 'dir' : 'file');
     else copySourceIntoStage(source, name, stage, relative);
     fsyncFdEntry(stage, name);
-    if (sourceFingerprintFor(source, relative) !== sourceFp) throw new ValueError(`install source changed during materialization: ${relative}; run a fresh update`);
+    if (fingerprintSource(source) !== sourceFp) throw new ValueError(`install source changed during materialization: ${relative}; run a fresh update`);
     const expectedProjection = fingerprintFdEntry(stage, name, false);
     if (!verifyStagedMaterialization(source, relative, stage, name, sourceFp, expectedProjection)) throw new ValueError(`install materialization changed: ${relative}; run a fresh update`);
     const parent = txDirectory(parentRelative);
@@ -3169,7 +3213,7 @@ function createInstaller(env, io) {
     }
     let sourceMatches = false;
     try {
-      sourceMatches = sourceFingerprintFor(source, relative) === sourceFp;
+      sourceMatches = fingerprintSource(source) === sourceFp;
     } catch (error) {
       if (!isOSOrValueError(error)) throw error;
     }
@@ -3210,7 +3254,7 @@ function createInstaller(env, io) {
     recordPath('backed_up', relative);
     const quarantine = detachEntry(parent, name);
     if (fingerprintFdEntry(path.dirname(quarantine), path.basename(quarantine)) !== expectedDestination) throw new ValueError(`adoption preflight changed: ${relative}; run a fresh plan`);
-    if (sourceFingerprintFor(source, relative) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
+    if (fingerprintSource(source) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
     const stageRoot = txTransientDirectory(NATIVE_STAGE);
     const stage = path.join(stageRoot, uuidHex());
     fs.mkdirSync(stage, { mode: 0o700 });
@@ -3219,7 +3263,7 @@ function createInstaller(env, io) {
     fsyncFdEntry(stage, name);
     const expectedProjection = fingerprintFdEntry(stage, name, false);
     if (!verifyStagedMaterialization(source, relative, stage, name, expectedSource, expectedProjection)) throw new ValueError(`adoption materialization changed: ${relative}; run a fresh plan`);
-    if (sourceFingerprintFor(source, relative) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
+    if (fingerprintSource(source) !== expectedSource) throw new ValueError(`adoption source changed: ${relative}; run a fresh plan`);
     if (fdEntryExists(parent, name)) throw new ValueError(`adoption target reappeared: ${relative}; run a fresh plan`);
     journalCore.recordRename(TX, path.join(stage, name), path.join(parent, name));
     let publishedMatches = false;
@@ -3230,7 +3274,7 @@ function createInstaller(env, io) {
     }
     let sourceMatches = false;
     try {
-      sourceMatches = sourceFingerprintFor(source, relative) === expectedSource;
+      sourceMatches = fingerprintSource(source) === expectedSource;
     } catch (error) {
       if (!isOSOrValueError(error)) throw error;
     }
@@ -3354,14 +3398,14 @@ function createInstaller(env, io) {
     }
   }
 
-  function maybeInstallSharedProjection(adopted = null) {
+  function maybeInstallSharedProjection(context, adopted = null) {
     if (UNINSTALL || !sharedProjectionAvailable()) return;
     if (relocatableProjectOverlapsSource()) {
       noteSharedProjectionSkip('install');
       return;
     }
-    if (receiptOwnedNativeDeclaredDestsBlockSharedProjection()) return;
-    const selected = selectedSharedProjectionIds(adopted);
+    if (receiptOwnedNativeDeclaredDestsBlockSharedProjection(context)) return;
+    const selected = selectedSharedProjectionIds(context, adopted);
     if (selected.length === 0) return;
     installSharedProjection(selected);
   }
@@ -3429,9 +3473,9 @@ function createInstaller(env, io) {
   }
 
   // Remove adopted leftover native copies so Host Bindings can replace them.
-  function handoverAdoptedLegacyNativeSkills(adopted, counts) {
+  function handoverAdoptedLegacyNativeSkills(context, adopted, counts) {
     if (!pyTruthy(adopted)) return;
-    for (const item of classifyLegacyNativeDeclaredSkills()) {
+    for (const item of classifyLegacyNativeDeclaredSkills(context)) {
       if (item.handling !== 'keep-modified' || !Object.prototype.hasOwnProperty.call(adopted, item.path)) continue;
       const relative = item.path;
       const destination = targetFor(relative);
@@ -3754,7 +3798,7 @@ function createInstaller(env, io) {
           recordOwnership(relative, 'dhpk-managed');
         } else {
           entries[kind][name] = { ...old, orphaned: true };
-          let keepModifiedLegacy = skipNativeSkillKind(kind) && declaredSkillPublicNames().includes(name);
+          let keepModifiedLegacy = skipNativeSkillKind(kind) && declaredSkillPublicNames(run.inventory).includes(name);
           const orphanedEntry = { ...old, reason: keepModifiedLegacy ? 'keep-modified-legacy-native' : 'modified-removed-source' };
           if (retirement) {
             orphanedEntry.reason = 'retired-entry-modified-or-retargeted';
@@ -3850,7 +3894,7 @@ function createInstaller(env, io) {
             if (Object.prototype.hasOwnProperty.call(adoptPaths, relative)) {
               const expected = (plan.collisions || []).find((item) => item.path === relative).destination_fingerprint;
               const expectedSource = adoptPaths[relative];
-              if (safeDestinationFingerprint(destination) !== expected || sourceFingerprintFor(source, relative) !== expectedSource) {
+              if (safeDestinationFingerprint(destination) !== expected || fingerprintSource(source) !== expectedSource) {
                 failOpenTransaction(`adoption preflight changed: ${relative}; run a fresh plan`);
               }
               counts.backed_up += 1;
@@ -3922,7 +3966,7 @@ function createInstaller(env, io) {
     const hasPendingConflicts = Object.keys(orphaned).length > 0 || Boolean(isDict(priorReconciliation) && pyTruthy(priorReconciliation.skipped_collision));
     if (!UPDATE && !MIGRATE && !UNINSTALL && !legacy && !releasedEntries.length && !hasPendingConflicts && receipt.plugin_version === pluginVersion && receipt.source_fingerprint === fingerprint) {
       try {
-        maybeInstallSharedProjection(adoptPaths);
+        maybeInstallSharedProjection(run.inventory, adoptPaths);
       } catch (error) {
         if (!isValueError(error)) throw error;
         printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
@@ -3962,8 +4006,8 @@ function createInstaller(env, io) {
     if (UPDATE && !ADOPT_PATHS.length) preserveUnownedRetirements(run);
     if (sharedProjectionAvailable() && !UNINSTALL) {
       guarded(() => {
-        handoverAdoptedLegacyNativeSkills(adoptPaths, counts);
-        maybeInstallSharedProjection(adoptPaths);
+        handoverAdoptedLegacyNativeSkills(run.inventory, adoptPaths, counts);
+        maybeInstallSharedProjection(run.inventory, adoptPaths);
       });
     }
     try {
@@ -4107,22 +4151,24 @@ function createInstaller(env, io) {
       printReceiptProfileUpdateBlock(blockedProfileUpdate);
       exit(2);
     }
+    // One inventory read for the whole run, handed to every consumer below.
+    const inventory = createInventoryContext();
     let skillMetadata;
     let sources;
     let skillRetirements;
     try {
-      skillMetadata = inventorySkillMetadata();
-      resolveInstallerSelection(receipt, skillMetadata);
+      skillMetadata = inventorySkillMetadata(inventory);
+      resolveInstallerSelection(inventory, receipt, skillMetadata);
       if (sharedProjectionAvailable() && !UNINSTALL) applyDeclaredProjectionSelection();
-      sources = currentSources();
-      skillRetirements = inventoryRetirementMetadata(skillMetadata);
+      sources = currentSources(inventory);
+      skillRetirements = inventoryRetirementMetadata(inventory, skillMetadata);
       validateSkillMetadata(sources, skillMetadata);
     } catch (error) {
       if (!isValueError(error)) throw error;
       printErr(`[install-codex-skills] ERROR: ${errorText(error)}`);
       exit(2);
     }
-    const fingerprint = sourceFingerprint();
+    const fingerprint = sourceFingerprint(inventory);
 
     if (ADOPT_PATHS.length) {
       const recordedMode = isDict(receipt) ? receipt.mode : null;
@@ -4152,6 +4198,7 @@ function createInstaller(env, io) {
       legacy,
       classification,
       sources,
+      inventory,
       skillMetadata,
       skillRetirements,
       pluginVersion,
@@ -4166,7 +4213,7 @@ function createInstaller(env, io) {
     RUN_ENTRIES = run.entries;
     RUN_ORPHANED = run.orphaned;
 
-    const plan = buildPlan(receipt, classification, sources, skillMetadata, pluginVersion, fingerprint, skillRetirements);
+    const plan = buildPlan(inventory, receipt, classification, sources, skillMetadata, pluginVersion, fingerprint, skillRetirements);
     if (PLAN) {
       if (isDict(receipt) && isStr(receipt.profileId) && receipt.profileId !== 'common' && !isRetiredOrphanOnlyReceipt(receipt)) {
         plan.next_action = 'run this installer with --uninstall, then perform a fresh install without --profile';
@@ -4207,4 +4254,4 @@ function createInstaller(env, io) {
   return { main: run, close };
 }
 
-module.exports = { createInstaller, SCHEMA_VERSION, TREE_FINGERPRINT_ALGORITHM };
+module.exports = { createInstaller, HOSTS, SCHEMA_VERSION, TREE_FINGERPRINT_ALGORITHM };
