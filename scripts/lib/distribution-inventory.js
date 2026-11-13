@@ -259,9 +259,11 @@ function classifyCanonicalInventory(root) {
 function preserveProjectionContract(generated, existing) {
   if (!existing || typeof existing !== 'object') return generated;
   const existingSkills = Array.isArray(existing.skills) ? existing.skills : [];
+  const priorById = new Map();
+  for (const candidate of existingSkills) if (candidate && !priorById.has(candidate.id)) priorById.set(candidate.id, candidate);
   const skills = Array.isArray(generated && generated.skills)
     ? generated.skills.map((entry) => {
-      const prior = existingSkills.find((candidate) => candidate && candidate.id === entry.id);
+      const prior = priorById.get(entry.id);
       if (!prior || !Object.prototype.hasOwnProperty.call(prior, 'usage')) return entry;
       return { ...entry, usage: cloneInventoryValue(prior.usage) };
     })
@@ -2151,11 +2153,13 @@ function validateCapabilityProfilePolicy({ inventory } = {}) {
     errors.push('profile_policy.required_core_ids must be a non-empty array of stable IDs');
   } else {
     if (new Set(policy.required_core_ids).size !== policy.required_core_ids.length) errors.push('profile_policy.required_core_ids must not contain duplicates');
+    const skillById = new Map();
+    for (const skill of inventory.skills || []) if (skill && !skillById.has(skill.id)) skillById.set(skill.id, skill);
     for (const id of policy.required_core_ids) {
       if (typeof id !== 'string' || id.trim() === '') errors.push('profile_policy.required_core_ids contains a missing stable ID');
       else if (!active.has(id)) errors.push(`profile_policy.required_core_ids references inactive stable ID '${id}'`);
       else if (retired.has(id)) errors.push(`profile_policy.required_core_ids references retired stable ID '${id}'`);
-      const entry = (inventory.skills || []).find((skill) => skill && skill.id === id);
+      const entry = skillById.get(id);
       if (entry && entry.tier !== 'core' && entry.lifecycle !== 'promoted') errors.push(`profile_policy.required_core_ids stable ID '${id}' is not promoted/core`);
     }
   }

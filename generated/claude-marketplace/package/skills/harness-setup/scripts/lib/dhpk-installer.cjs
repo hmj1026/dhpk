@@ -969,6 +969,7 @@ module.exports = {
 const {
   createDistributionPlan,
   createDistributionArtifact,
+  canonicalMetadata,
   createEvidenceResult,
   projectionError,
   VERIFICATION_STAGES,
@@ -994,14 +995,6 @@ const EMISSION_METADATA_FIELDS = Object.freeze([
   'usageFingerprint',
   'provenance',
 ]);
-
-function canonicalMetadata(value) {
-  if (Array.isArray(value)) return `[${value.map(canonicalMetadata).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalMetadata(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
 
 function validateEmissionMetadata(emission, planned) {
   for (const field of EMISSION_METADATA_FIELDS) {
@@ -1136,7 +1129,22 @@ function idsFromPlatformMatrix(inventory, surface, entries) {
   return entries.filter((entry) => paths.some((source) => source === 'skills/' || source === entry.path || (source.endsWith('/') && entry.path && entry.path.startsWith(source)))).map((entry) => entry.id);
 }
 
-function resolveSelectionIds(inventory, surface) {
+// Memoized first-wins index of the inventory entries, built at most once per
+// compile call and only when a caller actually needs it.
+function createEntryIndex(inventory) {
+  let cached = null;
+  return () => {
+    if (cached === null) {
+      const entries = allInventoryEntries(inventory);
+      const byId = new Map();
+      for (const entry of entries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
+      cached = { entries, byId };
+    }
+    return cached;
+  };
+}
+
+function resolveSelectionIds(inventory, surface, entryIndex = createEntryIndex(inventory)) {
   const contract = inventory && inventory.projection_contract;
   const rule = contract && contract.surfaces && contract.surfaces[surface];
   const policy = rule && rule.selection_policy;
@@ -1149,9 +1157,7 @@ function resolveSelectionIds(inventory, surface) {
   if (!SELECTION_POLICY_SOURCES.includes(policy.source) || !Array.isArray(policy.precedence) || policy.precedence.length === 0) {
     return { error: selectionPolicyError(`surface '${surface}' declares an unsupported selection policy`) };
   }
-  const entries = allInventoryEntries(inventory);
-  const byId = new Map();
-  for (const entry of entries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
+  const { entries, byId } = entryIndex();
   for (const source of policy.precedence) {
     if (!SELECTION_POLICY_SOURCES.includes(source)) return { error: selectionPolicyError(`surface '${surface}' declares unsupported selection source '${source}'`) };
     let ids = null;
@@ -1180,12 +1186,11 @@ function resolveSelectionIds(inventory, surface) {
 
 function inventoryEntries(inventory, surface) {
   if (!inventory || typeof inventory !== 'object') return [];
-  const resolved = resolveSelectionIds(inventory, surface);
+  const entryIndex = createEntryIndex(inventory);
+  const resolved = resolveSelectionIds(inventory, surface, entryIndex);
   if (resolved.error) return resolved;
   const selectedIds = resolved.ids;
-  const inventoryEntries = allInventoryEntries(inventory);
-  const byId = new Map();
-  for (const entry of inventoryEntries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
+  const { entries: inventoryEntries, byId } = entryIndex();
   // Pre-contract callers retain the original surface-membership boundary;
   // selection policy is optional only for compatibility fixtures, not a
   // reason to broaden a requested surface to every inventory entry.
@@ -1315,7 +1320,9 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
       throw new Error('artifact store session must expose write(output) and stage()/publish()');
     }
     const links = rendered.links || [];
-    const expectedIds = new Set(plan.entries.map((entry) => entry.stableId));
+    const plannedById = new Map();
+    for (const entry of plan.entries) if (!plannedById.has(entry.stableId)) plannedById.set(entry.stableId, entry);
+    const expectedIds = new Set(plannedById.keys());
     const emittedIds = new Set();
     const checkEmission = (emission) => {
       const stableId = emission && emission.stableId;
@@ -1331,7 +1338,7 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
         error.projectionDetails = { stableIds: [stableId] };
         throw error;
       }
-      const metadataError = validateEmissionMetadata(emission, plan.entries.find((entry) => entry.stableId === stableId));
+      const metadataError = validateEmissionMetadata(emission, plannedById.get(stableId));
       if (metadataError) {
         const error = new Error(metadataError.message);
         error.projectionCode = metadataError.code;
@@ -1590,6 +1597,16 @@ function freeze(value) {
 
 function canonicalize(value) {
   return JSON.stringify(clone(value));
+}
+
+// Key-sorted canonical string of a metadata value: arrays keep order, object keys
+// sort by UTF-16 order, leaves use JSON.stringify.
+function canonicalMetadata(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalMetadata).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalMetadata(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function fingerprint(value) {
@@ -2049,6 +2066,7 @@ module.exports = {
   SYMLINK_POLICIES,
   EXTERNAL_SKILL_PACKAGE_FIELDS,
   canonicalize,
+  canonicalMetadata,
   fingerprint,
   normalizeExternalSkillPackages,
   externalSkillPackagesFingerprint,
@@ -8494,8 +8512,10 @@ function compileProjectAgentProjection({
     return publicDecision;
   });
   const emittedStableIds = capabilityDecisions.filter((entry) => entry.outcome === 'EMIT' && byId.get(entry.stableId).entityKind === 'skill').map((entry) => entry.stableId).sort();
+  const decisionById = new Map();
+  for (const entry of capabilityDecisions) if (!decisionById.has(entry.stableId)) decisionById.set(entry.stableId, entry);
   const selected = selectedStableIds.map((id) => {
-    const decision = capabilityDecisions.find((entry) => entry.stableId === id);
+    const decision = decisionById.get(id);
     return {
       stableId: id,
       role: decision.role,
@@ -9657,12 +9677,15 @@ function validateReceipt(receipt, roots, bindingOptions = {}) {
     // Only validated emitted skills prove historical kind. A requested selection
     // cannot establish ownership for selected-only legacy identities. Retired
     // selected-only IDs need no kind because they will not enter the new plan.
-    if (receipt.emittedIds.some((id) => !receipt.entries.some((entry) => entry.stableId === id))) {
+    const sourceProofIds = new Set(receipt.entries.map((entry) => entry.stableId));
+    if (receipt.emittedIds.some((id) => !sourceProofIds.has(id))) {
       throw fail('INVALID_RECEIPT', 'legacy receipt emitted identity is missing source proof');
     }
+    let inventoryRows = null;
     for (const id of receipt.selectedIds) {
-      if (receipt.entries.some((entry) => entry.stableId === id)) continue;
-      const matches = inventoryEntries(roots.inventory).filter((entry) => entry.id === id);
+      if (sourceProofIds.has(id)) continue;
+      if (inventoryRows === null) inventoryRows = inventoryEntries(roots.inventory);
+      const matches = inventoryRows.filter((entry) => entry.id === id);
       if (matches.length > 1) {
         throw fail('AMBIGUOUS_LEGACY_IDENTITY', `legacy receipt identity '${id}' cannot be resolved uniquely; skill:${id} and module:${id} require historical evidence`);
       }
@@ -10980,7 +11003,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         const directPath = pathIn(roots.managedRoot, `${entry.name}.md`, 'AGY direct-file path');
         const directoryStat = lstatOrNull(directoryPath);
         const directStat = lstatOrNull(directPath);
-        if (directoryStat && directStat && sha256Hex(fs.readFileSync(directoryPath)) !== sha256Hex(fs.readFileSync(directPath))) {
+        if (directoryStat && directStat && !fs.readFileSync(directoryPath).equals(fs.readFileSync(directPath))) {
           errors.push(`provider-shaped outputs do not share the same skill body: ${entry.name}`);
         }
       }

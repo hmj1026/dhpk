@@ -7,6 +7,7 @@
 const {
   createDistributionPlan,
   createDistributionArtifact,
+  canonicalMetadata,
   createEvidenceResult,
   projectionError,
   VERIFICATION_STAGES,
@@ -32,14 +33,6 @@ const EMISSION_METADATA_FIELDS = Object.freeze([
   'usageFingerprint',
   'provenance',
 ]);
-
-function canonicalMetadata(value) {
-  if (Array.isArray(value)) return `[${value.map(canonicalMetadata).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalMetadata(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
 
 function validateEmissionMetadata(emission, planned) {
   for (const field of EMISSION_METADATA_FIELDS) {
@@ -174,7 +167,22 @@ function idsFromPlatformMatrix(inventory, surface, entries) {
   return entries.filter((entry) => paths.some((source) => source === 'skills/' || source === entry.path || (source.endsWith('/') && entry.path && entry.path.startsWith(source)))).map((entry) => entry.id);
 }
 
-function resolveSelectionIds(inventory, surface) {
+// Memoized first-wins index of the inventory entries, built at most once per
+// compile call and only when a caller actually needs it.
+function createEntryIndex(inventory) {
+  let cached = null;
+  return () => {
+    if (cached === null) {
+      const entries = allInventoryEntries(inventory);
+      const byId = new Map();
+      for (const entry of entries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
+      cached = { entries, byId };
+    }
+    return cached;
+  };
+}
+
+function resolveSelectionIds(inventory, surface, entryIndex = createEntryIndex(inventory)) {
   const contract = inventory && inventory.projection_contract;
   const rule = contract && contract.surfaces && contract.surfaces[surface];
   const policy = rule && rule.selection_policy;
@@ -187,9 +195,7 @@ function resolveSelectionIds(inventory, surface) {
   if (!SELECTION_POLICY_SOURCES.includes(policy.source) || !Array.isArray(policy.precedence) || policy.precedence.length === 0) {
     return { error: selectionPolicyError(`surface '${surface}' declares an unsupported selection policy`) };
   }
-  const entries = allInventoryEntries(inventory);
-  const byId = new Map();
-  for (const entry of entries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
+  const { entries, byId } = entryIndex();
   for (const source of policy.precedence) {
     if (!SELECTION_POLICY_SOURCES.includes(source)) return { error: selectionPolicyError(`surface '${surface}' declares unsupported selection source '${source}'`) };
     let ids = null;
@@ -218,12 +224,11 @@ function resolveSelectionIds(inventory, surface) {
 
 function inventoryEntries(inventory, surface) {
   if (!inventory || typeof inventory !== 'object') return [];
-  const resolved = resolveSelectionIds(inventory, surface);
+  const entryIndex = createEntryIndex(inventory);
+  const resolved = resolveSelectionIds(inventory, surface, entryIndex);
   if (resolved.error) return resolved;
   const selectedIds = resolved.ids;
-  const inventoryEntries = allInventoryEntries(inventory);
-  const byId = new Map();
-  for (const entry of inventoryEntries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
+  const { entries: inventoryEntries, byId } = entryIndex();
   // Pre-contract callers retain the original surface-membership boundary;
   // selection policy is optional only for compatibility fixtures, not a
   // reason to broaden a requested surface to every inventory entry.
@@ -353,7 +358,9 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
       throw new Error('artifact store session must expose write(output) and stage()/publish()');
     }
     const links = rendered.links || [];
-    const expectedIds = new Set(plan.entries.map((entry) => entry.stableId));
+    const plannedById = new Map();
+    for (const entry of plan.entries) if (!plannedById.has(entry.stableId)) plannedById.set(entry.stableId, entry);
+    const expectedIds = new Set(plannedById.keys());
     const emittedIds = new Set();
     const checkEmission = (emission) => {
       const stableId = emission && emission.stableId;
@@ -369,7 +376,7 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
         error.projectionDetails = { stableIds: [stableId] };
         throw error;
       }
-      const metadataError = validateEmissionMetadata(emission, plan.entries.find((entry) => entry.stableId === stableId));
+      const metadataError = validateEmissionMetadata(emission, plannedById.get(stableId));
       if (metadataError) {
         const error = new Error(metadataError.message);
         error.projectionCode = metadataError.code;

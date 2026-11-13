@@ -1010,12 +1010,15 @@ function validateReceipt(receipt, roots, bindingOptions = {}) {
     // Only validated emitted skills prove historical kind. A requested selection
     // cannot establish ownership for selected-only legacy identities. Retired
     // selected-only IDs need no kind because they will not enter the new plan.
-    if (receipt.emittedIds.some((id) => !receipt.entries.some((entry) => entry.stableId === id))) {
+    const sourceProofIds = new Set(receipt.entries.map((entry) => entry.stableId));
+    if (receipt.emittedIds.some((id) => !sourceProofIds.has(id))) {
       throw fail('INVALID_RECEIPT', 'legacy receipt emitted identity is missing source proof');
     }
+    let inventoryRows = null;
     for (const id of receipt.selectedIds) {
-      if (receipt.entries.some((entry) => entry.stableId === id)) continue;
-      const matches = inventoryEntries(roots.inventory).filter((entry) => entry.id === id);
+      if (sourceProofIds.has(id)) continue;
+      if (inventoryRows === null) inventoryRows = inventoryEntries(roots.inventory);
+      const matches = inventoryRows.filter((entry) => entry.id === id);
       if (matches.length > 1) {
         throw fail('AMBIGUOUS_LEGACY_IDENTITY', `legacy receipt identity '${id}' cannot be resolved uniquely; skill:${id} and module:${id} require historical evidence`);
       }
@@ -2333,7 +2336,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         const directPath = pathIn(roots.managedRoot, `${entry.name}.md`, 'AGY direct-file path');
         const directoryStat = lstatOrNull(directoryPath);
         const directStat = lstatOrNull(directPath);
-        if (directoryStat && directStat && sha256Hex(fs.readFileSync(directoryPath)) !== sha256Hex(fs.readFileSync(directPath))) {
+        if (directoryStat && directStat && !fs.readFileSync(directoryPath).equals(fs.readFileSync(directPath))) {
           errors.push(`provider-shaped outputs do not share the same skill body: ${entry.name}`);
         }
       }

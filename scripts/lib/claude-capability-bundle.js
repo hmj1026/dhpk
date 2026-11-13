@@ -23,7 +23,7 @@ const {
   resolveCapabilitySelection,
   bindSurfaceSelection,
 } = require('./capability-bundle-selection');
-const { physicalSkillTree } = require('./workflow-package-closure');
+const { createInventoryEntryLookup, physicalSkillTree } = require('./workflow-package-closure');
 const { sha256Hex } = require('./content-fingerprint');
 
 const BUNDLE_VERSION = 'claude-profile-v1';
@@ -411,6 +411,7 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
   }];
   const seenDestinations = new Set(outputs.map((entry) => entry.destination));
   const contentByStableId = new Map();
+  const inventoryLookup = createInventoryEntryLookup(root);
   for (const entry of selection.selectedEntries) {
     const skillName = safeSkillName(entry);
     if (!skillName) return { error: projectionError('UNSAFE_PATH', 'compile', `inventory skill path is unsafe for '${entry.id}'`) };
@@ -445,7 +446,7 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
     // Every selected Skill publishes its complete physical directory; no
     // per-Skill descriptor selects or injects files.
     let treeFiles;
-    try { treeFiles = physicalSkillTree(root, entry); } catch (error) {
+    try { treeFiles = physicalSkillTree(root, entry, { inventoryLookup }); } catch (error) {
       return { error: projectionError('UNSAFE_PATH', 'compile', `skill tree enumeration failed: '${entry.id}'`, { stableIds: [entry.id], details: { cause: error.message } }) };
     }
     for (const file of treeFiles) {
