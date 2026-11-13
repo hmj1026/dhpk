@@ -1802,8 +1802,9 @@ function createInstaller(env, io) {
     return !isLink(destination) && (isFileFollow(destination) || isDirFollow(destination)) && !containsSymlink(destination);
   }
 
-  // `knownFingerprint`: the complete-view fingerprint of `destination` when the
-  // caller (a plan) already computed it; apply paths omit it and re-hash.
+  // `knownFingerprint`: the complete-view fingerprint of `destination`. The
+  // caller must compute it in the same step, immediately before this call; never
+  // pass a value carried across steps or taken from a plan object. Omit it to re-hash.
   function isOwned(entry, destination, knownFingerprint = null) {
     if (!isDict(entry) || pyTruthy(entry.orphaned) || !lexists(destination)) return false;
     const mode = entry.mode;
@@ -1831,8 +1832,9 @@ function createInstaller(env, io) {
     return isStr(value) && value.length === 64 ? value : null;
   }
 
-  // `known`: { source, destination } fingerprints a plan already computed for
-  // this pair; apply paths omit it and re-hash.
+  // `known`: { source, destination } fingerprints of this pair. The caller must
+  // compute them in the same step, immediately before this call; never pass
+  // values carried across steps or taken from a plan object. Omit it to re-hash.
   function exactSourceMatch(source, destination, relative, oldEntry = null, known = null) {
     if (!lexists(destination)) return false;
     if (isLink(destination)) return realpath(destination) === realpath(source);
