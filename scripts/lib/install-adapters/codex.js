@@ -76,6 +76,31 @@ const O_NOFOLLOW = fs.constants.O_NOFOLLOW || 0;
 const O_NONBLOCK = fs.constants.O_NONBLOCK || 0;
 const O_DIRECTORY = fs.constants.O_DIRECTORY || 0;
 
+// One row per Host: the shell entry's DHPK_* shape (read by codex-cli.js) and
+// the Host-specific names the installer itself needs.
+const HOSTS = Object.freeze({
+  codex: Object.freeze({
+    srcRel: 'codex',
+    destRel: '.codex',
+    sourceKinds: 'skills,agents',
+    installerName: 'install-codex-skills',
+    surfaceLabel: 'Codex',
+    sharedProjectionHost: 'codex',
+    declaredProjectionHostKey: 'codex-sync',
+    consumerEvidenceEnvKey: 'DHPK_CODEX_CONSUMER_EVIDENCE',
+  }),
+  cursor: Object.freeze({
+    srcRel: 'cursor',
+    destRel: '.cursor',
+    sourceKinds: 'skills,agents,rules,commands',
+    installerName: 'install-cursor-harness',
+    surfaceLabel: 'Cursor',
+    sharedProjectionHost: 'cursor',
+    declaredProjectionHostKey: 'cursor',
+    consumerEvidenceEnvKey: 'DHPK_CURSOR_CONSUMER_EVIDENCE',
+  }),
+});
+
 const SCHEMA_VERSION = 3;
 const BACKUP_DIR = '.dhpk-backups';
 const CODEX_NATIVE_PLUGIN_ID = 'dhpk@dhpk';
@@ -155,13 +180,14 @@ function createInstaller(env, io) {
   const INSTALLER_ROOT = env.DHPK_INSTALLER_ROOT || PLUGIN_ROOT;
   const PROJECT_ROOT = env.DHPK_PROJECT_ROOT;
   const HARNESS_KIND = env.DHPK_HARNESS_KIND || 'codex';
-  const SURFACE_LABEL = HARNESS_KIND === 'cursor' ? 'Cursor' : 'Codex';
+  // An unknown kind has no row: Codex wording, and no shared projection.
+  const HOST = Object.prototype.hasOwnProperty.call(HOSTS, HARNESS_KIND) ? HOSTS[HARNESS_KIND] : null;
+  const SURFACE_LABEL = HOST ? HOST.surfaceLabel : 'Codex';
   const SRC_REL = env.DHPK_SRC_REL || 'codex';
   const DEST_REL = env.DHPK_DEST_REL || '.codex';
   const SOURCE_KINDS = Object.freeze(String(env.DHPK_SOURCE_KINDS || 'skills,agents').split(',').map((kind) => kind.trim()).filter(Boolean));
   const MANAGED_KINDS = Object.freeze([...SOURCE_KINDS, 'supporting_assets']);
   const INSTALLER_NAME = env.DHPK_INSTALLER_NAME || 'install-codex-skills';
-  const HOSTS_INSTALLER = { codex: 'install-codex-skills', cursor: 'install-cursor-harness' };
   const INSTALLER_SCRIPT = `scripts/hooks/${INSTALLER_NAME}.sh`;
   const CODEX_SRC = path.join(PLUGIN_ROOT, SRC_REL);
   const CODEX_ROOT = path.join(PROJECT_ROOT, DEST_REL);
@@ -1004,21 +1030,15 @@ function createInstaller(env, io) {
   }
 
   function sharedProjectionHost() {
-    if (HARNESS_KIND === 'cursor') return 'cursor';
-    if (HARNESS_KIND === 'codex') return 'codex';
-    return null;
+    return HOST ? HOST.sharedProjectionHost : null;
   }
 
   function declaredProjectionHostKey() {
-    if (HARNESS_KIND === 'cursor') return 'cursor';
-    if (HARNESS_KIND === 'codex') return 'codex-sync';
-    return null;
+    return HOST ? HOST.declaredProjectionHostKey : null;
   }
 
   function consumerEvidenceEnvKey() {
-    if (HARNESS_KIND === 'cursor') return 'DHPK_CURSOR_CONSUMER_EVIDENCE';
-    if (HARNESS_KIND === 'codex') return 'DHPK_CODEX_CONSUMER_EVIDENCE';
-    return null;
+    return HOST ? HOST.consumerEvidenceEnvKey : null;
   }
 
   function readProfileProjectionSets() {
@@ -2984,7 +3004,7 @@ function createInstaller(env, io) {
     // Hosts share one journal, so this run may have settled another Host's
     // transaction. Say so; a same-Host recovery stays as quiet as before.
     if (isStr(document.host) && document.host !== HARNESS_KIND) {
-      const installer = HOSTS_INSTALLER[document.host] || `the ${document.host} installer`;
+      const installer = (Object.prototype.hasOwnProperty.call(HOSTS, document.host) && HOSTS[document.host].installerName) || `the ${document.host} installer`;
       print(`[install-codex-skills] recovered interrupted ${document.host} transaction ${pyStr(document.run)}: ${finishes ? `finished; its changes are in place` : `rolled back; re-run ${installer} to apply it`}`);
     }
   }
@@ -4189,4 +4209,4 @@ function createInstaller(env, io) {
   return { main: run, close };
 }
 
-module.exports = { createInstaller, SCHEMA_VERSION, TREE_FINGERPRINT_ALGORITHM };
+module.exports = { createInstaller, HOSTS, SCHEMA_VERSION, TREE_FINGERPRINT_ALGORITHM };
