@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../../lib/bounded-filesystem');
+const { createTraversalBudget, isInside, readFileBounded, readDirectoryEntries } = require('../../lib/bounded-filesystem');
 const { collectCodexRoleNeighborErrors } = require('../../lib/codex-role-neighbors');
 
 const TIER_LABEL = /\b(?:haiku|sonnet|opus)\b/i;
@@ -24,11 +24,6 @@ const ROLE_OWNERSHIP_MANIFEST = 'codex/agent-projection-manifest.json';
 
 function relative(root, file) {
   return path.relative(root, file).split(path.sep).join('/');
-}
-
-function isInside(root, candidate) {
-  const relativePath = path.relative(root, candidate);
-  return relativePath === '' || (relativePath !== '..' && !relativePath.startsWith(`..${path.sep}`) && !path.isAbsolute(relativePath));
 }
 
 function readProjectionFile(file, allowedRoots) {

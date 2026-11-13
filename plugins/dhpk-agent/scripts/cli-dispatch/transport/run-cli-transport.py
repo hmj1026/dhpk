@@ -25,7 +25,6 @@ import threading
 import time
 import uuid
 
-TERMINAL_STATUSES = frozenset(("SUCCEEDED", "FAILED", "BLOCKED", "TIMEOUT"))
 FAILURE_CLASSES = frozenset((
     "CLI_UNAVAILABLE", "AUTHENTICATION_OR_MODEL_UNAVAILABLE",
     "QUOTA_OR_RATE_LIMIT", "SAFETY_OR_USER_DENIAL",
@@ -54,7 +53,6 @@ PROVIDER_ROLES = {
     "codex": frozenset(("codex-worker", "codex-reasoner", "codex-reviewer")),
     "agy": frozenset(("agy-worker",)),
 }
-AUTHORITY_RANK = {"read-only": 0, "workspace-write": 1}
 REDACTION = re.compile(r"(?i)(bearer\s+|basic\s+|api[_-]?key[=:]\s*|token[=:]\s*|access_token[=:]\s*|refresh_token[=:]\s*|oauth_token[=:]\s*|password[=:]\s*|secret[=:]\s*|client_secret[=:]\s*|credential[=:]\s*|authorization[=:]\s*|aws_secret_access_key[=:]\s*|cookie[=:]\s*)(?:([\"'])(?:\\.|(?!\2).)*\2|([^\s]+))")
 JSON_REDACTION = re.compile(r'(?i)("(?:api[_-]?key|token|access_token|refresh_token|oauth_token|password|secret|client_secret|credential|authorization|aws_secret_access_key|cookie)"\s*:\s*)"(?:\\.|[^"\\])*"')
 TOKEN_REDACTION = re.compile(r"\b(?:sk-[A-Za-z0-9_-]{12,}|gh[pousr]_[A-Za-z0-9_]{12,}|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b")
@@ -70,17 +68,6 @@ class Blocked(Exception):
 
 def canonical_digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
-
-
-def nofollow_real_directory(value, label, private=False):
-    absolute = os.path.abspath(value)
-    real = os.path.realpath(absolute)
-    if absolute != real or os.path.islink(absolute) or not os.path.isdir(real):
-        raise Blocked("%s must be an existing non-symlink directory" % label)
-    info = os.stat(real)
-    if private and (info.st_uid != os.getuid() or info.st_mode & 0o077):
-        raise Blocked("%s must be owned by the dispatching user and mode 0700" % label)
-    return real
 
 
 def contained_file(root, value, label):
@@ -719,18 +706,6 @@ def persist(request, artifact_fd, receipt_path, payload, discard_untrusted_colli
     # second link fails.
     payload["follow_up"] = {"record": follow, "sha256": canonical_digest(follow)}
     atomic_json_at(artifact_fd, os.path.basename(receipt_path), payload, discard_untrusted_collision)
-
-
-def read_bounded_file(path, label):
-    try:
-        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-        with os.fdopen(descriptor, "rb") as handle:
-            info = os.fstat(handle.fileno())
-            if not stat.S_ISREG(info.st_mode):
-                raise Blocked("%s must be a regular file" % label)
-            return handle.read(CAPTURE_LIMIT + 1)
-    except OSError as error:
-        raise Blocked("%s is unavailable: %s" % (label, error))
 
 
 def drain_bounded(handle, destination):

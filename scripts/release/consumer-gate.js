@@ -112,6 +112,7 @@ const MAX_REQUIREMENT_CHECKS = 64;
 const MAX_CONSUMER_EVIDENCE_BYTES = 4 * 1024 * 1024;
 const MAX_CONSUMER_EVIDENCE_ENVELOPES = 16;
 const MAX_CONSUMER_EVIDENCE_CHECKS = 100;
+const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const REQUIREMENT_TEXT_CONTROL = /[\u0000-\u001f\u007f]/;
 
 function requirementText(value, label, maximum) {
@@ -424,6 +425,10 @@ function discoverCodexSurface({
   allowedRoots = [],
   algorithmError = null,
 }) {
+  const redactFingerprintError = (text) => {
+    const redacted = redactEvidence(redactEvidence(text, root), surfaceRoot);
+    return redacted && redacted.trim() ? redacted : 'fingerprint validation failed';
+  };
   return ['skills', 'agents'].flatMap((kind) => {
     const kindRoot = path.join(surfaceRoot, kind);
     let kindStat;
@@ -460,13 +465,7 @@ function discoverCodexSurface({
         }
         fingerprint = contentFingerprintFn(target, fingerprintOptions(contentFingerprintFn, allowedRoots));
         if (!fingerprint) {
-          const redactedError = redactEvidence(
-            redactEvidence('fingerprint validation failed: empty or missing target', root),
-            surfaceRoot,
-          );
-          fingerprintError = redactedError && redactedError.trim()
-            ? redactedError
-            : 'fingerprint validation failed';
+          fingerprintError = redactFingerprintError('fingerprint validation failed: empty or missing target');
         } else {
           expectedFingerprint = expectedFingerprints
             ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots))
@@ -479,10 +478,7 @@ function discoverCodexSurface({
         const errorText = error && typeof error.message === 'string' && error.message
           ? error.message
           : (typeof error === 'string' && error ? error : 'fingerprint validation failed');
-        const redactedError = redactEvidence(redactEvidence(errorText, root), surfaceRoot);
-        fingerprintError = redactedError && redactedError.trim()
-          ? redactedError
-          : 'fingerprint validation failed';
+        fingerprintError = redactFingerprintError(errorText);
       }
       const owned = manifest
         ? Boolean(receiptEntry && receiptEntry.destination_fingerprint === ownershipFingerprint)
@@ -580,6 +576,10 @@ function summarizeCodexDiscovery(discovery) {
   };
 }
 
+function readJsonBounded(file) {
+  return JSON.parse(readFileBounded(file).toString('utf8'));
+}
+
 // An absent or unknown marker is a failed fingerprint check (not a crash) that
 // names the field and value.
 function resolveAlgorithmOrError(resolve) {
@@ -590,11 +590,7 @@ function resolveAlgorithmOrError(resolve) {
   }
 }
 
-function readNativePackageAlgorithm(nativeRoot) {
-  let provenance = null;
-  try {
-    provenance = JSON.parse(readFileBounded(path.join(nativeRoot, 'provenance.json')).toString('utf8'));
-  } catch (_) { /* missing or unreadable provenance carries no marker */ }
+function readNativePackageAlgorithm(provenance) {
   const value = provenance !== null && typeof provenance === 'object' ? provenance.fingerprintAlgorithm : undefined;
   return resolveAlgorithmOrError(() => requireTreeMerkle(value, 'fingerprintAlgorithm'));
 }
@@ -602,10 +598,12 @@ function readNativePackageAlgorithm(nativeRoot) {
 function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(root, 'plugins', 'dhpk') }) {
   const manifestPath = path.join(project, '.codex', '.dhpk-installed.json');
   let manifest = null;
-  if (fs.existsSync(manifestPath)) {
-    try { manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8')); } catch (_) { manifest = null; }
-  }
-  const nativeAlgorithm = readNativePackageAlgorithm(nativeRoot);
+  try { manifest = readJsonBounded(manifestPath); } catch (_) { manifest = null; }
+  // Missing or unreadable provenance carries no algorithm marker and no claims.
+  const provenancePath = path.join(nativeRoot, 'provenance.json');
+  let provenance = null;
+  try { provenance = readJsonBounded(provenancePath); } catch (_) { provenance = null; }
+  const nativeAlgorithm = readNativePackageAlgorithm(provenance);
   // A project with no receipt has nothing to verify by marker.
   const receiptAlgorithm = manifest
     ? resolveAlgorithmOrError(() => receiptFingerprintAlgorithm(manifest))
@@ -623,25 +621,21 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
   });
   let nativeVersion = version;
   const nativeManifestPath = path.join(nativeRoot, '.codex-plugin', 'plugin.json');
-  if (fs.existsSync(nativeManifestPath)) {
-    try { nativeVersion = JSON.parse(readFileBounded(nativeManifestPath).toString('utf8')).version || version; } catch (_) { /* keep target version */ }
-  }
+  try { nativeVersion = readJsonBounded(nativeManifestPath).version || version; } catch (_) { /* keep target version */ }
   let nativeProvenance = { valid: false, current: false, packageVersion: nativeVersion, sourceVersion: null };
   let nativeFingerprints = {};
-  const provenancePath = path.join(nativeRoot, 'provenance.json');
   const fingerprintsPath = path.join(nativeRoot, 'fingerprints.json');
   const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
   let inventory = null;
   try {
-    inventory = JSON.parse(readFileBounded(inventoryPath).toString('utf8'));
-    nativeFingerprints = JSON.parse(readFileBounded(fingerprintsPath).toString('utf8'));
+    inventory = readJsonBounded(inventoryPath);
+    nativeFingerprints = readJsonBounded(fingerprintsPath);
   } catch (_) {
     inventory = null;
     nativeFingerprints = {};
   }
-  if (fs.existsSync(provenancePath)) {
+  if (provenance !== null) {
     try {
-      const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
       const validCommit = typeof provenance.sourceCommit === 'string' && /^[a-f0-9]{40}$/i.test(provenance.sourceCommit);
       const validDigest = typeof provenance.inventoryDigest === 'string' && /^[a-f0-9]{64}$/i.test(provenance.inventoryDigest);
       const validVersion = provenance.sourceVersion === nativeVersion && nativeVersion === version;
@@ -753,14 +747,13 @@ function applyCodexHostBindingOwnership(project, entries) {
   const projectionPath = path.join(project, '.agents', '.dhpk-installed.json');
   let projection;
   try {
-    projection = JSON.parse(readFileBounded(projectionPath).toString('utf8'));
+    projection = readJsonBounded(projectionPath);
   } catch {
     return entries;
   }
   const host = projection && projection.hostBindings && projection.hostBindings.codex;
   const bindings = host && Array.isArray(host.bindings) ? host.bindings : [];
   const expectedByName = new Map();
-  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   for (const binding of bindings) {
     if (!binding || binding.shape !== 'native-link' || typeof binding.path !== 'string' || typeof binding.target !== 'string') {
       continue;
@@ -768,7 +761,7 @@ function applyCodexHostBindingOwnership(project, entries) {
     const name = binding.path.split('/').pop();
     const expectedPath = `.codex/skills/${name}`;
     const expectedTarget = `../../.agents/skills/${name}`;
-    if (binding.path !== expectedPath || binding.target !== expectedTarget || !skillName.test(name)) continue;
+    if (binding.path !== expectedPath || binding.target !== expectedTarget || !SKILL_NAME_PATTERN.test(name)) continue;
     expectedByName.set(name, expectedTarget);
   }
   if (expectedByName.size === 0) return entries;
@@ -1070,13 +1063,7 @@ function observeCodexRoleMaterialization(project, root, receipt, role) {
     && roleEntry.destination === relativeRole
     && roleEntry.source === relativeRole
     && roleEntry.mode === 'copy'
-    && sourceFingerprint
-    && destinationFingerprint
-    && /^[a-f0-9]{64}$/.test(roleEntry.source_fingerprint || '')
-    && /^[a-f0-9]{64}$/.test(roleEntry.destination_fingerprint || '')
-    && sourceFingerprint === roleEntry.source_fingerprint
-    && destinationFingerprint === roleEntry.destination_fingerprint
-    && sourceFingerprint === destinationFingerprint);
+    && receiptFingerprintsMatch(roleEntry, sourceFingerprint, destinationFingerprint));
   let roleText = '';
   try {
     roleText = readFileBounded(installedRole).toString('utf8');
@@ -1093,7 +1080,7 @@ function observeCodexRoleMaterialization(project, root, receipt, role) {
     .filter((reference) => !reference.includes('<') && !reference.includes('>'));
   let inventory = null;
   try {
-    inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+    inventory = readJsonBounded(path.join(root, 'manifests', 'distribution-inventory.json'));
   } catch (_) {
     passed = false;
     reason = 'Codex role resource inventory could not be read safely';
@@ -1121,13 +1108,7 @@ function observeCodexRoleMaterialization(project, root, receipt, role) {
       && entry.destination === resourceRelative
       && entry.source === resourceRelative
       && ['copy', 'symlink'].includes(entry.mode)
-      && resourceSourceFingerprint
-      && resourceDestinationFingerprint
-      && /^[a-f0-9]{64}$/.test(entry.source_fingerprint || '')
-      && /^[a-f0-9]{64}$/.test(entry.destination_fingerprint || '')
-      && resourceSourceFingerprint === entry.source_fingerprint
-      && resourceDestinationFingerprint === entry.destination_fingerprint
-      && resourceSourceFingerprint === resourceDestinationFingerprint);
+      && receiptFingerprintsMatch(entry, resourceSourceFingerprint, resourceDestinationFingerprint));
     resources.push({
       path: reference,
       ...(resourceSourceFingerprint ? { sourceFingerprint: resourceSourceFingerprint } : {}),
@@ -1190,6 +1171,18 @@ function readConsumerRoleSourceText(root, relativePath) {
   return readFileBounded(canonical).toString('utf8');
 }
 
+// True when a receipt entry's recorded source and destination fingerprints are
+// well-formed and equal the freshly computed pair (which must also agree).
+function receiptFingerprintsMatch(entry, sourceFingerprint, destinationFingerprint) {
+  return Boolean(sourceFingerprint
+    && destinationFingerprint
+    && /^[a-f0-9]{64}$/.test(entry.source_fingerprint || '')
+    && /^[a-f0-9]{64}$/.test(entry.destination_fingerprint || '')
+    && sourceFingerprint === entry.source_fingerprint
+    && destinationFingerprint === entry.destination_fingerprint
+    && sourceFingerprint === destinationFingerprint);
+}
+
 function verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed, algorithm = undefined }) {
   const destination = asset && asset.destination;
   if (!safeConsumerRepoPath(destination)
@@ -1211,12 +1204,7 @@ function verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed, 
     installed.mode,
     algorithm,
   );
-  if (!sourceFingerprint || !destinationFingerprint
-    || !/^[a-f0-9]{64}$/.test(installed.source_fingerprint || '')
-    || !/^[a-f0-9]{64}$/.test(installed.destination_fingerprint || '')
-    || sourceFingerprint !== installed.source_fingerprint
-    || destinationFingerprint !== installed.destination_fingerprint
-    || sourceFingerprint !== destinationFingerprint) {
+  if (!receiptFingerprintsMatch(installed, sourceFingerprint, destinationFingerprint)) {
     throw new Error(`Codex role resource is not currently receipt-bound: ${destination}`);
   }
   return { destination, asset, installed };
@@ -1299,7 +1287,7 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
       throw new Error('Codex role ownership row is unavailable');
     }
 
-    const projectionManifest = JSON.parse(readFileBounded(path.join(root, 'codex', 'agent-projection-manifest.json')).toString('utf8'));
+    const projectionManifest = readJsonBounded(path.join(root, 'codex', 'agent-projection-manifest.json'));
     if (!projectionManifest || !Array.isArray(projectionManifest.generated_roles)
       || !Array.isArray(projectionManifest.package_roles)
       || !Array.isArray(projectionManifest.workspace_local_extensions)) {
@@ -1321,7 +1309,7 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
 
     let inventory;
     try {
-      inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+      inventory = readJsonBounded(path.join(root, 'manifests', 'distribution-inventory.json'));
     } catch (error) {
       missingFields.add('sourceFingerprint');
       missingFields.add('selectionFingerprint');
@@ -1506,6 +1494,7 @@ function runCodexNamedRoleProbe(project, {
   roles = ['explorer', 'deep-reasoner', 'code-reviewer', 'doc-reviewer'],
   timeoutMs = 120000,
 } = {}) {
+  const redactedTail = (text) => redactSensitiveText(text).slice(-4000);
   if (!Array.isArray(roles) || roles.length === 0 || roles.some((role) => !/^[a-z][a-z0-9-]*$/.test(role))) {
     return {
       status: 'BLOCKED',
@@ -1543,7 +1532,7 @@ function runCodexNamedRoleProbe(project, {
     return {
       status: 'BLOCKED',
       cliVersion: null,
-      diagnostic: redactSensitiveText(`codex --version failed: ${detail}`).slice(-4000),
+      diagnostic: redactedTail(`codex --version failed: ${detail}`),
       roles,
     };
   }
@@ -1613,7 +1602,7 @@ function runCodexNamedRoleProbe(project, {
     const stdout = probe.stdout || '';
     const stderr = probe.stderr || '';
     const combined = `${stdout}\n${stderr}`.trim();
-    const diagnostic = redactSensitiveText(combined).slice(-4000);
+    const diagnostic = redactedTail(combined);
     if (probe.error && probe.error.code === 'ETIMEDOUT') {
       return { status: 'BLOCKED', cliVersion, diagnostic: `Codex named-role runtime probe timed out after ${timeoutMs}ms`, roles };
     }
@@ -1621,7 +1610,7 @@ function runCodexNamedRoleProbe(project, {
       return {
         status: 'BLOCKED',
         cliVersion,
-        diagnostic: redactSensitiveText(`Codex named-role runtime probe could not execute: ${probe.error.message}`).slice(-4000),
+        diagnostic: redactedTail(`Codex named-role runtime probe could not execute: ${probe.error.message}`),
         roles,
       };
     }
@@ -1747,8 +1736,8 @@ function runCodexNamedRoleProbe(project, {
     return {
       status: passed ? 'PASS' : 'FAIL',
       cliVersion,
-      diagnostic: redactSensitiveText([diagnostic || `codex exec exited ${probe.status} without a named-role result marker`, evidenceFailure]
-        .filter(Boolean).join('\n')).slice(-4000),
+      diagnostic: redactedTail([diagnostic || `codex exec exited ${probe.status} without a named-role result marker`, evidenceFailure]
+        .filter(Boolean).join('\n')),
       roles,
       runtimeEvidence,
       ...(registryUnavailable ? { reasonCode: 'CUSTOM_AGENT_REGISTRY_UNAVAILABLE' } : {}),
@@ -1776,7 +1765,7 @@ function verifyCodexSync(root, version, options = {}) {
     if (!fs.existsSync(manifestPath)) {
       return { verdict: VERDICTS.FAIL, commands, reasons: ['no .codex/.dhpk-installed.json manifest after install'] };
     }
-    const manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8'));
+    const manifest = readJsonBounded(manifestPath);
     const runtimeNames = inventoryRuntimeSkillNames(root, 'codex-native');
     const runtimeNameSet = new Set(runtimeNames);
     const leftoverSkills = Object.keys((manifest.managed_entries && manifest.managed_entries.skills) || {})
@@ -1819,24 +1808,25 @@ function verifyCodexSync(root, version, options = {}) {
         reasons: [`codex-sync: ${redactEvidence(nativeLinks.reason, root)}`],
       };
     }
-    const agentMaterializationErrors = validateCodexAgentMaterialization(project, manifest);
-    commands.push({ cmd: 'validate physical Codex agent materialization', exitCode: agentMaterializationErrors.length === 0 ? 0 : 1 });
-    if (agentMaterializationErrors.length > 0) {
+    const failOnErrors = (errors, cmd) => {
+      commands.push({ cmd, exitCode: errors.length === 0 ? 0 : 1 });
+      if (errors.length === 0) return null;
       return {
         verdict: VERDICTS.FAIL,
         commands,
-        reasons: agentMaterializationErrors.map((error) => `codex-sync: ${redactEvidence(error, root)}`),
+        reasons: errors.map((error) => `codex-sync: ${redactEvidence(error, root)}`),
       };
-    }
-    const projectionErrors = collectCodexProjectionReferenceErrors(project, root);
-    commands.push({ cmd: 'validate clean Codex supporting-asset reference closure', exitCode: projectionErrors.length === 0 ? 0 : 1 });
-    if (projectionErrors.length > 0) {
-      return {
-        verdict: VERDICTS.FAIL,
-        commands,
-        reasons: projectionErrors.map((error) => `codex-sync: ${redactEvidence(error, root)}`),
-      };
-    }
+    };
+    const agentMaterializationFailure = failOnErrors(
+      validateCodexAgentMaterialization(project, manifest),
+      'validate physical Codex agent materialization',
+    );
+    if (agentMaterializationFailure) return agentMaterializationFailure;
+    const projectionFailure = failOnErrors(
+      collectCodexProjectionReferenceErrors(project, root),
+      'validate clean Codex supporting-asset reference closure',
+    );
+    if (projectionFailure) return projectionFailure;
     let surfaces;
     try {
       surfaces = discoverCodexSurfaces({ root, project, version });
@@ -1882,34 +1872,6 @@ function verifyCodexSync(root, version, options = {}) {
     }
     const surfaceVerdict = discovery.verdict;
     const discoverySummary = summarizeCodexDiscovery(discovery);
-    if (surfaceVerdict === CODEX_SURFACE_VERDICTS.BLOCKED) {
-      return {
-        verdict: VERDICTS.FAIL,
-        commands,
-        reasons: [discovery.reasonCode === 'CODEX_PROVIDER_FINGERPRINT_ERROR'
-          ? 'Codex surface fingerprint validation is BLOCKED'
-          : 'Codex duplicate-surface validation is BLOCKED'],
-        surfaceVerdict,
-        duplicateEvidence,
-        surfaces: {
-          project: surfaces.project,
-          native: surfaces.native,
-          effective: discoverySummary.effective,
-          conflicts: discoverySummary.conflicts,
-          invalidProviders: discoverySummary.invalidProviders,
-          receipt: {
-            schema_version: manifest.schema_version,
-            plugin_version: manifest.plugin_version,
-            source_fingerprint: manifest.source_fingerprint,
-            mode: manifest.mode,
-            reconciliation: manifest.reconciliation || null,
-          },
-        },
-      };
-    }
-    const reasons = surfaceVerdict === CODEX_SURFACE_VERDICTS.WARN
-      ? ['Codex duplicate-surface validation is WARN: project-local receipt-owned fallback takes precedence over experimental native content']
-      : [];
     const surfacesEvidence = {
       project: surfaces.project,
       native: surfaces.native,
@@ -1924,6 +1886,21 @@ function verifyCodexSync(root, version, options = {}) {
         reconciliation: manifest.reconciliation || null,
       },
     };
+    if (surfaceVerdict === CODEX_SURFACE_VERDICTS.BLOCKED) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: [discovery.reasonCode === 'CODEX_PROVIDER_FINGERPRINT_ERROR'
+          ? 'Codex surface fingerprint validation is BLOCKED'
+          : 'Codex duplicate-surface validation is BLOCKED'],
+        surfaceVerdict,
+        duplicateEvidence,
+        surfaces: surfacesEvidence,
+      };
+    }
+    const reasons = surfaceVerdict === CODEX_SURFACE_VERDICTS.WARN
+      ? ['Codex duplicate-surface validation is WARN: project-local receipt-owned fallback takes precedence over experimental native content']
+      : [];
     const targetedRequirementEvidence = {};
     const roleContracts = new Map();
     for (const check of options.roleChecks || []) {
@@ -2119,7 +2096,7 @@ function leftoverCodexNativeSkillDirectories(project, options = {}) {
 
 function inventoryRuntimeSkillNames(root, surface) {
   try {
-    const inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+    const inventory = readJsonBounded(path.join(root, 'manifests', 'distribution-inventory.json'));
     const ids = new Set(
       inventory && inventory.internal_runtime_skills && Array.isArray(inventory.internal_runtime_skills[surface])
         ? inventory.internal_runtime_skills[surface]
@@ -2133,241 +2110,151 @@ function inventoryRuntimeSkillNames(root, surface) {
   }
 }
 
-function cursorHostProjectionPreconditions(project) {
-  for (const relative of ['.agents', path.join('.agents', 'skills'), path.join('.cursor', 'skills')]) {
+const CURSOR_PROJECTION = { label: 'Cursor', dir: '.cursor', hostKey: 'cursor' };
+const CODEX_PROJECTION = { label: 'Codex', dir: '.codex', hostKey: 'codex' };
+
+function hostProjectionPreconditions(project, { label, dir, hostKey, ignore = [] }) {
+  for (const relative of ['.agents', path.join('.agents', 'skills'), path.join(dir, 'skills')]) {
     if (hasSymlinkedAncestor(path.join(project, relative), project)) {
-      return { ok: false, reason: `Cursor native-link ancestor is a symlink: ${relative}` };
+      return { ok: false, reason: `${label} native-link ancestor is a symlink: ${relative}` };
     }
   }
   const projectionPath = path.join(project, '.agents', '.dhpk-installed.json');
   let projection;
   try {
-    projection = JSON.parse(readFileBounded(projectionPath).toString('utf8'));
+    projection = readJsonBounded(projectionPath);
   } catch (error) {
-    return { ok: false, reason: `Cursor shared projection receipt is unreadable: ${redactEvidence(error.message, project)}` };
+    return { ok: false, reason: `${label} shared projection receipt is unreadable: ${redactEvidence(error.message, project)}` };
   }
-  const cursorHost = projection && projection.hostBindings && projection.hostBindings.cursor;
-  if (!cursorHost || (cursorHost.bindingShape !== 'native-link' && cursorHost.bindingShape !== 'direct')) {
-    return { ok: false, reason: 'Cursor shared projection is missing native-link Host Bindings' };
+  const host = projection && projection.hostBindings && projection.hostBindings[hostKey];
+  if (!host || (host.bindingShape !== 'native-link' && host.bindingShape !== 'direct')) {
+    return { ok: false, reason: `${label} shared projection is missing native-link Host Bindings` };
   }
-  const leftoverDirs = leftoverCursorNativeSkillDirectories(project, {
-    required: cursorHost.bindingShape !== 'direct',
+  const leftoverDirs = leftoverNativeSkillDirectories(project, dir, label, {
+    required: host.bindingShape !== 'direct',
+    ignore,
   });
   if (!leftoverDirs.ok) return leftoverDirs;
   if (leftoverDirs.leftovers.length > 0) {
     return { ok: false, reason: `leftover native skill copies: ${leftoverDirs.leftovers.slice(0, 10).join(', ')}` };
   }
-  return { ok: true, projection, cursorHost };
+  return { ok: true, projection, host };
+}
+
+function verifyDirectProjection(project, host, { label, dir }) {
+  const bindings = Array.isArray(host.bindings) ? host.bindings : [];
+  if (bindings.length === 0) {
+    return { ok: false, reason: `${label} shared projection has no direct skill bindings` };
+  }
+  for (const binding of bindings) {
+    if (!binding || binding.shape !== 'direct' || typeof binding.name !== 'string' || binding.path || binding.target) {
+      return { ok: false, reason: `${label} direct binding is malformed` };
+    }
+    if (!SKILL_NAME_PATTERN.test(binding.name)) {
+      return { ok: false, reason: `${label} direct binding is unsafe: ${binding.name}` };
+    }
+    const destination = path.join(project, dir, 'skills', binding.name);
+    try {
+      fs.lstatSync(destination);
+      return { ok: false, reason: `${label} direct binding leftover native skill entry: ${binding.name}` };
+    } catch (error) {
+      if (!error || error.code !== 'ENOENT') {
+        return { ok: false, reason: `${label} direct binding cannot be verified: ${binding.name} (${redactEvidence(error.message, project)})` };
+      }
+    }
+    const shared = path.join(project, '.agents', 'skills', binding.name);
+    try {
+      if (hasSymlinkedAncestor(shared, project)) {
+        return { ok: false, reason: `${label} native-link ancestor is a symlink: ${binding.name}` };
+      }
+      if (!insideRealRoot(shared, project)) {
+        return { ok: false, reason: `${label} shared skill is missing: ${binding.name}` };
+      }
+      const sharedStat = fs.lstatSync(shared);
+      const skillStat = fs.lstatSync(path.join(shared, 'SKILL.md'));
+      if (sharedStat.isSymbolicLink() || !sharedStat.isDirectory()
+        || skillStat.isSymbolicLink() || !skillStat.isFile()) {
+        return { ok: false, reason: `${label} shared skill is missing: ${binding.name}` };
+      }
+    } catch (error) {
+      return { ok: false, reason: `${label} shared skill is missing: ${binding.name} (${redactEvidence(error.message, project)})` };
+    }
+  }
+  return { ok: true, bindings, bindingShape: 'direct' };
+}
+
+function verifyNativeLinkProjection(project, spec) {
+  const { label, dir } = spec;
+  const preconditions = hostProjectionPreconditions(project, spec);
+  if (!preconditions.ok) return preconditions;
+  if (preconditions.host.bindingShape === 'direct') {
+    return verifyDirectProjection(project, preconditions.host, spec);
+  }
+  const host = preconditions.host;
+  const bindings = Array.isArray(host.bindings) ? host.bindings : [];
+  if (bindings.length === 0) {
+    return { ok: false, reason: `${label} shared projection has no native-link skill bindings` };
+  }
+  for (const binding of bindings) {
+    if (!binding || binding.shape !== 'native-link' || typeof binding.path !== 'string' || typeof binding.target !== 'string') {
+      return { ok: false, reason: `${label} native-link binding is malformed` };
+    }
+    const name = binding.path.split('/').pop();
+    const expectedPath = `${dir}/skills/${name}`;
+    const expectedTarget = `../../.agents/skills/${name}`;
+    if (binding.path !== expectedPath || binding.target !== expectedTarget || !SKILL_NAME_PATTERN.test(name)) {
+      return { ok: false, reason: `${label} native-link binding is unsafe: ${binding.path}` };
+    }
+    const destination = path.join(project, binding.path);
+    const shared = path.join(project, '.agents', 'skills', name);
+    try {
+      if (!fs.lstatSync(destination).isSymbolicLink() || fs.readlinkSync(destination) !== expectedTarget) {
+        return { ok: false, reason: `${label} native-link is missing or retargeted: ${binding.path}` };
+      }
+      if (hasSymlinkedAncestor(path.dirname(destination), project) || hasSymlinkedAncestor(shared, project)) {
+        return { ok: false, reason: `${label} native-link ancestor is a symlink: ${binding.path}` };
+      }
+      if (!insideRealRoot(destination, project) || !insideRealRoot(shared, project)
+        || fs.realpathSync(destination) !== fs.realpathSync(shared)) {
+        return { ok: false, reason: `${label} native-link is missing or retargeted: ${binding.path}` };
+      }
+      const sharedStat = fs.lstatSync(shared);
+      const skillStat = fs.lstatSync(path.join(shared, 'SKILL.md'));
+      if (sharedStat.isSymbolicLink() || !sharedStat.isDirectory()
+        || skillStat.isSymbolicLink() || !skillStat.isFile()) {
+        return { ok: false, reason: `${label} shared skill is missing: ${name}` };
+      }
+    } catch (error) {
+      return { ok: false, reason: `${label} native-link cannot be verified: ${binding.path} (${redactEvidence(error.message, project)})` };
+    }
+  }
+  return { ok: true, bindings, bindingShape: 'native-link' };
+}
+
+function cursorHostProjectionPreconditions(project) {
+  const result = hostProjectionPreconditions(project, CURSOR_PROJECTION);
+  return result.ok ? { ok: true, projection: result.projection, cursorHost: result.host } : result;
 }
 
 function verifyCursorDirectProjection(project, cursorHost) {
-  const bindings = Array.isArray(cursorHost.bindings) ? cursorHost.bindings : [];
-  if (bindings.length === 0) {
-    return { ok: false, reason: 'Cursor shared projection has no direct skill bindings' };
-  }
-  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-  for (const binding of bindings) {
-    if (!binding || binding.shape !== 'direct' || typeof binding.name !== 'string' || binding.path || binding.target) {
-      return { ok: false, reason: 'Cursor direct binding is malformed' };
-    }
-    if (!skillName.test(binding.name)) {
-      return { ok: false, reason: `Cursor direct binding is unsafe: ${binding.name}` };
-    }
-    const destination = path.join(project, '.cursor', 'skills', binding.name);
-    try {
-      fs.lstatSync(destination);
-      return { ok: false, reason: `Cursor direct binding leftover native skill entry: ${binding.name}` };
-    } catch (error) {
-      if (!error || error.code !== 'ENOENT') {
-        return { ok: false, reason: `Cursor direct binding cannot be verified: ${binding.name} (${redactEvidence(error.message, project)})` };
-      }
-    }
-    const shared = path.join(project, '.agents', 'skills', binding.name);
-    try {
-      if (hasSymlinkedAncestor(shared, project)) {
-        return { ok: false, reason: `Cursor native-link ancestor is a symlink: ${binding.name}` };
-      }
-      if (!insideRealRoot(shared, project)) {
-        return { ok: false, reason: `Cursor shared skill is missing: ${binding.name}` };
-      }
-      const sharedStat = fs.lstatSync(shared);
-      const skillStat = fs.lstatSync(path.join(shared, 'SKILL.md'));
-      if (sharedStat.isSymbolicLink() || !sharedStat.isDirectory()
-        || skillStat.isSymbolicLink() || !skillStat.isFile()) {
-        return { ok: false, reason: `Cursor shared skill is missing: ${binding.name}` };
-      }
-    } catch (error) {
-      return { ok: false, reason: `Cursor shared skill is missing: ${binding.name} (${redactEvidence(error.message, project)})` };
-    }
-  }
-  return { ok: true, bindings, bindingShape: 'direct' };
+  return verifyDirectProjection(project, cursorHost, CURSOR_PROJECTION);
 }
 
 function verifyCursorNativeLinkProjection(project) {
-  const preconditions = cursorHostProjectionPreconditions(project);
-  if (!preconditions.ok) return preconditions;
-  if (preconditions.cursorHost.bindingShape === 'direct') {
-    return verifyCursorDirectProjection(project, preconditions.cursorHost);
-  }
-  const cursorHost = preconditions.cursorHost;
-  const bindings = Array.isArray(cursorHost.bindings) ? cursorHost.bindings : [];
-  if (bindings.length === 0) {
-    return { ok: false, reason: 'Cursor shared projection has no native-link skill bindings' };
-  }
-  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-  for (const binding of bindings) {
-    if (!binding || binding.shape !== 'native-link' || typeof binding.path !== 'string' || typeof binding.target !== 'string') {
-      return { ok: false, reason: 'Cursor native-link binding is malformed' };
-    }
-    const name = binding.path.split('/').pop();
-    const expectedPath = `.cursor/skills/${name}`;
-    const expectedTarget = `../../.agents/skills/${name}`;
-    if (binding.path !== expectedPath || binding.target !== expectedTarget || !skillName.test(name)) {
-      return { ok: false, reason: `Cursor native-link binding is unsafe: ${binding.path}` };
-    }
-    const destination = path.join(project, binding.path);
-    const shared = path.join(project, '.agents', 'skills', name);
-    try {
-      if (!fs.lstatSync(destination).isSymbolicLink() || fs.readlinkSync(destination) !== expectedTarget) {
-        return { ok: false, reason: `Cursor native-link is missing or retargeted: ${binding.path}` };
-      }
-      if (hasSymlinkedAncestor(path.dirname(destination), project) || hasSymlinkedAncestor(shared, project)) {
-        return { ok: false, reason: `Cursor native-link ancestor is a symlink: ${binding.path}` };
-      }
-      if (!insideRealRoot(destination, project) || !insideRealRoot(shared, project)
-        || fs.realpathSync(destination) !== fs.realpathSync(shared)) {
-        return { ok: false, reason: `Cursor native-link is missing or retargeted: ${binding.path}` };
-      }
-      const sharedStat = fs.lstatSync(shared);
-      const skillStat = fs.lstatSync(path.join(shared, 'SKILL.md'));
-      if (sharedStat.isSymbolicLink() || !sharedStat.isDirectory()
-        || skillStat.isSymbolicLink() || !skillStat.isFile()) {
-        return { ok: false, reason: `Cursor shared skill is missing: ${name}` };
-      }
-    } catch (error) {
-      return { ok: false, reason: `Cursor native-link cannot be verified: ${binding.path} (${redactEvidence(error.message, project)})` };
-    }
-  }
-  return { ok: true, bindings, bindingShape: 'native-link' };
+  return verifyNativeLinkProjection(project, CURSOR_PROJECTION);
 }
 
 function codexHostProjectionPreconditions(project, options = {}) {
-  for (const relative of ['.agents', path.join('.agents', 'skills'), path.join('.codex', 'skills')]) {
-    if (hasSymlinkedAncestor(path.join(project, relative), project)) {
-      return { ok: false, reason: `Codex native-link ancestor is a symlink: ${relative}` };
-    }
-  }
-  const projectionPath = path.join(project, '.agents', '.dhpk-installed.json');
-  let projection;
-  try {
-    projection = JSON.parse(readFileBounded(projectionPath).toString('utf8'));
-  } catch (error) {
-    return { ok: false, reason: `Codex shared projection receipt is unreadable: ${redactEvidence(error.message, project)}` };
-  }
-  const codexHost = projection && projection.hostBindings && projection.hostBindings.codex;
-  if (!codexHost || (codexHost.bindingShape !== 'native-link' && codexHost.bindingShape !== 'direct')) {
-    return { ok: false, reason: 'Codex shared projection is missing native-link Host Bindings' };
-  }
-  const leftoverDirs = leftoverCodexNativeSkillDirectories(project, {
-    required: codexHost.bindingShape !== 'direct',
-    ignore: options.ignore || [],
-  });
-  if (!leftoverDirs.ok) return leftoverDirs;
-  if (leftoverDirs.leftovers.length > 0) {
-    return { ok: false, reason: `leftover native skill copies: ${leftoverDirs.leftovers.slice(0, 10).join(', ')}` };
-  }
-  return { ok: true, projection, codexHost };
+  const result = hostProjectionPreconditions(project, { ...CODEX_PROJECTION, ignore: options.ignore || [] });
+  return result.ok ? { ok: true, projection: result.projection, codexHost: result.host } : result;
 }
 
 function verifyCodexDirectProjection(project, codexHost) {
-  const bindings = Array.isArray(codexHost.bindings) ? codexHost.bindings : [];
-  if (bindings.length === 0) {
-    return { ok: false, reason: 'Codex shared projection has no direct skill bindings' };
-  }
-  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-  for (const binding of bindings) {
-    if (!binding || binding.shape !== 'direct' || typeof binding.name !== 'string' || binding.path || binding.target) {
-      return { ok: false, reason: 'Codex direct binding is malformed' };
-    }
-    if (!skillName.test(binding.name)) {
-      return { ok: false, reason: `Codex direct binding is unsafe: ${binding.name}` };
-    }
-    const destination = path.join(project, '.codex', 'skills', binding.name);
-    try {
-      fs.lstatSync(destination);
-      return { ok: false, reason: `Codex direct binding leftover native skill entry: ${binding.name}` };
-    } catch (error) {
-      if (!error || error.code !== 'ENOENT') {
-        return { ok: false, reason: `Codex direct binding cannot be verified: ${binding.name} (${redactEvidence(error.message, project)})` };
-      }
-    }
-    const shared = path.join(project, '.agents', 'skills', binding.name);
-    try {
-      if (hasSymlinkedAncestor(shared, project)) {
-        return { ok: false, reason: `Codex native-link ancestor is a symlink: ${binding.name}` };
-      }
-      if (!insideRealRoot(shared, project)) {
-        return { ok: false, reason: `Codex shared skill is missing: ${binding.name}` };
-      }
-      const sharedStat = fs.lstatSync(shared);
-      const skillStat = fs.lstatSync(path.join(shared, 'SKILL.md'));
-      if (sharedStat.isSymbolicLink() || !sharedStat.isDirectory()
-        || skillStat.isSymbolicLink() || !skillStat.isFile()) {
-        return { ok: false, reason: `Codex shared skill is missing: ${binding.name}` };
-      }
-    } catch (error) {
-      return { ok: false, reason: `Codex shared skill is missing: ${binding.name} (${redactEvidence(error.message, project)})` };
-    }
-  }
-  return { ok: true, bindings, bindingShape: 'direct' };
+  return verifyDirectProjection(project, codexHost, CODEX_PROJECTION);
 }
 
 function verifyCodexNativeLinkProjection(project, options = {}) {
-  const preconditions = codexHostProjectionPreconditions(project, options);
-  if (!preconditions.ok) return preconditions;
-  if (preconditions.codexHost.bindingShape === 'direct') {
-    return verifyCodexDirectProjection(project, preconditions.codexHost);
-  }
-  const codexHost = preconditions.codexHost;
-  const bindings = Array.isArray(codexHost.bindings) ? codexHost.bindings : [];
-  if (bindings.length === 0) {
-    return { ok: false, reason: 'Codex shared projection has no native-link skill bindings' };
-  }
-  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-  for (const binding of bindings) {
-    if (!binding || binding.shape !== 'native-link' || typeof binding.path !== 'string' || typeof binding.target !== 'string') {
-      return { ok: false, reason: 'Codex native-link binding is malformed' };
-    }
-    const name = binding.path.split('/').pop();
-    const expectedPath = `.codex/skills/${name}`;
-    const expectedTarget = `../../.agents/skills/${name}`;
-    if (binding.path !== expectedPath || binding.target !== expectedTarget || !skillName.test(name)) {
-      return { ok: false, reason: `Codex native-link binding is unsafe: ${binding.path}` };
-    }
-    const destination = path.join(project, binding.path);
-    const shared = path.join(project, '.agents', 'skills', name);
-    try {
-      if (!fs.lstatSync(destination).isSymbolicLink() || fs.readlinkSync(destination) !== expectedTarget) {
-        return { ok: false, reason: `Codex native-link is missing or retargeted: ${binding.path}` };
-      }
-      if (hasSymlinkedAncestor(path.dirname(destination), project) || hasSymlinkedAncestor(shared, project)) {
-        return { ok: false, reason: `Codex native-link ancestor is a symlink: ${binding.path}` };
-      }
-      if (!insideRealRoot(destination, project) || !insideRealRoot(shared, project)
-        || fs.realpathSync(destination) !== fs.realpathSync(shared)) {
-        return { ok: false, reason: `Codex native-link is missing or retargeted: ${binding.path}` };
-      }
-      const sharedStat = fs.lstatSync(shared);
-      const skillStat = fs.lstatSync(path.join(shared, 'SKILL.md'));
-      if (sharedStat.isSymbolicLink() || !sharedStat.isDirectory()
-        || skillStat.isSymbolicLink() || !skillStat.isFile()) {
-        return { ok: false, reason: `Codex shared skill is missing: ${name}` };
-      }
-    } catch (error) {
-      return { ok: false, reason: `Codex native-link cannot be verified: ${binding.path} (${redactEvidence(error.message, project)})` };
-    }
-  }
-  return { ok: true, bindings, bindingShape: 'native-link' };
+  return verifyNativeLinkProjection(project, { ...CODEX_PROJECTION, ignore: options.ignore || [] });
 }
 
 function hasSymlinkedAncestor(candidate, boundary) {
@@ -2439,7 +2326,7 @@ function verifyCursorSync(root, version) {
     const receiptPath = path.join(project, '.cursor', '.dhpk-installed.json');
     let receipt;
     try {
-      receipt = JSON.parse(readFileBounded(receiptPath).toString('utf8'));
+      receipt = readJsonBounded(receiptPath);
     } catch (error) {
       return {
         verdict: VERDICTS.FAIL,
@@ -2635,6 +2522,10 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
     cliVersion: versionDiscovery.version,
     versionDiscovery,
   });
+  const strictFailureDetail = (result) => {
+    const output = redactEvidence(`${result.stdout || ''}\n${result.stderr || ''}`.trim(), root);
+    return output ? `: ${output}` : '';
+  };
   if (versionDiscovery.status !== 'PASS') {
     const unavailable = versionDiscovery.status === 'UNAVAILABLE';
     const reason = unavailable
@@ -2676,7 +2567,6 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
     };
     commands.push(strictEvidence);
     if (strict.status !== 0) {
-      const output = redactEvidence(`${strict.stdout || ''}\n${strict.stderr || ''}`.trim(), root);
       return finish({
         verdict: VERDICTS.FAIL,
         commands,
@@ -2684,7 +2574,7 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
           verdict: 'FAIL',
           ...strictEvidence,
         },
-        reasons: [`official Claude strict validation failed (exit ${strict.status})${output ? `: ${output}` : ''}`],
+        reasons: [`official Claude strict validation failed (exit ${strict.status})${strictFailureDetail(strict)}`],
       });
     }
   } finally {
@@ -2692,24 +2582,25 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
   }
   const officialValidation = { verdict: 'PASS', ...strictEvidence };
   const warnings = [];
+  const fail = (reason) => finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [reason], warnings });
   const project = mkTempProject();
   try {
     const add = spawnSync('claude', ['plugin', 'marketplace', 'add', root, '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin marketplace add <root> --scope project', exitCode: add.status });
     if (add.status !== 0) {
-      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`], warnings });
+      return fail(`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`);
     }
 
     const install = spawnSync('claude', ['plugin', 'install', 'dhpk@dhpk', '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin install dhpk@dhpk --scope project', exitCode: install.status });
     if (install.status !== 0) {
-      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`], warnings });
+      return fail(`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`);
     }
 
     const list = spawnSync('claude', ['plugin', 'list', '--json'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin list --json', exitCode: list.status });
     if (list.status !== 0) {
-      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin list exited ${list.status}`], warnings });
+      return fail(`plugin list exited ${list.status}`);
     }
     const installedEntries = JSON.parse(list.stdout || '[]');
     const matchingEntries = installedEntries.filter((p) => p.id === 'dhpk@dhpk');
@@ -2724,10 +2615,10 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
       return !p.projectPath || identityPath(p.projectPath) === identityPath(project);
     }) || (matchingEntries.length === 1 && matchingEntries[0].scope === undefined ? matchingEntries[0] : null);
     if (!installed) {
-      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: ["'dhpk@dhpk' not present in 'claude plugin list --json' after install"], warnings });
+      return fail("'dhpk@dhpk' not present in 'claude plugin list --json' after install");
     }
     if (installed.version !== version) {
-      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`installed plugin reports version '${installed.version}', expected '${version}'`], warnings });
+      return fail(`installed plugin reports version '${installed.version}', expected '${version}'`);
     }
     if (installed.installPath) {
       const installedRoot = path.resolve(installed.installPath);
@@ -2744,12 +2635,11 @@ function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
       };
       commands.push(installedEvidence);
       if (installedStrict.status !== 0) {
-        const output = redactEvidence(`${installedStrict.stdout || ''}\n${installedStrict.stderr || ''}`.trim(), root);
         return finish({
           verdict: VERDICTS.FAIL,
           commands,
           officialValidation: { verdict: 'FAIL', ...installedEvidence },
-          reasons: [`official Claude strict validation failed on installed cache (exit ${installedStrict.status})${output ? `: ${output}` : ''}`],
+          reasons: [`official Claude strict validation failed on installed cache (exit ${installedStrict.status})${strictFailureDetail(installedStrict)}`],
           warnings,
         });
       }
@@ -3336,7 +3226,7 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
 
 function codexPackageRoles(root) {
   try {
-    const manifest = JSON.parse(readFileBounded(path.join(root, 'codex', 'agent-projection-manifest.json')).toString('utf8'));
+    const manifest = readJsonBounded(path.join(root, 'codex', 'agent-projection-manifest.json'));
     if (!manifest || !Array.isArray(manifest.package_roles) || manifest.package_roles.length > 64) return new Set();
     return new Set(manifest.package_roles.filter((role) => (
       typeof role === 'string' && /^[a-z][a-z0-9-]{0,62}$/.test(role)
@@ -3408,9 +3298,11 @@ function runGate(args) {
   const scope = requirements
     ? requirements.selectedSurfaces
     : (args.surface ? [args.surface] : configuredConsumerSurfaces(args.root));
-  const resolvedRequirements = requirements
-    ? requirements.checks.map((check) => resolveRequirementCheck(check, codexPackageRoles(args.root)))
-    : [];
+  let resolvedRequirements = [];
+  if (requirements) {
+    const supportedCodexRoles = codexPackageRoles(args.root);
+    resolvedRequirements = requirements.checks.map((check) => resolveRequirementCheck(check, supportedCodexRoles));
+  }
   const roleChecks = uniqueRequirementExecutions(resolvedRequirements, 'named-role');
   const selectedOrAll = (surface) => scope.includes(surface);
   const codex = selectedOrAll('codex-sync')
@@ -3773,7 +3665,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  CODEX_SURFACE_VERDICTS,
   discoverCodexSurface,
   discoverCodexSurfaces,
   evaluateCodexSurfaceMatrix,
@@ -3783,9 +3674,5 @@ module.exports = {
   redactEvidence,
   runCodexNamedRoleProbe,
   validateCodexAgentMaterialization,
-  verifyCodexSync,
-  verifyCursorSync,
-  verifyProjectedConsumer,
-  normalizeGateSurface,
   runGate,
 };

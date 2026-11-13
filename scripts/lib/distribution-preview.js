@@ -4,11 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-
-function inside(root, candidate) {
-  const relative = path.relative(root, candidate);
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
+const { isInside } = require('./bounded-filesystem');
 
 const GIT_LEADING_ARGS = ['-c', 'core.fsmonitor=false', '-c', 'maintenance.auto=false', '-c', 'gc.auto=0'];
 
@@ -54,6 +50,12 @@ function runGitToFile(root, args, output) {
   }
 }
 
+function assertSafeStatusPath(pathValue) {
+  if (!pathValue || path.isAbsolute(pathValue) || path.posix.normalize(pathValue) !== pathValue || pathValue.split('/').includes('..')) {
+    throw new Error(`preview source status contains an unsafe path: ${pathValue}`);
+  }
+}
+
 function parseStatus(root) {
   const raw = runGit(root, ['status', '--porcelain=v1', '--untracked-files=all', '-z']);
   const records = raw.split('\0').filter(Boolean);
@@ -64,17 +66,12 @@ function parseStatus(root) {
     const firstPath = record.slice(3);
     if (status[0] === 'R' || status[1] === 'R') {
       const nextPath = records[++index];
-      for (const pathValue of [firstPath, nextPath]) {
-        if (!pathValue || path.isAbsolute(pathValue) || path.posix.normalize(pathValue) !== pathValue || pathValue.split('/').includes('..')) {
-          throw new Error(`preview source status contains an unsafe path: ${pathValue}`);
-        }
-      }
+      assertSafeStatusPath(firstPath);
+      assertSafeStatusPath(nextPath);
       entries.push({ status: 'D ', path: nextPath });
       entries.push({ status: 'A ', path: firstPath });
     } else {
-      if (!firstPath || path.isAbsolute(firstPath) || path.posix.normalize(firstPath) !== firstPath || firstPath.split('/').includes('..')) {
-        throw new Error(`preview source status contains an unsafe path: ${firstPath}`);
-      }
+      assertSafeStatusPath(firstPath);
       entries.push({ status, path: firstPath });
     }
   }
@@ -108,7 +105,7 @@ function validateContainedSymlinks(root) {
       const absolute = path.join(directory, entry.name);
       if (entry.isSymbolicLink()) {
         const target = fs.readlinkSync(absolute);
-        if (path.isAbsolute(target) || !inside(root, path.resolve(path.dirname(absolute), target))) {
+        if (path.isAbsolute(target) || !isInside(root, path.resolve(path.dirname(absolute), target))) {
           throw new Error(`preview source symlink escapes snapshot root: ${path.relative(root, absolute)}`);
         }
       } else if (entry.isDirectory()) visit(absolute);

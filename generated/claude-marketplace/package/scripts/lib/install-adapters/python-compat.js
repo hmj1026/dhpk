@@ -30,21 +30,6 @@ class OSError extends Error {
   }
 }
 
-class ReceiptCommitError extends OSError {
-  constructor(message, committed = false) {
-    super(message);
-    this.name = 'ReceiptCommitError';
-    this.committed = committed;
-  }
-}
-
-class AdoptionCommittedError extends OSError {
-  constructor(message) {
-    super(message);
-    this.name = 'AdoptionCommittedError';
-  }
-}
-
 class ProviderReceiptTooLarge extends ValueError {}
 
 // sys.exit(): unwinds through every handler; only the entry point catches it.
@@ -355,8 +340,6 @@ function uuidHex() {
 module.exports = {
   ValueError,
   OSError,
-  ReceiptCommitError,
-  AdoptionCommittedError,
   ProviderReceiptTooLarge,
   InstallerExit,
   PyFloat,
@@ -384,7 +367,5 @@ module.exports = {
   sha256,
   utcStamp,
   uuidHex,
-  fs,
-  path,
   childProcess,
 };

@@ -174,4 +174,31 @@ test('a pre-existing empty output directory is refused without an owner receipt'
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+const TRACKED_AGY_PACKAGE = path.join(__dirname, '..', 'plugins', 'dhpk-agy');
+
+test('validation result is identical when the content cache is disabled', () => {
+  const cached = validateAgyPluginPackage(TRACKED_AGY_PACKAGE);
+  const uncached = validateAgyPluginPackage(TRACKED_AGY_PACKAGE, { contentCacheMaxBytes: 0 });
+  assert.strictEqual(cached.ok, true);
+  assert.deepStrictEqual(uncached.errors, cached.errors);
+  assert.deepStrictEqual(uncached.files, cached.files);
+});
+
+test('a small byte budget stops caching and still raises the same budget error', () => {
+  const budgetError = (options) => {
+    try {
+      validateAgyPluginPackage(TRACKED_AGY_PACKAGE, options);
+    } catch (error) {
+      return error.message;
+    }
+    return null;
+  };
+  const limits = { traversalLimits: { maxBytes: 4096 } };
+  const expected = budgetError({ ...limits, contentCacheMaxBytes: 0 });
+  assert.match(expected, /maximum fingerprint byte budget \(4096 bytes\) exceeded/);
+  // Default cache limit follows the traversal budget, so caching stops early
+  // yet the same file triggers the same error.
+  assert.strictEqual(budgetError(limits), expected);
+});
+
 run('agy-plugin-store-ownership');

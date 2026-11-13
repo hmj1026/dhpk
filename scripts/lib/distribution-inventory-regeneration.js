@@ -34,7 +34,5 @@ function assertCanonicalSkillPath(relPath) {
 
 module.exports = {
   classifyWritePolicy,
-  classifyInventoryWritePolicy: classifyWritePolicy,
   assertCanonicalSkillPath,
-  classifyCanonicalSkillPath: assertCanonicalSkillPath,
 };

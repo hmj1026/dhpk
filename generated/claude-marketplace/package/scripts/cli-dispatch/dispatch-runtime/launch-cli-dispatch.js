@@ -226,11 +226,6 @@ function readJsonObject(filePath, label) {
   return value;
 }
 
-function loadScope(filePath) {
-  const scope = readJsonObject(filePath, 'scope');
-  return validateScope(scope);
-}
-
 function validateScope(scope) {
   if (!isPlainRecord(scope)) throw new CliError('scope must be a JSON object');
   const keys = Object.keys(scope).sort();
@@ -308,7 +303,7 @@ function launch(options) {
   validateOptionPaths(options);
   requireFileParent(options.scope, 'scope');
   requireFile(options.scope, 'scope');
-  const scope = loadScope(options.scope);
+  const scope = validateScope(readJsonObject(options.scope, 'scope'));
   const config = loadConfigLayers(options['config-layer']);
   return launchWithInputs(options, scope, config);
 }

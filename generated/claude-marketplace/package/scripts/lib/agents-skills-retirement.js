@@ -53,6 +53,10 @@ function planRetiredAgentSkills(options) {
     if (recorded.length !== expected.size || recorded.some((file) => !expected.has(file))) {
       fail(entry.name, 'receipt managed paths do not match complete source manifest');
     }
+    const manifestDirectories = new Set();
+    for (const file of manifest.keys()) {
+      for (let slash = file.indexOf('/'); slash !== -1; slash = file.indexOf('/', slash + 1)) manifestDirectories.add(file.slice(0, slash));
+    }
     const budget = createTraversalBudget();
     const observed = new Set();
     const physicalFiles = [];
@@ -67,7 +71,7 @@ function planRetiredAgentSkills(options) {
           const childStat = lstatOrNull(absolute);
           if (!childStat || childStat.isSymbolicLink()) fail(entry.name, `symlink/retargeted output: ${childRelative}`);
           if (childStat.isDirectory()) {
-            if (![...manifest.keys()].some((file) => file.startsWith(`${childRelative}/`))) {
+            if (!manifestDirectories.has(childRelative)) {
               fail(entry.name, `unrecorded directory: ${childRelative}`);
             }
             walk(absolute, childRelative, depth + 1);

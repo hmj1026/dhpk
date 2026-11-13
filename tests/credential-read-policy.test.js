@@ -570,4 +570,70 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   });
 }
 
+// #1396: a quote inside a heredoc body that sits in `$(...)` is data. The
+// reader once lexed it as code, so an apostrophe opened a quote that never
+// closed and a legitimate commit message was blocked as unsupported syntax.
+const heredocMessages = [
+  "git commit -m \"$(cat <<'EOF'\nfix: don't drop the marker\nEOF\n)\"",
+  "git commit -m \"$(cat <<'EOF'\nfix: don't drop it\n\nit's the marker's job\nEOF\n)\"",
+  "git commit -m \"$(cat <<'EOF'\nfix: the \" char isn't special\nEOF\n)\"",
+  "git commit -m \"$(cat <<-'EOF'\n\tfix: don't drop the marker\n\tEOF\n)\"",
+  "git commit -m \"$(cat <<EOF\nfix: don't drop $(git rev-parse HEAD)\nEOF\n)\"",
+  "git commit -m \"$(cat <<'A' <<'B'\nit's a\nA\nit's b\nB\n)\"",
+  "git commit -m \"$(echo ${x:-a}; cat <<'EOF'\nit's closed\nEOF\n)\"",
+];
+const heredocAttacks = [
+  ["git commit -m 'it", /unfinished quote/],
+  ["git commit -m \"$(cat <<'EOF'\nok\nEOF\n\"", /unfinished substitution/],
+  ["git commit -m \"$(cat <<'EOF'\ndon't\nEOF\ncat .env\n)\"", /protected path/],
+  ["git commit -m \"$(cat <<EOF\ndon't $(cat .env)\nEOF\n)\"", /protected path/],
+  ["echo \"$(cat <<EOF\nx\nEOF)\"; cat .env\nEOF\n", /ambiguous heredoc delimiter/],
+  // output that runs as a command keeps the pre-#1396 reading of the body
+  ["eval \"$(cat <<'EOF'\ncat .env; don't\nEOF\n)\"", /unfinished substitution/],
+  ["$(cat <<'EOF'\ncat .env\nEOF\n)", null],
+  ["env $(cat <<'EOF'\ncat .env\nEOF\n)", null],
+  ["bash <<'A' <<'B'\nx\nA\ncat .env\nB\n", null],
+  // `<<` inside arithmetic, `${...}` or `$[...]` is not a heredoc; the next lines run
+  ['y=$( (( z = 1 << x ))\ncat .env\nx\n)', /protected path/],
+  ['z=$(echo ${x:-<< y }\ncat .env\ny\n)', /protected path/],
+  ['(( z = 1 << x ))\ncat .env\nx\n', /protected path/],
+  ['echo ${x:-<< y }\ncat .env\ny\n', /protected path/],
+  ['echo $[1 << x ]\ncat .env\nx\n', /protected path/],
+  // an unquoted substitution splits its output into operands or code, so its body is not data
+  ['cat $(cat <<EOF\n.env\nEOF\n)', null],
+  ["tcsh -c $(cat <<'EOF'\ncat .env\nEOF\n)", null],
+  ["python3 -c \"$(cat <<'EOF'\nopen('.env'); it's\nEOF\n)\"", null],
+];
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  test(`${hook} allows a heredoc commit message whose body holds quotes (#1396)`, () => {
+    for (const command of heredocMessages) {
+      const result = runHook(hook, { payload: { tool_input: { command } } });
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+  test(`${hook} still blocks unterminated syntax outside heredoc bodies (#1396)`, () => {
+    for (const [command, reason] of heredocAttacks) {
+      const result = runHook(hook, { payload: { tool_input: { command } } });
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      if (reason) assert.match(result.stderr, reason, JSON.stringify(command));
+    }
+  });
+}
+
+test('pretool-git-gate allows a heredoc commit message whose body holds quotes (#1396)', () => {
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-heredoc-gate-')));
+  try {
+    const git = (...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', ...args], { cwd: repo, stdio: 'ignore' });
+    git('init', '-q');
+    git('commit', '-q', '--allow-empty', '-m', 'init');
+    git('branch', '-M', 'feature/x');
+    for (const command of heredocMessages) {
+      const result = runHook('pretool-git-gate.sh', {
+        cwd: repo, payload: { tool_input: { command } }, env: { DHPK_BRANCH_SAFETY: 'block' },
+      });
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
 run('credential-read-policy');

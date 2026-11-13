@@ -5,15 +5,15 @@
 // cross-platform migration manifest and therefore cannot authorize rollback of
 // another surface.
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const {
   canonicalJson,
   inventoryDigestInsertionOrder,
   inventoryDigestKeySorted,
   requireTreeMerkle,
+  sha256Hex,
 } = require('./content-fingerprint');
 const { readFileBounded } = require('./bounded-filesystem');
 
@@ -30,10 +30,6 @@ const SURFACE_OWNERS = Object.freeze({
 const SHA256 = /^[a-f0-9]{64}$/i;
 const COMMIT = /^[a-f0-9]{40}$/i;
 const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-
-function digest(value) {
-  return crypto.createHash('sha256').update(String(value)).digest('hex');
-}
 
 function createInstallationReceiptIdentity({
   surface,
@@ -52,7 +48,7 @@ function createInstallationReceiptIdentity({
     throw new Error('installation selectedStableIds must be a non-empty string array');
   }
   const selection = [...new Set(selectedStableIds || [])].sort();
-  const planId = planFingerprint || digest(JSON.stringify({
+  const planId = planFingerprint || sha256Hex(JSON.stringify({
     schema: 'dhpk.installation-receipt.v1', surface, scope, sourceVersion, inventoryDigest, profileId, selection,
   }));
   return {
@@ -64,7 +60,7 @@ function createInstallationReceiptIdentity({
     supportClosure: supportClosure || { stableIds: selection },
     ownership: { owner: SURFACE_OWNERS[surface], roots: [...new Set(ownedRoots)].sort() },
     fingerprints: { plan: planId, inventory: inventoryDigest },
-    rollbackIdentity: digest(JSON.stringify({ surface, scope, owner: SURFACE_OWNERS[surface], planId })),
+    rollbackIdentity: sha256Hex(JSON.stringify({ surface, scope, owner: SURFACE_OWNERS[surface], planId })),
   };
 }
 
@@ -604,6 +600,26 @@ function verifyPackageReceipt(receipt, observedFingerprints) {
   return errors;
 }
 
+// HEAD of `root`, or 'unknown' when git cannot resolve it. The package
+// generators record this value; distribution keeps its own throwing resolver.
+function resolveSourceCommitOrUnknown(root) {
+  const result = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
+  return result.status === 0 ? result.stdout.trim() : 'unknown';
+}
+
+// Reads <packageRoot>/provenance.json for a validator. Returns null when the
+// file is absent, { provenance } when it parses, or { error } with the read or
+// parse message so each validator keeps its own error wording.
+function readProvenanceForValidation(packageRoot) {
+  const provenancePath = path.join(packageRoot, PACKAGE_RECEIPT_FILES.provenance);
+  if (!fs.existsSync(provenancePath)) return null;
+  try {
+    return { provenance: JSON.parse(readFileBounded(provenancePath).toString('utf8')) };
+  } catch (error) {
+    return { error: error.message };
+  }
+}
+
 // Recipe named by the package's provenance.json marker. A package without
 // provenance or without the marker fails closed with the version-boundary
 // diagnostic; unparseable provenance fails closed as unreadable.
@@ -629,9 +645,10 @@ module.exports = {
   readPackageProvenance,
   verifyPackageReceipt,
   packageFingerprintAlgorithm,
+  resolveSourceCommitOrUnknown,
+  readProvenanceForValidation,
   RECEIPT_SCHEMA,
   SURFACE_OWNERS,
-  digest,
   createInstallationReceiptIdentity,
   resolveGeneratedFromTree,
   createSurfaceReceipt,

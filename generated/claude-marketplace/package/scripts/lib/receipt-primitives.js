@@ -80,9 +80,7 @@ function compareIdentity(expected, actual) {
   return { ok: errors.length === 0, errors };
 }
 
-function validateIdentity(expected, actual) {
-  return compareIdentity(expected, actual);
-}
+const validateIdentity = compareIdentity;
 
 function fingerprintForBytes(file) {
   return `sha256:${sha256(fs.readFileSync(file))}`;
@@ -121,13 +119,19 @@ function revalidateBytes(reference, expectedFingerprint = null) {
   return { ok: errors.length === 0, errors, path: file, expectedFingerprint: expected, actualFingerprint };
 }
 
+const SENSITIVE_KEY = /authorization|proxy.?authorization|token|password|secret|api.?key|private.?key|signing.?key|cookie|credential/i;
+
+const isOverwriteConflict = (error) => Boolean(error)
+  && (error.code === 'EEXIST' || /refusing to overwrite/.test(error.message));
+
+function redactString(value) {
+  return PRIVATE_KEY_MATERIAL.test(value) ? '<redacted>' : redactSensitiveText(value, { maxLength: 4096 });
+}
+
 function redact(value, depth = 0, key = '') {
   if (depth > 5) return '<truncated>';
-  if (/authorization|proxy.?authorization|token|password|secret|api.?key|private.?key|signing.?key|cookie|credential/i.test(key)) return '<redacted>';
-  if (typeof value === 'string') {
-    if (PRIVATE_KEY_MATERIAL.test(value)) return '<redacted>';
-    return redactSensitiveText(value, { maxLength: 4096 });
-  }
+  if (SENSITIVE_KEY.test(key)) return '<redacted>';
+  if (typeof value === 'string') return redactString(value);
   if (Array.isArray(value)) return value.slice(0, 200).map((entry) => redact(entry, depth + 1, key));
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).slice(0, 200).map(([entryKey, entry]) => [
@@ -151,15 +155,11 @@ function redactionPath(context, key) {
 
 function redactEvidenceScalar(value, key, path, costSchema) {
   const safeMetric = canonicalModelTokenPath(path, value, costSchema);
-  if (!safeMetric
-    && /authorization|proxy.?authorization|token|password|secret|api.?key|private.?key|signing.?key|cookie|credential/i.test(key)) {
+  if (!safeMetric && SENSITIVE_KEY.test(key)) {
     return { handled: true, value: '<redacted>' };
   }
   if (typeof value === 'string') {
-    return {
-      handled: true,
-      value: PRIVATE_KEY_MATERIAL.test(value) ? '<redacted>' : redactSensitiveText(value, { maxLength: 4096 }),
-    };
+    return { handled: true, value: redactString(value) };
   }
   if (value === null || typeof value !== 'object') return { handled: true, value };
   return { handled: false, value };
@@ -236,35 +236,6 @@ function redactEvidenceAt(value, depth, key, context) {
 
 function redactEvidence(value) {
   return redactEvidenceAt(value, 0, '', { path: [], costSchema: null });
-}
-
-function ensurePhysicalDirectory(directory) {
-  const resolved = path.resolve(directory);
-  const missing = [];
-  let existing = resolved;
-  while (true) {
-    try {
-      const stat = fs.lstatSync(existing);
-      if (stat.isSymbolicLink()) throw new Error(`physical path rejects symlink '${existing}'`);
-      if (!stat.isDirectory()) throw new Error(`physical path component is not a directory '${existing}'`);
-      break;
-    } catch (error) {
-      if (!error || error.code !== 'ENOENT') throw error;
-      const parent = path.dirname(existing);
-      if (parent === existing) throw error;
-      missing.unshift(path.basename(existing));
-      existing = parent;
-    }
-  }
-  fs.mkdirSync(resolved, { recursive: true, mode: 0o700 });
-  let current = existing;
-  for (const name of missing) {
-    current = path.join(current, name);
-    const stat = fs.lstatSync(current);
-    if (stat.isSymbolicLink()) throw new Error(`physical path rejects symlink '${current}'`);
-    if (!stat.isDirectory()) throw new Error(`physical path component is not a directory '${current}'`);
-  }
-  return fs.realpathSync(resolved);
 }
 
 function assertPhysicalContainment(root, target) {
@@ -405,7 +376,7 @@ function acquireProcessLock({
       writeImmutable(file, `${pid}\n`);
       return true;
     } catch (error) {
-      if (!error || (error.code !== 'EEXIST' && !/refusing to overwrite/.test(error.message))) throw error;
+      if (!isOverwriteConflict(error)) throw error;
     }
     const current = readFileLease(file);
     if (!current.exists) continue;
@@ -537,7 +508,7 @@ function acquireLeaseJournal({
       writeFile(claimPath, encoded, { physicalRoot });
       return candidate;
     } catch (error) {
-      if (!error || (error.code !== 'EEXIST' && !/refusing to overwrite/.test(error.message))) throw error;
+      if (!isOverwriteConflict(error)) throw error;
     }
   }
   throw unavailableError();
@@ -575,7 +546,7 @@ function releaseLeaseJournal({
     assertLeaseRecordBytes(encoded, null, invalidError);
     writeFile(releasePath, encoded, { physicalRoot });
   } catch (error) {
-    if (!error || (error.code !== 'EEXIST' && !/refusing to overwrite/.test(error.message))) throw error;
+    if (!isOverwriteConflict(error)) throw error;
     const encoded = readFile(releasePath);
     assertLeaseRecordBytes(encoded, null, invalidError);
     const released = decode(encoded);
@@ -742,7 +713,6 @@ module.exports = {
   revalidateBytes,
   redact,
   redactEvidence,
-  ensurePhysicalDirectory,
   assertPhysicalContainment,
   writeImmutable,
   replayJsonSequence,

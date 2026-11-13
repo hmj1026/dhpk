@@ -45,18 +45,10 @@ const emptyAccounting = () => Object.freeze(FIELDS.reduce((result, field) => {
   return result;
 }, {}));
 
-const readCounter = (accounting, field) => {
-  const value = accounting && accounting[field] === undefined ? 0 : accounting[field];
+const readNonNegative = (source, field, message) => {
+  const value = source && source[field] === undefined ? 0 : source[field];
   if (!Number.isSafeInteger(value) || value < 0) {
-    throw new StoreBudgetError(errorCodeFor(field), 'store budget accounting is invalid');
-  }
-  return value;
-};
-
-const readIncrement = (increments, field) => {
-  const value = increments && increments[field] === undefined ? 0 : increments[field];
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new StoreBudgetError(errorCodeFor(field), 'store budget increment is invalid');
+    throw new StoreBudgetError(errorCodeFor(field), message);
   }
   return value;
 };
@@ -64,8 +56,8 @@ const readIncrement = (increments, field) => {
 const addAccounting = (accounting = emptyAccounting(), increments = {}, _payload = null) => {
   const next = {};
   for (const field of FIELDS) {
-    const current = readCounter(accounting, field);
-    const increment = readIncrement(increments, field);
+    const current = readNonNegative(accounting, field, 'store budget accounting is invalid');
+    const increment = readNonNegative(increments, field, 'store budget increment is invalid');
     const value = current + increment;
     if (!Number.isSafeInteger(value) || value > LIMITS[field]) {
       // Do not include a payload, field value, path, or serialized record in
@@ -90,8 +82,6 @@ const assertLeaseRecordBytes = (value, _payload = null, errorFactory = null) => 
 
 module.exports = {
   LIMITS,
-  DATA_FIELDS,
-  LEASE_FIELDS,
   StoreBudgetError,
   emptyAccounting,
   addAccounting,

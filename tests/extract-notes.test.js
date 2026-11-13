@@ -63,4 +63,42 @@ test('fails when the target heading body is whitespace-only', () => {
   assert.match(res.stderr, /empty/i);
 });
 
+test('does not treat "." in the version as a regex wildcard', () => {
+  const file = writeChangelog('# Changelog\n\n## 2x31y4 — 2026-01-01 — Lookalike\n\nWrong notes.\n');
+  const res = extract(file, '2.31.4');
+  assert.notStrictEqual(res.status, 0);
+  assert.match(res.stderr, /not found/i);
+  assert.ok(!res.stdout.includes('Wrong notes.'));
+});
+
+test('picks the literal heading when a regex lookalike precedes it', () => {
+  const file = writeChangelog('# Changelog\n\n## 2x31y4 — 2026-01-01 — Lookalike\n\nWrong notes.\n\n## 2.31.4 — 2026-01-02 — Real\n\nRight notes.\n');
+  const res = extract(file, '2.31.4');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /Right notes\./);
+  assert.ok(!res.stdout.includes('Wrong notes.'));
+});
+
+test('extracts versions containing regex metacharacters such as "+"', () => {
+  const file = writeChangelog('# Changelog\n\n## 1.0.0-rc.1+build.5 — 2026-01-01 — Build\n\nBuild notes.\n\n## 0.9.0 — 2025-01-01 — Prior\n\nOld notes.\n');
+  const res = extract(file, '1.0.0-rc.1+build.5');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /Build notes\./);
+  assert.ok(!res.stdout.includes('Old notes.'));
+});
+
+test('extracts versions containing "/" and "(" without breaking awk syntax', () => {
+  const file = writeChangelog('# Changelog\n\n## 1.0.0/x(1)[a] — 2026-01-01 — Odd\n\nOdd notes.\n');
+  const res = extract(file, '1.0.0/x(1)[a]');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /Odd notes\./);
+});
+
+test('treats backslashes in the version literally', () => {
+  const file = writeChangelog('# Changelog\n\n## 1\\n2 — 2026-01-01 — Slash\n\nSlash notes.\n');
+  const res = extract(file, '1\\n2');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /Slash notes\./);
+});
+
 run('extract-notes');

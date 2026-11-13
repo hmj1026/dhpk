@@ -7,6 +7,7 @@
 const {
   VERDICTS,
   createEvidenceResult,
+  canonicalMetadata,
   fingerprint,
 } = require('./distribution-projection-contract');
 
@@ -45,14 +46,6 @@ function normalized(valueToNormalize) {
     return output;
   }
   return value(valueToNormalize);
-}
-
-function safeCanonicalize(valueToCanonicalize) {
-  if (Array.isArray(valueToCanonicalize)) return `[${valueToCanonicalize.map(safeCanonicalize).join(',')}]`;
-  if (valueToCanonicalize && typeof valueToCanonicalize === 'object') {
-    return `{${Object.keys(valueToCanonicalize).sort().map((key) => `${JSON.stringify(key)}:${safeCanonicalize(valueToCanonicalize[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(valueToCanonicalize);
 }
 
 function entryId(entry, index) {
@@ -133,7 +126,8 @@ function compareSubjectOwnership({ state, label, surface, mismatches, diagnostic
 }
 
 function compareField(mismatches, diagnostics, stableId, field, expectedValue, actualValue, surface) {
-  if (safeCanonicalize(normalized(expectedValue)) === safeCanonicalize(normalized(actualValue))) return;
+  if (expectedValue === actualValue) return;
+  if (canonicalMetadata(normalized(expectedValue)) === canonicalMetadata(normalized(actualValue))) return;
   const mismatch = { stableId, surface, type: 'field', field, expected: expectedValue, actual: actualValue };
   if (USAGE_FIELDS.includes(field)) {
     mismatch.type = 'usage';
@@ -456,6 +450,5 @@ module.exports = {
   CHECKED_FIELDS,
   CHECKER,
   compareDistributionProjections,
-  compareDistributionProjection: compareDistributionProjections,
   compareRoutingProjections,
 };

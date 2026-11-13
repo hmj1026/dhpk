@@ -60,6 +60,18 @@ CMD="$(extract_tool_input command "$PAYLOAD")"
 # Each git invocation is judged on its own argv and repository. A dry-run,
 # help, or commit-tree segment does not exempt a later mutating command.
 dhpk_inspect_command "$CMD"
+# Syntax the decoder cannot place may hide a git command, so it is judged
+# like an unresolved commit target.
+_bs_unsupported=-1
+if [ -n "$DHPK_UNSUPPORTED" ]; then
+    _bs_unsupported="$DHPK_GIT_COUNT"
+    DHPK_GIT_SUB[$DHPK_GIT_COUNT]="commit"
+    DHPK_GIT_REPO[$DHPK_GIT_COUNT]=""
+    DHPK_GIT_REPO_STATE[$DHPK_GIT_COUNT]="unresolved"
+    DHPK_GIT_EXEMPT[$DHPK_GIT_COUNT]=0
+    DHPK_GIT_COUNT=$((DHPK_GIT_COUNT + 1))
+fi
+[ "${DHPK_GIT_COUNT:-0}" -eq 0 ] && exit 0
 
 # Slot state: fired flag, mode, and detail string.
 BRANCH_FIRED=0
@@ -86,6 +98,11 @@ while [ "$_bs_i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
         DETAIL="REMINDER: $verb target repository is not a literal path, so the session checkout was not used.
 Protected list: $PROTECTED_RAW
 Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
+        if [ "$_bs_i" -eq "$_bs_unsupported" ]; then
+            DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked.
+Protected list: $PROTECTED_RAW
+Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
+        fi
     else
         _bs_top="$(git -C "${DHPK_GIT_REPO[$_bs_i]}" rev-parse --show-toplevel 2>/dev/null || true)"
         if [ -n "$_bs_top" ]; then
@@ -140,7 +157,7 @@ Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
     [ "$BRANCH_FIRED" -eq 1 ] && break
     _bs_i=$((_bs_i + 1))
 done
-unset _bs_i _bs_top _branches pat
+unset _bs_i _bs_top _branches pat _bs_unsupported
 
 # ---------------------------------------------------------------------------
 # Combined resolution — respects the one-JSON-object-per-invocation constraint

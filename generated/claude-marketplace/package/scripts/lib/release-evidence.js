@@ -116,10 +116,12 @@ function buildEvidence({ version, stages }) {
   return evidence;
 }
 
+const SENSITIVE_KEY = /authorization|proxy.?authorization|token|password|secret|api.?key|credential/i;
+
 function boundedEvidenceValue(value, depth = 0, key = '') {
   if (depth > 5) return '[truncated]';
   if (typeof value === 'string') {
-    if (/authorization|proxy.?authorization|token|password|secret|api.?key|credential/i.test(key)) return '<redacted>';
+    if (SENSITIVE_KEY.test(key)) return '<redacted>';
     if (/^(?:path|packageRoot|cwd|home|root|sourcePath|installedCachePath)$/i.test(key) && /^(?:\/|[A-Za-z]:[\\/])/.test(value)) {
       return `<path>/${value.split(/[\\/]/).pop()}`;
     }
@@ -132,7 +134,7 @@ function boundedEvidenceValue(value, depth = 0, key = '') {
   if (Array.isArray(value)) return value.slice(0, 200).map((entry) => boundedEvidenceValue(entry, depth + 1, key));
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).slice(0, 200).map(([entryKey, entry]) => {
-    const safeKey = /authorization|proxy.?authorization|token|password|secret|api.?key|credential/i.test(entryKey)
+    const safeKey = SENSITIVE_KEY.test(entryKey)
       ? '<redacted-key>'
       : entryKey;
     return [safeKey, boundedEvidenceValue(entry, depth + 1, entryKey)];
@@ -159,6 +161,7 @@ const REQUIREMENT_EVIDENCE_FIELDS = new Set([
 ]);
 const REQUIREMENT_ADAPTER_FIELDS = new Set(['id', 'version']);
 const NATIVE_PROOF_HASH = /^[a-f0-9]{64}$/i;
+const ROLE_CONTRACT_KEYS = ['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'];
 const CONSUMER_CHECK_IDENTITY_FIELDS = Object.freeze([
   'contractVersion',
   'sourceFingerprint',
@@ -330,7 +333,7 @@ function normalizeRoleContract(contractEvidence, capability, status, surfaceReco
   const roleId = capability.slice('named-role-'.length);
   const role = contractEvidence.role;
   if (!role || typeof role !== 'object' || Array.isArray(role)
-    || Object.keys(role).some((key) => !['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'].includes(key))
+    || Object.keys(role).some((key) => !ROLE_CONTRACT_KEYS.includes(key))
     || role.path !== `agents/${roleId}.toml`) {
     throw new Error('consumer evidence: Codex role contract proof does not match its capability');
   }
@@ -349,7 +352,7 @@ function normalizeRoleContract(contractEvidence, capability, status, surfaceReco
   }
   const normalizedResources = resources.map((resource) => {
     if (!resource || typeof resource !== 'object' || Array.isArray(resource)
-      || Object.keys(resource).some((key) => !['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'].includes(key))
+      || Object.keys(resource).some((key) => !ROLE_CONTRACT_KEYS.includes(key))
       || typeof resource.path !== 'string' || !/^\.codex\/dhpk\/[A-Za-z0-9._/-]+\.md$/.test(resource.path)
       || resource.path.length > 4096
       || resource.path.split('/').includes('..')) {

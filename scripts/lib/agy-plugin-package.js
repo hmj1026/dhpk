@@ -23,8 +23,9 @@ const {
 } = require('./platform-provenance');
 const {
   createTraversalBudget,
+  DEFAULT_TRAVERSAL_LIMITS,
   readFileBounded,
-  readDirectoryEntries,
+  listPhysicalFiles,
   lstatOrNull,
   isInside,
   assertPhysicalDirectory,
@@ -58,9 +59,12 @@ const {
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
 const PACKAGE_SCHEMA = PACKAGE_RECEIPT_SURFACES[SURFACE].schema;
+const PACKAGE_WALK_LABELS = Object.freeze({
+  symlink: 'symlink is not allowed in AGY package',
+  unsupported: 'unsupported AGY package entry',
+});
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const COMMIT = /^[a-f0-9]{40}$/i;
-const SAFE_RELATIVE = /^[^\\]+(?:\/[^\\]+)*$/;
 const PACKAGE_FILES = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
 const COMPONENT_ROOTS = new Set(['agents', 'manifests', 'rules', 'scripts', 'skills']);
 const OPTIONAL_FILES = new Set(['mcp_config.json', 'hooks.json']);
@@ -104,10 +108,6 @@ function assertSafeRelative(relative, label = 'path') {
     throw new Error(`${label} escapes its root: ${relative}`);
   }
   return relative;
-}
-
-function sortedEntries(directory, budget = createTraversalBudget()) {
-  return readDirectoryEntries(directory, { budget, sort: true, localeSort: true });
 }
 
 function assertNoSymlink(filePath, label) {
@@ -214,6 +214,17 @@ function readJson(filePath, label) {
   }
 }
 
+// Reads a JSON file once and returns both the parsed value and the exact text,
+// with the same label-prefixed error as readJson.
+function readJsonWithText(filePath, label) {
+  try {
+    const text = readFileBounded(filePath).toString('utf8');
+    return { text, value: JSON.parse(text) };
+  } catch (error) {
+    throw new Error(`${label} is not valid JSON: ${error.message}`);
+  }
+}
+
 function inventorySkillMap(inventory) {
   return new Map((inventory && inventory.skills || []).map((entry) => [entry.id, entry]));
 }
@@ -272,32 +283,17 @@ function selectedConfiguration(inventory, profileSelection = null, root = null, 
   };
 }
 
-function outputFiles(packageRoot, options = {}) {
-  const files = [];
-  const budget = createTraversalBudget(options);
-  const walk = (directory, depth) => {
-    const realDirectory = budget.enterDirectory(directory, depth);
-    try {
-      for (const entry of sortedEntries(directory, budget)) {
-        const child = path.join(directory, entry.name);
-        if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in AGY package: ${child}`);
-        if (entry.isDirectory()) walk(child, depth + 1);
-        else if (entry.isFile()) files.push(path.relative(packageRoot, child).split(path.sep).join('/'));
-        else throw new Error(`unsupported AGY package entry: ${child}`);
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  walk(packageRoot, 0);
-  return files.sort();
-}
-
-function fingerprintFiles(packageRoot, files) {
-  const budget = createTraversalBudget();
+// `contents` (relative path -> bytes) lets a caller that already read the files
+// hash them without a second read; the traversal budget is still charged.
+function fingerprintFiles(packageRoot, files, contents = null, traversalLimits = {}) {
+  const budget = createTraversalBudget(traversalLimits);
   return Object.fromEntries(files.filter((relative) => !['provenance.json', 'fingerprints.json'].includes(relative)).map((relative) => {
     const target = path.join(packageRoot, relative);
-    return [relative, sha256Hex(budget.readFile(target, fs.statSync(target)))];
+    const stat = fs.statSync(target);
+    const cached = contents && contents.get(relative);
+    if (!cached) return [relative, sha256Hex(budget.readFile(target, stat))];
+    budget.accountFile(target, stat);
+    return [relative, sha256Hex(cached)];
   }));
 }
 
@@ -314,18 +310,18 @@ function assertOwnedOutputRoot(outDir) {
   if (!provenanceStat || provenanceStat.isSymbolicLink() || !provenanceStat.isFile()) {
     throw new Error('refusing to replace AGY output without an owner receipt');
   }
-  const provenance = readJson(provenancePath, 'existing AGY provenance');
+  const { text: provenanceText, value: provenance } = readJsonWithText(provenancePath, 'existing AGY provenance');
   if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
     throw new Error('refusing to replace AGY output with invalid provenance');
   }
-  if (readFileBounded(provenancePath).toString('utf8') !== serializePackageReceipt(SURFACE, { provenance, fingerprints: provenance.fingerprints || {} }).provenance) {
+  if (provenanceText !== serializePackageReceipt(SURFACE, { provenance, fingerprints: provenance.fingerprints || {} }).provenance) {
     throw new Error('refusing to replace changed AGY provenance');
   }
   const checked = validateSurfaceReceipt({ ...provenance, schema: 'dhpk.platform-provenance.v1' }, SURFACE);
   if (!checked.ok || provenance.schema !== PACKAGE_SCHEMA || provenance.owner !== 'plugins/dhpk-agy' || provenance.packageRoot !== PACKAGE_RECEIPT_SURFACES[SURFACE].packageRoot) {
     throw new Error(`refusing to replace foreign or invalid AGY output: ${checked.errors.join('; ')}`);
   }
-  const files = outputFiles(outDir);
+  const files = listPhysicalFiles(outDir, PACKAGE_WALK_LABELS);
   const fingerprints = provenance.fingerprints;
   if (!fingerprints || typeof fingerprints !== 'object') throw new Error('refusing to replace AGY output without fingerprints');
   const dataFiles = files.filter((file) => !['provenance.json', 'fingerprints.json'].includes(file));
@@ -339,10 +335,10 @@ function assertOwnedOutputRoot(outDir) {
     }
   }
   const fingerprintsPath = path.join(outDir, 'fingerprints.json');
-  const fingerprintPayload = readJson(fingerprintsPath, 'existing AGY fingerprints');
+  const { text: fingerprintsText, value: fingerprintPayload } = readJsonWithText(fingerprintsPath, 'existing AGY fingerprints');
   if (!fingerprintPayload || typeof fingerprintPayload !== 'object' || fingerprintPayload.schema !== PACKAGE_SCHEMA
     || stableStringify(fingerprintPayload.files || {}) !== stableStringify(fingerprints)
-    || readFileBounded(fingerprintsPath).toString('utf8') !== serializePackageReceipt(SURFACE, { provenance, fingerprints }).fingerprints) {
+    || fingerprintsText !== serializePackageReceipt(SURFACE, { provenance, fingerprints }).fingerprints) {
     throw new Error('refusing to replace AGY output with changed fingerprints');
   }
   return true;
@@ -558,22 +554,16 @@ function compileAgyPluginPackage({
     if (usageSkills.length > 0) {
       receipt.usageSchema = 'dhpk.skill-usage.v1';
       receipt.usage = Object.fromEntries(usageSkills.map((skill) => [skill.id, skill.usage]));
-      receipt.usageFingerprints = Object.fromEntries(usageSkills.map((skill) => [
+      const projectionMetadata = usageSkills.map((skill) => [
         skill.id,
         skillProjectionMetadata(skill, {
           owner: 'plugins/dhpk-agy',
           inventoryRevision,
           ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
-        }).usageFingerprint,
-      ]));
-      receipt.skillProvenance = Object.fromEntries(usageSkills.map((skill) => [
-        skill.id,
-        skillProjectionMetadata(skill, {
-          owner: 'plugins/dhpk-agy',
-          inventoryRevision,
-          ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
-        }).provenance,
-      ]));
+        }),
+      ]);
+      receipt.usageFingerprints = Object.fromEntries(projectionMetadata.map(([id, metadata]) => [id, metadata.usageFingerprint]));
+      receipt.skillProvenance = Object.fromEntries(projectionMetadata.map(([id, metadata]) => [id, metadata.provenance]));
     }
     receipt.transform = { id: 'agy-agent-frontmatter-v1', version: '1' };
     receipt.packageRoot = 'plugins/dhpk-agy';
@@ -639,6 +629,7 @@ function compileAgyPluginPackage({
         inventory,
         profileSelection,
         publicationView: selected.publicationView,
+        selected,
         allowPreview: Boolean(publication && publication.publicationMode === 'preview'),
       });
       if (!checked.ok) throw new Error(`generated AGY package failed validation: ${checked.errors.join('; ')}`);
@@ -671,7 +662,9 @@ function receiptDeclaresNoRules(root) {
   }
 }
 
-function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null, profileSelection = null, sourceRoot = null, publicationView = null, allowPreview = false } = {}) {
+// `selected` lets the generator hand over the configuration it already compiled
+// for the same inventory and selection, so the distribution compiles once.
+function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null, profileSelection = null, sourceRoot = null, publicationView = null, allowPreview = false, selected: precompiled = null, contentCacheMaxBytes = null, traversalLimits = null } = {}) {
   const errors = [];
   const warnings = [];
   const root = path.resolve(packageRoot || '');
@@ -709,7 +702,8 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   }
 
   let selected = null;
-  if (inventory) {
+  if (precompiled) selected = precompiled;
+  else if (inventory) {
     try { selected = selectedConfiguration(inventory, profileSelection, sourceRoot, publicationView); } catch (error) { errors.push(error.message); }
   }
   const expectedAgentFiles = selected ? new Set(selected.agents.map((name) => `agents/${name}`)) : null;
@@ -730,21 +724,43 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     ? new Set([...expectedAgentFiles, ...expectedRuleFiles, ...expectedSkillFiles, ...expectedNativeSupportFiles])
     : null;
   const expectedNativeTrapFiles = new Set(NATIVE_AGENT_TRAP_FILES);
+  let assetIndex = null;
+  const supportingAssetById = () => {
+    if (assetIndex === null) {
+      assetIndex = new Map();
+      for (const entry of inventory && Array.isArray(inventory.supporting_assets) ? inventory.supporting_assets : []) {
+        if (entry && !assetIndex.has(entry.id)) assetIndex.set(entry.id, entry);
+      }
+    }
+    return assetIndex;
+  };
   const expectedStandaloneFiles = profileSelection && profileSelection.selectionMode === 'standalone'
     ? new Set([
       ...(profileSelection.dependencyClosure && Array.isArray(profileSelection.dependencyClosure.files)
         ? profileSelection.dependencyClosure.files.map((file) => file.destination) : []),
       ...(profileSelection.dependencyClosure && Array.isArray(profileSelection.dependencyClosure.supportingAssetIds)
         ? profileSelection.dependencyClosure.supportingAssetIds.map((id) => {
-          const asset = (inventory && Array.isArray(inventory.supporting_assets) ? inventory.supporting_assets : [])
-            .find((entry) => entry && entry.id === id);
+          const asset = supportingAssetById().get(id);
           return asset && asset.destination;
         }).filter(Boolean) : []),
     ])
     : new Set();
 
   let files = [];
-  try { files = outputFiles(root); } catch (error) { errors.push(error.message); }
+  try { files = listPhysicalFiles(root, PACKAGE_WALK_LABELS); } catch (error) { errors.push(error.message); }
+  const fileSet = new Set(files);
+  // Every directory prefix ('a/', 'a/b/') of every file, for prefix membership.
+  const directoryPrefixes = new Set();
+  const expectedSkillRootSet = new Set(expectedSkillRoots);
+  // Each package file is read once; later checks and fingerprints reuse the bytes
+  // while their running total stays within the traversal byte budget. Beyond it
+  // files are not cached and are re-read on demand, so memory stays bounded.
+  const cacheLimit = contentCacheMaxBytes !== null
+    ? contentCacheMaxBytes
+    : (traversalLimits && traversalLimits.maxBytes) || DEFAULT_TRAVERSAL_LIMITS.maxBytes;
+  const contents = new Map();
+  let cachedBytes = 0;
+  const contentOf = (relative) => contents.get(relative) || readFileBounded(path.join(root, relative));
   for (const relative of files) {
     assertSafeRelative(relative, 'AGY package file');
     const base = relative.split('/')[0];
@@ -752,7 +768,12 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
       && !expectedStandaloneFiles.has(relative) && !expectedNativeTrapFiles.has(relative)) {
       errors.push(`undeclared AGY package component: ${relative}`);
     }
-    const isExpectedSkillFile = expectedSkillRoots.some((prefix) => relative.startsWith(prefix));
+    let isExpectedSkillFile = false;
+    for (let at = relative.indexOf('/'); at !== -1; at = relative.indexOf('/', at + 1)) {
+      const prefix = relative.slice(0, at + 1);
+      directoryPrefixes.add(prefix);
+      if (expectedSkillRootSet.has(prefix)) isExpectedSkillFile = true;
+    }
     if (expectedComponentFiles && COMPONENT_ROOTS.has(base)
       && !expectedComponentFiles.has(relative) && !expectedStandaloneFiles.has(relative)
       && !expectedNativeTrapFiles.has(relative) && !expectedNativeSupportFiles.has(relative)
@@ -762,6 +783,10 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     const absolute = path.join(root, relative);
     if (!isInside(root, absolute)) errors.push(`AGY package path escapes root: ${relative}`);
     const content = readFileBounded(absolute);
+    if (cachedBytes + content.length <= cacheLimit) {
+      contents.set(relative, content);
+      cachedBytes += content.length;
+    }
     if (containsSecret(content.toString('utf8'))) errors.push(`possible secret in AGY package file: ${relative}`);
   }
 
@@ -769,37 +794,37 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   const ruleFiles = files.filter((relative) => relative.startsWith('rules/') && relative.endsWith('.md')).sort();
   const skillFiles = files.filter((relative) => /^skills\/[^/]+\/SKILL\.md$/.test(relative)).sort();
   for (const relative of files.filter((file) => file.startsWith('skills/') && file.endsWith('/SKILL.md'))) {
-    const content = readFileBounded(path.join(root, relative)).toString('utf8');
+    const content = contentOf(relative).toString('utf8');
     const portable = validatePortableSkillMetadata(content);
     if (!portable.ok) errors.push(...portable.errors.map((error) => `${relative}: ${error}`));
   }
   if (agentFiles.length === 0) errors.push('AGY package must contain at least one adapted agent');
   for (const relative of agentFiles) {
     if (expectedAgentFiles && !expectedAgentFiles.has(relative)) errors.push(`undeclared AGY agent: ${relative}`);
-    const adapted = adaptFrontmatter(readFileBounded(path.join(root, relative)).toString('utf8'), { filePath: relative });
+    const adapted = adaptFrontmatter(contentOf(relative).toString('utf8'), { filePath: relative });
     if (adapted.changed || adapted.droppedFields.length > 0) errors.push(`agent is not idempotently AGY-adapted: ${relative}`);
   }
-  if (expectedRuleFiles) for (const relative of expectedRuleFiles) if (!files.includes(relative)) errors.push(`selected AGY rule is missing: ${relative}`);
-  if (ruleFiles.includes('rules/execution-policy.md') && !files.includes(AGY_EXECUTION_POLICY_BUNDLE)) {
+  if (expectedRuleFiles) for (const relative of expectedRuleFiles) if (!fileSet.has(relative)) errors.push(`selected AGY rule is missing: ${relative}`);
+  if (ruleFiles.includes('rules/execution-policy.md') && !fileSet.has(AGY_EXECUTION_POLICY_BUNDLE)) {
     errors.push(`AGY execution policy bundle resource is missing: ${AGY_EXECUTION_POLICY_BUNDLE}`);
   }
   for (const relative of ruleFiles) {
     const entry = AGY_RULE_TRIGGER_MAP[relative];
     if (!entry) continue;
-    const content = readFileBounded(path.join(root, relative)).toString('utf8');
+    const content = contentOf(relative).toString('utf8');
     if (!content.startsWith(agyRuleFrontmatter(entry))) {
       errors.push(`AGY rule is missing its trigger frontmatter: ${relative}`);
     }
   }
-  if (expectedSkillFiles) for (const relative of expectedSkillFiles) if (!files.includes(relative)) errors.push(`selected AGY skill is missing: ${relative}`);
+  if (expectedSkillFiles) for (const relative of expectedSkillFiles) if (!fileSet.has(relative)) errors.push(`selected AGY skill is missing: ${relative}`);
   for (const rootPrefix of requiredSkillRuntimeScriptRoots) {
-    if (!files.some((relative) => relative.startsWith(rootPrefix))) errors.push(`selected AGY runtime scripts are missing: ${rootPrefix}`);
+    if (!directoryPrefixes.has(rootPrefix)) errors.push(`selected AGY runtime scripts are missing: ${rootPrefix}`);
   }
 
   const receipt = readPackageReceipt(root, { surface: SURFACE, allowPreview });
   errors.push(...receipt.errors);
   if (receipt.fingerprints) {
-    const drift = verifyPackageReceipt(receipt, fingerprintFiles(root, files));
+    const drift = verifyPackageReceipt(receipt, fingerprintFiles(root, files, contents, traversalLimits || {}));
     if (drift.length > 0) errors.push('AGY package fingerprints do not match output files', ...drift);
   }
   const provenance = receipt.provenance && typeof receipt.provenance === 'object' ? receipt.provenance : null;
@@ -829,8 +854,6 @@ module.exports = {
   SURFACE,
   GENERATOR_VERSION,
   PACKAGE_SCHEMA,
-  stableStringify,
-  digest: sha256Hex,
   compileAgyPluginPackage,
   materializeAgyPluginPackage,
   validateAgyPluginPackage,

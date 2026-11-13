@@ -24,6 +24,7 @@ const {
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint: sharedTreeFingerprint,
+  canonicalJson: stableStringify,
 } = require('./content-fingerprint');
 const { resolveStandaloneSkillDependencies } = require('./standalone-skill-dependencies');
 const { planRetiredAgentSkills } = require('./agents-skills-retirement');
@@ -55,18 +56,6 @@ const UNMARKED_RECEIPT_GENERATOR_VERSION = '1.1.0';
 const RECEIPT_NAME = '.dhpk-projection.json';
 const SAFE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
-
-function stableClone(value) {
-  if (Array.isArray(value)) return value.map(stableClone);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableClone(value[key])]));
-  }
-  return value;
-}
-
-function stableStringify(value) {
-  return JSON.stringify(stableClone(value));
-}
 
 // Deliberately bounded (#1248): the walk stops at `boundary` so a checkout under
 // a symlinked parent (for example /var on macOS) still works.
@@ -515,6 +504,18 @@ function retiredLedgerNames(inventory) {
   return (Array.isArray(inventory && inventory.retired_skills) ? inventory.retired_skills : [])
     .map((row) => row && row.name)
     .filter((name) => typeof name === 'string');
+}
+
+// Roots the generator and validator CLIs both derive from their arguments: the
+// canonical root (source override wins), the optional consumer project, and the
+// projection directory (explicit, else in-checkout unless a project is given).
+function deriveProjectionRoots({ repoRoot, sourceRoot = null, projectRoot = null, outDir = null }) {
+  const root = path.resolve(sourceRoot || repoRoot);
+  const project = projectRoot ? path.resolve(projectRoot) : null;
+  const out = outDir
+    ? path.resolve(outDir)
+    : (project ? null : path.join(root, '.agents', 'skills'));
+  return { root, projectRoot: project, outDir: out };
 }
 
 function usesRelocatableProjection(options = {}) {
@@ -1008,6 +1009,7 @@ function validateAgentsSkillsProjection(options = {}) {
 
 module.exports = {
   containsSecret,
+  deriveProjectionRoots,
   SCHEMA,
   GENERATOR_VERSION,
   RECEIPT_NAME,

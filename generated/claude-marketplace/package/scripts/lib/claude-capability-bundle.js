@@ -4,7 +4,6 @@
 // until the adapter is asked to read canonical skill files; profile selection
 // never consults cwd, environment, SessionStart state, or generated folders.
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createTraversalBudget, readDirectoryEntries, readFileBounded } = require('./bounded-filesystem');
@@ -24,7 +23,8 @@ const {
   resolveCapabilitySelection,
   bindSurfaceSelection,
 } = require('./capability-bundle-selection');
-const { physicalSkillTree } = require('./workflow-package-closure');
+const { createInventoryEntryLookup, physicalSkillTree } = require('./workflow-package-closure');
+const { sha256Hex } = require('./content-fingerprint');
 
 const BUNDLE_VERSION = 'claude-profile-v1';
 const CLAUDE_SURFACE = 'claude-profile';
@@ -411,6 +411,7 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
   }];
   const seenDestinations = new Set(outputs.map((entry) => entry.destination));
   const contentByStableId = new Map();
+  const inventoryLookup = createInventoryEntryLookup(root);
   for (const entry of selection.selectedEntries) {
     const skillName = safeSkillName(entry);
     if (!skillName) return { error: projectionError('UNSAFE_PATH', 'compile', `inventory skill path is unsafe for '${entry.id}'`) };
@@ -426,7 +427,7 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
     }
     const stableId = `claude-profile:skill:${entry.id}`;
     const transform = { id: 'claude-profile-skill', version: BUNDLE_VERSION };
-    const sourceFingerprint = crypto.createHash('sha256').update(content).digest('hex');
+    const sourceFingerprint = sha256Hex(content);
     outputs.push({
       stableId,
       source: entry.path,
@@ -445,7 +446,7 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
     // Every selected Skill publishes its complete physical directory; no
     // per-Skill descriptor selects or injects files.
     let treeFiles;
-    try { treeFiles = physicalSkillTree(root, entry); } catch (error) {
+    try { treeFiles = physicalSkillTree(root, entry, { inventoryLookup }); } catch (error) {
       return { error: projectionError('UNSAFE_PATH', 'compile', `skill tree enumeration failed: '${entry.id}'`, { stableIds: [entry.id], details: { cause: error.message } }) };
     }
     for (const file of treeFiles) {
@@ -458,7 +459,7 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
       }
       seenDestinations.add(resourceDestination);
       const resourceStableId = `claude-profile:skill-resource:${entry.id}:${file.relative}`;
-      const resourceDigest = crypto.createHash('sha256').update(resourceContent).digest('hex');
+      const resourceDigest = sha256Hex(resourceContent);
       const resourceTransform = { id: 'claude-profile-skill-resource', version: BUNDLE_VERSION };
       outputs.push({
         stableId: resourceStableId,
@@ -487,7 +488,7 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
       return { error: projectionError('UNRESOLVABLE_STANDALONE_FILE', 'compile', `standalone dependency cannot be read: '${file.source}'`, { details: { cause: error.message } }) };
     }
     const stableId = `claude-profile:dependency:${destination}`;
-    const digest = crypto.createHash('sha256').update(content).digest('hex');
+    const digest = sha256Hex(content);
     seenDestinations.add(destination);
     outputs.push({
       stableId,
@@ -513,7 +514,7 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
       return { error: projectionError('UNRESOLVABLE_SUPPORTING_ASSET', 'compile', `standalone supporting asset cannot be read: '${assetId}'`, { details: { cause: error.message } }) };
     }
     const stableId = `claude-profile:supporting-asset:${assetId}`;
-    const digest = crypto.createHash('sha256').update(content).digest('hex');
+    const digest = sha256Hex(content);
     seenDestinations.add(destination);
     outputs.push({
       stableId,
@@ -547,7 +548,7 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
     }
     seenDestinations.add(destination);
     const stableId = `claude-profile:command:${relativePath.slice('commands/'.length).replace(/\.md$/, '')}`;
-    const digest = crypto.createHash('sha256').update(content).digest('hex');
+    const digest = sha256Hex(content);
     outputs.push({
       stableId,
       source: relativePath,

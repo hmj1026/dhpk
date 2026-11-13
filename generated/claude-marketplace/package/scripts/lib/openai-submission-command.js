@@ -1,15 +1,14 @@
 'use strict';
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { sha256Hex } = require('./content-fingerprint');
 const { assertCleanSourceCheckout } = require('./platform-provenance');
 const { compileMarketplacePublicationView } = require('./marketplace-selection');
 
 const RECEIPT_SCHEMA = 'dhpk.openai-submission-artifact.v1';
 const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
-const digest = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
 function physicalPath(target) {
@@ -191,7 +190,7 @@ function executeOpenaiSubmission(request, sourceRoot) {
       schema: RECEIPT_SCHEMA, surface: 'openai-submission',
       provenance: compiled.provenance,
       sourceSelectionDigest: view.selectionDigest,
-      manifestDigest: digest(Buffer.from(json(manifest))),
+      manifestDigest: sha256Hex(json(manifest)),
       archiveDigest: checked.archiveDigest, extractedFiles: checked.extractedFiles,
     };
     publish(output, bytes, receipt, selectedSkillNames, previousDigest);

@@ -117,4 +117,414 @@ test('a dynamic -C stays unresolved and does not fall back to the session cwd', 
   assert.strictEqual(got.exempt, '0');
 });
 
+// Decoded argv and redirect targets, one JSON line per array (#1389).
+function decoded(command) {
+  const res = spawnSync('bash', ['-c', `
+    set -u
+    # shellcheck disable=SC1090
+    . "$DHPK_CI_LIB"
+    dhpk_inspect_command "$DHPK_CI_CMD" /session
+    c=0
+    while [ "$c" -lt "\${#DHPK_CMD_START[@]}" ]; do
+      k="\${DHPK_CMD_START[$c]}"
+      end=$((k + DHPK_CMD_LEN[c]))
+      printf 'cmd'
+      while [ "$k" -lt "$end" ]; do printf '\\037%s' "\${DHPK_WORDS[$k]}"; k=$((k + 1)); done
+      printf '\\036'
+      c=$((c + 1))
+    done
+    for t in \${DHPK_REDIRECT_TARGETS[@]+"\${DHPK_REDIRECT_TARGETS[@]}"}; do printf 'redir\\037%s\\036' "$t"; done
+    printf 'stripped\\037%s\\036' "$DHPK_STRIPPED"
+  `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB, DHPK_CI_CMD: command } });
+  assert.strictEqual(res.status, 0, res.stderr || res.stdout);
+  const out = { cmds: [], redirects: [], stripped: '' };
+  for (const rec of res.stdout.split('\x1e')) {
+    if (!rec) continue;
+    const [kind, ...rest] = rec.split('\x1f');
+    if (kind === 'cmd') out.cmds.push(rest);
+    else if (kind === 'redir') out.redirects.push(rest[0]);
+    else out.stripped = rest[0];
+  }
+  return out;
+}
+
+test("$'...' ANSI-C quoting decodes escapes into the argv word", () => {
+  assert.deepStrictEqual(decoded("$'git' $'\\x63om'$'\\155it' $'a\\tb' $'it\\'s' $'\\u0067'").cmds, [
+    ['git', 'commit', 'a\tb', "it's", 'g'],
+  ]);
+});
+
+test("$'...' keeps unknown escapes and non-ASCII \\u values in backslash form", () => {
+  assert.deepStrictEqual(decoded("x $'\\q' $'\\x' $'\\u00e9'").cmds, [['x', '\\q', '\\x', '\\u00e9']]);
+});
+
+test("$'git' is recognised as a git invocation", () => {
+  const got = inspect("$'git' commit --no-verify -m x");
+  assert.strictEqual(got.sub, 'commit');
+  assert.strictEqual(got.no_verify, '1');
+});
+
+test("$'...' ends at a decoded NUL, as bash does, and \\cX is a control character", () => {
+  assert.deepStrictEqual(decoded("$'git\\x00q' $'a\\0b'c $'x\\c@\\'y' $'p\\cAq' $'o\\400k' $'z\\u0000w'").cmds, [
+    ['git', 'ac', 'x', 'p\x01q', 'o', 'z'],
+  ]);
+});
+
+// Oracles below were checked against bash 5.2: the $'...' end is found
+// first (a backslash pairs with exactly one character), then the body is
+// decoded, so no escape can swallow the closing quote.
+test("$'\\c' before the closing quote stays literal and the string ends there", () => {
+  const got = decoded("echo $'\\c' ; git commit --no-verify -m x #'");
+  assert.deepStrictEqual(got.cmds, [['echo', '\\c'], ['git', 'commit', '--no-verify', '-m', 'x']]);
+  assert.strictEqual(inspect("echo $'\\c' ; git commit --no-verify -m x #'").no_verify, '1');
+});
+
+test("$'\\c\\\\' is one unit (0x1c) and $'\\c\\'' keeps the quote inside the string", () => {
+  assert.deepStrictEqual(decoded("$'a\\c\\\\b' $'a\\c\\xb' $'a\\c\\'b' next").cmds, [
+    ['a\x1cb', 'a\x1cxb', "a\x1c'b", 'next'],
+  ]);
+});
+
+// bash 5.2 oracle: `echo $$'\' ; echo SECOND` prints PID\ and SECOND, so
+// $$ is the PID parameter and the following '...' is an ordinary string.
+test("$$ before a quote is the PID parameter, not the start of $'...'", () => {
+  const got = decoded("echo $$'\\' ; git commit --no-verify -m x #'");
+  assert.deepStrictEqual(got.cmds, [['echo', '$$\\'], ['git', 'commit', '--no-verify', '-m', 'x']]);
+});
+
+test("$$$'...' is $$ followed by an ANSI-C string", () => {
+  assert.deepStrictEqual(decoded("$$$'\\x67it' x").cmds, [['$$git', 'x']]);
+  // bash 5.2: $$$$'\x67it' is PID PID then a plain '...' string.
+  assert.deepStrictEqual(decoded("$$$$'\\x67it' x").cmds, [['$$$$\\x67it', 'x']]);
+});
+
+test("special parameters before a quote never start $'...'", () => {
+  for (const param of ['$#', '$?', '$-', '$!', '$@', '$*', '$0', '$9', '${x}', '${#x}']) {
+    const got = decoded(`echo ${param}'\\' ; git commit --no-verify -m x #'`);
+    assert.deepStrictEqual(got.cmds, [['echo', `${param}\\`], ['git', 'commit', '--no-verify', '-m', 'x']], param);
+  }
+});
+
+test('a # after an empty or NUL-truncated quote is part of the word, not a comment', () => {
+  for (const [prefix, word] of [["$''#", '#'], ["$'\\x00'#", '#'], ["''#", '#'], ['""#', '#'], ['x\r#', 'x\r#']]) {
+    const got = decoded(`echo ${prefix} ; git commit --no-verify -m x`);
+    assert.deepStrictEqual(got.cmds, [['echo', word], ['git', 'commit', '--no-verify', '-m', 'x']], JSON.stringify(prefix));
+  }
+});
+
+test('inside double quotes a backslash escapes only $ ` " \\ and joins a newline', () => {
+  assert.deepStrictEqual(decoded('"gi\\\nt" "a\\b" "\\$x\\`\\"\\\\"').cmds, [['git', 'a\\b', '$x`"\\']]);
+});
+
+test('concatenated quoting decodes to one word', () => {
+  assert.deepStrictEqual(decoded('r"m" -rf ".e"nv \'a b\'c $"d"').cmds, [['rm', '-rf', '.env', 'a bc', 'd']]);
+});
+
+test('redirect targets are decoded and kept out of argv', () => {
+  const got = decoded('echo x > ".e"nv 2>$\'.env\' >>"dir with space/f" >|g &>h &>>i 1<>j >&2');
+  assert.deepStrictEqual(got.cmds, [['echo', 'x']]);
+  assert.deepStrictEqual(got.redirects, ['.env', '.env', 'dir with space/f', 'g', 'h', 'i', 'j', '2']);
+});
+
+test('a quoted > is data, not a redirect', () => {
+  const got = decoded('echo "a > b" \'>\' c');
+  assert.deepStrictEqual(got.cmds, [['echo', 'a > b', '>', 'c']]);
+  assert.deepStrictEqual(got.redirects, []);
+});
+
+test('the stripped command text keeps the raw quoting', () => {
+  const command = "echo $'a\\'b' > \".e\"nv &>> x";
+  assert.strictEqual(decoded(command).stripped, command);
+});
+
+test('a redirect between git options still exposes a later --no-verify', () => {
+  const got = inspect('git commit -m x &>/dev/null --no-verify');
+  assert.strictEqual(got.sub, 'commit');
+  assert.strictEqual(got.no_verify, '1');
+});
+
+// #1392: heredoc bodies, ${...}, command substitution, subshells and
+// reserved words. Oracles were checked against bash 5.2.
+function gitRecords(command, cwd = '/session') {
+  const res = spawnSync('bash', ['-c', `
+    set -u
+    # shellcheck disable=SC1090
+    . "$DHPK_CI_LIB"
+    dhpk_inspect_command "$DHPK_CI_CMD" "$DHPK_CI_CWD"
+    printf 'unsupported\\037%s\\036' "\${DHPK_UNSUPPORTED-unset}"
+    i=0
+    while [ "$i" -lt "$DHPK_GIT_COUNT" ]; do
+      printf 'git\\037%s\\037%s\\037%s\\037%s\\036' "\${DHPK_GIT_SUB[$i]}" "\${DHPK_GIT_REPO_STATE[$i]}" "\${DHPK_GIT_REPO[$i]}" "\${DHPK_GIT_NO_VERIFY[$i]}"
+      i=$((i + 1))
+    done
+  `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB, DHPK_CI_CMD: command, DHPK_CI_CWD: cwd } });
+  assert.strictEqual(res.status, 0, res.stderr || res.stdout);
+  const out = { records: [], unsupported: '' };
+  for (const rec of res.stdout.split('\x1e')) {
+    if (!rec) continue;
+    const [kind, ...rest] = rec.split('\x1f');
+    if (kind === 'unsupported') out.unsupported = rest[0];
+    else out.records.push({ sub: rest[0], state: rest[1], repo: rest[2], noVerify: rest[3] });
+  }
+  return out;
+}
+
+const NV_COMMIT = ['git', 'commit', '--no-verify', '-m', 'x'];
+
+test('a heredoc body is data: its quotes do not hide the commands after the delimiter', () => {
+  const cases = [
+    "cat <<EOF\nit's\nEOF\ngit commit --no-verify -m x\n",
+    "cat <<'EOF'\nit's\nEOF\ngit commit --no-verify -m x",
+    'cat <<"EOF"\nit\'s\nEOF\ngit commit --no-verify -m x',
+    "cat <<\\EOF\nit's\nEOF\ngit commit --no-verify -m x",
+    "cat <<E\"O\"F\nit's\nEOF\ngit commit --no-verify -m x",
+    "cat <<-EOF\n\tit's\n\tEOF\ngit commit --no-verify -m x",
+    "cat<<EOF # it's\nit's\nEOF\ngit commit --no-verify -m x",
+    "cat <<A <<B\nit's\nA\n\"\nB\ngit commit --no-verify -m x",
+  ];
+  for (const command of cases) {
+    assert.deepStrictEqual(decoded(command).cmds, [['cat'], NV_COMMIT], JSON.stringify(command));
+  }
+});
+
+test('an unquoted delimiter line ends the body only after backslash-newline joining', () => {
+  // bash 5.2: the body is "xEOF\nit's\n", so only the last line runs.
+  const got = decoded("cat <<EOF\nx\\\nEOF\nit's\nEOF\ngit commit --no-verify -m x");
+  assert.deepStrictEqual(got.cmds, [['cat'], NV_COMMIT]);
+  // A quoted delimiter keeps the backslash, so the first EOF line ends it.
+  assert.deepStrictEqual(decoded("cat <<'EOF'\nx\\\nEOF\ngit commit --no-verify -m x").cmds, [['cat'], NV_COMMIT]);
+});
+
+test('a heredoc body fed to a command other than cat, tee or git is inspected on its own', () => {
+  assert.deepStrictEqual(decoded("bash <<'EOF'\ngit commit --no-verify -m x\nEOF").cmds, [['bash'], NV_COMMIT]);
+  assert.strictEqual(gitRecords("cat <<'EOF' | sh\ngit commit --no-verify -m x\nEOF").records[0].noVerify, '1');
+  // Its quotes still cannot leak out of the body.
+  assert.deepStrictEqual(decoded("sh <<'EOF'\nit's\nEOF\ngit commit --no-verify -m x").cmds.slice(-1), [NV_COMMIT]);
+});
+
+test('a cat heredoc whose text can run as a command is inspected as a script', () => {
+  const body = "<<'EOF'\ngit commit --no-verify -m x\nEOF";
+  for (const command of [
+    `cat ${body.split('\n')[0]} > >(sh)\n${body.split('\n').slice(1).join('\n')}`,
+    `mkfifo p ; cat ${body} > p`,
+    `$(cat ${body}\n)`,
+    `\`cat ${body}\n\``,
+    `eval "$(cat ${body}\n)"`,
+    `git -c alias.x='!sh' x ${body}`,
+  ]) {
+    assert.deepStrictEqual(gitRecords(command).records.map((r) => r.noVerify).filter((v) => v === '1'), ['1'], command);
+  }
+});
+
+test('substitutions in an unquoted cat heredoc body are inspected, a quoted body is not', () => {
+  assert.strictEqual(gitRecords("cat <<EOF\nit's $(git commit --no-verify -m x)\nEOF").records[0].noVerify, '1');
+  assert.strictEqual(gitRecords("cat <<EOF\nit's `git commit --no-verify -m x`\nEOF").records[0].noVerify, '1');
+  assert.deepStrictEqual(gitRecords("cat <<'EOF'\n$(git commit --no-verify -m x) `rm -rf /etc`\nEOF").records, []);
+});
+
+test('a multi-line commit message written with a heredoc stays one commit argv', () => {
+  const command = "git commit -m \"$(cat <<'EOF'\nfix: it's done\n\nNever run `git commit --no-verify` (or \"$x\").\nEOF\n)\"";
+  const got = gitRecords(command);
+  assert.deepStrictEqual(got.records, [{ sub: 'commit', state: 'cwd', repo: '/session', noVerify: '0' }]);
+  assert.strictEqual(got.unsupported, '');
+});
+
+test('a here-string is one data word and never starts a heredoc', () => {
+  assert.deepStrictEqual(decoded("cat <<< \"it's\" ; git commit --no-verify -m x").cmds, [['cat'], NV_COMMIT]);
+  assert.deepStrictEqual(decoded('cat<<<EOF\ngit commit --no-verify -m x').cmds, [['cat'], NV_COMMIT]);
+  assert.deepStrictEqual(decoded('tee ".env" <<< x').cmds, [['tee', '.env']]);
+});
+
+test('${...} is one unit: nested quotes, > and << inside it are data', () => {
+  assert.deepStrictEqual(decoded('echo "${x:-"\'"}" ; git commit --no-verify -m x #\'').cmds.slice(1), [NV_COMMIT]);
+  assert.deepStrictEqual(decoded("echo ${x:-'}'} ; git commit --no-verify -m x #'").cmds.slice(1), [NV_COMMIT]);
+  const redirect = decoded('echo ${x#>} y');
+  assert.deepStrictEqual(redirect.cmds, [['echo', '${x#>}', 'y']]);
+  assert.deepStrictEqual(redirect.redirects, []);
+  assert.deepStrictEqual(decoded('echo ${x:-<<2}\ngit commit --no-verify -m x').cmds, [['echo', '${x:-<<2}'], NV_COMMIT]);
+});
+
+test('commands inside $(...), backticks and process substitution are inspected', () => {
+  for (const command of [
+    'echo $(git commit --no-verify -m x)',
+    'echo "$(git commit --no-verify -m x)"',
+    'echo `git commit --no-verify -m x`',
+    'echo "`git commit --no-verify -m x`"',
+    'echo $(echo $(git commit --no-verify -m x))',
+    'echo "${x:-$(git commit --no-verify -m x)}"',
+    'cat <(git commit --no-verify -m x)',
+    'echo `echo \\`git commit --no-verify -m x\\``',
+  ]) {
+    const got = gitRecords(command);
+    assert.deepStrictEqual(got.records.map((r) => r.noVerify), ['1'], command);
+  }
+  assert.deepStrictEqual(decoded('echo $(echo x > .env)').redirects, ['.env']);
+});
+
+test('a ) inside quotes in $(...) does not end it', () => {
+  const got = decoded('echo "$(echo ")")" ; git commit --no-verify -m x #"');
+  assert.deepStrictEqual(got.cmds.slice(-1), [NV_COMMIT]);
+});
+
+test('arithmetic << is a shift, not a heredoc', () => {
+  for (const command of [
+    'echo $((1<<2))\ngit commit --no-verify -m x',
+    '((x<<2))\ngit commit --no-verify -m x',
+    'echo $[1<<2]\ngit commit --no-verify -m x',
+    'for ((i=0; i<<2; i++)); do :; done\ngit commit --no-verify -m x',
+  ]) {
+    assert.deepStrictEqual(decoded(command).cmds.slice(-1), [NV_COMMIT], command);
+  }
+});
+
+test('( and ) separate commands, so a # after ( starts a comment', () => {
+  assert.deepStrictEqual(decoded("(#'\ngit commit --no-verify -m x\n) #'").cmds, [NV_COMMIT]);
+  assert.deepStrictEqual(decoded('(git commit --no-verify -m x)').cmds, [NV_COMMIT]);
+  assert.deepStrictEqual(decoded('(rm -rf /etc)').cmds, [['rm', '-rf', '/etc']]);
+});
+
+test('a cd inside a subshell applies to the subshell and is undone by its )', () => {
+  assert.strictEqual(gitRecords('(cd /other && git commit -m x)').records[0].repo, '/other');
+  assert.deepStrictEqual(gitRecords('(cd /other) ; git commit -m x').records[0], { sub: 'commit', state: 'cwd', repo: '/session', noVerify: '0' });
+  assert.strictEqual(gitRecords('(cd sub && ls) && git commit --allow-empty -m x').records[0].repo, '/session');
+  assert.strictEqual(gitRecords('cd /a && (cd /b) && git commit -m x').records[0].repo, '/a');
+  assert.strictEqual(gitRecords('echo $(cd /other) ; git commit -m x').records[0].repo, '/session');
+});
+
+test('a case pattern ) after a cd leaves the directory unresolved', () => {
+  // The pattern's ) is not the subshell's ), so the cd may still apply.
+  assert.strictEqual(gitRecords('(cd /x; case a in a) ;; esac; git commit -m x)').records[0].state, 'unresolved');
+  // A cd in a case arm may not run, so it is unresolved too (round 2).
+  assert.strictEqual(gitRecords('case a in a) cd /x ;; esac ; git commit -m x').records[0].state, 'unresolved');
+});
+
+test('${...} inside double quotes or a heredoc body still runs substitutions inside single quotes', () => {
+  for (const command of [
+    'echo "${x:-\'$(git commit --no-verify -m x)\'}"',
+    'echo "${x:-\'`git commit --no-verify -m x`\'}"',
+    "cat <<EOF\n${x:-'$(git commit --no-verify -m x)'}\nEOF",
+  ]) {
+    assert.deepStrictEqual(gitRecords(command).records.map((r) => r.noVerify), ['1'], command);
+  }
+  // Unquoted, the single quotes quote: nothing inside runs (bash 5.2).
+  assert.deepStrictEqual(gitRecords("echo ${x:-'$(git commit --no-verify -m x)'}").records, []);
+  // The single quotes still hide a } from the end of ${...}.
+  assert.deepStrictEqual(decoded('echo "${x:-\'}\'}" ; git commit --no-verify -m x #"').cmds.slice(-1), [NV_COMMIT]);
+});
+
+test("a backslash inside '...' of a double-quoted ${...} is literal, so '\\' closes", () => {
+  // bash 5.2: echo "A[${x:-'\'}]" ; echo SECOND #'" prints A['\'] and SECOND.
+  for (const command of [
+    'echo "${x:-\'\\\'}" ; git commit --no-verify -m x #\'"',
+    'echo "${x#\'\\\'}" ; git commit --no-verify -m x #\'"',
+    "cat <<EOF\n${x:-'\\'}\nEOF\ngit commit --no-verify -m x",
+  ]) {
+    assert.deepStrictEqual(decoded(command).cmds.slice(-1), [NV_COMMIT], command);
+  }
+});
+
+test('a cd that may not run leaves the directory unresolved', () => {
+  for (const command of [
+    'if false; then cd /feat; fi; git commit -m x',
+    'if true; then :; else cd /feat; fi; git commit -m x',
+    'while false; do cd /feat; done; git commit -m x',
+    'until true; do cd /feat; done; git commit -m x',
+    'for d in; do cd /feat; done; git commit -m x',
+    'if true; then echo; cd /feat; fi; git commit -m x',
+    'case a in b) cd /feat;; esac; git commit -m x',
+    'f() { cd /feat; }; git commit -m x',
+    'function f { cd /feat; }; git commit -m x',
+    'false || cd /feat; git commit -m x',
+    'false && cd /feat; git commit -m x',
+    'false && cd /feat\ngit commit -m x',
+    'cd /feat & git commit -m x',
+  ]) {
+    assert.strictEqual(gitRecords(command).records[0].state, 'unresolved', command);
+  }
+});
+
+test('a quoted, escaped or assignment-prefixed reserved word does not close a block', () => {
+  // bash: none of these is the keyword, so the cd stays inside the if/while/case.
+  for (const command of [
+    'if false; then "fi"; cd /feat; fi; git commit -m x',
+    'if false; then \\fi; cd /feat; fi; git commit -m x',
+    'if false; then x=1 fi; cd /feat; fi; git commit -m x',
+    "while false; do 'done'; cd /feat; done; git commit -m x",
+    'case a in b) "esac"; cd /feat;; esac; git commit -m x',
+    'if true; then if false; then cd /feat; fi; fi; git commit -m x',
+  ]) {
+    assert.strictEqual(gitRecords(command).records[0].state, 'unresolved', command);
+  }
+  assert.strictEqual(gitRecords('if true; then echo fi; fi; cd /feat && git commit -m x').records[0].repo, '/feat');
+});
+
+test('coproc, pushd and popd never move the session directory as a certain cd', () => {
+  for (const command of [
+    'coproc cd /feat; git commit -m x',
+    'pushd /feat && git commit -m x',
+    'cd /feat && popd && git commit -m x',
+    'command -p cd /feat && git commit -m x',
+  ]) {
+    assert.strictEqual(gitRecords(command).records[0].state, 'unresolved', command);
+  }
+});
+
+test('command cd and builtin cd are tracked like cd', () => {
+  for (const command of ['command cd /feat && git commit -m x', 'builtin cd /feat && git commit -m x']) {
+    assert.strictEqual(gitRecords(command).records[0].repo, '/feat', command);
+  }
+});
+
+test('a cd that always runs, or that a && chain carries to git, stays resolved', () => {
+  for (const [command, repo] of [
+    ['cd /feat && git commit -m x', '/feat'],
+    ['cd /feat; git commit -m x', '/feat'],
+    ['make && cd /feat && git commit -m x', '/feat'],
+    ['{ cd /feat; }; git commit -m x', '/feat'],
+    ['if true; then :; fi; cd /feat && git commit -m x', '/feat'],
+  ]) {
+    assert.strictEqual(gitRecords(command).records[0].repo, repo, command);
+  }
+});
+
+test('nesting deeper than the decoder supports is unsupported, not a crash', () => {
+  const tail = ' ; git commit --no-verify -m x';
+  for (const [kind, command] of [
+    ['subst', `echo ${'$('.repeat(2000)}true${')'.repeat(2000)}${tail}`],
+    ['param', `echo ${'${x:-'.repeat(2000)}a${'}'.repeat(2000)}${tail}`],
+    ['pdq', `echo ${'${x:-"'.repeat(2000)}a${'"}'.repeat(2000)}${tail}`],
+    ['procsub', `cat ${'<('.repeat(2000)}true${')'.repeat(2000)}${tail}`],
+  ]) {
+    assert.notStrictEqual(gitRecords(command).unsupported, '', kind);
+  }
+  assert.strictEqual(gitRecords(`echo ${'$('.repeat(20)}true${')'.repeat(20)}`).unsupported, '');
+});
+
+test('reserved words before git do not hide it', () => {
+  for (const command of [
+    '{ git commit --no-verify -m x; }',
+    'if true; then git commit --no-verify -m x; fi',
+    '! git commit --no-verify -m x',
+    'time git commit --no-verify -m x',
+    'while false; do git commit --no-verify -m x; done',
+  ]) {
+    assert.deepStrictEqual(gitRecords(command).records.map((r) => r.noVerify), ['1'], command);
+  }
+  assert.strictEqual(gitRecords('{ cd /other; } && git commit -m x').records[0].repo, '/other');
+});
+
+test('syntax the decoder cannot place is reported as unsupported', () => {
+  for (const command of ['git status', 'x=$(echo case)', 'echo $[x+1] ${#x} $(( (1+2) * 3 ))']) {
+    assert.strictEqual(gitRecords(command).unsupported, '', command);
+  }
+  for (const command of [
+    'x=$(case a in a) echo ;; esac)',
+    'x=$(cat <<EOF\nhi\nEOF)\ngit commit --no-verify -m x',
+    'echo $(( $(git commit --no-verify -m x) ))',
+    "cat <<$'EOF'\nx\nEOF",
+  ]) {
+    assert.notStrictEqual(gitRecords(command).unsupported, '', command);
+  }
+});
+
 run('command-inspect');

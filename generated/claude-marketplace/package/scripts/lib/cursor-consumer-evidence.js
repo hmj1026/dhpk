@@ -40,11 +40,12 @@ function isObject(value) {
 }
 
 function sameSortedList(left, right) {
-  return Array.isArray(left)
+  if (!(Array.isArray(left)
     && Array.isArray(right)
     && left.length === right.length
-    && new Set(left).size === left.length
-    && left.slice().sort().every((value, index) => value === right.slice().sort()[index]);
+    && new Set(left).size === left.length)) return false;
+  const sortedRight = right.slice().sort();
+  return left.slice().sort().every((value, index) => value === sortedRight[index]);
 }
 
 function probeSpec(host) {
@@ -165,10 +166,6 @@ function classifyHostBinding(host, options = {}) {
       reason: String(error && error.message ? error.message : error),
     };
   }
-}
-
-function normalizeCursorConsumerEvidence(raw) {
-  return normalizeHostConsumerEvidence('cursor', raw);
 }
 
 function isPassingCursorConsumerProbe(evidence) {

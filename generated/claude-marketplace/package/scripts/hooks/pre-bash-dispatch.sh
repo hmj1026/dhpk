@@ -29,19 +29,21 @@ export DHPK_PROJECT_CONFIG_LOADED=1
 . "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh"
 : "${DHPK_ACTIVE_MODULES:=$(dhpk_config_modules)}"
 
+# Any non-zero child status becomes exit 2: Claude Code blocks a PreToolUse
+# call only on exit 2, so a crashed child (for example 139) must not pass.
 # Each `printf | bash child` below reads the child's own status via
 # PIPESTATUS[1]: a child that exits 0 without draining stdin can SIGPIPE
 # printf, and pipefail would otherwise report 141 for the whole pipeline.
 # Core guard — exit code bubbles up so dangerous-pattern blocks still work.
 printf '%s' "$payload" | bash "$PLUGIN_ROOT/scripts/hooks/pre-bash-guard.sh"
 rc=${PIPESTATUS[1]}
-[ "$rc" -ne 0 ] && exit "$rc"
+[ "$rc" -ne 0 ] && exit 2
 
 # The former separate PreToolUse entry is deliberately composed here so Bash
 # has one lifecycle hook while preserving protected-branch enforcement.
 printf '%s' "$payload" | bash "$PLUGIN_ROOT/scripts/hooks/pretool-git-gate.sh"
 rc=${PIPESTATUS[1]}
-[ "$rc" -ne 0 ] && exit "$rc"
+[ "$rc" -ne 0 ] && exit 2
 
 if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
     # Cheap pre-filter: pre-commit-* hooks only matter for `git commit` calls.
@@ -66,7 +68,7 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
     # Do not raise the inner deadlines. An unobserved host is not evidence
     # that this ceiling blocked the command.
     # Process substitution keeps this loop in the current shell, so the
-    # `exit "$rc"` below still aborts the whole bash call on a gate failure.
+    # `exit 2` below still aborts the whole bash call on a gate failure.
     while IFS= read -r _m; do
         for hook in "$PLUGIN_ROOT/modules/$_m/hooks/"pre-bash-*.sh \
                     "$PLUGIN_ROOT/modules/$_m/hooks/"pre-commit-*.sh; do
@@ -76,7 +78,7 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
             esac
             printf '%s' "$payload" | bash "$hook"
             rc=${PIPESTATUS[1]}
-            [ "$rc" -ne 0 ] && exit "$rc"
+            [ "$rc" -ne 0 ] && exit 2
         done
     done < <(active_modules_list)
 fi

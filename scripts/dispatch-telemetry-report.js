@@ -117,11 +117,11 @@
 // turn's prompt (input + cache read + cache write) exceeds the threshold.
 // Not modelled: the inference_geo 1.1x multiplier, fast mode, and batch pricing.
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { StringDecoder } = require('node:string_decoder');
+const { sha256Hex } = require('./lib/content-fingerprint');
 
 // Single declared price table, USD per million tokens, one rate per token
 // class. Cache read is not a fixed multiple of input: 0.025x on Fable 5.1/5.2,
@@ -197,7 +197,7 @@ function declaredTiersDigest(tiers) {
   const rows = [...tiers.entries()]
     .map(([agent, tier]) => [agent, tier.model, tier.effort])
     .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  return crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+  return sha256Hex(JSON.stringify(rows));
 }
 
 function safeName(value) {

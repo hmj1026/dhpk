@@ -48,8 +48,7 @@ function main(root) {
     const content = fs.readFileSync(skillFile, 'utf8');
     const ic = checkEntry(rel, content, reporter);
     const name = skillName(skillFile);
-    const codexMcp = hasCodexMcpAllowedTool(content);
-    if (codexMcp) {
+    if (hasCodexMcpAllowedTool(content)) {
       reporter.err(`${rel} — mcp__codex__* grants are retired and forbidden; remove the grant`);
     }
     if (!ic.present && !ic.dottedSubstitute) {
@@ -66,8 +65,7 @@ function main(root) {
     const content = fs.readFileSync(cmdFile, 'utf8');
     const ic = checkEntry(rel, content, reporter);
     const base = path.basename(rel, '.md');
-    const codexMcp = hasCodexMcpAllowedTool(content);
-    if (codexMcp) {
+    if (hasCodexMcpAllowedTool(content)) {
       reporter.err(`${rel} — mcp__codex__* grants are retired and forbidden; remove the grant`);
     }
     const paired = skillClassByName.get(base);
@@ -78,7 +76,7 @@ function main(root) {
       // Codex-parity requirement here, just the Claude-visible class itself.
       if (ic.present && ic.unknownValue) {
         reporter.err(`${rel} — unknown metadata.dhpk-invocation-class value '${ic.value}' (expected explicit-only or implicit-eligible)`);
-      } else if (ic.present && !ic.unknownValue && ic.value !== paired.class) {
+      } else if (ic.present && ic.value !== paired.class) {
         reporter.err(`${rel} — paired command declares '${ic.value}' but its skill ${paired.path} is '${paired.class}'`);
       }
       continue;

@@ -5,6 +5,7 @@
 // checks; it does not invoke a consumer and therefore cannot produce runtime
 // PASS evidence.
 
+const fs = require('node:fs');
 const path = require('node:path');
 const receipts = require('../lib/harness-receipt');
 const inventoryApi = require('../lib/distribution-inventory');
@@ -50,7 +51,7 @@ function main(argv = process.argv.slice(2), env = process.env) {
     const root = path.resolve(parsed.root);
     const binding = receipts.resolveGitBinding(root);
     const worktree = receipts.resolveGitWorktree(root);
-    const inventory = JSON.parse(require('node:fs').readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const required = inventoryApi.validateRequiredSurfacePlan({ inventory, fullRelease: true });
     const identity = {
       taskId: parsed.taskId,

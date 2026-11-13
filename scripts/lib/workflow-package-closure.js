@@ -22,7 +22,31 @@ function inventoryEntryForId(root, id) {
   }
 }
 
-function resolveSkillEntry(root, skillOrEntry, availableEntries = []) {
+// Reads the distribution inventory at most once per lookup and indexes it
+// first-wins by id. The caller scopes the lookup to one compile or package
+// pass, so a rewritten manifest is never served from a stale process-wide cache.
+function createInventoryEntryLookup(root) {
+  let index = null;
+  return (id) => {
+    if (typeof id !== 'string' || id.trim() === '') return null;
+    if (index === null) {
+      index = new Map();
+      const manifestPath = path.join(root, 'manifests', 'distribution-inventory.json');
+      if (fs.existsSync(manifestPath)) {
+        try {
+          const inventory = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          const entries = Array.isArray(inventory && inventory.skills) ? inventory.skills : [];
+          for (const entry of entries) if (entry && !index.has(entry.id)) index.set(entry.id, entry);
+        } catch (_) {
+          index = new Map();
+        }
+      }
+    }
+    return index.get(id) || null;
+  };
+}
+
+function resolveSkillEntry(root, skillOrEntry, availableEntries = [], inventoryLookup = null) {
   const supplied = typeof skillOrEntry === 'string'
     ? { id: skillOrEntry }
     : skillOrEntry && typeof skillOrEntry === 'object' ? skillOrEntry : {};
@@ -30,7 +54,7 @@ function resolveSkillEntry(root, skillOrEntry, availableEntries = []) {
   const available = Array.isArray(availableEntries)
     ? availableEntries.find((entry) => entry && entry.id === id)
     : null;
-  const inventory = available || inventoryEntryForId(root, id);
+  const inventory = available || (inventoryLookup ? inventoryLookup(id) : inventoryEntryForId(root, id));
   return {
     ...(inventory || {}),
     ...supplied,
@@ -38,8 +62,8 @@ function resolveSkillEntry(root, skillOrEntry, availableEntries = []) {
   };
 }
 
-function resolveSafeSkillPath(root, entry, { availableEntries = [] } = {}) {
-  const resolvedEntry = resolveSkillEntry(root, entry, availableEntries);
+function resolveSafeSkillPath(root, entry, { availableEntries = [], inventoryLookup = null } = {}) {
+  const resolvedEntry = resolveSkillEntry(root, entry, availableEntries, inventoryLookup);
   const relative = resolvedEntry && (resolvedEntry.path || path.join('skills', resolvedEntry.id || ''));
   if (!validateRelative(relative, 'skill package path')) return { error: `skill package path is unsafe: ${relative || '<missing>'}` };
   let rootReal;
@@ -88,8 +112,8 @@ function isIgnoredTreeName(name, isDirectory) {
 // A published Skill is its complete canonical directory: every regular file
 // beneath it except ignored runtime caches.  Symlinks anywhere in the tree fail
 // closed so a package can never pull content from outside its Skill.
-function physicalSkillTree(root, entry, { availableEntries = [] } = {}) {
-  const skillPath = resolveSafeSkillPath(root, entry, { availableEntries });
+function physicalSkillTree(root, entry, { availableEntries = [], inventoryLookup = null } = {}) {
+  const skillPath = resolveSafeSkillPath(root, entry, { availableEntries, inventoryLookup });
   if (skillPath.error) throw new Error(skillPath.error);
   const label = (skillPath.entry && skillPath.entry.id) || skillPath.relative;
   let rootStat;
@@ -124,6 +148,7 @@ function physicalSkillTree(root, entry, { availableEntries = [] } = {}) {
 }
 
 module.exports = Object.freeze({
+  createInventoryEntryLookup,
   isIgnoredTreeName,
   physicalSkillTree,
   resolveSafeSkillPath,

@@ -7,10 +7,18 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { PACKAGE_SCHEMA, validateAgyPluginPackage } = require('./agy-plugin-package');
 const { readPackageProvenance } = require('./platform-provenance');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  listPhysicalFiles,
+  lstatOrNull,
+  isInside,
+  assertPhysicalAncestors,
+} = require('./bounded-filesystem');
+const { sha256Hex } = require('./content-fingerprint');
 const {
   loadAgyPathContract,
   resolveAgyInstallPaths,
@@ -21,24 +29,6 @@ const PACKAGE_METADATA = new Set(['plugin.json', 'provenance.json', 'fingerprint
 const DIAGNOSTIC_SCHEMA = 'dhpk.agy-install-plan.v1';
 const DIFF_PREVIEW_LIMIT = 20;
 const INCIDENTAL_CANDIDATE_ENTRIES = new Set(['.DS_Store']);
-
-function digest(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-function isInside(parent, candidate) {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
 
 function assertPhysicalPath(root, candidate, label) {
   const rootPath = path.resolve(root);
@@ -58,14 +48,7 @@ function assertPhysicalPath(root, candidate, label) {
 
 function ensurePhysicalDirectory(directory, label) {
   const resolved = path.resolve(directory);
-  let current = resolved;
-  while (true) {
-    const stat = lstatOrNull(current);
-    if (stat && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
+  assertPhysicalAncestors(resolved, label);
   const stat = lstatOrNull(resolved);
   if (stat && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${resolved}`);
   if (stat && !stat.isDirectory()) throw new Error(`${label} must be a directory: ${resolved}`);
@@ -87,26 +70,10 @@ function assertExistingPhysicalAncestors(directory, label) {
   }
 }
 
-function relativeFiles(root, options = {}) {
-  const files = [];
-  const budget = createTraversalBudget(options);
-  const walk = (directory, depth) => {
-    const realDirectory = budget.enterDirectory(directory, depth);
-    try {
-      for (const entry of readDirectoryEntries(directory, { budget, sort: true, localeSort: true })) {
-        const child = path.join(directory, entry.name);
-        if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in AGY installation: ${child}`);
-        if (entry.isDirectory()) walk(child, depth + 1);
-        else if (entry.isFile()) files.push(path.relative(root, child).split(path.sep).join('/'));
-        else throw new Error(`unsupported AGY installation entry: ${child}`);
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  walk(root, 0);
-  return files.sort();
-}
+const INSTALL_WALK_LABELS = Object.freeze({
+  symlink: 'symlink is not allowed in AGY installation',
+  unsupported: 'unsupported AGY installation entry',
+});
 
 function copyTreePreservingEntries(sourceRoot, destinationRoot, directoryModes) {
   const budget = createTraversalBudget();
@@ -210,7 +177,7 @@ function sourceFileDigests(sourceRoot, sourceFiles, budget = createTraversalBudg
     if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
       throw new Error(`AGY source file is not a regular file: ${relative}`);
     }
-    files[relative] = digest(budget.readFile(source, stat, `AGY source path: ${relative}`));
+    files[relative] = sha256Hex(budget.readFile(source, stat, `AGY source path: ${relative}`));
   }
   return files;
 }
@@ -242,7 +209,7 @@ function compareSourceInventory(sourceRoot, targetRoot, sourceFiles, sourceDiges
       changed.push(relative);
       continue;
     }
-    if (digest(budget.readFile(target, stat, `AGY target path: ${relative}`)) === sourceDigests[relative]) same.push(relative);
+    if (sha256Hex(budget.readFile(target, stat, `AGY target path: ${relative}`)) === sourceDigests[relative]) same.push(relative);
     else changed.push(relative);
   }
   return {
@@ -266,9 +233,9 @@ function inspectAgyPlugin({ sourceRoot, targetRoot } = {}) {
   assertExistingPhysicalAncestors(path.dirname(target), 'AGY target');
 
   const sourceManifest = readJsonFile(source, 'plugin.json', 'AGY source manifest');
-  const sourceFiles = relativeFiles(source);
+  const sourceFiles = listPhysicalFiles(source, INSTALL_WALK_LABELS);
   const sourceDigests = sourceFileDigests(source, sourceFiles);
-  const sourceFingerprint = digest(JSON.stringify(sourceDigests));
+  const sourceFingerprint = sha256Hex(JSON.stringify(sourceDigests));
   const sourceReport = {
     version: sourceManifest && sourceManifest.version,
     fingerprint: sourceFingerprint,
@@ -412,7 +379,7 @@ function ownedFileMatches(root, relative, receipt, budget = null) {
   const content = budget
     ? budget.readFile(target, stat, `AGY target path: ${relative}`)
     : readFileBounded(target);
-  return digest(content) === receipt.fingerprints[relative];
+  return sha256Hex(content) === receipt.fingerprints[relative];
 }
 
 function metadataMatches(root, relative, receipt, budget = null) {
@@ -611,12 +578,15 @@ function observeAgyInstallCandidate(candidate) {
   return { ...base, installed: true, classification: 'LEGACY_UNBOUND' };
 }
 
-function existingTargets(paths) {
-  const candidates = [
+function candidateRoots(paths) {
+  return [
     { role: 'canonical', root: paths.canonical },
     ...paths.legacy.map((root, index) => ({ role: `legacy-${index + 1}`, root })),
   ];
-  return candidates
+}
+
+function existingTargets(paths) {
+  return candidateRoots(paths)
     .map(observeAgyInstallCandidate)
     .filter((candidate) => candidate.installed);
 }
@@ -626,11 +596,7 @@ function inspectAgyInstallTargets({ sourceRoot, targetRoot = null, homeDirectory
     return inspectAgyPlugin({ sourceRoot, targetRoot });
   }
   const paths = resolveAgyInstallCandidates(homeDirectory, contract);
-  const candidates = [
-    { role: 'canonical', root: paths.canonical },
-    ...paths.legacy.map((root, index) => ({ role: `legacy-${index + 1}`, root })),
-  ];
-  const observations = candidates.map(observeAgyInstallCandidate);
+  const observations = candidateRoots(paths).map(observeAgyInstallCandidate);
   const existing = observations.filter((candidate) => candidate.installed);
   if (existing.length > 1) {
     return {
@@ -723,7 +689,7 @@ function installAgyPlugin({ sourceRoot, targetRoot, mode = 'update' } = {}) {
   if (targetStat && (targetStat.isSymbolicLink() || !targetStat.isDirectory())) throw new Error(`AGY target root must be a physical directory: ${target}`);
 
   const existingReceipt = readReceipt(target);
-  const sourceFiles = relativeFiles(source);
+  const sourceFiles = listPhysicalFiles(source, INSTALL_WALK_LABELS);
   const collisions = [];
   for (const relative of sourceFiles) {
     const destination = path.join(target, relative);
@@ -743,8 +709,9 @@ function installAgyPlugin({ sourceRoot, targetRoot, mode = 'update' } = {}) {
 
   const staleFiles = [];
   if (existingReceipt) {
+    const sourceFileSet = new Set(sourceFiles);
     for (const relative of Object.keys(existingReceipt.fingerprints || {}).sort()) {
-      if (sourceFiles.includes(relative)) continue;
+      if (sourceFileSet.has(relative)) continue;
       if (!ownedFileMatches(target, relative, existingReceipt)) throw new Error(`AGY update collision: stale owned file changed: ${relative}`);
       staleFiles.push(relative);
     }

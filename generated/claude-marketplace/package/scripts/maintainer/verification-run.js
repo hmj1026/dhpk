@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { execFileSync, spawn } = require('node:child_process');
+const { sha256Hex } = require('../lib/content-fingerprint');
 const SCHEMA = 'dhpk.verification-run.v1';
 const RECORD_DIR = 'docs/evidence/verification-runs';
 const directoryHandles = [];
@@ -60,7 +61,6 @@ function git(root, args, encoding = 'utf8') {
   return execFileSync('git', ['-C', root, ...args], { encoding, maxBuffer: 64 * 1024 * 1024 });
 }
 
-function digest(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
 
 function snapshot(root) {
   const status = git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'], null);
@@ -256,8 +256,8 @@ async function start(options) {
   const snap = snapshot(root);
   const environment = Object.fromEntries(['DHPK_TEST_JOBS', 'NODE_ENV'].map((name) => [name, process.env[name] ?? null]));
   // PATH、NODE_OPTIONS 與任意自訂變數都可能改變指令結果；完整環境只存摘要，避免洩漏憑證。
-  const envDigest = digest(JSON.stringify(Object.keys(process.env).sort().map((name) => [name, process.env[name]])));
-  const claimId = digest(JSON.stringify({ root, ...snap, key: options.key, command: options.command, envDigest }));
+  const envDigest = sha256Hex(JSON.stringify(Object.keys(process.env).sort().map((name) => [name, process.env[name]])));
+  const claimId = sha256Hex(JSON.stringify({ root, ...snap, key: options.key, command: options.command, envDigest }));
   let physical = path.join(root, RECORD_DIR, claimId);
   let claim = childDirectory(evidence, claimId);
   const attempts = new Set();

@@ -276,6 +276,12 @@ function parseStoredZip(zipBytes, errors) {
       errors.push(`zip entries ${localRanges[i - 1][2]} and ${localRanges[i][2]} overlap`);
     }
   }
+  const nestedParents = new Set();
+  for (const key of pathKinds.keys()) {
+    for (let at = key.indexOf('/'); at !== -1; at = key.indexOf('/', at + 1)) {
+      nestedParents.add(key.slice(0, at));
+    }
+  }
   for (const [filePath, kind] of pathKinds) {
     const segments = filePath.split('/');
     for (let i = 1; i < segments.length; i += 1) {
@@ -286,8 +292,7 @@ function parseStoredZip(zipBytes, errors) {
       }
     }
     if (kind === 'file') {
-      const prefix = `${filePath}/`;
-      if ([...pathKinds.keys()].some((candidate) => candidate.startsWith(prefix))) {
+      if (nestedParents.has(filePath)) {
         errors.push(`zip file path ${filePath} conflicts with a nested entry`);
       }
     }

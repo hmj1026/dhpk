@@ -14,6 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { createReporter } = require('./_lib/report');
+const { unquote } = require('./_lib/frontmatter');
 
 const ROOT = path.join(__dirname, '..', '..');
 const MODULES_DIR = path.join(ROOT, 'modules');
@@ -24,8 +25,6 @@ if (!fs.existsSync(MODULES_DIR)) {
   console.log('No modules/ directory — skipping.');
   process.exit(0);
 }
-
-const unquote = (s) => s.trim().replace(/^(['"])(.*)\1$/, '$2');
 
 function topScalar(text, key) {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

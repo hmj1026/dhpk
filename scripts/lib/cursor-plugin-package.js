@@ -22,6 +22,7 @@ const {
   createInstallationReceiptIdentity,
   packageInventoryDigest,
   packageFingerprintAlgorithm,
+  readProvenanceForValidation,
   serializePackageReceipt,
 } = require('./platform-provenance');
 const {
@@ -33,6 +34,7 @@ const {
   TREE_FINGERPRINT_ALGORITHM,
   sha256Hex,
   treeNodeFingerprint,
+  treeNodeFingerprints,
   fingerprintPath,
   fingerprintPath: fingerprintDir,
 } = require('./content-fingerprint');
@@ -66,7 +68,7 @@ const {
   physicalPackageRootError,
   findSymlinks,
 } = require('./bounded-filesystem');
-const { redactSensitiveText } = require('./redaction');
+const { redactSensitiveText, redactedErrorText } = require('./redaction');
 const {
   parseToolList,
   rewriteCursorHarnessBody,
@@ -653,10 +655,19 @@ function collectAdaptedCursorHooks(root, transformations, traversalBudget) {
   return { adapted, files };
 }
 
+// Single-prefix form, kept because the golden digest test loads it by name.
 function cursorVirtualFingerprint(files, prefix) {
   return treeNodeFingerprint(
     files.map((file) => ({ path: file.destination, type: 'file', content: file.content })),
     prefix,
+  );
+}
+
+// One node tree for all prefixes; Map prefix -> digest ('' when absent).
+function cursorVirtualFingerprints(files, prefixes) {
+  return treeNodeFingerprints(
+    files.map((file) => ({ path: file.destination, type: 'file', content: file.content })),
+    prefixes,
   );
 }
 
@@ -853,8 +864,8 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   files.push(manifestOutput);
   files.push(marketplaceOutput);
   const fingerprints = {};
-  for (const relative of ['skills', 'rules', 'agents', 'commands', 'hooks/hooks.json', 'agent-traps']) {
-    const value = cursorVirtualFingerprint(files, relative);
+  const virtualDigests = cursorVirtualFingerprints(files, ['skills', 'rules', 'agents', 'commands', 'hooks/hooks.json', 'agent-traps']);
+  for (const [relative, value] of virtualDigests) {
     if (value) fingerprints[relative] = value;
   }
   const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
@@ -1007,6 +1018,16 @@ function compileCursorPackage({
       symlinkPolicy: 'forbid',
       ...skillEntryFields(file),
   }));
+  // First inventory skill whose id equals either identifier (same pick as a
+  // linear find), via a first-wins index built once.
+  const skillIndexById = new Map();
+  (inventory.skills || []).forEach((candidate, index) => {
+    if (!skillIndexById.has(candidate.id)) skillIndexById.set(candidate.id, index);
+  });
+  const inventorySkillAt = (stableId, skillId) => {
+    const indexes = [skillIndexById.get(stableId), skillIndexById.get(skillId)].filter((index) => index !== undefined);
+    return indexes.length > 0 ? inventory.skills[Math.min(...indexes)] : undefined;
+  };
   const compiled = compileDistribution({
       internalCharacterization: Boolean(projection.provenance.marketplacePublication)
         || (selectionMode !== 'legacy' && (!projection.selection || !projection.selection.selectionPolicy)),
@@ -1026,7 +1047,7 @@ function compileCursorPackage({
         : undefined,
       selectionEntries: projection.selection && projection.selection.selectionPolicy
         ? (projection.selection.selectionEntries || projection.selection.entries).map((entry) => {
-          const skill = (inventory.skills || []).find((candidate) => candidate.id === entry.stableId || candidate.id === entry.skillId);
+          const skill = inventorySkillAt(entry.stableId, entry.skillId);
           return skill ? {
             ...entry,
             ...skillProjectionMetadata(skill, {
@@ -1494,10 +1515,11 @@ function validateCursorPackage(input = {}) {
       }
     } catch (error) { errors.push(`fingerprints.json is invalid JSON: ${error.message}`); }
   }
-  const provenancePath = path.join(root, 'provenance.json');
-  if (fs.existsSync(provenancePath)) {
+  const provenanceRead = readProvenanceForValidation(root);
+  if (provenanceRead) {
     try {
-      const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
+      if (provenanceRead.error !== undefined) throw new Error(provenanceRead.error);
+      const provenance = provenanceRead.provenance;
       const sharedIds = Array.isArray(provenance.sharedSkillIds) ? provenance.sharedSkillIds : [];
       const selectedIds = Array.isArray(provenance.selectedSkillIds) ? provenance.selectedSkillIds : [];
       const declaredRuntimeSupportIds = Array.isArray(provenance.runtimeSupportStableIds)
@@ -1940,11 +1962,12 @@ function networkSandboxProbe(pathValue = process.env.PATH, networkMode = 'disabl
   // the exact requested network shape before accepting this backend.
   const bwrap = verifiedSandboxExecutable('bwrap', pathValue);
   if (!bwrap) return null;
-  const result = sandboxPreflight(bwrap, [...bubblewrapPrefix(networkMode), '--', 'true'], pathValue);
+  const prefix = bubblewrapPrefix(networkMode);
+  const result = sandboxPreflight(bwrap, [...prefix, '--', 'true'], pathValue);
   if (!result.error && result.status === 0) {
     return {
       command: bwrap,
-      prefix: bubblewrapPrefix(networkMode),
+      prefix,
     };
   }
   return null;
@@ -2080,7 +2103,7 @@ function runCursorConsumerProbeRaw({
     try {
       assertPhysicalPackageRoot(path.resolve(packageRoot), 'Cursor consumer package');
     } catch (error) {
-      return { surface: 'cursor-plugin', status: 'BLOCKED', reason: redactSensitiveText(String(error.message || error), { maxLength: 800 }) };
+      return { surface: 'cursor-plugin', status: 'BLOCKED', reason: redactedErrorText(error) };
     }
   }
   if (cwd !== null && cwd !== undefined && !path.isAbsolute(cwd)) {
@@ -2390,10 +2413,8 @@ function runCursorConsumerProbe(options = {}) {
 module.exports = {
   CURSOR_SECRET_PATTERNS: SECRET_PATTERNS,
   GENERATOR_VERSION,
-  CURSOR_MANIFEST_FIELDS,
-  CURSOR_HOOK_EVENTS,
   COMPONENT_EXTENSIONS,
-  adaptSkill,
+  listComponentFiles,
   adaptNativeDocument,
   rewriteCursorHarnessBody,
   cursorDocumentDestinationName,
@@ -2405,20 +2426,16 @@ module.exports = {
   verifyCursorPackage,
   validateCursorPackage,
   assertPhysicalPackageRoot,
-  validateHooks,
-  validateVariables,
   fingerprintDir,
   fingerprintPath,
   findSymlinks,
   networkSandboxProbe,
   sandboxInvocation,
-  CURSOR_PROBE_REASON_CODES,
   cursorReasonCode,
   cursorStreamFrame,
   parseCursorStreamOutput,
   preflightCursorConsumer,
   runCursorConsumerProbe,
   isSafeRelativePath,
-  resolveContained,
   parseFrontmatter,
 };

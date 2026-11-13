@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { resolveSourceCommitOrUnknown } = require('../lib/platform-provenance');
 const {
   compileNativePackage,
   materializeNativePackage,
@@ -32,15 +32,10 @@ if (!outDir) {
 const versionArg = args.find((a) => a.startsWith('--version='));
 const version = versionArg ? versionArg.split('=')[1] : JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8')).version;
 
-function resolveSourceCommit() {
-  const res = spawnSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
-  return res.status === 0 ? res.stdout.trim() : 'unknown';
-}
-
 const inventory = JSON.parse(fs.readFileSync(INVENTORY_PATH, 'utf8'));
 const resolvedOutDir = path.resolve(outDir);
 
-const sourceCommit = resolveSourceCommit();
+const sourceCommit = resolveSourceCommitOrUnknown(ROOT);
 const profileSelection = resolveCodexNativeProfileSelection({ root: ROOT, inventory });
 const compiledProjection = compileNativePackage({
   inventory,

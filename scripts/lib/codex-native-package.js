@@ -13,11 +13,11 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const {
   TREE_FINGERPRINT_ALGORITHM,
   collectDirectoryEntries,
   requireTreeMerkle,
+  sha256Hex,
   treeFingerprint,
 } = require('./content-fingerprint');
 const {
@@ -696,7 +696,7 @@ function compileNativePackage({
     destination: file.destination,
     owner: SURFACE_OWNERS['codex-native'],
     transform: file.transform,
-    expectedFingerprint: crypto.createHash('sha256').update(file.content).digest('hex'),
+    expectedFingerprint: sha256Hex(file.content),
     mode: file.mode,
     symlinkPolicy: 'forbid',
     ...skillEntryFields(file),
@@ -1245,14 +1245,9 @@ module.exports = {
   resolveCodexNativeProfileSelection,
   recognizesLegacyCodexNativeReceipt,
   validateNativeCandidate,
-  validateNativeSkillIdentity,
-  validateNativeInstallationIdentity,
   validateNativeMembership,
-  selectNativeSkills,
   compileNativePackage,
   materializeNativePackage,
   verifyNativePackage,
-  compileCodexNativePackage: compileNativePackage,
-  verifyCodexNativePackage: verifyNativePackage,
   fingerprintDir,
 };

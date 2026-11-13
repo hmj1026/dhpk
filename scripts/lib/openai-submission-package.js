@@ -1,12 +1,12 @@
 'use strict';
 
-const crypto = require('node:crypto');
 const {
   AGENT_PLUGIN_SCHEMA,
   normalizePortableFrontmatter,
   stableStringify,
   validatePortableManifest,
 } = require('./agent-plugin-package');
+const { sha256Hex } = require('./content-fingerprint');
 const { compileMarketplacePublicationView } = require('./marketplace-selection');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const { validateOpenaiListingAssets } = require('./openai-submission-assets');
@@ -28,10 +28,6 @@ const OPENAI_CATEGORIES = Object.freeze([
 ]);
 
 const GENERATOR = Object.freeze({ id: 'openai-submission-package', version: '1' });
-
-function sha256(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
 
 function failure(errors) {
   return { ok: false, errors, files: [], provenance: null };
@@ -149,7 +145,7 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
   const assetErrors = validateOpenaiListingAssets(listing, new Map(files.map((file) => [file.path, file.bytes])));
   if (assetErrors.length > 0) return failure(assetErrors);
 
-  const fileFingerprints = Object.fromEntries(files.map((file) => [file.path, sha256(file.bytes)]));
+  const fileFingerprints = Object.fromEntries(files.map((file) => [file.path, sha256Hex(file.bytes)]));
   const selectedStableIds = [...new Set([
     ...content.bundleProvenance.entryIds,
     ...content.bundleProvenance.childIds,
@@ -165,7 +161,7 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
     sourceIdentity: identity,
     version: sourceIdentity.version,
     selectionDigest: publicationView.selectionDigest,
-    inventoryDigest: sha256(stableStringify(inventory)),
+    inventoryDigest: sha256Hex(stableStringify(inventory)),
     selectedStableIds,
     fileFingerprints,
     bundleProvenance: content.bundleProvenance,

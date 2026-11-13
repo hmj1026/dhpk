@@ -35,6 +35,7 @@ const {
 const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheckout } = require('./platform-provenance');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 const { createPreviewSourceSnapshot } = require('./distribution-preview');
+const { lstatOrNull } = require('./bounded-filesystem');
 
 const OPERATIONS = Object.freeze(['generate', 'preview', 'validate', 'verify']);
 const SURFACES = Object.freeze({
@@ -265,13 +266,8 @@ function mergeReceipt(surface, output, result, context) {
 }
 
 function assertOwnedGenerationTarget(surface, output) {
-  let stat;
-  try {
-    stat = fs.lstatSync(output);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return;
-    throw error;
-  }
+  const stat = lstatOrNull(output);
+  if (!stat) return;
   if (stat.isSymbolicLink() || !stat.isDirectory()) {
     throw new Error(`refusing foreign output: ${output} must be a physical package directory`);
   }

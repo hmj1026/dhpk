@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { sha256Hex } = require('../lib/content-fingerprint');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const SCHEMA = 'dhpk.worker-context-benchmark-receipt.v2';
@@ -26,10 +26,6 @@ function deepFreeze(value) {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
   for (const item of Object.values(value)) deepFreeze(item);
   return Object.freeze(value);
-}
-
-function digest(value) {
-  return crypto.createHash('sha256').update(String(value)).digest('hex');
 }
 
 function readJson(file) {
@@ -71,7 +67,7 @@ function buildBenchmarkPlan({
       }
       return fs.readFileSync(real, 'utf8').trim();
     }).join('\n\n');
-    return { ...variant, context, fingerprint: digest(context) };
+    return { ...variant, context, fingerprint: sha256Hex(context) };
   });
   return deepFreeze({
     schema: catalog.schema,
@@ -355,7 +351,7 @@ async function runBenchmark({
             effectiveModel: observed.effectiveModel,
             usage: observed.usage,
             diagnosticCode: observed.diagnosticCode || (hasResponse ? null : 'EMPTY_RESPONSE'),
-            responseFingerprint: digest(observed.rawResponse || ''),
+            responseFingerprint: sha256Hex(observed.rawResponse || ''),
             score: scoreResponse(observed.rawResponse, fixture.oracle),
           });
         }

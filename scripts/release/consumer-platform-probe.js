@@ -19,7 +19,7 @@ const {
   sandboxInvocation,
   validateCursorPackage,
 } = require('../lib/cursor-plugin-package');
-const { redactSensitiveText } = require('../lib/redaction');
+const { redactSensitiveText, redactedErrorText } = require('../lib/redaction');
 const { normalizeConsumerEvidence } = require('../lib/release-evidence');
 const { validateRelocatableAgentsSkillsProjection } = require('../lib/project-agent-projection-publisher');
 const {
@@ -133,6 +133,55 @@ function terminateSandboxProcess(result) {
   try { process.kill(-result.pid, 'SIGKILL'); } catch (_) { /* child group already exited */ }
 }
 
+const SANDBOX_REFUSAL_CODES = ['DHPK_NETWORK_SANDBOX_UNAVAILABLE', 'DHPK_SANDBOX_PATH_UNSAFE'];
+
+// One sandbox-result classifier for the Codex, AGY, and Claude probes. It maps
+// a timeout, an output overflow, or a sandbox refusal to a BLOCKED result, and
+// (when `unavailableSubject` is given) any other spawn error to UNAVAILABLE. The
+// caller's `build(status, reason)` owns the result shape and key order.
+function classifySandboxError(result, limits, { subject, unavailableSubject = null, build }) {
+  const error = result.error;
+  if (!error) return null;
+  if (error.code === 'ETIMEDOUT') {
+    terminateSandboxProcess(result);
+    return build('BLOCKED', `${subject} timed out after ${limits.timeoutMs} ms`);
+  }
+  if (error.code === 'ENOBUFS') {
+    terminateSandboxProcess(result);
+    return build('BLOCKED', `${subject} output exceeded ${limits.maxOutputBytes} bytes`);
+  }
+  if (SANDBOX_REFUSAL_CODES.includes(error.code)) return build('BLOCKED', error.message);
+  if (unavailableSubject) return build('UNAVAILABLE', `${unavailableSubject}: ${redactedErrorText(error)}`);
+  return null;
+}
+
+// Classify a finished AGY/Claude project probe run. `build(status, reason,
+// extra)` assembles the result; `extra` carries diagnostic or network.
+function classifyProjectProbeRun(result, limits, { display, cli, marker, build }) {
+  const subject = `${cli} project probe`;
+  const sandboxed = classifySandboxError(result, limits, {
+    subject: `${display} project probe`,
+    unavailableSubject: `${subject} unavailable`,
+    build,
+  });
+  if (sandboxed) return sandboxed;
+  if (result.status !== 0) {
+    const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+    const lower = output.toLowerCase();
+    if (/unknown argument|unknown flag|flag provided but not defined/.test(lower)) {
+      return build('SKIP_INCOMPATIBLE', `${cli} CLI does not support the bounded project skill probe route`, { diagnostic: diagnostic(result) });
+    }
+    if (/authentication|unauthorized|api key|credential|network|connection|timed out|timeout|dns|resolve/.test(lower)) {
+      return build('UNAVAILABLE', `${subject} is unavailable in the isolated runtime`, { diagnostic: diagnostic(result) });
+    }
+    return build('FAIL', `${subject} failed with exit ${result.status}`, { diagnostic: diagnostic(result) });
+  }
+  if (String(result.stdout || '').trim() !== marker) {
+    return build('FAIL', `${subject} did not return the exact ${marker} marker`, { diagnostic: diagnostic(result) });
+  }
+  return build('PASS', `bounded ${display} project probe returned ${marker}`, { network: 'disabled' });
+}
+
 function executeWithSandbox(command, args, options) {
   const {
     env,
@@ -217,43 +266,35 @@ function runCodexProbe(root, execute = false) {
       timeoutMs: limits.timeoutMs,
       maxOutputBytes: limits.maxOutputBytes,
     };
+    const codexResult = (commands) => (status, reason, extra = {}) => ({
+      status,
+      network: extra.network || 'unknown',
+      reason,
+      ...(extra.diagnostic !== undefined ? { diagnostic: extra.diagnostic } : {}),
+      commands,
+    });
+    const versionBuild = codexResult(['codex --version']);
     const version = executeWithSandbox(codexPath, ['--version'], sandboxOptions);
-    if (version.error && version.error.code === 'ETIMEDOUT') {
-      terminateSandboxProcess(version);
-      return { status: 'BLOCKED', network: 'unknown', reason: `codex --version timed out after ${limits.timeoutMs} ms`, commands: ['codex --version'] };
-    }
-    if (version.error && version.error.code === 'ENOBUFS') {
-      terminateSandboxProcess(version);
-      return { status: 'BLOCKED', network: 'unknown', reason: `codex --version output exceeded ${limits.maxOutputBytes} bytes`, commands: ['codex --version'] };
-    }
-    if (version.error && ['DHPK_NETWORK_SANDBOX_UNAVAILABLE', 'DHPK_SANDBOX_PATH_UNSAFE'].includes(version.error.code)) {
-      return { status: 'BLOCKED', network: 'unknown', reason: version.error.message, commands: ['codex --version'] };
-    }
-    if (version.error) {
-      return { status: 'UNAVAILABLE', network: 'unknown', reason: `codex CLI probe unavailable: ${redactSensitiveText(String(version.error.message || version.error), { maxLength: 800 })}`, commands: ['codex --version'] };
-    }
+    const versionBlocked = classifySandboxError(version, limits, {
+      subject: 'codex --version',
+      unavailableSubject: 'codex CLI probe unavailable',
+      build: versionBuild,
+    });
+    if (versionBlocked) return versionBlocked;
     if (version.status !== 0) {
-      return { status: 'BLOCKED', network: 'unknown', reason: `codex --version failed with exit ${version.status}`, diagnostic: diagnostic(version), commands: ['codex --version'] };
+      return versionBuild('BLOCKED', `codex --version failed with exit ${version.status}`, { diagnostic: diagnostic(version) });
     }
+    const routeBuild = codexResult([commandDescription]);
     const result = executeWithSandbox(codexPath, ['plugin', 'marketplace', 'add', stagedPackage], sandboxOptions);
-    if (result.error && result.error.code === 'ETIMEDOUT') {
-      terminateSandboxProcess(result);
-      return { status: 'BLOCKED', network: 'unknown', reason: `sandboxed Codex route timed out after ${limits.timeoutMs} ms`, commands: [commandDescription] };
-    }
-    if (result.error && result.error.code === 'ENOBUFS') {
-      terminateSandboxProcess(result);
-      return { status: 'BLOCKED', network: 'unknown', reason: `sandboxed Codex route output exceeded ${limits.maxOutputBytes} bytes`, commands: [commandDescription] };
-    }
-    if (result.status === 0) return { status: 'PASS', network: 'disabled', reason: 'sandboxed Codex marketplace route completed', commands: [commandDescription] };
-    if (result.error && ['DHPK_NETWORK_SANDBOX_UNAVAILABLE', 'DHPK_SANDBOX_PATH_UNSAFE'].includes(result.error.code)) {
-      return { status: 'BLOCKED', network: 'unknown', reason: result.error.message, commands: [commandDescription] };
-    }
-    return { status: 'FAIL', network: 'disabled', reason: `sandboxed Codex route failed with exit ${result.status}`, diagnostic: diagnostic(result), commands: [commandDescription] };
+    const routeBlocked = classifySandboxError(result, limits, { subject: 'sandboxed Codex route', build: routeBuild });
+    if (routeBlocked) return routeBlocked;
+    if (result.status === 0) return routeBuild('PASS', 'sandboxed Codex marketplace route completed', { network: 'disabled' });
+    return routeBuild('FAIL', `sandboxed Codex route failed with exit ${result.status}`, { network: 'disabled', diagnostic: diagnostic(result) });
   } catch (error) {
     return {
       status: 'BLOCKED',
       network: 'unknown',
-      reason: `Codex consumer probe could not start: ${redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 })}`,
+      reason: `Codex consumer probe could not start: ${redactedErrorText(error)}`,
       commands: [commandDescription],
     };
   } finally {
@@ -285,7 +326,7 @@ function runCursorProbe(root, execute = false) {
     try {
       agentPackage = validateAgentPluginPackage(agentRoot);
     } catch (error) {
-      const reason = redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 });
+      const reason = redactedErrorText(error);
       return { status: 'BLOCKED', reason: 'Cursor consumer probe could not validate the sibling Agent Plugin package safely', diagnostics: [reason], commands: [{ cmd: command, exitCode: null }] };
     }
     if (!agentPackage.ok) {
@@ -332,7 +373,7 @@ function runCursorProbe(root, execute = false) {
       commands: [{ cmd: command, exitCode: result.exit_code === undefined ? null : result.exit_code }],
     };
   } catch (error) {
-    const reason = redactSensitiveText(String(error && error.message ? error.message : 'unknown Cursor probe setup error'), { maxLength: 800 });
+    const reason = redactedErrorText(error, { fallback: 'unknown Cursor probe setup error' });
     return { status: 'BLOCKED', reason: `Cursor consumer probe could not start: ${reason}`, commands: [{ cmd: command, exitCode: null }] };
   } finally {
     fs.rmSync(sandbox, { recursive: true, force: true });
@@ -385,7 +426,7 @@ function runAgentPluginProbe(root, execute = false) {
       commands: [{ cmd: command, exitCode: result.exit_code === undefined ? null : result.exit_code }],
     };
   } catch (error) {
-    const reason = redactSensitiveText(String(error && error.message ? error.message : 'unknown Agent Plugin probe setup error'), { maxLength: 800 });
+    const reason = redactedErrorText(error, { fallback: 'unknown Agent Plugin probe setup error' });
     return { status: 'BLOCKED', reason: `Agent Plugin consumer probe could not start: ${reason}`, commands: [{ cmd: command, exitCode: null }] };
   } finally {
     fs.rmSync(sandbox, { recursive: true, force: true });
@@ -394,9 +435,12 @@ function runAgentPluginProbe(root, execute = false) {
 
 const AGY_PROJECT_DISCOVERY_PROMPT = 'Read only. Inspect the project-local generated skill named %s under .agents/skills. Return exactly AGY_PROJECT_SMOKE_OK when it is available. Do not call tools or edit files.';
 
+function evidenceFingerprint(value) {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value) ? `sha256:${value}` : value;
+}
+
 function runAgyProjectProbe(root, structural, execute = false) {
   const receipt = structural && structural.receipt;
-  const evidenceFingerprint = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value) ? `sha256:${value}` : value;
   const command = `agy --mode plan --agent agy-worker --print <project-artifact> --output-format text`;
   const blocked = (reason) => ({
     status: 'BLOCKED',
@@ -487,39 +531,16 @@ function runAgyProjectProbe(root, structural, execute = false) {
       '--output-format', 'text',
     ];
     const result = executeWithSandbox(resolution.path, args, sandboxOptions);
-    if (result.error && result.error.code === 'ETIMEDOUT') {
-      terminateSandboxProcess(result);
-      return { status: 'BLOCKED', reason: `AGY project probe timed out after ${limits.timeoutMs} ms`, commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    if (result.error && result.error.code === 'ENOBUFS') {
-      terminateSandboxProcess(result);
-      return { status: 'BLOCKED', reason: `AGY project probe output exceeded ${limits.maxOutputBytes} bytes`, commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    if (result.error && ['DHPK_NETWORK_SANDBOX_UNAVAILABLE', 'DHPK_SANDBOX_PATH_UNSAFE'].includes(result.error.code)) {
-      return { status: 'BLOCKED', reason: result.error.message, commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    if (result.error) {
-      return { status: 'UNAVAILABLE', reason: `agy project probe unavailable: ${redactSensitiveText(String(result.error.message || result.error), { maxLength: 800 })}`, commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    if (result.status !== 0) {
-      const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
-      const lower = output.toLowerCase();
-      if (/unknown argument|unknown flag|flag provided but not defined/.test(lower)) {
-        return { status: 'SKIP_INCOMPATIBLE', reason: 'agy CLI does not support the bounded project skill probe route', diagnostic: diagnostic(result), commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-      }
-      if (/authentication|unauthorized|api key|credential|network|connection|timed out|timeout|dns|resolve/.test(lower)) {
-        return { status: 'UNAVAILABLE', reason: 'agy project probe is unavailable in the isolated runtime', diagnostic: diagnostic(result), commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-      }
-      return { status: 'FAIL', reason: `agy project probe failed with exit ${result.status}`, diagnostic: diagnostic(result), commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    if (String(result.stdout || '').trim() !== 'AGY_PROJECT_SMOKE_OK') {
-      return { status: 'FAIL', reason: 'agy project probe did not return the exact AGY_PROJECT_SMOKE_OK marker', diagnostic: diagnostic(result), commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    return { status: 'PASS', reason: 'bounded AGY project probe returned AGY_PROJECT_SMOKE_OK', network: 'disabled', commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    return classifyProjectProbeRun(result, limits, {
+      display: 'AGY',
+      cli: 'agy',
+      marker: 'AGY_PROJECT_SMOKE_OK',
+      build: (status, reason, extra = {}) => ({ status, reason, ...extra, commands: [command], checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(), ...identity }),
+    });
   } catch (error) {
     return {
       status: 'BLOCKED',
-      reason: `AGY project probe could not start: ${redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 })}`,
+      reason: `AGY project probe could not start: ${redactedErrorText(error)}`,
       commands: [command],
       checkedClaims: AGY_PROJECT_PROBE_CLAIMS.slice(),
       ...identity,
@@ -541,7 +562,6 @@ function assertPhysicalProjectRoot(root, label) {
 
 function runClaudeProjectProbe(root, structural, execute = false) {
   const receipt = structural && structural.receipt;
-  const evidenceFingerprint = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value) ? `sha256:${value}` : value;
   const command = 'claude -p <smoke-prompt> --output-format text';
   const blocked = (reason) => ({
     status: 'BLOCKED',
@@ -616,29 +636,14 @@ function runClaudeProjectProbe(root, structural, execute = false) {
       maxOutputBytes: limits.maxOutputBytes,
     };
     const result = executeWithSandbox(resolution.path, ['-p', CLAUDE_PROJECT_DISCOVERY_PROMPT, '--output-format', 'text'], sandboxOptions);
-    if (result.error && result.error.code === 'ETIMEDOUT') {
-      terminateSandboxProcess(result);
-      return { status: 'BLOCKED', reason: `Claude project probe timed out after ${limits.timeoutMs} ms`, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    if (result.error && result.error.code === 'ENOBUFS') {
-      terminateSandboxProcess(result);
-      return { status: 'BLOCKED', reason: `Claude project probe output exceeded ${limits.maxOutputBytes} bytes`, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    if (result.error && ['DHPK_NETWORK_SANDBOX_UNAVAILABLE', 'DHPK_SANDBOX_PATH_UNSAFE'].includes(result.error.code)) {
-      return { status: 'BLOCKED', reason: result.error.message, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    if (result.error) return { status: 'UNAVAILABLE', reason: `claude project probe unavailable: ${redactSensitiveText(String(result.error.message || result.error), { maxLength: 800 })}`, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    if (result.status !== 0) {
-      const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
-      const lower = output.toLowerCase();
-      if (/unknown argument|unknown flag|flag provided but not defined/.test(lower)) return { status: 'SKIP_INCOMPATIBLE', reason: 'claude CLI does not support the bounded project skill probe route', diagnostic: diagnostic(result), commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-      if (/authentication|unauthorized|api key|credential|network|connection|timed out|timeout|dns|resolve/.test(lower)) return { status: 'UNAVAILABLE', reason: 'claude project probe is unavailable in the isolated runtime', diagnostic: diagnostic(result), commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-      return { status: 'FAIL', reason: `claude project probe failed with exit ${result.status}`, diagnostic: diagnostic(result), commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    }
-    if (String(result.stdout || '').trim() !== 'CLAUDE_PROJECT_SMOKE_OK') return { status: 'FAIL', reason: 'claude project probe did not return the exact CLAUDE_PROJECT_SMOKE_OK marker', diagnostic: diagnostic(result), commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
-    return { status: 'PASS', reason: 'bounded Claude project probe returned CLAUDE_PROJECT_SMOKE_OK', network: 'disabled', commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    return classifyProjectProbeRun(result, limits, {
+      display: 'Claude',
+      cli: 'claude',
+      marker: 'CLAUDE_PROJECT_SMOKE_OK',
+      build: (status, reason, extra = {}) => ({ status, reason, ...extra, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity }),
+    });
   } catch (error) {
-    return { status: 'BLOCKED', reason: `Claude project probe could not start: ${redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 })}`, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    return { status: 'BLOCKED', reason: `Claude project probe could not start: ${redactedErrorText(error)}`, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
   } finally {
     fs.rmSync(tempHome, { recursive: true, force: true });
     fs.rmSync(stagingRoot, { recursive: true, force: true });
@@ -653,10 +658,7 @@ function resolveCursorInventoryPath(inventoryPath) {
 }
 
 function validatePackage(platform, root, inventoryPath = null) {
-  if (platform === 'agy-project') {
-    return validateRelocatableAgentsSkillsProjection({ projectRoot: root });
-  }
-  if (platform === 'claude-project') {
+  if (platform === 'agy-project' || platform === 'claude-project') {
     return validateRelocatableAgentsSkillsProjection({ projectRoot: root });
   }
   let inventory = null;
@@ -664,22 +666,25 @@ function validatePackage(platform, root, inventoryPath = null) {
     const resolved = resolveCursorInventoryPath(inventoryPath);
     if (resolved) inventory = JSON.parse(fs.readFileSync(path.resolve(resolved), 'utf8'));
   }
-  const result = platform === 'codex' || platform === 'agent-plugin'
+  return platform === 'codex' || platform === 'agent-plugin'
     ? validateAgentPluginPackage(root)
     : validateCursorPackage({ packageRoot: root, expectedManifestName: 'dhpk-cursor', inventory });
-  return result;
 }
 
+const PROBE_EVIDENCE_SURFACES = new Map([
+  ['codex', 'codex-marketplace'],
+  ['agent-plugin', 'agent-plugin'],
+  ['agy-project', 'agy-plugin'],
+  ['claude-project', 'claude-project'],
+]);
+
+const PROBE_EVIDENCE_CLAIMS = new Map([
+  ['agy-project', ['project-artifact-structure', 'project-agent-direct-file', 'consumer-route']],
+  ['claude-project', CLAUDE_PROJECT_PROBE_CLAIMS],
+]);
+
 function normalizedProbeEvidence(platform, manifest, result, version) {
-  const surface = platform === 'codex'
-    ? 'codex-marketplace'
-    : platform === 'agent-plugin'
-      ? 'agent-plugin'
-      : platform === 'agy-project'
-        ? 'agy-plugin'
-        : platform === 'claude-project'
-          ? 'claude-project'
-        : 'cursor-plugin';
+  const surface = PROBE_EVIDENCE_SURFACES.get(platform) || 'cursor-plugin';
   const loaderRoute = platform === 'agent-plugin'
     ? 'agent-plugin-loader'
     : platform === 'cursor' ? 'cursor-plugin-loader' : null;
@@ -718,11 +723,7 @@ function normalizedProbeEvidence(platform, manifest, result, version) {
       ],
       diagnostics: result.diagnostics || result.diagnostic || [],
       reasons: result.reasons || (result.reason ? [result.reason] : []),
-      checkedClaims: result.checkedClaims || (platform === 'agy-project'
-        ? ['project-artifact-structure', 'project-agent-direct-file', 'consumer-route']
-        : platform === 'claude-project'
-          ? CLAUDE_PROJECT_PROBE_CLAIMS.slice()
-        : ['package-manifest', 'consumer-route']),
+      checkedClaims: result.checkedClaims || (PROBE_EVIDENCE_CLAIMS.get(platform) || ['package-manifest', 'consumer-route']).slice(),
       ...(result.planFingerprint ? { planFingerprint: result.planFingerprint } : {}),
       ...(result.artifactFingerprint ? { artifactFingerprint: result.artifactFingerprint } : {}),
       ...(result.reason_code ? { reason_code: result.reason_code } : {}),
@@ -750,7 +751,7 @@ function main() {
       packageRoot: root,
       status: 'BLOCKED',
       reason: 'package physical preflight could not complete safely',
-      diagnostics: [redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 })],
+      diagnostics: [redactedErrorText(error)],
       commands: [],
     };
     const normalized = normalizedProbeEvidence(args.platform, null, blocked, args.version || null);
@@ -768,7 +769,7 @@ function main() {
       packageRoot: root,
       status: 'BLOCKED',
       reason: 'package structural validation could not complete safely',
-      diagnostics: [redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 })],
+      diagnostics: [redactedErrorText(error)],
       commands: [],
     };
     const normalized = normalizedProbeEvidence(args.platform, manifest, blocked, args.version || null);
@@ -796,7 +797,7 @@ function main() {
   try {
     normalized = normalizedProbeEvidence(args.platform, manifest, result, args.version || null);
   } catch (error) {
-    emit({ platform: args.platform, packageRoot: root, manifest: manifest && manifest.path || null, version: args.version || null, ...result, normalizationError: redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 }) }, 1);
+    emit({ platform: args.platform, packageRoot: root, manifest: manifest && manifest.path || null, version: args.version || null, ...result, normalizationError: redactedErrorText(error) }, 1);
   }
   emit({ platform: args.platform, packageRoot: root, manifest: manifest && manifest.path || null, version: args.version || null, ...result, ...normalized }, ['FAIL', 'BLOCKED'].includes(result.status) ? 1 : 0);
 }

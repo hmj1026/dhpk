@@ -8,7 +8,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const crypto = require('node:crypto');
+const { sha256Hex } = require('../lib/content-fingerprint');
 const { execFileSync } = require('node:child_process');
 const { extract: extractFrontmatter } = require('./_lib/frontmatter');
 
@@ -21,7 +21,7 @@ function readJson(root, relativePath) {
 
 function sha256File(root, relativePath) {
   try {
-    return crypto.createHash('sha256').update(fs.readFileSync(path.join(root, relativePath))).digest('hex');
+    return sha256Hex(fs.readFileSync(path.join(root, relativePath)));
   } catch (_error) {
     return null;
   }

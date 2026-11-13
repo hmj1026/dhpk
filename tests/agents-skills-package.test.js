@@ -11,6 +11,7 @@ const {
   rollbackAgentsSkillsProjection,
   uninstallAgentsSkillsProjection,
   agentsSkillsPlanEntries,
+  deriveProjectionRoots,
 } = require('../scripts/lib/agents-skills-package');
 const { versionBoundaryMessage } = require('../scripts/lib/content-fingerprint');
 
@@ -1194,6 +1195,24 @@ test('a stable qualifying legacy entry is still released with its bytes and mode
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('deriveProjectionRoots resolves source override, project root, and default projection directory', () => {
+  const repo = path.join(os.tmpdir(), 'dhpk-roots-repo');
+  const source = path.join(os.tmpdir(), 'dhpk-roots-source');
+  const project = path.join(os.tmpdir(), 'dhpk-roots-project');
+  assert.deepStrictEqual(
+    deriveProjectionRoots({ repoRoot: repo }),
+    { root: repo, projectRoot: null, outDir: path.join(repo, '.agents', 'skills') },
+  );
+  assert.deepStrictEqual(
+    deriveProjectionRoots({ repoRoot: repo, sourceRoot: source, projectRoot: project }),
+    { root: source, projectRoot: project, outDir: null },
+  );
+  assert.deepStrictEqual(
+    deriveProjectionRoots({ repoRoot: repo, projectRoot: project, outDir: 'relative-out' }),
+    { root: repo, projectRoot: project, outDir: path.resolve('relative-out') },
+  );
 });
 
 run('agents-skills-compatibility');

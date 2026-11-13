@@ -123,9 +123,13 @@ function tailLinesFromFile(filePath, maxLines = 120, maxBytes = 250_000) {
     const st = fs.statSync(filePath);
     const start = Math.max(0, st.size - maxBytes);
     const fd = fs.openSync(filePath, 'r');
-    const buf = Buffer.alloc(st.size - start);
-    fs.readSync(fd, buf, 0, buf.length, start);
-    fs.closeSync(fd);
+    let buf;
+    try {
+      buf = Buffer.alloc(st.size - start);
+      fs.readSync(fd, buf, 0, buf.length, start);
+    } finally {
+      fs.closeSync(fd);
+    }
 
     const text = buf.toString('utf8');
     const lines = text.split(/\r?\n/);
@@ -134,15 +138,6 @@ function tailLinesFromFile(filePath, maxLines = 120, maxBytes = 250_000) {
   } catch {
     return '';
   }
-}
-
-/**
- * Filter function for stdout streaming.
- * Returns true if the line should be printed to terminal.
- * All lines are always written to the log file regardless.
- */
-function defaultStdoutFilter(_line) {
-  return true;
 }
 
 /** Strip ANSI escape codes so regex matching works on coloured output. */
@@ -217,7 +212,7 @@ async function runStep({
     };
   }
 
-  const filter = stdoutFilter || defaultStdoutFilter;
+  const filter = stdoutFilter || (() => true);
   let _lineBuf = '';
 
   if (child.stdout) {
@@ -323,7 +318,6 @@ module.exports = {
   runStep,
   tailLinesFromFile,
   stripAnsi,
-  defaultStdoutFilter,
   testStdoutFilter,
   gitRepoRoot,
   gitShortHead,

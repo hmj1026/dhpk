@@ -474,4 +474,20 @@ test('codex-reviewer remains shared-runner-only until the native read-only capab
   });
 }
 
+const PROTOTYPE_KEYS = ['constructor', 'toString', 'hasOwnProperty', '__proto__'];
+
+for (const key of PROTOTYPE_KEYS) {
+  test(`resolveRole blocks inherited Object.prototype key ${key} as an unknown role`, () => {
+    const result = resolveRole({ requestedRole: key, mode: 'read-only' });
+    assert.strictEqual(result.status, 'BLOCKED');
+    assert.strictEqual(result.reason, `unknown role: ${key}`);
+  });
+
+  test(`resolvePublication reports inherited Object.prototype key ${key} as an unknown role`, () => {
+    const result = resolvePublication({ role: key, target: 'shared-runner' });
+    assert.strictEqual(result.status, 'UNAVAILABLE');
+    assert.strictEqual(result.reason, `unknown role: ${key}`);
+  });
+}
+
 run('canonical-cli-role-vocabulary');

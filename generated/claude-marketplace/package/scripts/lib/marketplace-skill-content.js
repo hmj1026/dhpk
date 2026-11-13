@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { buildInstallerBundle } = require('./installer-bundle');
+const { isInside } = require('./bounded-filesystem');
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 512 * 1024 * 1024;
@@ -97,11 +98,6 @@ function originalGitBlobDigest(bytes) {
     .digest('hex');
 }
 
-function inside(parent, candidate) {
-  const relative = path.relative(parent, candidate);
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
-}
-
 function normalizeRelative(value, label, errors) {
   if (typeof value !== 'string' || value.length === 0 || value.includes('\0') || value.includes('\\') || path.posix.isAbsolute(value)) {
     errors.push(`${label} must be a contained relative path`);
@@ -119,7 +115,7 @@ function safePath(root, relative, label, errors) {
   const normalized = normalizeRelative(relative, label, errors);
   if (!normalized) return null;
   const candidate = path.resolve(root, ...normalized.split('/'));
-  if (!inside(root, candidate)) {
+  if (!isInside(root, candidate)) {
     errors.push(`${label} escapes the source root`);
     return null;
   }
@@ -696,15 +692,13 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
   }
 
   if (errors.length > 0) return { ok: false, errors, files: [], bundleProvenance: null };
-  const sourceDestinations = sourceDestinationByOwnerAndPath;
-  if (errors.length > 0) return { ok: false, errors, files: [], bundleProvenance: null };
   const orderedFiles = [...filesByPath.values()].sort((left, right) => left.path < right.path ? -1 : (left.path > right.path ? 1 : 0));
   const relocatedFiles = orderedFiles.map((file) => {
     if (path.posix.extname(file.path).toLowerCase() !== '.md') return file;
     let content = file.bytes.toString('utf8');
     const context = { root: physicalRoot, allowedSourcePaths, errors };
-    content = rewriteMarkdownLinks(content, file, sourceDestinations, hostOnlyOwnerIds, retainedHostResources, context);
-    content = rewriteRootReferences(content, file, sourceDestinations, hostOnlyOwnerIds, retainedHostResources, context);
+    content = rewriteMarkdownLinks(content, file, sourceDestinationByOwnerAndPath, hostOnlyOwnerIds, retainedHostResources, context);
+    content = rewriteRootReferences(content, file, sourceDestinationByOwnerAndPath, hostOnlyOwnerIds, retainedHostResources, context);
     return { ...file, bytes: Buffer.from(content, 'utf8') };
   });
   sourceToDestination.sort((left, right) => left.ownerId < right.ownerId

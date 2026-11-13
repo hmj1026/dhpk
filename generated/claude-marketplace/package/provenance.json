@@ -165,7 +165,7 @@
       "sourcePath": "skills/project-audit/scripts/lib/runner-utils.js",
       "destination": "skills/change-verdict/references/project-audit/scripts/lib/runner-utils.js",
       "kind": "branch",
-      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
+      "sha256": "8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1"
     },
     {
       "skillId": "change-verdict",
@@ -285,7 +285,7 @@
       "sourcePath": "skills/change-verdict/scripts/lib/runner-utils.js",
       "destination": "skills/change-verdict/scripts/lib/runner-utils.js",
       "kind": "entry",
-      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
+      "sha256": "8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1"
     },
     {
       "skillId": "change-verdict",
@@ -493,7 +493,7 @@
       "sourcePath": "skills/repo-intake/scripts/lib/runner-utils.js",
       "destination": "skills/code-trace/references/repo-intake/scripts/lib/runner-utils.js",
       "kind": "branch",
-      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
+      "sha256": "8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1"
     },
     {
       "skillId": "repo-intake",
@@ -1997,7 +1997,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
       "kind": "entry",
-      "sha256": "b4680ae9bc89a6840f292daf8006dc144463100d217e4c76f2029e994147c076"
+      "sha256": "eb10002110d5ebc633515c70c1d20a9388d564ef677952f3c455e36568e99b53"
     },
     {
       "skillId": "flow-guide",
@@ -2285,7 +2285,7 @@
       "sourcePath": "skills/flow-guide/scripts/_lib/runner-utils.js",
       "destination": "skills/flow-guide/scripts/_lib/runner-utils.js",
       "kind": "entry",
-      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
+      "sha256": "8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1"
     },
     {
       "skillId": "flow-guide",
@@ -2309,7 +2309,7 @@
       "sourcePath": "skills/flow-guide/scripts/_lib/skill-usage.js",
       "destination": "skills/flow-guide/scripts/_lib/skill-usage.js",
       "kind": "entry",
-      "sha256": "e83d0131cda311fab7daf9a5eabad669e321424172d8b1e98492dae16ad4bd35"
+      "sha256": "20bf5503cd0eb94b52c9581d1a1cc7d2e21a211fa7cdc6c423f04a29884373ef"
     },
     {
       "skillId": "flow-guide",
@@ -2541,7 +2541,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex-cli.js",
       "destination": "skills/harness-setup/scripts/lib/dhpk-installer.cjs",
       "kind": "generated",
-      "sha256": "a2b028a98e056fdadc22f6270353455820086cdb1c015aaef53e6c9cc08f2a66"
+      "sha256": "647d3ac874403ada0105734d4a8542e1351c01998db075fadd2529ed5e6e064d"
     },
     {
       "skillId": "harness-setup",
@@ -2549,7 +2549,7 @@
       "sourcePath": "skills/harness-setup/scripts/lib/install-assets-writer.sh",
       "destination": "skills/harness-setup/scripts/lib/install-assets-writer.sh",
       "kind": "entry",
-      "sha256": "f84e50bdef8011651a3b17aef4e8f55287a8b8136c4b45ef691b07b29ebec5e1"
+      "sha256": "c9027d631003a336be01e0865383f9174f3e318e0f1fd5ca1aea7b429c1e0c67"
     },
     {
       "skillId": "harness-setup",
@@ -2813,7 +2813,7 @@
       "sourcePath": "skills/precommit/scripts/lib/runner-utils.js",
       "destination": "skills/precommit/scripts/lib/runner-utils.js",
       "kind": "entry",
-      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
+      "sha256": "8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1"
     },
     {
       "skillId": "precommit",
@@ -3333,7 +3333,7 @@
       "sourcePath": "skills/repo-verify/scripts/lib/runner-utils.js",
       "destination": "skills/repo-verify/scripts/lib/runner-utils.js",
       "kind": "entry",
-      "sha256": "195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4"
+      "sha256": "8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1"
     },
     {
       "skillId": "repo-verify",

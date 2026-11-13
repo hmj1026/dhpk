@@ -15,6 +15,7 @@ const {
   requireTreeMerkle,
   sha256Hex,
   treeFingerprint,
+  canonicalJson: stableStringify,
 } = require('./content-fingerprint');
 const {
   compileProjectAgentProjection,
@@ -30,7 +31,7 @@ const {
   serializePortableSkillMetadata,
   validatePortableSkillMetadata,
 } = require('./portable-skill-metadata');
-const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { createTraversalBudget, readDirectoryEntries, lstatOrNull } = require('./bounded-filesystem');
 const journalCore = require('./projection-journal');
 const { LEGACY_JOURNAL_RECOVERY_RELEASE } = journalCore;
 
@@ -97,10 +98,6 @@ function clone(value) {
   return value;
 }
 
-function stableStringify(value) {
-  return JSON.stringify(clone(value));
-}
-
 function fail(code, message, details = {}) {
   const error = new Error(message);
   error.projectionCode = code;
@@ -115,15 +112,6 @@ function portableSkillContent(content, label) {
     throw fail('INVALID_PORTABLE_METADATA', `${label}: ${details}`);
   }
   return result.output;
-}
-
-function lstatOrNull(filePath) {
-  try {
-    return fs.lstatSync(filePath);
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 // Path-safety predicates are shared with the build-time artifact store; this
@@ -1022,12 +1010,15 @@ function validateReceipt(receipt, roots, bindingOptions = {}) {
     // Only validated emitted skills prove historical kind. A requested selection
     // cannot establish ownership for selected-only legacy identities. Retired
     // selected-only IDs need no kind because they will not enter the new plan.
-    if (receipt.emittedIds.some((id) => !receipt.entries.some((entry) => entry.stableId === id))) {
+    const sourceProofIds = new Set(receipt.entries.map((entry) => entry.stableId));
+    if (receipt.emittedIds.some((id) => !sourceProofIds.has(id))) {
       throw fail('INVALID_RECEIPT', 'legacy receipt emitted identity is missing source proof');
     }
+    let inventoryRows = null;
     for (const id of receipt.selectedIds) {
-      if (receipt.entries.some((entry) => entry.stableId === id)) continue;
-      const matches = inventoryEntries(roots.inventory).filter((entry) => entry.id === id);
+      if (sourceProofIds.has(id)) continue;
+      if (inventoryRows === null) inventoryRows = inventoryEntries(roots.inventory);
+      const matches = inventoryRows.filter((entry) => entry.id === id);
       if (matches.length > 1) {
         throw fail('AMBIGUOUS_LEGACY_IDENTITY', `legacy receipt identity '${id}' cannot be resolved uniquely; skill:${id} and module:${id} require historical evidence`);
       }
@@ -2345,7 +2336,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         const directPath = pathIn(roots.managedRoot, `${entry.name}.md`, 'AGY direct-file path');
         const directoryStat = lstatOrNull(directoryPath);
         const directStat = lstatOrNull(directPath);
-        if (directoryStat && directStat && sha256Hex(fs.readFileSync(directoryPath)) !== sha256Hex(fs.readFileSync(directPath))) {
+        if (directoryStat && directStat && !fs.readFileSync(directoryPath).equals(fs.readFileSync(directPath))) {
           errors.push(`provider-shaped outputs do not share the same skill body: ${entry.name}`);
         }
       }

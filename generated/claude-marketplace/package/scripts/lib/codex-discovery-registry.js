@@ -276,12 +276,11 @@ function inspectCodexActivation({
   // duplicate judgment; a source-tree/artifact provider that is not enabled
   // in Codex is package/provenance evidence, not a live conflicting runtime
   // (issue #437).
-  const duplicateInvokableNames = [...new Set(
-    overlapping.filter((provider) => provider.active !== false).map((provider) => provider.name),
+  const namesWhere = (predicate) => [...new Set(
+    overlapping.filter(predicate).map((provider) => provider.name),
   )].sort((left, right) => left.localeCompare(right));
-  const inactiveDuplicateInvokableNames = [...new Set(
-    overlapping.filter((provider) => provider.active === false).map((provider) => provider.name),
-  )].sort((left, right) => left.localeCompare(right));
+  const duplicateInvokableNames = namesWhere((provider) => provider.active !== false);
+  const inactiveDuplicateInvokableNames = namesWhere((provider) => provider.active === false);
   const blockedByDuplicate = duplicateInvokableNames.length > 0;
   return Object.freeze({
     ...integrity,

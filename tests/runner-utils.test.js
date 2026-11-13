@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const utils = require('../scripts/lib/utils');
+const utils = require('../scripts/lib/runner-utils');
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'utils-test-'));
@@ -92,6 +92,44 @@ test('tailLinesFromFile returns empty string for a missing file', () => {
   assert.strictEqual(utils.tailLinesFromFile('/no/such/file.log'), '');
 });
 
+test('tailLinesFromFile closes the fd and returns empty string when readSync throws', () => {
+  const tmp = mkTmp();
+  const p = path.join(tmp, 'a.log');
+  fs.writeFileSync(p, 'one\ntwo\n');
+  const origOpen = fs.openSync;
+  const origRead = fs.readSync;
+  const origClose = fs.closeSync;
+  const opened = [];
+  const closed = [];
+  fs.openSync = (...args) => {
+    const fd = origOpen.apply(fs, args);
+    opened.push(fd);
+    return fd;
+  };
+  fs.readSync = () => {
+    throw new Error('simulated read failure');
+  };
+  fs.closeSync = fd => {
+    closed.push(fd);
+    return origClose.call(fs, fd);
+  };
+  let result;
+  try {
+    result = utils.tailLinesFromFile(p, 3);
+  } finally {
+    fs.openSync = origOpen;
+    fs.readSync = origRead;
+    fs.closeSync = origClose;
+    for (const fd of opened) {
+      if (!closed.includes(fd)) origClose.call(fs, fd);
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  assert.strictEqual(result, '');
+  assert.strictEqual(opened.length, 1);
+  assert.deepStrictEqual(closed, opened);
+});
+
 test('stripAnsi removes color escape codes', () => {
   assert.strictEqual(utils.stripAnsi('[32mPASS[0m'), 'PASS');
 });
@@ -135,13 +173,6 @@ test('pmCommand builds the right argv per package manager', () => {
   assert.deepStrictEqual(utils.pmCommand('npm', 'test', ['--foo']), ['npm', ['run', 'test', '--', '--foo']]);
 });
 
-test('qualifyCommand prefixes a slash-command with the plugin name once', () => {
-  const q1 = utils.qualifyCommand('/do');
-  assert.ok(q1.startsWith('/'));
-  assert.strictEqual(utils.qualifyCommand(q1), q1, 'already-qualified command must be idempotent');
-  assert.strictEqual(utils.qualifyCommand('not-a-command'), 'not-a-command');
-});
-
 test('runCapture resolves stdout/code for a real command', async () => {
   const r = await utils.runCapture('node', ['-e', 'console.log("hi")']);
   assert.strictEqual(r.code, 0);
@@ -158,4 +189,4 @@ test('gitRepoRoot resolves to the real repo root when run inside it', async () =
   assert.ok(root && fs.existsSync(path.join(root, '.git')), `unexpected root: ${root}`);
 });
 
-run('utils');
+run('runner-utils');

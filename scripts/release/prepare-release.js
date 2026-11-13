@@ -31,6 +31,7 @@ const { validateCursorPackage } = require('../lib/cursor-plugin-package');
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../lib/agy-plugin-package');
 const { materialize } = require('../ci/gen-claude-marketplace-package');
 const { validateSurfaceReceipt, resolveGeneratedFromTree } = require('../lib/platform-provenance');
+const { lstatOrNull, isInside } = require('../lib/bounded-filesystem');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 
 // The codex-native package (plugins/dhpk/.codex-plugin/plugin.json +
@@ -59,6 +60,9 @@ const GENERATED_CLAUDE_MARKETPLACE_MANIFEST_PATHS = new Set([
 function skipFieldPatchManifest(relPath) {
   return NATIVE_PACKAGE_PATHS.has(relPath) || GENERATED_CLAUDE_MARKETPLACE_MANIFEST_PATHS.has(relPath);
 }
+
+const FIELD_PATCH_MANIFESTS = MANIFEST_PATHS.filter((relPath) => !skipFieldPatchManifest(relPath));
+const OPERATION_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const REQUIRED_BRANCH = 'develop';
@@ -109,10 +113,6 @@ function writeManifestVersion(root, relPath, version) {
   fs.writeFileSync(abs, `${JSON.stringify(data, null, 2)}\n`);
 }
 
-function lstatOrNull(candidate) {
-  try { return fs.lstatSync(candidate); } catch (error) { return error && error.code === 'ENOENT' ? null : (() => { throw error; })(); }
-}
-
 function replaceStagedDirectory(staged, destination, label) {
   const parent = path.dirname(destination);
   const parentStat = lstatOrNull(parent);
@@ -145,7 +145,7 @@ function isCanonicalReleaseTarget(root, target) {
   const resolvedTarget = path.resolve(target);
   const canonicalFiles = new Set([
     path.join(resolvedRoot, 'CHANGELOG.md'),
-    ...MANIFEST_PATHS.filter((relPath) => !skipFieldPatchManifest(relPath)).map((relPath) => path.join(resolvedRoot, relPath)),
+    ...FIELD_PATCH_MANIFESTS.map((relPath) => path.join(resolvedRoot, relPath)),
     ...AGY_GENERATOR_DOC_PATHS.map((relPath) => path.join(resolvedRoot, relPath)),
   ]);
   const canonicalDirectories = new Set([
@@ -170,7 +170,7 @@ function assertCanonicalReleaseTarget(root, target) {
 function assertPhysicalPathAncestors(root, target, label) {
   const resolvedRoot = path.resolve(root);
   let current = path.resolve(target);
-  while (isWithinPath(resolvedRoot, current)) {
+  while (isInside(resolvedRoot, current)) {
     const stat = lstatOrNull(current);
     if (stat && stat.isSymbolicLink()) throw new Error(`${label} path contains a symlink ancestor: ${current}`);
     if (current === resolvedRoot) return;
@@ -226,7 +226,7 @@ function writeRollbackManifest(manifestPath, manifest) {
 
 function ensureBackupRoot(backupRoot, operationKey) {
   if (!backupRoot || !operationKey) return null;
-  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(operationKey)) throw new Error('release operation key is invalid');
+  if (!OPERATION_KEY_PATTERN.test(operationKey)) throw new Error('release operation key is invalid');
   const root = path.resolve(backupRoot);
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
   const rootStat = lstatOrNull(root);
@@ -251,6 +251,11 @@ function restoreReleaseStates(states) {
     }
   }
   return errors;
+}
+
+function removeDurableBackup(durable) {
+  try { fs.rmSync(durable.directory, { recursive: true, force: true }); } catch (_) { /* retain original failure */ }
+  try { fs.rmSync(durable.manifest, { force: true }); } catch (_) { /* retain original failure */ }
 }
 
 function applyReleaseTransaction(replacements, { backupRoot = null, operationKey = null, root = null } = {}) {
@@ -292,8 +297,7 @@ function applyReleaseTransaction(replacements, { backupRoot = null, operationKey
   } catch (error) {
     const restoreErrors = restoreReleaseStates(states);
     if (durable && restoreErrors.length === 0) {
-      try { fs.rmSync(durable.directory, { recursive: true, force: true }); } catch (_) { /* retain original failure */ }
-      try { fs.rmSync(durable.manifest, { force: true }); } catch (_) { /* retain original failure */ }
+      removeDurableBackup(durable);
     }
     if (restoreErrors.length > 0) {
       error.message = `${error.message}; rollback backup retained at ${durable ? durable.directory : 'ephemeral paths'}; restore failures: ${restoreErrors.join('; ')}`;
@@ -326,18 +330,12 @@ function applyReleaseTransaction(replacements, { backupRoot = null, operationKey
   } catch (error) {
     const restoreErrors = restoreReleaseStates(states);
     if (restoreErrors.length === 0) {
-      try { fs.rmSync(durable.directory, { recursive: true, force: true }); } catch (_) { /* retain original failure */ }
-      try { fs.rmSync(durable.manifest, { force: true }); } catch (_) { /* retain original failure */ }
+      removeDurableBackup(durable);
     } else {
       error.message = `${error.message}; rollback backup retained at ${durable.directory}; restore failures: ${restoreErrors.join('; ')}`;
     }
     throw error;
   }
-}
-
-function isWithinPath(root, candidate) {
-  const relative = path.relative(path.resolve(root), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
 }
 
 function rollbackReleaseTransaction(reference, { root = null } = {}) {
@@ -348,7 +346,7 @@ function rollbackReleaseTransaction(reference, { root = null } = {}) {
   }
   if (root) {
     const expectedRoot = path.resolve(root, '.claude', 'artifacts', 'release-backups');
-    if (!isWithinPath(expectedRoot, manifestPath) || path.dirname(manifestPath) !== expectedRoot) {
+    if (!isInside(expectedRoot, manifestPath) || path.dirname(manifestPath) !== expectedRoot) {
       throw new Error('release rollback manifest must be under the repository backup root');
     }
   }
@@ -359,7 +357,7 @@ function rollbackReleaseTransaction(reference, { root = null } = {}) {
   if (manifest.rolledBackAt || manifest.rollbackStatus === 'COMPLETE') {
     throw new Error(`release rollback operation '${manifest.operationKey}' was already applied`);
   }
-  if (typeof manifest.operationKey !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(manifest.operationKey)
+  if (typeof manifest.operationKey !== 'string' || !OPERATION_KEY_PATTERN.test(manifest.operationKey)
     || path.basename(manifestPath) !== `${manifest.operationKey}.json`) {
     throw new Error('release rollback manifest operation identity is invalid');
   }
@@ -390,7 +388,7 @@ function rollbackReleaseTransaction(reference, { root = null } = {}) {
     const target = path.resolve(entry.target);
     const backup = entry.backup ? path.resolve(entry.backup) : null;
     const recovery = path.resolve(entry.recovery || path.join(backupDirectory, `.target-${String(entryIndex).padStart(4, '0')}`));
-    if (!isWithinPath(repositoryRoot, target)) throw new Error('release rollback target escapes the repository root');
+    if (!isInside(repositoryRoot, target)) throw new Error('release rollback target escapes the repository root');
     assertCanonicalReleaseTarget(repositoryRoot, target);
     assertPhysicalPathAncestors(repositoryRoot, target, 'release rollback target');
     if (seenTargets.has(target)) throw new Error(`release rollback manifest contains a duplicate target: ${target}`);
@@ -398,7 +396,7 @@ function rollbackReleaseTransaction(reference, { root = null } = {}) {
     assertReleaseTarget(target);
     if (entry.existed && !backup) throw new Error(`release rollback backup is missing for ${target}`);
     if (!entry.existed && backup) throw new Error(`release rollback absent target has an unexpected backup: ${target}`);
-    if (backup && !isWithinPath(backupDirectory, backup)) throw new Error('release rollback backup path is invalid');
+    if (backup && !isInside(backupDirectory, backup)) throw new Error('release rollback backup path is invalid');
     if (backup && path.dirname(backup) !== backupDirectory) throw new Error('release rollback backup must be a direct operation child');
     if (backup && seenBackups.has(backup)) throw new Error(`release rollback manifest contains a duplicate backup: ${backup}`);
     const backupStat = backup ? lstatOrNull(backup) : null;
@@ -408,7 +406,7 @@ function rollbackReleaseTransaction(reference, { root = null } = {}) {
       if (backupStat && backupStat.isSymbolicLink()) throw new Error(`release rollback backup is missing or unsafe: ${backup}`);
       if (rollbackStatus === 'RESTORED' && backupStat) throw new Error(`restored release rollback entry still has a backup: ${backup}`);
     }
-    if (!isWithinPath(backupDirectory, recovery) || path.dirname(recovery) !== backupDirectory) {
+    if (!isInside(backupDirectory, recovery) || path.dirname(recovery) !== backupDirectory) {
       throw new Error('release rollback recovery path is invalid');
     }
     if (seenRecovery.has(recovery) || recovery === backup) throw new Error(`release rollback manifest contains a duplicate recovery path: ${recovery}`);
@@ -459,7 +457,7 @@ function rollbackReleaseTransaction(reference, { root = null } = {}) {
           && digestPath(recovery) === entry.publishedFingerprint);
         if (targetAlreadyRestored) {
           entry.rollbackStatus = 'RESTORED';
-          entry.restoredFingerprint = digestPath(target);
+          entry.restoredFingerprint = entry.backupFingerprint;
           manifest.rollbackStatus = 'PARTIAL';
           // Persist before removing the recovery slot so a crash during
           // cleanup leaves a resumable RESTORED entry, not a PENDING entry
@@ -691,8 +689,7 @@ function main() {
 
     const stagedFiles = path.join(stagingRoot, 'files');
     fs.mkdirSync(stagedFiles, { recursive: true });
-    for (const relPath of MANIFEST_PATHS) {
-      if (skipFieldPatchManifest(relPath)) continue;
+    for (const relPath of FIELD_PATCH_MANIFESTS) {
       const destination = path.join(stagedFiles, relPath);
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.copyFileSync(path.join(args.root, relPath), destination);
@@ -708,14 +705,11 @@ function main() {
 
     const changed = [];
     changed.push('CHANGELOG.md');
-    for (const relPath of MANIFEST_PATHS) {
-      if (skipFieldPatchManifest(relPath)) continue;
-      changed.push(relPath);
-    }
+    for (const relPath of FIELD_PATCH_MANIFESTS) changed.push(relPath);
     for (const relPath of AGY_GENERATOR_DOC_PATHS) changed.push(relPath);
     const replacements = [
       { target: changelogPath, source: stagedChangelog },
-      ...MANIFEST_PATHS.filter((relPath) => !skipFieldPatchManifest(relPath)).map((relPath) => ({
+      ...FIELD_PATCH_MANIFESTS.map((relPath) => ({
         target: path.join(args.root, relPath),
         source: path.join(stagedFiles, relPath),
       })),

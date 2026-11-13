@@ -7,12 +7,56 @@
 // explicit JSON allowlist at .cross-cli-allowlist.json with:
 //   { ".codex": ["skills/native-only.md"] }
 
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createTraversalBudget,
+  readFileBounded,
+  readDirectoryEntries,
+  lstatOrNull,
+  isInside,
+} = require('./bounded-filesystem');
+const { sha256Hex } = require('./content-fingerprint');
 
 const MANAGED_DIRS = ['skills', 'commands', 'agents', 'hooks', 'rules'];
+// Targets whose CLI reads the shared .agents skill roots natively.
+const NATIVE_AGENTS_SKILLS_TARGETS = new Set(['.codex', '.cursor', '.agent']);
+const SHARED_SKILLS_ROOTS = [path.join('.agents', 'skills'), path.join('.agents', 'claude-skills')];
+
+function targetSupportsAgentsSkills(targetName) {
+  return NATIVE_AGENTS_SKILLS_TARGETS.has(targetName.replace(/^\/+|\/+$/g, ''));
+}
+
+function realpathOrNull(candidate) {
+  try {
+    return fs.realpathSync(candidate);
+  } catch (_) {
+    return null;
+  }
+}
+
+function isSharedSkillsDirectory(repoRoot, skillsDir) {
+  const stat = lstatOrNull(skillsDir);
+  if (!stat || !stat.isSymbolicLink()) return false;
+  // A dangling link walks to nothing, so only a resolvable link matters.
+  const realSkillsDir = realpathOrNull(skillsDir);
+  if (!realSkillsDir) return false;
+  return SHARED_SKILLS_ROOTS.some((root) => {
+    const realRoot = realpathOrNull(path.join(repoRoot, root));
+    return realRoot !== null && isInside(realRoot, realSkillsDir);
+  });
+}
+
+function hasMatchingSharedSkill(repoRoot, relative, sourceHash) {
+  const subPath = relative.slice('skills/'.length);
+  if (!subPath) return false;
+  for (const root of SHARED_SKILLS_ROOTS) {
+    const candidate = path.join(repoRoot, root, subPath);
+    const stat = lstatOrNull(candidate);
+    if (stat && stat.isFile() && hashFile(candidate) === sourceHash) return true;
+  }
+  return false;
+}
 
 function walkFiles(dir, options = {}) {
   if (!fs.existsSync(dir)) return [];
@@ -38,12 +82,13 @@ function walkFiles(dir, options = {}) {
 }
 
 function hashFile(filePath) {
-  return crypto.createHash('sha256').update(readFileBounded(filePath)).digest('hex');
+  return sha256Hex(readFileBounded(filePath));
 }
 
-function managedFiles(root) {
+function managedFiles(root, { skipSkills = false } = {}) {
   const files = [];
   for (const dir of MANAGED_DIRS) {
+    if (dir === 'skills' && skipSkills) continue;
     const base = path.join(root, dir);
     for (const fp of walkFiles(base)) files.push([path.relative(root, fp).split(path.sep).join('/'), fp]);
   }
@@ -65,7 +110,10 @@ function compareHarnesses(root, sourceName = '.claude', targetName = '.codex') {
   const sourceRoot = path.join(repoRoot, sourceName.replace(/^\/+/, ''));
   const targetRoot = path.join(repoRoot, targetName.replace(/^\/+/, ''));
   const allowlist = loadAllowlist(repoRoot, targetName);
-  const source = new Map(managedFiles(sourceRoot));
+  const sharedSkillsSupported = targetSupportsAgentsSkills(targetName);
+  const sourceSkillsShared = sharedSkillsSupported
+    && isSharedSkillsDirectory(repoRoot, path.join(sourceRoot, 'skills'));
+  const source = new Map(managedFiles(sourceRoot, { skipSkills: sourceSkillsShared }));
   const target = new Map(managedFiles(targetRoot));
   const missing = [];
   const different = [];
@@ -74,10 +122,23 @@ function compareHarnesses(root, sourceName = '.claude', targetName = '.codex') {
     if (allowlist.has(relative)) continue;
     const targetPath = target.get(relative);
     if (!targetPath) {
+      if (sharedSkillsSupported && relative.startsWith('skills/')
+        && hasMatchingSharedSkill(repoRoot, relative, hashFile(sourcePath))) continue;
       missing.push(relative);
       continue;
     }
     if (hashFile(sourcePath) !== hashFile(targetPath)) different.push(relative);
+  }
+
+  if (sourceSkillsShared) {
+    for (const [relative, targetPath] of target) {
+      if (!relative.startsWith('skills/') || source.has(relative) || allowlist.has(relative)) continue;
+      const sharedSourcePath = path.join(sourceRoot, relative);
+      const stat = lstatOrNull(sharedSourcePath);
+      if (stat && stat.isFile() && hashFile(sharedSourcePath) !== hashFile(targetPath)) {
+        different.push(relative);
+      }
+    }
   }
 
   return {
@@ -119,7 +180,7 @@ function main(argv = process.argv.slice(2)) {
     const details = [];
     if (result.different.length) details.push(`different=${result.different.length}`);
     if (result.missing.length) details.push(`missing=${result.missing.length}`);
-    console.log(`[session-start] cross-cli content drift: ${result.target} (${details.join(', ')}) — consider \`/multi-ai-sync\``);
+    console.log(`[session-start] cross-cli content drift: ${result.target} (${details.join(', ')}) — consider syncing via \`dhpk-install\``);
   }
   return 0;
 }

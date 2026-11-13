@@ -45,9 +45,11 @@ const RETIRED_ROLES = Object.freeze({
   'agy-fast-worker': 'agy-worker',
 });
 
+const hasOwn = (table, key) => Object.prototype.hasOwnProperty.call(table, key);
+
 // Retirement guidance naming the successor, or null when the name is not a retired Role.
 function retirementGuidance(name) {
-  if (!Object.prototype.hasOwnProperty.call(RETIRED_ROLES, name)) return null;
+  if (!hasOwn(RETIRED_ROLES, name)) return null;
   return `retired role ${name} in 0.66.2; use ${RETIRED_ROLES[name]}; rollback 0.66.1`;
 }
 
@@ -742,6 +744,7 @@ function createDispatchReceipt(input) {
     if (rawCapabilityEvidence.transport !== undefined) capabilityEvidence.transport = oneOf(rawCapabilityEvidence.transport, TRANSPORTS, 'receipt.capability_evidence.transport');
   }
   requiredString(receipt.receipt_id, 'receipt.receipt_id');
+  const assignedFilesDigest = digest(request.scope.assigned_files);
   const output = {
     schema: SCHEMAS.RECEIPT,
     receipt_id: receipt.receipt_id,
@@ -761,14 +764,14 @@ function createDispatchReceipt(input) {
     fallback_history: normalizedFallbackHistory,
     scope: {
       assigned_files: [...request.scope.assigned_files],
-      assigned_files_digest: digest(request.scope.assigned_files),
+      assigned_files_digest: assignedFilesDigest,
       prompt_evidence: {
         dev: request.scope.prompt_evidence.dev,
         ino: request.scope.prompt_evidence.ino,
         sha256: request.scope.prompt_evidence.sha256,
       },
     },
-    assigned_files_digest: digest(request.scope.assigned_files),
+    assigned_files_digest: assignedFilesDigest,
     catalog_version: receipt.catalog_version === undefined ? null : requiredString(receipt.catalog_version, 'receipt.catalog_version'),
     host_profile_version: request.host_profile.version,
     adapter_version: receipt.adapter_version === undefined ? null : requiredString(receipt.adapter_version, 'receipt.adapter_version'),
@@ -792,7 +795,7 @@ function legacyTransport(provider) {
 function normalizeLegacyTransport(value, provider) {
   if (value === undefined || value === null) return legacyTransport(provider);
   const map = { 'codex-exec': 'local-cli', 'agy-print': 'local-cli', native: 'native-runtime' };
-  return map[value] || value;
+  return hasOwn(map, value) ? map[value] : value;
 }
 
 function translateLegacyRequest(input) {
@@ -801,7 +804,8 @@ function translateLegacyRequest(input) {
   const requestedAlias = legacy.requested_role || legacy.role;
   requiredString(requestedAlias, 'legacy requested role');
   if (retirementGuidance(requestedAlias)) throw new TypeError(retirementGuidance(requestedAlias));
-  let mapping = ROLE_ALIASES[requestedAlias] || LEGACY_REQUEST_ROLES[requestedAlias];
+  let mapping = hasOwn(ROLE_ALIASES, requestedAlias) ? ROLE_ALIASES[requestedAlias]
+    : hasOwn(LEGACY_REQUEST_ROLES, requestedAlias) ? LEGACY_REQUEST_ROLES[requestedAlias] : undefined;
   if (!mapping && CANONICAL_ROLES.includes(requestedAlias)) mapping = { role: requestedAlias };
   if (!mapping) throw new TypeError(`unknown legacy role: ${requestedAlias}`);
   const authority = mapping.authority || legacy.authority || legacy.mode || MAX_AUTHORITY[mapping.role];

@@ -119,11 +119,6 @@ const capturePhysicalPath = (root, target, { allowMissingFinal = false } = {}) =
   };
 };
 
-const assertPhysicalContainment = (root, target, options = {}) => {
-  capturePhysicalPath(root, target, options);
-  return path.resolve(target);
-};
-
 const ensurePhysicalDirectory = (root, directory) => {
   const resolvedRoot = assertRoot(root);
   const resolvedDirectory = assertInside(resolvedRoot, directory).target;
@@ -424,15 +419,9 @@ const writePhysicalImmutable = (root, file, content) => {
 };
 
 module.exports = {
-  DEFAULT_READ_BYTES,
-  DIRECTORY_MODE,
   PRIVATE_MODE,
-  READ_CHUNK_BYTES,
-  STABLE_STAT_FIELDS,
   sameIdentity,
   sameStableStats,
-  capturePhysicalPath,
-  assertPhysicalContainment,
   ensurePhysicalDirectory,
   readPhysicalFile,
   writePhysicalImmutable,
