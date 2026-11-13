@@ -21,9 +21,27 @@
 #   applied in order; a relative -C starts from the directory already chosen.
 #   A value of a known option (such as -m or --message) is not a flag.
 #   A path containing '$', a backtick, '~', or a glob is unresolved. --git-dir,
-#   --work-tree, an unknown global option, a subshell, or 'cd' in the same
-#   pipeline also leaves the repository unresolved. Unresolved does not fall
-#   back to the session checkout.
+#   --work-tree, an unknown global option, or 'cd' in the same pipeline also
+#   leaves the repository unresolved. Unresolved does not fall back to the
+#   session checkout. Reserved words (such as {, if, then, !, time) before
+#   the command word are skipped.
+#
+#   Nested syntax (#1392):
+#   - '(' and ')' are operators. A cd inside a subshell applies to the
+#     subshell; after its ')' the directory is unresolved. '((' is
+#     arithmetic when it closes with '))'.
+#   - $(...), <(...), >(...) and backtick bodies are inspected as their own
+#     command lists. Their raw text stays in the outer word, which is
+#     dynamic. ${...}, $((...)) and $[...] are single units, so quotes, '>'
+#     and '<<' inside them are not redirects or heredocs.
+#   - A heredoc body (<<WORD, <<-WORD, quoted delimiters) is skipped up to
+#     its delimiter line and never changes quote state. For cat and tee it
+#     is data, and only the substitutions of an unquoted body are inspected;
+#     any other body, or a cat body whose output can run as a command
+#     (pipe, process substitution, FIFO, command position, eval or a shell),
+#     is inspected as its own command list. A <<< word is stdin data.
+#   - Syntax the decoder cannot place faithfully sets DHPK_UNSUPPORTED (for
+#     example a case statement inside $(...)), and the hooks block it.
 
 # dhpk_norm_path <base> <rel>
 #   Lexical join. Does not touch the filesystem.
