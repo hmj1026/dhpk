@@ -17,6 +17,9 @@ current branch of work.
   preserved arguments, and observable completion.
 - [Maintainer delivery](maintainer-delivery.md) — issue snapshots, recoverable
   verification, and explicitly authorized exact-head PR delivery for dhpk.
+- [Parallel worktree workers](parallel-worktree-workers.md) — shared machine
+  locks, worker setup, generated-surface merges, interrupted workers, and
+  merge order for multi-worktree dispatch.
 - [Deprecated aliases](command-aliases.md) — compatibility forwarding and
   target-verdict propagation.
 
