@@ -191,6 +191,31 @@ function listFilesNamedRecursively(directory, name, options = {}) {
   return files;
 }
 
+// Every regular file below `root` as sorted posix-relative paths.  Symlinks
+// and non-regular entries fail closed; `labels` supplies the caller's error
+// prefixes (`${labels.symlink}: <path>`, `${labels.unsupported}: <path>`) so
+// each caller keeps its own diagnostic wording.
+function listPhysicalFiles(root, labels, options = {}) {
+  const files = [];
+  const budget = createTraversalBudget(options);
+  const walk = (directory, depth) => {
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const entry of readDirectoryEntries(directory, { budget, sort: true, localeSort: true })) {
+        const child = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) throw new Error(`${labels.symlink}: ${child}`);
+        if (entry.isDirectory()) walk(child, depth + 1);
+        else if (entry.isFile()) files.push(path.relative(root, child).split(path.sep).join('/'));
+        else throw new Error(`${labels.unsupported}: ${child}`);
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  walk(root, 0);
+  return files.sort();
+}
+
 // Path guards shared by the Host package generators. Only copies that were
 // identical across generators live here; drifted variants stay local (#1248).
 
@@ -297,4 +322,5 @@ module.exports = {
   readFileBounded,
   readDirectoryEntries,
   listFilesNamedRecursively,
+  listPhysicalFiles,
 };

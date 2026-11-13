@@ -4,8 +4,17 @@
 #
 # Support boundary:
 #   Compound separators are unquoted ';', '&&', '||', '&', and newlines.
-#   An unquoted '#' starts a comment through the end of that line. A '#'
-#   inside quotes is data. Quoted words are single argv elements.
+#   An unquoted '#' at the start of a word starts a comment through the end
+#   of that line. A '#' inside a word or inside quotes is data. A carriage
+#   return is an ordinary character. Quoted words are single argv elements.
+#   Quoting is decoded into each argv word: '...', "...", $'...' (ANSI-C
+#   escapes such as \n, \xHH, \NNN and ASCII \uHHHH), $"...", backslashes
+#   and concatenation, so g"i"t and $'\x67it' are both the word git. A word
+#   with $'...' still counts as dynamic for -C and cd path resolution.
+#   An unquoted >, >>, >|, >&, &>, &>> or <> (with an optional fd number)
+#   is a redirect: its decoded target goes to DHPK_REDIRECT_TARGETS and is
+#   not an argv word. Every command's decoded argv is kept in DHPK_WORDS,
+#   indexed by DHPK_CMD_START and DHPK_CMD_LEN.
 #   A git command is an argv whose first word is git, 'command git', or a
 #   path whose basename is git, after leading VAR=value assignments.
 #   Literal 'cd <path>' and 'git -C <path>' select the repository. Each -C is
@@ -55,8 +64,13 @@ _dhpk_ci_reset_words() {
 
 _dhpk_ci_flush_word() {
     if [ -n "$_dhpk_ci_word" ] || [ "$_dhpk_ci_word_open" -eq 1 ]; then
-        _dhpk_ci_words+=("$_dhpk_ci_word")
-        _dhpk_ci_dyn+=("$_dhpk_ci_word_dyn")
+        if [ "$_dhpk_ci_redir" -eq 1 ]; then
+            DHPK_REDIRECT_TARGETS+=("$_dhpk_ci_word")
+            _dhpk_ci_redir=0
+        else
+            _dhpk_ci_words+=("$_dhpk_ci_word")
+            _dhpk_ci_dyn+=("$_dhpk_ci_word_dyn")
+        fi
     fi
     _dhpk_ci_word=""
     _dhpk_ci_word_dyn=0
@@ -217,8 +231,12 @@ _dhpk_ci_record_git() {
 _dhpk_ci_flush_command() {
     local sep="$1"
     _dhpk_ci_flush_word
+    _dhpk_ci_redir=0
     if [ "${#_dhpk_ci_words[@]}" -gt 0 ]; then
         local head="${_dhpk_ci_words[0]}"
+        DHPK_CMD_START+=("${#DHPK_WORDS[@]}")
+        DHPK_CMD_LEN+=("${#_dhpk_ci_words[@]}")
+        DHPK_WORDS+=("${_dhpk_ci_words[@]}")
         _dhpk_ci_record_git
         if [ "$head" = "cd" ]; then
             if [ "$sep" = "pipe" ]; then
@@ -238,6 +256,144 @@ _dhpk_ci_flush_command() {
     _dhpk_ci_reset_words
 }
 
+# _dhpk_ci_ansi_escape <text> <index>
+#   Decodes the $'...' escape whose letter is at <index> (just after the
+#   backslash). Sets _dhpk_ci_esc_out to the decoded text and _dhpk_ci_esc_len
+#   to the number of characters consumed from <index>. Sets _dhpk_ci_esc_nul
+#   to 1 when the escape decodes to NUL (\0, \x00, \u0000, \c@, an octal
+#   value whose low byte is 0): bash ends the string there, so the caller
+#   discards the rest of that $'...' segment. Unknown escapes and non-ASCII
+#   \u / \U values keep their backslash form, as bash 3.2 does.
+_dhpk_ci_ansi_escape() {
+    local text="$1" at="$2" ch digits="" max=0 k d val
+    ch="${text:$at:1}"
+    _dhpk_ci_esc_len=1
+    _dhpk_ci_esc_nul=0
+    case "$ch" in
+        n) _dhpk_ci_esc_out=$'\n'; return 0 ;;
+        t) _dhpk_ci_esc_out=$'\t'; return 0 ;;
+        r) _dhpk_ci_esc_out=$'\r'; return 0 ;;
+        a) _dhpk_ci_esc_out=$'\a'; return 0 ;;
+        b) _dhpk_ci_esc_out=$'\b'; return 0 ;;
+        f) _dhpk_ci_esc_out=$'\f'; return 0 ;;
+        v) _dhpk_ci_esc_out=$'\v'; return 0 ;;
+        e|E) _dhpk_ci_esc_out=$'\033'; return 0 ;;
+        \\|"'"|'"'|'?') _dhpk_ci_esc_out="$ch"; return 0 ;;
+        c)
+            # <text> is the body without its closing quote, so a \c at the
+            # end stays literal. \c\\ is one unit; \c\ alone is also 0x1c.
+            d="${text:$((at + 1)):1}"
+            if [ -z "$d" ]; then
+                _dhpk_ci_esc_out="\\c"
+                return 0
+            fi
+            _dhpk_ci_esc_len=2
+            if [ "$d" = "\\" ] && [ "${text:$((at + 2)):1}" = "\\" ]; then
+                _dhpk_ci_esc_len=3
+            fi
+            printf -v val '%d' "'$d"
+            _dhpk_ci_esc_byte $((val & 31))
+            return 0
+            ;;
+        [0-7]) max=3; k=$at ;;
+        x) max=2; k=$((at + 1)) ;;
+        u) max=4; k=$((at + 1)) ;;
+        U) max=8; k=$((at + 1)) ;;
+        *) _dhpk_ci_esc_out="\\$ch"; return 0 ;;
+    esac
+    while [ "${#digits}" -lt "$max" ]; do
+        d="${text:$k:1}"
+        case "$ch" in
+            [0-7]) case "$d" in [0-7]) ;; *) break ;; esac ;;
+            *) case "$d" in [0-9a-fA-F]) ;; *) break ;; esac ;;
+        esac
+        digits="$digits$d"
+        k=$((k + 1))
+    done
+    _dhpk_ci_esc_len=$((k - at))
+    if [ -z "$digits" ]; then
+        _dhpk_ci_esc_out="\\$ch"
+        return 0
+    fi
+    case "$ch" in
+        [0-7]) _dhpk_ci_esc_byte $((8#$digits & 255)) ;;
+        x) _dhpk_ci_esc_byte $((16#$digits)) ;;
+        *)
+            val=$((16#$digits))
+            if [ "$val" -lt 128 ]; then
+                _dhpk_ci_esc_byte "$val"
+            else
+                _dhpk_ci_esc_out="\\$ch$digits"
+            fi
+            ;;
+    esac
+    return 0
+}
+
+# _dhpk_ci_ansi_end <text> <index>
+#   Sets _dhpk_ci_ansi_close to the index of the quote that closes the $'...'
+#   body starting at <index>, using the bash lexer rule that a backslash
+#   pairs with exactly one character. Unterminated: the text length.
+_dhpk_ci_ansi_end() {
+    local text="$1" k="$2" n="${#1}" ch
+    while [ "$k" -lt "$n" ]; do
+        ch="${text:$k:1}"
+        if [ "$ch" = "\\" ]; then
+            k=$((k + 2))
+            continue
+        fi
+        [ "$ch" = "'" ] && break
+        k=$((k + 1))
+    done
+    [ "$k" -le "$n" ] || k="$n"
+    _dhpk_ci_ansi_close="$k"
+}
+
+# _dhpk_ci_ansi_decode <body>
+#   Sets _dhpk_ci_ansi_out to the bash value of a $'...' body (without its
+#   quotes). Decoding stops at a NUL, as bash truncates the string there.
+_dhpk_ci_ansi_decode() {
+    local body="$1" k=0 n="${#1}" ch out=""
+    while [ "$k" -lt "$n" ]; do
+        ch="${body:$k:1}"
+        if [ "$ch" = "\\" ] && [ $((k + 1)) -lt "$n" ]; then
+            _dhpk_ci_ansi_escape "$body" $((k + 1))
+            [ "$_dhpk_ci_esc_nul" -eq 1 ] && break
+            out="$out$_dhpk_ci_esc_out"
+            k=$((k + 1 + _dhpk_ci_esc_len))
+            continue
+        fi
+        out="$out$ch"
+        k=$((k + 1))
+    done
+    _dhpk_ci_ansi_out="$out"
+}
+
+# _dhpk_ci_esc_byte <0-255>
+#   Sets _dhpk_ci_esc_out to that byte, or flags NUL for 0.
+_dhpk_ci_esc_byte() {
+    local hex
+    if [ "$1" -eq 0 ]; then
+        _dhpk_ci_esc_out=""
+        _dhpk_ci_esc_nul=1
+        return 0
+    fi
+    printf -v hex '%x' "$1"
+    printf -v _dhpk_ci_esc_out '%b' "\\x$hex"
+}
+
+
+# _dhpk_ci_start_redirect
+#   Called at an unquoted redirect operator. A pending all-digit word is the
+#   fd number and is dropped; any other pending word is an argv word.
+_dhpk_ci_start_redirect() {
+    case "$_dhpk_ci_word" in
+        ""|*[!0-9]*) _dhpk_ci_flush_word ;;
+        *) _dhpk_ci_word=""; _dhpk_ci_word_dyn=0; _dhpk_ci_word_open=0 ;;
+    esac
+    _dhpk_ci_redir=1
+}
+
 # dhpk_inspect_command <command> [start-cwd]
 #   Fills DHPK_GIT_* and DHPK_STRIPPED. start-cwd defaults to the process pwd.
 dhpk_inspect_command() {
@@ -254,12 +410,17 @@ dhpk_inspect_command() {
     DHPK_GIT_EXEMPT=()
     DHPK_GIT_SEGMENT=()
     DHPK_STRIPPED=""
+    DHPK_WORDS=()
+    DHPK_CMD_START=()
+    DHPK_CMD_LEN=()
+    DHPK_REDIRECT_TARGETS=()
     _dhpk_ci_cwd="$start"
     _dhpk_ci_cwd_state="literal"
     _dhpk_ci_pipeline_cd=0
     _dhpk_ci_seg=""
     _dhpk_ci_mode="normal"
     _dhpk_ci_word_open=0
+    _dhpk_ci_redir=0
     _dhpk_ci_reset_words
 
     local i=0 len="${#cmd}" ch next
@@ -294,7 +455,14 @@ dhpk_inspect_command() {
             DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
             _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
             if [ "$ch" = "\\" ] && [ -n "$next" ]; then
-                _dhpk_ci_word="${_dhpk_ci_word}${next}"
+                # Inside "...", backslash-newline is a line continuation and a
+                # backslash escapes only $, `, " and \; before anything else
+                # it stays part of the word.
+                case "$next" in
+                    $'\n') ;;
+                    '$'|'`'|'"'|\\) _dhpk_ci_word="${_dhpk_ci_word}${next}" ;;
+                    *) _dhpk_ci_word="${_dhpk_ci_word}\\${next}" ;;
+                esac
                 _dhpk_ci_word_open=1
                 DHPK_STRIPPED="${DHPK_STRIPPED}${next}"
                 _dhpk_ci_seg="${_dhpk_ci_seg}${next}"
@@ -345,13 +513,16 @@ dhpk_inspect_command() {
                 continue
                 ;;
             '#')
-                if [ -z "$_dhpk_ci_word" ]; then
+                # A comment starts only at the start of a word. Any quote
+                # ('', "", $'') or backslash has already opened the word,
+                # even when its decoded value is empty.
+                if [ -z "$_dhpk_ci_word" ] && [ "$_dhpk_ci_word_open" -eq 0 ]; then
                     _dhpk_ci_mode="comment"
                     i=$((i + 1))
                     continue
                 fi
                 ;;
-            ' '|$'\t'|$'\r')
+            ' '|$'\t')
                 _dhpk_ci_flush_word
                 DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
                 _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
@@ -370,7 +541,35 @@ dhpk_inspect_command() {
                 i=$((i + 1))
                 continue
                 ;;
+            '>')
+                _dhpk_ci_start_redirect
+                case "$next" in
+                    '>'|'|'|'&') ch="${ch}${next}" ;;
+                esac
+                DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
+                _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                i=$((i + ${#ch}))
+                continue
+                ;;
+            '<')
+                if [ "$next" = ">" ]; then
+                    _dhpk_ci_start_redirect
+                    DHPK_STRIPPED="${DHPK_STRIPPED}<>"
+                    _dhpk_ci_seg="${_dhpk_ci_seg}<>"
+                    i=$((i + 2))
+                    continue
+                fi
+                ;;
             '&')
+                if [ "$next" = ">" ]; then
+                    _dhpk_ci_start_redirect
+                    ch="&>"
+                    [ "${cmd:$((i + 2)):1}" = ">" ] && ch="&>>"
+                    DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
+                    _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                    i=$((i + ${#ch}))
+                    continue
+                fi
                 if [ "$next" = "&" ]; then
                     _dhpk_ci_flush_command compound
                     DHPK_STRIPPED="${DHPK_STRIPPED}&&"
@@ -398,7 +597,38 @@ dhpk_inspect_command() {
                 fi
                 continue
                 ;;
-            '$'|'`')
+            '$')
+                _dhpk_ci_word_dyn=1
+                if [ "$next" = '$' ]; then
+                    # $$ is the PID parameter: the second $ cannot start a
+                    # $'...' string, so a following quote is an ordinary one.
+                    _dhpk_ci_word="${_dhpk_ci_word}\$\$"
+                    _dhpk_ci_word_open=1
+                    DHPK_STRIPPED="${DHPK_STRIPPED}\$\$"
+                    _dhpk_ci_seg="${_dhpk_ci_seg}\$\$"
+                    i=$((i + 2))
+                    continue
+                fi
+                if [ "$next" = "'" ]; then
+                    _dhpk_ci_ansi_end "$cmd" $((i + 2))
+                    _dhpk_ci_ansi_decode "${cmd:$((i + 2)):$((_dhpk_ci_ansi_close - i - 2))}"
+                    _dhpk_ci_word="${_dhpk_ci_word}${_dhpk_ci_ansi_out}"
+                    _dhpk_ci_word_open=1
+                    DHPK_STRIPPED="${DHPK_STRIPPED}${cmd:$i:$((_dhpk_ci_ansi_close - i + 1))}"
+                    _dhpk_ci_seg="${_dhpk_ci_seg}${cmd:$i:$((_dhpk_ci_ansi_close - i + 1))}"
+                    i=$((_dhpk_ci_ansi_close + 1))
+                    continue
+                fi
+                if [ "$next" = '"' ]; then
+                    _dhpk_ci_mode="double"
+                    _dhpk_ci_word_open=1
+                    DHPK_STRIPPED="${DHPK_STRIPPED}\$${next}"
+                    _dhpk_ci_seg="${_dhpk_ci_seg}\$${next}"
+                    i=$((i + 2))
+                    continue
+                fi
+                ;;
+            '`')
                 _dhpk_ci_word_dyn=1
                 ;;
             '~')
@@ -415,7 +645,7 @@ dhpk_inspect_command() {
     done
     _dhpk_ci_flush_command compound
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_pipeline_cd _dhpk_ci_seg _dhpk_ci_mode
-    unset _dhpk_ci_word _dhpk_ci_word_dyn _dhpk_ci_word_open _dhpk_ci_words _dhpk_ci_dyn
+    unset _dhpk_ci_word _dhpk_ci_word_dyn _dhpk_ci_word_open _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_redir
     return 0
 }
 

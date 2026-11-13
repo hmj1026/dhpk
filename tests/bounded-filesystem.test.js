@@ -10,6 +10,7 @@ const {
   readFileBounded,
   readDirectoryEntries,
   listFilesNamedRecursively,
+  listPhysicalFiles,
   ensurePhysicalDirectory,
   assertPhysicalDirectory,
   physicalPackageRootError,
@@ -318,6 +319,102 @@ test('T1 golden: physical directory helpers lock verbatim ancestor, file, missin
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+const WALKER_LABELS = Object.freeze({
+  symlink: 'symlink is not allowed in WALKER TREE',
+  unsupported: 'unsupported WALKER TREE entry',
+});
+
+function withWalkerTree(build, body) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-physical-walker-'));
+  try {
+    build(root);
+    body(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('physical file walker returns sorted posix-relative files and recurses into nested directories', () => {
+  withWalkerTree((root) => {
+    fs.mkdirSync(path.join(root, 'b', 'deep'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'a'));
+    fs.writeFileSync(path.join(root, 'z.txt'), 'z');
+    fs.writeFileSync(path.join(root, 'b', 'deep', 'leaf.txt'), 'leaf');
+    fs.writeFileSync(path.join(root, 'a', 'one.txt'), '1');
+  }, (root) => {
+    assert.deepStrictEqual(listPhysicalFiles(root, WALKER_LABELS), ['a/one.txt', 'b/deep/leaf.txt', 'z.txt']);
+  });
+});
+
+test('physical file walker returns an empty list for an empty directory', () => {
+  withWalkerTree(() => {}, (root) => {
+    assert.deepStrictEqual(listPhysicalFiles(root, WALKER_LABELS), []);
+  });
+});
+
+test('physical file walker rejects a file symlink using the caller label verbatim', () => {
+  withWalkerTree((root) => {
+    fs.writeFileSync(path.join(root, 'real.txt'), 'x');
+    fs.symlinkSync('real.txt', path.join(root, 'link.txt'));
+  }, (root) => {
+    assert.throws(
+      () => listPhysicalFiles(root, WALKER_LABELS),
+      (error) => error.message === `symlink is not allowed in WALKER TREE: ${path.join(root, 'link.txt')}`,
+    );
+  });
+});
+
+test('physical file walker rejects a directory symlink without following it', () => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-physical-walker-outside-'));
+  try {
+    fs.writeFileSync(path.join(outside, 'secret.txt'), 's');
+    withWalkerTree((root) => {
+      fs.symlinkSync(outside, path.join(root, 'linked'), 'dir');
+    }, (root) => {
+      assert.throws(
+        () => listPhysicalFiles(root, WALKER_LABELS),
+        (error) => error.message === `symlink is not allowed in WALKER TREE: ${path.join(root, 'linked')}`,
+      );
+    });
+  } finally {
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('physical file walker rejects a non-regular entry using the caller label verbatim', () => {
+  const { spawnSync } = require('node:child_process');
+  withWalkerTree((root) => {
+    const made = spawnSync('mkfifo', [path.join(root, 'pipe')]);
+    assert.strictEqual(made.status, 0, 'mkfifo is required to create a non-regular fixture');
+  }, (root) => {
+    assert.throws(
+      () => listPhysicalFiles(root, WALKER_LABELS),
+      (error) => error.message === `unsupported WALKER TREE entry: ${path.join(root, 'pipe')}`,
+    );
+  });
+});
+
+test('physical file walker reports the symlink before later siblings in locale order', () => {
+  withWalkerTree((root) => {
+    fs.writeFileSync(path.join(root, 'a.txt'), 'a');
+    fs.symlinkSync('a.txt', path.join(root, 'b.txt'));
+    const made = require('node:child_process').spawnSync('mkfifo', [path.join(root, 'c.pipe')]);
+    assert.strictEqual(made.status, 0);
+  }, (root) => {
+    assert.throws(() => listPhysicalFiles(root, WALKER_LABELS), /symlink is not allowed in WALKER TREE: .*b\.txt$/);
+  });
+});
+
+test('physical file walker enforces entry and depth budgets', () => {
+  withWalkerTree((root) => {
+    fs.mkdirSync(path.join(root, 'd1', 'd2'), { recursive: true });
+    for (const name of ['one', 'two', 'three']) fs.writeFileSync(path.join(root, name), name);
+  }, (root) => {
+    assert.throws(() => listPhysicalFiles(root, WALKER_LABELS, { maxEntries: 2 }), /maximum fingerprint entry count \(2\) exceeded/);
+    assert.throws(() => listPhysicalFiles(root, WALKER_LABELS, { maxDepth: 1 }), /maximum directory depth \(1\) exceeded/);
+  });
 });
 
 run('bounded-filesystem');
