@@ -3,7 +3,7 @@
 # sibling harness directory.
 #
 # Use case: projects maintaining parallel harnesses for multiple AI CLIs sync
-# them manually (e.g. /multi-ai-sync). When .claude/skills, .claude/commands
+# them manually (e.g. dhpk-install). When .claude/skills, .claude/commands
 # etc. change and the mirrors don't follow, the other CLI sees stale content.
 # This script compares content first, then uses newest-file mtimes as a cheap
 # freshness signal for unchanged-but-not-recently-synced harnesses.
@@ -40,6 +40,17 @@ if command -v node >/dev/null 2>&1 && [ -f "$PARITY_SCRIPT" ]; then
     done
 fi
 
+# True when skills_path is a symlink to a shared .agents skill root.
+is_shared_skills_symlink() {
+    local skills_path="$1"
+    [ -L "$skills_path" ] || return 1
+    local resolved_skills resolved_agents resolved_claude_skills
+    resolved_skills="$(cd -P "$skills_path" 2>/dev/null && pwd)" || return 1
+    resolved_agents="$(cd -P "$ROOT/.agents/skills" 2>/dev/null && pwd || true)"
+    resolved_claude_skills="$(cd -P "$ROOT/.agents/claude-skills" 2>/dev/null && pwd || true)"
+    [ "$resolved_skills" = "$resolved_agents" ] || [ "$resolved_skills" = "$resolved_claude_skills" ]
+}
+
 # Newest mtime (epoch seconds) of any harness file under dir's
 # skills/commands/agents/hooks/rules subdirs. GNU find has -printf '%T@';
 # BSD find (macOS) does not — use stat -f '%m' there.
@@ -48,6 +59,9 @@ newest_mtime() {
     [ -d "$dir" ] || { echo 0; return; }
     local subdirs=()
     for sub in skills commands agents hooks rules; do
+        if [ "$sub" = "skills" ] && is_shared_skills_symlink "$dir/skills"; then
+            continue
+        fi
         [ -d "$dir/$sub" ] && subdirs+=("$dir/$sub")
     done
     [ ${#subdirs[@]} -eq 0 ] && { echo 0; return; }
@@ -91,7 +105,7 @@ for target_name in codex; do
 done
 
 if [ ${#drift_targets[@]} -gt 0 ]; then
-    echo "[session-start] cross-cli drift: .claude/ newer than ${drift_targets[*]} — consider \`/multi-ai-sync\`"
+    echo "[session-start] cross-cli drift: .claude/ newer than ${drift_targets[*]} — consider syncing via \`dhpk-install\`"
 fi
 
 exit 0
