@@ -902,4 +902,207 @@ test('adoption rejects traversal paths before writing outside the Codex root', (
   }
 });
 
+test('T1 golden: classifyReceipt emits multi-drift reasons in exact canonical order', () => {
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-reasons-plugin-')));
+  const scratch = projectRoot();
+  try {
+    fs.cpSync(ROOT, fakePlugin, { recursive: true, dereference: true });
+    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const flowSkill = inventory.skills.find((entry) => entry.name === 'flow-guide');
+    assert.ok(flowSkill, 'fixture inventory must include flow-guide');
+    flowSkill.legacy_names = ['legacy-flow'];
+    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+
+    const codexDir = path.join(scratch, '.codex');
+    fs.mkdirSync(codexDir, { recursive: true });
+    const receiptPath = path.join(codexDir, '.dhpk-installed.json');
+
+    fs.writeFileSync(receiptPath, `${JSON.stringify({
+      fingerprint_algorithm: 'tree-merkle-v1',
+      schema_version: 2,
+      mode: 'copy',
+      plugin_version: '0.0.1',
+      source_fingerprint: '0'.repeat(64),
+      profileId: 'other-profile',
+      selectionFingerprint: '0'.repeat(64),
+      legacy_pending: true,
+      managed_entries: {
+        skills: {
+          'legacy-flow': { source: 'skills/legacy-flow', destination: 'skills/legacy-flow', mode: 'copy' },
+          'unprovable-skill': {
+            source: 'skills/unprovable-skill',
+            destination: 'skills/unprovable-skill',
+            mode: 'copy',
+            fingerprint_algorithm: 'legacy',
+          },
+        },
+        agents: {},
+        supporting_assets: {},
+      },
+    }, null, 2)}\n`);
+
+    const multiDrift = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], fakePlugin);
+    assert.strictEqual(multiDrift.status, 1, `${multiDrift.stdout}\n${multiDrift.stderr}`);
+    const multiReport = JSON.parse(multiDrift.stdout);
+    assert.deepStrictEqual(multiReport.reasons, [
+      'receipt schema 2 requires schema-3 migration',
+      'legacy Codex skill name legacy-flow shadows canonical flow-guide',
+      'receipt has a pending legacy migration',
+      'receipt plugin version differs from source',
+      'receipt source fingerprint differs from the current Codex source',
+      'receipt capability profile differs from the requested profile',
+      'receipt capability selection fingerprint differs from the current selection',
+      'receipt entries without a provable tree-merkle-v1 value are released: skills/unprovable-skill',
+    ]);
+
+    fs.writeFileSync(receiptPath, `${JSON.stringify({
+      fingerprint_algorithm: 'tree-merkle-v1',
+      schema_version: 3,
+      mode: 'copy',
+      plugin_version: multiReport.plugin_version,
+      source_fingerprint: multiReport.source_fingerprint,
+      managed_entries: [],
+    }, null, 2)}\n`);
+    const malformedAndUnselected = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], fakePlugin);
+    assert.strictEqual(malformedAndUnselected.status, 1, `${malformedAndUnselected.stdout}\n${malformedAndUnselected.stderr}`);
+    const malformedReport = JSON.parse(malformedAndUnselected.stdout);
+    assert.deepStrictEqual(malformedReport.reasons, [
+      'receipt is missing valid managed_entries or contains invalid JSON',
+      'receipt has no current collection selection metadata',
+    ]);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('T1 golden: classifyJournalEnvelope enforces exact error precedence order', () => {
+  const scratch = projectRoot();
+  try {
+    const runId = '20261102T000000Z-1234';
+    const journalName = `.dhpk-transaction-${runId}.json`;
+    const codexDir = path.join(scratch, '.codex');
+    fs.mkdirSync(codexDir, { recursive: true });
+    const journalPath = path.join(codexDir, journalName);
+
+    const writeAndRun = (doc) => {
+      fs.writeFileSync(journalPath, `${JSON.stringify(doc, null, 2)}\n`);
+      return runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force']);
+    };
+
+    const assertPrecedence = (doc, expectedError) => {
+      const res = writeAndRun(doc);
+      assert.strictEqual(res.status, 2, `${res.stdout}\n${res.stderr}`);
+      const report = JSON.parse(res.stdout);
+      assert.strictEqual(report.state, 'blocked');
+      assert.ok(
+        Array.isArray(report.blocking_recovery) && report.blocking_recovery.some((line) => line.includes(expectedError)),
+        `expected blocking_recovery to include "${expectedError}", got:\n${JSON.stringify(report.blocking_recovery, null, 2)}`,
+      );
+    };
+
+    const doc = {
+      relative: 'wrong.json',
+      run: runId,
+      pid: 1234,
+      started: true,
+      plugin_version: '0.0.1',
+      receipt_snapshot_present: true,
+      receipt_snapshot: null,
+      receipt_archive: '../escape.json',
+      prunes: 'bad',
+      shared_projection: { transaction: 'wrong' },
+      phase: 'bogus',
+      source_fingerprint: 'bad',
+      fingerprint_algorithm: 'sha256-v0',
+    };
+
+    assertPrecedence(doc, `transaction journal ${runId} identity is malformed; manual recovery required`);
+    doc.relative = journalName;
+    assertPrecedence(doc, `transaction journal ${runId} receipt snapshot is malformed; manual recovery required`);
+    doc.receipt_snapshot = {};
+    assertPrecedence(doc, `transaction journal ${runId} receipt archive is not transaction-bound; manual recovery required`);
+    doc.receipt_archive = `.dhpk-backups/${runId}/receipt.json`;
+    assertPrecedence(doc, `transaction journal ${runId} rollback lists are malformed; manual recovery required`);
+    doc.prunes = [];
+    assertPrecedence(doc, `transaction journal ${runId} shared projection record is malformed; manual recovery required`);
+    doc.shared_projection = { transaction: runId, phase: 'requested', host: 'codex' };
+    assertPrecedence(doc, `transaction journal ${runId} has unsupported phase 'bogus'; manual recovery required`);
+    doc.phase = 'active';
+    assertPrecedence(doc, `transaction journal ${runId} source fingerprint is malformed; manual recovery required`);
+    doc.source_fingerprint = '0'.repeat(64);
+    assertPrecedence(
+      doc,
+      'fingerprint algorithm field \'fingerprint_algorithm\' must be "tree-merkle-v1" but the observed value is "sha256-v0"; '
+        + '0.70.0 accepts only records written by 0.69.x or later; to continue, either upgrade through 0.69.x and run one install or update, or uninstall and reinstall',
+    );
+    doc.fingerprint_algorithm = 'tree-merkle-v1';
+    assertPrecedence(
+      doc,
+      `transaction journal ${runId} was left active by a dhpk 0.72/0.73 installer; this release no longer recovers it. `
+        + "Run this installer's --recover (or `dhpk-install --recover`) with dhpk 0.74.x, the last release line that recovers it, then retry",
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('T1 golden: --adopt validation locks verbatim error messages', () => {
+  const fixture = collisionFixture();
+  try {
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.strictEqual(plan.status, 1, `${plan.stdout}\n${plan.stderr}`);
+    const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    assert.ok(collision, plan.stdout);
+
+    const assertAdoptError = (args, expectedError) => {
+      const res = runInstaller(fixture.scratch, [...args, '--force'], fixture.fakePlugin);
+      assert.strictEqual(res.status, 2, `${res.stdout}\n${res.stderr}`);
+      assert.ok(
+        res.stderr.includes(`[install-codex-skills] ERROR: ${expectedError}`),
+        `expected stderr to include "${expectedError}", got:\n${res.stderr}`,
+      );
+    };
+
+    const validToken = `${collision.path}@${collision.destination_fingerprint}@${collision.source_fingerprint}`;
+    assertAdoptError([`--adopt=${validToken}`], '--adopt requires --update');
+    assertAdoptError(
+      ['--copy', '--update', '--adopt=bad-token'],
+      '--adopt requires path@destination-fingerprint@source-fingerprint from a fresh plan',
+    );
+    assertAdoptError(
+      ['--copy', '--update', `--adopt=${collision.path}@bad-dest@${'0'.repeat(64)}`],
+      `adoption destination fingerprint is invalid: ${collision.path}`,
+    );
+    assertAdoptError(
+      ['--copy', '--update', `--adopt=${collision.path}@${'0'.repeat(64)}@bad-source`],
+      `adoption source fingerprint is invalid: ${collision.path}`,
+    );
+    assertAdoptError(
+      ['--copy', '--update', `--adopt=skills/non-colliding@${'0'.repeat(64)}@${'0'.repeat(64)}`],
+      'adoption path was not reported as a collision: skills/non-colliding',
+    );
+
+    const symTarget = path.join(fixture.scratch, '.codex', 'extra-dir');
+    fs.mkdirSync(symTarget, { recursive: true });
+    const innerLink = path.join(fixture.target, 'inner-link');
+    fs.symlinkSync(symTarget, innerLink);
+    assertAdoptError(
+      ['--copy', '--update', `--adopt=${validToken}`],
+      `adoption target contains a symlink: ${collision.path}`,
+    );
+    fs.rmSync(innerLink);
+
+    fs.appendFileSync(path.join(fixture.target, 'user-owned.txt'), 'mutated\n');
+    assertAdoptError(
+      ['--copy', '--update', `--adopt=${validToken}`],
+      `adoption preflight changed: ${collision.path}; run a fresh plan`,
+    );
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
 run('install-codex-skills-planning');

@@ -10,6 +10,9 @@ const {
   readFileBounded,
   readDirectoryEntries,
   listFilesNamedRecursively,
+  ensurePhysicalDirectory,
+  assertPhysicalDirectory,
+  physicalPackageRootError,
 } = require('../scripts/lib/bounded-filesystem');
 
 test('bounded traversal accounts file bytes before reading and exposes finite defaults', () => {
@@ -113,6 +116,167 @@ test('recursive named-file listing preserves sorting, skips symlinks, and uses b
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('T1 golden: createTraversalBudget locks verbatim limit, cycle, entry, byte, file, and read errors', () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-golden-')));
+  try {
+    for (const key of ['maxDepth', 'maxFiles', 'maxEntries', 'maxBytes']) {
+      for (const bad of [-1, 1.5, Number.NaN, 'abc']) {
+        assert.throws(
+          () => createTraversalBudget({ [key]: bad }),
+          (err) => err instanceof TypeError && err.message === `${key} must be a non-negative safe integer`,
+        );
+      }
+    }
+
+    const dir = path.join(root, 'dir');
+    const nested = path.join(dir, 'nested');
+    const fileA = path.join(dir, 'a.txt');
+    const fileB = path.join(dir, 'b.txt');
+    const missingDir = path.join(root, 'missing-dir');
+    fs.mkdirSync(nested, { recursive: true });
+    fs.writeFileSync(fileA, '1234');
+    fs.writeFileSync(fileB, '5678');
+
+    const depthBudget = createTraversalBudget({ maxDepth: 0 });
+    assert.throws(
+      () => depthBudget.enterDirectory(nested, 1),
+      (err) => err.message === `maximum directory depth (0) exceeded: ${nested}`,
+    );
+    assert.throws(
+      () => depthBudget.enterDirectory(missingDir, 0),
+      (err) => err.message.startsWith(`unable to resolve directory while fingerprinting ${missingDir}: `),
+    );
+    const entered = depthBudget.enterDirectory(dir, 0);
+    assert.throws(
+      () => depthBudget.enterDirectory(dir, 0),
+      (err) => err.message === `symlink cycle detected while fingerprinting: ${dir}`,
+    );
+    depthBudget.leaveDirectory(entered);
+
+    const entryBudget = createTraversalBudget({ maxEntries: 1 });
+    assert.throws(
+      () => readDirectoryEntries(dir, { budget: entryBudget, sort: true }),
+      (err) => err.message.startsWith(`maximum fingerprint entry count (1) exceeded: ${dir}${path.sep}`),
+    );
+    const directEntryBudget = createTraversalBudget({ maxEntries: 0 });
+    assert.throws(
+      () => directEntryBudget.accountEntry('rel/item.txt'),
+      (err) => err.message === 'maximum fingerprint entry count (0) exceeded: rel/item.txt',
+    );
+
+    const byteBudget = createTraversalBudget({ maxBytes: 4 });
+    assert.throws(
+      () => byteBudget.accountBytes(-1, 'rel/bad.bin'),
+      (err) => err.message === 'cannot account invalid byte size: rel/bad.bin',
+    );
+    assert.throws(
+      () => byteBudget.accountBytes(5, 'rel/big.bin'),
+      (err) => err.message === 'maximum fingerprint byte budget (4 bytes) exceeded: rel/big.bin',
+    );
+
+    const fileBudget = createTraversalBudget({ maxFiles: 1 });
+    const dirStat = fs.lstatSync(dir);
+    assert.throws(
+      () => fileBudget.accountFile(dir, dirStat),
+      (err) => err.message === `cannot fingerprint non-file entry: ${dir}`,
+    );
+    assert.throws(
+      () => fileBudget.accountFile(fileA, { isFile: () => true, size: -1 }),
+      (err) => err.message === `cannot fingerprint file with an invalid size: ${fileA}`,
+    );
+    assert.strictEqual(fileBudget.readFile(fileA, null, 'rel/a.txt').toString('utf8'), '1234');
+    assert.throws(
+      () => fileBudget.readFile(fileB, null, 'rel/b.txt'),
+      (err) => err.message === 'maximum fingerprint file count (1) exceeded: rel/b.txt',
+    );
+
+    const readBudget = createTraversalBudget();
+    assert.throws(
+      () => readBudget.readFile(fileA, { isSymbolicLink: () => true }, 'rel/link.txt'),
+      (err) => err.message === 'refusing to read symlink path: rel/link.txt',
+    );
+    assert.throws(
+      () => readBudget.readFile(fileA, { dev: -1, ino: -1, isSymbolicLink: () => false }, 'rel/swapped.txt'),
+      (err) => err.message === 'file identity changed before reading: rel/swapped.txt',
+    );
+
+    const originalReadSync = fs.readSync;
+    fs.readSync = () => 0;
+    try {
+      assert.throws(
+        () => readBudget.readFile(fileA, null, 'rel/truncated.txt'),
+        (err) => err.message === 'file changed while reading: rel/truncated.txt',
+      );
+    } finally {
+      fs.readSync = originalReadSync;
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('T1 golden: physical directory helpers lock verbatim ancestor, file, missing, and symlink errors', () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-phys-golden-')));
+  try {
+    const realDir = path.join(root, 'real-dir');
+    const symlinkTarget = path.join(root, 'symlink-dir');
+    const nestedChild = path.join(symlinkTarget, 'child');
+    const regularFile = path.join(root, 'regular-file');
+    const missingDir = path.join(root, 'does-not-exist');
+    fs.mkdirSync(realDir);
+    fs.symlinkSync(realDir, symlinkTarget);
+    fs.writeFileSync(regularFile, 'file');
+
+    assert.throws(
+      () => ensurePhysicalDirectory(symlinkTarget, 'custom root'),
+      (err) => err.message === `refusing symlinked custom root ancestor: ${symlinkTarget}`,
+    );
+    assert.throws(
+      () => assertPhysicalDirectory(symlinkTarget, 'custom root'),
+      (err) => err.message === `refusing symlinked custom root ancestor: ${symlinkTarget}`,
+    );
+    assert.strictEqual(
+      physicalPackageRootError(symlinkTarget, 'custom root'),
+      `refusing symlinked custom root ancestor: ${symlinkTarget}`,
+    );
+
+    assert.throws(
+      () => ensurePhysicalDirectory(nestedChild, 'custom root'),
+      (err) => err.message === `refusing symlinked custom root ancestor: ${symlinkTarget}`,
+    );
+    assert.throws(
+      () => assertPhysicalDirectory(nestedChild, 'custom root'),
+      (err) => err.message === `refusing symlinked custom root ancestor: ${symlinkTarget}`,
+    );
+    assert.strictEqual(
+      physicalPackageRootError(nestedChild, 'custom root'),
+      `refusing symlinked custom root ancestor: ${symlinkTarget}`,
+    );
+
+    assert.throws(
+      () => ensurePhysicalDirectory(regularFile, 'custom root'),
+      (err) => err.message === `custom root must be a directory: ${regularFile}`,
+    );
+    assert.throws(
+      () => assertPhysicalDirectory(regularFile, 'custom root'),
+      (err) => err.message === `custom root must be a directory: ${regularFile}`,
+    );
+    assert.strictEqual(
+      physicalPackageRootError(regularFile, 'custom root'),
+      `custom root must be a physical directory: ${regularFile}`,
+    );
+
+    assert.strictEqual(assertPhysicalDirectory(missingDir, 'custom root'), path.resolve(missingDir));
+    assert.strictEqual(
+      physicalPackageRootError(missingDir, 'custom root'),
+      `custom root must be a physical directory: ${missingDir}`,
+    );
+    assert.strictEqual(physicalPackageRootError(realDir, 'custom root'), null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
