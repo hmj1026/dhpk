@@ -185,6 +185,26 @@ test("$'\\c\\\\' is one unit (0x1c) and $'\\c\\'' keeps the quote inside the str
   ]);
 });
 
+// bash 5.2 oracle: `echo $$'\' ; echo SECOND` prints PID\ and SECOND, so
+// $$ is the PID parameter and the following '...' is an ordinary string.
+test("$$ before a quote is the PID parameter, not the start of $'...'", () => {
+  const got = decoded("echo $$'\\' ; git commit --no-verify -m x #'");
+  assert.deepStrictEqual(got.cmds, [['echo', '$$\\'], ['git', 'commit', '--no-verify', '-m', 'x']]);
+});
+
+test("$$$'...' is $$ followed by an ANSI-C string", () => {
+  assert.deepStrictEqual(decoded("$$$'\\x67it' x").cmds, [['$$git', 'x']]);
+  // bash 5.2: $$$$'\x67it' is PID PID then a plain '...' string.
+  assert.deepStrictEqual(decoded("$$$$'\\x67it' x").cmds, [['$$$$\\x67it', 'x']]);
+});
+
+test("special parameters before a quote never start $'...'", () => {
+  for (const param of ['$#', '$?', '$-', '$!', '$@', '$*', '$0', '$9', '${x}', '${#x}']) {
+    const got = decoded(`echo ${param}'\\' ; git commit --no-verify -m x #'`);
+    assert.deepStrictEqual(got.cmds, [['echo', `${param}\\`], ['git', 'commit', '--no-verify', '-m', 'x']], param);
+  }
+});
+
 test('inside double quotes a backslash escapes only $ ` " \\ and joins a newline', () => {
   assert.deepStrictEqual(decoded('"gi\\\nt" "a\\b" "\\$x\\`\\"\\\\"').cmds, [['git', 'a\\b', '$x`"\\']]);
 });

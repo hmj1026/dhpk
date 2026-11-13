@@ -700,6 +700,39 @@ test('pre-bash-guard blocks rm -rf with an expansion character in the first path
   }
 });
 
+// Review round 3 (#1389): $$ is the PID parameter, so $$'\' is PID plus an
+// ordinary '...' string that closes at the next quote.
+const PID_PREFIX = "echo $$'\\' ; ";
+
+test("pre-bash-guard blocks commands that follow $$'...'", () => {
+  for (const command of [
+    `${PID_PREFIX}git commit --no-verify -m x #'`,
+    `${PID_PREFIX}r"m" -rf /etc #'`,
+    `${PID_PREFIX}echo x > ".e"nv #'`,
+    "echo $?'\\' ; git commit --no-verify -m x #'",
+    "echo ${x}'\\' ; git commit --no-verify -m x #'",
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test("pretool-git-gate and dispatch (block mode) block a commit that follows $$'...' on main", () => {
+  withRepos(({ protectedRepo }) => {
+    const command = `${PID_PREFIX}git commit -m x #'`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+      expectStatus(res, BLOCK, `${hook} ${command}`);
+      assert.match(res.stderr, /branch-safety/);
+    }
+  });
+});
+
+test("pre-bash-guard decodes $'...' after $$ ($$$'\\x67it' is still git)", () => {
+  const res = bashHook('pre-bash-guard.sh', "x=$$$'\\x67it' $'\\x67it' commit --no-verify -m x");
+  expectStatus(res, BLOCK, 'ansi-c after pid');
+  expectStatus(bashHook('pre-bash-guard.sh', "rm -rf $$$'/etc'"), ALLOW, 'pid-prefixed relative operand');
+});
+
 test('pre-bash-guard keeps allowing benign NUL, escape and glob forms', () => {
   for (const command of [
     "echo x > $'notes\\x00.env'",

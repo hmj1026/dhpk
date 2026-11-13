@@ -595,6 +595,16 @@ dhpk_inspect_command() {
                 ;;
             '$')
                 _dhpk_ci_word_dyn=1
+                if [ "$next" = '$' ]; then
+                    # $$ is the PID parameter: the second $ cannot start a
+                    # $'...' string, so a following quote is an ordinary one.
+                    _dhpk_ci_word="${_dhpk_ci_word}\$\$"
+                    _dhpk_ci_word_open=1
+                    DHPK_STRIPPED="${DHPK_STRIPPED}\$\$"
+                    _dhpk_ci_seg="${_dhpk_ci_seg}\$\$"
+                    i=$((i + 2))
+                    continue
+                fi
                 if [ "$next" = "'" ]; then
                     _dhpk_ci_ansi_end "$cmd" $((i + 2))
                     _dhpk_ci_ansi_decode "${cmd:$((i + 2)):$((_dhpk_ci_ansi_close - i - 2))}"
