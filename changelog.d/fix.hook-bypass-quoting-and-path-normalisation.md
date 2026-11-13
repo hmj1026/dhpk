@@ -1,0 +1,2 @@
+scope: hooks
+note: Close eight security bypasses in the PreToolUse hooks: the Bash guards now decode quoting ($'...', "...", '...', concatenation, backslashes) on command words, rm operands, tee operands and redirect targets, and pre-edit-guard normalises `..`, `.` and `//` before the scratchpad allowlist, rejects scratchpad symlink escapes, and blocks `.env`/`.git` case-insensitively including a bare `.git` gitlink (#1389).

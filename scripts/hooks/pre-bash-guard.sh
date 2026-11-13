@@ -49,6 +49,112 @@ CMD="$(extract_tool_input command "$PAYLOAD")"
 dhpk_inspect_command "$CMD"
 CMD_STRIPPED="$DHPK_STRIPPED"
 
+# _guard_word_head_is <word> <name>
+#   True when the decoded argv word is <name> or a path ending in /<name>.
+_guard_word_head_is() {
+    case "$1" in
+        "$2"|*/"$2") return 0 ;;
+    esac
+    return 1
+}
+
+# _guard_rm_target_dangerous <decoded-target>
+#   Mirrors the Pattern 1 regex on one decoded rm operand: the root, a root
+#   glob or expansion, any path under a DANGEROUS_ROOT_ANY directory, or a
+#   DANGEROUS_ROOT_SHALLOW path at depth 2 or less.
+_guard_rm_target_dangerous() {
+    local root='^/+$' expand='^/+[$*]' any="^/+${DANGEROUS_ROOT_ANY}(/|\$)"
+    local shallow='^/+(home|opt|srv)(/+[^/]+)?/*$'
+    [[ "$1" =~ $root ]] && return 0
+    [[ "$1" =~ $expand ]] && return 0
+    [[ "$1" =~ $any ]] && return 0
+    [[ "$1" =~ $shallow ]] && return 0
+    return 1
+}
+
+# _guard_rm_decoded
+#   Pattern 1 on decoded argv, so r"m", $'rm', "/" and $'/etc' are judged by
+#   their shell value. An rm word with at least one option blocks when any
+#   operand is dangerous.
+_guard_rm_decoded() {
+    local c=0 k end w has_flag operands_only hit
+    while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
+        k="${DHPK_CMD_START[$c]}"
+        end=$((k + DHPK_CMD_LEN[c]))
+        while [ "$k" -lt "$end" ]; do
+            if _guard_word_head_is "${DHPK_WORDS[$k]}" rm; then
+                has_flag=0
+                operands_only=0
+                hit=0
+                k=$((k + 1))
+                while [ "$k" -lt "$end" ]; do
+                    w="${DHPK_WORDS[$k]}"
+                    if [ "$operands_only" -eq 0 ] && [ "$w" = "--" ]; then
+                        operands_only=1
+                    elif [ "$operands_only" -eq 0 ] && [ "${w#-}" != "$w" ]; then
+                        has_flag=1
+                    elif _guard_rm_target_dangerous "$w"; then
+                        hit=1
+                    fi
+                    k=$((k + 1))
+                done
+                [ "$has_flag" -eq 1 ] && [ "$hit" -eq 1 ] && return 0
+            fi
+            k=$((k + 1))
+        done
+        c=$((c + 1))
+    done
+    return 1
+}
+
+# _guard_env_secret_name <decoded-path>
+#   True when the basename is .env or .env.* (any letter case) and is not one
+#   of the version-controlled templates.
+_guard_env_secret_name() {
+    local base="${1##*/}"
+    case "$base" in
+        .[Ee][Nn][Vv]) return 0 ;;
+        .[Ee][Nn][Vv].*) ;;
+        *) return 1 ;;
+    esac
+    case "${base#.[Ee][Nn][Vv].}" in
+        [Ee][Xx][Aa][Mm][Pp][Ll][Ee]|[Ss][Aa][Mm][Pp][Ll][Ee]|[Dd][Ii][Ss][Tt]|[Tt][Ee][Mm][Pp][Ll][Aa][Tt][Ee]) return 1 ;;
+    esac
+    return 0
+}
+
+# _guard_env_write_decoded
+#   Pattern 6 on decoded redirect targets and tee operands, so ".e"nv,
+#   $'.env' and "dir with space/.env" are judged by their shell value.
+_guard_env_write_decoded() {
+    local t c=0 k end operands_only
+    for t in ${DHPK_REDIRECT_TARGETS[@]+"${DHPK_REDIRECT_TARGETS[@]}"}; do
+        _guard_env_secret_name "$t" && return 0
+    done
+    while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
+        k="${DHPK_CMD_START[$c]}"
+        end=$((k + DHPK_CMD_LEN[c]))
+        while [ "$k" -lt "$end" ]; do
+            if _guard_word_head_is "${DHPK_WORDS[$k]}" tee; then
+                operands_only=0
+                k=$((k + 1))
+                while [ "$k" -lt "$end" ]; do
+                    t="${DHPK_WORDS[$k]}"
+                    if [ "$operands_only" -eq 0 ] && [ "$t" = "--" ]; then
+                        operands_only=1
+                    elif [ "$operands_only" -eq 1 ] || [ "${t#-}" = "$t" ]; then
+                        _guard_env_secret_name "$t" && return 0
+                    fi
+                    k=$((k + 1))
+                done
+            fi
+            k=$((k + 1))
+        done
+        c=$((c + 1))
+    done
+    return 1
+}
+
 # Pattern 1: rm -rf on root or sensitive top-level dirs.
 # Whitelist approach: only block known-dangerous targets to avoid false-positives
 # on /tmp, /var/tmp, /var/log cleanups.
@@ -62,7 +168,8 @@ CMD_STRIPPED="$DHPK_STRIPPED"
 DANGEROUS_ROOT_ANY='(etc|usr|bin|sbin|lib|lib64|boot|proc|sys|dev|run|root|snap)'
 DANGEROUS_ROOT_SHALLOW="(home|opt|srv)(/+[^/[:space:]]+)?/*[\"']?([[:space:];&|]|$)"
 if printf '%s' "$CMD_STRIPPED" | grep -Eq \
-    "(^|[[:space:];&|])rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)+(--[[:space:]]+)?[\"']?/+([[:space:]\$\*]|$|${DANGEROUS_ROOT_ANY}([/[:space:]]|[\"']?([[:space:];&|]|$))|${DANGEROUS_ROOT_SHALLOW})"; then
+    "(^|[[:space:];&|])rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)+(--[[:space:]]+)?[\"']?/+([[:space:]\$\*]|$|${DANGEROUS_ROOT_ANY}([/[:space:]]|[\"']?([[:space:];&|]|$))|${DANGEROUS_ROOT_SHALLOW})" || \
+    _guard_rm_decoded; then
     echo "[bash-guard] blocked: rm -rf against root or system directory. Narrow the path or run outside Claude." >&2
     exit 2
 fi
@@ -124,7 +231,8 @@ _env_cmd="$(printf '%s' "$CMD_STRIPPED" | sed -E \
     -e "s/(>>?)[[:space:]]*[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist|template)[\"']?([[:space:];&|]|\$)/ /g" \
     -e "s/[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist|template)[\"']?([[:space:];&|]|\$)/\3/g")"
 if printf '%s' "$_env_cmd" | grep -Eq "(>>?)[[:space:]]*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)" || \
-   printf '%s' "$_env_cmd" | grep -Eq "(^|[[:space:];&|])tee[[:space:]]+(-a[[:space:]]+)?([^;&|]*[[:space:]])*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)"; then
+   printf '%s' "$_env_cmd" | grep -Eq "(^|[[:space:];&|])tee[[:space:]]+(-a[[:space:]]+)?([^;&|]*[[:space:]])*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)" || \
+   _guard_env_write_decoded; then
     echo "[bash-guard] blocked: writing to .env via shell redirection/tee. .env files hold secrets and must not be written via Bash. Ask the user for the value, or use .env.example/.env.template as a template." >&2
     exit 2
 fi

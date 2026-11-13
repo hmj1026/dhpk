@@ -117,4 +117,78 @@ test('a dynamic -C stays unresolved and does not fall back to the session cwd', 
   assert.strictEqual(got.exempt, '0');
 });
 
+// Decoded argv and redirect targets, one JSON line per array (#1389).
+function decoded(command) {
+  const res = spawnSync('bash', ['-c', `
+    set -u
+    # shellcheck disable=SC1090
+    . "$DHPK_CI_LIB"
+    dhpk_inspect_command "$DHPK_CI_CMD" /session
+    c=0
+    while [ "$c" -lt "\${#DHPK_CMD_START[@]}" ]; do
+      k="\${DHPK_CMD_START[$c]}"
+      end=$((k + DHPK_CMD_LEN[c]))
+      printf 'cmd'
+      while [ "$k" -lt "$end" ]; do printf '\\037%s' "\${DHPK_WORDS[$k]}"; k=$((k + 1)); done
+      printf '\\036'
+      c=$((c + 1))
+    done
+    for t in \${DHPK_REDIRECT_TARGETS[@]+"\${DHPK_REDIRECT_TARGETS[@]}"}; do printf 'redir\\037%s\\036' "$t"; done
+    printf 'stripped\\037%s\\036' "$DHPK_STRIPPED"
+  `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB, DHPK_CI_CMD: command } });
+  assert.strictEqual(res.status, 0, res.stderr || res.stdout);
+  const out = { cmds: [], redirects: [], stripped: '' };
+  for (const rec of res.stdout.split('\x1e')) {
+    if (!rec) continue;
+    const [kind, ...rest] = rec.split('\x1f');
+    if (kind === 'cmd') out.cmds.push(rest);
+    else if (kind === 'redir') out.redirects.push(rest[0]);
+    else out.stripped = rest[0];
+  }
+  return out;
+}
+
+test("$'...' ANSI-C quoting decodes escapes into the argv word", () => {
+  assert.deepStrictEqual(decoded("$'git' $'\\x63om'$'\\155it' $'a\\tb' $'it\\'s' $'\\u0067'").cmds, [
+    ['git', 'commit', 'a\tb', "it's", 'g'],
+  ]);
+});
+
+test("$'...' keeps unknown escapes and non-ASCII \\u values in backslash form", () => {
+  assert.deepStrictEqual(decoded("x $'\\q' $'\\x' $'\\u00e9'").cmds, [['x', '\\q', '\\x', '\\u00e9']]);
+});
+
+test("$'git' is recognised as a git invocation", () => {
+  const got = inspect("$'git' commit --no-verify -m x");
+  assert.strictEqual(got.sub, 'commit');
+  assert.strictEqual(got.no_verify, '1');
+});
+
+test('concatenated quoting decodes to one word', () => {
+  assert.deepStrictEqual(decoded('r"m" -rf ".e"nv \'a b\'c $"d"').cmds, [['rm', '-rf', '.env', 'a bc', 'd']]);
+});
+
+test('redirect targets are decoded and kept out of argv', () => {
+  const got = decoded('echo x > ".e"nv 2>$\'.env\' >>"dir with space/f" >|g &>h &>>i 1<>j >&2');
+  assert.deepStrictEqual(got.cmds, [['echo', 'x']]);
+  assert.deepStrictEqual(got.redirects, ['.env', '.env', 'dir with space/f', 'g', 'h', 'i', 'j', '2']);
+});
+
+test('a quoted > is data, not a redirect', () => {
+  const got = decoded('echo "a > b" \'>\' c');
+  assert.deepStrictEqual(got.cmds, [['echo', 'a > b', '>', 'c']]);
+  assert.deepStrictEqual(got.redirects, []);
+});
+
+test('the stripped command text keeps the raw quoting', () => {
+  const command = "echo $'a\\'b' > \".e\"nv &>> x";
+  assert.strictEqual(decoded(command).stripped, command);
+});
+
+test('a redirect between git options still exposes a later --no-verify', () => {
+  const got = inspect('git commit -m x &>/dev/null --no-verify');
+  assert.strictEqual(got.sub, 'commit');
+  assert.strictEqual(got.no_verify, '1');
+});
+
 run('command-inspect');
