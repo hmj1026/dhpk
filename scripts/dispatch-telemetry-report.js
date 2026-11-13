@@ -47,13 +47,21 @@
 //     `sources:` line.
 //
 // Oversized dispatches (#1336): a dispatch is flagged when its assistant turn
-// count (de-duplicated by message id) exceeds 120 or its peak prompt context
-// (largest input + cache read + cache write of any turn) exceeds 200000 tokens.
-// The report's `oversized` section carries `thresholds` and `dispatches`
-// ({agentType, agentId, model, effort, turns, peakPromptTokens, reasons}, with
-// reasons from `turns`/`context`), sorted by peak context desc. --merge requires
-// the section on every input, refuses differing thresholds, and adds `host`.
-// Text output adds an `oversized dispatches` line plus one line per dispatch.
+// count (de-duplicated by message id) exceeds 120 or its peak prompt proxy
+// (largest input + cache read + cache write of any turn with usage; not the
+// context window) exceeds 200000 tokens. A turn whose message.usage is missing
+// or lacks any of those three numeric fields counts in `usageMissingTurns`;
+// such a dispatch has `complete: false` and is listed even below the thresholds,
+// so missing measurement never reads as 0. `peakPromptTokens` is null when no
+// turn was measured, and a lower bound when the dispatch is incomplete. The `oversized` section carries
+// `thresholds`, `metric` (a constant string naming the measure) and `dispatches`
+// ({agentType, agentId, model, effort, turns, peakPromptTokens, reasons,
+// complete, usageMissingTurns}, reasons from `turns`/`context`, possibly empty),
+// sorted by peak desc. --merge requires the section on every input, refuses
+// differing thresholds or metric, requires complete to equal usageMissingTurns 0
+// (a null peak only when incomplete), and adds
+// `host`. Text output adds an `oversized dispatches` line plus one line per
+// dispatch, with ` UNKNOWN: N turn(s) without usage` when incomplete.
 //
 // Log layout read (never written):
 //   <root>/<project>/<session>.jsonl                      parent transcript
@@ -167,6 +175,8 @@ const CHUNK_BYTES = 64 * 1024;
 const SCHEMA_VERSION = 2;
 const OVERSIZE_TURNS = 120;
 const OVERSIZE_PROMPT_TOKENS = 200000;
+const OVERSIZE_METRIC = 'peak per-message input + cache read + cache creation tokens (prompt proxy, not the context window)';
+const USAGE_PROMPT_FIELDS = Object.freeze(['input_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens']);
 const OVERSIZE_REASONS = Object.freeze(['turns', 'context']);
 const HOST_LABEL = /^[A-Za-z0-9._@:-]{1,64}$/;
 
@@ -391,6 +401,7 @@ function scanSubagent(file, skipped) {
     if (record.type !== 'assistant' || !isRecord(record.message)) return;
     for (const use of toolUses(record)) if (typeof use.name === 'string') tools.add(use.name);
     const usage = isRecord(record.message.usage) ? record.message.usage : {};
+    const hasUsage = USAGE_PROMPT_FIELDS.every((field) => isFiniteNumber(usage[field]));
     const input = Number(usage.input_tokens) || 0;
     const cacheRead = Number(usage.cache_read_input_tokens) || 0;
     const cacheCreate = Number(usage.cache_creation_input_tokens) || 0;
@@ -408,12 +419,14 @@ function scanSubagent(file, skipped) {
       cacheWrite5m: cacheCreate - cacheWrite1h,
       cacheWrite1h,
       promptTokens: input + cacheRead + cacheCreate,
+      hasUsage,
     });
   });
   const turns = [...byMessage.values()];
   const model = (turns.find((t) => t.model !== null) || {}).model || null;
   const effort = (turns.find((t) => t.effort !== null) || {}).effort || null;
-  return { error, firstTs, tools, turns, model, effort };
+  const usageMissingTurns = turns.filter((t) => !t.hasUsage).length;
+  return { error, firstTs, tools, turns, model, effort, usageMissingTurns };
 }
 
 function bucketOf(tools) {
@@ -576,12 +589,19 @@ function buildReport(options = {}) {
           const callModel = (typeof meta.model === 'string' && meta.model ? safeName(meta.model) : null)
             || (call && call.model) || null;
           const callEffort = (call && call.effort) || null;
-          const peakPromptTokens = summary.turns.reduce((max, turn) => Math.max(max, turn.promptTokens), 0);
+          const measured = summary.turns.filter((turn) => turn.hasUsage);
+          const peakPromptTokens = measured.length === 0
+            ? null
+            : measured.reduce((max, turn) => Math.max(max, turn.promptTokens), 0);
+          const { usageMissingTurns } = summary;
+          const complete = usageMissingTurns === 0;
           const reasons = [];
           if (summary.turns.length > OVERSIZE_TURNS) reasons.push('turns');
-          if (peakPromptTokens > OVERSIZE_PROMPT_TOKENS) reasons.push('context');
-          if (reasons.length > 0) {
-            oversized.push({ agentType, agentId, model, effort, turns: summary.turns.length, peakPromptTokens, reasons });
+          if (peakPromptTokens !== null && peakPromptTokens > OVERSIZE_PROMPT_TOKENS) reasons.push('context');
+          if (reasons.length > 0 || !complete) {
+            oversized.push({
+              agentType, agentId, model, effort, turns: summary.turns.length, peakPromptTokens, reasons, complete, usageMissingTurns,
+            });
           }
           const key = `${agentType}\u0000${model}\u0000${effort}`;
           if (!groups.has(key)) {
@@ -669,7 +689,7 @@ function buildReport(options = {}) {
       || a.model.localeCompare(b.model)
       || String(a.effort).localeCompare(String(b.effort)));
   mismatches.sort((a, b) => a.agentType.localeCompare(b.agentType) || a.agentId.localeCompare(b.agentId));
-  oversized.sort((a, b) => b.peakPromptTokens - a.peakPromptTokens
+  oversized.sort((a, b) => peakOrder(b) - peakOrder(a)
     || a.agentType.localeCompare(b.agentType)
     || a.agentId.localeCompare(b.agentId));
 
@@ -691,10 +711,16 @@ function buildReport(options = {}) {
     generalPurpose: gp,
     oversized: {
       thresholds: { turns: OVERSIZE_TURNS, promptTokens: OVERSIZE_PROMPT_TOKENS },
+      metric: OVERSIZE_METRIC,
       dispatches: oversized,
     },
     skipped,
   };
+}
+
+// Sort key for oversized entries: an unmeasured peak (null) sorts last.
+function peakOrder(entry) {
+  return entry.peakPromptTokens === null ? -1 : entry.peakPromptTokens;
 }
 
 function hasOwn(object, key) {
@@ -788,8 +814,8 @@ function mergeReports(inputs) {
     requireSection(input, 'oversized', label);
     const { thresholds } = input.oversized;
     if (!isRecord(thresholds) || !isFiniteNumber(thresholds.turns) || !isFiniteNumber(thresholds.promptTokens)
-      || !Array.isArray(input.oversized.dispatches)) {
-      throw new MergeError(`${label}: oversized must carry numeric thresholds and a dispatches array`);
+      || typeof input.oversized.metric !== 'string' || !Array.isArray(input.oversized.dispatches)) {
+      throw new MergeError(`${label}: oversized must carry numeric thresholds, a metric string and a dispatches array`);
     }
     if (!Array.isArray(input.byAgent) || !Array.isArray(input.mismatches)) {
       throw new MergeError(`${label}: byAgent and mismatches must be arrays`);
@@ -815,6 +841,10 @@ function mergeReports(inputs) {
     if (inputs.some((input) => input.oversized.thresholds[field] !== first.oversized.thresholds[field])) {
       throw new MergeError('oversized thresholds differ across inputs');
     }
+  }
+
+  if (inputs.some((input) => input.oversized.metric !== first.oversized.metric)) {
+    throw new MergeError('oversized metric differs across inputs');
   }
 
   const groups = new Map();
@@ -893,7 +923,11 @@ function mergeReports(inputs) {
       if (!isRecord(entry) || typeof entry.agentType !== 'string' || typeof entry.agentId !== 'string'
         || typeof entry.model !== 'string' || (entry.effort !== null && typeof entry.effort !== 'string')
         || !isFiniteNumber(entry.turns) || entry.turns < 0
-        || !isFiniteNumber(entry.peakPromptTokens) || entry.peakPromptTokens < 0
+        || (entry.peakPromptTokens === null ? entry.complete !== false
+          : !isFiniteNumber(entry.peakPromptTokens) || entry.peakPromptTokens < 0)
+        || typeof entry.complete !== 'boolean'
+        || !Number.isInteger(entry.usageMissingTurns) || entry.usageMissingTurns < 0
+        || entry.complete !== (entry.usageMissingTurns === 0)
         || !Array.isArray(entry.reasons) || entry.reasons.some((r) => !OVERSIZE_REASONS.includes(r))) {
         throw new MergeError(`${label}: malformed oversized entry`);
       }
@@ -905,6 +939,8 @@ function mergeReports(inputs) {
         turns: entry.turns,
         peakPromptTokens: entry.peakPromptTokens,
         reasons: [...entry.reasons],
+        complete: entry.complete,
+        usageMissingTurns: entry.usageMissingTurns,
         host: input.host,
       });
     }
@@ -927,7 +963,7 @@ function mergeReports(inputs) {
   mismatches.sort((a, b) => String(a.agentType).localeCompare(String(b.agentType))
     || String(a.agentId).localeCompare(String(b.agentId))
     || a.host.localeCompare(b.host));
-  oversized.sort((a, b) => b.peakPromptTokens - a.peakPromptTokens
+  oversized.sort((a, b) => peakOrder(b) - peakOrder(a)
     || a.agentType.localeCompare(b.agentType)
     || a.agentId.localeCompare(b.agentId)
     || a.host.localeCompare(b.host));
@@ -945,7 +981,7 @@ function mergeReports(inputs) {
     mismatches,
     noDeclaredTier,
     generalPurpose,
-    oversized: { thresholds: { ...first.oversized.thresholds }, dispatches: oversized },
+    oversized: { thresholds: { ...first.oversized.thresholds }, metric: first.oversized.metric, dispatches: oversized },
     skipped,
   };
 }
@@ -1007,9 +1043,9 @@ function formatText(report) {
   lines.push(`  triggers: ${Object.entries(g.byTrigger).map(([k, v]) => `${k} x${v}`).join(', ') || '-'}`);
   lines.push('');
   const ov = report.oversized;
-  lines.push(`oversized dispatches (>${ov.thresholds.turns} turns or >${Math.round(ov.thresholds.promptTokens / 1000)}k context): ${ov.dispatches.length}`);
+  lines.push(`oversized dispatches (>${ov.thresholds.turns} turns or >${Math.round(ov.thresholds.promptTokens / 1000)}k prompt tokens; prompt proxy): ${ov.dispatches.length}`);
   for (const d of ov.dispatches) {
-    lines.push(`  ${d.host ? `${d.host} ` : ''}${d.agentType} ${d.agentId}: turns ${d.turns}, peak ${Math.round(d.peakPromptTokens / 1000)}k [${d.reasons.join(',')}]`);
+    lines.push(`  ${d.host ? `${d.host} ` : ''}${d.agentType} ${d.agentId}: turns ${d.turns}, peak ${d.peakPromptTokens === null ? 'UNKNOWN' : `${Math.round(d.peakPromptTokens / 1000)}k`} [${d.reasons.join(',') || '-'}]${d.complete ? '' : ` UNKNOWN: ${d.usageMissingTurns} turn(s) without usage`}`);
   }
   lines.push('');
   const s = report.skipped;

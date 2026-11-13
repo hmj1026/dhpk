@@ -1,2 +1,2 @@
 scope: dispatch
-note: Execution policy sizes each implementation dispatch to one verifiable commit or round, starts a fresh dispatch above about 200k context, states a test budget, and dispatch-telemetry-report lists dispatches above 120 turns or 200k peak context (#1336).
+note: Execution policy bounds each implementation dispatch to one verifiable round, sends the next round to a fresh dispatch with a full handoff above 120 turns or a 200k peak prompt, states a test budget with rerun conditions, and dispatch-telemetry-report lists oversized and incompletely measured dispatches (#1336).
