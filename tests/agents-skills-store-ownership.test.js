@@ -255,6 +255,77 @@ test('an unmanaged top-level symlink or nested symlink is refused and its target
   }
 });
 
+function lstatSnapshot(directory) {
+  const rows = [];
+  const walk = (current, prefix) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isSymbolicLink()) rows.push([relative, 'symlink', fs.readlinkSync(full)]);
+      else if (entry.isDirectory()) walk(full, relative);
+      else rows.push([relative, 'file', crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex')]);
+    }
+  };
+  walk(directory, '');
+  return rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+}
+
+test('a refused unmanaged symlink names its path and scope, keeps a stable code, and gives recovery guidance', () => {
+  const cases = {
+    'top-level directory symlink': {
+      seed: (outDir, target) => fs.symlinkSync(path.dirname(target), path.join(outDir, 'linked-dir')),
+      relative: 'linked-dir',
+      scope: /top-level entry/i,
+    },
+    'top-level file symlink': {
+      seed: (outDir, target) => fs.symlinkSync(target, path.join(outDir, 'linked.md')),
+      relative: 'linked.md',
+      scope: /top-level entry/i,
+    },
+    'nested symlink': {
+      seed: (outDir, target) => {
+        write(path.join(outDir, 'third', 'ok.md'), '# ok\n');
+        fs.symlinkSync(target, path.join(outDir, 'third', 'link.md'));
+      },
+      relative: 'third/link.md',
+      scope: /nested path/i,
+    },
+  };
+  for (const [label, spec] of Object.entries(cases)) {
+    const root = makeRoot();
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-store-outside-'));
+    try {
+      const outDir = path.join(root, '.agents', 'skills');
+      materialize(root, outDir);
+      const target = path.join(outside, 'target.md');
+      write(target, '# outside\n');
+      spec.seed(outDir, target);
+      const before = lstatSnapshot(outDir);
+      const receiptBefore = fs.readFileSync(path.join(outDir, RECEIPT_NAME));
+      let failure = null;
+      try {
+        materialize(root, outDir);
+      } catch (error) {
+        failure = error;
+      }
+      assert.ok(failure, `${label}: refused`);
+      assert.match(failure.message, /UNMANAGED_SYMLINK/, `${label}: stable code`);
+      assert.ok(failure.message.includes(spec.relative), `${label}: relative path`);
+      assert.match(failure.message, spec.scope, `${label}: scope`);
+      assert.match(failure.message, /real directory copy/i, `${label}: copy guidance`);
+      assert.match(failure.message, /outside `?\.agents\/skills`?/i, `${label}: move-outside guidance`);
+      assert.match(failure.message, /restore/i, `${label}: restore guidance`);
+      assert.doesNotMatch(failure.message, /dereference|delete it automatically|--force/i, `${label}: no automatic fix`);
+      assert.deepStrictEqual(lstatSnapshot(outDir), before, `${label}: tree unchanged`);
+      assert.ok(fs.readFileSync(path.join(outDir, RECEIPT_NAME)).equals(receiptBefore), `${label}: receipt unchanged`);
+      assert.strictEqual(fs.readFileSync(target, 'utf8'), '# outside\n', `${label}: target untouched`);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  }
+});
+
 test('an unmanaged entry with an unsafe name is refused before staging', () => {
   const root = makeRoot();
   try {
