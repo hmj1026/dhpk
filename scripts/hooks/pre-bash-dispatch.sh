@@ -29,15 +29,18 @@ export DHPK_PROJECT_CONFIG_LOADED=1
 . "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh"
 : "${DHPK_ACTIVE_MODULES:=$(dhpk_config_modules)}"
 
+# Each `printf | bash child` below reads the child's own status via
+# PIPESTATUS[1]: a child that exits 0 without draining stdin can SIGPIPE
+# printf, and pipefail would otherwise report 141 for the whole pipeline.
 # Core guard — exit code bubbles up so dangerous-pattern blocks still work.
 printf '%s' "$payload" | bash "$PLUGIN_ROOT/scripts/hooks/pre-bash-guard.sh"
-rc=$?
+rc=${PIPESTATUS[1]}
 [ "$rc" -ne 0 ] && exit "$rc"
 
 # The former separate PreToolUse entry is deliberately composed here so Bash
 # has one lifecycle hook while preserving protected-branch enforcement.
 printf '%s' "$payload" | bash "$PLUGIN_ROOT/scripts/hooks/pretool-git-gate.sh"
-rc=$?
+rc=${PIPESTATUS[1]}
 [ "$rc" -ne 0 ] && exit "$rc"
 
 if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
@@ -72,7 +75,7 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
                 */pre-commit-*.sh) [ "$_is_commit" -eq 1 ] || continue ;;
             esac
             printf '%s' "$payload" | bash "$hook"
-            rc=$?
+            rc=${PIPESTATUS[1]}
             [ "$rc" -ne 0 ] && exit "$rc"
         done
     done < <(active_modules_list)
