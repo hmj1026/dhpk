@@ -19,6 +19,7 @@ function usage() {
     '  --profile <id>        Consumer selection profile',
     '  --host <name>         Requested Host; repeat to select multiple Hosts',
     '  --update              Allow canonical source updates',
+    '  --preserve-unmanaged  With no receipt, create the in-checkout projection beside non-reserved third-party entries and keep them as-is (they stay unowned)',
     '  --adopt               Adopt matching unmanaged entries',
     '  --repair              Repair the consumer projection',
     '  --uninstall           Uninstall owned entries; requires --project-root',
@@ -36,6 +37,7 @@ function parseArgs(argv) {
     profileId: null,
     requestedHosts: [],
     update: false,
+    preserveUnmanaged: false,
     adopt: false,
     repair: false,
     action: 'install',
@@ -50,6 +52,7 @@ function parseArgs(argv) {
     else if (arg === '--profile') args.profileId = argv[++index];
     else if (arg === '--host') args.requestedHosts.push(argv[++index]);
     else if (arg === '--update') args.update = true;
+    else if (arg === '--preserve-unmanaged') args.preserveUnmanaged = true;
     else if (arg === '--adopt') args.adopt = true;
     else if (arg === '--repair') args.repair = true;
     else if (arg === '--uninstall') args.action = 'uninstall';
@@ -75,6 +78,9 @@ try {
   const projectRoot = args.projectRoot ? path.resolve(args.projectRoot) : null;
   const outDir = args.outDir ? path.resolve(args.outDir) : (projectRoot ? null : path.join(root, '.agents', 'skills'));
   const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
+  if (args.preserveUnmanaged && (projectRoot || args.sourceRoot || args.action !== 'install')) {
+    fail('--preserve-unmanaged applies only to the in-checkout projection; it cannot be combined with --project-root, --source-root, --uninstall, or --rollback');
+  }
   if (args.action !== 'install' && !projectRoot) fail(`--${args.action} requires --project-root`);
   let inventory = null;
   if (fs.existsSync(inventoryPath)) inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
@@ -89,6 +95,7 @@ try {
       profileId: args.profileId || undefined,
       requestedHosts: args.requestedHosts.length > 0 ? [...new Set(args.requestedHosts)].sort() : undefined,
       allowCanonicalChanges: args.update,
+      preserveUnmanaged: args.preserveUnmanaged,
       adopt: args.adopt,
       repair: args.repair,
     });

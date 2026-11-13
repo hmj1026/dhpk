@@ -1,6 +1,6 @@
 {
   "name": "dhpk",
-  "version": "0.76.0",
+  "version": "0.77.0",
   "private": true,
   "description": "Reusable Claude Code harness with role-based agents, routed commands, advisory reviewer dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
   "license": "MIT",
@@ -53,7 +53,7 @@
     "check:skill-progression": "node scripts/ci/gen-skill-progression-tables.js --check",
     "check:skill-resources": "node scripts/ci/sync-skill-resources.js --check",
     "check:local-skills": "node scripts/ci/validate-agents-skills.js",
-    "sync:local-skills": "node scripts/ci/gen-agents-skills.js --update && node scripts/ci/validate-agents-skills.js",
+    "sync:local-skills": "sh -c 'node scripts/ci/gen-agents-skills.js --update \"$@\" && node scripts/ci/validate-agents-skills.js \"$@\"' sync-local-skills",
     "check:installer-bundle": "node scripts/ci/gen-installer-bundle.js --check",
     "check:packages": "node scripts/ci/verify-platform-packages.js",
     "check:skill-distribution": "node scripts/ci/gen-distribution-inventory.js --check && node scripts/ci/gen-skill-directory-coverage.js --check && node scripts/ci/gen-skill-resources.js --check && node scripts/ci/gen-command-skill-dispositions.js --check && node scripts/ci/gen-command-forwarders.js --check",

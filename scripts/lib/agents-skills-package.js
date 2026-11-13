@@ -526,13 +526,52 @@ function usesRelocatableProjection(options = {}) {
 // A reserved name is `N` or `N.md` for every skill the sync generates, renames
 // from, retires, or carries. The writer, the activation verifier, and the
 // validator all judge a top-level entry through this one predicate.
+//
+// Exact-case match is the predicate itself. `foldCollision(topName)` is the
+// case-equivalence rule, identical on every Host and filesystem: both sides are
+// normalized with Unicode NFC and then locale-independent `toLowerCase()`, the
+// `.md` suffix is stripped after folding, and the entry collides when the folded
+// forms are equal but the names are not an exact match. It returns the reserved
+// name, or null.
+function foldReservedName(name) {
+  return name.normalize('NFC').toLowerCase().replace(/\.md$/, '');
+}
+
 function reservedNamePredicate(names) {
   const bases = new Set(names);
-  return (topName) => bases.has(topName.replace(/\.md$/, ''));
+  const folded = new Map();
+  for (const base of [...bases].sort()) {
+    const key = foldReservedName(base);
+    if (!folded.has(key)) folded.set(key, base);
+  }
+  const isReserved = (topName) => bases.has(topName.replace(/\.md$/, ''));
+  isReserved.foldCollision = (topName) => {
+    if (isReserved(topName)) return null;
+    return folded.get(foldReservedName(topName)) || null;
+  };
+  return isReserved;
+}
+
+function caseCollisionMessage(entryName, reservedName) {
+  return `unmanaged entry "${entryName}" is case-equivalent to reserved name "${reservedName}"`;
 }
 
 function topLevelName(relative) {
   return relative.split('/')[0];
+}
+
+// A symlink under an unmanaged `.agents/skills` entry is never followed,
+// dereferenced, copied, or deleted. The refusal names the path, says whether the
+// link is the top-level entry or nested, and tells the user how to recover by hand.
+const UNMANAGED_SYMLINK_CODE = 'UNMANAGED_SYMLINK';
+
+function unmanagedSymlinkMessage(relative) {
+  const scope = relative.includes('/')
+    ? `nested path inside unmanaged top-level entry ${topLevelName(relative)}`
+    : 'top-level entry';
+  return `${UNMANAGED_SYMLINK_CODE}: unmanaged ${scope} is a symlink, which cannot be preserved: ${relative}. `
+    + 'Nothing was changed. To sync, either replace the link with a real directory copy, '
+    + 'or move it outside `.agents/skills` while syncing and restore it afterwards.';
 }
 
 // Unmanaged = a top-level entry that is neither reserved nor the receipt. Its
@@ -541,7 +580,11 @@ function topLevelName(relative) {
 // collectFiles: that one skips __pycache__ and *.pyc, which a third-party skill
 // owns just as much as its SKILL.md. Empty directories cannot be staged and are
 // dropped. One traversal budget covers the whole walk and every read.
-function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
+//
+// `options.refuseReserved` is the receipt-less initialization path: with no
+// receipt a reserved-name entry may be a former dhpk projection, so it is
+// refused instead of skipped.
+function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}, { refuseReserved = false } = {}) {
   const files = new Map();
   const outputs = [];
   const names = new Set();
@@ -551,7 +594,9 @@ function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
   const collect = (absolute, relative, depth) => {
     const stat = lstatOrNull(absolute);
     if (!stat) throw new Error(`unmanaged entry disappeared while planning: ${relative}`);
-    if (stat.isSymbolicLink()) throw new Error(`unmanaged entry holds a symlink, which cannot be preserved: ${relative}`);
+    if (stat.isSymbolicLink()) {
+      throw Object.assign(new Error(unmanagedSymlinkMessage(relative)), { code: UNMANAGED_SYMLINK_CODE });
+    }
     if (stat.isDirectory()) {
       const realDirectory = budget.enterDirectory(absolute, depth);
       try {
@@ -573,7 +618,13 @@ function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
   };
 
   for (const entry of readDirectoryEntries(outputRoot, { budget, sort: true })) {
-    if (entry.name === RECEIPT_NAME || isReserved(entry.name)) continue;
+    if (entry.name === RECEIPT_NAME) continue;
+    if (isReserved(entry.name)) {
+      if (refuseReserved) throw new Error(`OWNERSHIP_REFUSED: unmanaged entry "${entry.name}" uses a reserved name and no ${RECEIPT_NAME} receipt proves it is not a former dhpk projection`);
+      continue;
+    }
+    const reservedName = isReserved.foldCollision ? isReserved.foldCollision(entry.name) : null;
+    if (reservedName) throw new Error(`OWNERSHIP_REFUSED: ${caseCollisionMessage(entry.name, reservedName)}`);
     assertSafeRelative(entry.name, 'unmanaged entry name');
     collect(path.join(outputRoot, entry.name), entry.name, 1);
   }
@@ -590,6 +641,11 @@ function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
 // the whole-root swap can never lose or resurrect a file. Without `unmanaged`,
 // every file the receipt does not own is refused.
 //
+// `unmanaged.receiptless` is the explicit --preserve-unmanaged authorization for
+// a tree that has no receipt at all: the walk then runs with an empty owned set,
+// so only planned unmanaged entries pass. It never applies once a receipt
+// exists, so a receipt that appears after planning is refused.
+//
 // `preserved` (Map of relative path -> { digest, mode }) is the planned snapshot
 // of carried and legacy-released files that the staged tree rewrites from
 // captured bytes. Each must still be a regular file with the planned digest and
@@ -600,8 +656,13 @@ function agentsSkillsOwnership(ownedPaths, unmanaged = null, preserved = null) {
       // A pre-created empty tree holds nothing to lose.
       if (fs.readdirSync(existingRoot).length === 0) return { ok: true };
       const receiptStat = lstatOrNull(path.join(existingRoot, RECEIPT_NAME));
-      if (!receiptStat || receiptStat.isSymbolicLink() || !receiptStat.isFile()) {
-        return { ok: false, code: 'NO_OWNER_RECEIPT', message: `existing tree has no ${RECEIPT_NAME} receipt` };
+      const receiptless = Boolean(unmanaged && unmanaged.receiptless) && !receiptStat;
+      if (!receiptless && (!receiptStat || receiptStat.isSymbolicLink() || !receiptStat.isFile())) {
+        return {
+          ok: false,
+          code: 'NO_OWNER_RECEIPT',
+          message: `existing tree has no ${RECEIPT_NAME} receipt; rerun with --preserve-unmanaged to create the projection beside non-reserved third-party entries (they stay unowned)`,
+        };
       }
       const observed = new Map();
       const observedPreserved = new Map();
@@ -613,9 +674,11 @@ function agentsSkillsOwnership(ownedPaths, unmanaged = null, preserved = null) {
           const absolute = path.join(directory, entry.name);
           const top = topLevelName(relative);
           if (unmanaged && top !== RECEIPT_NAME && !unmanaged.isReserved(top)) {
+            const reservedName = unmanaged.isReserved.foldCollision ? unmanaged.isReserved.foldCollision(top) : null;
+            if (reservedName) return refuse('RESERVED_NAME_CASE_COLLISION', caseCollisionMessage(top, reservedName));
             const stat = lstatOrNull(absolute);
             if (!stat || stat.isSymbolicLink()) {
-              return refuse('UNMANAGED_SYMLINK', `unmanaged entry holds a symlink: ${relative}`);
+              return refuse(UNMANAGED_SYMLINK_CODE, unmanagedSymlinkMessage(relative));
             }
             if (stat.isDirectory()) {
               const nested = walk(absolute, relative);
@@ -723,7 +786,7 @@ function materializeAgentsSkillsProjection(options = {}) {
   if (usesRelocatableProjection(options)) return materializeRelocatableAgentsSkillsProjection(options);
   // In-checkout build-time tree: planned outputs published as one tree through
   // ProjectionArtifactStore, gated by a receipt-based ownership verifier.
-  const { root, inventory, outDir = path.join(root, '.agents', 'skills'), allowCanonicalChanges = false } = options;
+  const { root, inventory, outDir = path.join(root, '.agents', 'skills'), allowCanonicalChanges = false, preserveUnmanaged = false } = options;
   if (!root || !inventory) throw new Error('root and inventory are required');
   const sourceRoot = path.resolve(root);
   const outputRoot = path.resolve(outDir);
@@ -838,15 +901,20 @@ function materializeAgentsSkillsProjection(options = {}) {
     ...[...currentPathSet, ...renamedPaths, ...retired.paths, ...carriedPaths].map((relative) => topLevelName(relative).replace(/\.md$/, '')),
     ...retiredLedgerNames(inventory),
   ]);
+  // Receipt-less initialization is an explicit opt-in; the default keeps the
+  // verifier's NO_OWNER_RECEIPT refusal.
+  const receiptless = !previous && preserveUnmanaged === true;
   const unmanaged = previous
     ? planUnmanagedSkillEntries(outputRoot, isReserved)
-    : { outputs: [], files: new Map(), names: [] };
+    : receiptless
+      ? planUnmanagedSkillEntries(outputRoot, isReserved, {}, { refuseReserved: true })
+      : { outputs: [], files: new Map(), names: [] };
   publishAgentsSkillsTree({
     sourceRoot,
     outputRoot,
     inventory,
     ownedPaths,
-    unmanaged: { isReserved, files: unmanaged.files },
+    unmanaged: { isReserved, files: unmanaged.files, receiptless },
     preserved,
     outputs: [...outputs, ...carriedOutputs, ...unmanaged.outputs, { path: RECEIPT_NAME, content: receiptContent, mode: 0o644, source: 'skills' }],
   });
@@ -894,6 +962,10 @@ function validateAgentsSkillsProjection(options = {}) {
       ...receipt.managedPaths.map((relative) => topLevelName(relative).replace(/\.md$/, '')),
       ...retiredLedgerNames(inventory),
     ]);
+    for (const entry of readDirectoryEntries(outputRoot, { budget: createTraversalBudget(), sort: true })) {
+      const reservedName = entry.name === RECEIPT_NAME ? null : isReserved.foldCollision(entry.name);
+      if (reservedName) errors.push(caseCollisionMessage(entry.name, reservedName));
+    }
     const actualPaths = new Set(reservedOutputFiles(outputRoot, isReserved));
     for (const relative of expectedPaths) {
       if (!actualPaths.has(relative)) errors.push(`managed projection file is missing: ${relative}`);

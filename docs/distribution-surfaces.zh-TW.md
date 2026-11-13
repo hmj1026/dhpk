@@ -109,7 +109,9 @@ policy 的 SSOT。Adapter 只能產生 consumer-native bytes 與觀察結果，�
 entry、寫檔、重新擁有 artifact 或提升支援等級。`ProjectionArtifactStore` 是 managed
 projection tree 的唯一 writer；staging 或驗證失敗時，上一份 accepted artifact 必須
 保持不變。Rollback 應透過同一個 CLI/store 路徑恢復上一份 accepted artifact，不要直接
-編輯 generated tree 或改動 canonical source。
+編輯 generated tree 或改動 canonical source。Store 的保證止於 activation verification：驗證後、
+移除前一份 tree 的 backup 之前，寫入既有 tree 的內容不會被偵測，且可能隨 backup 一併遺失；store
+對外部寫入者沒有 lock。Sync 執行期間請勿編輯 projection。
 
 Symlink policy 是 closed、fail-closed vocabulary：`forbid`、`contained-relative`、
 `declared-source-relative`。預設是 `forbid`；contained link 必須留在 artifact owner

@@ -255,6 +255,77 @@ test('an unmanaged top-level symlink or nested symlink is refused and its target
   }
 });
 
+function lstatSnapshot(directory) {
+  const rows = [];
+  const walk = (current, prefix) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isSymbolicLink()) rows.push([relative, 'symlink', fs.readlinkSync(full)]);
+      else if (entry.isDirectory()) walk(full, relative);
+      else rows.push([relative, 'file', crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex')]);
+    }
+  };
+  walk(directory, '');
+  return rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+}
+
+test('a refused unmanaged symlink names its path and scope, keeps a stable code, and gives recovery guidance', () => {
+  const cases = {
+    'top-level directory symlink': {
+      seed: (outDir, target) => fs.symlinkSync(path.dirname(target), path.join(outDir, 'linked-dir')),
+      relative: 'linked-dir',
+      scope: /top-level entry/i,
+    },
+    'top-level file symlink': {
+      seed: (outDir, target) => fs.symlinkSync(target, path.join(outDir, 'linked.md')),
+      relative: 'linked.md',
+      scope: /top-level entry/i,
+    },
+    'nested symlink': {
+      seed: (outDir, target) => {
+        write(path.join(outDir, 'third', 'ok.md'), '# ok\n');
+        fs.symlinkSync(target, path.join(outDir, 'third', 'link.md'));
+      },
+      relative: 'third/link.md',
+      scope: /nested path/i,
+    },
+  };
+  for (const [label, spec] of Object.entries(cases)) {
+    const root = makeRoot();
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-store-outside-'));
+    try {
+      const outDir = path.join(root, '.agents', 'skills');
+      materialize(root, outDir);
+      const target = path.join(outside, 'target.md');
+      write(target, '# outside\n');
+      spec.seed(outDir, target);
+      const before = lstatSnapshot(outDir);
+      const receiptBefore = fs.readFileSync(path.join(outDir, RECEIPT_NAME));
+      let failure = null;
+      try {
+        materialize(root, outDir);
+      } catch (error) {
+        failure = error;
+      }
+      assert.ok(failure, `${label}: refused`);
+      assert.match(failure.message, /UNMANAGED_SYMLINK/, `${label}: stable code`);
+      assert.ok(failure.message.includes(spec.relative), `${label}: relative path`);
+      assert.match(failure.message, spec.scope, `${label}: scope`);
+      assert.match(failure.message, /real directory copy/i, `${label}: copy guidance`);
+      assert.match(failure.message, /outside `?\.agents\/skills`?/i, `${label}: move-outside guidance`);
+      assert.match(failure.message, /restore/i, `${label}: restore guidance`);
+      assert.doesNotMatch(failure.message, /dereference|delete it automatically|--force/i, `${label}: no automatic fix`);
+      assert.deepStrictEqual(lstatSnapshot(outDir), before, `${label}: tree unchanged`);
+      assert.ok(fs.readFileSync(path.join(outDir, RECEIPT_NAME)).equals(receiptBefore), `${label}: receipt unchanged`);
+      assert.strictEqual(fs.readFileSync(target, 'utf8'), '# outside\n', `${label}: target untouched`);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  }
+});
+
 test('an unmanaged entry with an unsafe name is refused before staging', () => {
   const root = makeRoot();
   try {
@@ -513,6 +584,358 @@ test('the activation verifier refuses preserved content that was modified, re-mo
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// #1353: reserved names are compared after NFC + locale-independent lowercase,
+// on every Host. Synthetic evidence on a case-sensitive filesystem.
+// ---------------------------------------------------------------------------
+
+function refuseCaseCollision(setup, run, pattern, label) {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    const context = setup(root, outDir) || {};
+    seedForeign(outDir);
+    const before = tree(outDir);
+    assert.throws(() => run(root, outDir, context), pattern, label);
+    assert.deepStrictEqual(tree(outDir), before, `${label}: tree and receipt unchanged`);
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills'], `${label}: no stage remains`);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+const renamedInventory = () => ({
+  schema: INVENTORY.schema,
+  skills: [{ id: 'sample', name: 'sample-renamed', path: 'skills/sample-renamed', lifecycle: 'promoted', surfaces: ['agent-plugin'] }],
+  surface_membership: { 'agent-plugin': ['sample'] },
+  renamed_skill_names: [{ id: 'sample', oldName: 'dhpk-sample', oldPath: 'skills/dhpk-sample', newName: 'sample-renamed', newPath: 'skills/sample-renamed' }],
+});
+
+function renameSampleSource(root) {
+  fs.renameSync(path.join(root, 'skills/dhpk-sample'), path.join(root, 'skills/sample-renamed'));
+  const sourceSkill = path.join(root, 'skills/sample-renamed/SKILL.md');
+  fs.writeFileSync(sourceSkill, fs.readFileSync(sourceSkill, 'utf8').replace('name: dhpk-sample', 'name: sample-renamed'));
+}
+
+test('a case-variant directory of a selected skill is refused naming both names, tree and receipt unchanged', () => {
+  refuseCaseCollision(
+    (root, outDir) => { materialize(root, outDir); write(path.join(outDir, 'Dhpk-Sample', 'SKILL.md'), '# user\n'); },
+    (root, outDir) => materialize(root, outDir),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Sample"[^]*"dhpk-sample"/,
+    'selected directory',
+  );
+});
+
+test('a case-variant shim file of a selected skill is refused, including an upper-case .MD suffix', () => {
+  for (const name of ['Dhpk-Sample.md', 'DHPK-SAMPLE.MD']) {
+    refuseCaseCollision(
+      (root, outDir) => { materialize(root, outDir); write(path.join(outDir, name), '# user\n'); },
+      (root, outDir) => materialize(root, outDir),
+      new RegExp(`OWNERSHIP_REFUSED[^]*"${name}"[^]*"dhpk-sample"`),
+      name,
+    );
+  }
+});
+
+test('a case-variant directory of a carried skill is refused', () => {
+  refuseCaseCollision(
+    (root, outDir) => {
+      addExtraSkill(root);
+      materializeAgentsSkillsProjection({ root, inventory: secondSkillInventory(), outDir });
+      write(path.join(outDir, 'Dhpk-Extra', 'SKILL.md'), '# user\n');
+    },
+    (root, outDir) => materialize(root, outDir),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Extra"[^]*"dhpk-extra"/,
+    'carried',
+  );
+});
+
+test('a case-variant entry at a renamed-from name is refused', () => {
+  refuseCaseCollision(
+    (root, outDir) => { materialize(root, outDir); renameSampleSource(root); write(path.join(outDir, 'Dhpk-Sample', 'third.md'), '# user\n'); },
+    (root, outDir) => materializeAgentsSkillsProjection({ root, inventory: renamedInventory(), outDir, allowCanonicalChanges: true }),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Sample"[^]*"dhpk-sample"/,
+    'renamed-from',
+  );
+});
+
+test('a case-variant entry at a retired name is refused', () => {
+  const inventory = { ...INVENTORY, retired_skills: [{ id: 'old', name: 'dhpk-old', canonicalPath: 'skills/dhpk-old' }] };
+  refuseCaseCollision(
+    (root, outDir) => { materialize(root, outDir); write(path.join(outDir, 'Dhpk-Old.md'), '# user\n'); },
+    (root, outDir) => materializeAgentsSkillsProjection({ root, inventory, outDir }),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Old.md"[^]*"dhpk-old"/,
+    'retired',
+  );
+});
+
+test('a file that differs only by case from a reserved directory, and the reverse, is refused', () => {
+  // Reserved directory dhpk-sample/ against a file Dhpk-Sample.md (case-only file/directory conflict).
+  refuseCaseCollision(
+    (root, outDir) => { materialize(root, outDir); write(path.join(outDir, 'Dhpk-Sample.md'), '# user\n'); },
+    (root, outDir) => materialize(root, outDir),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Sample.md"[^]*"dhpk-sample"/,
+    'file vs reserved directory',
+  );
+  // Reserved shim file dhpk-extra.md against a directory Dhpk-Extra/.
+  refuseCaseCollision(
+    (root, outDir) => { addExtraSkill(root); materializeAgentsSkillsProjection({ root, inventory: secondSkillInventory(), outDir }); write(path.join(outDir, 'Dhpk-Extra', 'a.md'), '# user\n'); },
+    (root, outDir) => materializeAgentsSkillsProjection({ root, inventory: secondSkillInventory(), outDir }),
+    /OWNERSHIP_REFUSED[^]*"Dhpk-Extra"[^]*"dhpk-extra"/,
+    'directory vs reserved shim file',
+  );
+});
+
+test('the fold is NFC then locale-independent lowercase, applied to both sides', () => {
+  const composed = 'café';
+  const decomposed = 'café';
+  const isReserved = reservedNamePredicate([composed]);
+  assert.strictEqual(isReserved.foldCollision(decomposed.toUpperCase()), composed);
+  assert.strictEqual(isReserved.foldCollision(`${decomposed}.MD`), composed);
+  assert.strictEqual(isReserved.foldCollision(composed), null, 'exact-case match is not a fold collision');
+  assert.strictEqual(isReserved.foldCollision('cafeteria'), null);
+  // Locale-independent: a Turkish dotted capital I folds the same way everywhere.
+  assert.strictEqual(reservedNamePredicate(['i-skill']).foldCollision('I-SKILL'), 'i-skill');
+});
+
+test('exact-case unmanaged entries and non-colliding case variants keep their behavior', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    seedForeign(outDir);
+    write(path.join(outDir, 'Unrelated-Skill', 'SKILL.md'), '# user\n');
+    const result = materialize(root, outDir);
+    assert.deepStrictEqual(result.preservedUnmanaged, ['Unrelated-Skill', 'gitnexus-cli', 'notes.md']);
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir }).ok, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the activation verifier refuses a case-variant reserved entry that appears after planning', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, RECEIPT_NAME), 'utf8'));
+    const owned = new Set([...receipt.managedPaths, RECEIPT_NAME]);
+    const isReserved = reservedNamePredicate(['dhpk-sample']);
+    const verify = () => agentsSkillsOwnership(owned, { isReserved, files: new Map() }).verify(outDir);
+    assert.strictEqual(verify().ok, true);
+    write(path.join(outDir, 'DHPK-SAMPLE', 'x.md'), '# late\n');
+    const refused = verify();
+    assert.strictEqual(refused.ok, false);
+    assert.match(refused.message, /"DHPK-SAMPLE"[^]*"dhpk-sample"/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('validation reports a case-variant entry at a reserved name', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    write(path.join(outDir, 'Dhpk-Sample.md'), '# user\n');
+    const result = validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir });
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((error) => /"Dhpk-Sample\.md"[^]*"dhpk-sample"/.test(error)), result.errors.join('; '));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// #1344: --preserve-unmanaged initializes a receipt-less tree beside foreign entries.
+// ---------------------------------------------------------------------------
+
+function init(root, outDir, extra = {}) {
+  return materializeAgentsSkillsProjection({ root, inventory: INVENTORY, outDir, ...extra });
+}
+
+function snapshot(outDir) {
+  return { rows: tree(outDir), names: fs.readdirSync(outDir, { recursive: true }).sort() };
+}
+
+test('default receipt-less sync still refuses NO_OWNER_RECEIPT and names --preserve-unmanaged', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    seedForeign(outDir);
+    const before = snapshot(outDir);
+    assert.throws(() => init(root, outDir), /OWNERSHIP_REFUSED[^]*NO_OWNER_RECEIPT|NO_OWNER_RECEIPT|no \.dhpk-projection\.json receipt/);
+    assert.throws(() => init(root, outDir), /--preserve-unmanaged/);
+    assert.throws(() => init(root, outDir, { preserveUnmanaged: false }), /--preserve-unmanaged/);
+    assert.deepStrictEqual(snapshot(outDir), before);
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('preserveUnmanaged initializes a receipt-less tree, keeps foreign bytes and modes, and never owns them', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    seedForeign(outDir);
+    fs.mkdirSync(path.join(outDir, 'empty-dir'));
+    const foreignBefore = rowsFor(outDir, FOREIGN_PATHS);
+    assert.strictEqual(foreignBefore.length, 3);
+    const result = init(root, outDir, { preserveUnmanaged: true });
+    assert.deepStrictEqual(result.preservedUnmanaged, ['gitnexus-cli', 'notes.md']);
+    assert.deepStrictEqual(rowsFor(outDir, FOREIGN_PATHS), foreignBefore);
+    assert.strictEqual(fs.existsSync(path.join(outDir, 'empty-dir')), false, 'empty unmanaged directories are not carried');
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, RECEIPT_NAME), 'utf8'));
+    const owned = JSON.stringify([receipt.managedPaths, Object.keys(receipt.generatedFingerprints), receipt.entries]);
+    for (const foreign of [...FOREIGN_PATHS, 'gitnexus-cli', 'notes']) assert.ok(!owned.includes(foreign), `${foreign} must stay unowned`);
+    assert.deepStrictEqual(rowsFor(outDir, GOLDEN.map((row) => row[0])), sortedRows(GOLDEN.map((row) => [...row])));
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir }).ok, true);
+    assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills']);
+
+    const second = materialize(root, outDir);
+    assert.deepStrictEqual(second.preservedUnmanaged, ['gitnexus-cli', 'notes.md']);
+    assert.deepStrictEqual(rowsFor(outDir, FOREIGN_PATHS), foreignBefore);
+    assert.strictEqual(validateAgentsSkillsProjection({ root, inventory: INVENTORY, outDir }).ok, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('preserveUnmanaged on an empty or absent output root behaves like a plain first sync', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    const result = init(root, outDir, { preserveUnmanaged: true });
+    assert.deepStrictEqual(result.preservedUnmanaged, []);
+    assert.deepStrictEqual(tree(outDir), GOLDEN.map((row) => [...row]));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('preserveUnmanaged is a no-op when a valid receipt exists', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    materialize(root, outDir);
+    seedForeign(outDir);
+    const foreignBefore = rowsFor(outDir, FOREIGN_PATHS);
+    const result = init(root, outDir, { preserveUnmanaged: true });
+    assert.deepStrictEqual(result.preservedUnmanaged, ['gitnexus-cli', 'notes.md']);
+    assert.deepStrictEqual(rowsFor(outDir, FOREIGN_PATHS), foreignBefore);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('preserveUnmanaged still refuses reserved, case-equivalent, and prefix-conflicting entries with the tree unchanged', () => {
+  const cases = {
+    'exact reserved directory': (outDir) => write(path.join(outDir, 'dhpk-sample', 'SKILL.md'), '# old dhpk\n'),
+    'exact reserved shim file': (outDir) => write(path.join(outDir, 'dhpk-sample.md'), '# old shim\n'),
+    'case-equivalent directory': (outDir) => write(path.join(outDir, 'DHPK-SAMPLE', 'SKILL.md'), '# user\n'),
+    'case-equivalent shim file': (outDir) => write(path.join(outDir, 'Dhpk-Sample.md'), '# user\n'),
+    'empty reserved directory': (outDir) => fs.mkdirSync(path.join(outDir, 'dhpk-sample')),
+    'file where a reserved directory is needed': (outDir) => write(path.join(outDir, 'dhpk-sample'), 'file\n'),
+    'directory where a reserved shim file is needed': (outDir) => write(path.join(outDir, 'dhpk-sample.md', 'x.md'), 'x\n'),
+  };
+  for (const [label, seed] of Object.entries(cases)) {
+    const root = makeRoot();
+    try {
+      const outDir = path.join(root, '.agents', 'skills');
+      seedForeign(outDir);
+      seed(outDir);
+      const before = snapshot(outDir);
+      assert.throws(() => init(root, outDir, { preserveUnmanaged: true }), /OWNERSHIP_REFUSED/, label);
+      assert.deepStrictEqual(snapshot(outDir), before, label);
+      assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills'], label);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('preserveUnmanaged still refuses symlinks and non-regular files with the tree unchanged', () => {
+  const cases = {
+    'top-level directory symlink': (outDir, target) => fs.symlinkSync(path.dirname(target), path.join(outDir, 'linked-dir')),
+    'top-level file symlink': (outDir, target) => fs.symlinkSync(target, path.join(outDir, 'linked.md')),
+    'nested symlink': (outDir, target) => fs.symlinkSync(target, path.join(outDir, 'gitnexus-cli', 'link.md')),
+  };
+  for (const [label, seed] of Object.entries(cases)) {
+    const root = makeRoot();
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agents-store-outside-'));
+    try {
+      const outDir = path.join(root, '.agents', 'skills');
+      seedForeign(outDir);
+      const target = path.join(outside, 'target.md');
+      write(target, '# outside\n');
+      seed(outDir, target);
+      const before = fs.readdirSync(outDir, { recursive: true }).sort();
+      assert.throws(() => init(root, outDir, { preserveUnmanaged: true }), /symlink/i, label);
+      assert.deepStrictEqual(fs.readdirSync(outDir, { recursive: true }).sort(), before, label);
+      assert.strictEqual(fs.readFileSync(target, 'utf8'), '# outside\n', label);
+      assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills'], label);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  }
+});
+
+test('preserveUnmanaged never bypasses an existing but invalid receipt', () => {
+  const cases = {
+    'invalid JSON': (receiptPath) => fs.writeFileSync(receiptPath, '{not json'),
+    'wrong schema': (receiptPath) => fs.writeFileSync(receiptPath, '{"schema":"other"}\n'),
+    'receipt is a directory': (receiptPath) => fs.mkdirSync(receiptPath),
+    'receipt is a symlink': (receiptPath) => fs.symlinkSync(path.join(path.dirname(receiptPath), 'notes.md'), receiptPath),
+  };
+  for (const [label, seed] of Object.entries(cases)) {
+    const root = makeRoot();
+    try {
+      const outDir = path.join(root, '.agents', 'skills');
+      seedForeign(outDir);
+      seed(path.join(outDir, RECEIPT_NAME));
+      const before = fs.readdirSync(outDir, { recursive: true }).sort();
+      assert.throws(() => init(root, outDir, { preserveUnmanaged: true }), /receipt/i, label);
+      assert.deepStrictEqual(fs.readdirSync(outDir, { recursive: true }).sort(), before, label);
+      assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills'], label);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('the receipt-less activation verifier refuses drift after planning and a receipt that appears late', () => {
+  const root = makeRoot();
+  try {
+    const outDir = path.join(root, '.agents', 'skills');
+    seedForeign(outDir);
+    const isReserved = reservedNamePredicate(['dhpk-sample']);
+    const plan = planUnmanagedSkillEntries(outDir, isReserved);
+    const verify = () => agentsSkillsOwnership(new Set(), { isReserved, files: plan.files, receiptless: true }).verify(outDir);
+    assert.strictEqual(verify().ok, true);
+    // Without the receiptless authorization the missing receipt is still refused.
+    assert.strictEqual(agentsSkillsOwnership(new Set(), { isReserved, files: plan.files }).verify(outDir).code, 'NO_OWNER_RECEIPT');
+
+    fs.writeFileSync(path.join(outDir, 'notes.md'), '# changed\n');
+    assert.strictEqual(verify().ok, false, 'modified');
+    fs.writeFileSync(path.join(outDir, 'notes.md'), '# my notes\n');
+    fs.chmodSync(path.join(outDir, 'notes.md'), 0o600);
+    assert.strictEqual(verify().ok, false, 're-moded');
+    fs.chmodSync(path.join(outDir, 'notes.md'), 0o644);
+    write(path.join(outDir, 'late.md'), 'late\n');
+    assert.strictEqual(verify().ok, false, 'added');
+    fs.rmSync(path.join(outDir, 'late.md'));
+    write(path.join(outDir, 'DHPK-SAMPLE', 'x.md'), 'late\n');
+    assert.strictEqual(verify().ok, false, 'case-equivalent reserved entry appears');
+    fs.rmSync(path.join(outDir, 'DHPK-SAMPLE'), { recursive: true });
+    write(path.join(outDir, RECEIPT_NAME), '{}\n');
+    assert.strictEqual(verify().ok, false, 'a receipt that appears after planning is not silently replaced');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

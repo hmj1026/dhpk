@@ -345,8 +345,10 @@ test('gen-agents-skills CLI help aliases succeed without inventory or lifecycle 
       results.map(({ flag, result }) => `${flag}: ${result.stderr || result.stdout}`).join('\n'));
     assertCliHelpListsOptions(results, [
       '-h', '--help', '--repo-root', '--source-root', '--project-root', '--out-dir', '--profile', '--host',
-      '--update', '--adopt', '--repair', '--uninstall', '--rollback',
+      '--update', '--preserve-unmanaged', '--adopt', '--repair', '--uninstall', '--rollback',
     ]);
+    assert.ok(!/adopt[^\n]*unmanaged|ownership/i.test(results[0].result.stdout.split('\n').find((line) => line.includes('--preserve-unmanaged')) || ''),
+      'help must not imply the option acquires ownership');
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
@@ -952,6 +954,102 @@ test('gen-agents-skills --update prunes 0.66.0 consolidated skills and validatio
   } finally {
     fs.rmSync(historicalRoot, { recursive: true, force: true });
     fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+// #1344: receipt-less initialization beside third-party entries.
+function preserveUnmanagedFixture(prefix) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const inventory = retirementInventory([RETIREMENT_ACTIVE]);
+  const outDir = path.join(root, '.agents', 'skills');
+  retirementWrite(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify(inventory)}\n`);
+  retirementWrite(path.join(root, RETIREMENT_ACTIVE.path, 'SKILL.md'), ['---', `name: ${RETIREMENT_ACTIVE.name}`, "description: 'Active fixture skill.'", '---', '# Active skill', ''].join('\n'));
+  retirementWrite(path.join(outDir, 'gitnexus-cli', 'SKILL.md'), '# third-party\n');
+  retirementWrite(path.join(outDir, 'gitnexus-cli', 'scripts', 'run.sh'), '#!/bin/sh\n');
+  fs.chmodSync(path.join(outDir, 'gitnexus-cli', 'scripts', 'run.sh'), 0o755);
+  retirementWrite(path.join(outDir, 'notes.md'), '# notes\n');
+  return { root, outDir };
+}
+
+function assertPreservedInitialization(fixture, result) {
+  const { root, outDir } = fixture;
+  assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /preserved 2 unmanaged entries \(kept as-is\): gitnexus-cli, notes\.md/);
+  assert.strictEqual(fs.readFileSync(path.join(outDir, 'gitnexus-cli', 'SKILL.md'), 'utf8'), '# third-party\n');
+  assert.strictEqual(fs.statSync(path.join(outDir, 'gitnexus-cli', 'scripts', 'run.sh')).mode & 0o777, 0o755);
+  assert.strictEqual(fs.readFileSync(path.join(outDir, 'notes.md'), 'utf8'), '# notes\n');
+  assert.ok(fs.existsSync(path.join(outDir, RETIREMENT_ACTIVE.name, 'SKILL.md')));
+  assert.ok(!JSON.stringify(retirementReadReceipt(outDir)).includes('gitnexus'), 'foreign entries stay out of the receipt');
+  assert.deepStrictEqual(fs.readdirSync(path.join(root, '.agents')), ['skills']);
+}
+
+test('gen-agents-skills CLI refuses a receipt-less tree by default and names --preserve-unmanaged', () => {
+  const fixture = preserveUnmanagedFixture('dhpk-agents-skills-cli-noreceipt-');
+  try {
+    const before = fs.readdirSync(fixture.outDir, { recursive: true }).sort();
+    const result = invokeCli(GENERATOR, ['--repo-root', fixture.root, '--update'], ROOT);
+    assert.notStrictEqual(result.status, 0);
+    assert.match(result.stderr, /NO_OWNER_RECEIPT|no \.dhpk-projection\.json receipt/);
+    assert.match(result.stderr, /--preserve-unmanaged/);
+    assert.deepStrictEqual(fs.readdirSync(fixture.outDir, { recursive: true }).sort(), before);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('gen-agents-skills CLI --update --preserve-unmanaged initializes beside foreign entries and repeats', () => {
+  const fixture = preserveUnmanagedFixture('dhpk-agents-skills-cli-preserve-init-');
+  try {
+    const first = invokeCli(GENERATOR, ['--repo-root', fixture.root, '--update', '--preserve-unmanaged'], ROOT);
+    assertPreservedInitialization(fixture, first);
+    const again = invokeCli(GENERATOR, ['--repo-root', fixture.root, '--update'], ROOT);
+    assertPreservedInitialization(fixture, again);
+    const checked = invokeCli(VALIDATOR, ['--repo-root', fixture.root, '--out-dir', fixture.outDir], ROOT);
+    assert.strictEqual(checked.status, 0, `${checked.stdout}\n${checked.stderr}`);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('gen-agents-skills CLI --preserve-unmanaged still refuses a reserved-name collision and leaves the tree unchanged', () => {
+  const fixture = preserveUnmanagedFixture('dhpk-agents-skills-cli-preserve-collision-');
+  try {
+    retirementWrite(path.join(fixture.outDir, RETIREMENT_ACTIVE.name.toUpperCase(), 'SKILL.md'), '# user\n');
+    const before = fs.readdirSync(fixture.outDir, { recursive: true }).sort();
+    const result = invokeCli(GENERATOR, ['--repo-root', fixture.root, '--update', '--preserve-unmanaged'], ROOT);
+    assert.notStrictEqual(result.status, 0);
+    assert.match(result.stderr, /OWNERSHIP_REFUSED/);
+    assert.deepStrictEqual(fs.readdirSync(fixture.outDir, { recursive: true }).sort(), before);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('npm run sync:local-skills -- --preserve-unmanaged delivers the option to the generator step', () => {
+  const fixture = preserveUnmanagedFixture('dhpk-agents-skills-cli-sync-wrapper-');
+  const npm = (extra) => spawnSync('npm', ['run', '--silent', 'sync:local-skills', '--', '--repo-root', fixture.root, ...extra], { cwd: ROOT, encoding: 'utf8' });
+  try {
+    const refused = npm([]);
+    assert.notStrictEqual(refused.status, 0);
+    assert.match(refused.stderr, /--preserve-unmanaged/);
+    const result = npm(['--preserve-unmanaged']);
+    assertPreservedInitialization(fixture, result);
+    assert.match(result.stdout, /PASS \[agents-skills\]/, 'the validator step also accepts the forwarded option');
+    const plain = npm([]);
+    assertPreservedInitialization(fixture, plain);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('gen-agents-skills CLI rejects --preserve-unmanaged for a consumer projection', () => {
+  const fixture = preserveUnmanagedFixture('dhpk-agents-skills-cli-preserve-consumer-');
+  try {
+    const result = invokeCli(GENERATOR, ['--repo-root', fixture.root, '--project-root', fixture.root, '--preserve-unmanaged'], ROOT);
+    assert.notStrictEqual(result.status, 0);
+    assert.match(result.stderr, /--preserve-unmanaged[^]*(in-checkout|project-root)/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 

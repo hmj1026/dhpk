@@ -131,7 +131,11 @@ they cannot select extra entries, write files, re-own an artifact, or promote a
 support tier. `ProjectionArtifactStore` is the sole writer for managed
 projection trees. A failed staged write or validation leaves the previously
 accepted artifact untouched; rollback uses the same CLI/store path rather than
-editing generated files or canonical sources in place.
+editing generated files or canonical sources in place. The store's guarantees end
+at activation verification: writes into the existing tree after verification and
+before the previous-tree backup is removed are not detected and may be lost, and
+there is no lock against external writers. Do not edit a projection while a sync
+runs.
 
 Symlink policy is closed and fail-closed: `forbid`, `contained-relative`, or
 `declared-source-relative`. The default is `forbid`; a contained link must stay

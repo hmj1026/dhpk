@@ -12,6 +12,7 @@ function usage() {
     '  --source-root <dir>   Override the canonical source root',
     '  --project-root <dir>  Consumer project whose projection is validated',
     '  --out-dir <dir>       Projection directory (also accepted positionally)',
+    '  --preserve-unmanaged  Accepted and ignored so sync:local-skills can forward it to the generator',
     '  -h, --help            Show this help without reading the inventory',
   ].join('\n');
 }
@@ -30,6 +31,7 @@ function parseArgs(argv) {
     else if (arg === '--source-root') args.sourceRoot = argv[++index];
     else if (arg === '--project-root') args.projectRoot = argv[++index];
     else if (arg === '--out-dir') args.outDir = argv[++index];
+    else if (arg === '--preserve-unmanaged') continue;
     else if (!arg.startsWith('--') && !args.outDir) args.outDir = arg;
     else throw new Error(`unknown argument: ${arg}`);
   }
