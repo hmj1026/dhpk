@@ -243,4 +243,156 @@ test('a redirect between git options still exposes a later --no-verify', () => {
   assert.strictEqual(got.no_verify, '1');
 });
 
+// #1392: heredoc bodies, ${...}, command substitution, subshells and
+// reserved words. Oracles were checked against bash 5.2.
+function gitRecords(command, cwd = '/session') {
+  const res = spawnSync('bash', ['-c', `
+    set -u
+    # shellcheck disable=SC1090
+    . "$DHPK_CI_LIB"
+    dhpk_inspect_command "$DHPK_CI_CMD" "$DHPK_CI_CWD"
+    printf 'unsupported\\037%s\\036' "\${DHPK_UNSUPPORTED-unset}"
+    i=0
+    while [ "$i" -lt "$DHPK_GIT_COUNT" ]; do
+      printf 'git\\037%s\\037%s\\037%s\\037%s\\036' "\${DHPK_GIT_SUB[$i]}" "\${DHPK_GIT_REPO_STATE[$i]}" "\${DHPK_GIT_REPO[$i]}" "\${DHPK_GIT_NO_VERIFY[$i]}"
+      i=$((i + 1))
+    done
+  `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB, DHPK_CI_CMD: command, DHPK_CI_CWD: cwd } });
+  assert.strictEqual(res.status, 0, res.stderr || res.stdout);
+  const out = { records: [], unsupported: '' };
+  for (const rec of res.stdout.split('\x1e')) {
+    if (!rec) continue;
+    const [kind, ...rest] = rec.split('\x1f');
+    if (kind === 'unsupported') out.unsupported = rest[0];
+    else out.records.push({ sub: rest[0], state: rest[1], repo: rest[2], noVerify: rest[3] });
+  }
+  return out;
+}
+
+const NV_COMMIT = ['git', 'commit', '--no-verify', '-m', 'x'];
+
+test('a heredoc body is data: its quotes do not hide the commands after the delimiter', () => {
+  const cases = [
+    "cat <<EOF\nit's\nEOF\ngit commit --no-verify -m x\n",
+    "cat <<'EOF'\nit's\nEOF\ngit commit --no-verify -m x",
+    'cat <<"EOF"\nit\'s\nEOF\ngit commit --no-verify -m x',
+    "cat <<\\EOF\nit's\nEOF\ngit commit --no-verify -m x",
+    "cat <<E\"O\"F\nit's\nEOF\ngit commit --no-verify -m x",
+    "cat <<-EOF\n\tit's\n\tEOF\ngit commit --no-verify -m x",
+    "cat<<EOF # it's\nit's\nEOF\ngit commit --no-verify -m x",
+    "cat <<A <<B\nit's\nA\n\"\nB\ngit commit --no-verify -m x",
+  ];
+  for (const command of cases) {
+    assert.deepStrictEqual(decoded(command).cmds, [['cat'], NV_COMMIT], JSON.stringify(command));
+  }
+});
+
+test('an unquoted delimiter line ends the body only after backslash-newline joining', () => {
+  // bash 5.2: the body is "xEOF\nit's\n", so only the last line runs.
+  const got = decoded("cat <<EOF\nx\\\nEOF\nit's\nEOF\ngit commit --no-verify -m x");
+  assert.deepStrictEqual(got.cmds, [['cat'], NV_COMMIT]);
+  // A quoted delimiter keeps the backslash, so the first EOF line ends it.
+  assert.deepStrictEqual(decoded("cat <<'EOF'\nx\\\nEOF\ngit commit --no-verify -m x").cmds, [['cat'], NV_COMMIT]);
+});
+
+test('a heredoc body fed to a command other than cat, tee or git is inspected on its own', () => {
+  assert.deepStrictEqual(decoded("bash <<'EOF'\ngit commit --no-verify -m x\nEOF").cmds, [['bash'], NV_COMMIT]);
+  assert.strictEqual(gitRecords("cat <<'EOF' | sh\ngit commit --no-verify -m x\nEOF").records[0].noVerify, '1');
+  // Its quotes still cannot leak out of the body.
+  assert.deepStrictEqual(decoded("sh <<'EOF'\nit's\nEOF\ngit commit --no-verify -m x").cmds.slice(-1), [NV_COMMIT]);
+});
+
+test('substitutions in an unquoted cat heredoc body are inspected, a quoted body is not', () => {
+  assert.strictEqual(gitRecords("cat <<EOF\nit's $(git commit --no-verify -m x)\nEOF").records[0].noVerify, '1');
+  assert.strictEqual(gitRecords("cat <<EOF\nit's `git commit --no-verify -m x`\nEOF").records[0].noVerify, '1');
+  assert.deepStrictEqual(gitRecords("cat <<'EOF'\n$(git commit --no-verify -m x) `rm -rf /etc`\nEOF").records, []);
+});
+
+test('a multi-line commit message written with a heredoc stays one commit argv', () => {
+  const command = "git commit -m \"$(cat <<'EOF'\nfix: it's done\n\nNever run `git commit --no-verify` (or \"$x\").\nEOF\n)\"";
+  const got = gitRecords(command);
+  assert.deepStrictEqual(got.records, [{ sub: 'commit', state: 'cwd', repo: '/session', noVerify: '0' }]);
+  assert.strictEqual(got.unsupported, '');
+});
+
+test('a here-string is one data word and never starts a heredoc', () => {
+  assert.deepStrictEqual(decoded("cat <<< \"it's\" ; git commit --no-verify -m x").cmds, [['cat'], NV_COMMIT]);
+  assert.deepStrictEqual(decoded('cat<<<EOF\ngit commit --no-verify -m x').cmds, [['cat'], NV_COMMIT]);
+  assert.deepStrictEqual(decoded('tee ".env" <<< x').cmds, [['tee', '.env']]);
+});
+
+test('${...} is one unit: nested quotes, > and << inside it are data', () => {
+  assert.deepStrictEqual(decoded('echo "${x:-"\'"}" ; git commit --no-verify -m x #\'').cmds.slice(1), [NV_COMMIT]);
+  assert.deepStrictEqual(decoded("echo ${x:-'}'} ; git commit --no-verify -m x #'").cmds.slice(1), [NV_COMMIT]);
+  const redirect = decoded('echo ${x#>} y');
+  assert.deepStrictEqual(redirect.cmds, [['echo', '${x#>}', 'y']]);
+  assert.deepStrictEqual(redirect.redirects, []);
+  assert.deepStrictEqual(decoded('echo ${x:-<<2}\ngit commit --no-verify -m x').cmds, [['echo', '${x:-<<2}'], NV_COMMIT]);
+});
+
+test('commands inside $(...), backticks and process substitution are inspected', () => {
+  for (const command of [
+    'echo $(git commit --no-verify -m x)',
+    'echo "$(git commit --no-verify -m x)"',
+    'echo `git commit --no-verify -m x`',
+    'echo "`git commit --no-verify -m x`"',
+    'echo $(echo $(git commit --no-verify -m x))',
+    'echo "${x:-$(git commit --no-verify -m x)}"',
+    'cat <(git commit --no-verify -m x)',
+    'echo `echo \\`git commit --no-verify -m x\\``',
+  ]) {
+    const got = gitRecords(command);
+    assert.deepStrictEqual(got.records.map((r) => r.noVerify), ['1'], command);
+  }
+  assert.deepStrictEqual(decoded('echo $(echo x > .env)').redirects, ['.env']);
+});
+
+test('a ) inside quotes in $(...) does not end it', () => {
+  const got = decoded('echo "$(echo ")")" ; git commit --no-verify -m x #"');
+  assert.deepStrictEqual(got.cmds.slice(-1), [NV_COMMIT]);
+});
+
+test('arithmetic << is a shift, not a heredoc', () => {
+  for (const command of ['echo $((1<<2))\ngit commit --no-verify -m x', '((x<<2))\ngit commit --no-verify -m x']) {
+    assert.deepStrictEqual(decoded(command).cmds.slice(-1), [NV_COMMIT], command);
+  }
+});
+
+test('( and ) separate commands, so a # after ( starts a comment', () => {
+  assert.deepStrictEqual(decoded("(#'\ngit commit --no-verify -m x\n) #'").cmds, [NV_COMMIT]);
+  assert.deepStrictEqual(decoded('(git commit --no-verify -m x)').cmds, [NV_COMMIT]);
+  assert.deepStrictEqual(decoded('(rm -rf /etc)').cmds, [['rm', '-rf', '/etc']]);
+});
+
+test('a cd inside a subshell resolves its own commands but leaves later ones unresolved', () => {
+  assert.strictEqual(gitRecords('(cd /other && git commit -m x)').records[0].repo, '/other');
+  assert.strictEqual(gitRecords('(cd /other) ; git commit -m x').records[0].state, 'unresolved');
+  assert.strictEqual(gitRecords('echo $(cd /other) ; git commit -m x').records[0].repo, '/session');
+});
+
+test('reserved words before git do not hide it', () => {
+  for (const command of [
+    '{ git commit --no-verify -m x; }',
+    'if true; then git commit --no-verify -m x; fi',
+    '! git commit --no-verify -m x',
+    'time git commit --no-verify -m x',
+    'while false; do git commit --no-verify -m x; done',
+  ]) {
+    assert.deepStrictEqual(gitRecords(command).records.map((r) => r.noVerify), ['1'], command);
+  }
+  assert.strictEqual(gitRecords('{ cd /other; } && git commit -m x').records[0].repo, '/other');
+});
+
+test('syntax the decoder cannot place is reported as unsupported', () => {
+  assert.strictEqual(gitRecords('git status').unsupported, '');
+  for (const command of [
+    'x=$(case a in a) echo ;; esac)',
+    'x=$(cat <<EOF\nhi\nEOF)\ngit commit --no-verify -m x',
+    'echo $(( $(git commit --no-verify -m x) ))',
+    "cat <<$'EOF'\nx\nEOF",
+  ]) {
+    assert.notStrictEqual(gitRecords(command).unsupported, '', command);
+  }
+});
+
 run('command-inspect');
