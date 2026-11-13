@@ -94,6 +94,9 @@ edit_guard_in_scratchpad() {
 # Matching is case-insensitive (default macOS and Windows filesystems), and a
 # bare .git is blocked too: in a linked worktree or submodule it is a gitlink
 # file that redirects git internals.
+# Windows treats '.env ', '.env.' and '.env::$DATA' (trailing spaces or dots,
+# an NTFS stream suffix) as .env itself, and '.git::$INDEX_ALLOCATION' as
+# .git, so those spellings are blocked too.
 # Exception: .env.example / .env.sample / .env.dist / .env.template are
 # version-controlled templates carrying NO secrets — allow editing them.
 # (POSIX ERE has no negative lookahead, so carve the exception explicitly.)
@@ -103,7 +106,7 @@ if edit_guard_in_scratchpad "$norm_path"; then
     :  # allow Claude session scratchpads, including temporary .env files
 elif printf '%s\n' "$norm_path" | grep -Eiq '(^|/)\.env\.(example|sample|dist|template)$'; then
     :  # allow version-controlled env templates
-elif printf '%s\n%s\n' "$norm_path" "$file_path" | grep -Eiq '(^|/)\.env(\..*)?$|(^|/)\.git(/|$)'; then
+elif printf '%s\n%s\n' "$norm_path" "$file_path" | grep -Eiq '(^|/)\.env([.: ].*)?$|(^|/)\.git[. ]*(:[^/]*)?(/|$)'; then
     echo "[edit-guard] blocked sensitive file: $file_path" >&2
     exit 2
 fi

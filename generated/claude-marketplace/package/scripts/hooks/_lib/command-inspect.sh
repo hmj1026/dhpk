@@ -21,13 +21,39 @@
 #   applied in order; a relative -C starts from the directory already chosen.
 #   A value of a known option (such as -m or --message) is not a flag.
 #   A path containing '$', a backtick, '~', or a glob is unresolved. --git-dir,
-#   --work-tree, an unknown global option, a subshell, or 'cd' in the same
-#   pipeline also leaves the repository unresolved. Unresolved does not fall
-#   back to the session checkout.
+#   --work-tree, an unknown global option, or 'cd' in the same pipeline also
+#   leaves the repository unresolved. Unresolved does not fall back to the
+#   session checkout. Reserved words (such as {, if, then, !, time) before
+#   the command word are skipped.
+#
+#   Nested syntax (#1392):
+#   - '(' and ')' are operators. A cd inside a subshell applies to the
+#     subshell; after its ')' the directory is unresolved. '((' is
+#     arithmetic when it closes with '))'.
+#   - $(...), <(...), >(...) and backtick bodies are inspected as their own
+#     command lists. Their raw text stays in the outer word, which is
+#     dynamic. ${...}, $((...)) and $[...] are single units, so quotes, '>'
+#     and '<<' inside them are not redirects or heredocs.
+#   - A heredoc body (<<WORD, <<-WORD, quoted delimiters) is skipped up to
+#     its delimiter line and never changes quote state. For cat and tee it
+#     is data, and only the substitutions of an unquoted body are inspected;
+#     any other body, or a cat body whose output can run as a command
+#     (pipe, process substitution, FIFO, command position, eval or a shell),
+#     is inspected as its own command list. A <<< word is stdin data.
+#   - Syntax the decoder cannot place faithfully sets DHPK_UNSUPPORTED (for
+#     example a case statement inside $(...)), and the hooks block it.
 
 # dhpk_norm_path <base> <rel>
 #   Lexical join. Does not touch the filesystem.
 dhpk_norm_path() {
+    dhpk_norm_path_var "$1" "$2"
+    printf '%s' "$DHPK_NORM_PATH"
+    return 0
+}
+
+# dhpk_norm_path_var <base> <rel>
+#   dhpk_norm_path without a subshell: sets DHPK_NORM_PATH.
+dhpk_norm_path_var() {
     local base="$1" rel="$2" path part out=""
     case "$rel" in
         /*) path="$rel" ;;
@@ -51,7 +77,7 @@ dhpk_norm_path() {
         esac
     done
     [ -n "$out" ] || out="/"
-    printf '%s' "$out"
+    DHPK_NORM_PATH="$out"
     return 0
 }
 
@@ -67,7 +93,17 @@ _dhpk_ci_flush_word() {
         if [ "$_dhpk_ci_redir" -eq 1 ]; then
             DHPK_REDIRECT_TARGETS+=("$_dhpk_ci_word")
             _dhpk_ci_redir=0
+        elif [ "$_dhpk_ci_redir" -eq 2 ]; then
+            # A here-string word is stdin data, not argv.
+            _dhpk_ci_redir=0
         else
+            # A case pattern's ')' would end $(...) early and desync quotes.
+            if [ "$_dhpk_ci_kind" = "subst" ] && [ "$_dhpk_ci_word" = "case" ]; then
+                _dhpk_ci_head_index
+                if [ "$_dhpk_ci_head" -eq "${#_dhpk_ci_words[@]}" ]; then
+                    _dhpk_ci_unsupported "case statement inside a command substitution"
+                fi
+            fi
             _dhpk_ci_words+=("$_dhpk_ci_word")
             _dhpk_ci_dyn+=("$_dhpk_ci_word_dyn")
         fi
@@ -121,13 +157,8 @@ _dhpk_ci_commit_short_no_verify() {
 _dhpk_ci_record_git() {
     local i=0 n="${#_dhpk_ci_words[@]}" sub="" state="cwd" repo="$_dhpk_ci_cwd" c_path="" c_base="" no_verify=0 exempt=0
     local word dyn
-    while [ "$i" -lt "$n" ]; do
-        word="${_dhpk_ci_words[$i]}"
-        case "$word" in
-            *=*) i=$((i + 1)) ;;
-            *) break ;;
-        esac
-    done
+    _dhpk_ci_head_index
+    i="$_dhpk_ci_head"
     [ "$i" -lt "$n" ] || return 0
     word="${_dhpk_ci_words[$i]}"
     if [ "$word" = "command" ]; then
@@ -156,7 +187,8 @@ _dhpk_ci_record_git() {
                     state="unresolved"
                 else
                     [ -n "$c_base" ] || c_base="$_dhpk_ci_cwd"
-                    c_base="$(dhpk_norm_path "$c_base" "${_dhpk_ci_words[$i]}")"
+                    dhpk_norm_path_var "$c_base" "${_dhpk_ci_words[$i]}"
+                    c_base="$DHPK_NORM_PATH"
                     c_path="$c_base"
                 fi
                 i=$((i + 1))
@@ -166,7 +198,8 @@ _dhpk_ci_record_git() {
                     state="unresolved"
                 else
                     [ -n "$c_base" ] || c_base="$_dhpk_ci_cwd"
-                    c_base="$(dhpk_norm_path "$c_base" "${word#-C}")"
+                    dhpk_norm_path_var "$c_base" "${word#-C}"
+                    c_base="$DHPK_NORM_PATH"
                     c_path="$c_base"
                 fi
                 i=$((i + 1))
@@ -211,7 +244,8 @@ _dhpk_ci_record_git() {
         state="unresolved"
     fi
     if [ "$state" != "unresolved" ] && [ -n "$c_path" ]; then
-        repo="$(dhpk_norm_path "$_dhpk_ci_cwd" "$c_path")"
+        dhpk_norm_path_var "$_dhpk_ci_cwd" "$c_path"
+        repo="$DHPK_NORM_PATH"
         state="literal"
     elif [ "$state" != "unresolved" ]; then
         repo="$_dhpk_ci_cwd"
@@ -228,27 +262,76 @@ _dhpk_ci_record_git() {
     DHPK_GIT_COUNT=$((DHPK_GIT_COUNT + 1))
 }
 
+# _dhpk_ci_head_index
+#   Sets _dhpk_ci_head to the index of the command word in _dhpk_ci_words,
+#   after reserved words (such as {, if, then, !, time -p) and VAR=value
+#   assignments. Equals the word count when there is no command word.
+_dhpk_ci_head_index() {
+    local h=0 n="${#_dhpk_ci_words[@]}"
+    while [ "$h" -lt "$n" ]; do
+        case "${_dhpk_ci_words[$h]}" in
+            '!'|'{'|if|then|else|elif|do|while|until|coproc) ;;
+            time)
+                [ "${_dhpk_ci_words[$((h + 1))]:-}" = "-p" ] && h=$((h + 1))
+                ;;
+            *=*) ;;
+            *) break ;;
+        esac
+        h=$((h + 1))
+    done
+    _dhpk_ci_head="$h"
+}
+
 _dhpk_ci_flush_command() {
-    local sep="$1"
+    local sep="$1" n h head
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
-    if [ "${#_dhpk_ci_words[@]}" -gt 0 ]; then
-        local head="${_dhpk_ci_words[0]}"
+    n="${#_dhpk_ci_words[@]}"
+    head=""
+    if [ "$n" -gt 0 ]; then
+        _dhpk_ci_head_index
+        h="$_dhpk_ci_head"
+        [ "$h" -lt "$n" ] && head="${_dhpk_ci_words[$h]}"
         DHPK_CMD_START+=("${#DHPK_WORDS[@]}")
-        DHPK_CMD_LEN+=("${#_dhpk_ci_words[@]}")
+        DHPK_CMD_LEN+=("$n")
         DHPK_WORDS+=("${_dhpk_ci_words[@]}")
+        if [ "$_dhpk_ci_cwd_state" = "literal" ]; then
+            DHPK_CMD_CWD+=("$_dhpk_ci_cwd")
+        else
+            DHPK_CMD_CWD+=("")
+        fi
         _dhpk_ci_record_git
         if [ "$head" = "cd" ]; then
+            _dhpk_ci_any_cd=1
+            [ "$_dhpk_ci_paren" -gt 0 ] && _dhpk_ci_sub_cd=1
             if [ "$sep" = "pipe" ]; then
                 _dhpk_ci_pipeline_cd=1
-            elif [ "$_dhpk_ci_cwd_state" = "literal" ] && [ "${#_dhpk_ci_words[@]}" -eq 2 ] && [ "${_dhpk_ci_dyn[1]}" != "1" ]; then
-                _dhpk_ci_cwd="$(dhpk_norm_path "$_dhpk_ci_cwd" "${_dhpk_ci_words[1]}")"
+            elif [ "$_dhpk_ci_cwd_state" = "literal" ] && [ $((n - h)) -eq 2 ] && [ "${_dhpk_ci_dyn[$((h + 1))]}" != "1" ]; then
+                dhpk_norm_path_var "$_dhpk_ci_cwd" "${_dhpk_ci_words[$((h + 1))]}"
+                _dhpk_ci_cwd="$DHPK_NORM_PATH"
             else
                 _dhpk_ci_cwd_state="unresolved"
                 _dhpk_ci_cwd=""
             fi
         fi
     fi
+    # Heredocs opened by this command: the body is data for cat and tee
+    # unless the command pipes into another one, its output can run as a
+    # command, or the text writes into a process or a FIFO. Any other body
+    # is a script.
+    while [ "$_dhpk_ci_hd_seen" -lt "${#_dhpk_ci_hd_d[@]}" ]; do
+        case "$head" in
+            cat|*/cat|tee|*/tee)
+                if [ "$sep" = "pipe" ] || [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
+                    _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1
+                else
+                    _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=0
+                fi
+                ;;
+            *) _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1 ;;
+        esac
+        _dhpk_ci_hd_seen=$((_dhpk_ci_hd_seen + 1))
+    done
     if [ "$sep" != "pipe" ]; then
         _dhpk_ci_pipeline_cd=0
         _dhpk_ci_seg=""
@@ -295,7 +378,7 @@ _dhpk_ci_ansi_escape() {
             _dhpk_ci_esc_byte $((val & 31))
             return 0
             ;;
-        [0-7]) max=3; k=$at ;;
+        [01234567]) max=3; k=$at ;;
         x) max=2; k=$((at + 1)) ;;
         u) max=4; k=$((at + 1)) ;;
         U) max=8; k=$((at + 1)) ;;
@@ -304,8 +387,10 @@ _dhpk_ci_ansi_escape() {
     while [ "${#digits}" -lt "$max" ]; do
         d="${text:$k:1}"
         case "$ch" in
-            [0-7]) case "$d" in [0-7]) ;; *) break ;; esac ;;
-            *) case "$d" in [0-9a-fA-F]) ;; *) break ;; esac ;;
+            # Explicit digit lists: a locale can make a range such as
+            # [a-f] match non-ASCII letters, which breaks the arithmetic.
+            [01234567]) case "$d" in [01234567]) ;; *) break ;; esac ;;
+            *) case "$d" in [0123456789abcdefABCDEF]) ;; *) break ;; esac ;;
         esac
         digits="$digits$d"
         k=$((k + 1))
@@ -316,7 +401,7 @@ _dhpk_ci_ansi_escape() {
         return 0
     fi
     case "$ch" in
-        [0-7]) _dhpk_ci_esc_byte $((8#$digits & 255)) ;;
+        [01234567]) _dhpk_ci_esc_byte $((8#$digits & 255)) ;;
         x) _dhpk_ci_esc_byte $((16#$digits)) ;;
         *)
             val=$((16#$digits))
@@ -394,47 +479,420 @@ _dhpk_ci_start_redirect() {
     _dhpk_ci_redir=1
 }
 
-# dhpk_inspect_command <command> [start-cwd]
-#   Fills DHPK_GIT_* and DHPK_STRIPPED. start-cwd defaults to the process pwd.
-dhpk_inspect_command() {
-    local cmd="$1"
-    local start="${2:-}"
-    [ -n "$start" ] || start="$(pwd -P 2>/dev/null || pwd)"
-    DHPK_GIT_COUNT=0
-    DHPK_GIT_SUB=()
-    DHPK_GIT_REPO=()
-    DHPK_GIT_REPO_STATE=()
-    # shellcheck disable=SC2034  # filled for pre-bash-guard / pretool-git-gate after source
-    DHPK_GIT_NO_VERIFY=()
-    # shellcheck disable=SC2034  # filled for pre-bash-guard / pretool-git-gate after source
-    DHPK_GIT_EXEMPT=()
-    DHPK_GIT_SEGMENT=()
-    DHPK_STRIPPED=""
-    DHPK_WORDS=()
-    DHPK_CMD_START=()
-    DHPK_CMD_LEN=()
-    DHPK_REDIRECT_TARGETS=()
-    _dhpk_ci_cwd="$start"
-    _dhpk_ci_cwd_state="literal"
-    _dhpk_ci_pipeline_cd=0
-    _dhpk_ci_seg=""
-    _dhpk_ci_mode="normal"
-    _dhpk_ci_word_open=0
-    _dhpk_ci_redir=0
-    _dhpk_ci_reset_words
+# _dhpk_ci_unsupported <reason>
+#   Records the first construct the decoder cannot place faithfully. Hooks
+#   treat a non-empty DHPK_UNSUPPORTED as a block, not as a guess.
+_dhpk_ci_unsupported() {
+    [ -n "$DHPK_UNSUPPORTED" ] || DHPK_UNSUPPORTED="$1"
+}
 
-    local i=0 len="${#cmd}" ch next
-    while [ "$i" -lt "$len" ]; do
-        ch="${cmd:$i:1}"
-        next=""
-        if [ $((i + 1)) -lt "$len" ]; then
-            next="${cmd:$((i + 1)):1}"
+# _dhpk_ci_arith <text> <index>
+#   <index> is just after '$((' or '(('. Sets _dhpk_ci_end after the closing
+#   '))' and returns 0. Returns 1 when the first unmatched ')' is not doubled,
+#   because bash then reads the text as a subshell, not arithmetic. Quotes or
+#   a command substitution inside arithmetic are reported as unsupported.
+_dhpk_ci_arith() {
+    local text="$1" k="$2" n="${#1}" depth=0 ch reason=""
+    while [ "$k" -lt "$n" ]; do
+        ch="${text:$k:1}"
+        case "$ch" in
+            '(') depth=$((depth + 1)) ;;
+            ')')
+                if [ "$depth" -gt 0 ]; then
+                    depth=$((depth - 1))
+                elif [ "${text:$((k + 1)):1}" = ")" ]; then
+                    [ -z "$reason" ] || _dhpk_ci_unsupported "$reason"
+                    _dhpk_ci_end=$((k + 2))
+                    return 0
+                else
+                    return 1
+                fi
+                ;;
+            "'"|'"'|'`') reason="quote or backtick inside arithmetic" ;;
+            '$')
+                if [ "${text:$((k + 1)):1}" = "(" ]; then
+                    reason="command substitution inside arithmetic"
+                fi
+                ;;
+        esac
+        k=$((k + 1))
+    done
+    _dhpk_ci_unsupported "unterminated arithmetic"
+    _dhpk_ci_end="$n"
+    return 0
+}
+
+# _dhpk_ci_brack <text> <index>
+#   <index> is just after '$['. Sets _dhpk_ci_end after the matching ']' of
+#   this legacy arithmetic form; quotes or substitutions inside it, or no
+#   closing bracket, are reported as unsupported.
+_dhpk_ci_brack() {
+    local text="$1" k="$2" n="${#1}" depth=0 ch
+    while [ "$k" -lt "$n" ]; do
+        ch="${text:$k:1}"
+        case "$ch" in
+            '[') depth=$((depth + 1)) ;;
+            ']')
+                if [ "$depth" -eq 0 ]; then
+                    _dhpk_ci_end=$((k + 1))
+                    return 0
+                fi
+                depth=$((depth - 1))
+                ;;
+            "'"|'"'|'`') _dhpk_ci_unsupported "quote or backtick inside \$[...]" ;;
+            '$')
+                if [ "${text:$((k + 1)):1}" = "(" ]; then
+                    _dhpk_ci_unsupported "command substitution inside \$[...]"
+                fi
+                ;;
+        esac
+        k=$((k + 1))
+    done
+    _dhpk_ci_unsupported "unterminated \$[...]"
+    _dhpk_ci_end="$n"
+}
+
+# _dhpk_ci_backtick <text> <index> <in-double-quotes>
+#   <index> is the opening backtick. The body ends at the next unescaped
+#   backtick (quotes do not count, as in bash). \$ \` \\ (and \" inside
+#   double quotes) lose their backslash, then the body is inspected as its
+#   own command list, so a quote inside it cannot leak out.
+_dhpk_ci_backtick() {
+    local text="$1" k=$(($2 + 1)) indq="$3" n="${#1}" ch nx body=""
+    while [ "$k" -lt "$n" ]; do
+        ch="${text:$k:1}"
+        if [ "$ch" = "\\" ]; then
+            nx="${text:$((k + 1)):1}"
+            case "$nx" in
+                '$'|'`'|\\) body="$body$nx" ;;
+                '"') if [ "$indq" = 1 ]; then body="$body$nx"; else body="$body\\$nx"; fi ;;
+                *) body="$body\\$nx" ;;
+            esac
+            k=$((k + 2))
+            continue
         fi
+        [ "$ch" = '`' ] && break
+        body="$body$ch"
+        k=$((k + 1))
+    done
+    [ "$k" -lt "$n" ] && k=$((k + 1))
+    [ "$k" -le "$n" ] || k="$n"
+    _dhpk_ci_list "$body" 0 body
+    _dhpk_ci_end="$k"
+}
+
+# _dhpk_ci_expand <text> <index> <in-double-quotes>
+#   Handles $(...), $((...)), $[...], ${...} or a backtick at <index>: commands
+#   inside are inspected and _dhpk_ci_end is set after the construct.
+#   Returns 1, without side effects, for any other character.
+_dhpk_ci_expand() {
+    local text="$1" i="$2" indq="$3"
+    if [ "${text:$i:1}" = '`' ]; then
+        _dhpk_ci_backtick "$text" "$i" "$indq"
+        return 0
+    fi
+    [ "${text:$i:1}" = '$' ] || return 1
+    case "${text:$((i + 1)):1}" in
+        '(')
+            if [ "${text:$((i + 2)):1}" = "(" ] && _dhpk_ci_arith "$text" $((i + 3)); then
+                return 0
+            fi
+            _dhpk_ci_list "$text" $((i + 2)) subst
+            return 0
+            ;;
+        '{')
+            _dhpk_ci_scan "$text" $((i + 2)) param
+            return 0
+            ;;
+        '[')
+            _dhpk_ci_brack "$text" $((i + 2))
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+# _dhpk_ci_scan <text> <index> <kind>
+#   Finds the end of text that holds no commands of its own and inspects the
+#   substitutions inside it. Sets _dhpk_ci_end after the end.
+#   param: a ${...} body. '...', $'...' and "..." quote (bash 5.2 rules, in
+#          and out of double quotes); the first unquoted } ends it.
+#   pdq:   a "..." nested in a ${...}; ends after the closing quote.
+#   hbody: an unquoted-delimiter heredoc body; quotes are data.
+_dhpk_ci_scan() {
+    local text="$1" k="$2" kind="$3" n="${#1}" ch rest
+    while [ "$k" -lt "$n" ]; do
+        ch="${text:$k:1}"
+        case "$ch" in
+            \\) k=$((k + 2)); continue ;;
+            '$'|'`')
+                if [ "$kind" = "param" ] && [ "${text:$((k + 1)):1}" = "'" ]; then
+                    _dhpk_ci_ansi_end "$text" $((k + 2))
+                    k=$((_dhpk_ci_ansi_close + 1))
+                    continue
+                fi
+                if _dhpk_ci_expand "$text" "$k" 1; then
+                    k="$_dhpk_ci_end"
+                    continue
+                fi
+                ;;
+            "'")
+                if [ "$kind" = "param" ]; then
+                    rest="${text:$((k + 1))}"
+                    case "$rest" in
+                        *"'"*) rest="${rest%%\'*}"; k=$((k + 2 + ${#rest})) ;;
+                        *) k="$n" ;;
+                    esac
+                    continue
+                fi
+                ;;
+            '"')
+                if [ "$kind" = "param" ]; then
+                    _dhpk_ci_scan "$text" $((k + 1)) pdq
+                    k="$_dhpk_ci_end"
+                    continue
+                fi
+                if [ "$kind" = "pdq" ]; then
+                    _dhpk_ci_end=$((k + 1))
+                    return 0
+                fi
+                ;;
+            '}')
+                if [ "$kind" = "param" ]; then
+                    _dhpk_ci_end=$((k + 1))
+                    return 0
+                fi
+                ;;
+        esac
+        k=$((k + 1))
+    done
+    _dhpk_ci_end="$n"
+}
+
+# _dhpk_ci_hd_delim <text> <index>
+#   <index> is just after '<<' or '<<-'. Reads the delimiter word with quote
+#   removal into _dhpk_ci_hd_word, sets _dhpk_ci_hd_quoted to 1 when any part
+#   was quoted, and _dhpk_ci_end after the word.
+_dhpk_ci_hd_delim() {
+    local text="$1" k="$2" n="${#1}" ch nx word="" quoted=0 rest
+    while [ "$k" -lt "$n" ]; do
+        case "${text:$k:1}" in
+            ' '|$'\t') k=$((k + 1)) ;;
+            *) break ;;
+        esac
+    done
+    while [ "$k" -lt "$n" ]; do
+        ch="${text:$k:1}"
+        case "$ch" in
+            ' '|$'\t'|$'\n'|';'|'&'|'|'|'<'|'>'|'('|')') break ;;
+            "'")
+                quoted=1
+                rest="${text:$((k + 1))}"
+                case "$rest" in
+                    *"'"*) rest="${rest%%\'*}"; word="$word$rest"; k=$((k + 2 + ${#rest})) ;;
+                    *) word="$word$rest"; k="$n" ;;
+                esac
+                continue
+                ;;
+            '"')
+                quoted=1
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    ch="${text:$k:1}"
+                    [ "$ch" = '"' ] && break
+                    if [ "$ch" = "\\" ]; then
+                        nx="${text:$((k + 1)):1}"
+                        case "$nx" in
+                            '$'|'`'|'"'|\\) word="$word$nx"; k=$((k + 2)); continue ;;
+                        esac
+                    fi
+                    case "$ch" in
+                        '$'|'`') _dhpk_ci_unsupported "expansion in a heredoc delimiter" ;;
+                    esac
+                    word="$word$ch"
+                    k=$((k + 1))
+                done
+                k=$((k + 1))
+                continue
+                ;;
+            \\)
+                quoted=1
+                nx="${text:$((k + 1)):1}"
+                [ "$nx" = $'\n' ] && _dhpk_ci_unsupported "line continuation in a heredoc delimiter"
+                word="$word$nx"
+                k=$((k + 2))
+                continue
+                ;;
+            '`') _dhpk_ci_unsupported "expansion in a heredoc delimiter" ;;
+            '$')
+                case "${text:$((k + 1)):1}" in
+                    "'"|'"'|'('|'{') _dhpk_ci_unsupported "expansion in a heredoc delimiter" ;;
+                esac
+                ;;
+        esac
+        word="$word$ch"
+        k=$((k + 1))
+    done
+    [ "$k" -le "$n" ] || k="$n"
+    if [ -z "$word" ] && [ "$quoted" -eq 0 ]; then
+        _dhpk_ci_unsupported "heredoc without a delimiter"
+    fi
+    _dhpk_ci_hd_word="$word"
+    _dhpk_ci_hd_quoted="$quoted"
+    _dhpk_ci_end="$k"
+}
+
+# _dhpk_ci_hd_bodies <text> <index>
+#   <index> is just after the newline that ends a line with pending heredocs.
+#   Consumes each body in order, up to its delimiter line (or the end of the
+#   text, as bash does). With an unquoted delimiter a line that ends in an odd
+#   number of backslashes joins the next line first. A body for cat, tee or
+#   git is data: only the substitutions of an unquoted body are inspected. Any
+#   other body is inspected as its own command list. Sets _dhpk_ci_end.
+_dhpk_ci_hd_bodies() {
+    local text="$1" k="$2" n="${#1}" j=0 count="${#_dhpk_ci_hd_d[@]}"
+    local delim quoted strip isexec start lstart rest line logical bs body cont
+    while [ "$j" -lt "$count" ]; do
+        delim="${_dhpk_ci_hd_d[$j]}"
+        quoted="${_dhpk_ci_hd_q[$j]}"
+        strip="${_dhpk_ci_hd_t[$j]}"
+        isexec="${_dhpk_ci_hd_x[$j]:-1}"
+        start="$k"
+        lstart="$k"
+        logical=""
+        cont=0
+        body="${text:$start}"
+        while [ "$k" -lt "$n" ]; do
+            [ "$cont" -eq 1 ] || lstart="$k"
+            cont=0
+            rest="${text:$k}"
+            line="${rest%%$'\n'*}"
+            if [ "$line" = "$rest" ]; then
+                k="$n"
+            else
+                k=$((k + ${#line} + 1))
+            fi
+            if [ "$strip" -eq 1 ]; then
+                while [ "${line:0:1}" = $'\t' ]; do line="${line:1}"; done
+            fi
+            if [ "$quoted" -eq 0 ]; then
+                bs=0
+                while [ "$bs" -lt "${#line}" ] && [ "${line:$((${#line} - 1 - bs)):1}" = "\\" ]; do
+                    bs=$((bs + 1))
+                done
+                if [ $((bs % 2)) -eq 1 ] && [ "$k" -lt "$n" ]; then
+                    logical="$logical${line%\\}"
+                    cont=1
+                    continue
+                fi
+            fi
+            logical="$logical$line"
+            if [ "$logical" = "$delim" ]; then
+                body="${text:$start:$((lstart - start))}"
+                break
+            fi
+            if [ "$_dhpk_ci_kind" = "subst" ] && [ "${logical#"$delim")}" != "$logical" ]; then
+                _dhpk_ci_unsupported "heredoc delimiter followed by ) inside a command substitution"
+            fi
+            logical=""
+        done
+        if [ "$isexec" = 1 ]; then
+            DHPK_STRIPPED="$DHPK_STRIPPED$body"
+            _dhpk_ci_list "$body" 0 body
+        elif [ "$quoted" -eq 0 ]; then
+            _dhpk_ci_scan "$body" 0 hbody
+        fi
+        j=$((j + 1))
+    done
+    _dhpk_ci_hd_d=()
+    _dhpk_ci_hd_q=()
+    _dhpk_ci_hd_t=()
+    _dhpk_ci_hd_x=()
+    _dhpk_ci_hd_seen=0
+    _dhpk_ci_end="$k"
+}
+
+# _dhpk_ci_exec_context <unquoted>
+#   Sets _dhpk_ci_exec_next to 1 when a substitution starting now produces
+#   text that runs as a command: an unquoted command word, or an argument of
+#   eval, source or a shell. The nested list then treats its heredocs as
+#   scripts.
+_dhpk_ci_exec_context() {
+    local h
+    _dhpk_ci_exec_next=0
+    _dhpk_ci_head_index
+    h="$_dhpk_ci_head"
+    if [ "$h" -ge "${#_dhpk_ci_words[@]}" ]; then
+        if [ "$1" -eq 1 ] && [ -z "$_dhpk_ci_word" ] && [ "$_dhpk_ci_word_open" -eq 0 ]; then
+            _dhpk_ci_exec_next=1
+        fi
+        return 0
+    fi
+    case "${_dhpk_ci_words[$h]##*/}" in
+        eval|source|.|sh|bash|zsh|dash|ksh|ash|mksh) _dhpk_ci_exec_next=1 ;;
+    esac
+    return 0
+}
+
+# _dhpk_ci_sub_word <text> <start> <end>
+#   Adds the raw text of a substitution that ended at <end> to the current
+#   word, segment and stripped text. A substitution that spans a newline
+#   while a heredoc is pending cannot be placed and is reported.
+_dhpk_ci_sub_word() {
+    local raw="${1:$2:$(($3 - $2))}"
+    _dhpk_ci_word="$_dhpk_ci_word$raw"
+    _dhpk_ci_word_open=1
+    _dhpk_ci_word_dyn=1
+    _dhpk_ci_seg="$_dhpk_ci_seg$raw"
+    DHPK_STRIPPED="$DHPK_STRIPPED$raw"
+    if [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ]; then
+        case "$raw" in
+            *$'\n'*) _dhpk_ci_unsupported "substitution spans a pending heredoc" ;;
+        esac
+    fi
+}
+
+# _dhpk_ci_list <text> <index> <kind>
+#   Inspects a command list. kind is top (the whole command), subst (the
+#   body of $(...) or <(...), ending at its unmatched ')'), or body (a
+#   heredoc script or backtick body, a separate text). Parser state is local,
+#   so a nested list starts clean and its cd or quotes cannot leak out.
+#   Only the top list writes DHPK_STRIPPED; a caller adds a nested list's raw
+#   text instead. Sets _dhpk_ci_end after the list.
+_dhpk_ci_list() {
+    local text="$1" i="$2" _dhpk_ci_kind="$3"
+    local len="${#1}" ch next
+    local _dhpk_ci_mode="normal" _dhpk_ci_word="" _dhpk_ci_word_dyn=0 _dhpk_ci_word_open=0 _dhpk_ci_redir=0
+    local -a _dhpk_ci_words _dhpk_ci_dyn
+    local _dhpk_ci_seg="" _dhpk_ci_pipeline_cd=0 _dhpk_ci_paren=0 _dhpk_ci_sub_cd=0 _dhpk_ci_any_cd=0
+    local _dhpk_ci_cwd="$_dhpk_ci_cwd" _dhpk_ci_cwd_state="$_dhpk_ci_cwd_state"
+    local -a _dhpk_ci_hd_d _dhpk_ci_hd_q _dhpk_ci_hd_t _dhpk_ci_hd_x
+    local _dhpk_ci_hd_seen=0
+    # Set by the caller when this list's output runs as a command.
+    local _dhpk_ci_xctx="${_dhpk_ci_exec_next:-0}"
+    _dhpk_ci_exec_next=0
+    _dhpk_ci_hd_d=()
+    _dhpk_ci_hd_q=()
+    _dhpk_ci_hd_t=()
+    _dhpk_ci_hd_x=()
+    _dhpk_ci_reset_words
+    if [ "$_dhpk_ci_kind" != "top" ]; then
+        local DHPK_STRIPPED=""
+    fi
+
+    while [ "$i" -lt "$len" ]; do
+        ch="${text:$i:1}"
+        next="${text:$((i + 1)):1}"
         if [ "$_dhpk_ci_mode" = "comment" ]; then
             if [ "$ch" = $'\n' ]; then
                 _dhpk_ci_flush_command compound
                 _dhpk_ci_mode="normal"
                 DHPK_STRIPPED="${DHPK_STRIPPED}"$'\n'
+                if [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ]; then
+                    _dhpk_ci_hd_bodies "$text" $((i + 1))
+                    i="$_dhpk_ci_end"
+                    continue
+                fi
             fi
             i=$((i + 1))
             continue
@@ -452,9 +910,9 @@ dhpk_inspect_command() {
             continue
         fi
         if [ "$_dhpk_ci_mode" = "double" ]; then
-            DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
-            _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
             if [ "$ch" = "\\" ] && [ -n "$next" ]; then
+                DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
+                _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
                 # Inside "...", backslash-newline is a line continuation and a
                 # backslash escapes only $, `, " and \; before anything else
                 # it stays part of the word.
@@ -469,6 +927,16 @@ dhpk_inspect_command() {
                 i=$((i + 2))
                 continue
             fi
+            case "$ch" in
+                '$'|'`') _dhpk_ci_exec_context 0 ;;
+            esac
+            if _dhpk_ci_expand "$text" "$i" 1; then
+                _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                i="$_dhpk_ci_end"
+                continue
+            fi
+            DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
+            _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
             if [ "$ch" = '"' ]; then
                 _dhpk_ci_mode="normal"
             else
@@ -533,6 +1001,10 @@ dhpk_inspect_command() {
                 _dhpk_ci_flush_command compound
                 DHPK_STRIPPED="${DHPK_STRIPPED}"$'\n'
                 i=$((i + 1))
+                if [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ]; then
+                    _dhpk_ci_hd_bodies "$text" "$i"
+                    i="$_dhpk_ci_end"
+                fi
                 continue
                 ;;
             ';')
@@ -541,7 +1013,51 @@ dhpk_inspect_command() {
                 i=$((i + 1))
                 continue
                 ;;
+            '(')
+                # (( is arithmetic when it closes with )); otherwise each ( is
+                # a subshell. Both are operators, so a # after ( is a comment.
+                if [ "$next" = "(" ] && [ -z "$_dhpk_ci_word" ] && [ "$_dhpk_ci_word_open" -eq 0 ] \
+                    && _dhpk_ci_arith "$text" $((i + 2)); then
+                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                    i="$_dhpk_ci_end"
+                    continue
+                fi
+                _dhpk_ci_flush_command compound
+                _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
+                DHPK_STRIPPED="${DHPK_STRIPPED}("
+                i=$((i + 1))
+                continue
+                ;;
+            ')')
+                _dhpk_ci_flush_command compound
+                if [ "$_dhpk_ci_paren" -eq 0 ] && [ "$_dhpk_ci_kind" = "subst" ]; then
+                    [ "${#_dhpk_ci_hd_d[@]}" -gt 0 ] && _dhpk_ci_unsupported "heredoc left open inside a command substitution"
+                    _dhpk_ci_end=$((i + 1))
+                    return 0
+                fi
+                # A subshell's cd does not outlive it, and an unmatched ) (a
+                # case pattern) can hide where a subshell really ended.
+                if [ "$_dhpk_ci_paren" -gt 0 ]; then
+                    _dhpk_ci_paren=$((_dhpk_ci_paren - 1))
+                    if [ "$_dhpk_ci_sub_cd" -eq 1 ]; then
+                        _dhpk_ci_cwd_state="unresolved"
+                        _dhpk_ci_cwd=""
+                    fi
+                elif [ "$_dhpk_ci_any_cd" -eq 1 ]; then
+                    _dhpk_ci_cwd_state="unresolved"
+                    _dhpk_ci_cwd=""
+                fi
+                DHPK_STRIPPED="${DHPK_STRIPPED})"
+                i=$((i + 1))
+                continue
+                ;;
             '>')
+                if [ "$next" = "(" ]; then
+                    _dhpk_ci_list "$text" $((i + 2)) subst
+                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                    i="$_dhpk_ci_end"
+                    continue
+                fi
                 _dhpk_ci_start_redirect
                 case "$next" in
                     '>'|'|'|'&') ch="${ch}${next}" ;;
@@ -552,19 +1068,48 @@ dhpk_inspect_command() {
                 continue
                 ;;
             '<')
-                if [ "$next" = ">" ]; then
-                    _dhpk_ci_start_redirect
-                    DHPK_STRIPPED="${DHPK_STRIPPED}<>"
-                    _dhpk_ci_seg="${_dhpk_ci_seg}<>"
-                    i=$((i + 2))
-                    continue
-                fi
+                case "$next" in
+                    '>')
+                        _dhpk_ci_start_redirect
+                        DHPK_STRIPPED="${DHPK_STRIPPED}<>"
+                        _dhpk_ci_seg="${_dhpk_ci_seg}<>"
+                        i=$((i + 2))
+                        continue
+                        ;;
+                    '(')
+                        _dhpk_ci_list "$text" $((i + 2)) subst
+                        _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                        i="$_dhpk_ci_end"
+                        continue
+                        ;;
+                    '<')
+                        _dhpk_ci_start_redirect
+                        if [ "${text:$((i + 2)):1}" = "<" ]; then
+                            # Here-string: the next word is stdin data.
+                            _dhpk_ci_redir=2
+                            ch="<<<"
+                        else
+                            _dhpk_ci_redir=0
+                            ch="<<"
+                            [ "${text:$((i + 2)):1}" = "-" ] && ch="<<-"
+                            _dhpk_ci_hd_delim "$text" $((i + ${#ch}))
+                            _dhpk_ci_hd_d+=("$_dhpk_ci_hd_word")
+                            _dhpk_ci_hd_q+=("$_dhpk_ci_hd_quoted")
+                            if [ "$ch" = "<<-" ]; then _dhpk_ci_hd_t+=(1); else _dhpk_ci_hd_t+=(0); fi
+                            ch="${text:$i:$((_dhpk_ci_end - i))}"
+                        fi
+                        DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
+                        _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
+                        i=$((i + ${#ch}))
+                        continue
+                        ;;
+                esac
                 ;;
             '&')
                 if [ "$next" = ">" ]; then
                     _dhpk_ci_start_redirect
                     ch="&>"
-                    [ "${cmd:$((i + 2)):1}" = ">" ] && ch="&>>"
+                    [ "${text:$((i + 2)):1}" = ">" ] && ch="&>>"
                     DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
                     _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
                     i=$((i + ${#ch}))
@@ -598,6 +1143,12 @@ dhpk_inspect_command() {
                 continue
                 ;;
             '$')
+                _dhpk_ci_exec_context 1
+                if _dhpk_ci_expand "$text" "$i" 0; then
+                    _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                    i="$_dhpk_ci_end"
+                    continue
+                fi
                 _dhpk_ci_word_dyn=1
                 if [ "$next" = '$' ]; then
                     # $$ is the PID parameter: the second $ cannot start a
@@ -610,12 +1161,12 @@ dhpk_inspect_command() {
                     continue
                 fi
                 if [ "$next" = "'" ]; then
-                    _dhpk_ci_ansi_end "$cmd" $((i + 2))
-                    _dhpk_ci_ansi_decode "${cmd:$((i + 2)):$((_dhpk_ci_ansi_close - i - 2))}"
+                    _dhpk_ci_ansi_end "$text" $((i + 2))
+                    _dhpk_ci_ansi_decode "${text:$((i + 2)):$((_dhpk_ci_ansi_close - i - 2))}"
                     _dhpk_ci_word="${_dhpk_ci_word}${_dhpk_ci_ansi_out}"
                     _dhpk_ci_word_open=1
-                    DHPK_STRIPPED="${DHPK_STRIPPED}${cmd:$i:$((_dhpk_ci_ansi_close - i + 1))}"
-                    _dhpk_ci_seg="${_dhpk_ci_seg}${cmd:$i:$((_dhpk_ci_ansi_close - i + 1))}"
+                    DHPK_STRIPPED="${DHPK_STRIPPED}${text:$i:$((_dhpk_ci_ansi_close - i + 1))}"
+                    _dhpk_ci_seg="${_dhpk_ci_seg}${text:$i:$((_dhpk_ci_ansi_close - i + 1))}"
                     i=$((_dhpk_ci_ansi_close + 1))
                     continue
                 fi
@@ -629,7 +1180,11 @@ dhpk_inspect_command() {
                 fi
                 ;;
             '`')
-                _dhpk_ci_word_dyn=1
+                _dhpk_ci_exec_context 1
+                _dhpk_ci_expand "$text" "$i" 0
+                _dhpk_ci_sub_word "$text" "$i" "$_dhpk_ci_end"
+                i="$_dhpk_ci_end"
+                continue
                 ;;
             '~')
                 if [ -z "$_dhpk_ci_word" ]; then
@@ -644,8 +1199,47 @@ dhpk_inspect_command() {
         i=$((i + 1))
     done
     _dhpk_ci_flush_command compound
-    unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_pipeline_cd _dhpk_ci_seg _dhpk_ci_mode
-    unset _dhpk_ci_word _dhpk_ci_word_dyn _dhpk_ci_word_open _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_redir
+    _dhpk_ci_end="$len"
+    return 0
+}
+
+# dhpk_inspect_command <command> [start-cwd]
+#   Fills DHPK_GIT_*, DHPK_WORDS, DHPK_CMD_*, DHPK_REDIRECT_TARGETS,
+#   DHPK_STRIPPED and DHPK_UNSUPPORTED. start-cwd defaults to the process pwd.
+dhpk_inspect_command() {
+    local cmd="$1"
+    local start="${2:-}"
+    [ -n "$start" ] || start="$(pwd -P 2>/dev/null || pwd)"
+    DHPK_GIT_COUNT=0
+    DHPK_GIT_SUB=()
+    DHPK_GIT_REPO=()
+    DHPK_GIT_REPO_STATE=()
+    # shellcheck disable=SC2034  # filled for pre-bash-guard / pretool-git-gate after source
+    DHPK_GIT_NO_VERIFY=()
+    # shellcheck disable=SC2034  # filled for pre-bash-guard / pretool-git-gate after source
+    DHPK_GIT_EXEMPT=()
+    DHPK_GIT_SEGMENT=()
+    DHPK_STRIPPED=""
+    DHPK_WORDS=()
+    DHPK_CMD_START=()
+    DHPK_CMD_LEN=()
+    # shellcheck disable=SC2034  # read by pre-bash-guard after source
+    DHPK_CMD_CWD=()
+    # shellcheck disable=SC2034  # read by pre-bash-guard after source
+    DHPK_START_CWD="$start"
+    DHPK_REDIRECT_TARGETS=()
+    DHPK_UNSUPPORTED=""
+    # A process substitution or a FIFO can carry a cat heredoc into a shell.
+    DHPK_HD_FORCE_EXEC=0
+    case "$cmd" in
+        *'>('*|*mkfifo*) DHPK_HD_FORCE_EXEC=1 ;;
+    esac
+    _dhpk_ci_cwd="$start"
+    _dhpk_ci_cwd_state="literal"
+    _dhpk_ci_exec_next=0
+    _dhpk_ci_list "$cmd" 0 top
+    unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next
+    unset _dhpk_ci_hd_word _dhpk_ci_hd_quoted
     return 0
 }
 
