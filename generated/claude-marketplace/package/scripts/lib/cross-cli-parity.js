@@ -19,11 +19,12 @@ const {
 } = require('./bounded-filesystem');
 
 const MANAGED_DIRS = ['skills', 'commands', 'agents', 'hooks', 'rules'];
-const NATIVE_AGENTS_SKILLS_TARGETS = new Set(['.codex', 'codex', '.cursor', 'cursor', '.agent', 'agent']);
+// Targets whose CLI reads the shared .agents skill roots natively.
+const NATIVE_AGENTS_SKILLS_TARGETS = new Set(['.codex', '.cursor', '.agent']);
+const SHARED_SKILLS_ROOTS = [path.join('.agents', 'skills'), path.join('.agents', 'claude-skills')];
 
 function targetSupportsAgentsSkills(targetName) {
-  const normalized = String(targetName || '').trim().replace(/^\/+|\/+$/g, '');
-  return NATIVE_AGENTS_SKILLS_TARGETS.has(normalized);
+  return NATIVE_AGENTS_SKILLS_TARGETS.has(targetName.replace(/^\/+|\/+$/g, ''));
 }
 
 function realpathOrNull(candidate) {
@@ -37,35 +38,20 @@ function realpathOrNull(candidate) {
 function isSharedSkillsDirectory(repoRoot, skillsDir) {
   const stat = lstatOrNull(skillsDir);
   if (!stat || !stat.isSymbolicLink()) return false;
-  const agentsRoot = path.join(repoRoot, '.agents');
-  const sharedCandidates = [
-    path.join(agentsRoot, 'skills'),
-    path.join(agentsRoot, 'claude-skills'),
-  ];
+  // A dangling link walks to nothing, so only a resolvable link matters.
   const realSkillsDir = realpathOrNull(skillsDir);
-  if (realSkillsDir) {
-    for (const candidate of sharedCandidates) {
-      const realCandidate = realpathOrNull(candidate);
-      if (realCandidate && isInside(realCandidate, realSkillsDir)) return true;
-    }
-  }
-  try {
-    const resolvedLink = path.resolve(path.dirname(skillsDir), fs.readlinkSync(skillsDir));
-    return sharedCandidates.some((candidate) => isInside(candidate, resolvedLink));
-  } catch (_) {
-    return false;
-  }
+  if (!realSkillsDir) return false;
+  return SHARED_SKILLS_ROOTS.some((root) => {
+    const realRoot = realpathOrNull(path.join(repoRoot, root));
+    return realRoot !== null && isInside(realRoot, realSkillsDir);
+  });
 }
 
 function hasMatchingSharedSkill(repoRoot, relative, sourceHash) {
-  if (!relative.startsWith('skills/')) return false;
   const subPath = relative.slice('skills/'.length);
   if (!subPath) return false;
-  const candidates = [
-    path.join(repoRoot, '.agents', 'skills', subPath),
-    path.join(repoRoot, '.agents', 'claude-skills', subPath),
-  ];
-  for (const candidate of candidates) {
+  for (const root of SHARED_SKILLS_ROOTS) {
+    const candidate = path.join(repoRoot, root, subPath);
     const stat = lstatOrNull(candidate);
     if (stat && stat.isFile() && hashFile(candidate) === sourceHash) return true;
   }
@@ -99,15 +85,12 @@ function hashFile(filePath) {
   return crypto.createHash('sha256').update(readFileBounded(filePath)).digest('hex');
 }
 
-function managedFiles(root, options = {}) {
+function managedFiles(root, { skipSkills = false } = {}) {
   const files = [];
-  const resolvedRoot = path.resolve(root);
-  const repoRoot = path.resolve(options.repoRoot || path.dirname(resolvedRoot));
-  const skipSharedSkills = options.skipSharedSkills !== false;
   for (const dir of MANAGED_DIRS) {
-    const base = path.join(resolvedRoot, dir);
-    if (dir === 'skills' && skipSharedSkills && isSharedSkillsDirectory(repoRoot, base)) continue;
-    for (const fp of walkFiles(base)) files.push([path.relative(resolvedRoot, fp).split(path.sep).join('/'), fp]);
+    if (dir === 'skills' && skipSkills) continue;
+    const base = path.join(root, dir);
+    for (const fp of walkFiles(base)) files.push([path.relative(root, fp).split(path.sep).join('/'), fp]);
   }
   return files;
 }
@@ -128,10 +111,10 @@ function compareHarnesses(root, sourceName = '.claude', targetName = '.codex') {
   const targetRoot = path.join(repoRoot, targetName.replace(/^\/+/, ''));
   const allowlist = loadAllowlist(repoRoot, targetName);
   const sharedSkillsSupported = targetSupportsAgentsSkills(targetName);
-  const sourceSkillsDir = path.join(sourceRoot, 'skills');
-  const sourceSkillsShared = sharedSkillsSupported && isSharedSkillsDirectory(repoRoot, sourceSkillsDir);
-  const source = new Map(managedFiles(sourceRoot, { repoRoot, skipSharedSkills: sourceSkillsShared }));
-  const target = new Map(managedFiles(targetRoot, { repoRoot, skipSharedSkills: false }));
+  const sourceSkillsShared = sharedSkillsSupported
+    && isSharedSkillsDirectory(repoRoot, path.join(sourceRoot, 'skills'));
+  const source = new Map(managedFiles(sourceRoot, { skipSkills: sourceSkillsShared }));
+  const target = new Map(managedFiles(targetRoot));
   const missing = [];
   const different = [];
 
@@ -139,8 +122,8 @@ function compareHarnesses(root, sourceName = '.claude', targetName = '.codex') {
     if (allowlist.has(relative)) continue;
     const targetPath = target.get(relative);
     if (!targetPath) {
-      const sourceHash = hashFile(sourcePath);
-      if (sharedSkillsSupported && hasMatchingSharedSkill(repoRoot, relative, sourceHash)) continue;
+      if (sharedSkillsSupported && relative.startsWith('skills/')
+        && hasMatchingSharedSkill(repoRoot, relative, hashFile(sourcePath))) continue;
       missing.push(relative);
       continue;
     }

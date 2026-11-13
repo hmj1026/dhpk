@@ -40,9 +40,7 @@ if command -v node >/dev/null 2>&1 && [ -f "$PARITY_SCRIPT" ]; then
     done
 fi
 
-# Newest mtime (epoch seconds) of any harness file under dir's
-# skills/commands/agents/hooks/rules subdirs. GNU find has -printf '%T@';
-# BSD find (macOS) does not — use stat -f '%m' there.
+# True when skills_path is a symlink to a shared .agents skill root.
 is_shared_skills_symlink() {
     local skills_path="$1"
     [ -L "$skills_path" ] || return 1
@@ -50,11 +48,12 @@ is_shared_skills_symlink() {
     resolved_skills="$(cd -P "$skills_path" 2>/dev/null && pwd)" || return 1
     resolved_agents="$(cd -P "$ROOT/.agents/skills" 2>/dev/null && pwd || true)"
     resolved_claude_skills="$(cd -P "$ROOT/.agents/claude-skills" 2>/dev/null && pwd || true)"
-    [ -n "$resolved_skills" ] && {
-        [ "$resolved_skills" = "$resolved_agents" ] || [ "$resolved_skills" = "$resolved_claude_skills" ]
-    }
+    [ "$resolved_skills" = "$resolved_agents" ] || [ "$resolved_skills" = "$resolved_claude_skills" ]
 }
 
+# Newest mtime (epoch seconds) of any harness file under dir's
+# skills/commands/agents/hooks/rules subdirs. GNU find has -printf '%T@';
+# BSD find (macOS) does not — use stat -f '%m' there.
 newest_mtime() {
     local dir="$1"
     [ -d "$dir" ] || { echo 0; return; }
