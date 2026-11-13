@@ -528,8 +528,8 @@ function groundTruthTest(row) {
 for (const row of GROUND_TRUTH) groundTruthTest(row);
 
 // ---------------------------------------------------------------------------
-// Depth guard: 2000 levels of nesting must exit 2, never crash or hang.
-// (`siblings` is ~17 s and stays out of the suite.)
+// Depth & linear-scan guards: 2000 levels of nesting and 3000 sibling
+// substitutions must exit 2 within bounded time, never crash or hang (#1408).
 // ---------------------------------------------------------------------------
 
 const DEPTH = 2000;
@@ -555,5 +555,20 @@ for (const [kind, build] of Object.entries(DEEP_KINDS)) {
     assert.strictEqual(res.status, BLOCK, `got ${res.status}; stderr=${String(res.stderr).slice(-120)}`);
   });
 }
+
+const SIBLINGS = 3000;
+test(`pre-bash-dispatch scans ${SIBLINGS} sibling substitutions in linear time (#1408)`, () => {
+  const cmd = `echo ${'$(true)${x}'.repeat(SIBLINGS)}${TAIL}`;
+  const t0 = performance.now();
+  const res = runHook('pre-bash-dispatch.sh', {
+    payload: { tool_input: { command: cmd } },
+    deleteEnv: ['DHPK_ALLOW_NO_VERIFY', 'DHPK_BRANCH_SAFETY'],
+    timeout: 60000,
+  });
+  const elapsedMs = performance.now() - t0;
+  assert.strictEqual(res.signal, null, `killed by ${res.signal}`);
+  assert.strictEqual(res.status, BLOCK, `got ${res.status}; stderr=${String(res.stderr).slice(-120)}`);
+  assert.ok(elapsedMs < 5000, `expected linear-time scan (<5000ms), took ${elapsedMs.toFixed(1)}ms`);
+});
 
 run('hook-differential');
