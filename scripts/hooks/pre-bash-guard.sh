@@ -56,6 +56,17 @@ if [ -n "$DHPK_UNSUPPORTED" ]; then
     exit 2
 fi
 
+# _guard_mentions <text>
+#   True when the stripped command contains <text> literally. Each grep/sed
+#   pattern below runs only when its required literal is present, so a
+#   command that cannot match costs no fork.
+_guard_mentions() {
+    case "$CMD_STRIPPED" in
+        *"$1"*) return 0 ;;
+    esac
+    return 1
+}
+
 # _guard_word_head_is <word> <name>
 #   True when the decoded argv word is <name> or a path ending in /<name>.
 _guard_word_head_is() {
@@ -210,21 +221,22 @@ _guard_env_write_decoded() {
 #     while workspace-internal paths (/home/<user>/projects/<repo>/...) pass.
 DANGEROUS_ROOT_ANY='(etc|usr|bin|sbin|lib|lib64|boot|proc|sys|dev|run|root|snap)'
 DANGEROUS_ROOT_SHALLOW="(home|opt|srv)(/+[^/[:space:]]+)?/*[\"']?([[:space:];&|]|$)"
-if printf '%s' "$CMD_STRIPPED" | grep -Eq \
-    "(^|[[:space:];&|])rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)+(--[[:space:]]+)?[\"']?/+([[:space:]\$\*]|$|${DANGEROUS_ROOT_ANY}([/[:space:]]|[\"']?([[:space:];&|]|$))|${DANGEROUS_ROOT_SHALLOW})" || \
+if { _guard_mentions rm && printf '%s' "$CMD_STRIPPED" | grep -Eq \
+    "(^|[[:space:];&|])rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)+(--[[:space:]]+)?[\"']?/+([[:space:]\$\*]|$|${DANGEROUS_ROOT_ANY}([/[:space:]]|[\"']?([[:space:];&|]|$))|${DANGEROUS_ROOT_SHALLOW})"; } || \
     _guard_rm_decoded; then
     echo "[bash-guard] blocked: rm -rf against root or system directory. Narrow the path or run outside Claude." >&2
     exit 2
 fi
 
 # Pattern 2: curl|sh / wget|bash / fetch|zsh family.
-if printf '%s' "$CMD_STRIPPED" | grep -Eq '(curl|wget|fetch)[^|]*\|[[:space:]]*(sh|bash|zsh|ksh)([[:space:]]|$|;|\|)'; then
+if _guard_mentions '|' && { _guard_mentions curl || _guard_mentions wget || _guard_mentions fetch; } && \
+   printf '%s' "$CMD_STRIPPED" | grep -Eq '(curl|wget|fetch)[^|]*\|[[:space:]]*(sh|bash|zsh|ksh)([[:space:]]|$|;|\|)'; then
     echo "[bash-guard] blocked: piping remote download into shell. Save to file, inspect, then run." >&2
     exit 2
 fi
 
 # Pattern 3: chmod 777 / 666 (including -R777 etc).
-if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:];&|])chmod[[:space:]]+(-[a-zA-Z]*[[:space:]]*)?[0-7]?(777|666)([[:space:]]|$)'; then
+if _guard_mentions chmod && printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:];&|])chmod[[:space:]]+(-[a-zA-Z]*[[:space:]]*)?[0-7]?(777|666)([[:space:]]|$)'; then
     echo "[bash-guard] blocked: chmod 777/666. Use stricter perms (750/640) or narrower paths." >&2
     exit 2
 fi
@@ -270,12 +282,20 @@ fi
 # `../.env`) — match an optional leading path segment before `.env` in both
 # the allowlist-strip patterns and the block patterns below, so `> .env` and
 # `> some/dir/.env` are treated identically.
-_env_cmd="$(printf '%s' "$CMD_STRIPPED" | sed -E \
-    -e "s/(>>?)[[:space:]]*[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist|template)[\"']?([[:space:];&|]|\$)/ /g" \
-    -e "s/[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist|template)[\"']?([[:space:];&|]|\$)/\3/g")"
-if printf '%s' "$_env_cmd" | grep -Eq "(>>?)[[:space:]]*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)" || \
-   printf '%s' "$_env_cmd" | grep -Eq "(^|[[:space:];&|])tee[[:space:]]+(-a[[:space:]]+)?([^;&|]*[[:space:]])*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)" || \
-   _guard_env_write_decoded; then
+#
+# Both text patterns need a literal '.env', and the sed only removes text
+# that contains one, so a command without '.env' skips all three forks.
+_env_text_hit=0
+if _guard_mentions .env; then
+    _env_cmd="$(printf '%s' "$CMD_STRIPPED" | sed -E \
+        -e "s/(>>?)[[:space:]]*[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist|template)[\"']?([[:space:];&|]|\$)/ /g" \
+        -e "s/[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist|template)[\"']?([[:space:];&|]|\$)/\3/g")"
+    if printf '%s' "$_env_cmd" | grep -Eq "(>>?)[[:space:]]*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)" || \
+       printf '%s' "$_env_cmd" | grep -Eq "(^|[[:space:];&|])tee[[:space:]]+(-a[[:space:]]+)?([^;&|]*[[:space:]])*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)"; then
+        _env_text_hit=1
+    fi
+fi
+if [ "$_env_text_hit" -eq 1 ] || _guard_env_write_decoded; then
     echo "[bash-guard] blocked: writing to .env via shell redirection/tee. .env files hold secrets and must not be written via Bash. Ask the user for the value, or use .env.example/.env.template as a template." >&2
     exit 2
 fi

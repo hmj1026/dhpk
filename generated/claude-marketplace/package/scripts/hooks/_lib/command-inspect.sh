@@ -1357,9 +1357,58 @@ _dhpk_ci_list_run() {
     return 0
 }
 
+# dhpk_command_is_trivial <command>
+#   True when the raw command cannot contain anything the decoder treats
+#   specially, so splitting it on spaces and tabs gives the decoder's own
+#   result: one simple command with no git invocation, cd, redirect,
+#   expansion, quote, comment or separator. Any doubt answers false.
+#   Rejected: the substring git in any letter case, .env, a quote,
+#   backslash, backtick, $ ( ) { } < > ; & | # * ? [ ] ~, a newline or a
+#   carriage return, and any word (or path ending in /word, any letter
+#   case) cd, pushd, popd, rm, tee, coproc, eval or source. A blank command
+#   is not trivial.
+dhpk_command_is_trivial() {
+    local w n=0 IFS=$' \t'
+    case "$1" in
+        *[Gg][Ii][Tt]*|*.[Ee][Nn][Vv]*) return 1 ;;
+        *[\'\"\\\`\$\(\)\{\}\<\>\;\&\|\#\*\?\[\]~]*) return 1 ;;
+        *$'\n'*|*$'\r'*) return 1 ;;
+    esac
+    # Word splitting is safe here: no glob, brace or tilde character is left.
+    # shellcheck disable=SC2086
+    for w in $1; do
+        case "$w" in
+            [Cc][Dd]|*/[Cc][Dd]|[Rr][Mm]|*/[Rr][Mm]|[Tt][Ee][Ee]|*/[Tt][Ee][Ee]) return 1 ;;
+            [Pp][Uu][Ss][Hh][Dd]|*/[Pp][Uu][Ss][Hh][Dd]|[Pp][Oo][Pp][Dd]|*/[Pp][Oo][Pp][Dd]) return 1 ;;
+            [Cc][Oo][Pp][Rr][Oo][Cc]|*/[Cc][Oo][Pp][Rr][Oo][Cc]|[Ee][Vv][Aa][Ll]|*/[Ee][Vv][Aa][Ll]) return 1 ;;
+            [Ss][Oo][Uu][Rr][Cc][Ee]|*/[Ss][Oo][Uu][Rr][Cc][Ee]) return 1 ;;
+        esac
+        n=$((n + 1))
+    done
+    [ "$n" -gt 0 ]
+}
+
+# _dhpk_ci_trivial_fill <command> <start-cwd>
+#   The decoder's state for a command dhpk_command_is_trivial accepted: one
+#   simple command whose argv is the command split on spaces and tabs, run in
+#   <start-cwd>. The caller has already reset every other output.
+_dhpk_ci_trivial_fill() {
+    local IFS=$' \t'
+    # shellcheck disable=SC2206  # split on spaces and tabs; nothing can glob
+    local -a words=($1)
+    DHPK_STRIPPED="$1"
+    DHPK_WORDS=("${words[@]}")
+    DHPK_CMD_START=(0)
+    DHPK_CMD_LEN=("${#words[@]}")
+    # shellcheck disable=SC2034  # read by pre-bash-guard after source
+    DHPK_CMD_CWD=("$2")
+}
+
 # dhpk_inspect_command <command> [start-cwd]
 #   Fills DHPK_GIT_*, DHPK_WORDS, DHPK_CMD_*, DHPK_REDIRECT_TARGETS,
 #   DHPK_STRIPPED and DHPK_UNSUPPORTED. start-cwd defaults to the process pwd.
+#   A command dhpk_command_is_trivial accepts skips the per-character scan;
+#   DHPK_INSPECT_FAST is 1 then and 0 when the full decoder ran.
 dhpk_inspect_command() {
     local cmd="$1"
     local start="${2:-}"
@@ -1388,6 +1437,14 @@ dhpk_inspect_command() {
     case "$cmd" in
         *'>('*|*mkfifo*) DHPK_HD_FORCE_EXEC=1 ;;
     esac
+    if dhpk_command_is_trivial "$cmd"; then
+        _dhpk_ci_trivial_fill "$cmd" "$start"
+        # shellcheck disable=SC2034  # 1 when the fast path decoded the command
+        DHPK_INSPECT_FAST=1
+        return 0
+    fi
+    # shellcheck disable=SC2034  # 0 when the full decoder ran
+    DHPK_INSPECT_FAST=0
     _dhpk_ci_cwd="$start"
     _dhpk_ci_cwd_state="literal"
     _dhpk_ci_exec_next=0
