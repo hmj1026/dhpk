@@ -10,7 +10,7 @@
     "skills/change-verdict/scripts/lib/runner-utils.js": {
       "skill_id": "change-verdict",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
+      "sha256": "sha256:8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/docs/agent-guidance/verification-handoff.md": {
@@ -94,7 +94,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:b4680ae9bc89a6840f292daf8006dc144463100d217e4c76f2029e994147c076",
+      "sha256": "sha256:a29dcb40e7ab57fba0fb74ecc7c4b19c69fea0ff76300434500771ccded1be00",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js": {
@@ -178,7 +178,7 @@
     "skills/flow-guide/scripts/_lib/runner-utils.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
+      "sha256": "sha256:8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1",
       "mode": "0644"
     },
     "skills/flow-guide/scripts/_lib/skill-next-map.js": {
@@ -190,7 +190,7 @@
     "skills/flow-guide/scripts/_lib/skill-usage.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/skill-usage.js",
-      "sha256": "sha256:e83d0131cda311fab7daf9a5eabad669e321424172d8b1e98492dae16ad4bd35",
+      "sha256": "sha256:20bf5503cd0eb94b52c9581d1a1cc7d2e21a211fa7cdc6c423f04a29884373ef",
       "mode": "0644"
     },
     "skills/harness-setup/data/module-catalog.json": {
@@ -220,7 +220,7 @@
     "skills/precommit/scripts/lib/runner-utils.js": {
       "skill_id": "precommit",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
+      "sha256": "sha256:8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1",
       "mode": "0644"
     },
     "skills/project-audit/scripts/lib/command-namespace.js": {
@@ -232,19 +232,19 @@
     "skills/project-audit/scripts/lib/runner-utils.js": {
       "skill_id": "project-audit",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
+      "sha256": "sha256:8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1",
       "mode": "0644"
     },
     "skills/repo-intake/scripts/lib/runner-utils.js": {
       "skill_id": "repo-intake",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
+      "sha256": "sha256:8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1",
       "mode": "0644"
     },
     "skills/repo-verify/scripts/lib/runner-utils.js": {
       "skill_id": "repo-verify",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:b80a842b1d7d65f4207431e9f33388f98ef7fadf6e2edcd0827e0771364644cf",
+      "sha256": "sha256:8b72c8c695f5aa45ab173298ddea509e379cbe75893ee234a77788925ae555e1",
       "mode": "0644"
     },
     "skills/swift/references/actor-persistence.md": {
