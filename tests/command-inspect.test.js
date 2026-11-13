@@ -443,6 +443,38 @@ test('a cd that may not run leaves the directory unresolved', () => {
   }
 });
 
+test('a quoted, escaped or assignment-prefixed reserved word does not close a block', () => {
+  // bash: none of these is the keyword, so the cd stays inside the if/while/case.
+  for (const command of [
+    'if false; then "fi"; cd /feat; fi; git commit -m x',
+    'if false; then \\fi; cd /feat; fi; git commit -m x',
+    'if false; then x=1 fi; cd /feat; fi; git commit -m x',
+    "while false; do 'done'; cd /feat; done; git commit -m x",
+    'case a in b) "esac"; cd /feat;; esac; git commit -m x',
+    'if true; then if false; then cd /feat; fi; fi; git commit -m x',
+  ]) {
+    assert.strictEqual(gitRecords(command).records[0].state, 'unresolved', command);
+  }
+  assert.strictEqual(gitRecords('if true; then echo fi; fi; cd /feat && git commit -m x').records[0].repo, '/feat');
+});
+
+test('coproc, pushd and popd never move the session directory as a certain cd', () => {
+  for (const command of [
+    'coproc cd /feat; git commit -m x',
+    'pushd /feat && git commit -m x',
+    'cd /feat && popd && git commit -m x',
+    'command -p cd /feat && git commit -m x',
+  ]) {
+    assert.strictEqual(gitRecords(command).records[0].state, 'unresolved', command);
+  }
+});
+
+test('command cd and builtin cd are tracked like cd', () => {
+  for (const command of ['command cd /feat && git commit -m x', 'builtin cd /feat && git commit -m x']) {
+    assert.strictEqual(gitRecords(command).records[0].repo, '/feat', command);
+  }
+});
+
 test('a cd that always runs, or that a && chain carries to git, stays resolved', () => {
   for (const [command, repo] of [
     ['cd /feat && git commit -m x', '/feat'],

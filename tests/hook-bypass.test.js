@@ -946,6 +946,18 @@ test('pre-bash-dispatch (block mode) does not trust a cd that may not run', () =
       const res = bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE });
       expectStatus(res, BLOCK, command);
     }
+    for (const command of [
+      `coproc cd ${featureRepo}; git commit -m x`,
+      `if false; then "fi"; cd ${featureRepo}; fi; git commit -m x`,
+      `pushd ${featureRepo} && git commit -m x`,
+    ]) {
+      expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    }
+    expectStatus(
+      bashHook('pre-bash-dispatch.sh', `command cd ${protectedRepo} && git commit -m x`, { cwd: featureRepo, env: BLOCK_MODE }),
+      BLOCK,
+      'command cd into a protected repo',
+    );
     const chained = `cd ${featureRepo} && git commit --allow-empty -m x`;
     expectStatus(bashHook('pre-bash-dispatch.sh', chained, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, chained);
   });
