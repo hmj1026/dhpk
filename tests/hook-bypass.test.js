@@ -925,6 +925,32 @@ test('pre-bash-guard blocks substitutions inside single quotes of a double-quote
   }
 });
 
+test("pre-bash-guard blocks commands after '\\' inside a double-quoted ${...}", () => {
+  for (const command of [
+    'echo "${x:-\'\\\'}" ; git commit --no-verify -m x #\'"',
+    'echo "${x#\'\\\'}" ; git commit --no-verify -m x #\'"',
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test('pre-bash-dispatch (block mode) does not trust a cd that may not run', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `if false; then cd ${featureRepo}; fi; git commit -m x`,
+      `while false; do cd ${featureRepo}; done; git commit -m x`,
+      `case a in b) cd ${featureRepo};; esac; git commit -m x`,
+      `f() { cd ${featureRepo}; }; git commit -m x`,
+      `false && cd ${featureRepo}; git commit -m x`,
+    ]) {
+      const res = bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE });
+      expectStatus(res, BLOCK, command);
+    }
+    const chained = `cd ${featureRepo} && git commit --allow-empty -m x`;
+    expectStatus(bashHook('pre-bash-dispatch.sh', chained, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, chained);
+  });
+});
+
 test('pre-edit-guard blocks Windows-equivalent .env and .git names', () => {
   for (const filePath of ['.env ', '.env.', '.env::$DATA', '.git::$INDEX_ALLOCATION/config', 'a/.git /config']) {
     expectStatus(editHook(filePath), BLOCK, JSON.stringify(filePath));

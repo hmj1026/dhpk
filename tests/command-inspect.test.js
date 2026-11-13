@@ -411,6 +411,49 @@ test('${...} inside double quotes or a heredoc body still runs substitutions ins
   assert.deepStrictEqual(decoded('echo "${x:-\'}\'}" ; git commit --no-verify -m x #"').cmds.slice(-1), [NV_COMMIT]);
 });
 
+test("a backslash inside '...' of a double-quoted ${...} is literal, so '\\' closes", () => {
+  // bash 5.2: echo "A[${x:-'\'}]" ; echo SECOND #'" prints A['\'] and SECOND.
+  for (const command of [
+    'echo "${x:-\'\\\'}" ; git commit --no-verify -m x #\'"',
+    'echo "${x#\'\\\'}" ; git commit --no-verify -m x #\'"',
+    "cat <<EOF\n${x:-'\\'}\nEOF\ngit commit --no-verify -m x",
+  ]) {
+    assert.deepStrictEqual(decoded(command).cmds.slice(-1), [NV_COMMIT], command);
+  }
+});
+
+test('a cd that may not run leaves the directory unresolved', () => {
+  for (const command of [
+    'if false; then cd /feat; fi; git commit -m x',
+    'if true; then :; else cd /feat; fi; git commit -m x',
+    'while false; do cd /feat; done; git commit -m x',
+    'until true; do cd /feat; done; git commit -m x',
+    'for d in; do cd /feat; done; git commit -m x',
+    'if true; then echo; cd /feat; fi; git commit -m x',
+    'case a in b) cd /feat;; esac; git commit -m x',
+    'f() { cd /feat; }; git commit -m x',
+    'function f { cd /feat; }; git commit -m x',
+    'false || cd /feat; git commit -m x',
+    'false && cd /feat; git commit -m x',
+    'false && cd /feat\ngit commit -m x',
+    'cd /feat & git commit -m x',
+  ]) {
+    assert.strictEqual(gitRecords(command).records[0].state, 'unresolved', command);
+  }
+});
+
+test('a cd that always runs, or that a && chain carries to git, stays resolved', () => {
+  for (const [command, repo] of [
+    ['cd /feat && git commit -m x', '/feat'],
+    ['cd /feat; git commit -m x', '/feat'],
+    ['make && cd /feat && git commit -m x', '/feat'],
+    ['{ cd /feat; }; git commit -m x', '/feat'],
+    ['if true; then :; fi; cd /feat && git commit -m x', '/feat'],
+  ]) {
+    assert.strictEqual(gitRecords(command).records[0].repo, repo, command);
+  }
+});
+
 test('nesting deeper than the decoder supports is unsupported, not a crash', () => {
   const tail = ' ; git commit --no-verify -m x';
   for (const [kind, command] of [
