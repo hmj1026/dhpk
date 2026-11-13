@@ -169,7 +169,7 @@ if [ "${DHPK_PROTECT_LINT_CONFIGS:-1}" != "0" ] && [ -f "$file_path" ]; then
     if [ "$EDIT_GUARD_PLAIN" -eq 1 ]; then
         config_basename="${file_path##*/}"
     else
-        config_basename="$(basename "$file_path")"
+        config_basename="$(basename -- "$file_path")"
     fi
     case "$config_basename" in
         .eslintrc|.eslintrc.js|.eslintrc.cjs|.eslintrc.json|.eslintrc.yml|.eslintrc.yaml|\
