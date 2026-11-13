@@ -164,6 +164,16 @@ test("$'git' is recognised as a git invocation", () => {
   assert.strictEqual(got.no_verify, '1');
 });
 
+test("$'...' ends at a decoded NUL, as bash does, and \\cX is a control character", () => {
+  assert.deepStrictEqual(decoded("$'git\\x00q' $'a\\0b'c $'x\\c@\\'y' $'p\\cAq' $'o\\400k' $'z\\u0000w'").cmds, [
+    ['git', 'ac', 'x', 'p\x01q', 'o', 'z'],
+  ]);
+});
+
+test('inside double quotes a backslash escapes only $ ` " \\ and joins a newline', () => {
+  assert.deepStrictEqual(decoded('"gi\\\nt" "a\\b" "\\$x\\`\\"\\\\"').cmds, [['git', 'a\\b', '$x`"\\']]);
+});
+
 test('concatenated quoting decodes to one word', () => {
   assert.deepStrictEqual(decoded('r"m" -rf ".e"nv \'a b\'c $"d"').cmds, [['rm', '-rf', '.env', 'a bc', 'd']]);
 });

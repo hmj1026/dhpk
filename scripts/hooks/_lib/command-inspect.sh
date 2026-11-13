@@ -258,12 +258,16 @@ _dhpk_ci_flush_command() {
 # _dhpk_ci_ansi_escape <text> <index>
 #   Decodes the $'...' escape whose letter is at <index> (just after the
 #   backslash). Sets _dhpk_ci_esc_out to the decoded text and _dhpk_ci_esc_len
-#   to the number of characters consumed from <index>. Unknown escapes and
-#   non-ASCII \u / \U values keep their backslash form, as bash 3.2 does.
+#   to the number of characters consumed from <index>. Sets _dhpk_ci_esc_nul
+#   to 1 when the escape decodes to NUL (\0, \x00, \u0000, \c@, an octal
+#   value whose low byte is 0): bash ends the string there, so the caller
+#   discards the rest of that $'...' segment. Unknown escapes and non-ASCII
+#   \u / \U values keep their backslash form, as bash 3.2 does.
 _dhpk_ci_ansi_escape() {
-    local text="$1" at="$2" ch digits="" max=0 k d
+    local text="$1" at="$2" ch digits="" max=0 k d val
     ch="${text:$at:1}"
     _dhpk_ci_esc_len=1
+    _dhpk_ci_esc_nul=0
     case "$ch" in
         n) _dhpk_ci_esc_out=$'\n'; return 0 ;;
         t) _dhpk_ci_esc_out=$'\t'; return 0 ;;
@@ -274,6 +278,17 @@ _dhpk_ci_ansi_escape() {
         v) _dhpk_ci_esc_out=$'\v'; return 0 ;;
         e|E) _dhpk_ci_esc_out=$'\033'; return 0 ;;
         \\|"'"|'"'|'?') _dhpk_ci_esc_out="$ch"; return 0 ;;
+        c)
+            d="${text:$((at + 1)):1}"
+            if [ -z "$d" ]; then
+                _dhpk_ci_esc_out="\\c"
+                return 0
+            fi
+            _dhpk_ci_esc_len=2
+            printf -v val '%d' "'$d"
+            _dhpk_ci_esc_byte $((val & 31))
+            return 0
+            ;;
         [0-7]) max=3; k=$at ;;
         x) max=2; k=$((at + 1)) ;;
         u) max=4; k=$((at + 1)) ;;
@@ -295,12 +310,12 @@ _dhpk_ci_ansi_escape() {
         return 0
     fi
     case "$ch" in
-        [0-7]) printf -v _dhpk_ci_esc_out '%b' "\\0$digits" ;;
-        x) printf -v _dhpk_ci_esc_out '%b' "\\x$digits" ;;
+        [0-7]) _dhpk_ci_esc_byte $((8#$digits & 255)) ;;
+        x) _dhpk_ci_esc_byte $((16#$digits)) ;;
         *)
-            if [ $((16#$digits)) -lt 128 ]; then
-                printf -v d '%x' $((16#$digits))
-                printf -v _dhpk_ci_esc_out '%b' "\\x$d"
+            val=$((16#$digits))
+            if [ "$val" -lt 128 ]; then
+                _dhpk_ci_esc_byte "$val"
             else
                 _dhpk_ci_esc_out="\\$ch$digits"
             fi
@@ -308,6 +323,20 @@ _dhpk_ci_ansi_escape() {
     esac
     return 0
 }
+
+# _dhpk_ci_esc_byte <0-255>
+#   Sets _dhpk_ci_esc_out to that byte, or flags NUL for 0.
+_dhpk_ci_esc_byte() {
+    local hex
+    if [ "$1" -eq 0 ]; then
+        _dhpk_ci_esc_out=""
+        _dhpk_ci_esc_nul=1
+        return 0
+    fi
+    printf -v hex '%x' "$1"
+    printf -v _dhpk_ci_esc_out '%b' "\\x$hex"
+}
+
 
 # _dhpk_ci_start_redirect
 #   Called at an unquoted redirect operator. A pending all-digit word is the
@@ -377,10 +406,17 @@ dhpk_inspect_command() {
             i=$((i + 1))
             continue
         fi
-        if [ "$_dhpk_ci_mode" = "ansi" ]; then
+        if [ "$_dhpk_ci_mode" = "ansi" ] || [ "$_dhpk_ci_mode" = "ansi_nul" ]; then
             if [ "$ch" = "\\" ] && [ -n "$next" ]; then
-                _dhpk_ci_ansi_escape "$cmd" $((i + 1))
-                _dhpk_ci_word="${_dhpk_ci_word}${_dhpk_ci_esc_out}"
+                if [ "$_dhpk_ci_mode" = "ansi_nul" ]; then
+                    # Past a decoded NUL: bash drops the rest of the string,
+                    # but an escaped quote still does not close it.
+                    _dhpk_ci_esc_len=1
+                else
+                    _dhpk_ci_ansi_escape "$cmd" $((i + 1))
+                    _dhpk_ci_word="${_dhpk_ci_word}${_dhpk_ci_esc_out}"
+                    [ "$_dhpk_ci_esc_nul" -eq 1 ] && _dhpk_ci_mode="ansi_nul"
+                fi
                 DHPK_STRIPPED="${DHPK_STRIPPED}${cmd:$i:$((_dhpk_ci_esc_len + 1))}"
                 _dhpk_ci_seg="${_dhpk_ci_seg}${cmd:$i:$((_dhpk_ci_esc_len + 1))}"
                 i=$((i + 1 + _dhpk_ci_esc_len))
@@ -390,7 +426,7 @@ dhpk_inspect_command() {
             _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
             if [ "$ch" = "'" ]; then
                 _dhpk_ci_mode="normal"
-            else
+            elif [ "$_dhpk_ci_mode" = "ansi" ]; then
                 _dhpk_ci_word="${_dhpk_ci_word}${ch}"
             fi
             i=$((i + 1))
@@ -400,7 +436,14 @@ dhpk_inspect_command() {
             DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
             _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"
             if [ "$ch" = "\\" ] && [ -n "$next" ]; then
-                _dhpk_ci_word="${_dhpk_ci_word}${next}"
+                # Inside "...", backslash-newline is a line continuation and a
+                # backslash escapes only $, `, " and \; before anything else
+                # it stays part of the word.
+                case "$next" in
+                    $'\n') ;;
+                    '$'|'`'|'"'|\\) _dhpk_ci_word="${_dhpk_ci_word}${next}" ;;
+                    *) _dhpk_ci_word="${_dhpk_ci_word}\\${next}" ;;
+                esac
                 _dhpk_ci_word_open=1
                 DHPK_STRIPPED="${DHPK_STRIPPED}${next}"
                 _dhpk_ci_seg="${_dhpk_ci_seg}${next}"
