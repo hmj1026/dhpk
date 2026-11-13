@@ -1403,6 +1403,12 @@ _dhpk_ci_trivial_fill() {
     # shellcheck disable=SC2034  # read by pre-bash-guard after source
     DHPK_CMD_CWD=("$2")
 }
+
+# dhpk_inspect_command <command> [start-cwd]
+#   Fills DHPK_GIT_*, DHPK_WORDS, DHPK_CMD_*, DHPK_REDIRECT_TARGETS,
+#   DHPK_STRIPPED and DHPK_UNSUPPORTED. start-cwd defaults to the process pwd.
+#   A command dhpk_command_is_trivial accepts skips the per-character scan;
+#   DHPK_INSPECT_FAST is 1 then and 0 when the full decoder ran.
 dhpk_inspect_command() {
     local cmd="$1"
     local start="${2:-}"
