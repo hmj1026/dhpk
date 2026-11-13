@@ -211,7 +211,7 @@ The pre-execution check that stops an agent command from skipping commit verific
 _Avoid_: git hook, commit guard
 
 **Git Verdict**:
-The Git Gate's single decision about one agent command: allowed, or blocked for one named reason with recovery advice. A command that carries a git token next to a construct the gate cannot resolve reaches a blocked verdict, never an allowed one.
+The Git Gate's single decision about one agent command: allowed, or blocked for one named reason with recovery advice. A command that runs `git` next to a construct the gate cannot resolve reaches a blocked verdict, never an allowed one.
 _Avoid_: gate result
 
 **Text Guard Scope**:

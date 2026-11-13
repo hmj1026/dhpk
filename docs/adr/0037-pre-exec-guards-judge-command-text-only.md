@@ -4,7 +4,8 @@ Status: accepted
 
 ## Context
 
-The Bash hooks (the Credential Guard and the Git Gate) inspect an agent
+The Bash hooks (the Credential Guard and the Git Gate, see
+[GLOSSARY](../../GLOSSARY.md)) inspect an agent
 command before it runs. Reviews for #1389, #1392, and #1396 found bypasses
 that no text inspection can see: a script written and then executed in the
 same command (`cat <<'EOF' > s.sh ... EOF; sh s.sh`), and an interpreter's
@@ -16,13 +17,15 @@ every interpreter code argument, which would block many legitimate commands.
 
 Pre-execution guards defend against habitual or accidental bypasses, not
 against an agent that deliberately searches for one. Their Text Guard Scope
-is what the command text itself states. Content produced or written at run
+is what the command text itself states, the same boundary that
+[ADR 0034](0034-credential-guard-runs-read-only-git-listings.md) keeps when it
+runs read-only git listings only for what the text names. Content produced or written at run
 time is out of scope and is accepted, not fixed. Permission mode and review
 cover that content.
 
 Inside the scope, a guard that meets a construct it cannot resolve still
 fails closed. The Credential Verdict and the Git Verdict both block when a
-sensitive token (a Protected Path, or a git token) appears next to `eval`,
+sensitive token (a Protected Path, or the word `git` in command position) appears next to `eval`,
 `source`, `cd -`, `CDPATH`, or a here-string fed to a shell.
 
 ## Consequences
