@@ -23,6 +23,7 @@ const {
 } = require('./platform-provenance');
 const {
   createTraversalBudget,
+  DEFAULT_TRAVERSAL_LIMITS,
   readFileBounded,
   listPhysicalFiles,
   lstatOrNull,
@@ -284,8 +285,8 @@ function selectedConfiguration(inventory, profileSelection = null, root = null, 
 
 // `contents` (relative path -> bytes) lets a caller that already read the files
 // hash them without a second read; the traversal budget is still charged.
-function fingerprintFiles(packageRoot, files, contents = null) {
-  const budget = createTraversalBudget();
+function fingerprintFiles(packageRoot, files, contents = null, traversalLimits = {}) {
+  const budget = createTraversalBudget(traversalLimits);
   return Object.fromEntries(files.filter((relative) => !['provenance.json', 'fingerprints.json'].includes(relative)).map((relative) => {
     const target = path.join(packageRoot, relative);
     const stat = fs.statSync(target);
@@ -663,7 +664,7 @@ function receiptDeclaresNoRules(root) {
 
 // `selected` lets the generator hand over the configuration it already compiled
 // for the same inventory and selection, so the distribution compiles once.
-function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null, profileSelection = null, sourceRoot = null, publicationView = null, allowPreview = false, selected: precompiled = null } = {}) {
+function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null, profileSelection = null, sourceRoot = null, publicationView = null, allowPreview = false, selected: precompiled = null, contentCacheMaxBytes = null, traversalLimits = null } = {}) {
   const errors = [];
   const warnings = [];
   const root = path.resolve(packageRoot || '');
@@ -751,8 +752,15 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   // Every directory prefix ('a/', 'a/b/') of every file, for prefix membership.
   const directoryPrefixes = new Set();
   const expectedSkillRootSet = new Set(expectedSkillRoots);
-  // Each package file is read once; later checks and fingerprints reuse the bytes.
+  // Each package file is read once; later checks and fingerprints reuse the bytes
+  // while their running total stays within the traversal byte budget. Beyond it
+  // files are not cached and are re-read on demand, so memory stays bounded.
+  const cacheLimit = contentCacheMaxBytes !== null
+    ? contentCacheMaxBytes
+    : (traversalLimits && traversalLimits.maxBytes) || DEFAULT_TRAVERSAL_LIMITS.maxBytes;
   const contents = new Map();
+  let cachedBytes = 0;
+  const contentOf = (relative) => contents.get(relative) || readFileBounded(path.join(root, relative));
   for (const relative of files) {
     assertSafeRelative(relative, 'AGY package file');
     const base = relative.split('/')[0];
@@ -775,7 +783,10 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     const absolute = path.join(root, relative);
     if (!isInside(root, absolute)) errors.push(`AGY package path escapes root: ${relative}`);
     const content = readFileBounded(absolute);
-    contents.set(relative, content);
+    if (cachedBytes + content.length <= cacheLimit) {
+      contents.set(relative, content);
+      cachedBytes += content.length;
+    }
     if (containsSecret(content.toString('utf8'))) errors.push(`possible secret in AGY package file: ${relative}`);
   }
 
@@ -783,14 +794,14 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   const ruleFiles = files.filter((relative) => relative.startsWith('rules/') && relative.endsWith('.md')).sort();
   const skillFiles = files.filter((relative) => /^skills\/[^/]+\/SKILL\.md$/.test(relative)).sort();
   for (const relative of files.filter((file) => file.startsWith('skills/') && file.endsWith('/SKILL.md'))) {
-    const content = contents.get(relative).toString('utf8');
+    const content = contentOf(relative).toString('utf8');
     const portable = validatePortableSkillMetadata(content);
     if (!portable.ok) errors.push(...portable.errors.map((error) => `${relative}: ${error}`));
   }
   if (agentFiles.length === 0) errors.push('AGY package must contain at least one adapted agent');
   for (const relative of agentFiles) {
     if (expectedAgentFiles && !expectedAgentFiles.has(relative)) errors.push(`undeclared AGY agent: ${relative}`);
-    const adapted = adaptFrontmatter(contents.get(relative).toString('utf8'), { filePath: relative });
+    const adapted = adaptFrontmatter(contentOf(relative).toString('utf8'), { filePath: relative });
     if (adapted.changed || adapted.droppedFields.length > 0) errors.push(`agent is not idempotently AGY-adapted: ${relative}`);
   }
   if (expectedRuleFiles) for (const relative of expectedRuleFiles) if (!fileSet.has(relative)) errors.push(`selected AGY rule is missing: ${relative}`);
@@ -800,7 +811,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   for (const relative of ruleFiles) {
     const entry = AGY_RULE_TRIGGER_MAP[relative];
     if (!entry) continue;
-    const content = contents.get(relative).toString('utf8');
+    const content = contentOf(relative).toString('utf8');
     if (!content.startsWith(agyRuleFrontmatter(entry))) {
       errors.push(`AGY rule is missing its trigger frontmatter: ${relative}`);
     }
@@ -813,7 +824,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   const receipt = readPackageReceipt(root, { surface: SURFACE, allowPreview });
   errors.push(...receipt.errors);
   if (receipt.fingerprints) {
-    const drift = verifyPackageReceipt(receipt, fingerprintFiles(root, files, contents));
+    const drift = verifyPackageReceipt(receipt, fingerprintFiles(root, files, contents, traversalLimits || {}));
     if (drift.length > 0) errors.push('AGY package fingerprints do not match output files', ...drift);
   }
   const provenance = receipt.provenance && typeof receipt.provenance === 'object' ? receipt.provenance : null;
