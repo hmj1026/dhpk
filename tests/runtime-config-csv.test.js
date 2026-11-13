@@ -81,6 +81,8 @@ const MODULE_CASES = [
   ['"a b"', ['a b']],
   ['-n,-e,-x,ok', ['-x', 'ok']],
   ['php,php, php', ['php']],
+  [' -n,  -E x', ['x']],
+  ['a -n', ['a -n']],
   ['\ra\r\tb, \rc ', ['a\r b', 'c']],
   ['a\\b', ['ab']],
 ];

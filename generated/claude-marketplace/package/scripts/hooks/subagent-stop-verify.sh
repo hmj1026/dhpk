@@ -32,7 +32,8 @@ PAYLOAD="$(dhpk_read_payload)"
 # schema differs across Claude Code versions: the current (verified) schema
 # delivers the identity in top-level `agent_type`, prefixed with the plugin
 # namespace (e.g. `dhpk:doc-reviewer`); the other candidates are kept for
-# back-compat / forward-compat. LOG_ATYPE deliberately reads agent_type only.
+# back-compat / forward-compat; empty values are skipped like null (the old
+# python fallback did the same). LOG_ATYPE deliberately reads agent_type only.
 # PARSED_BY_JQ=1 means the fields are authoritative.
 SUBAGENT="" LOG_ATYPE="" LOG_AID="" LOG_TPATH="" LOG_EFFORT="" PARSED_BY_JQ=0
 parse_payload() {
@@ -40,14 +41,20 @@ parse_payload() {
     [ -z "$payload" ] && return 0
     command -v jq >/dev/null 2>&1 || return 0
     fields="$(printf '%s' "$payload" | jq -r '
-        [ ((.agent_type // .subagent_type // .subagent // .agent_name // (.tool_input? | .subagent_type?) // "")
-           | if type == "string" then . else tojson end),
-          (.agent_type // ""),
-          (.agent_id // ""),
-          (.agent_transcript_path // ""),
-          ((.effort // "") | if type == "object" then (.level // "" | tostring) else tostring end)
+        def clean: gsub("[\u001f\n]"; " ");
+        def scalar: if type == "object" or type == "array" then error("non-scalar") else tostring | clean end;
+        [ (([.agent_type, .subagent_type, .subagent, .agent_name, (.tool_input? | .subagent_type?)]
+            | map(select(. != null and . != false and . != "")) | .[0] // "")
+           | if type == "string" then . else tojson end | clean),
+          ((.agent_type // "") | scalar),
+          ((.agent_id // "") | scalar),
+          ((.agent_transcript_path // "") | scalar),
+          (((.effort // "") | if type == "object" then (.level // "" | tostring) else tostring end) | scalar)
         ] | join("\u001f")' 2>/dev/null)" || return 0
     IFS=$'\x1f' read -r SUBAGENT LOG_ATYPE LOG_AID LOG_TPATH LOG_EFFORT <<< "$fields"
+    # Several concatenated JSON documents print one line each: the name stays
+    # unidentified (as before), the log keeps the first document's fields.
+    case "$fields" in *$'\n'*) SUBAGENT="" ;; esac
     PARSED_BY_JQ=1
     return 0
 }
@@ -118,7 +125,7 @@ log_subagent_dispatch() {
     } | jq -R -n -c \
         --arg agent_type "$LOG_ATYPE" --arg agent_id "$LOG_AID" --arg effort "$LOG_EFFORT" \
         '([inputs | fromjson? | select(type == "object" and .type == "assistant") | .message.model // empty] | last // "") as $model
-         | {ts: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
+         | {ts: (now | gmtime | strftime("%Y-%m-%dT%H:%M:%SZ")),
           agent_type: (if $agent_type == "" then null else $agent_type end),
           agent_id: (if $agent_id == "" then null else $agent_id end),
           model: (if $model == "" then null else $model end),

@@ -21,11 +21,11 @@
 # Result in _DHPK_MODULE. Plain items trim in pure bash (same result as
 # `echo "$item" | xargs`: whitespace trimmed and collapsed). Items xargs would
 # interpret (quotes, backslashes, CR/VT/FF blanks) or echo would take as an
-# option (leading dash) still go through xargs, so the result stays identical
+# option (leading dash, even after blanks) still go through xargs, so the result stays identical
 # for those rare inputs.
 _dhpk_module_trim() {
     case "$1" in
-        *\'*|*\"*|*\\*|*$'\r'*|*$'\v'*|*$'\f'*|-*) _DHPK_MODULE="$(echo "$1" | xargs)" ;;
+        *\'*|*\"*|*\\*|*$'\r'*|*$'\v'*|*$'\f'*|-*|[[:blank:]]*-*) _DHPK_MODULE="$(echo "$1" | xargs)" ;;
         *) _dhpk_ws_normalize "$1"; _DHPK_MODULE="$_DHPK_NORM" ;;
     esac
 }

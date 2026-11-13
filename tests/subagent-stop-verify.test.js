@@ -222,6 +222,39 @@ test('tool_input that is not an object does not break the hook or the log', () =
   }
 });
 
+test('empty agent_type falls through to the next candidate (subagent_type) and clears the entry', () => {
+  const repo = mkRepo();
+  try {
+    const sess = sessionsDir(repo);
+    fs.mkdirSync(sess, { recursive: true });
+    const activeFile = path.join(sess, '.active-fast-worker');
+    fs.writeFileSync(activeFile, 'l1\tdhpk:fast-worker\nl2\tdhpk:codex-worker\n');
+    const res = runHook(HOOK, { payload: { agent_type: '', subagent_type: 'fast-worker' }, projectDir: repo });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(fs.readFileSync(activeFile, 'utf8'), 'l2\tdhpk:codex-worker\n');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('a unit-separator or newline inside agent_type cannot spoof a fast-worker name or shift log fields', () => {
+  const repo = mkRepo();
+  try {
+    const sess = sessionsDir(repo);
+    fs.mkdirSync(sess, { recursive: true });
+    const activeFile = path.join(sess, '.active-fast-worker');
+    const original = 'l1\tdhpk:fast-worker\nl2\tdhpk:codex-worker\n';
+    fs.writeFileSync(activeFile, original);
+    runHook(HOOK, { payload: { agent_type: 'dhpk:fast-worker\u001fjunk', agent_id: 'i1' }, projectDir: repo });
+    runHook(HOOK, { payload: { agent_type: 'dhpk:fast-worker\nx' }, projectDir: repo });
+    assert.strictEqual(fs.readFileSync(activeFile, 'utf8'), original);
+    const recs = readLog(repo);
+    assert.strictEqual(recs[0].agent_id, 'i1');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
 // PATH made of every executable on the current PATH except jq.
 function mkNoJqBin() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-nojq-'));
