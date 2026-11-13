@@ -118,14 +118,17 @@ function collectInventory(root) {
   const repoRoot = path.resolve(root);
   const rootAgentFiles = walkFiles(path.join(repoRoot, 'agents'),
     (filePath) => filePath.endsWith('.md') && !filePath.endsWith('INDEX.md'));
-  const moduleAgentFiles = walkFiles(path.join(repoRoot, 'modules'), (filePath) => {
+  const isModuleAgent = (filePath) => {
     const rel = relativePosix(repoRoot, filePath);
     return /^modules\/[^/]+\/agents\/[^/]+\.md$/.test(rel) && !filePath.endsWith('INDEX.md');
-  });
+  };
+  const isModuleSkill = (filePath) => /^modules\/[^/]+\/skills\/.+\/SKILL\.md$/.test(relativePosix(repoRoot, filePath));
+  // One traversal of modules/ feeds both module lists (walkFiles returns sorted paths).
+  const moduleFiles = walkFiles(path.join(repoRoot, 'modules'), (filePath) => isModuleAgent(filePath) || isModuleSkill(filePath));
+  const moduleAgentFiles = moduleFiles.filter(isModuleAgent);
   const baseSkillFiles = walkFiles(path.join(repoRoot, 'skills'),
     (filePath) => filePath.endsWith('SKILL.md'));
-  const moduleSkillFiles = walkFiles(path.join(repoRoot, 'modules'), (filePath) =>
-    /^modules\/[^/]+\/skills\/.+\/SKILL\.md$/.test(relativePosix(repoRoot, filePath)));
+  const moduleSkillFiles = moduleFiles.filter(isModuleSkill);
   const commandFiles = walkFiles(path.join(repoRoot, 'commands'),
     (filePath) => filePath.endsWith('.md') && !filePath.endsWith('INDEX.md'));
   const moduleDirs = listDirectories(path.join(repoRoot, 'modules'));
@@ -146,6 +149,9 @@ function collectInventory(root) {
 
   const hooksManifest = readJson(repoRoot, 'hooks/hooks.json');
   const moduleCatalog = readJson(repoRoot, 'manifests/module-catalog.json');
+  const hookEvents = hooksManifest && hooksManifest.hooks && typeof hooksManifest.hooks === 'object'
+    ? Object.keys(hooksManifest.hooks)
+    : [];
 
   return {
     root: repoRoot,
@@ -164,9 +170,7 @@ function collectInventory(root) {
       codexPlugin: readJson(repoRoot, '.codex-plugin/plugin.json'),
       moduleCatalog,
       hooks: {
-        events: hooksManifest && hooksManifest.hooks && typeof hooksManifest.hooks === 'object'
-          ? Object.keys(hooksManifest.hooks).sort()
-          : [],
+        events: [...hookEvents].sort(),
       },
     },
     counts: {
@@ -181,9 +185,7 @@ function collectInventory(root) {
       modules: moduleDirs.length,
       mcpCodexSkills: mcpCodexSkills.length,
       codexCommands: codexCommandFiles.length,
-      hookEvents: hooksManifest && hooksManifest.hooks && typeof hooksManifest.hooks === 'object'
-        ? Object.keys(hooksManifest.hooks).length
-        : 0,
+      hookEvents: hookEvents.length,
     },
   };
 }
