@@ -2541,7 +2541,7 @@
       "sourcePath": "scripts/lib/install-adapters/codex-cli.js",
       "destination": "skills/harness-setup/scripts/lib/dhpk-installer.cjs",
       "kind": "generated",
-      "sha256": "3403448ecbbb6731dcc81b1ce71da3fbeda8c1c79811ebfb72073314ec69bb01"
+      "sha256": "7d9a20775c862de71a14f7079e075a7af8a75822b178c6f55f7a2c6f37977d14"
     },
     {
       "skillId": "harness-setup",

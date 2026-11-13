@@ -100,6 +100,9 @@ const DEFAULT_TRAVERSAL_LIMITS = Object.freeze({
   maxBytes: 128 * 1024 * 1024,
 });
 
+const READ_CHUNK_BYTES = 64 * 1024;
+const NAME_COLLATOR = new Intl.Collator();
+
 function positiveLimit(value, fallback, label) {
   if (value === undefined) return fallback;
   const numeric = Number(value);
@@ -163,9 +166,11 @@ function createTraversalBudget(options = {}) {
     leaveDirectory(realDirectory) {
       activeDirectories.delete(realDirectory);
     },
+    // displayPath may be a thunk so hot callers only build the path on failure.
     accountEntry(displayPath) {
       if (entries + 1 > limits.maxEntries) {
-        throw new Error(`maximum fingerprint entry count (${limits.maxEntries}) exceeded: ${displayPath}`);
+        const shown = typeof displayPath === 'function' ? displayPath() : displayPath;
+        throw new Error(`maximum fingerprint entry count (${limits.maxEntries}) exceeded: ${shown}`);
       }
       entries += 1;
     },
@@ -202,23 +207,22 @@ function createTraversalBudget(options = {}) {
         }
         this.accountFile(filePath, opened.stat, displayPath);
         const expectedSize = Number(opened.stat.size);
-        const chunks = [];
-        let remaining = expectedSize;
+        // The size was accounted above, so one allocation is bounded.  The
+        // buffer is not zero-filled; it is only returned once every byte was
+        // read, and any short read or size change throws instead.
+        const result = Buffer.allocUnsafe(expectedSize);
         let position = 0;
-        while (remaining > 0) {
-          const length = Math.min(64 * 1024, remaining);
-          const chunk = Buffer.alloc(length);
-          const count = fs.readSync(opened.fd, chunk, 0, length, position);
+        while (position < expectedSize) {
+          const length = Math.min(READ_CHUNK_BYTES, expectedSize - position);
+          const count = fs.readSync(opened.fd, result, position, length, position);
           if (!count) throw new Error(`file changed while reading: ${displayPath}`);
-          chunks.push(count === length ? chunk : chunk.subarray(0, count));
           position += count;
-          remaining -= count;
         }
         const finalStat = fs.fstatSync(opened.fd);
         if (!sameFileIdentity(opened.stat, finalStat) || Number(finalStat.size) !== expectedSize) {
           throw new Error(`file changed while reading: ${displayPath}`);
         }
-        return Buffer.concat(chunks, expectedSize);
+        return result;
       } finally {
         fs.closeSync(opened.fd);
       }
@@ -238,7 +242,7 @@ function readDirectoryEntries(directory, { budget = createTraversalBudget(), sor
     while (true) {
       const entry = handle.readSync();
       if (entry === null) break;
-      budget.accountEntry(path.join(directory, entry.name));
+      budget.accountEntry(() => path.join(directory, entry.name));
       entries.push(entry);
     }
   } finally {
@@ -246,7 +250,7 @@ function readDirectoryEntries(directory, { budget = createTraversalBudget(), sor
   }
   if (!sort) return entries;
   return entries.sort(localeSort
-    ? (left, right) => left.name.localeCompare(right.name)
+    ? (left, right) => NAME_COLLATOR.compare(left.name, right.name)
     : (left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
 }
 
@@ -269,6 +273,31 @@ function listFilesNamedRecursively(directory, name, options = {}) {
   };
   walk(directory, 0);
   return files;
+}
+
+// Every regular file below `root` as sorted posix-relative paths.  Symlinks
+// and non-regular entries fail closed; `labels` supplies the caller's error
+// prefixes (`${labels.symlink}: <path>`, `${labels.unsupported}: <path>`) so
+// each caller keeps its own diagnostic wording.
+function listPhysicalFiles(root, labels, options = {}) {
+  const files = [];
+  const budget = createTraversalBudget(options);
+  const walk = (directory, depth) => {
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const entry of readDirectoryEntries(directory, { budget, sort: true, localeSort: true })) {
+        const child = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) throw new Error(`${labels.symlink}: ${child}`);
+        if (entry.isDirectory()) walk(child, depth + 1);
+        else if (entry.isFile()) files.push(path.relative(root, child).split(path.sep).join('/'));
+        else throw new Error(`${labels.unsupported}: ${child}`);
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  walk(root, 0);
+  return files.sort();
 }
 
 // Path guards shared by the Host package generators. Only copies that were
@@ -299,14 +328,17 @@ function assertPhysicalAncestors(directory, label) {
   }
 }
 
-function ensurePhysicalDirectory(directory, label) {
+// `create` selects ensure semantics: a missing directory is created and a
+// symlink gets its own error. Without it a missing directory passes and a
+// symlink falls through to the "must be a directory" error.
+function checkPhysicalDirectory(directory, label, create) {
   assertPhysicalAncestors(directory, label);
   const stat = lstatOrNull(directory);
   if (!stat) {
-    fs.mkdirSync(directory, { recursive: true });
+    if (create) fs.mkdirSync(directory, { recursive: true });
     return path.resolve(directory);
   }
-  if (stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
+  if (create && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
   if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
   if (fs.realpathSync(directory) !== path.resolve(directory)) {
     throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
@@ -314,16 +346,13 @@ function ensurePhysicalDirectory(directory, label) {
   return path.resolve(directory);
 }
 
+function ensurePhysicalDirectory(directory, label) {
+  return checkPhysicalDirectory(directory, label, true);
+}
+
 // Like ensurePhysicalDirectory but never creates: a missing directory passes.
 function assertPhysicalDirectory(directory, label) {
-  assertPhysicalAncestors(directory, label);
-  const stat = lstatOrNull(directory);
-  if (!stat) return path.resolve(directory);
-  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
-  if (fs.realpathSync(directory) !== path.resolve(directory)) {
-    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
-  }
-  return path.resolve(directory);
+  return checkPhysicalDirectory(directory, label, false);
 }
 
 // Every symlink at or below `directory`, the root itself included.
@@ -377,6 +406,7 @@ module.exports = {
   readFileBounded,
   readDirectoryEntries,
   listFilesNamedRecursively,
+  listPhysicalFiles,
 };
 
 }],
@@ -494,13 +524,17 @@ function buildTreeNodes(entries) {
     if (node.children.has(leaf)) throw new Error(`tree path '${entry.path}' conflicts with another entry`);
     node.children.set(leaf, entry.type === 'link'
       ? { type: 'link', target: String(entry.target) }
-      : { type: 'file', content: entry.content });
+      : { type: 'file', content: entry.content, digest: entry.digest });
   }
   return root;
 }
 
+function fileLeafDigest(content) {
+  return crypto.createHash('sha256').update('file\0').update(content).digest('hex');
+}
+
 function treeNodeDigest(node) {
-  if (node.type === 'file') return crypto.createHash('sha256').update('file\0').update(node.content).digest('hex');
+  if (node.type === 'file') return node.digest === undefined ? fileLeafDigest(node.content) : node.digest;
   if (node.type === 'link') {
     if (!node.target.isWellFormed()) throw new Error('link target is not valid Unicode');
     return crypto.createHash('sha256').update('link\0').update(node.target, 'utf8').digest('hex');
@@ -536,12 +570,26 @@ function treeFingerprint(entries) {
 // subtree hashed on its own. Entries follow treeFingerprint; nothing is read
 // from disk.
 function treeNodeFingerprint(entries, prefix = '') {
-  let node = buildTreeNodes(entries);
-  for (const name of String(prefix).split('/').filter((part) => part !== '')) {
-    node = node.type === 'directory' ? node.children.get(name) : undefined;
-    if (!node) return '';
+  return treeNodeFingerprints(entries, [prefix]).get(String(prefix));
+}
+
+// treeNodeFingerprint for several prefixes over one tree: the node tree is built
+// once. Returns a Map from each prefix (as a string, first occurrence order) to
+// its digest, '' when nothing exists there.
+function treeNodeFingerprints(entries, prefixes) {
+  const root = buildTreeNodes(entries);
+  const digests = new Map();
+  for (const prefix of prefixes) {
+    const key = String(prefix);
+    if (digests.has(key)) continue;
+    let node = root;
+    for (const name of key.split('/').filter((part) => part !== '')) {
+      node = node.type === 'directory' ? node.children.get(name) : undefined;
+      if (!node) break;
+    }
+    digests.set(key, node ? treeNodeDigest(node) : '');
   }
-  return treeNodeDigest(node);
+  return digests;
 }
 
 // Observed-value rule shared with the installer's Python copy of the message
@@ -621,15 +669,12 @@ function packageContentAndModeFingerprints(entries) {
 // files (`sha256:` byte digest, mode & 0o777), then
 // 'sha256:' + SHA-256 hex of the canonical JSON of that list.
 function directoryEntriesFingerprint(entries) {
+  // Canonical JSON writes keys in sorted order, so each record is emitted with
+  // its keys already sorted instead of being built and sorted again.
   const records = entries.map((entry) => (entry.type === 'directory'
-    ? { path: entry.path, type: 'directory' }
-    : {
-      path: entry.path,
-      type: 'file',
-      fingerprint: `sha256:${sha256Hex(entry.content)}`,
-      mode: entry.mode & 0o777,
-    }));
-  return canonicalJsonSha256Prefixed(records);
+    ? `{"path":${JSON.stringify(entry.path)},"type":"directory"}`
+    : `{"fingerprint":"sha256:${sha256Hex(entry.content)}","mode":${entry.mode & 0o777},"path":${JSON.stringify(entry.path)},"type":"file"}`));
+  return `sha256:${sha256Hex(`[${records.join(',')}]`)}`;
 }
 
 // The only disk reader. Walks a physical directory and returns, in per-directory
@@ -651,6 +696,29 @@ function directoryEntriesFingerprint(entries) {
 //                            links, such as installer destinations and the
 //                            cursor/ and codex/ sync trees)
 function collectDirectoryEntries(directory, options = {}) {
+  return walkPhysicalTree(directory, options, (budget, absolute, stat, relative) => ({
+    type: 'file',
+    content: budget.readFile(absolute, stat, relative),
+    mode: stat.mode & 0o7777,
+  }));
+}
+
+// Dirent type of a directory child as 'link', 'directory' or 'file'; null when
+// the filesystem reports no usable type or a special entry, in which case the
+// caller asks lstat.
+function direntKind(dirent) {
+  if (dirent.isSymbolicLink()) return 'link';
+  if (dirent.isDirectory()) return 'directory';
+  if (dirent.isFile()) return 'file';
+  return null;
+}
+
+// The walk behind collectDirectoryEntries and fingerprintPath. Directories and
+// links are classified from the Dirent; only a file (or an entry whose Dirent
+// has no type) costs an lstat, which supplies the mode and identity that
+// budget.readFile checks. describeFile(budget, absolute, stat, relative)
+// returns the entry fields of one file after reading it.
+function walkPhysicalTree(directory, options, describeFile) {
   const { order = 'codeUnit', skipBytecode = false, symlinks = 'refuse' } = options;
   if (order !== 'codeUnit' && order !== 'locale') throw new TypeError(`unknown directory order: ${order}`);
   if (symlinks !== 'refuse' && symlinks !== 'skip' && symlinks !== 'record') {
@@ -670,8 +738,13 @@ function collectDirectoryEntries(directory, options = {}) {
         if (skipBytecode && isBytecodeName(entry.name)) continue;
         const absolute = path.join(current, entry.name);
         const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
-        const stat = fs.lstatSync(absolute);
-        if (stat.isSymbolicLink()) {
+        let kind = direntKind(entry);
+        let stat = null;
+        if (kind === null || kind === 'file') {
+          stat = fs.lstatSync(absolute);
+          kind = stat.isSymbolicLink() ? 'link' : stat.isDirectory() ? 'directory' : stat.isFile() ? 'file' : null;
+        }
+        if (kind === 'link') {
           if (symlinks === 'skip') continue;
           if (symlinks === 'record') {
             entries.push({ path: childRelative, type: 'link', target: fs.readlinkSync(absolute) });
@@ -679,16 +752,11 @@ function collectDirectoryEntries(directory, options = {}) {
           }
           throw new Error(`cannot fingerprint symlink '${childRelative}'`);
         }
-        if (stat.isDirectory()) {
+        if (kind === 'directory') {
           entries.push({ path: childRelative, type: 'directory' });
           visit(absolute, childRelative, depth + 1);
-        } else if (stat.isFile()) {
-          entries.push({
-            path: childRelative,
-            type: 'file',
-            content: budget.readFile(absolute, stat, childRelative),
-            mode: stat.mode & 0o7777,
-          });
+        } else if (kind === 'file') {
+          entries.push({ path: childRelative, ...describeFile(budget, absolute, stat, childRelative) });
         } else {
           throw new Error(`cannot fingerprint special entry '${childRelative}'`);
         }
@@ -710,11 +778,15 @@ function fingerprintPath(target, options = {}) {
   if (stat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${target}`);
   const budget = createTraversalBudget(options);
   if (stat.isFile()) {
-    const file = [{ path: 'node', type: 'file', content: budget.readFile(target, stat) }];
-    return treeNodeFingerprint(file, 'node');
+    return fileLeafDigest(budget.readFile(target, stat));
   }
   if (!stat.isDirectory()) throw new Error(`cannot fingerprint special entry: ${target}`);
-  const walked = collectDirectoryEntries(target, { budget, skipBytecode: true, symlinks: 'refuse' });
+  // Each file is hashed as soon as it is read, so only its 32-byte digest, never
+  // its bytes, stays alive for the rest of the walk.
+  const walked = walkPhysicalTree(target, { budget, skipBytecode: true, symlinks: 'refuse' }, (fileBudget, absolute, fileStat, relative) => ({
+    type: 'file',
+    digest: fileLeafDigest(fileBudget.readFile(absolute, fileStat, relative)),
+  }));
   return treeFingerprint(walked.filter((entry) => entry.type === 'file'));
 }
 
@@ -728,6 +800,7 @@ module.exports = {
   TREE_FINGERPRINT_ALGORITHM,
   treeFingerprint,
   treeNodeFingerprint,
+  treeNodeFingerprints,
   versionBoundaryMessage,
   requireTreeMerkle,
   resolveFingerprintAlgorithm,
