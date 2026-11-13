@@ -9,11 +9,8 @@
 // $'...' ANSI-C quoting, newlines in commands and paths, and the .env / .git/
 // path blacklists.
 //
-// TESTS ONLY. Every case below is green against the CURRENT hooks. Cases that
-// exposed a real bypass are registered through knownBypass(): they are NOT
-// executed, they print a SKIP line carrying the finding, and each one states
-// the assertion that must pass once the hook is fixed. Un-skip by switching
-// knownBypass(...) to test(...) when the hook closes the gap.
+// The eight bypasses this suite first recorded as skipped cases (#1389) are
+// closed: every case below runs and must pass against the current hooks.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -23,14 +20,6 @@ const { mkRepo, rmRepo, runHook } = require('./_lib/hookharness');
 
 const BLOCK = 2;
 const ALLOW = 0;
-
-// Register a documented-but-unfixed bypass. The body is kept for the fix
-// author but never run, so the suite stays green on the current hooks.
-function knownBypass(name, finding, _pendingAssertion) {
-  test(`SKIP (known bypass) ${name}`, () => {
-    console.log(`    SKIP known bypass: ${finding}`);
-  });
-}
 
 function git(cwd, args) {
   const res = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -132,11 +121,13 @@ test('pre-bash-guard honours the explicit DHPK_ALLOW_NO_VERIFY=1 opt-out', () =>
   expectStatus(res, ALLOW, 'opt-out');
 });
 
-knownBypass(
-  'pre-bash-guard --no-verify via $\'git\' command word',
-  "`$'git' commit --no-verify` exits 0 (ANSI-C quoted command name is not recognised as git; command-inspect.sh does not decode $'...')",
-  { command: "$'git' commit --no-verify -m x", status: BLOCK }
-);
+test("pre-bash-guard blocks --no-verify via $'...' ANSI-C quoted command word", () => {
+  for (const command of ["$'git' commit --no-verify -m x", "$'\\x67it' commit --no-verify -m x", "$'g'it push --no-verify"]) {
+    const res = bashHook('pre-bash-guard.sh', command);
+    expectStatus(res, BLOCK, command);
+    assert.match(res.stderr, /--no-verify/);
+  }
+});
 
 // ---------------------------------------------------------------------------
 // pre-bash-guard.sh — .env writes and rm -rf under shell obfuscation
@@ -187,31 +178,68 @@ test('pre-bash-guard allows rm -rf on a scratch path', () => {
   expectStatus(bashHook('pre-bash-guard.sh', 'rm -rf /tmp/dhpk-scratch-dir'), ALLOW, 'rm tmp');
 });
 
-knownBypass(
-  'pre-bash-guard .env write via split quoting',
-  '`echo x > ".e"nv` and `echo x > .e""nv` exit 0 (quote concatenation is not normalised before the .env regex)',
-  { command: 'echo x > ".e"nv', status: BLOCK }
-);
-knownBypass(
-  'pre-bash-guard .env write via $\'.env\'',
-  "`echo x > $'.env'` exits 0 (ANSI-C quoted redirect target is not decoded)",
-  { command: "echo x > $'.env'", status: BLOCK }
-);
-knownBypass(
-  'pre-bash-guard .env write to quoted path containing a space',
-  '`printf x > "dir with space/.env"` exits 0 (target regex stops at whitespace inside quotes)',
-  { command: 'printf x > "dir with space/.env"', status: BLOCK }
-);
-knownBypass(
-  'pre-bash-guard rm -rf with quote-split rm',
-  '`r"m" -rf /etc` exits 0 (rm pattern matches raw text, not the unquoted command word)',
-  { command: 'r"m" -rf /etc', status: BLOCK }
-);
-knownBypass(
-  'pre-bash-guard rm -rf with $\'...\' or quoted-root target',
-  "`rm -rf $'/etc'` and `rm -rf \"/\"` exit 0 (quote before the slash defeats the root-path regex)",
-  { command: "rm -rf $'/etc'", status: BLOCK }
-);
+const ENV_WRITE_DECODED_BLOCKED = [
+  ['quote concatenation in the target', 'echo x > ".e"nv'],
+  ['empty quotes inside the target', 'echo x > .e""nv'],
+  ['ANSI-C quoted target', "echo x > $'.env'"],
+  ['ANSI-C hex-escaped target', "echo x > $'\\x2eenv'"],
+  ['quoted path containing a space', 'printf x > "dir with space/.env"'],
+  ['redirect glued to the quoted target', 'echo x >".e"nv'],
+  ['fd-numbered redirect', "echo x 2>$'.env'"],
+  ['&> redirect', 'echo x &> ".e"nv'],
+  ['tee with a split-quoted target', "echo x | tee -a '.e'nv"],
+  ['tee with a quoted command word', 'echo x | t"ee" .env'],
+];
+
+for (const [label, command] of ENV_WRITE_DECODED_BLOCKED) {
+  test(`pre-bash-guard blocks .env write after decoding quotes: ${label}`, () => {
+    const res = bashHook('pre-bash-guard.sh', command);
+    expectStatus(res, BLOCK, command);
+    assert.match(res.stderr, /\.env/);
+  });
+}
+
+const ENV_WRITE_DECODED_ALLOWED = [
+  ['split-quoted template target', 'echo x > ".env".example'],
+  ['ANSI-C quoted template target', "echo x > $'.env.template'"],
+  ['quoted path with a space to a template', 'printf x > "dir with space/.env.sample"'],
+  ['quoted non-env file with a space', 'printf x > "dir with space/notes.txt"'],
+  ['fd duplication', 'echo x >&2'],
+];
+
+for (const [label, command] of ENV_WRITE_DECODED_ALLOWED) {
+  test(`pre-bash-guard allows decoded non-secret target: ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  });
+}
+
+const RM_DECODED_BLOCKED = [
+  ['quote-split rm', 'r"m" -rf /etc'],
+  ['ANSI-C quoted rm', "$'rm' -rf /usr"],
+  ['ANSI-C quoted target', "rm -rf $'/etc'"],
+  ['double-quoted root', 'rm -rf "/"'],
+  ['single-quoted root', "rm -rf '/'"],
+  ['split-quoted system dir', 'rm -rf /"et"c'],
+  ['quoted shallow home', 'rm -rf "/home/u"'],
+  ['dangerous path as a later argument', 'rm -rf /tmp/x "/etc"'],
+  ['.. traversal into a system dir', 'rm -rf /tmp/../etc'],
+  ['quoted .. traversal to the root', 'rm -rf "/tmp/x/../.."'],
+  ['dot segment before home', 'rm -rf /./home/u'],
+];
+
+for (const [label, command] of RM_DECODED_BLOCKED) {
+  test(`pre-bash-guard blocks rm -rf after decoding quotes: ${label}`, () => {
+    const res = bashHook('pre-bash-guard.sh', command);
+    expectStatus(res, BLOCK, command);
+    assert.match(res.stderr, /rm -rf/);
+  });
+}
+
+test('pre-bash-guard allows decoded rm -rf on workspace and scratch paths', () => {
+  for (const command of ['rm -rf "/tmp/dhpk scratch"', "rm -rf $'/home/u/projects/repo/dist'", 'r"m" -rf ./build', 'echo "rm -rf /etc" > notes.txt', 'rm -rf /tmp/x/../y']) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  }
+});
 
 // ---------------------------------------------------------------------------
 // pretool-git-gate.sh — protected-branch gate (block mode) under obfuscation
@@ -342,11 +370,21 @@ test('pretool-git-gate off mode stays silent even for an obfuscated commit on ma
   });
 });
 
-knownBypass(
-  'pretool-git-gate commit via $\'git\' command word on a protected branch',
-  "`$'git' commit -m x` exits 0 in block mode (ANSI-C quoted command name is not recognised as git)",
-  { command: "$'git' commit -m x", status: BLOCK }
-);
+test("pretool-git-gate (block mode) blocks a $'git' commit on a protected branch", () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ["$'git' commit -m x", "$'\\147it' commit -m x"]) {
+      const res = bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE });
+      expectStatus(res, BLOCK, command);
+      assert.match(res.stderr, /branch-safety/);
+    }
+  });
+});
+
+test("pretool-git-gate allows a $'git' commit on a feature branch", () => {
+  withRepos(({ featureRepo }) => {
+    expectStatus(bashHook('pretool-git-gate.sh', "$'git' commit -m x", { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, 'feature');
+  });
+});
 
 // ---------------------------------------------------------------------------
 // pre-bash-dispatch.sh — composed Bash entry (guard first, then git gate)
@@ -403,11 +441,21 @@ test('pre-bash-dispatch allows a quoted flag message on a feature branch', () =>
   });
 });
 
-knownBypass(
-  'pre-bash-dispatch commit via $\'git\' command word',
-  "`$'git' commit --no-verify -m x` exits 0 through the whole dispatch chain (guard and gate both miss it)",
-  { command: "$'git' commit --no-verify -m x", status: BLOCK }
-);
+test("pre-bash-dispatch blocks a $'git' --no-verify commit through the whole chain", () => {
+  withRepos(({ featureRepo }) => {
+    const res = bashHook('pre-bash-dispatch.sh', "$'git' commit --no-verify -m x", { cwd: featureRepo });
+    expectStatus(res, BLOCK, 'dispatch ansi-c git');
+    assert.match(res.stderr, /bash-guard/);
+  });
+});
+
+test("pre-bash-dispatch propagates the git-gate block for a $'git' commit on main", () => {
+  withRepos(({ protectedRepo }) => {
+    const res = bashHook('pre-bash-dispatch.sh', "$'git' commit -m x", { cwd: protectedRepo, env: BLOCK_MODE });
+    expectStatus(res, BLOCK, 'dispatch ansi-c gate');
+    assert.match(res.stderr, /branch-safety/);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // pre-edit-guard.sh — .env / .git/ blacklist, newline and metacharacter paths
@@ -482,20 +530,263 @@ test('pre-edit-guard honours GUARD_EXTRA_PATTERNS and fails closed on a broken r
   expectStatus(editHook('src/app/out.js', { GUARD_EXTRA_PATTERNS: '(' }), BLOCK, 'broken regex');
 });
 
-knownBypass(
-  'pre-edit-guard scratchpad allowlist with parent traversal',
-  '`/tmp/claude-x/../../home/u/proj/.env` and `/tmp/claude-x/../etc/.git/config` exit 0 (scratchpad prefix regex is applied before the path is normalised, so ".." escapes it)',
-  { filePath: '/tmp/claude-x/../../home/u/proj/.env', status: BLOCK }
-);
-knownBypass(
-  'pre-edit-guard case-insensitive .env / .git',
-  '`.ENV` and `.Git/config` exit 0 (matching is case-sensitive; bypass on case-insensitive filesystems such as default macOS/Windows)',
-  { filePath: '.Git/config', status: BLOCK }
-);
-knownBypass(
-  'pre-edit-guard bare .git file (worktree/submodule gitlink)',
-  '`.git` with no trailing slash exits 0 (rule needs `.git/`); in a linked worktree `.git` is a file that redirects git internals',
-  { filePath: '.git', status: BLOCK }
-);
+const EDIT_NORMALISED_BLOCKED = [
+  ['scratchpad prefix escaped by ..', '/tmp/claude-x/../../home/u/proj/.env'],
+  ['scratchpad prefix escaped into .git', '/tmp/claude-x/../etc/.git/config'],
+  ['private scratchpad escaped by ..', '/private/tmp/claude-x/../../Users/u/.env'],
+  ['scratchpad dir itself then ..', '/tmp/claude-x/sub/../../x/.env'],
+  ['dot segment hides the scratchpad prefix', '/tmp/./claude-x/../../repo/.git/HEAD'],
+  ['uppercase .ENV', '.ENV'],
+  ['mixed-case nested .Env.local', 'a/.Env.local'],
+  ['mixed-case .Git/config', '.Git/config'],
+  ['uppercase nested .GIT hook', 'a/.GIT/hooks/pre-commit'],
+  ['bare .git gitlink file', '.git'],
+  ['nested bare .git gitlink file', 'sub/module/.git'],
+  ['bare .git with a trailing dot segment', 'a/.git/.'],
+];
+
+for (const [label, filePath] of EDIT_NORMALISED_BLOCKED) {
+  test(`pre-edit-guard blocks after normalising the path: ${label}`, () => {
+    const res = editHook(filePath);
+    expectStatus(res, BLOCK, JSON.stringify(filePath));
+    assert.match(res.stderr, /blocked sensitive file/);
+  });
+}
+
+const EDIT_NORMALISED_ALLOWED = [
+  ['scratchpad path with an internal ..', '/tmp/claude-x/a/../.env'],
+  ['scratchpad path with a doubled slash', '/tmp//claude-x//.env'],
+  ['private scratchpad .git', '/private/tmp/claude-x/repo/.git/config'],
+  ['mixed-case template', 'a/.ENV.Example'],
+  ['uppercase .GITIGNORE is not .git', '.GITIGNORE'],
+  ['.git-blame-ignore-revs', '.git-blame-ignore-revs'],
+  ['directory named git', 'a/git/config'],
+];
+
+for (const [label, filePath] of EDIT_NORMALISED_ALLOWED) {
+  test(`pre-edit-guard allows after normalising the path: ${label}`, () => {
+    expectStatus(editHook(filePath), ALLOW, JSON.stringify(filePath));
+  });
+}
+
+test('pre-edit-guard does not let a scratchpad symlink lead out of the scratchpad', () => {
+  const scratch = fs.mkdtempSync('/tmp/claude-dhpk-bypass-');
+  const outside = fs.mkdtempSync('/tmp/dhpk-bypass-outside-');
+  try {
+    fs.mkdirSync(path.join(scratch, 'real'));
+    fs.symlinkSync(outside, path.join(scratch, 'out'));
+    fs.symlinkSync(path.join(outside, '.env'), path.join(scratch, '.env'));
+    expectStatus(editHook(path.join(scratch, 'out', '.env')), BLOCK, 'symlinked directory');
+    expectStatus(editHook(path.join(scratch, 'out', 'new', '.git', 'config')), BLOCK, 'symlinked ancestor');
+    expectStatus(editHook(path.join(scratch, '.env')), BLOCK, 'symlink as the final segment');
+    expectStatus(editHook(path.join(scratch, 'real', '.env')), ALLOW, 'real scratchpad directory');
+    expectStatus(editHook(path.join(scratch, 'not-yet', 'made', '.env')), ALLOW, 'missing scratchpad subdirectory');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Review round (#1389): NUL truncation in $'...', backslash-newline inside
+// double quotes, and rm globs / traversal to a glob.
+// ---------------------------------------------------------------------------
+
+const NUL_TRUNCATED_GIT = [
+  "$'git\\x00q' commit --no-verify -m x",
+  "$'git\\0q' commit --no-verify -m x",
+  "$'git\\c@q' commit --no-verify -m x",
+  "$'git\\u0000q' commit --no-verify -m x",
+  "$'git\\400q' commit --no-verify -m x",
+];
+
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  test(`${hook} blocks --no-verify when $'...' truncates at a decoded NUL`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const command of NUL_TRUNCATED_GIT) {
+        const res = bashHook(hook, command, { cwd: featureRepo });
+        expectStatus(res, BLOCK, command);
+        assert.match(res.stderr, /--no-verify/);
+      }
+    });
+  });
+}
+
+test("pretool-git-gate (block mode) blocks a NUL-truncated $'git' commit on main", () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ["$'git\\x00q' commit -m x", "$'gi\\x74\\0' commit -m x"]) {
+      const res = bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE });
+      expectStatus(res, BLOCK, command);
+      assert.match(res.stderr, /branch-safety/);
+    }
+  });
+});
+
+const REVIEW_GUARD_BLOCKED = [
+  ['rm target truncated by \\x00', "rm -rf $'/etc\\x00junk'"],
+  ['rm target truncated by \\0', "rm -rf $'/etc\\0junk'"],
+  ['rm target truncated by \\c@', "rm -rf $'/etc\\c@junk'"],
+  ['shallow home truncated by NUL', "rm -rf $'/home/u\\x00/projects/x'"],
+  ['NUL skip honours an escaped quote', "rm -rf $'/etc\\x00a\\'b'"],
+  ['.env redirect truncated by NUL', "echo x > $'.env\\x00q'"],
+  ['tee .env truncated before a template suffix', "echo x | tee $'.env\\0.example'"],
+  ['backslash-newline inside a double-quoted rm target', 'rm -rf "/et\\\nc"'],
+  ['backslash-newline inside a double-quoted .env target', 'echo x > ".en\\\nv"'],
+  ['rm with a glob in the first segment', 'rm -rf /[e]tc'],
+  ['rm with a ? glob in the first segment', 'rm -rf /et?'],
+  ['rm with a glob under a shallow root', 'rm -rf /home/*'],
+  ['rm traversal to a root glob', 'rm -rf /tmp/../*'],
+  ['rm traversal to the root', 'rm -rf /tmp/..'],
+];
+
+for (const [label, command] of REVIEW_GUARD_BLOCKED) {
+  test(`pre-bash-guard blocks (review round): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+}
+
+test('backslash-newline inside a double-quoted git word is a continuation for all Bash hooks', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = '"gi\\\nt" commit --no-verify -m x';
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, `guard ${command}`);
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo }), BLOCK, `dispatch ${command}`);
+    const gate = bashHook('pretool-git-gate.sh', '"gi\\\nt" commit -m x', { cwd: protectedRepo, env: BLOCK_MODE });
+    expectStatus(gate, BLOCK, 'gate continuation');
+  });
+});
+
+// Review round 2 (#1389): a $'\c' right before the closing quote must not
+// swallow it, and a brace expansion in the first segment can reach /etc.
+const CTRL_C_PREFIX = "echo $'\\c' ; ";
+
+test("pre-bash-guard blocks commands that follow a $'\\c' string", () => {
+  for (const command of [
+    `${CTRL_C_PREFIX}git commit --no-verify -m x #'`,
+    `${CTRL_C_PREFIX}r"m" -rf /etc #'`,
+    `${CTRL_C_PREFIX}echo x > ".e"nv #'`,
+    "echo $'\\c\\\\' ; git commit --no-verify -m x #'",
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test("pretool-git-gate and dispatch (block mode) block a commit that follows a $'\\c' string on main", () => {
+  withRepos(({ protectedRepo }) => {
+    const command = `${CTRL_C_PREFIX}git commit -m x #'`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+      expectStatus(res, BLOCK, `${hook} ${command}`);
+      assert.match(res.stderr, /branch-safety/);
+    }
+  });
+});
+
+test('pre-bash-dispatch blocks --no-verify that follows a $\'\\c\' string', () => {
+  withRepos(({ featureRepo }) => {
+    const command = `${CTRL_C_PREFIX}git commit --no-verify -m x #'`;
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo }), BLOCK, command);
+  });
+});
+
+test('pre-bash-guard blocks rm -rf with an expansion character in the first path segment', () => {
+  for (const command of [
+    'rm -rf /{etc,nonexist}',
+    'rm -rf /tmp/../{etc,x}',
+    'rm -rf "/"{etc,x}',
+    'rm -rf /e`echo t`c',
+    'rm -rf /$D',
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+// Review round 3 (#1389): $$ is the PID parameter, so $$'\' is PID plus an
+// ordinary '...' string that closes at the next quote.
+const PID_PREFIX = "echo $$'\\' ; ";
+
+test("pre-bash-guard blocks commands that follow $$'...'", () => {
+  for (const command of [
+    `${PID_PREFIX}git commit --no-verify -m x #'`,
+    `${PID_PREFIX}r"m" -rf /etc #'`,
+    `${PID_PREFIX}echo x > ".e"nv #'`,
+    "echo $?'\\' ; git commit --no-verify -m x #'",
+    "echo ${x}'\\' ; git commit --no-verify -m x #'",
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test("pretool-git-gate and dispatch (block mode) block a commit that follows $$'...' on main", () => {
+  withRepos(({ protectedRepo }) => {
+    const command = `${PID_PREFIX}git commit -m x #'`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+      expectStatus(res, BLOCK, `${hook} ${command}`);
+      assert.match(res.stderr, /branch-safety/);
+    }
+  });
+});
+
+test("pre-bash-guard decodes $'...' after $$ ($$$'\\x67it' is still git)", () => {
+  const res = bashHook('pre-bash-guard.sh', "x=$$$'\\x67it' $'\\x67it' commit --no-verify -m x");
+  expectStatus(res, BLOCK, 'ansi-c after pid');
+  expectStatus(bashHook('pre-bash-guard.sh', "rm -rf $$$'/etc'"), ALLOW, 'pid-prefixed relative operand');
+});
+
+// Review round 4 (#1389): '#' starts a comment only at the start of a word.
+// A quote construct, even an empty one or one cut short by a NUL, has already
+// started the word (bash 5.2: `echo $''# ; echo RAN` prints # and RAN), and a
+// carriage return is an ordinary character, not a word separator.
+const OPEN_WORD_HASH = ["$''#", "$'\\x00'#", "$'\\c@'#", "''#", '""#', 'x\r#'];
+
+test('pre-bash-guard does not read a # after an open word as a comment', () => {
+  for (const prefix of OPEN_WORD_HASH) {
+    const command = `echo ${prefix} ; git commit --no-verify -m x`;
+    const res = bashHook('pre-bash-guard.sh', command);
+    expectStatus(res, BLOCK, JSON.stringify(command));
+    assert.match(res.stderr, /--no-verify/);
+  }
+});
+
+test('pre-bash-dispatch blocks --no-verify after a # inside an open word', () => {
+  withRepos(({ featureRepo }) => {
+    for (const prefix of OPEN_WORD_HASH) {
+      const command = `echo ${prefix} ; git commit --no-verify -m x`;
+      expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo }), BLOCK, JSON.stringify(command));
+    }
+  });
+});
+
+test('pretool-git-gate and dispatch (block mode) block a commit after a # inside an open word on main', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const prefix of OPEN_WORD_HASH) {
+      const command = `echo ${prefix} ; git commit -m x`;
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook} ${JSON.stringify(command)}`);
+        assert.match(res.stderr, /branch-safety/);
+      }
+    }
+  });
+});
+
+test('pre-bash-guard still treats a # at the start of a word as a comment', () => {
+  for (const command of ['echo hi # git commit --no-verify -m x', "echo '' # git commit --no-verify -m x"]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  }
+});
+
+test('pre-bash-guard keeps allowing benign NUL, escape and glob forms', () => {
+  for (const command of [
+    "echo x > $'notes\\x00.env'",
+    "echo x > $'.env.example\\x00'",
+    'rm -rf /tmp/dhpk-*',
+    'rm -rf "/tmp/a\\b"',
+    "rm -rf $'/tmp/x\\c@/etc'",
+    'echo "a\\b" > notes.txt',
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  }
+});
 
 run('hook-bypass');
