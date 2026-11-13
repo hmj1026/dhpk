@@ -728,7 +728,7 @@ function twoHosts() {
 test('single-host --json --host includes schemaVersion, host, and a sha256 declaredTiersDigest without paths', () => {
   const agentsDir = makeAgentsDir();
   const report = hostJson('host-a', 'a', agentsDir);
-  assert.strictEqual(report.schemaVersion, 1);
+  assert.strictEqual(report.schemaVersion, 2);
   assert.strictEqual(report.host, 'host-a');
   assert.match(report.declaredTiersDigest, /^[0-9a-f]{64}$/);
   assert.ok(!JSON.stringify(report).includes(agentsDir), 'agents dir path leaked');
@@ -745,7 +745,7 @@ test('single-host --json --host includes schemaVersion, host, and a sha256 decla
 test('two-host merge sums byAgent, costTotals, callOverrides, skipped, noDeclaredTier and generalPurpose with nested maps', () => {
   const [a, b] = twoHosts();
   const m = mergedJson([a, b]);
-  assert.strictEqual(m.schemaVersion, 1);
+  assert.strictEqual(m.schemaVersion, 2);
   assert.deepStrictEqual(m.window, a.window);
   assert.deepStrictEqual(m.pricing, a.pricing);
 
@@ -857,7 +857,8 @@ test('merge rejects an input without schemaVersion or host, or with an unreadabl
   const version = mergeCli([a, noVersion]);
   assert.strictEqual(version.status, 1);
   assert.match(version.stderr, /schemaVersion/);
-  assert.strictEqual(mergeCli([a, { ...b, schemaVersion: 2 }]).status, 1);
+  assert.strictEqual(mergeCli([a, { ...b, schemaVersion: 1 }]).status, 1, 'a v1 report lacks the oversized section');
+  assert.strictEqual(mergeCli([a, { ...b, schemaVersion: 99 }]).status, 1);
 
   const { host, ...noHost } = b;
   const missing = mergeCli([a, noHost]);
@@ -1148,6 +1149,150 @@ test('merged mismatches keep only the known fields plus host and drop unknown ke
   const broken = clone(b);
   delete broken.mismatches[0].fields;
   assertRejected(mergeCli([a, broken]), 'mismatch without fields');
+});
+
+// ---- #1336 item 4: oversized dispatch flag ----
+
+// A dispatch of `turns` assistant turns; the last turn's prompt is `peakPrompt`
+// tokens (input only), every other turn is 10 tokens.
+function sizedRecords(turns, peakPrompt, startHour = 1) {
+  const out = [];
+  for (let i = 0; i < turns; i += 1) {
+    const ts = `2026-11-05T${String(startHour).padStart(2, '0')}:${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}Z`;
+    out.push(assistant({
+      ts,
+      id: `sz-${startHour}-${i}`,
+      model: 'claude-sonnet-5-5',
+      effort: 'medium',
+      usage: { input_tokens: i === turns - 1 ? peakPrompt : 10, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+    }));
+  }
+  return out;
+}
+
+function sizedReport(specs, extraArgs = [], host = 'host-s') {
+  const root = mkdtemp();
+  makeSession(root, {
+    dispatches: specs.map((spec, i) => ({ id: spec.id, agentType: spec.agentType || 'fast-worker', records: sizedRecords(spec.turns, spec.peak, i + 1) })),
+  });
+  const r = cli(['--root', root, '--agents-dir', makeAgentsDir(), '--host', host, '--json', ...extraArgs], { TZ: 'UTC' });
+  assert.strictEqual(r.status, 0, r.stderr);
+  return JSON.parse(r.stdout);
+}
+
+test('oversized: flags by turns only, by context only, or both; exactly at the thresholds is not flagged', () => {
+  const report = sizedReport([
+    { id: 'turns-only', turns: 121, peak: 1000 },
+    { id: 'ctx-only', turns: 3, peak: 200001 },
+    { id: 'both', turns: 130, peak: 250000 },
+    { id: 'edge-turns', turns: 120, peak: 1000 },
+    { id: 'edge-ctx', turns: 3, peak: 200000 },
+    { id: 'small', turns: 2, peak: 500 },
+  ]);
+  assert.deepStrictEqual(report.oversized.thresholds, { turns: 120, promptTokens: 200000 });
+  const rows = report.oversized.dispatches;
+  assert.deepStrictEqual(rows.map((r) => r.agentId), ['both', 'ctx-only', 'turns-only']);
+  assert.deepStrictEqual(rows.map((r) => r.reasons), [['turns', 'context'], ['context'], ['turns']]);
+  assert.deepStrictEqual(rows.map((r) => r.turns), [130, 3, 121]);
+  assert.deepStrictEqual(rows.map((r) => r.peakPromptTokens), [250000, 200001, 1000]);
+  assert.deepStrictEqual(Object.keys(rows[0]).sort(), ['agentId', 'agentType', 'effort', 'model', 'peakPromptTokens', 'reasons', 'turns']);
+  assert.strictEqual(rows[0].agentType, 'fast-worker');
+  assert.strictEqual(rows[0].model, 'claude-sonnet-5-5');
+  assert.strictEqual(rows[0].effort, 'medium');
+  assert.ok(!JSON.stringify(report).includes(PROMPT_SENTINEL));
+});
+
+test('oversized: report without oversized dispatches has an empty list and text shows zero', () => {
+  const report = sizedReport([{ id: 'small', turns: 2, peak: 500 }]);
+  assert.deepStrictEqual(report.oversized, { thresholds: { turns: 120, promptTokens: 200000 }, dispatches: [] });
+  const root = mkdtemp();
+  makeSession(root, { dispatches: [{ id: 'small', agentType: 'fast-worker', records: sizedRecords(2, 500) }] });
+  const text = cli(['--root', root, '--agents-dir', makeAgentsDir()], { TZ: 'UTC' });
+  assert.match(text.stdout, /^oversized dispatches \(>120 turns or >200k context\): 0$/m);
+});
+
+test('oversized: text output lists one line per dispatch with turns, rounded peak in k, and reasons', () => {
+  const root = mkdtemp();
+  makeSession(root, {
+    dispatches: [
+      { id: 'big1', agentType: 'fast-worker', records: sizedRecords(130, 250400, 1) },
+      { id: 'big2', agentType: 'architect', records: sizedRecords(5, 200600, 2) },
+    ],
+  });
+  const r = cli(['--root', root, '--agents-dir', makeAgentsDir()], { TZ: 'UTC' });
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^oversized dispatches \(>120 turns or >200k context\): 2$/m);
+  assert.match(r.stdout, /^  fast-worker big1: turns 130, peak 250k \[turns,context\]$/m);
+  assert.match(r.stdout, /^  architect big2: turns 5, peak 201k \[context\]$/m);
+  assert.ok(r.stdout.indexOf('general-purpose:') < r.stdout.indexOf('oversized dispatches'));
+});
+
+function sizedHost(host, specs) {
+  return sizedReport(specs, [], host);
+}
+
+test('oversized: merge concatenates with host, sorts by peak desc, agentType, agentId, host', () => {
+  const a = sizedHost('host-a', [{ id: 'x1', turns: 130, peak: 1000 }, { id: 'x2', turns: 3, peak: 300000 }]);
+  const b = sizedHost('host-b', [{ id: 'x1', turns: 125, peak: 1000 }, { id: 'y1', turns: 3, peak: 220000 }]);
+  const m = mergedJson([a, b]);
+  assert.deepStrictEqual(m.oversized.thresholds, { turns: 120, promptTokens: 200000 });
+  assert.deepStrictEqual(m.oversized.dispatches.map((d) => [d.host, d.agentId, d.peakPromptTokens]), [
+    ['host-a', 'x2', 300000],
+    ['host-b', 'y1', 220000],
+    ['host-a', 'x1', 1000],
+    ['host-b', 'x1', 1000],
+  ]);
+  assert.deepStrictEqual(m.oversized.dispatches[2].reasons, ['turns']);
+  assert.deepStrictEqual(Object.keys(m.oversized.dispatches[0]).sort(),
+    ['agentId', 'agentType', 'effort', 'host', 'model', 'peakPromptTokens', 'reasons', 'turns']);
+  const text = mergeCli([a, b]);
+  assert.match(text.stdout, /^oversized dispatches \(>120 turns or >200k context\): 4$/m);
+  assert.match(text.stdout, /^  host-a fast-worker x2: turns 3, peak 300k \[context\]$/m);
+});
+
+test('oversized: merge drops unknown fields and a spoofed host on dispatch entries', () => {
+  const a = sizedHost('host-a', [{ id: 'x1', turns: 130, peak: 1000 }]);
+  const b = sizedHost('host-b', [{ id: 'x2', turns: 130, peak: 1000 }]);
+  b.oversized.dispatches[0].host = 'spoofed';
+  b.oversized.dispatches[0].surprise = 'SURPRISE-VALUE';
+  const m = mergedJson([a, b]);
+  assert.strictEqual(m.oversized.dispatches.find((d) => d.agentId === 'x2').host, 'host-b');
+  assert.ok(!JSON.stringify(m).includes('SURPRISE-VALUE'));
+});
+
+test('oversized: merge rejects a missing or malformed oversized section and mismatched thresholds', () => {
+  const a = sizedHost('host-a', [{ id: 'x1', turns: 130, peak: 1000 }]);
+  const b = sizedHost('host-b', [{ id: 'x2', turns: 130, peak: 1000 }]);
+  const secret = 'SECRET-KEY-NAME-DO-NOT-ECHO';
+  const mutations = {
+    missing: (c) => { delete c.oversized; },
+    'not an object': (c) => { c.oversized = 7; },
+    'dispatches missing': (c) => { delete c.oversized.dispatches; },
+    'dispatches not array': (c) => { c.oversized.dispatches = {}; },
+    'thresholds missing': (c) => { delete c.oversized.thresholds; },
+    'threshold not number': (c) => { c.oversized.thresholds.turns = 'x'; },
+    'threshold differs turns': (c) => { c.oversized.thresholds.turns = 99; },
+    'threshold differs tokens': (c) => { c.oversized.thresholds.promptTokens = 1; },
+    'entry not object': (c) => { c.oversized.dispatches = [7]; },
+    'agentType not string': (c) => { c.oversized.dispatches[0].agentType = 3; },
+    'agentId missing': (c) => { delete c.oversized.dispatches[0].agentId; },
+    'model not string': (c) => { c.oversized.dispatches[0].model = null; },
+    'effort number': (c) => { c.oversized.dispatches[0].effort = 5; },
+    'turns negative': (c) => { c.oversized.dispatches[0].turns = -1; },
+    'peak not finite': (c) => { c.oversized.dispatches[0].peakPromptTokens = 'big'; },
+    'reasons not array': (c) => { c.oversized.dispatches[0].reasons = 'turns'; },
+    'reason unknown': (c) => { c.oversized.dispatches[0].reasons = ['turns', secret]; },
+  };
+  for (const [name, mutate] of Object.entries(mutations)) {
+    const broken = clone(b);
+    mutate(broken);
+    const r = mergeCli([a, broken]);
+    assertRejected(r, name);
+    assert.ok(!r.stderr.includes(secret), `${name}: echoed input value`);
+  }
+  const nullEffort = clone(b);
+  nullEffort.oversized.dispatches[0].effort = null;
+  assert.strictEqual(mergeCli([a, nullEffort]).status, 0, 'null effort is valid');
 });
 
 run('dispatch-telemetry-report');
