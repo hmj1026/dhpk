@@ -7,13 +7,8 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { createInstaller } = require('./codex');
+const { createInstaller, HOSTS } = require('./codex');
 const { InstallerExit } = require('./python-compat');
-
-const HOSTS = Object.freeze({
-  codex: { srcRel: 'codex', destRel: '.codex', sourceKinds: 'skills,agents', installerName: 'install-codex-skills' },
-  cursor: { srcRel: 'cursor', destRel: '.cursor', sourceKinds: 'skills,agents,rules,commands', installerName: 'install-cursor-harness' },
-});
 
 // The DHPK_* environment the shell entry builds from its options. `pluginRoot`
 // and `installerRoot` name the artifact (data: manifests, codex/, cursor/,

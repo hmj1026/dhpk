@@ -120,17 +120,28 @@ function fileLeafDigest(content) {
   return crypto.createHash('sha256').update('file\0').update(content).digest('hex');
 }
 
+// Digest of a symlink leaf: sha256("link\0" || utf8(target text)).
+function linkLeafDigest(target) {
+  return crypto.createHash('sha256').update('link\0').update(target, 'utf8').digest('hex');
+}
+
+// Digest of a directory from its child names and their hex digests, in UTF-16
+// code-unit order of the names. `digestOf(name)` returns the child digest.
+function directoryDigest(names, digestOf) {
+  const hash = crypto.createHash('sha256').update('directory\0');
+  for (const name of [...names].sort(compareCodeUnit)) {
+    hash.update(name, 'utf8').update('\0').update(digestOf(name)).update('\0');
+  }
+  return hash.digest('hex');
+}
+
 function treeNodeDigest(node) {
   if (node.type === 'file') return node.digest === undefined ? fileLeafDigest(node.content) : node.digest;
   if (node.type === 'link') {
     if (!node.target.isWellFormed()) throw new Error('link target is not valid Unicode');
-    return crypto.createHash('sha256').update('link\0').update(node.target, 'utf8').digest('hex');
+    return linkLeafDigest(node.target);
   }
-  const hash = crypto.createHash('sha256').update('directory\0');
-  for (const name of [...node.children.keys()].sort(compareCodeUnit)) {
-    hash.update(name, 'utf8').update('\0').update(treeNodeDigest(node.children.get(name))).update('\0');
-  }
-  return hash.digest('hex');
+  return directoryDigest(node.children.keys(), (name) => treeNodeDigest(node.children.get(name)));
 }
 
 // Recipe `tree-merkle-v1` (OpenSpec unify-tree-fingerprint-algorithm, design D1).
@@ -379,6 +390,10 @@ function fingerprintPath(target, options = {}) {
 
 module.exports = {
   fingerprintPath,
+  isBytecodeName,
+  fileLeafDigest,
+  linkLeafDigest,
+  directoryDigest,
   sha256Hex,
   canonicalJson,
   canonicalJsonSha256Prefixed,
