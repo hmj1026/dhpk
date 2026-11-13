@@ -9,7 +9,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { resolveSourceCommitOrUnknown } = require('../lib/platform-provenance');
 const {
   compileCursorPackage,
   materializeCursorPackage,
@@ -39,11 +39,6 @@ function parseArgs(argv) {
   return args;
 }
 
-function resolveSourceCommit(root) {
-  const result = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
-  return result.status === 0 ? result.stdout.trim() : 'unknown';
-}
-
 function readVersion(root, explicit) {
   if (explicit) return explicit;
   const manifestPath = path.join(root, '.claude-plugin', 'plugin.json');
@@ -70,7 +65,7 @@ let inventory;
 try { inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8')); } catch (error) { fail(`invalid distribution inventory: ${error.message}`); }
 
 const version = readVersion(root, args.version);
-const sourceCommit = args.sourceCommit || resolveSourceCommit(root);
+const sourceCommit = args.sourceCommit || resolveSourceCommitOrUnknown(root);
 let result;
 try {
   const compiledProjection = compileCursorPackage({

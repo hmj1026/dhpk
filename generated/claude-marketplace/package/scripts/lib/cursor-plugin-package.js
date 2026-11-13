@@ -22,6 +22,7 @@ const {
   createInstallationReceiptIdentity,
   packageInventoryDigest,
   packageFingerprintAlgorithm,
+  readProvenanceForValidation,
   serializePackageReceipt,
 } = require('./platform-provenance');
 const {
@@ -1514,10 +1515,11 @@ function validateCursorPackage(input = {}) {
       }
     } catch (error) { errors.push(`fingerprints.json is invalid JSON: ${error.message}`); }
   }
-  const provenancePath = path.join(root, 'provenance.json');
-  if (fs.existsSync(provenancePath)) {
+  const provenanceRead = readProvenanceForValidation(root);
+  if (provenanceRead) {
     try {
-      const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
+      if (provenanceRead.error !== undefined) throw new Error(provenanceRead.error);
+      const provenance = provenanceRead.provenance;
       const sharedIds = Array.isArray(provenance.sharedSkillIds) ? provenance.sharedSkillIds : [];
       const selectedIds = Array.isArray(provenance.selectedSkillIds) ? provenance.selectedSkillIds : [];
       const declaredRuntimeSupportIds = Array.isArray(provenance.runtimeSupportStableIds)
