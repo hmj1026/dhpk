@@ -349,7 +349,7 @@ function spawnConsumerGate(root, args, { timeout = 120000, maxBuffer = 8 * 1024 
   });
 }
 
-function prepareConsumerGateEvidence(payload, selectedSurfaces, root) {
+function prepareConsumerGateEvidence(payload, selectedSurfaces, root, defaultAdapter = null) {
   if (!hasCurrentConsumerEnvelope(payload)) {
     throw new Error('consumer gate omitted schema-v2 acceptance evidence');
   }
@@ -361,6 +361,7 @@ function prepareConsumerGateEvidence(payload, selectedSurfaces, root) {
         ? {
           ...entry,
           producer: entry.producer || 'consumer-gate',
+          ...(defaultAdapter ? { adapter: entry.adapter || defaultAdapter() } : {}),
           commands: normalizeProbeCommands(entry.commands, root),
         }
         : entry),
@@ -1006,34 +1007,17 @@ function runConsumerProbe(root, parsed) {
     }
     if (hasCurrentConsumerEnvelope(payload)) {
       try {
-        const canonicalized = canonicalizeClaudeConsumerEnvelope(payload, [surface]);
-        const prepared = Array.isArray(canonicalized.surfaceResults)
-          ? {
-            ...canonicalized,
-            surfaceResults: canonicalized.surfaceResults.map((entry) => entry && typeof entry === 'object'
-              ? {
-                ...entry,
-                producer: entry.producer || 'consumer-gate',
-                adapter: entry.adapter || { id: gateAdapter.adapterId, version: '1.0.0' },
-                commands: normalizeProbeCommands(entry.commands, root),
-              }
-              : entry),
-          }
-          : canonicalized;
-        const normalized = normalizeCurrentConsumerEnvelope(prepared, [surface]);
+        const normalized = prepareConsumerGateEvidence(
+          payload,
+          [surface],
+          root,
+          () => ({ id: gateAdapter.adapterId, version: '1.0.0' }),
+        );
         if (normalized.surfaceResults.length !== 1 || normalized.surfaceResults[0].surface !== surface) {
           throw new Error(`consumer gate must emit exactly one '${surface}' observation`);
         }
         const acceptance = normalized.acceptance;
-        const expectedExitCode = currentAcceptanceExitCode(acceptance.verdict);
-        const transportDiagnostics = [];
-        if (child.error) {
-          transportDiagnostics.push(`consumer gate process failed: ${child.error.message}`);
-        } else if (child.status !== expectedExitCode) {
-          transportDiagnostics.push(
-            `consumer gate acceptance '${acceptance.verdict}' requires exit ${expectedExitCode}, received ${child.status === null ? 'no exit code' : child.status}`,
-          );
-        }
+        const transportDiagnostics = consumerGateTransportDiagnostics(child, acceptance);
         const row = normalized.surfaceResults[0];
         const diagnostics = [
           ...diagnosticList(normalized.diagnostics),

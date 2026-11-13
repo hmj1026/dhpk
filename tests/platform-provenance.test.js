@@ -13,6 +13,8 @@ const {
   resolveGeneratedFromTree,
   validateSurfaceReceipt,
   assertRollbackOwnership,
+  resolveSourceCommitOrUnknown,
+  readProvenanceForValidation,
 } = require('../scripts/lib/platform-provenance');
 
 function git(root, args) {
@@ -363,5 +365,32 @@ test('rollback guard refuses to mutate a different surface owner', () => {
       }
     });
   }
+
+test('resolveSourceCommitOrUnknown returns HEAD inside a repository and unknown outside one', () => {
+  const { root } = gitFixture();
+  const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-no-git-')));
+  try {
+    assert.strictEqual(resolveSourceCommitOrUnknown(root), git(root, ['rev-parse', 'HEAD']));
+    assert.strictEqual(resolveSourceCommitOrUnknown(path.join(bare, 'missing')), 'unknown');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(bare, { recursive: true, force: true });
+  }
+});
+
+test('readProvenanceForValidation reports absent, parsed, and unreadable provenance', () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-provenance-read-')));
+  try {
+    assert.strictEqual(readProvenanceForValidation(root), null);
+    fs.writeFileSync(path.join(root, 'provenance.json'), '{"surface":"agent-plugin"}');
+    assert.deepStrictEqual(readProvenanceForValidation(root), { provenance: { surface: 'agent-plugin' } });
+    fs.writeFileSync(path.join(root, 'provenance.json'), '{not json');
+    const broken = readProvenanceForValidation(root);
+    assert.deepStrictEqual(Object.keys(broken), ['error']);
+    assert.match(broken.error, /JSON/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 run('platform-provenance');

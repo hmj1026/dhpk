@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {
+  deriveProjectionRoots,
   materializeAgentsSkillsProjection,
   uninstallAgentsSkillsProjection,
   rollbackAgentsSkillsProjection,
@@ -74,9 +75,7 @@ try {
     console.log(usage());
     process.exit(0);
   }
-  const root = path.resolve(args.sourceRoot || args.repoRoot);
-  const projectRoot = args.projectRoot ? path.resolve(args.projectRoot) : null;
-  const outDir = args.outDir ? path.resolve(args.outDir) : (projectRoot ? null : path.join(root, '.agents', 'skills'));
+  const { root, projectRoot, outDir } = deriveProjectionRoots(args);
   const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
   if (args.preserveUnmanaged && (projectRoot || args.sourceRoot || args.action !== 'install')) {
     fail('--preserve-unmanaged applies only to the in-checkout projection; it cannot be combined with --project-root, --source-root, --uninstall, or --rollback');

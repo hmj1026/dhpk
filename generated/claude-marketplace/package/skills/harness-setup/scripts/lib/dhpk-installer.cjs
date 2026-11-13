@@ -1057,6 +1057,7 @@ module.exports = {
 const {
   createDistributionPlan,
   createDistributionArtifact,
+  canonicalMetadata,
   createEvidenceResult,
   projectionError,
   VERIFICATION_STAGES,
@@ -1082,14 +1083,6 @@ const EMISSION_METADATA_FIELDS = Object.freeze([
   'usageFingerprint',
   'provenance',
 ]);
-
-function canonicalMetadata(value) {
-  if (Array.isArray(value)) return `[${value.map(canonicalMetadata).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalMetadata(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
 
 function validateEmissionMetadata(emission, planned) {
   for (const field of EMISSION_METADATA_FIELDS) {
@@ -1224,7 +1217,22 @@ function idsFromPlatformMatrix(inventory, surface, entries) {
   return entries.filter((entry) => paths.some((source) => source === 'skills/' || source === entry.path || (source.endsWith('/') && entry.path && entry.path.startsWith(source)))).map((entry) => entry.id);
 }
 
-function resolveSelectionIds(inventory, surface) {
+// Memoized first-wins index of the inventory entries, built at most once per
+// compile call and only when a caller actually needs it.
+function createEntryIndex(inventory) {
+  let cached = null;
+  return () => {
+    if (cached === null) {
+      const entries = allInventoryEntries(inventory);
+      const byId = new Map();
+      for (const entry of entries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
+      cached = { entries, byId };
+    }
+    return cached;
+  };
+}
+
+function resolveSelectionIds(inventory, surface, entryIndex = createEntryIndex(inventory)) {
   const contract = inventory && inventory.projection_contract;
   const rule = contract && contract.surfaces && contract.surfaces[surface];
   const policy = rule && rule.selection_policy;
@@ -1237,9 +1245,7 @@ function resolveSelectionIds(inventory, surface) {
   if (!SELECTION_POLICY_SOURCES.includes(policy.source) || !Array.isArray(policy.precedence) || policy.precedence.length === 0) {
     return { error: selectionPolicyError(`surface '${surface}' declares an unsupported selection policy`) };
   }
-  const entries = allInventoryEntries(inventory);
-  const byId = new Map();
-  for (const entry of entries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
+  const { entries, byId } = entryIndex();
   for (const source of policy.precedence) {
     if (!SELECTION_POLICY_SOURCES.includes(source)) return { error: selectionPolicyError(`surface '${surface}' declares unsupported selection source '${source}'`) };
     let ids = null;
@@ -1268,12 +1274,11 @@ function resolveSelectionIds(inventory, surface) {
 
 function inventoryEntries(inventory, surface) {
   if (!inventory || typeof inventory !== 'object') return [];
-  const resolved = resolveSelectionIds(inventory, surface);
+  const entryIndex = createEntryIndex(inventory);
+  const resolved = resolveSelectionIds(inventory, surface, entryIndex);
   if (resolved.error) return resolved;
   const selectedIds = resolved.ids;
-  const inventoryEntries = allInventoryEntries(inventory);
-  const byId = new Map();
-  for (const entry of inventoryEntries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
+  const { entries: inventoryEntries, byId } = entryIndex();
   // Pre-contract callers retain the original surface-membership boundary;
   // selection policy is optional only for compatibility fixtures, not a
   // reason to broaden a requested surface to every inventory entry.
@@ -1403,7 +1408,9 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
       throw new Error('artifact store session must expose write(output) and stage()/publish()');
     }
     const links = rendered.links || [];
-    const expectedIds = new Set(plan.entries.map((entry) => entry.stableId));
+    const plannedById = new Map();
+    for (const entry of plan.entries) if (!plannedById.has(entry.stableId)) plannedById.set(entry.stableId, entry);
+    const expectedIds = new Set(plannedById.keys());
     const emittedIds = new Set();
     const checkEmission = (emission) => {
       const stableId = emission && emission.stableId;
@@ -1419,7 +1426,7 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
         error.projectionDetails = { stableIds: [stableId] };
         throw error;
       }
-      const metadataError = validateEmissionMetadata(emission, plan.entries.find((entry) => entry.stableId === stableId));
+      const metadataError = validateEmissionMetadata(emission, plannedById.get(stableId));
       if (metadataError) {
         const error = new Error(metadataError.message);
         error.projectionCode = metadataError.code;
@@ -1678,6 +1685,16 @@ function freeze(value) {
 
 function canonicalize(value) {
   return JSON.stringify(clone(value));
+}
+
+// Key-sorted canonical string of a metadata value: arrays keep order, object keys
+// sort by UTF-16 order, leaves use JSON.stringify.
+function canonicalMetadata(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalMetadata).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalMetadata(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function fingerprint(value) {
@@ -2137,6 +2154,7 @@ module.exports = {
   SYMLINK_POLICIES,
   EXTERNAL_SKILL_PACKAGE_FIELDS,
   canonicalize,
+  canonicalMetadata,
   fingerprint,
   normalizeExternalSkillPackages,
   externalSkillPackagesFingerprint,
@@ -7700,6 +7718,26 @@ function metadataBlocks(lines) {
   return blocks;
 }
 
+// Shared top-level scan over parsed metadata blocks. Both the serializer and
+// the validator walk blocks in source order and hand each finding to their own
+// handler, so error order is identical to a direct loop.
+function visitMetadataBlocks(blocks, { blockError, inline, entryError, entry }) {
+  for (const block of blocks) {
+    if (block.error) {
+      blockError(block.error);
+      continue;
+    }
+    if (block.inline) {
+      inline(block);
+      continue;
+    }
+    for (const item of block.entries) {
+      if (item.error || item.parsed.error) entryError(item.error || item.parsed.error);
+      else entry(item);
+    }
+  }
+}
+
 function serializeYamlString(value) {
   return JSON.stringify(String(value));
 }
@@ -7713,10 +7751,12 @@ function serializePortableSkillMetadata(content) {
 
   const replacements = new Map();
   const removed = new Set();
-  for (const block of blocks) {
-    if (block.inline) {
+  visitMetadataBlocks(blocks, {
+    // Block-level errors already returned above.
+    blockError: () => {},
+    inline: (block) => {
       if (block.parsed.type === 'mapping') {
-        if (Object.keys(block.parsed.value).length === 0) continue;
+        if (Object.keys(block.parsed.value).length === 0) return;
         const lines = ['metadata:'];
         for (const [key, value] of Object.entries(block.parsed.value)) {
           const serialized = typeof value === 'string' ? value : JSON.stringify(value);
@@ -7726,19 +7766,15 @@ function serializePortableSkillMetadata(content) {
       } else if (block.parsed.type !== 'string') {
         errors.push('metadata must be a mapping of string values');
       }
-      continue;
-    }
-    for (const entry of block.entries) {
-      if (entry.error || entry.parsed.error) {
-        errors.push(entry.error || entry.parsed.error);
-        continue;
-      }
-      if (entry.parsed.type === 'string') continue;
+    },
+    entryError: (message) => { errors.push(message); },
+    entry: (entry) => {
+      if (entry.parsed.type === 'string') return;
       const jsonText = JSON.stringify(entry.parsed.value);
       replacements.set(entry.line, [`${entry.indent}${entry.keyText}: ${serializeYamlString(jsonText)}`]);
       for (let line = entry.line + 1; line < entry.end; line += 1) removed.add(line);
-    }
-  }
+    },
+  });
   if (errors.length > 0) return { ok: false, output: parts.source, errors };
 
   const outputLines = [];
@@ -7760,28 +7796,23 @@ function validatePortableSkillMetadata(content) {
   if (!parts.match) return { ok: true, errors: [] };
   const blocks = metadataBlocks(parts.lines);
   const errors = [];
-  for (const block of blocks) {
-    if (block.error) {
-      errors.push(`metadata: ${block.error}`);
-      continue;
-    }
-    if (block.inline) {
+  visitMetadataBlocks(blocks, {
+    blockError: (message) => { errors.push(`metadata: ${message}`); },
+    inline: (block) => {
       if (block.parsed.type !== 'mapping') errors.push('metadata must be a mapping of string values');
       else {
         for (const [key, value] of Object.entries(block.parsed.value)) {
           if (typeof value !== 'string') errors.push(`metadata.${key} must be a string scalar in portable output`);
         }
       }
-      continue;
-    }
-    for (const entry of block.entries) {
-      if (entry.error || entry.parsed.error) {
-        errors.push(`metadata: ${entry.error || entry.parsed.error}`);
-      } else if (typeof entry.parsed.value !== 'string') {
+    },
+    entryError: (message) => { errors.push(`metadata: ${message}`); },
+    entry: (entry) => {
+      if (typeof entry.parsed.value !== 'string') {
         errors.push(`metadata.${entry.key} must be a string scalar in portable output`);
       }
-    }
-  }
+    },
+  });
   return { ok: errors.length === 0, errors };
 }
 
@@ -8624,8 +8655,10 @@ function compileProjectAgentProjection({
     return publicDecision;
   });
   const emittedStableIds = capabilityDecisions.filter((entry) => entry.outcome === 'EMIT' && byId.get(entry.stableId).entityKind === 'skill').map((entry) => entry.stableId).sort();
+  const decisionById = new Map();
+  for (const entry of capabilityDecisions) if (!decisionById.has(entry.stableId)) decisionById.set(entry.stableId, entry);
   const selected = selectedStableIds.map((id) => {
-    const decision = capabilityDecisions.find((entry) => entry.stableId === id);
+    const decision = decisionById.get(id);
     return {
       stableId: id,
       role: decision.role,
@@ -9787,12 +9820,15 @@ function validateReceipt(receipt, roots, bindingOptions = {}) {
     // Only validated emitted skills prove historical kind. A requested selection
     // cannot establish ownership for selected-only legacy identities. Retired
     // selected-only IDs need no kind because they will not enter the new plan.
-    if (receipt.emittedIds.some((id) => !receipt.entries.some((entry) => entry.stableId === id))) {
+    const sourceProofIds = new Set(receipt.entries.map((entry) => entry.stableId));
+    if (receipt.emittedIds.some((id) => !sourceProofIds.has(id))) {
       throw fail('INVALID_RECEIPT', 'legacy receipt emitted identity is missing source proof');
     }
+    let inventoryRows = null;
     for (const id of receipt.selectedIds) {
-      if (receipt.entries.some((entry) => entry.stableId === id)) continue;
-      const matches = inventoryEntries(roots.inventory).filter((entry) => entry.id === id);
+      if (sourceProofIds.has(id)) continue;
+      if (inventoryRows === null) inventoryRows = inventoryEntries(roots.inventory);
+      const matches = inventoryRows.filter((entry) => entry.id === id);
       if (matches.length > 1) {
         throw fail('AMBIGUOUS_LEGACY_IDENTITY', `legacy receipt identity '${id}' cannot be resolved uniquely; skill:${id} and module:${id} require historical evidence`);
       }
@@ -11110,7 +11146,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
         const directPath = pathIn(roots.managedRoot, `${entry.name}.md`, 'AGY direct-file path');
         const directoryStat = lstatOrNull(directoryPath);
         const directStat = lstatOrNull(directPath);
-        if (directoryStat && directStat && sha256Hex(fs.readFileSync(directoryPath)) !== sha256Hex(fs.readFileSync(directPath))) {
+        if (directoryStat && directStat && !fs.readFileSync(directoryPath).equals(fs.readFileSync(directPath))) {
           errors.push(`provider-shaped outputs do not share the same skill body: ${entry.name}`);
         }
       }
@@ -12876,7 +12912,15 @@ function redactSensitiveText(value, { maxLength = 800 } = {}) {
   return text.slice(-maxLength);
 }
 
-module.exports = { redactSensitiveText };
+// Redact-then-truncate text of a caught error. A falsy `.message` falls back to
+// `fallback` (when given) or to the error value itself, like the call sites it
+// replaces: String(error && error.message ? error.message : fallback ?? error).
+function redactedErrorText(error, { maxLength = 800, fallback } = {}) {
+  const text = error && error.message ? error.message : (fallback !== undefined ? fallback : error);
+  return redactSensitiveText(String(text), { maxLength });
+}
+
+module.exports = { redactSensitiveText, redactedErrorText };
 
 }],
   "scripts/lib/release-evidence.js": [{"./redaction":"scripts/lib/redaction.js"}, function (exports, require, module, __filename, __dirname) {
@@ -12998,10 +13042,12 @@ function buildEvidence({ version, stages }) {
   return evidence;
 }
 
+const SENSITIVE_KEY = /authorization|proxy.?authorization|token|password|secret|api.?key|credential/i;
+
 function boundedEvidenceValue(value, depth = 0, key = '') {
   if (depth > 5) return '[truncated]';
   if (typeof value === 'string') {
-    if (/authorization|proxy.?authorization|token|password|secret|api.?key|credential/i.test(key)) return '<redacted>';
+    if (SENSITIVE_KEY.test(key)) return '<redacted>';
     if (/^(?:path|packageRoot|cwd|home|root|sourcePath|installedCachePath)$/i.test(key) && /^(?:\/|[A-Za-z]:[\\/])/.test(value)) {
       return `<path>/${value.split(/[\\/]/).pop()}`;
     }
@@ -13014,7 +13060,7 @@ function boundedEvidenceValue(value, depth = 0, key = '') {
   if (Array.isArray(value)) return value.slice(0, 200).map((entry) => boundedEvidenceValue(entry, depth + 1, key));
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).slice(0, 200).map(([entryKey, entry]) => {
-    const safeKey = /authorization|proxy.?authorization|token|password|secret|api.?key|credential/i.test(entryKey)
+    const safeKey = SENSITIVE_KEY.test(entryKey)
       ? '<redacted-key>'
       : entryKey;
     return [safeKey, boundedEvidenceValue(entry, depth + 1, entryKey)];
@@ -14377,6 +14423,20 @@ function startsWithPublicCommand(value, name) {
   return value.startsWith(prefix + ' ') || value.startsWith(prefix + '\t');
 }
 
+// Shared identity check for action, input, and option ids: a bounded string,
+// a lower-case public identifier, and unique within its kind.
+function validateEntryId(errors, entry, prefix, owner, kind, seenIds) {
+  const idValid = requireString(errors, entry.id, prefix + '.id', owner, { max: 64 });
+  if (idValid && !IDENTIFIER.test(entry.id)) {
+    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
+  }
+  if (idValid && seenIds.has(entry.id)) {
+    errors.push(owner + ' usage has duplicate ' + kind + " id '" + entry.id + "'");
+  } else if (idValid) {
+    seenIds.add(entry.id);
+  }
+}
+
 function validateAction(errors, action, index, name, parentAuthority, actionIds, owner) {
   const prefix = 'actions[' + index + ']';
   if (!isRecord(action)) {
@@ -14385,15 +14445,7 @@ function validateAction(errors, action, index, name, parentAuthority, actionIds,
   }
   addUnknownKeys(errors, action, ACTION_KEYS, prefix + '.', owner);
 
-  const idValid = requireString(errors, action.id, prefix + '.id', owner, { max: 64 });
-  if (idValid && !IDENTIFIER.test(action.id)) {
-    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
-  }
-  if (idValid && actionIds.has(action.id)) {
-    errors.push(owner + " usage has duplicate action id '" + action.id + "'");
-  } else if (idValid) {
-    actionIds.add(action.id);
-  }
+  validateEntryId(errors, action, prefix, owner, 'action', actionIds);
 
   requireString(errors, action.summary, prefix + '.summary', owner, { max: 256 });
   const syntaxValid = requireString(errors, action.syntax, prefix + '.syntax', owner, { max: 512 });
@@ -14487,15 +14539,7 @@ function validateInput(errors, input, index, actionIds, inputIds, owner) {
   }
   addUnknownKeys(errors, input, INPUT_KEYS, prefix + '.', owner);
 
-  const idValid = requireString(errors, input.id, prefix + '.id', owner, { max: 64 });
-  if (idValid && !IDENTIFIER.test(input.id)) {
-    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
-  }
-  if (idValid && inputIds.has(input.id)) {
-    errors.push(owner + " usage has duplicate input id '" + input.id + "'");
-  } else if (idValid) {
-    inputIds.add(input.id);
-  }
+  validateEntryId(errors, input, prefix, owner, 'input', inputIds);
 
   const syntaxValid = requireString(errors, input.syntax, prefix + '.syntax', owner, { max: 256 });
   if (syntaxValid && !/^<[^<>\r\n]+>$/.test(input.syntax)) {
@@ -14535,15 +14579,7 @@ function validateOption(errors, option, index, actionIds, optionIds, owner) {
   }
   addUnknownKeys(errors, option, OPTION_KEYS, prefix + '.', owner);
 
-  const idValid = requireString(errors, option.id, prefix + '.id', owner, { max: 64 });
-  if (idValid && !IDENTIFIER.test(option.id)) {
-    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
-  }
-  if (idValid && optionIds.has(option.id)) {
-    errors.push(owner + " usage has duplicate option id '" + option.id + "'");
-  } else if (idValid) {
-    optionIds.add(option.id);
-  }
+  validateEntryId(errors, option, prefix, owner, 'option', optionIds);
 
   const syntaxValid = requireString(errors, option.syntax, prefix + '.syntax', owner, { max: 512 });
   if (syntaxValid && !/^--\S+$/.test(option.syntax)) {
@@ -15080,6 +15116,15 @@ function formatDocumentationValue(value) {
   return String(value);
 }
 
+// One documentation bullet for an input or option: id, syntax, requirement,
+// value kind, enum values, and default.
+function formatParameterLine(entry, isChinese) {
+  const details = [entry.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), entry.value_kind];
+  if (entry.enum_values) details.push('values=' + entry.enum_values.join('|'));
+  if (hasOwn(entry, 'default')) details.push('default=' + formatDocumentationValue(entry.default));
+  return '- `' + entry.id + '` `' + entry.syntax + '` (' + details.join(', ') + ') — ' + entry.summary;
+}
+
 function renderSkillUsageDocumentation(catalog, locale = 'en') {
   const isChinese = locale === 'zh-TW';
   const lines = isChinese
@@ -15111,12 +15156,7 @@ function renderSkillUsageDocumentation(catalog, locale = 'en') {
     lines.push((isChinese ? '最高 authority：' : 'Maximum authority: ') + '`' + usage.effect_authority + '`');
     if (usage.inputs.length > 0) {
       lines.push('', isChinese ? '輸入：' : 'Inputs:');
-      for (const input of usage.inputs) {
-        const details = [input.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), input.value_kind];
-        if (input.enum_values) details.push('values=' + input.enum_values.join('|'));
-        if (hasOwn(input, 'default')) details.push('default=' + formatDocumentationValue(input.default));
-        lines.push('- `' + input.id + '` `' + input.syntax + '` (' + details.join(', ') + ') — ' + input.summary);
-      }
+      for (const input of usage.inputs) lines.push(formatParameterLine(input, isChinese));
     }
     if (usage.actions.length > 0) {
       lines.push('', isChinese ? 'Actions：' : 'Actions:');
@@ -15125,12 +15165,7 @@ function renderSkillUsageDocumentation(catalog, locale = 'en') {
     const options = usage.options.filter((option) => !option.legacy);
     if (options.length > 0) {
       lines.push('', isChinese ? '選項：' : 'Options:');
-      for (const option of options) {
-        const details = [option.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), option.value_kind];
-        if (option.enum_values) details.push('values=' + option.enum_values.join('|'));
-        if (hasOwn(option, 'default')) details.push('default=' + formatDocumentationValue(option.default));
-        lines.push('- `' + option.id + '` `' + option.syntax + '` (' + details.join(', ') + ') — ' + option.summary);
-      }
+      for (const option of options) lines.push(formatParameterLine(option, isChinese));
     }
     const legacy = usage.options.filter((option) => option.legacy);
     if (legacy.length > 0) {
@@ -15147,29 +15182,19 @@ function renderSkillUsageDocumentation(catalog, locale = 'en') {
 }
 
 module.exports = {
-  ACTION_KEYS,
   AUTHORITY_RANK,
-  CARD_SCHEMA,
   CATALOG_SCHEMA,
   deriveArgumentHint,
-  EFFECT_AUTHORITIES,
-  INPUT_KINDS,
-  INPUT_KEYS,
   INVOCATION_CLASSES,
-  OPTION_KEYS,
   LEGACY_KEYS,
-  USAGE_KEYS,
   USAGE_SCHEMA,
-  VALUE_KINDS,
   compileSkillUsageCatalog,
   fingerprint,
   hasCodexSurface,
-  isCodexInvokableSkill,
   normalizeSkillUsage,
   renderSkillUsageCard,
   renderSkillUsageDocumentation,
   resolveInventoryRevision,
-  usageInventoryRevision,
   validateRuntimeIndex,
   serializeSkillUsageCatalog,
   stableStringify,

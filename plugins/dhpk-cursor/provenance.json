@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.77.0",
-  "sourceCommit": "e5b7a39978a1ec5accab12736b55908d496e168a",
-  "generatedFromCommit": "e5b7a39978a1ec5accab12736b55908d496e168a",
-  "generatedFromTree": "b9273899620257f8e8501460c840ebe9ed4802d0",
+  "sourceCommit": "7c697f8f94b93a1e168b0b93e6a00d92c12f873d",
+  "generatedFromCommit": "7c697f8f94b93a1e168b0b93e6a00d92c12f873d",
+  "generatedFromTree": "244d8e1ed7cbb42a3b91f7038a65029f97d7d7cb",
   "inventoryDigest": "a1b3044fe89bcbd81ed7a5ad04c8cf52e71d3b3310639fac23fec780ee90d879",
   "inventoryRevision": "sha256:f73bfda3b167048cce7257dae03d804d25b56363d5e65650c1798387f245a3ca",
   "generatorVersion": "1.1.0",
@@ -184,7 +184,7 @@
         "ownerId": "change-verdict",
         "source": "skills/project-audit/scripts/lib/runner-utils.js",
         "destination": "skills/change-verdict/references/project-audit/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
+        "originalGitBlobDigest": "73757c3bb4cb8bffca2e7c8c6825eab029b9ccc4"
       },
       {
         "ownerId": "change-verdict",
@@ -274,7 +274,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/scripts/lib/runner-utils.js",
         "destination": "skills/change-verdict/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
+        "originalGitBlobDigest": "73757c3bb4cb8bffca2e7c8c6825eab029b9ccc4"
       },
       {
         "ownerId": "change-verdict",
@@ -430,7 +430,7 @@
         "ownerId": "code-trace",
         "source": "skills/repo-intake/scripts/lib/runner-utils.js",
         "destination": "skills/code-trace/references/repo-intake/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
+        "originalGitBlobDigest": "73757c3bb4cb8bffca2e7c8c6825eab029b9ccc4"
       },
       {
         "ownerId": "code-trace",
@@ -1558,7 +1558,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
         "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
-        "originalGitBlobDigest": "391b8accc6b7d5eab318f421fca2ebd6a3977d71"
+        "originalGitBlobDigest": "be13b76770fa5f35b908e04879af72fe7c536153"
       },
       {
         "ownerId": "flow-guide",
@@ -1774,7 +1774,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/runner-utils.js",
         "destination": "skills/flow-guide/scripts/_lib/runner-utils.js",
-        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
+        "originalGitBlobDigest": "73757c3bb4cb8bffca2e7c8c6825eab029b9ccc4"
       },
       {
         "ownerId": "flow-guide",
@@ -1792,7 +1792,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/skill-usage.js",
         "destination": "skills/flow-guide/scripts/_lib/skill-usage.js",
-        "originalGitBlobDigest": "a84a194c1c4b143fd2b3c66684cb86ed7bc07b21"
+        "originalGitBlobDigest": "c87a908798dea2c45d254d6d4b7bc3537ea44a7c"
       },
       {
         "ownerId": "flow-guide",
@@ -1936,7 +1936,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/scripts/lib/runner-utils.js",
         "destination": "skills/precommit/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
+        "originalGitBlobDigest": "73757c3bb4cb8bffca2e7c8c6825eab029b9ccc4"
       },
       {
         "ownerId": "precommit",
@@ -2326,7 +2326,7 @@
         "ownerId": "repo-verify",
         "source": "skills/repo-verify/scripts/lib/runner-utils.js",
         "destination": "skills/repo-verify/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
+        "originalGitBlobDigest": "73757c3bb4cb8bffca2e7c8c6825eab029b9ccc4"
       },
       {
         "ownerId": "repo-verify",

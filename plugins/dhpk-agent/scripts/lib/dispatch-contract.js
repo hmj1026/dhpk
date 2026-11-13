@@ -742,6 +742,7 @@ function createDispatchReceipt(input) {
     if (rawCapabilityEvidence.transport !== undefined) capabilityEvidence.transport = oneOf(rawCapabilityEvidence.transport, TRANSPORTS, 'receipt.capability_evidence.transport');
   }
   requiredString(receipt.receipt_id, 'receipt.receipt_id');
+  const assignedFilesDigest = digest(request.scope.assigned_files);
   const output = {
     schema: SCHEMAS.RECEIPT,
     receipt_id: receipt.receipt_id,
@@ -761,14 +762,14 @@ function createDispatchReceipt(input) {
     fallback_history: normalizedFallbackHistory,
     scope: {
       assigned_files: [...request.scope.assigned_files],
-      assigned_files_digest: digest(request.scope.assigned_files),
+      assigned_files_digest: assignedFilesDigest,
       prompt_evidence: {
         dev: request.scope.prompt_evidence.dev,
         ino: request.scope.prompt_evidence.ino,
         sha256: request.scope.prompt_evidence.sha256,
       },
     },
-    assigned_files_digest: digest(request.scope.assigned_files),
+    assigned_files_digest: assignedFilesDigest,
     catalog_version: receipt.catalog_version === undefined ? null : requiredString(receipt.catalog_version, 'receipt.catalog_version'),
     host_profile_version: request.host_profile.version,
     adapter_version: receipt.adapter_version === undefined ? null : requiredString(receipt.adapter_version, 'receipt.adapter_version'),

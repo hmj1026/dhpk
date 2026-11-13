@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { assertPhysicalPackageRoot, runCursorConsumerProbe } = require('../lib/cursor-plugin-package');
-const { redactSensitiveText } = require('../lib/redaction');
+const { redactedErrorText } = require('../lib/redaction');
 
 const DEFAULT_PROMPT = 'Read only. Return exactly: dhpk skills commands agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.';
 
@@ -42,7 +42,7 @@ function main() {
   try {
     args = parseArgs(process.argv.slice(2));
   } catch (error) {
-    console.error(`cursor-agent-probe: ${redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 })}`);
+    console.error(`cursor-agent-probe: ${redactedErrorText(error)}`);
     process.exit(2);
   }
   const agentPackage = path.resolve(args.agentPackage);
@@ -111,7 +111,7 @@ function main() {
       status: 'BLOCKED',
       reason_code: 'PACKAGE_INVALID',
       reasonCode: 'PACKAGE_INVALID',
-      reason: redactSensitiveText(String(error && error.message ? error.message : 'unknown probe setup error'), { maxLength: 800 }),
+      reason: redactedErrorText(error, { fallback: 'unknown probe setup error' }),
       packageRoot: agentPackage,
       timed_out: false,
     };

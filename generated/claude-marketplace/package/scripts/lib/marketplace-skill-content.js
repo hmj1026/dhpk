@@ -692,15 +692,13 @@ function compileMarketplaceSkillContent({ root, inventory, publicationView, sour
   }
 
   if (errors.length > 0) return { ok: false, errors, files: [], bundleProvenance: null };
-  const sourceDestinations = sourceDestinationByOwnerAndPath;
-  if (errors.length > 0) return { ok: false, errors, files: [], bundleProvenance: null };
   const orderedFiles = [...filesByPath.values()].sort((left, right) => left.path < right.path ? -1 : (left.path > right.path ? 1 : 0));
   const relocatedFiles = orderedFiles.map((file) => {
     if (path.posix.extname(file.path).toLowerCase() !== '.md') return file;
     let content = file.bytes.toString('utf8');
     const context = { root: physicalRoot, allowedSourcePaths, errors };
-    content = rewriteMarkdownLinks(content, file, sourceDestinations, hostOnlyOwnerIds, retainedHostResources, context);
-    content = rewriteRootReferences(content, file, sourceDestinations, hostOnlyOwnerIds, retainedHostResources, context);
+    content = rewriteMarkdownLinks(content, file, sourceDestinationByOwnerAndPath, hostOnlyOwnerIds, retainedHostResources, context);
+    content = rewriteRootReferences(content, file, sourceDestinationByOwnerAndPath, hostOnlyOwnerIds, retainedHostResources, context);
     return { ...file, bytes: Buffer.from(content, 'utf8') };
   });
   sourceToDestination.sort((left, right) => left.ownerId < right.ownerId

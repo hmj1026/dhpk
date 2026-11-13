@@ -506,6 +506,18 @@ function retiredLedgerNames(inventory) {
     .filter((name) => typeof name === 'string');
 }
 
+// Roots the generator and validator CLIs both derive from their arguments: the
+// canonical root (source override wins), the optional consumer project, and the
+// projection directory (explicit, else in-checkout unless a project is given).
+function deriveProjectionRoots({ repoRoot, sourceRoot = null, projectRoot = null, outDir = null }) {
+  const root = path.resolve(sourceRoot || repoRoot);
+  const project = projectRoot ? path.resolve(projectRoot) : null;
+  const out = outDir
+    ? path.resolve(outDir)
+    : (project ? null : path.join(root, '.agents', 'skills'));
+  return { root, projectRoot: project, outDir: out };
+}
+
 function usesRelocatableProjection(options = {}) {
   if (options.projectRoot || options.sourceRoot || options.plan || options.relocatable === true) return true;
   if (options.root && options.outDir) return !isInside(options.root, options.outDir);
@@ -997,6 +1009,7 @@ function validateAgentsSkillsProjection(options = {}) {
 
 module.exports = {
   containsSecret,
+  deriveProjectionRoots,
   SCHEMA,
   GENERATOR_VERSION,
   RECEIPT_NAME,

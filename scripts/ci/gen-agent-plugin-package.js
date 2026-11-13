@@ -12,7 +12,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { resolveSourceCommitOrUnknown } = require('../lib/platform-provenance');
 const {
   compileAgentPluginPackage,
   materializeAgentPluginPackage,
@@ -30,11 +30,6 @@ if (!outArg) {
   process.exit(2);
 }
 
-function resolveSourceCommit() {
-  const result = spawnSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
-  return result.status === 0 ? result.stdout.trim() : 'unknown';
-}
-
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
@@ -45,7 +40,7 @@ const versionArg = args.find((arg) => arg.startsWith('--version='));
 const version = versionArg ? versionArg.slice('--version='.length) : sourceManifest.version;
 const outDir = path.resolve(outArg);
 
-const sourceCommit = resolveSourceCommit();
+const sourceCommit = resolveSourceCommitOrUnknown(ROOT);
 let result;
 try {
   const compiledProjection = compileAgentPluginPackage({

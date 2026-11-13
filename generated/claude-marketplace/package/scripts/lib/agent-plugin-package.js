@@ -24,6 +24,7 @@ const {
   createInstallationReceiptIdentity,
   packageInventoryDigest,
   packageFingerprintAlgorithm,
+  readProvenanceForValidation,
   serializePackageReceipt,
 } = require('./platform-provenance');
 const {
@@ -1286,10 +1287,11 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
       if (recipe.algorithm) for (const skill of skills.valid) if (recorded.skills && recorded.skills[skill.name] && recorded.skills[skill.name] !== skill.fingerprint) errors.push(`fingerprint drifted for skill '${skill.name}'`);
     } catch (error) { errors.push(`fingerprints.json is not valid JSON: ${error.message}`); }
   }
-  const provenancePath = path.join(packageRoot, 'provenance.json');
-  if (fs.existsSync(provenancePath)) {
+  const provenanceRead = readProvenanceForValidation(packageRoot);
+  if (provenanceRead) {
     try {
-      const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
+      if (provenanceRead.error !== undefined) throw new Error(provenanceRead.error);
+      const provenance = provenanceRead.provenance;
       if (provenance.surface !== undefined && provenance.surface !== 'agent-plugin') errors.push(`provenance surface must be agent-plugin, got '${provenance.surface}'`);
       if (provenance.schemaVersion !== undefined && provenance.schemaVersion !== AGENT_PLUGIN_VERSION) errors.push(`provenance schemaVersion must be ${AGENT_PLUGIN_VERSION}`);
       const actualNames = skills.valid.map((skill) => skill.name).sort();

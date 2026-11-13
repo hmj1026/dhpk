@@ -443,7 +443,8 @@ function allowlistedSessionFiles(hostHome, allowlist) {
   return allowlist.filter((relative) => {
     const candidate = path.join(hostHome, relative);
     try {
-      return fs.lstatSync(candidate).isFile() && !fs.lstatSync(candidate).isSymbolicLink();
+      const stat = fs.lstatSync(candidate);
+      return stat.isFile() && !stat.isSymbolicLink();
     } catch (_) {
       return false;
     }

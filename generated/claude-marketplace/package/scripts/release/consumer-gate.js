@@ -425,6 +425,10 @@ function discoverCodexSurface({
   allowedRoots = [],
   algorithmError = null,
 }) {
+  const redactFingerprintError = (text) => {
+    const redacted = redactEvidence(redactEvidence(text, root), surfaceRoot);
+    return redacted && redacted.trim() ? redacted : 'fingerprint validation failed';
+  };
   return ['skills', 'agents'].flatMap((kind) => {
     const kindRoot = path.join(surfaceRoot, kind);
     let kindStat;
@@ -461,13 +465,7 @@ function discoverCodexSurface({
         }
         fingerprint = contentFingerprintFn(target, fingerprintOptions(contentFingerprintFn, allowedRoots));
         if (!fingerprint) {
-          const redactedError = redactEvidence(
-            redactEvidence('fingerprint validation failed: empty or missing target', root),
-            surfaceRoot,
-          );
-          fingerprintError = redactedError && redactedError.trim()
-            ? redactedError
-            : 'fingerprint validation failed';
+          fingerprintError = redactFingerprintError('fingerprint validation failed: empty or missing target');
         } else {
           expectedFingerprint = expectedFingerprints
             ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots))
@@ -480,10 +478,7 @@ function discoverCodexSurface({
         const errorText = error && typeof error.message === 'string' && error.message
           ? error.message
           : (typeof error === 'string' && error ? error : 'fingerprint validation failed');
-        const redactedError = redactEvidence(redactEvidence(errorText, root), surfaceRoot);
-        fingerprintError = redactedError && redactedError.trim()
-          ? redactedError
-          : 'fingerprint validation failed';
+        fingerprintError = redactFingerprintError(errorText);
       }
       const owned = manifest
         ? Boolean(receiptEntry && receiptEntry.destination_fingerprint === ownershipFingerprint)
@@ -581,6 +576,10 @@ function summarizeCodexDiscovery(discovery) {
   };
 }
 
+function readJsonBounded(file) {
+  return JSON.parse(readFileBounded(file).toString('utf8'));
+}
+
 // An absent or unknown marker is a failed fingerprint check (not a crash) that
 // names the field and value.
 function resolveAlgorithmOrError(resolve) {
@@ -591,11 +590,7 @@ function resolveAlgorithmOrError(resolve) {
   }
 }
 
-function readNativePackageAlgorithm(nativeRoot) {
-  let provenance = null;
-  try {
-    provenance = JSON.parse(readFileBounded(path.join(nativeRoot, 'provenance.json')).toString('utf8'));
-  } catch (_) { /* missing or unreadable provenance carries no marker */ }
+function readNativePackageAlgorithm(provenance) {
   const value = provenance !== null && typeof provenance === 'object' ? provenance.fingerprintAlgorithm : undefined;
   return resolveAlgorithmOrError(() => requireTreeMerkle(value, 'fingerprintAlgorithm'));
 }
@@ -603,10 +598,12 @@ function readNativePackageAlgorithm(nativeRoot) {
 function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(root, 'plugins', 'dhpk') }) {
   const manifestPath = path.join(project, '.codex', '.dhpk-installed.json');
   let manifest = null;
-  if (fs.existsSync(manifestPath)) {
-    try { manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8')); } catch (_) { manifest = null; }
-  }
-  const nativeAlgorithm = readNativePackageAlgorithm(nativeRoot);
+  try { manifest = readJsonBounded(manifestPath); } catch (_) { manifest = null; }
+  // Missing or unreadable provenance carries no algorithm marker and no claims.
+  const provenancePath = path.join(nativeRoot, 'provenance.json');
+  let provenance = null;
+  try { provenance = readJsonBounded(provenancePath); } catch (_) { provenance = null; }
+  const nativeAlgorithm = readNativePackageAlgorithm(provenance);
   // A project with no receipt has nothing to verify by marker.
   const receiptAlgorithm = manifest
     ? resolveAlgorithmOrError(() => receiptFingerprintAlgorithm(manifest))
@@ -624,25 +621,21 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
   });
   let nativeVersion = version;
   const nativeManifestPath = path.join(nativeRoot, '.codex-plugin', 'plugin.json');
-  if (fs.existsSync(nativeManifestPath)) {
-    try { nativeVersion = JSON.parse(readFileBounded(nativeManifestPath).toString('utf8')).version || version; } catch (_) { /* keep target version */ }
-  }
+  try { nativeVersion = readJsonBounded(nativeManifestPath).version || version; } catch (_) { /* keep target version */ }
   let nativeProvenance = { valid: false, current: false, packageVersion: nativeVersion, sourceVersion: null };
   let nativeFingerprints = {};
-  const provenancePath = path.join(nativeRoot, 'provenance.json');
   const fingerprintsPath = path.join(nativeRoot, 'fingerprints.json');
   const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
   let inventory = null;
   try {
-    inventory = JSON.parse(readFileBounded(inventoryPath).toString('utf8'));
-    nativeFingerprints = JSON.parse(readFileBounded(fingerprintsPath).toString('utf8'));
+    inventory = readJsonBounded(inventoryPath);
+    nativeFingerprints = readJsonBounded(fingerprintsPath);
   } catch (_) {
     inventory = null;
     nativeFingerprints = {};
   }
-  if (fs.existsSync(provenancePath)) {
+  if (provenance !== null) {
     try {
-      const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
       const validCommit = typeof provenance.sourceCommit === 'string' && /^[a-f0-9]{40}$/i.test(provenance.sourceCommit);
       const validDigest = typeof provenance.inventoryDigest === 'string' && /^[a-f0-9]{64}$/i.test(provenance.inventoryDigest);
       const validVersion = provenance.sourceVersion === nativeVersion && nativeVersion === version;
@@ -754,14 +747,13 @@ function applyCodexHostBindingOwnership(project, entries) {
   const projectionPath = path.join(project, '.agents', '.dhpk-installed.json');
   let projection;
   try {
-    projection = JSON.parse(readFileBounded(projectionPath).toString('utf8'));
+    projection = readJsonBounded(projectionPath);
   } catch {
     return entries;
   }
   const host = projection && projection.hostBindings && projection.hostBindings.codex;
   const bindings = host && Array.isArray(host.bindings) ? host.bindings : [];
   const expectedByName = new Map();
-  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   for (const binding of bindings) {
     if (!binding || binding.shape !== 'native-link' || typeof binding.path !== 'string' || typeof binding.target !== 'string') {
       continue;
@@ -769,7 +761,7 @@ function applyCodexHostBindingOwnership(project, entries) {
     const name = binding.path.split('/').pop();
     const expectedPath = `.codex/skills/${name}`;
     const expectedTarget = `../../.agents/skills/${name}`;
-    if (binding.path !== expectedPath || binding.target !== expectedTarget || !skillName.test(name)) continue;
+    if (binding.path !== expectedPath || binding.target !== expectedTarget || !SKILL_NAME_PATTERN.test(name)) continue;
     expectedByName.set(name, expectedTarget);
   }
   if (expectedByName.size === 0) return entries;
@@ -1071,13 +1063,7 @@ function observeCodexRoleMaterialization(project, root, receipt, role) {
     && roleEntry.destination === relativeRole
     && roleEntry.source === relativeRole
     && roleEntry.mode === 'copy'
-    && sourceFingerprint
-    && destinationFingerprint
-    && /^[a-f0-9]{64}$/.test(roleEntry.source_fingerprint || '')
-    && /^[a-f0-9]{64}$/.test(roleEntry.destination_fingerprint || '')
-    && sourceFingerprint === roleEntry.source_fingerprint
-    && destinationFingerprint === roleEntry.destination_fingerprint
-    && sourceFingerprint === destinationFingerprint);
+    && receiptFingerprintsMatch(roleEntry, sourceFingerprint, destinationFingerprint));
   let roleText = '';
   try {
     roleText = readFileBounded(installedRole).toString('utf8');
@@ -1094,7 +1080,7 @@ function observeCodexRoleMaterialization(project, root, receipt, role) {
     .filter((reference) => !reference.includes('<') && !reference.includes('>'));
   let inventory = null;
   try {
-    inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+    inventory = readJsonBounded(path.join(root, 'manifests', 'distribution-inventory.json'));
   } catch (_) {
     passed = false;
     reason = 'Codex role resource inventory could not be read safely';
@@ -1122,13 +1108,7 @@ function observeCodexRoleMaterialization(project, root, receipt, role) {
       && entry.destination === resourceRelative
       && entry.source === resourceRelative
       && ['copy', 'symlink'].includes(entry.mode)
-      && resourceSourceFingerprint
-      && resourceDestinationFingerprint
-      && /^[a-f0-9]{64}$/.test(entry.source_fingerprint || '')
-      && /^[a-f0-9]{64}$/.test(entry.destination_fingerprint || '')
-      && resourceSourceFingerprint === entry.source_fingerprint
-      && resourceDestinationFingerprint === entry.destination_fingerprint
-      && resourceSourceFingerprint === resourceDestinationFingerprint);
+      && receiptFingerprintsMatch(entry, resourceSourceFingerprint, resourceDestinationFingerprint));
     resources.push({
       path: reference,
       ...(resourceSourceFingerprint ? { sourceFingerprint: resourceSourceFingerprint } : {}),
@@ -1191,6 +1171,18 @@ function readConsumerRoleSourceText(root, relativePath) {
   return readFileBounded(canonical).toString('utf8');
 }
 
+// True when a receipt entry's recorded source and destination fingerprints are
+// well-formed and equal the freshly computed pair (which must also agree).
+function receiptFingerprintsMatch(entry, sourceFingerprint, destinationFingerprint) {
+  return Boolean(sourceFingerprint
+    && destinationFingerprint
+    && /^[a-f0-9]{64}$/.test(entry.source_fingerprint || '')
+    && /^[a-f0-9]{64}$/.test(entry.destination_fingerprint || '')
+    && sourceFingerprint === entry.source_fingerprint
+    && destinationFingerprint === entry.destination_fingerprint
+    && sourceFingerprint === destinationFingerprint);
+}
+
 function verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed, algorithm = undefined }) {
   const destination = asset && asset.destination;
   if (!safeConsumerRepoPath(destination)
@@ -1212,12 +1204,7 @@ function verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed, 
     installed.mode,
     algorithm,
   );
-  if (!sourceFingerprint || !destinationFingerprint
-    || !/^[a-f0-9]{64}$/.test(installed.source_fingerprint || '')
-    || !/^[a-f0-9]{64}$/.test(installed.destination_fingerprint || '')
-    || sourceFingerprint !== installed.source_fingerprint
-    || destinationFingerprint !== installed.destination_fingerprint
-    || sourceFingerprint !== destinationFingerprint) {
+  if (!receiptFingerprintsMatch(installed, sourceFingerprint, destinationFingerprint)) {
     throw new Error(`Codex role resource is not currently receipt-bound: ${destination}`);
   }
   return { destination, asset, installed };
@@ -1300,7 +1287,7 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
       throw new Error('Codex role ownership row is unavailable');
     }
 
-    const projectionManifest = JSON.parse(readFileBounded(path.join(root, 'codex', 'agent-projection-manifest.json')).toString('utf8'));
+    const projectionManifest = readJsonBounded(path.join(root, 'codex', 'agent-projection-manifest.json'));
     if (!projectionManifest || !Array.isArray(projectionManifest.generated_roles)
       || !Array.isArray(projectionManifest.package_roles)
       || !Array.isArray(projectionManifest.workspace_local_extensions)) {
@@ -1322,7 +1309,7 @@ function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey,
 
     let inventory;
     try {
-      inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+      inventory = readJsonBounded(path.join(root, 'manifests', 'distribution-inventory.json'));
     } catch (error) {
       missingFields.add('sourceFingerprint');
       missingFields.add('selectionFingerprint');
@@ -1778,7 +1765,7 @@ function verifyCodexSync(root, version, options = {}) {
     if (!fs.existsSync(manifestPath)) {
       return { verdict: VERDICTS.FAIL, commands, reasons: ['no .codex/.dhpk-installed.json manifest after install'] };
     }
-    const manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8'));
+    const manifest = readJsonBounded(manifestPath);
     const runtimeNames = inventoryRuntimeSkillNames(root, 'codex-native');
     const runtimeNameSet = new Set(runtimeNames);
     const leftoverSkills = Object.keys((manifest.managed_entries && manifest.managed_entries.skills) || {})
@@ -2109,7 +2096,7 @@ function leftoverCodexNativeSkillDirectories(project, options = {}) {
 
 function inventoryRuntimeSkillNames(root, surface) {
   try {
-    const inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+    const inventory = readJsonBounded(path.join(root, 'manifests', 'distribution-inventory.json'));
     const ids = new Set(
       inventory && inventory.internal_runtime_skills && Array.isArray(inventory.internal_runtime_skills[surface])
         ? inventory.internal_runtime_skills[surface]
@@ -2135,7 +2122,7 @@ function hostProjectionPreconditions(project, { label, dir, hostKey, ignore = []
   const projectionPath = path.join(project, '.agents', '.dhpk-installed.json');
   let projection;
   try {
-    projection = JSON.parse(readFileBounded(projectionPath).toString('utf8'));
+    projection = readJsonBounded(projectionPath);
   } catch (error) {
     return { ok: false, reason: `${label} shared projection receipt is unreadable: ${redactEvidence(error.message, project)}` };
   }
@@ -2339,7 +2326,7 @@ function verifyCursorSync(root, version) {
     const receiptPath = path.join(project, '.cursor', '.dhpk-installed.json');
     let receipt;
     try {
-      receipt = JSON.parse(readFileBounded(receiptPath).toString('utf8'));
+      receipt = readJsonBounded(receiptPath);
     } catch (error) {
       return {
         verdict: VERDICTS.FAIL,
@@ -3239,7 +3226,7 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
 
 function codexPackageRoles(root) {
   try {
-    const manifest = JSON.parse(readFileBounded(path.join(root, 'codex', 'agent-projection-manifest.json')).toString('utf8'));
+    const manifest = readJsonBounded(path.join(root, 'codex', 'agent-projection-manifest.json'));
     if (!manifest || !Array.isArray(manifest.package_roles) || manifest.package_roles.length > 64) return new Set();
     return new Set(manifest.package_roles.filter((role) => (
       typeof role === 'string' && /^[a-z][a-z0-9-]{0,62}$/.test(role)
