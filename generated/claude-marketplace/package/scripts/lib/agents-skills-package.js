@@ -526,9 +526,34 @@ function usesRelocatableProjection(options = {}) {
 // A reserved name is `N` or `N.md` for every skill the sync generates, renames
 // from, retires, or carries. The writer, the activation verifier, and the
 // validator all judge a top-level entry through this one predicate.
+//
+// Exact-case match is the predicate itself. `foldCollision(topName)` is the
+// case-equivalence rule, identical on every Host and filesystem: both sides are
+// normalized with Unicode NFC and then locale-independent `toLowerCase()`, the
+// `.md` suffix is stripped after folding, and the entry collides when the folded
+// forms are equal but the names are not an exact match. It returns the reserved
+// name, or null.
+function foldReservedName(name) {
+  return name.normalize('NFC').toLowerCase().replace(/\.md$/, '');
+}
+
 function reservedNamePredicate(names) {
   const bases = new Set(names);
-  return (topName) => bases.has(topName.replace(/\.md$/, ''));
+  const folded = new Map();
+  for (const base of [...bases].sort()) {
+    const key = foldReservedName(base);
+    if (!folded.has(key)) folded.set(key, base);
+  }
+  const isReserved = (topName) => bases.has(topName.replace(/\.md$/, ''));
+  isReserved.foldCollision = (topName) => {
+    if (isReserved(topName)) return null;
+    return folded.get(foldReservedName(topName)) || null;
+  };
+  return isReserved;
+}
+
+function caseCollisionMessage(entryName, reservedName) {
+  return `unmanaged entry "${entryName}" is case-equivalent to reserved name "${reservedName}"`;
 }
 
 function topLevelName(relative) {
@@ -574,6 +599,8 @@ function planUnmanagedSkillEntries(outputRoot, isReserved, budgetOptions = {}) {
 
   for (const entry of readDirectoryEntries(outputRoot, { budget, sort: true })) {
     if (entry.name === RECEIPT_NAME || isReserved(entry.name)) continue;
+    const reservedName = isReserved.foldCollision ? isReserved.foldCollision(entry.name) : null;
+    if (reservedName) throw new Error(`OWNERSHIP_REFUSED: ${caseCollisionMessage(entry.name, reservedName)}`);
     assertSafeRelative(entry.name, 'unmanaged entry name');
     collect(path.join(outputRoot, entry.name), entry.name, 1);
   }
@@ -613,6 +640,8 @@ function agentsSkillsOwnership(ownedPaths, unmanaged = null, preserved = null) {
           const absolute = path.join(directory, entry.name);
           const top = topLevelName(relative);
           if (unmanaged && top !== RECEIPT_NAME && !unmanaged.isReserved(top)) {
+            const reservedName = unmanaged.isReserved.foldCollision ? unmanaged.isReserved.foldCollision(top) : null;
+            if (reservedName) return refuse('RESERVED_NAME_CASE_COLLISION', caseCollisionMessage(top, reservedName));
             const stat = lstatOrNull(absolute);
             if (!stat || stat.isSymbolicLink()) {
               return refuse('UNMANAGED_SYMLINK', `unmanaged entry holds a symlink: ${relative}`);
@@ -894,6 +923,10 @@ function validateAgentsSkillsProjection(options = {}) {
       ...receipt.managedPaths.map((relative) => topLevelName(relative).replace(/\.md$/, '')),
       ...retiredLedgerNames(inventory),
     ]);
+    for (const entry of readDirectoryEntries(outputRoot, { budget: createTraversalBudget(), sort: true })) {
+      const reservedName = entry.name === RECEIPT_NAME ? null : isReserved.foldCollision(entry.name);
+      if (reservedName) errors.push(caseCollisionMessage(entry.name, reservedName));
+    }
     const actualPaths = new Set(reservedOutputFiles(outputRoot, isReserved));
     for (const relative of expectedPaths) {
       if (!actualPaths.has(relative)) errors.push(`managed projection file is missing: ${relative}`);
