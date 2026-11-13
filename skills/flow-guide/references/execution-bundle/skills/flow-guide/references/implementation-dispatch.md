@@ -217,8 +217,8 @@ peak prompt; the issue's cost shares are estimates.
   setting. A larger cohesive batch records its override reason in the dispatch
   record and the worker's report. The worker itself never expands or splits
   its own assigned scope.
-- **Telemetry.** The `oversized` section of
-  `scripts/dispatch-telemetry-report.js` lists each dispatch past the
+- **Telemetry.** The `oversized` section of the dhpk maintainer telemetry
+  report (dispatch-telemetry-report) lists each dispatch past the
   threshold and each dispatch whose measurement is incomplete (`UNKNOWN`).
   Observation of a later stage is follow-up evidence; report it as `NOT_RUN`
   until it is measured.
