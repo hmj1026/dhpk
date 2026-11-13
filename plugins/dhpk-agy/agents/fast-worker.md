@@ -35,6 +35,8 @@ The dispatcher provides:
 2. **Change intent per file** — what changes, precisely enough to implement without inventing an interpretation.
 3. **Verification command** — the command that proves the change works (`npm test`, `pytest -x`, `php -l`, a specific test file, etc.).
 
+The spec should also state the test budget: the scoped tests for the round, the stage owner, and the rerun conditions, as defined in `skills/flow-guide/references/implementation-dispatch.md` (§Dispatch size and fresh context). Without one, the budget defaults to the verification command only, and the full suite stays with the dispatcher.
+
 For a shared-checkout parallel dispatch, the spec must also provide:
 
 4. **Parallel marker** — `Parallel: yes`.

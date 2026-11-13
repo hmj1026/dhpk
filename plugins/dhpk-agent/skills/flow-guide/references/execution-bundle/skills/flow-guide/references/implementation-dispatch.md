@@ -160,6 +160,69 @@ In parallel mode, before/after accounting uses path-scoped `git status --short -
 
 If a validator reads or updates shared ratchet/configuration state, the worker uses only a dispatcher-provided scoped or no-write equivalent. Without one, it reports the exact missing command as blocked or uses the explicitly declared report-only outcome; it must not invoke a global read-modify-write path. A task intentionally changing shared state is serial. After all workers return, the orchestrator runs one sequential whole-tree validator/reconciliation pass and records the consolidated result before dispatching the implementation-wave reviewers.
 
+## Dispatch size and fresh context
+
+Detail for the execution policy's §Dispatch rounds; it applies to native and
+CLI-backed implementation dispatches. Evidence: the 2026-11-13 two-host
+telemetry for #1336 showed one `tdd-guide` dispatch at 319 turns and a 512k
+peak prompt; the issue's cost shares are estimates.
+
+- **Round.** A round is work that is verifiable on its own: an exact scope,
+  its scoped verification, and the owner of its handoff. A resume after a
+  release pause and a post-review fix wave start new rounds. Commit count is
+  not the boundary and grants no commit authority.
+- **Size threshold.** A worker passed the threshold when more than 120
+  assistant turns (de-duplicated by message ID) or a peak prompt above
+  200,000 tokens was observed. The peak is the per-message sum of input,
+  cache read, and cache creation tokens, a prompt proxy rather than the
+  context window. The
+  orchestrator reads the size from the Host's completion usage (in Claude
+  Code, the task notification's token and tool-use counts) or from the
+  telemetry report, never from a running transcript. When neither gives it,
+  record `UNKNOWN` and treat the threshold as passed, so the next follow-up
+  goes to a new `cold` dispatch.
+- **Reuse and fresh dispatch.** Below the threshold, a follow-up in the same
+  round follows §SendMessage reuse vs. spawn. After the threshold, any further
+  work, in the same round or the next, goes to a new `cold` dispatch. A turn-cap partial continuation is
+  recovery inside the round: it is allowed above the threshold, is recorded as
+  recovery, and stays limited to the one continuation the policy allows. Let
+  an in-flight side effect finish; the threshold never stops it. Safety stops,
+  cancellation, retries, and CLI timeout reconciliation keep their own
+  contracts.
+- **Round handoff.** The new dispatch carries the five-part packet from the
+  policy's §Context tiers and dispatch packet, plus the source revision, the
+  completed and remaining scope, the verification results, the environment
+  and fixture data it needs, and an attributable summary of uncommitted
+  changes. Work can be uncommitted, so `git diff --stat` alone is not a
+  handoff.
+- **Test budget.** The task spec names the scoped tests for the round, the
+  stage owner, and the rerun conditions. The stage owner is the dispatcher
+  that owns the stage's acceptance and schedules its full suite. Run the
+  scoped tests in each round. Rerun it
+  after a failed fix, a source change, or an explicit acceptance requirement,
+  and record the reason. Run one full suite at a time per checkout or shared
+  test resource.
+- **Long runs.** Run a long suite in the Host's background mode with bounded
+  log or result reads. Wait at most 270 seconds per check, or the shorter
+  limit the Host or command sets. The limit is a ceiling, not a polling
+  cadence, and it covers the worker's own run only; §No block-polling a
+  running worker still applies to the orchestrator.
+- **Routing.** Multi-round production implementation goes to the designated
+  implementation owner: `fast-worker`, or `deep-reasoner` then `fast-worker`
+  when it needs analysis. `tdd-guide` keeps test design, RED, and an
+  explicitly authorized minimal GREEN slice.
+- **Six-file starting guideline.** Recommend splitting a mechanical batch with
+  more than six assigned product files into independently verifiable batches,
+  native or CLI. Six is an unmeasured starting point, not a wrapper or CLI
+  setting. A larger cohesive batch records its override reason in the dispatch
+  record and the worker's report. The worker itself never expands or splits
+  its own assigned scope.
+- **Telemetry.** The `oversized` section of the dhpk maintainer telemetry
+  report (dispatch-telemetry-report) lists each dispatch past the
+  threshold and each dispatch whose measurement is incomplete (`UNKNOWN`).
+  Observation of a later stage is follow-up evidence; report it as `NOT_RUN`
+  until it is measured.
+
 ## CLI worker mid-batch timeout recovery
 
 Applies only to a CLI-backed multi-file dispatch (`codex-worker` / `agy-worker`, canonical role IDs) that reports a contained runner timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which use the shared native-first fallback contract above.
@@ -185,7 +248,7 @@ A global (non-path-scoped) `git status` is never completion or ownership evidenc
 
 **PARTIAL marker (control-plane, not a product edit).** Before returning `RESULT: PARTIAL`, the worker writes one JSON marker at a dispatcher-preallocated path: `.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`, where `<session-id>`/`<dispatch-id>` are safe slugs the dispatcher allocates before dispatch (never a raw timestamp, to avoid collisions). The marker records backend, session/dispatch identity, the `assigned`/`confirmed`/`remaining`/`unconfirmed` sets, both timeout observations, and the next action. It is reported as a separate control-plane output, never counted in the assigned-scope edited-file list, and is not automatically resolved by the worker or by a reviewer. It stays until a human or the orchestrator explicitly reconciles it. An unresolved PARTIAL marker blocks marking the implementation task complete, but it is not itself a reviewer verdict or approval.
 
-**Six-file starting guideline.** Recommend splitting a mechanical batch with more than six assigned product files into independently verifiable batches; six is an unmeasured starting point, not a wrapper or CLI setting. A deliberately larger batch requires an override reason recorded in the dispatch record and the worker's report — the worker itself never expands or splits its own assigned scope.
+The six-file batch guideline lives in §Dispatch size and fresh context.
 
 ## Live CI/deploy verification loops are dispatchable work
 
@@ -267,7 +330,7 @@ While a dispatched `local_agent`/background worker is still running, the orchest
 
 ## SendMessage reuse vs. spawn
 
-When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker, reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), spawn a new agent instead.
+When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker, reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), spawn a new agent instead. After a worker passed the size threshold, the next round follows §Dispatch size and fresh context.
 
 Session evidence: a 7-round reuse of one
 `e2e-runner` via `SendMessage` preserved its env overrides and fixtures across

@@ -728,7 +728,7 @@ function twoHosts() {
 test('single-host --json --host includes schemaVersion, host, and a sha256 declaredTiersDigest without paths', () => {
   const agentsDir = makeAgentsDir();
   const report = hostJson('host-a', 'a', agentsDir);
-  assert.strictEqual(report.schemaVersion, 1);
+  assert.strictEqual(report.schemaVersion, 2);
   assert.strictEqual(report.host, 'host-a');
   assert.match(report.declaredTiersDigest, /^[0-9a-f]{64}$/);
   assert.ok(!JSON.stringify(report).includes(agentsDir), 'agents dir path leaked');
@@ -745,7 +745,7 @@ test('single-host --json --host includes schemaVersion, host, and a sha256 decla
 test('two-host merge sums byAgent, costTotals, callOverrides, skipped, noDeclaredTier and generalPurpose with nested maps', () => {
   const [a, b] = twoHosts();
   const m = mergedJson([a, b]);
-  assert.strictEqual(m.schemaVersion, 1);
+  assert.strictEqual(m.schemaVersion, 2);
   assert.deepStrictEqual(m.window, a.window);
   assert.deepStrictEqual(m.pricing, a.pricing);
 
@@ -857,7 +857,8 @@ test('merge rejects an input without schemaVersion or host, or with an unreadabl
   const version = mergeCli([a, noVersion]);
   assert.strictEqual(version.status, 1);
   assert.match(version.stderr, /schemaVersion/);
-  assert.strictEqual(mergeCli([a, { ...b, schemaVersion: 2 }]).status, 1);
+  assert.strictEqual(mergeCli([a, { ...b, schemaVersion: 1 }]).status, 1, 'a v1 report lacks the oversized section');
+  assert.strictEqual(mergeCli([a, { ...b, schemaVersion: 99 }]).status, 1);
 
   const { host, ...noHost } = b;
   const missing = mergeCli([a, noHost]);
@@ -1148,6 +1149,299 @@ test('merged mismatches keep only the known fields plus host and drop unknown ke
   const broken = clone(b);
   delete broken.mismatches[0].fields;
   assertRejected(mergeCli([a, broken]), 'mismatch without fields');
+});
+
+// ---- #1336 item 4: oversized dispatch flag ----
+
+const METRIC = 'peak per-message input + cache read + cache creation tokens (prompt proxy, not the context window)';
+
+// A dispatch of `turns` assistant turns; the last turn's prompt is `peakPrompt`
+// tokens (input only), every other turn is 10 tokens.
+function sizedRecords(turns, peakPrompt, startHour = 1) {
+  const out = [];
+  for (let i = 0; i < turns; i += 1) {
+    const ts = `2026-11-05T${String(startHour).padStart(2, '0')}:${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}Z`;
+    out.push(assistant({
+      ts,
+      id: `sz-${startHour}-${i}`,
+      model: 'claude-sonnet-5-5',
+      effort: 'medium',
+      usage: { input_tokens: i === turns - 1 ? peakPrompt : 10, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+    }));
+  }
+  return out;
+}
+
+function sizedReport(specs, extraArgs = [], host = 'host-s') {
+  const root = mkdtemp();
+  makeSession(root, {
+    dispatches: specs.map((spec, i) => ({ id: spec.id, agentType: spec.agentType || 'fast-worker', records: sizedRecords(spec.turns, spec.peak, i + 1) })),
+  });
+  const r = cli(['--root', root, '--agents-dir', makeAgentsDir(), '--host', host, '--json', ...extraArgs], { TZ: 'UTC' });
+  assert.strictEqual(r.status, 0, r.stderr);
+  return JSON.parse(r.stdout);
+}
+
+test('oversized: flags by turns only, by context only, or both; exactly at the thresholds is not flagged', () => {
+  const report = sizedReport([
+    { id: 'turns-only', turns: 121, peak: 1000 },
+    { id: 'ctx-only', turns: 3, peak: 200001 },
+    { id: 'both', turns: 130, peak: 250000 },
+    { id: 'edge-turns', turns: 120, peak: 1000 },
+    { id: 'edge-ctx', turns: 3, peak: 200000 },
+    { id: 'small', turns: 2, peak: 500 },
+  ]);
+  assert.deepStrictEqual(report.oversized.thresholds, { turns: 120, promptTokens: 200000 });
+  const rows = report.oversized.dispatches;
+  assert.deepStrictEqual(rows.map((r) => r.agentId), ['both', 'ctx-only', 'turns-only']);
+  assert.deepStrictEqual(rows.map((r) => r.reasons), [['turns', 'context'], ['context'], ['turns']]);
+  assert.deepStrictEqual(rows.map((r) => r.turns), [130, 3, 121]);
+  assert.deepStrictEqual(rows.map((r) => r.peakPromptTokens), [250000, 200001, 1000]);
+  assert.deepStrictEqual(Object.keys(rows[0]).sort(), ['agentId', 'agentType', 'complete', 'effort', 'model', 'peakPromptTokens', 'reasons', 'turns', 'usageMissingTurns']);
+  assert.strictEqual(rows[0].agentType, 'fast-worker');
+  assert.strictEqual(rows[0].model, 'claude-sonnet-5-5');
+  assert.strictEqual(rows[0].effort, 'medium');
+  assert.ok(!JSON.stringify(report).includes(PROMPT_SENTINEL));
+});
+
+test('oversized: report without oversized dispatches has an empty list and text shows zero', () => {
+  const report = sizedReport([{ id: 'small', turns: 2, peak: 500 }]);
+  assert.deepStrictEqual(report.oversized, { thresholds: { turns: 120, promptTokens: 200000 }, metric: METRIC, dispatches: [] });
+  const root = mkdtemp();
+  makeSession(root, { dispatches: [{ id: 'small', agentType: 'fast-worker', records: sizedRecords(2, 500) }] });
+  const text = cli(['--root', root, '--agents-dir', makeAgentsDir()], { TZ: 'UTC' });
+  assert.match(text.stdout, /^oversized dispatches \(>120 turns or >200k prompt tokens; prompt proxy\): 0$/m);
+});
+
+test('oversized: text output lists one line per dispatch with turns, rounded peak in k, and reasons', () => {
+  const root = mkdtemp();
+  makeSession(root, {
+    dispatches: [
+      { id: 'big1', agentType: 'fast-worker', records: sizedRecords(130, 250400, 1) },
+      { id: 'big2', agentType: 'architect', records: sizedRecords(5, 200600, 2) },
+    ],
+  });
+  const r = cli(['--root', root, '--agents-dir', makeAgentsDir()], { TZ: 'UTC' });
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^oversized dispatches \(>120 turns or >200k prompt tokens; prompt proxy\): 2$/m);
+  assert.match(r.stdout, /^  fast-worker big1: turns 130, peak 250k \[turns,context\]$/m);
+  assert.match(r.stdout, /^  architect big2: turns 5, peak 201k \[context\]$/m);
+  assert.ok(r.stdout.indexOf('general-purpose:') < r.stdout.indexOf('oversized dispatches'));
+});
+
+function sizedHost(host, specs) {
+  return sizedReport(specs, [], host);
+}
+
+test('oversized: merge concatenates with host, sorts by peak desc, agentType, agentId, host', () => {
+  const a = sizedHost('host-a', [{ id: 'x1', turns: 130, peak: 1000 }, { id: 'x2', turns: 3, peak: 300000 }]);
+  const b = sizedHost('host-b', [{ id: 'x1', turns: 125, peak: 1000 }, { id: 'y1', turns: 3, peak: 220000 }]);
+  const m = mergedJson([a, b]);
+  assert.deepStrictEqual(m.oversized.thresholds, { turns: 120, promptTokens: 200000 });
+  assert.deepStrictEqual(m.oversized.dispatches.map((d) => [d.host, d.agentId, d.peakPromptTokens]), [
+    ['host-a', 'x2', 300000],
+    ['host-b', 'y1', 220000],
+    ['host-a', 'x1', 1000],
+    ['host-b', 'x1', 1000],
+  ]);
+  assert.deepStrictEqual(m.oversized.dispatches[2].reasons, ['turns']);
+  assert.deepStrictEqual(Object.keys(m.oversized.dispatches[0]).sort(),
+    ['agentId', 'agentType', 'complete', 'effort', 'host', 'model', 'peakPromptTokens', 'reasons', 'turns', 'usageMissingTurns']);
+  const text = mergeCli([a, b]);
+  assert.match(text.stdout, /^oversized dispatches \(>120 turns or >200k prompt tokens; prompt proxy\): 4$/m);
+  assert.match(text.stdout, /^  host-a fast-worker x2: turns 3, peak 300k \[context\]$/m);
+});
+
+test('oversized: merge drops unknown fields and a spoofed host on dispatch entries', () => {
+  const a = sizedHost('host-a', [{ id: 'x1', turns: 130, peak: 1000 }]);
+  const b = sizedHost('host-b', [{ id: 'x2', turns: 130, peak: 1000 }]);
+  b.oversized.dispatches[0].host = 'spoofed';
+  b.oversized.dispatches[0].surprise = 'SURPRISE-VALUE';
+  const m = mergedJson([a, b]);
+  assert.strictEqual(m.oversized.dispatches.find((d) => d.agentId === 'x2').host, 'host-b');
+  assert.ok(!JSON.stringify(m).includes('SURPRISE-VALUE'));
+});
+
+test('oversized: merge rejects a missing or malformed oversized section and mismatched thresholds', () => {
+  const a = sizedHost('host-a', [{ id: 'x1', turns: 130, peak: 1000 }]);
+  const b = sizedHost('host-b', [{ id: 'x2', turns: 130, peak: 1000 }]);
+  const secret = 'SECRET-KEY-NAME-DO-NOT-ECHO';
+  const mutations = {
+    missing: (c) => { delete c.oversized; },
+    'not an object': (c) => { c.oversized = 7; },
+    'dispatches missing': (c) => { delete c.oversized.dispatches; },
+    'dispatches not array': (c) => { c.oversized.dispatches = {}; },
+    'thresholds missing': (c) => { delete c.oversized.thresholds; },
+    'threshold not number': (c) => { c.oversized.thresholds.turns = 'x'; },
+    'threshold differs turns': (c) => { c.oversized.thresholds.turns = 99; },
+    'threshold differs tokens': (c) => { c.oversized.thresholds.promptTokens = 1; },
+    'entry not object': (c) => { c.oversized.dispatches = [7]; },
+    'agentType not string': (c) => { c.oversized.dispatches[0].agentType = 3; },
+    'agentId missing': (c) => { delete c.oversized.dispatches[0].agentId; },
+    'model not string': (c) => { c.oversized.dispatches[0].model = null; },
+    'effort number': (c) => { c.oversized.dispatches[0].effort = 5; },
+    'turns negative': (c) => { c.oversized.dispatches[0].turns = -1; },
+    'peak not finite': (c) => { c.oversized.dispatches[0].peakPromptTokens = 'big'; },
+    'reasons not array': (c) => { c.oversized.dispatches[0].reasons = 'turns'; },
+    'reason unknown': (c) => { c.oversized.dispatches[0].reasons = ['turns', secret]; },
+    'complete not boolean': (c) => { c.oversized.dispatches[0].complete = 'yes'; },
+    'complete missing': (c) => { delete c.oversized.dispatches[0].complete; },
+    'usageMissingTurns negative': (c) => { c.oversized.dispatches[0].usageMissingTurns = -1; },
+    'usageMissingTurns fractional': (c) => { c.oversized.dispatches[0].usageMissingTurns = 1.5; },
+    'usageMissingTurns missing': (c) => { delete c.oversized.dispatches[0].usageMissingTurns; },
+    'metric missing': (c) => { delete c.oversized.metric; },
+    'metric not string': (c) => { c.oversized.metric = 3; },
+    'metric differs': (c) => { c.oversized.metric = 'something else'; },
+  };
+  for (const [name, mutate] of Object.entries(mutations)) {
+    const broken = clone(b);
+    mutate(broken);
+    const r = mergeCli([a, broken]);
+    assertRejected(r, name);
+    assert.ok(!r.stderr.includes(secret), `${name}: echoed input value`);
+  }
+  const nullEffort = clone(b);
+  nullEffort.oversized.dispatches[0].effort = null;
+  assert.strictEqual(mergeCli([a, nullEffort]).status, 0, 'null effort is valid');
+});
+
+// ---- #1336 round 2: measurement completeness and named scenarios ----
+
+function noUsage(record) {
+  const copy = clone(record);
+  delete copy.message.usage;
+  return copy;
+}
+
+function runRoot(root, extra = []) {
+  const r = cli(['--root', root, '--agents-dir', makeAgentsDir(), '--host', 'host-s', ...extra], { TZ: 'UTC' });
+  assert.strictEqual(r.status, 0, r.stderr);
+  return r;
+}
+
+test('oversized: JSON names the metric and every listed entry says it is complete when all turns carry usage', () => {
+  const report = sizedReport([{ id: 'ctx', turns: 3, peak: 200001 }]);
+  assert.strictEqual(report.oversized.metric, METRIC);
+  assert.strictEqual(report.oversized.dispatches[0].complete, true);
+  assert.strictEqual(report.oversized.dispatches[0].usageMissingTurns, 0);
+});
+
+test('oversized: duplicated message ids count once for turns and for the peak (last duplicate wins)', () => {
+  const withUsage = (record, tokens) => ({ ...clone(record), message: { ...clone(record.message), usage: { input_tokens: tokens, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } });
+  // 120 distinct ids plus three repeats of the last id: still 120 turns, not flagged.
+  const records = sizedRecords(120, 1000);
+  const root = mkdtemp();
+  makeSession(root, { dispatches: [{ id: 'dup', agentType: 'fast-worker', records: [...records, withUsage(records[119], 1000), withUsage(records[119], 1000), withUsage(records[119], 1000)] }] });
+  assert.deepStrictEqual(JSON.parse(runRoot(root, ['--json']).stdout).oversized.dispatches, []);
+  // Repeats of one id: the peak is that id's last usage once, not a sum or a max over repeats.
+  const small = sizedRecords(3, 1000);
+  const root2 = mkdtemp();
+  makeSession(root2, { dispatches: [{ id: 'dup2', agentType: 'fast-worker', records: [...small, withUsage(small[2], 250000), withUsage(small[2], 210000)] }] });
+  const rows = JSON.parse(runRoot(root2, ['--json']).stdout).oversized.dispatches;
+  assert.deepStrictEqual(rows.map((r) => [r.turns, r.peakPromptTokens]), [[3, 210000]]);
+});
+
+test('oversized: a continued dispatch (transcript with appended turns) is one entry with the accumulated turns', () => {
+  const root = mkdtemp();
+  const first = sizedRecords(70, 1000, 1);
+  const second = sizedRecords(60, 150000, 2);
+  makeSession(root, { dispatches: [{ id: 'cont', agentType: 'fast-worker', records: first }] });
+  assert.deepStrictEqual(JSON.parse(runRoot(root, ['--json']).stdout).oversized.dispatches, []);
+  makeSession(root, { dispatches: [{ id: 'cont', agentType: 'fast-worker', records: [...first, ...second] }] });
+  const rows = JSON.parse(runRoot(root, ['--json']).stdout).oversized.dispatches;
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].agentId, 'cont');
+  assert.strictEqual(rows[0].turns, 130);
+  assert.strictEqual(rows[0].peakPromptTokens, 150000);
+  assert.deepStrictEqual(rows[0].reasons, ['turns']);
+});
+
+test('oversized: two sessions with the same agent id stay two separate entries', () => {
+  const root = mkdtemp();
+  makeSession(root, { session: 'session-A', dispatches: [{ id: 'same', agentType: 'fast-worker', records: sizedRecords(3, 250000, 1) }] });
+  makeSession(root, { session: 'session-B', dispatches: [{ id: 'same', agentType: 'fast-worker', records: sizedRecords(3, 210000, 2) }] });
+  const rows = JSON.parse(runRoot(root, ['--json']).stdout).oversized.dispatches;
+  assert.deepStrictEqual(rows.map((r) => [r.agentId, r.peakPromptTokens]), [['same', 250000], ['same', 210000]]);
+});
+
+test('oversized: turns missing usage make a below-threshold dispatch listed as incomplete with UNKNOWN text', () => {
+  const root = mkdtemp();
+  const base = sizedRecords(4, 1000);
+  makeSession(root, { dispatches: [{ id: 'partial', agentType: 'fast-worker', records: [base[0], noUsage(base[1]), { ...clone(base[2]), message: { ...clone(base[2].message), usage: { output_tokens: 5 } } }, base[3]] }] });
+  const rows = JSON.parse(runRoot(root, ['--json']).stdout).oversized.dispatches;
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].complete, false);
+  assert.strictEqual(rows[0].usageMissingTurns, 2);
+  assert.strictEqual(rows[0].turns, 4);
+  assert.strictEqual(rows[0].peakPromptTokens, 1000);
+  assert.deepStrictEqual(rows[0].reasons, []);
+  const text = runRoot(root).stdout;
+  assert.match(text, /^oversized dispatches \(>120 turns or >200k prompt tokens; prompt proxy\): 1$/m);
+  assert.match(text, /^  fast-worker partial: turns 4, peak 1k \[-\] UNKNOWN: 2 turn\(s\) without usage$/m);
+});
+
+test('oversized: an incomplete dispatch that is also over a threshold keeps its reasons and the UNKNOWN note', () => {
+  const root = mkdtemp();
+  const recs = sizedRecords(121, 1000);
+  recs[5] = noUsage(recs[5]);
+  makeSession(root, { dispatches: [{ id: 'both', agentType: 'fast-worker', records: recs }] });
+  const rows = JSON.parse(runRoot(root, ['--json']).stdout).oversized.dispatches;
+  assert.deepStrictEqual(rows.map((r) => [r.reasons, r.complete, r.usageMissingTurns]), [[['turns'], false, 1]]);
+  assert.match(runRoot(root).stdout, /^  fast-worker both: turns 121, peak 1k \[turns\] UNKNOWN: 1 turn\(s\) without usage$/m);
+});
+
+test('oversized: a fully measured below-threshold dispatch is not listed', () => {
+  const report = sizedReport([{ id: 'fine', turns: 120, peak: 200000 }]);
+  assert.deepStrictEqual(report.oversized.dispatches, []);
+});
+
+test('oversized: merge keeps complete and usageMissingTurns and carries the metric', () => {
+  const root = mkdtemp();
+  const base = sizedRecords(3, 1000);
+  makeSession(root, { dispatches: [{ id: 'p', agentType: 'fast-worker', records: [base[0], noUsage(base[1]), base[2]] }] });
+  const a = JSON.parse(runRoot(root, ['--json']).stdout);
+  const b = sizedHost('host-b', [{ id: 'x2', turns: 130, peak: 1000 }]);
+  const m = mergedJson([a, b]);
+  assert.strictEqual(m.oversized.metric, METRIC);
+  const p = m.oversized.dispatches.find((d) => d.agentId === 'p');
+  assert.deepStrictEqual([p.complete, p.usageMissingTurns, p.host], [false, 1, 'host-s']);
+  assert.match(mergeCli([a, b]).stdout, /^  host-s fast-worker p: turns 3, peak 1k \[-\] UNKNOWN: 1 turn\(s\) without usage$/m);
+});
+
+test('oversized: a turn carrying only some prompt fields is unmeasured and cannot hide a large context', () => {
+  const root = mkdtemp();
+  const base = sizedRecords(2, 1000);
+  const partial = { ...clone(base[1]), message: { ...clone(base[1].message), usage: { input_tokens: 5, output_tokens: 5 } } };
+  makeSession(root, { dispatches: [{ id: 'partial-fields', agentType: 'fast-worker', records: [base[0], partial] }] });
+  const rows = JSON.parse(runRoot(root, ['--json']).stdout).oversized.dispatches;
+  assert.deepStrictEqual(rows.map((r) => [r.agentId, r.complete, r.usageMissingTurns, r.peakPromptTokens]), [['partial-fields', false, 1, 10]]);
+});
+
+test('oversized: a dispatch with no measured turn reports a null peak and UNKNOWN text, never 0', () => {
+  const root = mkdtemp();
+  const base = sizedRecords(2, 1000);
+  makeSession(root, { dispatches: [{ id: 'blind', agentType: 'fast-worker', records: base.map(noUsage) }] });
+  const rows = JSON.parse(runRoot(root, ['--json']).stdout).oversized.dispatches;
+  assert.deepStrictEqual(rows.map((r) => [r.peakPromptTokens, r.complete, r.usageMissingTurns]), [[null, false, 2]]);
+  assert.match(runRoot(root).stdout, /^  fast-worker blind: turns 2, peak UNKNOWN \[-\] UNKNOWN: 2 turn\(s\) without usage$/m);
+  const merged = mergedJson([JSON.parse(runRoot(root, ['--json', '--host', 'host-s']).stdout)]);
+  assert.strictEqual(merged.oversized.dispatches[0].peakPromptTokens, null);
+});
+
+test('oversized: merge rejects complete that contradicts usageMissingTurns, and a null peak on a complete entry', () => {
+  const good = sizedHost('host-a', [{ id: 'x1', turns: 130, peak: 1000 }]);
+  const entry = good.oversized.dispatches[0];
+  const variants = [
+    { ...entry, complete: true, usageMissingTurns: 3 },
+    { ...entry, complete: false, usageMissingTurns: 0 },
+    { ...entry, complete: true, usageMissingTurns: 0, peakPromptTokens: null },
+  ];
+  for (const bad of variants) {
+    const input = { ...good, oversized: { ...good.oversized, dispatches: [bad] } };
+    const result = mergeCli([input]);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.stderr, /malformed oversized entry/);
+  }
 });
 
 run('dispatch-telemetry-report');
