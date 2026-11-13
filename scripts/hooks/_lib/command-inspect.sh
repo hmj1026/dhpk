@@ -4,8 +4,9 @@
 #
 # Support boundary:
 #   Compound separators are unquoted ';', '&&', '||', '&', and newlines.
-#   An unquoted '#' starts a comment through the end of that line. A '#'
-#   inside quotes is data. Quoted words are single argv elements.
+#   An unquoted '#' at the start of a word starts a comment through the end
+#   of that line. A '#' inside a word or inside quotes is data. A carriage
+#   return is an ordinary character. Quoted words are single argv elements.
 #   Quoting is decoded into each argv word: '...', "...", $'...' (ANSI-C
 #   escapes such as \n, \xHH, \NNN and ASCII \uHHHH), $"...", backslashes
 #   and concatenation, so g"i"t and $'\x67it' are both the word git. A word
@@ -512,13 +513,16 @@ dhpk_inspect_command() {
                 continue
                 ;;
             '#')
-                if [ -z "$_dhpk_ci_word" ]; then
+                # A comment starts only at the start of a word. Any quote
+                # ('', "", $'') or backslash has already opened the word,
+                # even when its decoded value is empty.
+                if [ -z "$_dhpk_ci_word" ] && [ "$_dhpk_ci_word_open" -eq 0 ]; then
                     _dhpk_ci_mode="comment"
                     i=$((i + 1))
                     continue
                 fi
                 ;;
-            ' '|$'\t'|$'\r')
+            ' '|$'\t')
                 _dhpk_ci_flush_word
                 DHPK_STRIPPED="${DHPK_STRIPPED}${ch}"
                 _dhpk_ci_seg="${_dhpk_ci_seg}${ch}"

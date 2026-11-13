@@ -205,6 +205,13 @@ test("special parameters before a quote never start $'...'", () => {
   }
 });
 
+test('a # after an empty or NUL-truncated quote is part of the word, not a comment', () => {
+  for (const [prefix, word] of [["$''#", '#'], ["$'\\x00'#", '#'], ["''#", '#'], ['""#', '#'], ['x\r#', 'x\r#']]) {
+    const got = decoded(`echo ${prefix} ; git commit --no-verify -m x`);
+    assert.deepStrictEqual(got.cmds, [['echo', word], ['git', 'commit', '--no-verify', '-m', 'x']], JSON.stringify(prefix));
+  }
+});
+
 test('inside double quotes a backslash escapes only $ ` " \\ and joins a newline', () => {
   assert.deepStrictEqual(decoded('"gi\\\nt" "a\\b" "\\$x\\`\\"\\\\"').cmds, [['git', 'a\\b', '$x`"\\']]);
 });

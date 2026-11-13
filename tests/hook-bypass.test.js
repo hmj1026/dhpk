@@ -733,6 +733,49 @@ test("pre-bash-guard decodes $'...' after $$ ($$$'\\x67it' is still git)", () =>
   expectStatus(bashHook('pre-bash-guard.sh', "rm -rf $$$'/etc'"), ALLOW, 'pid-prefixed relative operand');
 });
 
+// Review round 4 (#1389): '#' starts a comment only at the start of a word.
+// A quote construct, even an empty one or one cut short by a NUL, has already
+// started the word (bash 5.2: `echo $''# ; echo RAN` prints # and RAN), and a
+// carriage return is an ordinary character, not a word separator.
+const OPEN_WORD_HASH = ["$''#", "$'\\x00'#", "$'\\c@'#", "''#", '""#', 'x\r#'];
+
+test('pre-bash-guard does not read a # after an open word as a comment', () => {
+  for (const prefix of OPEN_WORD_HASH) {
+    const command = `echo ${prefix} ; git commit --no-verify -m x`;
+    const res = bashHook('pre-bash-guard.sh', command);
+    expectStatus(res, BLOCK, JSON.stringify(command));
+    assert.match(res.stderr, /--no-verify/);
+  }
+});
+
+test('pre-bash-dispatch blocks --no-verify after a # inside an open word', () => {
+  withRepos(({ featureRepo }) => {
+    for (const prefix of OPEN_WORD_HASH) {
+      const command = `echo ${prefix} ; git commit --no-verify -m x`;
+      expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo }), BLOCK, JSON.stringify(command));
+    }
+  });
+});
+
+test('pretool-git-gate and dispatch (block mode) block a commit after a # inside an open word on main', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const prefix of OPEN_WORD_HASH) {
+      const command = `echo ${prefix} ; git commit -m x`;
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook} ${JSON.stringify(command)}`);
+        assert.match(res.stderr, /branch-safety/);
+      }
+    }
+  });
+});
+
+test('pre-bash-guard still treats a # at the start of a word as a comment', () => {
+  for (const command of ['echo hi # git commit --no-verify -m x', "echo '' # git commit --no-verify -m x"]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  }
+});
+
 test('pre-bash-guard keeps allowing benign NUL, escape and glob forms', () => {
   for (const command of [
     "echo x > $'notes\\x00.env'",
