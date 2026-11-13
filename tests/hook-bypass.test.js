@@ -864,6 +864,67 @@ test('pre-bash-guard blocks syntax the decoder cannot place', () => {
   assert.match(res.stderr, /unsupported shell syntax/);
 });
 
+test('pre-bash-dispatch blocks deeply nested substitutions with exit 2, not a crash', () => {
+  const tail = ' ; git commit --no-verify -m x';
+  for (const command of [
+    `echo ${'$('.repeat(2000)}true${')'.repeat(2000)}${tail}`,
+    `echo ${'${x:-'.repeat(2000)}a${'}'.repeat(2000)}${tail}`,
+    `echo ${'${x:-"'.repeat(2000)}a${'"}'.repeat(2000)}${tail}`,
+    `cat ${'<('.repeat(2000)}true${')'.repeat(2000)}${tail}`,
+  ]) {
+    const res = runHook('pre-bash-dispatch.sh', {
+      payload: { tool_input: { command } }, deleteEnv: ['DHPK_ALLOW_NO_VERIFY', 'DHPK_BRANCH_SAFETY'], timeout: 60000,
+    });
+    expectStatus(res, BLOCK, command.slice(0, 20));
+  }
+});
+
+// A child hook that crashes (any status other than 0 or 2) must still block:
+// Claude Code treats only exit 2 as a block.
+function withCrashingRoot(fn) {
+  const root = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-crash-root-'));
+  try {
+    fs.cpSync(path.join(__dirname, '..', 'scripts'), path.join(root, 'scripts'), { recursive: true });
+    return fn(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('pre-bash-dispatch maps a crashed or failing child hook to exit 2', () => {
+  for (const [child, body] of [
+    ['pre-bash-guard.sh', 'cat >/dev/null; kill -SEGV $$'],
+    ['pre-bash-guard.sh', 'cat >/dev/null; exit 1'],
+    ['pretool-git-gate.sh', 'cat >/dev/null; exit 3'],
+  ]) {
+    withCrashingRoot((root) => {
+      fs.writeFileSync(path.join(root, 'scripts', 'hooks', child), `#!/usr/bin/env bash\n${body}\n`);
+      const res = runHook(path.join(root, 'scripts', 'hooks', 'pre-bash-dispatch.sh'), {
+        payload: { tool_input: { command: 'ls' } }, pluginRoot: root,
+      });
+      expectStatus(res, BLOCK, `${child}: ${body}`);
+    });
+  }
+});
+
+test('pre-bash-dispatch keeps a cd inside a subshell from moving a later commit (block mode)', () => {
+  withRepos(({ featureRepo }) => {
+    fs.mkdirSync(path.join(featureRepo, 'sub'));
+    const command = '(cd sub && ls) && git commit --allow-empty -m x';
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, command);
+  });
+});
+
+test('pre-bash-guard blocks substitutions inside single quotes of a double-quoted ${...}', () => {
+  for (const command of [
+    'echo "${x:-\'$(git commit --no-verify -m x)\'}"',
+    'echo "${x:-\'`git commit --no-verify -m x`\'}"',
+    "cat <<EOF\n${x:-'$(git commit --no-verify -m x)'}\nEOF",
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, JSON.stringify(command));
+  }
+});
+
 test('pre-edit-guard blocks Windows-equivalent .env and .git names', () => {
   for (const filePath of ['.env ', '.env.', '.env::$DATA', '.git::$INDEX_ALLOCATION/config', 'a/.git /config']) {
     expectStatus(editHook(filePath), BLOCK, JSON.stringify(filePath));

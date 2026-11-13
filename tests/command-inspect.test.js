@@ -383,10 +383,45 @@ test('( and ) separate commands, so a # after ( starts a comment', () => {
   assert.deepStrictEqual(decoded('(rm -rf /etc)').cmds, [['rm', '-rf', '/etc']]);
 });
 
-test('a cd inside a subshell resolves its own commands but leaves later ones unresolved', () => {
+test('a cd inside a subshell applies to the subshell and is undone by its )', () => {
   assert.strictEqual(gitRecords('(cd /other && git commit -m x)').records[0].repo, '/other');
-  assert.strictEqual(gitRecords('(cd /other) ; git commit -m x').records[0].state, 'unresolved');
+  assert.deepStrictEqual(gitRecords('(cd /other) ; git commit -m x').records[0], { sub: 'commit', state: 'cwd', repo: '/session', noVerify: '0' });
+  assert.strictEqual(gitRecords('(cd sub && ls) && git commit --allow-empty -m x').records[0].repo, '/session');
+  assert.strictEqual(gitRecords('cd /a && (cd /b) && git commit -m x').records[0].repo, '/a');
   assert.strictEqual(gitRecords('echo $(cd /other) ; git commit -m x').records[0].repo, '/session');
+});
+
+test('a case pattern ) after a cd leaves the directory unresolved', () => {
+  // The pattern's ) is not the subshell's ), so the cd may still apply.
+  assert.strictEqual(gitRecords('(cd /x; case a in a) ;; esac; git commit -m x)').records[0].state, 'unresolved');
+  assert.strictEqual(gitRecords('case a in a) cd /x ;; esac ; git commit -m x').records[0].repo, '/x');
+});
+
+test('${...} inside double quotes or a heredoc body still runs substitutions inside single quotes', () => {
+  for (const command of [
+    'echo "${x:-\'$(git commit --no-verify -m x)\'}"',
+    'echo "${x:-\'`git commit --no-verify -m x`\'}"',
+    "cat <<EOF\n${x:-'$(git commit --no-verify -m x)'}\nEOF",
+  ]) {
+    assert.deepStrictEqual(gitRecords(command).records.map((r) => r.noVerify), ['1'], command);
+  }
+  // Unquoted, the single quotes quote: nothing inside runs (bash 5.2).
+  assert.deepStrictEqual(gitRecords("echo ${x:-'$(git commit --no-verify -m x)'}").records, []);
+  // The single quotes still hide a } from the end of ${...}.
+  assert.deepStrictEqual(decoded('echo "${x:-\'}\'}" ; git commit --no-verify -m x #"').cmds.slice(-1), [NV_COMMIT]);
+});
+
+test('nesting deeper than the decoder supports is unsupported, not a crash', () => {
+  const tail = ' ; git commit --no-verify -m x';
+  for (const [kind, command] of [
+    ['subst', `echo ${'$('.repeat(2000)}true${')'.repeat(2000)}${tail}`],
+    ['param', `echo ${'${x:-'.repeat(2000)}a${'}'.repeat(2000)}${tail}`],
+    ['pdq', `echo ${'${x:-"'.repeat(2000)}a${'"}'.repeat(2000)}${tail}`],
+    ['procsub', `cat ${'<('.repeat(2000)}true${')'.repeat(2000)}${tail}`],
+  ]) {
+    assert.notStrictEqual(gitRecords(command).unsupported, '', kind);
+  }
+  assert.strictEqual(gitRecords(`echo ${'$('.repeat(20)}true${')'.repeat(20)}`).unsupported, '');
 });
 
 test('reserved words before git do not hide it', () => {
