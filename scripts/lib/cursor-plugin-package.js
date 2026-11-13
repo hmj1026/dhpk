@@ -66,7 +66,7 @@ const {
   physicalPackageRootError,
   findSymlinks,
 } = require('./bounded-filesystem');
-const { redactSensitiveText } = require('./redaction');
+const { redactSensitiveText, redactedErrorText } = require('./redaction');
 const {
   parseToolList,
   rewriteCursorHarnessBody,
@@ -2080,7 +2080,7 @@ function runCursorConsumerProbeRaw({
     try {
       assertPhysicalPackageRoot(path.resolve(packageRoot), 'Cursor consumer package');
     } catch (error) {
-      return { surface: 'cursor-plugin', status: 'BLOCKED', reason: redactSensitiveText(String(error.message || error), { maxLength: 800 }) };
+      return { surface: 'cursor-plugin', status: 'BLOCKED', reason: redactedErrorText(error) };
     }
   }
   if (cwd !== null && cwd !== undefined && !path.isAbsolute(cwd)) {

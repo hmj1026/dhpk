@@ -20,4 +20,12 @@ function redactSensitiveText(value, { maxLength = 800 } = {}) {
   return text.slice(-maxLength);
 }
 
-module.exports = { redactSensitiveText };
+// Redact-then-truncate text of a caught error. A falsy `.message` falls back to
+// `fallback` (when given) or to the error value itself, like the call sites it
+// replaces: String(error && error.message ? error.message : fallback ?? error).
+function redactedErrorText(error, { maxLength = 800, fallback } = {}) {
+  const text = error && error.message ? error.message : (fallback !== undefined ? fallback : error);
+  return redactSensitiveText(String(text), { maxLength });
+}
+
+module.exports = { redactSensitiveText, redactedErrorText };

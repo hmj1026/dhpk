@@ -7588,6 +7588,26 @@ function metadataBlocks(lines) {
   return blocks;
 }
 
+// Shared top-level scan over parsed metadata blocks. Both the serializer and
+// the validator walk blocks in source order and hand each finding to their own
+// handler, so error order is identical to a direct loop.
+function visitMetadataBlocks(blocks, { blockError, inline, entryError, entry }) {
+  for (const block of blocks) {
+    if (block.error) {
+      blockError(block.error);
+      continue;
+    }
+    if (block.inline) {
+      inline(block);
+      continue;
+    }
+    for (const item of block.entries) {
+      if (item.error || item.parsed.error) entryError(item.error || item.parsed.error);
+      else entry(item);
+    }
+  }
+}
+
 function serializeYamlString(value) {
   return JSON.stringify(String(value));
 }
@@ -7601,10 +7621,12 @@ function serializePortableSkillMetadata(content) {
 
   const replacements = new Map();
   const removed = new Set();
-  for (const block of blocks) {
-    if (block.inline) {
+  visitMetadataBlocks(blocks, {
+    // Block-level errors already returned above.
+    blockError: () => {},
+    inline: (block) => {
       if (block.parsed.type === 'mapping') {
-        if (Object.keys(block.parsed.value).length === 0) continue;
+        if (Object.keys(block.parsed.value).length === 0) return;
         const lines = ['metadata:'];
         for (const [key, value] of Object.entries(block.parsed.value)) {
           const serialized = typeof value === 'string' ? value : JSON.stringify(value);
@@ -7614,19 +7636,15 @@ function serializePortableSkillMetadata(content) {
       } else if (block.parsed.type !== 'string') {
         errors.push('metadata must be a mapping of string values');
       }
-      continue;
-    }
-    for (const entry of block.entries) {
-      if (entry.error || entry.parsed.error) {
-        errors.push(entry.error || entry.parsed.error);
-        continue;
-      }
-      if (entry.parsed.type === 'string') continue;
+    },
+    entryError: (message) => { errors.push(message); },
+    entry: (entry) => {
+      if (entry.parsed.type === 'string') return;
       const jsonText = JSON.stringify(entry.parsed.value);
       replacements.set(entry.line, [`${entry.indent}${entry.keyText}: ${serializeYamlString(jsonText)}`]);
       for (let line = entry.line + 1; line < entry.end; line += 1) removed.add(line);
-    }
-  }
+    },
+  });
   if (errors.length > 0) return { ok: false, output: parts.source, errors };
 
   const outputLines = [];
@@ -7648,28 +7666,23 @@ function validatePortableSkillMetadata(content) {
   if (!parts.match) return { ok: true, errors: [] };
   const blocks = metadataBlocks(parts.lines);
   const errors = [];
-  for (const block of blocks) {
-    if (block.error) {
-      errors.push(`metadata: ${block.error}`);
-      continue;
-    }
-    if (block.inline) {
+  visitMetadataBlocks(blocks, {
+    blockError: (message) => { errors.push(`metadata: ${message}`); },
+    inline: (block) => {
       if (block.parsed.type !== 'mapping') errors.push('metadata must be a mapping of string values');
       else {
         for (const [key, value] of Object.entries(block.parsed.value)) {
           if (typeof value !== 'string') errors.push(`metadata.${key} must be a string scalar in portable output`);
         }
       }
-      continue;
-    }
-    for (const entry of block.entries) {
-      if (entry.error || entry.parsed.error) {
-        errors.push(`metadata: ${entry.error || entry.parsed.error}`);
-      } else if (typeof entry.parsed.value !== 'string') {
+    },
+    entryError: (message) => { errors.push(`metadata: ${message}`); },
+    entry: (entry) => {
+      if (typeof entry.parsed.value !== 'string') {
         errors.push(`metadata.${entry.key} must be a string scalar in portable output`);
       }
-    }
-  }
+    },
+  });
   return { ok: errors.length === 0, errors };
 }
 
@@ -12769,7 +12782,15 @@ function redactSensitiveText(value, { maxLength = 800 } = {}) {
   return text.slice(-maxLength);
 }
 
-module.exports = { redactSensitiveText };
+// Redact-then-truncate text of a caught error. A falsy `.message` falls back to
+// `fallback` (when given) or to the error value itself, like the call sites it
+// replaces: String(error && error.message ? error.message : fallback ?? error).
+function redactedErrorText(error, { maxLength = 800, fallback } = {}) {
+  const text = error && error.message ? error.message : (fallback !== undefined ? fallback : error);
+  return redactSensitiveText(String(text), { maxLength });
+}
+
+module.exports = { redactSensitiveText, redactedErrorText };
 
 }],
   "scripts/lib/release-evidence.js": [{"./redaction":"scripts/lib/redaction.js"}, function (exports, require, module, __filename, __dirname) {
