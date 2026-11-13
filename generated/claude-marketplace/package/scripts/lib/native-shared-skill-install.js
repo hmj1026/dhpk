@@ -93,24 +93,7 @@ function installNativeSharedSkills({
     ? previous.hostBindings
     : {};
   const resolvedInventory = inventory || readInventory(sourceRoot);
-  const currentIds = new Set([
-    ...(Array.isArray(resolvedInventory.skills) ? resolvedInventory.skills : []),
-    ...(Array.isArray(resolvedInventory.modules) ? resolvedInventory.modules : []),
-  ].map((entry) => entry && entry.id).filter((id) => typeof id === 'string'));
-  const originalEntries = previous && Array.isArray(previous.entries) ? previous.entries : [];
-  const originalIds = [
-    ...(previous && Array.isArray(previous.selectedIds) ? previous.selectedIds : []),
-    ...(previous && Array.isArray(previous.emittedIds) ? previous.emittedIds : []),
-    ...originalEntries.map((entry) => entry && entry.stableId),
-    ...Object.values(previousBindings).flatMap((binding) => [
-      ...(binding && Array.isArray(binding.selectedStableIds) ? binding.selectedStableIds : []),
-      ...(binding && Array.isArray(binding.emittedStableIds) ? binding.emittedStableIds : []),
-      ...(binding && Array.isArray(binding.bindings) ? binding.bindings.map((entry) => entry && entry.stableId) : []),
-    ]),
-  ];
-  const retiredIds = new Set(originalIds.filter((id) => typeof id === 'string' && !currentIds.has(id)));
-  const retiredNames = originalEntries.filter((entry) => entry && retiredIds.has(entry.stableId))
-    .map((entry) => entry.name).filter((name) => typeof name === 'string');
+  const { retiredIds, retiredNames } = retiredState(previous, previousBindings, resolvedInventory);
   for (const other of Object.keys(previousBindings)) {
     if (other === host) continue;
     const pruned = pruneRetiredHostBinding(previousBindings[other], retiredIds, retiredNames);
@@ -169,6 +152,28 @@ function throwIfUninstallFailed(result) {
     throw new Error(detail);
   }
   return result;
+}
+
+function retiredState(previous, previousBindings, resolvedInventory) {
+  const currentIds = new Set([
+    ...(Array.isArray(resolvedInventory.skills) ? resolvedInventory.skills : []),
+    ...(Array.isArray(resolvedInventory.modules) ? resolvedInventory.modules : []),
+  ].map((entry) => entry && entry.id).filter((id) => typeof id === 'string'));
+  const originalEntries = previous && Array.isArray(previous.entries) ? previous.entries : [];
+  const originalIds = [
+    ...(previous && Array.isArray(previous.selectedIds) ? previous.selectedIds : []),
+    ...(previous && Array.isArray(previous.emittedIds) ? previous.emittedIds : []),
+    ...originalEntries.map((entry) => entry && entry.stableId),
+    ...Object.values(previousBindings).flatMap((binding) => [
+      ...(binding && Array.isArray(binding.selectedStableIds) ? binding.selectedStableIds : []),
+      ...(binding && Array.isArray(binding.emittedStableIds) ? binding.emittedStableIds : []),
+      ...(binding && Array.isArray(binding.bindings) ? binding.bindings.map((entry) => entry && entry.stableId) : []),
+    ]),
+  ];
+  const retiredIds = new Set(originalIds.filter((id) => typeof id === 'string' && !currentIds.has(id)));
+  const retiredNames = originalEntries.filter((entry) => entry && retiredIds.has(entry.stableId))
+    .map((entry) => entry.name).filter((name) => typeof name === 'string');
+  return { retiredIds, retiredNames };
 }
 
 function pruneRetiredHostBinding(binding, retiredIds, retiredNames) {
@@ -263,25 +268,7 @@ function uninstallNativeSharedSkills({
   }
   const profileId = previous.profileId || 'portable-core';
   compileRetirementGuard(resolvedInventory, profileId, remainingHosts);
-  const currentIds = new Set([
-    ...(Array.isArray(resolvedInventory.skills) ? resolvedInventory.skills : []),
-    ...(Array.isArray(resolvedInventory.modules) ? resolvedInventory.modules : []),
-  ].map((entry) => entry && entry.id).filter((id) => typeof id === 'string'));
-  const originalEntries = Array.isArray(previous.entries) ? previous.entries : [];
-  const originalIds = [
-    ...(Array.isArray(previous.selectedIds) ? previous.selectedIds : []),
-    ...(Array.isArray(previous.emittedIds) ? previous.emittedIds : []),
-    ...originalEntries.map((entry) => entry && entry.stableId),
-    ...Object.values(previousBindings).flatMap((binding) => [
-      ...(binding && Array.isArray(binding.selectedStableIds) ? binding.selectedStableIds : []),
-      ...(binding && Array.isArray(binding.emittedStableIds) ? binding.emittedStableIds : []),
-      ...(binding && Array.isArray(binding.bindings) ? binding.bindings.map((entry) => entry && entry.stableId) : []),
-    ]),
-  ];
-  const retiredIds = new Set(originalIds.filter((id) => typeof id === 'string' && !currentIds.has(id)));
-  const retiredEntries = originalEntries.filter((entry) => entry && retiredIds.has(entry.stableId));
-  const retiredNames = retiredEntries.map((entry) => entry.name)
-    .filter((name) => typeof name === 'string');
+  const { retiredIds, retiredNames } = retiredState(previous, previousBindings, resolvedInventory);
   const preserveHostBindings = {};
   const preserveBindingPaths = {};
   const remainingIds = [];
