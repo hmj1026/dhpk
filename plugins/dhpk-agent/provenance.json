@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.77.0",
-  "sourceCommit": "6eec9d126817a4c50e2dfb9a7e543d04c2cd7656",
-  "generatedFromCommit": "6eec9d126817a4c50e2dfb9a7e543d04c2cd7656",
-  "generatedFromTree": "ebc454781fc74dc195a46c4b958046f94dc0cd14",
+  "sourceCommit": "688d7cef48e1ffb1ffd5db03d8b2967e737125a6",
+  "generatedFromCommit": "688d7cef48e1ffb1ffd5db03d8b2967e737125a6",
+  "generatedFromTree": "a8a2dbc3657c7fcbc8b4b884f45d1b06671e79b9",
   "inventoryDigest": "3274c537c8796f322d58468b52cbc7f7c209233e18bd1381274773120ee5c4eb",
   "inventoryRevision": "sha256:f73bfda3b167048cce7257dae03d804d25b56363d5e65650c1798387f245a3ca",
   "generatorVersion": "1.1.0",
@@ -229,7 +229,7 @@
         "ownerId": "change-verdict",
         "source": "skills/project-audit/scripts/lib/runner-utils.js",
         "destination": "skills/change-verdict/references/project-audit/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "change-verdict",
@@ -319,7 +319,7 @@
         "ownerId": "change-verdict",
         "source": "skills/change-verdict/scripts/lib/runner-utils.js",
         "destination": "skills/change-verdict/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "change-verdict",
@@ -475,7 +475,7 @@
         "ownerId": "code-trace",
         "source": "skills/repo-intake/scripts/lib/runner-utils.js",
         "destination": "skills/code-trace/references/repo-intake/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "code-trace",
@@ -1819,7 +1819,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/_lib/runner-utils.js",
         "destination": "skills/flow-guide/scripts/_lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "flow-guide",
@@ -1981,7 +1981,7 @@
         "ownerId": "precommit",
         "source": "skills/precommit/scripts/lib/runner-utils.js",
         "destination": "skills/precommit/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "precommit",
@@ -2371,7 +2371,7 @@
         "ownerId": "repo-verify",
         "source": "skills/repo-verify/scripts/lib/runner-utils.js",
         "destination": "skills/repo-verify/scripts/lib/runner-utils.js",
-        "originalGitBlobDigest": "a97566f2a5893513714f301b7fd312b8301d6006"
+        "originalGitBlobDigest": "d794d8249c58d7e6483787d1d4936ce80f99fc83"
       },
       {
         "ownerId": "repo-verify",
@@ -5304,18 +5304,18 @@
   "skippedSkills": [],
   "mcpServerNames": [],
   "fingerprints": {
-    "change-verdict": "2573d1d801c2f9c02b9ae8ca4dd06c4360f1d47b1abe0836854753578d89db0c",
-    "code-trace": "36947cd7633d99f6e27d810dcdc0cc7631aa07025c2150edc5286e22d844e868",
+    "change-verdict": "ccddf069995af1fe56cf9fb8da2258a9741b304c0da4e9190392e2e40b4d896d",
+    "code-trace": "92f6c83e2fe8af7490ab64fa81cd174bef2737f0916145eb208fc45157630716",
     "create-pr": "8f92deca6a524fa35368da87ab1fd66a5e8b36546b0122173c530d01358cbbd5",
     "doc-maintain": "03ce8f892b21bfcc22a19f04c3746deb07bf8708302c2096133a10492c531e0d",
     "flow-drive": "18f65c3a8ed8055673c1b51338008057ec852d3794f00cfbd99c47b5c7515c0c",
-    "flow-guide": "9543827978a6c607c86942b07cc6ec9b449bd0f3bde56fa9dceeaed4eae0dd1c",
+    "flow-guide": "ea9b5a14921bc79e63cab37a010183702119774e3c14e149357d4278de8d26da",
     "git-smart-commit": "951b6a8f04d7787ff0c698490895ce38bcc6169c74a7bea3f28c989af50fca10",
     "git-worktree": "da1a9e85b59c978dbf8e64f48a8324a9e70cafdf783dc9a453274fc79df6bfa3",
-    "precommit": "3605c5ae6ada993a6f3ef977015e86a72e0caf18df18d1566da3af80a183999f",
+    "precommit": "2984831f996540d955d67c21325a3c6a1ead9fa1af36f972e8597a8b844c34ed",
     "proposal-analyze": "7cbc5c6b5d5faed62e67ddb7e1f3f921c1b8faa8123ae8f36c661837f7aa4d00",
     "release-creator": "44302bc409fea90b914c28086e206369f2f8df3c2259b0799c1b2c95acd20561",
-    "repo-verify": "36bde8ed8013a80dbc11b520a27e4011aa28d8a67b564f925d5ede5c50f9a3b5",
+    "repo-verify": "dbe72278bb16c28d7a0dd0d04357884e4494568b263ea68c85fc20d79861dff5",
     "tdd-workflow": "78832c7effebac7325cc44c91c706de885aad4f21cb96f3db183a9312a6bb150",
     "ui-ux-verify": "e3595020b7382995d4335fb288b2e324c837151faa75fc5d61604fafd0ce9746"
   },
