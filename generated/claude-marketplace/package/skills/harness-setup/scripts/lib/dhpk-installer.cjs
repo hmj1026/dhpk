@@ -100,6 +100,9 @@ const DEFAULT_TRAVERSAL_LIMITS = Object.freeze({
   maxBytes: 128 * 1024 * 1024,
 });
 
+const READ_CHUNK_BYTES = 64 * 1024;
+const NAME_COLLATOR = new Intl.Collator();
+
 function positiveLimit(value, fallback, label) {
   if (value === undefined) return fallback;
   const numeric = Number(value);
@@ -163,9 +166,11 @@ function createTraversalBudget(options = {}) {
     leaveDirectory(realDirectory) {
       activeDirectories.delete(realDirectory);
     },
+    // displayPath may be a thunk so hot callers only build the path on failure.
     accountEntry(displayPath) {
       if (entries + 1 > limits.maxEntries) {
-        throw new Error(`maximum fingerprint entry count (${limits.maxEntries}) exceeded: ${displayPath}`);
+        const shown = typeof displayPath === 'function' ? displayPath() : displayPath;
+        throw new Error(`maximum fingerprint entry count (${limits.maxEntries}) exceeded: ${shown}`);
       }
       entries += 1;
     },
@@ -202,23 +207,22 @@ function createTraversalBudget(options = {}) {
         }
         this.accountFile(filePath, opened.stat, displayPath);
         const expectedSize = Number(opened.stat.size);
-        const chunks = [];
-        let remaining = expectedSize;
+        // The size was accounted above, so one allocation is bounded.  The
+        // buffer is not zero-filled; it is only returned once every byte was
+        // read, and any short read or size change throws instead.
+        const result = Buffer.allocUnsafe(expectedSize);
         let position = 0;
-        while (remaining > 0) {
-          const length = Math.min(64 * 1024, remaining);
-          const chunk = Buffer.alloc(length);
-          const count = fs.readSync(opened.fd, chunk, 0, length, position);
+        while (position < expectedSize) {
+          const length = Math.min(READ_CHUNK_BYTES, expectedSize - position);
+          const count = fs.readSync(opened.fd, result, position, length, position);
           if (!count) throw new Error(`file changed while reading: ${displayPath}`);
-          chunks.push(count === length ? chunk : chunk.subarray(0, count));
           position += count;
-          remaining -= count;
         }
         const finalStat = fs.fstatSync(opened.fd);
         if (!sameFileIdentity(opened.stat, finalStat) || Number(finalStat.size) !== expectedSize) {
           throw new Error(`file changed while reading: ${displayPath}`);
         }
-        return Buffer.concat(chunks, expectedSize);
+        return result;
       } finally {
         fs.closeSync(opened.fd);
       }
@@ -238,7 +242,7 @@ function readDirectoryEntries(directory, { budget = createTraversalBudget(), sor
     while (true) {
       const entry = handle.readSync();
       if (entry === null) break;
-      budget.accountEntry(path.join(directory, entry.name));
+      budget.accountEntry(() => path.join(directory, entry.name));
       entries.push(entry);
     }
   } finally {
@@ -246,7 +250,7 @@ function readDirectoryEntries(directory, { budget = createTraversalBudget(), sor
   }
   if (!sort) return entries;
   return entries.sort(localeSort
-    ? (left, right) => left.name.localeCompare(right.name)
+    ? (left, right) => NAME_COLLATOR.compare(left.name, right.name)
     : (left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
 }
 
@@ -299,14 +303,17 @@ function assertPhysicalAncestors(directory, label) {
   }
 }
 
-function ensurePhysicalDirectory(directory, label) {
+// `create` selects ensure semantics: a missing directory is created and a
+// symlink gets its own error. Without it a missing directory passes and a
+// symlink falls through to the "must be a directory" error.
+function checkPhysicalDirectory(directory, label, create) {
   assertPhysicalAncestors(directory, label);
   const stat = lstatOrNull(directory);
   if (!stat) {
-    fs.mkdirSync(directory, { recursive: true });
+    if (create) fs.mkdirSync(directory, { recursive: true });
     return path.resolve(directory);
   }
-  if (stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
+  if (create && stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label}: ${directory}`);
   if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
   if (fs.realpathSync(directory) !== path.resolve(directory)) {
     throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
@@ -314,16 +321,13 @@ function ensurePhysicalDirectory(directory, label) {
   return path.resolve(directory);
 }
 
+function ensurePhysicalDirectory(directory, label) {
+  return checkPhysicalDirectory(directory, label, true);
+}
+
 // Like ensurePhysicalDirectory but never creates: a missing directory passes.
 function assertPhysicalDirectory(directory, label) {
-  assertPhysicalAncestors(directory, label);
-  const stat = lstatOrNull(directory);
-  if (!stat) return path.resolve(directory);
-  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
-  if (fs.realpathSync(directory) !== path.resolve(directory)) {
-    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
-  }
-  return path.resolve(directory);
+  return checkPhysicalDirectory(directory, label, false);
 }
 
 // Every symlink at or below `directory`, the root itself included.
