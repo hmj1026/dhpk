@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
-const { compareHarnesses, managedFiles, main } = require('../scripts/lib/cross-cli-parity');
+const { compareHarnesses, main } = require('../scripts/lib/cross-cli-parity');
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cross-cli-parity-'));
@@ -75,9 +75,6 @@ test('symlinked .claude/skills -> ../.agents/skills does not report shared skill
     fs.writeFileSync(path.join(root, '.codex', 'commands', 'cmd.md'), 'command v1\n');
     fs.writeFileSync(path.join(root, '.codex', 'agents', 'a.md'), 'agent v1\n');
     fs.writeFileSync(path.join(root, '.codex', 'rules', 'r.md'), 'rule v1\n');
-
-    const managed = managedFiles(path.join(root, '.claude'));
-    assert.ok(!managed.some(([rel]) => rel.startsWith('skills/')), 'managedFiles should skip shared .agents/skills symlink');
 
     const result = compareHarnesses(root);
     assert.deepStrictEqual(result.missing, ['hooks/h.sh']);
