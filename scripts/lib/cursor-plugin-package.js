@@ -1017,6 +1017,16 @@ function compileCursorPackage({
       symlinkPolicy: 'forbid',
       ...skillEntryFields(file),
   }));
+  // First inventory skill whose id equals either identifier (same pick as a
+  // linear find), via a first-wins index built once.
+  const skillIndexById = new Map();
+  (inventory.skills || []).forEach((candidate, index) => {
+    if (!skillIndexById.has(candidate.id)) skillIndexById.set(candidate.id, index);
+  });
+  const inventorySkillAt = (stableId, skillId) => {
+    const indexes = [skillIndexById.get(stableId), skillIndexById.get(skillId)].filter((index) => index !== undefined);
+    return indexes.length > 0 ? inventory.skills[Math.min(...indexes)] : undefined;
+  };
   const compiled = compileDistribution({
       internalCharacterization: Boolean(projection.provenance.marketplacePublication)
         || (selectionMode !== 'legacy' && (!projection.selection || !projection.selection.selectionPolicy)),
@@ -1036,7 +1046,7 @@ function compileCursorPackage({
         : undefined,
       selectionEntries: projection.selection && projection.selection.selectionPolicy
         ? (projection.selection.selectionEntries || projection.selection.entries).map((entry) => {
-          const skill = (inventory.skills || []).find((candidate) => candidate.id === entry.stableId || candidate.id === entry.skillId);
+          const skill = inventorySkillAt(entry.stableId, entry.skillId);
           return skill ? {
             ...entry,
             ...skillProjectionMetadata(skill, {
@@ -1950,11 +1960,12 @@ function networkSandboxProbe(pathValue = process.env.PATH, networkMode = 'disabl
   // the exact requested network shape before accepting this backend.
   const bwrap = verifiedSandboxExecutable('bwrap', pathValue);
   if (!bwrap) return null;
-  const result = sandboxPreflight(bwrap, [...bubblewrapPrefix(networkMode), '--', 'true'], pathValue);
+  const prefix = bubblewrapPrefix(networkMode);
+  const result = sandboxPreflight(bwrap, [...prefix, '--', 'true'], pathValue);
   if (!result.error && result.status === 0) {
     return {
       command: bwrap,
-      prefix: bubblewrapPrefix(networkMode),
+      prefix,
     };
   }
   return null;
