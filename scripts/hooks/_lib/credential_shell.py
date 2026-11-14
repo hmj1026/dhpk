@@ -40,6 +40,7 @@ EXEC_WRAPPERS = frozenset((
     'nsenter', 'unshare', 'strace', 'ltrace', 'parallel', 'find'))
 # 讀取標準輸入並據以建立檔名或指令的詞。
 RESOLVABLE_SUBSTITUTIONS = frozenset(('pwd', 'git rev-parse --show-toplevel'))
+QUOTED_FEEDERS = frozenset(('xargs', 'parallel'))
 INPUT_FEEDERS = frozenset(('xargs', 'parallel', 'read', 'readarray', 'mapfile', 'exec'))
 RESERVED_WORDS = frozenset(('!', '{', 'if', 'then', 'elif', 'else', 'while', 'until', 'do', 'time', 'coproc'))
 SEGMENT_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
@@ -569,8 +570,12 @@ def _heredocs(text, heredocs=True):
 
 def _feeds_arguments(word):
     """True for a word that turns its standard input into arguments or commands."""
-    # 引號內的字串（例如 sh -c 'xargs cat'）也算：整個字串中出現任一字詞即判定。
-    return any(part.rsplit('/', 1)[-1] in INPUT_FEEDERS for part in word.split())
+    names = [part.rsplit('/', 1)[-1] for part in word.split()]
+    # 含空白的字詞來自引號字串：其中只認 xargs、parallel（例如 sh -c 'xargs cat'）；
+    # read、exec 等字樣出現在標題或訊息文字裡是資料。
+    if len(names) > 1:
+        return any(name in QUOTED_FEEDERS for name in names)
+    return any(name in INPUT_FEEDERS for name in names)
 
 
 def _dynamic_command(tokens):
@@ -701,7 +706,7 @@ def _tokenize_by_line(text):
         try:
             tokens.extend(tokenize(line))
         except ValueError:
-            tokens.extend(tokenize(re.sub(r'[\'"\\]', ' ', line)))
+            tokens.extend(tokenize(re.sub(r'[\'"\\]', '', line)))
         tokens.append(Token(';', operator=True))
     return tokens
 

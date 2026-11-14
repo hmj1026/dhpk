@@ -1126,6 +1126,9 @@ const CREDENTIAL_BYPASSES_ROUND_3 = [
   ['fd heredoc then read loop', `exec 3${SHL}'EOF'\n${READ_ENV}\nEOF\nwhile read -r l; do $l; done <&3`],
   ['fd heredoc then bash <&3', `exec 3${SHL}'EOF'\n${READ_ENV}\nEOF\nbash <&3`],
   ['quoted xargs word on the heredoc line', `cat ${SHL}'EOF' | env 'xargs' cat\n.env\nEOF`],
+  ['split name on an unbalanced line: .e"nv" then odd quote', `sg paul -c "$(cat ${SHL}'EOF'\ncat .e"nv" '\n'\necho '\nEOF\n)"`],
+  ['split name on an unbalanced line: .e\'nv\' then odd quote', `sg paul -c "$(cat ${SHL}'EOF'\ncat .e'nv' "\n"\necho '\nEOF\n)"`],
+  ['split name on an unbalanced line: .e\\nv then odd quote', `sg paul -c "$(cat ${SHL}'EOF'\ncat .e\\nv '\n'\necho '\nEOF\n)"`],
 ];
 
 for (const [label, command] of CREDENTIAL_BYPASSES_ROUND_3) {
@@ -1141,6 +1144,8 @@ const CREDENTIAL_LOOKALIKES_ROUND_3 = [
   ['gh pr create body with an apostrophe', `gh pr create --title t --body "$(${KEEP('cat ')})"`],
   ['message variable with an apostrophe then commit', `body="$(${KEEP('cat ')})"; gh pr create --title t --body "$body"`],
   ['message variable mentioning the file name as prose', `msg="$(cat ${SHL}'EOF'\nfix: ignore .env in docs\nEOF\n)"; git commit -m "$msg"`],
+  ['quoted title that holds the word read', `gh pr create --title "read docs" --body-file - ${SHL}'EOF'\nbody\nEOF`],
+  ['quoted title that holds the word exec', `gh pr create --title "exec cleanup" --body-file - ${SHL}'EOF'\nbody\nEOF`],
   ['$(pwd) alone', 'cat $(pwd)'],
   ['$(pwd)/README.md', 'cat $(pwd)/README.md'],
 ];
