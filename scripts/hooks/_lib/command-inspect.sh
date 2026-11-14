@@ -322,11 +322,51 @@ _dhpk_ci_head_index() {
     fi
 }
 
+# _dhpk_ci_grp_push <kind> <cmd0> <pipe_id>
+#   Pushes an open compound group (subshell, brace, if, loop, case) so its
+#   commands can be linked if the group feeds or sits inside a pipeline.
+_dhpk_ci_grp_push() {
+    _dhpk_ci_grp_kind[$_dhpk_ci_grp_depth]="$1"
+    _dhpk_ci_grp_cmd0[$_dhpk_ci_grp_depth]="$2"
+    _dhpk_ci_grp_pipe[$_dhpk_ci_grp_depth]="$3"
+    _dhpk_ci_grp_depth=$((_dhpk_ci_grp_depth + 1))
+}
+
+# _dhpk_ci_grp_pop <kind>
+#   Closes the innermost open group matching <kind>, setting
+#   _dhpk_ci_last_group_cmd0 and restoring _dhpk_ci_pipe_id to that group's
+#   enclosing pipeline id. Unmatched closers clear _dhpk_ci_last_group_cmd0.
+_dhpk_ci_grp_pop() {
+    local idx=$((_dhpk_ci_grp_depth - 1))
+    while [ "$idx" -ge 0 ]; do
+        if [ "${_dhpk_ci_grp_kind[$idx]}" = "$1" ]; then
+            _dhpk_ci_last_group_cmd0="${_dhpk_ci_grp_cmd0[$idx]}"
+            _dhpk_ci_pipe_id="${_dhpk_ci_grp_pipe[$idx]}"
+            _dhpk_ci_grp_depth="$idx"
+            return 0
+        fi
+        idx=$((idx - 1))
+    done
+    _dhpk_ci_last_group_cmd0=-1
+    return 1
+}
+
+# _dhpk_ci_unify_pipe <cmd0> <target_pid>
+#   Assigns <target_pid> across [cmd0..end), unifying unpiped and nested-pipe
+#   commands inside a LHS compound group with the enclosing pipeline.
+_dhpk_ci_unify_pipe() {
+    local k="$1" target="$2" end="${#DHPK_CMD_PIPE_ID[@]}"
+    while [ "$k" -lt "$end" ]; do
+        DHPK_CMD_PIPE_ID[$k]="$target"
+        k=$((k + 1))
+    done
+}
+
 # _dhpk_ci_flush_command <sep>
 #   sep is the separator that ends the command: compound (; newline ( ) or
 #   the end), and (&&), or (||), bg (&) or pipe (| |&).
 _dhpk_ci_flush_command() {
-    local sep="$1" n h head k cond kwhead="" git_has_c
+    local sep="$1" n h head k cond kwhead="" git_has_c cmd_idx="${#DHPK_CMD_START[@]}"
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -336,10 +376,6 @@ _dhpk_ci_flush_command() {
         _dhpk_ci_head_index
         h="$_dhpk_ci_head"
         [ "$h" -lt "$n" ] && head="${_dhpk_ci_words[$h]}"
-        if [ "$sep" = "pipe" ] && [ "$_dhpk_ci_pipe_id" -eq 0 ]; then
-            _dhpk_ci_next_pipe_id=$((_dhpk_ci_next_pipe_id + 1))
-            _dhpk_ci_pipe_id="$_dhpk_ci_next_pipe_id"
-        fi
         DHPK_CMD_START+=("${#DHPK_WORDS[@]}")
         DHPK_CMD_LEN+=("$n")
         DHPK_CMD_PIPE_ID+=("$_dhpk_ci_pipe_id")
@@ -378,7 +414,9 @@ _dhpk_ci_flush_command() {
         k=0
         while [ "$k" -lt "$h" ]; do
             case "${_dhpk_ci_words[$k]}" in
-                if|while|until) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)) ;;
+                '{') _dhpk_ci_grp_push brace "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+                if) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push if "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+                while|until) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push loop "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
                 # coproc runs its command in an async subshell.
                 then|else|elif|do|'!'|coproc) cond=1 ;;
             esac
@@ -389,8 +427,12 @@ _dhpk_ci_flush_command() {
         [ "$_dhpk_ci_head_kw" -eq 1 ] || kwhead=""
         [ "$_dhpk_ci_head_kw" -eq 1 ] && kwhead="$head"
         case "$kwhead" in
-            for|select|case) _dhpk_ci_block=$((_dhpk_ci_block + 1)) ;;
-            'fi'|'done'|'esac') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)) ;;
+            for|select) _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push loop "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+            case) _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push case "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+            'fi') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop if ;;
+            'done') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop loop ;;
+            'esac') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop case ;;
+            '}') _dhpk_ci_grp_pop brace ;;
             function)
                 # "function f { cd X; }" keeps the body's cd out of head
                 # position, and a later call may run it.
@@ -425,17 +467,6 @@ _dhpk_ci_flush_command() {
             _dhpk_ci_cwd=""
         fi
         _dhpk_ci_prev_sep="$sep"
-    elif [ "$sep" = "pipe" ] && [ "$_dhpk_ci_last_group_cmd0" -ge 0 ] && [ "$_dhpk_ci_pipe_id" -eq 0 ]; then
-        _dhpk_ci_next_pipe_id=$((_dhpk_ci_next_pipe_id + 1))
-        _dhpk_ci_pipe_id="$_dhpk_ci_next_pipe_id"
-        k="$_dhpk_ci_last_group_cmd0"
-        while [ "$k" -lt "${#DHPK_CMD_PIPE_ID[@]}" ]; do
-            [ "${DHPK_CMD_PIPE_ID[$k]}" -eq 0 ] && DHPK_CMD_PIPE_ID[$k]="$_dhpk_ci_pipe_id"
-            k=$((k + 1))
-        done
-        _dhpk_ci_last_group_cmd0=-1
-    else
-        _dhpk_ci_last_group_cmd0=-1
     fi
     # Heredocs opened by this command: the body is data for cat, tee, and
     # git (without -c/--config-env/--exec-path before the subcommand) unless
@@ -471,10 +502,30 @@ _dhpk_ci_flush_command() {
             _dhpk_ci_hd_seen=$((_dhpk_ci_hd_seen + 1))
         done
     fi
-    if [ "$sep" != "pipe" ]; then
+    if [ "$sep" = "pipe" ]; then
+        if [ "$_dhpk_ci_pipe_id" -eq 0 ]; then
+            _dhpk_ci_next_pipe_id=$((_dhpk_ci_next_pipe_id + 1))
+            _dhpk_ci_pipe_id="$_dhpk_ci_next_pipe_id"
+        fi
+        if [ "$_dhpk_ci_last_group_cmd0" -ge 0 ]; then
+            _dhpk_ci_unify_pipe "$_dhpk_ci_last_group_cmd0" "$_dhpk_ci_pipe_id"
+            _dhpk_ci_last_group_cmd0=-1
+        elif [ "$n" -gt 0 ]; then
+            DHPK_CMD_PIPE_ID[$cmd_idx]="$_dhpk_ci_pipe_id"
+        fi
+        _dhpk_ci_after_pipe=1
+    else
         _dhpk_ci_pipeline_cd=0
         _dhpk_ci_seg=""
-        [ "$n" -gt 0 ] && _dhpk_ci_pipe_id=0
+        if [ "$n" -gt 0 ] || [ "$_dhpk_ci_after_pipe" -eq 0 ]; then
+            _dhpk_ci_after_pipe=0
+            _dhpk_ci_last_group_cmd0=-1
+            if [ "$_dhpk_ci_grp_depth" -gt 0 ]; then
+                _dhpk_ci_pipe_id="${_dhpk_ci_grp_pipe[$((_dhpk_ci_grp_depth - 1))]}"
+            else
+                _dhpk_ci_pipe_id=0
+            fi
+        fi
     fi
     _dhpk_ci_reset_words
 }
@@ -794,6 +845,7 @@ _dhpk_ci_expand() {
                                     _dhpk_ci_exec_next=0
                                     DHPK_CMD_START+=("${#DHPK_WORDS[@]}")
                                     DHPK_CMD_LEN+=(1)
+                                    DHPK_CMD_PIPE_ID+=(0)
                                     DHPK_WORDS+=("$_sp")
                                     if [ "$_dhpk_ci_cwd_state" = "literal" ]; then
                                         DHPK_CMD_CWD+=("$_dhpk_ci_cwd")
@@ -1230,15 +1282,17 @@ _dhpk_ci_list_run() {
     local -a _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_quoted
     local _dhpk_ci_word_q=0
     local _dhpk_ci_seg="" _dhpk_ci_pipeline_cd=0 _dhpk_ci_paren=0 _dhpk_ci_any_cd=0 _dhpk_ci_case=0
-    local _dhpk_ci_pipe_id=0 _dhpk_ci_last_group_cmd0=-1
+    local _dhpk_ci_pipe_id=0 _dhpk_ci_last_group_cmd0=-1 _dhpk_ci_after_pipe=0 _dhpk_ci_grp_depth=0
     # Conditional-cd tracking: open if/loop/case blocks, a function body
     # seen, the separator before this command, a cd held by an && chain.
     local _dhpk_ci_block=0 _dhpk_ci_func=0 _dhpk_ci_prev_sep="" _dhpk_ci_cd_cond=0 _dhpk_ci_paren_empty=0
-    # Directory and state saved at each open subshell '('.
-    local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_pstart_stk
+    # Directory/state saved at each open '(' and open compound group stack.
+    local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_grp_cmd0 _dhpk_ci_grp_pipe _dhpk_ci_grp_kind
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
-    _dhpk_ci_pstart_stk=()
+    _dhpk_ci_grp_cmd0=()
+    _dhpk_ci_grp_pipe=()
+    _dhpk_ci_grp_kind=()
     local _dhpk_ci_cwd="$_dhpk_ci_cwd" _dhpk_ci_cwd_state="$_dhpk_ci_cwd_state"
     local -a _dhpk_ci_hd_d _dhpk_ci_hd_q _dhpk_ci_hd_t _dhpk_ci_hd_x
     local _dhpk_ci_hd_seen=0
@@ -1387,6 +1441,7 @@ _dhpk_ci_list_run() {
                 continue
                 ;;
             ';')
+                _dhpk_ci_after_pipe=0
                 _dhpk_ci_flush_command compound
                 DHPK_STRIPPED+=";"
                 i=$((i + 1))
@@ -1404,7 +1459,8 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_flush_command compound
                 _dhpk_ci_cwd_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd"
                 _dhpk_ci_state_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd_state"
-                _dhpk_ci_pstart_stk[$_dhpk_ci_paren]="${#DHPK_CMD_START[@]}"
+                _dhpk_ci_grp_push paren "${#DHPK_CMD_START[@]}" "$_dhpk_ci_pipe_id"
+                _dhpk_ci_after_pipe=0
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
                 _dhpk_ci_paren_empty=1
                 DHPK_STRIPPED+="("
@@ -1430,9 +1486,11 @@ _dhpk_ci_list_run() {
                     _dhpk_ci_paren=$((_dhpk_ci_paren - 1))
                     _dhpk_ci_cwd="${_dhpk_ci_cwd_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_cwd_state="${_dhpk_ci_state_stk[$_dhpk_ci_paren]}"
-                    _dhpk_ci_last_group_cmd0="${_dhpk_ci_pstart_stk[$_dhpk_ci_paren]}"
+                    _dhpk_ci_grp_pop paren
+                    _dhpk_ci_after_pipe=0
                     matched=1
                 else
+                    _dhpk_ci_last_group_cmd0=-1
                     matched=0
                 fi
                 if [ "$_dhpk_ci_any_cd" -eq 1 ] && { [ "$_dhpk_ci_case" -eq 1 ] || [ "$matched" -eq 0 ]; }; then

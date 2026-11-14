@@ -48,13 +48,6 @@ CMD="$(extract_tool_input command "$PAYLOAD")"
 # hide a later flag or redirect.
 dhpk_inspect_command "$CMD"
 
-# The decoder reports syntax it cannot place (for example a case statement
-# inside $(...)). Guessing there could hide a later command, so block.
-if [ -n "$DHPK_UNSUPPORTED" ]; then
-    echo "[bash-guard] blocked: unsupported shell syntax ($DHPK_UNSUPPORTED); rewrite the command without it." >&2
-    exit 2
-fi
-
 # _guard_word_head_is <word> <name>
 #   True when the decoded argv word is <name> or a path ending in /<name>.
 _guard_word_head_is() {
@@ -64,13 +57,78 @@ _guard_word_head_is() {
     return 1
 }
 
+# _guard_env_split_head <split-string>
+#   Extracts the first non-option, non-assignment command word from an
+#   `env -S` split-string into _guard_head_word.
+_guard_env_split_head() {
+    local s="$1" i=0 len="${#1}" ch tok="" q="" has_tok=0 operands_only=0 skip_next=0
+    local assign_re='^[A-Za-z_][A-Za-z0-9_]*='
+    _guard_head_word=""
+    while [ "$i" -le "$len" ]; do
+        if [ "$i" -lt "$len" ]; then
+            ch="${s:$i:1}"
+        else
+            ch=" "
+        fi
+        if [ "$i" -lt "$len" ] && [ -n "$q" ]; then
+            if [ "$ch" = "$q" ]; then
+                q=""
+            elif [ "$q" = '"' ] && [ "$ch" = '\' ] && [ $((i + 1)) -lt "$len" ]; then
+                i=$((i + 1))
+                tok+="${s:$i:1}"
+            else
+                tok+="$ch"
+            fi
+        else
+            case "$ch" in
+                ' '|$'\t'|$'\n')
+                    if [ "$has_tok" -eq 1 ]; then
+                        if [ "$skip_next" -eq 1 ]; then
+                            skip_next=0
+                        elif [ "$operands_only" -eq 0 ] && [ "$tok" = "--" ]; then
+                            operands_only=1
+                        elif [ "$operands_only" -eq 0 ] && [ "${tok#-}" != "$tok" ]; then
+                            case "$tok" in
+                                -u|-C|--unset|--chdir|-S|--split-string) skip_next=1 ;;
+                            esac
+                        elif [[ "$tok" =~ $assign_re ]]; then
+                            :
+                        else
+                            _guard_head_word="$tok"
+                            return 0
+                        fi
+                        tok=""
+                        has_tok=0
+                    fi
+                    ;;
+                "'"|'"') q="$ch"; has_tok=1 ;;
+                '\')
+                    has_tok=1
+                    if [ $((i + 1)) -lt "$len" ]; then
+                        i=$((i + 1))
+                        tok+="${s:$i:1}"
+                    fi
+                    ;;
+                *) tok+="$ch"; has_tok=1 ;;
+            esac
+        fi
+        i=$((i + 1))
+    done
+    return 0
+}
+
 # _guard_cmd_head_idx <start> <end>
 #   Advances past reserved words, VAR=VALUE assignments and command wrappers
 #   (command, builtin, exec, env, nohup, nice, timeout, stdbuf, sudo, doas,
-#   xargs) to locate the executable command word index in DHPK_WORDS.
-#   Sets _guard_head_idx to <end> when no command executes (e.g. `command -v`).
+#   xargs) to locate the executable command word index in DHPK_WORDS and set
+#   _guard_head_word. Sets _guard_head_idx to <end> when no outer word runs
+#   (e.g. `command -v` or `env -S "cmd"`).
 _guard_cmd_head_idx() {
     local k="$1" end="$2" w base assign_re='^[A-Za-z_][A-Za-z0-9_]*='
+    local _env_split="" _env_split_seen=0
+    _guard_head_word=""
+    _guard_env_split_script=""
+    _guard_env_split_rest="$end"
     while [ "$k" -lt "$end" ]; do
         w="${DHPK_WORDS[$k]}"
         case "$w" in
@@ -118,15 +176,42 @@ _guard_cmd_head_idx() {
                 [ "$k" -lt "$end" ] && [ "${DHPK_WORDS[$k]}" = "--" ] && k=$((k + 1))
                 continue ;;
             env)
+                _env_split=""
+                _env_split_seen=0
                 k=$((k + 1))
                 while [ "$k" -lt "$end" ]; do
                     case "${DHPK_WORDS[$k]}" in
                         --) k=$((k + 1)); break ;;
-                        -u|-C|-S|--unset|--chdir|--split-string) k=$((k + 2)) ;;
+                        -u|-C|--unset|--chdir) k=$((k + 2)) ;;
+                        -S|--split-string)
+                            _env_split="${DHPK_WORDS[$((k + 1))]:-}"
+                            _env_split_seen=1
+                            k=$((k + 2))
+                            ;;
+                        --split-string=*)
+                            _env_split="${DHPK_WORDS[$k]#--split-string=}"
+                            _env_split_seen=1
+                            k=$((k + 1))
+                            ;;
+                        --*) k=$((k + 1)) ;;
+                        -S?*)
+                            _env_split="${DHPK_WORDS[$k]#-S}"
+                            _env_split_seen=1
+                            k=$((k + 1))
+                            ;;
+                        -*S)
+                            _env_split="${DHPK_WORDS[$((k + 1))]:-}"
+                            _env_split_seen=1
+                            k=$((k + 2))
+                            ;;
                         -*) k=$((k + 1)) ;;
                         *) break ;;
                     esac
                 done
+                if [ "$_env_split_seen" -eq 1 ]; then
+                    _guard_env_split_script="$_env_split"
+                    _guard_env_split_rest="$k"
+                fi
                 continue ;;
             nice)
                 k=$((k + 1))
@@ -197,9 +282,16 @@ _guard_cmd_head_idx() {
                 continue ;;
         esac
         _guard_head_idx="$k"
+        if [ -n "$_guard_env_split_script" ]; then
+            _guard_env_split_head "$_guard_env_split_script"
+        fi
+        [ -n "$_guard_head_word" ] || _guard_head_word="${DHPK_WORDS[$k]}"
         return 0
     done
     _guard_head_idx="$end"
+    if [ -n "$_guard_env_split_script" ]; then
+        _guard_env_split_head "$_guard_env_split_script"
+    fi
     return 0
 }
 
@@ -372,16 +464,16 @@ _guard_env_write_decoded() {
 #   shell (sh, bash, zsh, ksh, dash, ash, mksh), even across intermediate pipe
 #   stages, wrappers, line continuations, or quoted/escaped command words.
 _guard_curl_pipe_decoded() {
-    local c=0 pid start end head curl_pipes=" " _guard_head_idx=0
+    local c=0 pid start end curl_pipes=" " _guard_head_idx=0 _guard_head_word=""
+    local _guard_env_split_script="" _guard_env_split_rest=0
     while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
         pid="${DHPK_CMD_PIPE_ID[$c]:-0}"
         if [ "$pid" -gt 0 ]; then
             start="${DHPK_CMD_START[$c]}"
             end=$((start + DHPK_CMD_LEN[c]))
             _guard_cmd_head_idx "$start" "$end"
-            if [ "$_guard_head_idx" -lt "$end" ]; then
-                head="${DHPK_WORDS[$_guard_head_idx]}"
-                case "${head##*/}" in
+            if [ -n "$_guard_head_word" ]; then
+                case "${_guard_head_word##*/}" in
                     curl|wget|fetch)
                         case "$curl_pipes" in
                             *" $pid "*) ;;
@@ -406,8 +498,10 @@ _guard_curl_pipe_decoded() {
 #   or without options or wrappers) while leaving commit messages, data text,
 #   and filenames like `chmod 755 777` allowed.
 _guard_chmod_decoded() {
-    local c=0 start end k w operands_only _guard_head_idx=0
-    local mode_re='^0*[0-7]?(777|666)$' opt_re='^-[RcfvHLP]+$'
+    local c=0 start end k w operands_only _guard_head_idx=0 _guard_head_word=""
+    local _guard_env_split_script="" _guard_env_split_rest=0
+    local mode_re='^0*[0-7]?(777|666)$' opt_re='^-[RcfvhHLP]+$'
+    local attached_mode_re='^-[RcfvhHLP]+0*[0-7]?(777|666)$'
     while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
         start="${DHPK_CMD_START[$c]}"
         end=$((start + DHPK_CMD_LEN[c]))
@@ -427,7 +521,9 @@ _guard_chmod_decoded() {
                         --reference|--reference=*) break ;;
                         --*) k=$((k + 1)); continue ;;
                         -*)
-                            if [[ "$w" =~ $opt_re ]]; then
+                            if [[ "$w" =~ $attached_mode_re ]]; then
+                                return 0
+                            elif [[ "$w" =~ $opt_re ]]; then
                                 k=$((k + 1))
                                 continue
                             fi
@@ -446,7 +542,7 @@ _guard_chmod_decoded() {
 # _guard_env_quoted_redirect_hit
 #   Conservative fallback for Pattern 6: catches redirect syntax to a non-template
 #   .env path inside double/single-quoted command text (for example `echo "a > .env"`
-#   or `sh -c "echo x > .env"`) on DHPK_STRIPPED with zero external forks.
+#   or `sh -c "echo x >| .env"`) on DHPK_STRIPPED with zero external forks.
 #   Heredoc data bodies were already stripped from DHPK_STRIPPED.
 _guard_env_quoted_redirect_hit() {
     case "$DHPK_STRIPPED" in
@@ -454,7 +550,7 @@ _guard_env_quoted_redirect_hit() {
         *) return 1 ;;
     esac
     local rest="$DHPK_STRIPPED"
-    local re='>>?[[:space:]]*["'\'']{0,2}(([^[:space:];&|"'\'']*/)?\.[Ee][Nn][Vv](\.[A-Za-z0-9_.-]+)?)["'\'']{0,2}([[:space:];&|]|$)'
+    local re='>[>|]?[[:space:]]*["'\'']{0,2}(([^[:space:];&|"'\'']*/)?\.[Ee][Nn][Vv](\.[A-Za-z0-9_.-]+)?)["'\'']{0,2}([)[:space:];&|]|$)'
     while [[ "$rest" =~ $re ]]; do
         _guard_env_secret_name "${BASH_REMATCH[1]}" && return 0
         rest="${rest#*"${BASH_REMATCH[0]}"}"
@@ -462,53 +558,166 @@ _guard_env_quoted_redirect_hit() {
     return 1
 }
 
-# Pattern 1: rm on root or sensitive top-level dirs (decoded argv in _guard_rm_decoded).
-if _guard_rm_decoded; then
-    echo "[bash-guard] blocked: rm -rf against root or system directory. Narrow the path or run outside Claude." >&2
-    exit 2
-fi
-
-# Pattern 2: curl|sh / wget|bash / fetch|zsh family (decoded pipeline stages).
-if _guard_curl_pipe_decoded; then
-    echo "[bash-guard] blocked: piping remote download into shell. Save to file, inspect, then run." >&2
-    exit 2
-fi
-
-# Pattern 3: chmod 777 / 666 (decoded chmod mode operand).
-if _guard_chmod_decoded; then
-    echo "[bash-guard] blocked: chmod 777/666. Use stricter perms (750/640) or narrower paths." >&2
-    exit 2
-fi
-
-# Pattern 5: git commit / push with --no-verify. The flag must be an argv of
-# that invocation. A quoted message, a real comment, or push -n (dry-run) does
-# not count, and one segment cannot exempt another. Commit -n raises the same
-# signal.
-# Opt out for a session: DHPK_ALLOW_NO_VERIFY=1
-if [ "${DHPK_ALLOW_NO_VERIFY:-0}" = "0" ]; then
-    _nv_i=0
-    while [ "$_nv_i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
-        case "${DHPK_GIT_SUB[$_nv_i]}" in
-            commit|push)
-                if [ "${DHPK_GIT_NO_VERIFY[$_nv_i]}" = "1" ]; then
-                    echo "[bash-guard] blocked: '--no-verify' bypasses the pre-commit/pre-push gates. Fix the failing check; if you must bypass, set DHPK_ALLOW_NO_VERIFY=1 or run outside Claude." >&2
-                    exit 2
-                fi
-                ;;
-        esac
-        _nv_i=$((_nv_i + 1))
+# _guard_collect_inline_scripts
+#   Extracts inline command strings from env -S, shell -c, eval, and remote
+#   ssh invocations in the current DHPK_WORDS table and appends them to the
+#   caller's _guard_scripts array for bounded recursive guard inspection.
+_guard_collect_inline_scripts() {
+    local c=0 start end k w base saw_c payload q
+    local _guard_head_idx=0 _guard_head_word=""
+    local _guard_env_split_script="" _guard_env_split_rest=0
+    while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
+        start="${DHPK_CMD_START[$c]}"
+        end=$((start + DHPK_CMD_LEN[c]))
+        _guard_cmd_head_idx "$start" "$end"
+        if [ -n "$_guard_env_split_script" ]; then
+            payload="$_guard_env_split_script"
+            k="$_guard_env_split_rest"
+            while [ "$k" -lt "$end" ]; do
+                printf -v q '%q' "${DHPK_WORDS[$k]}"
+                payload+=" $q"
+                k=$((k + 1))
+            done
+            _guard_scripts+=("$payload")
+        fi
+        if [ "$_guard_head_idx" -lt "$end" ]; then
+            base="${_guard_head_word##*/}"
+            case "$base" in
+                sh|bash|zsh|ksh|dash|ash|mksh|fish|tcsh)
+                    saw_c=0
+                    k=$((_guard_head_idx + 1))
+                    while [ "$k" -lt "$end" ]; do
+                        w="${DHPK_WORDS[$k]}"
+                        case "$w" in
+                            --) k=$((k + 1)); break ;;
+                            --rcfile|--init-file|--startup-cmd|-o|+o|-O|+O) k=$((k + 2)) ;;
+                            --*) k=$((k + 1)) ;;
+                            -*c*) saw_c=1; k=$((k + 1)) ;;
+                            [-+]*) k=$((k + 1)) ;;
+                            *) break ;;
+                        esac
+                    done
+                    if [ "$saw_c" -eq 1 ] && [ "$k" -lt "$end" ]; then
+                        _guard_scripts+=("${DHPK_WORDS[$k]}")
+                    fi
+                    ;;
+                eval)
+                    if [ "$_guard_head_word" = "eval" ]; then
+                        k=$((_guard_head_idx + 1))
+                        [ "$k" -lt "$end" ] && [ "${DHPK_WORDS[$k]}" = "--" ] && k=$((k + 1))
+                        if [ "$k" -lt "$end" ]; then
+                            payload="${DHPK_WORDS[$k]}"
+                            k=$((k + 1))
+                            while [ "$k" -lt "$end" ]; do
+                                payload+=" ${DHPK_WORDS[$k]}"
+                                k=$((k + 1))
+                            done
+                            _guard_scripts+=("$payload")
+                        fi
+                    fi
+                    ;;
+                ssh)
+                    k=$((_guard_head_idx + 1))
+                    while [ "$k" -lt "$end" ]; do
+                        w="${DHPK_WORDS[$k]}"
+                        case "$w" in
+                            --) k=$((k + 1)); break ;;
+                            -[BbcDEeFIiJLlmOopQRSwW]) k=$((k + 2)) ;;
+                            -[BbcDEeFIiJLlmOopQRSwW]?*) k=$((k + 1)) ;;
+                            -[46AaCfGgKkMNnqsTtVvXxYy]*[BbcDEeFIiJLlmOopQRSwW]) k=$((k + 2)) ;;
+                            -*) k=$((k + 1)) ;;
+                            *) break ;;
+                        esac
+                    done
+                    k=$((k + 1))
+                    if [ "$k" -lt "$end" ]; then
+                        payload="${DHPK_WORDS[$k]}"
+                        k=$((k + 1))
+                        while [ "$k" -lt "$end" ]; do
+                            payload+=" ${DHPK_WORDS[$k]}"
+                            k=$((k + 1))
+                        done
+                        _guard_scripts+=("$payload")
+                    fi
+                    ;;
+            esac
+        fi
+        c=$((c + 1))
     done
-    unset _nv_i
-fi
+}
 
-# Pattern 6: shell writes into .env files (redirection / tee) — closes the
-# bypass where a blocked Write/Edit against .env is retried via Bash
-# (D6, harvest-advice-20260711). Mirrors pre-edit-guard.sh's allowlist:
-# .env.example / .env.sample / .env.dist / .env.template are version-controlled
-# templates carrying no secrets and remain writable.
-if _guard_env_write_decoded || _guard_env_quoted_redirect_hit; then
-    echo "[bash-guard] blocked: writing to .env via shell redirection/tee. .env files hold secrets and must not be written via Bash. Ask the user for the value, or use .env.example/.env.template as a template." >&2
-    exit 2
-fi
+# _guard_check_decoded <depth>
+#   Evaluates all guard patterns against the current dhpk_inspect_command output
+#   and recursively inspects decoded inline scripts up to depth 3.
+_guard_check_decoded() {
+    local depth="$1" _nv_i=0
+    local -a _guard_scripts=()
+    local _guard_s _guard_start_cwd="${DHPK_START_CWD:-}"
 
+    # The decoder reports syntax it cannot place (for example a case statement
+    # inside $(...)). Guessing there could hide a later command, so block.
+    if [ -n "$DHPK_UNSUPPORTED" ]; then
+        echo "[bash-guard] blocked: unsupported shell syntax ($DHPK_UNSUPPORTED); rewrite the command without it." >&2
+        exit 2
+    fi
+
+    # Pattern 1: rm on root or sensitive top-level dirs (decoded argv in _guard_rm_decoded).
+    if _guard_rm_decoded; then
+        echo "[bash-guard] blocked: rm -rf against root or system directory. Narrow the path or run outside Claude." >&2
+        exit 2
+    fi
+
+    # Pattern 2: curl|sh / wget|bash / fetch|zsh family (decoded pipeline stages).
+    if _guard_curl_pipe_decoded; then
+        echo "[bash-guard] blocked: piping remote download into shell. Save to file, inspect, then run." >&2
+        exit 2
+    fi
+
+    # Pattern 3: chmod 777 / 666 (decoded chmod mode operand).
+    if _guard_chmod_decoded; then
+        echo "[bash-guard] blocked: chmod 777/666. Use stricter perms (750/640) or narrower paths." >&2
+        exit 2
+    fi
+
+    # Pattern 5: git commit / push with --no-verify. The flag must be an argv of
+    # that invocation. A quoted message, a real comment, or push -n (dry-run) does
+    # not count, and one segment cannot exempt another. Commit -n raises the same
+    # signal.
+    # Opt out for a session: DHPK_ALLOW_NO_VERIFY=1
+    if [ "${DHPK_ALLOW_NO_VERIFY:-0}" = "0" ]; then
+        while [ "$_nv_i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
+            case "${DHPK_GIT_SUB[$_nv_i]}" in
+                commit|push)
+                    if [ "${DHPK_GIT_NO_VERIFY[$_nv_i]}" = "1" ]; then
+                        echo "[bash-guard] blocked: '--no-verify' bypasses the pre-commit/pre-push gates. Fix the failing check; if you must bypass, set DHPK_ALLOW_NO_VERIFY=1 or run outside Claude." >&2
+                        exit 2
+                    fi
+                    ;;
+            esac
+            _nv_i=$((_nv_i + 1))
+        done
+    fi
+
+    # Pattern 6: shell writes into .env files (redirection / tee) — closes the
+    # bypass where a blocked Write/Edit against .env is retried via Bash
+    # (D6, harvest-advice-20260711). Mirrors pre-edit-guard.sh's allowlist:
+    # .env.example / .env.sample / .env.dist / .env.template are version-controlled
+    # templates carrying no secrets and remain writable.
+    if _guard_env_write_decoded || _guard_env_quoted_redirect_hit; then
+        echo "[bash-guard] blocked: writing to .env via shell redirection/tee. .env files hold secrets and must not be written via Bash. Ask the user for the value, or use .env.example/.env.template as a template." >&2
+        exit 2
+    fi
+
+    if [ "$depth" -lt 3 ]; then
+        _guard_collect_inline_scripts
+        for _guard_s in ${_guard_scripts[@]+"${_guard_scripts[@]}"}; do
+            [ -n "$_guard_s" ] || continue
+            dhpk_inspect_command "$_guard_s" "$_guard_start_cwd"
+            _guard_check_decoded $((depth + 1))
+        done
+    fi
+    return 0
+}
+
+_guard_check_decoded 0
 exit 0

