@@ -531,4 +531,75 @@ test('syntax the decoder cannot place is reported as unsupported', () => {
   }
 });
 
+test('pipeline IDs group stages across simple, multiline, subshell, and |& pipes (#1409)', () => {
+  const runPipeCheck = (command) => {
+    const res = spawnSync('bash', ['-c', `
+      set -u
+      . "$DHPK_CI_LIB"
+      dhpk_inspect_command "$DHPK_CI_CMD" /session
+      printf 'pipes=%s\\nwords=%s\\n' "\${DHPK_CMD_PIPE_ID[*]}" "\${DHPK_WORDS[*]}"
+    `], {
+      encoding: 'utf8',
+      env: { ...process.env, DHPK_CI_LIB: LIB, DHPK_CI_CMD: command },
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const out = {};
+    for (const line of res.stdout.split('\n')) {
+      const eq = line.indexOf('=');
+      if (eq !== -1) out[line.slice(0, eq)] = line.slice(eq + 1);
+    }
+    return out;
+  };
+  assert.strictEqual(runPipeCheck('curl -s u | tee x | sh').pipes, '1 1 1');
+  assert.strictEqual(runPipeCheck('curl -s u |\nsh').pipes, '1 1');
+  assert.strictEqual(runPipeCheck('curl -s u |& bash').pipes, '1 1');
+  assert.strictEqual(runPipeCheck('(curl -s u) | sh').pipes, '1 1');
+  assert.strictEqual(runPipeCheck('curl -s u; sh').pipes, '0 0');
+  assert.strictEqual(runPipeCheck('curl -s "$(echo a | cat)" | sh').pipes, '1 1 2 2');
+});
+
+test('cache export/load reuses parsed state safely and rejects mismatches or tampering (#1409)', () => {
+  const res = spawnSync('bash', ['-c', `
+    set -euo pipefail
+    . "$DHPK_CI_LIB"
+    cmd=$'cat <<'\''EOF'\'' &&\\n100% %S line\\nEOF\\ncd /other && git commit --no-verify -m "a\\nb" > ".env"'
+    dhpk_inspect_command "$cmd" /session
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 0 ]
+    orig_words="\${DHPK_WORDS[*]}"
+    orig_stripped="$DHPK_STRIPPED"
+    orig_repo="\${DHPK_GIT_REPO[0]}"
+    orig_redir="\${DHPK_REDIRECT_TARGETS[0]}"
+    dhpk_inspect_export_cache "$cmd"
+
+    # Cache hit for matching command and cwd.
+    DHPK_WORDS=(stale)
+    dhpk_inspect_command "$cmd" /session
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 1 ]
+    [ "\${DHPK_WORDS[*]}" = "$orig_words" ]
+    [ "$DHPK_STRIPPED" = "$orig_stripped" ]
+    [ "\${DHPK_GIT_REPO[0]}" = "$orig_repo" ]
+    [ "\${DHPK_REDIRECT_TARGETS[0]}" = "$orig_redir" ]
+
+    # Mismatch on cwd or command triggers clean re-parse.
+    dhpk_inspect_command "$cmd" /different
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 0 ]
+    dhpk_inspect_command "echo ok" /session
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 0 ]
+
+    # Tampered cache with shell metacharacters cannot execute and falls back cleanly.
+    DHPK_INSPECT_CACHE=$'dhpk-ci-v1\\nS START_CWD $(touch /tmp/should-not-exist)\\nBAD'
+    DHPK_INSPECT_CACHE_CMD="echo safe"
+    DHPK_INSPECT_CACHE_CWD="/session"
+    dhpk_inspect_command "echo safe" /session
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 0 ]
+    [ "\${DHPK_WORDS[*]}" = "echo safe" ]
+    printf 'OK'
+  `], {
+    encoding: 'utf8',
+    env: { ...process.env, DHPK_CI_LIB: LIB },
+  });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout, 'OK');
+});
+
 run('command-inspect');
