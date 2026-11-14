@@ -274,14 +274,35 @@ _dhpk_ci_apply_set_allexport() {
     done
 }
 
-# A separate shell inherits exported Git variables (sticky) but not set -a.
-# A prefix assignment on this command is visible only to that child. The
-# saved values are locals of the caller (_dhpk_ci_flush_command).
+# A prefix or env assignment the child command can see. += is an assignment
+# when the variable is unset. SHELLOPTS and BASH_ENV change how a child shell
+# starts; the file named by BASH_ENV is not read.
+_dhpk_ci_note_assign() {
+    local w="$1" val
+    _dhpk_ci_word_sets_git_env "$w" && _dhpk_ci_u_git_env_unresolved=1
+    case "$w" in
+        SHELLOPTS=*|SHELLOPTS+=*)
+            val="${w#*=}"
+            case ":${val}:" in
+                *:allexport:*) _dhpk_ci_u_shellopts_allexport=1 ;;
+            esac
+            ;;
+        BASH_ENV=*|BASH_ENV+=*) _dhpk_ci_u_bash_env=1 ;;
+    esac
+}
+
+# A separate shell inherits exported Git variables (sticky) but not the
+# caller's set -a. -a, -o allexport, and SHELLOPTS turn it on for that child.
+# A prefix assignment, including BASH_ENV, is visible only to that child.
+# The saved values are locals of the caller (_dhpk_ci_flush_command).
 _dhpk_ci_child_shell_enter() {
     _dhpk_ci_child_sticky_saved="${_dhpk_ci_git_env_sticky:-0}"
     _dhpk_ci_child_allexport_saved="${_dhpk_ci_allexport:-0}"
     _dhpk_ci_allexport=0
-    if [ "${_dhpk_ci_u_git_env_unresolved:-0}" -eq 1 ]; then
+    if [ "${_dhpk_ci_shell_allexport:-0}" -eq 1 ] || [ "${_dhpk_ci_u_shellopts_allexport:-0}" -eq 1 ]; then
+        _dhpk_ci_allexport=1
+    fi
+    if [ "${_dhpk_ci_u_git_env_unresolved:-0}" -eq 1 ] || [ "${_dhpk_ci_u_bash_env:-0}" -eq 1 ]; then
         _dhpk_ci_git_env_sticky=1
     fi
 }
@@ -334,6 +355,71 @@ _dhpk_ci_fn_simple_leave() {
         _dhpk_ci_git_env_sticky=1
     fi
     _dhpk_ci_fn_simple=0
+}
+
+# Command substitution, process substitution, a pipeline stage, and a
+# background command run in a subshell. They inherit allexport and sticky
+# and must not write those flags back to the caller.
+_dhpk_ci_ss_push() {
+    local d="${_dhpk_ci_ss_depth:-0}"
+    _dhpk_ci_ss_allexport_stk[$d]="${_dhpk_ci_allexport:-0}"
+    _dhpk_ci_ss_sticky_stk[$d]="${_dhpk_ci_git_env_sticky:-0}"
+    _dhpk_ci_ss_depth=$((d + 1))
+}
+
+_dhpk_ci_ss_pop() {
+    local d="${_dhpk_ci_ss_depth:-0}"
+    [ "$d" -gt 0 ] || return 0
+    d=$((d - 1))
+    _dhpk_ci_ss_depth=$d
+    _dhpk_ci_allexport="${_dhpk_ci_ss_allexport_stk[$d]}"
+    _dhpk_ci_git_env_sticky="${_dhpk_ci_ss_sticky_stk[$d]}"
+}
+
+# allexport exports the name printf -v and read assign.
+_dhpk_ci_allexport_printf() {
+    [ "${_dhpk_ci_allexport:-0}" -eq 1 ] || return 0
+    local k=$((_dhpk_ci_u_idx + 1)) n="${#_dhpk_ci_u_words[@]}" w name
+    while [ "$k" -lt "$n" ]; do
+        w="${_dhpk_ci_u_words[$k]}"
+        case "$w" in
+            --) k=$((k + 1)); break ;;
+            -v)
+                name="${_dhpk_ci_u_words[$((k + 1))]:-}"
+                _dhpk_ci_word_sets_git_env "$name" && _dhpk_ci_git_env_sticky=1
+                k=$((k + 2))
+                ;;
+            -v*)
+                name="${w#-v}"
+                _dhpk_ci_word_sets_git_env "$name" && _dhpk_ci_git_env_sticky=1
+                k=$((k + 1))
+                ;;
+            -*) k=$((k + 1)) ;;
+            *) break ;;
+        esac
+    done
+}
+
+_dhpk_ci_allexport_read() {
+    [ "${_dhpk_ci_allexport:-0}" -eq 1 ] || return 0
+    local k=$((_dhpk_ci_u_idx + 1)) n="${#_dhpk_ci_u_words[@]}" w
+    while [ "$k" -lt "$n" ]; do
+        w="${_dhpk_ci_u_words[$k]}"
+        case "$w" in
+            --) k=$((k + 1)); continue ;;
+            -a)
+                w="${_dhpk_ci_u_words[$((k + 1))]:-}"
+                _dhpk_ci_word_sets_git_env "$w" && _dhpk_ci_git_env_sticky=1
+                k=$((k + 2))
+                ;;
+            -d|-i|-n|-N|-p|-t|-u) k=$((k + 2)) ;;
+            -*) k=$((k + 1)) ;;
+            *)
+                _dhpk_ci_word_sets_git_env "$w" && _dhpk_ci_git_env_sticky=1
+                k=$((k + 1))
+                ;;
+        esac
+    done
 }
 
 _dhpk_ci_apply_u_chdir() {
@@ -587,7 +673,7 @@ _dhpk_ci_unwrap_head() {
         case "$w" in
             CDPATH=*|CDPATH+=*) _dhpk_ci_u_cdpath=1 ;;
         esac
-        _dhpk_ci_is_git_env_var "$w" && _dhpk_ci_u_git_env_unresolved=1
+        _dhpk_ci_note_assign "$w"
         k=$((k + 1))
     done
 
@@ -611,7 +697,7 @@ _dhpk_ci_unwrap_head() {
                         case "$w" in
                             CDPATH=*|CDPATH+=*) _dhpk_ci_u_cdpath=1 ;;
                         esac
-                        _dhpk_ci_is_git_env_var "$w" && _dhpk_ci_u_git_env_unresolved=1
+                        _dhpk_ci_note_assign "$w"
                         k=$((k + 1))
                         continue
                     fi
@@ -1144,7 +1230,7 @@ _dhpk_ci_unwrap_head() {
                                         case "$tok" in
                                             CDPATH=*|CDPATH+=*) _dhpk_ci_u_cdpath=1 ;;
                                         esac
-                                        _dhpk_ci_is_git_env_var "$tok" && _dhpk_ci_u_git_env_unresolved=1
+                                        _dhpk_ci_note_assign "$tok"
                                         si=$((si + 1))
                                     else
                                         break
@@ -1168,7 +1254,7 @@ _dhpk_ci_unwrap_head() {
                                         case "$tok" in
                                             CDPATH=*|CDPATH+=*) _dhpk_ci_u_cdpath=1 ;;
                                         esac
-                                        _dhpk_ci_is_git_env_var "$tok" && _dhpk_ci_u_git_env_unresolved=1
+                                        _dhpk_ci_note_assign "$tok"
                                         si=$((si + 1))
                                         continue
                                     fi
@@ -1495,8 +1581,9 @@ _dhpk_ci_inspect_body_cwd() {
 }
 
 _dhpk_ci_extract_shell_c() {
-    local k="$1" n="${#_dhpk_ci_u_words[@]}" saw_c=0 w opt oi olen skip_ops fallback=-1
+    local k="$1" n="${#_dhpk_ci_u_words[@]}" saw_c=0 w opt oi olen skip_ops fallback=-1 sign arg j
     _dhpk_ci_shell_c_payload=""
+    _dhpk_ci_shell_allexport=0
     while [ "$k" -lt "$n" ]; do
         w="${_dhpk_ci_u_words[$k]}"
         case "$w" in
@@ -1504,6 +1591,8 @@ _dhpk_ci_extract_shell_c() {
             --rcfile|--init-file|--startup-cmd) k=$((k + 2)) ;;
             --*) k=$((k + 1)) ;;
             [-+]*)
+                sign=1
+                [ "${w:0:1}" = "+" ] && sign=0
                 opt="${w#[-+]}"
                 oi=0
                 olen="${#opt}"
@@ -1511,9 +1600,18 @@ _dhpk_ci_extract_shell_c() {
                 while [ "$oi" -lt "$olen" ]; do
                     case "${opt:$oi:1}" in
                         c) saw_c=1 ;;
+                        a) [ "$sign" -eq 1 ] && _dhpk_ci_shell_allexport=1 ;;
                         o|O) skip_ops=$((skip_ops + 1)) ;;
                     esac
                     oi=$((oi + 1))
+                done
+                j=1
+                while [ "$j" -le "$skip_ops" ]; do
+                    arg="${_dhpk_ci_u_words[$((k + j))]:-}"
+                    if [ "$sign" -eq 1 ] && [ "$arg" = "allexport" ]; then
+                        _dhpk_ci_shell_allexport=1
+                    fi
+                    j=$((j + 1))
                 done
                 # A cluster such as -oc takes the next word as the option
                 # name; inspect it as the script when nothing follows (fail closed).
@@ -1539,6 +1637,8 @@ _dhpk_ci_flush_command() {
     local _dhpk_ci_shell_c_payload="" _eval_payload="" _hs_i=0 _git_before=0 _cd_i=0 _cd_opts=1 _cd_w="" _cd_is_dash=0
     local _dhpk_ci_child_sticky_saved=0 _dhpk_ci_child_allexport_saved=0
     local _dhpk_ci_fn_simple=0 _dhpk_ci_fn_simple_allexport=0 _dhpk_ci_fn_simple_sticky=0
+    local _dhpk_ci_shell_allexport=0 _dhpk_ci_u_shellopts_allexport=0 _dhpk_ci_u_bash_env=0
+    local _dhpk_ci_cmd_subshell=0 _dhpk_ci_allexport_before=0
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -1585,6 +1685,21 @@ _dhpk_ci_flush_command() {
             _dhpk_ci_all_hs_flat+=("${_dhpk_ci_hs_flat[@]}")
         fi
         if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
+            # A pipeline stage, background command, or coproc is a subshell.
+            if [ "$sep" = "pipe" ] || [ "$sep" = "bg" ] || [ "${_dhpk_ci_pipe_id:-0}" -gt 0 ]; then
+                _dhpk_ci_ss_push
+                _dhpk_ci_cmd_subshell=1
+            else
+                k=0
+                while [ "$k" -lt "$h" ]; do
+                    if [ "${_dhpk_ci_words[$k]}" = "coproc" ]; then
+                        _dhpk_ci_ss_push
+                        _dhpk_ci_cmd_subshell=1
+                        break
+                    fi
+                    k=$((k + 1))
+                done
+            fi
             # Open or close a function body before this command's export or
             # `set -a` runs, so the saved caller state is the pre-body value.
             if [ "$head" = "function" ]; then
@@ -1624,6 +1739,11 @@ _dhpk_ci_flush_command() {
                             export|declare|typeset|local)
                                 _dhpk_ci_word_sets_git_env "${_dhpk_ci_u_words[$k]}" && _dhpk_ci_git_env_sticky=1
                                 ;;
+                            readonly)
+                                if [ "${_dhpk_ci_allexport:-0}" -eq 1 ]; then
+                                    _dhpk_ci_word_sets_git_env "${_dhpk_ci_u_words[$k]}" && _dhpk_ci_git_env_sticky=1
+                                fi
+                                ;;
                         esac
                         k=$((k + 1))
                     done
@@ -1635,12 +1755,25 @@ _dhpk_ci_flush_command() {
             if [ -z "$_dhpk_ci_u_head" ] && [ "${_dhpk_ci_allexport:-0}" -eq 1 ]; then
                 k=0
                 while [ "$k" -lt "$h" ]; do
-                    _dhpk_ci_is_git_env_var "${_dhpk_ci_words[$k]}" && _dhpk_ci_git_env_sticky=1
+                    _dhpk_ci_word_sets_git_env "${_dhpk_ci_words[$k]}" && _dhpk_ci_git_env_sticky=1
                     k=$((k + 1))
                 done
             fi
             case "$_dhpk_ci_u_head" in
-                set) _dhpk_ci_apply_set_allexport $((_dhpk_ci_u_idx + 1)) ;;
+                set)
+                    _dhpk_ci_allexport_before="${_dhpk_ci_allexport:-0}"
+                    _dhpk_ci_apply_set_allexport $((_dhpk_ci_u_idx + 1))
+                    # A set that may not run must not hide a relocation that
+                    # is still exported. A following command in this shell may
+                    # still turn allexport off.
+                    if [ "$_dhpk_ci_block" -gt 0 ] || [ "$_dhpk_ci_prev_sep" = "and" ] || [ "$_dhpk_ci_prev_sep" = "or" ]; then
+                        if [ "$_dhpk_ci_allexport_before" -eq 1 ] && [ "${_dhpk_ci_allexport:-0}" -eq 0 ]; then
+                            _dhpk_ci_allexport=1
+                        fi
+                    fi
+                    ;;
+                printf) _dhpk_ci_allexport_printf ;;
+                read) _dhpk_ci_allexport_read ;;
             esac
         fi
         _dhpk_ci_record_git
@@ -1686,8 +1819,10 @@ _dhpk_ci_flush_command() {
                 *)
                     if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
                         # A new shell inherits exported Git variables but not
-                        # set -a. Restore afterwards so the child cannot clear
-                        # or publish the caller's relocation state.
+                        # set -a. Options and SHELLOPTS can turn allexport on
+                        # for the child only. Restore afterwards so the child
+                        # cannot clear or publish the caller's relocation state.
+                        _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
                         _dhpk_ci_child_shell_enter
                         if [ "${#_dhpk_ci_hs_words[@]}" -gt 0 ]; then
                             _dhpk_ci_saw_shell_hs=1
@@ -1699,7 +1834,6 @@ _dhpk_ci_flush_command() {
                                 _hs_i=$((_hs_i + 1))
                             done
                         fi
-                        _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
                         if [ -n "$_dhpk_ci_shell_c_payload" ] && ! dhpk_command_is_trivial "$_dhpk_ci_shell_c_payload"; then
                             if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
                                 _dhpk_ci_inspect_body_cwd "$_dhpk_ci_shell_c_payload" "" "unresolved"
@@ -1931,6 +2065,9 @@ _dhpk_ci_flush_command() {
         fi
     fi
     _dhpk_ci_fn_simple_leave
+    if [ "${_dhpk_ci_cmd_subshell:-0}" -eq 1 ]; then
+        _dhpk_ci_ss_pop
+    fi
     _dhpk_ci_reset_words
 }
 
@@ -2192,7 +2329,9 @@ _dhpk_ci_backtick() {
     done
     [ "$k" -lt "$len" ] && k=$((k + 1))
     [ "$k" -le "$len" ] || k="$len"
+    _dhpk_ci_ss_push
     _dhpk_ci_list "$body" 0 body
+    _dhpk_ci_ss_pop
     _dhpk_ci_end="$k"
 }
 
@@ -2266,7 +2405,9 @@ _dhpk_ci_expand() {
                 esac
             fi
             _dhpk_ci_exec_context $((1 - indq))
+            _dhpk_ci_ss_push
             _dhpk_ci_list "" $((i + 2)) subst
+            _dhpk_ci_ss_pop
             _dhpk_ci_wrap_subst "\$("
             _dhpk_ci_expand_stripped="$_dhpk_ci_sub_stripped"
             return 0
@@ -2587,7 +2728,9 @@ _dhpk_ci_hd_bodies() {
         [ "$lstart" -ge 0 ] && body="${text:$start:$((len - start))}"
         if [ "$isexec" = 1 ]; then
             DHPK_STRIPPED+="$body"
+            _dhpk_ci_ss_push
             _dhpk_ci_list "$body" 0 body
+            _dhpk_ci_ss_pop
         elif [ "$quoted" -eq 0 ]; then
             _dhpk_ci_scan "$body" 0 hbody
         fi
@@ -2682,6 +2825,7 @@ _dhpk_ci_list_run() {
     if [ "$_dhpk_ci_kind" = "top" ]; then
         _dhpk_ci_git_env_sticky=0
         _dhpk_ci_allexport=0
+        _dhpk_ci_ss_depth=0
     fi
     if [ "$_dhpk_ci_kind" != "subst" ]; then
         local text="$1" len="${#1}"
@@ -2937,7 +3081,9 @@ _dhpk_ci_list_run() {
                 ;;
             '>')
                 if [ "$next" = "(" ]; then
+                    _dhpk_ci_ss_push
                     _dhpk_ci_list "" $((i + 2)) subst
+                    _dhpk_ci_ss_pop
                     _dhpk_ci_wrap_subst ">("
                     _dhpk_ci_sub_word "$i" "$_dhpk_ci_end" "$_dhpk_ci_sub_stripped"
                     i="$_dhpk_ci_end"
@@ -2962,7 +3108,9 @@ _dhpk_ci_list_run() {
                         continue
                         ;;
                     '(')
+                        _dhpk_ci_ss_push
                         _dhpk_ci_list "" $((i + 2)) subst
+                        _dhpk_ci_ss_pop
                         _dhpk_ci_wrap_subst "<("
                         _dhpk_ci_sub_word "$i" "$_dhpk_ci_end" "$_dhpk_ci_sub_stripped"
                         i="$_dhpk_ci_end"
