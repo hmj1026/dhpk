@@ -170,7 +170,7 @@ test('lex fails closed on a heredoc fed to xargs, parallel, a read loop or a dyn
     `while read -r l; do $l; done ${SHL}'EOF'\ncat .env\nEOF`,
   ];
   for (const result of lexAll(commands)) {
-    assert.ok(result.error && /^heredoc (feeds|read)/.test(result.error), JSON.stringify(result));
+    assert.ok(result.error && /^heredoc (text may run|read by)/.test(result.error), JSON.stringify(result));
   }
 });
 

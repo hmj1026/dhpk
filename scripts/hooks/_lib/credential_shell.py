@@ -40,11 +40,13 @@ EXEC_WRAPPERS = frozenset((
     'nsenter', 'unshare', 'strace', 'ltrace', 'parallel', 'find'))
 # 讀取標準輸入並據以建立檔名或指令的詞。
 RESOLVABLE_SUBSTITUTIONS = frozenset(('pwd', 'git rev-parse --show-toplevel'))
-INPUT_FEEDERS = frozenset(('xargs', 'parallel', 'read', 'readarray', 'mapfile'))
+INPUT_FEEDERS = frozenset(('xargs', 'parallel', 'read', 'readarray', 'mapfile', 'exec'))
 RESERVED_WORDS = frozenset(('!', '{', 'if', 'then', 'elif', 'else', 'while', 'until', 'do', 'time', 'coproc'))
 SEGMENT_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
-# 整個字詞只是一個單純的變數：它的值可能成為指令字、eval 或 trap 的內容。
-PARAMETER = re.compile(r'^\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})$')
+# 任何參數展開：值可能成為指令字、eval、trap 或函式本體的內容。
+PARAMETER = re.compile(r'\$[A-Za-z0-9_{@*#?!$-]')
+# 其引數只會被當成資料的指令：雙引號中含 heredoc 的替換輸出在這些指令的引數位置才視為資料。
+DATA_COMMANDS = frozenset(('git', 'gh', 'glab', 'echo', 'printf'))
 ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*\+?=')
 
 CONTINUATION = 'continuation'
@@ -210,6 +212,14 @@ def tokenize(text):
                 cursor.seek(cursor.i + 1)
             tokens.append(Token(op, operator=True))
             continue
+        if ch == '$' and cursor.quote != "'":
+            end = _resolvable_end(text, cursor.i)
+            if end is not None:
+                # `$(pwd)/.env` 是一個字詞：保留整段，其後綴才會被政策逐字判斷。
+                value.append(text[start:end])
+                cursor.seek(end)
+                dynamic = started = True
+                continue
         if ch in '$`' and cursor.quote != "'":
             dynamic = True
             substitution = substitution or _unresolved_substitution(text, cursor.i, ch)
@@ -236,10 +246,18 @@ def _unresolved_substitution(text, i, ch):
         end = _paren_end(text, i + 1)
     except ValueError:
         return text[i - 1:i + 1]
-    # 輸出固定且不會是受保護路徑的替換不需要視為動態目標。
-    if text[i + 1:end - 1].strip() in RESOLVABLE_SUBSTITUTIONS:
-        return ''
     return text[i - 1:end]
+
+
+def _resolvable_end(text, i):
+    """Index past the `$(...)` whose `(` is at `i` when its body is a resolvable one, else None."""
+    if not text.startswith('(', i) or text.startswith('((', i):
+        return None
+    try:
+        end = _paren_end(text, i + 1)
+    except ValueError:
+        return None
+    return end if text[i + 1:end - 1].strip() in RESOLVABLE_SUBSTITUTIONS else None
 
 
 class _Nesting:
@@ -499,7 +517,7 @@ def _heredocs(text, heredocs=True):
         # xargs、parallel 與讀取迴圈把 heredoc 內文當成檔名或指令；內文不是資料，且此處無法判定其內容。
         # 必須先於 shell 檢查，否則同一行的 eval 或 bash -c 會讓這個檢查被略過。
         if any(not token.operator and _feeds_arguments(token.value) for token in new_tokens):
-            raise ValueError('heredoc feeds xargs, parallel or a read loop')
+            raise ValueError('heredoc text may run through xargs, parallel, exec or a read loop')
         if _dynamic_command(new_tokens):
             raise ValueError('heredoc read by an unresolved command')
         if any(not token.operator and token.value.rsplit('/', 1)[-1] in HEREDOC_SHELLS for token in new_tokens):
@@ -534,6 +552,10 @@ def _heredocs(text, heredocs=True):
                     raise _NoHeredocs()
                 if headers and not heredocs:
                     raise ValueError('ambiguous heredoc')
+                # `exec 3<<EOF` 把內文留給之後的指令讀取；內文不是資料。
+                if position and text[position - 1].isdigit() and (
+                        position == 1 or text[position - 2].isspace() or text[position - 2] in OPERATOR_CHARS):
+                    raise ValueError('heredoc text may run through xargs, parallel, exec or a read loop')
                 headers.append(position)
                 cursor.seek(cursor.i + 1)
             if (kind == CHAR and ch == '\n') or kind == CONTINUATION:
@@ -568,10 +590,62 @@ def _dynamic_command(tokens):
     return False
 
 
-def _expands_parameter(tokens):
-    """True when a non-assignment word is a bare parameter expansion outside single quotes."""
-    return any(not token.operator and token.dynamic and PARAMETER.match(token.value) and not ASSIGNMENT.match(token.value)
-               for token in tokens)
+def _holds_heredoc_substitution(token):
+    # A masked substitution body can leave token.substitution as just the opener, so the word
+    # itself is checked for a heredoc marker; an assignment word counts whenever it has a substitution.
+    return not token.operator and bool(token.substitution) and ('<<' in token.value or bool(ASSIGNMENT.match(token.value)))
+
+
+def _segments(tokens):
+    """Word lists of the commands between segment operators."""
+    segments, current = [], []
+    for token in tokens:
+        if token.operator and token.value in SEGMENT_OPERATORS:
+            segments.append(current)
+            current = []
+        elif not token.operator:
+            current.append(token)
+    segments.append(current)
+    return segments
+
+
+def _defines_function(tokens):
+    for index, token in enumerate(tokens):
+        if not token.operator and token.value == 'function':
+            return True
+        if (not token.operator and index + 2 < len(tokens)
+                and tokens[index + 1].operator and tokens[index + 1].value == '('
+                and tokens[index + 2].operator and tokens[index + 2].value == ')'):
+            return True
+    return False
+
+
+def _output_may_run(tokens):
+    """True unless every heredoc-bearing substitution is a data argument.
+
+    Data position: a double-quoted word after the name of a command in
+    DATA_COMMANDS (`git commit -m "$(cat <<EOF ...)"`), with no function in the
+    command. A substitution assigned to a variable is data only while no word
+    expands any parameter, because the stored text could be run later.
+    """
+    if _defines_function(tokens):
+        return True
+    expands = any(not token.operator and token.dynamic and PARAMETER.search(token.value) and not ASSIGNMENT.match(token.value)
+                  for token in tokens)
+    for words in _segments(tokens):
+        head = next((i for i, word in enumerate(words) if word.value not in RESERVED_WORDS and not ASSIGNMENT.match(word.value)), None)
+        for index, word in enumerate(words):
+            if not _holds_heredoc_substitution(word):
+                continue
+            if ASSIGNMENT.match(word.value):
+                if expands:
+                    return True
+                continue
+            if head is None or index <= head or words[head].dynamic or words[head].value.rsplit('/', 1)[-1] not in DATA_COMMANDS:
+                return True
+            if any(other.value == '-v' for other in words):
+                return True
+    return False
 
 
 def _runs_output(tokens):
@@ -610,11 +684,33 @@ def _runs_output(tokens):
     return False
 
 
+def _tokenize_by_line(text):
+    """Tokenize `text`; when quotes do not balance, read it one line at a time.
+
+    A heredoc body read as code often holds prose with an apostrophe. Each line
+    is judged on its own, and a line whose quotes still do not balance is read
+    with its quote and escape characters as separators, so a Reader command on
+    it stays visible instead of blocking the whole command.
+    """
+    try:
+        return tokenize(text)
+    except ValueError:
+        pass
+    tokens = []
+    for line in text.split('\n'):
+        try:
+            tokens.extend(tokenize(line))
+        except ValueError:
+            tokens.extend(tokenize(re.sub(r'[\'"\\]', ' ', line)))
+        tokens.append(Token(';', operator=True))
+    return tokens
+
+
 def _lex(text, heredocs, executed=False):
     """Lex `text`; `executed` reads it whole, heredoc text included, as code."""
     if executed:
         # 此文字是會被執行的替換本體：heredoc 內文就是之後執行的命令，不得遮罩。
-        return Lexed(tokens=tokenize(text), executed_bodies=_substitutions(text), executed=True)
+        return Lexed(tokens=_tokenize_by_line(text), executed_bodies=_substitutions(text), executed=True)
     # 原本把 heredoc 資料誤當指令；只遮罩完整辨識的內文並保留可執行替換。
     masked, deep, expansions = _heredocs(text, heredocs)
     tokens = tokenize(deep)
@@ -631,13 +727,14 @@ def lex(text, executed=False):
     if executed or '<<' not in text:
         return _lex(text, False, executed)
     lexed = _lex(text, True)
-    # 替換本體含 heredoc，且命令中有任何參數展開：展開結果可能被保留字、未列出的包裝器或 trap 執行。
-    expands = _expands_parameter(lexed.tokens) and any('<<' in body for body in lexed.bodies)
+    # 含 heredoc 的替換輸出只有在資料位置才是資料；否則它可能被保留字、函式、包裝器或 trap 執行。
+    stored = any('<<' in body for body in lexed.bodies) and _output_may_run(lexed.tokens)
     # 替換輸出可能被當成指令執行時，heredoc 內文不能視為資料，改用 #1396 前的讀法。
     if _runs_output(lexed.tokens):
         legacy = _lex(text, False)
         # 輸出被執行：另以未遮罩的原文判讀替換本體，其中的 heredoc 文字即為指令。
         return Lexed(tokens=legacy.tokens, bodies=legacy.bodies, executed_bodies=_substitutions(text))
-    if expands:
-        return Lexed(tokens=lexed.tokens, bodies=lexed.bodies, executed_bodies=_substitutions(text))
+    if stored:
+        executed = [body for body in _substitutions(text) if '<<' in body]
+        return Lexed(tokens=lexed.tokens, bodies=lexed.bodies, executed_bodies=executed)
     return lexed

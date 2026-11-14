@@ -1090,4 +1090,65 @@ test('pre-bash-guard names the xargs heredoc reason (#1411 review)', () => {
   assert.match(res.stderr, /xargs/);
 });
 
+// ---------------------------------------------------------------------------
+// #1411 review round 2: resolvable suffixes, stored output, exec/fd heredocs
+// ---------------------------------------------------------------------------
+
+const STORED = `x="${SUB}"; `;
+const KEEP = (opener) => `${opener}${SHL}'EOF'\nfix: don't\nEOF\n`;
+
+const CREDENTIAL_BYPASSES_ROUND_3 = [
+  ['resolvable suffix: $(pwd)/.env', 'cat $(pwd)/.env'],
+  ['resolvable suffix: $(git rev-parse --show-toplevel)/.env', 'cat $(git rev-parse --show-toplevel)/.env'],
+  ['resolvable suffix: $(pwd)/credentials.json', 'cat $(pwd)/credentials.json'],
+  ['resolvable suffix: quoted "$(pwd)/.env"', 'cat "$(pwd)/.env"'],
+  ['resolvable suffix: quoted toplevel', 'cat "$(git rev-parse --show-toplevel)/.env"'],
+  ['expansion shape: ${x:-}', `${STORED}if \${x:-}; then :; fi`],
+  ['expansion shape: ${x%%}', `${STORED}if \${x%%}; then :; fi`],
+  ['expansion shape: $x$e', `${STORED}if $x$e; then :; fi`],
+  ['expansion shape: ${x[0]}', `${STORED}if \${x[0]}; then :; fi`],
+  ['expansion shape: ${x[@]}', `${STORED}if \${x[@]}; then :; fi`],
+  ['expansion shape: ${!y}', `${STORED}y=x; if \${!y}; then :; fi`],
+  ['expansion shape: set -- then $1', `set -- "${SUB}"; if $1; then :; fi`],
+  ['expansion shape: set -- then $@', `set -- "${SUB}"; if $@; then :; fi`],
+  ['expansion shape: function runs $1', `f() { $1; }; f "${SUB}"`],
+  ['expansion shape: function runs "$@"', `f() { if $@; then :; fi; }; f "${SUB}"`],
+  ['expansion shape: ${x@P}', `x="$(cat ${SHL}'EOF'\n$(${READ_ENV})\nEOF\n)"; echo "\${x@P}"`],
+  ['expansion shape: time ${x:-}', `${STORED}time \${x:-}`],
+  ['expansion shape: printf -v then ${y:-}', `printf -v y %s "${SUB}"; if \${y:-}; then :; fi`],
+  ['expansion shape: read into y then ${y:-}', `IFS= read -r y ${SHL}< "${SUB}"; if \${y:-}; then :; fi`],
+  ['unquoted assignment then function body', `x=${SUB}; f() { $x; }; f`],
+  ['non-listed wrapper with a direct argument', `fakeroot "${SUB}"`],
+  ['exec heredoc then sh', `exec ${SHL}'EOF'\n${READ_ENV}\nEOF\nsh`],
+  ['exec heredoc then xargs', `exec ${SHL}'EOF'\n.env\nEOF\nxargs cat`],
+  ['exec heredoc then source /dev/stdin', `exec ${SHL}'EOF'\n${READ_ENV}\nEOF\nsource /dev/stdin`],
+  ['fd heredoc then xargs <&3', `exec 3${SHL}'EOF'\n.env\nEOF\nxargs cat <&3`],
+  ['fd heredoc then read loop', `exec 3${SHL}'EOF'\n${READ_ENV}\nEOF\nwhile read -r l; do $l; done <&3`],
+  ['fd heredoc then bash <&3', `exec 3${SHL}'EOF'\n${READ_ENV}\nEOF\nbash <&3`],
+  ['quoted xargs word on the heredoc line', `cat ${SHL}'EOF' | env 'xargs' cat\n.env\nEOF`],
+];
+
+for (const [label, command] of CREDENTIAL_BYPASSES_ROUND_3) {
+  test(`pre-bash-guard blocks credential bypass (#1411 review 2): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, JSON.stringify(command));
+  });
+}
+
+const CREDENTIAL_LOOKALIKES_ROUND_3 = [
+  ['commit message with an apostrophe after cd "$HOME"', `cd "$HOME" && git commit --dry-run -m "$(${KEEP('cat ')})"`],
+  ['commit message with an apostrophe before push "$BRANCH"', `git commit --dry-run -m "$(${KEEP('cat ')})" && git push origin "$BRANCH"`],
+  ['commit message with an apostrophe then echo $?', `git commit --dry-run -m "$(${KEEP('cat ')})"; echo $?`],
+  ['gh pr create body with an apostrophe', `gh pr create --title t --body "$(${KEEP('cat ')})"`],
+  ['message variable with an apostrophe then commit', `body="$(${KEEP('cat ')})"; gh pr create --title t --body "$body"`],
+  ['message variable mentioning the file name as prose', `msg="$(cat ${SHL}'EOF'\nfix: ignore .env in docs\nEOF\n)"; git commit -m "$msg"`],
+  ['$(pwd) alone', 'cat $(pwd)'],
+  ['$(pwd)/README.md', 'cat $(pwd)/README.md'],
+];
+
+for (const [label, command] of CREDENTIAL_LOOKALIKES_ROUND_3) {
+  test(`pre-bash-guard allows credential look-alike (#1411 review 2): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, JSON.stringify(command));
+  });
+}
+
 run('hook-bypass');
