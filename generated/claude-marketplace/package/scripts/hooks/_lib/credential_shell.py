@@ -429,7 +429,7 @@ def _heredocs(text, heredocs=True):
         header_end = header_tokens
         if header_tokens and header_tokens[-1].operator and header_tokens[-1].value == ';' and line.endswith('\n'):
             header_end = header_tokens[:-1]
-        if header_end and header_end[-1].operator and header_end[-1].value in ('|', '|&', '&&', '||'):
+        if header_end and header_end[-1].operator and header_end[-1].value in ('|', '|&'):
             raise ValueError('ambiguous heredoc pipeline')
         if any(not token.operator and token.value.rsplit('/', 1)[-1] in HEREDOC_SHELLS for token in new_tokens):
             raise _NoHeredocs()

@@ -322,21 +322,63 @@ _dhpk_ci_head_index() {
     fi
 }
 
+# _dhpk_ci_grp_push <kind> <cmd0> <pipe_id>
+#   Pushes an open compound group (subshell, brace, if, loop, case) so its
+#   commands can be linked if the group feeds or sits inside a pipeline.
+_dhpk_ci_grp_push() {
+    _dhpk_ci_grp_kind[$_dhpk_ci_grp_depth]="$1"
+    _dhpk_ci_grp_cmd0[$_dhpk_ci_grp_depth]="$2"
+    _dhpk_ci_grp_pipe[$_dhpk_ci_grp_depth]="$3"
+    _dhpk_ci_grp_depth=$((_dhpk_ci_grp_depth + 1))
+}
+
+# _dhpk_ci_grp_pop <kind>
+#   Closes the innermost open group matching <kind>, setting
+#   _dhpk_ci_last_group_cmd0 and restoring _dhpk_ci_pipe_id to that group's
+#   enclosing pipeline id. Unmatched closers clear _dhpk_ci_last_group_cmd0.
+_dhpk_ci_grp_pop() {
+    local idx=$((_dhpk_ci_grp_depth - 1))
+    while [ "$idx" -ge 0 ]; do
+        if [ "${_dhpk_ci_grp_kind[$idx]}" = "$1" ]; then
+            _dhpk_ci_last_group_cmd0="${_dhpk_ci_grp_cmd0[$idx]}"
+            _dhpk_ci_pipe_id="${_dhpk_ci_grp_pipe[$idx]}"
+            _dhpk_ci_grp_depth="$idx"
+            return 0
+        fi
+        idx=$((idx - 1))
+    done
+    _dhpk_ci_last_group_cmd0=-1
+    return 1
+}
+
+# _dhpk_ci_unify_pipe <cmd0> <target_pid>
+#   Assigns <target_pid> across [cmd0..end), unifying unpiped and nested-pipe
+#   commands inside a LHS compound group with the enclosing pipeline.
+_dhpk_ci_unify_pipe() {
+    local k="$1" target="$2" end="${#DHPK_CMD_PIPE_ID[@]}"
+    while [ "$k" -lt "$end" ]; do
+        DHPK_CMD_PIPE_ID[$k]="$target"
+        k=$((k + 1))
+    done
+}
+
 # _dhpk_ci_flush_command <sep>
 #   sep is the separator that ends the command: compound (; newline ( ) or
 #   the end), and (&&), or (||), bg (&) or pipe (| |&).
 _dhpk_ci_flush_command() {
-    local sep="$1" n h head k cond kwhead="" git_has_c
+    local sep="$1" n h head k cond kwhead="" git_has_c cmd_idx="${#DHPK_CMD_START[@]}"
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
     head=""
     if [ "$n" -gt 0 ]; then
+        _dhpk_ci_last_group_cmd0=-1
         _dhpk_ci_head_index
         h="$_dhpk_ci_head"
         [ "$h" -lt "$n" ] && head="${_dhpk_ci_words[$h]}"
         DHPK_CMD_START+=("${#DHPK_WORDS[@]}")
         DHPK_CMD_LEN+=("$n")
+        DHPK_CMD_PIPE_ID+=("$_dhpk_ci_pipe_id")
         DHPK_WORDS+=("${_dhpk_ci_words[@]}")
         if [ "$_dhpk_ci_cwd_state" = "literal" ]; then
             DHPK_CMD_CWD+=("$_dhpk_ci_cwd")
@@ -372,7 +414,9 @@ _dhpk_ci_flush_command() {
         k=0
         while [ "$k" -lt "$h" ]; do
             case "${_dhpk_ci_words[$k]}" in
-                if|while|until) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)) ;;
+                '{') _dhpk_ci_grp_push brace "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+                if) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push if "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+                while|until) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push loop "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
                 # coproc runs its command in an async subshell.
                 then|else|elif|do|'!'|coproc) cond=1 ;;
             esac
@@ -383,8 +427,12 @@ _dhpk_ci_flush_command() {
         [ "$_dhpk_ci_head_kw" -eq 1 ] || kwhead=""
         [ "$_dhpk_ci_head_kw" -eq 1 ] && kwhead="$head"
         case "$kwhead" in
-            for|select|case) _dhpk_ci_block=$((_dhpk_ci_block + 1)) ;;
-            'fi'|'done'|'esac') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)) ;;
+            for|select) _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push loop "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+            case) _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push case "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+            'fi') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop if ;;
+            'done') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop loop ;;
+            'esac') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop case ;;
+            '}') _dhpk_ci_grp_pop brace ;;
             function)
                 # "function f { cd X; }" keeps the body's cd out of head
                 # position, and a later call may run it.
@@ -403,9 +451,11 @@ _dhpk_ci_flush_command() {
                 _dhpk_ci_cwd=""
             elif [ "$sep" = "pipe" ]; then
                 _dhpk_ci_pipeline_cd=1
-            elif [ "$_dhpk_ci_cwd_state" = "literal" ] && [ $((n - h)) -eq 2 ] && [ "${_dhpk_ci_dyn[$((h + 1))]}" != "1" ]; then
-                dhpk_norm_path_var "$_dhpk_ci_cwd" "${_dhpk_ci_words[$((h + 1))]}"
+            elif [ $((n - h)) -eq 2 ] && [ "${_dhpk_ci_dyn[$((h + 1))]}" != "1" ] \
+                && { [ "$_dhpk_ci_cwd_state" = "literal" ] || [[ "${_dhpk_ci_words[$((h + 1))]}" == /* ]]; }; then
+                dhpk_norm_path_var "${_dhpk_ci_cwd:-/}" "${_dhpk_ci_words[$((h + 1))]}"
                 _dhpk_ci_cwd="$DHPK_NORM_PATH"
+                _dhpk_ci_cwd_state="literal"
                 [ "$_dhpk_ci_prev_sep" = "and" ] && _dhpk_ci_cd_cond=1
             else
                 _dhpk_ci_cwd_state="unresolved"
@@ -454,9 +504,30 @@ _dhpk_ci_flush_command() {
             _dhpk_ci_hd_seen=$((_dhpk_ci_hd_seen + 1))
         done
     fi
-    if [ "$sep" != "pipe" ]; then
+    if [ "$sep" = "pipe" ]; then
+        if [ "$_dhpk_ci_pipe_id" -eq 0 ]; then
+            _dhpk_ci_next_pipe_id=$((_dhpk_ci_next_pipe_id + 1))
+            _dhpk_ci_pipe_id="$_dhpk_ci_next_pipe_id"
+        fi
+        if [ "$_dhpk_ci_last_group_cmd0" -ge 0 ]; then
+            _dhpk_ci_unify_pipe "$_dhpk_ci_last_group_cmd0" "$_dhpk_ci_pipe_id"
+            _dhpk_ci_last_group_cmd0=-1
+        elif [ "$n" -gt 0 ]; then
+            DHPK_CMD_PIPE_ID[$cmd_idx]="$_dhpk_ci_pipe_id"
+        fi
+        _dhpk_ci_after_pipe=1
+    else
         _dhpk_ci_pipeline_cd=0
         _dhpk_ci_seg=""
+        if [ "$n" -gt 0 ] || [ "$_dhpk_ci_after_pipe" -eq 0 ]; then
+            _dhpk_ci_after_pipe=0
+            _dhpk_ci_last_group_cmd0=-1
+            if [ "$_dhpk_ci_grp_depth" -gt 0 ]; then
+                _dhpk_ci_pipe_id="${_dhpk_ci_grp_pipe[$((_dhpk_ci_grp_depth - 1))]}"
+            else
+                _dhpk_ci_pipe_id=0
+            fi
+        fi
     fi
     _dhpk_ci_reset_words
 }
@@ -776,6 +847,7 @@ _dhpk_ci_expand() {
                                     _dhpk_ci_exec_next=0
                                     DHPK_CMD_START+=("${#DHPK_WORDS[@]}")
                                     DHPK_CMD_LEN+=(1)
+                                    DHPK_CMD_PIPE_ID+=(0)
                                     DHPK_WORDS+=("$_sp")
                                     if [ "$_dhpk_ci_cwd_state" = "literal" ]; then
                                         DHPK_CMD_CWD+=("$_dhpk_ci_cwd")
@@ -1212,13 +1284,17 @@ _dhpk_ci_list_run() {
     local -a _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_quoted
     local _dhpk_ci_word_q=0
     local _dhpk_ci_seg="" _dhpk_ci_pipeline_cd=0 _dhpk_ci_paren=0 _dhpk_ci_any_cd=0 _dhpk_ci_case=0
+    local _dhpk_ci_pipe_id=0 _dhpk_ci_last_group_cmd0=-1 _dhpk_ci_after_pipe=0 _dhpk_ci_grp_depth=0
     # Conditional-cd tracking: open if/loop/case blocks, a function body
     # seen, the separator before this command, a cd held by an && chain.
     local _dhpk_ci_block=0 _dhpk_ci_func=0 _dhpk_ci_prev_sep="" _dhpk_ci_cd_cond=0 _dhpk_ci_paren_empty=0
-    # Directory and state saved at each open subshell '('.
-    local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk
+    # Directory/state saved at each open '(' and open compound group stack.
+    local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_grp_cmd0 _dhpk_ci_grp_pipe _dhpk_ci_grp_kind
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
+    _dhpk_ci_grp_cmd0=()
+    _dhpk_ci_grp_pipe=()
+    _dhpk_ci_grp_kind=()
     local _dhpk_ci_cwd="$_dhpk_ci_cwd" _dhpk_ci_cwd_state="$_dhpk_ci_cwd_state"
     local -a _dhpk_ci_hd_d _dhpk_ci_hd_q _dhpk_ci_hd_t _dhpk_ci_hd_x
     local _dhpk_ci_hd_seen=0
@@ -1367,6 +1443,7 @@ _dhpk_ci_list_run() {
                 continue
                 ;;
             ';')
+                _dhpk_ci_after_pipe=0
                 _dhpk_ci_flush_command compound
                 DHPK_STRIPPED+=";"
                 i=$((i + 1))
@@ -1384,6 +1461,8 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_flush_command compound
                 _dhpk_ci_cwd_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd"
                 _dhpk_ci_state_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd_state"
+                _dhpk_ci_grp_push paren "${#DHPK_CMD_START[@]}" "$_dhpk_ci_pipe_id"
+                _dhpk_ci_after_pipe=0
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
                 _dhpk_ci_paren_empty=1
                 DHPK_STRIPPED+="("
@@ -1405,12 +1484,16 @@ _dhpk_ci_list_run() {
                 # "name()" defines a function: its body may never run.
                 [ "$_dhpk_ci_paren_empty" -eq 1 ] && _dhpk_ci_func=1
                 _dhpk_ci_paren_empty=0
-                if [ "$_dhpk_ci_paren" -gt 0 ]; then
+                if [ "$_dhpk_ci_paren" -gt 0 ] && [ "$_dhpk_ci_grp_depth" -gt 0 ] \
+                    && [ "${_dhpk_ci_grp_kind[$((_dhpk_ci_grp_depth - 1))]}" = "paren" ]; then
                     _dhpk_ci_paren=$((_dhpk_ci_paren - 1))
                     _dhpk_ci_cwd="${_dhpk_ci_cwd_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_cwd_state="${_dhpk_ci_state_stk[$_dhpk_ci_paren]}"
+                    _dhpk_ci_grp_pop paren
+                    _dhpk_ci_after_pipe=0
                     matched=1
                 else
+                    _dhpk_ci_last_group_cmd0=-1
                     matched=0
                 fi
                 if [ "$_dhpk_ci_any_cd" -eq 1 ] && { [ "$_dhpk_ci_case" -eq 1 ] || [ "$matched" -eq 0 ]; }; then
@@ -1635,6 +1718,205 @@ _dhpk_ci_trivial_fill() {
     DHPK_CMD_LEN=("${#words[@]}")
     # shellcheck disable=SC2034  # read by pre-bash-guard after source
     DHPK_CMD_CWD=("$2")
+    # shellcheck disable=SC2034  # read by pre-bash-guard after source
+    DHPK_CMD_PIPE_ID=(0)
+}
+
+# _dhpk_ci_cache_esc <value>
+#   Percent-escapes '%' and newlines so one serialized value occupies one line.
+_dhpk_ci_cache_esc() {
+    local v="$1"
+    case "$v" in
+        *[%$'\n']*)
+            v="${v//%/%25}"
+            v="${v//$'\n'/%0A}"
+            ;;
+    esac
+    _dhpk_ci_esc_out="$v"
+}
+
+# _dhpk_ci_cache_unesc <value>
+#   Restores values encoded by _dhpk_ci_cache_esc.
+_dhpk_ci_cache_unesc() {
+    local v="$1"
+    case "$v" in
+        *%*)
+            v="${v//%0A/$'\n'}"
+            v="${v//%25/%}"
+            ;;
+    esac
+    _dhpk_ci_esc_out="$v"
+}
+
+# _dhpk_ci_cache_append_array <header-prefix> <is-cwd> [elements...]
+#   Appends a count-prefixed array section to _dhpk_ci_cache.
+_dhpk_ci_cache_append_array() {
+    local label="$1" is_cwd="$2" v
+    shift 2
+    _dhpk_ci_cache+="${label} $#"
+    _dhpk_ci_cache+=$'\n'
+    for v in "$@"; do
+        if [ "$is_cwd" -eq 1 ] && [ "$v" = "$DHPK_START_CWD" ]; then
+            _dhpk_ci_cache+="%S"
+            _dhpk_ci_cache+=$'\n'
+        else
+            _dhpk_ci_cache_esc "$v"
+            _dhpk_ci_cache+="$_dhpk_ci_esc_out"
+            _dhpk_ci_cache+=$'\n'
+        fi
+    done
+}
+
+# _dhpk_ci_cache_read_scalar <prefix>
+#   Reads one serialized scalar line and stores its decoded value in _dhpk_ci_tmp_val.
+_dhpk_ci_cache_read_scalar() {
+    local prefix="$1" line
+    IFS= read -r line || return 1
+    case "$line" in
+        "${prefix}"*)
+            _dhpk_ci_cache_unesc "${line#"$prefix"}"
+            _dhpk_ci_tmp_val="$_dhpk_ci_esc_out"
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+# _dhpk_ci_cache_read_int <prefix>
+#   Reads one serialized non-negative integer scalar into _dhpk_ci_tmp_val.
+_dhpk_ci_cache_read_int() {
+    local prefix="$1" line val int_re='^[0-9]+$'
+    IFS= read -r line || return 1
+    case "$line" in
+        "${prefix}"*) val="${line#"$prefix"}" ;;
+        *) return 1 ;;
+    esac
+    [[ "$val" =~ $int_re ]] || return 1
+    _dhpk_ci_tmp_val="$val"
+    return 0
+}
+
+# _dhpk_ci_cache_read_arr <prefix> <is-cwd>
+#   Reads one count-prefixed serialized array section into _dhpk_ci_tmp_arr.
+_dhpk_ci_cache_read_arr() {
+    local prefix="$1" is_cwd="$2" line count n=0 int_re='^[0-9]+$'
+    _dhpk_ci_tmp_arr=()
+    IFS= read -r line || return 1
+    case "$line" in
+        "${prefix}"*) count="${line#"$prefix"}" ;;
+        *) return 1 ;;
+    esac
+    [[ "$count" =~ $int_re ]] || return 1
+    while [ "$n" -lt "$count" ]; do
+        IFS= read -r line || return 1
+        if [ "$is_cwd" -eq 1 ] && [ "$line" = "%S" ]; then
+            _dhpk_ci_tmp_arr+=("$DHPK_START_CWD")
+        else
+            _dhpk_ci_cache_unesc "$line"
+            _dhpk_ci_tmp_arr+=("$_dhpk_ci_esc_out")
+        fi
+        n=$((n + 1))
+    done
+    return 0
+}
+
+# _dhpk_ci_cache_load <expected-start-cwd>
+#   Restores DHPK_* outputs from DHPK_INSPECT_CACHE without eval. Returns 1 on
+#   any mismatch or structural validation failure so the caller re-parses.
+_dhpk_ci_cache_load() {
+    local expected_start="$1" _dhpk_ci_esc_out="" _dhpk_ci_tmp_val=""
+    local -a _dhpk_ci_tmp_arr
+    _dhpk_ci_tmp_arr=()
+    {
+        local line
+        IFS= read -r line || return 1
+        [ "$line" = "dhpk-ci-v1" ] || return 1
+        _dhpk_ci_cache_read_scalar "S START_CWD " || return 1
+        [ "$_dhpk_ci_tmp_val" = "$expected_start" ] || return 1
+        DHPK_START_CWD="$_dhpk_ci_tmp_val"
+        _dhpk_ci_cache_read_scalar "S STRIPPED " || return 1
+        DHPK_STRIPPED="$_dhpk_ci_tmp_val"
+        _dhpk_ci_cache_read_scalar "S UNSUPPORTED " || return 1
+        DHPK_UNSUPPORTED="$_dhpk_ci_tmp_val"
+        _dhpk_ci_cache_read_int "S GIT_COUNT " || return 1
+        DHPK_GIT_COUNT="$_dhpk_ci_tmp_val"
+        _dhpk_ci_cache_read_int "S HD_FORCE_EXEC " || return 1
+        DHPK_HD_FORCE_EXEC="$_dhpk_ci_tmp_val"
+        _dhpk_ci_cache_read_int "S INSPECT_FAST " || return 1
+        # shellcheck disable=SC2034
+        DHPK_INSPECT_FAST="$_dhpk_ci_tmp_val"
+        _dhpk_ci_cache_read_arr "A GIT_SUB " 0 || return 1
+        DHPK_GIT_SUB=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A GIT_REPO " 0 || return 1
+        DHPK_GIT_REPO=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A GIT_REPO_STATE " 0 || return 1
+        DHPK_GIT_REPO_STATE=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A GIT_NO_VERIFY " 0 || return 1
+        # shellcheck disable=SC2034
+        DHPK_GIT_NO_VERIFY=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A GIT_EXEMPT " 0 || return 1
+        # shellcheck disable=SC2034
+        DHPK_GIT_EXEMPT=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A GIT_SEGMENT " 0 || return 1
+        DHPK_GIT_SEGMENT=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A WORDS " 0 || return 1
+        DHPK_WORDS=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A CMD_START " 0 || return 1
+        DHPK_CMD_START=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A CMD_LEN " 0 || return 1
+        DHPK_CMD_LEN=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A CMD_CWD " 1 || return 1
+        # shellcheck disable=SC2034
+        DHPK_CMD_CWD=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A CMD_PIPE_ID " 0 || return 1
+        # shellcheck disable=SC2034
+        DHPK_CMD_PIPE_ID=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        _dhpk_ci_cache_read_arr "A REDIRECT_TARGETS " 0 || return 1
+        DHPK_REDIRECT_TARGETS=(${_dhpk_ci_tmp_arr[@]+"${_dhpk_ci_tmp_arr[@]}"})
+        IFS= read -r line || return 1
+        [ "$line" = "END" ] || return 1
+    } <<< "$DHPK_INSPECT_CACHE"
+    return 0
+}
+
+# dhpk_inspect_export_cache <command>
+#   Exports DHPK_INSPECT_CACHE* for child hooks started by pre-bash-dispatch.sh
+#   when command and cache size fit safely below Linux MAX_ARG_STRLEN (128 KiB).
+dhpk_inspect_export_cache() {
+    # shellcheck disable=SC2034
+    local LC_ALL=C cmd="$1" _dhpk_ci_cache="" _dhpk_ci_esc_out=""
+    if [ "${#cmd}" -ge 98304 ]; then
+        unset DHPK_INSPECT_CACHE DHPK_INSPECT_CACHE_CMD DHPK_INSPECT_CACHE_CWD
+        return 0
+    fi
+    _dhpk_ci_cache="dhpk-ci-v1"$'\n'
+    _dhpk_ci_cache_esc "${DHPK_START_CWD:-}"; _dhpk_ci_cache+="S START_CWD ${_dhpk_ci_esc_out}"$'\n'
+    _dhpk_ci_cache_esc "${DHPK_STRIPPED:-}"; _dhpk_ci_cache+="S STRIPPED ${_dhpk_ci_esc_out}"$'\n'
+    _dhpk_ci_cache_esc "${DHPK_UNSUPPORTED:-}"; _dhpk_ci_cache+="S UNSUPPORTED ${_dhpk_ci_esc_out}"$'\n'
+    _dhpk_ci_cache+="S GIT_COUNT ${DHPK_GIT_COUNT:-0}"$'\n'
+    _dhpk_ci_cache+="S HD_FORCE_EXEC ${DHPK_HD_FORCE_EXEC:-0}"$'\n'
+    _dhpk_ci_cache+="S INSPECT_FAST ${DHPK_INSPECT_FAST:-0}"$'\n'
+    _dhpk_ci_cache_append_array "A GIT_SUB" 0 ${DHPK_GIT_SUB[@]+"${DHPK_GIT_SUB[@]}"}
+    _dhpk_ci_cache_append_array "A GIT_REPO" 0 ${DHPK_GIT_REPO[@]+"${DHPK_GIT_REPO[@]}"}
+    _dhpk_ci_cache_append_array "A GIT_REPO_STATE" 0 ${DHPK_GIT_REPO_STATE[@]+"${DHPK_GIT_REPO_STATE[@]}"}
+    _dhpk_ci_cache_append_array "A GIT_NO_VERIFY" 0 ${DHPK_GIT_NO_VERIFY[@]+"${DHPK_GIT_NO_VERIFY[@]}"}
+    _dhpk_ci_cache_append_array "A GIT_EXEMPT" 0 ${DHPK_GIT_EXEMPT[@]+"${DHPK_GIT_EXEMPT[@]}"}
+    _dhpk_ci_cache_append_array "A GIT_SEGMENT" 0 ${DHPK_GIT_SEGMENT[@]+"${DHPK_GIT_SEGMENT[@]}"}
+    _dhpk_ci_cache_append_array "A WORDS" 0 ${DHPK_WORDS[@]+"${DHPK_WORDS[@]}"}
+    _dhpk_ci_cache_append_array "A CMD_START" 0 ${DHPK_CMD_START[@]+"${DHPK_CMD_START[@]}"}
+    _dhpk_ci_cache_append_array "A CMD_LEN" 0 ${DHPK_CMD_LEN[@]+"${DHPK_CMD_LEN[@]}"}
+    _dhpk_ci_cache_append_array "A CMD_CWD" 1 ${DHPK_CMD_CWD[@]+"${DHPK_CMD_CWD[@]}"}
+    _dhpk_ci_cache_append_array "A CMD_PIPE_ID" 0 ${DHPK_CMD_PIPE_ID[@]+"${DHPK_CMD_PIPE_ID[@]}"}
+    _dhpk_ci_cache_append_array "A REDIRECT_TARGETS" 0 ${DHPK_REDIRECT_TARGETS[@]+"${DHPK_REDIRECT_TARGETS[@]}"}
+    _dhpk_ci_cache+="END"$'\n'
+    if [ "${#_dhpk_ci_cache}" -lt 98304 ]; then
+        export DHPK_INSPECT_CACHE="$_dhpk_ci_cache"
+        export DHPK_INSPECT_CACHE_CMD="$cmd"
+        export DHPK_INSPECT_CACHE_CWD="$DHPK_START_CWD"
+    else
+        unset DHPK_INSPECT_CACHE DHPK_INSPECT_CACHE_CMD DHPK_INSPECT_CACHE_CWD
+    fi
+    return 0
 }
 
 # dhpk_inspect_command <command> [start-cwd]
@@ -1648,7 +1930,20 @@ dhpk_inspect_command() {
     local LC_ALL=C
     local cmd="$1"
     local start="${2:-}"
-    [ -n "$start" ] || start="$(pwd -P 2>/dev/null || pwd)"
+    local unresolved_start="${DHPK_INSPECT_CWD_UNRESOLVED:-0}"
+    [ -n "$start" ] || [ "$unresolved_start" = "1" ] || start="$(pwd -P 2>/dev/null || pwd)"
+    if [ "$unresolved_start" != "1" ] && \
+       [ -n "${DHPK_INSPECT_CACHE:-}" ] && \
+       [ "${DHPK_INSPECT_CACHE_CMD+set}" = "set" ] && \
+       [ "$cmd" = "$DHPK_INSPECT_CACHE_CMD" ] && \
+       [ "$start" = "${DHPK_INSPECT_CACHE_CWD:-}" ] && \
+       _dhpk_ci_cache_load "$start"; then
+        # shellcheck disable=SC2034  # observability for tests confirming shared parse
+        DHPK_INSPECT_CACHE_HIT=1
+        return 0
+    fi
+    # shellcheck disable=SC2034
+    DHPK_INSPECT_CACHE_HIT=0
     DHPK_GIT_COUNT=0
     DHPK_GIT_SUB=()
     DHPK_GIT_REPO=()
@@ -1665,7 +1960,13 @@ dhpk_inspect_command() {
     # shellcheck disable=SC2034  # read by pre-bash-guard after source
     DHPK_CMD_CWD=()
     # shellcheck disable=SC2034  # read by pre-bash-guard after source
-    DHPK_START_CWD="$start"
+    DHPK_CMD_PIPE_ID=()
+    if [ "$unresolved_start" = "1" ]; then
+        DHPK_START_CWD=""
+    else
+        # shellcheck disable=SC2034  # read by pre-bash-guard after source
+        DHPK_START_CWD="$start"
+    fi
     DHPK_REDIRECT_TARGETS=()
     DHPK_UNSUPPORTED=""
     # A process substitution or a FIFO can carry a cat heredoc into a shell.
@@ -1674,22 +1975,28 @@ dhpk_inspect_command() {
         *'>('*|*mkfifo*) DHPK_HD_FORCE_EXEC=1 ;;
     esac
     if dhpk_command_is_trivial "$cmd"; then
-        _dhpk_ci_trivial_fill "$cmd" "$start"
+        _dhpk_ci_trivial_fill "$cmd" "$DHPK_START_CWD"
         # shellcheck disable=SC2034  # 1 when the fast path decoded the command
         DHPK_INSPECT_FAST=1
         return 0
     fi
     # shellcheck disable=SC2034  # 0 when the full decoder ran
     DHPK_INSPECT_FAST=0
-    _dhpk_ci_cwd="$start"
-    _dhpk_ci_cwd_state="literal"
+    if [ "$unresolved_start" = "1" ]; then
+        _dhpk_ci_cwd=""
+        _dhpk_ci_cwd_state="unresolved"
+    else
+        _dhpk_ci_cwd="$start"
+        _dhpk_ci_cwd_state="literal"
+    fi
     _dhpk_ci_exec_next=0
     _dhpk_ci_depth=0
+    _dhpk_ci_next_pipe_id=0
     _dhpk_ci_sub_stripped=""
     _dhpk_ci_expand_stripped=""
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
-    unset _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
+    unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
     return 0
 }
 

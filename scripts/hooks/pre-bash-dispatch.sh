@@ -29,6 +29,19 @@ export DHPK_PROJECT_CONFIG_LOADED=1
 . "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh"
 : "${DHPK_ACTIVE_MODULES:=$(dhpk_config_modules)}"
 
+# Inspect the Bash command once and export the parsed state for child hooks
+# (pre-bash-guard.sh, pretool-git-gate.sh, and any pre-commit-*.sh gates).
+# Child hooks still validate stdin independently and re-parse when invoked
+# directly without DHPK_INSPECT_CACHE*.
+unset DHPK_INSPECT_CACHE DHPK_INSPECT_CACHE_CMD DHPK_INSPECT_CACHE_CWD
+. "$PLUGIN_ROOT/scripts/hooks/_lib/payload.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/command-inspect.sh"
+_cmd="$(extract_tool_input command "$payload")"
+if [ -n "$_cmd" ]; then
+    dhpk_inspect_command "$_cmd"
+    dhpk_inspect_export_cache "$_cmd"
+fi
+
 # Any non-zero child status becomes exit 2: Claude Code blocks a PreToolUse
 # call only on exit 2, so a crashed child (for example 139) must not pass.
 # Each `printf | bash child` below reads the child's own status via
@@ -50,12 +63,8 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
     # Skipping the fork for every other Bash call saves a full process tree
     # (bash + payload parse + jq) per active module on every command.
     # The hooks still self-skip on non-commit payloads, so this is purely perf.
-    . "$PLUGIN_ROOT/scripts/hooks/_lib/payload.sh"
-    . "$PLUGIN_ROOT/scripts/hooks/_lib/command-inspect.sh"
-    _cmd="$(extract_tool_input command "$payload")"
     _is_commit=0
-    dhpk_inspect_command "$_cmd"
-    dhpk_command_has_commit && _is_commit=1
+    [ -n "$_cmd" ] && dhpk_command_has_commit && _is_commit=1
 
     # Claude Code 2.1.295+ reads timeout 2100 and onFailure block from the
     # Bash PreToolUse entry in hooks.json. That ceiling covers one commit

