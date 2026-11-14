@@ -137,7 +137,7 @@ def judge(plan, patterns, cwd, wrapped):
     for token in plan.targets:
         # 命令替換的輸出在執行前無法得知，可能就是受保護路徑。
         if token.substitution:
-            return verdict.ambiguous('target %s' % ascii(token.value),
+            return verdict.ambiguous('command substitution %s' % ascii(token.substitution),
                                      (recovery and recovery.ambiguous) or verdict.TARGET_SEARCH)
         if token.glob:
             return verdict.ambiguous('target %s' % ascii(token.value),

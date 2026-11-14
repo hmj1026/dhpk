@@ -1,2 +1,2 @@
 scope: hooks
-note: 修正 Credential Guard 的文字範圍繞過 (#1411)：`${..}`／`$[..]` 巢狀不再被內嵌 `}`、`]` 提早關閉；fish、csh、tcsh、ash、mksh、busybox 讀 heredoc 視為程式碼；可能被執行的替換輸出（雙引號 `"$(...)"`、`x="$(...)"; $x`、`eval "$x"`）改以指令判讀 heredoc 文字；`cat $(echo .env)` 等動態檔名與 heredoc 餵給 `xargs` 一律封鎖。直譯器程式字串與寫入後執行維持範圍外 (ADR 0037)。
+note: 修正 Credential Guard 的文字範圍繞過 (#1411)：`${..}`／`$[..]` 巢狀不再被內嵌 `}`、`]` 提早關閉；fish、csh、tcsh、ash、mksh、busybox、rbash、yash、posh、script、at、su 讀 heredoc 視為程式碼；可能被執行的替換輸出（雙引號 `"$(...)"`、`x="$(...)"; $x`、`eval "$x"`、`trap`、保留字後的 `$x`、清單外的包裝器）改以指令判讀 heredoc 文字；`cat $(echo .env)` 等命令替換組成的檔名一律封鎖（`$(pwd)` 與 `$(git rev-parse --show-toplevel)` 放行）；heredoc 餵給 `xargs`、`parallel`、`read` 迴圈或動態命令字一律封鎖，連 `xargs echo` 這類無害用法也會被擋（可接受的過度封鎖）。直譯器程式字串與寫入後執行維持範圍外 (ADR 0037)。
