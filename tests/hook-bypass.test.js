@@ -2191,6 +2191,22 @@ test('pretool-git-gate blocks a commit after lastpipe exports GIT_DIR', () => {
   });
 });
 
+test('pretool-git-gate blocks lastpipe, named coproc, and bash -O lastpipe relocations', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `shopt -s lastpipe; shopt -u lastpipe | true; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; true | { shopt -u lastpipe; export GIT_DIR="${protectedRepo}/.git"; }; git commit -m x`,
+      `coproc NAME { export GIT_DIR="${protectedRepo}/.git"; git commit -m x; }`,
+      `bash -O lastpipe -c 'true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x'`,
+    ]) {
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
 test('pretool-git-gate blocks a child commit after BASH_ENV or SHELLOPTS was exported', () => {
   withRepos(({ protectedRepo, featureRepo }) => {
     for (const command of [
