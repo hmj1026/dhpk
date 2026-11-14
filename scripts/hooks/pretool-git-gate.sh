@@ -99,7 +99,7 @@ while [ "$_bs_i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
 Protected list: $PROTECTED_RAW
 Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
         if [ "$_bs_i" -eq "$_bs_unsupported" ]; then
-            if [ "$DHPK_UNSUPPORTED" = "unmodelled wrapper before git" ]; then
+            if [ "$DHPK_UNSUPPORTED" = "unmodelled wrapper before git" ] || [ "$DHPK_UNSUPPORTED" = "dynamic command word" ] || [ "$DHPK_UNSUPPORTED" = "unresolved eval" ] || [ "$DHPK_UNSUPPORTED" = "read-fed command word" ]; then
                 DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked. Rewrite the command without that syntax.
 Protected list: $PROTECTED_RAW"
             else

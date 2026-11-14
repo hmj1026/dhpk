@@ -2277,4 +2277,70 @@ test('pretool-git-gate blocks a commit inside a function after set -a exports GI
   });
 });
 
+// ---------------------------------------------------------------------------
+// #1425: a dynamic git command word, a read-fed command, or an eval whose
+// input is not a visible literal must not hide a protected commit. A literal
+// feature commit, a read-only dynamic word, and git words that stay data
+// remain allowed.
+// ---------------------------------------------------------------------------
+
+test('pretool-git-gate blocks a protected commit hidden by a dynamic git word or eval', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of [
+      'G=git; $G commit -m x',
+      '$(echo git) commit -m x',
+      'eval "$X"',
+      'read l; $l',
+    ]) {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook} ${command}`);
+        assert.doesNotMatch(res.stderr, /DHPK_BRANCH_SAFETY=off/);
+        assert.doesNotMatch(res.stderr, /disable the guard/);
+      }
+    }
+    for (const command of [
+      "read l <<< 'git commit -m x'; $l",
+      'eval "$(echo git commit -m x)"',
+    ]) {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(
+          bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }),
+          BLOCK,
+          `${hook} ${command}`,
+        );
+      }
+    }
+  });
+});
+
+test('pre-bash-guard blocks a dynamic git word, an unresolved eval, and a read-fed --no-verify', () => {
+  for (const command of [
+    'G=git; $G commit -m x',
+    'eval "$X"',
+    "read l <<< 'git commit --no-verify -m x'; $l",
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test('dynamic git spellings that are data, read-only, or a literal feature commit stay allowed', () => {
+  withRepos(({ featureRepo }) => {
+    for (const command of [
+      "eval 'echo hello'",
+      "echo 'git commit -m x'",
+      'git commit --allow-empty -m x',
+      'G=git; $G status',
+      "read l <<< 'echo hi'; $l",
+    ]) {
+      expectStatus(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+      expectStatus(bashHook('pre-bash-guard.sh', command, { cwd: featureRepo }), ALLOW, command);
+    }
+  });
+});
+
 run('hook-bypass');
