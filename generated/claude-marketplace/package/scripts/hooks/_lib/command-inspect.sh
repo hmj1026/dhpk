@@ -1343,7 +1343,7 @@ _dhpk_ci_flush_command() {
             _dhpk_ci_saw_cdpath=1
         else
             case "$_dhpk_ci_u_head" in
-                printf|read|mapfile|readarray|declare|export|local|typeset|readonly)
+                printf|read|map?ile|readarray|declare|export|local|typeset|readonly)
                     [[ "${_dhpk_ci_words_flat[*]}" == *CDPATH* ]] && _dhpk_ci_saw_cdpath=1
                     ;;
             esac
