@@ -517,7 +517,8 @@ def _heredocs(text, heredocs=True):
             raise ValueError('ambiguous heredoc pipeline')
         # xargs、parallel 與讀取迴圈把 heredoc 內文當成檔名或指令；內文不是資料，且此處無法判定其內容。
         # 必須先於 shell 檢查，否則同一行的 eval 或 bash -c 會讓這個檢查被略過。
-        if any(not token.operator and _feeds_arguments(token.value) for token in new_tokens):
+        shell_code = any(not token.operator and token.value.rsplit('/', 1)[-1] in HEREDOC_SHELLS for token in new_tokens)
+        if any(not token.operator and _feeds_arguments(token.value, shell_code) for token in new_tokens):
             raise ValueError('heredoc text may run through xargs, parallel, exec or a read loop')
         if _dynamic_command(new_tokens):
             raise ValueError('heredoc read by an unresolved command')
@@ -568,12 +569,16 @@ def _heredocs(text, heredocs=True):
     return ''.join(output), ''.join(deep), active
 
 
-def _feeds_arguments(word):
-    """True for a word that turns its standard input into arguments or commands."""
+def _feeds_arguments(word, shell_code=False):
+    """True for a word that turns its standard input into arguments or commands.
+
+    `shell_code` means a shell on the same line runs quoted strings as programs,
+    so every feeder name counts inside them.
+    """
     names = [part.rsplit('/', 1)[-1] for part in word.split()]
     # 含空白的字詞來自引號字串：其中只認 xargs、parallel（例如 sh -c 'xargs cat'）；
-    # read、exec 等字樣出現在標題或訊息文字裡是資料。
-    if len(names) > 1:
+    # read、exec 等字樣出現在標題或訊息文字裡是資料，除非同一行的 shell 會把它當程式執行。
+    if len(names) > 1 and not shell_code:
         return any(name in QUOTED_FEEDERS for name in names)
     return any(name in INPUT_FEEDERS for name in names)
 

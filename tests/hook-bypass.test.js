@@ -1126,6 +1126,8 @@ const CREDENTIAL_BYPASSES_ROUND_3 = [
   ['fd heredoc then read loop', `exec 3${SHL}'EOF'\n${READ_ENV}\nEOF\nwhile read -r l; do $l; done <&3`],
   ['fd heredoc then bash <&3', `exec 3${SHL}'EOF'\n${READ_ENV}\nEOF\nbash <&3`],
   ['quoted xargs word on the heredoc line', `cat ${SHL}'EOF' | env 'xargs' cat\n.env\nEOF`],
+  ['read inside sh -c program', `sh -c 'read f; cat "$f"' ${SHL}'EOF'\n.env\nEOF`],
+  ['mapfile inside bash -c program', `bash -c 'mapfile -t a; cat "\${a[@]}"' ${SHL}'EOF'\n.env\nEOF`],
   ['split name on an unbalanced line: .e"nv" then odd quote', `sg paul -c "$(cat ${SHL}'EOF'\ncat .e"nv" '\n'\necho '\nEOF\n)"`],
   ['split name on an unbalanced line: .e\'nv\' then odd quote', `sg paul -c "$(cat ${SHL}'EOF'\ncat .e'nv' "\n"\necho '\nEOF\n)"`],
   ['split name on an unbalanced line: .e\\nv then odd quote', `sg paul -c "$(cat ${SHL}'EOF'\ncat .e\\nv '\n'\necho '\nEOF\n)"`],
