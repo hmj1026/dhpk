@@ -1740,4 +1740,39 @@ test('pre-bash-guard blocks a dynamic git subcommand behind an unknown wrapper',
   assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', command), command);
 });
 
+test('pre-bash-guard blocks commit -n after git --attr-source', () => {
+  for (const command of [
+    'git --attr-source HEAD commit -n -m x',
+    'git --attr-source=HEAD commit -n -m x',
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test('pre-bash-guard blocks commit -n behind valgrind when --attr-source takes the next word', () => {
+  const command = 'valgrind git --attr-source HEAD commit -n -m x';
+  assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', command), command);
+});
+
+test('pre-bash-guard blocks commit -n behind valgrind when --shallow-file takes the next word', () => {
+  const command = 'valgrind git --shallow-file /dev/null commit -n -m x';
+  const res = bashHook('pre-bash-guard.sh', command);
+  expectStatus(res, BLOCK, command);
+  // Credential inspection runs before the wrapper scan and rejects this
+  // unknown global option without consuming its value.
+  assert.match(res.stderr, /unsupported reader syntax: git option '--shallow-file'/);
+  assert.doesNotMatch(res.stderr, /unmodelled wrapper before git/);
+});
+
+test('pretool-git-gate (block mode) blocks a protected commit behind valgrind when --attr-source takes the next word', () => {
+  withRepos(({ protectedRepo }) => {
+    const command = 'valgrind git --attr-source HEAD commit -m x';
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }),
+      BLOCK,
+      command,
+    );
+  });
+});
+
 run('hook-bypass');

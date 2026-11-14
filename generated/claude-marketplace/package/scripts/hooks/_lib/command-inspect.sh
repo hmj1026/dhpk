@@ -382,9 +382,9 @@ _dhpk_ci_tail_has_wrapped_git_risk() {
                             ;;
                         --help|-h|--paginate|--no-pager|--bare|--no-replace-objects|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks|-p|-P)
                             j=$((j + 1)) ;;
-                        -C|--git-dir|--work-tree|--exec-path|--namespace|--super-prefix|--config-env|--list-cmds|-c)
+                        -C|--git-dir|--work-tree|--exec-path|--namespace|--super-prefix|--config-env|--list-cmds|--attr-source|--shallow-file|-c)
                             j=$((j + 2)) ;;
-                        -C*|--git-dir=*|--work-tree=*|--exec-path=*|--namespace=*|--super-prefix=*|--config-env=*|--list-cmds=*|-c*)
+                        -C*|--git-dir=*|--work-tree=*|--exec-path=*|--namespace=*|--super-prefix=*|--config-env=*|--list-cmds=*|--attr-source=*|--shallow-file=*|-c*)
                             j=$((j + 1)) ;;
                         -*) j=$((j + 1)) ;;
                         *)
@@ -1205,12 +1205,12 @@ _dhpk_ci_record_git() {
                 fi
                 i=$((i + 1))
                 ;;
-            --git-dir|--work-tree|--exec-path|--namespace|--super-prefix|--config-env|--list-cmds|-c)
+            --git-dir|--work-tree|--exec-path|--namespace|--super-prefix|--config-env|--list-cmds|--attr-source|--shallow-file|-c)
                 state="unresolved"
                 i=$((i + 1))
                 [ "$i" -lt "$n" ] && i=$((i + 1))
                 ;;
-            --git-dir=*|--work-tree=*|--exec-path=*|--namespace=*|--super-prefix=*|--config-env=*|--list-cmds=*|-c*)
+            --git-dir=*|--work-tree=*|--exec-path=*|--namespace=*|--super-prefix=*|--config-env=*|--list-cmds=*|--attr-source=*|--shallow-file=*|-c*)
                 state="unresolved"
                 i=$((i + 1))
                 ;;
