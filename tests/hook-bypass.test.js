@@ -1348,4 +1348,43 @@ test('su -c is inspected and ssh is not treated as a local wrapper', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// #1410 round 3: here-strings attached to compound commands (done, fi, esac)
+// ---------------------------------------------------------------------------
+
+const COMPOUND_HERE_STRING_BODIES = [
+  'for i in 1; do bash; done',
+  'while true; do bash; break; done',
+  'if :; then bash; fi',
+  'case x in *) bash;; esac',
+  'for i in 1; do $SHELL; done',
+];
+
+for (const body of COMPOUND_HERE_STRING_BODIES) {
+  test(`pretool-git-gate (block mode) blocks a commit on main fed through a compound here-string: ${body}`, () => {
+    withRepos(({ protectedRepo }) => {
+      const command = `${body} <<< 'git commit -m x'`;
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+for (const command of [
+  "for i in 1; do source /dev/stdin; done <<< 'git push --force origin main'",
+  "while :; do . /dev/stdin; break; done <<< 'git commit --no-verify -m x'",
+  "for i in 1; do bash; done <<< 'git commit --no-verify -m x'",
+]) {
+  test(`pre-bash-guard blocks a compound here-string fed to a shell: ${command}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+}
+
+test('a read loop fed by a here-string does not block a later commit on a feature branch', () => {
+  withRepos(({ featureRepo }) => {
+    const command = `while read -r l; do echo "$l"; done <<< 'abc' && git commit --allow-empty -m x`;
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, command);
+    expectStatus(bashHook('pre-bash-guard.sh', command, { cwd: featureRepo }), ALLOW, command);
+  });
+});
+
 run('hook-bypass');

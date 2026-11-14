@@ -1357,7 +1357,7 @@ _dhpk_ci_flush_command() {
                 ;;
         esac
         # A here-string attached to a group or to a bare exec redirect may feed a shell.
-        if [ "${#_dhpk_ci_hs_flat[@]}" -gt 0 ] && { [ -z "$_dhpk_ci_u_head" ] || [ "$_dhpk_ci_u_head" = "}" ]; }; then
+        if [ "${#_dhpk_ci_hs_flat[@]}" -gt 0 ] && { [ -z "$_dhpk_ci_u_head" ] || case "$_dhpk_ci_u_head" in "}"|done|fi|esac) true ;; *) false ;; esac; }; then
             _dhpk_ci_all_hs_flat+=("${_dhpk_ci_hs_flat[@]}")
         fi
         if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
