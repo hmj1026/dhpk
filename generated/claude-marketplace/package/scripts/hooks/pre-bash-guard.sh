@@ -778,6 +778,10 @@ _guard_check_decoded() {
         while [ "$_nv_i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
             case "${DHPK_GIT_SUB[$_nv_i]}" in
                 commit|push)
+                    if [ "${DHPK_GIT_NO_VERIFY[$_nv_i]}" = "2" ]; then
+                        echo "[bash-guard] blocked: xargs may supply git flags (possible '--no-verify') to a mutating git command. Pass the arguments explicitly instead of through xargs; if you must bypass, set DHPK_ALLOW_NO_VERIFY=1 or run outside Claude." >&2
+                        exit 2
+                    fi
                     if [ "${DHPK_GIT_NO_VERIFY[$_nv_i]}" = "1" ]; then
                         echo "[bash-guard] blocked: '--no-verify' bypasses the pre-commit/pre-push gates. Fix the failing check; if you must bypass, set DHPK_ALLOW_NO_VERIFY=1 or run outside Claude." >&2
                         exit 2
