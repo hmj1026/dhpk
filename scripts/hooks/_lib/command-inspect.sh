@@ -216,6 +216,23 @@ _dhpk_ci_is_git_env_var() {
     return 1
 }
 
+# True when an export/declare/typeset operand names a relocating Git variable.
+# The operand may be NAME, NAME=value, or NAME+=value. The value is not read.
+_dhpk_ci_word_sets_git_env() {
+    local word="$1" name
+    case "$word" in
+        *=*)
+            _dhpk_ci_is_git_env_var "$word" && return 0
+            name="${word%%+=*}"
+            [ "$name" != "$word" ] && _dhpk_ci_is_git_env_var "${name}=" && return 0
+            ;;
+        *)
+            _dhpk_ci_is_git_env_var "${word}=" && return 0
+            ;;
+    esac
+    return 1
+}
+
 _dhpk_ci_apply_u_chdir() {
     local dir="$1" dyn="${2:-0}"
     if [ "$dyn" = "1" ] || [ -z "$dir" ]; then
@@ -1265,6 +1282,9 @@ _dhpk_ci_record_git() {
     if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
         case "$sub" in commit|push|merge|rebase|cherry-pick|am) no_verify=2; state="unresolved" ;; esac
     fi
+    # A separate export/declare/typeset earlier in this inspection still
+    # relocates git. Keep the same unresolved target as a prefix assignment.
+    [ "${_dhpk_ci_git_env_sticky:-0}" -eq 1 ] && _dhpk_ci_u_git_env_unresolved=1
     if [ "$_dhpk_ci_pipeline_cd" -eq 1 ] || [ "$_dhpk_ci_u_cwd_state" != "literal" ] || [ "$_dhpk_ci_u_git_env_unresolved" -eq 1 ]; then
         state="unresolved"
     fi
@@ -1465,7 +1485,12 @@ _dhpk_ci_flush_command() {
                     k=$((_dhpk_ci_u_idx + 1))
                     while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
                         case "${_dhpk_ci_u_words[$k]}" in
-                            CDPATH|CDPATH=*|CDPATH+=*) _dhpk_ci_saw_cdpath=1; break ;;
+                            CDPATH|CDPATH=*|CDPATH+=*) _dhpk_ci_saw_cdpath=1 ;;
+                        esac
+                        case "$_dhpk_ci_u_head" in
+                            export|declare|typeset)
+                                _dhpk_ci_word_sets_git_env "${_dhpk_ci_u_words[$k]}" && _dhpk_ci_git_env_sticky=1
+                                ;;
                         esac
                         k=$((k + 1))
                     done
@@ -2499,6 +2524,11 @@ _dhpk_ci_list() {
 
 _dhpk_ci_list_run() {
     local i="$2" _dhpk_ci_kind="$3"
+    # Each top-level inspection starts clean. Nested lists keep a visible
+    # export so a later simple command in the same inspection still sees it.
+    if [ "$_dhpk_ci_kind" = "top" ]; then
+        _dhpk_ci_git_env_sticky=0
+    fi
     if [ "$_dhpk_ci_kind" != "subst" ]; then
         local text="$1" len="${#1}"
         local -a _dhpk_ci_pg
