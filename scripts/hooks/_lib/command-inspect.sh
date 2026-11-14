@@ -126,7 +126,6 @@ _dhpk_ci_flush_word() {
             _dhpk_ci_redir=0
         elif [ "$_dhpk_ci_redir" -eq 2 ]; then
             # A here-string word is stdin data, not argv, but shell/eval targets execute it.
-            _dhpk_ci_all_hs_flat+=("$_dhpk_ci_word_flat")
             _dhpk_ci_hs_words+=("$_dhpk_ci_word")
             _dhpk_ci_hs_dyn+=("$_dhpk_ci_word_dyn")
             _dhpk_ci_hs_flat+=("$_dhpk_ci_word_flat")
@@ -320,7 +319,7 @@ _dhpk_ci_env_split_tokenize() {
                         r) tok+=$'\r' ;;
                         f) tok+=$'\f' ;;
                         v) tok+=$'\v' ;;
-                        _) tok+=" " ;;
+                        _) _dhpk_ci_es_dyn=1; tok+=" " ;;
                         c) _dhpk_ci_es_dyn=1 ;;
                         '$'|'#'|'"'|"'"|\\) tok+="$nx" ;;
                         *) tok+="$nx" ;;
@@ -373,6 +372,7 @@ _dhpk_ci_unwrap_head() {
     _dhpk_ci_u_has_dyn_split=0
     _dhpk_ci_u_stop_fail=0
     _dhpk_ci_u_via_xargs=0
+    _dhpk_ci_u_xrep=""
     _dhpk_ci_u_unsupported=""
 
     k=0
@@ -726,9 +726,11 @@ _dhpk_ci_unwrap_head() {
                             k=$((k + 1)) ;;
                         --max-args|--max-chars|--max-procs|--delimiter|--arg-file)
                             k=$((k + 2)) ;;
-                        --max-args=*|--max-chars=*|--max-procs=*|--delimiter=*|--arg-file=*|--replace=*|--eof=*|--max-lines=*)
+                        --replace=*) _dhpk_ci_u_xrep="${tok#--replace=}"; k=$((k + 1)) ;;
+                        --max-args=*|--max-chars=*|--max-procs=*|--delimiter=*|--arg-file=*|--eof=*|--max-lines=*)
                             k=$((k + 1)) ;;
-                        --replace|--eof|--max-lines)
+                        --replace) _dhpk_ci_u_xrep="{}"; k=$((k + 1)) ;;
+                        --eof|--max-lines)
                             k=$((k + 1)) ;;
                         --*) _dhpk_ci_u_stop_fail=1; break ;;
                         -*)
@@ -740,6 +742,10 @@ _dhpk_ci_unwrap_head() {
                                 och="${opt:$oi:1}"
                                 case "$och" in
                                     n|L|s|P|I|J|d|E|a)
+                                        if [ "$och" = "I" ]; then
+                                            _dhpk_ci_u_xrep="${opt:$((oi + 1))}"
+                                            [ -n "$_dhpk_ci_u_xrep" ] || _dhpk_ci_u_xrep="${_dhpk_ci_u_words[$((k + 1))]:-}"
+                                        fi
                                         if [ $((oi + 1)) -lt "$olen" ]; then
                                             k=$((k + 1))
                                         else
@@ -749,6 +755,10 @@ _dhpk_ci_unwrap_head() {
                                         break
                                         ;;
                                     i|e|l)
+                                        if [ "$och" = "i" ]; then
+                                            _dhpk_ci_u_xrep="${opt:$((oi + 1))}"
+                                            [ -n "$_dhpk_ci_u_xrep" ] || _dhpk_ci_u_xrep="{}"
+                                        fi
                                         k=$((k + 1))
                                         consumed=1
                                         break
@@ -1002,6 +1012,9 @@ _dhpk_ci_unwrap_head() {
         _dhpk_ci_u_head="${_dhpk_ci_u_words[$k]}"
     fi
 
+    if [ "$_dhpk_ci_u_via_xargs" -eq 1 ] && [ "$k" -ge "$n" ] && [ "$n" -gt 1 ]; then
+        _dhpk_ci_u_unsupported="xargs supplies the wrapped command"
+    fi
     local _scan_reason="" _scan_k="$k"
     case "$_dhpk_ci_u_head" in
         git|*/git)
@@ -1014,7 +1027,7 @@ _dhpk_ci_unwrap_head() {
                 _scan_reason="dynamic command word before git"
             else
                 case "${_dhpk_ci_u_head##*/}" in
-                    setsid|ionice|chrt|flock|taskset|strace|ltrace|script|unshare|nsenter|chroot|runuser|parallel)
+                    setsid|ionice|chrt|flock|taskset|strace|ltrace|script|unshare|nsenter|chroot|runuser|parallel|numactl|fakeroot|busybox|systemd-run|watch|xvfb-run|dbus-run-session|firejail|unbuffer|eatmydata|faketime|prlimit|pkexec|su)
                         _scan_reason="unmodelled wrapper before git" ;;
                     find)
                         case " ${_dhpk_ci_u_words[*]} " in
@@ -1111,12 +1124,27 @@ _dhpk_ci_record_git() {
     done
     if [ "$i" -lt "$n" ]; then
         sub="${_dhpk_ci_u_words[$i]}"
+        # A subcommand built by an expansion cannot be judged.
+        if [ "${_dhpk_ci_u_dyn[$i]}" = "1" ]; then
+            sub="commit"
+            state="unresolved"
+        fi
     fi
     if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
-        # xargs may supply the subcommand or flags from stdin.
-        case "$sub" in
-            ''|'{'*|*'{}'*) sub="commit"; state="unresolved" ;;
-        esac
+        # xargs may supply the subcommand, flags or directory from stdin.
+        local xj="$((_dhpk_ci_u_idx + 1))" xrep="${_dhpk_ci_u_xrep:-{\}}"
+        while [ "$xj" -lt "$n" ]; do
+            case "${_dhpk_ci_u_words[$xj]}" in
+                *"$xrep"*|*'{}'*)
+                    state="unresolved"
+                    [ "$xj" -eq "$i" ] && sub="commit"
+                    ;;
+            esac
+            xj=$((xj + 1))
+        done
+        [ -n "$sub" ] || { sub="commit"; state="unresolved"; }
+        [ -n "$c_path" ] && state="unresolved"
+        [ "$_dhpk_ci_u_chdir_set" -eq 1 ] && state="unresolved"
     fi
     [ -n "$sub" ] || return 0
     local j="$((_dhpk_ci_u_idx + 1))"
@@ -1136,7 +1164,7 @@ _dhpk_ci_record_git() {
         fi
     done
     if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
-        case "$sub" in commit|push|merge|rebase|cherry-pick|am) no_verify=1 ;; esac
+        case "$sub" in commit|push|merge|rebase|cherry-pick|am) no_verify=2; state="unresolved" ;; esac
     fi
     if [ "$_dhpk_ci_pipeline_cd" -eq 1 ] || [ "$_dhpk_ci_u_cwd_state" != "literal" ] || [ "$_dhpk_ci_u_git_env_unresolved" -eq 1 ]; then
         state="unresolved"
@@ -1285,12 +1313,15 @@ _dhpk_ci_flush_command() {
     local -a _dhpk_ci_u_words _dhpk_ci_u_dyn _dhpk_ci_u_quoted _dhpk_ci_u_flat
     local _dhpk_ci_u_idx=0 _dhpk_ci_u_head="" _dhpk_ci_u_cwd="$_dhpk_ci_cwd" _dhpk_ci_u_cwd_state="$_dhpk_ci_cwd_state"
     local _dhpk_ci_u_chdir_set=0 _dhpk_ci_u_query_only=0 _dhpk_ci_u_quoted_wrapper=0
-    local _dhpk_ci_u_git_env_unresolved=0 _dhpk_ci_u_cdpath=0 _dhpk_ci_u_has_dyn_split=0 _dhpk_ci_u_stop_fail=0 _dhpk_ci_u_via_xargs=0 _dhpk_ci_u_unsupported=""
+    local _dhpk_ci_u_git_env_unresolved=0 _dhpk_ci_u_cdpath=0 _dhpk_ci_u_has_dyn_split=0 _dhpk_ci_u_stop_fail=0 _dhpk_ci_u_via_xargs=0 _dhpk_ci_u_xrep="" _dhpk_ci_u_unsupported=""
     local _dhpk_ci_shell_c_payload="" _eval_payload="" _hs_i=0 _git_before=0 _cd_i=0 _cd_opts=1 _cd_w="" _cd_is_dash=0
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
     head=""
+    if [ "$n" -eq 0 ] && [ "${#_dhpk_ci_hs_flat[@]}" -gt 0 ]; then
+        _dhpk_ci_all_hs_flat+=("${_dhpk_ci_hs_flat[@]}")
+    fi
     if [ "$n" -gt 0 ]; then
         _dhpk_ci_last_group_cmd0=-1
         _dhpk_ci_head_index
@@ -1308,9 +1339,26 @@ _dhpk_ci_flush_command() {
         _dhpk_ci_unwrap_head
         [ -n "$_dhpk_ci_u_unsupported" ] && _dhpk_ci_unsupported "$_dhpk_ci_u_unsupported"
         [ "$_dhpk_ci_u_cdpath" -eq 1 ] && _dhpk_ci_saw_cdpath=1
-        [[ "${_dhpk_ci_words_flat[*]}${_dhpk_ci_seg}" == *CDPATH* ]] && _dhpk_ci_saw_cdpath=1
-        if [ "$_dhpk_ci_u_head" = "eval" ] || _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
-            _dhpk_ci_saw_shell_head=1
+        if [[ "$_dhpk_ci_seg" == *'${CDPATH'* ]]; then
+            _dhpk_ci_saw_cdpath=1
+        else
+            case "$_dhpk_ci_u_head" in
+                printf|read|mapfile|readarray|declare|export|local|typeset|readonly)
+                    [[ "${_dhpk_ci_words_flat[*]}" == *CDPATH* ]] && _dhpk_ci_saw_cdpath=1
+                    ;;
+            esac
+        fi
+        case "$_dhpk_ci_u_head" in
+            eval|source|'.') _dhpk_ci_saw_shell_head=1 ;;
+            *)
+                if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head" || [ "${_dhpk_ci_u_dyn[$_dhpk_ci_u_idx]:-0}" = "1" ]; then
+                    _dhpk_ci_saw_shell_head=1
+                fi
+                ;;
+        esac
+        # A here-string attached to a group or to a bare exec redirect may feed a shell.
+        if [ "${#_dhpk_ci_hs_flat[@]}" -gt 0 ] && { [ -z "$_dhpk_ci_u_head" ] || [ "$_dhpk_ci_u_head" = "}" ]; }; then
+            _dhpk_ci_all_hs_flat+=("${_dhpk_ci_hs_flat[@]}")
         fi
         if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
             case "$_dhpk_ci_u_head" in
@@ -1379,7 +1427,11 @@ _dhpk_ci_flush_command() {
                         fi
                         _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
                         if [ -n "$_dhpk_ci_shell_c_payload" ] && ! dhpk_command_is_trivial "$_dhpk_ci_shell_c_payload"; then
-                            _dhpk_ci_inspect_body_cwd "$_dhpk_ci_shell_c_payload" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                            if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
+                                _dhpk_ci_inspect_body_cwd "$_dhpk_ci_shell_c_payload" "" "unresolved"
+                            else
+                                _dhpk_ci_inspect_body_cwd "$_dhpk_ci_shell_c_payload" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                            fi
                         fi
                     elif [ "${#_dhpk_ci_hs_flat[@]}" -gt 0 ]; then
                         if [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
