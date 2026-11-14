@@ -1573,4 +1573,206 @@ test('a read loop fed by a here-string does not block a later commit on a featur
   });
 });
 
+// ---------------------------------------------------------------------------
+// #1423: an unfamiliar wrapper must not hide a visible git commit or
+// --no-verify. The block reuses the existing "unmodelled wrapper before git"
+// reason. Git words that are only data stay allowed.
+// ---------------------------------------------------------------------------
+
+const UNKNOWN_WRAPPER_GIT = [
+  ['valgrind', 'valgrind git commit'],
+  ['gdb --args', 'gdb --args git commit'],
+  ['rlwrap', 'rlwrap git commit'],
+  ['torsocks', 'torsocks git commit'],
+  ['entr', 'entr git commit'],
+  ['chronic', 'chronic git commit'],
+  ['ts', 'ts git commit'],
+  ['sem', 'sem git commit'],
+  ['bwrap --bind', 'bwrap --bind / / git commit'],
+  ['proot -0', 'proot -0 git commit'],
+  ['setarch x86_64', 'setarch x86_64 git commit'],
+  ['cgexec -g', 'cgexec -g cpu:demo git commit'],
+];
+
+function assertUnmodelledWrapperBlock(res, command) {
+  expectStatus(res, BLOCK, command);
+  assert.match(res.stderr, /unmodelled wrapper before git/);
+  assert.match(res.stderr, /[Rr]ewrite the command without/);
+  assert.doesNotMatch(res.stderr, /disable the guard/);
+  assert.doesNotMatch(`${res.stdout || ''}\n${res.stderr || ''}`, /dhpk-canary-1423/);
+}
+
+for (const [label, base] of UNKNOWN_WRAPPER_GIT) {
+  test(`pre-bash-guard blocks --no-verify behind unknown wrapper: ${label}`, () => {
+    const command = `${base} --no-verify -m x`;
+    assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', command), command);
+  });
+
+  test(`pretool-git-gate (block mode) blocks a commit on main behind unknown wrapper: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      fs.writeFileSync(path.join(protectedRepo, 'secret-canary.txt'), 'dhpk-canary-1423-do-not-leak\n');
+      const command = `${base} -m x`;
+      assertUnmodelledWrapperBlock(
+        bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }),
+        command,
+      );
+    });
+  });
+
+  test(`pre-bash-dispatch keeps the unknown-wrapper block: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      const noVerify = `${base} --no-verify -m x`;
+      const commit = `${base} -m x`;
+      assertUnmodelledWrapperBlock(
+        bashHook('pre-bash-dispatch.sh', noVerify, { cwd: protectedRepo, env: BLOCK_MODE }),
+        noVerify,
+      );
+      expectStatus(
+        bashHook('pre-bash-dispatch.sh', commit, { cwd: protectedRepo, env: BLOCK_MODE }),
+        BLOCK,
+        commit,
+      );
+    });
+  });
+}
+
+test('plain git status stays allowed beside unknown-wrapper blocks', () => {
+  const command = 'git status';
+  expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  withRepos(({ protectedRepo }) => {
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+  });
+});
+
+test('git commit on a feature branch stays allowed when CDPATH is absent', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `cd ${featureRepo} && git commit --allow-empty -m x`;
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+  });
+});
+
+test('data-only git words stay allowed beside unknown-wrapper blocks', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ['echo git commit', 'echo git commit --no-verify', 'grep git file.txt']) {
+      expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+      expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+    }
+  });
+});
+
+test('awk program text that mentions git stays allowed', () => {
+  const command = `awk 'BEGIN { print "git commit --no-verify" }' notes.txt`;
+  expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  withRepos(({ protectedRepo }) => {
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+  });
+});
+
+test('awk wrapping a git commit is not exempt by name', () => {
+  // `--` keeps --no-verify in the wrapped git argv. Without it, the reader
+  // grammar reports an awk option before the git gate sees the command.
+  const noVerify = 'awk -- git commit --no-verify -m x';
+  assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', noVerify), noVerify);
+  withRepos(({ protectedRepo }) => {
+    const commit = 'awk -- git commit -m x';
+    assertUnmodelledWrapperBlock(
+      bashHook('pretool-git-gate.sh', commit, { cwd: protectedRepo, env: BLOCK_MODE }),
+      commit,
+    );
+    assertUnmodelledWrapperBlock(
+      bashHook('pre-bash-dispatch.sh', noVerify, { cwd: protectedRepo, env: BLOCK_MODE }),
+      noVerify,
+    );
+  });
+});
+
+test('sed program text that mentions git stays allowed', () => {
+  const command = `sed -n 's/foo/git commit --no-verify/p' notes.txt`;
+  expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  withRepos(({ protectedRepo }) => {
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+    expectStatus(bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+  });
+});
+
+test('sed wrapping a git commit is not exempt by name', () => {
+  const noVerify = 'sed -- git commit --no-verify -m x';
+  assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', noVerify), noVerify);
+  withRepos(({ protectedRepo }) => {
+    const commit = 'sed -- git commit -m x';
+    assertUnmodelledWrapperBlock(
+      bashHook('pretool-git-gate.sh', commit, { cwd: protectedRepo, env: BLOCK_MODE }),
+      commit,
+    );
+    assertUnmodelledWrapperBlock(
+      bashHook('pre-bash-dispatch.sh', noVerify, { cwd: protectedRepo, env: BLOCK_MODE }),
+      noVerify,
+    );
+  });
+});
+
+test('pre-bash-guard blocks git -- subcommands behind an unknown wrapper', () => {
+  for (const command of [
+    'valgrind git -- commit --no-verify -m x',
+    'valgrind git -- commit -n -m x',
+  ]) {
+    assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', command), command);
+  }
+});
+
+test('pretool-git-gate (block mode) blocks git -- commit on a protected branch behind an unknown wrapper', () => {
+  withRepos(({ protectedRepo }) => {
+    const command = 'valgrind git -- commit -m x';
+    const res = bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE });
+    assertUnmodelledWrapperBlock(res, command);
+    assert.doesNotMatch(res.stderr, /DHPK_BRANCH_SAFETY=off/);
+  });
+});
+
+test('pre-bash-guard blocks a dynamic git subcommand behind an unknown wrapper', () => {
+  const command = 'valgrind git "$sub" -m x';
+  assert.match(command, /"\$sub"/);
+  assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', command), command);
+});
+
+test('pre-bash-guard blocks commit -n after git --attr-source', () => {
+  for (const command of [
+    'git --attr-source HEAD commit -n -m x',
+    'git --attr-source=HEAD commit -n -m x',
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test('pre-bash-guard blocks commit -n behind valgrind when --attr-source takes the next word', () => {
+  const command = 'valgrind git --attr-source HEAD commit -n -m x';
+  assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', command), command);
+});
+
+test('pre-bash-guard blocks commit -n behind valgrind when --shallow-file takes the next word', () => {
+  const command = 'valgrind git --shallow-file /dev/null commit -n -m x';
+  const res = bashHook('pre-bash-guard.sh', command);
+  expectStatus(res, BLOCK, command);
+  // Credential inspection runs before the wrapper scan and rejects this
+  // unknown global option without consuming its value.
+  assert.match(res.stderr, /unsupported reader syntax: git option '--shallow-file'/);
+  assert.doesNotMatch(res.stderr, /unmodelled wrapper before git/);
+});
+
+test('pretool-git-gate (block mode) blocks a protected commit behind valgrind when --attr-source takes the next word', () => {
+  withRepos(({ protectedRepo }) => {
+    const command = 'valgrind git --attr-source HEAD commit -m x';
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }),
+      BLOCK,
+      command,
+    );
+  });
+});
+
 run('hook-bypass');
