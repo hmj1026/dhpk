@@ -80,18 +80,21 @@ def flags(token):
     return ''.join(f for f, on in (('g', token.glob), ('d', token.dynamic), ('o', token.operator)) if on)
 
 out = []
-for command in json.load(sys.stdin):
+request = json.load(sys.stdin)
+for command in request['commands']:
     try:
-        result = lex(command)
-        out.append({'tokens': [[t.value, flags(t)] for t in result.tokens], 'bodies': result.bodies})
+        result = lex(command, request['executed'])
+        out.append({'tokens': [[t.value, flags(t)] for t in result.tokens], 'bodies': result.bodies,
+                    'executed_bodies': result.executed_bodies, 'executed': result.executed,
+                    'substitutions': [t.substitution for t in result.tokens if t.substitution]})
     except ValueError as error:
         out.append({'error': str(error)})
 json.dump(out, sys.stdout)
 `;
 
-function lexAll(commands) {
+function lexAll(commands, executed = false, withSubstitutions = false) {
   const result = spawnSync('python3', ['-B', '-c', PROBE], {
-    input: JSON.stringify(commands), env: { ...process.env, PYTHONPATH: LIB }, encoding: 'utf8',
+    input: JSON.stringify({ commands, executed, withSubstitutions }), env: { ...process.env, PYTHONPATH: LIB }, encoding: 'utf8',
   });
   assert.strictEqual(result.status, 0, result.stderr);
   return JSON.parse(result.stdout);
@@ -121,6 +124,62 @@ test('malformed shell fails closed with a fixed reason that carries no command t
   failures.forEach(([command, reason], index) => {
     assert.deepStrictEqual(results[index], { error: reason }, JSON.stringify(command));
   });
+});
+
+const SHL = '<' + '<';
+const HEREDOC_SUB = `$(cat ${SHL}'EOF'\ncat .env\nEOF\n)`;
+
+test('lex reads a substitution whose output may run from the unmasked text (#1411)', () => {
+  const commands = [
+    `x="${HEREDOC_SUB}"; $x`,
+    `x="${HEREDOC_SUB}"; { $x; }`,
+    `x="${HEREDOC_SUB}"; fakeroot $x`,
+    `x="${HEREDOC_SUB}"; echo ok`,
+    `echo "$y"; cat ${SHL}'EOF'\nhello\nEOF\n`,
+  ];
+  const [dollar, brace, wrapper, quiet, plain] = lexAll(commands);
+  const raw = `cat ${SHL}'EOF'\ncat .env\nEOF\n`;
+  assert.deepStrictEqual(dollar.executed_bodies, [raw]);
+  assert.deepStrictEqual(brace.executed_bodies, [raw]);
+  assert.deepStrictEqual(wrapper.executed_bodies, [raw]);
+  assert.deepStrictEqual(quiet.executed_bodies, []);
+  assert.deepStrictEqual(plain.executed_bodies, []);
+  assert.strictEqual(dollar.executed, false);
+});
+
+test('lex with executed reads heredoc text as code (#1411)', () => {
+  const body = `cat ${SHL}'EOF'\ncat .env\nEOF\n`;
+  const [result] = lexAll([body], true);
+  assert.strictEqual(result.executed, true);
+  assert.deepStrictEqual(result.bodies, []);
+  assert.ok(result.tokens.some(([value]) => value === '.env'), JSON.stringify(result.tokens));
+  assert.ok(result.tokens.filter(([value]) => value === 'cat').length === 2);
+});
+
+test('lex marks a command substitution operand by its text and keeps pwd resolvable (#1411)', () => {
+  const [named, resolvable] = lexAll(['cat $(echo .env)', 'cat $(pwd)/README.md'], false, true);
+  assert.deepStrictEqual(named.substitutions, ['$(echo .env)']);
+  assert.deepStrictEqual(resolvable.substitutions, []);
+});
+
+test('lex fails closed on a heredoc fed to xargs, parallel, a read loop or a dynamic command (#1411)', () => {
+  const commands = [
+    `cat ${SHL}EOF | xargs cat; eval :\n.env\nEOF`,
+    `cat ${SHL}EOF | parallel cat\n.env\nEOF`,
+    `cat ${SHL}'EOF' | $SHELL\ncat .env\nEOF`,
+    `while read -r l; do $l; done ${SHL}'EOF'\ncat .env\nEOF`,
+  ];
+  for (const result of lexAll(commands)) {
+    assert.ok(result.error && /^heredoc (text may run|read by)/.test(result.error), JSON.stringify(result));
+  }
+});
+
+test('lex keeps a heredoc after a closed ${..}, $[..] or backtick frame (#1411)', () => {
+  const commands = [`echo \${x:-$(date)} ${SHL}EOF\nhello\nEOF\n`, `echo $[ a[1] ] ${SHL}EOF\nhello\nEOF\n`, `echo \`date\` ${SHL}EOF\nhello\nEOF\n`];
+  for (const result of lexAll(commands)) {
+    assert.ok(!result.error, JSON.stringify(result));
+    assert.ok(!result.tokens.some(([value]) => value === 'hello'), JSON.stringify(result.tokens));
+  }
 });
 
 test('the hook library keeps one shell quote state machine', () => {

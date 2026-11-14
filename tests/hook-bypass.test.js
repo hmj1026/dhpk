@@ -973,6 +973,192 @@ test('pre-edit-guard blocks Windows-equivalent .env and .git names', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Credential Guard text-scope bypasses (#1411, ADR 0037)
+//
+// Each row states the secret read in the command text, so it is inside the
+// Text Guard Scope: the guard must block it, never read it as data.
+// ---------------------------------------------------------------------------
+
+const SHL = '<' + '<'; // keeps the heredoc operator out of grep-style scans of this file
+const READ_ENV = 'cat .env';
+const HEREDOC_READ = (opener) => `${opener}${SHL}'EOF'\n${READ_ENV}\nEOF\n`;
+
+const CREDENTIAL_BYPASSES = [
+  ['nesting: ${..$(echo })<< y } hides later lines', `echo \${x:-$(echo })${SHL} y }\n${READ_ENV}\ny`],
+  ['nesting: $[ a[1] << y ] hides later lines', `echo $[ a[1] ${SHL} y ]\n${READ_ENV}\ny`],
+  ['nesting: backtick closes ${..} early', `echo \${x:-\`echo }\`${SHL} y }\n${READ_ENV}\ny`],
+  ['nesting: $(echo }) inside a substitution', `z=$(echo \${x:-$(echo })${SHL} y }\n${READ_ENV}\ny\n)`],
+  ['nesting: $[ a[1] << y ] inside a substitution', `z=$(echo $[ a[1] ${SHL} y ]\n${READ_ENV}\ny\n)`],
+  ['shell list: fish reads the heredoc', `fish ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['shell list: csh reads the heredoc', `csh ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['shell list: tcsh reads the heredoc', `tcsh ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['shell list: busybox ash reads the heredoc', `busybox ash ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['shell list: script -c runs a quoted substitution', `script -qc "$(${HEREDOC_READ('cat ')})" /dev/null`],
+  ['dq output: substitution in command position', `"$(${HEREDOC_READ('cat ')})"`],
+  ['dq output: assigned then run as $x', `x="$(${HEREDOC_READ('cat ')})"; $x`],
+  ['dq output: assigned then eval', `x="$(${HEREDOC_READ('cat ')})"; eval "$x"`],
+  ['dq output: assigned then run as "$x"', `x="$(${HEREDOC_READ('cat ')})"; "$x"`],
+  ['dq output: piped to sh', `echo "$(${HEREDOC_READ('cat ')})" | sh`],
+  ['dq output: fish -c', `fish -c "$(${HEREDOC_READ('cat ')})"`],
+  ['dynamic filename: cat $(echo .env)', 'cat $(echo .env)'],
+  ['dynamic filename: cat "$(echo .env)"', 'cat "$(echo .env)"'],
+  ['dynamic filename: cat `echo .env`', 'cat `echo .env`'],
+  ['dynamic filename: heredoc body piped to xargs cat', `cat ${SHL}EOF | xargs cat\n.env\nEOF`],
+];
+
+for (const [label, command] of CREDENTIAL_BYPASSES) {
+  test(`pre-bash-guard blocks credential bypass (#1411): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, JSON.stringify(command));
+  });
+}
+
+const CREDENTIAL_LOOKALIKES = [
+  ['heredoc data inside an assignment substitution', `x=$(cat ${SHL}'EOF'\n${READ_ENV}\nEOF\n)`],
+  ['plain heredoc with no reader', `cat ${SHL}EOF\nhello\nEOF`],
+  ['echo with a substitution', 'echo $(date)'],
+];
+
+for (const [label, command] of CREDENTIAL_LOOKALIKES) {
+  test(`pre-bash-guard allows credential look-alike (#1411): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, JSON.stringify(command));
+  });
+}
+
+const HR = (opener) => HEREDOC_READ(opener);
+const SUB = `$(${HR('cat ')})`;
+
+const CREDENTIAL_BYPASSES_ROUND_2 = [
+  ['xargs heredoc with an eval on the line', `cat ${SHL}EOF | xargs cat; eval :\n.env\nEOF`],
+  ['xargs heredoc with bash -c on the line', `cat ${SHL}EOF | xargs cat; bash -c :\n.env\nEOF`],
+  ['busybox xargs heredoc', `cat ${SHL}EOF | busybox xargs cat\n.env\nEOF`],
+  ['xargs inside sh -c', `cat ${SHL}EOF | sh -c 'xargs cat'\n.env\nEOF`],
+  ['parallel heredoc', `cat ${SHL}EOF | parallel cat\n.env\nEOF`],
+  ['reserved word: brace group runs $x', `x="${SUB}"; { $x; }`],
+  ['reserved word: if runs $x', `x="${SUB}"; if $x; then :; fi`],
+  ['reserved word: ! runs $x', `x="${SUB}"; ! $x`],
+  ['reserved word: do runs $x', `x="${SUB}"; for i in 1; do $x; done`],
+  ['reserved word: function body runs $x', `x="${SUB}"; f() { $x; }; f`],
+  ['reserved word: coproc runs $x', `x="${SUB}"; coproc $x`],
+  ['wrapper outside the list runs $x', `x="${SUB}"; fakeroot $x`],
+  ['wrapper outside the list runs $x (prlimit)', `x="${SUB}"; prlimit $x`],
+  ['trap runs the output', `x="${SUB}"; trap "$x" EXIT`],
+  ['dynamic shell reads a heredoc', `$SHELL ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['rbash reads the heredoc', `rbash ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['yash reads the heredoc', `yash ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['posh reads the heredoc', `posh ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['script reads the heredoc', `script -q /dev/null ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['at reads the heredoc', `at now ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['su reads the heredoc', `su paul ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['heredoc piped to a dynamic shell', `cat ${SHL}'EOF' | $SHELL\n${READ_ENV}\nEOF`],
+  ['heredoc piped to a braced dynamic shell', `cat ${SHL}'EOF' | "\${SHELL}"\n${READ_ENV}\nEOF`],
+  ['read loop runs each heredoc line', `while read -r l; do $l; done ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['heredoc piped to a read loop', `cat ${SHL}'EOF' | while read -r l; do $l; done\n${READ_ENV}\nEOF`],
+  ['heredoc piped to a read loop reading $f', `cat ${SHL}EOF | while read -r f; do cat "$f"; done\n.env\nEOF`],
+  ['xargs name held in a variable', `X=xargs; cat ${SHL}EOF | $X cat\n.env\nEOF`],
+];
+
+for (const [label, command] of CREDENTIAL_BYPASSES_ROUND_2) {
+  test(`pre-bash-guard blocks credential bypass (#1411 review): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, JSON.stringify(command));
+  });
+}
+
+const CREDENTIAL_LOOKALIKES_ROUND_2 = [
+  ['heredoc after a closed ${..$(..)} frame', `echo \${x:-$(date)} ${SHL}EOF\nhello\nEOF`],
+  ['heredoc after a closed $[ a[1] ] frame', `echo $[ a[1] ] ${SHL}EOF\nhello\nEOF`],
+  ['heredoc after a closed backtick frame', `echo \`date\` ${SHL}EOF\nhello\nEOF`],
+  ['cat $(pwd)/README.md', 'cat $(pwd)/README.md'],
+  ['cat "$(pwd)/README.md"', 'cat "$(pwd)/README.md"'],
+  ['cat "$(git rev-parse --show-toplevel)/README.md"', 'cat "$(git rev-parse --show-toplevel)/README.md"'],
+];
+
+for (const [label, command] of CREDENTIAL_LOOKALIKES_ROUND_2) {
+  test(`pre-bash-guard allows credential look-alike (#1411 review): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, JSON.stringify(command));
+  });
+}
+
+test('pre-bash-guard names the substitution it cannot resolve (#1411 review)', () => {
+  const res = bashHook('pre-bash-guard.sh', 'cat $(echo .env)');
+  expectStatus(res, BLOCK, 'named substitution');
+  assert.match(res.stderr, /\$\(echo \.env\)/);
+});
+
+test('pre-bash-guard names the xargs heredoc reason (#1411 review)', () => {
+  const res = bashHook('pre-bash-guard.sh', `cat ${SHL}EOF | xargs cat\n.env\nEOF`);
+  expectStatus(res, BLOCK, 'xargs heredoc');
+  assert.match(res.stderr, /xargs/);
+});
+
+// ---------------------------------------------------------------------------
+// #1411 review round 2: resolvable suffixes, stored output, exec/fd heredocs
+// ---------------------------------------------------------------------------
+
+const STORED = `x="${SUB}"; `;
+const KEEP = (opener) => `${opener}${SHL}'EOF'\nfix: don't\nEOF\n`;
+
+const CREDENTIAL_BYPASSES_ROUND_3 = [
+  ['resolvable suffix: $(pwd)/.env', 'cat $(pwd)/.env'],
+  ['resolvable suffix: $(git rev-parse --show-toplevel)/.env', 'cat $(git rev-parse --show-toplevel)/.env'],
+  ['resolvable suffix: $(pwd)/credentials.json', 'cat $(pwd)/credentials.json'],
+  ['resolvable suffix: quoted "$(pwd)/.env"', 'cat "$(pwd)/.env"'],
+  ['resolvable suffix: quoted toplevel', 'cat "$(git rev-parse --show-toplevel)/.env"'],
+  ['expansion shape: ${x:-}', `${STORED}if \${x:-}; then :; fi`],
+  ['expansion shape: ${x%%}', `${STORED}if \${x%%}; then :; fi`],
+  ['expansion shape: $x$e', `${STORED}if $x$e; then :; fi`],
+  ['expansion shape: ${x[0]}', `${STORED}if \${x[0]}; then :; fi`],
+  ['expansion shape: ${x[@]}', `${STORED}if \${x[@]}; then :; fi`],
+  ['expansion shape: ${!y}', `${STORED}y=x; if \${!y}; then :; fi`],
+  ['expansion shape: set -- then $1', `set -- "${SUB}"; if $1; then :; fi`],
+  ['expansion shape: set -- then $@', `set -- "${SUB}"; if $@; then :; fi`],
+  ['expansion shape: function runs $1', `f() { $1; }; f "${SUB}"`],
+  ['expansion shape: function runs "$@"', `f() { if $@; then :; fi; }; f "${SUB}"`],
+  ['expansion shape: ${x@P}', `x="$(cat ${SHL}'EOF'\n$(${READ_ENV})\nEOF\n)"; echo "\${x@P}"`],
+  ['expansion shape: time ${x:-}', `${STORED}time \${x:-}`],
+  ['expansion shape: printf -v then ${y:-}', `printf -v y %s "${SUB}"; if \${y:-}; then :; fi`],
+  ['expansion shape: read into y then ${y:-}', `IFS= read -r y ${SHL}< "${SUB}"; if \${y:-}; then :; fi`],
+  ['unquoted assignment then function body', `x=${SUB}; f() { $x; }; f`],
+  ['non-listed wrapper with a direct argument', `fakeroot "${SUB}"`],
+  ['exec heredoc then sh', `exec ${SHL}'EOF'\n${READ_ENV}\nEOF\nsh`],
+  ['exec heredoc then xargs', `exec ${SHL}'EOF'\n.env\nEOF\nxargs cat`],
+  ['exec heredoc then source /dev/stdin', `exec ${SHL}'EOF'\n${READ_ENV}\nEOF\nsource /dev/stdin`],
+  ['fd heredoc then xargs <&3', `exec 3${SHL}'EOF'\n.env\nEOF\nxargs cat <&3`],
+  ['fd heredoc then read loop', `exec 3${SHL}'EOF'\n${READ_ENV}\nEOF\nwhile read -r l; do $l; done <&3`],
+  ['fd heredoc then bash <&3', `exec 3${SHL}'EOF'\n${READ_ENV}\nEOF\nbash <&3`],
+  ['quoted xargs word on the heredoc line', `cat ${SHL}'EOF' | env 'xargs' cat\n.env\nEOF`],
+  ['read inside sh -c program', `sh -c 'read f; cat "$f"' ${SHL}'EOF'\n.env\nEOF`],
+  ['mapfile inside bash -c program', `bash -c 'mapfile -t a; cat "\${a[@]}"' ${SHL}'EOF'\n.env\nEOF`],
+  ['split name on an unbalanced line: .e"nv" then odd quote', `sg paul -c "$(cat ${SHL}'EOF'\ncat .e"nv" '\n'\necho '\nEOF\n)"`],
+  ['split name on an unbalanced line: .e\'nv\' then odd quote', `sg paul -c "$(cat ${SHL}'EOF'\ncat .e'nv' "\n"\necho '\nEOF\n)"`],
+  ['split name on an unbalanced line: .e\\nv then odd quote', `sg paul -c "$(cat ${SHL}'EOF'\ncat .e\\nv '\n'\necho '\nEOF\n)"`],
+];
+
+for (const [label, command] of CREDENTIAL_BYPASSES_ROUND_3) {
+  test(`pre-bash-guard blocks credential bypass (#1411 review 2): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, JSON.stringify(command));
+  });
+}
+
+const CREDENTIAL_LOOKALIKES_ROUND_3 = [
+  ['commit message with an apostrophe after cd "$HOME"', `cd "$HOME" && git commit --dry-run -m "$(${KEEP('cat ')})"`],
+  ['commit message with an apostrophe before push "$BRANCH"', `git commit --dry-run -m "$(${KEEP('cat ')})" && git push origin "$BRANCH"`],
+  ['commit message with an apostrophe then echo $?', `git commit --dry-run -m "$(${KEEP('cat ')})"; echo $?`],
+  ['gh pr create body with an apostrophe', `gh pr create --title t --body "$(${KEEP('cat ')})"`],
+  ['message variable with an apostrophe then commit', `body="$(${KEEP('cat ')})"; gh pr create --title t --body "$body"`],
+  ['message variable mentioning the file name as prose', `msg="$(cat ${SHL}'EOF'\nfix: ignore .env in docs\nEOF\n)"; git commit -m "$msg"`],
+  ['quoted title that holds the word read', `gh pr create --title "read docs" --body-file - ${SHL}'EOF'\nbody\nEOF`],
+  ['quoted title that holds the word exec', `gh pr create --title "exec cleanup" --body-file - ${SHL}'EOF'\nbody\nEOF`],
+  ['$(pwd) alone', 'cat $(pwd)'],
+  ['$(pwd)/README.md', 'cat $(pwd)/README.md'],
+];
+
+for (const [label, command] of CREDENTIAL_LOOKALIKES_ROUND_3) {
+  test(`pre-bash-guard allows credential look-alike (#1411 review 2): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, JSON.stringify(command));
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Git Gate wrappers, directory switching and here-strings (#1410)
 // ---------------------------------------------------------------------------
 

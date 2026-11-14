@@ -135,6 +135,10 @@ def judge(plan, patterns, cwd, wrapped):
         if found is not None:
             return found
     for token in plan.targets:
+        # 命令替換的輸出在執行前無法得知，可能就是受保護路徑。
+        if token.substitution:
+            return verdict.ambiguous('command substitution %s' % ascii(token.substitution),
+                                     (recovery and recovery.ambiguous) or verdict.TARGET_SEARCH)
         if token.glob:
             return verdict.ambiguous('target %s' % ascii(token.value),
                                      (recovery and recovery.ambiguous) or verdict.TARGET_SEARCH)
@@ -276,11 +280,11 @@ def remote_wrapper_verdict(args, patterns):
     return analyze(' '.join(t.value for t in args[i:]), patterns, None, True)
 
 
-def analyze(command, patterns, cwd, remote=False, nested=False):
+def analyze(command, patterns, cwd, remote=False, nested=False, executed=False):
     """Return the Credential Verdict for one agent command."""
     try:
         # 一次詞法分析取得字詞、命令替換與 heredoc 展開，三者共用同一個引號狀態機。
-        lexed = lex(command)
+        lexed = lex(command, executed)
     except ValueError as error:
         # scanner 以固定字串拒絕有歧義的 shell 語法；這是語法不支援，不是檢查失敗。
         return verdict.unsupported(None, 'shell syntax: %s' % error)
@@ -301,7 +305,11 @@ def analyze(command, patterns, cwd, remote=False, nested=False):
     if remote:
         cwd = None
     for body in bodies:
-        found = analyze(body, patterns, cwd, remote, True)
+        found = analyze(body, patterns, cwd, remote, True, lexed.executed)
+        if not found.allowed:
+            return found
+    for body in lexed.executed_bodies:
+        found = analyze(body, patterns, cwd, remote, True, True)
         if not found.allowed:
             return found
     if not nested and safe_extraction(tokens, remote):
