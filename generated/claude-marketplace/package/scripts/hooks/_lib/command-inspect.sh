@@ -2089,9 +2089,11 @@ _dhpk_ci_flush_command() {
             'done') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop loop ;;
             'esac') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop case ;;
             '}')
-                if _dhpk_ci_grp_pop brace && [ "$sep" = "pipe" ]; then
-                    # Applied after the stage frame pops. A left-side group is
-                    # a subshell, so its shopt and exports must not survive.
+                if _dhpk_ci_grp_pop brace && { [ "$sep" = "pipe" ] || [ "$sep" = "bg" ]; }; then
+                    # Applied after the stage frame pops. A brace group on the
+                    # left of a pipe, or run in the background, is a subshell.
+                    # Its shopt and exports must not survive. A foreground
+                    # brace group stays in this shell.
                     _dhpk_ci_brace_pipe_pop=1
                 fi
                 ;;

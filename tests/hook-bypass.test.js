@@ -2218,12 +2218,26 @@ test('pretool-git-gate blocks lastpipe when a subshell, skipped shopt, or BASHOP
       `shopt -qs lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
       `shopt -sq lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
       `env BASHOPTS=lastpipe bash -c 'true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x'`,
+      `shopt -s lastpipe; { shopt -u lastpipe; } & true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `set -a; { set +a; } & GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `{ export GIT_DIR="${protectedRepo}/.git"; git commit -m x; } &`,
     ]) {
       assertUnresolvedGitTarget(
         bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
         command,
       );
     }
+  });
+});
+
+test('pretool-git-gate allows a feature commit when lastpipe is enabled only inside a background group', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `{ shopt -s lastpipe; } & true | export GIT_DIR="${protectedRepo}/.git"; git commit --allow-empty -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
   });
 });
 
