@@ -972,4 +972,419 @@ test('pre-edit-guard blocks Windows-equivalent .env and .git names', () => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Git Gate wrappers, directory switching and here-strings (#1410)
+// ---------------------------------------------------------------------------
+
+const WRAPPER_PREFIXES = [
+  ['quoted time', '"time" '],
+  ['escaped time', '\\time '],
+  ['single-quoted time', "'time' "],
+  ['command -p', 'command -p '],
+  ['env', 'env '],
+  ['env with assignment', 'env FOO=1 '],
+  ['nice', 'nice '],
+  ['nice -n', 'nice -n 5 '],
+  ['sudo', 'sudo '],
+  ['timeout', 'timeout 5 '],
+  ['xargs', 'xargs '],
+  ['exec', 'exec '],
+  ['time', 'time '],
+];
+
+for (const [label, prefix] of WRAPPER_PREFIXES) {
+  test(`pre-bash-guard blocks --no-verify behind wrapper: ${label}`, () => {
+    const command = `${prefix}git commit --no-verify -m x`;
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+  test(`pretool-git-gate (block mode) blocks a commit on main behind wrapper: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      const command = `${prefix}git commit -m x`;
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+test('pretool-git-gate allows legitimate wrapped git on a feature branch and read-only git on main', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of ['time git commit -m x', 'env FOO=1 git commit -m x', 'sudo git commit -m x', 'nice -n 5 git commit -m x']) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, command);
+    }
+    for (const command of ['time git status', 'env git log --oneline', 'sudo git diff', 'timeout 5 git status', 'time ls -la']) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+    }
+  });
+});
+
+test('pretool-git-gate fails closed when a quoted or escaped wrapper word precedes git', () => {
+  withRepos(({ featureRepo }) => {
+    for (const command of ['"time" git status', '\\time git status', '"env" git status']) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, command);
+    }
+  });
+});
+
+const DIRECTORY_SWITCH_FORMS = [
+  ['eval cd', (repo) => `eval "cd ${repo}"; git commit -m x`],
+  ['eval cd single-quoted', (repo) => `eval 'cd ${repo}' && git commit -m x`],
+  ['source file', () => 'source ./switch.sh; git commit -m x'],
+  ['dot source file', () => '. ./switch.sh; git commit -m x'],
+  ['cd dash', () => 'cd -; git commit -m x'],
+  ['CDPATH assignment', (repo) => `CDPATH=${repo} cd sub && git commit -m x`],
+  ['CDPATH export', (repo) => `export CDPATH=${repo}; cd sub; git commit -m x`],
+];
+
+for (const [label, build] of DIRECTORY_SWITCH_FORMS) {
+  test(`pretool-git-gate (block mode) blocks a commit after unmodelled directory switch: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      const command = build(featureRepo);
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+test('pretool-git-gate does not flag eval, source or cd - when no git command is present', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ['eval "echo hi"', 'source ./env.sh', 'cd -', 'CDPATH=/tmp cd x']) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+    }
+  });
+});
+
+const HERE_STRING_SHELLS = ['bash', 'sh', 'zsh', 'eval'];
+
+for (const shell of HERE_STRING_SHELLS) {
+  test(`pre-bash-guard blocks --no-verify fed to ${shell} through a here-string`, () => {
+    const command = `${shell} <<< 'git commit --no-verify -m x'`;
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+  test(`pretool-git-gate (block mode) blocks a commit on main fed to ${shell} through a here-string`, () => {
+    withRepos(({ protectedRepo }) => {
+      const command = `${shell} <<< 'git commit -m x'`;
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+test('pre-bash-guard allows a here-string fed to a non-shell command', () => {
+  for (const command of ["cat <<< 'git commit --no-verify -m x'", "grep commit <<< 'git commit --no-verify'"]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+  }
+});
+
+const CLUSTERED_C_FLAGS = ['-oc', '-ic', '-ec', '-xc', '-lc', '-eo pipefail -c', '-iCc'];
+
+for (const flags of CLUSTERED_C_FLAGS) {
+  test(`pre-bash-guard blocks --no-verify inside bash ${flags} script`, () => {
+    const command = `bash ${flags} 'git commit --no-verify -m x'`;
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+}
+
+test('pretool-git-gate (block mode) blocks a commit on main inside a clustered -c script', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ["bash -oc 'git commit -m x'", "bash -ic 'git commit -m x'", "sh -ec 'git commit -m x'"]) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #1410 review round: unmodelled wrapper options, unlisted heads, xargs stdin,
+// group here-strings, CDPATH by other syntax, wrapper prefix variants
+// ---------------------------------------------------------------------------
+
+const OPAQUE_WRAPPER_FORMS = [
+  ['nice --5', 'nice --5 git commit'],
+  ['sudo --preserve-env=PATH', 'sudo --preserve-env=PATH git commit'],
+  ['/usr/bin/time --portability', '/usr/bin/time --portability git commit'],
+  ['xargs --process-slot-var', 'xargs --process-slot-var=V git commit'],
+  ['doas -a x', 'doas -a x git commit'],
+  ['time -p --', 'time -p -- git commit'],
+  ['setsid', 'setsid git commit'],
+  ['ionice -c3', 'ionice -c3 git commit'],
+  ['chrt 1', 'chrt 1 git commit'],
+  ['flock', 'flock /tmp/l git commit'],
+  ['taskset', 'taskset 1 git commit'],
+  ['strace', 'strace git commit'],
+  ['ltrace', 'ltrace git commit'],
+  ['script', 'script -c "git commit" /dev/null'],
+  ['find -exec', 'find . -exec git commit \\;'],
+  ['find -execdir', 'find . -execdir git commit \\;'],
+  ['dynamic head', '$W git commit'],
+  ['env -S trailing -C', "env -S'-C' /tmp git commit"],
+  ['env -S trailing -u', "env -S'-u' X git commit"],
+];
+
+for (const [label, base] of OPAQUE_WRAPPER_FORMS) {
+  test(`pre-bash-guard blocks --no-verify behind opaque wrapper: ${label}`, () => {
+    const command = `${base} -m x --no-verify`;
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+  test(`pretool-git-gate (block mode) blocks a commit on main behind opaque wrapper: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      const command = `${base} -m x`;
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+test('read-only text after an unrecognised head is not flagged as git', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ['echo git commit', 'grep git file.txt', 'ls git', 'echo git status', 'find . -name git']) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+      expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+    }
+  });
+});
+
+const XARGS_STDIN_FORMS = [
+  'echo commit | xargs git',
+  'xargs -I{} git {} -m x <<< commit',
+  'echo --no-verify | xargs git commit -m x',
+  'echo commit | xargs git -C .',
+];
+
+for (const command of XARGS_STDIN_FORMS) {
+  test(`pretool-git-gate (block mode) treats xargs-supplied git arguments as unresolved: ${command}`, () => {
+    withRepos(({ protectedRepo }) => {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+test('pre-bash-guard blocks xargs with a mutating git subcommand and a stdin flag', () => {
+  for (const command of ['echo --no-verify | xargs git commit -m x', 'xargs git commit <<< --no-verify']) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+const GROUP_HERE_STRING_FORMS = [
+  "{ bash; } <<< 'git commit --no-verify -m x'",
+  "( bash ) <<< 'git commit --no-verify -m x'",
+  "exec 0<<< 'git commit --no-verify -m x'; bash",
+  "bash <<<'git commit --no-verify -m x'",
+  'bash <<<"git commit --no-verify -m x"',
+  "bash <<< $'git commit --no-verify -m x'",
+  'bash <<< git\\ commit\\ --no-verify',
+];
+
+for (const command of GROUP_HERE_STRING_FORMS) {
+  test(`pre-bash-guard blocks --no-verify fed to a shell through a here-string: ${command}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+}
+
+test('pretool-git-gate (block mode) blocks a commit on main fed through a group here-string', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ["{ bash; } <<< 'git commit -m x'", "( sh ) <<< 'git commit -m x'", "exec 0<<< 'git commit -m x'; bash"]) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    }
+  });
+});
+
+const CDPATH_SYNTAX_FORMS = [
+  'printf -v CDPATH %s x; cd sub; git commit -m x',
+  'read CDPATH <<< x; cd sub; git commit -m x',
+  ': ${CDPATH:=x}; cd sub; git commit -m x',
+  'declare -n r=CDPATH; r=x; cd sub; git commit -m x',
+];
+
+for (const command of CDPATH_SYNTAX_FORMS) {
+  test(`pretool-git-gate (block mode) blocks a commit when CDPATH is set by other syntax: ${command}`, () => {
+    withRepos(({ protectedRepo }) => {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+const MORE_WRAPPER_PREFIXES = [
+  ['env -S', 'env -S "git commit -m x"'],
+  ['env -S escaped', 'env -S git\\ commit\\ -m\\ x'],
+  ['env -C', 'env -C . git commit -m x'],
+  ['env -u', 'env -u X git commit -m x'],
+  ['sudo -u', 'sudo -u root git commit -m x'],
+  ['timeout -s', 'timeout -s KILL 5 git commit -m x'],
+  ['nice -n5', 'nice -n5 git commit -m x'],
+  ['xargs -n1', 'xargs -n1 git commit -m x'],
+];
+
+for (const [label, command] of MORE_WRAPPER_PREFIXES) {
+  test(`pretool-git-gate (block mode) blocks a commit on main behind wrapper: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+test('pretool-git-gate allows a plain cd into a feature repo then commit when CDPATH is absent', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `cd ${featureRepo} && git commit --allow-empty -m x`;
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #1410 round 2: xargs replace strings and stdin directories, env -S \_,
+// here-string to source or dynamic heads, narrowed CDPATH and here-string
+// rules, more exec wrappers
+// ---------------------------------------------------------------------------
+
+test('pretool-git-gate (block mode) blocks xargs custom replace strings on main', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ['echo commit | xargs -I % git % -m x', 'xargs -Ix git x -m x', 'xargs --replace=Q git Q -m x', 'xargs -i git {} -m x']) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    }
+  });
+});
+
+test('pretool-git-gate (block mode) blocks xargs-supplied directories aimed at a protected repo', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `echo ${protectedRepo} | xargs -I{} git -C {} commit -m x`,
+      `echo ${protectedRepo} | xargs -I{} env -C {} git commit -m x`,
+      `echo ${protectedRepo} git commit -m x | xargs env -C`,
+      `echo ${protectedRepo} | xargs -I@ sh -c 'cd @ && git commit -m x'`,
+      'echo commit | xargs sh -c \'git "$1" -m x\' _',
+    ]) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, command);
+    }
+  });
+});
+
+test('pretool-git-gate allows read-only xargs git on main and on a feature branch', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of ['xargs git log', 'echo HEAD | xargs -I{} git show {}', 'git status --short | xargs -r git diff', 'git ls-files -m | xargs git add']) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, command);
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, command);
+    }
+  });
+});
+
+test('pretool-git-gate (block mode) treats env -S unquoted \\_ as a separator', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `env -S '-C\\_${protectedRepo}' git commit -m x`;
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, command);
+  });
+});
+
+test('pretool-git-gate (block mode) pins env -S with a protected -C directory', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `env -S"-C ${protectedRepo}" git commit -m x`;
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, command);
+  });
+});
+
+for (const command of [
+  "{ source /dev/stdin; } <<< 'git commit --no-verify -m x'",
+  "{ . /dev/stdin; } <<< 'git commit --no-verify -m x'",
+  "{ $SHELL; } <<< 'git commit --no-verify -m x'",
+]) {
+  test(`pre-bash-guard blocks a group here-string fed to source or a dynamic head: ${command}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+}
+
+test('pretool-git-gate (block mode) blocks a commit on main fed to source through a group here-string', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of ["{ source /dev/stdin; } <<< 'git commit -m x'", "{ . /dev/stdin; } <<< 'git commit -m x'"]) {
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    }
+  });
+});
+
+test('an unrelated here-string before a shell script does not block a later commit', () => {
+  withRepos(({ featureRepo }) => {
+    const command = "grep -q a <<< 'abc' && bash t.sh && git commit --allow-empty -m y";
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, command);
+    expectStatus(bashHook('pre-bash-guard.sh', command, { cwd: featureRepo }), ALLOW, command);
+  });
+});
+
+test('CDPATH inside a message or a grep pattern does not block git', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    expectStatus(bashHook('pretool-git-gate.sh', 'git log --grep=CDPATH', { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, 'git log --grep');
+    const commit = 'git commit --allow-empty -m "doc: CDPATH note"';
+    expectStatus(bashHook('pretool-git-gate.sh', commit, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, commit);
+  });
+});
+
+test('pre-bash-guard gives xargs-supplied git flags their own reason', () => {
+  const res = bashHook('pre-bash-guard.sh', 'git ls-files -m | xargs git commit -m x');
+  expectStatus(res, BLOCK, 'xargs commit');
+  assert.match(res.stderr, /xargs may supply git flags/);
+});
+
+for (const wrapper of [
+  'numactl -N0',
+  'fakeroot',
+  'busybox',
+  'systemd-run',
+  'watch -n1',
+  'xvfb-run',
+  'dbus-run-session --',
+  'firejail',
+  'unbuffer',
+  'eatmydata',
+  'faketime -f +1d',
+  'prlimit --nofile=10',
+  'pkexec',
+]) {
+  test(`pretool-git-gate (block mode) blocks a commit on main behind exec wrapper: ${wrapper}`, () => {
+    withRepos(({ protectedRepo }) => {
+      const command = `${wrapper} git commit -m x`;
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+test('su -c is inspected and ssh is not treated as a local wrapper', () => {
+  withRepos(({ protectedRepo }) => {
+    const suCommand = 'su -c "git commit -m x" root';
+    expectStatus(bashHook('pretool-git-gate.sh', suCommand, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, suCommand);
+    expectStatus(bashHook('pre-bash-guard.sh', 'su -c "git commit --no-verify -m x"'), BLOCK, 'su -c no-verify');
+    const sshCommand = 'ssh host git commit -m x';
+    expectStatus(bashHook('pretool-git-gate.sh', sshCommand, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, sshCommand);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #1410 round 3: here-strings attached to compound commands (done, fi, esac)
+// ---------------------------------------------------------------------------
+
+const COMPOUND_HERE_STRING_BODIES = [
+  'for i in 1; do bash; done',
+  'while true; do bash; break; done',
+  'if :; then bash; fi',
+  'case x in *) bash;; esac',
+  'for i in 1; do $SHELL; done',
+];
+
+for (const body of COMPOUND_HERE_STRING_BODIES) {
+  test(`pretool-git-gate (block mode) blocks a commit on main fed through a compound here-string: ${body}`, () => {
+    withRepos(({ protectedRepo }) => {
+      const command = `${body} <<< 'git commit -m x'`;
+      expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, command);
+    });
+  });
+}
+
+for (const command of [
+  "for i in 1; do source /dev/stdin; done <<< 'git push --force origin main'",
+  "while :; do . /dev/stdin; break; done <<< 'git commit --no-verify -m x'",
+  "for i in 1; do bash; done <<< 'git commit --no-verify -m x'",
+]) {
+  test(`pre-bash-guard blocks a compound here-string fed to a shell: ${command}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  });
+}
+
+test('a read loop fed by a here-string does not block a later commit on a feature branch', () => {
+  withRepos(({ featureRepo }) => {
+    const command = `while read -r l; do echo "$l"; done <<< 'abc' && git commit --allow-empty -m x`;
+    expectStatus(bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, command);
+    expectStatus(bashHook('pre-bash-guard.sh', command, { cwd: featureRepo }), ALLOW, command);
+  });
+});
+
 run('hook-bypass');
