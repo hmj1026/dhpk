@@ -47,6 +47,7 @@ CMD="$(extract_tool_input command "$PAYLOAD")"
 # Quote-aware comment strip. A '#' inside quotes stays data, so it cannot
 # hide a later flag or redirect.
 dhpk_inspect_command "$CMD"
+_guard_session_cwd="${DHPK_START_CWD:-}"
 
 # _guard_word_head_is <word> <name>
 #   True when the decoded argv word is <name> or a path ending in /<name>.
@@ -57,13 +58,37 @@ _guard_word_head_is() {
     return 1
 }
 
-# _guard_env_split_head <split-string>
-#   Extracts the first non-option, non-assignment command word from an
-#   `env -S` split-string into _guard_head_word.
-_guard_env_split_head() {
-    local s="$1" i=0 len="${#1}" ch tok="" q="" has_tok=0 operands_only=0 skip_next=0
+# _guard_apply_chdir <dir>
+#   Updates _guard_cmd_cwd for an `env -C/--chdir` operand while preserving
+#   an unresolved cwd when given a relative directory.
+_guard_apply_chdir() {
+    local dir="$1"
+    if [ -z "$dir" ]; then
+        _guard_cmd_cwd=""
+        return 0
+    fi
+    if [[ "$dir" == /* ]]; then
+        dhpk_norm_path_var / "$dir"
+        _guard_cmd_cwd="$DHPK_NORM_PATH"
+    elif [ -n "$_guard_cmd_cwd" ]; then
+        dhpk_norm_path_var "$_guard_cmd_cwd" "$dir"
+        _guard_cmd_cwd="$DHPK_NORM_PATH"
+    else
+        _guard_cmd_cwd=""
+    fi
+}
+
+# _guard_env_split_parse <split-string>
+#   Strips leading `env` options from <split-string>, applies any -C/--chdir
+#   directory changes to _guard_cmd_cwd, sets _guard_env_split_tail to the
+#   remaining assignment/command substring, and sets _guard_head_word to the
+#   first command word if present inside <split-string>.
+_guard_env_split_parse() {
+    local s="$1" i=0 len="${#1}" ch tok="" q="" has_tok=0 operands_only=0
+    local skip_next=0 want_chdir=0 cur_tok_start=0 tail_start=-1
     local assign_re='^[A-Za-z_][A-Za-z0-9_]*='
     _guard_head_word=""
+    _guard_env_split_tail=""
     while [ "$i" -le "$len" ]; do
         if [ "$i" -lt "$len" ]; then
             ch="${s:$i:1}"
@@ -83,51 +108,81 @@ _guard_env_split_head() {
             case "$ch" in
                 ' '|$'\t'|$'\n')
                     if [ "$has_tok" -eq 1 ]; then
-                        if [ "$skip_next" -eq 1 ]; then
+                        if [ "$want_chdir" -eq 1 ]; then
+                            want_chdir=0
+                            _guard_apply_chdir "$tok"
+                        elif [ "$skip_next" -eq 1 ]; then
                             skip_next=0
                         elif [ "$operands_only" -eq 0 ] && [ "$tok" = "--" ]; then
                             operands_only=1
                         elif [ "$operands_only" -eq 0 ] && [ "${tok#-}" != "$tok" ]; then
                             case "$tok" in
-                                -u|-C|--unset|--chdir|-S|--split-string) skip_next=1 ;;
+                                --unset=*) ;;
+                                --chdir=*) _guard_apply_chdir "${tok#--chdir=}" ;;
+                                -u|--unset|-S|--split-string) skip_next=1 ;;
+                                -C|--chdir) want_chdir=1 ;;
+                                --*) ;;
+                                -C?*) _guard_apply_chdir "${tok#-C}" ;;
+                                -u?*|-S?*) ;;
+                                -*C) want_chdir=1 ;;
+                                -*[uS]) skip_next=1 ;;
                             esac
-                        elif [[ "$tok" =~ $assign_re ]]; then
-                            :
                         else
-                            _guard_head_word="$tok"
-                            return 0
+                            operands_only=1
+                            [ "$tail_start" -lt 0 ] && tail_start="$cur_tok_start"
+                            if [[ "$tok" =~ $assign_re ]]; then
+                                :
+                            else
+                                _guard_head_word="$tok"
+                                _guard_env_split_tail="${s:$tail_start}"
+                                return 0
+                            fi
                         fi
                         tok=""
                         has_tok=0
                     fi
                     ;;
-                "'"|'"') q="$ch"; has_tok=1 ;;
+                "'"|'"')
+                    [ "$has_tok" -eq 0 ] && cur_tok_start="$i"
+                    q="$ch"
+                    has_tok=1
+                    ;;
                 '\')
+                    [ "$has_tok" -eq 0 ] && cur_tok_start="$i"
                     has_tok=1
                     if [ $((i + 1)) -lt "$len" ]; then
                         i=$((i + 1))
                         tok+="${s:$i:1}"
                     fi
                     ;;
-                *) tok+="$ch"; has_tok=1 ;;
+                *)
+                    [ "$has_tok" -eq 0 ] && cur_tok_start="$i"
+                    tok+="$ch"
+                    has_tok=1
+                    ;;
             esac
         fi
         i=$((i + 1))
     done
+    if [ "$tail_start" -ge 0 ]; then
+        _guard_env_split_tail="${s:$tail_start}"
+    fi
     return 0
 }
 
-# _guard_cmd_head_idx <start> <end>
+# _guard_cmd_head_idx <start> <end> [initial-cwd]
 #   Advances past reserved words, VAR=VALUE assignments and command wrappers
 #   (command, builtin, exec, env, nohup, nice, timeout, stdbuf, sudo, doas,
 #   xargs) to locate the executable command word index in DHPK_WORDS and set
-#   _guard_head_word. Sets _guard_head_idx to <end> when no outer word runs
-#   (e.g. `command -v` or `env -S "cmd"`).
+#   _guard_head_word and _guard_cmd_cwd. Sets _guard_head_idx to <end> when
+#   no outer word runs (e.g. `command -v` or `env -S "cmd"`).
 _guard_cmd_head_idx() {
     local k="$1" end="$2" w base assign_re='^[A-Za-z_][A-Za-z0-9_]*='
     local _env_split="" _env_split_seen=0
+    _guard_cmd_cwd="${3:-}"
     _guard_head_word=""
-    _guard_env_split_script=""
+    _guard_env_split_seen=0
+    _guard_env_split_tail=""
     _guard_env_split_rest="$end"
     while [ "$k" -lt "$end" ]; do
         w="${DHPK_WORDS[$k]}"
@@ -176,40 +231,58 @@ _guard_cmd_head_idx() {
                 [ "$k" -lt "$end" ] && [ "${DHPK_WORDS[$k]}" = "--" ] && k=$((k + 1))
                 continue ;;
             env)
-                _env_split=""
                 _env_split_seen=0
                 k=$((k + 1))
                 while [ "$k" -lt "$end" ]; do
                     case "${DHPK_WORDS[$k]}" in
                         --) k=$((k + 1)); break ;;
-                        -u|-C|--unset|--chdir) k=$((k + 2)) ;;
+                        --unset=*) k=$((k + 1)) ;;
+                        --chdir=*)
+                            _guard_apply_chdir "${DHPK_WORDS[$k]#--chdir=}"
+                            k=$((k + 1))
+                            ;;
+                        -u|--unset) k=$((k + 2)) ;;
+                        -C|--chdir)
+                            _guard_apply_chdir "${DHPK_WORDS[$((k + 1))]:-}"
+                            k=$((k + 2))
+                            ;;
                         -S|--split-string)
-                            _env_split="${DHPK_WORDS[$((k + 1))]:-}"
                             _env_split_seen=1
+                            _guard_env_split_parse "${DHPK_WORDS[$((k + 1))]:-}"
                             k=$((k + 2))
                             ;;
                         --split-string=*)
-                            _env_split="${DHPK_WORDS[$k]#--split-string=}"
                             _env_split_seen=1
+                            _guard_env_split_parse "${DHPK_WORDS[$k]#--split-string=}"
                             k=$((k + 1))
                             ;;
                         --*) k=$((k + 1)) ;;
                         -S?*)
-                            _env_split="${DHPK_WORDS[$k]#-S}"
                             _env_split_seen=1
+                            _guard_env_split_parse "${DHPK_WORDS[$k]#-S}"
                             k=$((k + 1))
                             ;;
+                        -C?*)
+                            _guard_apply_chdir "${DHPK_WORDS[$k]#-C}"
+                            k=$((k + 1))
+                            ;;
+                        -u?*) k=$((k + 1)) ;;
                         -*S)
-                            _env_split="${DHPK_WORDS[$((k + 1))]:-}"
                             _env_split_seen=1
+                            _guard_env_split_parse "${DHPK_WORDS[$((k + 1))]:-}"
                             k=$((k + 2))
                             ;;
+                        -*C)
+                            _guard_apply_chdir "${DHPK_WORDS[$((k + 1))]:-}"
+                            k=$((k + 2))
+                            ;;
+                        -*u) k=$((k + 2)) ;;
                         -*) k=$((k + 1)) ;;
                         *) break ;;
                     esac
                 done
                 if [ "$_env_split_seen" -eq 1 ]; then
-                    _guard_env_split_script="$_env_split"
+                    _guard_env_split_seen=1
                     _guard_env_split_rest="$k"
                 fi
                 continue ;;
@@ -282,16 +355,10 @@ _guard_cmd_head_idx() {
                 continue ;;
         esac
         _guard_head_idx="$k"
-        if [ -n "$_guard_env_split_script" ]; then
-            _guard_env_split_head "$_guard_env_split_script"
-        fi
         [ -n "$_guard_head_word" ] || _guard_head_word="${DHPK_WORDS[$k]}"
         return 0
     done
     _guard_head_idx="$end"
-    if [ -n "$_guard_env_split_script" ]; then
-        _guard_env_split_head "$_guard_env_split_script"
-    fi
     return 0
 }
 
@@ -326,7 +393,7 @@ _guard_rm_target_matches() {
 _guard_rm_relative_matches() {
     local fn="$1" operand="$2" cwd="$3" dots='(^|/)\.\.(/|$)'
     [ -n "$cwd" ] || return 1
-    if [[ "$operand" =~ $dots ]] || [ "$cwd" != "$DHPK_START_CWD" ]; then
+    if [[ "$operand" =~ $dots ]] || [ "$cwd" != "$_guard_session_cwd" ]; then
         dhpk_norm_path_var "$cwd" "$operand"
         "$fn" "$DHPK_NORM_PATH" && return 0
     fi
@@ -371,10 +438,14 @@ _guard_rm_abs_dangerous() {
 #   when -r/-R/--recursive is present.
 _guard_rm_decoded() {
     local c=0 k end w is_recursive operands_only hit_sysdir hit_deep cwd
+    local _guard_head_idx=0 _guard_head_word="" _guard_cmd_cwd=""
+    local _guard_env_split_seen=0 _guard_env_split_tail="" _guard_env_split_rest=0
     while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
         k="${DHPK_CMD_START[$c]}"
         end=$((k + DHPK_CMD_LEN[c]))
         cwd="${DHPK_CMD_CWD[$c]}"
+        _guard_cmd_head_idx "$k" "$end" "$cwd"
+        cwd="$_guard_cmd_cwd"
         while [ "$k" -lt "$end" ]; do
             if _guard_word_head_is "${DHPK_WORDS[$k]}" rm; then
                 is_recursive=0
@@ -465,7 +536,8 @@ _guard_env_write_decoded() {
 #   stages, wrappers, line continuations, or quoted/escaped command words.
 _guard_curl_pipe_decoded() {
     local c=0 pid start end curl_pipes=" " _guard_head_idx=0 _guard_head_word=""
-    local _guard_env_split_script="" _guard_env_split_rest=0
+    local _guard_cmd_cwd="" _guard_env_split_seen=0
+    local _guard_env_split_tail="" _guard_env_split_rest=0
     while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
         pid="${DHPK_CMD_PIPE_ID[$c]:-0}"
         if [ "$pid" -gt 0 ]; then
@@ -499,7 +571,8 @@ _guard_curl_pipe_decoded() {
 #   and filenames like `chmod 755 777` allowed.
 _guard_chmod_decoded() {
     local c=0 start end k w operands_only _guard_head_idx=0 _guard_head_word=""
-    local _guard_env_split_script="" _guard_env_split_rest=0
+    local _guard_cmd_cwd="" _guard_env_split_seen=0
+    local _guard_env_split_tail="" _guard_env_split_rest=0
     local mode_re='^0*[0-7]?(777|666)$' opt_re='^-[RcfvhHLP]+$'
     local attached_mode_re='^-[RcfvhHLP]+0*[0-7]?(777|666)$'
     while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
@@ -565,22 +638,29 @@ _guard_env_quoted_redirect_hit() {
 _guard_collect_inline_scripts() {
     local c=0 start end k w base saw_c payload q
     local _guard_head_idx=0 _guard_head_word=""
-    local _guard_env_split_script="" _guard_env_split_rest=0
+    local _guard_cmd_cwd="" _guard_env_split_seen=0
+    local _guard_env_split_tail="" _guard_env_split_rest=0
     while [ "$c" -lt "${#DHPK_CMD_START[@]}" ]; do
         start="${DHPK_CMD_START[$c]}"
         end=$((start + DHPK_CMD_LEN[c]))
-        _guard_cmd_head_idx "$start" "$end"
-        if [ -n "$_guard_env_split_script" ]; then
-            payload="$_guard_env_split_script"
+        _guard_cmd_head_idx "$start" "$end" "${DHPK_CMD_CWD[$c]}"
+        if [ "$_guard_env_split_seen" -eq 1 ]; then
+            payload="$_guard_env_split_tail"
             k="$_guard_env_split_rest"
             while [ "$k" -lt "$end" ]; do
                 printf -v q '%q' "${DHPK_WORDS[$k]}"
-                payload+=" $q"
+                if [ -n "$payload" ]; then
+                    payload+=" $q"
+                else
+                    payload="$q"
+                fi
                 k=$((k + 1))
             done
-            _guard_scripts+=("$payload")
-        fi
-        if [ "$_guard_head_idx" -lt "$end" ]; then
+            if [ -n "$payload" ]; then
+                _guard_scripts+=("$payload")
+                _guard_script_cwds+=("$_guard_cmd_cwd")
+            fi
+        elif [ "$_guard_head_idx" -lt "$end" ]; then
             base="${_guard_head_word##*/}"
             case "$base" in
                 sh|bash|zsh|ksh|dash|ash|mksh|fish|tcsh)
@@ -589,16 +669,24 @@ _guard_collect_inline_scripts() {
                     while [ "$k" -lt "$end" ]; do
                         w="${DHPK_WORDS[$k]}"
                         case "$w" in
-                            --) k=$((k + 1)); break ;;
-                            --rcfile|--init-file|--startup-cmd|-o|+o|-O|+O) k=$((k + 2)) ;;
+                            --|-) k=$((k + 1)); break ;;
+                            --rcfile|--init-file|--startup-cmd) k=$((k + 2)) ;;
                             --*) k=$((k + 1)) ;;
-                            -*c*) saw_c=1; k=$((k + 1)) ;;
-                            [-+]*) k=$((k + 1)) ;;
+                            [-+]*)
+                                case "$w" in
+                                    -*c*) saw_c=1 ;;
+                                esac
+                                case "$w" in
+                                    [-+]*[oO]) k=$((k + 2)) ;;
+                                    *) k=$((k + 1)) ;;
+                                esac
+                                ;;
                             *) break ;;
                         esac
                     done
                     if [ "$saw_c" -eq 1 ] && [ "$k" -lt "$end" ]; then
                         _guard_scripts+=("${DHPK_WORDS[$k]}")
+                        _guard_script_cwds+=("$_guard_cmd_cwd")
                     fi
                     ;;
                 eval)
@@ -613,6 +701,7 @@ _guard_collect_inline_scripts() {
                                 k=$((k + 1))
                             done
                             _guard_scripts+=("$payload")
+                            _guard_script_cwds+=("$_guard_cmd_cwd")
                         fi
                     fi
                     ;;
@@ -638,6 +727,7 @@ _guard_collect_inline_scripts() {
                             k=$((k + 1))
                         done
                         _guard_scripts+=("$payload")
+                        _guard_script_cwds+=("")
                     fi
                     ;;
             esac
@@ -650,9 +740,9 @@ _guard_collect_inline_scripts() {
 #   Evaluates all guard patterns against the current dhpk_inspect_command output
 #   and recursively inspects decoded inline scripts up to depth 3.
 _guard_check_decoded() {
-    local depth="$1" _nv_i=0
-    local -a _guard_scripts=()
-    local _guard_s _guard_start_cwd="${DHPK_START_CWD:-}"
+    local depth="$1" _nv_i=0 _guard_i=0
+    local -a _guard_scripts=() _guard_script_cwds=()
+    local _guard_s _guard_c
 
     # The decoder reports syntax it cannot place (for example a case statement
     # inside $(...)). Guessing there could hide a later command, so block.
@@ -710,9 +800,17 @@ _guard_check_decoded() {
 
     if [ "$depth" -lt 3 ]; then
         _guard_collect_inline_scripts
-        for _guard_s in ${_guard_scripts[@]+"${_guard_scripts[@]}"}; do
+        _guard_i=0
+        while [ "$_guard_i" -lt "${#_guard_scripts[@]}" ]; do
+            _guard_s="${_guard_scripts[$_guard_i]}"
+            _guard_c="${_guard_script_cwds[$_guard_i]}"
+            _guard_i=$((_guard_i + 1))
             [ -n "$_guard_s" ] || continue
-            dhpk_inspect_command "$_guard_s" "$_guard_start_cwd"
+            if [ -n "$_guard_c" ]; then
+                dhpk_inspect_command "$_guard_s" "$_guard_c"
+            else
+                DHPK_INSPECT_CWD_UNRESOLVED=1 dhpk_inspect_command "$_guard_s" ""
+            fi
             _guard_check_decoded $((depth + 1))
         done
     fi

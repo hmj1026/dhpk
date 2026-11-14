@@ -451,9 +451,11 @@ _dhpk_ci_flush_command() {
                 _dhpk_ci_cwd=""
             elif [ "$sep" = "pipe" ]; then
                 _dhpk_ci_pipeline_cd=1
-            elif [ "$_dhpk_ci_cwd_state" = "literal" ] && [ $((n - h)) -eq 2 ] && [ "${_dhpk_ci_dyn[$((h + 1))]}" != "1" ]; then
-                dhpk_norm_path_var "$_dhpk_ci_cwd" "${_dhpk_ci_words[$((h + 1))]}"
+            elif [ $((n - h)) -eq 2 ] && [ "${_dhpk_ci_dyn[$((h + 1))]}" != "1" ] \
+                && { [ "$_dhpk_ci_cwd_state" = "literal" ] || [[ "${_dhpk_ci_words[$((h + 1))]}" == /* ]]; }; then
+                dhpk_norm_path_var "${_dhpk_ci_cwd:-/}" "${_dhpk_ci_words[$((h + 1))]}"
                 _dhpk_ci_cwd="$DHPK_NORM_PATH"
+                _dhpk_ci_cwd_state="literal"
                 [ "$_dhpk_ci_prev_sep" = "and" ] && _dhpk_ci_cd_cond=1
             else
                 _dhpk_ci_cwd_state="unresolved"
@@ -1482,7 +1484,8 @@ _dhpk_ci_list_run() {
                 # "name()" defines a function: its body may never run.
                 [ "$_dhpk_ci_paren_empty" -eq 1 ] && _dhpk_ci_func=1
                 _dhpk_ci_paren_empty=0
-                if [ "$_dhpk_ci_paren" -gt 0 ]; then
+                if [ "$_dhpk_ci_paren" -gt 0 ] && [ "$_dhpk_ci_grp_depth" -gt 0 ] \
+                    && [ "${_dhpk_ci_grp_kind[$((_dhpk_ci_grp_depth - 1))]}" = "paren" ]; then
                     _dhpk_ci_paren=$((_dhpk_ci_paren - 1))
                     _dhpk_ci_cwd="${_dhpk_ci_cwd_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_cwd_state="${_dhpk_ci_state_stk[$_dhpk_ci_paren]}"
@@ -1927,8 +1930,10 @@ dhpk_inspect_command() {
     local LC_ALL=C
     local cmd="$1"
     local start="${2:-}"
-    [ -n "$start" ] || start="$(pwd -P 2>/dev/null || pwd)"
-    if [ -n "${DHPK_INSPECT_CACHE:-}" ] && \
+    local unresolved_start="${DHPK_INSPECT_CWD_UNRESOLVED:-0}"
+    [ -n "$start" ] || [ "$unresolved_start" = "1" ] || start="$(pwd -P 2>/dev/null || pwd)"
+    if [ "$unresolved_start" != "1" ] && \
+       [ -n "${DHPK_INSPECT_CACHE:-}" ] && \
        [ "${DHPK_INSPECT_CACHE_CMD+set}" = "set" ] && \
        [ "$cmd" = "$DHPK_INSPECT_CACHE_CMD" ] && \
        [ "$start" = "${DHPK_INSPECT_CACHE_CWD:-}" ] && \
@@ -1956,8 +1961,12 @@ dhpk_inspect_command() {
     DHPK_CMD_CWD=()
     # shellcheck disable=SC2034  # read by pre-bash-guard after source
     DHPK_CMD_PIPE_ID=()
-    # shellcheck disable=SC2034  # read by pre-bash-guard after source
-    DHPK_START_CWD="$start"
+    if [ "$unresolved_start" = "1" ]; then
+        DHPK_START_CWD=""
+    else
+        # shellcheck disable=SC2034  # read by pre-bash-guard after source
+        DHPK_START_CWD="$start"
+    fi
     DHPK_REDIRECT_TARGETS=()
     DHPK_UNSUPPORTED=""
     # A process substitution or a FIFO can carry a cat heredoc into a shell.
@@ -1966,15 +1975,20 @@ dhpk_inspect_command() {
         *'>('*|*mkfifo*) DHPK_HD_FORCE_EXEC=1 ;;
     esac
     if dhpk_command_is_trivial "$cmd"; then
-        _dhpk_ci_trivial_fill "$cmd" "$start"
+        _dhpk_ci_trivial_fill "$cmd" "$DHPK_START_CWD"
         # shellcheck disable=SC2034  # 1 when the fast path decoded the command
         DHPK_INSPECT_FAST=1
         return 0
     fi
     # shellcheck disable=SC2034  # 0 when the full decoder ran
     DHPK_INSPECT_FAST=0
-    _dhpk_ci_cwd="$start"
-    _dhpk_ci_cwd_state="literal"
+    if [ "$unresolved_start" = "1" ]; then
+        _dhpk_ci_cwd=""
+        _dhpk_ci_cwd_state="unresolved"
+    else
+        _dhpk_ci_cwd="$start"
+        _dhpk_ci_cwd_state="literal"
+    fi
     _dhpk_ci_exec_next=0
     _dhpk_ci_depth=0
     _dhpk_ci_next_pipe_id=0
