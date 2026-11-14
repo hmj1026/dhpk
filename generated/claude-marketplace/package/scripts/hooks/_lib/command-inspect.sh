@@ -216,8 +216,9 @@ _dhpk_ci_is_git_env_var() {
     return 1
 }
 
-# True when an export/declare/typeset operand names a relocating Git variable.
-# The operand may be NAME, NAME=value, or NAME+=value. The value is not read.
+# True when an export/declare/typeset/local operand names a relocating Git
+# variable. The operand may be NAME, NAME=value, or NAME+=value. The value
+# is not read.
 _dhpk_ci_word_sets_git_env() {
     local word="$1" name
     case "$word" in
@@ -231,6 +232,46 @@ _dhpk_ci_word_sets_git_env() {
             ;;
     esac
     return 1
+}
+
+# _dhpk_ci_apply_set_allexport <index>
+#   Updates _dhpk_ci_allexport from a set command's operands. set -a, set -o
+#   allexport, and a short-flag cluster that contains a turn it on. set +a
+#   and set +o allexport turn it off. Turning it off does not clear
+#   _dhpk_ci_git_env_sticky. Options end at -- or the first non-option word.
+#   A trailing o in a cluster, or a word that is exactly -o or +o, takes the
+#   next word as the option name. An o earlier in the cluster is only the
+#   short flag, so set -oa still sees a.
+_dhpk_ci_apply_set_allexport() {
+    local k="$1" n="${#_dhpk_ci_u_words[@]}" w sign body oi olen ch
+    while [ "$k" -lt "$n" ]; do
+        w="${_dhpk_ci_u_words[$k]}"
+        case "$w" in
+            --) return 0 ;;
+            [-+]*) ;;
+            *) return 0 ;;
+        esac
+        sign=1
+        [ "${w:0:1}" = "+" ] && sign=0
+        body="${w:1}"
+        [ -n "$body" ] || return 0
+        oi=0
+        olen="${#body}"
+        while [ "$oi" -lt "$olen" ]; do
+            ch="${body:$oi:1}"
+            if [ "$ch" = "a" ]; then
+                _dhpk_ci_allexport="$sign"
+            elif [ "$ch" = "o" ] && [ $((oi + 1)) -eq "$olen" ]; then
+                k=$((k + 1))
+                if [ "${_dhpk_ci_u_words[$k]:-}" = "allexport" ]; then
+                    _dhpk_ci_allexport="$sign"
+                fi
+                break
+            fi
+            oi=$((oi + 1))
+        done
+        k=$((k + 1))
+    done
 }
 
 _dhpk_ci_apply_u_chdir() {
@@ -1434,6 +1475,7 @@ _dhpk_ci_flush_command() {
     local _dhpk_ci_u_chdir_set=0 _dhpk_ci_u_query_only=0 _dhpk_ci_u_quoted_wrapper=0
     local _dhpk_ci_u_git_env_unresolved=0 _dhpk_ci_u_cdpath=0 _dhpk_ci_u_has_dyn_split=0 _dhpk_ci_u_stop_fail=0 _dhpk_ci_u_via_xargs=0 _dhpk_ci_u_xrep="" _dhpk_ci_u_unsupported=""
     local _dhpk_ci_shell_c_payload="" _eval_payload="" _hs_i=0 _git_before=0 _cd_i=0 _cd_opts=1 _cd_w="" _cd_is_dash=0
+    local _dhpk_ci_git_env_sticky_saved=0
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -1488,13 +1530,26 @@ _dhpk_ci_flush_command() {
                             CDPATH|CDPATH=*|CDPATH+=*) _dhpk_ci_saw_cdpath=1 ;;
                         esac
                         case "$_dhpk_ci_u_head" in
-                            export|declare|typeset)
+                            export|declare|typeset|local)
                                 _dhpk_ci_word_sets_git_env "${_dhpk_ci_u_words[$k]}" && _dhpk_ci_git_env_sticky=1
                                 ;;
                         esac
                         k=$((k + 1))
                     done
                     ;;
+            esac
+            # set -a exports a later shell assignment. A command that is only
+            # that assignment has no command word. A prefix on a real command
+            # does not remain after it. set +a does not clear sticky.
+            if [ -z "$_dhpk_ci_u_head" ] && [ "${_dhpk_ci_allexport:-0}" -eq 1 ]; then
+                k=0
+                while [ "$k" -lt "$h" ]; do
+                    _dhpk_ci_is_git_env_var "${_dhpk_ci_words[$k]}" && _dhpk_ci_git_env_sticky=1
+                    k=$((k + 1))
+                done
+            fi
+            case "$_dhpk_ci_u_head" in
+                set) _dhpk_ci_apply_set_allexport $((_dhpk_ci_u_idx + 1)) ;;
             esac
         fi
         _dhpk_ci_record_git
@@ -1551,10 +1606,20 @@ _dhpk_ci_flush_command() {
                         fi
                         _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
                         if [ -n "$_dhpk_ci_shell_c_payload" ] && ! dhpk_command_is_trivial "$_dhpk_ci_shell_c_payload"; then
+                            # A prefix or env assignment relocates only this
+                            # command's child. Inspect the -c body with sticky
+                            # set, then restore it so a later sibling git is not.
+                            if [ "$_dhpk_ci_u_git_env_unresolved" -eq 1 ]; then
+                                _dhpk_ci_git_env_sticky_saved="${_dhpk_ci_git_env_sticky:-0}"
+                                _dhpk_ci_git_env_sticky=1
+                            fi
                             if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
                                 _dhpk_ci_inspect_body_cwd "$_dhpk_ci_shell_c_payload" "" "unresolved"
                             else
                                 _dhpk_ci_inspect_body_cwd "$_dhpk_ci_shell_c_payload" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                            fi
+                            if [ "$_dhpk_ci_u_git_env_unresolved" -eq 1 ]; then
+                                _dhpk_ci_git_env_sticky="$_dhpk_ci_git_env_sticky_saved"
                             fi
                         fi
                     elif [ "${#_dhpk_ci_hs_flat[@]}" -gt 0 ]; then
@@ -2526,8 +2591,10 @@ _dhpk_ci_list_run() {
     local i="$2" _dhpk_ci_kind="$3"
     # Each top-level inspection starts clean. Nested lists keep a visible
     # export so a later simple command in the same inspection still sees it.
+    # set -a is the same kind of shell state for later commands here.
     if [ "$_dhpk_ci_kind" = "top" ]; then
         _dhpk_ci_git_env_sticky=0
+        _dhpk_ci_allexport=0
     fi
     if [ "$_dhpk_ci_kind" != "subst" ]; then
         local text="$1" len="${#1}"
