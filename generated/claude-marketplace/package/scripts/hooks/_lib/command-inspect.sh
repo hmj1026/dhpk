@@ -288,6 +288,12 @@ _dhpk_ci_note_assign() {
             esac
             ;;
         BASH_ENV=*|BASH_ENV+=*) _dhpk_ci_u_bash_env=1 ;;
+        BASHOPTS=*|BASHOPTS+=*)
+            val="${w#*=}"
+            case ":${val}:" in
+                *:lastpipe:*) _dhpk_ci_u_bashopts_lastpipe=1 ;;
+            esac
+            ;;
     esac
 }
 
@@ -301,7 +307,7 @@ _dhpk_ci_child_shell_enter() {
     _dhpk_ci_child_bash_env_saved="${_dhpk_ci_bash_env_on:-0}"
     _dhpk_ci_child_shellopts_saved="${_dhpk_ci_shellopts_exported:-0}"
     _dhpk_ci_child_lastpipe_saved="${_dhpk_ci_lastpipe:-0}"
-    if [ "${_dhpk_ci_shell_lastpipe:-0}" -eq 1 ]; then
+    if [ "${_dhpk_ci_shell_lastpipe:-0}" -eq 1 ] || [ "${_dhpk_ci_u_bashopts_lastpipe:-0}" -eq 1 ]; then
         _dhpk_ci_lastpipe=1
     fi
     _dhpk_ci_allexport=0
@@ -339,19 +345,33 @@ _dhpk_ci_note_exported_shell_var() {
 # shopt -s lastpipe makes the last pipeline stage run in the current shell
 # when monitor mode is off. A non-interactive hook shell starts that way.
 _dhpk_ci_apply_shopt() {
-    local k=$((_dhpk_ci_u_idx + 1)) n="${#_dhpk_ci_u_words[@]}" w mode=""
+    local k=$((_dhpk_ci_u_idx + 1)) n="${#_dhpk_ci_u_words[@]}" w mode="" oi
     while [ "$k" -lt "$n" ]; do
         w="${_dhpk_ci_u_words[$k]}"
         case "$w" in
             --) k=$((k + 1)); continue ;;
             -s) mode=s ;;
             -u) mode=u ;;
-            -*) ;;
+            -[a-zA-Z]*)
+                oi=1
+                while [ "$oi" -lt "${#w}" ]; do
+                    case "${w:$oi:1}" in
+                        s) mode=s ;;
+                        u) mode=u ;;
+                    esac
+                    oi=$((oi + 1))
+                done
+                ;;
             lastpipe)
                 if [ "$mode" = "s" ]; then
                     _dhpk_ci_lastpipe=1
                 elif [ "$mode" = "u" ]; then
-                    _dhpk_ci_lastpipe=0
+                    # A conditional shopt may not run, so it must not hide lastpipe.
+                    # A function body may turn it off for commands inside the body;
+                    # the function exit merges fail-closed and restores a turn-off.
+                    if [ "${_dhpk_ci_block:-0}" -eq 0 ] && [ "${_dhpk_ci_prev_sep:-}" != "and" ] && [ "${_dhpk_ci_prev_sep:-}" != "or" ]; then
+                        _dhpk_ci_lastpipe=0
+                    fi
                 fi
                 ;;
         esac
@@ -368,6 +388,7 @@ _dhpk_ci_fn_see_open_brace() {
     if [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ]; then
         _dhpk_ci_fn_allexport_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_allexport:-0}"
         _dhpk_ci_fn_sticky_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_git_env_sticky:-0}"
+        _dhpk_ci_fn_lastpipe_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_lastpipe:-0}"
         _dhpk_ci_fn_brace[${_dhpk_ci_fn_depth}]=1
         _dhpk_ci_fn_depth=$((_dhpk_ci_fn_depth + 1))
         _dhpk_ci_fn_pending=0
@@ -390,6 +411,9 @@ _dhpk_ci_fn_see_close_brace() {
         if [ "${_dhpk_ci_fn_sticky_stk[$top]}" -eq 1 ]; then
             _dhpk_ci_git_env_sticky=1
         fi
+        if [ "${_dhpk_ci_lastpipe:-0}" -eq 0 ]; then
+            _dhpk_ci_lastpipe="${_dhpk_ci_fn_lastpipe_stk[$top]}"
+        fi
     fi
 }
 
@@ -400,6 +424,9 @@ _dhpk_ci_fn_simple_leave() {
     fi
     if [ "${_dhpk_ci_fn_simple_sticky:-0}" -eq 1 ]; then
         _dhpk_ci_git_env_sticky=1
+    fi
+    if [ "${_dhpk_ci_lastpipe:-0}" -eq 0 ]; then
+        _dhpk_ci_lastpipe="${_dhpk_ci_fn_simple_lastpipe:-0}"
     fi
     _dhpk_ci_fn_simple=0
 }
@@ -1602,6 +1629,7 @@ _dhpk_ci_head_index() {
 #   Pushes an open compound group (subshell, brace, if, loop, case) so its
 #   commands can be linked if the group feeds or sits inside a pipeline.
 _dhpk_ci_grp_push() {
+    _dhpk_ci_grp_lastpipe[$_dhpk_ci_grp_depth]="${_dhpk_ci_lastpipe:-0}"
     _dhpk_ci_grp_kind[$_dhpk_ci_grp_depth]="$1"
     _dhpk_ci_grp_cmd0[$_dhpk_ci_grp_depth]="$2"
     _dhpk_ci_grp_pipe[$_dhpk_ci_grp_depth]="$3"
@@ -1721,10 +1749,11 @@ _dhpk_ci_flush_command() {
     local _dhpk_ci_u_git_env_unresolved=0 _dhpk_ci_u_cdpath=0 _dhpk_ci_u_has_dyn_split=0 _dhpk_ci_u_stop_fail=0 _dhpk_ci_u_via_xargs=0 _dhpk_ci_u_xrep="" _dhpk_ci_u_unsupported=""
     local _dhpk_ci_shell_c_payload="" _eval_payload="" _hs_i=0 _git_before=0 _cd_i=0 _cd_opts=1 _cd_w="" _cd_is_dash=0
     local _dhpk_ci_child_sticky_saved=0 _dhpk_ci_child_allexport_saved=0
-    local _dhpk_ci_fn_simple=0 _dhpk_ci_fn_simple_allexport=0 _dhpk_ci_fn_simple_sticky=0
-    local _dhpk_ci_shell_allexport=0 _dhpk_ci_shell_lastpipe=0 _dhpk_ci_u_shellopts_allexport=0 _dhpk_ci_u_bash_env=0
+    local _dhpk_ci_fn_simple=0 _dhpk_ci_fn_simple_allexport=0 _dhpk_ci_fn_simple_sticky=0 _dhpk_ci_fn_simple_lastpipe=0
+    local _dhpk_ci_shell_allexport=0 _dhpk_ci_shell_lastpipe=0 _dhpk_ci_u_shellopts_allexport=0 _dhpk_ci_u_bash_env=0 _dhpk_ci_u_bashopts_lastpipe=0
     local _dhpk_ci_child_bash_env_saved=0 _dhpk_ci_child_shellopts_saved=0 _dhpk_ci_child_lastpipe_saved=0
     local _dhpk_ci_in_stage=0 _dhpk_ci_saw_export_flag=0 _dhpk_ci_allexport_before=0
+    local _dhpk_ci_cmd_lastpipe=0 _dhpk_ci_cmd_sticky=0 _dhpk_ci_cmd_allexport=0 _dhpk_ci_brace_pipe_pop=0
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -1733,6 +1762,11 @@ _dhpk_ci_flush_command() {
         _dhpk_ci_all_hs_flat+=("${_dhpk_ci_hs_flat[@]}")
     fi
     if [ "$n" -gt 0 ]; then
+        # Snapshot before this command's shopt or export. A `{` in this
+        # command is pushed later, after those mutations.
+        _dhpk_ci_cmd_lastpipe="${_dhpk_ci_lastpipe:-0}"
+        _dhpk_ci_cmd_sticky="${_dhpk_ci_git_env_sticky:-0}"
+        _dhpk_ci_cmd_allexport="${_dhpk_ci_allexport:-0}"
         _dhpk_ci_last_group_cmd0=-1
         _dhpk_ci_head_index
         h="$_dhpk_ci_head"
@@ -1818,6 +1852,7 @@ _dhpk_ci_flush_command() {
             if [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ] && [ "$head" != "function" ]; then
                 _dhpk_ci_fn_simple_allexport="${_dhpk_ci_allexport:-0}"
                 _dhpk_ci_fn_simple_sticky="${_dhpk_ci_git_env_sticky:-0}"
+                _dhpk_ci_fn_simple_lastpipe="${_dhpk_ci_lastpipe:-0}"
                 _dhpk_ci_fn_pending=0
                 _dhpk_ci_fn_simple=1
             fi
@@ -2029,7 +2064,13 @@ _dhpk_ci_flush_command() {
         k=0
         while [ "$k" -lt "$h" ]; do
             case "${_dhpk_ci_words[$k]}" in
-                '{') _dhpk_ci_grp_push brace "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
+                '{')
+                    _dhpk_ci_grp_push brace "$cmd_idx" "$_dhpk_ci_pipe_id"
+                    # Keep the value from before shopt/export in this command.
+                    _dhpk_ci_grp_lastpipe[$((_dhpk_ci_grp_depth - 1))]="${_dhpk_ci_cmd_lastpipe:-0}"
+                    _dhpk_ci_grp_sticky[$((_dhpk_ci_grp_depth - 1))]="${_dhpk_ci_cmd_sticky:-0}"
+                    _dhpk_ci_grp_allexport[$((_dhpk_ci_grp_depth - 1))]="${_dhpk_ci_cmd_allexport:-0}"
+                    ;;
                 if) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push if "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
                 while|until) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push loop "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
                 # coproc runs its command in an async subshell.
@@ -2047,7 +2088,13 @@ _dhpk_ci_flush_command() {
             'fi') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop if ;;
             'done') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop loop ;;
             'esac') [ "$_dhpk_ci_block" -gt 0 ] && _dhpk_ci_block=$((_dhpk_ci_block - 1)); _dhpk_ci_grp_pop case ;;
-            '}') _dhpk_ci_grp_pop brace ;;
+            '}')
+                if _dhpk_ci_grp_pop brace && [ "$sep" = "pipe" ]; then
+                    # Applied after the stage frame pops. A left-side group is
+                    # a subshell, so its shopt and exports must not survive.
+                    _dhpk_ci_brace_pipe_pop=1
+                fi
+                ;;
             function)
                 # "function f { cd X; }" keeps the body's cd out of head
                 # position, and a later call may run it.
@@ -2183,6 +2230,11 @@ _dhpk_ci_flush_command() {
             _dhpk_ci_ss_pop
         fi
         _dhpk_ci_stage_open=0
+    fi
+    if [ "${_dhpk_ci_brace_pipe_pop:-0}" -eq 1 ]; then
+        _dhpk_ci_lastpipe="${_dhpk_ci_grp_lastpipe[${_dhpk_ci_grp_depth}]:-0}"
+        _dhpk_ci_git_env_sticky="${_dhpk_ci_grp_sticky[${_dhpk_ci_grp_depth}]:-0}"
+        _dhpk_ci_allexport="${_dhpk_ci_grp_allexport[${_dhpk_ci_grp_depth}]:-0}"
     fi
     _dhpk_ci_reset_words
 }
@@ -2965,8 +3017,9 @@ _dhpk_ci_list_run() {
     # Subshells restore allexport and sticky fully. Function bodies merge
     # fail-closed so an uncalled body cannot clear a relocation.
     local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_grp_cmd0 _dhpk_ci_grp_pipe _dhpk_ci_grp_kind
-    local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk
-    local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_brace
+    local -a _dhpk_ci_grp_lastpipe _dhpk_ci_grp_sticky _dhpk_ci_grp_allexport
+    local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk _dhpk_ci_lastpipe_stk
+    local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_lastpipe_stk _dhpk_ci_fn_brace
     local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_stage_open=0 _dhpk_ci_stage_lastpipe=0
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
@@ -3150,6 +3203,7 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_state_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd_state"
                 _dhpk_ci_allexport_stk[$_dhpk_ci_paren]="${_dhpk_ci_allexport:-0}"
                 _dhpk_ci_sticky_stk[$_dhpk_ci_paren]="${_dhpk_ci_git_env_sticky:-0}"
+                _dhpk_ci_lastpipe_stk[$_dhpk_ci_paren]="${_dhpk_ci_lastpipe:-0}"
                 _dhpk_ci_grp_push paren "${#DHPK_CMD_START[@]}" "$_dhpk_ci_pipe_id"
                 _dhpk_ci_after_pipe=0
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
@@ -3183,6 +3237,7 @@ _dhpk_ci_list_run() {
                     _dhpk_ci_cwd_state="${_dhpk_ci_state_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_allexport="${_dhpk_ci_allexport_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_git_env_sticky="${_dhpk_ci_sticky_stk[$_dhpk_ci_paren]}"
+                    _dhpk_ci_lastpipe="${_dhpk_ci_lastpipe_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_grp_pop paren
                     _dhpk_ci_after_pipe=0
                     matched=1

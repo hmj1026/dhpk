@@ -2207,6 +2207,37 @@ test('pretool-git-gate blocks lastpipe, named coproc, and bash -O lastpipe reloc
   });
 });
 
+test('pretool-git-gate blocks lastpipe when a subshell, skipped shopt, or BASHOPTS tries to clear it', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `shopt -s lastpipe; ( shopt -u lastpipe ); true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; { shopt -u lastpipe; } | true; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; false && shopt -u lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; if false; then shopt -u lastpipe; fi; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; f() { shopt -u lastpipe; }; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -qs lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -sq lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `env BASHOPTS=lastpipe bash -c 'true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x'`,
+    ]) {
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a feature commit after the current shell turns lastpipe off', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `shopt -s lastpipe; shopt -u lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit --allow-empty -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
 test('pretool-git-gate blocks a child commit after BASH_ENV or SHELLOPTS was exported', () => {
   withRepos(({ protectedRepo, featureRepo }) => {
     for (const command of [
