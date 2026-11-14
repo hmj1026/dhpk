@@ -298,11 +298,19 @@ _dhpk_ci_note_assign() {
 _dhpk_ci_child_shell_enter() {
     _dhpk_ci_child_sticky_saved="${_dhpk_ci_git_env_sticky:-0}"
     _dhpk_ci_child_allexport_saved="${_dhpk_ci_allexport:-0}"
+    _dhpk_ci_child_bash_env_saved="${_dhpk_ci_bash_env_on:-0}"
+    _dhpk_ci_child_shellopts_saved="${_dhpk_ci_shellopts_exported:-0}"
     _dhpk_ci_allexport=0
     if [ "${_dhpk_ci_shell_allexport:-0}" -eq 1 ] || [ "${_dhpk_ci_u_shellopts_allexport:-0}" -eq 1 ]; then
         _dhpk_ci_allexport=1
+    elif [ "${_dhpk_ci_shellopts_exported:-0}" -eq 1 ] && [ "$_dhpk_ci_child_allexport_saved" -eq 1 ]; then
+        # An exported SHELLOPTS picks up allexport and is passed to this child.
+        _dhpk_ci_allexport=1
     fi
-    if [ "${_dhpk_ci_u_git_env_unresolved:-0}" -eq 1 ] || [ "${_dhpk_ci_u_bash_env:-0}" -eq 1 ]; then
+    if [ "${_dhpk_ci_u_shellopts_allexport:-0}" -eq 1 ]; then
+        _dhpk_ci_shellopts_exported=1
+    fi
+    if [ "${_dhpk_ci_u_git_env_unresolved:-0}" -eq 1 ] || [ "${_dhpk_ci_u_bash_env:-0}" -eq 1 ] || [ "${_dhpk_ci_bash_env_on:-0}" -eq 1 ]; then
         _dhpk_ci_git_env_sticky=1
     fi
 }
@@ -310,6 +318,40 @@ _dhpk_ci_child_shell_enter() {
 _dhpk_ci_child_shell_leave() {
     _dhpk_ci_git_env_sticky="${_dhpk_ci_child_sticky_saved:-0}"
     _dhpk_ci_allexport="${_dhpk_ci_child_allexport_saved:-0}"
+    _dhpk_ci_bash_env_on="${_dhpk_ci_child_bash_env_saved:-0}"
+    _dhpk_ci_shellopts_exported="${_dhpk_ci_child_shellopts_saved:-0}"
+}
+
+# export / allexport of BASH_ENV or SHELLOPTS. The BASH_ENV file is not read.
+# A child shell inherits that variable; SHELLOPTS carries allexport when it is on.
+_dhpk_ci_note_exported_shell_var() {
+    case "$1" in
+        BASH_ENV|BASH_ENV=*|BASH_ENV+=*) _dhpk_ci_bash_env_on=1 ;;
+        SHELLOPTS|SHELLOPTS=*|SHELLOPTS+=*) _dhpk_ci_shellopts_exported=1 ;;
+    esac
+}
+
+# shopt -s lastpipe makes the last pipeline stage run in the current shell
+# when monitor mode is off. A non-interactive hook shell starts that way.
+_dhpk_ci_apply_shopt() {
+    local k=$((_dhpk_ci_u_idx + 1)) n="${#_dhpk_ci_u_words[@]}" w mode=""
+    while [ "$k" -lt "$n" ]; do
+        w="${_dhpk_ci_u_words[$k]}"
+        case "$w" in
+            --) k=$((k + 1)); continue ;;
+            -s) mode=s ;;
+            -u) mode=u ;;
+            -*) ;;
+            lastpipe)
+                if [ "$mode" = "s" ]; then
+                    _dhpk_ci_lastpipe=1
+                elif [ "$mode" = "u" ]; then
+                    _dhpk_ci_lastpipe=0
+                fi
+                ;;
+        esac
+        k=$((k + 1))
+    done
 }
 
 # `{` of a function body. The body is scanned because a later call may run
@@ -387,11 +429,13 @@ _dhpk_ci_allexport_printf() {
             -v)
                 name="${_dhpk_ci_u_words[$((k + 1))]:-}"
                 _dhpk_ci_word_sets_git_env "$name" && _dhpk_ci_git_env_sticky=1
+                _dhpk_ci_note_exported_shell_var "$name"
                 k=$((k + 2))
                 ;;
             -v*)
                 name="${w#-v}"
                 _dhpk_ci_word_sets_git_env "$name" && _dhpk_ci_git_env_sticky=1
+                _dhpk_ci_note_exported_shell_var "$name"
                 k=$((k + 1))
                 ;;
             -*) k=$((k + 1)) ;;
@@ -410,12 +454,14 @@ _dhpk_ci_allexport_read() {
             -a)
                 w="${_dhpk_ci_u_words[$((k + 1))]:-}"
                 _dhpk_ci_word_sets_git_env "$w" && _dhpk_ci_git_env_sticky=1
+                _dhpk_ci_note_exported_shell_var "$w"
                 k=$((k + 2))
                 ;;
             -d|-i|-n|-N|-p|-t|-u) k=$((k + 2)) ;;
             -*) k=$((k + 1)) ;;
             *)
                 _dhpk_ci_word_sets_git_env "$w" && _dhpk_ci_git_env_sticky=1
+                _dhpk_ci_note_exported_shell_var "$w"
                 k=$((k + 1))
                 ;;
         esac
@@ -1638,7 +1684,8 @@ _dhpk_ci_flush_command() {
     local _dhpk_ci_child_sticky_saved=0 _dhpk_ci_child_allexport_saved=0
     local _dhpk_ci_fn_simple=0 _dhpk_ci_fn_simple_allexport=0 _dhpk_ci_fn_simple_sticky=0
     local _dhpk_ci_shell_allexport=0 _dhpk_ci_u_shellopts_allexport=0 _dhpk_ci_u_bash_env=0
-    local _dhpk_ci_cmd_subshell=0 _dhpk_ci_allexport_before=0
+    local _dhpk_ci_child_bash_env_saved=0 _dhpk_ci_child_shellopts_saved=0
+    local _dhpk_ci_in_stage=0 _dhpk_ci_saw_export_flag=0 _dhpk_ci_allexport_before=0
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -1685,20 +1732,24 @@ _dhpk_ci_flush_command() {
             _dhpk_ci_all_hs_flat+=("${_dhpk_ci_hs_flat[@]}")
         fi
         if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
-            # A pipeline stage, background command, or coproc is a subshell.
+            # One pipeline stage, background command, or coproc body is one
+            # subshell. A compound stage ({ } or ( )) shares that frame
+            # across the simple commands inside it.
             if [ "$sep" = "pipe" ] || [ "$sep" = "bg" ] || [ "${_dhpk_ci_pipe_id:-0}" -gt 0 ]; then
-                _dhpk_ci_ss_push
-                _dhpk_ci_cmd_subshell=1
+                _dhpk_ci_in_stage=1
             else
                 k=0
                 while [ "$k" -lt "$h" ]; do
                     if [ "${_dhpk_ci_words[$k]}" = "coproc" ]; then
-                        _dhpk_ci_ss_push
-                        _dhpk_ci_cmd_subshell=1
+                        _dhpk_ci_in_stage=1
                         break
                     fi
                     k=$((k + 1))
                 done
+            fi
+            if [ "$_dhpk_ci_in_stage" -eq 1 ] && [ "${_dhpk_ci_stage_open:-0}" -eq 0 ]; then
+                _dhpk_ci_ss_push
+                _dhpk_ci_stage_open=1
             fi
             # Open or close a function body before this command's export or
             # `set -a` runs, so the saved caller state is the pre-body value.
@@ -1730,6 +1781,16 @@ _dhpk_ci_flush_command() {
             fi
             case "$_dhpk_ci_u_head" in
                 export|declare|typeset|local|readonly)
+                    _dhpk_ci_saw_export_flag=0
+                    [ "$_dhpk_ci_u_head" = "export" ] && _dhpk_ci_saw_export_flag=1
+                    k=$((_dhpk_ci_u_idx + 1))
+                    while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
+                        case "${_dhpk_ci_u_words[$k]}" in
+                            --) break ;;
+                            -*[xX]*) _dhpk_ci_saw_export_flag=1 ;;
+                        esac
+                        k=$((k + 1))
+                    done
                     k=$((_dhpk_ci_u_idx + 1))
                     while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
                         case "${_dhpk_ci_u_words[$k]}" in
@@ -1738,10 +1799,14 @@ _dhpk_ci_flush_command() {
                         case "$_dhpk_ci_u_head" in
                             export|declare|typeset|local)
                                 _dhpk_ci_word_sets_git_env "${_dhpk_ci_u_words[$k]}" && _dhpk_ci_git_env_sticky=1
+                                if [ "$_dhpk_ci_saw_export_flag" -eq 1 ] || [ "${_dhpk_ci_allexport:-0}" -eq 1 ]; then
+                                    _dhpk_ci_note_exported_shell_var "${_dhpk_ci_u_words[$k]}"
+                                fi
                                 ;;
                             readonly)
                                 if [ "${_dhpk_ci_allexport:-0}" -eq 1 ]; then
                                     _dhpk_ci_word_sets_git_env "${_dhpk_ci_u_words[$k]}" && _dhpk_ci_git_env_sticky=1
+                                    _dhpk_ci_note_exported_shell_var "${_dhpk_ci_u_words[$k]}"
                                 fi
                                 ;;
                         esac
@@ -1756,6 +1821,7 @@ _dhpk_ci_flush_command() {
                 k=0
                 while [ "$k" -lt "$h" ]; do
                     _dhpk_ci_word_sets_git_env "${_dhpk_ci_words[$k]}" && _dhpk_ci_git_env_sticky=1
+                    _dhpk_ci_note_exported_shell_var "${_dhpk_ci_words[$k]}"
                     k=$((k + 1))
                 done
             fi
@@ -1774,6 +1840,7 @@ _dhpk_ci_flush_command() {
                     ;;
                 printf) _dhpk_ci_allexport_printf ;;
                 read) _dhpk_ci_allexport_read ;;
+                shopt) _dhpk_ci_apply_shopt ;;
             esac
         fi
         _dhpk_ci_record_git
@@ -2065,8 +2132,15 @@ _dhpk_ci_flush_command() {
         fi
     fi
     _dhpk_ci_fn_simple_leave
-    if [ "${_dhpk_ci_cmd_subshell:-0}" -eq 1 ]; then
-        _dhpk_ci_ss_pop
+    if [ "${_dhpk_ci_stage_open:-0}" -eq 1 ] && [ "${_dhpk_ci_grp_depth:-0}" -eq 0 ]; then
+        if [ "$_dhpk_ci_in_stage" -eq 1 ] && [ "$sep" != "pipe" ] && [ "$sep" != "bg" ] && [ "${_dhpk_ci_lastpipe:-0}" -eq 1 ]; then
+            # The last stage runs in this shell. Keep its exports.
+            _dhpk_ci_ss_depth=$((${_dhpk_ci_ss_depth:-1} - 1))
+            [ "$_dhpk_ci_ss_depth" -lt 0 ] && _dhpk_ci_ss_depth=0
+        else
+            _dhpk_ci_ss_pop
+        fi
+        _dhpk_ci_stage_open=0
     fi
     _dhpk_ci_reset_words
 }
@@ -2826,6 +2900,9 @@ _dhpk_ci_list_run() {
         _dhpk_ci_git_env_sticky=0
         _dhpk_ci_allexport=0
         _dhpk_ci_ss_depth=0
+        _dhpk_ci_bash_env_on=0
+        _dhpk_ci_shellopts_exported=0
+        _dhpk_ci_lastpipe=0
     fi
     if [ "$_dhpk_ci_kind" != "subst" ]; then
         local text="$1" len="${#1}"
@@ -2848,7 +2925,7 @@ _dhpk_ci_list_run() {
     local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_grp_cmd0 _dhpk_ci_grp_pipe _dhpk_ci_grp_kind
     local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk
     local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_brace
-    local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0
+    local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_stage_open=0
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
     _dhpk_ci_grp_cmd0=()
