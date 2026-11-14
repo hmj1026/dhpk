@@ -1775,4 +1775,506 @@ test('pretool-git-gate (block mode) blocks a protected commit behind valgrind wh
   });
 });
 
+// ---------------------------------------------------------------------------
+// #1424: a separate export/declare/typeset/local of a relocating Git variable
+// must not fall back to the feature checkout. The block reuses the existing
+// unresolved git-target verdict. An inline prefix assignment uses that same
+// verdict, including when it only applies to a child shell. set -a exports a
+// later bare assignment for the commands that follow it. Read-only git and
+// unrelated exports stay allowed.
+// ---------------------------------------------------------------------------
+
+const UNRESOLVED_GIT_TARGET = /target repository is not a literal path/;
+
+function assertUnresolvedGitTarget(res, command) {
+  expectStatus(res, BLOCK, command);
+  assert.match(res.stderr, UNRESOLVED_GIT_TARGET);
+  assert.doesNotMatch(res.stderr, /disable the guard/);
+  assert.doesNotMatch(res.stderr, /\.git/);
+}
+
+test('pretool-git-gate (block mode) blocks a commit after export GIT_DIR points at another repo', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `export GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    assertUnresolvedGitTarget(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
+test('pre-bash-dispatch blocks a commit after export GIT_DIR points at another repo', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `export GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    assertUnresolvedGitTarget(
+      bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
+test('pre-bash-guard allows a relocated commit that has no --no-verify', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `export GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    expectStatus(bashHook('pre-bash-guard.sh', command, { cwd: featureRepo }), ALLOW, command);
+  });
+});
+
+test('pretool-git-gate (block mode) blocks an inline GIT_DIR commit from a feature checkout', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `GIT_DIR="${protectedRepo}/.git" git commit -m x`;
+    assertUnresolvedGitTarget(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
+test('pre-bash-dispatch blocks an inline GIT_DIR commit from a feature checkout', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `GIT_DIR="${protectedRepo}/.git" git commit -m x`;
+    assertUnresolvedGitTarget(
+      bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
+for (const spell of ['declare', 'typeset', 'declare -x', 'typeset -x']) {
+  test(`pretool-git-gate (block mode) blocks a commit after ${spell} GIT_DIR`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      const command = `${spell} GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    });
+  });
+}
+
+test('pretool-git-gate allows a feature commit after exporting PATH and changing directory', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `export PATH=/usr/bin; cd "${featureRepo}" && git commit --allow-empty -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+    expectStatus(
+      bashHook('pre-bash-dispatch.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate allows git status after export GIT_DIR', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `export GIT_DIR="${protectedRepo}/.git"; git status`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate allows a feature commit after export LANG=C', () => {
+  withRepos(({ featureRepo }) => {
+    const command = 'export LANG=C; git commit -m x';
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+    expectStatus(
+      bashHook('pre-bash-dispatch.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+for (const commandOf of [
+  (protectedRepo) => `GIT_DIR="${protectedRepo}/.git" bash -c 'git commit -m x'`,
+  (protectedRepo) => `env GIT_DIR="${protectedRepo}/.git" bash -c 'git commit -m x'`,
+]) {
+  const sample = commandOf('<protected>');
+  test(`pretool-git-gate and dispatch block a child commit under a prefix: ${sample}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      const command = commandOf(protectedRepo);
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        assertUnresolvedGitTarget(
+          bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+          command,
+        );
+      }
+    });
+  });
+}
+
+test('pretool-git-gate allows a feature commit after a prefix that only wraps git status', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `GIT_DIR="${protectedRepo}/.git" bash -c 'git status'; git commit --allow-empty -m x`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      expectStatus(
+        bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a feature commit after a bare GIT_DIR assignment', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      expectStatus(
+        bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+    }
+  });
+});
+
+for (const spell of ['set -a', 'set -o allexport', 'set -Ca']) {
+  test(`pretool-git-gate and dispatch block a commit after ${spell} exports GIT_DIR`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      const command = `${spell}; GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        assertUnresolvedGitTarget(
+          bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+          command,
+        );
+      }
+    });
+  });
+}
+
+for (const off of ['set +a', 'set +o allexport']) {
+  test(`pretool-git-gate still blocks after ${off} because sticky stays set`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      const command = `set -a; GIT_DIR="${protectedRepo}/.git"; ${off}; git commit -m x`;
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    });
+  });
+}
+
+test('pretool-git-gate allows a feature commit after set -a exports an unrelated name', () => {
+  withRepos(({ featureRepo }) => {
+    const command = 'set -a; LANG=C; git commit -m x';
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate and dispatch block a commit after local -x GIT_DIR inside a function', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `f() { local -x GIT_DIR="${protectedRepo}/.git"; git commit -m x; }; f`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      assertUnresolvedGitTarget(
+        bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a feature commit after local of an unrelated name', () => {
+  withRepos(({ featureRepo }) => {
+    const command = 'f() { local LANG=C; git commit -m x; }; f';
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate blocks a commit after set -a when a child shell runs set +a', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; bash -c 'set +a'; GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      assertUnresolvedGitTarget(
+        bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a child commit whose GIT_DIR assignment does not inherit set -a', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; bash -c 'GIT_DIR="${protectedRepo}/.git"; git commit -m x'`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      expectStatus(
+        bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a feature commit after export GIT_DIR inside bash -c', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `bash -c 'export GIT_DIR="${protectedRepo}/.git"'; git commit --allow-empty -m x`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      expectStatus(
+        bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate blocks a commit after set -a when a subshell runs set +a', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; ( set +a ); GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    assertUnresolvedGitTarget(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate allows a feature commit after set -a only inside a subshell', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `( set -a ); GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate blocks a commit after set -a when an uncalled function runs set +a', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; f() { set +a; }; GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    assertUnresolvedGitTarget(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate allows a feature commit after set -a and set +a in the current shell', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; set +a; GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate blocks a commit after GIT_DIR is appended', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `GIT_DIR+="${protectedRepo}/.git" git commit -m x`,
+      `set -a; GIT_DIR+="${protectedRepo}/.git"; git commit -m x`,
+      `GIT_DIR+="${protectedRepo}/.git" bash -c 'git commit -m x'`,
+    ]) {
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+for (const commandOf of [
+  (protectedRepo) => `bash -a -c 'GIT_DIR="${protectedRepo}/.git"; git commit -m x'`,
+  (protectedRepo) => `bash -o allexport -c 'GIT_DIR="${protectedRepo}/.git"; git commit -m x'`,
+  (protectedRepo) => `SHELLOPTS=allexport bash -c 'GIT_DIR="${protectedRepo}/.git"; git commit -m x'`,
+  () => `BASH_ENV=/dev/null bash -c 'git commit -m x'`,
+]) {
+  const sample = commandOf('<protected>');
+  test(`pretool-git-gate blocks a child commit that starts exported: ${sample}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      const command = commandOf(protectedRepo);
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    });
+  });
+}
+
+test('pretool-git-gate blocks a commit after set -a and printf -v or read assign GIT_DIR', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `set -a; printf -v GIT_DIR %s "${protectedRepo}/.git"; git commit -m x`,
+      `set -a; read GIT_DIR <<EOF\n${protectedRepo}/.git\nEOF\ngit commit -m x`,
+      `set -a; readonly GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+    ]) {
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a feature commit after readonly GIT_DIR without set -a', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `readonly GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate blocks a commit when set +a runs only in a subshell or a branch that may not run', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `set -a; $(set +a); GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `set -a; true | set +a; GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `set -a; set +a & GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `set -a; if false; then set +a; fi; GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `set -a; false && set +a; GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+    ]) {
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate blocks a commit in one pipeline or coproc subshell', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `true | { export GIT_DIR="${protectedRepo}/.git"; git commit -m x; }`,
+      `true | ( set -a; GIT_DIR="${protectedRepo}/.git"; git commit -m x )`,
+      `coproc { export GIT_DIR="${protectedRepo}/.git"; git commit -m x; }`,
+    ]) {
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a feature commit after an export in another pipeline stage', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `true | export GIT_DIR="${protectedRepo}/.git"; git commit --allow-empty -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate blocks a commit after lastpipe exports GIT_DIR', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `shopt -s lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    assertUnresolvedGitTarget(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate blocks lastpipe, named coproc, and bash -O lastpipe relocations', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `shopt -s lastpipe; shopt -u lastpipe | true; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; true | { shopt -u lastpipe; export GIT_DIR="${protectedRepo}/.git"; }; git commit -m x`,
+      `coproc NAME { export GIT_DIR="${protectedRepo}/.git"; git commit -m x; }`,
+      `bash -O lastpipe -c 'true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x'`,
+    ]) {
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate blocks lastpipe when a subshell, skipped shopt, or BASHOPTS tries to clear it', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `shopt -s lastpipe; ( shopt -u lastpipe ); true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; { shopt -u lastpipe; } | true; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; false && shopt -u lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; if false; then shopt -u lastpipe; fi; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -s lastpipe; f() { shopt -u lastpipe; }; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -qs lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `shopt -sq lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `env BASHOPTS=lastpipe bash -c 'true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x'`,
+      `shopt -s lastpipe; { shopt -u lastpipe; } & true | export GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `set -a; { set +a; } & GIT_DIR="${protectedRepo}/.git"; git commit -m x`,
+      `{ export GIT_DIR="${protectedRepo}/.git"; git commit -m x; } &`,
+    ]) {
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a feature commit when lastpipe is enabled only inside a background group', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `{ shopt -s lastpipe; } & true | export GIT_DIR="${protectedRepo}/.git"; git commit --allow-empty -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate allows a feature commit after the current shell turns lastpipe off', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `shopt -s lastpipe; shopt -u lastpipe; true | export GIT_DIR="${protectedRepo}/.git"; git commit --allow-empty -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate blocks a child commit after BASH_ENV or SHELLOPTS was exported', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      `export BASH_ENV=/dev/null; bash -c 'git commit -m x'`,
+      `set -a; BASH_ENV=/dev/null; bash -c 'git commit -m x'`,
+      `export SHELLOPTS; set -a; bash -c 'GIT_DIR="${protectedRepo}/.git"; git commit -m x'`,
+    ]) {
+      assertUnresolvedGitTarget(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate blocks a commit inside a function after set -a exports GIT_DIR', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `f() { set -a; GIT_DIR="${protectedRepo}/.git"; git commit -m x; }; f`;
+    assertUnresolvedGitTarget(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
 run('hook-bypass');
