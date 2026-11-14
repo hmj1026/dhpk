@@ -99,9 +99,8 @@ while [ "$_bs_i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
 Protected list: $PROTECTED_RAW
 Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
         if [ "$_bs_i" -eq "$_bs_unsupported" ]; then
-            DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked.
-Protected list: $PROTECTED_RAW
-Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
+            DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked. Rewrite the command without that syntax.
+Protected list: $PROTECTED_RAW"
         fi
     else
         _bs_top="$(git -C "${DHPK_GIT_REPO[$_bs_i]}" rev-parse --show-toplevel 2>/dev/null || true)"
