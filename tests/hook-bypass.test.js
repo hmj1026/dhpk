@@ -1999,4 +1999,94 @@ test('pretool-git-gate allows a feature commit after local of an unrelated name'
   });
 });
 
+test('pretool-git-gate blocks a commit after set -a when a child shell runs set +a', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; bash -c 'set +a'; GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      assertUnresolvedGitTarget(
+        bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a child commit whose GIT_DIR assignment does not inherit set -a', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; bash -c 'GIT_DIR="${protectedRepo}/.git"; git commit -m x'`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      expectStatus(
+        bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate allows a feature commit after export GIT_DIR inside bash -c', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `bash -c 'export GIT_DIR="${protectedRepo}/.git"'; git commit --allow-empty -m x`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      expectStatus(
+        bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+    }
+  });
+});
+
+test('pretool-git-gate blocks a commit after set -a when a subshell runs set +a', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; ( set +a ); GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    assertUnresolvedGitTarget(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate allows a feature commit after set -a only inside a subshell', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `( set -a ); GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate blocks a commit after set -a when an uncalled function runs set +a', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; f() { set +a; }; GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    assertUnresolvedGitTarget(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate allows a feature commit after set -a and set +a in the current shell', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `set -a; set +a; GIT_DIR="${protectedRepo}/.git"; git commit -m x`;
+    expectStatus(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      ALLOW,
+      command,
+    );
+  });
+});
+
+test('pretool-git-gate blocks a commit inside a function after set -a exports GIT_DIR', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `f() { set -a; GIT_DIR="${protectedRepo}/.git"; git commit -m x; }; f`;
+    assertUnresolvedGitTarget(
+      bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+      command,
+    );
+  });
+});
+
 run('hook-bypass');

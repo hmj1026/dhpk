@@ -274,6 +274,68 @@ _dhpk_ci_apply_set_allexport() {
     done
 }
 
+# A separate shell inherits exported Git variables (sticky) but not set -a.
+# A prefix assignment on this command is visible only to that child. The
+# saved values are locals of the caller (_dhpk_ci_flush_command).
+_dhpk_ci_child_shell_enter() {
+    _dhpk_ci_child_sticky_saved="${_dhpk_ci_git_env_sticky:-0}"
+    _dhpk_ci_child_allexport_saved="${_dhpk_ci_allexport:-0}"
+    _dhpk_ci_allexport=0
+    if [ "${_dhpk_ci_u_git_env_unresolved:-0}" -eq 1 ]; then
+        _dhpk_ci_git_env_sticky=1
+    fi
+}
+
+_dhpk_ci_child_shell_leave() {
+    _dhpk_ci_git_env_sticky="${_dhpk_ci_child_sticky_saved:-0}"
+    _dhpk_ci_allexport="${_dhpk_ci_child_allexport_saved:-0}"
+}
+
+# `{` of a function body. The body is scanned because a later call may run
+# it, so allexport and sticky can turn on and stay on. They must not turn
+# off on the way out: an uncalled `set +a` would otherwise hide a relocation
+# that is still exported in the caller.
+_dhpk_ci_fn_see_open_brace() {
+    local top
+    if [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ]; then
+        _dhpk_ci_fn_allexport_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_allexport:-0}"
+        _dhpk_ci_fn_sticky_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_git_env_sticky:-0}"
+        _dhpk_ci_fn_brace[${_dhpk_ci_fn_depth}]=1
+        _dhpk_ci_fn_depth=$((_dhpk_ci_fn_depth + 1))
+        _dhpk_ci_fn_pending=0
+    elif [ "${_dhpk_ci_fn_depth:-0}" -gt 0 ]; then
+        top=$((_dhpk_ci_fn_depth - 1))
+        _dhpk_ci_fn_brace[$top]=$((${_dhpk_ci_fn_brace[$top]} + 1))
+    fi
+}
+
+_dhpk_ci_fn_see_close_brace() {
+    local top
+    [ "${_dhpk_ci_fn_depth:-0}" -gt 0 ] || return 0
+    top=$((_dhpk_ci_fn_depth - 1))
+    _dhpk_ci_fn_brace[$top]=$((${_dhpk_ci_fn_brace[$top]} - 1))
+    if [ "${_dhpk_ci_fn_brace[$top]}" -le 0 ]; then
+        _dhpk_ci_fn_depth=$top
+        if [ "${_dhpk_ci_allexport:-0}" -eq 0 ]; then
+            _dhpk_ci_allexport="${_dhpk_ci_fn_allexport_stk[$top]}"
+        fi
+        if [ "${_dhpk_ci_fn_sticky_stk[$top]}" -eq 1 ]; then
+            _dhpk_ci_git_env_sticky=1
+        fi
+    fi
+}
+
+_dhpk_ci_fn_simple_leave() {
+    [ "${_dhpk_ci_fn_simple:-0}" -eq 1 ] || return 0
+    if [ "${_dhpk_ci_allexport:-0}" -eq 0 ]; then
+        _dhpk_ci_allexport="${_dhpk_ci_fn_simple_allexport:-0}"
+    fi
+    if [ "${_dhpk_ci_fn_simple_sticky:-0}" -eq 1 ]; then
+        _dhpk_ci_git_env_sticky=1
+    fi
+    _dhpk_ci_fn_simple=0
+}
+
 _dhpk_ci_apply_u_chdir() {
     local dir="$1" dyn="${2:-0}"
     if [ "$dyn" = "1" ] || [ -z "$dir" ]; then
@@ -1475,7 +1537,8 @@ _dhpk_ci_flush_command() {
     local _dhpk_ci_u_chdir_set=0 _dhpk_ci_u_query_only=0 _dhpk_ci_u_quoted_wrapper=0
     local _dhpk_ci_u_git_env_unresolved=0 _dhpk_ci_u_cdpath=0 _dhpk_ci_u_has_dyn_split=0 _dhpk_ci_u_stop_fail=0 _dhpk_ci_u_via_xargs=0 _dhpk_ci_u_xrep="" _dhpk_ci_u_unsupported=""
     local _dhpk_ci_shell_c_payload="" _eval_payload="" _hs_i=0 _git_before=0 _cd_i=0 _cd_opts=1 _cd_w="" _cd_is_dash=0
-    local _dhpk_ci_git_env_sticky_saved=0
+    local _dhpk_ci_child_sticky_saved=0 _dhpk_ci_child_allexport_saved=0
+    local _dhpk_ci_fn_simple=0 _dhpk_ci_fn_simple_allexport=0 _dhpk_ci_fn_simple_sticky=0
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -1522,6 +1585,34 @@ _dhpk_ci_flush_command() {
             _dhpk_ci_all_hs_flat+=("${_dhpk_ci_hs_flat[@]}")
         fi
         if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
+            # Open or close a function body before this command's export or
+            # `set -a` runs, so the saved caller state is the pre-body value.
+            if [ "$head" = "function" ]; then
+                _dhpk_ci_func=1
+                _dhpk_ci_fn_pending=1
+            fi
+            k=0
+            while [ "$k" -lt "$n" ]; do
+                case "${_dhpk_ci_words[$k]}" in
+                    '{')
+                        if [ "$k" -lt "$h" ] || [ "$head" = "function" ]; then
+                            _dhpk_ci_fn_see_open_brace
+                        fi
+                        ;;
+                    '}')
+                        if [ "$head" = "}" ] || [ "$k" -lt "$h" ]; then
+                            _dhpk_ci_fn_see_close_brace
+                        fi
+                        ;;
+                esac
+                k=$((k + 1))
+            done
+            if [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ] && [ "$head" != "function" ]; then
+                _dhpk_ci_fn_simple_allexport="${_dhpk_ci_allexport:-0}"
+                _dhpk_ci_fn_simple_sticky="${_dhpk_ci_git_env_sticky:-0}"
+                _dhpk_ci_fn_pending=0
+                _dhpk_ci_fn_simple=1
+            fi
             case "$_dhpk_ci_u_head" in
                 export|declare|typeset|local|readonly)
                     k=$((_dhpk_ci_u_idx + 1))
@@ -1594,6 +1685,10 @@ _dhpk_ci_flush_command() {
                     ;;
                 *)
                     if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
+                        # A new shell inherits exported Git variables but not
+                        # set -a. Restore afterwards so the child cannot clear
+                        # or publish the caller's relocation state.
+                        _dhpk_ci_child_shell_enter
                         if [ "${#_dhpk_ci_hs_words[@]}" -gt 0 ]; then
                             _dhpk_ci_saw_shell_hs=1
                             _hs_i=0
@@ -1606,22 +1701,13 @@ _dhpk_ci_flush_command() {
                         fi
                         _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
                         if [ -n "$_dhpk_ci_shell_c_payload" ] && ! dhpk_command_is_trivial "$_dhpk_ci_shell_c_payload"; then
-                            # A prefix or env assignment relocates only this
-                            # command's child. Inspect the -c body with sticky
-                            # set, then restore it so a later sibling git is not.
-                            if [ "$_dhpk_ci_u_git_env_unresolved" -eq 1 ]; then
-                                _dhpk_ci_git_env_sticky_saved="${_dhpk_ci_git_env_sticky:-0}"
-                                _dhpk_ci_git_env_sticky=1
-                            fi
                             if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
                                 _dhpk_ci_inspect_body_cwd "$_dhpk_ci_shell_c_payload" "" "unresolved"
                             else
                                 _dhpk_ci_inspect_body_cwd "$_dhpk_ci_shell_c_payload" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
                             fi
-                            if [ "$_dhpk_ci_u_git_env_unresolved" -eq 1 ]; then
-                                _dhpk_ci_git_env_sticky="$_dhpk_ci_git_env_sticky_saved"
-                            fi
                         fi
+                        _dhpk_ci_child_shell_leave
                     elif [ "${#_dhpk_ci_hs_flat[@]}" -gt 0 ]; then
                         if [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
                             _dhpk_ci_saw_shell_hs=1
@@ -1844,6 +1930,7 @@ _dhpk_ci_flush_command() {
             fi
         fi
     fi
+    _dhpk_ci_fn_simple_leave
     _dhpk_ci_reset_words
 }
 
@@ -2612,7 +2699,12 @@ _dhpk_ci_list_run() {
     # seen, the separator before this command, a cd held by an && chain.
     local _dhpk_ci_block=0 _dhpk_ci_func=0 _dhpk_ci_prev_sep="" _dhpk_ci_cd_cond=0 _dhpk_ci_paren_empty=0
     # Directory/state saved at each open '(' and open compound group stack.
+    # Subshells restore allexport and sticky fully. Function bodies merge
+    # fail-closed so an uncalled body cannot clear a relocation.
     local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_grp_cmd0 _dhpk_ci_grp_pipe _dhpk_ci_grp_kind
+    local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk
+    local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_brace
+    local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
     _dhpk_ci_grp_cmd0=()
@@ -2786,8 +2878,15 @@ _dhpk_ci_list_run() {
                     continue
                 fi
                 _dhpk_ci_flush_command compound
+                # A `(` after `name()` is the function body. It is a subshell,
+                # so it must not also be scanned as a simple function body.
+                if [ "${_dhpk_ci_fn_pending:-0}" -eq 1 ]; then
+                    _dhpk_ci_fn_pending=0
+                fi
                 _dhpk_ci_cwd_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd"
                 _dhpk_ci_state_stk[$_dhpk_ci_paren]="$_dhpk_ci_cwd_state"
+                _dhpk_ci_allexport_stk[$_dhpk_ci_paren]="${_dhpk_ci_allexport:-0}"
+                _dhpk_ci_sticky_stk[$_dhpk_ci_paren]="${_dhpk_ci_git_env_sticky:-0}"
                 _dhpk_ci_grp_push paren "${#DHPK_CMD_START[@]}" "$_dhpk_ci_pipe_id"
                 _dhpk_ci_after_pipe=0
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
@@ -2809,13 +2908,18 @@ _dhpk_ci_list_run() {
                 # subshell's, so after a case and a cd, or at an unmatched )
                 # after a cd, the directory is unresolved.
                 # "name()" defines a function: its body may never run.
-                [ "$_dhpk_ci_paren_empty" -eq 1 ] && _dhpk_ci_func=1
+                if [ "$_dhpk_ci_paren_empty" -eq 1 ]; then
+                    _dhpk_ci_func=1
+                    _dhpk_ci_fn_pending=1
+                fi
                 _dhpk_ci_paren_empty=0
                 if [ "$_dhpk_ci_paren" -gt 0 ] && [ "$_dhpk_ci_grp_depth" -gt 0 ] \
                     && [ "${_dhpk_ci_grp_kind[$((_dhpk_ci_grp_depth - 1))]}" = "paren" ]; then
                     _dhpk_ci_paren=$((_dhpk_ci_paren - 1))
                     _dhpk_ci_cwd="${_dhpk_ci_cwd_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_cwd_state="${_dhpk_ci_state_stk[$_dhpk_ci_paren]}"
+                    _dhpk_ci_allexport="${_dhpk_ci_allexport_stk[$_dhpk_ci_paren]}"
+                    _dhpk_ci_git_env_sticky="${_dhpk_ci_sticky_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_grp_pop paren
                     _dhpk_ci_after_pipe=0
                     matched=1
