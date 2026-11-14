@@ -527,6 +527,10 @@ class GitAdapter:
         while i < len(args) and args[i].value.startswith('-'):
             arg = args[i].value
             key = arg.split('=', 1)[0]
+            if arg == '--':
+                # 全域選項到此結束，下一個字是子指令。
+                i += 1
+                break
             if arg == '-C':
                 i += 1
                 if i >= len(args):

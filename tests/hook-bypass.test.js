@@ -1716,4 +1716,28 @@ test('sed wrapping a git commit is not exempt by name', () => {
   });
 });
 
+test('pre-bash-guard blocks git -- subcommands behind an unknown wrapper', () => {
+  for (const command of [
+    'valgrind git -- commit --no-verify -m x',
+    'valgrind git -- commit -n -m x',
+  ]) {
+    assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', command), command);
+  }
+});
+
+test('pretool-git-gate (block mode) blocks git -- commit on a protected branch behind an unknown wrapper', () => {
+  withRepos(({ protectedRepo }) => {
+    const command = 'valgrind git -- commit -m x';
+    const res = bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE });
+    assertUnmodelledWrapperBlock(res, command);
+    assert.doesNotMatch(res.stderr, /DHPK_BRANCH_SAFETY=off/);
+  });
+});
+
+test('pre-bash-guard blocks a dynamic git subcommand behind an unknown wrapper', () => {
+  const command = 'valgrind git "$sub" -m x';
+  assert.match(command, /"\$sub"/);
+  assertUnmodelledWrapperBlock(bashHook('pre-bash-guard.sh', command), command);
+});
+
 run('hook-bypass');

@@ -360,19 +360,26 @@ _dhpk_ci_operands_are_data() {
 }
 
 # True when some word at or after index $1 is git, or a path ending in git,
-# and that invocation's words show a mutating subcommand or --no-verify.
+# and that invocation's words show a mutating subcommand, --no-verify, or a
+# commit short option with n. `--` ends global options; the next word is the
+# subcommand. A dynamic subcommand counts as commit.
 _dhpk_ci_tail_has_wrapped_git_risk() {
-    local i="$1" n="${#_dhpk_ci_u_words[@]}" j word sub
+    local i="$1" n="${#_dhpk_ci_u_words[@]}" j word sub k ended
     while [ "$i" -lt "$n" ]; do
         case "${_dhpk_ci_u_words[$i]}" in
             git|*/git)
                 j=$((i + 1))
                 sub=""
+                ended=0
                 while [ "$j" -lt "$n" ]; do
                     word="${_dhpk_ci_u_words[$j]}"
                     case "$word" in
                         --no-verify|--no-verify=*) return 0 ;;
-                        --) j=$((j + 1)); break ;;
+                        --)
+                            j=$((j + 1))
+                            ended=1
+                            break
+                            ;;
                         --help|-h|--paginate|--no-pager|--bare|--no-replace-objects|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks|-p|-P)
                             j=$((j + 1)) ;;
                         -C|--git-dir|--work-tree|--exec-path|--namespace|--super-prefix|--config-env|--list-cmds|-c)
@@ -380,9 +387,37 @@ _dhpk_ci_tail_has_wrapped_git_risk() {
                         -C*|--git-dir=*|--work-tree=*|--exec-path=*|--namespace=*|--super-prefix=*|--config-env=*|--list-cmds=*|-c*)
                             j=$((j + 1)) ;;
                         -*) j=$((j + 1)) ;;
-                        *) sub="$word"; j=$((j + 1)); break ;;
+                        *)
+                            ended=1
+                            break
+                            ;;
                     esac
                 done
+                if [ "$ended" -eq 1 ] && [ "$j" -lt "$n" ]; then
+                    word="${_dhpk_ci_u_words[$j]}"
+                    case "$word" in
+                        --no-verify|--no-verify=*) return 0 ;;
+                    esac
+                    sub="$word"
+                    if [ "${_dhpk_ci_u_dyn[$j]}" = "1" ]; then
+                        sub="commit"
+                    fi
+                    j=$((j + 1))
+                fi
+                if [ "$sub" = "commit" ]; then
+                    k="$j"
+                    while [ "$k" -lt "$n" ]; do
+                        word="${_dhpk_ci_u_words[$k]}"
+                        if _dhpk_ci_commit_short_no_verify "$word"; then
+                            return 0
+                        fi
+                        if _dhpk_ci_option_consumes_next "$word"; then
+                            k=$((k + 2))
+                        else
+                            k=$((k + 1))
+                        fi
+                    done
+                fi
                 case "$sub" in
                     commit|merge|rebase|cherry-pick|reset|push) return 0 ;;
                 esac
