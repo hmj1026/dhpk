@@ -87,12 +87,21 @@
 // jsonl), unreadable (any non-ENOENT read/readdir error), undated (entry or
 // Agent call without a usable timestamp while a window is set).
 //
-// Mismatch rules: a declared model matches when the actual id equals it or
-// contains it as a whole `-`/`:`/`.`/`_`/`@`-separated token (declared `opus`
-// matches `claude-opus-5-5`, not `claude-opusplus-1`). The effort comparison is
-// skipped when the actual effort is null (the log did not record one), so an
-// unrecorded effort is never a mismatch. Built-ins without frontmatter count as
-// "no declared tier".
+// Mismatch & escalation rules (#1412):
+//   * A declared model matches when the actual id equals it or contains it as a
+//     whole `-`/`:`/`.`/`_`/`@`-separated token (declared `opus` matches
+//     `claude-opus-5-5`, not `claude-opusplus-1`). The effort comparison is
+//     skipped when the actual effort is null (the log did not record one), so an
+//     unrecorded effort is never a mismatch.
+//   * For agents with declared frontmatter tiers: deviating fields explained by
+//     an explicit call-time upgrade (call param present, matches actual, and
+//     higher rank than declared) are recorded in `escalations` instead of
+//     `mismatches`, with per-session counts flagging > 2 escalations/session
+//     (rule 7). Unoverridden or non-upgrade deviations remain in `mismatches`.
+//   * Built-in agents without frontmatter count in `noDeclaredTier`. When
+//     called without `model`, `Explore` (haiku), `Plan` (opus), and
+//     `general-purpose` (sonnet for edits, haiku otherwise) are checked against
+//     those rules and deviations are recorded in `mismatches`.
 //
 // Trigger source: the most recent `Skill` tool_use, or a user record written by
 // the harness for a slash command, before the Agent call. A command record
@@ -100,7 +109,10 @@
 // `<command-message>` or `<command-name>` (the harness's own invocation format)
 // and is not marked isMeta; `<command-name>` text embedded later in an ordinary
 // prompt or in tool results is ignored. A meta without a toolUseId, or whose
-// parent call is not found, has trigger `unknown`.
+// parent call is not found, has trigger `unknown`. For `general-purpose`,
+// triggers from built-in Claude Code slash commands (such as `/simplify`) are
+// separated into `generalPurpose.builtinCommand`, while all other triggers stay
+// in `generalPurpose.roleCandidates`.
 //
 // Names taken from logs (agentType, model, effort, skill, command) must match
 // ^[A-Za-z0-9:_./@-]{1,80}$; anything else is reported as `other`.
@@ -161,6 +173,19 @@ const USAGE_FIELDS = Object.freeze([
 ]);
 const MISMATCH_TEXT_FIELDS = Object.freeze([
   'declaredModel', 'declaredEffort', 'actualModel', 'actualEffort', 'callModel', 'callEffort',
+]);
+const MODEL_RANK = Object.freeze({ haiku: 1, sonnet: 2, opus: 3, fable: 4 });
+const EFFORT_RANK = Object.freeze({ low: 1, medium: 2, high: 3, xhigh: 4, max: 5 });
+const ESCALATION_CAP_PER_SESSION = 2;
+const ESCALATION_FIELDS = Object.freeze(['model', 'effort']);
+const BUILTIN_COMMANDS = new Set([
+  'add-dir', 'batch', 'bug', 'clear', 'compact', 'config', 'context', 'cost',
+  'doctor', 'effort', 'exit', 'export', 'fast', 'help', 'hooks', 'ide',
+  'init', 'insights', 'login', 'logout', 'loop', 'mcp', 'memory', 'model',
+  'permissions', 'plugin', 'pr-comments', 'release-notes', 'reload-plugins',
+  'reload-skills', 'rename', 'resume', 'review', 'rewind', 'sandbox',
+  'security-review', 'simplify', 'stats', 'status', 'tasks', 'terminal-setup',
+  'theme', 'todos', 'upgrade', 'usage', 'vim',
 ]);
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
@@ -274,6 +299,129 @@ function modelMatches(declared, actual) {
   const a = String(actual).toLowerCase();
   if (a === d) return true;
   return a.split(/[-:._@/]/).includes(d);
+}
+
+function modelTierRank(model) {
+  if (typeof model !== 'string' || !model) return null;
+  for (const token of model.toLowerCase().split(/[-:._@/]/)) {
+    if (hasOwn(MODEL_RANK, token)) return MODEL_RANK[token];
+  }
+  return null;
+}
+
+function effortRank(effort) {
+  if (typeof effort !== 'string' || !effort) return null;
+  const key = effort.toLowerCase();
+  return hasOwn(EFFORT_RANK, key) ? EFFORT_RANK[key] : null;
+}
+
+function builtinExpectedModel(agentType, bucket) {
+  if (agentType === 'Explore') return 'haiku';
+  if (agentType === 'Plan') return 'opus';
+  if (agentType === 'general-purpose') return bucket === 'edits' ? 'sonnet' : 'haiku';
+  return null;
+}
+
+function isBuiltinCommandTrigger(trigger) {
+  if (typeof trigger !== 'string' || !trigger.startsWith('command:/')) return false;
+  return BUILTIN_COMMANDS.has(trigger.slice('command:/'.length));
+}
+
+function emptyGpGroup() {
+  return { total: 0, buckets: { edits: 0, commandsOnly: 0, readOnly: 0 }, byModel: {}, byTrigger: {} };
+}
+
+function classifyDispatchDeviation({
+  session, agentType, agentId, declared, model, effort, callModel, callEffort, bucket,
+}) {
+  if (!declared) {
+    if (callModel) return { noDeclared: true, mismatch: null, escalation: null };
+    const expectedModel = builtinExpectedModel(agentType, bucket);
+    if (!expectedModel || modelMatches(expectedModel, model)) {
+      return { noDeclared: true, mismatch: null, escalation: null };
+    }
+    return {
+      noDeclared: true,
+      mismatch: {
+        agentType,
+        agentId,
+        fields: ['model'],
+        declaredModel: expectedModel,
+        declaredEffort: null,
+        actualModel: model,
+        actualEffort: effort,
+        callModel: null,
+        callEffort,
+      },
+      escalation: null,
+    };
+  }
+
+  const modelDiff = Boolean(declared.model && !modelMatches(declared.model, model));
+  const effortDiff = Boolean(declared.effort && effort && declared.effort !== effort);
+  if (!modelDiff && !effortDiff) return { noDeclared: false, mismatch: null, escalation: null };
+
+  const callModelRank = modelTierRank(callModel);
+  const declaredModelRank = modelTierRank(declared.model);
+  const modelUpgrade = Boolean(
+    modelDiff && callModel && modelMatches(callModel, model)
+    && callModelRank !== null && declaredModelRank !== null && callModelRank > declaredModelRank,
+  );
+
+  const callEffortRank = effortRank(callEffort);
+  const declaredEffortRank = effortRank(declared.effort);
+  const effortUpgrade = Boolean(
+    effortDiff && callEffort && callEffort === effort
+    && callEffortRank !== null && declaredEffortRank !== null && callEffortRank > declaredEffortRank,
+  );
+
+  const mismatchFields = [];
+  if (modelDiff && !modelUpgrade) mismatchFields.push('model');
+  if (effortDiff && !effortUpgrade) mismatchFields.push('effort');
+
+  const escalationFields = [];
+  if (modelUpgrade) escalationFields.push('model');
+  if (effortUpgrade) escalationFields.push('effort');
+
+  const base = {
+    agentType,
+    agentId,
+    declaredModel: declared.model,
+    declaredEffort: declared.effort,
+    actualModel: model,
+    actualEffort: effort,
+    callModel,
+    callEffort,
+  };
+  return {
+    noDeclared: false,
+    mismatch: mismatchFields.length > 0 ? { ...base, fields: mismatchFields } : null,
+    escalation: escalationFields.length > 0 ? { session, ...base, fields: escalationFields } : null,
+  };
+}
+
+function summarizeEscalations(dispatches, capPerSession, byHost = false) {
+  const counts = new Map();
+  for (const entry of dispatches) {
+    const key = byHost ? JSON.stringify([entry.host, entry.session]) : entry.session;
+    if (!counts.has(key)) {
+      counts.set(key, byHost
+        ? { host: entry.host, session: entry.session, count: 0 }
+        : { session: entry.session, count: 0 });
+    }
+    counts.get(key).count += 1;
+  }
+  const bySession = [...counts.values()]
+    .map((row) => ({ ...row, overCap: row.count > capPerSession }))
+    .sort((a, b) => b.count - a.count
+      || a.session.localeCompare(b.session)
+      || (byHost ? a.host.localeCompare(b.host) : 0));
+  return {
+    capPerSession,
+    dispatches,
+    bySession,
+    overCapSessions: bySession.filter((row) => row.overCap),
+  };
 }
 
 // Reads a file in fixed-size chunks and calls onLine for every non-empty line,
@@ -471,14 +619,14 @@ function buildReport(options = {}) {
   };
   const groups = new Map();
   const mismatches = [];
+  const escalationDispatches = [];
   const oversized = [];
   const callOverrides = { total: 0, withModel: 0, withEffort: 0 };
   const gp = {
-    total: 0,
-    buckets: { edits: 0, commandsOnly: 0, readOnly: 0 },
-    byModel: {},
-    byTrigger: {},
+    ...emptyGpGroup(),
     haikuEdits: 0,
+    builtinCommand: emptyGpGroup(),
+    roleCandidates: emptyGpGroup(),
   };
   let noDeclaredTier = 0;
   const tiers = loadDeclaredTiers(agentsDir);
@@ -633,36 +781,33 @@ function buildReport(options = {}) {
             group.turns.push(turn);
           }
 
+          const gpBucket = agentType === 'general-purpose' ? bucketOf(summary.tools) : null;
           const declared = declaredFor(tiers, agentType);
-          if (!declared) {
-            noDeclaredTier += 1;
-          } else {
-            const fields = [];
-            if (declared.model && !modelMatches(declared.model, model)) fields.push('model');
-            if (declared.effort && effort && declared.effort !== effort) fields.push('effort');
-            if (fields.length > 0) {
-              mismatches.push({
-                agentType,
-                agentId,
-                fields,
-                declaredModel: declared.model,
-                declaredEffort: declared.effort,
-                actualModel: model,
-                actualEffort: effort,
-                callModel,
-                callEffort,
-              });
-            }
-          }
+          const deviation = classifyDispatchDeviation({
+            session: safeName(session),
+            agentType,
+            agentId,
+            declared,
+            model,
+            effort,
+            callModel,
+            callEffort,
+            bucket: gpBucket,
+          });
+          if (deviation.noDeclared) noDeclaredTier += 1;
+          if (deviation.mismatch) mismatches.push(deviation.mismatch);
+          if (deviation.escalation) escalationDispatches.push(deviation.escalation);
 
           if (agentType === 'general-purpose') {
-            const bucket = bucketOf(summary.tools);
-            gp.total += 1;
-            gp.buckets[bucket] += 1;
-            gp.byModel[model] = (gp.byModel[model] || 0) + 1;
             const trigger = call ? call.trigger : 'unknown';
-            gp.byTrigger[trigger] = (gp.byTrigger[trigger] || 0) + 1;
-            if (bucket === 'edits' && /haiku/i.test(model)) gp.haikuEdits += 1;
+            const sub = isBuiltinCommandTrigger(trigger) ? gp.builtinCommand : gp.roleCandidates;
+            for (const target of [gp, sub]) {
+              target.total += 1;
+              target.buckets[gpBucket] += 1;
+              target.byModel[model] = (target.byModel[model] || 0) + 1;
+              target.byTrigger[trigger] = (target.byTrigger[trigger] || 0) + 1;
+            }
+            if (gpBucket === 'edits' && /haiku/i.test(model)) gp.haikuEdits += 1;
           }
         }
       }
@@ -689,6 +834,9 @@ function buildReport(options = {}) {
       || a.model.localeCompare(b.model)
       || String(a.effort).localeCompare(String(b.effort)));
   mismatches.sort((a, b) => a.agentType.localeCompare(b.agentType) || a.agentId.localeCompare(b.agentId));
+  escalationDispatches.sort((a, b) => a.session.localeCompare(b.session)
+    || a.agentType.localeCompare(b.agentType)
+    || a.agentId.localeCompare(b.agentId));
   oversized.sort((a, b) => peakOrder(b) - peakOrder(a)
     || a.agentType.localeCompare(b.agentType)
     || a.agentId.localeCompare(b.agentId));
@@ -707,6 +855,7 @@ function buildReport(options = {}) {
     costTotals: { ...roundCost(costSums), unpricedGroups },
     callOverrides,
     mismatches,
+    escalations: summarizeEscalations(escalationDispatches, ESCALATION_CAP_PER_SESSION, false),
     noDeclaredTier,
     generalPurpose: gp,
     oversized: {
@@ -789,6 +938,12 @@ function isUnknownCost(group) {
   return bare(group.estimatedCost) || bare(group.estimatedCostBreakdown);
 }
 
+function copyMismatchTextFields(entry) {
+  const out = {};
+  for (const f of MISMATCH_TEXT_FIELDS) out[f] = hasOwn(entry, f) ? entry[f] : null;
+  return out;
+}
+
 // Combines per-host `--json` reports (see the header). Throws MergeError for an
 // input that cannot be merged; cost is summed, never recomputed.
 function mergeReports(inputs) {
@@ -806,10 +961,23 @@ function mergeReports(inputs) {
     if (hosts.has(input.host)) throw new MergeError(`${label}: host "${input.host}" appears more than once`);
     hosts.add(input.host);
     for (const key of ['window', 'pricing', 'costTotals', 'callOverrides', 'skipped', 'generalPurpose']) requireSection(input, key, label);
+    for (const subKey of ['builtinCommand', 'roleCandidates']) {
+      const sub = requireSection(input.generalPurpose, subKey, `${label}: generalPurpose`);
+      if (!isFiniteNumber(sub.total)) throw new MergeError(`${label}: generalPurpose.${subKey} must carry numeric total`);
+      for (const nested of ['buckets', 'byModel', 'byTrigger']) {
+        requireSection(sub, nested, `${label}: generalPurpose.${subKey}`);
+      }
+    }
     for (const field of ['since', 'until', 'timezone']) {
       if (!hasOwn(input.window, field) || (input.window[field] !== null && typeof input.window[field] !== 'string')) {
         throw new MergeError(`${label}: window must carry since, until and timezone as string or null`);
       }
+    }
+    requireSection(input, 'escalations', label);
+    const esc = input.escalations;
+    if (!Number.isInteger(esc.capPerSession) || esc.capPerSession < 1
+      || !Array.isArray(esc.dispatches) || !Array.isArray(esc.bySession) || !Array.isArray(esc.overCapSessions)) {
+      throw new MergeError(`${label}: escalations must carry integer capPerSession and dispatches, bySession, overCapSessions arrays`);
     }
     requireSection(input, 'oversized', label);
     const { thresholds } = input.oversized;
@@ -837,6 +1005,10 @@ function mergeReports(inputs) {
     throw new MergeError('pricing differs across inputs');
   }
 
+  if (inputs.some((input) => input.escalations.capPerSession !== first.escalations.capPerSession)) {
+    throw new MergeError('escalations capPerSession differs across inputs');
+  }
+
   for (const field of ['turns', 'promptTokens']) {
     if (inputs.some((input) => input.oversized.thresholds[field] !== first.oversized.thresholds[field])) {
       throw new MergeError('oversized thresholds differ across inputs');
@@ -854,9 +1026,13 @@ function mergeReports(inputs) {
     missingRoot: 0, corruptJson: 0, missingTranscript: 0, noAssistantTurn: 0, missingParent: 0, unreadable: 0, undated: 0, total: 0,
   };
   const generalPurpose = {
-    total: 0, buckets: { edits: 0, commandsOnly: 0, readOnly: 0 }, byModel: {}, byTrigger: {}, haikuEdits: 0,
+    ...emptyGpGroup(),
+    haikuEdits: 0,
+    builtinCommand: emptyGpGroup(),
+    roleCandidates: emptyGpGroup(),
   };
   const mismatches = [];
+  const escalationDispatches = [];
   const oversized = [];
   let noDeclaredTier = 0;
   const sources = [];
@@ -914,9 +1090,65 @@ function mergeReports(inputs) {
         || MISMATCH_TEXT_FIELDS.some((f) => hasOwn(mismatch, f) && mismatch[f] !== null && typeof mismatch[f] !== 'string')) {
         throw new MergeError(`${label}: malformed mismatch entry`);
       }
-      const known = { agentType: mismatch.agentType, agentId: mismatch.agentId, fields: [...mismatch.fields] };
-      for (const f of MISMATCH_TEXT_FIELDS) known[f] = hasOwn(mismatch, f) ? mismatch[f] : null;
-      mismatches.push({ ...known, host: input.host });
+      mismatches.push({
+        agentType: mismatch.agentType,
+        agentId: mismatch.agentId,
+        fields: [...mismatch.fields],
+        ...copyMismatchTextFields(mismatch),
+        host: input.host,
+      });
+    }
+
+    const sessionCounts = new Map();
+    for (const entry of input.escalations.dispatches) {
+      if (!isRecord(entry) || typeof entry.session !== 'string'
+        || typeof entry.agentType !== 'string' || typeof entry.agentId !== 'string'
+        || !Array.isArray(entry.fields) || entry.fields.length === 0
+        || entry.fields.some((f) => !ESCALATION_FIELDS.includes(f))
+        || MISMATCH_TEXT_FIELDS.some((f) => hasOwn(entry, f) && entry[f] !== null && typeof entry[f] !== 'string')) {
+        throw new MergeError(`${label}: malformed escalation entry`);
+      }
+      sessionCounts.set(entry.session, (sessionCounts.get(entry.session) || 0) + 1);
+      escalationDispatches.push({
+        session: entry.session,
+        agentType: entry.agentType,
+        agentId: entry.agentId,
+        fields: [...entry.fields],
+        ...copyMismatchTextFields(entry),
+        host: input.host,
+      });
+    }
+    const seenSessions = new Set();
+    const expectedOverCap = new Map();
+    for (const row of input.escalations.bySession) {
+      if (!isRecord(row) || typeof row.session !== 'string'
+        || seenSessions.has(row.session)
+        || !Number.isInteger(row.count) || row.count < 1
+        || row.count !== sessionCounts.get(row.session)
+        || typeof row.overCap !== 'boolean'
+        || row.overCap !== (row.count > input.escalations.capPerSession)) {
+        throw new MergeError(`${label}: malformed escalation bySession entry`);
+      }
+      seenSessions.add(row.session);
+      if (row.overCap) expectedOverCap.set(row.session, row.count);
+    }
+    if (seenSessions.size !== sessionCounts.size) {
+      throw new MergeError(`${label}: escalation bySession does not match dispatches`);
+    }
+    const seenOverCap = new Set();
+    for (const row of input.escalations.overCapSessions) {
+      if (!isRecord(row) || typeof row.session !== 'string'
+        || seenOverCap.has(row.session)
+        || !Number.isInteger(row.count) || row.count < 1
+        || row.overCap !== true
+        || row.count <= input.escalations.capPerSession
+        || row.count !== expectedOverCap.get(row.session)) {
+        throw new MergeError(`${label}: malformed escalation overCapSessions entry`);
+      }
+      seenOverCap.add(row.session);
+    }
+    if (seenOverCap.size !== expectedOverCap.size) {
+      throw new MergeError(`${label}: escalation overCapSessions does not match bySession`);
     }
 
     for (const entry of input.oversized.dispatches) {
@@ -963,6 +1195,10 @@ function mergeReports(inputs) {
   mismatches.sort((a, b) => String(a.agentType).localeCompare(String(b.agentType))
     || String(a.agentId).localeCompare(String(b.agentId))
     || a.host.localeCompare(b.host));
+  escalationDispatches.sort((a, b) => a.session.localeCompare(b.session)
+    || a.agentType.localeCompare(b.agentType)
+    || a.agentId.localeCompare(b.agentId)
+    || a.host.localeCompare(b.host));
   oversized.sort((a, b) => peakOrder(b) - peakOrder(a)
     || a.agentType.localeCompare(b.agentType)
     || a.agentId.localeCompare(b.agentId)
@@ -979,6 +1215,7 @@ function mergeReports(inputs) {
     costTotals: { ...roundCost(costTotals), unpricedGroups: unpriced },
     callOverrides,
     mismatches,
+    escalations: summarizeEscalations(escalationDispatches, first.escalations.capPerSession, true),
     noDeclaredTier,
     generalPurpose,
     oversized: { thresholds: { ...first.oversized.thresholds }, metric: first.oversized.metric, dispatches: oversized },
@@ -1011,6 +1248,22 @@ function formatCost(cost) {
   return `${usd(cost.total)} (input ${usd(cost.input)}, output ${usd(cost.output)}, cache read ${usd(cost.cacheRead)}, cache write 5m ${usd(cost.cacheWrite5m)}, 1h ${usd(cost.cacheWrite1h)})`;
 }
 
+function formatCountMap(map) {
+  return Object.entries(map).map(([k, v]) => `${k} x${v}`).join(', ') || '-';
+}
+
+function formatDeviationLine(entry, prefix = '') {
+  const host = entry.host ? `${entry.host} ` : '';
+  const call = entry.callModel || entry.callEffort ? ` call=${entry.callModel || '-'}@${entry.callEffort || '-'}` : '';
+  return `  ${host}${prefix}${entry.agentType} ${entry.agentId}: declared ${entry.declaredModel || '-'}@${entry.declaredEffort || '-'} actual ${entry.actualModel}@${entry.actualEffort || 'default'} [${entry.fields.join(',')}]${call}`;
+}
+
+function formatGpSubGroup(lines, label, sub) {
+  lines.push(`  ${label}: ${sub.total} dispatches; edits ${sub.buckets.edits}, commands-only ${sub.buckets.commandsOnly}, read-only ${sub.buckets.readOnly}`);
+  lines.push(`    models: ${formatCountMap(sub.byModel)}`);
+  lines.push(`    triggers: ${formatCountMap(sub.byTrigger)}`);
+}
+
 function formatText(report) {
   const lines = [];
   const w = report.window;
@@ -1032,15 +1285,22 @@ function formatText(report) {
   const o = report.callOverrides;
   lines.push(`Agent calls: ${o.total} total, ${o.withModel} with model, ${o.withEffort} with effort`);
   lines.push('');
-  lines.push(`mismatches vs agent frontmatter: ${report.mismatches.length} (${report.noDeclaredTier} dispatches have no declared tier)`);
-  for (const m of report.mismatches) {
-    lines.push(`  ${m.host ? `${m.host} ` : ''}${m.agentType} ${m.agentId}: declared ${m.declaredModel || '-'}@${m.declaredEffort || '-'} actual ${m.actualModel}@${m.actualEffort || 'default'} [${m.fields.join(',')}]${m.callModel || m.callEffort ? ` call=${m.callModel || '-'}@${m.callEffort || '-'}` : ''}`);
+  lines.push(`mismatches vs role defaults & built-in rules: ${report.mismatches.length} (${report.noDeclaredTier} dispatches have no declared tier)`);
+  for (const m of report.mismatches) lines.push(formatDeviationLine(m));
+  lines.push('');
+  const esc = report.escalations;
+  lines.push(`escalations (explicit call upgrades; cap ${esc.capPerSession}/session): ${esc.dispatches.length} dispatch${esc.dispatches.length === 1 ? '' : 'es'}, ${esc.bySession.length} session${esc.bySession.length === 1 ? '' : 's'}, ${esc.overCapSessions.length} over cap (>${esc.capPerSession})`);
+  for (const s of esc.bySession) {
+    lines.push(`  session ${s.host ? `${s.host} ` : ''}${s.session}: ${s.count} escalation${s.count === 1 ? '' : 's'}${s.overCap ? ` [OVER CAP >${esc.capPerSession}]` : ''}`);
   }
+  for (const e of esc.dispatches) lines.push(formatDeviationLine(e, `${e.session} `));
   lines.push('');
   const g = report.generalPurpose;
   lines.push(`general-purpose: ${g.total} dispatches; edits ${g.buckets.edits}, commands-only ${g.buckets.commandsOnly}, read-only ${g.buckets.readOnly}; haiku edits ${g.haikuEdits}`);
-  lines.push(`  models: ${Object.entries(g.byModel).map(([k, v]) => `${k} x${v}`).join(', ') || '-'}`);
-  lines.push(`  triggers: ${Object.entries(g.byTrigger).map(([k, v]) => `${k} x${v}`).join(', ') || '-'}`);
+  lines.push(`  models: ${formatCountMap(g.byModel)}`);
+  lines.push(`  triggers: ${formatCountMap(g.byTrigger)}`);
+  formatGpSubGroup(lines, 'built-in command triggers', g.builtinCommand);
+  formatGpSubGroup(lines, 'role-candidate triggers', g.roleCandidates);
   lines.push('');
   const ov = report.oversized;
   lines.push(`oversized dispatches (>${ov.thresholds.turns} turns or >${Math.round(ov.thresholds.promptTokens / 1000)}k prompt tokens; prompt proxy): ${ov.dispatches.length}`);
