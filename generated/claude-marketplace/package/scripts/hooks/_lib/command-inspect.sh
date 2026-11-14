@@ -126,6 +126,7 @@ _dhpk_ci_flush_word() {
             _dhpk_ci_redir=0
         elif [ "$_dhpk_ci_redir" -eq 2 ]; then
             # A here-string word is stdin data, not argv, but shell/eval targets execute it.
+            _dhpk_ci_all_hs_flat+=("$_dhpk_ci_word_flat")
             _dhpk_ci_hs_words+=("$_dhpk_ci_word")
             _dhpk_ci_hs_dyn+=("$_dhpk_ci_word_dyn")
             _dhpk_ci_hs_flat+=("$_dhpk_ci_word_flat")
@@ -371,6 +372,7 @@ _dhpk_ci_unwrap_head() {
     _dhpk_ci_u_cdpath=0
     _dhpk_ci_u_has_dyn_split=0
     _dhpk_ci_u_stop_fail=0
+    _dhpk_ci_u_via_xargs=0
     _dhpk_ci_u_unsupported=""
 
     k=0
@@ -713,6 +715,7 @@ _dhpk_ci_unwrap_head() {
                 continue
                 ;;
             xargs)
+                _dhpk_ci_u_via_xargs=1
                 k=$((k + 1))
                 while [ "$k" -lt "$n" ]; do
                     tok="${_dhpk_ci_u_words[$k]}"
@@ -934,6 +937,13 @@ _dhpk_ci_unwrap_head() {
                                 *) break ;;
                             esac
                         done
+                        if [ "$si" -gt "$sn" ]; then
+                            # An option at the end of the split string takes the
+                            # next outer word, as env does; its value is unknown.
+                            k=$((k + si - sn))
+                            _dhpk_ci_apply_u_chdir "" 1
+                            si="$sn"
+                        fi
                         while [ "$si" -lt "$sn" ]; do
                             tok="${_dhpk_ci_es_words[$si]}"
                             case "$tok" in
@@ -992,22 +1002,35 @@ _dhpk_ci_unwrap_head() {
         _dhpk_ci_u_head="${_dhpk_ci_u_words[$k]}"
     fi
 
-    if [ "$_dhpk_ci_u_quoted_wrapper" -eq 1 ]; then
-        case "$_dhpk_ci_u_head" in
-            git|*/git) _dhpk_ci_u_unsupported="quoted wrapper before git" ;;
-            *)
-                if [ "$_dhpk_ci_u_stop_fail" -eq 1 ]; then
-                    local _scan_k="$k"
-                    while [ "$_scan_k" -lt "$n" ]; do
-                        case "${_dhpk_ci_u_words[$_scan_k]}" in
-                            git|*/git) _dhpk_ci_u_unsupported="quoted wrapper before git"; break ;;
+    local _scan_reason="" _scan_k="$k"
+    case "$_dhpk_ci_u_head" in
+        git|*/git)
+            [ "$_dhpk_ci_u_quoted_wrapper" -eq 1 ] && _dhpk_ci_u_unsupported="quoted wrapper before git"
+            ;;
+        *)
+            if [ "$_dhpk_ci_u_stop_fail" -eq 1 ]; then
+                _scan_reason="wrapper with unmodelled options before git"
+            elif [ "$k" -lt "$n" ] && [ "${_dhpk_ci_u_dyn[$k]}" = "1" ]; then
+                _scan_reason="dynamic command word before git"
+            else
+                case "${_dhpk_ci_u_head##*/}" in
+                    setsid|ionice|chrt|flock|taskset|strace|ltrace|script|unshare|nsenter|chroot|runuser|parallel)
+                        _scan_reason="unmodelled wrapper before git" ;;
+                    find)
+                        case " ${_dhpk_ci_u_words[*]} " in
+                            *" -exec "*|*" -execdir "*|*" -ok "*|*" -okdir "*) _scan_reason="find -exec with git" ;;
                         esac
-                        _scan_k=$((_scan_k + 1))
-                    done
-                fi
-                ;;
-        esac
-    fi
+                        ;;
+                esac
+            fi
+            while [ -n "$_scan_reason" ] && [ "$_scan_k" -lt "$n" ]; do
+                case "${_dhpk_ci_u_words[$_scan_k]}" in
+                    git|*/git|git\ *|*/git\ *) _dhpk_ci_u_unsupported="$_scan_reason"; break ;;
+                esac
+                _scan_k=$((_scan_k + 1))
+            done
+            ;;
+    esac
 
     if [ "$_dhpk_ci_u_has_dyn_split" -eq 1 ] && [ -z "$_dhpk_ci_u_unsupported" ]; then
         case "$_dhpk_ci_u_head" in
@@ -1089,6 +1112,12 @@ _dhpk_ci_record_git() {
     if [ "$i" -lt "$n" ]; then
         sub="${_dhpk_ci_u_words[$i]}"
     fi
+    if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
+        # xargs may supply the subcommand or flags from stdin.
+        case "$sub" in
+            ''|'{'*|*'{}'*) sub="commit"; state="unresolved" ;;
+        esac
+    fi
     [ -n "$sub" ] || return 0
     local j="$((_dhpk_ci_u_idx + 1))"
     while [ "$j" -lt "$n" ]; do
@@ -1106,6 +1135,9 @@ _dhpk_ci_record_git() {
             j=$((j + 1))
         fi
     done
+    if [ "$_dhpk_ci_u_via_xargs" -eq 1 ]; then
+        case "$sub" in commit|push|merge|rebase|cherry-pick|am) no_verify=1 ;; esac
+    fi
     if [ "$_dhpk_ci_pipeline_cd" -eq 1 ] || [ "$_dhpk_ci_u_cwd_state" != "literal" ] || [ "$_dhpk_ci_u_git_env_unresolved" -eq 1 ]; then
         state="unresolved"
     fi
@@ -1145,6 +1177,7 @@ _dhpk_ci_head_index() {
                 '!'|'{'|if|then|else|elif|do|while|until|coproc) h=$((h + 1)); continue ;;
                 time)
                     [ "${_dhpk_ci_words[$((h + 1))]:-}" = "-p" ] && h=$((h + 1))
+                    [ "${_dhpk_ci_words[$((h + 1))]:-}" = "--" ] && h=$((h + 1))
                     h=$((h + 1))
                     continue
                     ;;
@@ -1252,7 +1285,7 @@ _dhpk_ci_flush_command() {
     local -a _dhpk_ci_u_words _dhpk_ci_u_dyn _dhpk_ci_u_quoted _dhpk_ci_u_flat
     local _dhpk_ci_u_idx=0 _dhpk_ci_u_head="" _dhpk_ci_u_cwd="$_dhpk_ci_cwd" _dhpk_ci_u_cwd_state="$_dhpk_ci_cwd_state"
     local _dhpk_ci_u_chdir_set=0 _dhpk_ci_u_query_only=0 _dhpk_ci_u_quoted_wrapper=0
-    local _dhpk_ci_u_git_env_unresolved=0 _dhpk_ci_u_cdpath=0 _dhpk_ci_u_has_dyn_split=0 _dhpk_ci_u_stop_fail=0 _dhpk_ci_u_unsupported=""
+    local _dhpk_ci_u_git_env_unresolved=0 _dhpk_ci_u_cdpath=0 _dhpk_ci_u_has_dyn_split=0 _dhpk_ci_u_stop_fail=0 _dhpk_ci_u_via_xargs=0 _dhpk_ci_u_unsupported=""
     local _dhpk_ci_shell_c_payload="" _eval_payload="" _hs_i=0 _git_before=0 _cd_i=0 _cd_opts=1 _cd_w="" _cd_is_dash=0
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
@@ -1275,6 +1308,10 @@ _dhpk_ci_flush_command() {
         _dhpk_ci_unwrap_head
         [ -n "$_dhpk_ci_u_unsupported" ] && _dhpk_ci_unsupported "$_dhpk_ci_u_unsupported"
         [ "$_dhpk_ci_u_cdpath" -eq 1 ] && _dhpk_ci_saw_cdpath=1
+        [[ "${_dhpk_ci_words_flat[*]}${_dhpk_ci_seg}" == *CDPATH* ]] && _dhpk_ci_saw_cdpath=1
+        if [ "$_dhpk_ci_u_head" = "eval" ] || _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
+            _dhpk_ci_saw_shell_head=1
+        fi
         if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
             case "$_dhpk_ci_u_head" in
                 export|declare|typeset|local|readonly)
@@ -2711,6 +2748,15 @@ _dhpk_ci_list_run() {
         i=$((i + 1))
     done
     _dhpk_ci_flush_command compound
+    if [ "$_dhpk_ci_kind" = "top" ] && [ "$_dhpk_ci_saw_shell_head" -eq 1 ] && [ "${#_dhpk_ci_all_hs_flat[@]}" -gt 0 ]; then
+        # A here-string may reach a shell through a group or exec redirect.
+        local _hs_all=("${_dhpk_ci_all_hs_flat[@]}") _hs_j=0
+        _dhpk_ci_saw_shell_hs=1
+        while [ "$_hs_j" -lt "${#_hs_all[@]}" ]; do
+            [ -n "${_hs_all[$_hs_j]}" ] && _dhpk_ci_inspect_body_cwd "${_hs_all[$_hs_j]}" "" "unresolved"
+            _hs_j=$((_hs_j + 1))
+        done
+    fi
     if [ "$_dhpk_ci_kind" = "top" ] && [ "${DHPK_GIT_COUNT:-0}" -gt 0 ]; then
         if [ "$_dhpk_ci_saw_eval" -eq 1 ]; then
             _dhpk_ci_unsupported "git with eval"
@@ -3057,10 +3103,12 @@ dhpk_inspect_command() {
     _dhpk_ci_saw_cd_dash=0
     _dhpk_ci_saw_cdpath=0
     _dhpk_ci_saw_shell_hs=0
+    _dhpk_ci_all_hs_flat=()
+    _dhpk_ci_saw_shell_head=0
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head
     return 0
 }
 
