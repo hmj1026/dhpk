@@ -43,7 +43,8 @@ RESOLVABLE_SUBSTITUTIONS = frozenset(('pwd', 'git rev-parse --show-toplevel'))
 INPUT_FEEDERS = frozenset(('xargs', 'parallel', 'read', 'readarray', 'mapfile'))
 RESERVED_WORDS = frozenset(('!', '{', 'if', 'then', 'elif', 'else', 'while', 'until', 'do', 'time', 'coproc'))
 SEGMENT_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
-PARAMETER = re.compile(r'\$[A-Za-z0-9_{@*#?!$-]')
+# 整個字詞只是一個單純的變數：它的值可能成為指令字、eval 或 trap 的內容。
+PARAMETER = re.compile(r'^\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})$')
 ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*\+?=')
 
 CONTINUATION = 'continuation'
@@ -568,8 +569,8 @@ def _dynamic_command(tokens):
 
 
 def _expands_parameter(tokens):
-    """True when a non-assignment word expands a parameter outside single quotes."""
-    return any(not token.operator and token.dynamic and PARAMETER.search(token.value) and not ASSIGNMENT.match(token.value)
+    """True when a non-assignment word is a bare parameter expansion outside single quotes."""
+    return any(not token.operator and token.dynamic and PARAMETER.match(token.value) and not ASSIGNMENT.match(token.value)
                for token in tokens)
 
 
