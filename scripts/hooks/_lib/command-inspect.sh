@@ -109,9 +109,14 @@ _dhpk_ci_reset_words() {
     _dhpk_ci_words=()
     _dhpk_ci_dyn=()
     _dhpk_ci_quoted=()
+    _dhpk_ci_words_flat=()
     _dhpk_ci_word=""
+    _dhpk_ci_word_flat=""
     _dhpk_ci_word_dyn=0
     _dhpk_ci_word_q=0
+    _dhpk_ci_hs_words=()
+    _dhpk_ci_hs_dyn=()
+    _dhpk_ci_hs_flat=()
 }
 
 _dhpk_ci_flush_word() {
@@ -120,7 +125,10 @@ _dhpk_ci_flush_word() {
             DHPK_REDIRECT_TARGETS+=("$_dhpk_ci_word")
             _dhpk_ci_redir=0
         elif [ "$_dhpk_ci_redir" -eq 2 ]; then
-            # A here-string word is stdin data, not argv.
+            # A here-string word is stdin data, not argv, but shell/eval targets execute it.
+            _dhpk_ci_hs_words+=("$_dhpk_ci_word")
+            _dhpk_ci_hs_dyn+=("$_dhpk_ci_word_dyn")
+            _dhpk_ci_hs_flat+=("$_dhpk_ci_word_flat")
             _dhpk_ci_redir=0
         else
             # A case pattern's ')' would end $(...) early and desync quotes.
@@ -133,9 +141,11 @@ _dhpk_ci_flush_word() {
             _dhpk_ci_words+=("$_dhpk_ci_word")
             _dhpk_ci_dyn+=("$_dhpk_ci_word_dyn")
             _dhpk_ci_quoted+=("$_dhpk_ci_word_q")
+            _dhpk_ci_words_flat+=("$_dhpk_ci_word_flat")
         fi
     fi
     _dhpk_ci_word=""
+    _dhpk_ci_word_flat=""
     _dhpk_ci_word_dyn=0
     _dhpk_ci_word_open=0
     _dhpk_ci_word_q=0
@@ -182,26 +192,854 @@ _dhpk_ci_commit_short_no_verify() {
     return 1
 }
 
-_dhpk_ci_record_git() {
-    local i=0 n="${#_dhpk_ci_words[@]}" sub="" state="cwd" repo="$_dhpk_ci_cwd" c_path="" c_base="" no_verify=0 exempt=0
-    local word dyn
-    _dhpk_ci_head_index
-    i="$_dhpk_ci_head"
-    [ "$i" -lt "$n" ] || return 0
-    word="${_dhpk_ci_words[$i]}"
-    if [ "$word" = "command" ]; then
-        i=$((i + 1))
-        [ "$i" -lt "$n" ] || return 0
-        word="${_dhpk_ci_words[$i]}"
+_dhpk_ci_is_wrapper_word() {
+    case "$1" in
+        command|builtin|exec|time|*/time) return 0 ;;
+        env|*/env|nice|*/nice|sudo|*/sudo|timeout|*/timeout|xargs|*/xargs|nohup|*/nohup|stdbuf|*/stdbuf|doas|*/doas) return 0 ;;
+    esac
+    return 1
+}
+
+_dhpk_ci_is_shell_word() {
+    case "${1##*/}" in
+        sh|bash|zsh|ksh|dash|ash|mksh|csh|tcsh|fish|busybox) return 0 ;;
+    esac
+    return 1
+}
+
+_dhpk_ci_is_git_env_var() {
+    case "$1" in
+        GIT_DIR=*|GIT_WORK_TREE=*|GIT_COMMON_DIR=*|GIT_INDEX_FILE=*|GIT_OBJECT_DIRECTORY=*|GIT_ALTERNATE_OBJECT_DIRECTORIES=*|GIT_CONFIG=*|GIT_CONFIG_PARAMETERS=*|GIT_CONFIG_COUNT=*|GIT_EXEC_PATH=*|GIT_NAMESPACE=*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+_dhpk_ci_apply_u_chdir() {
+    local dir="$1" dyn="${2:-0}"
+    if [ "$dyn" = "1" ] || [ -z "$dir" ]; then
+        _dhpk_ci_u_cwd_state="unresolved"
+        _dhpk_ci_u_cwd=""
+    elif [ "$_dhpk_ci_u_cwd_state" = "literal" ] || [[ "$dir" == /* ]]; then
+        dhpk_norm_path_var "${_dhpk_ci_u_cwd:-/}" "$dir"
+        _dhpk_ci_u_cwd="$DHPK_NORM_PATH"
+        _dhpk_ci_u_cwd_state="literal"
+        _dhpk_ci_u_chdir_set=1
+    else
+        _dhpk_ci_u_cwd_state="unresolved"
+        _dhpk_ci_u_cwd=""
     fi
+}
+
+_dhpk_ci_env_split_tokenize() {
+    local s="$1" outer_dyn="${2:-0}" i=0 len="${#1}" ch nx
+    local in_sq=0 in_dq=0 tok="" has_tok=0 tok_q=0
+    _dhpk_ci_es_words=()
+    _dhpk_ci_es_quoted=()
+    _dhpk_ci_es_dyn="$outer_dyn"
+    while [ "$i" -lt "$len" ]; do
+        ch="${s:$i:1}"
+        if [ "$in_sq" -eq 1 ]; then
+            if [ "$ch" = "'" ]; then
+                in_sq=0
+            elif [ "$ch" = "\\" ] && [ $((i + 1)) -lt "$len" ]; then
+                nx="${s:$((i + 1)):1}"
+                case "$nx" in
+                    "'"|\\) tok+="$nx"; i=$((i + 2)); continue ;;
+                    *) tok+="\\" ;;
+                esac
+            else
+                tok+="$ch"
+            fi
+            i=$((i + 1))
+            continue
+        fi
+        if [ "$in_dq" -eq 1 ]; then
+            if [ "$ch" = '"' ]; then
+                in_dq=0
+            elif [ "$ch" = "\\" ] && [ $((i + 1)) -lt "$len" ]; then
+                nx="${s:$((i + 1)):1}"
+                case "$nx" in
+                    n) tok+=$'\n' ;;
+                    t) tok+=$'\t' ;;
+                    r) tok+=$'\r' ;;
+                    f) tok+=$'\f' ;;
+                    v) tok+=$'\v' ;;
+                    _) tok+=" " ;;
+                    c) _dhpk_ci_es_dyn=1 ;;
+                    '$'|'#'|'"'|"'"|\\) tok+="$nx" ;;
+                    *) tok+="$nx" ;;
+                esac
+                i=$((i + 2))
+                continue
+            else
+                case "$ch" in
+                    '$'|'`') _dhpk_ci_es_dyn=1 ;;
+                esac
+                tok+="$ch"
+            fi
+            i=$((i + 1))
+            continue
+        fi
+        case "$ch" in
+            ' '|$'\t'|$'\n')
+                if [ "$has_tok" -eq 1 ]; then
+                    _dhpk_ci_es_words+=("$tok")
+                    _dhpk_ci_es_quoted+=("$tok_q")
+                    tok=""
+                    has_tok=0
+                    tok_q=0
+                fi
+                ;;
+            '#')
+                if [ "$has_tok" -eq 0 ]; then
+                    break
+                fi
+                tok+="$ch"
+                ;;
+            "'")
+                in_sq=1
+                has_tok=1
+                tok_q=1
+                ;;
+            '"')
+                in_dq=1
+                has_tok=1
+                tok_q=1
+                ;;
+            \\)
+                has_tok=1
+                tok_q=1
+                if [ $((i + 1)) -lt "$len" ]; then
+                    nx="${s:$((i + 1)):1}"
+                    case "$nx" in
+                        n) tok+=$'\n' ;;
+                        t) tok+=$'\t' ;;
+                        r) tok+=$'\r' ;;
+                        f) tok+=$'\f' ;;
+                        v) tok+=$'\v' ;;
+                        _) tok+=" " ;;
+                        c) _dhpk_ci_es_dyn=1 ;;
+                        '$'|'#'|'"'|"'"|\\) tok+="$nx" ;;
+                        *) tok+="$nx" ;;
+                    esac
+                    i=$((i + 2))
+                    continue
+                fi
+                ;;
+            '$'|'`')
+                _dhpk_ci_es_dyn=1
+                tok+="$ch"
+                has_tok=1
+                ;;
+            *)
+                tok+="$ch"
+                has_tok=1
+                ;;
+        esac
+        i=$((i + 1))
+    done
+    if [ "$in_sq" -eq 1 ] || [ "$in_dq" -eq 1 ]; then
+        _dhpk_ci_es_dyn=1
+    fi
+    if [ "$has_tok" -eq 1 ]; then
+        _dhpk_ci_es_words+=("$tok")
+        _dhpk_ci_es_quoted+=("$tok_q")
+    fi
+}
+
+_dhpk_ci_unwrap_head() {
+    local k=0 n="${#_dhpk_ci_words[@]}" h="$_dhpk_ci_head"
+    local assign_re='^[A-Za-z_][A-Za-z0-9_]*='
+    local w base tok opt oi olen och consumed allow_assign=0
+    local si sn split_arg split_dyn split_tail
+    local -a _dhpk_ci_es_words _dhpk_ci_es_quoted _tail_w _tail_d _tail_q _tail_f
+    local _dhpk_ci_es_dyn=0
+    _dhpk_ci_u_words=()
+    _dhpk_ci_u_dyn=()
+    _dhpk_ci_u_quoted=()
+    _dhpk_ci_u_flat=()
+    _dhpk_ci_u_idx=0
+    _dhpk_ci_u_head=""
+    _dhpk_ci_u_cwd="$_dhpk_ci_cwd"
+    _dhpk_ci_u_cwd_state="$_dhpk_ci_cwd_state"
+    _dhpk_ci_u_chdir_set=0
+    _dhpk_ci_u_query_only=0
+    _dhpk_ci_u_quoted_wrapper=0
+    _dhpk_ci_u_git_env_unresolved=0
+    _dhpk_ci_u_cdpath=0
+    _dhpk_ci_u_has_dyn_split=0
+    _dhpk_ci_u_stop_fail=0
+    _dhpk_ci_u_unsupported=""
+
+    k=0
+    while [ "$k" -lt "$h" ]; do
+        w="${_dhpk_ci_words[$k]}"
+        case "$w" in
+            CDPATH=*|CDPATH+=*) _dhpk_ci_u_cdpath=1 ;;
+        esac
+        _dhpk_ci_is_git_env_var "$w" && _dhpk_ci_u_git_env_unresolved=1
+        k=$((k + 1))
+    done
+
+    k="$h"
+    while [ "$k" -lt "$n" ]; do
+        _dhpk_ci_u_words+=("${_dhpk_ci_words[$k]}")
+        _dhpk_ci_u_dyn+=("${_dhpk_ci_dyn[$k]}")
+        _dhpk_ci_u_quoted+=("${_dhpk_ci_quoted[$k]}")
+        _dhpk_ci_u_flat+=("${_dhpk_ci_words_flat[$k]}")
+        k=$((k + 1))
+    done
+
+    k=0
+    n="${#_dhpk_ci_u_words[@]}"
+    while [ "$k" -lt "$n" ]; do
+        w="${_dhpk_ci_u_words[$k]}"
+        if [ "$allow_assign" -eq 1 ]; then
+            case "$w" in
+                *=*)
+                    if [[ "$w" =~ $assign_re ]]; then
+                        case "$w" in
+                            CDPATH=*|CDPATH+=*) _dhpk_ci_u_cdpath=1 ;;
+                        esac
+                        _dhpk_ci_is_git_env_var "$w" && _dhpk_ci_u_git_env_unresolved=1
+                        k=$((k + 1))
+                        continue
+                    fi
+                    ;;
+            esac
+            allow_assign=0
+        fi
+
+        if [ "$w" = "busybox" ] || [ "${w##*/}" = "busybox" ]; then
+            if [ $((k + 1)) -lt "$n" ]; then
+                case "${_dhpk_ci_u_words[$((k + 1))]}" in
+                    sh|ash)
+                        [ "${_dhpk_ci_u_quoted[$k]}" = "1" ] && _dhpk_ci_u_quoted_wrapper=1
+                        k=$((k + 1))
+                        continue
+                        ;;
+                esac
+            fi
+            break
+        fi
+
+        _dhpk_ci_is_wrapper_word "$w" || break
+        [ "${_dhpk_ci_u_quoted[$k]}" = "1" ] && _dhpk_ci_u_quoted_wrapper=1
+        base="${w##*/}"
+        case "$w" in
+            command|builtin|exec|time) base="$w" ;;
+        esac
+
+        case "$base" in
+            command)
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        -*)
+                            opt="${tok#-}"
+                            oi=0
+                            olen="${#opt}"
+                            consumed=1
+                            [ "$olen" -gt 0 ] || consumed=0
+                            while [ "$oi" -lt "$olen" ]; do
+                                case "${opt:$oi:1}" in
+                                    p) ;;
+                                    v|V) _dhpk_ci_u_query_only=1 ;;
+                                    *) consumed=0; break ;;
+                                esac
+                                oi=$((oi + 1))
+                            done
+                            if [ "$consumed" -eq 0 ]; then
+                                _dhpk_ci_u_stop_fail=1
+                                break
+                            fi
+                            k=$((k + 1))
+                            ;;
+                        *) break ;;
+                    esac
+                done
+                continue
+                ;;
+            builtin|nohup)
+                k=$((k + 1))
+                [ "$k" -lt "$n" ] && [ "${_dhpk_ci_u_words[$k]}" = "--" ] && k=$((k + 1))
+                continue
+                ;;
+            exec)
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        -*)
+                            opt="${tok#-}"
+                            oi=0
+                            olen="${#opt}"
+                            consumed=0
+                            while [ "$oi" -lt "$olen" ]; do
+                                och="${opt:$oi:1}"
+                                case "$och" in
+                                    a)
+                                        if [ $((oi + 1)) -lt "$olen" ]; then
+                                            k=$((k + 1))
+                                        else
+                                            k=$((k + 2))
+                                        fi
+                                        consumed=1
+                                        break
+                                        ;;
+                                    c|l) ;;
+                                    *)
+                                        _dhpk_ci_u_stop_fail=1
+                                        consumed=2
+                                        break
+                                        ;;
+                                esac
+                                oi=$((oi + 1))
+                            done
+                            [ "$consumed" -eq 2 ] && break
+                            [ "$consumed" -eq 0 ] && k=$((k + 1))
+                            ;;
+                        *) break ;;
+                    esac
+                done
+                continue
+                ;;
+            time)
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        --verbose|--quiet|--append|-p|-v|-q|-a) k=$((k + 1)) ;;
+                        --output|--format|-o|-f) k=$((k + 2)) ;;
+                        --output=*|--format=*|-o?*|-f?*) k=$((k + 1)) ;;
+                        -*) _dhpk_ci_u_stop_fail=1; break ;;
+                        *) break ;;
+                    esac
+                done
+                continue
+                ;;
+            nice)
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        --help|--version) _dhpk_ci_u_query_only=1; k="$n"; break ;;
+                        -n|--adjustment) k=$((k + 2)) ;;
+                        --adjustment=*|-n?*) k=$((k + 1)) ;;
+                        -[0-9]*|+[0-9]*)
+                            case "${tok#?}" in
+                                *[!0-9]*) _dhpk_ci_u_stop_fail=1; break ;;
+                                *) k=$((k + 1)) ;;
+                            esac
+                            ;;
+                        -*) _dhpk_ci_u_stop_fail=1; break ;;
+                        *) break ;;
+                    esac
+                done
+                continue
+                ;;
+            timeout)
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        --help|--version) _dhpk_ci_u_query_only=1; k="$n"; break ;;
+                        --verbose|--foreground|--preserve-status) k=$((k + 1)) ;;
+                        --kill-after|--signal) k=$((k + 2)) ;;
+                        --kill-after=*|--signal=*) k=$((k + 1)) ;;
+                        --*) _dhpk_ci_u_stop_fail=1; break ;;
+                        -*)
+                            opt="${tok#-}"
+                            oi=0
+                            olen="${#opt}"
+                            consumed=0
+                            while [ "$oi" -lt "$olen" ]; do
+                                och="${opt:$oi:1}"
+                                case "$och" in
+                                    k|s)
+                                        if [ $((oi + 1)) -lt "$olen" ]; then
+                                            k=$((k + 1))
+                                        else
+                                            k=$((k + 2))
+                                        fi
+                                        consumed=1
+                                        break
+                                        ;;
+                                    v) ;;
+                                    *)
+                                        _dhpk_ci_u_stop_fail=1
+                                        consumed=2
+                                        break
+                                        ;;
+                                esac
+                                oi=$((oi + 1))
+                            done
+                            [ "$consumed" -eq 2 ] && break
+                            [ "$consumed" -eq 0 ] && k=$((k + 1))
+                            ;;
+                        *) break ;;
+                    esac
+                done
+                [ "$k" -lt "$n" ] && k=$((k + 1))
+                continue
+                ;;
+            stdbuf)
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        --help|--version) _dhpk_ci_u_query_only=1; k="$n"; break ;;
+                        -i|-o|-e|--input|--output|--error) k=$((k + 2)) ;;
+                        --input=*|--output=*|--error=*|-i?*|-o?*|-e?*) k=$((k + 1)) ;;
+                        -*) _dhpk_ci_u_stop_fail=1; break ;;
+                        *) break ;;
+                    esac
+                done
+                continue
+                ;;
+            doas)
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        -*)
+                            opt="${tok#-}"
+                            oi=0
+                            olen="${#opt}"
+                            consumed=0
+                            while [ "$oi" -lt "$olen" ]; do
+                                och="${opt:$oi:1}"
+                                case "$och" in
+                                    u|C)
+                                        if [ $((oi + 1)) -lt "$olen" ]; then
+                                            k=$((k + 1))
+                                        else
+                                            k=$((k + 2))
+                                        fi
+                                        consumed=1
+                                        break
+                                        ;;
+                                    L|n|s) ;;
+                                    *)
+                                        _dhpk_ci_u_stop_fail=1
+                                        consumed=2
+                                        break
+                                        ;;
+                                esac
+                                oi=$((oi + 1))
+                            done
+                            [ "$consumed" -eq 2 ] && break
+                            [ "$consumed" -eq 0 ] && k=$((k + 1))
+                            ;;
+                        *) break ;;
+                    esac
+                done
+                continue
+                ;;
+            sudo)
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        --help|--version) _dhpk_ci_u_query_only=1; k="$n"; break ;;
+                        --user|--group|--close-from|--chroot|--command-timeout|--other-user|--host|--prompt|--role|--type)
+                            k=$((k + 2)) ;;
+                        --user=*|--group=*|--close-from=*|--chroot=*|--command-timeout=*|--other-user=*|--host=*|--prompt=*|--role=*|--type=*)
+                            k=$((k + 1)) ;;
+                        --chdir)
+                            _dhpk_ci_apply_u_chdir "${_dhpk_ci_u_words[$((k + 1))]:-}" "${_dhpk_ci_u_dyn[$((k + 1))]:-1}"
+                            k=$((k + 2)) ;;
+                        --chdir=*)
+                            _dhpk_ci_apply_u_chdir "${tok#--chdir=}" "${_dhpk_ci_u_dyn[$k]}"
+                            k=$((k + 1)) ;;
+                        --askpass|--background|--preserve-env|--edit|--set-home|--login|--reset-timestamp|--remove-timestamp|--list|--non-interactive|--preserve-groups|--stdin|--shell|--validate)
+                            k=$((k + 1)) ;;
+                        --*) _dhpk_ci_u_stop_fail=1; break ;;
+                        -*)
+                            opt="${tok#-}"
+                            oi=0
+                            olen="${#opt}"
+                            consumed=0
+                            while [ "$oi" -lt "$olen" ]; do
+                                och="${opt:$oi:1}"
+                                case "$och" in
+                                    D)
+                                        if [ $((oi + 1)) -lt "$olen" ]; then
+                                            _dhpk_ci_apply_u_chdir "${opt:$((oi + 1))}" "${_dhpk_ci_u_dyn[$k]}"
+                                            k=$((k + 1))
+                                        else
+                                            _dhpk_ci_apply_u_chdir "${_dhpk_ci_u_words[$((k + 1))]:-}" "${_dhpk_ci_u_dyn[$((k + 1))]:-1}"
+                                            k=$((k + 2))
+                                        fi
+                                        consumed=1
+                                        break
+                                        ;;
+                                    u|g|C|R|T|U|h|p|r|t)
+                                        if [ $((oi + 1)) -lt "$olen" ]; then
+                                            k=$((k + 1))
+                                        else
+                                            k=$((k + 2))
+                                        fi
+                                        consumed=1
+                                        break
+                                        ;;
+                                    A|b|B|E|e|H|i|k|K|l|n|P|S|s|v|V) ;;
+                                    *)
+                                        _dhpk_ci_u_stop_fail=1
+                                        consumed=2
+                                        break
+                                        ;;
+                                esac
+                                oi=$((oi + 1))
+                            done
+                            [ "$consumed" -eq 2 ] && break
+                            [ "$consumed" -eq 0 ] && k=$((k + 1))
+                            ;;
+                        *) break ;;
+                    esac
+                done
+                allow_assign=1
+                continue
+                ;;
+            xargs)
+                k=$((k + 1))
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        --help|--version) _dhpk_ci_u_query_only=1; k="$n"; break ;;
+                        --null|--no-run-if-empty|--verbose|--interactive|--exit|--open-tty|--show-limits)
+                            k=$((k + 1)) ;;
+                        --max-args|--max-chars|--max-procs|--delimiter|--arg-file)
+                            k=$((k + 2)) ;;
+                        --max-args=*|--max-chars=*|--max-procs=*|--delimiter=*|--arg-file=*|--replace=*|--eof=*|--max-lines=*)
+                            k=$((k + 1)) ;;
+                        --replace|--eof|--max-lines)
+                            k=$((k + 1)) ;;
+                        --*) _dhpk_ci_u_stop_fail=1; break ;;
+                        -*)
+                            opt="${tok#-}"
+                            oi=0
+                            olen="${#opt}"
+                            consumed=0
+                            while [ "$oi" -lt "$olen" ]; do
+                                och="${opt:$oi:1}"
+                                case "$och" in
+                                    n|L|s|P|I|J|d|E|a)
+                                        if [ $((oi + 1)) -lt "$olen" ]; then
+                                            k=$((k + 1))
+                                        else
+                                            k=$((k + 2))
+                                        fi
+                                        consumed=1
+                                        break
+                                        ;;
+                                    i|e|l)
+                                        k=$((k + 1))
+                                        consumed=1
+                                        break
+                                        ;;
+                                    0|r|t|p|x|o) ;;
+                                    *)
+                                        _dhpk_ci_u_stop_fail=1
+                                        consumed=2
+                                        break
+                                        ;;
+                                esac
+                                oi=$((oi + 1))
+                            done
+                            [ "$consumed" -eq 2 ] && break
+                            [ "$consumed" -eq 0 ] && k=$((k + 1))
+                            ;;
+                        *) break ;;
+                    esac
+                done
+                continue
+                ;;
+            env)
+                k=$((k + 1))
+                split_tail=0
+                while [ "$k" -lt "$n" ]; do
+                    tok="${_dhpk_ci_u_words[$k]}"
+                    split_arg=""
+                    split_dyn=0
+                    case "$tok" in
+                        --) k=$((k + 1)); break ;;
+                        -) k=$((k + 1)); continue ;;
+                        --help|--version) _dhpk_ci_u_query_only=1; k="$n"; break ;;
+                        --ignore-environment|--null|--debug|--list-signal-handling) k=$((k + 1)) ;;
+                        --unset=*|--argv0=*|--block-signal=*|--default-signal=*|--ignore-signal=*|--block-signal|--default-signal|--ignore-signal)
+                            k=$((k + 1)) ;;
+                        --unset|--argv0) k=$((k + 2)) ;;
+                        --chdir)
+                            _dhpk_ci_apply_u_chdir "${_dhpk_ci_u_words[$((k + 1))]:-}" "${_dhpk_ci_u_dyn[$((k + 1))]:-1}"
+                            k=$((k + 2)) ;;
+                        --chdir=*)
+                            _dhpk_ci_apply_u_chdir "${tok#--chdir=}" "${_dhpk_ci_u_dyn[$k]}"
+                            k=$((k + 1)) ;;
+                        --split-string)
+                            split_arg="${_dhpk_ci_u_words[$((k + 1))]:-}"
+                            split_dyn="${_dhpk_ci_u_dyn[$((k + 1))]:-1}"
+                            k=$((k + 2))
+                            ;;
+                        --split-string=*)
+                            split_arg="${tok#--split-string=}"
+                            split_dyn="${_dhpk_ci_u_dyn[$k]}"
+                            k=$((k + 1))
+                            ;;
+                        --*) _dhpk_ci_u_stop_fail=1; break ;;
+                        -*)
+                            opt="${tok#-}"
+                            oi=0
+                            olen="${#opt}"
+                            consumed=0
+                            while [ "$oi" -lt "$olen" ]; do
+                                och="${opt:$oi:1}"
+                                case "$och" in
+                                    S)
+                                        if [ $((oi + 1)) -lt "$olen" ]; then
+                                            split_arg="${opt:$((oi + 1))}"
+                                            split_dyn="${_dhpk_ci_u_dyn[$k]}"
+                                            k=$((k + 1))
+                                        else
+                                            split_arg="${_dhpk_ci_u_words[$((k + 1))]:-}"
+                                            split_dyn="${_dhpk_ci_u_dyn[$((k + 1))]:-1}"
+                                            k=$((k + 2))
+                                        fi
+                                        consumed=1
+                                        break
+                                        ;;
+                                    C)
+                                        if [ $((oi + 1)) -lt "$olen" ]; then
+                                            _dhpk_ci_apply_u_chdir "${opt:$((oi + 1))}" "${_dhpk_ci_u_dyn[$k]}"
+                                            k=$((k + 1))
+                                        else
+                                            _dhpk_ci_apply_u_chdir "${_dhpk_ci_u_words[$((k + 1))]:-}" "${_dhpk_ci_u_dyn[$((k + 1))]:-1}"
+                                            k=$((k + 2))
+                                        fi
+                                        consumed=1
+                                        break
+                                        ;;
+                                    u|a)
+                                        if [ $((oi + 1)) -lt "$olen" ]; then
+                                            k=$((k + 1))
+                                        else
+                                            k=$((k + 2))
+                                        fi
+                                        consumed=1
+                                        break
+                                        ;;
+                                    i|0|v) ;;
+                                    *)
+                                        _dhpk_ci_u_stop_fail=1
+                                        consumed=2
+                                        break
+                                        ;;
+                                esac
+                                oi=$((oi + 1))
+                            done
+                            if [ "$consumed" -eq 2 ]; then
+                                break
+                            fi
+                            if [ "$consumed" -eq 0 ]; then
+                                k=$((k + 1))
+                            fi
+                            ;;
+                        *) break ;;
+                    esac
+                    if [ -n "$split_arg" ] || [ "$split_dyn" -eq 1 ]; then
+                        _dhpk_ci_env_split_tokenize "$split_arg" "$split_dyn"
+                        [ "$_dhpk_ci_es_dyn" -eq 1 ] && _dhpk_ci_u_has_dyn_split=1
+                        si=0
+                        sn="${#_dhpk_ci_es_words[@]}"
+                        while [ "$si" -lt "$sn" ]; do
+                            tok="${_dhpk_ci_es_words[$si]}"
+                            case "$tok" in
+                                --) si=$((si + 1)); break ;;
+                                -) si=$((si + 1)); continue ;;
+                                --ignore-environment|--null|--debug|--list-signal-handling|--unset=*|--argv0=*|--block-signal*|--default-signal*|--ignore-signal*)
+                                    si=$((si + 1)) ;;
+                                --unset|--argv0) si=$((si + 2)) ;;
+                                --chdir)
+                                    _dhpk_ci_apply_u_chdir "${_dhpk_ci_es_words[$((si + 1))]:-}" "$_dhpk_ci_es_dyn"
+                                    si=$((si + 2)) ;;
+                                --chdir=*)
+                                    _dhpk_ci_apply_u_chdir "${tok#--chdir=}" "$_dhpk_ci_es_dyn"
+                                    si=$((si + 1)) ;;
+                                -*)
+                                    opt="${tok#-}"
+                                    oi=0
+                                    olen="${#opt}"
+                                    consumed=0
+                                    while [ "$oi" -lt "$olen" ]; do
+                                        och="${opt:$oi:1}"
+                                        case "$och" in
+                                            C)
+                                                if [ $((oi + 1)) -lt "$olen" ]; then
+                                                    _dhpk_ci_apply_u_chdir "${opt:$((oi + 1))}" "$_dhpk_ci_es_dyn"
+                                                    si=$((si + 1))
+                                                else
+                                                    _dhpk_ci_apply_u_chdir "${_dhpk_ci_es_words[$((si + 1))]:-}" "$_dhpk_ci_es_dyn"
+                                                    si=$((si + 2))
+                                                fi
+                                                consumed=1
+                                                break
+                                                ;;
+                                            u|a|S)
+                                                if [ "$och" = "S" ]; then
+                                                    _dhpk_ci_u_has_dyn_split=1
+                                                fi
+                                                if [ $((oi + 1)) -lt "$olen" ]; then
+                                                    si=$((si + 1))
+                                                else
+                                                    si=$((si + 2))
+                                                fi
+                                                consumed=1
+                                                break
+                                                ;;
+                                            i|0|v) ;;
+                                            *)
+                                                _dhpk_ci_u_stop_fail=1
+                                                consumed=2
+                                                break
+                                                ;;
+                                        esac
+                                        oi=$((oi + 1))
+                                    done
+                                    [ "$consumed" -eq 2 ] && break
+                                    [ "$consumed" -eq 0 ] && si=$((si + 1))
+                                    ;;
+                                *=*)
+                                    if [[ "$tok" =~ $assign_re ]]; then
+                                        case "$tok" in
+                                            CDPATH=*|CDPATH+=*) _dhpk_ci_u_cdpath=1 ;;
+                                        esac
+                                        _dhpk_ci_is_git_env_var "$tok" && _dhpk_ci_u_git_env_unresolved=1
+                                        si=$((si + 1))
+                                    else
+                                        break
+                                    fi
+                                    ;;
+                                *) break ;;
+                            esac
+                        done
+                        while [ "$si" -lt "$sn" ]; do
+                            tok="${_dhpk_ci_es_words[$si]}"
+                            case "$tok" in
+                                *=*)
+                                    if [[ "$tok" =~ $assign_re ]]; then
+                                        case "$tok" in
+                                            CDPATH=*|CDPATH+=*) _dhpk_ci_u_cdpath=1 ;;
+                                        esac
+                                        _dhpk_ci_is_git_env_var "$tok" && _dhpk_ci_u_git_env_unresolved=1
+                                        si=$((si + 1))
+                                        continue
+                                    fi
+                                    ;;
+                            esac
+                            break
+                        done
+                        if [ "$si" -lt "$sn" ]; then
+                            _tail_w=()
+                            _tail_d=()
+                            _tail_q=()
+                            _tail_f=()
+                            while [ "$si" -lt "$sn" ]; do
+                                _tail_w+=("${_dhpk_ci_es_words[$si]}")
+                                _tail_d+=("$_dhpk_ci_es_dyn")
+                                _tail_q+=(0)
+                                _tail_f+=("${_dhpk_ci_es_words[$si]}")
+                                si=$((si + 1))
+                            done
+                            while [ "$k" -lt "$n" ]; do
+                                _tail_w+=("${_dhpk_ci_u_words[$k]}")
+                                _tail_d+=("${_dhpk_ci_u_dyn[$k]}")
+                                _tail_q+=("${_dhpk_ci_u_quoted[$k]}")
+                                _tail_f+=("${_dhpk_ci_u_flat[$k]}")
+                                k=$((k + 1))
+                            done
+                            _dhpk_ci_u_words=(${_tail_w[@]+"${_tail_w[@]}"})
+                            _dhpk_ci_u_dyn=(${_tail_d[@]+"${_tail_d[@]}"})
+                            _dhpk_ci_u_quoted=(${_tail_q[@]+"${_tail_q[@]}"})
+                            _dhpk_ci_u_flat=(${_tail_f[@]+"${_tail_f[@]}"})
+                            k=0
+                            n="${#_dhpk_ci_u_words[@]}"
+                            split_tail=1
+                            break
+                        fi
+                    fi
+                done
+                [ "$split_tail" -eq 1 ] && continue
+                allow_assign=1
+                continue
+                ;;
+        esac
+    done
+
+    _dhpk_ci_u_idx="$k"
+    if [ "$k" -lt "$n" ]; then
+        _dhpk_ci_u_head="${_dhpk_ci_u_words[$k]}"
+    fi
+
+    if [ "$_dhpk_ci_u_quoted_wrapper" -eq 1 ]; then
+        case "$_dhpk_ci_u_head" in
+            git|*/git) _dhpk_ci_u_unsupported="quoted wrapper before git" ;;
+            *)
+                if [ "$_dhpk_ci_u_stop_fail" -eq 1 ]; then
+                    local _scan_k="$k"
+                    while [ "$_scan_k" -lt "$n" ]; do
+                        case "${_dhpk_ci_u_words[$_scan_k]}" in
+                            git|*/git) _dhpk_ci_u_unsupported="quoted wrapper before git"; break ;;
+                        esac
+                        _scan_k=$((_scan_k + 1))
+                    done
+                fi
+                ;;
+        esac
+    fi
+
+    if [ "$_dhpk_ci_u_has_dyn_split" -eq 1 ] && [ -z "$_dhpk_ci_u_unsupported" ]; then
+        case "$_dhpk_ci_u_head" in
+            git|*/git) _dhpk_ci_u_unsupported="dynamic env -S with git" ;;
+            *)
+                local _scan_k="$k"
+                while [ "$_scan_k" -lt "$n" ]; do
+                    case "${_dhpk_ci_u_words[$_scan_k]}" in
+                        git|*/git) _dhpk_ci_u_unsupported="dynamic env -S with git"; break ;;
+                    esac
+                    _scan_k=$((_scan_k + 1))
+                done
+                ;;
+        esac
+    fi
+}
+
+_dhpk_ci_record_git() {
+    [ "$_dhpk_ci_u_query_only" -eq 0 ] || return 0
+    local i="$_dhpk_ci_u_idx" n="${#_dhpk_ci_u_words[@]}" sub="" state="cwd"
+    local repo="$_dhpk_ci_u_cwd" c_path="" c_base="" no_verify=0 exempt=0
+    local word dyn
+    [ "$i" -lt "$n" ] || return 0
+    word="${_dhpk_ci_u_words[$i]}"
     case "$word" in
         git|*/git) ;;
         *) return 0 ;;
     esac
     i=$((i + 1))
     while [ "$i" -lt "$n" ]; do
-        word="${_dhpk_ci_words[$i]}"
-        dyn="${_dhpk_ci_dyn[$i]}"
+        word="${_dhpk_ci_u_words[$i]}"
+        dyn="${_dhpk_ci_u_dyn[$i]}"
         case "$word" in
             --) i=$((i + 1)); break ;;
             --help|-h|--paginate|--no-pager|--bare|--no-replace-objects|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks)
@@ -211,11 +1049,11 @@ _dhpk_ci_record_git() {
             -p|-P) i=$((i + 1)) ;;
             -C)
                 i=$((i + 1))
-                if [ "$i" -ge "$n" ] || [ "${_dhpk_ci_dyn[$i]}" = "1" ]; then
+                if [ "$i" -ge "$n" ] || [ "${_dhpk_ci_u_dyn[$i]}" = "1" ]; then
                     state="unresolved"
                 else
-                    [ -n "$c_base" ] || c_base="$_dhpk_ci_cwd"
-                    dhpk_norm_path_var "$c_base" "${_dhpk_ci_words[$i]}"
+                    [ -n "$c_base" ] || c_base="$_dhpk_ci_u_cwd"
+                    dhpk_norm_path_var "$c_base" "${_dhpk_ci_u_words[$i]}"
                     c_base="$DHPK_NORM_PATH"
                     c_path="$c_base"
                 fi
@@ -225,7 +1063,7 @@ _dhpk_ci_record_git() {
                 if [ "$dyn" = "1" ]; then
                     state="unresolved"
                 else
-                    [ -n "$c_base" ] || c_base="$_dhpk_ci_cwd"
+                    [ -n "$c_base" ] || c_base="$_dhpk_ci_u_cwd"
                     dhpk_norm_path_var "$c_base" "${word#-C}"
                     c_base="$DHPK_NORM_PATH"
                     c_path="$c_base"
@@ -249,12 +1087,12 @@ _dhpk_ci_record_git() {
         esac
     done
     if [ "$i" -lt "$n" ]; then
-        sub="${_dhpk_ci_words[$i]}"
+        sub="${_dhpk_ci_u_words[$i]}"
     fi
     [ -n "$sub" ] || return 0
-    local j=0
+    local j="$((_dhpk_ci_u_idx + 1))"
     while [ "$j" -lt "$n" ]; do
-        word="${_dhpk_ci_words[$j]}"
+        word="${_dhpk_ci_u_words[$j]}"
         case "$word" in
             --no-verify|--no-verify=*) no_verify=1 ;;
             --help|-h|--dry-run|--abort|--continue|--skip|--quit) exempt=1 ;;
@@ -268,15 +1106,18 @@ _dhpk_ci_record_git() {
             j=$((j + 1))
         fi
     done
-    if [ "$_dhpk_ci_pipeline_cd" -eq 1 ] || [ "$_dhpk_ci_cwd_state" != "literal" ]; then
+    if [ "$_dhpk_ci_pipeline_cd" -eq 1 ] || [ "$_dhpk_ci_u_cwd_state" != "literal" ] || [ "$_dhpk_ci_u_git_env_unresolved" -eq 1 ]; then
         state="unresolved"
     fi
     if [ "$state" != "unresolved" ] && [ -n "$c_path" ]; then
-        dhpk_norm_path_var "$_dhpk_ci_cwd" "$c_path"
+        dhpk_norm_path_var "$_dhpk_ci_u_cwd" "$c_path"
         repo="$DHPK_NORM_PATH"
         state="literal"
+    elif [ "$state" != "unresolved" ] && [ "$_dhpk_ci_u_chdir_set" -eq 1 ]; then
+        repo="$_dhpk_ci_u_cwd"
+        state="literal"
     elif [ "$state" != "unresolved" ]; then
-        repo="$_dhpk_ci_cwd"
+        repo="$_dhpk_ci_u_cwd"
         state="cwd"
     else
         repo=""
@@ -365,8 +1206,54 @@ _dhpk_ci_unify_pipe() {
 # _dhpk_ci_flush_command <sep>
 #   sep is the separator that ends the command: compound (; newline ( ) or
 #   the end), and (&&), or (||), bg (&) or pipe (| |&).
+_dhpk_ci_inspect_body_cwd() {
+    local _dhpk_ci_cwd="$2" _dhpk_ci_cwd_state="$3"
+    _dhpk_ci_list "$1" 0 body
+}
+
+_dhpk_ci_extract_shell_c() {
+    local k="$1" n="${#_dhpk_ci_u_words[@]}" saw_c=0 w opt oi olen skip_ops fallback=-1
+    _dhpk_ci_shell_c_payload=""
+    while [ "$k" -lt "$n" ]; do
+        w="${_dhpk_ci_u_words[$k]}"
+        case "$w" in
+            --|-) k=$((k + 1)); break ;;
+            --rcfile|--init-file|--startup-cmd) k=$((k + 2)) ;;
+            --*) k=$((k + 1)) ;;
+            [-+]*)
+                opt="${w#[-+]}"
+                oi=0
+                olen="${#opt}"
+                skip_ops=0
+                while [ "$oi" -lt "$olen" ]; do
+                    case "${opt:$oi:1}" in
+                        c) saw_c=1 ;;
+                        o|O) skip_ops=$((skip_ops + 1)) ;;
+                    esac
+                    oi=$((oi + 1))
+                done
+                # A cluster such as -oc takes the next word as the option
+                # name; inspect it as the script when nothing follows (fail closed).
+                [ "$saw_c" -eq 1 ] && [ "$skip_ops" -gt 0 ] && [ "$fallback" -lt 0 ] && fallback=$((k + 1))
+                k=$((k + 1 + skip_ops))
+                ;;
+            *) break ;;
+        esac
+    done
+    if [ "$saw_c" -eq 1 ] && [ "$k" -lt "$n" ]; then
+        _dhpk_ci_shell_c_payload="${_dhpk_ci_u_flat[$k]}"
+    elif [ "$saw_c" -eq 1 ] && [ "$fallback" -ge 0 ] && [ "$fallback" -lt "$n" ]; then
+        _dhpk_ci_shell_c_payload="${_dhpk_ci_u_flat[$fallback]}"
+    fi
+}
+
 _dhpk_ci_flush_command() {
     local sep="$1" n h head k cond kwhead="" git_has_c cmd_idx="${#DHPK_CMD_START[@]}"
+    local -a _dhpk_ci_u_words _dhpk_ci_u_dyn _dhpk_ci_u_quoted _dhpk_ci_u_flat
+    local _dhpk_ci_u_idx=0 _dhpk_ci_u_head="" _dhpk_ci_u_cwd="$_dhpk_ci_cwd" _dhpk_ci_u_cwd_state="$_dhpk_ci_cwd_state"
+    local _dhpk_ci_u_chdir_set=0 _dhpk_ci_u_query_only=0 _dhpk_ci_u_quoted_wrapper=0
+    local _dhpk_ci_u_git_env_unresolved=0 _dhpk_ci_u_cdpath=0 _dhpk_ci_u_has_dyn_split=0 _dhpk_ci_u_stop_fail=0 _dhpk_ci_u_unsupported=""
+    local _dhpk_ci_shell_c_payload="" _eval_payload="" _hs_i=0 _git_before=0 _cd_i=0 _cd_opts=1 _cd_w="" _cd_is_dash=0
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -385,7 +1272,107 @@ _dhpk_ci_flush_command() {
         else
             DHPK_CMD_CWD+=("")
         fi
+        _dhpk_ci_unwrap_head
+        [ -n "$_dhpk_ci_u_unsupported" ] && _dhpk_ci_unsupported "$_dhpk_ci_u_unsupported"
+        [ "$_dhpk_ci_u_cdpath" -eq 1 ] && _dhpk_ci_saw_cdpath=1
+        if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
+            case "$_dhpk_ci_u_head" in
+                export|declare|typeset|local|readonly)
+                    k=$((_dhpk_ci_u_idx + 1))
+                    while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
+                        case "${_dhpk_ci_u_words[$k]}" in
+                            CDPATH|CDPATH=*|CDPATH+=*) _dhpk_ci_saw_cdpath=1; break ;;
+                        esac
+                        k=$((k + 1))
+                    done
+                    ;;
+            esac
+        fi
         _dhpk_ci_record_git
+        _git_before="$DHPK_GIT_COUNT"
+        if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
+            case "$_dhpk_ci_u_head" in
+                eval)
+                    _dhpk_ci_saw_eval=1
+                    k=$((_dhpk_ci_u_idx + 1))
+                    if [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ] && [ "${_dhpk_ci_u_words[$k]}" = "--" ]; then
+                        k=$((k + 1))
+                    fi
+                    _eval_payload=""
+                    while [ "$k" -lt "${#_dhpk_ci_u_flat[@]}" ]; do
+                        if [ -n "$_eval_payload" ]; then
+                            _eval_payload+=" ${_dhpk_ci_u_flat[$k]}"
+                        else
+                            _eval_payload="${_dhpk_ci_u_flat[$k]}"
+                        fi
+                        k=$((k + 1))
+                    done
+                    if [ -n "$_eval_payload" ]; then
+                        _dhpk_ci_inspect_body_cwd "$_eval_payload" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                    fi
+                    _hs_i=0
+                    while [ "$_hs_i" -lt "${#_dhpk_ci_hs_flat[@]}" ]; do
+                        if [ -n "${_dhpk_ci_hs_flat[$_hs_i]}" ]; then
+                            _dhpk_ci_inspect_body_cwd "${_dhpk_ci_hs_flat[$_hs_i]}" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                        fi
+                        _hs_i=$((_hs_i + 1))
+                    done
+                    ;;
+                source|'.')
+                    _dhpk_ci_saw_source=1
+                    _hs_i=0
+                    while [ "$_hs_i" -lt "${#_dhpk_ci_hs_flat[@]}" ]; do
+                        if [ -n "${_dhpk_ci_hs_flat[$_hs_i]}" ]; then
+                            _dhpk_ci_inspect_body_cwd "${_dhpk_ci_hs_flat[$_hs_i]}" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                        fi
+                        _hs_i=$((_hs_i + 1))
+                    done
+                    ;;
+                *)
+                    if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
+                        if [ "${#_dhpk_ci_hs_words[@]}" -gt 0 ]; then
+                            _dhpk_ci_saw_shell_hs=1
+                            _hs_i=0
+                            while [ "$_hs_i" -lt "${#_dhpk_ci_hs_flat[@]}" ]; do
+                                if [ -n "${_dhpk_ci_hs_flat[$_hs_i]}" ]; then
+                                    _dhpk_ci_inspect_body_cwd "${_dhpk_ci_hs_flat[$_hs_i]}" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                                fi
+                                _hs_i=$((_hs_i + 1))
+                            done
+                        fi
+                        _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
+                        if [ -n "$_dhpk_ci_shell_c_payload" ] && ! dhpk_command_is_trivial "$_dhpk_ci_shell_c_payload"; then
+                            _dhpk_ci_inspect_body_cwd "$_dhpk_ci_shell_c_payload" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                        fi
+                    elif [ "${#_dhpk_ci_hs_flat[@]}" -gt 0 ]; then
+                        if [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
+                            _dhpk_ci_saw_shell_hs=1
+                            _hs_i=0
+                            while [ "$_hs_i" -lt "${#_dhpk_ci_hs_flat[@]}" ]; do
+                                if [ -n "${_dhpk_ci_hs_flat[$_hs_i]}" ]; then
+                                    _dhpk_ci_inspect_body_cwd "${_dhpk_ci_hs_flat[$_hs_i]}" "" "unresolved"
+                                fi
+                                _hs_i=$((_hs_i + 1))
+                            done
+                        elif [ "$sep" = "pipe" ] || [ "$_dhpk_ci_pipe_id" -gt 0 ]; then
+                            _hs_i=0
+                            while [ "$_hs_i" -lt "${#_dhpk_ci_hs_flat[@]}" ]; do
+                                _dhpk_ci_pipe_hs_flat+=("${_dhpk_ci_hs_flat[$_hs_i]}")
+                                _hs_i=$((_hs_i + 1))
+                            done
+                        fi
+                    fi
+                    ;;
+            esac
+            if [ "$sep" = "pipe" ] || [ "$_dhpk_ci_pipe_id" -gt 0 ]; then
+                if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head" || [ "$_dhpk_ci_u_head" = "eval" ] || [ "$_dhpk_ci_u_head" = "source" ] || [ "$_dhpk_ci_u_head" = "." ]; then
+                    _dhpk_ci_pipe_has_shell=1
+                fi
+            fi
+            if [ "$_dhpk_ci_u_quoted_wrapper" -eq 1 ] && [ "$DHPK_GIT_COUNT" -gt "$_git_before" ]; then
+                _dhpk_ci_unsupported "quoted wrapper before git"
+            fi
+        fi
         _dhpk_ci_paren_empty=0
         # command cd and builtin cd are cd; any other use of cd, pushd or
         # popd through them is not tracked.
@@ -395,8 +1382,29 @@ _dhpk_ci_flush_command() {
                     h=$((h + 1))
                     head="cd"
                 else
-                    for k in "${_dhpk_ci_words[@]}"; do
-                        case "$k" in cd|pushd|popd) _dhpk_ci_cwd_state="unresolved"; _dhpk_ci_cwd="" ;; esac
+                    k=0
+                    while [ "$k" -lt "$n" ]; do
+                        case "${_dhpk_ci_words[$k]}" in
+                            cd)
+                                _dhpk_ci_cwd_state="unresolved"
+                                _dhpk_ci_cwd=""
+                                _cd_i=$((k + 1))
+                                _cd_opts=1
+                                while [ "$_cd_i" -lt "$n" ]; do
+                                    _cd_w="${_dhpk_ci_words[$_cd_i]}"
+                                    if [ "$_cd_opts" -eq 1 ]; then
+                                        case "$_cd_w" in
+                                            --) _cd_opts=0; _cd_i=$((_cd_i + 1)); continue ;;
+                                            -[LPe@]*) _cd_i=$((_cd_i + 1)); continue ;;
+                                        esac
+                                    fi
+                                    [ "$_cd_w" = "-" ] && _dhpk_ci_saw_cd_dash=1
+                                    break
+                                done
+                                ;;
+                            pushd|popd) _dhpk_ci_cwd_state="unresolved"; _dhpk_ci_cwd="" ;;
+                        esac
+                        k=$((k + 1))
                     done
                 fi
                 ;;
@@ -446,7 +1454,24 @@ _dhpk_ci_flush_command() {
         fi
         if [ "$head" = "cd" ]; then
             _dhpk_ci_any_cd=1
-            if [ "$cond" -eq 1 ]; then
+            _cd_i=$((h + 1))
+            _cd_opts=1
+            _cd_is_dash=0
+            while [ "$_cd_i" -lt "$n" ]; do
+                _cd_w="${_dhpk_ci_words[$_cd_i]}"
+                if [ "$_cd_opts" -eq 1 ]; then
+                    case "$_cd_w" in
+                        --) _cd_opts=0; _cd_i=$((_cd_i + 1)); continue ;;
+                        -[LPe@]*) _cd_i=$((_cd_i + 1)); continue ;;
+                    esac
+                fi
+                if [ "$_cd_w" = "-" ]; then
+                    _cd_is_dash=1
+                    _dhpk_ci_saw_cd_dash=1
+                fi
+                break
+            done
+            if [ "$_cd_is_dash" -eq 1 ] || [ "$cond" -eq 1 ]; then
                 _dhpk_ci_cwd_state="unresolved"
                 _dhpk_ci_cwd=""
             elif [ "$sep" = "pipe" ]; then
@@ -476,11 +1501,11 @@ _dhpk_ci_flush_command() {
     # the text writes into a process or a FIFO. Any other body is a script.
     if [ "$_dhpk_ci_hd_seen" -lt "${#_dhpk_ci_hd_d[@]}" ]; then
         git_has_c=0
-        case "$head" in
+        case "$_dhpk_ci_u_head" in
             git|*/git)
-                k=$((h + 1))
-                while [ "$k" -lt "$n" ]; do
-                    case "${_dhpk_ci_words[$k]}" in
+                k=$((_dhpk_ci_u_idx + 1))
+                while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
+                    case "${_dhpk_ci_u_words[$k]}" in
                         --) break ;;
                         -c|-c*|--config-env|--config-env=*|--exec-path|--exec-path=*) git_has_c=1; break ;;
                         -C|--git-dir|--work-tree|--namespace|--super-prefix|--list-cmds) k=$((k + 2)) ;;
@@ -491,7 +1516,7 @@ _dhpk_ci_flush_command() {
                 ;;
         esac
         while [ "$_dhpk_ci_hd_seen" -lt "${#_dhpk_ci_hd_d[@]}" ]; do
-            case "$head" in
+            case "$_dhpk_ci_u_head" in
                 cat|*/cat|tee|*/tee|git|*/git)
                     if [ "$git_has_c" -eq 1 ] || [ "$sep" = "pipe" ] || [ "$_dhpk_ci_xctx" -eq 1 ] || [ "$DHPK_HD_FORCE_EXEC" -eq 1 ]; then
                         _dhpk_ci_hd_x[$_dhpk_ci_hd_seen]=1
@@ -525,6 +1550,18 @@ _dhpk_ci_flush_command() {
             if [ "$_dhpk_ci_grp_depth" -gt 0 ]; then
                 _dhpk_ci_pipe_id="${_dhpk_ci_grp_pipe[$((_dhpk_ci_grp_depth - 1))]}"
             else
+                if [ "$_dhpk_ci_pipe_has_shell" -eq 1 ] && [ "${#_dhpk_ci_pipe_hs_flat[@]}" -gt 0 ]; then
+                    _dhpk_ci_saw_shell_hs=1
+                    _hs_i=0
+                    while [ "$_hs_i" -lt "${#_dhpk_ci_pipe_hs_flat[@]}" ]; do
+                        if [ -n "${_dhpk_ci_pipe_hs_flat[$_hs_i]}" ]; then
+                            _dhpk_ci_inspect_body_cwd "${_dhpk_ci_pipe_hs_flat[$_hs_i]}" "" "unresolved"
+                        fi
+                        _hs_i=$((_hs_i + 1))
+                    done
+                fi
+                _dhpk_ci_pipe_hs_flat=()
+                _dhpk_ci_pipe_has_shell=0
                 _dhpk_ci_pipe_id=0
             fi
         fi
@@ -671,7 +1708,7 @@ _dhpk_ci_esc_byte() {
 _dhpk_ci_start_redirect() {
     case "$_dhpk_ci_word" in
         ""|*[!0-9]*) _dhpk_ci_flush_word ;;
-        *) _dhpk_ci_word=""; _dhpk_ci_word_dyn=0; _dhpk_ci_word_open=0; _dhpk_ci_word_q=0 ;;
+        *) _dhpk_ci_word=""; _dhpk_ci_word_flat=""; _dhpk_ci_word_dyn=0; _dhpk_ci_word_open=0; _dhpk_ci_word_q=0 ;;
     esac
     _dhpk_ci_redir=1
 }
@@ -1216,7 +2253,7 @@ _dhpk_ci_exec_context() {
         return 0
     fi
     case "${_dhpk_ci_words[$h]##*/}" in
-        eval|source|.|sh|bash|zsh|dash|ksh|ash|mksh) _dhpk_ci_exec_next=1 ;;
+        eval|source|.|sh|bash|zsh|dash|ksh|ash|mksh|csh|tcsh|fish|busybox) _dhpk_ci_exec_next=1 ;;
     esac
     return 0
 }
@@ -1280,9 +2317,10 @@ _dhpk_ci_list_run() {
         _dhpk_ci_make_pages
     fi
     local ch next matched _pi=-1 _p="" _o
-    local _dhpk_ci_mode="normal" _dhpk_ci_word="" _dhpk_ci_word_dyn=0 _dhpk_ci_word_open=0 _dhpk_ci_redir=0
-    local -a _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_quoted
-    local _dhpk_ci_word_q=0
+    local _dhpk_ci_mode="normal" _dhpk_ci_word="" _dhpk_ci_word_flat="" _dhpk_ci_word_dyn=0 _dhpk_ci_word_open=0 _dhpk_ci_redir=0
+    local -a _dhpk_ci_words _dhpk_ci_dyn _dhpk_ci_quoted _dhpk_ci_words_flat
+    local -a _dhpk_ci_hs_words _dhpk_ci_hs_dyn _dhpk_ci_hs_flat _dhpk_ci_pipe_hs_flat
+    local _dhpk_ci_word_q=0 _dhpk_ci_pipe_has_shell=0
     local _dhpk_ci_seg="" _dhpk_ci_pipeline_cd=0 _dhpk_ci_paren=0 _dhpk_ci_any_cd=0 _dhpk_ci_case=0
     local _dhpk_ci_pipe_id=0 _dhpk_ci_last_group_cmd0=-1 _dhpk_ci_after_pipe=0 _dhpk_ci_grp_depth=0
     # Conditional-cd tracking: open if/loop/case blocks, a function body
@@ -1295,6 +2333,7 @@ _dhpk_ci_list_run() {
     _dhpk_ci_grp_cmd0=()
     _dhpk_ci_grp_pipe=()
     _dhpk_ci_grp_kind=()
+    _dhpk_ci_pipe_hs_flat=()
     local _dhpk_ci_cwd="$_dhpk_ci_cwd" _dhpk_ci_cwd_state="$_dhpk_ci_cwd_state"
     local -a _dhpk_ci_hd_d _dhpk_ci_hd_q _dhpk_ci_hd_t _dhpk_ci_hd_x
     local _dhpk_ci_hd_seen=0
@@ -1339,6 +2378,7 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_mode="normal"
             else
                 _dhpk_ci_word+="$ch"
+                _dhpk_ci_word_flat+="$ch"
                 _dhpk_ci_word_open=1
             fi
             i=$((i + 1))
@@ -1353,8 +2393,8 @@ _dhpk_ci_list_run() {
                 # it stays part of the word.
                 case "$next" in
                     $'\n') ;;
-                    '$'|'`'|'"'|\\) _dhpk_ci_word+="$next" ;;
-                    *) _dhpk_ci_word+="\\$next" ;;
+                    '$'|'`'|'"'|\\) _dhpk_ci_word+="$next"; _dhpk_ci_word_flat+="$next" ;;
+                    *) _dhpk_ci_word+="\\$next"; _dhpk_ci_word_flat+="\\$next" ;;
                 esac
                 _dhpk_ci_word_open=1
                 DHPK_STRIPPED+="$next"
@@ -1373,6 +2413,7 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_mode="normal"
             else
                 _dhpk_ci_word+="$ch"
+                _dhpk_ci_word_flat+="$ch"
                 _dhpk_ci_word_open=1
                 case "$ch" in
                     '$'|'`') _dhpk_ci_word_dyn=1 ;;
@@ -1389,6 +2430,7 @@ _dhpk_ci_list_run() {
                 fi
                 if [ -n "$next" ]; then
                     _dhpk_ci_word+="$next"
+                    _dhpk_ci_word_flat+="$next"
                     _dhpk_ci_word_open=1
                     _dhpk_ci_word_q=1
                     DHPK_STRIPPED+="$next"
@@ -1613,6 +2655,7 @@ _dhpk_ci_list_run() {
                     # $$ is the PID parameter: the second $ cannot start a
                     # $'...' string, so a following quote is an ordinary one.
                     _dhpk_ci_word+="\$\$"
+                    _dhpk_ci_word_flat+="\$\$"
                     _dhpk_ci_word_open=1
                     DHPK_STRIPPED+="\$\$"
                     _dhpk_ci_seg+="\$\$"
@@ -1630,6 +2673,7 @@ _dhpk_ci_list_run() {
                         _araw="${text:$i:$((_al + 3))}"
                     fi
                     _dhpk_ci_word+="$_dhpk_ci_ansi_out"
+                    _dhpk_ci_word_flat+="$_dhpk_ci_ansi_out"
                     _dhpk_ci_word_open=1
                     _dhpk_ci_word_q=1
                     DHPK_STRIPPED+="$_araw"
@@ -1660,12 +2704,26 @@ _dhpk_ci_list_run() {
                 ;;
         esac
         _dhpk_ci_word+="$ch"
+        _dhpk_ci_word_flat+="$ch"
         _dhpk_ci_word_open=1
         DHPK_STRIPPED+="$ch"
         _dhpk_ci_seg+="$ch"
         i=$((i + 1))
     done
     _dhpk_ci_flush_command compound
+    if [ "$_dhpk_ci_kind" = "top" ] && [ "${DHPK_GIT_COUNT:-0}" -gt 0 ]; then
+        if [ "$_dhpk_ci_saw_eval" -eq 1 ]; then
+            _dhpk_ci_unsupported "git with eval"
+        elif [ "$_dhpk_ci_saw_source" -eq 1 ]; then
+            _dhpk_ci_unsupported "git with source"
+        elif [ "$_dhpk_ci_saw_cd_dash" -eq 1 ]; then
+            _dhpk_ci_unsupported "git with cd -"
+        elif [ "$_dhpk_ci_saw_cdpath" -eq 1 ]; then
+            _dhpk_ci_unsupported "git with CDPATH"
+        elif [ "$_dhpk_ci_saw_shell_hs" -eq 1 ]; then
+            _dhpk_ci_unsupported "git with here-string fed to shell"
+        fi
+    fi
     if [ "$_dhpk_ci_kind" != "top" ]; then
         _dhpk_ci_sub_stripped="$DHPK_STRIPPED"
     fi
@@ -1994,9 +3052,15 @@ dhpk_inspect_command() {
     _dhpk_ci_next_pipe_id=0
     _dhpk_ci_sub_stripped=""
     _dhpk_ci_expand_stripped=""
+    _dhpk_ci_saw_eval=0
+    _dhpk_ci_saw_source=0
+    _dhpk_ci_saw_cd_dash=0
+    _dhpk_ci_saw_cdpath=0
+    _dhpk_ci_saw_shell_hs=0
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs
     return 0
 }
 
