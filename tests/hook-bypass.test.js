@@ -972,4 +972,56 @@ test('pre-edit-guard blocks Windows-equivalent .env and .git names', () => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Credential Guard text-scope bypasses (#1411, ADR 0037)
+//
+// Each row states the secret read in the command text, so it is inside the
+// Text Guard Scope: the guard must block it, never read it as data.
+// ---------------------------------------------------------------------------
+
+const SHL = '<' + '<'; // keeps the heredoc operator out of grep-style scans of this file
+const READ_ENV = 'cat .env';
+const HEREDOC_READ = (opener) => `${opener}${SHL}'EOF'\n${READ_ENV}\nEOF\n`;
+
+const CREDENTIAL_BYPASSES = [
+  ['nesting: ${..$(echo })<< y } hides later lines', `echo \${x:-$(echo })${SHL} y }\n${READ_ENV}\ny`],
+  ['nesting: $[ a[1] << y ] hides later lines', `echo $[ a[1] ${SHL} y ]\n${READ_ENV}\ny`],
+  ['nesting: backtick closes ${..} early', `echo \${x:-\`echo }\`${SHL} y }\n${READ_ENV}\ny`],
+  ['nesting: $(echo }) inside a substitution', `z=$(echo \${x:-$(echo })${SHL} y }\n${READ_ENV}\ny\n)`],
+  ['nesting: $[ a[1] << y ] inside a substitution', `z=$(echo $[ a[1] ${SHL} y ]\n${READ_ENV}\ny\n)`],
+  ['shell list: fish reads the heredoc', `fish ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['shell list: csh reads the heredoc', `csh ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['shell list: tcsh reads the heredoc', `tcsh ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['shell list: busybox ash reads the heredoc', `busybox ash ${SHL}'EOF'\n${READ_ENV}\nEOF`],
+  ['shell list: script -c runs a quoted substitution', `script -qc "$(${HEREDOC_READ('cat ')})" /dev/null`],
+  ['dq output: substitution in command position', `"$(${HEREDOC_READ('cat ')})"`],
+  ['dq output: assigned then run as $x', `x="$(${HEREDOC_READ('cat ')})"; $x`],
+  ['dq output: assigned then eval', `x="$(${HEREDOC_READ('cat ')})"; eval "$x"`],
+  ['dq output: assigned then run as "$x"', `x="$(${HEREDOC_READ('cat ')})"; "$x"`],
+  ['dq output: piped to sh', `echo "$(${HEREDOC_READ('cat ')})" | sh`],
+  ['dq output: fish -c', `fish -c "$(${HEREDOC_READ('cat ')})"`],
+  ['dynamic filename: cat $(echo .env)', 'cat $(echo .env)'],
+  ['dynamic filename: cat "$(echo .env)"', 'cat "$(echo .env)"'],
+  ['dynamic filename: cat `echo .env`', 'cat `echo .env`'],
+  ['dynamic filename: heredoc body piped to xargs cat', `cat ${SHL}EOF | xargs cat\n.env\nEOF`],
+];
+
+for (const [label, command] of CREDENTIAL_BYPASSES) {
+  test(`pre-bash-guard blocks credential bypass (#1411): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, JSON.stringify(command));
+  });
+}
+
+const CREDENTIAL_LOOKALIKES = [
+  ['heredoc data inside an assignment substitution', `x=$(cat ${SHL}'EOF'\n${READ_ENV}\nEOF\n)`],
+  ['plain heredoc with no reader', `cat ${SHL}EOF\nhello\nEOF`],
+  ['echo with a substitution', 'echo $(date)'],
+];
+
+for (const [label, command] of CREDENTIAL_LOOKALIKES) {
+  test(`pre-bash-guard allows credential look-alike (#1411): ${label}`, () => {
+    expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, JSON.stringify(command));
+  });
+}
+
 run('hook-bypass');

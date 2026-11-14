@@ -26,7 +26,7 @@ TWO_CHAR_OPERATORS = ('&&', '||', '<<', '>>', '<>', '>&', '<&', ';;', '|&')
 WORD_SPACES = ' \t\r\n'
 # 雙引號中的反斜線只跳脫這些字元；其他情況反斜線本身保留為字面值。
 DOUBLE_QUOTE_ESCAPES = '$`"\\\n'
-HEREDOC_SHELLS = ('sh', 'bash', 'dash', 'zsh', 'ksh', 'source', 'eval', '.')
+HEREDOC_SHELLS = ('sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'mksh', 'fish', 'csh', 'tcsh', 'busybox', 'source', 'eval', '.')
 HEREDOC_DELIMITER = re.compile(
     r'<<(-?)[ \t]*((?:[A-Za-z0-9_]+|\x27[A-Za-z0-9_]*\x27|"[A-Za-z0-9_]*"|\\[A-Za-z0-9_])+)(?=[ \t;|&<>\n]|$)')
 MAX_SUBSTITUTION_DEPTH = 64
@@ -54,6 +54,8 @@ class Token:
     glob: bool = False
     dynamic: bool = False
     operator: bool = False
+    # a command substitution (`$(` or a backtick) outside single quotes is in the word
+    substitution: bool = False
 
 
 @dataclass
@@ -62,6 +64,11 @@ class Lexed:
     tokens: list = field(default_factory=list)
     # heredoc expansions first, then substitutions in text order
     bodies: list = field(default_factory=list)
+    # Substitution bodies whose output the command may run, read from the
+    # unmasked text: each must be judged with its heredoc text as code.
+    executed_bodies: list = field(default_factory=list)
+    # True for a body judged that way; its own bodies are executed too
+    executed: bool = False
 
 
 class _Cursor:
@@ -154,13 +161,13 @@ def tokenize(text):
     cursor = _Cursor(text, spaces=WORD_SPACES.__contains__, unfinished_escape='unfinished escape')
     tokens = []
     value = []
-    glob = dynamic = started = False
+    glob = dynamic = started = substitution = False
 
     def flush():
-        nonlocal value, glob, dynamic, started
+        nonlocal value, glob, dynamic, started, substitution
         if started:
-            tokens.append(Token(''.join(value), glob, dynamic))
-        value, glob, dynamic, started = [], False, False, False
+            tokens.append(Token(''.join(value), glob, dynamic, substitution=substitution))
+        value, glob, dynamic, started, substitution = [], False, False, False, False
 
     while not cursor.at_end():
         start = cursor.i
@@ -197,6 +204,7 @@ def tokenize(text):
             continue
         if ch in '$`' and cursor.quote != "'":
             dynamic = True
+            substitution = substitution or ch == '`' or text.startswith('(', cursor.i)
         if ch in '*?[' and not quoted:
             glob = True
         value.append(ch)
@@ -212,28 +220,53 @@ class _Nesting:
 
     bash never reads `<<` inside them as a heredoc, so a scanner must not skip
     the lines after it as a body. Feed every unquoted `CHAR`.
+
+    A `$(...)` or backtick body inside them has its own frame: a `}` or `]`
+    in that body does not close the outer `${` or `$[`, and a `<<` in it is a
+    heredoc again. `[` inside `$[` nests, so `$[ a[1] << y ]` stays open.
     """
+
+    SUBSTITUTION = ')'
+    BACKTICK = '`'
 
     def __init__(self):
         self.stack = []
 
     def inside(self):
-        return bool(self.stack)
+        return bool(self.stack) and self.stack[-1][0] not in (self.SUBSTITUTION, self.BACKTICK)
 
     def feed(self, text, position, ch):
         top = self.stack[-1] if self.stack else None
-        if ch == '$' and text.startswith(('{', '['), position + 1):
+        kind = top[0] if top is not None else None
+        if kind == self.BACKTICK:
+            if ch == '`':
+                self.stack.pop()
+            elif ch == '$' and text.startswith(('{', '['), position + 1):
+                self.stack.append(['}' if text[position + 1] == '{' else ']', 0])
+            return
+        if ch == '`':
+            self.stack.append([self.BACKTICK, 0])
+        elif ch == '$' and text.startswith('(', position + 1) and not text.startswith('((', position + 1):
+            self.stack.append([self.SUBSTITUTION, 0])
+        elif ch == '$' and text.startswith(('{', '['), position + 1):
             self.stack.append(['}' if text[position + 1] == '{' else ']', 0])
-        elif ch == '(' and top is not None and top[0] == '))':
+        elif ch == '(' and kind == '))':
             top[1] += 1
         elif ch == '(' and text.startswith('((', position):
             self.stack.append(['))', 1])
-        elif ch == ')' and top is not None and top[0] == '))':
+        elif ch == '(' and kind == self.SUBSTITUTION:
+            top[1] += 1
+        elif ch == ')' and kind in ('))', self.SUBSTITUTION):
             top[1] -= 1
-            if not top[1]:
+            if (kind == '))' and not top[1]) or (kind == self.SUBSTITUTION and top[1] <= 0):
                 self.stack.pop()
-        elif top is not None and ch == top[0]:
-            self.stack.pop()
+        elif ch == '[' and kind == ']':
+            top[1] += 1
+        elif top is not None and ch == kind:
+            if top[1]:
+                top[1] -= 1
+            else:
+                self.stack.pop()
 
 
 def _paren_end(text, start, heredocs=True):
@@ -433,6 +466,9 @@ def _heredocs(text, heredocs=True):
             raise ValueError('ambiguous heredoc pipeline')
         if any(not token.operator and token.value.rsplit('/', 1)[-1] in HEREDOC_SHELLS for token in new_tokens):
             raise _NoHeredocs()
+        # xargs 把 heredoc 內文當成檔名或指令參數；內文不是資料，且無法在此判定其內容。
+        if any(not token.operator and token.value.rsplit('/', 1)[-1] == 'xargs' for token in new_tokens):
+            raise ValueError('heredoc feeds xargs')
         # 同一行可宣告多個 heredoc，內文依宣告順序接續讀取。
         for header in headers:
             end, expansions = _heredoc_body(text, end, header - line_start, line, heredocs)
@@ -510,7 +546,11 @@ def _runs_output(tokens):
     return False
 
 
-def _lex(text, heredocs):
+def _lex(text, heredocs, executed=False):
+    """Lex `text`; `executed` reads it whole, heredoc text included, as code."""
+    if executed:
+        # 此文字是會被執行的替換本體：heredoc 內文就是之後執行的命令，不得遮罩。
+        return Lexed(tokenize(text), [], _substitutions(text), True)
     # 原本把 heredoc 資料誤當指令；只遮罩完整辨識的內文並保留可執行替換。
     masked, deep, expansions = _heredocs(text, heredocs)
     tokens = tokenize(deep)
@@ -518,12 +558,18 @@ def _lex(text, heredocs):
     return Lexed(tokens, list(expansions) + _substitutions(masked, heredocs=heredocs))
 
 
-def lex(text):
-    """Lex one command; raise ValueError with a fixed reason when it is ambiguous."""
-    if '<<' not in text:
-        return _lex(text, False)
+def lex(text, executed=False):
+    """Lex one command; raise ValueError with a fixed reason when it is ambiguous.
+
+    `executed` marks a substitution body whose output the caller found may be
+    run as commands; its heredoc text is then code, not data.
+    """
+    if executed or '<<' not in text:
+        return _lex(text, False, executed)
     lexed = _lex(text, True)
     # 替換輸出可能被當成指令執行時，heredoc 內文不能視為資料，改用 #1396 前的讀法。
     if _runs_output(lexed.tokens):
-        return _lex(text, False)
+        legacy = _lex(text, False)
+        # 輸出被執行：另以未遮罩的原文判讀替換本體，其中的 heredoc 文字即為指令。
+        return Lexed(legacy.tokens, legacy.bodies, _substitutions(text))
     return lexed
