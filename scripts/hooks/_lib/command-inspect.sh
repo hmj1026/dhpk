@@ -1208,6 +1208,8 @@ _dhpk_ci_cat_reads_pipe() {
         w="${_dhpk_ci_u_words[$i]}"
         case "$w" in
             --) i=$((i + 1)); break ;;
+            # A lone dash is stdin, not an option. `cat - file` still reads the pipe.
+            -) break ;;
             -*) i=$((i + 1)); continue ;;
             *) break ;;
         esac
@@ -1224,34 +1226,38 @@ _dhpk_ci_cat_reads_pipe() {
 }
 
 # A subshell or a compound command that is a pipeline stage keeps the
-# incoming pipe. A nested stage inherits the nearest live pin. echo and a
-# shell that redirects its own stdin do not consume it. An inner pipe's
-# right-hand stage reads that pipe; finish already judged it.
+# incoming pipe. Walk groups from the inside out so a `{` or if pin is
+# nearer than an outer subshell pin. echo and a shell that redirects its
+# own stdin do not consume it. An inner pipe's right-hand stage reads that
+# pipe; finish already judged it.
 _dhpk_ci_pin_take() {
-    local p base slot text known
+    local p base slot text known g pp
     _dhpk_ci_pin_took=0
     if [ "${_dhpk_ci_after_pipe:-0}" = "1" ]; then
         return 0
     fi
     slot=""
-    p=$((${_dhpk_ci_paren:-0} - 1))
-    while [ "$p" -ge 0 ] && [ "${_dhpk_ci_pin_live[$p]:-0}" != "1" ]; do
-        p=$((p - 1))
+    g=$((${_dhpk_ci_grp_depth:-0} - 1))
+    while [ "$g" -ge 0 ]; do
+        if [ "${_dhpk_ci_grp_kind[$g]:-}" = "paren" ]; then
+            pp="${_dhpk_ci_grp_pidx[$g]:--1}"
+            if [ "$pp" -ge 0 ] && [ "${_dhpk_ci_pin_live[$pp]:-0}" = "1" ]; then
+                slot="paren"
+                p="$pp"
+                text="${_dhpk_ci_pin_text[$pp]:-}"
+                known="${_dhpk_ci_pin_known[$pp]:-0}"
+                break
+            fi
+        elif [ "${_dhpk_ci_gpin_live[$g]:-0}" = "1" ]; then
+            slot="group"
+            p="$g"
+            text="${_dhpk_ci_gpin_text[$g]:-}"
+            known="${_dhpk_ci_gpin_known[$g]:-0}"
+            break
+        fi
+        g=$((g - 1))
     done
-    if [ "$p" -ge 0 ]; then
-        slot="paren"
-        text="${_dhpk_ci_pin_text[$p]:-}"
-        known="${_dhpk_ci_pin_known[$p]:-0}"
-    else
-        p=$((${_dhpk_ci_grp_depth:-0} - 1))
-        while [ "$p" -ge 0 ] && [ "${_dhpk_ci_gpin_live[$p]:-0}" != "1" ]; do
-            p=$((p - 1))
-        done
-        [ "$p" -ge 0 ] || return 0
-        slot="group"
-        text="${_dhpk_ci_gpin_text[$p]:-}"
-        known="${_dhpk_ci_gpin_known[$p]:-0}"
-    fi
+    [ -n "$slot" ] || return 0
     # "$fn" may be the shell that reads this pin. The name is not visible.
     if [ "${_dhpk_ci_u_dyn[${_dhpk_ci_u_idx:-0}]:-0}" = "1" ]; then
         _dhpk_ci_unsupported "shell input is not visible"
@@ -3290,6 +3296,12 @@ _dhpk_ci_grp_push() {
     _dhpk_ci_grp_kind[$_dhpk_ci_grp_depth]="$1"
     _dhpk_ci_grp_cmd0[$_dhpk_ci_grp_depth]="$2"
     _dhpk_ci_grp_pipe[$_dhpk_ci_grp_depth]="$3"
+    # Paren pins live on the paren stack. Record that index before it increments.
+    if [ "$1" = "paren" ]; then
+        _dhpk_ci_grp_pidx[$_dhpk_ci_grp_depth]="${_dhpk_ci_paren:-0}"
+    else
+        _dhpk_ci_grp_pidx[$_dhpk_ci_grp_depth]=-1
+    fi
     # `{`, if, while, for and case run in this shell and share the pipe.
     # Snapshot before echo replaces the buffer. `(` keeps its own pin.
     if [ "$1" != "paren" ] && [ "${_dhpk_ci_after_pipe:-0}" = "1" ]; then
@@ -4841,7 +4853,7 @@ _dhpk_ci_list_run() {
     # Directory/state saved at each open '(' and open compound group stack.
     # Subshells restore allexport and sticky fully. Function bodies merge
     # fail-closed so an uncalled body cannot clear a relocation.
-    local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_grp_cmd0 _dhpk_ci_grp_pipe _dhpk_ci_grp_kind
+    local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_grp_cmd0 _dhpk_ci_grp_pipe _dhpk_ci_grp_kind _dhpk_ci_grp_pidx
     local -a _dhpk_ci_grp_lastpipe _dhpk_ci_grp_sticky _dhpk_ci_grp_allexport _dhpk_ci_grp_ifs
     local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk _dhpk_ci_lastpipe_stk
     local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_lastpipe_stk _dhpk_ci_fn_ifs_stk _dhpk_ci_fn_brace
@@ -4879,6 +4891,7 @@ _dhpk_ci_list_run() {
     _dhpk_ci_grp_cmd0=()
     _dhpk_ci_grp_pipe=()
     _dhpk_ci_grp_kind=()
+    _dhpk_ci_grp_pidx=()
     _dhpk_ci_pipe_hs_flat=()
     _dhpk_ci_rf_mark=()
     _dhpk_ci_ifs_stk=()
