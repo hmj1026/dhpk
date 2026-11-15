@@ -624,7 +624,8 @@ _dhpk_ci_eval_split() {
 # parameter with a suffix, or echo/printf whose output is not literal stays
 # unresolved. The file named by a variable is not read.
 _dhpk_ci_eval_see_word() {
-    local w="$1" inner="" first="" last="" i=0 fmt="" script="" n=0
+    local w="$1" inner="" first="" last="" i=0 fmt="" script="" n=0 base=""
+    _dhpk_ci_eval_piece=""
     [ "${#w}" -ge 2 ] || return 0
     first="${w:0:2}"
     last="${w:$((${#w} - 1)):1}"
@@ -641,7 +642,7 @@ _dhpk_ci_eval_see_word() {
     if [ "${_dhpk_ci_ev_meta:-0}" = "1" ]; then
         i=0
         while [ "$i" -lt "$n" ]; do
-            case "${_dhpk_ci_ev_words[$i]}" in
+            case "${_dhpk_ci_ev_words[$i]##*/}" in
                 echo|printf)
                     _dhpk_ci_unsupported "unresolved eval"
                     return 0
@@ -685,7 +686,8 @@ _dhpk_ci_eval_see_word() {
         esac
     done
     [ "$i" -lt "$n" ] || return 0
-    case "${_dhpk_ci_ev_words[$i]}" in
+    base="${_dhpk_ci_ev_words[$i]##*/}"
+    case "$base" in
         echo)
             i=$((i + 1))
             first=0
@@ -758,7 +760,10 @@ _dhpk_ci_eval_see_word() {
         return 0
     fi
     [ -n "$script" ] || return 0
-    _dhpk_ci_inspect_body_cwd "$script" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+    # The caller joins this with the rest of eval's arguments. Eval
+    # concatenates those arguments with one space before it parses them.
+    _dhpk_ci_eval_piece="$script"
+    return 0
 }
 
 # True when printf '"%s"' would not leave one quoted word for eval.
@@ -2521,20 +2526,27 @@ _dhpk_ci_flush_command() {
                     _eval_payload=""
                     _eval_literal=""
                     while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
+                        _dhpk_ci_eval_piece=""
                         _dhpk_ci_eval_see_word "${_dhpk_ci_u_words[$k]}"
                         if [ -n "$_eval_payload" ]; then
                             _eval_payload+=" ${_dhpk_ci_u_words[$k]}"
                         else
                             _eval_payload="${_dhpk_ci_u_words[$k]}"
                         fi
-                        # $(...) and backticks are already inspected as their
-                        # own lists. Inspecting the raw word again would count
-                        # the same git command twice.
-                        if ! _dhpk_ci_eval_word_seen "${_dhpk_ci_u_words[$k]}"; then
+                        # A printf/echo substitution contributes the text
+                        # eval will run. The raw $(...) was already scanned
+                        # as its own list, so it is not copied again.
+                        _eval_add=""
+                        if [ -n "${_dhpk_ci_eval_piece:-}" ]; then
+                            _eval_add="$_dhpk_ci_eval_piece"
+                        elif ! _dhpk_ci_eval_word_seen "${_dhpk_ci_u_words[$k]}"; then
+                            _eval_add="${_dhpk_ci_u_words[$k]}"
+                        fi
+                        if [ -n "$_eval_add" ]; then
                             if [ -n "$_eval_literal" ]; then
-                                _eval_literal+=" ${_dhpk_ci_u_words[$k]}"
+                                _eval_literal+=" $_eval_add"
                             else
-                                _eval_literal="${_dhpk_ci_u_words[$k]}"
+                                _eval_literal="$_eval_add"
                             fi
                         fi
                         k=$((k + 1))
