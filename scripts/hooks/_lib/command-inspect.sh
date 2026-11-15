@@ -42,7 +42,9 @@
 #     is inspected as its own command list. A <<< word is stdin data. A
 #     function whose body runs a shell, a pipe into a shell or `.`, and a
 #     process substitution used as that script are judged when the text is
-#     visible. Input whose text is not visible stays unresolved.
+#     visible. A stdin device (/dev/stdin, /dev/fd/0, /proc/self/fd/0) is
+#     that script. Text written into >(shell) or tee >(shell) is too.
+#     Input whose text is not visible stays unresolved.
 #   - Syntax the decoder cannot place faithfully sets DHPK_UNSUPPORTED (for
 #     example a case statement inside $(...)), and the hooks block it.
 
@@ -611,10 +613,13 @@ _dhpk_ci_subst_add() {
     _dhpk_ci_subst_text+="$2"
 }
 
-# curl|sh is already a named guard pattern. An unknown pipe in that family
-# keeps that message instead of a second unresolved-script block.
+# curl|sh is already a named guard pattern. Only the command word counts:
+# a filename whose basename is curl is not a download. Leading reserved
+# words are not that command word; `{ curl; } | sh` stores `{` in the same
+# argv, and `then` / `do` do the same. Missing them sets an unsupported
+# block that hides the guard's remote-download message.
 _dhpk_ci_pipe_has_fetch() {
-    local i=0 ncmd start len j end base
+    local i=0 ncmd start len j end w base
     [ "${_dhpk_ci_pipe_id:-0}" != "0" ] || return 1
     ncmd="${#DHPK_CMD_START[@]}"
     while [ "$i" -lt "$ncmd" ]; do
@@ -624,16 +629,44 @@ _dhpk_ci_pipe_has_fetch() {
             end=$((start + len))
             j="$start"
             while [ "$j" -lt "$end" ]; do
-                base="${DHPK_WORDS[$j]##*/}"
+                w="${DHPK_WORDS[$j]}"
+                case "$w" in
+                    '!'|'{'|if|then|else|elif|do|while|until|coproc)
+                        j=$((j + 1))
+                        continue
+                        ;;
+                    time)
+                        j=$((j + 1))
+                        if [ "$j" -lt "$end" ] && [ "${DHPK_WORDS[$j]}" = "-p" ]; then
+                            j=$((j + 1))
+                        fi
+                        continue
+                        ;;
+                    [A-Za-z_]*=*) j=$((j + 1)); continue ;;
+                esac
+                base="${w##*/}"
                 case "$base" in
                     curl|wget|fetch) return 0 ;;
+                    command|builtin|exec|env|nice|nohup)
+                        j=$((j + 1))
+                        continue
+                        ;;
+                    *) break ;;
                 esac
-                j=$((j + 1))
             done
         fi
         i=$((i + 1))
     done
     return 1
+}
+
+# Feed a pipe buffer unless this pipe is the curl|sh family. That family
+# already has its own guard message, which runs after an unsupported block.
+_dhpk_ci_feed_pipe_buf() {
+    local text="$1" known="$2"
+    if [ "$known" = "1" ] || ! _dhpk_ci_pipe_has_fetch; then
+        _dhpk_ci_feed_text "$text" "$known"
+    fi
 }
 
 # Visible text that a shell or `.` will run. Unknown text stays unresolved.
@@ -683,52 +716,318 @@ _dhpk_ci_ps_at_index() {
     return 1
 }
 
+# /dev/stdin, /dev/fd/0 and /proc/self/fd/0 are the script, not a file.
+_dhpk_ci_stdin_device() {
+    case "$1" in
+        /dev/stdin|/dev/fd/0|/proc/self/fd/0) return 0 ;;
+    esac
+    return 1
+}
+
+# First real operand of `.` or `source`. A redirect is not that operand.
+# Sets _dhpk_ci_dot_kind to stdin, opaque, ps, file or none.
+_dhpk_ci_dot_scan() {
+    local i="$1" seen=0 w
+    _dhpk_ci_dot_kind="none"
+    _dhpk_ci_dot_ps=-1
+    while [ "$i" -lt "$n" ]; do
+        w="${_dhpk_ci_words[$i]}"
+        [ "$w" = "}" ] && break
+        if _dhpk_ci_is_stdin_op "$w"; then
+            i=$((i + 1))
+            [ "$i" -lt "$n" ] && i=$((i + 1))
+            continue
+        fi
+        if [ "$seen" -eq 0 ]; then
+            seen=1
+            if _dhpk_ci_ps_at_index "$i"; then
+                _dhpk_ci_dot_kind="ps"
+                _dhpk_ci_dot_ps="$i"
+            elif [ "${_dhpk_ci_dyn[$i]:-0}" = "1" ]; then
+                _dhpk_ci_dot_kind="opaque"
+            elif _dhpk_ci_stdin_device "$w"; then
+                _dhpk_ci_dot_kind="stdin"
+            else
+                _dhpk_ci_dot_kind="file"
+            fi
+        fi
+        i=$((i + 1))
+    done
+}
+
+# Advance past one wrapper in a `function name { ... }` body, which is one
+# simple command. Sets _dhpk_ci_fn_skip_at and _dhpk_ci_fn_skip_how
+# (more, stop, or opaque).
+_dhpk_ci_fn_skip_one() {
+    local i="$1" w base tok
+    w="${_dhpk_ci_words[$i]}"
+    base="${w##*/}"
+    i=$((i + 1))
+    _dhpk_ci_fn_skip_how="more"
+    case "$base" in
+        command)
+            while [ "$i" -lt "$n" ]; do
+                tok="${_dhpk_ci_words[$i]}"
+                [ "$tok" = "}" ] && break
+                case "$tok" in
+                    --) i=$((i + 1)); break ;;
+                    -p) i=$((i + 1)) ;;
+                    -*v*|-*V*) _dhpk_ci_fn_skip_how="stop"; _dhpk_ci_fn_skip_at="$i"; return 0 ;;
+                    -*) _dhpk_ci_fn_skip_how="opaque"; _dhpk_ci_fn_skip_at="$i"; return 0 ;;
+                    *) break ;;
+                esac
+            done
+            ;;
+        builtin)
+            [ "$i" -lt "$n" ] && [ "${_dhpk_ci_words[$i]}" = "--" ] && i=$((i + 1))
+            ;;
+        exec)
+            while [ "$i" -lt "$n" ]; do
+                tok="${_dhpk_ci_words[$i]}"
+                [ "$tok" = "}" ] && break
+                case "$tok" in
+                    --) i=$((i + 1)); break ;;
+                    -a) i=$((i + 2)) ;;
+                    -a*) i=$((i + 1)) ;;
+                    -[cl]*) i=$((i + 1)) ;;
+                    -*) _dhpk_ci_fn_skip_how="opaque"; _dhpk_ci_fn_skip_at="$i"; return 0 ;;
+                    *) break ;;
+                esac
+            done
+            ;;
+        time)
+            while [ "$i" -lt "$n" ]; do
+                tok="${_dhpk_ci_words[$i]}"
+                [ "$tok" = "}" ] && break
+                case "$tok" in
+                    --) i=$((i + 1)); break ;;
+                    --verbose|--quiet|--append|-p|-v|-q|-a) i=$((i + 1)) ;;
+                    --output|--format|-o|-f) i=$((i + 2)) ;;
+                    --output=*|--format=*|-o?*|-f?*) i=$((i + 1)) ;;
+                    -*) _dhpk_ci_fn_skip_how="opaque"; _dhpk_ci_fn_skip_at="$i"; return 0 ;;
+                    *) break ;;
+                esac
+            done
+            ;;
+        env)
+            while [ "$i" -lt "$n" ]; do
+                tok="${_dhpk_ci_words[$i]}"
+                [ "$tok" = "}" ] && break
+                case "$tok" in
+                    --) i=$((i + 1)); break ;;
+                    -) i=$((i + 1)); continue ;;
+                    --help|--version) _dhpk_ci_fn_skip_how="stop"; _dhpk_ci_fn_skip_at="$i"; return 0 ;;
+                    --ignore-environment|--null|--debug|--list-signal-handling) i=$((i + 1)) ;;
+                    --split-string|--split-string=*|-S|-S*) _dhpk_ci_fn_skip_how="opaque"; _dhpk_ci_fn_skip_at="$i"; return 0 ;;
+                    --unset|--argv0|--chdir) i=$((i + 2)) ;;
+                    --unset=*|--argv0=*|--chdir=*) i=$((i + 1)) ;;
+                    --*) _dhpk_ci_fn_skip_how="opaque"; _dhpk_ci_fn_skip_at="$i"; return 0 ;;
+                    -i|-0|-v) i=$((i + 1)) ;;
+                    -u|-a|-C) i=$((i + 2)) ;;
+                    -u*|-a*|-C*) i=$((i + 1)) ;;
+                    -*) _dhpk_ci_fn_skip_how="opaque"; _dhpk_ci_fn_skip_at="$i"; return 0 ;;
+                    [A-Za-z_]*=*) i=$((i + 1)) ;;
+                    *) break ;;
+                esac
+            done
+            ;;
+    esac
+    _dhpk_ci_fn_skip_at="$i"
+}
+
+# Token for the shell word at $1 inside a function-keyword body.
+_dhpk_ci_fn_shell_token() {
+    local i="$1" w token="S" nxt
+    i=$((i + 1))
+    while [ "$i" -lt "$n" ]; do
+        w="${_dhpk_ci_words[$i]}"
+        [ "$w" = "}" ] && break
+        case "$w" in
+            --) ;;
+            -s|-s*) ;;
+            -c|-c*)
+                token=""
+                nxt=$((i + 1))
+                if [ "$nxt" -lt "$n" ] && [ "${_dhpk_ci_words[$nxt]}" != "}" ]; then
+                    if [ "${_dhpk_ci_dyn[$nxt]:-0}" = "1" ]; then
+                        token="U"
+                    else
+                        _dhpk_ci_inspect_body_cwd "${_dhpk_ci_words[$nxt]}" "${_dhpk_ci_u_cwd:-}" "${_dhpk_ci_u_cwd_state:-unresolved}"
+                    fi
+                fi
+                ;;
+            --*) token="" ;;
+            *)
+                if [ "${_dhpk_ci_dyn[$i]:-0}" = "1" ]; then
+                    token="U"
+                elif _dhpk_ci_stdin_device "$w"; then
+                    token="S"
+                else
+                    token=""
+                fi
+                ;;
+        esac
+        if [ "${_dhpk_ci_dyn[$i]:-0}" = "1" ] && [ "$token" != "S" ]; then
+            token="U"
+        fi
+        i=$((i + 1))
+    done
+    _dhpk_ci_fn_kw_token="$token"
+}
+
+# The word after `{` in `function name { ... }`, after assignments and wrappers.
+_dhpk_ci_fn_keyword_token() {
+    local i=0 w base
+    _dhpk_ci_fn_kw_token=""
+    while [ "$i" -lt "$n" ]; do
+        [ "${_dhpk_ci_words[$i]}" = "{" ] && break
+        i=$((i + 1))
+    done
+    i=$((i + 1))
+    [ "$i" -lt "$n" ] || return 0
+    while [ "$i" -lt "$n" ]; do
+        w="${_dhpk_ci_words[$i]}"
+        [ "$w" = "}" ] && return 0
+        case "$w" in
+            [A-Za-z_]*=*) i=$((i + 1)); continue ;;
+        esac
+        break
+    done
+    while [ "$i" -lt "$n" ]; do
+        w="${_dhpk_ci_words[$i]}"
+        [ "$w" = "}" ] && return 0
+        base="${w##*/}"
+        case "$base" in
+            command|builtin|exec|time|env)
+                _dhpk_ci_fn_skip_one "$i"
+                case "${_dhpk_ci_fn_skip_how:-more}" in
+                    stop) return 0 ;;
+                    opaque) _dhpk_ci_fn_kw_token="U"; return 0 ;;
+                esac
+                i="${_dhpk_ci_fn_skip_at:-$((i + 1))}"
+                continue
+                ;;
+            nice|sudo|timeout|xargs|nohup|stdbuf|doas)
+                _dhpk_ci_fn_kw_token="U"
+                return 0
+                ;;
+        esac
+        break
+    done
+    [ "$i" -lt "$n" ] || return 0
+    w="${_dhpk_ci_words[$i]}"
+    [ "$w" = "}" ] && return 0
+    if [ "${_dhpk_ci_dyn[$i]:-0}" = "1" ]; then
+        _dhpk_ci_fn_kw_token="U"
+        return 0
+    fi
+    if _dhpk_ci_is_shell_word "$w"; then
+        _dhpk_ci_fn_shell_token "$i"
+        return 0
+    fi
+    if [ "$w" = "." ] || [ "$w" = "source" ]; then
+        _dhpk_ci_dot_scan $((i + 1))
+        case "${_dhpk_ci_dot_kind:-none}" in
+            stdin) _dhpk_ci_fn_kw_token="S" ;;
+            opaque) _dhpk_ci_fn_kw_token="U" ;;
+        esac
+        return 0
+    fi
+    _dhpk_ci_fn_kw_token="C $w"
+}
+
+_dhpk_ci_outps_note() {
+    case "${_dhpk_ci_outps_acc:-}" in
+        feed) return 0 ;;
+    esac
+    case "$1" in
+        feed|opaque) _dhpk_ci_outps_acc="$1" ;;
+    esac
+}
+
+# A command inside >( ) that runs its stdin as a script.
+_dhpk_ci_outps_classify() {
+    [ "${_dhpk_ci_outps_depth:-0}" -gt 0 ] || return 0
+    if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
+        _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
+        case "${_dhpk_ci_shell_reads_stdin:-0}" in
+            1) _dhpk_ci_outps_note feed ;;
+            2) _dhpk_ci_outps_note opaque ;;
+        esac
+    elif [ "$_dhpk_ci_u_head" = "." ] || [ "$_dhpk_ci_u_head" = "source" ]; then
+        _dhpk_ci_dot_scan $((h + _dhpk_ci_u_idx + 1))
+        case "${_dhpk_ci_dot_kind:-none}" in
+            stdin) _dhpk_ci_outps_note feed ;;
+            opaque) _dhpk_ci_outps_note opaque ;;
+        esac
+    fi
+}
+
+# Bytes written to >(shell). tee copies the pipe; other commands use stdout.
+_dhpk_ci_apply_outps() {
+    local i=0 nq mode text="" known=0 base
+    nq="${#_dhpk_ci_outps_q[@]}"
+    [ "$nq" -gt 0 ] || return 0
+    base="${_dhpk_ci_u_head##*/}"
+    if [ "$base" = "tee" ]; then
+        if [ "${_dhpk_ci_after_pipe:-0}" = "1" ] || [ "${_dhpk_ci_pipe_id:-0}" != "0" ]; then
+            text="${_dhpk_ci_pipe_text:-}"
+            known="${_dhpk_ci_pipe_known:-0}"
+        else
+            known=0
+        fi
+    elif _dhpk_ci_known_stdout; then
+        text="$_dhpk_ci_out_text"
+        known=1
+    else
+        known=0
+    fi
+    while [ "$i" -lt "$nq" ]; do
+        mode="${_dhpk_ci_outps_q[$i]}"
+        if [ "$mode" = "feed" ] && [ "$known" = "1" ]; then
+            _dhpk_ci_feed_text "$text" 1
+        else
+            _dhpk_ci_unsupported "shell input is not visible"
+        fi
+        i=$((i + 1))
+    done
+    _dhpk_ci_outps_q=()
+}
+
+# A subshell that is a pipeline stage keeps the incoming pipe for its first
+# stdin-reading shell. echo and printf do not consume that stdin.
+_dhpk_ci_pin_take() {
+    local p base
+    _dhpk_ci_pin_took=0
+    [ "${_dhpk_ci_paren:-0}" -gt 0 ] || return 0
+    p=$((_dhpk_ci_paren - 1))
+    [ "${_dhpk_ci_pin_live[$p]:-0}" = "1" ] || return 0
+    if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
+        _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
+        if [ "${_dhpk_ci_shell_reads_stdin:-0}" = "1" ] && [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
+            _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pin_text[$p]:-}" "${_dhpk_ci_pin_known[$p]:-0}"
+            _dhpk_ci_pin_live[$p]=0
+            _dhpk_ci_pin_took=1
+            return 0
+        fi
+    fi
+    base="${_dhpk_ci_u_head##*/}"
+    case "$base" in
+        echo|printf|true|false|:|test|'[') return 0 ;;
+    esac
+    _dhpk_ci_pin_live[$p]=0
+}
+
 # Record a function body, then judge stdin that reaches a shell or `.`.
 _dhpk_ci_finish_command_input() {
-    local def="" token="" reads=0 i=0 w fed=0 stdin_at=-1 kind="none"
+    local def="" token="" reads=0 i=0 w fed=0 stdin_at=-1 kind="none" file_at=-1
     if _dhpk_ci_fn_defining_name; then
         def="$_dhpk_ci_fn_def_name"
         case "$head" in
             ''|'{'|'}'|'('|')'|'fi'|'done'|'esac') ;;
             function)
-                token=""
-                i=0
-                while [ "$i" -lt "$n" ]; do
-                    if [ "${_dhpk_ci_words[$i]}" = "{" ]; then
-                        i=$((i + 1))
-                        break
-                    fi
-                    i=$((i + 1))
-                done
-                if [ "$i" -lt "$n" ] && [ "${_dhpk_ci_words[$i]}" != "}" ]; then
-                    if [ "${_dhpk_ci_dyn[$i]:-0}" = "1" ]; then
-                        token="U"
-                    elif _dhpk_ci_is_shell_word "${_dhpk_ci_words[$i]}"; then
-                        token="S"
-                        w=$((i + 1))
-                        while [ "$w" -lt "$n" ]; do
-                            case "${_dhpk_ci_words[$w]}" in
-                                '}'|'--') ;;
-                                -s|-s*) ;;
-                                -c|-c*)
-                                    token=""
-                                    if [ $((w + 1)) -lt "$n" ] && [ "${_dhpk_ci_dyn[$((w + 1))]:-0}" != "1" ]; then
-                                        _dhpk_ci_inspect_body_cwd "${_dhpk_ci_words[$((w + 1))]}" "${_dhpk_ci_u_cwd:-}" "${_dhpk_ci_u_cwd_state:-unresolved}"
-                                    fi
-                                    ;;
-                                --*) token="" ;;
-                                *) token="" ;;
-                            esac
-                            if [ "${_dhpk_ci_dyn[$w]:-0}" = "1" ]; then
-                                token="U"
-                            fi
-                            w=$((w + 1))
-                        done
-                    else
-                        token="C ${_dhpk_ci_words[$i]}"
-                    fi
-                    [ -n "$token" ] && _dhpk_ci_fn_add_token "$def" "$token"
-                fi
+                _dhpk_ci_fn_keyword_token
+                [ -n "${_dhpk_ci_fn_kw_token:-}" ] && _dhpk_ci_fn_add_token "$def" "$_dhpk_ci_fn_kw_token"
                 ;;
             *)
                 if [ "${_dhpk_ci_u_dyn[$_dhpk_ci_u_idx]:-0}" = "1" ]; then
@@ -738,6 +1037,13 @@ _dhpk_ci_finish_command_input() {
                     case "${_dhpk_ci_shell_reads_stdin:-0}" in
                         1) token="S" ;;
                         2) token="U" ;;
+                        *) token="" ;;
+                    esac
+                elif [ "$_dhpk_ci_u_head" = "." ] || [ "$_dhpk_ci_u_head" = "source" ]; then
+                    _dhpk_ci_dot_scan $((h + _dhpk_ci_u_idx + 1))
+                    case "${_dhpk_ci_dot_kind:-none}" in
+                        stdin) token="S" ;;
+                        opaque) token="U" ;;
                         *) token="" ;;
                     esac
                 else
@@ -760,23 +1066,23 @@ _dhpk_ci_finish_command_input() {
         if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
             _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
             reads="${_dhpk_ci_shell_reads_stdin:-0}"
-            if [ "$stdin_at" -ge 0 ]; then
+            file_at=-1
+            if [ "${_dhpk_ci_shell_file_idx:--1}" -ge 0 ]; then
+                file_at=$((h + _dhpk_ci_shell_file_idx))
+            fi
+            # A stdin redirect is the script only when this shell reads stdin.
+            # -c and a real script file do not.
+            if [ "$reads" = "1" ] && [ "$stdin_at" -ge 0 ]; then
                 _dhpk_ci_ps_at_index "$stdin_at"
                 _dhpk_ci_feed_text "$_dhpk_ci_ps_one_text" "$_dhpk_ci_ps_one_known"
                 fed=1
             fi
-            i=0
-            while [ "$i" -lt "$n" ]; do
-                if [ "$i" != "$stdin_at" ] && _dhpk_ci_ps_at_index "$i"; then
-                    _dhpk_ci_feed_text "$_dhpk_ci_ps_one_text" "$_dhpk_ci_ps_one_known"
-                    fed=1
-                fi
-                i=$((i + 1))
-            done
+            if [ "$fed" -eq 0 ] && [ "$reads" != "1" ] && [ -z "${_dhpk_ci_shell_c_payload:-}" ] && [ "$file_at" -ge 0 ] && _dhpk_ci_ps_at_index "$file_at"; then
+                _dhpk_ci_feed_text "$_dhpk_ci_ps_one_text" "$_dhpk_ci_ps_one_known"
+                fed=1
+            fi
             if [ "$fed" -eq 0 ] && [ "$reads" = "1" ] && [ "${_dhpk_ci_after_pipe:-0}" = "1" ] && [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
-                if [ "${_dhpk_ci_pipe_known:-0}" = "1" ] || ! _dhpk_ci_pipe_has_fetch; then
-                    _dhpk_ci_feed_text "${_dhpk_ci_pipe_text:-}" "${_dhpk_ci_pipe_known:-0}"
-                fi
+                _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pipe_text:-}" "${_dhpk_ci_pipe_known:-0}"
                 fed=1
             fi
             if [ "$fed" -eq 0 ] && [ "$reads" = "2" ] && [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
@@ -785,17 +1091,26 @@ _dhpk_ci_finish_command_input() {
                 fi
             fi
         elif [ "$_dhpk_ci_u_head" = "." ] || [ "$_dhpk_ci_u_head" = "source" ]; then
-            i=$((_dhpk_ci_u_idx + 1))
-            while [ "$i" -lt "$n" ]; do
-                if _dhpk_ci_ps_at_index "$i"; then
+            _dhpk_ci_dot_scan $((h + _dhpk_ci_u_idx + 1))
+            case "${_dhpk_ci_dot_kind:-none}" in
+                ps)
+                    _dhpk_ci_ps_at_index "$_dhpk_ci_dot_ps"
                     _dhpk_ci_feed_text "$_dhpk_ci_ps_one_text" "$_dhpk_ci_ps_one_known"
-                    fed=1
-                fi
-                i=$((i + 1))
-            done
-            if [ "$fed" -eq 0 ] && [ "${_dhpk_ci_after_pipe:-0}" = "1" ] && [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
-                _dhpk_ci_feed_text "${_dhpk_ci_pipe_text:-}" "${_dhpk_ci_pipe_known:-0}"
-            fi
+                    ;;
+                stdin)
+                    if [ "$stdin_at" -ge 0 ]; then
+                        _dhpk_ci_ps_at_index "$stdin_at"
+                        _dhpk_ci_feed_text "$_dhpk_ci_ps_one_text" "$_dhpk_ci_ps_one_known"
+                    elif [ "${_dhpk_ci_after_pipe:-0}" = "1" ] && [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
+                        _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pipe_text:-}" "${_dhpk_ci_pipe_known:-0}"
+                    fi
+                    ;;
+                opaque)
+                    if [ "$stdin_at" -ge 0 ] || [ "${#_dhpk_ci_hs_words[@]}" -gt 0 ] || [ "${_dhpk_ci_after_pipe:-0}" = "1" ] || [ "${#_dhpk_ci_ps_at[@]}" -gt 0 ]; then
+                        _dhpk_ci_unsupported "shell input is not visible"
+                    fi
+                    ;;
+            esac
         else
             _dhpk_ci_fn_kind_of "$_dhpk_ci_u_head"
             kind="${_dhpk_ci_fn_resolved:-none}"
@@ -823,6 +1138,10 @@ _dhpk_ci_finish_command_input() {
             fi
         fi
     fi
+    _dhpk_ci_outps_classify
+    _dhpk_ci_pin_take
+    # tee must see the previous stage. Its own stdout replaces that buffer below.
+    _dhpk_ci_apply_outps
     # A subshell stage clears after_pipe, but its pipe id is still the
     # surrounding pipeline. Its stdout replaces the previous stage.
     if [ "$sep" = "pipe" ] || [ "${_dhpk_ci_after_pipe:-0}" = "1" ] || [ "${_dhpk_ci_pipe_id:-0}" != "0" ]; then
@@ -2706,6 +3025,8 @@ _dhpk_ci_extract_shell_c() {
     _dhpk_ci_shell_lastpipe=0
     _dhpk_ci_shell_reads_stdin=0
     _dhpk_ci_shell_saw_s=0
+    _dhpk_ci_shell_file_idx=-1
+    _dhpk_ci_shell_keep_stdin=0
     while [ "$k" -lt "$n" ]; do
         w="${_dhpk_ci_u_words[$k]}"
         case "$w" in
@@ -2769,16 +3090,33 @@ _dhpk_ci_extract_shell_c() {
     fi
     # 1: this shell reads its script from stdin. 2: an operand is dynamic,
     # so the script may be a file or stdin and neither is visible.
+    # keep_stdin: the script source is already known, so a later dynamic
+    # argument is not the script file.
     if [ -n "$_dhpk_ci_shell_c_payload" ]; then
         _dhpk_ci_shell_reads_stdin=0
     elif [ "$_dhpk_ci_shell_saw_s" -eq 1 ]; then
         _dhpk_ci_shell_reads_stdin=1
+        _dhpk_ci_shell_keep_stdin=1
     elif [ "$k" -lt "$n" ]; then
-        _dhpk_ci_shell_reads_stdin=0
+        w="${_dhpk_ci_u_words[$k]}"
+        _dhpk_ci_shell_file_idx=$k
+        if _dhpk_ci_is_stdin_op "$w"; then
+            _dhpk_ci_shell_reads_stdin=1
+            _dhpk_ci_shell_keep_stdin=1
+            _dhpk_ci_shell_file_idx=-1
+        elif _dhpk_ci_ps_at_index $((h + k)); then
+            _dhpk_ci_shell_reads_stdin=0
+            _dhpk_ci_shell_keep_stdin=1
+        elif [ "${_dhpk_ci_u_dyn[$k]:-0}" != "1" ] && _dhpk_ci_stdin_device "$w"; then
+            _dhpk_ci_shell_reads_stdin=1
+            _dhpk_ci_shell_keep_stdin=1
+        else
+            _dhpk_ci_shell_reads_stdin=0
+        fi
     else
         _dhpk_ci_shell_reads_stdin=1
     fi
-    if [ "$_dhpk_ci_shell_reads_stdin" -eq 0 ] && [ -z "$_dhpk_ci_shell_c_payload" ]; then
+    if [ "$_dhpk_ci_shell_reads_stdin" -eq 0 ] && [ -z "$_dhpk_ci_shell_c_payload" ] && [ "$_dhpk_ci_shell_keep_stdin" -eq 0 ]; then
         j="$k"
         while [ "$j" -lt "$n" ]; do
             if [ "${_dhpk_ci_u_dyn[$j]:-0}" = "1" ]; then
@@ -2787,7 +3125,7 @@ _dhpk_ci_extract_shell_c() {
             fi
             j=$((j + 1))
         done
-    elif [ "$_dhpk_ci_shell_reads_stdin" -eq 1 ] && [ "$_dhpk_ci_shell_saw_s" -eq 0 ]; then
+    elif [ "$_dhpk_ci_shell_reads_stdin" -eq 1 ] && [ "$_dhpk_ci_shell_saw_s" -eq 0 ] && [ "$_dhpk_ci_shell_keep_stdin" -eq 0 ]; then
         j="$1"
         while [ "$j" -lt "$n" ]; do
             if [ "${_dhpk_ci_u_dyn[$j]:-0}" = "1" ]; then
@@ -4188,7 +4526,8 @@ _dhpk_ci_list_run() {
     local _dhpk_ci_fn_pending_name="" _dhpk_ci_pipe_text="" _dhpk_ci_pipe_known=1
     local _dhpk_ci_subst_text="" _dhpk_ci_subst_known=1 _dhpk_ci_ps_hold=0
     local -a _dhpk_ci_shfn_name _dhpk_ci_shfn_body _dhpk_ci_fn_name_stk _dhpk_ci_fn_paren_stk
-    local -a _dhpk_ci_ps_at _dhpk_ci_ps_body _dhpk_ci_ps_ok
+    local -a _dhpk_ci_ps_at _dhpk_ci_ps_body _dhpk_ci_ps_ok _dhpk_ci_outps_q
+    local -a _dhpk_ci_pin_text _dhpk_ci_pin_known _dhpk_ci_pin_live
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
     _dhpk_ci_grp_cmd0=()
@@ -4205,6 +4544,10 @@ _dhpk_ci_list_run() {
     _dhpk_ci_ps_at=()
     _dhpk_ci_ps_body=()
     _dhpk_ci_ps_ok=()
+    _dhpk_ci_outps_q=()
+    _dhpk_ci_pin_text=()
+    _dhpk_ci_pin_known=()
+    _dhpk_ci_pin_live=()
     if [ "$_dhpk_ci_kind" != "body" ] || [ "$_dhpk_ci_share_here" != "1" ]; then
         _dhpk_ci_rf_name=()
         _dhpk_ci_rf_body=()
@@ -4361,7 +4704,9 @@ _dhpk_ci_list_run() {
                 continue
                 ;;
             ';')
-                _dhpk_ci_after_pipe=0
+                # The command this semicolon ends may be the last stage of a
+                # pipeline. Clearing after_pipe first made `echo | bash;`
+                # look like it had no stdin.
                 _dhpk_ci_flush_command compound
                 DHPK_STRIPPED+=";"
                 i=$((i + 1))
@@ -4395,6 +4740,16 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_ifs_stk[$_dhpk_ci_paren]="${_dhpk_ci_ifs_custom:-0}"
                 _dhpk_ci_paren_stamp[$_dhpk_ci_paren]="${_dhpk_ci_ifs_stamp:-0}"
                 _dhpk_ci_grp_push paren "${#DHPK_CMD_START[@]}" "$_dhpk_ci_pipe_id"
+                # Keep the pipe that this subshell stage reads. Its first
+                # stdin shell consumes that text; a later command does not
+                # see a buffer replaced by echo inside the subshell.
+                _dhpk_ci_pin_text[$_dhpk_ci_paren]="${_dhpk_ci_pipe_text:-}"
+                _dhpk_ci_pin_known[$_dhpk_ci_paren]="${_dhpk_ci_pipe_known:-0}"
+                if [ "${_dhpk_ci_after_pipe:-0}" = "1" ] || [ "${_dhpk_ci_pipe_id:-0}" != "0" ]; then
+                    _dhpk_ci_pin_live[$_dhpk_ci_paren]=1
+                else
+                    _dhpk_ci_pin_live[$_dhpk_ci_paren]=0
+                fi
                 _dhpk_ci_after_pipe=0
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
                 _dhpk_ci_paren_empty=1
@@ -4451,9 +4806,19 @@ _dhpk_ci_list_run() {
                 ;;
             '>')
                 if [ "$next" = "(" ]; then
+                    _dhpk_ci_outps_saved_acc="${_dhpk_ci_outps_acc:-}"
+                    _dhpk_ci_outps_saved_depth="${_dhpk_ci_outps_depth:-0}"
+                    _dhpk_ci_outps_acc=""
+                    _dhpk_ci_outps_depth=$((_dhpk_ci_outps_saved_depth + 1))
                     _dhpk_ci_ss_push
                     _dhpk_ci_list "" $((i + 2)) subst
                     _dhpk_ci_ss_pop
+                    _dhpk_ci_outps_result="${_dhpk_ci_outps_acc:-}"
+                    _dhpk_ci_outps_acc="$_dhpk_ci_outps_saved_acc"
+                    _dhpk_ci_outps_depth="$_dhpk_ci_outps_saved_depth"
+                    case "$_dhpk_ci_outps_result" in
+                        feed|opaque) _dhpk_ci_outps_q+=("$_dhpk_ci_outps_result") ;;
+                    esac
                     _dhpk_ci_wrap_subst ">("
                     _dhpk_ci_sub_word "$i" "$_dhpk_ci_end" "$_dhpk_ci_sub_stripped"
                     i="$_dhpk_ci_end"
@@ -4987,12 +5352,14 @@ dhpk_inspect_command() {
     _dhpk_ci_saw_cdpath=0
     _dhpk_ci_saw_shell_hs=0
     _dhpk_ci_saw_shell_feed=0
+    _dhpk_ci_outps_depth=0
+    _dhpk_ci_outps_acc=""
     _dhpk_ci_all_hs_flat=()
     _dhpk_ci_saw_shell_head=0
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_outps_depth _dhpk_ci_outps_acc
     return 0
 }
 

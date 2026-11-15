@@ -2475,6 +2475,17 @@ test('pretool-git-gate blocks shell input from a function, a pipe, or a process 
       ". <(echo 'git commit -m x')",
       "source <(echo 'git commit -m x')",
       "f() { sh; }; f < <(echo 'git commit -m x')",
+      "echo 'git commit -m x' | bash /dev/stdin",
+      "echo 'git commit -m x' | bash /dev/fd/0",
+      "f() { bash /dev/stdin; }; f <<< 'git commit -m x'",
+      "f() { . /dev/stdin; }; f <<< 'git commit -m x'",
+      "f() { source /dev/stdin; }; echo 'git commit -m x' | f",
+      "function f { command bash; }; echo 'git commit -m x' | f",
+      "echo 'git commit -m x' | bash -s <(echo 'echo hi')",
+      "echo 'git commit -m x' > >(bash)",
+      "echo 'git commit -m x' | tee >(bash) >/dev/null",
+      "echo 'git commit -m x' | bash;",
+      "echo 'git commit -m x' | (bash)",
     ]) {
       for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
         expectStatus(
@@ -2495,6 +2506,8 @@ test('pretool-git-gate blocks shell input from a function, a pipe, or a process 
       '. <(cat file)',
       'f() { bash "$x"; }; f <<< \'git commit -m x\'',
       'f() { bash "$x"; }; echo \'git commit -m x\' | f',
+      'cat /tmp/curl | bash',
+      'f() { . "$x"; }; f <<< \'git commit -m x\'',
     ]) {
       for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
         const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
@@ -2519,6 +2532,12 @@ test('data consumers and a shell that does not read that stdin stay allowed', ()
       "source <(echo 'echo hi')",
       "f() { bash; }; echo 'git commit -m x'",
       "echo 'git commit -m x' | bash -c 'echo hi'",
+      "bash -c 'echo hi' <(echo 'git commit -m x')",
+      "echo 'git commit -m x' | source /etc/os-release",
+      ". < <(echo 'git commit -m x')",
+      "echo 'git commit -m x' > >(cat)",
+      "echo 'git commit -m x' > >(bash -c 'echo hi')",
+      "f() { . /etc/os-release; }; f <<< 'git commit -m x'",
     ]) {
       expectStatus(
         bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }),
