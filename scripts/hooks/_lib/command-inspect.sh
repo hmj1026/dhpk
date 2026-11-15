@@ -478,81 +478,154 @@ _dhpk_ci_allexport_printf() {
     done
 }
 
-# eval "$(echo git commit)" runs the echo output. A bare eval "$X" has no
-# visible command, so it stays unresolved. The file named by a variable is not read.
+# echo treats a leading -[neE]+ word as a flag, not text.
+_dhpk_ci_echo_opt() {
+    local f="$1" i=1 n="${#1}" ch=""
+    [ "${f:0:1}" = "-" ] || return 1
+    [ "$n" -ge 2 ] || return 1
+    while [ "$i" -lt "$n" ]; do
+        ch="${f:$i:1}"
+        case "$ch" in
+            n|e|E) ;;
+            *) return 1 ;;
+        esac
+        i=$((i + 1))
+    done
+    return 0
+}
+
+# Quote-split echo/printf text. Sets _dhpk_ci_ev_words. Returns 1 when the
+# printed text still contains a parameter or command substitution: eval
+# would expand it, and the command is not visible here.
+_dhpk_ci_eval_split() {
+    local s="$1" i=0 n="${#1}" ch="" word="" in_sq=0 in_dq=0 dyn=0
+    _dhpk_ci_ev_words=()
+    while [ "$i" -lt "$n" ]; do
+        ch="${s:$i:1}"
+        if [ "$in_sq" -eq 1 ]; then
+            if [ "$ch" = "'" ]; then
+                in_sq=0
+            else
+                word+="$ch"
+                [ "$ch" = '$' ] || [ "$ch" = $'\x60' ] && dyn=1
+            fi
+        elif [ "$in_dq" -eq 1 ]; then
+            if [ "$ch" = '"' ]; then
+                in_dq=0
+            elif [ "$ch" = "\\" ] && [ $((i + 1)) -lt "$n" ]; then
+                i=$((i + 1))
+                ch="${s:$i:1}"
+                case "$ch" in
+                    '"'|'\\'|'$'|$'\x60') word+="$ch" ;;
+                    *) word+="\\$ch" ;;
+                esac
+                [ "$ch" = '$' ] || [ "$ch" = $'\x60' ] && dyn=1
+            else
+                word+="$ch"
+                [ "$ch" = '$' ] || [ "$ch" = $'\x60' ] && dyn=1
+            fi
+        else
+            case "$ch" in
+                "'") in_sq=1 ;;
+                '"') in_dq=1 ;;
+                ' '|$'\t'|$'\n')
+                    if [ -n "$word" ]; then
+                        _dhpk_ci_ev_words+=("$word")
+                        word=""
+                    fi
+                    ;;
+                *)
+                    word+="$ch"
+                    [ "$ch" = '$' ] || [ "$ch" = $'\x60' ] && dyn=1
+                    ;;
+            esac
+        fi
+        i=$((i + 1))
+    done
+    [ -n "$word" ] && _dhpk_ci_ev_words+=("$word")
+    [ "$dyn" -eq 0 ]
+}
+
+# eval "$(echo git commit)" runs the echo output. A bare parameter, a
+# parameter with a suffix, or echo/printf whose output is not literal stays
+# unresolved. The file named by a variable is not read.
 _dhpk_ci_eval_see_word() {
-    local w="$1" inner="" script="" tok="" kind=""
-    case "$w" in
-        '$(echo '*) inner="${w#'$(echo '}"; inner="${inner%')'}"; kind=echo ;;
-        '`echo '*) inner="${w#'`echo '}"; inner="${inner%'`'}"; kind=echo ;;
-        '$(printf '*) inner="${w#'$(printf '}"; inner="${inner%')'}"; kind=printf ;;
-        '`printf '*) inner="${w#'`printf '}"; inner="${inner%'`'}"; kind=printf ;;
+    local w="$1" inner="" first="" last="" i=0 fmt="" script="" n=0
+    [ "${#w}" -ge 2 ] || return 0
+    first="${w:0:2}"
+    last="${w:$((${#w} - 1)):1}"
+    if [ "$first" = '$(' ] && [ "$last" = ')' ]; then
+        inner="${w:2:$((${#w} - 3))}"
+    elif [ "${w:0:1}" = $'\x60' ] && [ "$last" = $'\x60' ]; then
+        inner="${w:1:$((${#w} - 2))}"
+    else
+        return 0
+    fi
+    local dyn=0
+    if _dhpk_ci_eval_split "$inner"; then
+        dyn=0
+    else
+        dyn=1
+    fi
+    n="${#_dhpk_ci_ev_words[@]}"
+    [ "$n" -gt 0 ] || return 0
+    i=0
+    case "${_dhpk_ci_ev_words[0]}" in
+        command|builtin) i=1 ;;
+    esac
+    [ "$i" -lt "$n" ] || return 0
+    case "${_dhpk_ci_ev_words[$i]}" in
+        echo)
+            i=$((i + 1))
+            while [ "$i" -lt "$n" ] && _dhpk_ci_echo_opt "${_dhpk_ci_ev_words[$i]}"; do
+                i=$((i + 1))
+            done
+            script=""
+            while [ "$i" -lt "$n" ]; do
+                if [ -n "$script" ]; then
+                    script+=" ${_dhpk_ci_ev_words[$i]}"
+                else
+                    script="${_dhpk_ci_ev_words[$i]}"
+                fi
+                i=$((i + 1))
+            done
+            ;;
+        printf)
+            i=$((i + 1))
+            [ "$i" -lt "$n" ] || return 0
+            fmt="${_dhpk_ci_ev_words[$i]}"
+            # A case pattern treats \ as an escape, so compare the format literally.
+            if [ "$fmt" != '%s' ] && [ "$fmt" != '%s\n' ]; then
+                return 0
+            fi
+            i=$((i + 1))
+            [ "$i" -lt "$n" ] || return 0
+            script="${_dhpk_ci_ev_words[$i]}"
+            ;;
         *) return 0 ;;
     esac
-    if [ "$kind" = "echo" ]; then
-        case "$inner" in
-            -n\ *) inner="${inner#-n }" ;;
-            -n) inner="" ;;
-        esac
-        script="$inner"
-    else
-        tok="${inner%% *}"
-        case "$tok" in
-            %s|\'%s\'|\"%s\") script="${inner#"$tok"}"; script="${script# }" ;;
-            *) return 0 ;;
-        esac
+    if [ "$dyn" -ne 0 ]; then
+        _dhpk_ci_unsupported "unresolved eval"
+        return 0
     fi
-    case "$script" in
-        \'*\') script="${script#\'}"; script="${script%\'}" ;;
-        \"*\") script="${script#\"}"; script="${script%\"}" ;;
-    esac
     [ -n "$script" ] || return 0
     _dhpk_ci_inspect_body_cwd "$script" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
 }
 
-# True when eval's visible text is only parameter expansions. Spaces around
-# that text are not a command. A command substitution is not an expansion:
-# its script is inspected separately.
-_dhpk_ci_eval_is_opaque() {
-    local s="$1" rest="" name=""
+# True when eval's command word is a parameter expansion. A following
+# suffix or extra argument does not make that command visible. $(...) is a
+# command substitution and is handled by _dhpk_ci_eval_see_word.
+_dhpk_ci_eval_starts_unseen() {
+    local s="$1" c=""
     s="${s#"${s%%[![:space:]]*}"}"
-    s="${s%"${s##*[![:space:]]}"}"
-    [ -n "$s" ] || return 1
-    while [ -n "$s" ]; do
-        case "$s" in
-            '${'*)
-                rest="${s#\$\{}"
-                name="${rest%%\}*}"
-                [ "$name" = "$rest" ] && return 1
-                [ -n "$name" ] || return 1
-                case "$name" in
-                    *[!A-Za-z0-9_]*) return 1 ;;
-                    [0-9]*[A-Za-z_]*) return 1 ;;
-                esac
-                s="${rest#"$name"}"
-                case "$s" in
-                    '}'*) s="${s#\}}" ;;
-                    *) return 1 ;;
-                esac
-                ;;
-            '$'[A-Za-z_]*)
-                rest="${s#\$}"
-                name="${rest%%[!A-Za-z0-9_]*}"
-                [ -n "$name" ] || return 1
-                s="${rest#"$name"}"
-                ;;
-            '$'[0-9]*)
-                rest="${s#\$}"
-                name="${rest%%[!0-9]*}"
-                [ -n "$name" ] || return 1
-                s="${rest#"$name"}"
-                ;;
-            '$'[@*#?!-]*)
-                s="${s:2}"
-                ;;
-            *) return 1 ;;
-        esac
-    done
+    case "$s" in
+        '$('*) return 1 ;;
+        '${'*) return 0 ;;
+        '$'*) ;;
+        *) return 1 ;;
+    esac
+    c="${s:1:1}"
+    [ -n "$c" ] || return 1
     return 0
 }
 
@@ -597,6 +670,7 @@ _dhpk_ci_note_read_fed() {
                 ;;
         esac
     fi
+    local -a names=()
     k=$((_dhpk_ci_u_idx + 1))
     while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
         w="${_dhpk_ci_u_words[$k]}"
@@ -611,27 +685,115 @@ _dhpk_ci_note_read_fed() {
             *) name="$w"; k=$((k + 1)) ;;
         esac
         [ -n "$name" ] || continue
-        _dhpk_ci_rf_name+=("$name")
-        _dhpk_ci_rf_body+=("$body")
-        _dhpk_ci_rf_opaque+=("$opaque")
+        names+=("$name")
         name=""
+    done
+    [ "${#names[@]}" -gt 0 ] || return 0
+    _dhpk_ci_rf_store "$body" "$opaque" "${names[@]}"
+}
+
+# First n-1 names get one IFS field. The last name gets the remainder.
+# Leading and trailing IFS on the whole line is not part of any field.
+_dhpk_ci_rf_store() {
+    local body="$1" opaque="$2"
+    shift 2
+    local nnames=$# ni=0 nfields=0 body_i="" j=0 part="" rest=""
+    local -a fields=()
+    if [ "$opaque" = "1" ]; then
+        while [ "$ni" -lt "$nnames" ]; do
+            _dhpk_ci_rf_name+=("$1")
+            _dhpk_ci_rf_body+=("")
+            _dhpk_ci_rf_opaque+=(1)
+            shift
+            ni=$((ni + 1))
+        done
+        return 0
+    fi
+    rest="$body"
+    rest="${rest#"${rest%%[![:space:]]*}"}"
+    rest="${rest%"${rest##*[![:space:]]}"}"
+    while [ -n "$rest" ]; do
+        part="${rest%%[[:space:]]*}"
+        fields+=("$part")
+        if [ "$part" = "$rest" ]; then
+            rest=""
+        else
+            rest="${rest#"$part"}"
+            rest="${rest#"${rest%%[![:space:]]*}"}"
+        fi
+    done
+    nfields="${#fields[@]}"
+    while [ "$ni" -lt "$nnames" ]; do
+        if [ "$ni" -lt $((nnames - 1)) ]; then
+            body_i="${fields[$ni]:-}"
+        else
+            body_i=""
+            j=$ni
+            while [ "$j" -lt "$nfields" ]; do
+                if [ -n "$body_i" ]; then
+                    body_i+=" ${fields[$j]}"
+                else
+                    body_i="${fields[$j]}"
+                fi
+                j=$((j + 1))
+            done
+        fi
+        _dhpk_ci_rf_name+=("$1")
+        _dhpk_ci_rf_body+=("$body_i")
+        _dhpk_ci_rf_opaque+=(0)
+        shift
+        ni=$((ni + 1))
     done
 }
 
+# A subshell's read bindings do not survive its closing paren.
+_dhpk_ci_rf_keep() {
+    local n="${1:-0}" i=0
+    local -a names=() bodies=() opaque=()
+    [ "$n" -ge 0 ] || n=0
+    while [ "$i" -lt "$n" ] && [ "$i" -lt "${#_dhpk_ci_rf_name[@]}" ]; do
+        names+=("${_dhpk_ci_rf_name[$i]}")
+        bodies+=("${_dhpk_ci_rf_body[$i]}")
+        opaque+=("${_dhpk_ci_rf_opaque[$i]}")
+        i=$((i + 1))
+    done
+    _dhpk_ci_rf_name=(${names[@]+"${names[@]}"})
+    _dhpk_ci_rf_body=(${bodies[@]+"${bodies[@]}"})
+    _dhpk_ci_rf_opaque=(${opaque[@]+"${opaque[@]}"})
+}
+
 _dhpk_ci_apply_read_fed() {
-    local head="$1" name="" body="" i=0
+    local head="$1" name="" base="" mode="plain" body="" i=0
     case "$head" in
         \$\{*\}) name="${head#'${'}"; name="${name%'}'}" ;;
         \$*) name="${head#'$'}" ;;
         *) return 0 ;;
     esac
     case "$name" in
-        *[!A-Za-z0-9_]*) return 0 ;;
-        '') return 0 ;;
+        '!'*)
+            base="${name#!}"
+            base="${base%%[!A-Za-z0-9_]*}"
+            mode="opaque"
+            ;;
+        *'[*]'|*'[@]')
+            base="${name%%'['*}"
+            ;;
+        *'['*)
+            base="${name%%'['*}"
+            mode="opaque"
+            ;;
+        *[!A-Za-z0-9_]*)
+            base="${name%%[!A-Za-z0-9_]*}"
+            mode="opaque"
+            ;;
+        *) base="$name" ;;
+    esac
+    case "$base" in
+        ''|*[!A-Za-z0-9_]*) return 0 ;;
     esac
     while [ "$i" -lt "${#_dhpk_ci_rf_name[@]}" ]; do
-        if [ "${_dhpk_ci_rf_name[$i]}" = "$name" ]; then
-            if [ "${_dhpk_ci_rf_opaque[$i]:-0}" = "1" ]; then
+        if [ "${_dhpk_ci_rf_name[$i]}" = "$base" ]; then
+            if [ "$mode" = "opaque" ] || [ "${_dhpk_ci_rf_opaque[$i]:-0}" = "1" ]; then
                 _dhpk_ci_unsupported "read-fed command word"
             else
                 body="${_dhpk_ci_rf_body[$i]}"
@@ -2164,7 +2326,7 @@ _dhpk_ci_flush_command() {
                         fi
                         k=$((k + 1))
                     done
-                    if _dhpk_ci_eval_is_opaque "$_eval_payload"; then
+                    if _dhpk_ci_eval_starts_unseen "$_eval_payload"; then
                         _dhpk_ci_unsupported "unresolved eval"
                     elif [ -n "$_eval_literal" ]; then
                         _dhpk_ci_inspect_body_cwd "$_eval_literal" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
@@ -3249,7 +3411,7 @@ _dhpk_ci_list_run() {
     local -a _dhpk_ci_grp_lastpipe _dhpk_ci_grp_sticky _dhpk_ci_grp_allexport
     local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk _dhpk_ci_lastpipe_stk
     local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_lastpipe_stk _dhpk_ci_fn_brace
-    local -a _dhpk_ci_rf_name _dhpk_ci_rf_body _dhpk_ci_rf_opaque
+    local -a _dhpk_ci_rf_name _dhpk_ci_rf_body _dhpk_ci_rf_opaque _dhpk_ci_rf_mark
     local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_stage_open=0 _dhpk_ci_stage_lastpipe=0
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
@@ -3257,6 +3419,10 @@ _dhpk_ci_list_run() {
     _dhpk_ci_grp_pipe=()
     _dhpk_ci_grp_kind=()
     _dhpk_ci_pipe_hs_flat=()
+    _dhpk_ci_rf_name=()
+    _dhpk_ci_rf_body=()
+    _dhpk_ci_rf_opaque=()
+    _dhpk_ci_rf_mark=()
     local _dhpk_ci_cwd="$_dhpk_ci_cwd" _dhpk_ci_cwd_state="$_dhpk_ci_cwd_state"
     local -a _dhpk_ci_hd_d _dhpk_ci_hd_q _dhpk_ci_hd_t _dhpk_ci_hd_x
     local _dhpk_ci_hd_seen=0
@@ -3434,6 +3600,7 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_allexport_stk[$_dhpk_ci_paren]="${_dhpk_ci_allexport:-0}"
                 _dhpk_ci_sticky_stk[$_dhpk_ci_paren]="${_dhpk_ci_git_env_sticky:-0}"
                 _dhpk_ci_lastpipe_stk[$_dhpk_ci_paren]="${_dhpk_ci_lastpipe:-0}"
+                _dhpk_ci_rf_mark[$_dhpk_ci_paren]="${#_dhpk_ci_rf_name[@]}"
                 _dhpk_ci_grp_push paren "${#DHPK_CMD_START[@]}" "$_dhpk_ci_pipe_id"
                 _dhpk_ci_after_pipe=0
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
@@ -3468,6 +3635,7 @@ _dhpk_ci_list_run() {
                     _dhpk_ci_allexport="${_dhpk_ci_allexport_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_git_env_sticky="${_dhpk_ci_sticky_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_lastpipe="${_dhpk_ci_lastpipe_stk[$_dhpk_ci_paren]}"
+                    _dhpk_ci_rf_keep "${_dhpk_ci_rf_mark[$_dhpk_ci_paren]}"
                     _dhpk_ci_grp_pop paren
                     _dhpk_ci_after_pipe=0
                     matched=1
