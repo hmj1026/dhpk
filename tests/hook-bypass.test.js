@@ -2317,6 +2317,8 @@ test('pretool-git-gate blocks a protected commit hidden by a dynamic git word or
       "eval 'export IFS=,; $(:); read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
       "export IFS=,; IFS=$' \\t\\n' eval 'IFS=x true'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
       "export IFS=,; IFS=$' \\t\\n' eval '( IFS=x )'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; false && export IFS=$' \\t\\n'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; true || export IFS=$' \\t\\n'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
       "eval 'export IFS=,'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
       "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
       "eval \"$(printf \\\"%s\\\" '\"; git commit --no-verify -m x; true\"')\"",
@@ -2353,6 +2355,7 @@ test('pretool-git-gate blocks a protected commit hidden by a dynamic git word or
       "read -a l <<< 'git commit --no-verify -m x'; \"\${l[@]}\"",
       "read a b <<< 'echo  git commit --no-verify -m x'; $b",
       "eval 'read a <<< \"git commit --no-verify -m x\"'; $a",
+      "shopt -s lastpipe; true | eval 'read a <<< \"git commit --no-verify -m x\"'; $a",
     ]) {
       for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
         expectStatus(
@@ -2429,6 +2432,9 @@ test('dynamic git spellings that are data, read-only, or a literal feature commi
       "export IFS=,; IFS=$' \\t\\n' eval 'read l <<< \"echo hi\"; $l'",
       "eval 'read a <<< \"echo hi\"'; $a",
       "( eval 'read a <<< \"git commit -m x\"' ); $a",
+      "export IFS=,; export IFS=$' \\t\\n' && true; read l <<< 'echo hi'; $l",
+      "eval 'read a <<< \"git commit --no-verify -m x\"' | true; $a",
+      "bash -c 'read a <<< \"git commit --no-verify -m x\"'; $a",
       "read l <<< 'echo hi'; ( read l <<< 'git commit -m x' ); $l",
     ]) {
       expectStatus(

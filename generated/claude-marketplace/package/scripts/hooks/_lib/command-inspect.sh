@@ -479,6 +479,9 @@ _dhpk_ci_ss_push() {
         _dhpk_ci_ss_ifs_stk[$d]="${_dhpk_ci_ifs_custom:-0}"
         _dhpk_ci_ss_ifs_stamp_stk[$d]="${_dhpk_ci_ifs_stamp:-0}"
     fi
+    # Reads inside this frame belong to a subshell unless the caller keeps
+    # the frame (lastpipe). The mark is the caller's array length.
+    _dhpk_ci_ss_rf_stk[$d]="${#_dhpk_ci_rf_name[@]}"
     _dhpk_ci_ss_depth=$((d + 1))
 }
 
@@ -492,6 +495,7 @@ _dhpk_ci_ss_pop() {
     _dhpk_ci_lastpipe="${_dhpk_ci_ss_lastpipe_stk[$d]}"
     _dhpk_ci_ifs_custom="${_dhpk_ci_ss_ifs_stk[$d]}"
     _dhpk_ci_ifs_stamp="${_dhpk_ci_ss_ifs_stamp_stk[$d]}"
+    _dhpk_ci_rf_keep "${_dhpk_ci_ss_rf_stk[$d]}"
 }
 
 # allexport exports the name printf -v and read assign.
@@ -2241,7 +2245,11 @@ _dhpk_ci_unify_pipe() {
 #   the end), and (&&), or (||), bg (&) or pipe (| |&).
 _dhpk_ci_inspect_body_cwd() {
     local _dhpk_ci_cwd="$2" _dhpk_ci_cwd_state="$3"
+    # Fourth arg 1: eval/source run here, so read bindings stay. A child
+    # shell and a pipeline stage do not.
+    _dhpk_ci_share_rf="${4:-0}"
     _dhpk_ci_list "$1" 0 body
+    _dhpk_ci_share_rf=0
 }
 
 _dhpk_ci_extract_shell_c() {
@@ -2323,7 +2331,7 @@ _dhpk_ci_flush_command() {
     local _dhpk_ci_shell_allexport=0 _dhpk_ci_shell_lastpipe=0 _dhpk_ci_u_shellopts_allexport=0 _dhpk_ci_u_bash_env=0 _dhpk_ci_u_bashopts_lastpipe=0
     local _dhpk_ci_child_bash_env_saved=0 _dhpk_ci_child_shellopts_saved=0 _dhpk_ci_child_lastpipe_saved=0
     local _dhpk_ci_in_stage=0 _dhpk_ci_saw_export_flag=0 _dhpk_ci_allexport_before=0
-    local _dhpk_ci_cmd_lastpipe=0 _dhpk_ci_cmd_sticky=0 _dhpk_ci_cmd_allexport=0 _dhpk_ci_cmd_ifs=0 _dhpk_ci_cmd_ifs_set=0 _dhpk_ci_brace_pipe_pop=0 _dhpk_ci_ifs_at_body=-1 _dhpk_ci_ifs_stamp_at=0
+    local _dhpk_ci_cmd_lastpipe=0 _dhpk_ci_cmd_sticky=0 _dhpk_ci_cmd_allexport=0 _dhpk_ci_cmd_ifs=0 _dhpk_ci_cmd_ifs_set=0 _dhpk_ci_brace_pipe_pop=0 _dhpk_ci_ifs_at_body=-1 _dhpk_ci_ifs_stamp_at=0 _dhpk_ci_cmd_prev_sep="" _dhpk_ci_sep_held=""
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -2339,6 +2347,7 @@ _dhpk_ci_flush_command() {
         _dhpk_ci_cmd_allexport="${_dhpk_ci_allexport:-0}"
         _dhpk_ci_cmd_ifs="${_dhpk_ci_ifs_custom:-0}"
         _dhpk_ci_ifs_stamp_at="${_dhpk_ci_ifs_stamp:-0}"
+        _dhpk_ci_cmd_prev_sep="${_dhpk_ci_prev_sep:-}"
         _dhpk_ci_cmd_ifs_set=1
         _dhpk_ci_rf_at="${#_dhpk_ci_rf_name[@]}"
         _dhpk_ci_last_group_cmd0=-1
@@ -2533,12 +2542,12 @@ _dhpk_ci_flush_command() {
                     if _dhpk_ci_eval_starts_unseen "$_eval_payload"; then
                         _dhpk_ci_unsupported "unresolved eval"
                     elif [ -n "$_eval_literal" ]; then
-                        _dhpk_ci_inspect_body_cwd "$_eval_literal" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                        _dhpk_ci_inspect_body_cwd "$_eval_literal" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state" 1
                     fi
                     _hs_i=0
                     while [ "$_hs_i" -lt "${#_dhpk_ci_hs_flat[@]}" ]; do
                         if [ -n "${_dhpk_ci_hs_flat[$_hs_i]}" ]; then
-                            _dhpk_ci_inspect_body_cwd "${_dhpk_ci_hs_flat[$_hs_i]}" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                            _dhpk_ci_inspect_body_cwd "${_dhpk_ci_hs_flat[$_hs_i]}" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state" 1
                         fi
                         _hs_i=$((_hs_i + 1))
                     done
@@ -2549,7 +2558,7 @@ _dhpk_ci_flush_command() {
                     _hs_i=0
                     while [ "$_hs_i" -lt "${#_dhpk_ci_hs_flat[@]}" ]; do
                         if [ -n "${_dhpk_ci_hs_flat[$_hs_i]}" ]; then
-                            _dhpk_ci_inspect_body_cwd "${_dhpk_ci_hs_flat[$_hs_i]}" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+                            _dhpk_ci_inspect_body_cwd "${_dhpk_ci_hs_flat[$_hs_i]}" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state" 1
                         fi
                         _hs_i=$((_hs_i + 1))
                     done
@@ -2829,7 +2838,12 @@ _dhpk_ci_flush_command() {
             export|declare|typeset|local|readonly)
                 _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}"
                 _dhpk_ci_ifs_stamp="${_dhpk_ci_ifs_stamp_at:-0}"
+                # prev_sep is already this command's own separator. The
+                # operand still depends on the separator that introduced it.
+                _dhpk_ci_sep_held="${_dhpk_ci_prev_sep:-}"
+                _dhpk_ci_prev_sep="${_dhpk_ci_cmd_prev_sep:-}"
                 _dhpk_ci_ifs_apply_operands
+                _dhpk_ci_prev_sep="$_dhpk_ci_sep_held"
                 ;;
             eval|source|'.')
                 # Body assignments bump the stamp. An unchanged stamp means
@@ -3656,9 +3670,11 @@ _dhpk_ci_list_run() {
     local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk _dhpk_ci_lastpipe_stk
     local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_lastpipe_stk _dhpk_ci_fn_ifs_stk _dhpk_ci_fn_brace
     local -a _dhpk_ci_rf_mark _dhpk_ci_ifs_stk _dhpk_ci_paren_stamp
+    local _dhpk_ci_share_here="${_dhpk_ci_share_rf:-0}"
+    _dhpk_ci_share_rf=0
     # eval and source run in this shell, so their IFS assignment and read
-    # bindings remain. A substitution keeps its own copy and must not write back.
-    if [ "$_dhpk_ci_kind" != "body" ]; then
+    # bindings remain. A child shell keeps its own read bindings.
+    if [ "$_dhpk_ci_kind" != "body" ] || [ "$_dhpk_ci_share_here" != "1" ]; then
         local -a _dhpk_ci_rf_name _dhpk_ci_rf_body _dhpk_ci_rf_opaque
         # Bash 3.2 binds the local name before expanding the same name.
         local _dhpk_ci_ifs_outer="${_dhpk_ci_ifs_custom:-0}"
@@ -3674,7 +3690,7 @@ _dhpk_ci_list_run() {
     _dhpk_ci_rf_mark=()
     _dhpk_ci_ifs_stk=()
     _dhpk_ci_paren_stamp=()
-    if [ "$_dhpk_ci_kind" != "body" ]; then
+    if [ "$_dhpk_ci_kind" != "body" ] || [ "$_dhpk_ci_share_here" != "1" ]; then
         _dhpk_ci_rf_name=()
         _dhpk_ci_rf_body=()
         _dhpk_ci_rf_opaque=()
