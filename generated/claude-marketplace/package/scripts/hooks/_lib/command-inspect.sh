@@ -462,7 +462,12 @@ _dhpk_ci_ss_push() {
     _dhpk_ci_ss_allexport_stk[$d]="${_dhpk_ci_allexport:-0}"
     _dhpk_ci_ss_sticky_stk[$d]="${_dhpk_ci_git_env_sticky:-0}"
     _dhpk_ci_ss_lastpipe_stk[$d]="${_dhpk_ci_lastpipe:-0}"
-    _dhpk_ci_ss_ifs_stk[$d]="${_dhpk_ci_ifs_custom:-0}"
+    # The stage frame is the value before this command's own assignment.
+    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ]; then
+        _dhpk_ci_ss_ifs_stk[$d]="${_dhpk_ci_cmd_ifs:-0}"
+    else
+        _dhpk_ci_ss_ifs_stk[$d]="${_dhpk_ci_ifs_custom:-0}"
+    fi
     _dhpk_ci_ss_depth=$((d + 1))
 }
 
@@ -899,6 +904,29 @@ _dhpk_ci_rf_store() {
         _dhpk_ci_rf_opaque+=(0)
         shift
         ni=$((ni + 1))
+    done
+}
+
+# Builtin operands that assign IFS remain after the command. A prefix
+# assignment on the same command does not.
+_dhpk_ci_ifs_apply_operands() {
+    local k=$((_dhpk_ci_u_idx + 1)) w=""
+    while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
+        w="${_dhpk_ci_u_words[$k]}"
+        case "$w" in
+            IFS=*|IFS+=*) _dhpk_ci_note_assign "$w" ;;
+        esac
+        k=$((k + 1))
+    done
+}
+
+# A read whose field split does not match the IFS still in force afterwards.
+_dhpk_ci_rf_mark_since() {
+    local i="${1:-0}"
+    while [ "$i" -lt "${#_dhpk_ci_rf_name[@]}" ]; do
+        _dhpk_ci_rf_opaque[$i]=1
+        _dhpk_ci_rf_body[$i]=""
+        i=$((i + 1))
     done
 }
 
@@ -2299,6 +2327,7 @@ _dhpk_ci_flush_command() {
         _dhpk_ci_cmd_allexport="${_dhpk_ci_allexport:-0}"
         _dhpk_ci_cmd_ifs="${_dhpk_ci_ifs_custom:-0}"
         _dhpk_ci_cmd_ifs_set=1
+        _dhpk_ci_rf_at="${#_dhpk_ci_rf_name[@]}"
         _dhpk_ci_last_group_cmd0=-1
         _dhpk_ci_head_index
         h="$_dhpk_ci_head"
@@ -2459,6 +2488,11 @@ _dhpk_ci_flush_command() {
         if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
             case "$_dhpk_ci_u_head" in
                 eval)
+                    # Drop a prefix IFS before the body. The body runs in
+                    # this shell and its own assignment must remain.
+                    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ]; then
+                        _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}"
+                    fi
                     _dhpk_ci_saw_eval=1
                     k=$((_dhpk_ci_u_idx + 1))
                     if [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ] && [ "${_dhpk_ci_u_words[$k]}" = "--" ]; then
@@ -2499,6 +2533,9 @@ _dhpk_ci_flush_command() {
                     done
                     ;;
                 source|'.')
+                    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ]; then
+                        _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}"
+                    fi
                     _dhpk_ci_saw_source=1
                     _hs_i=0
                     while [ "$_hs_i" -lt "${#_dhpk_ci_hs_flat[@]}" ]; do
@@ -2772,6 +2809,22 @@ _dhpk_ci_flush_command() {
         fi
     fi
     _dhpk_ci_fn_simple_leave
+    # A prefix assignment is visible to this command only. An empty
+    # assignment, a persisting builtin operand, and an eval/source body are
+    # what remains afterwards. Stage and brace pops run after this and win:
+    # a pipeline does not publish the prefix back to the caller.
+    _dhpk_ci_ifs_during="${_dhpk_ci_ifs_custom:-0}"
+    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ]; then
+        case "${_dhpk_ci_u_head:-}" in
+            '') ;;
+            export|declare|typeset|local|readonly)
+                _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}"
+                _dhpk_ci_ifs_apply_operands
+                ;;
+            eval|source|'.') ;;
+            *) _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}" ;;
+        esac
+    fi
     if [ "${_dhpk_ci_stage_open:-0}" -eq 1 ] && [ "${_dhpk_ci_grp_depth:-0}" -eq 0 ]; then
         if [ "$_dhpk_ci_in_stage" -eq 1 ] && [ "$sep" != "pipe" ] && [ "$sep" != "bg" ] && [ "${_dhpk_ci_stage_lastpipe:-0}" -eq 1 ]; then
             # The last stage runs in this shell. Keep its exports.
@@ -2782,19 +2835,16 @@ _dhpk_ci_flush_command() {
         fi
         _dhpk_ci_stage_open=0
     fi
-    # A prefix or env assignment lasts only for that command, unless the
-    # command is an assignment or a builtin that writes the current shell.
-    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ]; then
-        case "${_dhpk_ci_u_head:-}" in
-            ''|export|declare|typeset|local|readonly|eval|source|'.') ;;
-            *) _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}" ;;
-        esac
-    fi
     if [ "${_dhpk_ci_brace_pipe_pop:-0}" -eq 1 ]; then
         _dhpk_ci_lastpipe="${_dhpk_ci_grp_lastpipe[${_dhpk_ci_grp_depth}]:-0}"
         _dhpk_ci_git_env_sticky="${_dhpk_ci_grp_sticky[${_dhpk_ci_grp_depth}]:-0}"
         _dhpk_ci_allexport="${_dhpk_ci_grp_allexport[${_dhpk_ci_grp_depth}]:-0}"
         _dhpk_ci_ifs_custom="${_dhpk_ci_grp_ifs[${_dhpk_ci_grp_depth}]:-0}"
+    fi
+    # A read split with a different IFS than the one in force afterwards is
+    # not a trustworthy argv.
+    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ] && [ "${_dhpk_ci_ifs_during:-0}" = "0" ] && [ "${_dhpk_ci_ifs_custom:-0}" = "1" ]; then
+        _dhpk_ci_rf_mark_since "${_dhpk_ci_rf_at:-0}"
     fi
     _dhpk_ci_reset_words
 }
@@ -3584,7 +3634,9 @@ _dhpk_ci_list_run() {
     # eval and source run in this shell, so their IFS assignment must remain.
     # A substitution keeps its own copy and must not write back.
     if [ "$_dhpk_ci_kind" != "body" ]; then
-        local _dhpk_ci_ifs_custom="${_dhpk_ci_ifs_custom:-0}"
+        # Bash 3.2 binds the local name before expanding the same name.
+        local _dhpk_ci_ifs_outer="${_dhpk_ci_ifs_custom:-0}"
+        local _dhpk_ci_ifs_custom="$_dhpk_ci_ifs_outer"
     fi
     local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_stage_open=0 _dhpk_ci_stage_lastpipe=0
     _dhpk_ci_cwd_stk=()
