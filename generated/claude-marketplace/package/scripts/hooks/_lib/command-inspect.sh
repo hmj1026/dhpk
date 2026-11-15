@@ -1100,31 +1100,75 @@ _dhpk_ci_apply_outps() {
     _dhpk_ci_outps_q=()
 }
 
-# A subshell that is a pipeline stage keeps the incoming pipe. A nested
-# subshell inherits the nearest live pin; echo and a shell that redirects
-# its own stdin do not consume it.
+# Drop the pin selected by _dhpk_ci_pin_take. slot is paren or group.
+_dhpk_ci_pin_drop() {
+    if [ "$1" = "paren" ]; then
+        _dhpk_ci_pin_live[$2]=0
+    else
+        _dhpk_ci_gpin_live[$2]=0
+    fi
+}
+
+# cat with only file operands does not read the inherited pipe.
+# Returns 0 when this cat consumes that pipe.
+_dhpk_ci_cat_reads_pipe() {
+    local i=$((_dhpk_ci_u_idx + 1)) n="${#_dhpk_ci_u_words[@]}" w saw=0
+    [ "${#_dhpk_ci_hs_words[@]}" -gt 0 ] && return 1
+    while [ "$i" -lt "$n" ]; do
+        w="${_dhpk_ci_u_words[$i]}"
+        case "$w" in
+            --) i=$((i + 1)); break ;;
+            -*) i=$((i + 1)); continue ;;
+            *) break ;;
+        esac
+    done
+    while [ "$i" -lt "$n" ]; do
+        w="${_dhpk_ci_u_words[$i]}"
+        saw=1
+        if [ "$w" = "-" ] || _dhpk_ci_stdin_device "$w"; then
+            return 0
+        fi
+        i=$((i + 1))
+    done
+    [ "$saw" -eq 0 ]
+}
+
+# A subshell or a compound command that is a pipeline stage keeps the
+# incoming pipe. A nested stage inherits the nearest live pin. echo and a
+# shell that redirects its own stdin do not consume it. An inner pipe's
+# right-hand stage reads that pipe; finish already judged it.
 _dhpk_ci_pin_take() {
-    local p base
+    local p base slot text known
     _dhpk_ci_pin_took=0
-    [ "${_dhpk_ci_paren:-0}" -gt 0 ] || return 0
-    # A stage of an inner pipe reads that pipe. finish already judged it.
-    # Clearing the inherited pin here dropped the outer script, so
-    # `echo git | (echo hi | cat; bash)` was allowed.
     if [ "${_dhpk_ci_after_pipe:-0}" = "1" ]; then
         return 0
     fi
-    p=$((_dhpk_ci_paren - 1))
+    slot=""
+    p=$((${_dhpk_ci_paren:-0} - 1))
     while [ "$p" -ge 0 ] && [ "${_dhpk_ci_pin_live[$p]:-0}" != "1" ]; do
         p=$((p - 1))
     done
-    [ "$p" -ge 0 ] || return 0
+    if [ "$p" -ge 0 ]; then
+        slot="paren"
+        text="${_dhpk_ci_pin_text[$p]:-}"
+        known="${_dhpk_ci_pin_known[$p]:-0}"
+    else
+        p=$((${_dhpk_ci_grp_depth:-0} - 1))
+        while [ "$p" -ge 0 ] && [ "${_dhpk_ci_gpin_live[$p]:-0}" != "1" ]; do
+            p=$((p - 1))
+        done
+        [ "$p" -ge 0 ] || return 0
+        slot="group"
+        text="${_dhpk_ci_gpin_text[$p]:-}"
+        known="${_dhpk_ci_gpin_known[$p]:-0}"
+    fi
     if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
         _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
         # -c, a script file, or a here-string replaces this command's stdin
         # only. The inherited pipe is still there for a later command.
         if [ "${_dhpk_ci_shell_reads_stdin:-0}" = "1" ] && [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
-            _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pin_text[$p]:-}" "${_dhpk_ci_pin_known[$p]:-0}"
-            _dhpk_ci_pin_live[$p]=0
+            _dhpk_ci_feed_pipe_buf "$text" "$known"
+            _dhpk_ci_pin_drop "$slot" "$p"
             _dhpk_ci_pin_took=1
         fi
         return 0
@@ -1134,14 +1178,14 @@ _dhpk_ci_pin_take() {
         case "${_dhpk_ci_dot_kind:-none}" in
             stdin)
                 if [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
-                    _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pin_text[$p]:-}" "${_dhpk_ci_pin_known[$p]:-0}"
-                    _dhpk_ci_pin_live[$p]=0
+                    _dhpk_ci_feed_pipe_buf "$text" "$known"
+                    _dhpk_ci_pin_drop "$slot" "$p"
                     _dhpk_ci_pin_took=1
                 fi
                 ;;
             opaque)
                 _dhpk_ci_unsupported "shell input is not visible"
-                _dhpk_ci_pin_live[$p]=0
+                _dhpk_ci_pin_drop "$slot" "$p"
                 ;;
         esac
         return 0
@@ -1152,23 +1196,35 @@ _dhpk_ci_pin_take() {
     case "${_dhpk_ci_fn_resolved:-none}" in
         stdin)
             if [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
-                _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pin_text[$p]:-}" "${_dhpk_ci_pin_known[$p]:-0}"
-                _dhpk_ci_pin_live[$p]=0
+                _dhpk_ci_feed_pipe_buf "$text" "$known"
+                _dhpk_ci_pin_drop "$slot" "$p"
                 _dhpk_ci_pin_took=1
             fi
             return 0
             ;;
         opaque)
             _dhpk_ci_unsupported "shell input is not visible"
-            _dhpk_ci_pin_live[$p]=0
+            _dhpk_ci_pin_drop "$slot" "$p"
             return 0
             ;;
     esac
+    # echo, a compound keyword, and a file-only cat leave the pipe for a
+    # later command. cat, tee, and read are what consume it. Another word
+    # such as ls does not, so `echo git | { ls; bash; }` still runs git.
     base="${_dhpk_ci_u_head##*/}"
     case "$base" in
-        echo|printf|true|false|:|test|'[') return 0 ;;
+        echo|printf|true|false|:|test|'['|for|select|case|fi|done|esac) return 0 ;;
+        cat)
+            _dhpk_ci_cat_reads_pipe || return 0
+            _dhpk_ci_pin_drop "$slot" "$p"
+            return 0
+            ;;
+        tee|read)
+            [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ] && _dhpk_ci_pin_drop "$slot" "$p"
+            return 0
+            ;;
     esac
-    _dhpk_ci_pin_live[$p]=0
+    return 0
 }
 
 # Record a function body, then judge stdin that reaches a shell or `.`.
@@ -3126,6 +3182,18 @@ _dhpk_ci_grp_push() {
     _dhpk_ci_grp_kind[$_dhpk_ci_grp_depth]="$1"
     _dhpk_ci_grp_cmd0[$_dhpk_ci_grp_depth]="$2"
     _dhpk_ci_grp_pipe[$_dhpk_ci_grp_depth]="$3"
+    # `{`, if, while, for and case run in this shell and share the pipe.
+    # Snapshot before echo replaces the buffer. `(` keeps its own pin.
+    if [ "$1" != "paren" ] && [ "${_dhpk_ci_after_pipe:-0}" = "1" ]; then
+        _dhpk_ci_gpin_text[$_dhpk_ci_grp_depth]="${_dhpk_ci_pipe_text:-}"
+        _dhpk_ci_gpin_known[$_dhpk_ci_grp_depth]="${_dhpk_ci_pipe_known:-0}"
+        _dhpk_ci_gpin_live[$_dhpk_ci_grp_depth]=1
+        _dhpk_ci_after_pipe=0
+    else
+        _dhpk_ci_gpin_text[$_dhpk_ci_grp_depth]=""
+        _dhpk_ci_gpin_known[$_dhpk_ci_grp_depth]=0
+        _dhpk_ci_gpin_live[$_dhpk_ci_grp_depth]=0
+    fi
     _dhpk_ci_grp_depth=$((_dhpk_ci_grp_depth + 1))
 }
 
@@ -4691,6 +4759,7 @@ _dhpk_ci_list_run() {
     local -a _dhpk_ci_shfn_name _dhpk_ci_shfn_body _dhpk_ci_fn_name_stk _dhpk_ci_fn_paren_stk
     local -a _dhpk_ci_ps_at _dhpk_ci_ps_body _dhpk_ci_ps_ok _dhpk_ci_outps_q
     local -a _dhpk_ci_pin_text _dhpk_ci_pin_known _dhpk_ci_pin_live
+    local -a _dhpk_ci_gpin_text _dhpk_ci_gpin_known _dhpk_ci_gpin_live
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
     _dhpk_ci_grp_cmd0=()
@@ -4711,6 +4780,9 @@ _dhpk_ci_list_run() {
     _dhpk_ci_pin_text=()
     _dhpk_ci_pin_known=()
     _dhpk_ci_pin_live=()
+    _dhpk_ci_gpin_text=()
+    _dhpk_ci_gpin_known=()
+    _dhpk_ci_gpin_live=()
     if [ "$_dhpk_ci_kind" != "body" ] || [ "$_dhpk_ci_share_here" != "1" ]; then
         _dhpk_ci_rf_name=()
         _dhpk_ci_rf_body=()
