@@ -98,15 +98,13 @@ while [ "$_bs_i" -lt "${DHPK_GIT_COUNT:-0}" ]; do
         DETAIL="REMINDER: $verb target repository is not a literal path, so the session checkout was not used.
 Protected list: $PROTECTED_RAW
 Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
-        if [ "$_bs_i" -eq "$_bs_unsupported" ]; then
-            if [ "$DHPK_UNSUPPORTED" = "unmodelled wrapper before git" ] || [ "$DHPK_UNSUPPORTED" = "dynamic command word" ] || [ "$DHPK_UNSUPPORTED" = "unresolved eval" ] || [ "$DHPK_UNSUPPORTED" = "read-fed command word" ]; then
-                DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked. Rewrite the command without that syntax.
+        if [ "$DHPK_UNSUPPORTED" = "unmodelled wrapper before git" ] || [ "$DHPK_UNSUPPORTED" = "dynamic command word" ] || [ "$DHPK_UNSUPPORTED" = "unresolved eval" ] || [ "$DHPK_UNSUPPORTED" = "read-fed command word" ] || [ "$DHPK_UNSUPPORTED" = "shell input is not visible" ] || [ "$DHPK_UNSUPPORTED" = "git fed to a shell" ]; then
+            DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked. Rewrite the command without that syntax.
 Protected list: $PROTECTED_RAW"
-            else
-                DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked.
+        elif [ "$_bs_i" -eq "$_bs_unsupported" ]; then
+            DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked.
 Protected list: $PROTECTED_RAW
 Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
-            fi
         fi
     else
         _bs_top="$(git -C "${DHPK_GIT_REPO[$_bs_i]}" rev-parse --show-toplevel 2>/dev/null || true)"

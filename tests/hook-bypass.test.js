@@ -2451,4 +2451,88 @@ test('dynamic git spellings that are data, read-only, or a literal feature commi
   });
 });
 
+// ---------------------------------------------------------------------------
+// #1426: a function call, a pipe, or a process substitution that feeds a
+// shell or `.` must not hide a visible git write. The same text fed to a
+// data consumer stays data. A script that is not visible stays unresolved.
+// ---------------------------------------------------------------------------
+
+test('pretool-git-gate blocks shell input from a function, a pipe, or a process substitution', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      "f() { bash; }; f <<< 'git commit -m x'",
+      "f() { bash; }; f <<< 'git commit --no-verify -m x'",
+      "function f { bash; }; f <<< 'git commit -m x'",
+      "f() ( bash; ); f <<< 'git commit -m x'",
+      "f() { g; }; g() { bash; }; f <<< 'git commit -m x'",
+      "f() { bash; }\nf <<< 'git commit -m x'",
+      "f() { bash; }; echo 'git commit -m x' | f",
+      "echo 'git commit -m x' | bash",
+      "echo 'git commit -m x' | sh",
+      "printf '%s\\n' 'git commit -m x' | bash",
+      "bash < <(echo 'git commit -m x')",
+      "bash <(echo 'git commit -m x')",
+      ". <(echo 'git commit -m x')",
+      "source <(echo 'git commit -m x')",
+      "f() { sh; }; f < <(echo 'git commit -m x')",
+    ]) {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(
+          bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }),
+          BLOCK,
+          `${hook} ${command}`,
+        );
+      }
+      const feature = bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE });
+      expectStatus(feature, BLOCK, `feature ${command}`);
+      assert.doesNotMatch(feature.stderr, /DHPK_BRANCH_SAFETY=off/);
+      assert.doesNotMatch(feature.stderr, /disable the guard/);
+      expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+    }
+    for (const command of [
+      'cat file | bash',
+      'bash < <(cat file)',
+      '. <(cat file)',
+      'f() { bash "$x"; }; f <<< \'git commit -m x\'',
+      'f() { bash "$x"; }; echo \'git commit -m x\' | f',
+    ]) {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook} ${command}`);
+        assert.doesNotMatch(res.stderr, /DHPK_BRANCH_SAFETY=off/);
+        assert.doesNotMatch(res.stderr, /disable the guard/);
+      }
+      expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+    }
+  });
+});
+
+test('data consumers and a shell that does not read that stdin stay allowed', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    for (const command of [
+      "f() { cat; }; f <<< 'git commit --no-verify -m x'",
+      "f() { bash -c 'echo hi'; }; f <<< 'git commit -m x'",
+      "echo 'git commit --no-verify -m x' | cat",
+      "cat < <(echo 'git commit --no-verify -m x')",
+      "echo 'git commit -m x'",
+      "echo 'echo hi' | bash",
+      "source <(echo 'echo hi')",
+      "f() { bash; }; echo 'git commit -m x'",
+      "echo 'git commit -m x' | bash -c 'echo hi'",
+    ]) {
+      expectStatus(
+        bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+      expectStatus(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+      expectStatus(bashHook('pre-bash-guard.sh', command), ALLOW, command);
+    }
+  });
+});
+
 run('hook-bypass');
