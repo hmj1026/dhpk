@@ -2277,4 +2277,178 @@ test('pretool-git-gate blocks a commit inside a function after set -a exports GI
   });
 });
 
+// ---------------------------------------------------------------------------
+// #1425: a dynamic git command word, a read-fed command, or an eval whose
+// input is not a visible literal must not hide a protected commit. A literal
+// feature commit, a read-only dynamic word, and git words that stay data
+// remain allowed.
+// ---------------------------------------------------------------------------
+
+test('pretool-git-gate blocks a protected commit hidden by a dynamic git word or eval', () => {
+  withRepos(({ protectedRepo }) => {
+    for (const command of [
+      'G=git; $G commit -m x',
+      'G=git; $G --no-pager commit --no-verify -m x',
+      '$(echo git) -C . commit --no-verify -m x',
+      '$(echo git) -c core.hooksPath=/dev/null commit -m x',
+      '$G -- commit --no-verify -m x',
+      '$G -C /tmp commit -m x',
+      '$(echo git) commit -m x',
+      'eval "$X"',
+      'eval " $X"',
+      'eval "$X" ""',
+      'eval "${X}"',
+      'eval "${X:-git commit --no-verify -m x}"',
+      'eval "$X;"',
+      'eval "$X" -m x',
+      'eval "$(printf \'git commit --no-verify -m x\')"',
+      "eval \"$(printf '%s\\n' hello; printf '%s\\n' 'git commit --no-verify -m x')\"",
+      "eval \"$(echo -e 'git\\040commit --no-verify -m x')\"",
+      "IFS=, read a b <<< 'echo,git commit --no-verify -m x'; $b",
+      "export IFS=,; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; IFS=$' \\t\\n' true; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; IFS=$' \\t\\n' read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; IFS=$' \\t\\n' eval true; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; IFS=$' \\t\\n' export FOO=1; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; $(read a b <<< 'echo,git commit --no-verify -m x'; $b)",
+      "shopt -s lastpipe; cat | { export IFS=,; }; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "IFS=, eval 'read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
+      "read a <<< 'git,commit,--no-verify,-m,x'; export IFS=,; $a",
+      "eval 'export IFS=,; $(:); read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
+      "export IFS=,; IFS=$' \\t\\n' eval 'IFS=x true'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; IFS=$' \\t\\n' eval '( IFS=x )'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; false && export IFS=$' \\t\\n'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; true || export IFS=$' \\t\\n'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "eval 'export IFS=,'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
+      "eval \"$(printf \\\"%s\\\" '\"; git commit --no-verify -m x; true\"')\"",
+      'read l; $l',
+      'read l <<< "$x"; $l',
+    ]) {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook} ${command}`);
+        assert.doesNotMatch(res.stderr, /DHPK_BRANCH_SAFETY=off/);
+        assert.doesNotMatch(res.stderr, /disable the guard/);
+      }
+    }
+    for (const command of [
+      "read l <<< 'git commit -m x'; $l",
+      "read l <<< 'echo hi' <<< 'git commit --no-verify -m x'; $l",
+      "read l <<< 'echo hi'; read l <<< 'git commit --no-verify -m x'; $l",
+      'eval "$(echo git commit -m x)"',
+      "eval \"$(echo 'git commit --no-verify -m x')\"",
+      "eval \"$(echo -n 'git commit --no-verify -m x')\"",
+      "eval \"$(printf '%s' 'git commit --no-verify -m x')\"",
+      "eval \"$(printf '%s' 'git')\" commit --no-verify -m x",
+      "eval \"$(/usr/bin/printf '%s' 'git commit --no-verify -m x')\"",
+      'eval "$(printf "%s" \'git commit --no-verify -m x\')"',
+      "eval \"$(echo -e 'git commit --no-verify -m x')\"",
+      "eval \"$(echo -ne 'git commit --no-verify -m x')\"",
+      "eval \"$( echo 'git commit --no-verify -m x')\"",
+      "eval \"$(printf '%s\\n' 'git commit --no-verify -m x')\"",
+      "eval \"$(command echo git commit --no-verify -m x)\"",
+      "eval \"$(printf '%s' 'git ' 'commit --no-verify -m x')\"",
+      "eval \"$(echo git\\ commit\\ --no-verify\\ -m\\ x)\"",
+      "eval \"$(command -- echo git commit --no-verify -m x)\"",
+      "eval \"$(command -p printf '%s' 'git commit --no-verify -m x')\"",
+      "read l <<< 'git commit --no-verify -m x'; \${l[*]}",
+      "read l <<< 'git commit --no-verify -m x'; \${l[@]}",
+      "read -a l <<< 'git commit --no-verify -m x'; \"\${l[@]}\"",
+      "read a b <<< 'echo  git commit --no-verify -m x'; $b",
+      "eval 'read a <<< \"git commit --no-verify -m x\"'; $a",
+      "shopt -s lastpipe; true | eval 'read a <<< \"git commit --no-verify -m x\"'; $a",
+    ]) {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(
+          bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }),
+          BLOCK,
+          `${hook} ${command}`,
+        );
+      }
+    }
+  });
+});
+
+test('pre-bash-guard blocks a dynamic git word, an unresolved eval, and a read-fed --no-verify', () => {
+  for (const command of [
+    'G=git; $G commit -m x',
+    'G=git; $G --no-pager commit --no-verify -m x',
+    'eval "$X"',
+    'eval " $X"',
+    'eval "$X;"',
+    'eval "${X:-git commit --no-verify -m x}"',
+    'eval "$X" -m x',
+    "eval \"$(echo -e 'git commit --no-verify -m x')\"",
+    "eval \"$(printf 'git commit --no-verify -m x')\"",
+    "eval \"$(printf '%s' 'git')\" commit --no-verify -m x",
+    "eval \"$(/usr/bin/printf '%s' 'git commit --no-verify -m x')\"",
+    "eval \"$(echo git\\ commit\\ --no-verify\\ -m\\ x)\"",
+    "IFS=, read a b <<< 'echo,git commit --no-verify -m x'; $b",
+    "export IFS=,; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+    "export IFS=,; IFS=$' \\t\\n' read a <<< 'git,commit,--no-verify,-m,x'; $a",
+    "IFS=, eval 'read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
+    "read a <<< 'git,commit,--no-verify,-m,x'; export IFS=,; $a",
+    "export IFS=,; IFS=$' \\t\\n' eval 'IFS=x true'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+    "eval 'read a <<< \"git commit --no-verify -m x\"'; $a",
+    "export IFS=,; $(read a b <<< 'echo,git commit --no-verify -m x'; $b)",
+    "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
+    "read a b <<< 'echo git commit --no-verify -m x'; $b",
+    "read l <<< 'git commit --no-verify -m x'; \${l[*]}",
+    "read l <<< 'git commit --no-verify -m x'; $l",
+    "read l <<< 'echo hi' <<< 'git commit --no-verify -m x'; $l",
+    'read l <<< "$x"; $l',
+  ]) {
+    expectStatus(bashHook('pre-bash-guard.sh', command), BLOCK, command);
+  }
+});
+
+test('dynamic git spellings that are data, read-only, or a literal feature commit stay allowed', () => {
+  withRepos(({ featureRepo }) => {
+    for (const command of [
+      "eval 'echo hello'",
+      "echo 'git commit -m x'",
+      'git commit --allow-empty -m x',
+      'G=git; $G status',
+      'G=git; $G --no-pager status',
+      'G=git; $G -C /tmp status',
+      'echo $(date)',
+      "read l <<< 'echo hi'; $l",
+      "read l <<< 'git commit --no-verify -m x' <<< 'echo hi'; $l",
+      "eval \"$(printf \\\"%s\\\" 'git commit --no-verify -m x')\"",
+      "eval \"$(echo hello)\"",
+    ]) {
+      expectStatus(
+        bashHook('pretool-git-gate.sh', command, { cwd: featureRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+      expectStatus(bashHook('pre-bash-guard.sh', command, { cwd: featureRepo }), ALLOW, command);
+    }
+  });
+  withRepos(({ protectedRepo }) => {
+    for (const command of [
+      "( read l <<< 'git commit -m x' ); $l",
+      "read a b <<< 'git commit -m x'; $a",
+      "export IFS=,; IFS=$' \\t\\n'; read l <<< 'echo hi'; $l",
+      "cat | { export IFS=,; }; read l <<< 'echo hi'; $l",
+      "cat | { export IFS=,; }; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; IFS=$' \\t\\n' eval 'read l <<< \"echo hi\"; $l'",
+      "eval 'read a <<< \"echo hi\"'; $a",
+      "( eval 'read a <<< \"git commit -m x\"' ); $a",
+      "export IFS=,; export IFS=$' \\t\\n' && true; read l <<< 'echo hi'; $l",
+      "eval 'read a <<< \"git commit --no-verify -m x\"' | true; $a",
+      "bash -c 'read a <<< \"git commit --no-verify -m x\"'; $a",
+      "read l <<< 'echo hi'; ( read l <<< 'git commit -m x' ); $l",
+    ]) {
+      expectStatus(
+        bashHook('pretool-git-gate.sh', command, { cwd: protectedRepo, env: BLOCK_MODE }),
+        ALLOW,
+        command,
+      );
+      expectStatus(bashHook('pre-bash-guard.sh', command, { cwd: protectedRepo }), ALLOW, command);
+    }
+  });
+});
+
 run('hook-bypass');
