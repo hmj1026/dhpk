@@ -2306,6 +2306,8 @@ test('pretool-git-gate blocks a protected commit hidden by a dynamic git word or
       "eval \"$(echo -e 'git\\040commit --no-verify -m x')\"",
       "IFS=, read a b <<< 'echo,git commit --no-verify -m x'; $b",
       "export IFS=,; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; IFS=$' \\t\\n' true; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "eval 'export IFS=,'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
       "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
       "eval \"$(printf \\\"%s\\\" '\"; git commit --no-verify -m x; true\"')\"",
       'read l; $l',
@@ -2404,6 +2406,7 @@ test('dynamic git spellings that are data, read-only, or a literal feature commi
     for (const command of [
       "( read l <<< 'git commit -m x' ); $l",
       "read a b <<< 'git commit -m x'; $a",
+      "export IFS=,; IFS=$' \\t\\n'; read l <<< 'echo hi'; $l",
       "read l <<< 'echo hi'; ( read l <<< 'git commit -m x' ); $l",
     ]) {
       expectStatus(

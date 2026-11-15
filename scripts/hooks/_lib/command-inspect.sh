@@ -2283,7 +2283,7 @@ _dhpk_ci_flush_command() {
     local _dhpk_ci_shell_allexport=0 _dhpk_ci_shell_lastpipe=0 _dhpk_ci_u_shellopts_allexport=0 _dhpk_ci_u_bash_env=0 _dhpk_ci_u_bashopts_lastpipe=0
     local _dhpk_ci_child_bash_env_saved=0 _dhpk_ci_child_shellopts_saved=0 _dhpk_ci_child_lastpipe_saved=0
     local _dhpk_ci_in_stage=0 _dhpk_ci_saw_export_flag=0 _dhpk_ci_allexport_before=0
-    local _dhpk_ci_cmd_lastpipe=0 _dhpk_ci_cmd_sticky=0 _dhpk_ci_cmd_allexport=0 _dhpk_ci_brace_pipe_pop=0
+    local _dhpk_ci_cmd_lastpipe=0 _dhpk_ci_cmd_sticky=0 _dhpk_ci_cmd_allexport=0 _dhpk_ci_cmd_ifs=0 _dhpk_ci_cmd_ifs_set=0 _dhpk_ci_brace_pipe_pop=0
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -2297,6 +2297,8 @@ _dhpk_ci_flush_command() {
         _dhpk_ci_cmd_lastpipe="${_dhpk_ci_lastpipe:-0}"
         _dhpk_ci_cmd_sticky="${_dhpk_ci_git_env_sticky:-0}"
         _dhpk_ci_cmd_allexport="${_dhpk_ci_allexport:-0}"
+        _dhpk_ci_cmd_ifs="${_dhpk_ci_ifs_custom:-0}"
+        _dhpk_ci_cmd_ifs_set=1
         _dhpk_ci_last_group_cmd0=-1
         _dhpk_ci_head_index
         h="$_dhpk_ci_head"
@@ -2616,6 +2618,7 @@ _dhpk_ci_flush_command() {
                     _dhpk_ci_grp_lastpipe[$((_dhpk_ci_grp_depth - 1))]="${_dhpk_ci_cmd_lastpipe:-0}"
                     _dhpk_ci_grp_sticky[$((_dhpk_ci_grp_depth - 1))]="${_dhpk_ci_cmd_sticky:-0}"
                     _dhpk_ci_grp_allexport[$((_dhpk_ci_grp_depth - 1))]="${_dhpk_ci_cmd_allexport:-0}"
+                    _dhpk_ci_grp_ifs[$((_dhpk_ci_grp_depth - 1))]="${_dhpk_ci_cmd_ifs:-0}"
                     ;;
                 if) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push if "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
                 while|until) cond=1; _dhpk_ci_block=$((_dhpk_ci_block + 1)); _dhpk_ci_grp_push loop "$cmd_idx" "$_dhpk_ci_pipe_id" ;;
@@ -2779,10 +2782,19 @@ _dhpk_ci_flush_command() {
         fi
         _dhpk_ci_stage_open=0
     fi
+    # A prefix or env assignment lasts only for that command, unless the
+    # command is an assignment or a builtin that writes the current shell.
+    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ]; then
+        case "${_dhpk_ci_u_head:-}" in
+            ''|export|declare|typeset|local|readonly|eval|source|'.') ;;
+            *) _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}" ;;
+        esac
+    fi
     if [ "${_dhpk_ci_brace_pipe_pop:-0}" -eq 1 ]; then
         _dhpk_ci_lastpipe="${_dhpk_ci_grp_lastpipe[${_dhpk_ci_grp_depth}]:-0}"
         _dhpk_ci_git_env_sticky="${_dhpk_ci_grp_sticky[${_dhpk_ci_grp_depth}]:-0}"
         _dhpk_ci_allexport="${_dhpk_ci_grp_allexport[${_dhpk_ci_grp_depth}]:-0}"
+        _dhpk_ci_ifs_custom="${_dhpk_ci_grp_ifs[${_dhpk_ci_grp_depth}]:-0}"
     fi
     _dhpk_ci_reset_words
 }
@@ -3565,11 +3577,15 @@ _dhpk_ci_list_run() {
     # Subshells restore allexport and sticky fully. Function bodies merge
     # fail-closed so an uncalled body cannot clear a relocation.
     local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_grp_cmd0 _dhpk_ci_grp_pipe _dhpk_ci_grp_kind
-    local -a _dhpk_ci_grp_lastpipe _dhpk_ci_grp_sticky _dhpk_ci_grp_allexport
+    local -a _dhpk_ci_grp_lastpipe _dhpk_ci_grp_sticky _dhpk_ci_grp_allexport _dhpk_ci_grp_ifs
     local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk _dhpk_ci_lastpipe_stk
     local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_lastpipe_stk _dhpk_ci_fn_ifs_stk _dhpk_ci_fn_brace
     local -a _dhpk_ci_rf_name _dhpk_ci_rf_body _dhpk_ci_rf_opaque _dhpk_ci_rf_mark _dhpk_ci_ifs_stk
-    local _dhpk_ci_ifs_custom="${_dhpk_ci_ifs_custom:-0}"
+    # eval and source run in this shell, so their IFS assignment must remain.
+    # A substitution keeps its own copy and must not write back.
+    if [ "$_dhpk_ci_kind" != "body" ]; then
+        local _dhpk_ci_ifs_custom="${_dhpk_ci_ifs_custom:-0}"
+    fi
     local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_stage_open=0 _dhpk_ci_stage_lastpipe=0
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
