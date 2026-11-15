@@ -1060,6 +1060,12 @@ _dhpk_ci_outps_classify() {
             stdin) _dhpk_ci_outps_note feed ;;
             opaque) _dhpk_ci_outps_note opaque ;;
         esac
+    else
+        _dhpk_ci_fn_kind_of "$_dhpk_ci_u_head"
+        case "${_dhpk_ci_fn_resolved:-none}" in
+            stdin) _dhpk_ci_outps_note feed ;;
+            opaque) _dhpk_ci_outps_note opaque ;;
+        esac
     fi
 }
 
@@ -1134,6 +1140,24 @@ _dhpk_ci_pin_take() {
         esac
         return 0
     fi
+    # A call whose body reads stdin inherits this pin. A body that does not
+    # is an ordinary command and may consume the pipe below.
+    _dhpk_ci_fn_kind_of "$_dhpk_ci_u_head"
+    case "${_dhpk_ci_fn_resolved:-none}" in
+        stdin)
+            if [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
+                _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pin_text[$p]:-}" "${_dhpk_ci_pin_known[$p]:-0}"
+                _dhpk_ci_pin_live[$p]=0
+                _dhpk_ci_pin_took=1
+            fi
+            return 0
+            ;;
+        opaque)
+            _dhpk_ci_unsupported "shell input is not visible"
+            _dhpk_ci_pin_live[$p]=0
+            return 0
+            ;;
+    esac
     base="${_dhpk_ci_u_head##*/}"
     case "$base" in
         echo|printf|true|false|:|test|'[') return 0 ;;
@@ -4648,6 +4672,16 @@ _dhpk_ci_list_run() {
     local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_stage_open=0 _dhpk_ci_stage_lastpipe=0
     local _dhpk_ci_fn_pending_name="" _dhpk_ci_pipe_text="" _dhpk_ci_pipe_known=1
     local _dhpk_ci_subst_text="" _dhpk_ci_subst_known=1 _dhpk_ci_ps_hold=0
+    # A nested list inherits functions already defined outside it. Copy
+    # before the local arrays below hide the caller's table. Definitions
+    # inside this list stay here.
+    local -a _dhpk_ci_shfn_name_in _dhpk_ci_shfn_body_in
+    _dhpk_ci_shfn_name_in=()
+    _dhpk_ci_shfn_body_in=()
+    if [ -n "${_dhpk_ci_shfn_name+x}" ]; then
+        _dhpk_ci_shfn_name_in=("${_dhpk_ci_shfn_name[@]+"${_dhpk_ci_shfn_name[@]}"}")
+        _dhpk_ci_shfn_body_in=("${_dhpk_ci_shfn_body[@]+"${_dhpk_ci_shfn_body[@]}"}")
+    fi
     local -a _dhpk_ci_shfn_name _dhpk_ci_shfn_body _dhpk_ci_fn_name_stk _dhpk_ci_fn_paren_stk
     local -a _dhpk_ci_ps_at _dhpk_ci_ps_body _dhpk_ci_ps_ok _dhpk_ci_outps_q
     local -a _dhpk_ci_pin_text _dhpk_ci_pin_known _dhpk_ci_pin_live
@@ -4660,8 +4694,8 @@ _dhpk_ci_list_run() {
     _dhpk_ci_rf_mark=()
     _dhpk_ci_ifs_stk=()
     _dhpk_ci_paren_stamp=()
-    _dhpk_ci_shfn_name=()
-    _dhpk_ci_shfn_body=()
+    _dhpk_ci_shfn_name=("${_dhpk_ci_shfn_name_in[@]+"${_dhpk_ci_shfn_name_in[@]}"}")
+    _dhpk_ci_shfn_body=("${_dhpk_ci_shfn_body_in[@]+"${_dhpk_ci_shfn_body_in[@]}"}")
     _dhpk_ci_fn_name_stk=()
     _dhpk_ci_fn_paren_stk=()
     _dhpk_ci_ps_at=()
