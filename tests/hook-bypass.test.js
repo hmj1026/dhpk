@@ -2312,6 +2312,9 @@ test('pretool-git-gate blocks a protected commit hidden by a dynamic git word or
       "export IFS=,; IFS=$' \\t\\n' export FOO=1; read a <<< 'git,commit,--no-verify,-m,x'; $a",
       "export IFS=,; $(read a b <<< 'echo,git commit --no-verify -m x'; $b)",
       "shopt -s lastpipe; cat | { export IFS=,; }; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "IFS=, eval 'read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
+      "read a <<< 'git,commit,--no-verify,-m,x'; export IFS=,; $a",
+      "eval 'export IFS=,; $(:); read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
       "eval 'export IFS=,'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
       "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
       "eval \"$(printf \\\"%s\\\" '\"; git commit --no-verify -m x; true\"')\"",
@@ -2374,6 +2377,8 @@ test('pre-bash-guard blocks a dynamic git word, an unresolved eval, and a read-f
     "IFS=, read a b <<< 'echo,git commit --no-verify -m x'; $b",
     "export IFS=,; read a <<< 'git,commit,--no-verify,-m,x'; $a",
     "export IFS=,; IFS=$' \\t\\n' read a <<< 'git,commit,--no-verify,-m,x'; $a",
+    "IFS=, eval 'read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
+    "read a <<< 'git,commit,--no-verify,-m,x'; export IFS=,; $a",
     "export IFS=,; $(read a b <<< 'echo,git commit --no-verify -m x'; $b)",
     "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
     "read a b <<< 'echo git commit --no-verify -m x'; $b",
@@ -2416,6 +2421,7 @@ test('dynamic git spellings that are data, read-only, or a literal feature commi
       "export IFS=,; IFS=$' \\t\\n'; read l <<< 'echo hi'; $l",
       "cat | { export IFS=,; }; read l <<< 'echo hi'; $l",
       "cat | { export IFS=,; }; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; IFS=$' \\t\\n' eval 'read l <<< \"echo hi\"; $l'",
       "read l <<< 'echo hi'; ( read l <<< 'git commit -m x' ); $l",
     ]) {
       expectStatus(

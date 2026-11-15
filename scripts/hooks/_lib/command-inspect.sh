@@ -281,7 +281,10 @@ _dhpk_ci_note_assign() {
     local w="$1" val
     _dhpk_ci_word_sets_git_env "$w" && _dhpk_ci_u_git_env_unresolved=1
     case "$w" in
-        IFS+=*) _dhpk_ci_ifs_custom=1 ;;
+        IFS+=*)
+            _dhpk_ci_ifs_custom=1
+            _dhpk_ci_ifs_stamp=$((${_dhpk_ci_ifs_stamp:-0} + 1))
+            ;;
         IFS=*)
             val="${w#IFS=}"
             if [ "$val" = $' \t\n' ]; then
@@ -292,9 +295,11 @@ _dhpk_ci_note_assign() {
                     && [ "${_dhpk_ci_prev_sep:-}" != "or" ] \
                     && [ "${_dhpk_ci_ss_depth:-0}" -eq 0 ]; then
                     _dhpk_ci_ifs_custom=0
+                    _dhpk_ci_ifs_stamp=$((${_dhpk_ci_ifs_stamp:-0} + 1))
                 fi
             else
                 _dhpk_ci_ifs_custom=1
+                _dhpk_ci_ifs_stamp=$((${_dhpk_ci_ifs_stamp:-0} + 1))
             fi
             ;;
     esac
@@ -462,12 +467,15 @@ _dhpk_ci_ss_push() {
     _dhpk_ci_ss_allexport_stk[$d]="${_dhpk_ci_allexport:-0}"
     _dhpk_ci_ss_sticky_stk[$d]="${_dhpk_ci_git_env_sticky:-0}"
     _dhpk_ci_ss_lastpipe_stk[$d]="${_dhpk_ci_lastpipe:-0}"
-    # The stage frame is the value before this command's own assignment.
-    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ]; then
+    # Only the pipeline-stage frame needs the value from before this
+    # command's assignment. A substitution nested inside the command sees
+    # the IFS already in force, and must not roll that back on pop.
+    if [ "${1:-}" = "stage" ]; then
         _dhpk_ci_ss_ifs_stk[$d]="${_dhpk_ci_cmd_ifs:-0}"
     else
         _dhpk_ci_ss_ifs_stk[$d]="${_dhpk_ci_ifs_custom:-0}"
     fi
+    _dhpk_ci_ss_ifs_stamp_stk[$d]="${_dhpk_ci_ifs_stamp:-0}"
     _dhpk_ci_ss_depth=$((d + 1))
 }
 
@@ -480,6 +488,7 @@ _dhpk_ci_ss_pop() {
     _dhpk_ci_git_env_sticky="${_dhpk_ci_ss_sticky_stk[$d]}"
     _dhpk_ci_lastpipe="${_dhpk_ci_ss_lastpipe_stk[$d]}"
     _dhpk_ci_ifs_custom="${_dhpk_ci_ss_ifs_stk[$d]}"
+    _dhpk_ci_ifs_stamp="${_dhpk_ci_ss_ifs_stamp_stk[$d]}"
 }
 
 # allexport exports the name printf -v and read assign.
@@ -2311,7 +2320,7 @@ _dhpk_ci_flush_command() {
     local _dhpk_ci_shell_allexport=0 _dhpk_ci_shell_lastpipe=0 _dhpk_ci_u_shellopts_allexport=0 _dhpk_ci_u_bash_env=0 _dhpk_ci_u_bashopts_lastpipe=0
     local _dhpk_ci_child_bash_env_saved=0 _dhpk_ci_child_shellopts_saved=0 _dhpk_ci_child_lastpipe_saved=0
     local _dhpk_ci_in_stage=0 _dhpk_ci_saw_export_flag=0 _dhpk_ci_allexport_before=0
-    local _dhpk_ci_cmd_lastpipe=0 _dhpk_ci_cmd_sticky=0 _dhpk_ci_cmd_allexport=0 _dhpk_ci_cmd_ifs=0 _dhpk_ci_cmd_ifs_set=0 _dhpk_ci_brace_pipe_pop=0
+    local _dhpk_ci_cmd_lastpipe=0 _dhpk_ci_cmd_sticky=0 _dhpk_ci_cmd_allexport=0 _dhpk_ci_cmd_ifs=0 _dhpk_ci_cmd_ifs_set=0 _dhpk_ci_brace_pipe_pop=0 _dhpk_ci_ifs_at_body=-1
     _dhpk_ci_flush_word
     _dhpk_ci_redir=0
     n="${#_dhpk_ci_words[@]}"
@@ -2383,7 +2392,7 @@ _dhpk_ci_flush_command() {
                 done
             fi
             if [ "$_dhpk_ci_in_stage" -eq 1 ] && [ "${_dhpk_ci_stage_open:-0}" -eq 0 ]; then
-                _dhpk_ci_ss_push
+                _dhpk_ci_ss_push stage
                 _dhpk_ci_stage_open=1
                 # Decide keep-or-pop from the value at entry. A shopt inside
                 # this stage must not change that choice.
@@ -2488,11 +2497,9 @@ _dhpk_ci_flush_command() {
         if [ "$_dhpk_ci_u_query_only" -eq 0 ]; then
             case "$_dhpk_ci_u_head" in
                 eval)
-                    # Drop a prefix IFS before the body. The body runs in
-                    # this shell and its own assignment must remain.
-                    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ]; then
-                        _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}"
-                    fi
+                    # The body sees this command's prefix IFS. A later
+                    # restore drops that prefix unless the body assigns IFS.
+                    _dhpk_ci_ifs_at_body="${_dhpk_ci_ifs_stamp:-0}"
                     _dhpk_ci_saw_eval=1
                     k=$((_dhpk_ci_u_idx + 1))
                     if [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ] && [ "${_dhpk_ci_u_words[$k]}" = "--" ]; then
@@ -2533,9 +2540,7 @@ _dhpk_ci_flush_command() {
                     done
                     ;;
                 source|'.')
-                    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ]; then
-                        _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}"
-                    fi
+                    _dhpk_ci_ifs_at_body="${_dhpk_ci_ifs_stamp:-0}"
                     _dhpk_ci_saw_source=1
                     _hs_i=0
                     while [ "$_hs_i" -lt "${#_dhpk_ci_hs_flat[@]}" ]; do
@@ -2821,7 +2826,13 @@ _dhpk_ci_flush_command() {
                 _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}"
                 _dhpk_ci_ifs_apply_operands
                 ;;
-            eval|source|'.') ;;
+            eval|source|'.')
+                # Body assignments bump the stamp. An unchanged stamp means
+                # the prefix was the only IFS this command applied.
+                if [ "${_dhpk_ci_ifs_stamp:-0}" = "${_dhpk_ci_ifs_at_body:-0}" ]; then
+                    _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}"
+                fi
+                ;;
             *) _dhpk_ci_ifs_custom="${_dhpk_ci_cmd_ifs:-0}" ;;
         esac
     fi
@@ -2843,8 +2854,14 @@ _dhpk_ci_flush_command() {
     fi
     # A read split with a different IFS than the one in force afterwards is
     # not a trustworthy argv.
-    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ] && [ "${_dhpk_ci_ifs_during:-0}" = "0" ] && [ "${_dhpk_ci_ifs_custom:-0}" = "1" ]; then
-        _dhpk_ci_rf_mark_since "${_dhpk_ci_rf_at:-0}"
+    if [ "${_dhpk_ci_cmd_ifs_set:-0}" -eq 1 ] && [ "${_dhpk_ci_ifs_custom:-0}" = "1" ]; then
+        if [ "${_dhpk_ci_cmd_ifs:-0}" = "0" ]; then
+            # IFS is custom from here on, so earlier default-IFS reads are
+            # not a finished argv.
+            _dhpk_ci_rf_mark_since 0
+        elif [ "${_dhpk_ci_ifs_during:-0}" = "0" ]; then
+            _dhpk_ci_rf_mark_since "${_dhpk_ci_rf_at:-0}"
+        fi
     fi
     _dhpk_ci_reset_words
 }
