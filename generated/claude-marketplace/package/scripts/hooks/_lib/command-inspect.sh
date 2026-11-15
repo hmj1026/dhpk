@@ -281,6 +281,17 @@ _dhpk_ci_note_assign() {
     local w="$1" val
     _dhpk_ci_word_sets_git_env "$w" && _dhpk_ci_u_git_env_unresolved=1
     case "$w" in
+        IFS+=*) _dhpk_ci_ifs_custom=1 ;;
+        IFS=*)
+            val="${w#IFS=}"
+            if [ "$val" = $' \t\n' ]; then
+                _dhpk_ci_ifs_custom=0
+            else
+                _dhpk_ci_ifs_custom=1
+            fi
+            ;;
+    esac
+    case "$w" in
         SHELLOPTS=*|SHELLOPTS+=*)
             val="${w#*=}"
             case ":${val}:" in
@@ -498,8 +509,10 @@ _dhpk_ci_echo_opt() {
 # printed text still contains a parameter or command substitution: eval
 # would expand it, and the command is not visible here.
 _dhpk_ci_eval_split() {
-    local s="$1" i=0 n="${#1}" ch="" word="" in_sq=0 in_dq=0 dyn=0
+    local s="$1" i=0 n="${#1}" ch="" word="" in_sq=0 in_dq=0 dyn=0 meta=0
     _dhpk_ci_ev_words=()
+    _dhpk_ci_ev_dyn=0
+    _dhpk_ci_ev_meta=0
     while [ "$i" -lt "$n" ]; do
         ch="${s:$i:1}"
         if [ "$in_sq" -eq 1 ]; then
@@ -528,11 +541,35 @@ _dhpk_ci_eval_split() {
             case "$ch" in
                 "'") in_sq=1 ;;
                 '"') in_dq=1 ;;
-                ' '|$'\t'|$'\n')
+                ' '|$'\t')
                     if [ -n "$word" ]; then
                         _dhpk_ci_ev_words+=("$word")
                         word=""
                     fi
+                    ;;
+                $'\n')
+                    if [ -n "$word" ]; then
+                        _dhpk_ci_ev_words+=("$word")
+                        word=""
+                    fi
+                    meta=1
+                    ;;
+                "\\")
+                    if [ $((i + 1)) -lt "$n" ]; then
+                        i=$((i + 1))
+                        ch="${s:$i:1}"
+                        if [ "$ch" != $'\n' ]; then
+                            word+="$ch"
+                            [ "$ch" = '$' ] || [ "$ch" = $'\x60' ] && dyn=1
+                        fi
+                    fi
+                    ;;
+                ';'|'|'|'&')
+                    if [ -n "$word" ]; then
+                        _dhpk_ci_ev_words+=("$word")
+                        word=""
+                    fi
+                    meta=1
                     ;;
                 *)
                     word+="$ch"
@@ -543,7 +580,9 @@ _dhpk_ci_eval_split() {
         i=$((i + 1))
     done
     [ -n "$word" ] && _dhpk_ci_ev_words+=("$word")
-    [ "$dyn" -eq 0 ]
+    _dhpk_ci_ev_dyn=$dyn
+    _dhpk_ci_ev_meta=$meta
+    return 0
 }
 
 # eval "$(echo git commit)" runs the echo output. A bare parameter, a
@@ -561,23 +600,64 @@ _dhpk_ci_eval_see_word() {
     else
         return 0
     fi
-    local dyn=0
-    if _dhpk_ci_eval_split "$inner"; then
-        dyn=0
-    else
-        dyn=1
-    fi
+    _dhpk_ci_eval_split "$inner"
     n="${#_dhpk_ci_ev_words[@]}"
     [ "$n" -gt 0 ] || return 0
+    if [ "${_dhpk_ci_ev_meta:-0}" = "1" ]; then
+        i=0
+        while [ "$i" -lt "$n" ]; do
+            case "${_dhpk_ci_ev_words[$i]}" in
+                echo|printf)
+                    _dhpk_ci_unsupported "unresolved eval"
+                    return 0
+                    ;;
+            esac
+            i=$((i + 1))
+        done
+    fi
     i=0
-    case "${_dhpk_ci_ev_words[0]}" in
-        command|builtin) i=1 ;;
-    esac
+    while [ "$i" -lt "$n" ]; do
+        case "${_dhpk_ci_ev_words[$i]}" in
+            command)
+                i=$((i + 1))
+                while [ "$i" -lt "$n" ]; do
+                    case "${_dhpk_ci_ev_words[$i]}" in
+                        --) i=$((i + 1)); break ;;
+                        -*)
+                            fmt="${_dhpk_ci_ev_words[$i]#-}"
+                            [ -n "$fmt" ] || { _dhpk_ci_unsupported "unresolved eval"; return 0; }
+                            last=0
+                            while [ "$last" -lt "${#fmt}" ]; do
+                                case "${fmt:$last:1}" in
+                                    p|v|V) ;;
+                                    *) _dhpk_ci_unsupported "unresolved eval"; return 0 ;;
+                                esac
+                                last=$((last + 1))
+                            done
+                            i=$((i + 1))
+                            ;;
+                        *) break ;;
+                    esac
+                done
+                ;;
+            builtin)
+                i=$((i + 1))
+                if [ "$i" -lt "$n" ] && [ "${_dhpk_ci_ev_words[$i]}" = "--" ]; then
+                    i=$((i + 1))
+                fi
+                ;;
+            *) break ;;
+        esac
+    done
     [ "$i" -lt "$n" ] || return 0
     case "${_dhpk_ci_ev_words[$i]}" in
         echo)
             i=$((i + 1))
+            first=0
             while [ "$i" -lt "$n" ] && _dhpk_ci_echo_opt "${_dhpk_ci_ev_words[$i]}"; do
+                case "${_dhpk_ci_ev_words[$i]}" in
+                    *e*) first=1 ;;
+                esac
                 i=$((i + 1))
             done
             script=""
@@ -589,27 +669,59 @@ _dhpk_ci_eval_see_word() {
                 fi
                 i=$((i + 1))
             done
+            if [ "$first" -eq 1 ] && _dhpk_ci_eval_has_backslash "$script"; then
+                _dhpk_ci_unsupported "unresolved eval"
+                return 0
+            fi
             ;;
         printf)
             i=$((i + 1))
             [ "$i" -lt "$n" ] || return 0
             fmt="${_dhpk_ci_ev_words[$i]}"
-            # A case pattern treats \ as an escape, so compare the format literally.
-            if [ "$fmt" != '%s' ] && [ "$fmt" != '%s\n' ]; then
+            i=$((i + 1))
+            # \"%s\" prints a quoted word. eval does not run the argument.
+            if [ "$fmt" = '"%s"' ]; then
                 return 0
             fi
-            i=$((i + 1))
-            [ "$i" -lt "$n" ] || return 0
-            script="${_dhpk_ci_ev_words[$i]}"
+            if [ "$fmt" != '%s' ] && [ "$fmt" != '%s\n' ]; then
+                _dhpk_ci_unsupported "unresolved eval"
+                return 0
+            fi
+            script=""
+            if [ "$fmt" = '%s' ]; then
+                while [ "$i" -lt "$n" ]; do
+                    script+="${_dhpk_ci_ev_words[$i]}"
+                    i=$((i + 1))
+                done
+            else
+                while [ "$i" -lt "$n" ]; do
+                    if [ -n "$script" ]; then
+                        script+=$'\n'
+                    fi
+                    script+="${_dhpk_ci_ev_words[$i]}"
+                    i=$((i + 1))
+                done
+            fi
             ;;
         *) return 0 ;;
     esac
-    if [ "$dyn" -ne 0 ]; then
+    if [ "${_dhpk_ci_ev_dyn:-0}" != "0" ]; then
         _dhpk_ci_unsupported "unresolved eval"
         return 0
     fi
     [ -n "$script" ] || return 0
     _dhpk_ci_inspect_body_cwd "$script" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+}
+
+# True when the visible echo text still contains a backslash. echo -e would
+# turn that into a character this inspector does not decode.
+_dhpk_ci_eval_has_backslash() {
+    local s="$1" i=0
+    while [ "$i" -lt "${#s}" ]; do
+        [ "${s:$i:1}" = "\\" ] && return 0
+        i=$((i + 1))
+    done
+    return 1
 }
 
 # True when eval's command word is a parameter expansion. A following
@@ -669,6 +781,10 @@ _dhpk_ci_note_read_fed() {
                 fi
                 ;;
         esac
+    fi
+    if [ "${_dhpk_ci_ifs_custom:-0}" = "1" ]; then
+        opaque=1
+        body=""
     fi
     local -a names=()
     k=$((_dhpk_ci_u_idx + 1))
@@ -3411,7 +3527,8 @@ _dhpk_ci_list_run() {
     local -a _dhpk_ci_grp_lastpipe _dhpk_ci_grp_sticky _dhpk_ci_grp_allexport
     local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk _dhpk_ci_lastpipe_stk
     local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_lastpipe_stk _dhpk_ci_fn_brace
-    local -a _dhpk_ci_rf_name _dhpk_ci_rf_body _dhpk_ci_rf_opaque _dhpk_ci_rf_mark
+    local -a _dhpk_ci_rf_name _dhpk_ci_rf_body _dhpk_ci_rf_opaque _dhpk_ci_rf_mark _dhpk_ci_ifs_stk
+    local _dhpk_ci_ifs_custom=0
     local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_stage_open=0 _dhpk_ci_stage_lastpipe=0
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()
@@ -3423,6 +3540,7 @@ _dhpk_ci_list_run() {
     _dhpk_ci_rf_body=()
     _dhpk_ci_rf_opaque=()
     _dhpk_ci_rf_mark=()
+    _dhpk_ci_ifs_stk=()
     local _dhpk_ci_cwd="$_dhpk_ci_cwd" _dhpk_ci_cwd_state="$_dhpk_ci_cwd_state"
     local -a _dhpk_ci_hd_d _dhpk_ci_hd_q _dhpk_ci_hd_t _dhpk_ci_hd_x
     local _dhpk_ci_hd_seen=0
@@ -3601,6 +3719,7 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_sticky_stk[$_dhpk_ci_paren]="${_dhpk_ci_git_env_sticky:-0}"
                 _dhpk_ci_lastpipe_stk[$_dhpk_ci_paren]="${_dhpk_ci_lastpipe:-0}"
                 _dhpk_ci_rf_mark[$_dhpk_ci_paren]="${#_dhpk_ci_rf_name[@]}"
+                _dhpk_ci_ifs_stk[$_dhpk_ci_paren]="${_dhpk_ci_ifs_custom:-0}"
                 _dhpk_ci_grp_push paren "${#DHPK_CMD_START[@]}" "$_dhpk_ci_pipe_id"
                 _dhpk_ci_after_pipe=0
                 _dhpk_ci_paren=$((_dhpk_ci_paren + 1))
@@ -3636,6 +3755,7 @@ _dhpk_ci_list_run() {
                     _dhpk_ci_git_env_sticky="${_dhpk_ci_sticky_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_lastpipe="${_dhpk_ci_lastpipe_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_rf_keep "${_dhpk_ci_rf_mark[$_dhpk_ci_paren]}"
+                    _dhpk_ci_ifs_custom="${_dhpk_ci_ifs_stk[$_dhpk_ci_paren]}"
                     _dhpk_ci_grp_pop paren
                     _dhpk_ci_after_pipe=0
                     matched=1
