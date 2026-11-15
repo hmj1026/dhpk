@@ -285,7 +285,14 @@ _dhpk_ci_note_assign() {
         IFS=*)
             val="${w#IFS=}"
             if [ "$val" = $' \t\n' ]; then
-                _dhpk_ci_ifs_custom=0
+                # A default assignment that may not run must not undo a
+                # custom IFS that is still in effect.
+                if [ "${_dhpk_ci_block:-0}" -eq 0 ] \
+                    && [ "${_dhpk_ci_prev_sep:-}" != "and" ] \
+                    && [ "${_dhpk_ci_prev_sep:-}" != "or" ] \
+                    && [ "${_dhpk_ci_ss_depth:-0}" -eq 0 ]; then
+                    _dhpk_ci_ifs_custom=0
+                fi
             else
                 _dhpk_ci_ifs_custom=1
             fi
@@ -400,6 +407,7 @@ _dhpk_ci_fn_see_open_brace() {
         _dhpk_ci_fn_allexport_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_allexport:-0}"
         _dhpk_ci_fn_sticky_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_git_env_sticky:-0}"
         _dhpk_ci_fn_lastpipe_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_lastpipe:-0}"
+        _dhpk_ci_fn_ifs_stk[${_dhpk_ci_fn_depth}]="${_dhpk_ci_ifs_custom:-0}"
         _dhpk_ci_fn_brace[${_dhpk_ci_fn_depth}]=1
         _dhpk_ci_fn_depth=$((_dhpk_ci_fn_depth + 1))
         _dhpk_ci_fn_pending=0
@@ -424,6 +432,10 @@ _dhpk_ci_fn_see_close_brace() {
         fi
         if [ "${_dhpk_ci_lastpipe:-0}" -eq 0 ]; then
             _dhpk_ci_lastpipe="${_dhpk_ci_fn_lastpipe_stk[$top]}"
+        fi
+        # An uncalled body must not clear a custom IFS that is still in effect.
+        if [ "${_dhpk_ci_fn_ifs_stk[$top]:-0}" = "1" ]; then
+            _dhpk_ci_ifs_custom=1
         fi
     fi
 }
@@ -450,6 +462,7 @@ _dhpk_ci_ss_push() {
     _dhpk_ci_ss_allexport_stk[$d]="${_dhpk_ci_allexport:-0}"
     _dhpk_ci_ss_sticky_stk[$d]="${_dhpk_ci_git_env_sticky:-0}"
     _dhpk_ci_ss_lastpipe_stk[$d]="${_dhpk_ci_lastpipe:-0}"
+    _dhpk_ci_ss_ifs_stk[$d]="${_dhpk_ci_ifs_custom:-0}"
     _dhpk_ci_ss_depth=$((d + 1))
 }
 
@@ -461,6 +474,7 @@ _dhpk_ci_ss_pop() {
     _dhpk_ci_allexport="${_dhpk_ci_ss_allexport_stk[$d]}"
     _dhpk_ci_git_env_sticky="${_dhpk_ci_ss_sticky_stk[$d]}"
     _dhpk_ci_lastpipe="${_dhpk_ci_ss_lastpipe_stk[$d]}"
+    _dhpk_ci_ifs_custom="${_dhpk_ci_ss_ifs_stk[$d]}"
 }
 
 # allexport exports the name printf -v and read assign.
@@ -681,6 +695,19 @@ _dhpk_ci_eval_see_word() {
             i=$((i + 1))
             # \"%s\" prints a quoted word. eval does not run the argument.
             if [ "$fmt" = '"%s"' ]; then
+                # The format wraps each argument in quotes. A quote, slash,
+                # or expansion inside the argument is executed by eval.
+                if [ "${_dhpk_ci_ev_dyn:-0}" != "0" ]; then
+                    _dhpk_ci_unsupported "unresolved eval"
+                    return 0
+                fi
+                while [ "$i" -lt "$n" ]; do
+                    if _dhpk_ci_eval_arg_breaks_quote "${_dhpk_ci_ev_words[$i]}"; then
+                        _dhpk_ci_unsupported "unresolved eval"
+                        return 0
+                    fi
+                    i=$((i + 1))
+                done
                 return 0
             fi
             if [ "$fmt" != '%s' ] && [ "$fmt" != '%s\n' ]; then
@@ -711,6 +738,19 @@ _dhpk_ci_eval_see_word() {
     fi
     [ -n "$script" ] || return 0
     _dhpk_ci_inspect_body_cwd "$script" "$_dhpk_ci_u_cwd" "$_dhpk_ci_u_cwd_state"
+}
+
+# True when printf '"%s"' would not leave one quoted word for eval.
+_dhpk_ci_eval_arg_breaks_quote() {
+    local s="$1" i=0 ch=""
+    while [ "$i" -lt "${#s}" ]; do
+        ch="${s:$i:1}"
+        if [ "$ch" = '"' ] || [ "$ch" = "\\" ] || [ "$ch" = '$' ] || [ "$ch" = $'\x60' ]; then
+            return 0
+        fi
+        i=$((i + 1))
+    done
+    return 1
 }
 
 # True when the visible echo text still contains a backslash. echo -e would
@@ -2363,6 +2403,7 @@ _dhpk_ci_flush_command() {
                     while [ "$k" -lt "${#_dhpk_ci_u_words[@]}" ]; do
                         case "${_dhpk_ci_u_words[$k]}" in
                             CDPATH|CDPATH=*|CDPATH+=*) _dhpk_ci_saw_cdpath=1 ;;
+                            IFS=*|IFS+=*) _dhpk_ci_note_assign "${_dhpk_ci_u_words[$k]}" ;;
                         esac
                         case "$_dhpk_ci_u_head" in
                             export|declare|typeset|local)
@@ -3526,9 +3567,9 @@ _dhpk_ci_list_run() {
     local -a _dhpk_ci_cwd_stk _dhpk_ci_state_stk _dhpk_ci_grp_cmd0 _dhpk_ci_grp_pipe _dhpk_ci_grp_kind
     local -a _dhpk_ci_grp_lastpipe _dhpk_ci_grp_sticky _dhpk_ci_grp_allexport
     local -a _dhpk_ci_allexport_stk _dhpk_ci_sticky_stk _dhpk_ci_lastpipe_stk
-    local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_lastpipe_stk _dhpk_ci_fn_brace
+    local -a _dhpk_ci_fn_allexport_stk _dhpk_ci_fn_sticky_stk _dhpk_ci_fn_lastpipe_stk _dhpk_ci_fn_ifs_stk _dhpk_ci_fn_brace
     local -a _dhpk_ci_rf_name _dhpk_ci_rf_body _dhpk_ci_rf_opaque _dhpk_ci_rf_mark _dhpk_ci_ifs_stk
-    local _dhpk_ci_ifs_custom=0
+    local _dhpk_ci_ifs_custom="${_dhpk_ci_ifs_custom:-0}"
     local _dhpk_ci_fn_pending=0 _dhpk_ci_fn_depth=0 _dhpk_ci_stage_open=0 _dhpk_ci_stage_lastpipe=0
     _dhpk_ci_cwd_stk=()
     _dhpk_ci_state_stk=()

@@ -2305,6 +2305,9 @@ test('pretool-git-gate blocks a protected commit hidden by a dynamic git word or
       "eval \"$(printf '%s\\n' hello; printf '%s\\n' 'git commit --no-verify -m x')\"",
       "eval \"$(echo -e 'git\\040commit --no-verify -m x')\"",
       "IFS=, read a b <<< 'echo,git commit --no-verify -m x'; $b",
+      "export IFS=,; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
+      "eval \"$(printf \\\"%s\\\" '\"; git commit --no-verify -m x; true\"')\"",
       'read l; $l',
       'read l <<< "$x"; $l',
     ]) {
@@ -2362,6 +2365,8 @@ test('pre-bash-guard blocks a dynamic git word, an unresolved eval, and a read-f
     "eval \"$(printf 'git commit --no-verify -m x')\"",
     "eval \"$(echo git\\ commit\\ --no-verify\\ -m\\ x)\"",
     "IFS=, read a b <<< 'echo,git commit --no-verify -m x'; $b",
+    "export IFS=,; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+    "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
     "read a b <<< 'echo git commit --no-verify -m x'; $b",
     "read l <<< 'git commit --no-verify -m x'; \${l[*]}",
     "read l <<< 'git commit --no-verify -m x'; $l",
