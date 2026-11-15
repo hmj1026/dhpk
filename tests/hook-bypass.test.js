@@ -2315,6 +2315,8 @@ test('pretool-git-gate blocks a protected commit hidden by a dynamic git word or
       "IFS=, eval 'read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
       "read a <<< 'git,commit,--no-verify,-m,x'; export IFS=,; $a",
       "eval 'export IFS=,; $(:); read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
+      "export IFS=,; IFS=$' \\t\\n' eval 'IFS=x true'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+      "export IFS=,; IFS=$' \\t\\n' eval '( IFS=x )'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
       "eval 'export IFS=,'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
       "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
       "eval \"$(printf \\\"%s\\\" '\"; git commit --no-verify -m x; true\"')\"",
@@ -2350,6 +2352,7 @@ test('pretool-git-gate blocks a protected commit hidden by a dynamic git word or
       "read l <<< 'git commit --no-verify -m x'; \${l[@]}",
       "read -a l <<< 'git commit --no-verify -m x'; \"\${l[@]}\"",
       "read a b <<< 'echo  git commit --no-verify -m x'; $b",
+      "eval 'read a <<< \"git commit --no-verify -m x\"'; $a",
     ]) {
       for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
         expectStatus(
@@ -2379,6 +2382,8 @@ test('pre-bash-guard blocks a dynamic git word, an unresolved eval, and a read-f
     "export IFS=,; IFS=$' \\t\\n' read a <<< 'git,commit,--no-verify,-m,x'; $a",
     "IFS=, eval 'read a <<< \"git,commit,--no-verify,-m,x\"; $a'",
     "read a <<< 'git,commit,--no-verify,-m,x'; export IFS=,; $a",
+    "export IFS=,; IFS=$' \\t\\n' eval 'IFS=x true'; read a <<< 'git,commit,--no-verify,-m,x'; $a",
+    "eval 'read a <<< \"git commit --no-verify -m x\"'; $a",
     "export IFS=,; $(read a b <<< 'echo,git commit --no-verify -m x'; $b)",
     "eval \"$(printf \\\"%s\\\" '\$(git commit --no-verify -m x)')\"",
     "read a b <<< 'echo git commit --no-verify -m x'; $b",
@@ -2422,6 +2427,8 @@ test('dynamic git spellings that are data, read-only, or a literal feature commi
       "cat | { export IFS=,; }; read l <<< 'echo hi'; $l",
       "cat | { export IFS=,; }; read a <<< 'git,commit,--no-verify,-m,x'; $a",
       "export IFS=,; IFS=$' \\t\\n' eval 'read l <<< \"echo hi\"; $l'",
+      "eval 'read a <<< \"echo hi\"'; $a",
+      "( eval 'read a <<< \"git commit -m x\"' ); $a",
       "read l <<< 'echo hi'; ( read l <<< 'git commit -m x' ); $l",
     ]) {
       expectStatus(
