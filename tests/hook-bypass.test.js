@@ -2481,6 +2481,12 @@ test('pretool-git-gate blocks shell input from a function, a pipe, or a process 
       "f() { . /dev/stdin; }; f <<< 'git commit -m x'",
       "f() { source /dev/stdin; }; echo 'git commit -m x' | f",
       "function f { command bash; }; echo 'git commit -m x' | f",
+      "function f { bash -s /etc/hostname; }; echo 'git commit -m x' | f",
+      "echo 'git commit -m x' | (echo hi; (bash))",
+      "echo 'git commit -m x' | (bash -c 'echo hi'; bash)",
+      "echo 'git commit -m x' | (bash <<< 'echo hi'; bash)",
+      "echo 'git commit -m x' | (. /dev/stdin)",
+      "echo 'git commit -m x' | (. /etc/os-release; bash)",
       "echo 'git commit -m x' | bash -s <(echo 'echo hi')",
       "echo 'git commit -m x' > >(bash)",
       "echo 'git commit -m x' | tee >(bash) >/dev/null",
@@ -2537,6 +2543,10 @@ test('data consumers and a shell that does not read that stdin stay allowed', ()
       ". < <(echo 'git commit -m x')",
       "echo 'git commit -m x' > >(cat)",
       "echo 'git commit -m x' > >(bash -c 'echo hi')",
+      "echo 'echo hi' > >(bash)",
+      "echo 'git commit -m x' | (cat; (bash))",
+      "echo 'git commit -m x' | (echo 'echo hi' | (bash))",
+      "echo 'git commit -m x' | (. /etc/os-release; true)",
       "f() { . /etc/os-release; }; f <<< 'git commit -m x'",
     ]) {
       expectStatus(

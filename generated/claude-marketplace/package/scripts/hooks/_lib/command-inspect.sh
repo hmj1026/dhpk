@@ -613,11 +613,79 @@ _dhpk_ci_subst_add() {
     _dhpk_ci_subst_text+="$2"
 }
 
+# Move _dhpk_ci_fetch_j past one wrapper's flags. Returns 1 when this
+# command is not a download (command -v, or env -S whose command is inside
+# the split string). The flag shapes match the guard's head walk so an
+# unsupported block does not hide "piping remote download into shell".
+_dhpk_ci_fetch_skip_wrapper() {
+    local end="$1" kind="$2" w=""
+    _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1))
+    case "$kind" in
+        builtin) return 0 ;;
+        command)
+            while [ "$_dhpk_ci_fetch_j" -lt "$end" ]; do
+                w="${DHPK_WORDS[$_dhpk_ci_fetch_j]}"
+                case "$w" in
+                    --) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)); break ;;
+                    -*[vV]*) return 1 ;;
+                    -*) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)) ;;
+                    *) break ;;
+                esac
+            done
+            ;;
+        exec)
+            while [ "$_dhpk_ci_fetch_j" -lt "$end" ]; do
+                w="${DHPK_WORDS[$_dhpk_ci_fetch_j]}"
+                case "$w" in
+                    --) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)); break ;;
+                    -a) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 2)) ;;
+                    -*) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)) ;;
+                    *) break ;;
+                esac
+            done
+            ;;
+        env)
+            while [ "$_dhpk_ci_fetch_j" -lt "$end" ]; do
+                w="${DHPK_WORDS[$_dhpk_ci_fetch_j]}"
+                case "$w" in
+                    --) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)); break ;;
+                    -S|--split-string|--split-string=*|-S?*|-*S) return 1 ;;
+                    --unset=*|--chdir=*) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)) ;;
+                    -u|--unset|-C|--chdir) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 2)) ;;
+                    -C?*|-u?*) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)) ;;
+                    -*C|-*u) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 2)) ;;
+                    --*) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)) ;;
+                    -*) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)) ;;
+                    *) break ;;
+                esac
+            done
+            ;;
+        nice)
+            while [ "$_dhpk_ci_fetch_j" -lt "$end" ]; do
+                w="${DHPK_WORDS[$_dhpk_ci_fetch_j]}"
+                case "$w" in
+                    --) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)); break ;;
+                    -n|--adjustment) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 2)) ;;
+                    -*) _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1)) ;;
+                    *) break ;;
+                esac
+            done
+            ;;
+        nohup)
+            if [ "$_dhpk_ci_fetch_j" -lt "$end" ] && [ "${DHPK_WORDS[$_dhpk_ci_fetch_j]}" = "--" ]; then
+                _dhpk_ci_fetch_j=$((_dhpk_ci_fetch_j + 1))
+            fi
+            ;;
+    esac
+    return 0
+}
+
 # curl|sh is already a named guard pattern. Only the command word counts:
 # a filename whose basename is curl is not a download. Leading reserved
 # words are not that command word; `{ curl; } | sh` stores `{` in the same
-# argv, and `then` / `do` do the same. Missing them sets an unsupported
-# block that hides the guard's remote-download message.
+# argv, and `then` / `do` do the same. A wrapper flag is not the command
+# word either. Missing either sets an unsupported block that hides the
+# guard's remote-download message.
 _dhpk_ci_pipe_has_fetch() {
     local i=0 ncmd start len j end w base
     [ "${_dhpk_ci_pipe_id:-0}" != "0" ] || return 1
@@ -648,7 +716,9 @@ _dhpk_ci_pipe_has_fetch() {
                 case "$base" in
                     curl|wget|fetch) return 0 ;;
                     command|builtin|exec|env|nice|nohup)
-                        j=$((j + 1))
+                        _dhpk_ci_fetch_j="$j"
+                        _dhpk_ci_fetch_skip_wrapper "$end" "$base" || break
+                        j="$_dhpk_ci_fetch_j"
                         continue
                         ;;
                     *) break ;;
@@ -836,43 +906,73 @@ _dhpk_ci_fn_skip_one() {
 }
 
 # Token for the shell word at $1 inside a function-keyword body.
+# -s keeps stdin as the script; a later file or process substitution is $0.
+# -c, including a cluster such as -sc, runs that operand and does not read
+# the caller's stdin. A following word must not clear either decision.
 _dhpk_ci_fn_shell_token() {
-    local i="$1" w token="S" nxt
+    local i="$1" w="" saw_c=0 saw_s=0 sign=1 opt="" oi=0 olen=0 skip_ops=0
     i=$((i + 1))
     while [ "$i" -lt "$n" ]; do
         w="${_dhpk_ci_words[$i]}"
         [ "$w" = "}" ] && break
         case "$w" in
-            --) ;;
-            -s|-s*) ;;
-            -c|-c*)
-                token=""
-                nxt=$((i + 1))
-                if [ "$nxt" -lt "$n" ] && [ "${_dhpk_ci_words[$nxt]}" != "}" ]; then
-                    if [ "${_dhpk_ci_dyn[$nxt]:-0}" = "1" ]; then
-                        token="U"
-                    else
-                        _dhpk_ci_inspect_body_cwd "${_dhpk_ci_words[$nxt]}" "${_dhpk_ci_u_cwd:-}" "${_dhpk_ci_u_cwd_state:-unresolved}"
-                    fi
-                fi
+            --|-) i=$((i + 1)); break ;;
+            --rcfile|--init-file|--startup-cmd) i=$((i + 2)); continue ;;
+            --*) i=$((i + 1)); continue ;;
+            [-+]*)
+                sign=1
+                [ "${w:0:1}" = "+" ] && sign=0
+                opt="${w#[-+]}"
+                oi=0
+                olen="${#opt}"
+                skip_ops=0
+                while [ "$oi" -lt "$olen" ]; do
+                    case "${opt:$oi:1}" in
+                        c) saw_c=1 ;;
+                        s) [ "$sign" -eq 1 ] && saw_s=1 ;;
+                        o|O)
+                            if [ $((oi + 1)) -lt "$olen" ]; then
+                                oi=$olen
+                                continue
+                            fi
+                            skip_ops=$((skip_ops + 1))
+                            ;;
+                    esac
+                    oi=$((oi + 1))
+                done
+                i=$((i + 1 + skip_ops))
+                continue
                 ;;
-            --*) token="" ;;
-            *)
-                if [ "${_dhpk_ci_dyn[$i]:-0}" = "1" ]; then
-                    token="U"
-                elif _dhpk_ci_stdin_device "$w"; then
-                    token="S"
-                else
-                    token=""
-                fi
-                ;;
+            *) break ;;
         esac
-        if [ "${_dhpk_ci_dyn[$i]:-0}" = "1" ] && [ "$token" != "S" ]; then
-            token="U"
-        fi
-        i=$((i + 1))
     done
-    _dhpk_ci_fn_kw_token="$token"
+    if [ "$saw_c" -eq 1 ] && [ "$i" -lt "$n" ] && [ "${_dhpk_ci_words[$i]}" != "}" ]; then
+        if [ "${_dhpk_ci_dyn[$i]:-0}" = "1" ]; then
+            _dhpk_ci_fn_kw_token="U"
+        else
+            _dhpk_ci_inspect_body_cwd "${_dhpk_ci_words[$i]}" "${_dhpk_ci_u_cwd:-}" "${_dhpk_ci_u_cwd_state:-unresolved}"
+            _dhpk_ci_fn_kw_token=""
+        fi
+        return 0
+    fi
+    if [ "$saw_s" -eq 1 ]; then
+        _dhpk_ci_fn_kw_token="S"
+        return 0
+    fi
+    if [ "$i" -lt "$n" ] && [ "${_dhpk_ci_words[$i]}" != "}" ]; then
+        w="${_dhpk_ci_words[$i]}"
+        if _dhpk_ci_ps_at_index "$i"; then
+            _dhpk_ci_fn_kw_token=""
+        elif [ "${_dhpk_ci_dyn[$i]:-0}" = "1" ]; then
+            _dhpk_ci_fn_kw_token="U"
+        elif _dhpk_ci_stdin_device "$w"; then
+            _dhpk_ci_fn_kw_token="S"
+        else
+            _dhpk_ci_fn_kw_token=""
+        fi
+        return 0
+    fi
+    _dhpk_ci_fn_kw_token="S"
 }
 
 # The word after `{` in `function name { ... }`, after assignments and wrappers.
@@ -994,22 +1094,45 @@ _dhpk_ci_apply_outps() {
     _dhpk_ci_outps_q=()
 }
 
-# A subshell that is a pipeline stage keeps the incoming pipe for its first
-# stdin-reading shell. echo and printf do not consume that stdin.
+# A subshell that is a pipeline stage keeps the incoming pipe. A nested
+# subshell inherits the nearest live pin; echo and a shell that redirects
+# its own stdin do not consume it.
 _dhpk_ci_pin_take() {
     local p base
     _dhpk_ci_pin_took=0
     [ "${_dhpk_ci_paren:-0}" -gt 0 ] || return 0
     p=$((_dhpk_ci_paren - 1))
-    [ "${_dhpk_ci_pin_live[$p]:-0}" = "1" ] || return 0
+    while [ "$p" -ge 0 ] && [ "${_dhpk_ci_pin_live[$p]:-0}" != "1" ]; do
+        p=$((p - 1))
+    done
+    [ "$p" -ge 0 ] || return 0
     if _dhpk_ci_is_shell_word "$_dhpk_ci_u_head"; then
         _dhpk_ci_extract_shell_c $((_dhpk_ci_u_idx + 1))
+        # -c, a script file, or a here-string replaces this command's stdin
+        # only. The inherited pipe is still there for a later command.
         if [ "${_dhpk_ci_shell_reads_stdin:-0}" = "1" ] && [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
             _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pin_text[$p]:-}" "${_dhpk_ci_pin_known[$p]:-0}"
             _dhpk_ci_pin_live[$p]=0
             _dhpk_ci_pin_took=1
-            return 0
         fi
+        return 0
+    fi
+    if [ "$_dhpk_ci_u_head" = "." ] || [ "$_dhpk_ci_u_head" = "source" ]; then
+        _dhpk_ci_dot_scan $((h + _dhpk_ci_u_idx + 1))
+        case "${_dhpk_ci_dot_kind:-none}" in
+            stdin)
+                if [ "${#_dhpk_ci_hs_words[@]}" -eq 0 ]; then
+                    _dhpk_ci_feed_pipe_buf "${_dhpk_ci_pin_text[$p]:-}" "${_dhpk_ci_pin_known[$p]:-0}"
+                    _dhpk_ci_pin_live[$p]=0
+                    _dhpk_ci_pin_took=1
+                fi
+                ;;
+            opaque)
+                _dhpk_ci_unsupported "shell input is not visible"
+                _dhpk_ci_pin_live[$p]=0
+                ;;
+        esac
+        return 0
     fi
     base="${_dhpk_ci_u_head##*/}"
     case "$base" in
@@ -4740,14 +4863,16 @@ _dhpk_ci_list_run() {
                 _dhpk_ci_ifs_stk[$_dhpk_ci_paren]="${_dhpk_ci_ifs_custom:-0}"
                 _dhpk_ci_paren_stamp[$_dhpk_ci_paren]="${_dhpk_ci_ifs_stamp:-0}"
                 _dhpk_ci_grp_push paren "${#DHPK_CMD_START[@]}" "$_dhpk_ci_pipe_id"
-                # Keep the pipe that this subshell stage reads. Its first
-                # stdin shell consumes that text; a later command does not
-                # see a buffer replaced by echo inside the subshell.
-                _dhpk_ci_pin_text[$_dhpk_ci_paren]="${_dhpk_ci_pipe_text:-}"
-                _dhpk_ci_pin_known[$_dhpk_ci_paren]="${_dhpk_ci_pipe_known:-0}"
-                if [ "${_dhpk_ci_after_pipe:-0}" = "1" ] || [ "${_dhpk_ci_pipe_id:-0}" != "0" ]; then
+                # Only a subshell that is itself a pipeline stage gets a new
+                # snapshot. A nested subshell inherits the outer pin; copying
+                # the buffer here would feed echo's stdout instead of the pipe.
+                if [ "${_dhpk_ci_after_pipe:-0}" = "1" ]; then
+                    _dhpk_ci_pin_text[$_dhpk_ci_paren]="${_dhpk_ci_pipe_text:-}"
+                    _dhpk_ci_pin_known[$_dhpk_ci_paren]="${_dhpk_ci_pipe_known:-0}"
                     _dhpk_ci_pin_live[$_dhpk_ci_paren]=1
                 else
+                    _dhpk_ci_pin_text[$_dhpk_ci_paren]=""
+                    _dhpk_ci_pin_known[$_dhpk_ci_paren]=0
                     _dhpk_ci_pin_live[$_dhpk_ci_paren]=0
                 fi
                 _dhpk_ci_after_pipe=0

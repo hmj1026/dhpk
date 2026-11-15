@@ -679,4 +679,11 @@ test('DHPK_INSPECT_CWD_UNRESOLVED keeps empty cwd across cache/fast-path until u
   assert.match(res.stdout, /^reest=\|\|\/etc$/m);
 });
 
+test('function-keyword bash -sc judges the -c payload (#1426)', () => {
+  const got = inspect("function f { bash -sc 'git commit --no-verify -m x'; }; f");
+  assert.strictEqual(got.count, '1', JSON.stringify(got));
+  assert.strictEqual(got.sub, 'commit');
+  assert.strictEqual(got.no_verify, '1');
+});
+
 run('command-inspect');
