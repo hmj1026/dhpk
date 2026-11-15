@@ -1107,6 +1107,12 @@ _dhpk_ci_pin_take() {
     local p base
     _dhpk_ci_pin_took=0
     [ "${_dhpk_ci_paren:-0}" -gt 0 ] || return 0
+    # A stage of an inner pipe reads that pipe. finish already judged it.
+    # Clearing the inherited pin here dropped the outer script, so
+    # `echo git | (echo hi | cat; bash)` was allowed.
+    if [ "${_dhpk_ci_after_pipe:-0}" = "1" ]; then
+        return 0
+    fi
     p=$((_dhpk_ci_paren - 1))
     while [ "$p" -ge 0 ] && [ "${_dhpk_ci_pin_live[$p]:-0}" != "1" ]; do
         p=$((p - 1))
