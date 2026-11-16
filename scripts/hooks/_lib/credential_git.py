@@ -783,9 +783,10 @@ GLOBAL_VALUES = ('-C', '-c', '--git-dir', '--work-tree', '--namespace', '--confi
 SHORT_VALUES = {'rebase': 'sXCSm', 'difftool': 't'}
 
 
-# (#1454) git 子指令中會啟動 pager 的那些；其餘子指令不會執行 core.pager。
+# (#1454) git 子指令中會啟動 pager 的那些；其餘子指令不會執行 core.pager。拿不準的子指令一律當成會分頁。
 PAGING_SUBCOMMANDS = ('log', 'diff', 'show', 'blame', 'annotate', 'branch', 'tag', 'shortlog', 'reflog',
-                      'whatchanged', 'grep', 'stash', 'help', 'diff-tree', 'diff-index', 'diff-files')
+                      'whatchanged', 'grep', 'stash', 'help', 'diff-tree', 'diff-index', 'diff-files',
+                      'range-diff', 'show-branch', 'cherry', 'config', 'notes')
 
 
 def pages(subcommand):
@@ -793,12 +794,14 @@ def pages(subcommand):
 
 
 def _config_kind(setting):
-    """'always' or 'pager' when the `-c` setting names a command string git runs, else None."""
+    """'always', 'pager' or 'pager:<subcommand>' when the `-c` setting names a command string git runs, else None."""
     key = setting.split('=', 1)[0].lower()
     if key == 'core.sshcommand':
         return 'always'
     if key == 'core.pager':
         return 'pager'
+    if key.startswith('pager.') and len(key) > 6:
+        return 'pager:' + key[6:]
     if key.startswith(('difftool.', 'mergetool.')) and key.endswith('.cmd'):
         return 'always'
     return None
@@ -836,11 +839,16 @@ def _split_globals(args):
     """(index of the subcommand word, [(kind, value)] for each `-c` setting naming a command string)."""
     settings = []
     i = 0
+    paging = None
     while i < len(args) and args[i].value.startswith('-'):
         arg = args[i].value
         if arg == '--':
             i += 1
             break
+        if arg in ('-p', '--paginate'):
+            paging = True
+        elif arg in ('-P', '--no-pager'):
+            paging = False
         setting = None
         if arg == '-c' and i + 1 < len(args):
             setting = args[i + 1].value
@@ -854,21 +862,24 @@ def _split_globals(args):
         elif arg in GLOBAL_VALUES:
             i += 1
         i += 1
-    return i, settings
+    return i, settings, paging
 
 
-def git_subcommand(args):
-    """The subcommand word of a git invocation (`args` follow the `git` word), '' when there is none."""
-    i, _ = _split_globals(args)
-    return args[i].value if i < len(args) else ''
+def git_pages(args):
+    """True when git may start a pager for this invocation (`args` follow the `git` word)."""
+    i, _, paging = _split_globals(args)
+    return paging is not False and (paging is True or pages(args[i].value if i < len(args) else ''))
 
 
 def exec_strings(args):
     """Command strings a git invocation executes: `-c core.sshCommand=`, `core.pager`, `mergetool.*.cmd`,
     `rebase --exec`, `submodule foreach`, `difftool --extcmd` and `bisect run`. `args` follow the `git` word."""
-    i, settings = _split_globals(args)
+    i, settings, paging = _split_globals(args)
     subcommand = args[i].value if i < len(args) else ''
-    found = [text for kind, text in settings if kind == 'always' or (kind == 'pager' and pages(subcommand))]
+    page = git_pages(args)
+    found = [text for kind, text in settings
+             if kind == 'always' or (page and (kind == 'pager' or kind == 'pager:' + subcommand.lower()))
+             or (paging is not False and kind == 'pager:' + subcommand.lower())]
     if i >= len(args):
         return [text for text in found if text]
     rest = args[i + 1:]

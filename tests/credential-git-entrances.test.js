@@ -47,6 +47,24 @@ const blocked = [
   // mergetool / difftool cmd
   "git -c mergetool.x.cmd='cat .env' mergetool -t x",
   "git -c difftool.x.cmd='cat .env' difftool -t x HEAD",
+  // (#1454 round 2) ssh 短選項叢集與 -F／-J
+  "ssh -vo 'ProxyCommand=cat .env' h",
+  "ssh -4vo 'ProxyCommand=cat .env' h",
+  "ssh -4oProxyCommand='cat .env' h",
+  "ssh -v -o 'ProxyCommand=cat .env' h",
+  "GIT_SSH_COMMAND='ssh -vo \"ProxyCommand=cat .env\"' git fetch",
+  'ssh -F .env h',
+  'ssh -vF .env h',
+  'ssh -J .env h',
+  // pager.<cmd>、-p、擴充的分頁子命令、declare -x
+  "git -c pager.log='cat .env' log",
+  "git -c pager.status='cat .env' status",
+  "git -p -c core.pager='cat .env' status",
+  "git --paginate -c core.pager='cat .env' status",
+  "GIT_PAGER='cat .env' git -p status",
+  "GIT_PAGER='cat .env' git range-diff a b c",
+  "declare -x GIT_PAGER='cat .env'; git log",
+  "typeset -x PAGER='cat .env'; git log",
 ];
 const allowed = [
   "ssh -o ProxyCommand='ssh -W %h:%p bastion' host",
@@ -69,6 +87,15 @@ const allowed = [
   "git -c mergetool.vim.cmd='vim -d $LOCAL $REMOTE' mergetool",
   "git -c difftool.vim.cmd='vim -d $LOCAL $REMOTE' difftool",
   "git -c mergetool.x.cmd='cat ordinary' mergetool -t x",
+  "ssh -vo 'ProxyCommand=ssh -W %h:%p bastion' h",
+  "ssh -4vo ProxyCommand='ssh -W %h:%p bastion' h",
+  "GIT_SSH_COMMAND='ssh -vo \"ProxyCommand=ssh -W %h:%p bastion\"' git fetch",
+  'ssh -F ~/.ssh/config h',
+  'ssh -vF cfg -J jump h',
+  "git -c pager.log=less log",
+  "git --no-pager -c core.pager='cat .env' log",
+  "git -P -c core.pager='cat .env' log",
+  "declare -x GIT_PAGER=less; git log",
 ];
 
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
