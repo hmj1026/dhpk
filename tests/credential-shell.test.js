@@ -49,6 +49,19 @@ const lexed = [
   ["cat <<A <<'B'\nit's\nA\n$(x)\nB\n", 'cat <<:o A <<:o B ;:o', []],
   ['echo \'a b\' "c*" d* "\\x" $x', 'echo a\\u0020b c* d*:g \\x $x:d', []],
   ['a&&b||c|&d;;e>&f', 'a &&:o b ||:o c |&:o d ;;:o e >&:o f', []],
+  // ANSI-C and locale quotes decode to the word the shell passes on; a quoted `$` stays literal (#1427)
+  ["cat $'.e\\x6ev'", 'cat .env', []],
+  ["cat $'\\056\\u0065nv'", 'cat .env', []],
+  ["cat $'a\\'b' c", "cat a'b c", []],
+  ["cat $'a\\0.env'", 'cat a', []],
+  ["cat $'a\\qb'", 'cat a\\qb', []],
+  ['cat $".env"', 'cat .env', []],
+  ['cat $".e"nv', 'cat .env', []],
+  ["cat \"$'.env'\"", "cat $'.env':d", []],
+  ["cat '$'\".env\"", 'cat $.env', []],
+  ["cat \\$'.env'", "cat $.env", []],
+  // a substitution after an escaped quote inside ANSI-C text is still seen (#1427)
+  ["echo $'a\\'b' $(cat .env)", "echo a'b $:d (:o cat .env ):o", ['cat .env']],
 ];
 
 const failures = [

@@ -66,6 +66,21 @@ class Token:
     # text of the first command substitution (`$(` or a backtick) outside single
     # quotes in the word, or '' when it has none or its body is resolvable
     substitution: str = ''
+    # (#1427) the word's pieces when it holds a parameter expansion or an
+    # unquoted brace list: `(char, quoted)` pairs and `Expansion` items; else None
+    parts: object = None
+    # (#1427) set by the policy's expansion step when the word's value cannot be resolved
+    unresolved: bool = False
+
+
+@dataclass(frozen=True)
+class Expansion:
+    """One `$name` or `${name<op>arg}` parameter expansion inside a word."""
+    text: str
+    name: str
+    op: str
+    arg: str
+    quoted: bool
 
 
 @dataclass
@@ -109,6 +124,10 @@ class _Cursor:
         self.text = text
         self.i = start
         self.quote = None
+        # (#1427) True inside an ANSI-C quote: `quote` stays a single quote so every
+        # view still reads it as single-quoted text, but a backslash escapes the next character.
+        self.ansi = False
+        self._dollar = False
         self.word = False
         self.comments = comments
         self.spaces = spaces
@@ -136,6 +155,7 @@ class _Cursor:
     def next(self):
         text, i, quote = self.text, self.i, self.quote
         ch = text[i]
+        dollar, self._dollar = self._dollar, False
         # 反斜線換行在 shell 詞法中消失，不應改變原有字詞起點狀態。
         if ch == '\\' and quote != "'" and i + 1 < len(text) and text[i + 1] == '\n':
             self.i = i + 2
@@ -146,7 +166,7 @@ class _Cursor:
             self.i = len(text) if end < 0 else end
             return COMMENT, ''
         self.word = quote is not None or not (self.spaces(ch) or ch in OPERATOR_CHARS)
-        if ch == '\\' and quote != "'":
+        if ch == '\\' and (quote != "'" or self.ansi):
             if i + 1 >= len(text):
                 if self.unfinished_escape:
                     raise ValueError(self.unfinished_escape)
@@ -156,9 +176,11 @@ class _Cursor:
             return ESCAPE, text[i + 1]
         if self.quotes and ch in '\'"' and (quote is None or quote == ch):
             self.quote = None if quote else ch
+            self.ansi = not quote and ch == "'" and dollar
             self.i = i + 1
             return QUOTE, ch
         self.i = i + 1
+        self._dollar = quote is None and ch == '$'
         return CHAR, ch
 
 
@@ -167,18 +189,27 @@ def tokenize(text):
 
     Substitution bodies are lexed inline, so `$(cat x)` yields `$`, `(`, `cat`,
     `x`, `)`; the policy judges those words in the outer command as well.
+
+    ANSI-C (`$'..'`) words are decoded and a locale quote (`$".."`) reads as a
+    plain double quote, so the word holds the characters the shell would pass on
+    (#1427). A word with a parameter expansion or an unquoted brace list also
+    keeps its `parts`, which the policy resolves from visible text.
     """
     cursor = _Cursor(text, spaces=WORD_SPACES.__contains__, unfinished_escape='unfinished escape')
     tokens = []
     value = []
+    pieces = []
     glob = dynamic = started = False
     substitution = ''
+    has_expansion = False
+    skip_until = 0
 
     def flush():
-        nonlocal value, glob, dynamic, started, substitution
+        nonlocal value, pieces, glob, dynamic, started, substitution, has_expansion
         if started:
-            tokens.append(Token(''.join(value), glob, dynamic, substitution=substitution))
-        value, glob, dynamic, started, substitution = [], False, False, False, ''
+            parts = tuple(pieces) if has_expansion or _brace_list(pieces) else None
+            tokens.append(Token(''.join(value), glob, dynamic, substitution=substitution, parts=parts))
+        value, pieces, glob, dynamic, started, substitution, has_expansion = [], [], False, False, False, '', False
 
     while not cursor.at_end():
         start = cursor.i
@@ -187,12 +218,20 @@ def tokenize(text):
             continue
         if kind == QUOTE:
             started = True
+            if cursor.ansi:
+                decoded, end = _ansi_c(text, cursor.i)
+                value.append(decoded)
+                pieces.extend((c, True) for c in decoded)
+                cursor.seek(end)
+                cursor.quote, cursor.ansi = None, False
             continue
         if kind == ESCAPE:
             # 雙引號中的反斜線只跳脫 shell 特殊字元，其他情況必須保留避免偽造 helper 路徑。
             if cursor.quote == '"' and ch not in DOUBLE_QUOTE_ESCAPES:
                 value.append('\\')
+                pieces.append(('\\', True))
             value.append(ch)
+            pieces.append((ch, True))
             started = True
             continue
         quoted = cursor.quote is not None
@@ -213,25 +252,135 @@ def tokenize(text):
                 cursor.seek(cursor.i + 1)
             tokens.append(Token(op, operator=True))
             continue
+        if ch == '$' and cursor.quote is None and text[cursor.i:cursor.i + 1] in ('"', "'") and cursor.i < len(text):
+            # `$"..."` and `$'...'` are quotes; the `$` is not part of the word.
+            started = True
+            continue
         if ch == '$' and cursor.quote != "'":
             end = _resolvable_end(text, cursor.i)
             if end is not None:
                 # `$(pwd)/.env` 是一個字詞：保留整段，其後綴才會被政策逐字判斷。
                 value.append(text[start:end])
+                pieces.extend((c, True) for c in text[start:end])
                 cursor.seek(end)
                 dynamic = started = True
                 continue
+        piece, inside = (ch, quoted), start < skip_until
+        if ch == '$' and cursor.quote != "'" and not inside:
+            found = _parse_expansion(text, cursor.i, cursor.quote == '"')
+            if found:
+                piece, skip_until = found
+                has_expansion = True
         if ch in '$`' and cursor.quote != "'":
             dynamic = True
             substitution = substitution or _unresolved_substitution(text, cursor.i, ch)
         if ch in '*?[' and not quoted:
             glob = True
         value.append(ch)
+        if not inside:
+            pieces.append(piece)
         started = True
     if cursor.quote:
         raise ValueError('unfinished quote')
     flush()
     return tokens
+
+
+NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+ANSI_C_SIMPLE = {'a': '\a', 'b': '\b', 'e': '\x1b', 'E': '\x1b', 'f': '\f', 'n': '\n', 'r': '\r', 't': '\t',
+                 'v': '\v', '\\': '\\', "'": "'", '"': '"', '?': '?'}
+ANSI_C_NUMERIC = {'x': ('0123456789abcdefABCDEF', 2, 16), 'u': ('0123456789abcdefABCDEF', 4, 16),
+                  'U': ('0123456789abcdefABCDEF', 8, 16)}
+
+
+def _brace_list(pieces):
+    """True when unquoted text holds a `{a,b}` or `{1..3}` shape that the shell would expand."""
+    plain = ''.join(p[0] for p in pieces if isinstance(p, tuple) and not p[1])
+    return '{' in plain and (',' in plain or '..' in plain)
+
+
+def _ansi_c(text, i):
+    """Decode the `$'...'` body that starts at `i`; return (decoded, index past the closing quote).
+
+    Mirrors the shell: simple escapes, 1-3 digit octal, `\\xHH`, `\\uHHHH`,
+    `\\UHHHHHHHH`, `\\cX`; an unknown escape stays as written; a NUL ends the
+    value (the rest of the quoted text is dropped).
+    """
+    out = []
+    truncated = False
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "'":
+            return ''.join(out), i + 1
+        if ch != '\\' or i + 1 >= n:
+            piece, i = ch, i + 1
+        else:
+            piece, i = _ansi_c_escape(text, i + 1)
+        if piece == '\x00':
+            truncated = True
+        elif not truncated:
+            out.append(piece)
+    raise ValueError('unfinished quote')
+
+
+def _ansi_c_escape(text, i):
+    """Decode the escape whose letter is at `i`; return (text, next index)."""
+    letter = text[i]
+    if letter in ANSI_C_SIMPLE:
+        return ANSI_C_SIMPLE[letter], i + 1
+    if letter in '01234567':
+        end = i + 1
+        while end < min(i + 3, len(text)) and text[end] in '01234567':
+            end += 1
+        return chr(int(text[i:end], 8) & 0xFF), end
+    if letter in ANSI_C_NUMERIC:
+        digits, width, base = ANSI_C_NUMERIC[letter]
+        end = i + 1
+        while end < min(i + 1 + width, len(text)) and text[end] in digits:
+            end += 1
+        code = int(text[i + 1:end], base) if end > i + 1 else None
+        if code is None or code > 0x10FFFF or 0xD800 <= code <= 0xDFFF:
+            return '\\' + letter, i + 1
+        return chr(code), end
+    if letter == 'c' and i + 1 < len(text) and text[i + 1] != "'":
+        return chr(ord(text[i + 1]) & 0x1F), i + 2
+    return '\\' + letter, i + 1
+
+
+def _parse_expansion(text, i, quoted):
+    """Parse the `$name` or `${name<op>arg}` whose text after the `$` starts at `i`.
+
+    Returns `(Expansion, end index)`, or None for any other `$` form (`$1`,
+    `$(..)`, `${#x}`, an unclosed brace), which stays an opaque dynamic word.
+    """
+    found = NAME.match(text, i)
+    if found:
+        return Expansion(text[i - 1:found.end()], found.group(), '', '', quoted), found.end()
+    if not text.startswith('{', i):
+        return None
+    depth, k = 1, i + 1
+    while k < len(text) and depth:
+        if text[k] == '\\':
+            k += 1
+        elif text.startswith('${', k):
+            depth, k = depth + 1, k + 1
+        elif text[k] == '}':
+            depth -= 1
+        k += 1
+    if depth:
+        return None
+    inner = text[i + 1:k - 1]
+    named = NAME.match(inner)
+    if not named:
+        return None
+    rest = inner[named.end():]
+    operator = re.match(r':?[-=+?]', rest)
+    if operator:
+        op, arg = operator.group(), rest[operator.end():]
+    else:
+        op, arg = ('', '') if not rest else ('other', rest)
+    return Expansion(text[i - 1:k], named.group(), op, arg, quoted), k
 
 
 def _unresolved_substitution(text, i, ch):
