@@ -1,0 +1,139 @@
+'use strict';
+
+// (#1456) A find that selects files by name and hands them to a Reader (`-exec cat {}` or a piped xargs)
+// reads every selected path. The guard judges the selection only when the name filter is visible; a find
+// without a name filter, or with predicates the guard does not model, keeps its earlier verdict.
+// Hook-boundary outcomes use synthetic fixtures; unit rows cover the parser in `credential_find.py`.
+const { test, run, assert } = require('./_lib/tinytest');
+const { runHook: runHookAt, ROOT } = require('./_lib/hookharness');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const { spawnSync } = require('node:child_process');
+
+const FIXTURE_CWD = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-credential-find-')));
+fs.writeFileSync(path.join(FIXTURE_CWD, '.env'), 'synthetic');
+fs.writeFileSync(path.join(FIXTURE_CWD, 'ordinary'), 'synthetic');
+fs.writeFileSync(path.join(FIXTURE_CWD, 'app.js'), 'synthetic');
+fs.writeFileSync(path.join(FIXTURE_CWD, 'notes.md'), 'synthetic');
+process.on('exit', () => fs.rmSync(FIXTURE_CWD, { recursive: true, force: true }));
+const HOOKS = ['pre-bash-guard.sh', 'pre-bash-dispatch.sh'];
+const decide = (hook, command) => runHookAt(hook, { cwd: FIXTURE_CWD, payload: { tool_input: { command } } });
+
+const blocked = [
+  'find . -name .env -exec cat {} \\;',
+  'find . -name .env | xargs cat',
+  'find . -iname .ENV -exec cat {} +',
+  'find . -name .env -execdir head {} \\;',
+  'find . -name .env -print0 | xargs -0 cat',
+  'find . -name ".env*" -exec cat {} \\;',
+  'find . -name "*.js" -name .env -exec cat {} \\;',
+  'n=.env; find . -name "$n" -exec cat {} \\;',
+  // (#1456 review) wrapped readers, compound words before find or xargs, and `+` that does not end the clause
+  'find . -name .env -exec env cat {} \\;', 'find . -name .env -exec nice cat {} \\;', 'find . -name .env -exec timeout 5 cat {} \\;',
+  'find . -name .env | xargs env cat', 'find . -name .env -print0 | xargs -0 -n1 timeout 5 cat',
+  '{ find . -name .env -exec cat {} \\; ; }', 'if true; then find . -name .env -exec cat {} \\; ; fi',
+  '! find . -name .env -exec cat {} \\;', 'find . -name .env | { xargs cat; }', 'f() { find . -name .env -exec cat {} \\; ; }; f',
+  'find . -name .env -exec cat + {} \\;',
+];
+const ambiguous = [
+  'find . -name "$n" -exec cat {} \\;',
+  'find . -name "$n" | xargs cat',
+  'find . -name "$(date)" -exec cat {} \\;',
+];
+const allowed = [
+  "find . -name '*.js' -exec cat {} \\;",
+  "find . -name '*.md' | xargs cat",
+  'echo find . -exec cat {} +',
+  'find . -type f -exec cat {} +',
+  'find . -type f | xargs cat',
+  'find . -name .env',
+  'find . -name .env -exec echo {} \\;',
+  'find . -name .env | xargs echo',
+  "find . -name '*.js' -o -name .env -exec cat {} \\;",
+  'find . ! -name app.js -exec cat {} +',
+  "find . -name '*.js' -exec env cat {} \\;", "find . -name '*.js' | xargs env cat", "{ find . -name '*.js' -exec cat {} \\; ; }",
+];
+
+for (const hook of HOOKS) {
+  test(`${hook} blocks find -name selecting a Protected Path for a Reader (#1456)`, () => {
+    for (const command of blocked) {
+      const result = decide(hook, command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /\[bash-guard\] blocked:/, JSON.stringify(command));
+      assert.ok(!result.stderr.includes('synthetic'), 'no file content in the reason');
+    }
+  });
+  test(`${hook} fails closed on a dynamic find -name filter with a rewrite direction (#1456)`, () => {
+    for (const command of ambiguous) {
+      const result = decide(hook, command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /find -name/, JSON.stringify(command));
+      assert.match(result.stderr, /explicit literal operand|find -name filter/, `rewrite direction: ${result.stderr}`);
+    }
+  });
+  test(`${hook} keeps the earlier verdict for finds without a modelled name filter (#1456)`, () => {
+    for (const command of allowed) {
+      const result = decide(hook, command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+}
+
+// Unit seam: the parser reports roots, name filters, exec clauses and unmodelled predicates.
+const LIB = path.join(ROOT, 'scripts/hooks/_lib');
+const PROBE = String.raw`
+import json, sys
+from credential_shell import lex
+from credential_find import find_spec
+
+out = []
+for command in json.load(sys.stdin):
+    words = [t for t in lex(command).tokens if not t.operator]
+    spec = find_spec(words, 0)
+    out.append(None if spec is None else {
+        'roots': [t.value for t in spec.roots],
+        'filters': [[w.value, folded] for w, folded in spec.filters],
+        'clauses': [[t.value for t in c] for c in spec.clauses],
+        'follow': spec.follow,
+        'unmodelled': spec.unmodelled,
+    })
+json.dump(out, sys.stdout)
+`;
+function parse(commands) {
+  const result = spawnSync('python3', ['-B', '-c', PROBE], {
+    input: JSON.stringify(commands), env: { ...process.env, PYTHONPATH: LIB }, encoding: 'utf8',
+  });
+  assert.strictEqual(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout);
+}
+
+test('find_spec reads roots, name filters, exec clauses and follow options (#1456)', () => {
+  const [plain, multi, follow, notFind] = parse([
+    'find . -name .env -exec cat {} ;',
+    'find a b -iname X -type f -name Y -execdir head {} +',
+    'find -L src -follow -name z',
+    'cat find',
+  ]);
+  assert.deepStrictEqual(plain, { roots: ['.'], filters: [['.env', false]], clauses: [['cat', '{}']], follow: false, unmodelled: false });
+  assert.deepStrictEqual(multi, {
+    roots: ['a', 'b'], filters: [['X', true], ['Y', false]], clauses: [['head', '{}']], follow: false, unmodelled: false,
+  });
+  assert.deepStrictEqual(follow, { roots: ['src'], filters: [['z', false]], clauses: [], follow: true, unmodelled: false });
+  assert.strictEqual(notFind, null);
+});
+
+test('find_spec ends an exec clause at + only when it follows {} (#1456)', () => {
+  const [plus, literal] = parse(['find . -name .env -exec cat {} +', 'find . -name .env -exec cat + {} ;']);
+  assert.deepStrictEqual(plus.clauses, [['cat', '{}']]);
+  assert.deepStrictEqual(literal.clauses, [['cat', '+', '{}']]);
+});
+
+test('find_spec marks predicates it does not model (#1456)', () => {
+  const rows = parse([
+    'find . -name a -o -name b', 'find . ! -name a', 'find . -not -name a', 'find . -name a -printf x',
+  ]);
+  for (const row of rows) assert.strictEqual(row.unmodelled, true, JSON.stringify(row));
+});
+
+run('credential-find');

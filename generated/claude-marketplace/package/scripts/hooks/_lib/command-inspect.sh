@@ -384,6 +384,30 @@ _dhpk_ci_note_git_assign() {
     fi
 }
 
+# True when a value holds a transform expansion of a variable that names git or is tainted.
+_dhpk_ci_value_transforms_git() {
+    local name re
+    case "$1" in
+        *'${'*) ;;
+        *) return 1 ;;
+    esac
+    for name in ${_dhpk_ci_git_named:-} ${_dhpk_ci_git_taint:-}; do
+        re='\$\{'$name'[/#%:@^,~]'
+        [[ "$1" =~ $re ]] && return 0
+    done
+    return 1
+}
+
+# True when a value expands one of the space-separated names in $2 (a copy of rebuilt git text).
+_dhpk_ci_value_copies() {
+    local name re
+    for name in $2; do
+        re='\$\{?'$name'([^A-Za-z0-9_]|$)'
+        [[ "$1" =~ $re ]] && return 0
+    done
+    return 1
+}
+
 # Text-level view over the raw command: every NAME=value, NAME+=value,
 # NAME[i]=value and NAME=(...) is gathered per name (order independent), then
 # classified. printf -v targets are opaque builders (read/mapfile are modelled
@@ -427,6 +451,18 @@ _dhpk_ci_scan_git_taint() {
         var="_dhpk_ci_tv_$name"
         if _dhpk_ci_git_value_risky "${!var}" "$_dhpk_ci_taint_ifs"; then
             _dhpk_ci_taint_add "$name"
+        elif _dhpk_ci_word_mentions_git "${!var,,}"; then
+            _dhpk_ci_git_named="${_dhpk_ci_git_named}$name "
+        fi
+    done
+    # (#1456) An assignment that stores a transformed expansion (x=${l/log/push}) of a git-named or
+    # tainted variable holds rebuilt git text; it is judged after every name is classified.
+    local rebuilt=" "
+    for name in $names; do
+        var="_dhpk_ci_tv_$name"
+        if _dhpk_ci_value_transforms_git "${!var}" || _dhpk_ci_value_copies "${!var}" "$rebuilt"; then
+            _dhpk_ci_taint_add "$name"
+            rebuilt="$rebuilt$name "
         fi
         unset "$var"
     done
@@ -481,6 +517,12 @@ _dhpk_ci_word_uses_taint() {
             *'${!'[A-Za-z_]*) return 0 ;;
         esac
     fi
+    # (#1456) A transformed expansion (${l/log/push}, ${l%log}, ${l:0}, ${l@P}) of a variable whose
+    # visible value names git can rebuild any git command, so it is risky even when the value is read-only.
+    for name in ${_dhpk_ci_git_named:-}; do
+        re='\$\{'$name'[/#%:@^,~]'
+        [[ "$w" =~ $re ]] && return 0
+    done
     [ "${_dhpk_ci_git_taint:- }" != " " ] || return 1
     for name in $_dhpk_ci_git_taint; do
         re='\$\{?[!#]?'$name'([^A-Za-z0-9_]|$)'
@@ -6956,6 +6998,7 @@ dhpk_inspect_command() {
     _dhpk_ci_saw_shell_head=0
     _dhpk_ci_saw_shell_assign=0
     _dhpk_ci_git_taint=" "
+    _dhpk_ci_git_named=" "
     _dhpk_ci_scan_git_taint "$cmd"
     _dhpk_ci_saw_arith_consumer=0
     _dhpk_ci_arith_texts=()
@@ -6971,7 +7014,7 @@ dhpk_inspect_command() {
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_git_named _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
     return 0
 }
 

@@ -13,7 +13,7 @@ import posixpath
 import re
 import shlex
 
-from credential_expand import visible_values
+from credential_expand import HEAD_KEEPERS, UNKNOWN_ARGUMENT, visible_values
 from credential_shell import ASSIGNMENT, tokenize
 
 SHELLS = frozenset(('sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'mksh', 'rbash', 'yash', 'posh'))
@@ -57,11 +57,11 @@ def _operands(tokens):
     return [t for i, t in enumerate(tokens) if not t.operator and not (i and tokens[i - 1].operator)]
 
 
-def _head(words):
+def command_head(words):
     """Index of the command a wrapper chain runs, or None."""
     i = 0
     while i < len(words):
-        while i < len(words) and ASSIGNMENT.match(words[i].value):
+        while i < len(words) and (ASSIGNMENT.match(words[i].value) or words[i].value in HEAD_KEEPERS):
             i += 1
         if i >= len(words):
             return None
@@ -82,7 +82,7 @@ def _head(words):
 
 
 def _shell_code(operands):
-    """The `-c` command string of a shell invocation, or None."""
+    """The -c command string of a shell invocation and the words after it, or (None, [])."""
     runs_string = False
     i = 0
     while i < len(operands):
@@ -99,8 +99,57 @@ def _shell_code(operands):
         elif word.startswith('--'):
             continue
         else:
-            return word if runs_string else None
-    return operands[i].value if runs_string and i < len(operands) else None
+            return (word, operands[i:]) if runs_string else (None, [])
+    return (operands[i].value, operands[i + 1:]) if runs_string and i < len(operands) else (None, [])
+
+
+def _argument_text(word):
+    """A word the text spells out, or the stand-in for one that a glob, a variable or a substitution decides."""
+    unspelled = word.parts or word.glob or word.dynamic or word.substitution or word.unresolved
+    return shlex.quote(UNKNOWN_ARGUMENT if unspelled else word.value)
+
+
+def _positional_prefix(args):
+    """(#1456) Bind $0 and the positional parameters a shell -c string receives from its words after the code."""
+    if not args:
+        return ''
+    prefix = '0=%s; ' % _argument_text(args[0])
+    return prefix + ('set -- %s; ' % ' '.join(_argument_text(a) for a in args[1:]) if len(args) > 1 else '')
+
+
+SU_VALUE_OPTIONS = frozenset(('-s', '--shell', '-g', '--group', '-G', '--supp-group', '-w', '--whitelist-environment'))
+
+
+def _su_code(operands):
+    i = 0
+    while i < len(operands):
+        word = operands[i].value
+        i += 1
+        if word in ('-c', '--command', '--session-command'):
+            return operands[i].value if i < len(operands) else None
+        for long in ('--command=', '--session-command='):
+            if word.startswith(long):
+                return word[len(long):]
+        if word in SU_VALUE_OPTIONS:
+            i += 1
+        elif len(word) > 2 and word[0] == '-' and word[1] != '-' and word.endswith('c'):
+            return operands[i].value if i < len(operands) else None
+    return None
+
+
+WATCH_VALUE_OPTIONS = frozenset(('-n', '--interval', '-q', '--equexit'))
+
+
+def _watch_code(operands):
+    i = 0
+    while i < len(operands) and operands[i].value.startswith('-'):
+        word = operands[i].value
+        i += 1
+        if word == '--':
+            break
+        if word in WATCH_VALUE_OPTIONS:
+            i += 1
+    return ' '.join(w.value for w in operands[i:]) or None
 
 
 def _here_strings(tokens):
@@ -123,7 +172,7 @@ def _trap_action(operands):
 def _segment_strings(segment):
     """Code strings one segment runs directly."""
     operands = _operands(segment)
-    head = _head(operands)
+    head = command_head(operands)
     if head is None:
         return []
     name = posixpath.basename(operands[head].value)
@@ -133,10 +182,17 @@ def _segment_strings(segment):
     if name == 'trap':
         action = _trap_action(rest)
         return [action] if action else []
-    if name in SCRIPT_RUNNERS:
+    if name == 'su':
+        code = _su_code(rest)
+        return [code] if code else []
+    if name == 'watch':
+        code = _watch_code(rest)
+        return [code] if code else []
+    shell = name in SHELLS or operands[head].dynamic
+    if name in SCRIPT_RUNNERS or shell:
         found = _here_strings(segment)
-        code = _shell_code(rest) if name in SHELLS else None
-        return found + ([code] if code is not None else [])
+        code, args = _shell_code(rest) if shell else (None, [])
+        return found + ([_positional_prefix(args) + code] if code is not None else [])
     return []
 
 
@@ -160,7 +216,7 @@ def _procsub_strings(tokens):
             end += 1
         for segment in _segments(tokens[i + 2:end]):
             operands = _operands(segment)
-            head = _head(operands)
+            head = command_head(operands)
             if head is None or posixpath.basename(operands[head].value) not in DATA_PRODUCERS:
                 continue
             text = ' '.join(w.value for w in operands[head + 1:] if not w.value.startswith('-'))
@@ -219,7 +275,7 @@ def _arithmetic_texts(tokens):
         texts.append(' '.join(words))
     for segment in _segments(tokens):
         operands = _operands(segment)
-        head = _head(operands)
+        head = command_head(operands)
         if head is None:
             continue
         name, rest = posixpath.basename(operands[head].value), [w.value for w in operands[head + 1:]]

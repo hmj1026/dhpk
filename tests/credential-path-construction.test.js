@@ -39,7 +39,10 @@ const blocked = [
   // an unquoted value splits into several words
   "f='ordinary .env'; cat $f", "f='.env ordinary'; cat $f",
   // a visible value that the guard cannot resolve is an ambiguous read target
-  'f=.e*; cat $f', 'f=.env; cat ${f#x}', 'f=.env; cat ${f:0:4}', 'f=.env; cat ${f/x/y}',
+  'f=.e*; cat $f', 'f=.env; cat ${f#x}', 'f=.env; cat ${f:0:4}', 'f=.env; cat ${f/x/y}',  // (#1456) command substitution of a visible echo, a nameref, a prompt or escape transform, and a split read
+  'x=$(echo nv); cat .e$x', 'x=`echo nv`; cat .e$x', 'x=$(printf nv); cat .e$x',
+  "declare -n r=l; l='cat .env'; $r", "l='cat .env'; ${l@P}", "l='cat .env'; ${l@E}",
+  'IFS=: read -r a b <<< ".env:x"; cat $a', 'read -r a b <<< ".env x"; cat $b',
 ];
 
 const allowed = [
@@ -50,7 +53,7 @@ const allowed = [
   'f=.env.example; cat $f', "f='.env ordinary'; cat \"$f\"", 'f=.env; f=ordinary; echo x; cat ordinary',
   'cat ${x:-ordinary}', 'cat "${x:-ordinary}"', 'cat ${x:+ordinary}', 'cat $UNSET_PATH_NAME', 'cat "$file"', 'cat "${file}"',
   'for f in ordinary; do cat $f; done', 'g=.env; cat ordinary', 'echo ${x:-.env}', 'f=.env; echo ${f#x}',
-  "grep -e needle ordinary", 'grep $pattern ordinary', 'p=.env; grep $p ordinary',
+  "grep -e needle ordinary", 'grep $pattern ordinary', 'p=.env; grep $p ordinary',  'x=$(echo ordinary); cat "$x"', 'tmp=$(mktemp -d); cat "$tmp/out.txt"', "declare -n r=l; l='ls'; $r", "l='ls -l'; ${l@P}",
 ];
 
 for (const hook of HOOKS) {
@@ -82,6 +85,34 @@ for (const hook of HOOKS) {
     assert.match(result.stderr, /ambiguous read target/);
     assert.match(result.stderr, /explicit literal path/);
     assert.ok(!result.stderr.includes('synthetic'), 'the reason must not echo file content');
+  });
+}
+
+// (#1456 review) Modelling limits keep the earlier verdict: a read whose input the text does not show,
+// a nameref with unrecorded targets, and a split substitution value stay ambiguous instead of resolving to a partial literal.
+const limitBlocked = [
+  "read a <<< '.e\\nv'; cat \"./$a\"", 'read x <<< ordinary < list.txt; cat "./$x"', 'read -u 3 x <<< ordinary; cat "./$x"',
+  Array.from({ length: 100 }, (_, i) => `declare -n r=a${i}`).join('; ') + '; cat "$r"',
+  'x=$(echo .en)v; cat $x', 'x=`echo .en`v; cat $x',
+  'declare -n a=b; declare -n b=c; declare -n c=d; declare -n d=e; declare -n e=z; z=.env; cat "$a"',
+  'declare -n r; r=a; a=.env; cat "$r"',
+];
+const limitAllowed = [
+  'read a <<< ordinary; cat "./$a"', 'read -r a <<< ordinary; cat "./$a"', 'x=$(echo ordinary); cat "$x"', 'declare -n r=a; a=ordinary; cat "$r"',
+];
+for (const hook of HOOKS) {
+  test(`${hook} keeps a Protected Path read blocked when a value is modelled partially (#1456)`, () => {
+    for (const command of limitBlocked) {
+      const result = decide(hook, command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)} should block: ${result.stderr}`);
+      assert.match(result.stderr, /\[bash-guard\] blocked:/, JSON.stringify(command));
+    }
+  });
+  test(`${hook} still allows fully modelled ordinary values (#1456)`, () => {
+    for (const command of limitAllowed) {
+      const result = decide(hook, command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)} should allow: ${result.stderr}`);
+    }
   });
 }
 

@@ -13,13 +13,14 @@ import stat
 import sys
 
 from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, Token, lex, xargs_command
-from credential_expand import expand_variants
-from credential_code import code_strings, expand_aliases
+from credential_expand import HEAD_KEEPERS, expand_variants, function_names
+from credential_code import code_strings, command_head, expand_aliases
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_pages, is_command_key
 from credential_scan import MAX_SECONDS, budget_seconds
 import time
 from credential_scan import scan_roots
+from credential_find import find_spec, selection_verdict
 import credential_verdict as verdict
 
 TEMPLATES = {'.env.example', '.env.sample', '.env.dist', '.env.template'}
@@ -441,6 +442,12 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     found = exec_entrance_verdict(words, names, patterns, cwd)
     if found is not None:
         return found
+    head = next((i for i, t in enumerate(words) if t.value not in RESERVED_WORDS and not ASSIGNMENT.match(t.value)), None)
+    if head is not None and words[head].unresolved and _transformed(words[head]):
+        return verdict.ambiguous(verdict.TRANSFORMED_COMMAND % ascii(words[head].value), verdict.TRANSFORMED_COMMAND_RECOVERY)
+    found = _find_exec_verdict(words, patterns, cwd)
+    if found is not None:
+        return found
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
     index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
@@ -461,6 +468,46 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     if not isinstance(plan, ReadPlan):
         return verdict.unsupported(adapter.exclusion_syntax, plan.detail)
     return judge(plan, patterns, cwd, index != 0)
+
+
+TRANSFORM_MARKS = tuple('@/#%:^,~')
+
+
+def _transformed(token):
+    """(#1456) A word built by a case, prompt, pattern or substring operator on a visible value."""
+    return any(getattr(part, 'op', '') == 'other' and part.arg.startswith(TRANSFORM_MARKS) for part in token.parts or ())
+
+
+def _consumes_selection(command):
+    head = command_head(command)
+    if head is None:
+        return False
+    name = posixpath.basename(command[head].value)
+    return name in READERS or name in EXEC_SHELLS
+
+
+def _relocated(words, index):
+    """True when a word other than a compound keyword stands before the command, so it may change the directory."""
+    return any(t.value not in HEAD_KEEPERS for t in words[:index])
+
+
+def _find_selection(words):
+    """`(spec, index)` of a find in the words, or (None, None); only wrappers may precede it."""
+    index = _wrapped_index(words, 'find')
+    return (None, None) if index is None else (find_spec(words, index), index)
+
+
+def _find_exec_verdict(words, patterns, cwd):
+    """(#1456) find -exec READER ... {} reads every path find selects."""
+    spec, index = _find_selection(words)
+    if spec is None:
+        return None
+    for clause in spec.clauses:
+        if any('{}' in t.value for t in clause) and _consumes_selection(clause):
+            found = selection_verdict(spec, patterns, cwd, _relocated(words, index), matching_patterns, protected, DEFAULTS + patterns)
+            if not found.allowed:
+                return found
+    return None
 
 
 SSH_COMMAND_VARIABLE = 'GIT_SSH_COMMAND='
@@ -725,16 +772,7 @@ SHORTCUT_TEXT = re.compile(r'\$\(\s*(pwd|git rev-parse --show-toplevel)\s*\)')
 
 def shadowed_commands(tokens):
     """Names a shortcut relies on that the visible text redefines as a function."""
-    defined = set()
-    for index, token in enumerate(tokens[:-1]):
-        if token.operator:
-            continue
-        following = tokens[index + 1:index + 3]
-        if token.value == 'function' and not following[0].operator:
-            defined.add(following[0].value)
-        elif len(following) == 2 and [(t.operator, t.value) for t in following] == [(True, '('), (True, ')')]:
-            defined.add(token.value)
-    return defined & set(SHORTCUT_COMMANDS.values())
+    return function_names(tokens) & set(SHORTCUT_COMMANDS.values())
 
 
 def distrust_shadowed(tokens, shadowed):
@@ -858,16 +896,22 @@ def _produced_words(segment):
     return [piece for token in arguments for piece in _text_words(token)]
 
 
+def _wrapped_index(words, command):
+    """Index of `command` in words when only assignments, wrappers and their options precede it, else None."""
+    for index, token in enumerate(words):
+        name = posixpath.basename(token.value)
+        if name == command and not token.dynamic:
+            return index
+        if not (re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', token.value) or name in XARGS_WRAPPERS or token.value in HEAD_KEEPERS or token.value.startswith('-')):
+            return None
+    return None
+
+
 def _xargs_consumer(segment):
     """`(words, index)` of an xargs invocation in the segment, or None; only wrappers may precede it."""
     words = [t for t in segment if not t.operator]
-    for index, token in enumerate(words):
-        name = posixpath.basename(token.value)
-        if name == 'xargs' and not token.dynamic:
-            return words, index
-        if not (re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', token.value) or name in XARGS_WRAPPERS or token.value.startswith('-')):
-            return None
-    return None
+    index = _wrapped_index(words, 'xargs')
+    return None if index is None else (words, index)
 
 
 def _stdin_ambiguous(detail, recovery=STDIN_RECOVERY):
@@ -891,6 +935,16 @@ def xargs_stdin_verdict(segment, producers, patterns, cwd, git_relocated):
     file, a variable, another command) is not judged, as for any other Reader.
     """
     found = _xargs_consumer(segment)
+    if found is not None:
+        parsed = xargs_command(*found)
+        if parsed is not None and parsed[0] and _consumes_selection(parsed[0]):
+            for producer in producers:
+                words = [t for t in producer if not t.operator]
+                spec, index = _find_selection(words)
+                if spec is not None:
+                    result = selection_verdict(spec, patterns, cwd, _relocated(words, index), matching_patterns, protected, DEFAULTS + patterns)
+                    if not result.allowed:
+                        return result
     stdin = [piece for producer in producers for piece in _produced_words(producer)]
     if found is None or not stdin:
         return verdict.allow()
