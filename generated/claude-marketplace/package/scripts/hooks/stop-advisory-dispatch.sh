@@ -169,7 +169,8 @@ printf '%s' "$_advisory_payload" | (
     # Trigger: Stop event (wired in hooks/hooks.json after stop-review-reminder).
     # Cost: full transcript read + 1 python3 pass, <500ms (large sessions more).
 
-    PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+    . "$(dirname "$0")/_lib/plugin-root.sh"
+    PLUGIN_ROOT="$(dhpk_plugin_root "$(dirname "$0")")"
     . "$(dirname "$0")/_lib/transcript.sh"
 
     # --- enablement (opt-in) ---------------------------------------------------
@@ -519,7 +520,8 @@ printf '%s' "$_advisory_payload" | (
     # systemMessage and clear the file (exit-0 stderr is inert — see _lib/json-out.sh).
     # minimal profile suppresses the surfaced message but still clears the file.
 
-    PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+    . "$(dirname "$0")/_lib/plugin-root.sh"
+    PLUGIN_ROOT="$(dhpk_plugin_root "$(dirname "$0")")"
 
     . "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
     payload="$(dhpk_read_payload)"

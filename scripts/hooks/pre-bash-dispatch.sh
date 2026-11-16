@@ -14,7 +14,8 @@
 
 set -o pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+. "$(dirname "$0")/_lib/plugin-root.sh"
+PLUGIN_ROOT="$(dhpk_plugin_root "$(dirname "$0")")"
 
 . "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
 payload="$(dhpk_read_payload)"
