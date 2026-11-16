@@ -498,22 +498,10 @@ def command_text_verdict(command, patterns, cwd):
     return analyze(command, patterns, None, True)
 
 
-def _carrier_only(words, names):
-    return all(ASSIGNMENT.match(w.value) or name in ASSIGNMENT_CARRIERS or w.value.startswith('-')
-               for w, name in zip(words, names))
-
-
 def _pager_runs(words, names):
-    """(#1454) A pager variable matters when git will page, or when the variable is only being exported."""
+    """(#1454) A pager variable matters when git will page; behind any other head it may reach a git, so it counts."""
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
-    if git_index is not None:
-        return git_pages(words[git_index + 1:])
-    return _carrier_only(words, names)
-
-
-def _command_variable_runs(words, names):
-    """(#1455) Editor, askpass and external-diff variables matter next to git or ssh, or when only exported."""
-    return any(name in ('git', 'ssh') for name in names) or _carrier_only(words, names)
+    return git_pages(words[git_index + 1:]) if git_index is not None else True
 
 
 def _variable_commands(words, names, patterns, cwd):
@@ -530,7 +518,7 @@ def _variable_commands(words, names, patterns, cwd):
             if not found.allowed:
                 return found
         command = COMMAND_VARIABLE.match(word.value)
-        if command and _command_variable_runs(words, names):
+        if command:
             found = command_text_verdict(command.group(1), patterns, cwd)
             if not found.allowed:
                 return found
@@ -573,8 +561,29 @@ def _injected_settings(words):
     return pairs, problems
 
 
-def _unpaired_values(pairs):
-    return [value for key, value in pairs if not key]
+ENV_VALUE_OPTIONS = ('-u', '--unset', '-C', '--chdir', '-a', '--argv0')
+
+
+def _env_split_strings(words, names):
+    """(#1455 r3) Strings `env -S` / `--split-string` re-parses into a command line."""
+    found = []
+    for index, name in enumerate(names):
+        if name != 'env':
+            continue
+        i = index + 1
+        while i < len(words) and (words[i].value.startswith('-') or ASSIGNMENT.match(words[i].value)):
+            arg = words[i].value
+            if arg in ('-S', '--split-string') and i + 1 < len(words):
+                found.append(words[i + 1].value)
+                i += 1
+            elif arg.startswith('--split-string='):
+                found.append(arg.split('=', 1)[1])
+            elif arg.startswith('-S') and not arg.startswith('--'):
+                found.append(arg[2:])
+            elif arg in ENV_VALUE_OPTIONS:
+                i += 1
+            i += 1
+    return found
 
 
 def exec_entrance_verdict(words, names, patterns, cwd=None):
@@ -594,11 +603,18 @@ def exec_entrance_verdict(words, names, patterns, cwd=None):
         strings, unresolved = exec_strings(words[git_index + 1:], _assignments(words), injected)
         commands += strings
         problems += unresolved
-    commands += _unpaired_values(injected)
+    elif injected:
+        # 只匯出設定（export、declare 的每個 NAME=VALUE）：之後跑什麼不知道，每個值都當命令判定。
+        commands += exec_strings([], None, injected)[0]
     for command in commands:
         found = command_text_verdict(command, patterns, cwd) if command.strip() else verdict.allow()
         if not found.allowed:
             return found
+    if 'env' in names:
+        for string in _env_split_strings(words, names):
+            found = analyze(string, patterns, cwd, False, True) if string.strip() else verdict.allow()
+            if not found.allowed:
+                return found
     if problems and git_index is not None:
         return verdict.ambiguous('git configuration %s' % ascii(problems[0]), CONFIG_RECOVERY)
     return None
