@@ -48,6 +48,11 @@ def expand_variants(tokens):
     return [[word for part in combination for word in part] for combination in itertools.product(*alternatives)]
 
 
+def visible_values(tokens):
+    """(#1450) Values each name may hold as plain strings; a name with too many values is left out."""
+    return {name: list(values) for name, values in _variables(tokens).items() if values is not _UNKNOWN}
+
+
 def _limit(alternatives, tokens):
     """Replace the widest words with an unresolved copy until the combinations fit the cap."""
     while True:
