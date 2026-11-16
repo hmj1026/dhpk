@@ -11,6 +11,7 @@ import stat
 import sys
 
 from credential_shell import lex
+from credential_expand import expand_variants
 from credential_options import ADAPTERS, READERS, ReadPlan, exclusion_syntax
 from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES
 from credential_scan import MAX_SECONDS, budget_seconds
@@ -318,6 +319,16 @@ def analyze(command, patterns, cwd, remote=False, nested=False, executed=False):
     # 後面的 git 讀取就無法用本機列舉證明，比照 cd 的不確定規則。
     git_relocated = any(not t.operator and (RELOCATING_VARIABLES.match(t.value) or RELOCATING_VARIABLES.match(t.value + '='))
                         for t in tokens)
+    # 同一段文字可見的大括號、參數預設值與先前指派，先解成可能的詞再逐一判斷（#1427）。
+    for variant in expand_variants(tokens) or [tokens]:
+        found = _judge_segments(variant, patterns, cwd, git_relocated)
+        if not found.allowed:
+            return found
+    return verdict.allow()
+
+
+def _judge_segments(tokens, patterns, cwd, git_relocated):
+    """Judge each separator-delimited segment of one resolved token list."""
     segment = []
     uncertain_cwd = cwd
     for token in tokens + [type('End', (), {'operator': True, 'value': ';'})()]:
