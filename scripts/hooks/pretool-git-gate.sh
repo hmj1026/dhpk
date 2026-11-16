@@ -103,6 +103,11 @@ Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
                 DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked. Rewrite the command without that syntax.
 Protected list: $PROTECTED_RAW"
                 ;;
+            "git with trap"|"unresolved trap action"|"alias rebinding "*|"git with arithmetic subscript")
+                # A trap action, an alias value or an arithmetic subscript runs text like eval.
+                DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked. Rewrite the command without that syntax.
+Protected list: $PROTECTED_RAW"
+                ;;
             *)
                 if [ "$_bs_i" -eq "$_bs_unsupported" ]; then
                     DETAIL="REMINDER: the command uses shell syntax the inspector does not model ($DHPK_UNSUPPORTED), so its git targets were not checked.
