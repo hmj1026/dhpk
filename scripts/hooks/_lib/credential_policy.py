@@ -147,6 +147,10 @@ def judge(plan, patterns, cwd, wrapped):
                                      (recovery and recovery.ambiguous) or verdict.TARGET_SEARCH)
         if protected(token.value, patterns, cwd):
             return verdict.protected()
+        # (#1453) 無可見來源的 expansion 不發明值；去掉它後的字面若組成 Protected Path，不能當作無關檔名。
+        if token.residue and protected(token.residue, patterns, cwd):
+            return verdict.ambiguous('target %s with a parameter expansion that has no visible source' % ascii(token.value),
+                                     verdict.OPAQUE_EXPANSION)
     if plan.listing is not None:
         found = listing_verdict(plan, patterns, None if wrapped else cwd)
         if found is not None:
