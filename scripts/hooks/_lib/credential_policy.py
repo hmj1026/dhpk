@@ -582,11 +582,12 @@ def exec_entrance_verdict(words, names, patterns, cwd=None):
 
     The string runs in a directory this text does not know, so it is judged like a Remote Wrapper command.
     """
-    found = _variable_commands(words, names, patterns, cwd)
+    assigned = any('=' in w.value for w in words)
+    found = _variable_commands(words, names, patterns, cwd) if assigned else None
     if found is not None:
         return found
     commands = [w.value[len(SSH_COMMAND_VARIABLE):] for w in words if w.value.startswith(SSH_COMMAND_VARIABLE)]
-    injected, problems = _injected_settings(words)
+    injected, problems = _injected_settings(words) if assigned else ([], [])
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
     reader_index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
     if git_index is not None and (reader_index is None or git_index < reader_index):
