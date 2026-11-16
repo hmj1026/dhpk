@@ -202,6 +202,47 @@ test('lex fails closed on a heredoc fed to xargs, parallel, a read loop or a dyn
   }
 });
 
+test('lex keeps a heredoc that only an inert xargs, a read builtin or a text argument names as data (#1433)', () => {
+  const inert = [
+    'xargs echo', 'xargs', 'xargs -n1 echo', 'xargs -n 2 echo', 'xargs -I{} echo {}', 'xargs -0 echo', 'xargs -r -t echo x',
+    'xargs --max-args=1 echo', '/usr/bin/xargs echo', 'xargs -i echo {}',
+    'echo read', 'echo xargs', 'echo "xargs cat"', 'gh issue create --title "fix xargs bug" --body-file -',
+    'gh issue create --title read --body-file -', 'git commit -m "xargs docs" -F -',
+    "'xargs' echo", 'x"args" echo', "'read' x", "'mapfile' -t lines",
+    'read x', 'read -r x y', 'mapfile -t lines', 'readarray -t lines', 'while read -r l; do :; done',
+  ];
+  for (const result of lexAll(inert.map((head) => `${head} ${SHL}'EOF'\nhello\nEOF\n`))) {
+    assert.ok(!result.error, JSON.stringify(result));
+    assert.ok(!result.tokens.some(([value]) => value === 'hello'), JSON.stringify(result.tokens));
+  }
+  const piped = lexAll([`cat ${SHL}'EOF' | xargs echo\nhello\nEOF\n`])[0];
+  assert.ok(!piped.error, JSON.stringify(piped));
+});
+
+test('lex keeps the heredoc block when the consumer of the text is unresolved or may run it (#1433)', () => {
+  const unresolved = [
+    'xargs cat', 'xargs rm', 'xargs sh -c "echo"', 'xargs -I{} sh -c {}', 'xargs -I{} {}', 'xargs -I echo echo',
+    'xargs -a list echo', 'xargs -p echo', 'xargs --unknown echo', 'xargs -n', 'xargs echo | xargs cat', 'xargs $c', 'xargs echo; xargs cat',
+    'env xargs echo', 'command xargs echo', 'parallel echo', 'parallel', 'exec cat', 'exec 3', 'sudo xargs echo',
+    "'xargs' cat", '"xargs" -I{} sh -c {}', "x'ar'gs cat", "'parallel' echo", "'exec' cat", 'ex"ec" cat', "'read' X", "'mapfile' -C 'cat .env' a",
+    'read X', 'read', 'read -p prompt x', 'read -e x', 'read -u 3 x', 'read $v', 'mapfile -C "cat .env" -c 1 a', 'mapfile a b',
+    'while read -r l; do $l; done', 'while read -r l; do echo $l; done', 'bash -c "xargs cat"', 'sh -c "read x"',
+    'echo | xargs cat', 'read x; cat $x', 'read x; eval "$x"',
+  ];
+  for (const [i, result] of lexAll(unresolved.map((head) => `${head} ${SHL}'EOF'\ncat .env\nEOF\n`)).entries()) {
+    assert.ok(result.error && /^heredoc (text may run|read by)/.test(result.error), `${unresolved[i]}: ${JSON.stringify(result)}`);
+  }
+  // a later use of the stored text, or a substitution in the text itself, is not provably inert
+  for (const command of [
+    `read x ${SHL}'EOF'\ncat .env\nEOF\ncat $x`,
+    `read x ${SHL}'EOF'\na[$(cat .env)]\nEOF\n(( x ))`,
+    `xargs echo ${SHL}'EOF'\nhello\nEOF\nread y ${SHL}'EOF'\nhi\nEOF\n$y`,
+  ]) {
+    const [result] = lexAll([command]);
+    assert.ok(result.error && /^heredoc (text may run|read by)/.test(result.error), `${command}: ${JSON.stringify(result)}`);
+  }
+});
+
 test('lex keeps a heredoc after a closed ${..}, $[..] or backtick frame (#1411)', () => {
   const commands = [`echo \${x:-$(date)} ${SHL}EOF\nhello\nEOF\n`, `echo $[ a[1] ] ${SHL}EOF\nhello\nEOF\n`, `echo \`date\` ${SHL}EOF\nhello\nEOF\n`];
   for (const result of lexAll(commands)) {

@@ -11,7 +11,7 @@ import re
 import stat
 import sys
 
-from credential_shell import lex
+from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, lex, xargs_command
 from credential_expand import expand_variants
 from credential_code import code_strings, expand_aliases
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
@@ -324,6 +324,80 @@ def script_entrance_verdict(tokens, patterns, cwd):
     return found
 
 
+# (#1451) A shell startup file is run as shell code, so the variables and options that name one are execution
+# entrances too: the file they name is judged by executed_file_verdict, never read.
+STARTUP_VARIABLES = re.compile(r'^(BASH_ENV|ENV)=(.*)$', re.S)
+STARTUP_OPTIONS = ('--rcfile', '--init-file')
+STARTUP_SHELLS = ('bash', 'sh', 'dash', 'ash', 'ksh', 'zsh', 'rbash')
+ASSIGNMENT_CARRIERS = ('export', 'env', 'declare', 'typeset', 'readonly', 'local')
+SHELL_VALUE_OPTIONS = ('-o', '+o', '-O', '+O')
+# Commands whose operands are data: a shell named after them is text, not an invocation.
+DATA_HEADS = ('echo', 'printf', 'grep', 'egrep', 'fgrep', 'rg', 'cat', 'ls')
+
+
+def _plain_words(tokens):
+    """Words of one command part without redirect operators and their targets."""
+    words, i = [], 0
+    while i < len(tokens):
+        if tokens[i].operator:
+            i += 2 if _is_redirect(tokens[i]) else 1
+            continue
+        words.append(tokens[i])
+        i += 1
+    return words
+
+
+def _startup_assignment_verdict(words, patterns, cwd):
+    """BASH_ENV= or ENV= in a prefix assignment, or after export, env and declaration builtins."""
+    carried = False
+    for word in words:
+        name = posixpath.basename(word.value)
+        match = STARTUP_VARIABLES.match(word.value)
+        if match and match.group(2):
+            found = executed_file_verdict(dataclasses.replace(word, value=match.group(2), parts=None), patterns, cwd)
+            if not found.allowed:
+                return found
+        if name in ASSIGNMENT_CARRIERS:
+            carried = True
+        elif not (carried or ASSIGNMENT.match(word.value) or name in ENTRANCE_PREFIXES):
+            return None
+    return None
+
+
+def _startup_option_verdict(words, patterns, cwd):
+    """--rcfile FILE and --init-file FILE among the options of a shell; the first operand ends the options."""
+    head = next((w for w in words if not (ASSIGNMENT.match(w.value) or w.value in ENTRANCE_PREFIXES)), None)
+    if head is None or posixpath.basename(head.value) in DATA_HEADS:
+        return None
+    shell = next((i for i, w in enumerate(words) if posixpath.basename(w.value) in STARTUP_SHELLS), None)
+    if shell is None:
+        return None
+    i = shell + 1
+    while i < len(words) and words[i].value.startswith(('-', '+')) and words[i].value not in ('-', '--'):
+        option = words[i].value
+        if option in STARTUP_OPTIONS and i + 1 < len(words):
+            found = executed_file_verdict(words[i + 1], patterns, cwd)
+            if not found.allowed:
+                return found
+            i += 2
+        elif option in SHELL_VALUE_OPTIONS or option in STARTUP_OPTIONS:
+            i += 2
+        else:
+            i += 1
+    return None
+
+
+def startup_file_verdict(tokens, patterns, cwd):
+    """Judge startup files named in a segment; None when it names none."""
+    for part in _background_parts(tokens):
+        words = _plain_words(part)
+        for check in (_startup_assignment_verdict, _startup_option_verdict):
+            found = check(words, patterns, cwd)
+            if found is not None:
+                return found
+    return None
+
+
 def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     """Judge one command segment between separators."""
     words = [t for t in tokens if not t.operator]
@@ -343,6 +417,9 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     entrance = script_entrance_verdict(tokens, patterns, cwd)
     if entrance is not None and not entrance.allowed:
         return entrance
+    startup = startup_file_verdict(tokens, patterns, cwd)
+    if startup is not None:
+        return startup
     found = exec_entrance_verdict(words, names, patterns)
     if found is not None:
         return found
@@ -522,18 +599,178 @@ def analyze(command, patterns, cwd, remote=False, nested=False, executed=False, 
     return verdict.allow()
 
 
+PIPES = ('|', '|&')
+# 由指令文字直接印出檔名的指令；其輸出經管線成為 xargs 的運算元（#1433）。
+TEXT_PRODUCERS = ('echo', 'printf')
+XARGS_WRAPPERS = ('env', 'command', 'builtin', 'nice', 'nohup', 'time', 'stdbuf', 'timeout', 'sudo', 'doas', 'exec')
+STDIN_RECOVERY = 'name each file as an explicit literal operand of the Reader instead of piping paths into xargs.'
+STDIN_SHELL_RECOVERY = ('pass explicit non-protected files to a Reader command instead of piping paths into '
+                        'xargs with a shell.')
+
+
+def _join_pipelines(tokens):
+    """Drop the newline separators next to a pipe so a pipeline split over lines reads like one line.
+
+    `a |` followed by a newline continues the pipeline; a newline before `|`
+    is a shell syntax error, so reading it as a pipe only keeps both layouts
+    on the same verdict.
+    """
+    def pipe(token):
+        return token.operator and token.value in PIPES
+
+    def newline(token):
+        return token.operator and token.value == ';'
+
+    count = len(tokens)
+    # nearest non-newline token on each side of every position, computed in one pass each
+    before, after = [None] * count, [None] * count
+    last = None
+    for index, token in enumerate(tokens):
+        before[index] = last
+        if not newline(token):
+            last = token
+    last = None
+    for index in range(count - 1, -1, -1):
+        after[index] = last
+        if not newline(tokens[index]):
+            last = tokens[index]
+    return [token for index, token in enumerate(tokens)
+            if not (newline(token) and ((before[index] is not None and pipe(before[index]))
+                                        or (after[index] is not None and pipe(after[index]))))]
+
+
+def _text_words(token):
+    """The words xargs would read from one printed word; the flags of a glob or substitution stay on every piece."""
+    pieces = [piece.strip('\'"') for piece in re.split(r'\s+|\\n', token.value) if piece and '%' not in piece]
+    return [dataclasses.replace(token, value=piece) for piece in pieces if piece]
+
+
+def _produced_words(segment):
+    """Words a text producer (echo, printf) prints, or [] when the segment prints none visibly."""
+    words = [t for t in segment if not t.operator]
+    head = next((i for i, t in enumerate(words) if t.value not in RESERVED_WORDS and not ASSIGNMENT.match(t.value)), None)
+    if head is None or posixpath.basename(words[head].value) not in TEXT_PRODUCERS or words[head].dynamic:
+        return []
+    arguments = [t for t in words[head + 1:] if not (words[head].value == 'echo' and t.value in ('-n', '-e', '-E'))]
+    return [piece for token in arguments for piece in _text_words(token)]
+
+
+def _xargs_consumer(segment):
+    """`(words, index)` of an xargs invocation in the segment, or None; only wrappers may precede it."""
+    words = [t for t in segment if not t.operator]
+    for index, token in enumerate(words):
+        name = posixpath.basename(token.value)
+        if name == 'xargs' and not token.dynamic:
+            return words, index
+        if not (re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', token.value) or name in XARGS_WRAPPERS or token.value.startswith('-')):
+            return None
+    return None
+
+
+def _stdin_ambiguous(detail, recovery=STDIN_RECOVERY):
+    return verdict.ambiguous('xargs stdin %s' % detail, recovery)
+
+
+def _stdin_candidates(command, replace, stdin):
+    """The command lines xargs runs with the visible stdin words: one per word with a replace string, else one."""
+    if replace is None:
+        return [command + stdin]
+    return [[dataclasses.replace(w, value=w.value.replace(replace, item.value), glob=w.glob or item.glob,
+                                 substitution=w.substitution or item.substitution) if replace in w.value else w
+             for w in command] for item in stdin]
+
+
+def xargs_stdin_verdict(segment, producers, patterns, cwd, git_relocated):
+    """Judge an `xargs` that reads the visible output of text producers earlier in the pipeline (#1433).
+
+    The words a producer prints become operands of the command xargs runs, so
+    they are judged as if written there. Input that is not visible text (a
+    file, a variable, another command) is not judged, as for any other Reader.
+    """
+    found = _xargs_consumer(segment)
+    stdin = [piece for producer in producers for piece in _produced_words(producer)]
+    if found is None or not stdin:
+        return verdict.allow()
+    words, head = found
+    parsed = xargs_command(words, head)
+    named = any(t.glob or t.substitution or protected(t.value, patterns, cwd) for t in stdin)
+    if parsed is None:
+        return _stdin_ambiguous('option is not understood') if named else verdict.allow()
+    command, replace = parsed
+    if not command or command[0].dynamic:
+        return verdict.allow()
+    if posixpath.basename(command[0].value) in EXEC_SHELLS - set(READERS) and any(protected(t.value, patterns, cwd) for t in stdin):
+        return _stdin_ambiguous('names a protected path for a shell command', STDIN_SHELL_RECOVERY)
+    for line in _stdin_candidates(command, replace, stdin):
+        result = segment_verdict(line, patterns, cwd, git_relocated)
+        if result.kind == verdict.AMBIGUOUS_TARGET:
+            return _stdin_ambiguous('target: ' + result.detail, result.hint)
+        if not result.allowed:
+            return result
+    return verdict.allow()
+
+
+class _Feeders:
+    """The text producers visible upstream of the segment being judged (#1433).
+
+    A pipe hands the segment before it, or a closed `( ... )` or `{ ...; }`
+    group before it, to the next segment; any other separator ends the chain.
+    """
+
+    def __init__(self):
+        self.producers = []
+        self.group = None
+        self.closed = []
+
+    def after(self, segment, operator):
+        """Record `segment`, which the separator `operator` just ended."""
+        words = [t.value for t in segment if not t.operator]
+        if words[:1] == ['{'] and self.group is None:
+            self.group = []
+        if operator == '(':
+            self.group = [] if self.group is None else self.group
+            return
+        brace_close = words == ['}']
+        if self.group is not None and not brace_close:
+            self.group.append(segment)
+        if operator == ')' or brace_close:
+            self.closed, self.group = self.group or [], None
+            if operator == ')':
+                return
+        if operator in PIPES:
+            grouped = brace_close or (not segment and self.closed)
+            self.producers = self.producers + (self.closed if grouped else [segment])
+            self.closed = []
+        else:
+            self.producers, self.closed = [], []
+
+
 def _judge_segments(tokens, patterns, cwd, git_relocated):
     """Judge each separator-delimited segment of one resolved token list."""
     segment = []
     uncertain_cwd = cwd
-    for token in tokens + [type('End', (), {'operator': True, 'value': ';'})()]:
+    feeders = _Feeders()
+    # 命令替換的 `$(` 把本體 token 內嵌在詞列中；本體各段照常判斷，外層指令在 `)` 後接續（#1433）。
+    resume, depth = None, 0
+    for token in _join_pipelines(tokens) + [type('End', (), {'operator': True, 'value': ';'})()]:
         if token.operator and token.value in SEPARATORS:
             found = segment_verdict(segment, patterns, uncertain_cwd, git_relocated)
+            if found.allowed:
+                found = xargs_stdin_verdict(segment, feeders.producers, patterns, uncertain_cwd, git_relocated)
             if not found.allowed:
                 return found
             if any(not t.operator and posixpath.basename(t.value) == 'cd' for t in segment):
                 uncertain_cwd = None
-            segment = []
+            continued = None
+            if depth:
+                depth += (token.value == '(') - (token.value == ')')
+                if not depth:
+                    continued, resume = resume, None
+            elif token.value == '(' and segment and segment[-1].substitution:
+                resume, depth = segment, 1
+            else:
+                feeders.after(segment, token.value)
+            segment = list(continued) if continued else []
         else:
             segment.append(token)
     return verdict.allow()
