@@ -2630,4 +2630,83 @@ test('data consumers and a shell that does not read that stdin stay allowed', ()
   });
 });
 
+// ---------------------------------------------------------------------------
+// #1436 unverified families (spec #1422)
+// ---------------------------------------------------------------------------
+
+const ALL_BASH_HOOKS = ['pre-bash-guard.sh', 'pretool-git-gate.sh', 'pre-bash-dispatch.sh'];
+const GUARD_AND_DISPATCH = ['pre-bash-guard.sh', 'pre-bash-dispatch.sh'];
+
+// Allowed on a protected branch by all three layers. Guards future
+// trap/alias/arithmetic/startup-file repairs against over-blocking.
+const UNVERIFIED_FAMILY_ALLOWED = [
+  ['trap action that only echoes git text', "trap 'echo git commit' EXIT"],
+  ['legit trap cleanup', "trap 'rm -f ./tmp.lock' EXIT"],
+  ['trap reset', 'trap - DEBUG'],
+  ['legit arithmetic', 'i=0; (( i++ )); let j=i+2; [[ i -eq 1 ]]'],
+  ['arithmetic with no visible initial value', '(( x ))'],
+  ['legit alias definition', "alias ll='ls -l'"],
+  ['BASH_ENV file contents are not read', 'BASH_ENV=./hook.sh bash -c :'],
+  ['rcfile contents are not read', 'bash --rcfile ./hook.sh -i -c : </dev/null'],
+  ['rcfile shell running read-only git', "bash --rcfile ./ordinary -i -c 'git status' </dev/null"],
+];
+
+for (const [label, command] of UNVERIFIED_FAMILY_ALLOWED) {
+  test(`#1436 allows on main: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      fs.writeFileSync(path.join(protectedRepo, 'hook.sh'), 'git commit -m x\n');
+      fs.writeFileSync(path.join(protectedRepo, 'ordinary'), 'echo ordinary\n');
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// A quoted substitution is data until an arithmetic consumer reads it.
+const UNVERIFIED_FAMILY_CREDENTIAL_DATA = [
+  ['quoted subscript text echoed', "echo 'a[$(cat .env)]'"],
+  ['visible value echoed, no arithmetic consumer', "x='a[$(cat .env)]'; echo \"$x\""],
+];
+
+for (const [label, command] of UNVERIFIED_FAMILY_CREDENTIAL_DATA) {
+  test(`#1436 allows credential text as data: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      fs.writeFileSync(path.join(featureRepo, '.env'), 'PLACEHOLDER_KEY=placeholder\n');
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// Forms that already block; pinned so a repair keeps them.
+const UNVERIFIED_FAMILY_ALREADY_BLOCKED = [
+  ['BASH_ENV=/dev/stdin fed a git here-string', "BASH_ENV=/dev/stdin bash -c : <<< 'git commit -m x'",
+    ALL_BASH_HOOKS, ['protectedRepo', 'featureRepo'], null],
+  ['rcfile /dev/stdin fed a git here-string', "bash --rcfile /dev/stdin -i <<< 'git commit -m x'",
+    ALL_BASH_HOOKS, ['protectedRepo', 'featureRepo'], null],
+  ['literal substitution in arithmetic reads a protected path', '(( a[$(cat .env)] ))',
+    GUARD_AND_DISPATCH, ['featureRepo'], /protected path/i],
+  ['let with unquoted substitution', 'let y=a[$(cat .env)]',
+    GUARD_AND_DISPATCH, ['featureRepo'], /protected path/i],
+  ['let with double-quoted substitution', 'let "y=$(cat .env)"',
+    GUARD_AND_DISPATCH, ['featureRepo'], /protected path/i],
+];
+
+for (const [label, command, hooks, repos, reason] of UNVERIFIED_FAMILY_ALREADY_BLOCKED) {
+  test(`#1436 keeps blocking: ${label}`, () => {
+    withRepos((fixture) => {
+      fs.writeFileSync(path.join(fixture.featureRepo, '.env'), 'PLACEHOLDER_KEY=placeholder\n');
+      for (const repo of repos) {
+        for (const hook of hooks) {
+          const res = bashHook(hook, command, { cwd: fixture[repo], env: BLOCK_MODE });
+          expectStatus(res, BLOCK, `${hook} on ${repo}: ${command}`);
+          if (reason) assert.match(res.stderr, reason);
+        }
+      }
+    });
+  });
+}
+
 run('hook-bypass');
