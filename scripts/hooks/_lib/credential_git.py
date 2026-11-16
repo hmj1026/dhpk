@@ -783,9 +783,25 @@ GLOBAL_VALUES = ('-C', '-c', '--git-dir', '--work-tree', '--namespace', '--confi
 SHORT_VALUES = {'rebase': 'sXCSm', 'difftool': 't'}
 
 
-def _is_exec_config(setting):
+# (#1454) git 子指令中會啟動 pager 的那些；其餘子指令不會執行 core.pager。
+PAGING_SUBCOMMANDS = ('log', 'diff', 'show', 'blame', 'annotate', 'branch', 'tag', 'shortlog', 'reflog',
+                      'whatchanged', 'grep', 'stash', 'help', 'diff-tree', 'diff-index', 'diff-files')
+
+
+def pages(subcommand):
+    return subcommand in PAGING_SUBCOMMANDS
+
+
+def _config_kind(setting):
+    """'always' or 'pager' when the `-c` setting names a command string git runs, else None."""
     key = setting.split('=', 1)[0].lower()
-    return key == 'core.sshcommand' or (key.startswith('difftool.') and key.endswith('.cmd'))
+    if key == 'core.sshcommand':
+        return 'always'
+    if key == 'core.pager':
+        return 'pager'
+    if key.startswith(('difftool.', 'mergetool.')) and key.endswith('.cmd'):
+        return 'always'
+    return None
 
 
 def _option_value(args, i, long_name, short_letter, subcommand):
@@ -816,26 +832,46 @@ def _joined(args, start, skip_options=()):
     return ' '.join(a.value for a in args[i:]) if i < len(args) else ''
 
 
-def exec_strings(args):
-    """Command strings a git invocation executes: `-c core.sshCommand=`, `rebase --exec`,
-    `submodule foreach`, `difftool --extcmd` and `bisect run`. `args` follow the `git` word."""
-    found = []
+def _split_globals(args):
+    """(index of the subcommand word, [(kind, value)] for each `-c` setting naming a command string)."""
+    settings = []
     i = 0
     while i < len(args) and args[i].value.startswith('-'):
         arg = args[i].value
         if arg == '--':
             i += 1
             break
+        setting = None
         if arg == '-c' and i + 1 < len(args):
-            if _is_exec_config(args[i + 1].value):
-                found.append(args[i + 1].value.split('=', 1)[1] if '=' in args[i + 1].value else '')
+            setting = args[i + 1].value
             i += 1
+        elif arg.startswith('-c') and len(arg) > 2:
+            setting = arg[2:]
+        if setting is not None:
+            kind = _config_kind(setting)
+            if kind is not None:
+                settings.append((kind, setting.split('=', 1)[1] if '=' in setting else ''))
         elif arg in GLOBAL_VALUES:
             i += 1
         i += 1
+    return i, settings
+
+
+def git_subcommand(args):
+    """The subcommand word of a git invocation (`args` follow the `git` word), '' when there is none."""
+    i, _ = _split_globals(args)
+    return args[i].value if i < len(args) else ''
+
+
+def exec_strings(args):
+    """Command strings a git invocation executes: `-c core.sshCommand=`, `core.pager`, `mergetool.*.cmd`,
+    `rebase --exec`, `submodule foreach`, `difftool --extcmd` and `bisect run`. `args` follow the `git` word."""
+    i, settings = _split_globals(args)
+    subcommand = args[i].value if i < len(args) else ''
+    found = [text for kind, text in settings if kind == 'always' or (kind == 'pager' and pages(subcommand))]
     if i >= len(args):
         return [text for text in found if text]
-    subcommand, rest = args[i].value, args[i + 1:]
+    rest = args[i + 1:]
     if subcommand == 'rebase':
         j = 0
         while j < len(rest) and rest[j].value != '--':
