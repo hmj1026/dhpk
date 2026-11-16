@@ -79,6 +79,17 @@ def protected(path, patterns, cwd):
     return bool(matching_patterns(path, patterns, cwd))
 
 
+def opaque_expansion_verdict(token, patterns, cwd):
+    """(#1453) Ambiguous when the text left after removing an expansion without a visible source is a Protected Path.
+
+    The variable's value is never invented; the word is blocked instead. None when the word is unaffected.
+    """
+    if token.residue and protected(token.residue, patterns, cwd):
+        return verdict.ambiguous('target %s with a parameter expansion that has no visible source' % ascii(token.value),
+                                 verdict.OPAQUE_EXPANSION)
+    return None
+
+
 def auxiliary_verdict(aux, patterns, cwd):
     """Judge one auxiliary input; None when its actual target is proved safe."""
     path, token = aux.value, aux.token
@@ -147,10 +158,9 @@ def judge(plan, patterns, cwd, wrapped):
                                      (recovery and recovery.ambiguous) or verdict.TARGET_SEARCH)
         if protected(token.value, patterns, cwd):
             return verdict.protected()
-        # (#1453) 無可見來源的 expansion 不發明值；去掉它後的字面若組成 Protected Path，不能當作無關檔名。
-        if token.residue and protected(token.residue, patterns, cwd):
-            return verdict.ambiguous('target %s with a parameter expansion that has no visible source' % ascii(token.value),
-                                     verdict.OPAQUE_EXPANSION)
+        found = opaque_expansion_verdict(token, patterns, cwd)
+        if found is not None:
+            return found
     if plan.listing is not None:
         found = listing_verdict(plan, patterns, None if wrapped else cwd)
         if found is not None:
@@ -287,7 +297,7 @@ def executed_file_verdict(token, patterns, cwd):
                                  'a Protected Path cannot be executed through source or a dot.')
     if protected(token.value, patterns, cwd):
         return verdict.protected('execution entrance operand')
-    return verdict.allow()
+    return opaque_expansion_verdict(token, patterns, cwd) or verdict.allow()
 
 
 def _background_parts(tokens):
@@ -358,7 +368,7 @@ def _startup_assignment_verdict(words, patterns, cwd):
         name = posixpath.basename(word.value)
         match = STARTUP_VARIABLES.match(word.value)
         if match and match.group(2):
-            found = executed_file_verdict(dataclasses.replace(word, value=match.group(2), parts=None), patterns, cwd)
+            found = executed_file_verdict(dataclasses.replace(word, value=match.group(2), parts=None, residue=word.residue[len(match.group(1)) + 1:]), patterns, cwd)
             if not found.allowed:
                 return found
         if name in ASSIGNMENT_CARRIERS:
@@ -416,6 +426,9 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
                 return verdict.ambiguous('input redirect %s' % ascii(target.value))
             if protected(target.value, patterns, cwd):
                 return verdict.protected()
+            found = opaque_expansion_verdict(target, patterns, cwd)
+            if found is not None:
+                return found
     if any(name.endswith('credential-extract.py') for name in names):
         return verdict.protected()
     entrance = script_entrance_verdict(tokens, patterns, cwd)
