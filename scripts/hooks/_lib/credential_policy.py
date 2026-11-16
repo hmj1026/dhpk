@@ -14,7 +14,7 @@ import sys
 from credential_shell import lex
 from credential_expand import expand_variants
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
-from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES
+from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings
 from credential_scan import MAX_SECONDS, budget_seconds
 import time
 from credential_scan import scan_roots
@@ -312,7 +312,7 @@ def _entrance_part_verdict(tokens, patterns, cwd):
     return executed_file_verdict(first, patterns, cwd)
 
 
-def entrance_verdict(tokens, patterns, cwd):
+def script_entrance_verdict(tokens, patterns, cwd):
     """Judge every source or dot in a segment; None when the segment has no execution entrance."""
     found = None
     for part in _background_parts(tokens):
@@ -339,9 +339,12 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
                 return verdict.protected()
     if any(name.endswith('credential-extract.py') for name in names):
         return verdict.protected()
-    entrance = entrance_verdict(tokens, patterns, cwd)
+    entrance = script_entrance_verdict(tokens, patterns, cwd)
     if entrance is not None and not entrance.allowed:
         return entrance
+    found = exec_entrance_verdict(words, names, patterns)
+    if found is not None:
+        return found
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
     index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
@@ -362,6 +365,26 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     if not isinstance(plan, ReadPlan):
         return verdict.unsupported(adapter.exclusion_syntax, plan.detail)
     return judge(plan, patterns, cwd, index != 0)
+
+
+SSH_COMMAND_VARIABLE = 'GIT_SSH_COMMAND='
+
+
+def exec_entrance_verdict(words, names, patterns):
+    """(#1431) Judge command strings Git or its SSH variable will execute; None when the segment has none.
+
+    The string runs in a directory this text does not know, so it is judged like a Remote Wrapper command.
+    """
+    commands = [w.value[len(SSH_COMMAND_VARIABLE):] for w in words if w.value.startswith(SSH_COMMAND_VARIABLE)]
+    git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
+    reader_index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
+    if git_index is not None and (reader_index is None or git_index < reader_index):
+        commands += exec_strings(words[git_index + 1:])
+    for command in commands:
+        found = analyze(command, patterns, None, True) if command.strip() else verdict.allow()
+        if not found.allowed:
+            return found
+    return None
 
 
 def remote_wrapper_verdict(args, patterns):

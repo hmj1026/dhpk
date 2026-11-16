@@ -774,3 +774,86 @@ class GitAdapter:
 
 
 GIT_ADAPTER = GitAdapter()
+
+
+# (#1431) Git 會把字串交給 shell 執行的入口。字串裡可見的讀取以同一套政策判定，不模擬 git 本身。
+GLOBAL_VALUES = ('-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env', '--exec-path',
+                 '--super-prefix', '--attr-source', '--list-cmds')
+# 各子指令中帶值的短選項；叢集裡遇到它就停止，後面的字元是它的值。
+SHORT_VALUES = {'rebase': 'sXCSm', 'difftool': 't'}
+
+
+def _is_exec_config(setting):
+    key = setting.split('=', 1)[0].lower()
+    return key == 'core.sshcommand' or (key.startswith('difftool.') and key.endswith('.cmd'))
+
+
+def _option_value(args, i, long_name, short_letter, subcommand):
+    """Return (value, next_index) when args[i] is the exec option, else None."""
+    arg = args[i].value
+    if arg.startswith('--%s=' % long_name):
+        return arg.split('=', 1)[1], i + 1
+    if arg == '--' + long_name:
+        return (args[i + 1].value, i + 2) if i + 1 < len(args) else None
+    if arg.startswith('-') and not arg.startswith('--') and len(arg) > 1:
+        for position, letter in enumerate(arg[1:], 1):
+            if letter == short_letter:
+                if position + 1 < len(arg):
+                    return arg[position + 1:], i + 1
+                return (args[i + 1].value, i + 2) if i + 1 < len(args) else None
+            if letter in SHORT_VALUES.get(subcommand, ''):
+                return None
+    return None
+
+
+def _joined(args, start, skip_options=()):
+    """Words git runs through a shell (`submodule foreach`, `bisect run`) are joined by spaces."""
+    i = start
+    while i < len(args) and args[i].value in skip_options:
+        i += 1
+    if i < len(args) and args[i].value == '--' and skip_options:
+        i += 1
+    return ' '.join(a.value for a in args[i:]) if i < len(args) else ''
+
+
+def exec_strings(args):
+    """Command strings a git invocation executes: `-c core.sshCommand=`, `rebase --exec`,
+    `submodule foreach`, `difftool --extcmd` and `bisect run`. `args` follow the `git` word."""
+    found = []
+    i = 0
+    while i < len(args) and args[i].value.startswith('-'):
+        arg = args[i].value
+        if arg == '--':
+            i += 1
+            break
+        if arg == '-c' and i + 1 < len(args):
+            if _is_exec_config(args[i + 1].value):
+                found.append(args[i + 1].value.split('=', 1)[1] if '=' in args[i + 1].value else '')
+            i += 1
+        elif arg in GLOBAL_VALUES:
+            i += 1
+        i += 1
+    if i >= len(args):
+        return [text for text in found if text]
+    subcommand, rest = args[i].value, args[i + 1:]
+    if subcommand == 'rebase':
+        j = 0
+        while j < len(rest) and rest[j].value != '--':
+            hit = _option_value(rest, j, 'exec', 'x', 'rebase')
+            if hit:
+                found.append(hit[0])
+            j = hit[1] if hit else j + 1
+    elif subcommand == 'difftool':
+        j = 0
+        while j < len(rest) and rest[j].value != '--':
+            hit = _option_value(rest, j, 'extcmd', 'x', 'difftool')
+            if hit:
+                found.append(hit[0])
+            j = hit[1] if hit else j + 1
+    elif subcommand == 'submodule':
+        k = next((n for n, a in enumerate(rest) if a.value == 'foreach'), None)
+        if k is not None and all(a.value.startswith('-') for a in rest[:k]):
+            found.append(_joined(rest, k + 1, ('--recursive', '-q', '--quiet')))
+    elif subcommand == 'bisect' and rest and rest[0].value == 'run':
+        found.append(_joined(rest, 1))
+    return [text for text in found if text.strip()]
