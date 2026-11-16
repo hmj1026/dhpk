@@ -40,7 +40,7 @@ function installDefault(host, project, pluginRoot = ROOT) {
   }
   return spawnSync('bash', [CURSOR_HOOK, '--force'], {
     cwd: project,
-    env: { ...process.env, ...host.env, CLAUDE_PLUGIN_ROOT: pluginRoot },
+    env: { ...process.env, ...host.env, DHPK_INSTALLER_ROOT: pluginRoot },
     encoding: 'utf8',
     timeout: fixtures.INSTALLER_CHILD_TIMEOUT_MS,
   });

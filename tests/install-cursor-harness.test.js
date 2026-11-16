@@ -167,7 +167,7 @@ function dependencyFixturePlugin() {
 function runInstaller(project, args, pluginRoot, extraEnv, timeoutMs) {
   return spawnSync('bash', [HOOK, ...args], {
     cwd: project,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, ...(extraEnv || {}) },
+    env: { ...process.env, DHPK_INSTALLER_ROOT: pluginRoot, ...(extraEnv || {}) },
     encoding: 'utf8',
     timeout: timeoutMs || 20000,
   });

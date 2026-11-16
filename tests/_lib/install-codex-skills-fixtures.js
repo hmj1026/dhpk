@@ -50,7 +50,7 @@ function runInstaller(project, args, pluginRoot = ROOT, envOverrides = {}) {
     env: {
       ...process.env,
       PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`,
-      CLAUDE_PLUGIN_ROOT: pluginRoot,
+      DHPK_INSTALLER_ROOT: pluginRoot,
       ...envOverrides,
     },
     encoding: 'utf8',

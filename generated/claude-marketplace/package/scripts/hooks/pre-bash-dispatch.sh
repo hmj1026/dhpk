@@ -14,8 +14,21 @@
 
 set -o pipefail
 
-. "$(dirname "$0")/_lib/plugin-root.sh"
-PLUGIN_ROOT="$(dhpk_plugin_root "$(dirname "$0")")"
+# Physical script dir; see _lib/plugin-root.sh (ADR 0038).
+_dhpk_self="$0"
+while [ -L "$_dhpk_self" ]; do
+    _dhpk_link="$(readlink "$_dhpk_self")"
+    case "$_dhpk_link" in /*) _dhpk_self="$_dhpk_link" ;; *) _dhpk_self="$(dirname "$_dhpk_self")/$_dhpk_link" ;; esac
+done
+_dhpk_hooks_dir="$(cd -P "$(dirname "$_dhpk_self")" 2>/dev/null && pwd)" || {
+    echo "[pre-bash-dispatch] cannot resolve dhpk package root; blocking" >&2
+    exit 2
+}
+. "$_dhpk_hooks_dir/_lib/plugin-root.sh"
+dhpk_plugin_root "$_dhpk_hooks_dir" || {
+    echo "[pre-bash-dispatch] cannot resolve dhpk package root; blocking" >&2
+    exit 2
+}
 
 . "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
 payload="$(dhpk_read_payload)"

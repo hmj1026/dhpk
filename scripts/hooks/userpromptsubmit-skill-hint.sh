@@ -39,12 +39,19 @@
 
 set -o pipefail
 
-. "$(dirname "$0")/_lib/json-out.sh"
-. "$(dirname "$0")/_lib/runtime-config.sh"
+# Pure-env opt-out first: no bootstrap fork for a disabled hint.
+[ "${DHPK_DISABLE_SKILL_HINT:-0}" = "1" ] && exit 0
 
-. "$(dirname "$0")/_lib/plugin-root.sh"
-PLUGIN_ROOT="$(dhpk_plugin_root "$(dirname "$0")")"
-PRE_ROUTE="$PLUGIN_ROOT/skills/flow-guide/scripts/pre-route.sh"
+# Physical script dir; see _lib/plugin-root.sh (ADR 0038).
+_dhpk_self="$0"
+while [ -L "$_dhpk_self" ]; do
+    _dhpk_link="$(readlink "$_dhpk_self")"
+    case "$_dhpk_link" in /*) _dhpk_self="$_dhpk_link" ;; *) _dhpk_self="$(dirname "$_dhpk_self")/$_dhpk_link" ;; esac
+done
+_dhpk_hooks_dir="$(cd -P "$(dirname "$_dhpk_self")" 2>/dev/null && pwd)" || exit 1
+. "$_dhpk_hooks_dir/_lib/plugin-root.sh"
+. "$_dhpk_hooks_dir/_lib/json-out.sh"
+. "$_dhpk_hooks_dir/_lib/runtime-config.sh"
 
 # ---- Pure-bash fast-exit gates (NO subprocess) ----
 # DHPK_HOOK_PROFILE is the documented one-shot profile override (mirrors the
@@ -52,8 +59,9 @@ PRE_ROUTE="$PLUGIN_ROOT/skills/flow-guide/scripts/pre-route.sh"
 # opted-down session exits before any fork.
 PROFILE="$(dhpk_config_profile)"
 [ "$PROFILE" = "minimal" ] && exit 0
-[ "${DHPK_DISABLE_SKILL_HINT:-0}" = "1" ] && exit 0
 [ "$(dhpk_config_bool skill_hint_enabled true)" = "false" ] && exit 0
+dhpk_plugin_root "$_dhpk_hooks_dir" || exit 1
+PRE_ROUTE="$PLUGIN_ROOT/skills/flow-guide/scripts/pre-route.sh"
 [ -f "$PRE_ROUTE" ] || exit 0
 
 # ---- Bounded stdin read (portable; degrades instead of hanging) ----
@@ -113,13 +121,13 @@ esac
 # Applies project .claude/settings.local.json pluginConfigs (forks python3 only
 # when such a file exists) + the DHPK_HOOK_PROFILE one-shot, then re-checks the
 # opt-outs so a project that disabled the hint via settings is still honoured.
-. "$(dirname "$0")/_lib/load-project-config.sh"
+. "$_dhpk_hooks_dir/_lib/load-project-config.sh"
 PROFILE="$(dhpk_config_profile)"
 [ "$PROFILE" = "minimal" ] && exit 0
 [ "$(dhpk_config_bool skill_hint_enabled true)" = "false" ] && exit 0
 
 # ---- Delegate the actual pattern match to the shared router ----
-HINT="$(CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PRE_ROUTE" "$PROMPT" 2>/dev/null || true)"
+HINT="$(bash "$PRE_ROUTE" "$PROMPT" 2>/dev/null || true)"
 case "$HINT" in
     MATCH$'\t'*)
         skill="$(printf '%s' "$HINT" | cut -f2)"
@@ -130,9 +138,9 @@ case "$HINT" in
             # MATCH field 2 is target.id (kebab, no dhpk:/agent: prefix). Resolve
             # skill/command ids as-is, then retry agent:<id> so e2e-runner still
             # maps to the agent invocation class.
-            invocation_class="$(CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" node "$PLUGIN_ROOT/scripts/lib/resolve-invocation-class.js" "$skill" 2>/dev/null || true)"
+            invocation_class="$(node "$PLUGIN_ROOT/scripts/lib/resolve-invocation-class.js" "$skill" 2>/dev/null || true)"
             if [ -z "$invocation_class" ]; then
-                invocation_class="$(CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" node "$PLUGIN_ROOT/scripts/lib/resolve-invocation-class.js" "agent:$skill" 2>/dev/null || true)"
+                invocation_class="$(node "$PLUGIN_ROOT/scripts/lib/resolve-invocation-class.js" "agent:$skill" 2>/dev/null || true)"
             fi
             bare_skill="${skill#dhpk:}"
             routed_command="/dhpk:$bare_skill"

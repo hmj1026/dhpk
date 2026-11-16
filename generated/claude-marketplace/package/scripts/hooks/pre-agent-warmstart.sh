@@ -16,10 +16,18 @@
 
 set -o pipefail
 
-. "$(dirname "$0")/_lib/session-env.sh"
+# Physical script dir; see _lib/plugin-root.sh (ADR 0038).
+_dhpk_self="$0"
+while [ -L "$_dhpk_self" ]; do
+    _dhpk_link="$(readlink "$_dhpk_self")"
+    case "$_dhpk_link" in /*) _dhpk_self="$_dhpk_link" ;; *) _dhpk_self="$(dirname "$_dhpk_self")/$_dhpk_link" ;; esac
+done
+_dhpk_hooks_dir="$(cd -P "$(dirname "$_dhpk_self")" 2>/dev/null && pwd)" || { printf '{}'; exit 0; }
+. "$_dhpk_hooks_dir/_lib/session-env.sh"
+. "$_dhpk_hooks_dir/_lib/plugin-root.sh"
 ROOT="$(dhpk_root)"
-. "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
-. "$(dirname "$0")/_lib/payload.sh"
+. "$_dhpk_hooks_dir/_lib/load-project-config.sh" 2>/dev/null || true
+. "$_dhpk_hooks_dir/_lib/payload.sh"
 
 # Opt-in gate (env override > userConfig > default off).
 _enabled="$(dhpk_config_bool agent_warmstart_enabled false DHPK_AGENT_WARMSTART)"
@@ -27,6 +35,11 @@ if [ "$_enabled" != "true" ]; then
     printf '{}'
     exit 0
 fi
+
+# Advisory: an unresolved root leaves the hint with the package-relative path.
+dhpk_plugin_root "$_dhpk_hooks_dir" 2>/dev/null || PLUGIN_ROOT=""
+PKG_ROOT="$PLUGIN_ROOT"
+[ -f "$PKG_ROOT/rules/tool-routing.md" ] || PKG_ROOT=""
 
 # minimal profile keeps subagent prompts lean.
 PROFILE="$(dhpk_config_profile)"
@@ -43,6 +56,7 @@ command -v python3 >/dev/null 2>&1 || { printf '{}'; exit 0; }
 
 out="$(
     CLAUDE_PROJECT_DIR="$ROOT" \
+    DHPK_PKG_ROOT="$PKG_ROOT" \
     REVIEWER_AGENTS="${REVIEWER_AGENTS[*]}" \
     SUBAGENT_TYPE="$SUBAGENT_TYPE" \
     HANDOFF_PACKET="$HANDOFF_PACKET" \
@@ -69,6 +83,9 @@ def read_text_safe(p, max_chars=400):
     except OSError:
         return ""
 
+pkg_root = os.environ.get("DHPK_PKG_ROOT", "")
+routing_path = f"{pkg_root}/rules/tool-routing.md" if pkg_root else "rules/tool-routing.md"
+
 lines = []
 
 # === Role-specific early exits ===
@@ -77,7 +94,7 @@ if role == "monitor":
 elif role == "explorer":
     lines.append(
         "Tool routing: prefer semantic code tools (cx / gitnexus) over raw Read "
-        "(see ${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md)"
+        f"(see {routing_path})"
     )
 
 # === Section 2: OpenSpec active change (worker/TDD and generic roles only) ===
@@ -126,7 +143,7 @@ if role not in reviewer_roles and role not in {"monitor", "explorer"} and proj_c
 if role in worker_roles or not role:
     lines.append(
         "Tool routing: prefer semantic code tools (cx / gitnexus) over raw Read "
-        "(see ${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md)"
+        f"(see {routing_path})"
     )
 
 body = "\n".join(lines)

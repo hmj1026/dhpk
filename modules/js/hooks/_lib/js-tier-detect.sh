@@ -24,11 +24,10 @@ _dhpk_js_load_config() {
     [ "$_dhpk_js_config_loaded" -eq 1 ] && return 0
     _dhpk_js_config_loaded=1
 
-    local plugin_root="${CLAUDE_PLUGIN_ROOT:-}"
-    if [ -z "$plugin_root" ]; then
-        # Fall back: assume two parents up from this lib (modules/js/hooks/_lib).
-        plugin_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." 2>/dev/null && pwd)"
-    fi
+    # Derive the root from this library's own location (ADR 0038); the
+    # process-wide CLAUDE_PLUGIN_ROOT may name another plugin or dhpk copy.
+    local plugin_root
+    plugin_root="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/../../../.." 2>/dev/null && pwd)"
     local yaml="$plugin_root/modules/js/module.yaml"
 
     # Safe defaults — JS files under js/ or src/ subdirs become frontend.
