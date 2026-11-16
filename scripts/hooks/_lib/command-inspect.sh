@@ -392,7 +392,7 @@ _dhpk_ci_value_transforms_git() {
         *) return 1 ;;
     esac
     for name in ${_dhpk_ci_git_named:-} ${_dhpk_ci_git_taint:-}; do
-        re='\$\{'$name'[/#%:@^,~]'
+        re='\$\{'$name'(\[[^]]*\])?[/#%:@^,~]'
         [[ "$1" =~ $re ]] && return 0
     done
     return 1
@@ -408,13 +408,127 @@ _dhpk_ci_value_copies() {
     return 1
 }
 
+# (#1460) Flag variables: names whose assigned value holds a word that starts with a dash, kept
+# with their value so an expansion in git commit or push argument position can be judged.
+_dhpk_ci_flag_clear() {
+    local name
+    for name in ${_dhpk_ci_flag_names:-}; do
+        unset "_dhpk_ci_fv_$name"
+    done
+    _dhpk_ci_flag_names=" "
+}
+
+# True when a value text mentions an already recorded flag variable name.
+_dhpk_ci_flag_refs_known() {
+    local name
+    for name in ${_dhpk_ci_flag_names:-}; do
+        case "$1" in *"$name"*) return 0 ;; esac
+    done
+    return 1
+}
+
+# Records a flag variable. A value that is appended to (arg 3 is 1), holds quotes or a backslash, or
+# is copied from another flag variable cannot be compared literally and is stored as opaque.
+_dhpk_ci_note_flag_var() {
+    local opaque=0 val="$2"
+    case "$val" in
+        *' -'*) ;;
+        *'$'*) _dhpk_ci_flag_refs_known "$val" || return 0 ;;
+        *) return 0 ;;
+    esac
+    case "$val" in
+        *[\"\'\\]*) opaque=1 ;;
+        *'$'*) _dhpk_ci_flag_refs_known "$val" && opaque=1 ;;
+    esac
+    [ "${3:-0}" = "1" ] && opaque=1
+    [ "$opaque" = "1" ] && val="@opaque"
+    case "$_dhpk_ci_flag_names" in
+        *" $1 "*) return 0 ;;
+    esac
+    _dhpk_ci_flag_names="${_dhpk_ci_flag_names}$1 "
+    printf -v "_dhpk_ci_fv_$1" '%s' "$val"
+}
+
+# True when a stored flag value holds --no-verify, or (commit only) a short cluster with n.
+_dhpk_ci_flag_value_no_verify() {
+    local fw
+    local -a fv_a
+    read -r -a fv_a <<<"$1"
+    for fw in "${fv_a[@]}"; do
+        case "$fw" in
+            --no-verify|--no-verify=*) return 0 ;;
+        esac
+        [ "$2" = "commit" ] && _dhpk_ci_commit_short_no_verify "$fw" && return 0
+    done
+    return 1
+}
+
+# Judges a dynamic word in git commit or push argument position. Sets _dhpk_ci_flag_hit to
+# no-verify (the expansion yields --no-verify), transformed (a transform of a flag variable
+# can rebuild any flag), or empty.
+_dhpk_ci_dyn_git_flag() {
+    local name re var
+    _dhpk_ci_flag_hit=""
+    case "$2" in
+        commit|push) ;;
+        *) return 0 ;;
+    esac
+    case "$1" in
+        *--no-verify*) _dhpk_ci_flag_hit="no-verify"; return 0 ;;
+        *'$'*) _dhpk_ci_flag_prefix_hit "$1" && return 0 ;;
+    esac
+    for name in ${_dhpk_ci_flag_names:-}; do
+        case "$1" in
+            *"$name"*) ;;
+            *) continue ;;
+        esac
+        re='\$\{'$name'(\[[^]]*\])?[/#%:@^,~]'
+        if [[ "$1" =~ $re ]]; then
+            _dhpk_ci_flag_hit="transformed"
+            return 0
+        fi
+        re='\$\{?'$name'([^A-Za-z0-9_]|$)'
+        [[ "$1" =~ $re ]] || continue
+        var="_dhpk_ci_fv_$name"
+        if [ "${!var}" = "@opaque" ] || _dhpk_ci_flag_word_extra "$1" "$name"; then
+            _dhpk_ci_flag_hit="transformed"
+            return 0
+        fi
+        if _dhpk_ci_flag_value_no_verify "${!var}" "$2"; then
+            _dhpk_ci_flag_hit="no-verify"
+            return 0
+        fi
+    done
+    return 0
+}
+
+# True (and sets transformed) when the literal text before the first dollar is a non-empty prefix of
+# --no-verify, so the expansion can complete the flag.
+_dhpk_ci_flag_prefix_hit() {
+    local lit="${1%%\$*}"
+    lit="${lit//\"/}"
+    [ -n "$lit" ] || return 1
+    [[ "--no-verify" == "$lit"* ]] || return 1
+    _dhpk_ci_flag_hit="transformed"
+}
+
+# True when a word that references flag variable $2 holds anything beside that one reference.
+_dhpk_ci_flag_word_extra() {
+    local rest="${1//\$\{$2\}/}"
+    rest="${rest//\$\{$2\[@\]\}/}"
+    rest="${rest//\$\{$2\[\*\]\}/}"
+    rest="${rest//\$$2/}"
+    rest="${rest//\"/}"
+    [ -n "$rest" ]
+}
+
 # Text-level view over the raw command: every NAME=value, NAME+=value,
 # NAME[i]=value and NAME=(...) is gathered per name (order independent), then
 # classified. printf -v targets are opaque builders (read/mapfile are modelled
 # precisely elsewhere): they are
 # tainted whenever the text names git.
 _dhpk_ci_scan_git_taint() {
-    local rest="$1" sq="'" name t v var names=" " seg w
+    local rest="$1" sq="'" name t v var names=" " seg w appended=" "
     local re_assign='(^|[^A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)(\[[^]]*\])?(\+?)=(.*)$'
     local re_sq='^\$?'$sq'([^'$sq']*)'$sq'(.*)$'
     local re_dq='^"([^"]*)"(.*)$'
@@ -435,6 +549,7 @@ _dhpk_ci_scan_git_taint() {
     while [[ "$rest" =~ $re_assign ]]; do
         name="${BASH_REMATCH[2]}"
         t="${BASH_REMATCH[5]}"
+        [ -n "${BASH_REMATCH[4]}" ] && appended="$appended$name "
         if [[ "$t" =~ $re_sq ]] || [[ "$t" =~ $re_dq ]] || [[ "$t" =~ $re_par ]] || [[ "$t" =~ $re_bare ]]; then
             v="${BASH_REMATCH[1]}"
             rest="${BASH_REMATCH[2]}"
@@ -454,6 +569,10 @@ _dhpk_ci_scan_git_taint() {
         elif _dhpk_ci_word_mentions_git "${!var,,}"; then
             _dhpk_ci_git_named="${_dhpk_ci_git_named}$name "
         fi
+        case "$appended" in
+            *" $name "*) _dhpk_ci_note_flag_var "$name" "${!var}" 1 ;;
+            *) _dhpk_ci_note_flag_var "$name" "${!var}" ;;
+        esac
     done
     # (#1456) An assignment that stores a transformed expansion (x=${l/log/push}) of a git-named or
     # tainted variable holds rebuilt git text; it is judged after every name is classified.
@@ -520,7 +639,7 @@ _dhpk_ci_word_uses_taint() {
     # (#1456) A transformed expansion (${l/log/push}, ${l%log}, ${l:0}, ${l@P}) of a variable whose
     # visible value names git can rebuild any git command, so it is risky even when the value is read-only.
     for name in ${_dhpk_ci_git_named:-}; do
-        re='\$\{'$name'[/#%:@^,~]'
+        re='\$\{'$name'(\[[^]]*\])?[/#%:@^,~]'
         [[ "$w" =~ $re ]] && return 0
     done
     [ "${_dhpk_ci_git_taint:- }" != " " ] || return 1
@@ -529,6 +648,21 @@ _dhpk_ci_word_uses_taint() {
         [[ "$w" =~ $re ]] && return 0
     done
     return 1
+}
+
+# (#1460) True when the word is a default, assign, alternate or error expansion
+# (${x:-git push}, ${l:=git commit}) whose fallback text names git: the fallback
+# becomes the command word. The closing brace is not required (the word may be split).
+_dhpk_ci_word_default_git() {
+    case "$1" in
+        *git*) ;;
+        *) return 1 ;;
+    esac
+    local re='\$\{[A-Za-z_0-9@*]+(\[[^]]*\])?:?[-=+?]([^}]*)' d
+    [[ "$1" =~ $re ]] || return 1
+    d="${BASH_REMATCH[2]}"
+    d="${d#[\'\"]}"
+    _dhpk_ci_word_mentions_git "$d"
 }
 
 # A prefix or env assignment the child command can see. += is an assignment
@@ -4185,6 +4319,8 @@ _dhpk_ci_unwrap_head() {
                     :
                 elif _dhpk_ci_word_uses_taint "${_dhpk_ci_u_words[$k]}"; then
                     _dhpk_ci_u_unsupported="dynamic command word"
+                elif _dhpk_ci_word_default_git "${_dhpk_ci_u_words[$k]}"; then
+                    _dhpk_ci_u_unsupported="dynamic command word"
                 elif _dhpk_ci_dynamic_head_is_write "$k"; then
                     _dhpk_ci_u_unsupported="dynamic command word"
                 elif _dhpk_ci_tail_has_wrapped_git_risk "$((k + 1))"; then
@@ -4353,6 +4489,13 @@ _dhpk_ci_record_git() {
         if [ "$sub" = "commit" ] && _dhpk_ci_commit_short_no_verify "$word"; then
             no_verify=1
         fi
+        if [ "${_dhpk_ci_u_dyn[$j]}" = "1" ]; then
+            _dhpk_ci_dyn_git_flag "$word" "$sub"
+            case "$_dhpk_ci_flag_hit" in
+                no-verify) no_verify=1 ;;
+                transformed) _dhpk_ci_unsupported "transformed git flag" ;;
+            esac
+        fi
         if _dhpk_ci_option_consumes_next "$word"; then
             j=$((j + 2))
         else
@@ -4424,6 +4567,8 @@ _dhpk_ci_head_index() {
             esac
         fi
         case "${_dhpk_ci_words[$h]}" in
+            # (#1460) A word that starts with an expansion (${l:=git commit}) is a command word, not a NAME=value assignment.
+            '$'*) break ;;
             *=*) assigned=1 ;;
             *) break ;;
         esac
@@ -6999,6 +7144,7 @@ dhpk_inspect_command() {
     _dhpk_ci_saw_shell_assign=0
     _dhpk_ci_git_taint=" "
     _dhpk_ci_git_named=" "
+    _dhpk_ci_flag_clear
     _dhpk_ci_scan_git_taint "$cmd"
     _dhpk_ci_saw_arith_consumer=0
     _dhpk_ci_arith_texts=()
@@ -7014,7 +7160,8 @@ dhpk_inspect_command() {
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
-    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_git_named _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
+    _dhpk_ci_flag_clear
+    unset _dhpk_ci_saw_eval _dhpk_ci_saw_source _dhpk_ci_saw_cd_dash _dhpk_ci_saw_cdpath _dhpk_ci_saw_shell_hs _dhpk_ci_saw_shell_feed _dhpk_ci_all_hs_flat _dhpk_ci_saw_shell_head _dhpk_ci_saw_shell_assign _dhpk_ci_git_taint _dhpk_ci_git_named _dhpk_ci_flag_names _dhpk_ci_flag_hit _dhpk_ci_taint_ifs _dhpk_ci_taint_gitassign _dhpk_ci_outps_depth _dhpk_ci_outps_acc _dhpk_ci_saw_arith_consumer _dhpk_ci_arith_texts
     return 0
 }
 

@@ -1,8 +1,10 @@
 'use strict';
 
 // (#1456) A find that selects files by name and hands them to a Reader (`-exec cat {}` or a piped xargs)
-// reads every selected path. The guard judges the selection only when the name filter is visible; a find
-// without a name filter, or with predicates the guard does not model, keeps its earlier verdict.
+// reads every selected path. With a plain -name/-iname conjunction the guard judges the named files; (#1460)
+// a find without a name filter, or with predicates the guard does not model (-o, !, -not, parentheses),
+// is judged like grep -r: the find roots are scanned and blocked only when a protected path is found or the
+// tree cannot be scanned.
 // Hook-boundary outcomes use synthetic fixtures; unit rows cover the parser in `credential_find.py`.
 const { test, run, assert } = require('./_lib/tinytest');
 const { runHook: runHookAt, ROOT } = require('./_lib/hookharness');
@@ -17,8 +19,13 @@ fs.writeFileSync(path.join(FIXTURE_CWD, 'ordinary'), 'synthetic');
 fs.writeFileSync(path.join(FIXTURE_CWD, 'app.js'), 'synthetic');
 fs.writeFileSync(path.join(FIXTURE_CWD, 'notes.md'), 'synthetic');
 process.on('exit', () => fs.rmSync(FIXTURE_CWD, { recursive: true, force: true }));
+// (#1460) A tree without any protected file: an unfiltered find stays allowed here.
+const CLEAN_CWD = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-credential-find-clean-')));
+fs.writeFileSync(path.join(CLEAN_CWD, 'app.js'), 'synthetic');
+fs.writeFileSync(path.join(CLEAN_CWD, 'notes.md'), 'synthetic');
+process.on('exit', () => fs.rmSync(CLEAN_CWD, { recursive: true, force: true }));
 const HOOKS = ['pre-bash-guard.sh', 'pre-bash-dispatch.sh'];
-const decide = (hook, command) => runHookAt(hook, { cwd: FIXTURE_CWD, payload: { tool_input: { command } } });
+const decide = (hook, command, cwd = FIXTURE_CWD) => runHookAt(hook, { cwd, payload: { tool_input: { command } } });
 
 const blocked = [
   'find . -name .env -exec cat {} \\;',
@@ -35,6 +42,15 @@ const blocked = [
   '{ find . -name .env -exec cat {} \\; ; }', 'if true; then find . -name .env -exec cat {} \\; ; fi',
   '! find . -name .env -exec cat {} \\;', 'find . -name .env | { xargs cat; }', 'f() { find . -name .env -exec cat {} \\; ; }; f',
   'find . -name .env -exec cat + {} \\;',
+  // (#1460) no name filter, or predicates the guard does not model: the roots are scanned
+  'find . -type f -exec cat {} +', 'find . -type f | xargs cat',
+  "find . -name '*.js' -o -name .env -exec cat {} \\;", 'find . ! -name app.js -exec cat {} +',
+  // (#1460) xargs interactive options still run the command on the selected words
+  'find . -name .env | xargs -o cat', 'find . -name .env | xargs -p cat', 'find . -name .env | xargs -e cat',
+  'find . -name .env | xargs -eEOF cat', 'find . -name .env | xargs --open-tty cat', 'echo .env | xargs -o cat',
+  // (#1460 review) short-option clusters of known xargs flags
+  'find . -name .env | xargs -or cat', 'find . -name .env | xargs -pt cat', 'find . -name .env | xargs -0o cat',
+  'find . -name .env -print0 | xargs -0r cat',
 ];
 const ambiguous = [
   'find . -name "$n" -exec cat {} \\;',
@@ -45,15 +61,17 @@ const allowed = [
   "find . -name '*.js' -exec cat {} \\;",
   "find . -name '*.md' | xargs cat",
   'echo find . -exec cat {} +',
-  'find . -type f -exec cat {} +',
-  'find . -type f | xargs cat',
   'find . -name .env',
   'find . -name .env -exec echo {} \\;',
   'find . -name .env | xargs echo',
-  "find . -name '*.js' -o -name .env -exec cat {} \\;",
-  'find . ! -name app.js -exec cat {} +',
   "find . -name '*.js' -exec env cat {} \\;", "find . -name '*.js' | xargs env cat", "{ find . -name '*.js' -exec cat {} \\; ; }",
+  // (#1460)
+  "find . -name '*.md' | xargs -o cat", "find . -name '*.md' | xargs -p cat", 'echo ordinary | xargs -o cat',
+  'find . -name notes.md | xargs -or cat',
+  'find . -type f', 'find . -type f -exec echo {} \\;',
 ];
+const cleanAllowed = ['find . -type f -exec cat {} +', 'find . -type f | xargs cat'];
+const NO_FILTER_HINT = 'narrow the find roots to directories without protected files, or use a plain -name filter (no -o, !, or parentheses) that does not match a protected file';
 
 for (const hook of HOOKS) {
   test(`${hook} blocks find -name selecting a Protected Path for a Reader (#1456)`, () => {
@@ -72,7 +90,20 @@ for (const hook of HOOKS) {
       assert.match(result.stderr, /explicit literal operand|find -name filter/, `rewrite direction: ${result.stderr}`);
     }
   });
-  test(`${hook} keeps the earlier verdict for finds without a modelled name filter (#1456)`, () => {
+  test(`${hook} gives a stable rewrite hint when an unfiltered find selects a Protected Path (#1460)`, () => {
+    for (const command of ['find . -type f -exec cat {} +', 'find . -type f | xargs cat']) {
+      const result = decide(hook, command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.ok(result.stderr.includes(NO_FILTER_HINT), `hint: ${result.stderr}`);
+    }
+  });
+  test(`${hook} allows an unfiltered find whose roots hold no Protected Path (#1460)`, () => {
+    for (const command of cleanAllowed) {
+      const result = decide(hook, command, CLEAN_CWD);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+  test(`${hook} keeps allowing finds that name no Protected Path or hand nothing to a Reader (#1456)`, () => {
     for (const command of allowed) {
       const result = decide(hook, command);
       assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);

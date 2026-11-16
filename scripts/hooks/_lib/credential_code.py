@@ -14,7 +14,8 @@ import re
 import shlex
 
 from credential_expand import HEAD_KEEPERS, UNKNOWN_ARGUMENT, visible_values
-from credential_shell import ASSIGNMENT, tokenize
+from credential_find import find_spec
+from credential_shell import ASSIGNMENT, tokenize, xargs_command
 
 SHELLS = frozenset(('sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'mksh', 'rbash', 'yash', 'posh'))
 # Tokens that end a command segment; parentheses group, so they split too.
@@ -23,7 +24,7 @@ SPLIT = frozenset((';', '&&', '||', '|', '|&', '(', ')', ';;', '&', '&!'))
 WRAPPERS = {
     'command': '', 'builtin': '', 'exec': '', 'nohup': '', 'time': '', 'setsid': '',
     'env': 'uCS', 'sudo': 'ugpChDRTrtU', 'doas': 'uC', 'nice': 'n', 'timeout': 'sk',
-    'stdbuf': 'ioe', 'ionice': 'cnp',
+    'stdbuf': 'ioe', 'ionice': 'cnp', 'busybox': '', 'chroot': '',
 }
 SCRIPT_RUNNERS = SHELLS | {'source', '.'}
 SHELL_VALUE_OPTIONS = frozenset(('--rcfile', '--init-file'))
@@ -57,6 +58,9 @@ def _operands(tokens):
     return [t for i, t in enumerate(tokens) if not t.operator and not (i and tokens[i - 1].operator)]
 
 
+CHROOT_VALUE_OPTIONS = frozenset(('--userspec', '--groups'))
+
+
 def command_head(words):
     """Index of the command a wrapper chain runs, or None."""
     i = 0
@@ -74,9 +78,11 @@ def command_head(words):
             i += 1
             if option == '--':
                 break
+            if name == 'chroot' and option in CHROOT_VALUE_OPTIONS:
+                i += 1
             if len(option) == 2 and option[1] in WRAPPERS[name]:
                 i += 1
-        if name == 'timeout':
+        if name in ('timeout', 'chroot'):
             i += 1
     return None
 
@@ -117,24 +123,105 @@ def _positional_prefix(args):
     return prefix + ('set -- %s; ' % ' '.join(_argument_text(a) for a in args[1:]) if len(args) > 1 else '')
 
 
-SU_VALUE_OPTIONS = frozenset(('-s', '--shell', '-g', '--group', '-G', '--supp-group', '-w', '--whitelist-environment'))
+SU_VALUE_OPTIONS = frozenset(('--shell', '--group', '--supp-group', '--whitelist-environment'))
+# Each long command option with the shortest prefix getopt_long accepts for it.
+COMMAND_LONG_OPTIONS = (('--command', 3), ('--session-command', 4))
 
 
-def _su_code(operands):
-    i = 0
+def _find_strings(operands, head):
+    """(#1460) The strings of every command a find `-exec` family action runs."""
+    spec = find_spec(operands, head)
+    return [s for clause in spec.clauses for s in _segment_strings(clause)] if spec else []
+
+
+def _xargs_strings(operands, head):
+    """(#1460) The strings of the command an xargs runs; an unparsed option falls back to every operand position after it."""
+    found = xargs_command(operands, head)
+    if found:
+        return _segment_strings(found[0])
+    later = operands[head + 1:]
+    return [s for k in range(len(later)) for s in _segment_strings(later[k:])]
+
+
+GETOPT_VALUE_LETTERS = {'su': 'sgGw', 'runuser': 'sgGwu', 'script': 'EIOBTmo'}
+# `script -t[file]` takes only the rest of its own word.
+GETOPT_OPTIONAL_LETTERS = {'script': 't'}
+
+
+def _is_long_command(name):
+    """True when `name` is a command long option or an unambiguous getopt_long prefix of one."""
+    return any(len(name) >= least and option.startswith(name) for option, least in COMMAND_LONG_OPTIONS)
+
+
+def _cluster_option(word, value_letters, optional_letters):
+    """(runs a command, attached value, takes the next operand) for the first value-taking letter of a short cluster."""
+    for k, letter in enumerate(word[1:], 2):
+        if letter == 'c':
+            return True, word[k:], not word[k:]
+        if letter in optional_letters:
+            return False, '', False
+        if letter in value_letters:
+            return False, '', not word[k:]
+    return False, '', False
+
+
+def _getopt_code(operands, value_letters, optional_letters=''):
+    """(#1460) Every command string of a su-like invocation: each `-c` or long command option, since the last one runs."""
+    found, i = [], 0
     while i < len(operands):
         word = operands[i].value
         i += 1
-        if word in ('-c', '--command', '--session-command'):
-            return operands[i].value if i < len(operands) else None
-        for long in ('--command=', '--session-command='):
-            if word.startswith(long):
-                return word[len(long):]
-        if word in SU_VALUE_OPTIONS:
+        name, equals, attached = word.partition('=')
+        if word.startswith('--') and _is_long_command(name):
+            found.append(attached if equals else operands[i].value if i < len(operands) else '')
+            i += 0 if equals else 1
+        elif word in SU_VALUE_OPTIONS:
             i += 1
-        elif len(word) > 2 and word[0] == '-' and word[1] != '-' and word.endswith('c'):
-            return operands[i].value if i < len(operands) else None
-    return None
+        elif len(word) > 1 and word[0] == '-' and word[1] != '-':
+            is_command, attached, takes_next = _cluster_option(word, value_letters, optional_letters)
+            if is_command:
+                found.append(attached or (operands[i].value if i < len(operands) else ''))
+            i += 1 if takes_next else 0
+    return [code for code in found if code]
+
+
+def _sg_code(operands):
+    """(#1460) `sg [-] group [-c] command`: the operand after the group."""
+    words = [w.value for w in operands if w.value != '-']
+    if len(words) > 1 and words[1] == '-c':
+        return words[2] if len(words) > 2 else None
+    return words[1] if len(words) > 1 else None
+
+
+FLOCK_VALUE_OPTIONS = frozenset(('-w', '--wait', '--timeout', '-E', '--conflict-exit-code'))
+
+
+def _flock_commands(operands):
+    """The -c or --command strings among flock's operands, wherever they stand."""
+    found, i = [], 0
+    while i < len(operands):
+        word = operands[i].value
+        i += 1
+        if word in FLOCK_VALUE_OPTIONS:
+            i += 1
+        elif word.startswith('--command='):
+            found.append(word[len('--command='):])
+        elif word == '--command' or (len(word) > 1 and word[0] == '-' and word[1] != '-' and word.endswith('c')):
+            found.append(operands[i].value if i < len(operands) else '')
+            i += 1
+    return [code for code in found if code]
+
+
+def _flock_code(operands):
+    """(#1460) The strings a `flock` runs: its command option strings, or those of the command after the lock file."""
+    found = _flock_commands(operands)
+    if found:
+        return found
+    i = 0
+    while i < len(operands) and operands[i].value.startswith('-') and len(operands[i].value) > 1:
+        i += 2 if operands[i].value in FLOCK_VALUE_OPTIONS else 1
+    rest = operands[i + 1:]
+    return _segment_strings(rest[1:] if rest and rest[0].value == '--' else rest)
 
 
 WATCH_VALUE_OPTIONS = frozenset(('-n', '--interval', '-q', '--equexit'))
@@ -182,8 +269,16 @@ def _segment_strings(segment):
     if name == 'trap':
         action = _trap_action(rest)
         return [action] if action else []
-    if name == 'su':
-        code = _su_code(rest)
+    if name == 'flock':
+        return _flock_code(rest)
+    if name == 'find':
+        return _find_strings(operands, head)
+    if name == 'xargs':
+        return _xargs_strings(operands, head)
+    if name == 'sg' or name in GETOPT_VALUE_LETTERS:
+        if name != 'sg':
+            return _getopt_code(rest, GETOPT_VALUE_LETTERS[name], GETOPT_OPTIONAL_LETTERS.get(name, ''))
+        code = _sg_code(rest)
         return [code] if code else []
     if name == 'watch':
         code = _watch_code(rest)

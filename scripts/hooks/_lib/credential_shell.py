@@ -402,7 +402,11 @@ def _parse_expansion(text, i, quoted):
         if not named:
             return None
         rest = inner[named.end():]
-        # No operator semantics are modelled for these: the word stays an unknown value.
+        # (#1460) A positional parameter default spells its word; `=` is not split, as bash rejects it there.
+        positional = re.match(r':?[-+?]', rest) if re.fullmatch(r'\d+|[@*]', named.group()) else None
+        if positional:
+            return Expansion(text[i - 1:k], named.group(), positional.group(), rest[positional.end():], quoted), k
+        # No other operator semantics are modelled for these: the word stays an unknown value.
         return Expansion(text[i - 1:k], named.group(), 'other' if rest else '', rest, quoted), k
     rest = inner[named.end():]
     operator = re.match(r':?[-=+?]', rest)
@@ -763,9 +767,13 @@ def _feeds_arguments(word, shell_code=False):
 
 
 # xargs 選項：不帶值的旗標、帶值的選項，以及選用值（附在選項上）的替換字串選項（#1433）。
-XARGS_FLAGS = frozenset(('--', '-0', '-r', '-t', '-x', '--null', '--no-run-if-empty', '--verbose', '--exit'))
+XARGS_FLAGS = frozenset(('--', '-0', '-r', '-t', '-x', '--null', '--no-run-if-empty', '--verbose', '--exit',
+                         '-o', '--open-tty', '-p', '--interactive', '-e', '--eof'))
+XARGS_INTERACTIVE = frozenset(('-o', '--open-tty', '-p', '--interactive'))
 XARGS_VALUE_OPTIONS = frozenset(('-n', '-L', '-P', '-s', '-d', '-E'))
-XARGS_ATTACHED_VALUE = re.compile(r'^-[nLPsdE].+$')
+XARGS_FLAG_CLUSTER = re.compile(r'^-[0rtxop]{2,}$')
+XARGS_INTERACTIVE_CLUSTER = re.compile(r'^-[0rtxop]*[op][0rtxop]*$')
+XARGS_ATTACHED_VALUE = re.compile(r'^-[nLPsdEe].+$')
 XARGS_LONG_VALUE = re.compile(r'^--(max-args|max-lines|max-procs|max-chars|delimiter|eof)=.+$')
 # 只印出參數、不會把參數當檔名或指令的 xargs 命令。
 INERT_XARGS_COMMANDS = frozenset(('echo',))
@@ -802,7 +810,7 @@ def xargs_command(words, head):
             return None
         if not value.startswith('-') or value == '-':
             return words[index:], replace
-        if value in XARGS_FLAGS or XARGS_LONG_VALUE.match(value) or XARGS_ATTACHED_VALUE.match(value):
+        if value in XARGS_FLAGS or XARGS_FLAG_CLUSTER.match(value) or XARGS_LONG_VALUE.match(value) or XARGS_ATTACHED_VALUE.match(value):
             index += 1
         elif value in XARGS_VALUE_OPTIONS:
             if index + 1 >= len(words):
@@ -825,6 +833,9 @@ def _inert_xargs(words, head):
     if found is None:
         return False
     command, replace = found
+    # (#1460) An interactive option reads the tty, so the heredoc text is not the only input.
+    if any(word.value in XARGS_INTERACTIVE or XARGS_INTERACTIVE_CLUSTER.match(word.value) for word in words[head + 1:len(words) - len(command)]):
+        return False
     if not command:
         return True
     name = command[0]

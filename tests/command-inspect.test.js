@@ -686,4 +686,95 @@ test('function-keyword bash -sc judges the -c payload (#1426)', () => {
   assert.strictEqual(got.no_verify, '1');
 });
 
+// #1460: git rebuilt through array transforms or default operators in the command word, and flag
+// variables expanded in argument position. Plain (non-template) strings keep ${...} literal.
+test('a git command word rebuilt by an array transform or default operator is unsupported (#1460)', () => {
+  const rows = [
+    'a=(git log); ${a[@]/log/push} origin main',
+    'a=(git log); x=${a[@]/log/push}; $x origin main',
+    '${x:-git push} origin main',
+    'l=; ${l:=git commit} --no-verify -m x',
+    '${x:-/usr/bin/git} push origin main',
+  ];
+  for (const command of rows) {
+    assert.notStrictEqual(gitRecords(command).unsupported, '', command);
+  }
+});
+
+test('a flag variable expanded in git commit or push argument position sets no-verify (#1460)', () => {
+  const rows = [
+    'o=--no-verify; git commit $o -m x',
+    'o=--no-verify; git push "$o" origin x',
+    'opts=(--no-verify); git commit "${opts[@]}" -m x',
+    'o=-n; git commit $o -m x',
+    'git commit ${o:---no-verify} -m x',
+  ];
+  for (const command of rows) {
+    const got = gitRecords(command);
+    assert.strictEqual(got.records[0].noVerify, '1', command);
+  }
+});
+
+test('a transformed flag variable in git commit argument position is unsupported (#1460)', () => {
+  const got = gitRecords('o=--verify; git commit ${o/--/--no-} -m x');
+  assert.notStrictEqual(got.unsupported, '');
+});
+
+test('benign flag variables and harmless defaults stay allowed (#1460)', () => {
+  const clean = [
+    'o=--amend; git commit $o -m x',
+    'o=--verify; git commit $o -m x',
+    '${EDITOR:-vi} notes.txt',
+    '${x:-git-lfs} version',
+    'a=(ls -l); ${a[@]/l/L}',
+  ];
+  for (const command of clean) {
+    const got = gitRecords(command);
+    assert.strictEqual(got.unsupported, '', command);
+    for (const rec of got.records) assert.notStrictEqual(rec.noVerify, '1', command);
+  }
+  const noFlag = ['o=-n; git push $o origin main', 'o=--no-verify; git commit -m "$o"', 'msg=fix; git commit -m "$msg"'];
+  for (const command of noFlag) {
+    const got = gitRecords(command);
+    for (const rec of got.records) assert.notStrictEqual(rec.noVerify, '1', command);
+  }
+});
+
+test('a flag word rebuilt from pieces or derived flag variables is blocked (#1460 review)', () => {
+  const rows = [
+    'a=--no-; b=verify; git commit $a$b -m x',
+    'a=--no; b=-verify; git commit $a$b -m x',
+    'o=--no; git commit ${o}-verify -m x',
+    'v=verify; git commit --no-$v -m x',
+    'o=--no-; o+=verify; git commit $o -m x',
+    'p=--no-verify; o=$p; git commit $o -m x',
+    'o=--no-""verify; git commit $o -m x',
+  ];
+  for (const command of rows) {
+    const got = gitRecords(command);
+    const blocked = got.unsupported !== '' || got.records.some((rec) => rec.noVerify === '1');
+    assert.ok(blocked, command);
+  }
+});
+
+test('ordinary dynamic git flags stay allowed (#1460 review)', () => {
+  const rows = [
+    'msg=fix; git commit -m "$msg"',
+    'o=--amend; git commit $o -m x',
+    'f=notes.txt; git commit $f -m x',
+    'git commit "$@"',
+    'b=main; git push origin $b',
+    'a=fix; git commit --author="$a" -m x',
+    'o=-q; git push $o origin feature/x',
+    'o=--no-verify; git commit -m "$o"',
+    'd=today; git commit --date="$d" -m x',
+    'msg=fix; git commit -m"$msg"',
+  ];
+  for (const command of rows) {
+    const got = gitRecords(command);
+    assert.strictEqual(got.unsupported, '', command);
+    for (const rec of got.records) assert.notStrictEqual(rec.noVerify, '1', command);
+  }
+});
+
 run('command-inspect');

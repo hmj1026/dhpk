@@ -885,4 +885,30 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   });
 }
 
+// (#1460) A positional parameter default (`${1:-word}`) spells the word whenever the parameter is unset or empty.
+const positionalDefaultBlocked = [
+  'cat "${1:-.env}"', 'set --; cat "${1:-.env}"', 'f() { cat "${1:-.env}"; }; f', "bash -c 'cat \"${1:-.env}\"'",
+  'cat ${1-.env}', 'cat "${@:-.env}"', 'f() { cat "${2:-.env}"; }; f a', 'cat "${1:+.env}"',
+];
+const positionalDefaultAllowed = [
+  'cat "${1:-ordinary}"', 'f() { cat "${1:-ordinary}"; }; f', 'echo "${1:-.env}"', "bash -c 'echo \"${1:-.env}\"'",
+  'set -- a b; echo "${1:-x}"',
+];
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  const decide = (command) => runHook(hook, { payload: { tool_input: { command } } });
+  test(`${hook} blocks a Protected Path spelled by a positional parameter default (#1460)`, () => {
+    for (const command of positionalDefaultBlocked) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /\[bash-guard\] blocked:/, JSON.stringify(command));
+    }
+  });
+  test(`${hook} still allows ordinary positional parameter defaults (#1460)`, () => {
+    for (const command of positionalDefaultAllowed) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+}
+
 run('credential-read-policy');
