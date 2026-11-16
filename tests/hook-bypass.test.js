@@ -3182,7 +3182,13 @@ const GIT_VAR_ROUND3_1452 = [
   ['@L transform', "l='GIT COMMIT -M X'; ${l@L}", "l='GIT COMMIT --NO-VERIFY -M X'; ${l@L}"],
   ['find -exec sh -c', "l='git commit -m x'; find . -exec sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -exec sh -c \"$l\" \\;"],
   ['find -execdir sh -c', "l='git commit -m x'; find . -execdir sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -execdir sh -c \"$l\" \\;"],
-  ['find -ok sh -c', "l='git commit -m x'; find . -ok sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -ok sh -c \"$l\" \\;"],
+  ['find -ok sh -c', "l='git commit -m x'; find . -ok sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -ok sh -c \"$l\" \\;"],  // (#1456) a substitution operator rewrites a visible git value into another git command
+  ['pattern substitution as command word', "l='git log'; ${l/log/push} origin main", "l='git log'; ${l/log/commit} --no-verify -m x"],
+  // (#1456 review) the transformed value is assigned first and run in a second step
+  ['pattern substitution assigned then run', "l='git log'; x=${l/log/push}; $x origin main", "l='git log'; x=${l/log/commit}; $x --no-verify -m x"],
+  ['quoted pattern substitution assigned then run', "l='git log'; x=\"${l/log/push}\"; $x origin main", "l='git log'; x=\"${l/log/commit}\"; $x --no-verify -m x"],
+  ['assigned transform copied to a third name', "l='git log'; x=${l/log/push}; y=$x; $y origin main", "l='git log'; x=${l/log/commit}; y=$x; $y --no-verify -m x"],
+  ['suffix removal assigned then run', "l='git log'; x=${l%log}push; $x origin main", "l='git log'; x=${l%log}commit; $x --no-verify -m x"],
 ];
 
 for (const [label, mainCmd, featureCmd] of GIT_VAR_ROUND3_1452) {
@@ -3209,6 +3215,7 @@ const GIT_VAR_ROUND3_ALLOWED_1452 = [
   ['indirect expansion of a plain value', 'y=p; p=ls; ${!y}'],
   ['find -exec sh -c with a plain variable', 'p=ls; find . -exec sh -c "$p" \\;'],
   ['find -exec echo of git text', "l='git commit -m x'; find . -exec echo \"$l\" \\;"],
+  ['assigned substitution of a plain value', 'p=ls; x=${p/s/s}; $x'],
 ];
 
 for (const [label, command] of GIT_VAR_ROUND3_ALLOWED_1452) {

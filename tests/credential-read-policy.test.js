@@ -827,4 +827,62 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   });
 }
 
+// (#1456) Values visible in the command text reach a Reader through positional parameters: `set --`,
+// a function call's arguments, and `shift`. Each blocked row spells a Protected Path out of those values.
+const positionalBlocked = [
+  'set -- .env; cat "$1"', 'set -- nv; cat .e$1', 'f(){ cat "$1"; }; f .env', 'f(){ cat .e$1; }; f nv',
+  'set -- ordinary .env; cat "$2"', 'set -- .env; cat "$@"', 'set -- ordinary .env; shift; cat "$1"',
+  'f(){ local x=$1; cat "$x"; }; f .env', 'set -- x; f(){ cat .e${1}nv; }; f',
+];
+const positionalAllowed = [
+  'set -- a b; echo "$1"', 'f(){ cat "$1"; }; f ordinary', 'set -e; cat "$1"', 'set -- ordinary; cat "$1"',
+  'tmp=$(mktemp -d); cat "$tmp/out.txt"', 'cmd=(git log --oneline); "${cmd[@]}"',
+];
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  const decide = (command) => runHook(hook, { payload: { tool_input: { command } } });
+  test(`${hook} blocks a Protected Path spelled by visible positional parameters (#1456)`, () => {
+    for (const command of positionalBlocked) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /\[bash-guard\] blocked:/, JSON.stringify(command));
+      assert.ok(!result.stderr.includes('synthetic'), 'no file content in the reason');
+    }
+  });
+  test(`${hook} still allows ordinary positional parameters and unrelated command substitutions (#1456)`, () => {
+    for (const command of positionalAllowed) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+}
+
+// (#1456 review) Fail closed where positional modelling stops: more than nine words, `${10}`, loops over
+// positionals, and an empty `set` argument.
+const positionalLimitBlocked = [
+  'set -- x x x x x x x x x .env; cat "${10}"', 'set -- .env x x x x x x x x x; cat "$1"', 'set -- x x x x x x x x x .env; cat "$@"',
+  'f(){ cat "${10}"; }; f x x x x x x x x x .env', "set -- .env; for a; do cat \"$a\"; done",
+  'set -- .env; for a in "$@"; do cat "$a"; done', "set '' .env; cat \"$2\"", 'set -- ordinary .env; for a; do cat "$a"; done',
+  'set -- x .env; shift 12; cat "$1"',
+];
+const positionalLimitAllowed = [
+  'set -- a b; echo "$1"', 'set -- ordinary; cat "$1"', 'set -- ordinary; for a; do cat "$a"; done',
+  'set -- a b c d e f g h i j; echo "${10}"',
+];
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  const decide = (command) => runHook(hook, { payload: { tool_input: { command } } });
+  test(`${hook} blocks a Protected Path read through positional parameters past the modelling limit (#1456)`, () => {
+    for (const command of positionalLimitBlocked) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /\[bash-guard\] blocked:/, JSON.stringify(command));
+    }
+  });
+  test(`${hook} still allows ordinary positional use near the limit (#1456)`, () => {
+    for (const command of positionalLimitAllowed) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+}
+
 run('credential-read-policy');

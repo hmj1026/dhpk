@@ -77,7 +77,12 @@ const blocked = [
   // 啟動檔 process substitution（B02 R02）
   "BASH_ENV=<(echo 'cat .env') bash -c :",
   "bash --rcfile <(echo 'cat .env') -i </dev/null",
-  "bash --init-file <(printf 'cat .env\\n') -i </dev/null",
+  "bash --init-file <(printf 'cat .env\\n') -i </dev/null",  // (#1456) positional parameters, su, watch and a dynamic command word
+  "bash -c 'cat \"$1\"' _ .env", "bash -c 'cat .e$1' _ nv", "su -c 'cat .env'", "su root -c 'cat .env'", "su - root --command='cat .env'",
+  "su -lc 'cat .env'", "watch 'cat .env'", 'watch -n 2 cat .env', "$SHELL -c 'cat .env'",
+  // (#1456 review) $0, glob arguments and loop-variable arguments reach the string unresolved
+  "bash -c 'cat \"$0\"' .env", "sh -c 'cat \"${0}\"' .env", "bash -c 'cat \"$1\"' _ .e*",
+  "for f in .env; do bash -c 'cat \"$1\"' _ \"$f\"; done",
 ];
 
 const allowed = [
@@ -114,7 +119,10 @@ const allowed = [
   'bash --rcfile ./hook.sh -i -c : </dev/null',
   "bash --rcfile <(echo 'alias ll=ls') -i </dev/null",
   // interpreter 程式碼字串仍在範圍外（ADR 0037）
-  "python3 -c 'print(1)'",
+  "python3 -c 'print(1)'",  // (#1456) positional parameters are data; su and watch run harmless commands
+  "bash -c 'echo \"$1\"' _ .env", "su - -c 'git status'", 'watch -n1 git status', "su -s /bin/sh -c 'ls'", 'su root',
+  // (#1456 review) $0 is data to echo; a literal ordinary $1 or $0 is data to cat
+  "bash -c 'echo \"$0\"' .env", "bash -c 'cat \"$1\"' _ ordinary", "bash -c 'cat \"$0\"' ordinary",
 ];
 
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {

@@ -23,6 +23,10 @@ MAX_ALTERNATIVES = 64
 MAX_VALUES = 32
 MAX_DEPTH = 4
 ASSIGNMENT = re.compile(r'([A-Za-z_][A-Za-z0-9_]*)(\+?)=', re.S)
+# `0=value` binds $0 for the code string of `bash -c CODE ARG0 ...` (credential_code writes it as a prefix).
+ZERO_ARGUMENT = re.compile(r'(0)(\+?)=', re.S)
+# A word that stands for an argument the text does not spell out: the name it is bound to is unknown.
+UNKNOWN_ARGUMENT = '\ue1ff'
 SEQUENCE = re.compile(r'(-?\d+)\.\.(-?\d+)(?:\.\.(-?\d+))?$|([A-Za-z])\.\.([A-Za-z])(?:\.\.(-?\d+))?$')
 NAME_WORD = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 GLOB_CHARS = re.compile(r'[*?\[]')
@@ -35,6 +39,7 @@ _KEEP = object()
 _UNRESOLVED = object()
 # A name set by `read` or `printf -v`: its value is unseen, so a word that mixes it with literal text is blocked.
 _OPAQUE = object()
+BT = chr(96)
 
 
 class _TooMany(Exception):
@@ -74,14 +79,34 @@ def _unresolved(token):
 
 
 def _variables(tokens):
-    """Values each name may hold, from assignments and `for` loops visible in `tokens`."""
+    """Values each name may hold, from assignments and for loops visible in tokens."""
     variables = {}
+    functions = function_names(tokens)
+    _seed_positional(tokens, functions, variables)
+    refs = {}
+    head, declaring, nameref, shifted, lost = True, False, False, False, False
     index = 0
     while index < len(tokens):
         token = tokens[index]
         index += 1
         if token.operator:
+            if token.value in HEAD_OPERATORS:
+                head, declaring, nameref = True, False, False
             continue
+        at_head = head and token.value not in HEAD_KEEPERS and not ASSIGNMENT.match(token.value)
+        if head and at_head:
+            head = False
+            if token.value == 'set':
+                _remember_positional(variables, _set_arguments(tokens, index))
+            elif token.value in functions:
+                _remember_positional(variables, _words_until_operator(tokens, index))
+            elif token.value == 'shift':
+                shifted = True
+                lost = lost or _shift_exceeds_tracking(tokens, index)
+            elif token.value in ('declare', 'typeset', 'local'):
+                declaring = True
+        if declaring and token.value.startswith('-') and 'n' in token.value:
+            nameref = True
         if token.value == 'for' and index + 1 < len(tokens) and tokens[index + 1].value == 'in' and not tokens[index].operator:
             name = tokens[index].value
             end = index + 2
@@ -91,14 +116,281 @@ def _variables(tokens):
                 end += 1
             index = end
             continue
+        if token.value == 'for' and index + 1 < len(tokens) and not tokens[index].operator and tokens[index + 1].operator and tokens[index + 1].value == ';':
+            _loop_over_positional(variables, tokens[index].value)
+            continue
+        if token.value == 'read' and _read_here_string(tokens, index, variables):
+            continue
         if token.value in ('read', 'mapfile', 'readarray', 'getopts', 'printf'):
             _mark_opaque(tokens, index, variables)
-        found = ASSIGNMENT.match(token.value)
+        found = ASSIGNMENT.match(token.value) or ZERO_ARGUMENT.match(token.value)
         if not found:
+            if nameref and NAME_WORD.fullmatch(token.value):
+                refs.setdefault(token.value, [])
+            continue
+        if nameref or found.group(1) in refs:
+            refs.setdefault(found.group(1), []).extend(v[found.end():] for v in _joined(token, variables))
+            continue
+        if token.substitution:
+            if _substitution_is_split(tokens, index, token, found.end()):
+                variables[found.group(1)] = _UNKNOWN  # text follows the substitution in the same word
+                continue
+            value = _substitution_value(token, found.end())
+            if value is not None:
+                _remember(variables, found.group(1), bool(found.group(2)), value)
             continue
         for combined in _joined(token, variables):
             _remember(variables, found.group(1), bool(found.group(2)), combined[found.end():])
+    if shifted:
+        _shift_positional(variables)
+    if lost:
+        _forget_positional(variables, POSITIONAL_LIMIT)
+    _resolve_namerefs(variables, refs)
     return variables
+
+
+HEAD_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
+HEAD_KEEPERS = frozenset(('!', '{', '}', 'if', 'then', 'elif', 'else', 'while', 'until', 'do', 'done', 'fi', 'time', 'coproc'))
+POSITIONAL_LIMIT = 9
+
+
+def function_names(tokens):
+    defined = set()
+    for index, token in enumerate(tokens[:-1]):
+        if token.operator:
+            continue
+        following = tokens[index + 1:index + 3]
+        if token.value == 'function' and not following[0].operator:
+            defined.add(following[0].value)
+        elif len(following) == 2 and [(t.operator, t.value) for t in following] == [(True, '('), (True, ')')]:
+            defined.add(token.value)
+    return defined
+
+
+def _words_until_operator(tokens, index):
+    out = []
+    for token in tokens[index:]:
+        if token.operator:
+            break
+        out.append(token)
+    return out
+
+
+def _set_arguments(tokens, index):
+    words = _words_until_operator(tokens, index)
+    values = [w.value for w in words]
+    if '--' in values:
+        return words[values.index('--') + 1:]
+    i = 0
+    while i < len(words) and words[i].value and words[i].value[0] in '-+' and words[i].value not in ('-', '+'):
+        i += 2 if words[i].value in ('-o', '+o') else 1
+    return words[i:]
+
+
+def _seed_positional(tokens, functions, variables):
+    """Literal arguments of every visible set and function call, so a body that copies $1 sees them."""
+    head = True
+    for index, token in enumerate(tokens):
+        if token.operator:
+            head = head or token.value in HEAD_OPERATORS
+            continue
+        if not head or token.value in HEAD_KEEPERS or ASSIGNMENT.match(token.value):
+            continue
+        head = False
+        if token.value == 'set':
+            words = _set_arguments(tokens, index + 1)
+        elif token.value in functions:
+            words = _words_until_operator(tokens, index + 1)
+        else:
+            continue
+        _remember_positional(variables, [w for w in words if not w.parts])
+
+
+def _positional_names(count):
+    return [str(n) for n in range(1, max(count, POSITIONAL_LIMIT) + 1)] + ['@', '*']
+
+
+def _forget_positional(variables, count):
+    """Positionals set beyond what is tracked stay unknown, so a Reader that uses one is blocked."""
+    for name in _positional_names(count):
+        variables[name] = _UNKNOWN
+
+
+def _shift_exceeds_tracking(tokens, index):
+    """True when `shift N` has an N that is dynamic or beyond the positionals this module tracks."""
+    if index >= len(tokens) or tokens[index].operator:
+        return False
+    amount = tokens[index]
+    return bool(amount.parts) or not amount.value.isdigit() or int(amount.value) > POSITIONAL_LIMIT
+
+
+def _loop_over_positional(variables, name):
+    """`for name; do` walks "$@": the loop name holds each tracked positional value, or is unknown with them."""
+    values = variables.get('@')
+    if isinstance(values, list):
+        for value in values:
+            _remember(variables, name, False, value)
+    elif values is not None:
+        variables[name] = _UNKNOWN
+
+
+def _remember_positional(variables, words):
+    if len(words) > POSITIONAL_LIMIT:
+        _forget_positional(variables, len(words))
+        return
+    for position, word in enumerate(words[:POSITIONAL_LIMIT], 1):
+        for value in _words(word, variables):
+            _remember(variables, str(position), False, value)
+            _remember(variables, '@', False, value)
+            _remember(variables, '*', False, value)
+    for name in [str(n) for n in range(1, POSITIONAL_LIMIT + 1)] + ['@', '*']:
+        if variables.get(name) not in (None, _UNKNOWN, _OPAQUE):
+            _remember(variables, name, False, '')
+
+
+def _shift_positional(variables):
+    names = [str(n) for n in range(1, POSITIONAL_LIMIT + 1)]
+    pool = []
+    for name in names:
+        current = variables.get(name)
+        if isinstance(current, list):
+            pool += current
+    for name in names:
+        for value in pool:
+            _remember(variables, name, False, value)
+
+
+def _resolve_namerefs(variables, refs):
+    """Give each nameref the values of its targets; a chain deeper than MAX_DEPTH is unknown."""
+    for _ in range(MAX_DEPTH):
+        _resolve_nameref_pass(variables, refs)
+    before = {name: _copy(variables.get(name)) for name in refs}
+    _resolve_nameref_pass(variables, refs)
+    for name in refs:
+        if variables.get(name) != before[name]:
+            variables[name] = _UNKNOWN
+    for name, targets in refs.items():
+        for target in targets:
+            if NAME_WORD.fullmatch(target) and target != name and variables.get(target) is None:
+                _remember(variables, name, False, target)  # the target holds nothing visible: keep its name
+
+
+def _copy(value):
+    return list(value) if isinstance(value, list) else value
+
+
+def _resolve_nameref_pass(variables, refs):
+    for name, targets in refs.items():
+        for target in targets:
+            if not NAME_WORD.fullmatch(target) or target == name:
+                variables[name] = _UNKNOWN
+                continue
+            known = variables.get(target)
+            if known is None:
+                continue
+            if not isinstance(known, list):
+                variables[name] = known
+                continue
+            for value in known:
+                _remember(variables, name, False, value)
+
+
+def _substitution_is_split(tokens, index, token, start):
+    """True when the assigned word may continue past its first substitution (`x=$(echo .en)v`)."""
+    rest, text = token.value[start:], token.substitution
+    if not text.startswith(rest):
+        return False
+    if text.startswith('$('):
+        if index >= len(tokens) or not (tokens[index].operator and tokens[index].value == '('):
+            return False
+        depth = 0
+        for end in range(index, len(tokens)):
+            if tokens[end].operator and tokens[end].value in ('(', ')'):
+                depth += 1 if tokens[end].value == '(' else -1
+                if not depth:
+                    return end + 1 < len(tokens) and not tokens[end + 1].operator
+        return False
+    joined = rest
+    for end in range(index, len(tokens)):
+        if joined == text or len(joined) > len(text) or tokens[end].operator:
+            break
+        joined += ' ' + tokens[end].value
+    return joined != text
+
+
+def _substitution_value(token, start):
+    text = token.substitution
+    rest = token.value[start:]
+    if not rest or not text.startswith(rest):
+        return None
+    if text.startswith('$(') and text.endswith(')'):
+        body = text[2:-1]
+    elif text.startswith(BT) and text.endswith(BT):
+        body = text[1:-1]
+    else:
+        return None
+    try:
+        words = tokenize(body)
+    except ValueError:
+        return None
+    if not words or any(w.operator or w.dynamic or w.glob or w.parts or w.substitution for w in words):
+        return None
+    head, args = words[0].value, [w.value for w in words[1:]]
+    if head == 'echo':
+        while args and args[0] in ('-n', '-e', '-E'):
+            args = args[1:]
+        return ' '.join(args)
+    if head == 'printf' and len(args) == 1 and '%' not in args[0] and chr(92) not in args[0]:
+        return args[0]
+    return None
+
+
+def _read_here_string(tokens, index, variables):
+    words, text = [], None
+    i = index
+    while i < len(tokens):
+        t = tokens[i]
+        if t.operator and t.value == '<<' and i + 2 < len(tokens) and tokens[i + 1].operator and tokens[i + 1].value == '<' and not tokens[i + 2].operator:
+            text = tokens[i + 2]
+            i += 3
+            continue
+        if t.operator:
+            if t.value in HEAD_OPERATORS:
+                break
+            if t.value.startswith('<'):
+                return False  # another input redirect decides what `read` sees
+            i += 2
+            continue
+        words.append(t)
+        i += 1
+    if text is None or text.dynamic or text.parts or text.substitution:
+        return False
+    names, skip, raw = [], False, False
+    for w in words:
+        if skip:
+            skip = False
+        elif w.value in ('-a', '-d', '-u'):
+            return False
+        elif w.value in ('-n', '-N', '-p', '-t', '-i'):
+            skip = True
+        elif w.value.startswith('-'):
+            if any(c in w.value for c in 'adu'):
+                return False
+            raw = raw or 'r' in w.value
+        elif NAME_WORD.fullmatch(w.value):
+            names.append(w.value)
+    if chr(92) in text.value and not raw:
+        return False  # without -r a backslash joins or escapes characters
+    if not names:
+        names = ['REPLY']
+    separators = set(' \t\n')
+    for value in (variables.get('IFS') if isinstance(variables.get('IFS'), list) else []):
+        separators |= set(value)
+    pieces = [p for p in re.split('[%s]' % re.escape(''.join(sorted(separators))), text.value) if p]
+    for name in names:
+        for value in pieces + [text.value]:
+            _remember(variables, name, False, value)
+    return True
 
 
 def _mark_opaque(tokens, index, variables):
@@ -132,6 +424,9 @@ def _words(token, variables):
 def _remember(variables, name, append, value):
     current = variables.get(name)
     if current is _UNKNOWN:
+        return
+    if value == UNKNOWN_ARGUMENT:
+        variables[name] = _UNKNOWN
         return
     values = [] if current is None else list(current)
     additions = [old + value for old in values] + [value] if append else [value]
@@ -242,6 +537,13 @@ def _values(expansion, variables, depth, literal=False):
     """Candidate strings for one expansion, _KEEP when its source is not visible, or _UNRESOLVED."""
     known = variables.get(expansion.name)
     op = expansion.op
+    if expansion.name.startswith('!') and not op:
+        indirect = _indirect(expansion.name[1:], variables)
+        if indirect is not None:
+            return indirect
+    if isinstance(known, list) and op == 'other' and not expansion.name.startswith('!'):
+        changed = [_transform(value, expansion.arg) for value in known]
+        return _UNRESOLVED if any(v is None for v in changed) else list(dict.fromkeys(changed))
     if expansion.name.startswith('!') or known is _OPAQUE:
         # Indirect expansion and read/printf -v values are unseen; next to literal text they could spell anything.
         return _UNRESOLVED if literal else _KEEP
@@ -355,3 +657,29 @@ def _sequence(body):
         raise _TooMany
     direction = 1 if last >= first else -1
     return [convert(first + direction * stride * offset) for offset in range(count)]
+
+
+def _indirect(name, variables):
+    known = variables.get(name)
+    if not isinstance(known, list) or not known:
+        return None
+    out = []
+    for target in known:
+        values = variables.get(target) if NAME_WORD.fullmatch(target) else None
+        if not isinstance(values, list):
+            return None
+        out += [v for v in values if v not in out]
+    return out or None
+
+
+CASE_OPS = {',,': str.lower, '@L': str.lower, '^^': str.upper, '@U': str.upper, '~~': str.swapcase,
+            ',': lambda v: v[:1].lower() + v[1:], '^': lambda v: v[:1].upper() + v[1:], '@u': lambda v: v[:1].upper() + v[1:],
+            '~': lambda v: v[:1].swapcase() + v[1:]}
+
+
+def _transform(value, rest):
+    if rest in CASE_OPS:
+        return CASE_OPS[rest](value)
+    if rest in ('@P', '@E'):
+        return None if set(value) & {chr(92), '$', BT} else value
+    return None
