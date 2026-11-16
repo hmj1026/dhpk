@@ -2821,6 +2821,29 @@ for (const [label, command, reason] of WRAPPER_ALL_HOOKS_BLOCKED_1435) {
   });
 }
 
+// Review follow-up: SHELL reassigned by an untracked form, trailing words
+// after the -c payload, and a dynamic or {} find -exec head stay blocked.
+const WRAPPER_REVIEW_BLOCKED_1435 = [
+  ['for SHELL in', 'for SHELL in git; do $SHELL -c a=b commit -m x; done'],
+  ['printf -v SHELL', 'printf -v SHELL git; $SHELL -c a=b commit -m x'],
+  ['${SHELL:=git}', ': ${SHELL:=git}; $SHELL -c a=b commit -m x'],
+  ['getopts SHELL', 'getopts x SHELL -x; $SHELL -c a=b commit -m x'],
+  ['mapfile SHELL', 'mapfile SHELL < /dev/null; $SHELL -c a=b commit -m x'],
+  ['$SHELL -c with trailing words', '$SHELL -c a.b=c commit -m x'],
+  ['find -exec dynamic head', 'find . -exec cat {} \\; -exec ${G:-git} commit \\;'],
+  ['find -exec {} head', 'find . -exec cat {} \\; -exec {} commit \\;'],
+];
+
+for (const [label, command] of WRAPPER_REVIEW_BLOCKED_1435) {
+  test(`#1435 blocks reassigned or unprovable wrapper heads on main: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
 test('#1435 keeps existing conservative source-before-git restriction unchanged', () => {
   withRepos(({ protectedRepo, featureRepo }) => {
     const command = 'source .venv/bin/activate && git status';

@@ -2640,8 +2640,12 @@ _dhpk_ci_find_exec_has_git() {
                     _dhpk_ci_operands_are_data "${exec_head##*/}" && is_data=1
                     _dhpk_ci_is_shell_word "${exec_head##*/}" && is_shell=1
                 fi
+                # A dynamic or {} command word cannot be shown to be data.
+                if [ "${_dhpk_ci_u_dyn[$i]:-0}" = "1" ]; then
+                    has_git=1
+                fi
                 case "$w" in
-                    git|*/git) has_git=1 ;;
+                    git|*/git|'{}') has_git=1 ;;
                 esac
             else
                 case "$w" in
@@ -2827,6 +2831,9 @@ _dhpk_ci_dyn_shell_c_literal() {
     [ "$saw_c" -eq 1 ] || return 1
     [ "$j" -lt "$n" ] || return 1
     [ "${_dhpk_ci_u_dyn[$j]:-0}" != "1" ] || return 1
+    # Words after the payload are positional parameters, and a reassigned
+    # SHELL would run them as arguments; only a sole payload is modelled.
+    [ $((j + 1)) -eq "$n" ] || return 1
     _dhpk_ci_u_dyn_shell_c=1
     return 0
 }
@@ -6471,6 +6478,15 @@ dhpk_inspect_command() {
     _dhpk_ci_all_hs_flat=()
     _dhpk_ci_saw_shell_head=0
     _dhpk_ci_saw_shell_assign=0
+    # Any SHELL mention other than a plain $SHELL or ${SHELL} expansion
+    # (for SHELL in, printf -v SHELL, ${SHELL:=x}, getopts, mapfile) may
+    # reassign it, so the $SHELL -c allow is withdrawn for the command.
+    _dhpk_ci_shell_rest="${cmd//\$\{SHELL\}/}"
+    _dhpk_ci_shell_rest="${_dhpk_ci_shell_rest//\$SHELL/}"
+    case "$_dhpk_ci_shell_rest" in
+        *SHELL*) _dhpk_ci_saw_shell_assign=1 ;;
+    esac
+    unset _dhpk_ci_shell_rest
     _dhpk_ci_list "$cmd" 0 top
     unset _dhpk_ci_cwd _dhpk_ci_cwd_state _dhpk_ci_end _dhpk_ci_head _dhpk_ci_exec_next _dhpk_ci_depth
     unset _dhpk_ci_next_pipe_id _dhpk_ci_hd_word _dhpk_ci_hd_quoted _dhpk_ci_sub_stripped _dhpk_ci_expand_stripped
