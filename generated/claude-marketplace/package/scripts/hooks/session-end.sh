@@ -16,7 +16,8 @@
 
 set -o pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+. "$(dirname "$0")/_lib/plugin-root.sh"
+PLUGIN_ROOT="$(dhpk_plugin_root "$(dirname "$0")")"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh" 2>/dev/null || true
 
 # ---- Reap ORPHANED gitnexus MCP processes (opt-in) ----

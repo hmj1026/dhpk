@@ -42,7 +42,8 @@ set -o pipefail
 . "$(dirname "$0")/_lib/json-out.sh"
 . "$(dirname "$0")/_lib/runtime-config.sh"
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+. "$(dirname "$0")/_lib/plugin-root.sh"
+PLUGIN_ROOT="$(dhpk_plugin_root "$(dirname "$0")")"
 PRE_ROUTE="$PLUGIN_ROOT/skills/flow-guide/scripts/pre-route.sh"
 
 # ---- Pure-bash fast-exit gates (NO subprocess) ----
