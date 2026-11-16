@@ -682,7 +682,7 @@ def _heredocs(text, heredocs=True):
         # xargs、parallel 與讀取迴圈把 heredoc 內文當成檔名或指令；內文不是資料，且此處無法判定其內容。
         # 必須先於 shell 檢查，否則同一行的 eval 或 bash -c 會讓這個檢查被略過。
         shell_code = any(not token.operator and token.value.rsplit('/', 1)[-1] in HEREDOC_SHELLS for token in new_tokens)
-        if any(not token.operator and _feeds_arguments(token.value, shell_code) for token in new_tokens):
+        if _feeds_unresolved(new_tokens, shell_code, text):
             raise ValueError('heredoc text may run through xargs, parallel, exec or a read loop')
         if _dynamic_command(new_tokens):
             raise ValueError('heredoc read by an unresolved command')
@@ -745,6 +745,146 @@ def _feeds_arguments(word, shell_code=False):
     if len(names) > 1 and not shell_code:
         return any(name in QUOTED_FEEDERS for name in names)
     return any(name in INPUT_FEEDERS for name in names)
+
+
+# xargs 選項：不帶值的旗標、帶值的選項，以及選用值（附在選項上）的替換字串選項（#1433）。
+XARGS_FLAGS = frozenset(('--', '-0', '-r', '-t', '-x', '--null', '--no-run-if-empty', '--verbose', '--exit'))
+XARGS_VALUE_OPTIONS = frozenset(('-n', '-L', '-P', '-s', '-d', '-E'))
+XARGS_ATTACHED_VALUE = re.compile(r'^-[nLPsdE].+$')
+XARGS_LONG_VALUE = re.compile(r'^--(max-args|max-lines|max-procs|max-chars|delimiter|eof)=.+$')
+# 只印出參數、不會把參數當檔名或指令的 xargs 命令。
+INERT_XARGS_COMMANDS = frozenset(('echo',))
+# 只把文字存進一般變數的讀取內建命令及其可用選項。
+READ_BUILTINS = {'read': frozenset(('-r',)), 'readarray': frozenset(('-t',)), 'mapfile': frozenset(('-t',))}
+PLAIN_VARIABLE = re.compile(r'^[a-z_][a-z0-9_]*$')
+
+
+def _replace_string(value, following):
+    """The replace string an xargs `-I`, `-i` or `--replace` option sets and how many words it uses; None when unclear."""
+    if value == '-I':
+        return (following, 2) if following is not None else None
+    if value == '--replace':
+        return '{}', 1
+    if value.startswith('--replace='):
+        return value.split('=', 1)[1], 1
+    if value.startswith('-I'):
+        return value[2:], 1
+    return value[2:] or '{}', 1
+
+
+def xargs_command(words, head):
+    """The words of the command an xargs invocation runs and its replace string.
+
+    Returns `(command_words, replace)` or None when an option is not one of the
+    inert, fully understood forms: an unknown option may read a file or the tty.
+    """
+    replace = None
+    index = head + 1
+    while index < len(words):
+        word = words[index]
+        value = word.value
+        if word.dynamic or word.glob:
+            return None
+        if not value.startswith('-') or value == '-':
+            return words[index:], replace
+        if value in XARGS_FLAGS or XARGS_LONG_VALUE.match(value) or XARGS_ATTACHED_VALUE.match(value):
+            index += 1
+        elif value in XARGS_VALUE_OPTIONS:
+            if index + 1 >= len(words):
+                return None
+            index += 2
+        elif value.startswith(('-I', '-i', '--replace')):
+            found = _replace_string(value, words[index + 1].value if index + 1 < len(words) else None)
+            if found is None:
+                return None
+            replace = found[0]
+            index += found[1]
+        else:
+            return None
+    return [], replace
+
+
+def _inert_xargs(words, head):
+    """True when xargs only prints the heredoc text: its command is echo (the default) and nothing is substituted into the command word."""
+    found = xargs_command(words, head)
+    if found is None:
+        return False
+    command, replace = found
+    if not command:
+        return True
+    name = command[0]
+    if name.dynamic or name.value.rsplit('/', 1)[-1] not in INERT_XARGS_COMMANDS:
+        return False
+    return replace is None or replace not in name.value
+
+
+def _inert_read(words, head, text):
+    """True when a read builtin only stores the heredoc text in plain lowercase variables.
+
+    Stored text can run only through an expansion, and a text with no dollar sign
+    and no backtick anywhere holds none, so the stored value cannot become a command.
+    """
+    if '$' in text or '`' in text:
+        return False
+    allowed = READ_BUILTINS[words[head].value]
+    names = []
+    for word in words[head + 1:]:
+        if word.dynamic or word.glob:
+            return False
+        if word.value.startswith('-'):
+            if word.value not in allowed:
+                return False
+        elif PLAIN_VARIABLE.match(word.value):
+            names.append(word.value)
+        else:
+            return False
+    return bool(names) and (words[head].value == 'read' or len(names) == 1)
+
+
+def _inert_feeder(words, head, text):
+    """True when the feeder at `head` is proven to only print or store the heredoc text."""
+    if words[head].dynamic or words[head].glob:
+        return False
+    if words[head].value.rsplit('/', 1)[-1] == 'xargs':
+        return _inert_xargs(words, head)
+    return words[head].value in READ_BUILTINS and _inert_read(words, head, text)
+
+
+def _command_words(tokens):
+    """Word lists of the commands between segment operators, without redirect targets."""
+    segments, current, redirect = [], [], False
+    for token in tokens:
+        if token.operator and token.value in SEGMENT_OPERATORS:
+            segments.append(current)
+            current, redirect = [], False
+        elif token.operator:
+            redirect = True
+        elif redirect:
+            redirect = False
+        else:
+            current.append(token)
+    segments.append(current)
+    return segments
+
+
+def _feeds_unresolved(tokens, shell_code, text):
+    """True when a feeder on the heredoc header line may turn the text into arguments or commands.
+
+    A feeder word that is only text (an argument of echo, a message option of a
+    recognised consumer) is data. A feeder at the head of its command is judged
+    by what it does with its input; any other feeder word stays unresolved.
+    """
+    for words in _command_words(tokens):
+        head = _head_index(words)
+        for index, word in enumerate(words):
+            if not _feeds_arguments(word.value, shell_code):
+                continue
+            if _data_argument(words, head, index):
+                continue
+            if index == head and _inert_feeder(words, head, text):
+                continue
+            return True
+    return False
 
 
 def _dynamic_command(tokens):

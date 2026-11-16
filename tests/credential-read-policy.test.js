@@ -696,4 +696,113 @@ for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
   });
 }
 
+// xargs hands its standard input to the Reader as operands (#1433). A visible protected path in a text
+// producer upstream of the pipe is a Reader operand; the same pipeline split over lines judges the same.
+const xargsPipelines = [
+  // [single-line form, multiline form]
+  ['echo .env | xargs cat', 'echo .env |\nxargs cat'],
+  ['echo .env | xargs cat', 'echo .env \\\n| xargs cat'],
+  ['echo .env | xargs cat', 'echo .env\n| xargs cat'],
+  ['echo .env |& xargs cat', 'echo .env |&\nxargs cat'],
+  ['echo ordinary | xargs cat', 'echo ordinary |\n\nxargs cat'],
+  ['printf "%s\\n" .env | xargs head', 'printf "%s\\n" .env |\n  xargs head'],
+  ['echo .env | tr a a | xargs cat', 'echo .env |\ntr a a |\nxargs cat'],
+];
+const xargsBlocked = [
+  'echo .env | xargs cat', 'echo ordinary .env | xargs cat', 'echo .env | xargs -n1 cat', 'echo .env | xargs -0 cat',
+  'echo .env | xargs -I{} cat {}', 'echo .env | xargs grep -l needle', 'echo .env | xargs -r head -n 1',
+  "printf '%s\\n' .env | xargs head", "printf '.env\\n' | xargs cat", 'echo ./.env | xargs cat', 'echo config/.env.production | xargs cat',
+  'echo .env | tr a a | xargs cat', 'echo .env | env xargs cat', 'echo .env | command xargs cat', 'echo .env |& xargs cat',
+  'f=.env; echo $f | xargs cat', 'echo .env | xargs sh -c \'cat "$1"\' _', 'echo .env | xargs bash -c \'cat "$@"\' _',
+  '(echo .env) | xargs cat', '{ echo .env; } | xargs cat', 'time echo .env | xargs cat',
+  'xargs cat <<< .env',
+  'echo my.cnf | xargs cat', 'echo private.pem | xargs cat',
+];
+const xargsAmbiguous = ['echo .e* | xargs cat', 'echo $(echo .env) | xargs cat', 'echo `echo .env` | xargs cat', 'echo .env | xargs -a x cat; echo .e* | xargs head'];
+const xargsAllowed = [
+  'echo ordinary | xargs cat', 'echo .env.example | xargs cat', 'printf "%s\\n" ordinary | xargs head -n 1', 'cat ordinary | xargs cat',
+  'echo .env | xargs echo', 'echo .env | xargs ls', 'echo .env | xargs wc -c; echo ordinary | xargs cat', 'echo ordinary | xargs sh -c \'cat "$1"\' _',
+  '(echo ordinary) | xargs cat', '{ echo ordinary; } | xargs cat',
+  'echo .env; xargs cat', 'echo .env\nxargs cat', 'echo .env && xargs cat', 'echo $x | xargs cat', 'echo .env | cat | xargs echo',
+  'echo ordinary | xargs -I{} cat {}', 'echo .env | xargs -I{} echo {}',
+];
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  const decide = (command) => runHook(hook, { payload: { tool_input: { command } } });
+  test(`${hook} blocks a visible protected path fed to an xargs Reader through a pipe (#1433)`, () => {
+    for (const command of xargsBlocked) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /protected path/, JSON.stringify(command));
+      assert.ok(!result.stderr.includes('synthetic'), 'no file content in the reason');
+    }
+  });
+  test(`${hook} fails closed on a glob or substitution that feeds an xargs Reader with a rewrite direction (#1433)`, () => {
+    for (const command of xargsAmbiguous) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+      assert.match(result.stderr, /xargs stdin/, JSON.stringify(command));
+      assert.match(result.stderr, /explicit|literal/i, `rewrite direction: ${result.stderr}`);
+    }
+  });
+  test(`${hook} allows ordinary xargs pipelines and inert consumers (#1433)`, () => {
+    for (const command of xargsAllowed) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+  test(`${hook} judges a multiline xargs pipeline like its single-line form (#1433)`, () => {
+    for (const [single, multi] of xargsPipelines) {
+      const a = decide(single);
+      const b = decide(multi);
+      assert.strictEqual(b.status, a.status, `${JSON.stringify(multi)}: ${b.stderr} vs ${a.stderr}`);
+    }
+    assert.strictEqual(decide('echo ordinary |\nxargs cat').status, 0);
+    assert.strictEqual(decide('echo .env |\nxargs cat').status, 2);
+  });
+}
+
+// Heredoc text read by xargs, parallel, read, readarray, mapfile or exec (#1433): each restriction is judged on
+// what consumes the text. Text that only an inert consumer prints or stores stays data; the rest stays blocked.
+const SHL = '<' + '<';
+const heredocInert = [
+  `xargs echo ${SHL}'EOF'\nhello\nEOF\n`, `xargs ${SHL}'EOF'\nhello\nEOF\n`, `xargs -n1 echo ${SHL}'EOF'\nhello\nEOF\n`,
+  `xargs -I{} echo {} ${SHL}'EOF'\nhello\nEOF\n`, `xargs echo ${SHL}'EOF'\ncat .env\nEOF\n`, `cat ${SHL}'EOF' | xargs echo\ncat .env\nEOF\n`,
+  `gh issue create --title "fix xargs bug" --body-file - ${SHL}'EOF'\nhello\nEOF\n`, `git commit -m "xargs docs" -F - ${SHL}'EOF'\nhello\nEOF\n`,
+  `'xargs' echo ${SHL}'EOF'\nhello\nEOF\n`, `x"args" echo ${SHL}'EOF'\nhello\nEOF\n`,
+  `echo read ${SHL}'EOF'\nhello\nEOF\n`, `read x ${SHL}'EOF'\nhello\nEOF\n`, `mapfile -t lines ${SHL}'EOF'\ncat .env\nEOF\n`,
+  `readarray -t lines ${SHL}'EOF'\nhello\nEOF\n`, `while read -r l; do :; done ${SHL}'EOF'\nhello\nEOF\n`,
+];
+const heredocBlocked = [
+  `xargs cat ${SHL}'EOF'\n.env\nEOF\n`, `xargs cat ${SHL}'EOF'\nordinary\nEOF\n`, `xargs -I{} sh -c {} ${SHL}'EOF'\ncat .env\nEOF\n`,
+  `xargs -I{} {} ${SHL}'EOF'\ncat .env\nEOF\n`, `xargs -I echo echo ${SHL}'EOF'\ncat .env\nEOF\n`, `xargs echo ${SHL}'EOF'\nhello\nEOF\nxargs cat ${SHL}'E'\n.env\nE\n`,
+  `parallel echo ${SHL}'EOF'\nhello\nEOF\n`, `parallel ${SHL}'EOF'\ncat .env\nEOF\n`, `env xargs echo ${SHL}'EOF'\nhello\nEOF\n`,
+  `exec cat ${SHL}'EOF'\n.env\nEOF\n`, `exec 3${SHL}'EOF'\ncat .env\nEOF\n`, `read x ${SHL}'EOF'\ncat .env\nEOF\ncat $x`,
+  `read x ${SHL}'EOF'\ncat .env\nEOF\neval "$x"`, `while read -r l; do $l; done ${SHL}'EOF'\ncat .env\nEOF\n`,
+  `while read -r l; do cat $l; done ${SHL}'EOF'\n.env\nEOF\n`, `mapfile -C "cat .env" -c 1 a ${SHL}'EOF'\nx\nEOF\n`,
+  `read PATH ${SHL}'EOF'\nx\nEOF\n`, `xargs echo ${SHL}'EOF'\nhello\nEOF\nread y ${SHL}'E'\ncat .env\nE\n$y`,
+  `'xargs' cat ${SHL}'EOF'\n.env\nEOF\n`, `x'ar'gs cat ${SHL}'EOF'\n.env\nEOF\n`, `'parallel' cat ${SHL}'EOF'\n.env\nEOF\n`,
+  `ex"ec" cat ${SHL}'EOF'\n.env\nEOF\n`, `'read' X ${SHL}'EOF'\nx\nEOF\n`,
+  `bash -c 'xargs cat' ${SHL}'EOF'\n.env\nEOF\n`, `xargs echo ${SHL}'EOF' |\nsh\nhello\nEOF\n`,
+];
+for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  const decide = (command) => runHook(hook, { payload: { tool_input: { command } } });
+  test(`${hook} keeps heredoc text read by an inert consumer as data (#1433)`, () => {
+    for (const command of heredocInert) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 0, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+  test(`${hook} keeps blocking heredoc text an xargs, parallel, exec or read consumer may run or read as paths (#1433)`, () => {
+    for (const command of heredocBlocked) {
+      const result = decide(command);
+      assert.strictEqual(result.status, 2, `${JSON.stringify(command)}: ${result.stderr}`);
+    }
+  });
+  test(`${hook} still reads an expansion inside an unquoted heredoc given to an inert consumer (#1433)`, () => {
+    const result = decide(`xargs echo ${SHL}EOF\n$(cat .env)\nEOF\n`);
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.match(result.stderr, /protected path/);
+  });
+}
+
 run('credential-read-policy');
