@@ -6,11 +6,17 @@ UnsupportedSyntax so the policy fails closed.
 """
 
 from collections import namedtuple
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+import posixpath
 
-READERS = ('cat', 'less', 'head', 'tail', 'sed', 'awk', 'grep', 'rg')
+READERS = ('cat', 'less', 'head', 'tail', 'sed', 'awk', 'grep', 'rg', 'base64', 'dd', 'tar', 'cp')
+# tar and cp are common words in package and help commands, so they only count as an invocation
+# after an information-only head such as `which` or `apt` when they are the first word.
+WEAK_READERS = frozenset(('tar', 'cp'))
+INERT_HEADS = frozenset(('which', 'whereis', 'type', 'man', 'apt', 'apt-get', 'dpkg', 'brew', 'yum', 'dnf',
+                         'apk', 'pacman', 'echo', 'printf', 'ls'))
 # Only Readers that can recurse have exclusion syntax for an Exclusion Proof.
-EXCLUSION_SYNTAX = {'rg': '--glob "!pattern"', 'grep': '--exclude="pattern"'}
+EXCLUSION_SYNTAX = {'rg': '--glob "!pattern"', 'grep': '--exclude="pattern"', 'tar': '--exclude="pattern"'}
 
 AuxiliaryInput = namedtuple('AuxiliaryInput', 'value token')
 UnsupportedSyntax = namedtuple('UnsupportedSyntax', 'detail')
@@ -54,6 +60,12 @@ RECURSE = (False, 'recursive')
 def _grammar(name):
     short = {}
     long = {}
+    if name == 'base64':
+        # -i 在 GNU 是忽略雜訊（無值）、在 BSD 是輸入檔；一律當作帶值的輸入檔處理，
+        # 兩種解讀下被讀取的檔案都會被檢查。-o 只決定輸出，不是讀取來源。
+        short.update({'d': NEUTRAL, 'D': NEUTRAL, 'h': NEUTRAL, 'w': VALUE, 'b': VALUE, 'i': FILE, 'o': VALUE})
+        long.update({'--decode': NEUTRAL, '--ignore-garbage': NEUTRAL, '--help': NEUTRAL, '--version': NEUTRAL,
+                     '--wrap': VALUE, '--break': VALUE, '--input': FILE, '--output': VALUE})
     if name in ('cat', 'less'):
         short.update({c: NEUTRAL for c in 'AbBenstuvETNXRSFiM'})
     if name in ('head', 'tail'):
@@ -207,7 +219,287 @@ class ReaderAdapter:
                     else:
                         invalid = True
             i += 1
-        return ReadPlan(name, tuple(positional), tuple(auxiliary), recursive, follow, tuple(exclusions), not invalid)
+        return ReadPlan(name, tuple(positional), tuple(auxiliary), recursive, follow, tuple(exclusions), not invalid,
+                        recovery=FILE_INPUT_RECOVERY if name == 'base64' else None)
 
 
-ADAPTERS = {name: ReaderAdapter(name, *_grammar(name)) for name in READERS}
+# `if=` operands that dd reads as data; every other operand only shapes the copy.
+DD_VALUE_OPERANDS = frozenset((
+    'of', 'bs', 'ibs', 'obs', 'cbs', 'count', 'skip', 'seek', 'iseek', 'oseek', 'conv',
+    'iflag', 'oflag', 'status', 'skip_bytes', 'count_bytes', 'seek_bytes'))
+
+# 這兩個 Reader 的輸入是檔案路徑，不是搜尋目錄，所以不建議 git grep。
+FILE_INPUT_RECOVERY = Recovery(
+    'name each input as an explicit literal path without wildcards or shell expansions.', None)
+
+
+@dataclass(frozen=True)
+class DdAdapter:
+    """dd names its input with the `if=` operand, not with dashes or bare filenames."""
+    name: str = 'dd'
+    exclusion_syntax = None
+
+    def plan(self, args):
+        if len(args) == 1 and args[0].value in ('--help', '--version'):
+            return ReadPlan('dd', (), (), False, False, (), True)
+        # 反引號內的字會被詞法切成多個字；含命令替換就直接交給政策判定為無法確定的來源。
+        substituted = tuple(t for t in args if t.substitution)
+        if substituted:
+            return ReadPlan('dd', substituted, (), False, False, (), True, recovery=FILE_INPUT_RECOVERY)
+        targets = []
+        for token in args:
+            key, sep, value = token.value.partition('=')
+            # 只回報運算元名稱，不回報值，避免受保護路徑出現在訊息中。
+            if token.operator or not sep:
+                return UnsupportedSyntax('dd operand is not name=value')
+            if key == 'if':
+                targets.append(replace(token, value=value))
+            elif key not in DD_VALUE_OPERANDS:
+                return UnsupportedSyntax('dd operand %s' % ascii(key))
+        return ReadPlan('dd', tuple(targets), (), False, False, (), True, recovery=FILE_INPUT_RECOVERY)
+
+
+# Option grammar shared by tar and cp. `OPTIONAL` options take a value only through `--name=value`.
+OPTIONAL = 'optional'
+DIR = (True, 'dir')
+EXEC = (True, 'exec')
+
+
+def _events(name, args, short, long, old_style=False):
+    """Split options from operands in order; the order matters to `tar -C`.
+
+    Returns ('opt', flag, effect, value, token) and ('operand', token) events,
+    or UnsupportedSyntax naming the offending option (never its value).
+    """
+    events = []
+    options = True
+    i = 0
+    while i < len(args):
+        token = args[i]
+        arg = token.value
+        i += 1
+        if options and arg == '--':
+            options = False
+        elif options and arg.startswith('--'):
+            key, sep, value = arg.partition('=')
+            choices = [key] if key in long else [k for k in long if k.startswith(key)]
+            if len(choices) != 1:
+                return UnsupportedSyntax('%s option %s' % (name, ascii(key)))
+            key = choices[0]
+            arity, effect = long[key]
+            value_token = token
+            if arity is True and not sep:
+                if i >= len(args):
+                    return UnsupportedSyntax('%s option %s needs a value' % (name, ascii(key)))
+                value_token = args[i]
+                value = value_token.value
+                i += 1
+            elif not arity and sep:
+                return UnsupportedSyntax('%s option %s takes no value' % (name, ascii(key)))
+            events.append(('opt', key, effect, value, value_token))
+        elif options and arg != '-' and (arg.startswith('-') or (old_style and i == 1)):
+            # An old-style first word (`tar cf out`) has no dash and takes its values from the next words.
+            dashed = arg.startswith('-')
+            cluster = arg[1:] if dashed else arg
+            waiting = []
+            k = 0
+            while k < len(cluster):
+                letter = cluster[k]
+                flag = '-' + letter
+                if letter not in short:
+                    return UnsupportedSyntax('%s option %s' % (name, ascii(flag)))
+                arity, effect = short[letter]
+                k += 1
+                if not arity:
+                    events.append(('opt', flag, effect, '', token))
+                    continue
+                rest = cluster[k:] if dashed else ''
+                if rest:
+                    events.append(('opt', flag, effect, rest, token))
+                else:
+                    waiting.append((flag, effect))
+                if dashed:
+                    break
+            for flag, effect in waiting:
+                if i >= len(args):
+                    return UnsupportedSyntax('%s option %s needs a value' % (name, ascii(flag)))
+                events.append(('opt', flag, effect, args[i].value, args[i]))
+                i += 1
+        else:
+            events.append(('operand', token))
+    return events
+
+
+def _info_only(args):
+    return len(args) == 1 and args[0].value in ('--help', '--version')
+
+
+def _plan(reader, targets, auxiliary, recursive, follow, exclusions, proof_valid, location_unknown=False):
+    return ReadPlan(reader, tuple(targets), tuple(auxiliary), recursive, follow, tuple(exclusions), proof_valid,
+                    location_unknown=location_unknown, recovery=FILE_INPUT_RECOVERY)
+
+
+TAR_MODES = {'-c': 'create', '--create': 'create', '-r': 'append', '--append': 'append', '-u': 'append',
+             '--update': 'append', '-A': 'catenate', '--catenate': 'catenate', '--concatenate': 'catenate',
+             '-x': 'extract', '--extract': 'extract', '--get': 'extract', '-t': 'extract', '--list': 'extract',
+             '-d': 'diff', '--diff': 'diff', '--compare': 'diff', '--delete': 'extract'}
+# Modes whose operands name files on disk; extract, list and delete operands are archive member names.
+TAR_SOURCE_MODES = frozenset(('create', 'append', 'diff'))
+# Modes that open the -f archive for reading; create only writes it.
+TAR_READ_ARCHIVE_MODES = frozenset(('append', 'catenate', 'extract', 'diff'))
+
+
+def _tar_grammar():
+    short = {c: NEUTRAL for c in 'vzjJapPhkmoOSwWlUM'}
+    short.update({c: (False, 'mode') for c in 'crAxtud'})
+    short.update({c: VALUE for c in 'bLHVNK'})
+    short.update({'f': (True, 'archive'), 'C': DIR, 'T': (True, 'files_from'), 'X': (True, 'exclude_from'),
+                  'g': FILE, 'I': EXEC, 'F': EXEC})
+    long = {key: (False, 'mode') for key in TAR_MODES if key.startswith('--')}
+    long.update({'--' + key: NEUTRAL for key in (
+        'gzip', 'gunzip', 'ungzip', 'bzip2', 'xz', 'lzma', 'lzop', 'zstd', 'compress', 'uncompress', 'auto-compress',
+        'verbose', 'preserve-permissions', 'same-permissions', 'preserve-order', 'same-order', 'preserve',
+        'absolute-names', 'dereference', 'keep-old-files', 'skip-old-files', 'keep-newer-files', 'overwrite',
+        'overwrite-dir', 'no-overwrite-dir', 'one-file-system', 'numeric-owner', 'same-owner', 'no-same-owner',
+        'no-same-permissions', 'sparse', 'null', 'no-null', 'verbatim-files-from', 'ignore-failed-read', 'to-stdout',
+        'touch', 'acls', 'xattrs', 'selinux', 'no-acls', 'no-xattrs', 'no-selinux', 'wildcards', 'ignore-case',
+        'no-ignore-case', 'wildcards-match-slash', 'no-wildcards-match-slash', 'exclude-vcs', 'exclude-backups',
+        'remove-files', 'delay-directory-restore', 'no-delay-directory-restore', 'hard-dereference', 'verify',
+        'show-omitted-dirs', 'block-number', 'interactive', 'confirmation', 'help', 'version', 'seek', 'multi-volume',
+        'incremental', 'check-device', 'no-check-device', 'ignore-zeros', 'read-full-records', 'recursive-unlink',
+        'unlink-first', 'exclude-caches', 'exclude-caches-all', 'exclude-caches-under', 'clamp-mtime')})
+    long.update({'--' + key: (OPTIONAL, 'neutral') for key in ('totals', 'checkpoint', 'atime-preserve', 'occurrence', 'one-top-level')})
+    long.update({'--' + key: VALUE for key in (
+        'strip-components', 'transform', 'xform', 'owner', 'group', 'mode', 'mtime', 'format', 'blocking-factor',
+        'label', 'tape-length', 'newer', 'newer-mtime', 'after-date', 'suffix', 'warning', 'level', 'quoting-style',
+        'index-file', 'exclude-tag', 'exclude-tag-all', 'exclude-tag-under', 'owner-map', 'group-map', 'volno-file',
+        'starting-file', 'sort', 'hole-detection', 'format-version', 'pax-option', 'add-file', 'sparse-version')})
+    long.update({'--file': (True, 'archive'), '--directory': DIR, '--files-from': (True, 'files_from'),
+                 '--exclude-from': (True, 'exclude_from'), '--exclude': (True, 'exclude'),
+                 '--listed-incremental': FILE, '--no-recursion': (False, 'no_recursion'),
+                 '--recursion': (False, 'recursion'), '--anchored': (False, 'invalid'),
+                 '--no-wildcards': (False, 'invalid'), '--no-anchored': NEUTRAL, '--use-compress-program': EXEC,
+                 '--to-command': EXEC, '--checkpoint-action': EXEC, '--info-script': EXEC,
+                 '--new-volume-script': EXEC, '--rsh-command': EXEC})
+    return short, long
+
+
+def _under(token, base):
+    """An operand of `tar -C base` names a file below `base` unless it is absolute."""
+    if not base or token.value.startswith('/'):
+        return token
+    return replace(token, value=posixpath.join(base, token.value))
+
+
+@dataclass(frozen=True)
+class TarAdapter:
+    """tar reads the files it archives when creating, and the archive itself when extracting or listing."""
+    name: str = 'tar'
+    exclusion_syntax = EXCLUSION_SYNTAX['tar']
+    short: dict = None
+    long: dict = None
+
+    def plan(self, args):
+        if not args or _info_only(args):
+            return _plan('tar', (), (), False, False, (), True)
+        events = _events('tar', args, self.short, self.long, old_style=True)
+        if isinstance(events, UnsupportedSyntax):
+            return events
+        modes = {TAR_MODES[event[1]] for event in events if event[0] == 'opt' and event[2] == 'mode'}
+        if len(modes) != 1:
+            return UnsupportedSyntax('tar needs exactly one operation mode')
+        mode = modes.pop()
+        archives, operands, auxiliary, exclusions = [], [], [], []
+        recursive, proof_valid, unknown = True, True, False
+        directory = ''
+        seen_dirs = []
+        for event in events:
+            if event[0] == 'operand':
+                operands.append((event[1], directory))
+                continue
+            _, flag, effect, value, token = event
+            if effect == 'exec':
+                return UnsupportedSyntax('tar option %s runs another command' % ascii(flag))
+            if effect == 'dir':
+                if token.dynamic or token.glob or token.substitution:
+                    unknown = True
+                else:
+                    directory = posixpath.join(directory, value) if directory else value
+                    seen_dirs.append(directory)
+            elif effect == 'archive':
+                archives.append((replace(token, value=value), tuple(seen_dirs)))
+            elif effect == 'files_from':
+                if mode in TAR_SOURCE_MODES or mode == 'catenate':
+                    return UnsupportedSyntax('tar option %s reads outside its targets' % ascii(flag))
+                auxiliary.append(AuxiliaryInput(value, token))
+            elif effect in ('exclude_from', 'file'):
+                auxiliary.append(AuxiliaryInput(value, token))
+                proof_valid = proof_valid and effect != 'exclude_from'
+            elif effect == 'exclude':
+                exclusions.append(value)
+            elif effect == 'invalid':
+                proof_valid = False
+            elif effect == 'no_recursion':
+                recursive = False
+            elif effect == 'recursion':
+                recursive = True
+        targets = []
+        if mode in TAR_READ_ARCHIVE_MODES:
+            # 歸檔名稱相對於起始目錄；同時檢查各 -C 目錄下的對應路徑，避免因實作差異漏掉。
+            for token, dirs in archives:
+                targets.append(token)
+                targets.extend(replace(token, value=posixpath.join(d, token.value)) for d in dirs if not token.value.startswith('/'))
+        if mode == 'catenate':
+            targets.extend(token for token, _ in operands)
+        if mode in TAR_SOURCE_MODES:
+            targets.extend(_under(token, base) for token, base in operands)
+        return _plan('tar', targets, auxiliary, recursive and mode in TAR_SOURCE_MODES and bool(operands), False,
+                     exclusions, proof_valid, unknown)
+
+
+def _cp_grammar():
+    short = {c: NEUTRAL for c in 'bdfilnPpsuvxZH'}
+    short.update({'a': RECURSE, 'R': RECURSE, 'r': RECURSE, 'L': (False, 'follow'), 'S': VALUE, 't': DIR})
+    short['T'] = NEUTRAL
+    long = {'--' + key: NEUTRAL for key in (
+        'attributes-only', 'copy-contents', 'debug', 'force', 'link', 'no-clobber', 'no-dereference',
+        'no-target-directory', 'one-file-system', 'parents', 'remove-destination', 'strip-trailing-slashes',
+        'symbolic-link', 'keep-directory-symlink', 'interactive', 'verbose', 'help', 'version')}
+    long.update({'--' + key: (OPTIONAL, 'neutral') for key in ('backup', 'preserve', 'reflink', 'update', 'context')})
+    long.update({'--archive': RECURSE, '--recursive': RECURSE, '--dereference': (False, 'follow'),
+                 '--target-directory': DIR, '--suffix': VALUE, '--sparse': VALUE, '--no-preserve': VALUE})
+    return short, long
+
+
+def _truncated_substitution(token):
+    return bool(token.substitution) and token.substitution not in token.value
+
+
+@dataclass(frozen=True)
+class CpAdapter:
+    """cp reads every operand except the destination: the last one, or all of them when -t names it."""
+    name: str = 'cp'
+    exclusion_syntax = None
+    short: dict = None
+    long: dict = None
+
+    def plan(self, args):
+        if not args or _info_only(args):
+            return _plan('cp', (), (), False, False, (), True)
+        events = _events('cp', args, self.short, self.long)
+        if isinstance(events, UnsupportedSyntax):
+            return events
+        operands = [event[1] for event in events if event[0] == 'operand']
+        recursive = any(event[2] == 'recursive' for event in events if event[0] == 'opt')
+        follow = recursive and any(event[2] == 'follow' for event in events if event[0] == 'opt')
+        explicit_destination = any(event[2] == 'dir' for event in events if event[0] == 'opt')
+        destination = None if explicit_destination or not operands else operands[-1]
+        # 命令替換會把片段切到分隔符之外，被切斷的字詞不是目的地，而是可能展開成來源。
+        sources = [t for t in operands if t is not destination or _truncated_substitution(t)]
+        return _plan('cp', sources, (), recursive and bool(sources), follow, (), True)
+
+
+ADAPTERS = {name: ReaderAdapter(name, *_grammar(name)) for name in READERS if name not in ('dd', 'tar', 'cp')}
+ADAPTERS['dd'] = DdAdapter()
+ADAPTERS['tar'] = TarAdapter(short=_tar_grammar()[0], long=_tar_grammar()[1])
+ADAPTERS['cp'] = CpAdapter(short=_cp_grammar()[0], long=_cp_grammar()[1])

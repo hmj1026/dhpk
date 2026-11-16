@@ -49,6 +49,19 @@ const lexed = [
   ["cat <<A <<'B'\nit's\nA\n$(x)\nB\n", 'cat <<:o A <<:o B ;:o', []],
   ['echo \'a b\' "c*" d* "\\x" $x', 'echo a\\u0020b c* d*:g \\x $x:d', []],
   ['a&&b||c|&d;;e>&f', 'a &&:o b ||:o c |&:o d ;;:o e >&:o f', []],
+  // ANSI-C and locale quotes decode to the word the shell passes on; a quoted `$` stays literal (#1427)
+  ["cat $'.e\\x6ev'", 'cat .env', []],
+  ["cat $'\\056\\u0065nv'", 'cat .env', []],
+  ["cat $'a\\'b' c", "cat a'b c", []],
+  ["cat $'a\\0.env'", 'cat a', []],
+  ["cat $'a\\qb'", 'cat a\\qb', []],
+  ['cat $".env"', 'cat .env', []],
+  ['cat $".e"nv', 'cat .env', []],
+  ["cat \"$'.env'\"", "cat $'.env':d", []],
+  ["cat '$'\".env\"", 'cat $.env', []],
+  ["cat \\$'.env'", "cat $.env", []],
+  // a substitution after an escaped quote inside ANSI-C text is still seen (#1427)
+  ["echo $'a\\'b' $(cat .env)", "echo a'b $:d (:o cat .env ):o", ['cat .env']],
 ];
 
 const failures = [
@@ -147,6 +160,21 @@ test('lex reads a substitution whose output may run from the unmasked text (#141
   assert.strictEqual(dollar.executed, false);
 });
 
+test('lex keeps a stored heredoc message data only for a message option of a recognised consumer (#1434)', () => {
+  const raw = `cat ${SHL}'EOF'\ncat .env\nEOF\n`;
+  const data = [
+    'git commit -m "$x"', 'git commit --message="$x"', 'git -C . commit -am "$x"', 'gh issue create --body "$x"',
+    'glab mr create --description "$x"', 'echo "$x"', 'echo $x',
+  ];
+  const runs = [
+    'git commit -m $x', 'git rebase --exec "$x" main', 'git commit -x "$x"', 'gh alias set a "$x"',
+    'gh issue create --body "${x@P}"', 'git config alias.c "$x"', 'git commit -m "$x"; $x', 'printf -v y "$x"',
+  ];
+  const lexed = lexAll([...data, ...runs].map((consumer) => `x="${HEREDOC_SUB}"; ${consumer}`));
+  lexed.slice(0, data.length).forEach((result, i) => assert.deepStrictEqual(result.executed_bodies, [], data[i]));
+  lexed.slice(data.length).forEach((result, i) => assert.deepStrictEqual(result.executed_bodies, [raw], runs[i]));
+});
+
 test('lex with executed reads heredoc text as code (#1411)', () => {
   const body = `cat ${SHL}'EOF'\ncat .env\nEOF\n`;
   const [result] = lexAll([body], true);
@@ -171,6 +199,47 @@ test('lex fails closed on a heredoc fed to xargs, parallel, a read loop or a dyn
   ];
   for (const result of lexAll(commands)) {
     assert.ok(result.error && /^heredoc (text may run|read by)/.test(result.error), JSON.stringify(result));
+  }
+});
+
+test('lex keeps a heredoc that only an inert xargs, a read builtin or a text argument names as data (#1433)', () => {
+  const inert = [
+    'xargs echo', 'xargs', 'xargs -n1 echo', 'xargs -n 2 echo', 'xargs -I{} echo {}', 'xargs -0 echo', 'xargs -r -t echo x',
+    'xargs --max-args=1 echo', '/usr/bin/xargs echo', 'xargs -i echo {}',
+    'echo read', 'echo xargs', 'echo "xargs cat"', 'gh issue create --title "fix xargs bug" --body-file -',
+    'gh issue create --title read --body-file -', 'git commit -m "xargs docs" -F -',
+    "'xargs' echo", 'x"args" echo', "'read' x", "'mapfile' -t lines",
+    'read x', 'read -r x y', 'mapfile -t lines', 'readarray -t lines', 'while read -r l; do :; done',
+  ];
+  for (const result of lexAll(inert.map((head) => `${head} ${SHL}'EOF'\nhello\nEOF\n`))) {
+    assert.ok(!result.error, JSON.stringify(result));
+    assert.ok(!result.tokens.some(([value]) => value === 'hello'), JSON.stringify(result.tokens));
+  }
+  const piped = lexAll([`cat ${SHL}'EOF' | xargs echo\nhello\nEOF\n`])[0];
+  assert.ok(!piped.error, JSON.stringify(piped));
+});
+
+test('lex keeps the heredoc block when the consumer of the text is unresolved or may run it (#1433)', () => {
+  const unresolved = [
+    'xargs cat', 'xargs rm', 'xargs sh -c "echo"', 'xargs -I{} sh -c {}', 'xargs -I{} {}', 'xargs -I echo echo',
+    'xargs -a list echo', 'xargs -p echo', 'xargs --unknown echo', 'xargs -n', 'xargs echo | xargs cat', 'xargs $c', 'xargs echo; xargs cat',
+    'env xargs echo', 'command xargs echo', 'parallel echo', 'parallel', 'exec cat', 'exec 3', 'sudo xargs echo',
+    "'xargs' cat", '"xargs" -I{} sh -c {}', "x'ar'gs cat", "'parallel' echo", "'exec' cat", 'ex"ec" cat', "'read' X", "'mapfile' -C 'cat .env' a",
+    'read X', 'read', 'read -p prompt x', 'read -e x', 'read -u 3 x', 'read $v', 'mapfile -C "cat .env" -c 1 a', 'mapfile a b',
+    'while read -r l; do $l; done', 'while read -r l; do echo $l; done', 'bash -c "xargs cat"', 'sh -c "read x"',
+    'echo | xargs cat', 'read x; cat $x', 'read x; eval "$x"',
+  ];
+  for (const [i, result] of lexAll(unresolved.map((head) => `${head} ${SHL}'EOF'\ncat .env\nEOF\n`)).entries()) {
+    assert.ok(result.error && /^heredoc (text may run|read by)/.test(result.error), `${unresolved[i]}: ${JSON.stringify(result)}`);
+  }
+  // a later use of the stored text, or a substitution in the text itself, is not provably inert
+  for (const command of [
+    `read x ${SHL}'EOF'\ncat .env\nEOF\ncat $x`,
+    `read x ${SHL}'EOF'\na[$(cat .env)]\nEOF\n(( x ))`,
+    `xargs echo ${SHL}'EOF'\nhello\nEOF\nread y ${SHL}'EOF'\nhi\nEOF\n$y`,
+  ]) {
+    const [result] = lexAll([command]);
+    assert.ok(result.error && /^heredoc (text may run|read by)/.test(result.error), `${command}: ${JSON.stringify(result)}`);
   }
 });
 

@@ -2630,4 +2630,597 @@ test('data consumers and a shell that does not read that stdin stay allowed', ()
   });
 });
 
+// ---------------------------------------------------------------------------
+// #1436 unverified families (spec #1422)
+// ---------------------------------------------------------------------------
+
+const ALL_BASH_HOOKS = ['pre-bash-guard.sh', 'pretool-git-gate.sh', 'pre-bash-dispatch.sh'];
+const GUARD_AND_DISPATCH = ['pre-bash-guard.sh', 'pre-bash-dispatch.sh'];
+
+// Allowed on a protected branch by all three layers. Guards future
+// trap/alias/arithmetic/startup-file repairs against over-blocking.
+const UNVERIFIED_FAMILY_ALLOWED = [
+  ['trap action that only echoes git text', "trap 'echo git commit' EXIT"],
+  ['legit trap cleanup', "trap 'rm -f ./tmp.lock' EXIT"],
+  ['trap reset', 'trap - DEBUG'],
+  ['legit arithmetic', 'i=0; (( i++ )); let j=i+2; [[ i -eq 1 ]]'],
+  ['arithmetic with no visible initial value', '(( x ))'],
+  ['legit alias definition', "alias ll='ls -l'"],
+  ['BASH_ENV file contents are not read', 'BASH_ENV=./hook.sh bash -c :'],
+  ['rcfile contents are not read', 'bash --rcfile ./hook.sh -i -c : </dev/null'],
+  ['rcfile shell running read-only git', "bash --rcfile ./ordinary -i -c 'git status' </dev/null"],
+];
+
+for (const [label, command] of UNVERIFIED_FAMILY_ALLOWED) {
+  test(`#1436 allows on main: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      fs.writeFileSync(path.join(protectedRepo, 'hook.sh'), 'git commit -m x\n');
+      fs.writeFileSync(path.join(protectedRepo, 'ordinary'), 'echo ordinary\n');
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// A quoted substitution is data until an arithmetic consumer reads it.
+const UNVERIFIED_FAMILY_CREDENTIAL_DATA = [
+  ['quoted subscript text echoed', "echo 'a[$(cat .env)]'"],
+  ['visible value echoed, no arithmetic consumer', "x='a[$(cat .env)]'; echo \"$x\""],
+];
+
+for (const [label, command] of UNVERIFIED_FAMILY_CREDENTIAL_DATA) {
+  test(`#1436 allows credential text as data: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      fs.writeFileSync(path.join(featureRepo, '.env'), 'PLACEHOLDER_KEY=placeholder\n');
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// Forms that already block; pinned so a repair keeps them.
+const UNVERIFIED_FAMILY_ALREADY_BLOCKED = [
+  ['BASH_ENV=/dev/stdin fed a git here-string', "BASH_ENV=/dev/stdin bash -c : <<< 'git commit -m x'",
+    ALL_BASH_HOOKS, ['protectedRepo', 'featureRepo'], null],
+  ['rcfile /dev/stdin fed a git here-string', "bash --rcfile /dev/stdin -i <<< 'git commit -m x'",
+    ALL_BASH_HOOKS, ['protectedRepo', 'featureRepo'], null],
+  ['literal substitution in arithmetic reads a protected path', '(( a[$(cat .env)] ))',
+    GUARD_AND_DISPATCH, ['featureRepo'], /protected path/i],
+  ['let with unquoted substitution', 'let y=a[$(cat .env)]',
+    GUARD_AND_DISPATCH, ['featureRepo'], /protected path/i],
+  ['let with double-quoted substitution', 'let "y=$(cat .env)"',
+    GUARD_AND_DISPATCH, ['featureRepo'], /protected path/i],
+];
+
+for (const [label, command, hooks, repos, reason] of UNVERIFIED_FAMILY_ALREADY_BLOCKED) {
+  test(`#1436 keeps blocking: ${label}`, () => {
+    withRepos((fixture) => {
+      fs.writeFileSync(path.join(fixture.featureRepo, '.env'), 'PLACEHOLDER_KEY=placeholder\n');
+      for (const repo of repos) {
+        for (const hook of hooks) {
+          const res = bashHook(hook, command, { cwd: fixture[repo], env: BLOCK_MODE });
+          expectStatus(res, BLOCK, `${hook} on ${repo}: ${command}`);
+          if (reason) assert.match(res.stderr, reason);
+        }
+      }
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// #1435: read-only wrappers (watch, su, unbuffer, flock, $SHELL -c, $EDITOR,
+// find -exec data) are allowed when semantics prove read-only/data; dangerous
+// counterparts, dynamic git subcommands, and source-before-git stay blocked.
+// ---------------------------------------------------------------------------
+
+const READ_ONLY_WRAPPER_ALLOWED_1435 = [
+  ['watch -n1 git status', 'watch -n1 git status'],
+  ['watch -n 1 git log', 'watch -n 1 git log --oneline'],
+  ['watch -d git status', 'watch -d git status'],
+  // git diff / rg under a wrapper stay blocked by the credential guard (recursive read, unknown cwd); not a #1435 concern.
+  ['watch -x git status', 'watch -x git status'],
+  ['su -c git status', "su -c 'git status'"],
+  ['su -c git status as root', 'su -c "git status" root'],
+  ['su login -c git status', 'su - -c "git status"'],
+  ['unbuffer git log', 'unbuffer git log'],
+  ['unbuffer -p git status', 'unbuffer -p git status'],
+  ['flock git status', 'flock /tmp/l git status'],
+  ['flock -n git log', 'flock -n /tmp/l git log'],
+  ['$SHELL -c git status', '$SHELL -c "git status"'],
+  ['$SHELL -lc git log', "$SHELL -lc 'git log -n 1'"],
+  ['$EDITOR bare git filename', '$EDITOR git'],
+  ['$EDITOR with flag and bare git filename', '$EDITOR -w git'],
+  ['find -exec grep git', 'find . -exec grep -l git {} +'],
+  ['find -exec grep -c git', 'find . -exec grep -c git {} +'],
+  ['find -execdir grep git', 'find . -execdir grep -n git {} \\;'],
+];
+
+for (const [label, command] of READ_ONLY_WRAPPER_ALLOWED_1435) {
+  test(`#1435 allows read-only/data wrapper form on main and feature: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
+const WRAPPER_MUTATION_ON_MAIN_1435 = [
+  ['watch -n1 git commit', 'watch -n1 git commit -m x'],
+  ['su -c git commit', 'su -c "git commit -m x" root'],
+  ['unbuffer git commit', 'unbuffer git commit -m x'],
+  ['flock git commit', 'flock /tmp/l git commit -m x'],
+  ['$SHELL -c git commit', '$SHELL -c "git commit -m x"'],
+];
+
+for (const [label, command] of WRAPPER_MUTATION_ON_MAIN_1435) {
+  test(`#1435 blocks mutating git on main behind unwrapped/inspected wrapper: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+const WRAPPER_NO_VERIFY_1435 = [
+  ['watch -n1 --no-verify', 'watch -n1 git commit --no-verify -m x'],
+  ['su -c --no-verify', 'su -c "git commit --no-verify -m x"'],
+  ['unbuffer --no-verify', 'unbuffer git commit --no-verify -m x'],
+  ['flock --no-verify', 'flock /tmp/l git commit --no-verify -m x'],
+  ['$SHELL -c --no-verify', '$SHELL -c "git commit --no-verify -m x"'],
+  ['$EDITOR git commit --no-verify', '$EDITOR git commit --no-verify -m x'],
+  ['find -exec git commit --no-verify', 'find . -exec git commit --no-verify -m x \\;'],
+];
+
+for (const [label, command] of WRAPPER_NO_VERIFY_1435) {
+  test(`#1435 blocks --no-verify behind wrapper: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+const WRAPPER_ALL_HOOKS_BLOCKED_1435 = [
+  ['watch quoted command string', "watch -n1 'git commit -m x'", /unmodelled wrapper before git/],
+  ['watch quoted shell command string', "watch -n1 'sh -c \"git commit -m x\"'", /unmodelled wrapper before git/],
+  ['watch unknown option', 'watch --unknown git commit -m x', /wrapper with unmodelled options before git/],
+  ['su -c with unknown option', 'su --unknown -c "git commit -m x"', /wrapper with unmodelled options before git|unmodelled wrapper before git/],
+  ['unbuffer unknown option', 'unbuffer --unknown git commit -m x', /wrapper with unmodelled options before git/],
+  ['flock -c command string', 'flock /tmp/l -c "git commit -m x"', /wrapper with unmodelled options before git|unmodelled wrapper before git/],
+  ['$SHELL reassigned before -c', 'SHELL=eval; $SHELL -c "git commit -m x"', /dynamic command word|unmodelled wrapper/],
+  ['$SHELL -c with dynamic payload and git', '$SHELL -c "$cmd" git commit', /dynamic command word/],
+  ['$EDITOR followed by git commit', '$EDITOR git commit -m x', /dynamic command word/],
+  ['dynamic head with quoted git commit', '$W "git commit -m x"', /dynamic command word/],
+  ['find -exec git commit', 'find . -exec git commit -m x {} +', /find -exec with git/],
+  ['find -exec sh -c git commit', "find . -exec sh -c 'git commit -m x' \\;", /find -exec with git/],
+  ['find second -exec git commit after grep', 'find . -exec grep -l git {} + -exec git commit -m x \\;', /find -exec with git/],
+  ['dynamic git subcommand', 'git $cmd', /dynamic git subcommand/],
+  ['dynamic git subcommand with --no-verify', 'git "$sub" --no-verify', /dynamic git subcommand|--no-verify/],
+];
+
+for (const [label, command, reason] of WRAPPER_ALL_HOOKS_BLOCKED_1435) {
+  test(`#1435 keeps blocking across all three hooks: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          const res = bashHook(hook, command, { cwd, env: BLOCK_MODE });
+          expectStatus(res, BLOCK, `${hook}: ${command}`);
+          assert.match(res.stderr, reason);
+          assert.doesNotMatch(res.stderr, /DHPK_BRANCH_SAFETY=off/);
+          assert.doesNotMatch(res.stderr, /disable the guard/);
+        }
+      }
+    });
+  });
+}
+
+// Review follow-up: SHELL reassigned by an untracked form, trailing words
+// after the -c payload, and a dynamic or {} find -exec head stay blocked.
+const WRAPPER_REVIEW_BLOCKED_1435 = [
+  ['for SHELL in', 'for SHELL in git; do $SHELL -c a=b commit -m x; done'],
+  ['printf -v SHELL', 'printf -v SHELL git; $SHELL -c a=b commit -m x'],
+  ['${SHELL:=git}', ': ${SHELL:=git}; $SHELL -c a=b commit -m x'],
+  ['getopts SHELL', 'getopts x SHELL -x; $SHELL -c a=b commit -m x'],
+  ['mapfile SHELL', 'mapfile SHELL < /dev/null; $SHELL -c a=b commit -m x'],
+  ['$SHELL -c with trailing words', '$SHELL -c a.b=c commit -m x'],
+  ['find -exec dynamic head', 'find . -exec cat {} \\; -exec ${G:-git} commit \\;'],
+  ['find -exec {} head', 'find . -exec cat {} \\; -exec {} commit \\;'],
+];
+
+for (const [label, command] of WRAPPER_REVIEW_BLOCKED_1435) {
+  test(`#1435 blocks reassigned or unprovable wrapper heads on main: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+test('#1435 keeps existing conservative source-before-git restriction unchanged', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = 'source .venv/bin/activate && git status';
+    for (const cwd of [protectedRepo, featureRepo]) {
+      for (const hook of ALL_BASH_HOOKS) {
+        const res = bashHook(hook, command, { cwd, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(res.stderr, /git with source/);
+      }
+    }
+  });
+});
+
+test('#1435 su login -c blocks mutating git even from a feature branch (cwd changes)', () => {
+  withRepos(({ featureRepo }) => {
+    for (const command of ['su - -c "git commit -m x"', 'su -l -c "git commit -m x"']) {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        const res = bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(res.stderr, /target repository is not a literal path/);
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #1449 (spec #1422, RC4): BASH_ENV=, ENV=, --rcfile and --init-file paired
+// with a process substitution are shell input. The startup file named by a
+// path is never read (ADR 0037); only text the command itself carries is judged.
+// ---------------------------------------------------------------------------
+
+const STARTUP_FILE_BLOCKED_1449 = [
+  ['B01 BASH_ENV process substitution', "BASH_ENV=<(echo 'git commit -m x') bash -c :"],
+  ['B10 env wrapper BASH_ENV', "env BASH_ENV=<(echo 'git commit -m x') bash -c :"],
+  ['B11 BASH_ENV with a script-file child', "BASH_ENV=<(echo 'git commit -m x') bash ./ordinary"],
+  ['B12 ENV for sh -i', "ENV=<(echo 'git commit -m x') sh -i -c : </dev/null"],
+  ['B13 BASH_ENV with -i (conservative)', "BASH_ENV=<(echo 'git commit -m x') bash -i -c : </dev/null"],
+  ['R01 --rcfile -i', "bash --rcfile <(echo 'git commit -m x') -i </dev/null"],
+  ['R07 --rcfile without -i', "bash --rcfile <(echo 'git commit -m x') -c :"],
+  ['--init-file process substitution', "bash --init-file <(echo 'git commit -m x') -i -c : </dev/null"],
+  ['verify-skip text in BASH_ENV', "BASH_ENV=<(echo 'git commit --no-verify -m x') bash -c :"],
+  ['quote-split git text in rcfile', "bash --rcfile <(echo 'g\"it\" commit -m x') -i </dev/null"],
+  ['BASH_ENV procsub fed to a script-file child under env -i', "env -i BASH_ENV=<(echo 'git commit -m x') bash ./ordinary"],
+  ['rcfile procsub with a dynamic body', 'bash --rcfile <(echo "$X") -i </dev/null'],
+  ['BASH_ENV=/dev/stdin fed by a pipe', "echo 'git commit -m x' | BASH_ENV=/dev/stdin bash -c :"],
+  ['rcfile /dev/stdin fed by a pipe', "echo 'git commit -m x' | bash --rcfile /dev/stdin -i"],
+  ['BASH_ENV=/dev/stdin fed by a stdin process substitution', "BASH_ENV=/dev/stdin bash -c : < <(echo 'git commit -m x')"],
+  ['B03 BASH_ENV=/dev/stdin here-string (already blocked)', "BASH_ENV=/dev/stdin bash -c : <<< 'git commit -m x'"],
+  ['R08 rcfile /dev/stdin here-string (already blocked)', "bash --rcfile /dev/stdin -i <<< 'git commit -m x'"],
+];
+
+const STARTUP_FILE_ALLOWED_1449 = [
+  ['B07 BASH_ENV file contents are not read', 'BASH_ENV=./hook.sh bash -c :'],
+  ['B09 ordinary BASH_ENV file', 'BASH_ENV=./ordinary bash -c :'],
+  ['R05 rcfile contents are not read', 'bash --rcfile ./hook.sh -i -c : </dev/null'],
+  ['R06 ordinary rcfile', 'bash --rcfile ./ordinary -i -c : </dev/null'],
+  ['R09 rcfile shell running read-only git', "bash --rcfile ./ordinary -i -c 'git status' </dev/null"],
+  ['BASH_ENV procsub without git text', "BASH_ENV=<(echo 'export FOO=1') bash -c :"],
+  ['rcfile procsub without git text', "bash --rcfile <(echo 'alias ll=ls') -i -c : </dev/null"],
+  ['ENV procsub without git text', "ENV=<(echo 'PS1=x') sh -i -c : </dev/null"],
+  ['procsub as a non-startup operand', 'diff <(echo a) <(echo b)'],
+];
+
+test('#1449 judges a heredoc fed to BASH_ENV=/dev/stdin as a script on main', () => {
+  withRepos(({ protectedRepo, featureRepo }) => {
+    const command = `BASH_ENV=/dev/stdin bash -c : ${'<' + '<'}EOF\ngit commit -m x\nEOF`;
+    for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+      expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook} feature: ${command}`);
+    }
+  });
+});
+
+function seedStartupFixtures(repo) {
+  fs.writeFileSync(path.join(repo, 'hook.sh'), 'git commit -m x\n');
+  fs.writeFileSync(path.join(repo, 'ordinary'), 'echo ordinary\n');
+}
+
+for (const [label, command] of STARTUP_FILE_BLOCKED_1449) {
+  test(`#1449 blocks a startup-file shell input on main and a feature branch: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        seedStartupFixtures(cwd);
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
+for (const [label, command] of STARTUP_FILE_ALLOWED_1449) {
+  test(`#1449 allows a startup file that carries no visible git text: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        seedStartupFixtures(cwd);
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// #1448: a trap action, an alias rebinding and an arithmetic consumer's
+// subscript evaluation of quoted text or variable values run command text like
+// eval does. Each form blocks on the protected fixture (all three hooks) and,
+// through the shared unsupported-syntax verdict, on the feature fixture
+// (guard + dispatcher). Legitimate neighbours stay allowed.
+// ---------------------------------------------------------------------------
+
+const EXEC_ENTRANCE_BLOCKED_1448 = [
+  // RC1 trap
+  ['trap DEBUG literal commit (T01)', "trap 'git commit -m x' DEBUG; :", /git with trap/],
+  ['trap DEBUG verify-skip (T02)', "trap 'git commit --no-verify -m x' DEBUG; :", /git with trap/],
+  ['trap EXIT literal commit (T04)', "trap 'git commit -m x' EXIT", /git with trap/],
+  ['trap ERR literal commit (T06)', "trap 'git commit -m x' ERR; false", /git with trap/],
+  ['trap action from a visible variable (T07)', "x='git commit -m x'; trap \"$x\" DEBUG; :", /unresolved trap action/],
+  ['trap action with no visible source (T09, P1)', 'trap "$CMD" DEBUG; :', /unresolved trap action/],
+  ['trap option terminator (T13)', "trap -- 'git commit -m x' DEBUG; :", /git with trap/],
+  ['trap signal 0 (T14)', "trap 'git commit -m x' 0", /git with trap/],
+  ['bash -c wrapping DEBUG trap (N01)', "bash -c \"trap 'git commit -m x' DEBUG; :\"", /git with trap/],
+  ['bash -c wrapping DEBUG trap verify-skip (N05)', "bash -c \"trap 'git commit --no-verify -m x' DEBUG; :\"", /git with trap/],
+  // RC2 alias
+  ['alias echo to eval, later line (L01)', "shopt -s expand_aliases\nalias echo=eval\necho 'git commit -m x'", /alias/],
+  ['alias name for git (L03)', 'shopt -s expand_aliases\nalias g=git\ng commit -m x', /alias/],
+  ['alias echo to eval verify-skip (L08)', "shopt -s expand_aliases\nalias echo=eval\necho 'git commit --no-verify -m x'", /alias/],
+  ['alias used in a function body (L10)', "shopt -s expand_aliases; alias e=eval\nf() { e 'git commit -m x'; }; f", /alias/],
+  ['alias with full git subcommand (L11)', "shopt -s expand_aliases\nalias gc='git commit'\ngc -m x", /alias/],
+  ['alias used in a brace group (L12)', "shopt -s expand_aliases; alias e=eval\n{ e 'git commit -m x'; }", /alias/],
+  ['bash -O expand_aliases -c alias to eval (X14)', "bash -O expand_aliases -c 'alias e=eval\ne \"git commit -m x\"'", /alias/],
+  ['sh -c alias to eval (X15)', "sh -c 'alias e=eval\ne \"git commit -m x\"'", /alias/],
+  ['alias through BASH_ALIASES', 'BASH_ALIASES[e]=eval\ne \'git commit -m x\'', /alias/],
+  ['alias to a wrapper hiding git', "alias w='env git'\nw commit -m x", /alias/],
+  ['trap action from a command substitution', 'trap "$(echo git commit -m x)" EXIT', /git with trap|unresolved/],
+  // RC3 arithmetic consumers
+  ['declare value with a quoted subscript in (( ))', "declare x='a[$(git commit -m x)]'; (( x ))", /arithmetic/],
+  ['$(( x )) with a quoted subscript value', "x='a[$(git commit -m x)]'; echo $(( x ))", /arithmetic/],
+  ['(( x )) with a quoted subscript value (A01)', "x='a[$(git commit -m x)]'; (( x ))", /arithmetic/],
+  ['[[ x -eq 0 ]] with a quoted subscript value (A03)', "x='a[$(git commit -m x)]'; [[ x -eq 0 ]]", /arithmetic/],
+  ['let y=x with a quoted subscript value (A05)', "x='a[$(git commit -m x)]'; let y=x", /arithmetic/],
+  ['let with a quoted literal (A07)', "let 'y=a[$(git commit -m x)]'", /arithmetic/],
+  ['(( x )) verify-skip (A14)', "x='a[$(git commit --no-verify -m x)]'; (( x ))", /arithmetic/],
+  ['bash -c wrapping (( x )) (N02)', "bash -c \"x='a[\\$(git commit -m x)]'; (( x ))\"", /arithmetic/],
+];
+
+for (const [label, command, reason] of EXEC_ENTRANCE_BLOCKED_1448) {
+  test(`#1448 blocks on main across all hooks: ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ALL_BASH_HOOKS) {
+        const res = bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(res.stderr, reason);
+        assert.doesNotMatch(res.stderr, /DHPK_BRANCH_SAFETY=off/);
+      }
+    });
+  });
+
+  test(`#1448 blocks on the feature branch through guard and dispatcher: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        const res = bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE });
+        expectStatus(res, BLOCK, `${hook}: ${command}`);
+        assert.match(res.stderr, reason);
+      }
+    });
+  });
+}
+
+// Legitimate neighbours of each entrance stay allowed on both fixtures.
+const EXEC_ENTRANCE_ALLOWED_1448 = [
+  ['trap cleanup with a trailing variable', 'trap "rm -f $tmp" EXIT'],
+  ['trap naming a function', 'trap cleanup EXIT'],
+  ['trap ignoring a signal', "trap '' INT"],
+  ['trap listing', 'trap -p EXIT'],
+  ['read-only alias', "alias ll='ls -l'"],
+  ['alias with a flag-only value', "alias gl='ls -la'"],
+  ['arithmetic over a non-git subscript', "x='a[$(date)]'; (( x ))"],
+  ['quoted git subscript with no arithmetic consumer', "x='a[$(git status)]'; echo \"$x\""],
+  ['let over plain integers', "let 'j=1+2'; (( j++ )); [[ j -eq 4 ]]"],
+];
+
+for (const [label, command] of EXEC_ENTRANCE_ALLOWED_1448) {
+  test(`#1448 allows on main and feature: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
+// #1452: a variable whose value is visibly assigned in the same command and
+// then used as the command word (or as a shell -c payload) is command-word
+// construction. A value that names git and is not provably read-only blocks
+// with the stable "dynamic command word" reason.
+const GIT_VAR_BLOCKED_1452 = [
+  ['quoted value used as the word', "l='git commit --no-verify -m x'; $l"],
+  ['value with trailing arguments', "c='git commit --no-verify'; $c -m x"],
+  ['plain commit value', "l='git commit -m x'; $l"],
+  ['value as shell -c payload', "l='git commit --no-verify -m x'; bash -c \"$l\""],
+  ['value as sh -c payload', "l='git commit --no-verify -m x'; sh -c \"$l\""],
+  ['export assignment', "export l='git commit --no-verify -m x'; $l"],
+  ['declare assignment', "declare l='git commit --no-verify -m x'; $l"],
+  ['local assignment in a function', "f() { local l='git commit --no-verify -m x'; $l; }; f"],
+  ['braced expansion', "l='git commit --no-verify -m x'; ${l}"],
+  ['double-quoted single word', "l='git commit --no-verify -m x'; \"$l\""],
+  ['array expansion', 'a=(git commit --no-verify -m x); "${a[@]}"'],
+  ['use after &&', "l='git commit --no-verify -m x'; true && $l"],
+  ['use after several statements', "l='git commit --no-verify -m x'; echo hi; echo there; $l"],
+  ['push value', "l='git push --force origin main'; $l"],
+];
+
+for (const [label, command] of GIT_VAR_BLOCKED_1452) {
+  test(`#1452 blocks on main (gate and dispatcher): ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, command, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+  test(`#1452 blocks on feature (guard and dispatcher): ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+test('#1452 names the dynamic command word and a rewrite direction', () => {
+  withRepos(({ featureRepo }) => {
+    const res = bashHook('pre-bash-guard.sh', "l='git commit --no-verify -m x'; $l", { cwd: featureRepo, env: BLOCK_MODE });
+    expectStatus(res, BLOCK, 'guard');
+    assert.match(res.stderr, /dynamic command word/);
+    assert.match(res.stderr, /rewrite/i);
+  });
+});
+
+const GIT_VAR_ALLOWED_1452 = [
+  ['value without git', 'p=ls; $p'],
+  ['multi-word value without git', "p='ls -l'; $p"],
+  ['read-only git status value', "l='git status'; $l"],
+  ['read-only git log value', "l='git log --oneline'; $l"],
+  ['single-word git value with read-only use', 'g=git; $g status'],
+  ['value only echoed', "l='git commit -m x'; echo \"$l\""],
+  ['assignment never used as a word', "l='git commit -m x'"],
+  ['git text inside echo', "echo \"l='git commit'\""],
+];
+
+for (const [label, command] of GIT_VAR_ALLOWED_1452) {
+  test(`#1452 allows on main and feature: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
+// #1452 round 2: taint is kept per variable over the whole command text, the
+// --no-verify and mutation tests never skip on substitution or bracket text,
+// and a read-only first subcommand is no proof when the value holds a
+// separator or a second git. Each row: label, main command, feature command
+// (the feature row carries --no-verify or -n, the only mutation the guard sees).
+const GIT_VAR_ROUND2_1452 = [
+  ['no-verify with bracket text', "l='git commit --no-verify -m a[b]'; $l", "l='git commit --no-verify -m a[b]'; $l"],
+  ['-n with bracket text', "l='git commit -n -m a[b]'; $l", "l='git commit -n -m a[b]'; $l"],
+  ['no-verify with substitution text', "l='git commit --no-verify -m $(x)'; $l", "l='git commit --no-verify -m $(x)'; $l"],
+  ['read-only prefix then &&', "l='git status && git commit -m x'; bash -c \"$l\"", "l='git status && git commit --no-verify -m x'; bash -c \"$l\""],
+  ['read-only prefix then ;', "l='git status ; git commit -m x'; bash -c \"$l\"", "l='git status ; git commit -n -m x'; bash -c \"$l\""],
+  ['read-only prefix then newline', "l='git status\ngit commit -m x'; bash -c \"$l\"", "l='git status\ngit commit -n -m x'; bash -c \"$l\""],
+  ['+= builds the value', "l=git; l+=' commit -m x'; $l", "l=git; l+=' commit --no-verify -m x'; $l"],
+  ['printf -v builds the value', "printf -v l 'git commit -m x'; $l", "printf -v l 'git commit --no-verify -m x'; $l"],
+  ['indexed assignments', 'a[0]=git; a[1]=commit; "${a[@]}" -m x', 'a[0]=git; a[1]=commit; a[2]=--no-verify; "${a[@]}" -m x'],
+  ['use before textual assignment in a loop', "for i in 1 2; do $l; l='git commit -m x'; done", "for i in 1 2; do $l; l='git commit --no-verify -m x'; done"],
+  ['function body uses a later assignment', "f(){ $l; }; l='git commit -m x'; f", "f(){ $l; }; l='git commit --no-verify -m x'; f"],
+  ['custom IFS rebuilds the words', 'IFS=_; m=git_commit_-m_x; $m', 'IFS=_; m=git_commit_--no-verify_-m_x; $m'],
+];
+
+for (const [label, mainCmd, featureCmd] of GIT_VAR_ROUND2_1452) {
+  test(`#1452 r2 blocks on main (gate and dispatcher): ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, mainCmd, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${mainCmd}`);
+      }
+    });
+  });
+  test(`#1452 r2 blocks on feature (guard and dispatcher): ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, featureCmd, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${featureCmd}`);
+      }
+    });
+  });
+}
+
+// Taint follows the variable that holds git text, not the whole command; a
+// provably read-only value stays usable as a command word.
+const GIT_VAR_ROUND2_ALLOWED_1452 = [
+  ['git text in a variable never run as a word', "msg='docs: explain git commit hooks'; cmd=ls; $cmd"],
+  ['read-only value with -C', "g='git -C repo status'; $g"],
+  ['read-only value with --no-pager', "g='git --no-pager log -1'; $g"],
+  ['read-only branch --show-current', "g='git branch --show-current'; $g"],
+  ['read-only stash list', "g='git stash list'; $g"],
+  ['read-only worktree list', "g='git worktree list'; $g"],
+];
+
+for (const [label, command] of GIT_VAR_ROUND2_ALLOWED_1452) {
+  test(`#1452 r2 allows on feature: ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of ALL_BASH_HOOKS) {
+        expectStatus(bashHook(hook, command, { cwd: featureRepo, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+      }
+    });
+  });
+}
+
+// #1452 round 3: namerefs, indirect expansion, case-changing expansion and
+// find -exec shells carry the taint of the variable they resolve to. Each row:
+// label, main command, feature command (feature carries --no-verify).
+const GIT_VAR_ROUND3_1452 = [
+  ['declare -n nameref', "l='git commit -m x'; declare -n r=l; $r", "l='git commit --no-verify -m x'; declare -n r=l; $r"],
+  ['typeset -n nameref', "l='git commit -m x'; typeset -n r=l; $r", "l='git commit --no-verify -m x'; typeset -n r=l; $r"],
+  ['local -n nameref', "f(){ local -n r=l; $r; }; l='git commit -m x'; f", "f(){ local -n r=l; $r; }; l='git commit --no-verify -m x'; f"],
+  ['nameref with unresolved target', "l='git commit -m x'; y=l; declare -n r=$y; $r", "l='git commit --no-verify -m x'; y=l; declare -n r=$y; $r"],
+  ['indirect expansion', "y=l; l='git commit -m x'; ${!y}", "y=l; l='git commit --no-verify -m x'; ${!y}"],
+  ['lower-case expansion', "l='GIT COMMIT -M X'; ${l,,}", "l='GIT COMMIT --NO-VERIFY -M X'; ${l,,}"],
+  ['upper-case expansion', "l='git commit -m x'; ${l^^}", "l='git commit --no-verify -m x'; ${l^^}"],
+  ['toggle-case expansion', "l='GIT COMMIT -M X'; ${l~~}", "l='GIT COMMIT --NO-VERIFY -M X'; ${l~~}"],
+  ['@L transform', "l='GIT COMMIT -M X'; ${l@L}", "l='GIT COMMIT --NO-VERIFY -M X'; ${l@L}"],
+  ['find -exec sh -c', "l='git commit -m x'; find . -exec sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -exec sh -c \"$l\" \\;"],
+  ['find -execdir sh -c', "l='git commit -m x'; find . -execdir sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -execdir sh -c \"$l\" \\;"],
+  ['find -ok sh -c', "l='git commit -m x'; find . -ok sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -ok sh -c \"$l\" \\;"],
+];
+
+for (const [label, mainCmd, featureCmd] of GIT_VAR_ROUND3_1452) {
+  test(`#1452 r3 blocks on main (gate and dispatcher): ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, mainCmd, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${mainCmd}`);
+      }
+    });
+  });
+  test(`#1452 r3 blocks on feature (guard and dispatcher): ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, featureCmd, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${featureCmd}`);
+      }
+    });
+  });
+}
+
+const GIT_VAR_ROUND3_ALLOWED_1452 = [
+  ['nameref to a plain variable', 'declare -n r=p; p=ls; $r'],
+  ['nameref to an untainted target beside git text', "l='git commit -m x'; declare -n r=p; p=ls; $r"],
+  ['lower-case expansion of a plain value', "l='LS'; ${l,,}"],
+  ['indirect expansion of a plain value', 'y=p; p=ls; ${!y}'],
+  ['find -exec sh -c with a plain variable', 'p=ls; find . -exec sh -c "$p" \\;'],
+  ['find -exec echo of git text', "l='git commit -m x'; find . -exec echo \"$l\" \\;"],
+];
+
+for (const [label, command] of GIT_VAR_ROUND3_ALLOWED_1452) {
+  test(`#1452 r3 allows on main and feature: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
 run('hook-bypass');

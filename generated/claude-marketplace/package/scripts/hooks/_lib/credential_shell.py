@@ -48,6 +48,18 @@ SEGMENT_OPERATORS = (';', '&&', '||', '|', '|&', '&', ';;', '(', ')')
 PARAMETER = re.compile(r'\$[A-Za-z0-9_{@*#?!$-]')
 # 其引數只會被當成資料的指令：雙引號中含 heredoc 的替換輸出在這些指令的引數位置才視為資料。
 DATA_COMMANDS = frozenset(('git', 'gh', 'glab', 'echo', 'printf'))
+# git、gh、glab 只在這些子命令的訊息選項中把值當成文字儲存；其他選項（--exec、-c、alias 等）可能執行它。
+TEXT_SUBCOMMANDS = {
+    'git': frozenset(('commit', 'tag', 'merge', 'notes', 'stash')),
+    'gh': frozenset(('issue', 'pr', 'release')),
+    'glab': frozenset(('issue', 'mr', 'release')),
+}
+TEXT_OPTIONS = {
+    'git': frozenset(('-m', '-am', '--message')),
+    'gh': frozenset(('-b', '--body', '-t', '--title', '-n', '--notes')),
+    'glab': frozenset(('-d', '--description', '-t', '--title', '-m', '--message')),
+}
+GIT_VALUE_OPTIONS = frozenset(('-C', '-c', '--git-dir', '--work-tree', '--namespace'))
 ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*\+?=')
 
 CONTINUATION = 'continuation'
@@ -66,6 +78,26 @@ class Token:
     # text of the first command substitution (`$(` or a backtick) outside single
     # quotes in the word, or '' when it has none or its body is resolvable
     substitution: str = ''
+    # an unquoted parameter expansion: the shell splits and globs its value into words
+    bare: bool = False
+    # (#1427) the word's pieces when it holds a parameter expansion or an
+    # unquoted brace list: `(char, quoted)` pairs and `Expansion` items; else None
+    parts: object = None
+    # (#1427) set by the policy's expansion step when the word's value cannot be resolved
+    unresolved: bool = False
+    # (#1453) the literal text left once each parameter expansion with no visible
+    # source is removed; '' when the word has no such expansion
+    residue: str = ''
+
+
+@dataclass(frozen=True)
+class Expansion:
+    """One `$name` or `${name<op>arg}` parameter expansion inside a word."""
+    text: str
+    name: str
+    op: str
+    arg: str
+    quoted: bool
 
 
 @dataclass
@@ -109,6 +141,10 @@ class _Cursor:
         self.text = text
         self.i = start
         self.quote = None
+        # (#1427) True inside an ANSI-C quote: `quote` stays a single quote so every
+        # view still reads it as single-quoted text, but a backslash escapes the next character.
+        self.ansi = False
+        self._dollar = False
         self.word = False
         self.comments = comments
         self.spaces = spaces
@@ -136,6 +172,7 @@ class _Cursor:
     def next(self):
         text, i, quote = self.text, self.i, self.quote
         ch = text[i]
+        dollar, self._dollar = self._dollar, False
         # 反斜線換行在 shell 詞法中消失，不應改變原有字詞起點狀態。
         if ch == '\\' and quote != "'" and i + 1 < len(text) and text[i + 1] == '\n':
             self.i = i + 2
@@ -146,7 +183,7 @@ class _Cursor:
             self.i = len(text) if end < 0 else end
             return COMMENT, ''
         self.word = quote is not None or not (self.spaces(ch) or ch in OPERATOR_CHARS)
-        if ch == '\\' and quote != "'":
+        if ch == '\\' and (quote != "'" or self.ansi):
             if i + 1 >= len(text):
                 if self.unfinished_escape:
                     raise ValueError(self.unfinished_escape)
@@ -156,9 +193,11 @@ class _Cursor:
             return ESCAPE, text[i + 1]
         if self.quotes and ch in '\'"' and (quote is None or quote == ch):
             self.quote = None if quote else ch
+            self.ansi = not quote and ch == "'" and dollar
             self.i = i + 1
             return QUOTE, ch
         self.i = i + 1
+        self._dollar = quote is None and ch == '$'
         return CHAR, ch
 
 
@@ -167,18 +206,27 @@ def tokenize(text):
 
     Substitution bodies are lexed inline, so `$(cat x)` yields `$`, `(`, `cat`,
     `x`, `)`; the policy judges those words in the outer command as well.
+
+    ANSI-C (`$'..'`) words are decoded and a locale quote (`$".."`) reads as a
+    plain double quote, so the word holds the characters the shell would pass on
+    (#1427). A word with a parameter expansion or an unquoted brace list also
+    keeps its `parts`, which the policy resolves from visible text.
     """
     cursor = _Cursor(text, spaces=WORD_SPACES.__contains__, unfinished_escape='unfinished escape')
     tokens = []
     value = []
-    glob = dynamic = started = False
+    pieces = []
+    glob = dynamic = started = bare = False
     substitution = ''
+    has_expansion = False
+    skip_until = 0
 
     def flush():
-        nonlocal value, glob, dynamic, started, substitution
+        nonlocal value, pieces, glob, dynamic, started, substitution, has_expansion, bare
         if started:
-            tokens.append(Token(''.join(value), glob, dynamic, substitution=substitution))
-        value, glob, dynamic, started, substitution = [], False, False, False, ''
+            parts = tuple(pieces) if has_expansion or _brace_list(pieces) else None
+            tokens.append(Token(''.join(value), glob, dynamic, substitution=substitution, bare=bare, parts=parts))
+        value, pieces, glob, dynamic, started, substitution, has_expansion, bare = [], [], False, False, False, '', False, False
 
     while not cursor.at_end():
         start = cursor.i
@@ -187,12 +235,20 @@ def tokenize(text):
             continue
         if kind == QUOTE:
             started = True
+            if cursor.ansi:
+                decoded, end = _ansi_c(text, cursor.i)
+                value.append(decoded)
+                pieces.extend((c, True) for c in decoded)
+                cursor.seek(end)
+                cursor.quote, cursor.ansi = None, False
             continue
         if kind == ESCAPE:
             # 雙引號中的反斜線只跳脫 shell 特殊字元，其他情況必須保留避免偽造 helper 路徑。
             if cursor.quote == '"' and ch not in DOUBLE_QUOTE_ESCAPES:
                 value.append('\\')
+                pieces.append(('\\', True))
             value.append(ch)
+            pieces.append((ch, True))
             started = True
             continue
         quoted = cursor.quote is not None
@@ -213,25 +269,148 @@ def tokenize(text):
                 cursor.seek(cursor.i + 1)
             tokens.append(Token(op, operator=True))
             continue
+        if ch == '$' and cursor.quote is None and text[cursor.i:cursor.i + 1] in ('"', "'") and cursor.i < len(text):
+            # `$"..."` and `$'...'` are quotes; the `$` is not part of the word.
+            started = True
+            continue
         if ch == '$' and cursor.quote != "'":
             end = _resolvable_end(text, cursor.i)
             if end is not None:
                 # `$(pwd)/.env` 是一個字詞：保留整段，其後綴才會被政策逐字判斷。
                 value.append(text[start:end])
+                pieces.extend((c, True) for c in text[start:end])
                 cursor.seek(end)
                 dynamic = started = True
                 continue
+        piece, inside = (ch, quoted), start < skip_until
+        if ch == '$' and cursor.quote != "'" and not inside:
+            found = _parse_expansion(text, cursor.i, cursor.quote == '"')
+            if found:
+                piece, skip_until = found
+                has_expansion = True
         if ch in '$`' and cursor.quote != "'":
             dynamic = True
+            bare = bare or (not quoted and bool(PARAMETER.match(text, start)))
             substitution = substitution or _unresolved_substitution(text, cursor.i, ch)
         if ch in '*?[' and not quoted:
             glob = True
         value.append(ch)
+        if not inside:
+            pieces.append(piece)
         started = True
     if cursor.quote:
         raise ValueError('unfinished quote')
     flush()
     return tokens
+
+
+NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+SPECIAL_PARAMETER = re.compile(r'[0-9@*#?$!-]')
+# `${1}`, `${@}`, `${!x}` (indirect); `${#x}` is a length and stays an opaque word.
+BRACED_SPECIAL = re.compile(r'\d+|[@*#?$!-](?![A-Za-z_0-9])|![A-Za-z_][A-Za-z0-9_]*')
+ANSI_C_SIMPLE = {'a': '\a', 'b': '\b', 'e': '\x1b', 'E': '\x1b', 'f': '\f', 'n': '\n', 'r': '\r', 't': '\t',
+                 'v': '\v', '\\': '\\', "'": "'", '"': '"', '?': '?'}
+ANSI_C_NUMERIC = {'x': ('0123456789abcdefABCDEF', 2, 16), 'u': ('0123456789abcdefABCDEF', 4, 16),
+                  'U': ('0123456789abcdefABCDEF', 8, 16)}
+
+
+def _brace_list(pieces):
+    """True when unquoted text holds a `{a,b}` or `{1..3}` shape that the shell would expand."""
+    plain = ''.join(p[0] for p in pieces if isinstance(p, tuple) and not p[1])
+    return '{' in plain and (',' in plain or '..' in plain)
+
+
+def _ansi_c(text, i):
+    """Decode the `$'...'` body that starts at `i`; return (decoded, index past the closing quote).
+
+    Mirrors the shell: simple escapes, 1-3 digit octal, `\\xHH`, `\\uHHHH`,
+    `\\UHHHHHHHH`, `\\cX`; an unknown escape stays as written; a NUL ends the
+    value (the rest of the quoted text is dropped).
+    """
+    out = []
+    truncated = False
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "'":
+            return ''.join(out), i + 1
+        if ch != '\\' or i + 1 >= n:
+            piece, i = ch, i + 1
+        else:
+            piece, i = _ansi_c_escape(text, i + 1)
+        if piece == '\x00':
+            truncated = True
+        elif not truncated:
+            out.append(piece)
+    raise ValueError('unfinished quote')
+
+
+def _ansi_c_escape(text, i):
+    """Decode the escape whose letter is at `i`; return (text, next index)."""
+    letter = text[i]
+    if letter in ANSI_C_SIMPLE:
+        return ANSI_C_SIMPLE[letter], i + 1
+    if letter in '01234567':
+        end = i + 1
+        while end < min(i + 3, len(text)) and text[end] in '01234567':
+            end += 1
+        return chr(int(text[i:end], 8) & 0xFF), end
+    if letter in ANSI_C_NUMERIC:
+        digits, width, base = ANSI_C_NUMERIC[letter]
+        end = i + 1
+        while end < min(i + 1 + width, len(text)) and text[end] in digits:
+            end += 1
+        code = int(text[i + 1:end], base) if end > i + 1 else None
+        if code is None or code > 0x10FFFF or 0xD800 <= code <= 0xDFFF:
+            return '\\' + letter, i + 1
+        return chr(code), end
+    if letter == 'c' and i + 1 < len(text) and text[i + 1] != "'":
+        return chr(ord(text[i + 1]) & 0x1F), i + 2
+    return '\\' + letter, i + 1
+
+
+def _parse_expansion(text, i, quoted):
+    """Parse the `$name` or `${name<op>arg}` whose text after the `$` starts at `i`.
+
+    Returns `(Expansion, end index)`, or None for any other `$` form (`$1`,
+    `$(..)`, `${#x}`, an unclosed brace), which stays an opaque dynamic word.
+    """
+    found = NAME.match(text, i)
+    if found:
+        return Expansion(text[i - 1:found.end()], found.group(), '', '', quoted), found.end()
+    # (#1453) positional and special parameters are expansions whose value no text shows.
+    special = SPECIAL_PARAMETER.match(text, i)
+    if special and not text.startswith('{', i):
+        return Expansion(text[i - 1:special.end()], special.group(), '', '', quoted), special.end()
+    if not text.startswith('{', i):
+        return None
+    depth, k = 1, i + 1
+    while k < len(text) and depth:
+        if text[k] == '\\':
+            k += 1
+        elif text.startswith('${', k):
+            depth, k = depth + 1, k + 1
+        elif text[k] == '}':
+            depth -= 1
+        k += 1
+    if depth:
+        return None
+    inner = text[i + 1:k - 1]
+    named = NAME.match(inner)
+    if not named:
+        named = BRACED_SPECIAL.match(inner)
+        if not named:
+            return None
+        rest = inner[named.end():]
+        # No operator semantics are modelled for these: the word stays an unknown value.
+        return Expansion(text[i - 1:k], named.group(), 'other' if rest else '', rest, quoted), k
+    rest = inner[named.end():]
+    operator = re.match(r':?[-=+?]', rest)
+    if operator:
+        op, arg = operator.group(), rest[operator.end():]
+    else:
+        op, arg = ('', '') if not rest else ('other', rest)
+    return Expansion(text[i - 1:k], named.group(), op, arg, quoted), k
 
 
 def _unresolved_substitution(text, i, ch):
@@ -518,7 +697,7 @@ def _heredocs(text, heredocs=True):
         # xargs、parallel 與讀取迴圈把 heredoc 內文當成檔名或指令；內文不是資料，且此處無法判定其內容。
         # 必須先於 shell 檢查，否則同一行的 eval 或 bash -c 會讓這個檢查被略過。
         shell_code = any(not token.operator and token.value.rsplit('/', 1)[-1] in HEREDOC_SHELLS for token in new_tokens)
-        if any(not token.operator and _feeds_arguments(token.value, shell_code) for token in new_tokens):
+        if _feeds_unresolved(new_tokens, shell_code, text):
             raise ValueError('heredoc text may run through xargs, parallel, exec or a read loop')
         if _dynamic_command(new_tokens):
             raise ValueError('heredoc read by an unresolved command')
@@ -583,6 +762,146 @@ def _feeds_arguments(word, shell_code=False):
     return any(name in INPUT_FEEDERS for name in names)
 
 
+# xargs 選項：不帶值的旗標、帶值的選項，以及選用值（附在選項上）的替換字串選項（#1433）。
+XARGS_FLAGS = frozenset(('--', '-0', '-r', '-t', '-x', '--null', '--no-run-if-empty', '--verbose', '--exit'))
+XARGS_VALUE_OPTIONS = frozenset(('-n', '-L', '-P', '-s', '-d', '-E'))
+XARGS_ATTACHED_VALUE = re.compile(r'^-[nLPsdE].+$')
+XARGS_LONG_VALUE = re.compile(r'^--(max-args|max-lines|max-procs|max-chars|delimiter|eof)=.+$')
+# 只印出參數、不會把參數當檔名或指令的 xargs 命令。
+INERT_XARGS_COMMANDS = frozenset(('echo',))
+# 只把文字存進一般變數的讀取內建命令及其可用選項。
+READ_BUILTINS = {'read': frozenset(('-r',)), 'readarray': frozenset(('-t',)), 'mapfile': frozenset(('-t',))}
+PLAIN_VARIABLE = re.compile(r'^[a-z_][a-z0-9_]*$')
+
+
+def _replace_string(value, following):
+    """The replace string an xargs `-I`, `-i` or `--replace` option sets and how many words it uses; None when unclear."""
+    if value == '-I':
+        return (following, 2) if following is not None else None
+    if value == '--replace':
+        return '{}', 1
+    if value.startswith('--replace='):
+        return value.split('=', 1)[1], 1
+    if value.startswith('-I'):
+        return value[2:], 1
+    return value[2:] or '{}', 1
+
+
+def xargs_command(words, head):
+    """The words of the command an xargs invocation runs and its replace string.
+
+    Returns `(command_words, replace)` or None when an option is not one of the
+    inert, fully understood forms: an unknown option may read a file or the tty.
+    """
+    replace = None
+    index = head + 1
+    while index < len(words):
+        word = words[index]
+        value = word.value
+        if word.dynamic or word.glob:
+            return None
+        if not value.startswith('-') or value == '-':
+            return words[index:], replace
+        if value in XARGS_FLAGS or XARGS_LONG_VALUE.match(value) or XARGS_ATTACHED_VALUE.match(value):
+            index += 1
+        elif value in XARGS_VALUE_OPTIONS:
+            if index + 1 >= len(words):
+                return None
+            index += 2
+        elif value.startswith(('-I', '-i', '--replace')):
+            found = _replace_string(value, words[index + 1].value if index + 1 < len(words) else None)
+            if found is None:
+                return None
+            replace = found[0]
+            index += found[1]
+        else:
+            return None
+    return [], replace
+
+
+def _inert_xargs(words, head):
+    """True when xargs only prints the heredoc text: its command is echo (the default) and nothing is substituted into the command word."""
+    found = xargs_command(words, head)
+    if found is None:
+        return False
+    command, replace = found
+    if not command:
+        return True
+    name = command[0]
+    if name.dynamic or name.value.rsplit('/', 1)[-1] not in INERT_XARGS_COMMANDS:
+        return False
+    return replace is None or replace not in name.value
+
+
+def _inert_read(words, head, text):
+    """True when a read builtin only stores the heredoc text in plain lowercase variables.
+
+    Stored text can run only through an expansion, and a text with no dollar sign
+    and no backtick anywhere holds none, so the stored value cannot become a command.
+    """
+    if '$' in text or '`' in text:
+        return False
+    allowed = READ_BUILTINS[words[head].value]
+    names = []
+    for word in words[head + 1:]:
+        if word.dynamic or word.glob:
+            return False
+        if word.value.startswith('-'):
+            if word.value not in allowed:
+                return False
+        elif PLAIN_VARIABLE.match(word.value):
+            names.append(word.value)
+        else:
+            return False
+    return bool(names) and (words[head].value == 'read' or len(names) == 1)
+
+
+def _inert_feeder(words, head, text):
+    """True when the feeder at `head` is proven to only print or store the heredoc text."""
+    if words[head].dynamic or words[head].glob:
+        return False
+    if words[head].value.rsplit('/', 1)[-1] == 'xargs':
+        return _inert_xargs(words, head)
+    return words[head].value in READ_BUILTINS and _inert_read(words, head, text)
+
+
+def _command_words(tokens):
+    """Word lists of the commands between segment operators, without redirect targets."""
+    segments, current, redirect = [], [], False
+    for token in tokens:
+        if token.operator and token.value in SEGMENT_OPERATORS:
+            segments.append(current)
+            current, redirect = [], False
+        elif token.operator:
+            redirect = True
+        elif redirect:
+            redirect = False
+        else:
+            current.append(token)
+    segments.append(current)
+    return segments
+
+
+def _feeds_unresolved(tokens, shell_code, text):
+    """True when a feeder on the heredoc header line may turn the text into arguments or commands.
+
+    A feeder word that is only text (an argument of echo, a message option of a
+    recognised consumer) is data. A feeder at the head of its command is judged
+    by what it does with its input; any other feeder word stays unresolved.
+    """
+    for words in _command_words(tokens):
+        head = _head_index(words)
+        for index, word in enumerate(words):
+            if not _feeds_arguments(word.value, shell_code):
+                continue
+            if _data_argument(words, head, index):
+                continue
+            if index == head and _inert_feeder(words, head, text):
+                continue
+            return True
+    return False
+
+
 def _dynamic_command(tokens):
     """True when a command word is built by an expansion, so its name is unknown."""
     head = True
@@ -630,20 +949,72 @@ def _defines_function(tokens):
     return False
 
 
+def _head_index(words):
+    return next((i for i, word in enumerate(words) if word.value not in RESERVED_WORDS and not ASSIGNMENT.match(word.value)), None)
+
+
+def _git_subcommand(words, head):
+    """The git subcommand named after the global options, or '' when none is visible."""
+    skip = False
+    for word in words[head + 1:]:
+        if skip:
+            skip = False
+        elif word.value in GIT_VALUE_OPTIONS:
+            skip = True
+        elif not word.value.startswith('-'):
+            return word.value
+    return ''
+
+
+def _text_option_value(words, head, index, name):
+    """True when `words[index]` is the value of a message option of a recognised subcommand."""
+    subcommand = _git_subcommand(words, head) if name == 'git' else next(
+        (word.value for word in words[head + 1:] if not word.value.startswith('-')), '')
+    if subcommand not in TEXT_SUBCOMMANDS[name]:
+        return False
+    options = TEXT_OPTIONS[name]
+    value = words[index].value
+    return words[index - 1].value in options or any(
+        option.startswith('--') and value.startswith(option + '=') for option in options)
+
+
+def _data_argument(words, head, index):
+    """True when the command at `head` only prints or stores `words[index]` as text.
+
+    The consumer and the option decide: `echo` and `printf` print every argument;
+    git, gh and glab store the value of a message option of a recognised
+    subcommand. An unquoted parameter is split into words that may name options,
+    and `${x@P}` expands prompt escapes that run substitutions, so neither is text.
+    """
+    if head is None or index <= head or words[head].dynamic:
+        return False
+    word = words[index]
+    if '@P' in word.value or any(other.value == '-v' for other in words):
+        return False
+    name = words[head].value.rsplit('/', 1)[-1]
+    if name in ('echo', 'printf'):
+        return True
+    if name not in TEXT_OPTIONS or word.bare:
+        return False
+    return _text_option_value(words, head, index, name)
+
+
 def _output_may_run(tokens):
     """True unless every heredoc-bearing substitution is a data argument.
 
-    Data position: a double-quoted word after the name of a command in
-    DATA_COMMANDS (`git commit -m "$(cat <<EOF ...)"`), with no function in the
-    command. A substitution assigned to a variable is data only while no word
-    expands any parameter, because the stored text could be run later.
+    Data position: the message value of a data consumer (`git commit -m
+    "$(cat <<EOF ...)"`, `gh issue create --body "$(...)"`, `echo "$(...)"`),
+    with no function in the command. A substitution assigned to a variable is
+    data only while every parameter expansion in the command is such an
+    argument, because any other use could run the stored text later.
     """
     if _defines_function(tokens):
         return True
-    expands = any(not token.operator and token.dynamic and PARAMETER.search(token.value) and not ASSIGNMENT.match(token.value)
-                  for token in tokens)
-    for words in _segments(tokens):
-        head = next((i for i, word in enumerate(words) if word.value not in RESERVED_WORDS and not ASSIGNMENT.match(word.value)), None)
+    segments = [(words, _head_index(words)) for words in _segments(tokens)]
+    expands = any(word.dynamic and PARAMETER.search(word.value) and not ASSIGNMENT.match(word.value)
+                  and not _data_argument(words, head, index)
+                  for words, head in segments for index, word in enumerate(words))
+    for words, head in segments:
         for index, word in enumerate(words):
             if not _holds_heredoc_substitution(word):
                 continue
@@ -651,9 +1022,7 @@ def _output_may_run(tokens):
                 if expands:
                     return True
                 continue
-            if head is None or index <= head or words[head].dynamic or words[head].value.rsplit('/', 1)[-1] not in DATA_COMMANDS:
-                return True
-            if any(other.value == '-v' for other in words):
+            if not _data_argument(words, head, index):
                 return True
     return False
 
