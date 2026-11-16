@@ -11,11 +11,11 @@ import re
 import stat
 import sys
 
-from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, lex, xargs_command
+from credential_shell import ASSIGNMENT, EXEC_SHELLS, RESERVED_WORDS, Token, lex, xargs_command
 from credential_expand import expand_variants
 from credential_code import code_strings, expand_aliases
 from credential_options import ADAPTERS, INERT_HEADS, READERS, WEAK_READERS, ReadPlan, exclusion_syntax
-from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings
+from credential_git import GIT_ADAPTER, RELOCATING_VARIABLES, exec_strings, git_subcommand, pages
 from credential_scan import MAX_SECONDS, budget_seconds
 import time
 from credential_scan import scan_roots
@@ -420,7 +420,7 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
     startup = startup_file_verdict(tokens, patterns, cwd)
     if startup is not None:
         return startup
-    found = exec_entrance_verdict(words, names, patterns)
+    found = exec_entrance_verdict(words, names, patterns, cwd)
     if found is not None:
         return found
     # Known readers in wrappers are still inspected; a wrapper never grants an exception.
@@ -446,13 +446,53 @@ def segment_verdict(tokens, patterns, cwd, git_relocated=False):
 
 
 SSH_COMMAND_VARIABLE = 'GIT_SSH_COMMAND='
+# (#1454) GIT_SSH names a program; GIT_PAGER and PAGER name a command line run only when git pages.
+PROGRAM_VARIABLE = re.compile(r'^GIT_SSH=(.*)$', re.S)
+PAGER_VARIABLE = re.compile(r'^(?:GIT_PAGER|PAGER)=(.*)$', re.S)
 
 
-def exec_entrance_verdict(words, names, patterns):
+def _program_verdict(value, patterns, cwd):
+    """(#1454) GIT_SSH=<program>: the path is judged by name, a visible command line is judged as text."""
+    if not value.strip():
+        return verdict.allow()
+    found = executed_file_verdict(Token(value), patterns, cwd)
+    if not found.allowed:
+        return found
+    return analyze(value, patterns, None, True)
+
+
+def _pager_runs(words, names):
+    """(#1454) A pager variable matters when a paging git subcommand follows, or when it is only being exported."""
+    git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
+    if git_index is not None:
+        return pages(git_subcommand(words[git_index + 1:]))
+    return all(ASSIGNMENT.match(w.value) or name in ASSIGNMENT_CARRIERS for w, name in zip(words, names))
+
+
+def _variable_commands(words, names, patterns, cwd):
+    """(#1454) Verdict for GIT_SSH, GIT_PAGER and PAGER assignments in one segment; None when all are fine."""
+    for word in words:
+        program = PROGRAM_VARIABLE.match(word.value)
+        if program:
+            found = _program_verdict(program.group(1), patterns, cwd)
+            if not found.allowed:
+                return found
+        pager = PAGER_VARIABLE.match(word.value)
+        if pager and pager.group(1).strip() and _pager_runs(words, names):
+            found = analyze(pager.group(1), patterns, None, True)
+            if not found.allowed:
+                return found
+    return None
+
+
+def exec_entrance_verdict(words, names, patterns, cwd=None):
     """(#1431) Judge command strings Git or its SSH variable will execute; None when the segment has none.
 
     The string runs in a directory this text does not know, so it is judged like a Remote Wrapper command.
     """
+    found = _variable_commands(words, names, patterns, cwd)
+    if found is not None:
+        return found
     commands = [w.value[len(SSH_COMMAND_VARIABLE):] for w in words if w.value.startswith(SSH_COMMAND_VARIABLE)]
     git_index = next((i for i, name in enumerate(names) if name == 'git'), None)
     reader_index = next((i for i, name in enumerate(names) if _invokes_reader(names, i) or name == 'ssh'), None)
@@ -491,6 +531,22 @@ def code_string_verdict(tokens, patterns, cwd, remote, checked):
     return verdict.allow()
 
 
+PROXY_COMMAND = re.compile(r'^\s*proxycommand(?:\s*=\s*|\s+)(.*)$', re.I | re.S)
+
+
+def _proxy_command(setting):
+    """(#1454) The command an `-o ProxyCommand` setting runs, or None for another setting."""
+    match = PROXY_COMMAND.match(setting)
+    return match.group(1) if match else None
+
+
+def proxy_command_verdict(command, patterns):
+    """(#1454) A ProxyCommand runs through a shell in a directory this text does not know."""
+    if not command.strip():
+        return verdict.allow()
+    return analyze(command, patterns, None, True)
+
+
 def remote_wrapper_verdict(args, patterns):
     """`ssh` is a Remote Wrapper: its command is judged with no local knowledge."""
     i = 0
@@ -502,6 +558,16 @@ def remote_wrapper_verdict(args, patterns):
             break
         if not arg.startswith('-') or arg == '-':
             break
+        setting = None
+        if arg == '-o' and i + 1 < len(args):
+            setting = args[i + 1].value
+        elif arg.startswith('-o') and len(arg) > 2:
+            setting = arg[2:]
+        command = _proxy_command(setting) if setting is not None else None
+        if command is not None:
+            found = proxy_command_verdict(command, patterns)
+            if not found.allowed:
+                return found
         if len(arg) == 2 and arg[1] in takes_value:
             i += 1
         i += 1
