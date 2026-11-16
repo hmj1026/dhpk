@@ -3167,4 +3167,60 @@ for (const [label, command] of GIT_VAR_ROUND2_ALLOWED_1452) {
   });
 }
 
+// #1452 round 3: namerefs, indirect expansion, case-changing expansion and
+// find -exec shells carry the taint of the variable they resolve to. Each row:
+// label, main command, feature command (feature carries --no-verify).
+const GIT_VAR_ROUND3_1452 = [
+  ['declare -n nameref', "l='git commit -m x'; declare -n r=l; $r", "l='git commit --no-verify -m x'; declare -n r=l; $r"],
+  ['typeset -n nameref', "l='git commit -m x'; typeset -n r=l; $r", "l='git commit --no-verify -m x'; typeset -n r=l; $r"],
+  ['local -n nameref', "f(){ local -n r=l; $r; }; l='git commit -m x'; f", "f(){ local -n r=l; $r; }; l='git commit --no-verify -m x'; f"],
+  ['nameref with unresolved target', "l='git commit -m x'; y=l; declare -n r=$y; $r", "l='git commit --no-verify -m x'; y=l; declare -n r=$y; $r"],
+  ['indirect expansion', "y=l; l='git commit -m x'; ${!y}", "y=l; l='git commit --no-verify -m x'; ${!y}"],
+  ['lower-case expansion', "l='GIT COMMIT -M X'; ${l,,}", "l='GIT COMMIT --NO-VERIFY -M X'; ${l,,}"],
+  ['upper-case expansion', "l='git commit -m x'; ${l^^}", "l='git commit --no-verify -m x'; ${l^^}"],
+  ['toggle-case expansion', "l='GIT COMMIT -M X'; ${l~~}", "l='GIT COMMIT --NO-VERIFY -M X'; ${l~~}"],
+  ['@L transform', "l='GIT COMMIT -M X'; ${l@L}", "l='GIT COMMIT --NO-VERIFY -M X'; ${l@L}"],
+  ['find -exec sh -c', "l='git commit -m x'; find . -exec sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -exec sh -c \"$l\" \\;"],
+  ['find -execdir sh -c', "l='git commit -m x'; find . -execdir sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -execdir sh -c \"$l\" \\;"],
+  ['find -ok sh -c', "l='git commit -m x'; find . -ok sh -c \"$l\" \\;", "l='git commit --no-verify -m x'; find . -ok sh -c \"$l\" \\;"],
+];
+
+for (const [label, mainCmd, featureCmd] of GIT_VAR_ROUND3_1452) {
+  test(`#1452 r3 blocks on main (gate and dispatcher): ${label}`, () => {
+    withRepos(({ protectedRepo }) => {
+      for (const hook of ['pretool-git-gate.sh', 'pre-bash-dispatch.sh']) {
+        expectStatus(bashHook(hook, mainCmd, { cwd: protectedRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${mainCmd}`);
+      }
+    });
+  });
+  test(`#1452 r3 blocks on feature (guard and dispatcher): ${label}`, () => {
+    withRepos(({ featureRepo }) => {
+      for (const hook of GUARD_AND_DISPATCH) {
+        expectStatus(bashHook(hook, featureCmd, { cwd: featureRepo, env: BLOCK_MODE }), BLOCK, `${hook}: ${featureCmd}`);
+      }
+    });
+  });
+}
+
+const GIT_VAR_ROUND3_ALLOWED_1452 = [
+  ['nameref to a plain variable', 'declare -n r=p; p=ls; $r'],
+  ['nameref to an untainted target beside git text', "l='git commit -m x'; declare -n r=p; p=ls; $r"],
+  ['lower-case expansion of a plain value', "l='LS'; ${l,,}"],
+  ['indirect expansion of a plain value', 'y=p; p=ls; ${!y}'],
+  ['find -exec sh -c with a plain variable', 'p=ls; find . -exec sh -c "$p" \\;'],
+  ['find -exec echo of git text', "l='git commit -m x'; find . -exec echo \"$l\" \\;"],
+];
+
+for (const [label, command] of GIT_VAR_ROUND3_ALLOWED_1452) {
+  test(`#1452 r3 allows on main and feature: ${label}`, () => {
+    withRepos(({ protectedRepo, featureRepo }) => {
+      for (const cwd of [protectedRepo, featureRepo]) {
+        for (const hook of ALL_BASH_HOOKS) {
+          expectStatus(bashHook(hook, command, { cwd, env: BLOCK_MODE }), ALLOW, `${hook}: ${command}`);
+        }
+      }
+    });
+  });
+}
+
 run('hook-bypass');
