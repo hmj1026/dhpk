@@ -40,6 +40,8 @@ const blocked = [
   'head -5 .env', 'tail -20 my.cnf', "sed -i 's/a/b/' .env",
   // rg -E 是 --encoding（帶值）；若當成 grep 的 -E，pattern 會被誤認成檔案而跳過遞迴檢查。
   'rg -E utf8 package.json', 'rg -E . ordinary', 'rg -E utf8 -e x ordinary', 'grep -E "a|b" .env', 'grep -F needle credentials.json',
+  // (#1453) 沒有可見來源的 parameter expansion 夾在字面中；去掉後可組成 Protected Path 就不能放行。
+  'cat .e${x}nv', "cat .e$x'nv'", 'cat ${x}.env', 'cat .env${x}', 'base64 .e${x}nv', 'cat .e${x}n${y}v', 'cat "${x}.env"',
 ];
 const allowed = [
   "echo 'cat .env'", "echo '$(cat .env)'", 'echo literal#hash', "echo '# literal'", 'ls .env', 'stat .env', 'cat ordinary', 'cat .env.example', 'cat .env.sample',
@@ -50,8 +52,23 @@ const allowed = [
   'git tag | head -15', 'git log --oneline | tail -5', 'head -40 ordinary',
   'grep -E "a|b" ordinary', 'grep -F needle ordinary', 'grep -P "x+" ordinary', 'grep -h needle ordinary',
   "sed -i 's/\\r//' script.sh",
+  // (#1453) 沒有受保護字面的 expansion、template 例外與 quoted 單獨變數仍可讀。
+  'cat ordinary${x}', 'cat "$f"', 'cat $f', 'cat ${x}ordinary', 'cat .e${x}',
 ];
 for (const hook of ['pre-bash-guard.sh', 'pre-bash-dispatch.sh']) {
+  test(`${hook} names a parameter expansion without a visible source and a rewrite direction (#1453)`, () => {
+    const result = runHook(hook, { payload: { tool_input: { command: 'cat .e${x}nv' } } });
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.match(result.stderr, /ambiguous read target: target '\.e\$\{x\}nv' with a parameter expansion that has no visible source/);
+    assert.match(result.stderr, /write the file name as one literal word/);
+    assert.ok(!result.stderr.includes('synthetic'), 'no file content in the message');
+  });
+  test(`${hook} still reads a visible value that is not protected (#1453)`, () => {
+    for (const command of ['x=; cat .e${x}nv', 'x=v; cat .e${x}nv']) {
+      const result = runHook(hook, { payload: { tool_input: { command } } });
+      assert.strictEqual(result.status, command.startsWith('x=;') ? 2 : 0, `${command}: ${result.stderr}`);
+    }
+  });
   test(`${hook} treats quoted heredoc content as data`, () => {
     const command = "cat > out.txt <<'EOF'\n$(cat .env)\nEOF\n";
     const result = runHook(hook, {payload: {tool_input: {command}}});
